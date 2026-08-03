@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio runtime.
+ * OpenStation — Mio runtime.
  *
  * Owns the PixiJS application, the simulation loop, the drag
  * interaction, and Mio's awareness of the desk around it.
@@ -143,7 +143,7 @@ const TRAPPED_DWELL_S = 0.22;
 export async function mountMio(
 	options: MioMountOptions,
 ): Promise< MioHandle | null > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api?.loadModules ) {
 		try {
 			await api.loadModules( [ 'pixijs' ] );
@@ -291,7 +291,7 @@ export async function mountMio(
 		// Give the pick its full turn on screen rather than however
 		// long was left on a clock the user cannot see.
 		nextShuffle = shuffleDelay( config.physics.shapeShuffle );
-		doAction( 'desktop-mode.mio.shape-changed', { shape, from: morphFrom } );
+		doAction( 'os.mio.shape-changed', { shape, from: morphFrom } );
 	};
 
 	/** Advance the shuffle clock and the morph in progress. */
@@ -326,7 +326,7 @@ export async function mountMio(
 		morphFrom = shape;
 		morphAt = 0;
 		shape = next;
-		doAction( 'desktop-mode.mio.shape-changed', { shape, from: morphFrom } );
+		doAction( 'os.mio.shape-changed', { shape, from: morphFrom } );
 	};
 
 	let body: SoftBody = createSoftBody(
@@ -355,7 +355,7 @@ export async function mountMio(
 	// itself stays inert.
 	// ------------------------------------------------------------------
 	const handle = document.createElement( 'div' );
-	handle.className = 'desktop-mode-mio__handle';
+	handle.className = 'os-mio__handle';
 	handle.setAttribute( 'aria-hidden', 'true' );
 	sizeHandle( handle, config );
 	host.appendChild( handle );
@@ -454,7 +454,7 @@ export async function mountMio(
 		}
 		lastSurfaceRead = nowMs;
 		origin = originOf();
-		const surfaces = window.wp?.desktop?.getWallpaperSurfaces?.();
+		const surfaces = window.wp?.os?.getWallpaperSurfaces?.();
 		obstacles = Array.isArray( surfaces )
 			? collectObstacles( surfaces, origin, size() )
 			: [];
@@ -531,7 +531,7 @@ export async function mountMio(
 			/* Capture is a nicety; the window-level fallbacks cover it. */
 		}
 		e.preventDefault();
-		doAction( 'desktop-mode.mio.grabbed', { position: toViewport() } );
+		doAction( 'os.mio.grabbed', { position: toViewport() } );
 	};
 
 	const onDragMove = ( e: PointerEvent ): void => {
@@ -602,7 +602,7 @@ export async function mountMio(
 
 		const dropped = toViewport();
 		savePosition( dropped );
-		doAction( 'desktop-mode.mio.dropped', { position: dropped } );
+		doAction( 'os.mio.dropped', { position: dropped } );
 	};
 
 	const onDragEnd = ( e: PointerEvent ): void => {
@@ -691,7 +691,7 @@ export async function mountMio(
 					resetBody( body, escape.x, escape.y );
 					forgetMotion();
 					savePosition( toViewport() );
-					doAction( 'desktop-mode.mio.displaced', {
+					doAction( 'os.mio.displaced', {
 						position: toViewport(),
 					} );
 				}
@@ -842,7 +842,7 @@ export async function mountMio(
 		}
 	}
 
-	doAction( 'desktop-mode.mio.mounted', { position: toViewport() } );
+	doAction( 'os.mio.mounted', { position: toViewport() } );
 
 	return {
 		getPosition: () => toViewport(),
@@ -926,7 +926,7 @@ export async function mountMio(
 			// Application on the page (the active wallpaper, the
 			// content graph, OS Settings previews).
 			app.destroy( { removeView: true }, { children: true, texture: true } );
-			doAction( 'desktop-mode.mio.unmounted', {} );
+			doAction( 'os.mio.unmounted', {} );
 		},
 	};
 }

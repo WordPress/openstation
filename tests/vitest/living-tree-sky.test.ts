@@ -61,19 +61,19 @@ describe( 'living-tree skyForTime', () => {
 
 describe( 'living-tree currentHour', () => {
 	afterEach( () => {
-		delete ( window as { desktopModeLivingTreeHourOverride?: unknown } )
-			.desktopModeLivingTreeHourOverride;
+		delete ( window as { openStationLivingTreeHourOverride?: unknown } )
+			.openStationLivingTreeHourOverride;
 	} );
 
 	test( 'honours a finite numeric override', () => {
-		( window as { desktopModeLivingTreeHourOverride?: unknown } )
-			.desktopModeLivingTreeHourOverride = 3.5;
+		( window as { openStationLivingTreeHourOverride?: unknown } )
+			.openStationLivingTreeHourOverride = 3.5;
 		expect( currentHour() ).toBe( 3.5 );
 	} );
 
 	test( 'wraps an out-of-range override', () => {
-		( window as { desktopModeLivingTreeHourOverride?: unknown } )
-			.desktopModeLivingTreeHourOverride = 26;
+		( window as { openStationLivingTreeHourOverride?: unknown } )
+			.openStationLivingTreeHourOverride = 26;
 		expect( currentHour() ).toBe( 2 );
 	} );
 

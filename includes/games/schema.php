@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games schema.
+ * OpenStation — Games schema.
  *
  * Two custom tables back the game system:
  *
@@ -19,20 +19,20 @@
  * `state` columns are VARCHAR rather than ENUM, matching the
  * folder-shares table (house style — dbDelta and ENUM don't mix).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_GAMES_SCHEMA_VERSION', '1' );
-define( 'DESKTOP_MODE_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
+define( 'OPEN_STATION_GAMES_SCHEMA_VERSION', '1' );
+define( 'OPEN_STATION_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
  *
  * @return array{ scores: string, challenges: string }
  */
-function desktop_mode_games_table_names() {
+function open_station_games_table_names() {
 	global $wpdb;
 	return array(
 		'scores'     => $wpdb->prefix . 'desktop_mode_game_scores',
@@ -46,12 +46,12 @@ function desktop_mode_games_table_names() {
  * version-option mismatch) so a manual file-copy install still ends
  * up with the tables.
  */
-function desktop_mode_games_install_schema() {
+function open_station_games_install_schema() {
 	global $wpdb;
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables          = desktop_mode_games_table_names();
+	$tables          = open_station_games_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 
 	$scores_sql = "CREATE TABLE {$tables['scores']} (
@@ -95,17 +95,17 @@ function desktop_mode_games_install_schema() {
 	// documented failure modes (see the files schema for the full
 	// rationale) — verify both tables physically exist and CREATE them
 	// explicitly when not.
-	desktop_mode_games_ensure_table( $tables['scores'], $scores_sql );
-	desktop_mode_games_ensure_table( $tables['challenges'], $challenges_sql );
+	open_station_games_ensure_table( $tables['scores'], $scores_sql );
+	open_station_games_ensure_table( $tables['challenges'], $challenges_sql );
 
-	update_option( DESKTOP_MODE_GAMES_SCHEMA_OPTION, DESKTOP_MODE_GAMES_SCHEMA_VERSION );
+	update_option( OPEN_STATION_GAMES_SCHEMA_OPTION, OPEN_STATION_GAMES_SCHEMA_VERSION );
 
 	/**
 	 * Fires after the games schema is installed / migrated.
 	 *
 	 * @param string $version The version that was installed.
 	 */
-	do_action( 'desktop_mode_games_schema_installed', DESKTOP_MODE_GAMES_SCHEMA_VERSION );
+	do_action( 'open_station_games_schema_installed', OPEN_STATION_GAMES_SCHEMA_VERSION );
 }
 
 /**
@@ -119,7 +119,7 @@ function desktop_mode_games_install_schema() {
  * @param string $table Fully-prefixed table name.
  * @param string $sql   The dbDelta CREATE TABLE statement for it.
  */
-function desktop_mode_games_ensure_table( $table, $sql ) {
+function open_station_games_ensure_table( $table, $sql ) {
 	global $wpdb;
 
 	$exists = (int) $wpdb->get_var(
@@ -144,20 +144,20 @@ function desktop_mode_games_ensure_table( $table, $sql ) {
  * the constant. Idempotent: `dbDelta` itself is a no-op when the
  * tables already match.
  */
-function desktop_mode_games_maybe_install_schema() {
-	$installed = get_option( DESKTOP_MODE_GAMES_SCHEMA_OPTION, '' );
-	if ( $installed === DESKTOP_MODE_GAMES_SCHEMA_VERSION ) {
+function open_station_games_maybe_install_schema() {
+	$installed = get_option( OPEN_STATION_GAMES_SCHEMA_OPTION, '' );
+	if ( $installed === OPEN_STATION_GAMES_SCHEMA_VERSION ) {
 		return;
 	}
-	desktop_mode_games_install_schema();
+	open_station_games_install_schema();
 }
-add_action( 'admin_init', 'desktop_mode_games_maybe_install_schema' );
+add_action( 'admin_init', 'open_station_games_maybe_install_schema' );
 // REST + Heartbeat requests never fire `admin_init` — without these a
 // session hitting the scores endpoint before any admin page load
 // would query missing tables.
-add_action( 'rest_api_init', 'desktop_mode_games_maybe_install_schema' );
-add_action( 'init', 'desktop_mode_games_maybe_install_schema', 1 );
-register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_games_install_schema' );
+add_action( 'rest_api_init', 'open_station_games_maybe_install_schema' );
+add_action( 'init', 'open_station_games_maybe_install_schema', 1 );
+register_activation_hook( OPEN_STATION_FILE, 'open_station_games_install_schema' );
 
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
@@ -165,6 +165,6 @@ register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_games_install_schema'
  *
  * @return int
  */
-function desktop_mode_games_now_ms() {
+function open_station_games_now_ms() {
 	return (int) round( microtime( true ) * 1000 );
 }

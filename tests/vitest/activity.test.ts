@@ -6,7 +6,7 @@ import { activity } from '../../src/activity';
 import { addFilter, removeFilter } from '../../src/hooks';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
-describe( 'wp.desktop.activity', () => {
+describe( 'wp.os.activity', () => {
 	beforeEach( () => installHooksStub() );
 	afterEach( () => clearHooksStub() );
 
@@ -54,7 +54,7 @@ describe( 'wp.desktop.activity', () => {
 
 	test( 'filter mutates the value through registered filters', () => {
 		addFilter(
-			'desktop-mode.activity.plugin-x/redact',
+			'os.activity.plugin-x/redact',
 			'plugin-x-test',
 			( v: unknown ) => {
 				return ( v as string ).replace( /secret/g, '***' );
@@ -65,7 +65,7 @@ describe( 'wp.desktop.activity', () => {
 			'this is a secret',
 		);
 		expect( out ).toBe( 'this is a ***' );
-		removeFilter( 'desktop-mode.activity.plugin-x/redact', 'plugin-x-test' );
+		removeFilter( 'os.activity.plugin-x/redact', 'plugin-x-test' );
 	} );
 
 	test( 'filter falls through when no filters registered', () => {

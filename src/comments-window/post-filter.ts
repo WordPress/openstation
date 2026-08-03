@@ -5,7 +5,7 @@
  * window's URL remap (main bundle) parses that id and stashes it here via
  * {@link setCommentsPostFilter} before `openById`; the conversation
  * renderer (comments bundle) reads it back on mount to scope its rail.
- * Shared through `wp.desktop.createSharedStore` so the two bundles see one
+ * Shared through `wp.os.createSharedStore` so the two bundles see one
  * source of truth — same approach as `user-edit-target`.
  */
 
@@ -24,8 +24,8 @@ function getStore(): SharedStoreApi< { postId: number } > | null {
 	if ( _store ) {
 		return _store;
 	}
-	const factory = ( window as unknown as { wp?: { desktop?: DesktopFacade } } )
-		.wp?.desktop?.createSharedStore;
+	const factory = ( window as unknown as { wp?: { os?: DesktopFacade } } )
+		.wp?.os?.createSharedStore;
 	if ( typeof factory !== 'function' ) {
 		return null;
 	}

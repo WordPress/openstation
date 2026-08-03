@@ -5,7 +5,7 @@
  * `src/native-windows.ts`, `src/widgets/server-sync.ts` for the
  * symmetric versions on their own registries). Plugins declare
  * their wallpaper server-side via
- * `desktop_mode_register_wallpaper()`; this module diffs the shell's
+ * `open_station_register_wallpaper()`; this module diffs the shell's
  * current wallpaper registry against the fresh payload on every
  * live refresh and bridges the plugin-side JS into the shell's
  * registry.
@@ -13,7 +13,7 @@
  * The split: PHP owns METADATA (id, label, preview, type, script
  * URL). JS owns the CALLBACK surface (mount, resolveValue,
  * renderEditor) because functions don't serialize. Plugins publish
- * a full `WallpaperDef` on `window.desktopModeWallpapers[ id ]`; the
+ * a full `WallpaperDef` on `window.openStationWallpapers[ id ]`; the
  * shell loads the script (if not already in the tab), reads that
  * global, and forwards the def to the standard registry.
  *
@@ -31,7 +31,7 @@ import type { DesktopWallpaperServerEntry } from '../types';
 import type { WallpaperDef } from './types';
 
 interface WallpaperGlobals {
-	desktopModeWallpapers?: Record< string, WallpaperDef | undefined >;
+	openStationWallpapers?: Record< string, WallpaperDef | undefined >;
 }
 
 export interface WallpaperRegistrySyncDeps {
@@ -74,7 +74,7 @@ export function createWallpaperRegistrySync(
 
 	const readDef = ( id: string ): WallpaperDef | null => {
 		const globals =
-			( window as unknown as WallpaperGlobals ).desktopModeWallpapers || {};
+			( window as unknown as WallpaperGlobals ).openStationWallpapers || {};
 		return globals[ id ] ?? null;
 	};
 
@@ -134,7 +134,7 @@ export function createWallpaperRegistrySync(
 				scope: 'wallpaper-missing-def',
 				id: entry.id,
 				error: new Error(
-					`[desktop-mode] No wallpaper def on window.desktopModeWallpapers["${ entry.id }"]. Script loaded but didn't publish a def — check the plugin's enqueue + global assignment.`,
+					`[openstation] No wallpaper def on window.openStationWallpapers["${ entry.id }"]. Script loaded but didn't publish a def — check the plugin's enqueue + global assignment.`,
 				),
 			} );
 			// Don't mark registered; next sync retries in case the

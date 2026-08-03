@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — "View activity footprint" row action in the classic
+ * OpenStation — "View activity footprint" row action in the classic
  * Users list table.
  *
  * Adds a hover row action to `wp-admin/users.php` that, inside the
@@ -9,19 +9,19 @@
  * `href` is a real profile-edit URL so a no-JS load or a modifier /
  * middle click degrades to a sensible page; inside the shell the
  * chromeless bridge (`includes/render/chromeless-bridge.php`)
- * intercepts the `data-desktop-mode-footprint` attribute and
+ * intercepts the `data-os-footprint` attribute and
  * postMessages the parent to open the footprint WITHOUT navigating the
  * Users list away.
  *
  * Only rendered on chromeless requests — the one context where the
  * desktop shell is present to receive the message. In a detached
- * classic tab (`?desktop_mode_classic=1`) or with desktop mode off the
+ * classic tab (`?desktop_mode_classic=1`) or with OpenStation off the
  * action is omitted rather than shown as a link that would mislabel the
  * profile editor as the footprint. When the native Users window opt-in
  * is on, `users.php` is remapped to that window and never renders this
  * classic list, so there is no conflict.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -31,14 +31,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * Hooked on `user_row_actions`. Returns the actions unchanged outside
  * a chromeless request, for an invalid user object, or when the
- * `desktop_mode_user_footprint_row_action` filter opts the row out.
+ * `open_station_user_footprint_row_action` filter opts the row out.
  *
  * @param string[] $actions     Row action links keyed by slug.
  * @param WP_User  $user_object The user the row represents.
  * @return string[] Filtered row actions.
  */
-function desktop_mode_user_footprint_row_action( $actions, $user_object ) {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function open_station_user_footprint_row_action( $actions, $user_object ) {
+	if ( ! open_station_is_chromeless_request() ) {
 		return $actions;
 	}
 
@@ -60,7 +60,7 @@ function desktop_mode_user_footprint_row_action( $actions, $user_object ) {
 	 * @param bool    $show        Whether to show the action. Default true.
 	 * @param WP_User $user_object The user the row represents.
 	 */
-	if ( ! apply_filters( 'desktop_mode_user_footprint_row_action', true, $user_object ) ) {
+	if ( ! apply_filters( 'open_station_user_footprint_row_action', true, $user_object ) ) {
 		return $actions;
 	}
 
@@ -72,8 +72,8 @@ function desktop_mode_user_footprint_row_action( $actions, $user_object ) {
 		? admin_url( 'profile.php' )
 		: add_query_arg( 'user_id', $user_id, admin_url( 'user-edit.php' ) );
 
-	$actions['desktop-mode-footprint'] = sprintf(
-		'<a href="%1$s" data-desktop-mode-footprint="%2$d" data-desktop-mode-footprint-name="%3$s">%4$s</a>',
+	$actions['os-footprint'] = sprintf(
+		'<a href="%1$s" data-os-footprint="%2$d" data-os-footprint-name="%3$s">%4$s</a>',
 		esc_url( $fallback_url ),
 		$user_id,
 		esc_attr( $user_object->display_name ),
@@ -82,4 +82,4 @@ function desktop_mode_user_footprint_row_action( $actions, $user_object ) {
 
 	return $actions;
 }
-add_filter( 'user_row_actions', 'desktop_mode_user_footprint_row_action', 10, 2 );
+add_filter( 'user_row_actions', 'open_station_user_footprint_row_action', 10, 2 );

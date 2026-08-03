@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio chroma ring.
+ * OpenStation — Mio chroma ring.
  *
  * Mio's outline is not one colour: hue sweeps around the
  * perimeter (magenta at the crown, through violet, into blue at the

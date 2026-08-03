@@ -50,7 +50,7 @@ describe( 'games/share-card.ts', () => {
 				score: 4520,
 				scoreLabel: 'points',
 				stats: [ { label: 'Words', value: '21' } ],
-				footer: 'WordPress Desktop Mode',
+				footer: 'WordPress OpenStation',
 			} ),
 		).not.toThrow();
 		// The backing size is still stamped for a later real render.

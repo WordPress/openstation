@@ -1,7 +1,7 @@
 /**
  * Recycle Bin — empty-loop driver.
  *
- * The server caps `desktop_mode_recycle_bin_empty()` at one chunk per
+ * The server caps `open_station_recycle_bin_empty()` at one chunk per
  * call (default 200 items) to avoid PHP timeouts on large bins. The
  * client therefore has to iterate until the server reports
  * `remaining === 0`. This helper owns that loop in isolation so the

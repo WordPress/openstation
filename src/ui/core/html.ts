@@ -1,5 +1,5 @@
 /**
- * wpd-ui — minimalistic tagged-template renderer.
+ * os-ui — minimalistic tagged-template renderer.
  *
  * Inspired by lit-html; deliberately ~400 LOC instead of ~3000. Covers
  * the bindings we actually need:

@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-titles
+ * @group openstation
+ * @group os-titles
  */
-class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -29,18 +29,18 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_site_title' );
+		remove_all_filters( 'open_station_site_title' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_register_window
+	 * @covers ::open_station_recycle_bin_register_window
 	 */
 	public function test_recycle_bin_window_and_icon_are_titled_trash() {
-		desktop_mode_recycle_bin_register_window();
+		open_station_recycle_bin_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-recycle-bin' );
-		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-recycle-bin' );
+		$entry = open_station_native_window_registry( 'desktop-mode-recycle-bin' );
+		$icon  = open_station_desktop_icon_registry( 'desktop-mode-recycle-bin' );
 
 		$this->assertSame( 'Trash', $entry['title'] );
 		$this->assertSame( 'Trash', $icon['title'] );
@@ -50,24 +50,24 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	 * The window id stays `desktop-mode-recycle-bin` — plugins bind
 	 * to it, and a retitle is not a re-slug.
 	 *
-	 * @covers ::desktop_mode_recycle_bin_register_window
+	 * @covers ::open_station_recycle_bin_register_window
 	 */
 	public function test_recycle_bin_keeps_its_window_id() {
-		desktop_mode_recycle_bin_register_window();
+		open_station_recycle_bin_register_window();
 
 		$this->assertIsArray(
-			desktop_mode_native_window_registry( 'desktop-mode-recycle-bin' )
+			open_station_native_window_registry( 'desktop-mode-recycle-bin' )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_content_graph_register_window
+	 * @covers ::open_station_content_graph_register_window
 	 */
 	public function test_content_graph_window_and_icon_are_titled_corkboard() {
-		desktop_mode_content_graph_register_window();
+		open_station_content_graph_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
-		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-content-graph' );
+		$entry = open_station_native_window_registry( 'desktop-mode-content-graph' );
+		$icon  = open_station_desktop_icon_registry( 'desktop-mode-content-graph' );
 
 		$this->assertSame( 'Corkboard', $entry['title'] );
 		$this->assertSame( 'Corkboard', $icon['title'] );
@@ -75,21 +75,21 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 
 	/**
 	 * Both the window and the desktop icon paint the custom cork
-	 * board SVG. `desktop_mode_register_icon()` converts `icon_svg`
+	 * board SVG. `open_station_register_icon()` converts `icon_svg`
 	 * into the same base64 data URI the window is handed directly, so
 	 * the two surfaces must end up byte-identical — a drift here
 	 * means the title bar and the wallpaper tile show different art.
 	 *
-	 * @covers ::desktop_mode_content_graph_register_window
-	 * @covers ::desktop_mode_content_graph_icon_svg
+	 * @covers ::open_station_content_graph_register_window
+	 * @covers ::open_station_content_graph_icon_svg
 	 */
 	public function test_content_graph_uses_the_corkboard_svg() {
-		desktop_mode_content_graph_register_window();
+		open_station_content_graph_register_window();
 
-		$entry    = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
-		$icon     = desktop_mode_desktop_icon_registry( 'desktop-mode-content-graph' );
+		$entry    = open_station_native_window_registry( 'desktop-mode-content-graph' );
+		$icon     = open_station_desktop_icon_registry( 'desktop-mode-content-graph' );
 		$expected = 'data:image/svg+xml;base64,'
-			. base64_encode( desktop_mode_content_graph_icon_svg() );
+			. base64_encode( open_station_content_graph_icon_svg() );
 
 		$this->assertSame( $expected, $entry['icon'] );
 		$this->assertSame( $expected, $icon['icon'] );
@@ -100,13 +100,13 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	 * clean base64 payload — anything else silently degrades to the
 	 * letter-badge fallback instead of painting the art.
 	 *
-	 * @covers ::desktop_mode_content_graph_icon_svg
+	 * @covers ::open_station_content_graph_icon_svg
 	 */
 	public function test_corkboard_svg_survives_the_icon_sanitizer() {
 		$uri = 'data:image/svg+xml;base64,'
-			. base64_encode( desktop_mode_content_graph_icon_svg() );
+			. base64_encode( open_station_content_graph_icon_svg() );
 
-		$this->assertSame( $uri, desktop_mode_sanitize_dock_icon( $uri ) );
+		$this->assertSame( $uri, open_station_sanitize_dock_icon( $uri ) );
 	}
 
 	/**
@@ -116,10 +116,10 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	 * would survive the mask's alpha-only pass as a hole, so the
 	 * absence of `fill="#…"` is load-bearing, not cosmetic.
 	 *
-	 * @covers ::desktop_mode_content_graph_icon_svg
+	 * @covers ::open_station_content_graph_icon_svg
 	 */
 	public function test_corkboard_svg_is_drawn_entirely_in_current_color() {
-		$svg = desktop_mode_content_graph_icon_svg();
+		$svg = open_station_content_graph_icon_svg();
 
 		$this->assertStringStartsWith( '<svg', $svg );
 		$this->assertStringContainsString( 'viewBox="0 0 64 64"', $svg );
@@ -133,10 +133,10 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	 * painted at 20px in the dock. Guard the count and radius so a
 	 * future tidy-up doesn't shrink them into nothing.
 	 *
-	 * @covers ::desktop_mode_content_graph_icon_svg
+	 * @covers ::open_station_content_graph_icon_svg
 	 */
 	public function test_corkboard_svg_keeps_its_pins_legible() {
-		$svg = desktop_mode_content_graph_icon_svg();
+		$svg = open_station_content_graph_icon_svg();
 
 		$this->assertSame( 2, substr_count( $svg, 'r="3"' ) );
 	}
@@ -145,31 +145,31 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	 * The Corkboard's detail panel offers "Open in <site>", so its
 	 * bundle needs the site title too.
 	 *
-	 * @covers ::desktop_mode_content_graph_register_window
+	 * @covers ::open_station_content_graph_register_window
 	 */
 	public function test_content_graph_config_carries_the_site_title() {
 		add_filter(
-			'desktop_mode_site_title',
+			'open_station_site_title',
 			static function () {
 				return "Izzi's Gym";
 			}
 		);
 
-		desktop_mode_content_graph_register_window();
+		open_station_content_graph_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
+		$entry = open_station_native_window_registry( 'desktop-mode-content-graph' );
 
 		$this->assertSame( "Izzi's Gym", $entry['config']['siteName'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_content_graph_register_window
+	 * @covers ::open_station_content_graph_register_window
 	 */
 	public function test_content_graph_keeps_its_window_id() {
-		desktop_mode_content_graph_register_window();
+		open_station_content_graph_register_window();
 
 		$this->assertIsArray(
-			desktop_mode_native_window_registry( 'desktop-mode-content-graph' )
+			open_station_native_window_registry( 'desktop-mode-content-graph' )
 		);
 	}
 }

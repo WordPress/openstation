@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Mio environment awareness.
+ * OpenStation — Mio environment awareness.
  *
  * Mio is not a decal painted over the wallpaper: it knows
  * what is on the desk. Every frame the simulation asks the shell for
- * the live collision surfaces (`wp.desktop.getWallpaperSurfaces()` —
+ * the live collision surfaces (`wp.os.getWallpaperSurfaces()` —
  * window rects, widget cards, the dock edge, the shell floor),
  * converts them into Mio layer's own coordinate space, and
  * feeds them to the soft body as solid obstacles.

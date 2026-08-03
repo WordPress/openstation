@@ -1,6 +1,6 @@
 # Agents security model
 
-Agents are the only part of Desktop Mode that **acts with capability on
+Agents are the only part of OpenStation that **acts with capability on
 a user's behalf**. Everything else in the framework renders, routes, or
 stores. An agent creates posts, edits media, and changes site state,
 driven by a language model reading text it did not write.
@@ -76,7 +76,7 @@ a hook or cron-driven run), because intersecting with the logged-out
 cap set would leave the agent unable to act at all. **A system-context
 run therefore executes with the agent's full role.** If you add a
 trigger intake that runs without a human, that is the decision you are
-making; `desktop_mode_agent_restrict_to_invoker` is where you change
+making; `open_station_agent_restrict_to_invoker` is where you change
 it.
 
 New trigger intakes must pass `$context['invoker']` when a human is
@@ -103,7 +103,7 @@ behind the invoker cap ceiling and each ability's own
 `permission_callback`. Do not let it be the reason a mutating ability
 is considered safe. When an ability returns fields the model has no
 business seeing, strip them in
-[`desktop_mode_agent_tool_result`](./hooks-reference.md#desktop_mode_agent_tool_result--experimental-filter).
+[`open_station_agent_tool_result`](./hooks-reference.md#open_station_agent_tool_result--experimental-filter).
 
 ### 4. Granting a role is granting capability
 
@@ -117,7 +117,7 @@ name. Core implements it as a bare
 reference to the current user, so on a stock install it excludes
 nothing. It is a useful constraint because plugins like WooCommerce
 filter it, but the real gate is
-`desktop_mode_agent_actor_can_assign_role()`. The scenario it closes:
+`open_station_agent_actor_can_assign_role()`. The scenario it closes:
 a role plugin hands `edit_users` to a shop-manager-shaped role, which
 mints an administrator agent, which then acts with capabilities its
 creator never had.
@@ -126,9 +126,9 @@ creator never had.
 
 Two independent buckets, both hourly:
 
-- **Per agent** (`desktop_mode_agent_default_rate_limit`, default 60,
+- **Per agent** (`open_station_agent_default_rate_limit`, default 60,
   overridable per agent) — bounds one agent.
-- **Per invoker** (`desktop_mode_agent_invoker_rate_limit`, default
+- **Per invoker** (`open_station_agent_invoker_rate_limit`, default
   120) — bounds one person across every agent on the site.
 
 The second exists because the first does not stop a single `edit_posts`
@@ -145,7 +145,7 @@ Registering an ability agents can call:
       more than they should? (If the ceiling is doing all the work,
       say so in the ability's description.)
 - [ ] Does it return fields that should be stripped in
-      `desktop_mode_agent_tool_result`?
+      `open_station_agent_tool_result`?
 - [ ] Is `meta.annotations.readonly` set honestly? The Copilot's
       server-dispatched tool loop uses it as a security boundary.
 - [ ] Does the `description` state every fact the model needs to use
@@ -159,8 +159,8 @@ Registering an ability agents can call:
 
 Adding a trigger intake:
 
-- [ ] Call `desktop_mode_agent_user_can_invoke_agent()` before
-      `desktop_mode_agent_invoke()`.
+- [ ] Call `open_station_agent_user_can_invoke_agent()` before
+      `open_station_agent_invoke()`.
 - [ ] Pass `$context['invoker']` when a human is behind the run.
 - [ ] If it runs without a human, confirm the agent's full role is an
       acceptable ceiling for a message you do not control.

@@ -21,10 +21,10 @@ function mockTabbedWindow(
 ): Window {
 	const element = document.createElement( 'div' );
 	const strip = document.createElement( 'nav' );
-	strip.className = 'desktop-mode-window__tabs';
+	strip.className = 'os-window__tabs';
 	for ( const [ label, url ] of tabs ) {
 		const tab = document.createElement( 'button' );
-		tab.className = 'desktop-mode-window__tab';
+		tab.className = 'os-window__tab';
 		tab.dataset.kind = 'submenu';
 		tab.dataset.url = url;
 		tab.textContent = label;
@@ -37,7 +37,7 @@ function mockTabbedWindow(
 /** Labels of every tab currently marked active. */
 function activeLabels( win: Window ): string[] {
 	return Array.from(
-		win.element.querySelectorAll( '.desktop-mode-window__tab--active' ),
+		win.element.querySelectorAll( '.os-window__tab--active' ),
 	).map( ( el ) => el.textContent ?? '' );
 }
 
@@ -58,7 +58,7 @@ describe( 'syncActiveTab', () => {
 			[ 'Menus', ADMIN + 'nav-menus.php' ],
 		] );
 
-		syncActiveTab( win, ADMIN + 'nav-menus.php?desktop_mode_chromeless=1' );
+		syncActiveTab( win, ADMIN + 'nav-menus.php?open_station_chromeless=1' );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Menus' ] );
 	} );

@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — Widget registry.
+ * OpenStation — Widget registry.
  *
- * Mirrors the wallpaper registry: in-memory seed list, `desktop-mode.widgets`
+ * Mirrors the wallpaper registry: in-memory seed list, `os.widgets`
  * filter applied on every read, register/unregister API, defensive
  * validation of plugin-supplied defs.
  *
@@ -48,7 +48,7 @@ export function unregister( id: string ): void {
 }
 
 /**
- * Produce the current widget list with the `desktop-mode.widgets`
+ * Produce the current widget list with the `os.widgets`
  * filter applied. Copies the seed before passing so filter callbacks
  * can't mutate the registry by reference.
  */
@@ -58,7 +58,7 @@ export function all(): WidgetDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.widgets` filter returned ' +
+				'[openstation] `os.widgets` filter returned ' +
 					'a non-array; falling back to seed list.',
 			);
 		}

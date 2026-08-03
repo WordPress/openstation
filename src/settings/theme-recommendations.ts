@@ -121,7 +121,7 @@ export function applyThemeRecommendations(
 
 	// Written generically rather than key-by-key so a site that has
 	// widened the schema through
-	// `desktop_mode_desktop_theme_recommended_os_settings_schema`
+	// `open_station_desktop_theme_recommended_os_settings_schema`
 	// reaches its own key too. Three guards keep that safe: the value
 	// must be a string or a number, the key must already exist on the
 	// state object, and the two types must MATCH — so a recommendation

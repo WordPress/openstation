@@ -19,7 +19,7 @@ Return a partial array — anything you leave out keeps the reference design. Ev
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'desktop_mode_mio_config', function ( $config ) {
+add_filter( 'open_station_mio_config', function ( $config ) {
 	// Brand colours: a teal-to-green ring instead of magenta-to-violet.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 50;
@@ -46,10 +46,10 @@ Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`). The full 
 `setConfig()` merges over whatever is currently in force and applies live — useful for anything that depends on browser state rather than site state.
 
 ```js
-wp.desktop.ready( () => {
+wp.os.ready( () => {
 	// Big and calm on a wall-mounted kiosk; the default elsewhere.
 	if ( window.innerWidth > 2200 ) {
-		wp.desktop.mio.setConfig( {
+		wp.os.mio.setConfig( {
 			appearance: { radius: 90, glow: 1.6 },
 			physics: { magnetStrength: 1400, floatAmplitude: 20 },
 		} );
@@ -70,7 +70,7 @@ The two look similar and mean different things:
 
 ```js
 // Give the user a Mio to match their brand, and stop it wandering.
-wp.desktop.mio.setStyle( {
+wp.os.mio.setStyle( {
 	hueStart: 170,
 	hueSpan: 60,
 	shapePreset: 'star',
@@ -85,7 +85,7 @@ If you need the last word *before* Mio ever mounts — including on the very fir
 
 ```js
 wp.hooks.addFilter(
-	'desktop-mode.mio.config',
+	'os.mio.config',
 	'my-plugin/mio',
 	( config ) => ( {
 		...config,
@@ -100,7 +100,7 @@ wp.hooks.addFilter(
 
 ```js
 wp.hooks.addAction(
-	'desktop-mode.mio.dropped',
+	'os.mio.dropped',
 	'my-plugin/mio',
 	( { position } ) => {
 		// The user parked it somewhere. Positions are viewport
@@ -110,9 +110,9 @@ wp.hooks.addAction(
 );
 
 wp.hooks.addAction(
-	'desktop-mode.mio.enabled',
+	'os.mio.enabled',
 	'my-plugin/mio',
-	() => wp.desktop.showToast( { message: 'Say hi 👋' } )
+	() => wp.os.showToast( { message: 'Say hi 👋' } )
 );
 ```
 
@@ -125,11 +125,11 @@ Available actions: `enabled`, `disabled`, `mounted`, `unmounted`, `grabbed`, `dr
 `enable()` persists the preference exactly as Mio's dock tile does, and lazy-loads the Mio bundle. Only do this in response to something the user asked for — silently switching on an animated companion is not a good welcome.
 
 ```js
-wp.desktop.registerCommand( {
+wp.os.registerCommand( {
 	slug: 'mio',
 	label: 'Toggle Mio',
 	icon: 'dashicons-buddicons-replies',
-	run: () => wp.desktop.mio.toggle(),
+	run: () => wp.os.mio.toggle(),
 } );
 ```
 
@@ -137,14 +137,14 @@ wp.desktop.registerCommand( {
 
 ## 5. Reach the dock tile
 
-The toggle is an ordinary system tile with `id: 'desktop-mode-mio-toggle'`, so the dock's decoration hooks reach it like any other:
+The toggle is an ordinary system tile with `id: 'os-mio-toggle'`, so the dock's decoration hooks reach it like any other:
 
 ```js
 wp.hooks.addFilter(
-	'desktop-mode.dock.tile-class',
+	'os.dock.tile-class',
 	'my-plugin/mio',
 	( classes, ctx ) =>
-		ctx.item?.id === 'desktop-mode-mio-toggle'
+		ctx.item?.id === 'os-mio-toggle'
 			? [ ...classes, 'my-plugin-mio-tile' ]
 			: classes
 );
@@ -156,7 +156,7 @@ Users who don't want a desk companion hide the tile from OS Settings → **Apps 
 
 ## What not to do
 
-- **Don't reach into the layer's DOM.** `#desktop-mode-mio` and its `<canvas>` are owned by the shell and rebuilt on every toggle. Everything supported is on `wp.desktop.mio`.
+- **Don't reach into the layer's DOM.** `#os-mio` and its `<canvas>` are owned by the shell and rebuilt on every toggle. Everything supported is on `wp.os.mio`.
 - **Don't make the layer interactive.** It spans the whole shell; anything you make clickable there swallows clicks meant for the window underneath.
 - **Don't assume it's mounted.** It is off by default and lazy-loaded. `getPosition()` returns `null` when off, and `setPosition()` is a no-op.
 - **Don't use `setStyle()` for a temporary adjustment.** It saves to the user's account, so a look you set "just for this page" follows them to every browser they log into. `setConfig()` is the one that doesn't persist.

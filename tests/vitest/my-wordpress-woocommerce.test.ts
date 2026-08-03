@@ -5,7 +5,7 @@
  * it rides on: band resolution from the server-shipped config, the
  * stock ribbon and its survival across a tile repaint, and the panel's
  * behaviour when the summary payload is missing or malformed — which a
- * plugin filtering `desktop_mode_my_wordpress_woo_summary` can cause.
+ * plugin filtering `open_station_my_wordpress_woo_summary` can cause.
  */
 import {
 	afterAll,
@@ -23,11 +23,11 @@ import { applyFilters, doAction } from '../../src/hooks';
 const PRODUCTS = 'cpt-product';
 
 interface WooGlobal {
-	desktopModeWooConfig?: Record< string, unknown >;
+	openStationWooConfig?: Record< string, unknown >;
 }
 
 function setConfig( extra: Record< string, unknown > = {} ): void {
-	( window as unknown as WooGlobal ).desktopModeWooConfig = {
+	( window as unknown as WooGlobal ).openStationWooConfig = {
 		restRoot: 'http://example.test/wp-json/desktop-mode/v1/woocommerce/',
 		restNonce: 'nonce',
 		canOrders: true,
@@ -50,7 +50,7 @@ function setConfig( extra: Record< string, unknown > = {} ): void {
 
 /** A product list row carrying the server-decided band + stock facts. */
 function productRow( facts: Record< string, unknown > ) {
-	return { id: 7, desktop_mode_woo: facts };
+	return { id: 7, open_station_woo: facts };
 }
 
 function stubSummary( body: unknown, status = 200 ): void {
@@ -71,7 +71,7 @@ function stubSummary( body: unknown, status = 200 ): void {
 function decorate( item: Record< string, unknown > ): HTMLElement {
 	const tile = document.createElement( 'div' );
 	document.body.appendChild( tile );
-	doAction( 'desktop-mode.my-wordpress.list-tile', {
+	doAction( 'os.my-wordpress.list-tile', {
 		tile,
 		entityId: PRODUCTS,
 		kind: 'post',
@@ -108,7 +108,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 	describe( 'banding', () => {
 		test( 'products band from the server-shipped list', () => {
 			const banding = applyFilters(
-				'desktop-mode.my-wordpress.list-bands',
+				'os.my-wordpress.list-bands',
 				null,
 				{ id: PRODUCTS },
 			) as { bands: unknown[]; assign: ( i: unknown ) => string | null };
@@ -124,7 +124,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 		test( 'a row with no band field falls through rather than throwing', () => {
 			const banding = applyFilters(
-				'desktop-mode.my-wordpress.list-bands',
+				'os.my-wordpress.list-bands',
 				null,
 				{ id: PRODUCTS },
 			) as { assign: ( i: unknown ) => string | null };
@@ -134,7 +134,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 		test( 'sections this integration does not own are left alone', () => {
 			expect(
-				applyFilters( 'desktop-mode.my-wordpress.list-bands', null, {
+				applyFilters( 'os.my-wordpress.list-bands', null, {
 					id: 'posts',
 				} ),
 			).toBeNull();
@@ -163,7 +163,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			],
 		] )( 'stamps a %o ribbon', ( facts, tone ) => {
 			const tile = decorate( productRow( facts ) );
-			const ribbon = tile.querySelector( 'wpd-ribbon' );
+			const ribbon = tile.querySelector( 'os-ribbon' );
 
 			expect( ribbon ).not.toBeNull();
 			expect( ribbon?.getAttribute( 'tone' ) ).toBe( tone );
@@ -182,11 +182,11 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				} ),
 			);
 
-			expect( tile.querySelector( 'wpd-ribbon' ) ).toBeNull();
+			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 		} );
 
 		test( 'the ribbon is restored after the tile repaints', () => {
-			// `<wpd-tile>._paint()` drops every direct `<wpd-ribbon>`
+			// `<os-tile>._paint()` drops every direct `<os-ribbon>`
 			// child before rebuilding, and it repaints on selection —
 			// so a decoration that isn't re-stamped simply vanishes.
 			const tile = decorate(
@@ -196,24 +196,24 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 					stockLevel: 0,
 				} ),
 			);
-			expect( tile.querySelector( 'wpd-ribbon' ) ).not.toBeNull();
+			expect( tile.querySelector( 'os-ribbon' ) ).not.toBeNull();
 
-			tile.querySelector( 'wpd-ribbon' )?.remove();
-			doAction( 'desktop-mode.tile.rendered', { tile } );
+			tile.querySelector( 'os-ribbon' )?.remove();
+			doAction( 'os.tile.rendered', { tile } );
 
-			expect( tile.querySelector( 'wpd-ribbon' ) ).not.toBeNull();
+			expect( tile.querySelector( 'os-ribbon' ) ).not.toBeNull();
 		} );
 
 		test( 'a tile from another section is not decorated', () => {
 			const tile = document.createElement( 'div' );
-			doAction( 'desktop-mode.my-wordpress.list-tile', {
+			doAction( 'os.my-wordpress.list-tile', {
 				tile,
 				entityId: 'posts',
 				kind: 'post',
 				item: productRow( { band: '', stockStatus: 'outofstock' } ),
 			} );
 
-			expect( tile.querySelector( 'wpd-ribbon' ) ).toBeNull();
+			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 		} );
 	} );
 
@@ -222,7 +222,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		async function paint( entityId = PRODUCTS ): Promise< HTMLElement > {
 			const container = document.createElement( 'div' );
 			document.body.appendChild( container );
-			doAction( 'desktop-mode.my-wordpress.preview-extras', {
+			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'header',
 				container,
 				entityId,
@@ -230,7 +230,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				item: { id: 7 },
 			} );
 			await vi.waitFor( () => {
-				const panel = container.querySelector( '.desktop-mode-woo-panel' );
+				const panel = container.querySelector( '.os-woo-panel' );
 				if ( ! panel || panel.hasAttribute( 'aria-busy' ) ) {
 					throw new Error( 'panel still loading' );
 				}
@@ -240,7 +240,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 		test( 'the shell is painted synchronously so nothing shifts', () => {
 			const container = document.createElement( 'div' );
-			doAction( 'desktop-mode.my-wordpress.preview-extras', {
+			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'header',
 				container,
 				entityId: PRODUCTS,
@@ -250,12 +250,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 			// Present and reserving its height before the request has
 			// had any chance to resolve.
-			const panel = container.querySelector( '.desktop-mode-woo-panel' );
+			const panel = container.querySelector( '.os-woo-panel' );
 			expect( panel ).not.toBeNull();
 			expect( panel?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 			expect(
 				panel?.querySelectorAll(
-					'.desktop-mode-woo-panel__row--placeholder',
+					'.os-woo-panel__row--placeholder',
 				).length,
 			).toBeGreaterThan( 0 );
 		} );
@@ -286,9 +286,9 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( text ).toContain( 'SHOE-42' );
 			expect( text ).toContain( '231 units' );
 			expect( text ).toContain( '4.2' );
-			// Stock reads through `<wpd-badge>`, not a bespoke pill.
+			// Stock reads through `<os-badge>`, not a bespoke pill.
 			expect(
-				container.querySelector( 'wpd-badge' )?.getAttribute( 'tone' ),
+				container.querySelector( 'os-badge' )?.getAttribute( 'tone' ),
 			).toBe( 'success' );
 		} );
 
@@ -298,17 +298,17 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			const container = await paint();
 
 			expect(
-				container.querySelector( '.desktop-mode-woo-panel__error' ),
+				container.querySelector( '.os-woo-panel__error' ),
 			).not.toBeNull();
 			expect(
 				container.querySelectorAll(
-					'.desktop-mode-woo-panel__row--placeholder',
+					'.os-woo-panel__row--placeholder',
 				),
 			).toHaveLength( 0 );
 		} );
 
 		test( 'a malformed payload shows the error row, not a stuck skeleton', async () => {
-			// `desktop_mode_my_wordpress_woo_summary` is a documented
+			// `open_station_my_wordpress_woo_summary` is a documented
 			// filter over this payload, so a plugin can drop the very
 			// fields the row builders read. That used to throw inside
 			// the render callback and leave the panel on placeholders
@@ -319,18 +319,18 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			const container = await paint();
 
 			expect(
-				container.querySelector( '.desktop-mode-woo-panel__error' ),
+				container.querySelector( '.os-woo-panel__error' ),
 			).not.toBeNull();
 			expect(
 				container.querySelectorAll(
-					'.desktop-mode-woo-panel__row--placeholder',
+					'.os-woo-panel__row--placeholder',
 				),
 			).toHaveLength( 0 );
 		} );
 
 		test( 'sections this integration does not own get no panel', () => {
 			const container = document.createElement( 'div' );
-			doAction( 'desktop-mode.my-wordpress.preview-extras', {
+			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'header',
 				container,
 				entityId: 'posts',
@@ -343,7 +343,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 		test( 'only the header slot paints a panel', () => {
 			const container = document.createElement( 'div' );
-			doAction( 'desktop-mode.my-wordpress.preview-extras', {
+			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'footer',
 				container,
 				entityId: PRODUCTS,

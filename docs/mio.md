@@ -2,9 +2,9 @@
 
 **Status: Experimental.**
 
-Mio is Desktop Mode's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
+Mio is OpenStation's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
 
-It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#desktop-mode-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
+It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#os-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
 Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OS Settings → Apps & Icons.
 
@@ -79,24 +79,24 @@ Two halves, split so a user who never switches Mio on never downloads it.
 The whole of it, and it is worth being precise because the answer is "almost nothing":
 
 - **No script and no stylesheet** are enqueued for Mio, ever. Nothing in `includes/render/assets.php` registers one.
-- The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `desktop_mode_mio_config` filter silently didn't apply until the next reload.
+- The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `open_station_mio_config` filter silently didn't apply until the next reload.
 - In the always-on bundle: `MioController` (~2 kB) and the dock tile's definition (a few hundred bytes).
 - PixiJS, the soft body, the renderer, the pointer tracker and the ~25 kB Mio bundle are **script-injected on the first toggle** and never touched otherwise.
 
 Hiding the dock tile from Apps & Icons removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
 
-The lazy bundle publishes `window.desktopModeMountMio`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
+The lazy bundle publishes `window.openStationMountMio`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
 
 ```
-#desktop-mode-shell
-├── #desktop-mode-wallpaper        z-index 0
-├── .desktop-mode-shell__body
-│   ├── #desktop-mode-dock         z-index 200
-│   └── #desktop-mode-area
-│       └── .desktop-mode-window   z-index 100 + stack index
-└── #desktop-mode-mio           z-index 190   ← above windows, below the dock
+#os-shell
+├── #os-wallpaper        z-index 0
+├── .os-shell__body
+│   ├── #os-dock         z-index 200
+│   └── #os-area
+│       └── .os-window   z-index 100 + stack index
+└── #os-mio           z-index 190   ← above windows, below the dock
     ├── <canvas>                   pointer-events: none, always
-    └── .desktop-mode-mio__handle   the only interactive pixel
+    └── .os-mio__handle   the only interactive pixel
 ```
 
 **Why the canvas is never interactive.** The layer spans the whole shell. An interactive canvas would swallow every click meant for the window underneath, and toggling `pointer-events` from a per-frame hit test races the very click it is meant to route. Instead a small round handle element rides on the blob and is the only thing in the layer that takes pointer events, so a click one pixel off Mio reaches whatever is beneath it, exactly as if Mio weren't there.
@@ -181,7 +181,7 @@ Every `shapeShuffle` seconds (default `60`, `0` to switch it off) Mio picks a di
 
 The transition is a blend of two rest profiles handed to the springs, not a redraw. The body is pulled across by the same forces that handle everything else, so Mio can be poked, dragged, thrown, and landed on a window mid-morph and the shape change simply carries on underneath. That composability is the whole reason the shape lives in rest lengths — `stepSoftBody()` reads `body.profile` when the body has one, so the blend has exactly one place to live and the simulation never learns that a transition is happening.
 
-Each change fires `desktop-mode.mio.shape-changed` with `{ shape, from }`.
+Each change fires `os.mio.shape-changed` with `{ shape, from }`.
 
 Under `prefers-reduced-motion: reduce` the shuffle is switched off along with the idle bob and the hue drift — Mio that reshapes itself while you are reading is textbook unsolicited animation.
 
@@ -256,7 +256,7 @@ Four design decisions are worth knowing before you touch `soft-body.ts`, because
 
 ## Make it yours
 
-Right-clicking Mio opens a one-item context menu; the item opens a panel of controls bound live to `wp.desktop.mio.setStyle()`. There is no Apply button — every control writes on input, so the companion changes under the dialog while you drag. The thing being edited is right there, so the preview *is* the product.
+Right-clicking Mio opens a one-item context menu; the item opens a panel of controls bound live to `wp.os.mio.setStyle()`. There is no Apply button — every control writes on input, so the companion changes under the dialog while you drag. The thing being edited is right there, so the preview *is* the product.
 
 Right-click is bound to the **handle**, the only part of the layer that takes pointer events. A right-click one pixel off Mio still reaches the wallpaper and gets the desk's own menu, exactly as if Mio weren't there.
 
@@ -275,7 +275,7 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 | Body | `bodyColor`, `bodyAlpha` |
 | Eyes | `eyeColor`, `eyeScale` |
 
-**Shape** and **Idle** are the two places the panel reaches into `physics`, and the line is not "shape versus motion" — it is **rest lengths versus spring constants**. Both of them modulate the target the springs are already chasing, so the worst a user can do is pick something they don't like: a silhouette they find ugly, or a companion that sits too still. The constants those springs are *tuned* with stay out of reach. `wp.desktop.mio.setStyle()` enforces that with a key whitelist rather than a type, because the object it is handed may have come from storage.
+**Shape** and **Idle** are the two places the panel reaches into `physics`, and the line is not "shape versus motion" — it is **rest lengths versus spring constants**. Both of them modulate the target the springs are already chasing, so the worst a user can do is pick something they don't like: a silhouette they find ugly, or a companion that sits too still. The constants those springs are *tuned* with stay out of reach. `wp.os.mio.setStyle()` enforces that with a key whitelist rather than a type, because the object it is handed may have come from storage.
 
 **Change shape on its own** is `shapeShuffle`: ticked, Mio picks a new stock silhouette about every minute and eases into it; unticked, it settles back into whichever shape the picker says and stays there. Unticking mid-shuffle eases home rather than snapping — a companion that jumps when you untick a box reads as a glitch.
 
@@ -283,9 +283,9 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
 
-**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `desktop_mode_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
+**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `open_station_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
 
-**Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<wpd-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
+**Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<os-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
 
 ### Surprise me
 
@@ -307,7 +307,7 @@ The Holographic toggle is a shortcut for `iridescence` — off writes `0`, on wr
 
 ### It is a live preview, not a modal
 
-`<wpd-modal>` dims the page, blurs it, and puts itself in front of everything. Every one of those defaults is wrong here, because the thing being edited is *on* the page and the whole point is watching it change. The panel overrides all three:
+`<os-modal>` dims the page, blurs it, and puts itself in front of everything. Every one of those defaults is wrong here, because the thing being edited is *on* the page and the whole point is watching it change. The panel overrides all three:
 
 - **No scrim, no `backdrop-filter`** — otherwise the companion the sliders are driving is a blurred grey smudge behind them.
 - **`pointer-events: none` on the scrim**, restored on the dialog box through the modal's `::part(dialog)`. The desk stays live: Mio can be picked up and thrown while the panel is open, and a click on the wallpaper doesn't dismiss the panel mid-adjustment.
@@ -333,7 +333,7 @@ setStyle  →  splitMioLook()  →  controller merges into its MioLook
                                             →  update_user_meta()
 ```
 
-`saveState()` writes the local cache synchronously and debounces the network call, which is why every slider frame can be handed to it without thinking about it. **Closing the panel commits once more** — `closeMioStylePanel()` calls `wp.desktop.mio.commitStyle()` — because closing the dialog is the moment a user thinks of themselves as having finished, and it is the moment worth making sure their account agrees.
+`saveState()` writes the local cache synchronously and debounces the network call, which is why every slider frame can be handed to it without thinking about it. **Closing the panel commits once more** — `closeMioStylePanel()` calls `wp.os.mio.commitStyle()` — because closing the dialog is the moment a user thinks of themselves as having finished, and it is the moment worth making sure their account agrees.
 
 Only the keys the user actually moved are stored. A look is a **partial** on both halves, so a site that later changes its shipped Mio still shows through everywhere its users have no opinion.
 
@@ -341,7 +341,7 @@ Two sanitizers guard the trip, and they are deliberately not the same thing:
 
 | | Where | What it decides |
 |---|---|---|
-| `sanitizeMioLook()` / `desktop_mode_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
+| `sanitizeMioLook()` / `open_station_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
 | `sanitizeMioConfig()` | `src/mio/config.ts` | **Clamp.** What a legal hue, silhouette or spring constant is. |
 
 Two validators with overlapping opinions about ranges is how ranges drift apart, so the storage layer has none. It only refuses keys — and the key it refuses hardest is anything in `physics` outside `LOOK_PHYSICS_KEYS`, because a stored preference that could reach the spring constants would be a way for a corrupt row to make Mio unstable.
@@ -356,7 +356,7 @@ The look merges **last**, after server config and the JS filter. Everything befo
 
 ## Environment awareness
 
-Every frame (throttled to 20 Hz) Mio asks the shell for the live collision set via `wp.desktop.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
+Every frame (throttled to 20 Hz) Mio asks the shell for the live collision set via `wp.os.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
 
 ### Windows are magnets, not ground
 
@@ -408,7 +408,7 @@ So when the body's centre lands inside a window, Mio hops out:
 3. Discard sides that would leave the layer, take the nearest of what's left, and re-form the body clean at that point (`resetBody`).
 4. Nothing fits — a maximised window — so take the centre of the widest leftover strip of desk. Nothing left over at all, so the layer centre.
 
-The hop fires `desktop-mode.mio.displaced`.
+The hop fires `os.mio.displaced`.
 
 ---
 
@@ -419,9 +419,9 @@ Mio watches the cursor. That is trivial until the cursor moves over a window, be
 So the shell merges two sources:
 
 1. `pointermove` on the shell document — wallpaper, dock, window chrome.
-2. `desktop-mode-pointer-move` messages forwarded by the chromeless bridge inside each window iframe, rebased into viewport coordinates through the iframe element's rect.
+2. `os-pointer-move` messages forwarded by the chromeless bridge inside each window iframe, rebased into viewport coordinates through the iframe element's rect.
 
-The iframe-side forwarder is **opt-in and off by default**. The parent broadcasts `desktop-mode-pointer-track { enabled: true }` when a consumer starts, re-arms each frame when it announces `desktop-mode-bridge-ready` (which fires on every navigation), and broadcasts `{ enabled: false }` on teardown. A shell with no companion never turns it on and pays nothing.
+The iframe-side forwarder is **opt-in and off by default**. The parent broadcasts `os-pointer-track { enabled: true }` when a consumer starts, re-arms each frame when it announces `os-bridge-ready` (which fires on every navigation), and broadcasts `{ enabled: false }` on teardown. A shell with no companion never turns it on and pays nothing.
 
 Coordinates only — no target element, no event object, nothing about page content — throttled to ~25 Hz, passive listener, never `preventDefault()`. Both bridge entry points (the inline PHP bridge and `iframe-bridge-standalone.ts`) install the same forwarder behind a shared sentinel. See [`bridge-protocol.md`](./bridge-protocol.md).
 
@@ -539,14 +539,14 @@ Eyes are white pills that inherit a fraction of the body's squash, offset toward
 
 ## PHP API
 
-### `desktop_mode_mio_config()`
+### `open_station_mio_config()`
 
-Returns the appearance + physics configuration shipped to the shell in `desktopModeConfig.mio`. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
+Returns the appearance + physics configuration shipped to the shell in `openStationConfig.mio`. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
 
 Every value is re-clamped client-side, so a filter that returns nonsense produces a plain-looking Mio, never a broken shell.
 
 ```php
-add_filter( 'desktop_mode_mio_config', function ( $config ) {
+add_filter( 'open_station_mio_config', function ( $config ) {
 	// A slower, heavier, teal companion.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 40;
@@ -620,18 +620,18 @@ add_filter( 'desktop_mode_mio_config', function ( $config ) {
 
 ### User preference
 
-Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`:
+Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and sanitized by `open_station_sanitize_os_settings()`:
 
 - **`mioEnabled`** (default `false`) — whether Mio is on.
-- **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `desktop_mode_sanitize_mio_look()`.
+- **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `open_station_sanitize_mio_look()`.
 
-One thing is browser-local, in `localStorage`: the resting position (`desktop-mode-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
+One thing is browser-local, in `localStorage`: the resting position (`os-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
 
 ---
 
 ## JavaScript API
 
-### `wp.desktop.mio`
+### `wp.os.mio`
 
 | Member | Signature | Notes |
 |---|---|---|
@@ -649,13 +649,13 @@ One thing is browser-local, in `localStorage`: the resting position (`desktop-mo
 | `resetStyle` | `() => void` | Forgets the saved look; back to the Mio this site ships. |
 
 ```js
-wp.desktop.ready( () => {
+wp.os.ready( () => {
 	// A bigger, calmer Mio for a kiosk screen.
-	wp.desktop.mio.setConfig( {
+	wp.os.mio.setConfig( {
 		appearance: { radius: 90, glow: 1.6 },
 		physics: { magnetStrength: 1400, floatAmplitude: 20 },
 	} );
-	void wp.desktop.mio.enable();
+	void wp.os.mio.enable();
 } );
 ```
 
@@ -667,27 +667,27 @@ wp.desktop.ready( () => {
 
 | Hook | Type | Status | Payload |
 |---|---|---|---|
-| `desktop_mode_mio_config` | filter | Experimental | `array $config` — appearance + physics. |
+| `open_station_mio_config` | filter | Experimental | `array $config` — appearance + physics. |
 
 ### JavaScript
 
-All fire through `wp.hooks` on the `desktop-mode.mio.*` namespace.
+All fire through `wp.hooks` on the `os.mio.*` namespace.
 
 | Hook | Type | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.mio.config` | filter | Experimental | `MioConfig` — last word on appearance/physics before mount. Re-sanitized after your filter runs. |
-| `desktop-mode.mio.enabled` | action | Experimental | `{}` — user switched it on. |
-| `desktop-mode.mio.disabled` | action | Experimental | `{}` — user switched it off. |
-| `desktop-mode.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
-| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — genuinely destroyed, WebGL context released. **Not** the "user switched Mio off" signal — that parks the instance and fires `disabled`. |
-| `desktop-mode.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
-| `desktop-mode.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
-| `desktop-mode.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
-| `desktop-mode.mio.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new shape. Fires when the morph *starts*; it takes about 2.6 s to complete. |
+| `os.mio.config` | filter | Experimental | `MioConfig` — last word on appearance/physics before mount. Re-sanitized after your filter runs. |
+| `os.mio.enabled` | action | Experimental | `{}` — user switched it on. |
+| `os.mio.disabled` | action | Experimental | `{}` — user switched it off. |
+| `os.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
+| `os.mio.unmounted` | action | Experimental | `{}` — genuinely destroyed, WebGL context released. **Not** the "user switched Mio off" signal — that parks the instance and fires `disabled`. |
+| `os.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
+| `os.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
+| `os.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
+| `os.mio.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new shape. Fires when the morph *starts*; it takes about 2.6 s to complete. |
 
 ```js
 wp.hooks.addAction(
-	'desktop-mode.mio.dropped',
+	'os.mio.dropped',
 	'my-plugin/mio',
 	( { position } ) => {
 		// eslint-disable-next-line no-console
@@ -696,7 +696,7 @@ wp.hooks.addAction(
 );
 ```
 
-The dock tile is a normal system tile (`id: 'desktop-mode-mio-toggle'`), so `wp.desktop.getSystemTile()` can read it and the dock's decoration hooks can restyle it like any other.
+The dock tile is a normal system tile (`id: 'os-mio-toggle'`), so `wp.os.getSystemTile()` can read it and the dock's decoration hooks can restyle it like any other.
 
 ---
 
@@ -727,9 +727,9 @@ So switching Mio off stops the ticker, hides the layer, and leaves the context a
 
 Two consequences worth knowing:
 
-- The `#desktop-mode-mio` element stays in the DOM while Mio is off, `display: none`. A shell whose user has *never* switched Mio on still has no element and no context — the cost is only paid once someone has actually used it, and it is one idle context plus its canvas.
+- The `#os-mio` element stays in the DOM while Mio is off, `display: none`. A shell whose user has *never* switched Mio on still has no element and no context — the cost is only paid once someone has actually used it, and it is one idle context plus its canvas.
 - Re-enabling is instant: no bundle fetch, no Pixi boot, no new context. `mount` runs exactly once per page load however many times the user toggles, which is what `mio-controller.test.ts` asserts.
 
 The position is read **before** the layer is hidden. A hidden host reports zero size, and every position derived from a zero-size host is the top-left corner — which is exactly the bug that shipped when the teardown was merely deferred rather than removed. The `ResizeObserver` ignores a detached or zero-size host for the same reason.
 
-A dark backstop on the shell (`--desktop-mode-backstop`) covers the rest of the class: the shell sits over the white classic-admin page, so *any* layer failing to paint for a frame used to show white. Now the worst case is the desk's own colour.
+A dark backstop on the shell (`--os-backstop`) covers the rest of the class: the shell sits over the white classic-admin page, so *any* layer failing to paint for a frame used to show white. Now the worst case is the desk's own colour.

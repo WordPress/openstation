@@ -2,13 +2,13 @@
 /**
  * Tests for the Recycle Bin store helpers.
  *
- * Focuses on `desktop_mode_recycle_bin_empty()` — specifically the
+ * Focuses on `open_station_recycle_bin_empty()` — specifically the
  * per-call chunk cap (issue #97). The function MUST keep its cap
  * (so a 10k-item bin doesn't blow PHP's max_execution_time on a
  * single REST call) AND MUST report `remaining > 0` so the client
  * can iterate.
  *
- * Also covers `desktop_mode_recycle_bin_count()` capability scoping —
+ * Also covers `open_station_recycle_bin_count()` capability scoping —
  * the badge count must mirror the per-item `edit_post` gate the list
  * applies, never disclosing the global trash total to users who can't
  * see those items.
@@ -16,9 +16,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
+class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $author_id;
@@ -36,7 +36,7 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_recycle_bin_empty_chunk_size' );
+		remove_all_filters( 'open_station_recycle_bin_empty_chunk_size' );
 		parent::tear_down();
 	}
 
@@ -56,13 +56,13 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_empty
+	 * @covers ::open_station_recycle_bin_empty
 	 */
 	public function test_single_call_purges_at_most_one_chunk_and_reports_remaining() {
 		// 250 trashed items — well over the 200 default chunk size.
 		$this->trash_n_posts( 250 );
 
-		$result = desktop_mode_recycle_bin_empty();
+		$result = open_station_recycle_bin_empty();
 
 		$this->assertSame( 200, $result['purged'], 'Should cap at the chunk size.' );
 		$this->assertSame( 0, $result['skipped'] );
@@ -74,7 +74,7 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_empty
+	 * @covers ::open_station_recycle_bin_empty
 	 */
 	public function test_iterating_until_remaining_is_zero_empties_the_bin() {
 		$this->trash_n_posts( 250 );
@@ -82,7 +82,7 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 		$total_purged = 0;
 		$loops        = 0;
 		do {
-			$result        = desktop_mode_recycle_bin_empty();
+			$result        = open_station_recycle_bin_empty();
 			$total_purged += $result['purged'];
 			$loops++;
 			$this->assertLessThanOrEqual(
@@ -96,41 +96,41 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertSame( 0, $result['remaining'] );
 
 		// Sanity check — the bin really is empty now.
-		$after = desktop_mode_recycle_bin_get_items( array( 'per_page' => 1 ) );
+		$after = open_station_recycle_bin_get_items( array( 'per_page' => 1 ) );
 		$this->assertSame( 0, $after['total'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_empty
+	 * @covers ::open_station_recycle_bin_empty
 	 */
 	public function test_chunk_size_filter_is_honored() {
 		$this->trash_n_posts( 30 );
 		add_filter(
-			'desktop_mode_recycle_bin_empty_chunk_size',
+			'open_station_recycle_bin_empty_chunk_size',
 			static function () {
 				return 10;
 			}
 		);
 
-		$result = desktop_mode_recycle_bin_empty();
+		$result = open_station_recycle_bin_empty();
 
 		$this->assertSame( 10, $result['purged'], 'Filter should override the default chunk size.' );
 		$this->assertSame( 20, $result['remaining'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_empty
+	 * @covers ::open_station_recycle_bin_empty
 	 */
 	public function test_chunk_size_filter_floors_to_one() {
 		$this->trash_n_posts( 3 );
 		add_filter(
-			'desktop_mode_recycle_bin_empty_chunk_size',
+			'open_station_recycle_bin_empty_chunk_size',
 			static function () {
 				return 0;
 			}
 		);
 
-		$result = desktop_mode_recycle_bin_empty();
+		$result = open_station_recycle_bin_empty();
 
 		// Zero or negative should not freeze — clamp to 1.
 		$this->assertSame( 1, $result['purged'] );
@@ -150,7 +150,7 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_count
+	 * @covers ::open_station_recycle_bin_count
 	 */
 	public function test_count_is_global_for_users_with_edit_others_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
@@ -159,11 +159,11 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$admin_id );
 
-		$this->assertSame( 3, desktop_mode_recycle_bin_count() );
+		$this->assertSame( 3, open_station_recycle_bin_count() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_count
+	 * @covers ::open_station_recycle_bin_count
 	 */
 	public function test_count_is_author_scoped_without_edit_others_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
@@ -174,13 +174,13 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 
 		$this->assertSame(
 			1,
-			desktop_mode_recycle_bin_count(),
+			open_station_recycle_bin_count(),
 			'Authors should only see their own trashed posts counted, not the global total.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_count
+	 * @covers ::open_station_recycle_bin_count
 	 */
 	public function test_count_is_zero_for_users_without_edit_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
@@ -190,52 +190,52 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 
 		$this->assertSame(
 			0,
-			desktop_mode_recycle_bin_count(),
+			open_station_recycle_bin_count(),
 			'Subscribers must not learn the global trash total from the badge count.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_heartbeat_received
+	 * @covers ::open_station_recycle_bin_heartbeat_received
 	 */
 	public function test_heartbeat_attaches_count_only_when_changed() {
 		$this->trash_n_posts( 2 );
-		$latest = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+		$latest = (int) get_option( OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
 		$this->assertGreaterThan( 0, $latest, 'trashing bumps the change ts' );
 
 		// Client behind the high-water mark → changed + count attached.
-		$stale = desktop_mode_recycle_bin_heartbeat_received(
+		$stale = open_station_recycle_bin_heartbeat_received(
 			array(),
-			array( 'desktop_mode_recycle_bin_seen_ts' => 0 )
+			array( 'open_station_recycle_bin_seen_ts' => 0 )
 		);
-		$this->assertTrue( $stale['desktop_mode_recycle_bin']['changed'] );
-		$this->assertSame( 2, $stale['desktop_mode_recycle_bin']['count'] );
+		$this->assertTrue( $stale['open_station_recycle_bin']['changed'] );
+		$this->assertSame( 2, $stale['open_station_recycle_bin']['count'] );
 
 		// Client caught up → no count key, no COUNT(*) work.
-		$caught_up = desktop_mode_recycle_bin_heartbeat_received(
+		$caught_up = open_station_recycle_bin_heartbeat_received(
 			array(),
-			array( 'desktop_mode_recycle_bin_seen_ts' => $latest )
+			array( 'open_station_recycle_bin_seen_ts' => $latest )
 		);
-		$this->assertFalse( $caught_up['desktop_mode_recycle_bin']['changed'] );
-		$this->assertSame( $latest, $caught_up['desktop_mode_recycle_bin']['ts'] );
-		$this->assertArrayNotHasKey( 'count', $caught_up['desktop_mode_recycle_bin'] );
+		$this->assertFalse( $caught_up['open_station_recycle_bin']['changed'] );
+		$this->assertSame( $latest, $caught_up['open_station_recycle_bin']['ts'] );
+		$this->assertArrayNotHasKey( 'count', $caught_up['open_station_recycle_bin'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_heartbeat_received
+	 * @covers ::open_station_recycle_bin_heartbeat_received
 	 */
 	public function test_heartbeat_ignores_ticks_without_the_seen_ts_field() {
-		$response = desktop_mode_recycle_bin_heartbeat_received( array(), array() );
-		$this->assertArrayNotHasKey( 'desktop_mode_recycle_bin', $response );
+		$response = open_station_recycle_bin_heartbeat_received( array(), array() );
+		$this->assertArrayNotHasKey( 'open_station_recycle_bin', $response );
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_inject_shell_config
-	 * @covers ::desktop_mode_recycle_bin_localize_config
+	 * @covers ::open_station_recycle_bin_inject_shell_config
+	 * @covers ::open_station_recycle_bin_localize_config
 	 */
 	public function test_config_filters_inject_recycle_bin_post_types() {
 		// Test shell config injection
-		$config = apply_filters( 'desktop_mode_shell_config', array() );
+		$config = apply_filters( 'open_station_shell_config', array() );
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'recycleBinPostTypes', $config );
 		$this->assertIsArray( $config['recycleBinPostTypes'] );
@@ -247,10 +247,10 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 		wp_register_script( 'desktop-mode-recycle-bin', '' );
 
 		// Test localized config injection
-		desktop_mode_recycle_bin_localize_config();
+		open_station_recycle_bin_localize_config();
 		$data = wp_scripts()->get_data( 'desktop-mode-recycle-bin', 'data' );
 		$this->assertNotEmpty( $data );
-		$this->assertStringContainsString( 'desktopModeRecycleBinConfig', $data );
+		$this->assertStringContainsString( 'openStationRecycleBinConfig', $data );
 		$this->assertStringContainsString( '"postTypes":["post","page","attachment"', $data );
 	}
 }

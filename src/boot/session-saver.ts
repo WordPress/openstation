@@ -23,7 +23,7 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
 /**
  * Creates the debounced+immediate session saver. Returns a single
  * function that schedules a debounced REST write on each call.
- * Also exposed on `wp.desktop.saveSession()` for plugins that want
+ * Also exposed on `wp.os.saveSession()` for plugins that want
  * to flush.
  */
 export function createSessionSaver(

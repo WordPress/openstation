@@ -2,12 +2,12 @@
  * Dock-rail-renderer section — picker bound to `state.dockRailRenderer`.
  *
  * Lists every renderer registered via
- * `wp.desktop.registerDockRailRenderer`, keyed by id. Subscribes to
+ * `wp.os.registerDockRailRenderer`, keyed by id. Subscribes to
  * the registry so newly-activated plugins surface their renderer
  * immediately without an OS Settings reopen.
  *
  * Default renderer is the shipped icon-strip (`id: 'default'`);
- * plugin renderers append. Same `<wpd-segmented>` shape as the
+ * plugin renderers append. Same `<os-segmented>` shape as the
  * submenu picker so the two read as a pair.
  */
 
@@ -50,24 +50,24 @@ export function buildDockRailRendererSection(
 		}
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Dock style' ) }
 					description=${ __(
 						'How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.',
 					) }
 				>
-					<wpd-segmented
+					<os-segmented
 						value=${ ctx.state.dockRailRenderer }
 						label=${ __( 'Dock style' ) }
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
 						${ renderers.map(
-							( r ) => html`<wpd-segment value=${ r.id }
-									>${ r.label }</wpd-segment
+							( r ) => html`<os-segment value=${ r.id }
+									>${ r.label }</os-segment
 								>`,
 						) }
-					</wpd-segmented>
-				</wpd-section>
+					</os-segmented>
+				</os-section>
 			`,
 			wrapper,
 		);

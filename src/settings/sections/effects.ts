@@ -3,7 +3,7 @@
  * `state.unfocusEffect`, plus the "Window links" selectors bound to
  * `state.windowLinkRenderer` / `state.windowLinkVisibility`.
  *
- * Lists every effect registered via `wp.desktop.registerUnfocusEffect`
+ * Lists every effect registered via `wp.os.registerUnfocusEffect`
  * (the built-in `darken` plus any plugin effects), preceded by a
  * `None` option that maps to the engine's reserved `'none'` sentinel.
  * Subscribes to the effect registry so a plugin activated mid-session
@@ -11,7 +11,7 @@
  * window-link renderer picker mirrors the same pattern against the
  * window-link renderer registry.
  *
- * The pickers are `<wpd-select>` rather than `<wpd-segmented>` pill
+ * The pickers are `<os-select>` rather than `<os-segmented>` pill
  * bars because both lists are open-ended — plugins append, and a
  * dropdown scales past the shipped choices.
  */
@@ -189,90 +189,90 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Unfocused windows' ) }
 					description=${ description }
 				>
-					<wpd-select
+					<os-select
 						value=${ ctx.state.unfocusEffect }
 						label=${ __( 'Unfocused window effect' ) }
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
-						<wpd-option value=${ NONE }>
+						<os-option value=${ NONE }>
 							${ __( 'None' ) }
-						</wpd-option>
+						</os-option>
 						${ effects.map(
 							( fx ) =>
-								html`<wpd-option value=${ fx.id }
-									>${ fx.label }</wpd-option
+								html`<os-option value=${ fx.id }
+									>${ fx.label }</os-option
 								>`,
 						) }
-					</wpd-select>
-				</wpd-section>
-				<wpd-section
+					</os-select>
+				</os-section>
+				<os-section
 					heading=${ __( 'Window reveal' ) }
 					description=${ revealDescription }
 				>
-					<wpd-select
+					<os-select
 						value=${ ctx.state.windowReveal }
 						label=${ __( 'Reveal style' ) }
-						@wpd-pick=${ onPickReveal }
+						@os-pick=${ onPickReveal }
 					>
-						<wpd-option value=${ REVEAL_NONE }>
+						<os-option value=${ REVEAL_NONE }>
 							${ __( 'None' ) }
-						</wpd-option>
+						</os-option>
 						${ reveals.map(
 							( r ) =>
-								html`<wpd-option value=${ r.id }
-									>${ r.label }</wpd-option
+								html`<os-option value=${ r.id }
+									>${ r.label }</os-option
 								>`,
 						) }
-					</wpd-select>
-					<wpd-select
+					</os-select>
+					<os-select
 						value=${ String( ctx.state.windowRevealDuration ) }
 						label=${ __( 'Reveal speed' ) }
-						@wpd-pick=${ onPickRevealSpeed }
+						@os-pick=${ onPickRevealSpeed }
 					>
 						${ REVEAL_SPEEDS.map(
 							( s ) =>
-								html`<wpd-option value=${ String( s.value ) }
-									>${ s.label() }</wpd-option
+								html`<os-option value=${ String( s.value ) }
+									>${ s.label() }</os-option
 								>`,
 						) }
-					</wpd-select>
-				</wpd-section>
-				<wpd-section
+					</os-select>
+				</os-section>
+				<os-section
 					heading=${ __( 'Window links' ) }
 					description=${ linksDescription }
 				>
-					<wpd-select
+					<os-select
 						value=${ ctx.state.windowLinkRenderer }
 						label=${ __( 'Link style' ) }
-						@wpd-pick=${ onPickLinkRenderer }
+						@os-pick=${ onPickLinkRenderer }
 					>
-						<wpd-option value=${ LINKS_NONE }>
+						<os-option value=${ LINKS_NONE }>
 							${ __( 'None' ) }
-						</wpd-option>
+						</os-option>
 						${ linkRenderers.map(
 							( r ) =>
-								html`<wpd-option value=${ r.id }
-									>${ r.label }</wpd-option
+								html`<os-option value=${ r.id }
+									>${ r.label }</os-option
 								>`,
 						) }
-					</wpd-select>
-					<wpd-select
+					</os-select>
+					<os-select
 						value=${ ctx.state.windowLinkVisibility }
 						label=${ __( 'Show links' ) }
-						@wpd-pick=${ onPickLinkVisibility }
+						@os-pick=${ onPickLinkVisibility }
 					>
 						${ LINK_VISIBILITIES.map(
 							( v ) =>
-								html`<wpd-option value=${ v.id }
-									>${ v.label() }</wpd-option
+								html`<os-option value=${ v.id }
+									>${ v.label() }</os-option
 								>`,
 						) }
-					</wpd-select>
-				</wpd-section>
+					</os-select>
+				</os-section>
 			`,
 			wrapper,
 		);

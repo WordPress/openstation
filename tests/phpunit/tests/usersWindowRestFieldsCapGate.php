@@ -2,7 +2,7 @@
 /**
  * Tests for the capability gate on the Users-window REST fields.
  *
- * The `desktop_mode_last_login` and `desktop_mode_presence` fields
+ * The `open_station_last_login` and `open_station_presence` fields
  * register on the core `user` resource on every REST request, and
  * the `user` resource is partially public — any author with a
  * published post is visible to low-cap (or logged-out) viewers via
@@ -14,10 +14,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-users-window
+ * @group openstation
+ * @group os-users-window
  */
-class Tests_DesktopMode_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
+class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -43,8 +43,8 @@ class Tests_DesktopMode_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 
-		update_user_meta( self::$author_id, DESKTOP_MODE_LAST_LOGIN_META_KEY, self::LAST_LOGIN_TS );
-		desktop_mode_presence_record( self::$author_id, true );
+		update_user_meta( self::$author_id, OPEN_STATION_LAST_LOGIN_META_KEY, self::LAST_LOGIN_TS );
+		open_station_presence_record( self::$author_id, true );
 	}
 
 	/**
@@ -61,23 +61,23 @@ class Tests_DesktopMode_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 	 * A viewer without `list_users` must only ever see the empty
 	 * defaults for another user's last-login and presence.
 	 *
-	 * @covers ::desktop_mode_users_window_register_rest_fields
+	 * @covers ::open_station_users_window_register_rest_fields
 	 */
 	public function test_subscriber_gets_empty_defaults_for_other_user() {
 		wp_set_current_user( self::$subscriber_id );
 
 		$data = $this->get_author_resource();
 
-		$this->assertArrayHasKey( 'desktop_mode_last_login', $data );
+		$this->assertArrayHasKey( 'open_station_last_login', $data );
 		$this->assertNull(
-			$data['desktop_mode_last_login'],
+			$data['open_station_last_login'],
 			'last-login must not leak to viewers without list_users'
 		);
 
-		$this->assertArrayHasKey( 'desktop_mode_presence', $data );
+		$this->assertArrayHasKey( 'open_station_presence', $data );
 		$this->assertSame(
 			'offline',
-			$data['desktop_mode_presence'],
+			$data['open_station_presence'],
 			'live presence must not leak to viewers without list_users'
 		);
 	}
@@ -85,29 +85,29 @@ class Tests_DesktopMode_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 	/**
 	 * A viewer with `list_users` gets the real values.
 	 *
-	 * @covers ::desktop_mode_users_window_register_rest_fields
+	 * @covers ::open_station_users_window_register_rest_fields
 	 */
 	public function test_admin_sees_last_login_and_presence() {
 		wp_set_current_user( self::$admin_id );
 
 		$data = $this->get_author_resource();
 
-		$this->assertSame( self::LAST_LOGIN_TS, $data['desktop_mode_last_login'] );
-		$this->assertSame( 'online', $data['desktop_mode_presence'] );
+		$this->assertSame( self::LAST_LOGIN_TS, $data['open_station_last_login'] );
+		$this->assertSame( 'online', $data['open_station_presence'] );
 	}
 
 	/**
 	 * Users can always see their own last-login and presence, even
 	 * without `list_users`.
 	 *
-	 * @covers ::desktop_mode_users_window_register_rest_fields
+	 * @covers ::open_station_users_window_register_rest_fields
 	 */
 	public function test_user_sees_own_last_login_and_presence() {
 		wp_set_current_user( self::$author_id );
 
 		$data = $this->get_author_resource();
 
-		$this->assertSame( self::LAST_LOGIN_TS, $data['desktop_mode_last_login'] );
-		$this->assertSame( 'online', $data['desktop_mode_presence'] );
+		$this->assertSame( self::LAST_LOGIN_TS, $data['open_station_last_login'] );
+		$this->assertSame( 'online', $data['open_station_presence'] );
 	}
 }

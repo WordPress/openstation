@@ -2,7 +2,7 @@
 /**
  * FeedBuddy integration tests.
  *
- * @package DesktopModeFeedBuddy
+ * @package OpenStationFeedBuddy
  */
 
 if ( ! class_exists( 'Feed_Buddy_Service' ) ) {
@@ -10,7 +10,7 @@ if ( ! class_exists( 'Feed_Buddy_Service' ) ) {
 }
 
 /**
- * @group desktop-mode
+ * @group openstation
  */
 class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 
@@ -122,13 +122,13 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		$this->assertSame( 200, Feed_Buddy_Service::MAX_SUBSCRIPTIONS );
 	}
 
-	public function test_stylesheet_dependencies_use_registered_desktop_mode_handles() {
-		desktop_mode_register_assets();
+	public function test_stylesheet_dependencies_use_registered_open_station_handles() {
+		open_station_register_assets();
 		feed_buddy_register_assets();
 		$styles = wp_styles();
 		$this->assertArrayHasKey( 'desktop-mode-feed-buddy', $styles->registered );
 		$this->assertSame(
-			array( 'desktop-mode-variables', 'dashicons' ),
+			array( 'os-variables', 'dashicons' ),
 			$styles->registered['desktop-mode-feed-buddy']->deps
 		);
 		foreach ( $styles->registered['desktop-mode-feed-buddy']->deps as $dependency ) {
@@ -391,7 +391,7 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		$this->assertSame( $second_id, $state['subscriptions'][0]['id'] );
 	}
 
-	public function test_rest_permissions_and_desktop_mode_registration() {
+	public function test_rest_permissions_and_open_station_registration() {
 		$controller = new Feed_Buddy_REST_Controller( $this->service );
 		wp_set_current_user( 0 );
 		$this->assertWPError( $controller->check_permission() );
@@ -416,8 +416,8 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 
 		feed_buddy_register_assets();
 		feed_buddy_register_surfaces();
-		$window = desktop_mode_native_window_registry( 'feed-buddy-reader' );
-		$widget = desktop_mode_desktop_widget_registry( 'feed-buddy/buddy-list' );
+		$window = open_station_native_window_registry( 'feed-buddy-reader' );
+		$widget = open_station_desktop_widget_registry( 'feed-buddy/buddy-list' );
 		$this->assertSame( 'dock', $window['placement'] );
 		$this->assertSame( 760, $window['width'] );
 		$this->assertTrue( $widget['movable'] );
@@ -427,7 +427,7 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		ob_start();
 		feed_buddy_render_reader_template();
 		$template = ob_get_clean();
-		$this->assertStringContainsString( '<wpd-button', $template );
+		$this->assertStringContainsString( '<os-button', $template );
 		$this->assertStringContainsString( 'data-feed-buddy-reader', $template );
 		$this->assertStringContainsString( 'Mark all read', $template );
 	}

@@ -33,8 +33,8 @@ export async function fetchMediaPage(
 		url.searchParams.set( 'search', search );
 	}
 	if ( hdOnly ) {
-		url.searchParams.set( 'desktop_mode_min_width', String( HD_MIN_WIDTH ) );
-		url.searchParams.set( 'desktop_mode_min_height', String( HD_MIN_HEIGHT ) );
+		url.searchParams.set( 'open_station_min_width', String( HD_MIN_WIDTH ) );
+		url.searchParams.set( 'open_station_min_height', String( HD_MIN_HEIGHT ) );
 	}
 
 	const response = await trackedFetch(

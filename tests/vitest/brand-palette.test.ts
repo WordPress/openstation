@@ -9,7 +9,7 @@
  *   2. Text on a filled accent is Void, not Starlight. Pulse is a
  *      light colour that happens to be vivid; white on it fails
  *      contrast, and the mistake looks fine in a screenshot.
- *   3. The palette is scoped to `body.desktop-mode-active` — the shell
+ *   3. The palette is scoped to `body.os-active` — the shell
  *      document only. This file is a dependency of `chromeless.css`,
  *      so on `:root` it would reach inside every iframe window and
  *      repaint WordPress's own admin UI.
@@ -43,39 +43,39 @@ function declared( token: string ): string | null {
 
 describe( 'brand palette', () => {
 	test.each( [
-		[ '--wpd-accent', '#f252fc' ], // Pulse
-		[ '--wpd-accent-strong', '#ec9bff' ], // Nebula
-		[ '--wpd-surface', '#1a1721' ], // Obsidian
-		[ '--wpd-surface-sunken', '#0c0b0f' ], // Void
-		[ '--wpd-surface-elevated', '#33303a' ], // Astro
-		[ '--wpd-fg', '#fffbff' ], // Starlight
-		[ '--wpd-fg-muted', '#b3afb5' ], // Ash
-		[ '--wpd-fg-faint', '#66636b' ], // Pewter
-		[ '--wpd-border', '#33303a' ], // Astro
-		[ '--wpd-border-strong', '#4d4a52' ], // Silver
-		[ '--wpd-info-fg', '#c2f1f1' ], // Sirius
-		[ '--desktop-mode-backstop', '#0c0b0f' ], // Void
-		[ '--desktop-mode-window-bg', '#1a1721' ], // Obsidian
-		[ '--desktop-mode-titlebar-bg-focused', '#33303a' ], // Astro
+		[ '--os-ui-accent', '#f252fc' ], // Pulse
+		[ '--os-ui-accent-strong', '#ec9bff' ], // Nebula
+		[ '--os-ui-surface', '#1a1721' ], // Obsidian
+		[ '--os-ui-surface-sunken', '#0c0b0f' ], // Void
+		[ '--os-ui-surface-elevated', '#33303a' ], // Astro
+		[ '--os-ui-fg', '#fffbff' ], // Starlight
+		[ '--os-ui-fg-muted', '#b3afb5' ], // Ash
+		[ '--os-ui-fg-faint', '#66636b' ], // Pewter
+		[ '--os-ui-border', '#33303a' ], // Astro
+		[ '--os-ui-border-strong', '#4d4a52' ], // Silver
+		[ '--os-ui-info-fg', '#c2f1f1' ], // Sirius
+		[ '--os-backstop', '#0c0b0f' ], // Void
+		[ '--os-window-bg', '#1a1721' ], // Obsidian
+		[ '--os-titlebar-bg-focused', '#33303a' ], // Astro
 	] )( '%s is %s', ( token, value ) => {
 		expect( declared( token ) ).toBe( value );
 	} );
 
 	test( 'on-accent text is Starlight, and the bright fills opt out', () => {
-		// Around forty rules read `--wpd-fg-on-accent`, and only half
+		// Around forty rules read `--os-ui-fg-on-accent`, and only half
 		// sit on the accent — the rest are white-on-dark chips with no
 		// name of their own (toast, drag hint, widget picker, file-tile
 		// lock, overview labels, scrim-backed captions). Void reads
 		// better ON Pulse and turns every one of those into black text
 		// on a near-black wash, so Starlight wins and the surfaces that
 		// really are a bright fill name their own dark text.
-		expect( declared( '--wpd-fg-on-accent' ) ).toBe( '#fffbff' );
-		expect( declared( '--wpd-ribbon-fg' ) ).toBe( '#0c0b0f' );
-		expect( declared( '--wpd-step-chip-fg' ) ).toBe( '#0c0b0f' );
+		expect( declared( '--os-ui-fg-on-accent' ) ).toBe( '#fffbff' );
+		expect( declared( '--os-ui-ribbon-fg' ) ).toBe( '#0c0b0f' );
+		expect( declared( '--os-ui-step-chip-fg' ) ).toBe( '#0c0b0f' );
 	} );
 
 	test( 'the desk is the brand Space gradient', () => {
-		const bg = declared( '--desktop-mode-bg' ) ?? '';
+		const bg = declared( '--os-bg' ) ?? '';
 
 		expect( bg ).toContain( '#010101' );
 		expect( bg ).toContain( '#111114' );
@@ -88,9 +88,9 @@ describe( 'brand palette', () => {
 		// Variable fonts: one file has to cover the whole scale, or the
 		// weights in the type ramp synthesise into fake bolds.
 		expect( CSS ).toContain( 'font-weight: 100 900' );
-		expect( declared( '--wpd-font' ) ).toContain( "'Geist'" );
-		expect( declared( '--wpd-font-mono' ) ).toContain( "'Geist Mono'" );
-		expect( declared( '--desktop-mode-font' ) ).toContain( "'Geist'" );
+		expect( declared( '--os-ui-font' ) ).toContain( "'Geist'" );
+		expect( declared( '--os-ui-font-mono' ) ).toContain( "'Geist Mono'" );
+		expect( declared( '--os-font' ) ).toContain( "'Geist'" );
 	} );
 
 	test( 'the palette is scoped to the shell document, not :root', () => {
@@ -100,39 +100,39 @@ describe( 'brand palette', () => {
 		// would repaint WordPress's own UI in there;
 		// `--wp-admin-theme-color` alone would turn Core's primary
 		// buttons, links and focus rings across every admin screen.
-		// Chromeless documents carry `desktop-mode-chromeless`, so
+		// Chromeless documents carry `os-chromeless`, so
 		// they match nothing here and fall back to the literals.
-		expect( CSS ).toContain( 'body.desktop-mode-active {' );
+		expect( CSS ).toContain( 'body.os-active {' );
 		expect( CSS ).not.toMatch( /^:root\s*\{/m );
 
 		const block = CSS.slice(
-			CSS.indexOf( 'body.desktop-mode-active {' ),
-			CSS.indexOf( '\n}\n', CSS.indexOf( 'body.desktop-mode-active {' ) )
+			CSS.indexOf( 'body.os-active {' ),
+			CSS.indexOf( '\n}\n', CSS.indexOf( 'body.os-active {' ) )
 		);
-		expect( block ).toContain( '--wpd-accent: #f252fc' );
-		expect( block ).toContain( '--wpd-surface: #1a1721' );
+		expect( block ).toContain( '--os-ui-accent: #f252fc' );
+		expect( block ).toContain( '--os-ui-surface: #1a1721' );
 		expect( block ).toContain( '--wp-admin-theme-color: #f252fc' );
 	} );
 
 	test( 'nothing but the per-scheme accent is scoped to the shell root', () => {
 		// The palette has to reach body-mounted overlays — toasts,
 		// context menus, the command palette — which render outside
-		// `#desktop-mode-shell`. A `--wpd-*` declaration on the shell
+		// `#os-shell`. A `--os-ui-*` declaration on the shell
 		// root would miss all of them.
-		expect( CSS ).not.toMatch( /\.desktop-mode-shell\[[^\]]*\]\s*\{[^}]*--wpd-/ );
+		expect( CSS ).not.toMatch( /\.os-shell\[[^\]]*\]\s*\{[^}]*--os-ui-/ );
 	} );
 } );
 
 describe( 'Legacy still reverts the brand', () => {
 	test.each( [
-		'--wpd-accent',
-		'--wpd-surface',
-		'--wpd-fg',
-		'--wpd-border',
-		'--desktop-mode-window-bg',
-		'--desktop-mode-titlebar-bg',
-		'--desktop-mode-titlebar-bg-focused',
-		'--desktop-mode-dock-bg',
+		'--os-ui-accent',
+		'--os-ui-surface',
+		'--os-ui-fg',
+		'--os-ui-border',
+		'--os-window-bg',
+		'--os-titlebar-bg',
+		'--os-titlebar-bg-focused',
+		'--os-dock-bg',
 	] )( '%s differs between the palette and the snapshot', ( token ) => {
 		const now = declared( token );
 		const then = LEGACY.tokens[ token ];
@@ -148,7 +148,7 @@ describe( 'Legacy still reverts the brand', () => {
 		// `--wp-admin-theme-color`, which the manifest grammar cannot
 		// express — so the snapshot has to name the literal or the
 		// title bar silently keeps the station's Astro grey.
-		expect( LEGACY.tokens[ '--desktop-mode-titlebar-bg-focused' ] ).toBe( '#2271b1' );
-		expect( LEGACY.tokens[ '--desktop-mode-titlebar-color-focused' ] ).toBe( '#fff' );
+		expect( LEGACY.tokens[ '--os-titlebar-bg-focused' ] ).toBe( '#2271b1' );
+		expect( LEGACY.tokens[ '--os-titlebar-color-focused' ] ).toBe( '#fff' );
 	} );
 } );

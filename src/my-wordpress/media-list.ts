@@ -8,8 +8,8 @@
  * level reject claimant set up by `renderInto()` handles that.
  *
  * Plugins extend the right pane via the
- * `desktop-mode.my-wordpress.preview-actions` JS filter (paired with
- * the PHP `desktop_mode_my_wordpress_preview_actions` descriptor).
+ * `os.my-wordpress.preview-actions` JS filter (paired with
+ * the PHP `open_station_my_wordpress_preview_actions` descriptor).
  *
  * @public
  */
@@ -20,7 +20,7 @@ import { addAction, applyFilters, removeAction } from '../hooks';
 import { FILE_DROP_HOOKS } from '../os-file-drop/hooks';
 import type { DropUploadResult } from '../os-file-drop/types';
 import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../toast';
 import type { EntityRenderHost } from './kind-registry';
 import { renderListToolbar } from './list-toolbar';
@@ -105,7 +105,7 @@ function paintStatus( ctx: MediaListContext ): void {
 		StatusBarSegment[],
 		[ { view: 'list'; entityId: string } ]
 	>(
-		'desktop-mode.my-wordpress.status-bar',
+		'os.my-wordpress.status-bar',
 		segments,
 		{ view: 'list', entityId: ctx.entity.id },
 	);
@@ -138,9 +138,9 @@ function buildMediaTile(
 		role: 'entry',
 		dataset: { mediaId: media.id, mime: media.mime_type },
 		extraClasses: [
-			'desktop-mode-my-wordpress__media-tile',
-			'desktop-mode-my-wordpress__tile',
-			'desktop-mode-my-wordpress__tile--media',
+			'os-my-wordpress__media-tile',
+			'os-my-wordpress__tile',
+			'os-my-wordpress__tile--media',
 		],
 	} );
 
@@ -199,7 +199,7 @@ interface MediaTileMenuOption {
 
 /**
  * Build + position the right-click menu for a media tile. Mirrors
- * `openTileMenu()` in `my-wordpress/index.ts` — same `<wpd-context-menu>`
+ * `openTileMenu()` in `my-wordpress/index.ts` — same `<os-context-menu>`
  * shape, same dismiss handling — so plugin authors only have to learn
  * one pattern.
  */
@@ -213,9 +213,9 @@ function openMediaTileMenu(
 	closeAnyMediaTileMenu();
 	selectTile( ctx, tile, media );
 
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
+	menu.classList.add( 'os-my-wordpress__menu' );
 	( menu as HTMLElement ).style.left = `${ pos.x }px`;
 	( menu as HTMLElement ).style.top = `${ pos.y }px`;
 
@@ -247,14 +247,14 @@ function openMediaTileMenu(
 		MediaTileMenuOption[],
 		[ typeof filterCtx ]
 	>(
-		'desktop-mode.my-wordpress.tile-context-menu',
+		'os.my-wordpress.tile-context-menu',
 		base,
 		filterCtx,
 	);
 	const finalOptions = Array.isArray( options ) ? options : base;
 
 	for ( const o of finalOptions ) {
-		const opt = document.createElement( 'wpd-context-menu-option' );
+		const opt = document.createElement( 'os-context-menu-option' );
 		( opt as HTMLElement ).dataset.menuItemId = o.id;
 		opt.setAttribute( 'value', o.id );
 		opt.setAttribute( 'icon', o.icon );
@@ -265,7 +265,7 @@ function openMediaTileMenu(
 		menu.appendChild( opt );
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
 		closeAnyMediaTileMenu();
 		if ( detail.id === 'navigate-into' ) {
@@ -341,7 +341,7 @@ function openMediaTileMenu(
 
 function closeAnyMediaTileMenu(): void {
 	document
-		.querySelectorAll( 'wpd-context-menu.desktop-mode-my-wordpress__menu' )
+		.querySelectorAll( 'os-context-menu.os-my-wordpress__menu' )
 		.forEach( ( n ) => {
 			n.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
 			n.remove();
@@ -354,7 +354,7 @@ async function confirmDeleteMedia(
 	media: MediaListItem,
 	titleText: string,
 ): Promise< void > {
-	const ok = await wpdConfirm( {
+	const ok = await osConfirm( {
 		title: __( 'Delete media?', 'desktop-mode' ),
 		message: sprintf(
 			// translators: %s is a media item title.
@@ -393,7 +393,7 @@ function removeMediaFromList(
 		// Restore the "select a media item" placeholder.
 		ctx.preview.replaceChildren();
 		const placeholder = document.createElement( 'div' );
-		placeholder.className = 'desktop-mode-my-wordpress__preview-empty';
+		placeholder.className = 'os-my-wordpress__preview-empty';
 		placeholder.textContent = __(
 			'Select a media item to preview it here.',
 			'desktop-mode',
@@ -410,7 +410,7 @@ function selectTile(
 	tile: HTMLElement,
 	media: MediaListItem,
 ): void {
-	// Selected state lives on the `selected` attribute — `<wpd-tile>`
+	// Selected state lives on the `selected` attribute — `<os-tile>`
 	// derives the `--selected` class from it on every `_paint()`.
 	// Toggling the class directly would be wiped out by the next
 	// repaint (label edit, thumbnail swap, hover-title toggle…).
@@ -439,7 +439,7 @@ function selectTile(
 
 function renderEmpty( host: HTMLElement, message: string ): void {
 	const empty = document.createElement( 'div' );
-	empty.className = 'desktop-mode-my-wordpress__empty';
+	empty.className = 'os-my-wordpress__empty';
 	empty.textContent = message;
 	host.appendChild( empty );
 }
@@ -470,26 +470,26 @@ export function renderMediaList(
 
 	const split = document.createElement( 'div' );
 	split.className =
-		'desktop-mode-my-wordpress__split desktop-mode-my-wordpress__split--media';
+		'os-my-wordpress__split os-my-wordpress__split--media';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list';
+	left.className = 'os-my-wordpress__list';
 
 	const tiles = document.createElement( 'div' );
 	tiles.className =
-		'desktop-mode-my-wordpress__media-grid';
+		'os-my-wordpress__media-grid';
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
 	const sentinel = document.createElement( 'div' );
-	sentinel.className = 'desktop-mode-my-wordpress__sentinel';
+	sentinel.className = 'os-my-wordpress__sentinel';
 	sentinel.setAttribute( 'aria-hidden', 'true' );
 	left.appendChild( sentinel );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 	const previewEmpty = document.createElement( 'div' );
-	previewEmpty.className = 'desktop-mode-my-wordpress__preview-empty';
+	previewEmpty.className = 'os-my-wordpress__preview-empty';
 	previewEmpty.textContent = __(
 		'Select a media item to preview it here.',
 		'desktop-mode',
@@ -505,9 +505,9 @@ export function renderMediaList(
 	// tolerates a host that isn't in the DOM.
 	const statusBar =
 		host.body
-			.closest( '[data-desktop-mode-my-wordpress-root]' )
+			.closest( '[data-os-my-wordpress-root]' )
 			?.querySelector< HTMLElement >(
-				'[data-desktop-mode-my-wordpress-status]',
+				'[data-os-my-wordpress-status]',
 			) ?? document.createElement( 'div' );
 
 	const ctx: MediaListContext = {
@@ -619,7 +619,7 @@ export function renderMediaList(
 		ctx.query = q;
 
 		tiles.classList.add(
-			'desktop-mode-my-wordpress__media-grid--searching',
+			'os-my-wordpress__media-grid--searching',
 		);
 
 		const controller = new AbortController();
@@ -640,7 +640,7 @@ export function renderMediaList(
 
 			tiles.replaceChildren();
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__media-grid--searching',
+				'os-my-wordpress__media-grid--searching',
 			);
 
 			ctx.page = 1;
@@ -653,7 +653,7 @@ export function renderMediaList(
 			ctx.preview.replaceChildren();
 			const emptyPreview = document.createElement( 'div' );
 			emptyPreview.className =
-				'desktop-mode-my-wordpress__preview-empty';
+				'os-my-wordpress__preview-empty';
 			emptyPreview.textContent = __(
 				'Select a media item to preview it here.',
 				'desktop-mode',
@@ -684,7 +684,7 @@ export function renderMediaList(
 				return;
 			}
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__media-grid--searching',
+				'os-my-wordpress__media-grid--searching',
 			);
 			tiles.replaceChildren();
 			const message =
@@ -780,7 +780,7 @@ async function spliceNewMedia(
 	}
 	if (
 		ctx.tiles.querySelector(
-			`wpd-tile[data-media-id="${ mediaId }"]`,
+			`os-tile[data-media-id="${ mediaId }"]`,
 		)
 	) {
 		return;

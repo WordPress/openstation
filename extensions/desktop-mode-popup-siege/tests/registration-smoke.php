@@ -2,7 +2,7 @@
 /**
  * Framework-free registration and score-contract smoke test.
  *
- * @package DesktopModePopupSiege
+ * @package OpenStationPopupSiege
  */
 
 define( 'ABSPATH', __DIR__ . '/' );
@@ -151,7 +151,7 @@ function wp_register_script( $handle, $src, $dependencies, $version, $footer ) {
  * @param string $id Game id.
  * @param array  $args Registration arguments.
  */
-function desktop_mode_register_game( $id, $args ) {
+function open_station_register_game( $id, $args ) {
 	global $popup_siege_registered;
 	$popup_siege_registered[ $id ] = $args;
 }
@@ -176,8 +176,8 @@ popup_siege_test_assert(
 	'Popup Siege must register on init at priority 20.'
 );
 popup_siege_test_assert(
-	isset( $popup_siege_filters['desktop_mode_game_score_pre_save'][0] ) &&
-		5 === $popup_siege_filters['desktop_mode_game_score_pre_save'][0][2],
+	isset( $popup_siege_filters['open_station_game_score_pre_save'][0] ) &&
+		5 === $popup_siege_filters['open_station_game_score_pre_save'][0][2],
 	'Popup Siege must inspect all five score filter arguments.'
 );
 
@@ -195,8 +195,8 @@ popup_siege_test_assert(
 $popup_siege_game   = $popup_siege_registered['popup-siege'];
 $popup_siege_script = $popup_siege_scripts['desktop-mode-popup-siege'];
 popup_siege_test_assert(
-	array( 'desktop-mode' ) === $popup_siege_script['dependencies'],
-	'The runtime must depend on Desktop Mode.'
+	array( 'openstation' ) === $popup_siege_script['dependencies'],
+	'The runtime must depend on OpenStation.'
 );
 popup_siege_test_assert(
 	'0.7.0' === $popup_siege_script['version'] &&
@@ -205,7 +205,7 @@ popup_siege_test_assert(
 );
 popup_siege_test_assert(
 	false !== strpos( $popup_siege_script['src'], 'openstation-adapter.js' ),
-	'The registered runtime must be the Desktop Mode adapter.'
+	'The registered runtime must be the OpenStation adapter.'
 );
 popup_siege_test_assert(
 	'desktop-mode-popup-siege' === $popup_siege_game['script'],

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 	"Pushpin 2" by randoogle — https://openclipart.org/detail/33601 — public domain.
-	Modified for Desktop Mode: metadata stripped; BOTH baked shadows removed
+	Modified for OpenStation: metadata stripped; BOTH baked shadows removed
 	(the large cast-shadow ellipse and the sheared blurred lobe under the head)
 	because the pinned-notes CSS paints its own dynamic shadow that animates
 	during pin pull-out / insertion.

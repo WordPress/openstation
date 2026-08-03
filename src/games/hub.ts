@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Games hub window body (Steam-library style).
+ * OpenStation — Games hub window body (Steam-library style).
  *
  * Enhances the PHP template skeleton (`includes/games/window.php`):
  * a compact game grid across the top; selecting a game reveals the
@@ -12,10 +12,10 @@
  * auto-selects so the window is never empty.
  */
 
-// Side-effect imports — register the `<wpd-*>` components this module
+// Side-effect imports — register the `<os-*>` components this module
 // constructs. `defineComponent` is idempotent across bundles.
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-empty-state/os-empty-state';
 
 import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
@@ -28,15 +28,15 @@ import { renderScoreboard } from './scoreboard';
 import { renderChallengesView } from './challenges-view';
 import type { GameRegistryEntry } from './types';
 
-const ROOT = '[data-desktop-mode-games-root]';
-const GRID = '[data-desktop-mode-games-grid]';
-const DETAIL = '[data-desktop-mode-games-detail]';
+const ROOT = '[data-os-games-root]';
+const GRID = '[data-os-games-grid]';
+const DETAIL = '[data-os-games-detail]';
 
 function currentUserId(): number {
 	const wpGlobal = window.wp as
-		| { desktop?: { config?: { currentUserId?: number } } }
+		| { os?: { config?: { currentUserId?: number } } }
 		| undefined;
-	return Number( wpGlobal?.desktop?.config?.currentUserId ) || 0;
+	return Number( wpGlobal?.os?.config?.currentUserId ) || 0;
 }
 
 /**
@@ -47,18 +47,18 @@ export function buildGameIcon( icon: string ): HTMLElement {
 		const img = document.createElement( 'img' );
 		img.src = icon;
 		img.alt = '';
-		img.className = 'desktop-mode-games__icon-img';
+		img.className = 'os-games__icon-img';
 		return img;
 	}
 	const span = document.createElement( 'span' );
-	span.className = `dashicons ${ icon || 'dashicons-admin-generic' } desktop-mode-games__icon-dashicon`;
+	span.className = `dashicons ${ icon || 'dashicons-admin-generic' } os-games__icon-dashicon`;
 	span.setAttribute( 'aria-hidden', 'true' );
 	return span;
 }
 
 /**
  * The render callback published on
- * `window.desktopModeNativeWindows['desktop-mode-games']`.
+ * `window.openStationNativeWindows['desktop-mode-games']`.
  */
 export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 	const root = body.querySelector< HTMLElement >( ROOT );
@@ -120,22 +120,22 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 
 		// Hero row: icon + title/description + actions.
 		const hero = document.createElement( 'div' );
-		hero.className = 'desktop-mode-games__hero';
+		hero.className = 'os-games__hero';
 
 		const visual = document.createElement( 'div' );
-		visual.className = 'desktop-mode-games__hero-visual';
+		visual.className = 'os-games__hero-visual';
 		visual.appendChild( buildGameIcon( game.icon ) );
 		hero.appendChild( visual );
 
 		const info = document.createElement( 'div' );
-		info.className = 'desktop-mode-games__hero-info';
+		info.className = 'os-games__hero-info';
 		const title = document.createElement( 'h2' );
-		title.className = 'desktop-mode-games__hero-title';
+		title.className = 'os-games__hero-title';
 		title.textContent = game.title;
 		info.appendChild( title );
 		if ( game.description ) {
 			const desc = document.createElement( 'p' );
-			desc.className = 'desktop-mode-games__hero-desc';
+			desc.className = 'os-games__hero-desc';
 			desc.textContent = game.description;
 			info.appendChild( desc );
 		}
@@ -145,7 +145,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		// async, hidden until the viewer actually has time on the
 		// clock for this game.
 		const playtime = document.createElement( 'div' );
-		playtime.className = 'desktop-mode-games__hero-playtime';
+		playtime.className = 'os-games__hero-playtime';
 		playtime.hidden = true;
 		info.appendChild( playtime );
 		let playtimeStale = false;
@@ -154,13 +154,13 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		} );
 		const playtimeStat = ( label: string, value: string ): HTMLElement => {
 			const stat = document.createElement( 'span' );
-			stat.className = 'desktop-mode-games__playtime-stat';
+			stat.className = 'os-games__playtime-stat';
 			const labelEl = document.createElement( 'span' );
-			labelEl.className = 'desktop-mode-games__playtime-label';
+			labelEl.className = 'os-games__playtime-label';
 			labelEl.textContent = label;
 			stat.appendChild( labelEl );
 			const valueEl = document.createElement( 'span' );
-			valueEl.className = 'desktop-mode-games__playtime-value';
+			valueEl.className = 'os-games__playtime-value';
 			valueEl.textContent = value;
 			stat.appendChild( valueEl );
 			return stat;
@@ -198,8 +198,8 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		hero.appendChild( info );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'desktop-mode-games__hero-actions';
-		const play = document.createElement( 'wpd-button' );
+		actions.className = 'os-games__hero-actions';
+		const play = document.createElement( 'os-button' );
 		play.setAttribute( 'variant', 'primary' );
 		play.setAttribute( 'size', 'lg' );
 		play.textContent = __( 'Play' );
@@ -209,7 +209,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 				.catch( ( err ) => {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] game launch failed:',
+							'[openstation] game launch failed:',
 							err,
 						);
 					}
@@ -219,7 +219,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 				} );
 		} );
 		actions.appendChild( play );
-		const challenge = document.createElement( 'wpd-button' );
+		const challenge = document.createElement( 'os-button' );
 		challenge.setAttribute( 'variant', 'secondary' );
 		challenge.textContent = __( 'Challenge…' );
 		challenge.addEventListener( 'click', () => {
@@ -235,9 +235,9 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 
 		// Scoreboard section.
 		const scoreboardSection = document.createElement( 'section' );
-		scoreboardSection.className = 'desktop-mode-games__section';
+		scoreboardSection.className = 'os-games__section';
 		const scoreboardHeading = document.createElement( 'h3' );
-		scoreboardHeading.className = 'desktop-mode-games__section-heading';
+		scoreboardHeading.className = 'os-games__section-heading';
 		scoreboardHeading.textContent = __( 'Scoreboard' );
 		scoreboardSection.appendChild( scoreboardHeading );
 		const scoreboardHost = document.createElement( 'div' );
@@ -247,9 +247,9 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 
 		// Challenges section (this game only).
 		const challengesSection = document.createElement( 'section' );
-		challengesSection.className = 'desktop-mode-games__section';
+		challengesSection.className = 'os-games__section';
 		const challengesHeading = document.createElement( 'h3' );
-		challengesHeading.className = 'desktop-mode-games__section-heading';
+		challengesHeading.className = 'os-games__section-heading';
 		challengesHeading.textContent = __( 'Challenges' );
 		challengesSection.appendChild( challengesHeading );
 		const challengesHost = document.createElement( 'div' );
@@ -270,7 +270,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		) ) {
 			const isSelected = tile.getAttribute( 'data-game-id' ) === id;
 			tile.classList.toggle(
-				'desktop-mode-games__tile--selected',
+				'os-games__tile--selected',
 				isSelected,
 			);
 			tile.setAttribute( 'aria-selected', isSelected ? 'true' : 'false' );
@@ -281,18 +281,18 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 	const buildTile = ( entry: GameRegistryEntry ): HTMLElement => {
 		const tile = document.createElement( 'button' );
 		tile.type = 'button';
-		tile.className = 'desktop-mode-games__tile';
+		tile.className = 'os-games__tile';
 		tile.setAttribute( 'data-game-id', entry.id );
 		tile.setAttribute( 'role', 'option' );
 		tile.setAttribute( 'aria-selected', 'false' );
 
 		const visual = document.createElement( 'span' );
-		visual.className = 'desktop-mode-games__tile-visual';
+		visual.className = 'os-games__tile-visual';
 		visual.appendChild( buildGameIcon( entry.icon ) );
 		tile.appendChild( visual );
 
 		const title = document.createElement( 'span' );
-		title.className = 'desktop-mode-games__tile-title';
+		title.className = 'os-games__tile-title';
 		title.textContent = entry.title;
 		tile.appendChild( title );
 
@@ -304,12 +304,12 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		grid.innerHTML = '';
 		const games = registry.all();
 		if ( games.length === 0 ) {
-			const empty = document.createElement( 'wpd-empty-state' );
+			const empty = document.createElement( 'os-empty-state' );
 			empty.setAttribute( 'icon', 'games' );
 			empty.setAttribute( 'heading', __( 'No games installed' ) );
 			empty.setAttribute(
 				'description',
-				__( 'Plugins can add games with desktop_mode_register_game().' ),
+				__( 'Plugins can add games with open_station_register_game().' ),
 			);
 			grid.appendChild( empty );
 			disposeDetail();

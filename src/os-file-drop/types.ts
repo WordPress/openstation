@@ -31,7 +31,7 @@ export interface DropConfig {
  *
  * The OS-file drop manager (`src/os-file-drop/`) catches files
  * the user drags in from the host operating system (Finder,
- * Explorer, Nautilus) onto any surface in Desktop Mode — the
+ * Explorer, Nautilus) onto any surface in OpenStation — the
  * wallpaper, a folder window, a native window, or a chromeless
  * admin iframe — and routes them through a confirmation dialog
  * before uploading to the Media Library.
@@ -62,7 +62,7 @@ export interface DropDialogFields {
 /**
  * A single file the user dropped, plus the manager's resolved
  * metadata defaults. Subscribers to the
- * `desktop-mode.drop.dialog-fields` filter receive this shape
+ * `os.drop.dialog-fields` filter receive this shape
  * and can mutate the `fields` object before the dialog renders.
  */
 export interface DropFileEntry {
@@ -94,7 +94,7 @@ export interface DesktopStorageConfig {
 /**
  * A file the manager rejected before the dialog rendered. The
  * shell toasts a one-line summary; subscribers to the
- * `desktop-mode.drop.files-rejected` action see the full list.
+ * `os.drop.files-rejected` action see the full list.
  */
 export interface DropRejection {
 	file: File;

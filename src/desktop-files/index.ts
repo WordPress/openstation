@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Files-on-the-desktop entry point.
+ * OpenStation — Files-on-the-desktop entry point.
  *
  * Importing this module side-effect registers the ten built-in
  * file types and the ten built-in openers with their respective
- * registries, then exposes the public API on `wp.desktop.files`.
+ * registries, then exposes the public API on `wp.os.files`.
  *
  * Higher phases extend this module with the REST/store layer
  * (Phase 2), the `FilesLayer` renderer (Phase 3), the wallpaper
@@ -72,8 +72,8 @@ installUploadMenuItems();
 // server-side, no heartbeat tick yet) needs the store populated up
 // front for the banner's initial walk to see them.
 const seededPending = ( window as unknown as {
-	desktopModeConfig?: { serverPendingShares?: PendingInvite[] };
-} ).desktopModeConfig?.serverPendingShares;
+	openStationConfig?: { serverPendingShares?: PendingInvite[] };
+} ).openStationConfig?.serverPendingShares;
 if ( Array.isArray( seededPending ) && seededPending.length > 0 ) {
 	ingestPendingInvites( seededPending );
 }
@@ -81,7 +81,7 @@ installShareInviteBanner();
 
 /**
  * Public API surface for the files registry. Mirrored on
- * `wp.desktop.files` by `desktop.ts` so plugin authors get a
+ * `wp.os.files` by `desktop.ts` so plugin authors get a
  * stable, namespaced entry point.
  */
 export const filesApi = {

@@ -78,8 +78,8 @@ function openDetailInWindow( payload: {
 		} ) => void;
 	}
 	const myWp = (
-		window.wp as { desktop?: { myWordpress?: MyWpApi } } | undefined
-	)?.desktop?.myWordpress;
+		window.wp as { os?: { myWordpress?: MyWpApi } } | undefined
+	)?.os?.myWordpress;
 	myWp?.openDetail?.( payload );
 }
 
@@ -108,10 +108,10 @@ function buildUsageTile(
 		status: row.status,
 		dataset: { postId: row.postId, postType: row.postType },
 		extraClasses: [
-			'desktop-mode-my-wordpress__tile',
-			'desktop-mode-my-wordpress__tile--entry',
-			'desktop-mode-my-wordpress__media-tile',
-			'desktop-mode-my-wordpress__tile--usage',
+			'os-my-wordpress__tile',
+			'os-my-wordpress__tile--entry',
+			'os-my-wordpress__media-tile',
+			'os-my-wordpress__tile--usage',
 		],
 	} );
 
@@ -145,14 +145,14 @@ function openUsageTileMenu(
 	pos: { x: number; y: number },
 ): void {
 	closeContextMenu();
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
+	menu.classList.add( 'os-my-wordpress__menu' );
 	( menu as HTMLElement ).style.left = `${ pos.x }px`;
 	( menu as HTMLElement ).style.top = `${ pos.y }px`;
 
 	const addOption = ( id: string, label: string, icon: string ) => {
-		const opt = document.createElement( 'wpd-context-menu-option' );
+		const opt = document.createElement( 'os-context-menu-option' );
 		( opt as HTMLElement ).dataset.menuItemId = id;
 		opt.setAttribute( 'value', id );
 		opt.setAttribute( 'icon', icon );
@@ -176,7 +176,7 @@ function openUsageTileMenu(
 		addOption( 'open-front', __( 'View on site', 'desktop-mode' ), 'dashicons-external' );
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
 		closeContextMenu();
 		if ( detail.id === 'navigate-into' ) {
@@ -257,7 +257,7 @@ function paintStatus(
 		StatusBarSegment[],
 		[ { view: 'media-detail'; entityId: string } ]
 	>(
-		'desktop-mode.my-wordpress.status-bar',
+		'os.my-wordpress.status-bar',
 		segments,
 		{ view: 'media-detail', entityId },
 	);
@@ -278,28 +278,28 @@ export async function renderMediaDetail(
 ): Promise< void > {
 	const wrap = document.createElement( 'div' );
 	wrap.className =
-		'desktop-mode-my-wordpress__split desktop-mode-my-wordpress__split--media-detail';
+		'os-my-wordpress__split os-my-wordpress__split--media-detail';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list desktop-mode-my-wordpress__usage-list';
+	left.className = 'os-my-wordpress__list os-my-wordpress__usage-list';
 
 	const loading = document.createElement( 'div' );
-	loading.className = 'desktop-mode-my-wordpress__preview-loading';
-	const spinner = document.createElement( 'wpd-spinner' );
+	loading.className = 'os-my-wordpress__preview-loading';
+	const spinner = document.createElement( 'os-spinner' );
 	loading.appendChild( spinner );
 	left.appendChild( loading );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 
 	wrap.append( left, right );
 	host.body.appendChild( wrap );
 
 	const statusBar =
 		host.body
-			.closest( '[data-desktop-mode-my-wordpress-root]' )
+			.closest( '[data-os-my-wordpress-root]' )
 			?.querySelector< HTMLElement >(
-				'[data-desktop-mode-my-wordpress-status]',
+				'[data-os-my-wordpress-status]',
 			) ?? document.createElement( 'div' );
 
 	let usage: MediaUsage;
@@ -311,7 +311,7 @@ export async function renderMediaDetail(
 		}
 		left.replaceChildren();
 		const errBox = document.createElement( 'div' );
-		errBox.className = 'desktop-mode-my-wordpress__error';
+		errBox.className = 'os-my-wordpress__error';
 		errBox.textContent =
 			err instanceof Error
 				? err.message
@@ -346,9 +346,9 @@ export async function renderMediaDetail(
 	// plugin authors' `preview-actions` / `preview-extras` hooks
 	// fire here too.
 	const summary = document.createElement( 'div' );
-	summary.className = 'desktop-mode-my-wordpress__media-detail-summary-bar';
+	summary.className = 'os-my-wordpress__media-detail-summary-bar';
 	const summaryText = document.createElement( 'p' );
-	summaryText.className = 'desktop-mode-my-wordpress__media-detail-summary';
+	summaryText.className = 'os-my-wordpress__media-detail-summary';
 	summaryText.textContent = sprintf(
 		// translators: %d is the count of posts/pages referencing this file.
 		_n(
@@ -380,7 +380,7 @@ export async function renderMediaDetail(
 	} as MediaListItem;
 
 	const previewHost = document.createElement( 'div' );
-	previewHost.className = 'desktop-mode-my-wordpress__media-detail-preview';
+	previewHost.className = 'os-my-wordpress__media-detail-preview';
 	renderMediaPreview( previewHost, mediaItem, {
 		entityId,
 		previewActions: getConfig().previewActions ?? [],
@@ -393,7 +393,7 @@ export async function renderMediaDetail(
 	left.replaceChildren();
 	if ( usage.usedIn.length === 0 ) {
 		const empty = document.createElement( 'div' );
-		empty.className = 'desktop-mode-my-wordpress__empty';
+		empty.className = 'os-my-wordpress__empty';
 		empty.textContent = __(
 			'No posts or pages reference this file.',
 			'desktop-mode',
@@ -404,7 +404,7 @@ export async function renderMediaDetail(
 	}
 
 	const grid = document.createElement( 'div' );
-	grid.className = 'desktop-mode-my-wordpress__media-grid desktop-mode-my-wordpress__usage-grid';
+	grid.className = 'os-my-wordpress__media-grid os-my-wordpress__usage-grid';
 	grid.setAttribute( 'role', 'list' );
 	for ( const row of usage.usedIn ) {
 		const tile = buildUsageTile( row );

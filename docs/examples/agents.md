@@ -52,9 +52,9 @@ call this even when it is on the allowlist.
 ## Invoke an agent server-side
 
 ```php
-$agents = desktop_mode_agent_get_agents();
+$agents = open_station_agent_get_agents();
 if ( $agents ) {
-	$result = desktop_mode_agent_invoke(
+	$result = open_station_agent_invoke(
 		$agents[0]->ID,
 		'Summarize the last comment on the site.',
 		array( 'source' => 'my-plugin/cron' )
@@ -65,7 +65,7 @@ if ( $agents ) {
 }
 ```
 
-Every successful run fires `desktop_mode_agent_completed` with the
+Every successful run fires `open_station_agent_completed` with the
 same result plus your context array.
 
 ## Audit every definition change
@@ -73,7 +73,7 @@ same result plus your context array.
 User meta has no revisions — these actions are the audit trail:
 
 ```php
-add_action( 'desktop_mode_agent_updated', function ( $agent_id, $changed, $actor_id ) {
+add_action( 'open_station_agent_updated', function ( $agent_id, $changed, $actor_id ) {
 	foreach ( $changed as $field => $delta ) {
 		my_plugin_audit_log(
 			sprintf(
@@ -89,7 +89,7 @@ add_action( 'desktop_mode_agent_updated', function ( $agent_id, $changed, $actor
 }, 10, 3 );
 ```
 
-`desktop_mode_agent_created` and `desktop_mode_agent_deleted` complete
+`open_station_agent_created` and `open_station_agent_deleted` complete
 the set.
 
 ## Declare a custom trigger kind
@@ -99,7 +99,7 @@ arrive in later phases. Declaring a kind makes it configurable in the
 Triggers pane today:
 
 ```php
-add_filter( 'desktop_mode_agent_trigger_kinds', function ( $kinds ) {
+add_filter( 'open_station_agent_trigger_kinds', function ( $kinds ) {
 	$kinds[] = array(
 		'slug'          => 'my-plugin-webhook',
 		'label'         => __( 'My webhook', 'my-plugin' ),
@@ -116,14 +116,14 @@ add_filter( 'desktop_mode_agent_trigger_kinds', function ( $kinds ) {
 } );
 ```
 
-Read it back with `desktop_mode_agent_get_triggers( $agent_id )` and
-wire your own intake to `desktop_mode_agent_invoke()`.
+Read it back with `open_station_agent_get_triggers( $agent_id )` and
+wire your own intake to `open_station_agent_invoke()`.
 
 ## Open a chat with an agent from JS
 
 ```js
-wp.desktop.whenReady( () => {
-	const store = wp.desktop.createSharedStore(
+wp.os.whenReady( () => {
+	const store = wp.os.createSharedStore(
 		'desktop-mode/agents-chat',
 		() => ( { activeAgent: null, transcripts: {} } ),
 	);
@@ -134,7 +134,7 @@ wp.desktop.whenReady( () => {
 		avatarUrl: '',
 	};
 	store.notify();
-	wp.desktop.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
+	wp.os.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
 } );
 ```
 
@@ -166,15 +166,15 @@ transcript still shows the card.
 
 ```php
 // Tighten who may invoke agents (default: edit_posts).
-add_filter( 'desktop_mode_agents_user_can_invoke', function () {
+add_filter( 'open_station_agents_user_can_invoke', function () {
 	return current_user_can( 'manage_options' );
 } );
 
 // Platform-wide default rate limit (default: 60 runs/hour/agent).
-add_filter( 'desktop_mode_agent_default_rate_limit', fn () => 10 );
+add_filter( 'open_station_agent_default_rate_limit', fn () => 10 );
 
 // Redact tool output before it re-enters the model context.
-add_filter( 'desktop_mode_agent_tool_result', function ( $output, $slug ) {
+add_filter( 'open_station_agent_tool_result', function ( $output, $slug ) {
 	if ( is_array( $output ) ) {
 		unset( $output['user_email'] );
 	}

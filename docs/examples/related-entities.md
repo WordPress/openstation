@@ -9,7 +9,7 @@ Both ends are open: a **PHP filter** adds items for any screen (runs server-side
 Built-ins cover `post` and `page` only. A CPT (or any screen that announces an identity — see [`window-links.md`](./window-links.md)) contributes its own:
 
 ```php
-add_filter( 'desktop_mode_window_related_entities', function ( $related, $identity, $screen ) {
+add_filter( 'open_station_window_related_entities', function ( $related, $identity, $screen ) {
 	if ( 'acme_order' !== $identity['type'] ) {
 		return $related;
 	}
@@ -40,15 +40,15 @@ add_filter( 'desktop_mode_window_related_entities', function ( $related, $identi
 }, 10, 3 );
 ```
 
-`id`, `group`, `label`, and `url` are required (non-empty strings); malformed entries are dropped server-side, unknown fields stripped. The filter runs **only when an identity resolved** and **after** the `desktop_mode_window_content_identity` filter — so an identity you inject for your own screen gets the related pass too. Removing built-ins works the same way: filter `$related` down.
+`id`, `group`, `label`, and `url` are required (non-empty strings); malformed entries are dropped server-side, unknown fields stripped. The filter runs **only when an identity resolved** and **after** the `open_station_window_content_identity` filter — so an identity you inject for your own screen gets the related pass too. Removing built-ins works the same way: filter `$related` down.
 
 ## JS — rewrite the list per window
 
-The resolved list runs through `desktop-mode.related-entities.items` on every visibility check and menu build. Context carries the window id and its current `WindowContentRef`:
+The resolved list runs through `os.related-entities.items` on every visibility check and menu build. Context carries the window id and its current `WindowContentRef`:
 
 ```javascript
 wp.hooks.addFilter(
-	'desktop-mode.related-entities.items',
+	'os.related-entities.items',
 	'my-plugin/hide-media-group',
 	( items, { windowId, content } ) => {
 		// Drop the Media section everywhere…
@@ -62,7 +62,7 @@ wp.hooks.addFilter(
 				groupLabel: 'Tools',
 				label: 'Live preview',
 				icon: 'dashicons-visibility',
-				url: `${ window.desktopModeConfig.adminUrl }admin.php?page=my-preview&post=${ content.id }`,
+				url: `${ window.openStationConfig.adminUrl }admin.php?page=my-preview&post=${ content.id }`,
 			} );
 		}
 		return items;
@@ -75,10 +75,10 @@ Return an empty array to hide the button for a window entirely. Malformed entrie
 ## Reading the current list
 
 ```javascript
-const ref = wp.desktop.relations.get( windowId );
+const ref = wp.os.relations.get( windowId );
 console.log( ref?.related ); // → RelatedEntityItem[] | undefined
 ```
 
-The button repaints automatically whenever the window's content identity changes (`desktop-mode.window-links.content-changed`), including in-window navigations — no manual refresh needed.
+The button repaints automatically whenever the window's content identity changes (`os.window-links.content-changed`), including in-window navigations — no manual refresh needed.
 
-**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then `links`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#desktop_mode_window_related_entities--experimental) · [javascript-reference](../javascript-reference.md).
+**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then `links`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#open_station_window_related_entities--experimental) · [javascript-reference](../javascript-reference.md).

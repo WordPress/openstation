@@ -111,5 +111,5 @@ Constraints: This is a text/content-only revision. Do not move, resize, add, rem
 ```
 
 The final output was inspected at 1536 × 1024 and 420 × 280. The production
-translation uses live text, Dashicons, and `<wpd-*>` controls; neither generated
+translation uses live text, Dashicons, and `<os-*>` controls; neither generated
 avatar art nor generated toolbar icons ship.

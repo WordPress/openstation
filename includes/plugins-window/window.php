@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Plugins Window: registration + template.
+ * OpenStation — Native Plugins Window: registration + template.
  *
  * Native window registered with `placement: 'none'` — the entry
  * point is the existing Plugins dock tile (built from WordPress's
@@ -8,14 +8,14 @@
  * when `nativePluginsEnabled` is on.
  *
  * The shell wraps the template echoed by
- * `desktop_mode_plugins_window_render_template()` in
- * `<template id="desktop-mode-native-window-desktop-mode-plugins">`
+ * `open_station_plugins_window_render_template()` in
+ * `<template id="os-native-window-desktop-mode-plugins">`
  * and clones it into the window body BEFORE the JS render callback
- * fires. The `data-desktop-mode-plugins-*` hooks below are the
+ * fires. The `data-os-plugins-*` hooks below are the
  * contract the JS relies on — keep them intact (or rename via the
  * filter) when customizing the layout.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,51 +23,51 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the native Plugins window's template body.
  */
-function desktop_mode_plugins_window_render_template() {
-	$caps = desktop_mode_plugins_window_caps();
+function open_station_plugins_window_render_template() {
+	$caps = open_station_plugins_window_caps();
 
 	ob_start();
 	?>
-	<div class="desktop-mode-plugins" data-desktop-mode-plugins-root>
-		<wpd-tabs value="installed" class="desktop-mode-plugins__tabs" data-desktop-mode-plugins-tabs>
-			<wpd-tab value="installed"><?php esc_html_e( 'Installed', 'desktop-mode' ); ?></wpd-tab>
+	<div class="desktop-mode-plugins" data-os-plugins-root>
+		<os-tabs value="installed" class="os-plugins__tabs" data-os-plugins-tabs>
+			<os-tab value="installed"><?php esc_html_e( 'Installed', 'desktop-mode' ); ?></os-tab>
 			<?php if ( ! empty( $caps['install'] ) ) : ?>
-				<wpd-tab value="browse"><?php esc_html_e( 'Add Plugin', 'desktop-mode' ); ?></wpd-tab>
-				<wpd-tab value="featured"><?php esc_html_e( 'Desktop Mode plugins', 'desktop-mode' ); ?></wpd-tab>
+				<os-tab value="browse"><?php esc_html_e( 'Add Plugin', 'desktop-mode' ); ?></os-tab>
+				<os-tab value="featured"><?php esc_html_e( 'OpenStation plugins', 'desktop-mode' ); ?></os-tab>
 			<?php endif; ?>
-		</wpd-tabs>
+		</os-tabs>
 
-		<wpd-tabpanel for="installed" class="desktop-mode-plugins__panel">
-			<div class="desktop-mode-plugins__installed" data-desktop-mode-plugins-installed-host>
-				<?php /* JS bundle paints the toolbar + <wpd-table> here.
+		<os-tabpanel for="installed" class="os-plugins__panel">
+			<div class="os-plugins__installed" data-os-plugins-installed-host>
+				<?php /* JS bundle paints the toolbar + <os-table> here.
 				       Empty host — first-frame shows the table's own
 				       loading skeleton. */ ?>
 			</div>
-		</wpd-tabpanel>
+		</os-tabpanel>
 
 		<?php if ( ! empty( $caps['install'] ) ) : ?>
-			<wpd-tabpanel for="browse" class="desktop-mode-plugins__panel">
-				<div class="desktop-mode-plugins__browse" data-desktop-mode-plugins-browse-host>
+			<os-tabpanel for="browse" class="os-plugins__panel">
+				<div class="os-plugins__browse" data-os-plugins-browse-host>
 					<?php /* JS bundle paints the search + segmented filter
-					       + Upload button + <wpd-grid> of cards here. */ ?>
+					       + Upload button + <os-grid> of cards here. */ ?>
 				</div>
-			</wpd-tabpanel>
-			<wpd-tabpanel for="featured" class="desktop-mode-plugins__panel">
-				<div class="desktop-mode-plugins__featured" data-desktop-mode-plugins-featured-host>
+			</os-tabpanel>
+			<os-tabpanel for="featured" class="os-plugins__panel">
+				<div class="os-plugins__featured" data-os-plugins-featured-host>
 					<?php /* JS bundle paints an intro blurb + gallery of
-					       plugins that integrate with Desktop Mode here. */ ?>
+					       plugins that integrate with OpenStation here. */ ?>
 				</div>
-			</wpd-tabpanel>
+			</os-tabpanel>
 		<?php endif; ?>
 
 		<?php /* Detail flyout — populated lazily when a card is clicked.
 		       Lives at the root of the template so it can slide over the
 		       full window body, not just one tab panel. */ ?>
-		<wpd-flyout
+		<os-flyout
 			placement="end"
-			data-desktop-mode-plugins-flyout
+			data-os-plugins-flyout
 			aria-label="<?php esc_attr_e( 'Plugin details', 'desktop-mode' ); ?>"
-		></wpd-flyout>
+		></os-flyout>
 	</div>
 	<?php
 	$html = (string) ob_get_clean();
@@ -75,16 +75,16 @@ function desktop_mode_plugins_window_render_template() {
 	/**
 	 * Filter the native Plugins window's template HTML.
 	 *
-	 * Keep the `data-desktop-mode-plugins-*` hooks intact so the JS
+	 * Keep the `data-os-plugins-*` hooks intact so the JS
 	 * render callback can find its mount points, or rename them and
 	 * update the matching constants in `src/plugins-window/index.ts`.
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_plugins_window_template_html', $html );
+	$filtered = (string) apply_filters( 'open_station_plugins_window_template_html', $html );
 
-	if ( function_exists( 'desktop_mode_kses_native_window_template' ) ) {
-		echo desktop_mode_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
+		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -99,19 +99,19 @@ function desktop_mode_plugins_window_render_template() {
  * (`enabled: ( s ) => s.nativePluginsEnabled === true` in
  * `src/desktop.ts`).
  */
-function desktop_mode_plugins_window_register_window() {
-	if ( ! desktop_mode_plugins_window_user_can_register() ) {
+function open_station_plugins_window_register_window() {
+	if ( ! open_station_plugins_window_user_can_register() ) {
 		return;
 	}
 
-	$caps = desktop_mode_plugins_window_caps();
+	$caps = open_station_plugins_window_caps();
 
 	$window_args = array(
 		'title'      => __( 'Plugins', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-plugins',
-		'template'   => 'desktop_mode_plugins_window_render_template',
-		'script'     => 'desktop-mode-plugins-window',
-		'style'      => 'desktop-mode-plugins-window',
+		'template'   => 'open_station_plugins_window_render_template',
+		'script'     => 'os-plugins-window',
+		'style'      => 'os-plugins-window',
 		'width'      => 1180,
 		'height'     => 760,
 		'min_width'  => 760,
@@ -142,16 +142,16 @@ function desktop_mode_plugins_window_register_window() {
 			// `WP_Plugins_List_Table::$show_autoupdates` uses (true only
 			// when the auto-update subsystem is enabled AND the viewer
 			// can update plugins). Per-row state still lives on the REST
-			// field `desktop_mode_auto_update` so the JS knows whether
+			// field `open_station_auto_update` so the JS knows whether
 			// each individual row is enabled / forced / supported.
-			'autoUpdatesEnabled' => desktop_mode_plugins_window_auto_updates_enabled(),
+			'autoUpdatesEnabled' => open_station_plugins_window_auto_updates_enabled(),
 			'currentUserId'   => (int) get_current_user_id(),
-			'introSeen'       => function_exists( 'desktop_mode_has_seen_intro' )
-				? desktop_mode_has_seen_intro( get_current_user_id(), 'plugins' )
+			'introSeen'       => function_exists( 'open_station_has_seen_intro' )
+				? open_station_has_seen_intro( get_current_user_id(), 'plugins' )
 				: true,
 			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// The plugin file path WordPress uses to identify the
-			// Desktop Mode plugin itself in REST mutations
+			// OpenStation plugin itself in REST mutations
 			// (`/wp/v2/plugins/{plugin}`). The JS uses this to detect
 			// "user just deactivated/deleted us" and reload the page
 			// out of the now-stale desktop shell before they hit any
@@ -164,7 +164,7 @@ function desktop_mode_plugins_window_register_window() {
 			// Comparing the raw `plugin_basename()` against the REST
 			// field always missed by exactly four characters, which
 			// silently skipped the self-deactivate reload.
-			'selfPluginFile'  => substr( plugin_basename( DESKTOP_MODE_FILE ), 0, -4 ),
+			'selfPluginFile'  => substr( plugin_basename( OPEN_STATION_FILE ), 0, -4 ),
 			// The wp-admin root URL — the JS navigates here after a
 			// self-deactivate so the user lands on the classic
 			// Dashboard rather than reloading their current URL
@@ -177,14 +177,14 @@ function desktop_mode_plugins_window_register_window() {
 	/**
 	 * Filter the args used to register the native Plugins window.
 	 *
-	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
+	 * @param array $window_args Args passed to `open_station_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'desktop_mode_plugins_window_args', $window_args );
+	$window_args = (array) apply_filters( 'open_station_plugins_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-plugins', $window_args );
+	$registered = open_station_register_window( 'desktop-mode-plugins', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] Native Plugins window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] Native Plugins window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'desktop_mode_plugins_window_register_window', 20 );
+add_action( 'init', 'open_station_plugins_window_register_window', 20 );

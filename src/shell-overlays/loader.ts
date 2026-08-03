@@ -12,18 +12,18 @@
  *   - `ensureShellOverlaysLoaded( url )` — awaits whichever load
  *     is in flight (or starts one) and resolves once the
  *     overlay components are guaranteed to be defined. Called by
- *     `showToast()`, `wpdConfirm()`, and every context-menu
+ *     `showToast()`, `osConfirm()`, and every context-menu
  *     construction site before they `createElement( … )`.
  *
  * Detection: the bundle's `entry.ts` side-effect-imports the
  * Stage-9 overlay trio (toast / confirm-dialog / context-menu)
  * plus the Stage-10 window-chrome and form components. After
- * load, `customElements.get( 'wpd-confirm-dialog' )` is
+ * load, `customElements.get( 'os-confirm-dialog' )` is
  * non-null; we use it as the canary because it's a single tag
  * with no compound siblings.
  */
 
-const CANARY_TAG = 'wpd-confirm-dialog';
+const CANARY_TAG = 'os-confirm-dialog';
 
 /**
  * In-flight script load. Single instance — concurrent callers all
@@ -41,7 +41,7 @@ function isLoaded(): boolean {
 function injectScript( scriptUrl: string ): Promise< void > {
 	return new Promise( ( resolve, reject ) => {
 		const existing = document.querySelector< HTMLScriptElement >(
-			'script[data-desktop-mode-shell-overlays="1"]',
+			'script[data-os-shell-overlays="1"]',
 		);
 		const finish = (): void => {
 			if ( isLoaded() ) {
@@ -50,7 +50,7 @@ function injectScript( scriptUrl: string ): Promise< void > {
 			}
 			reject(
 				new Error(
-					'[desktop-mode] shell-overlays bundle loaded but did not register the overlay components.',
+					'[openstation] shell-overlays bundle loaded but did not register the overlay components.',
 				),
 			);
 		};
@@ -68,7 +68,7 @@ function injectScript( scriptUrl: string ): Promise< void > {
 		const s = document.createElement( 'script' );
 		s.src = scriptUrl;
 		s.async = true;
-		s.dataset.desktopModeShellOverlays = '1';
+		s.dataset.osShellOverlays = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
 			reject( new Error( 'failed to load shell-overlays bundle' ) ),
@@ -97,7 +97,7 @@ export function preloadShellOverlays( scriptUrl: string ): void {
 		inflight = null;
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] shell-overlays preload failed; will retry on first overlay use:',
+				'[openstation] shell-overlays preload failed; will retry on first overlay use:',
 				err,
 			);
 		}
@@ -110,7 +110,7 @@ export function preloadShellOverlays( scriptUrl: string ): void {
  * post-first-paint preload has landed). Otherwise injects the
  * script and waits.
  *
- * Called by `showToast()`, `wpdConfirm()`, and every context-menu
+ * Called by `showToast()`, `osConfirm()`, and every context-menu
  * helper before they construct their custom elements.
  *
  * @param scriptUrl URL of the `shell-overlays[.min].js` bundle.
@@ -133,7 +133,7 @@ export function ensureShellOverlaysLoaded(
 		//     element is a better failure mode than rejecting and
 		//     suppressing the menu/toast/dialog entirely — at least
 		//     the user sees *something* and the console shows a
-		//     "[desktop-mode] custom element 'wpd-X' not registered"
+		//     "[openstation] custom element 'os-X' not registered"
 		//     warning when they interact.
 		return Promise.resolve();
 	}
@@ -145,13 +145,13 @@ export function ensureShellOverlaysLoaded(
 
 /**
  * Read the bundle URL from the desktop config that PHP wrote onto
- * `window.desktopModeConfig`. Centralised here so call sites don't
+ * `window.openStationConfig`. Centralised here so call sites don't
  * have to plumb the URL through their own arguments.
  */
 export function shellOverlaysBundleUrl(): string {
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { shellOverlaysBundleUrl?: string };
-	} ).desktopModeConfig;
+		openStationConfig?: { shellOverlaysBundleUrl?: string };
+	} ).openStationConfig;
 	return cfg?.shellOverlaysBundleUrl ?? '';
 }
 
@@ -210,7 +210,7 @@ export function openWithShellOverlays(
 		.catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] shell-overlays failed to load; menu/dialog suppressed:',
+					'[openstation] shell-overlays failed to load; menu/dialog suppressed:',
 					err,
 				);
 			}

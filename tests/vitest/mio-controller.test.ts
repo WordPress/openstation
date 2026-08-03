@@ -35,7 +35,7 @@ function stubMount(): {
 	const calls: MioMountOptions[] = [];
 	const handles: MioHandle[] = [];
 	const install = (): void => {
-		window.desktopModeMountMio = ( options ) => {
+		window.openStationMountMio = ( options ) => {
 			calls.push( options );
 			const handle: MioHandle = {
 				getPosition: () => ( { x: 10, y: 20 } ),
@@ -56,7 +56,7 @@ function stubMount(): {
 
 function shell(): HTMLElement {
 	const el = document.createElement( 'div' );
-	el.id = 'desktop-mode-shell';
+	el.id = 'os-shell';
 	document.body.appendChild( el );
 	return el;
 }
@@ -71,7 +71,7 @@ beforeEach( () => {
 afterEach( () => {
 	clearHooksStub();
 	document.body.innerHTML = '';
-	delete window.desktopModeMountMio;
+	delete window.openStationMountMio;
 } );
 
 describe( 'MioController', () => {
@@ -87,7 +87,7 @@ describe( 'MioController', () => {
 		controller.boot();
 		await Promise.resolve();
 		expect( loadVendorScript ).not.toHaveBeenCalled();
-		expect( document.getElementById( 'desktop-mode-mio' ) ).toBeNull();
+		expect( document.getElementById( 'os-mio' ) ).toBeNull();
 	} );
 
 	test( 'boots straight away when the saved preference is on', async () => {
@@ -434,7 +434,7 @@ describe( 'MioController', () => {
 		// The in-flight mount noticed the generation bump and bailed.
 		expect( mount.calls ).toHaveLength( 0 );
 		expect( api.isEnabled() ).toBe( false );
-		expect( document.getElementById( 'desktop-mode-mio' ) ).toBeNull();
+		expect( document.getElementById( 'os-mio' ) ).toBeNull();
 	} );
 
 	test( 'a mount that loses the race cleans up its own layer', async () => {
@@ -447,7 +447,7 @@ describe( 'MioController', () => {
 		mount.install();
 		const handles: Array< { destroy: ReturnType< typeof vi.fn > } > = [];
 		let disableMidMount: () => void = () => undefined;
-		window.desktopModeMountMio = async () => {
+		window.openStationMountMio = async () => {
 			disableMidMount();
 			const handle = {
 				getPosition: () => ( { x: 0, y: 0 } ),
@@ -520,14 +520,14 @@ describe( 'MioController', () => {
 		);
 	} );
 
-	test( 'the desktop-mode.mio.config filter can restyle Mio', async () => {
+	test( 'the os.mio.config filter can restyle Mio', async () => {
 		const { MioController } = await load();
 		stubMount();
 		const hooks = ( window.wp as {
 			hooks: { addFilter: ( ...a: unknown[] ) => void };
 		} ).hooks;
 		hooks.addFilter(
-			'desktop-mode.mio.config',
+			'os.mio.config',
 			'test/teal',
 			( value ) => {
 				const config = value as typeof MIO_DEFAULTS;

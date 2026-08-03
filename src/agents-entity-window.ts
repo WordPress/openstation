@@ -32,8 +32,8 @@ interface DesktopFacade {
 }
 
 function getDesktop(): DesktopFacade | undefined {
-	return ( window as unknown as { wp?: { desktop?: DesktopFacade } } ).wp
-		?.desktop;
+	return ( window as unknown as { wp?: { os?: DesktopFacade } } ).wp
+		?.os;
 }
 
 function adminBase(): string {

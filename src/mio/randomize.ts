@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "Surprise me": a random Mio that is still a Mio.
+ * OpenStation — "Surprise me": a random Mio that is still a Mio.
  *
  * The button next to "Restore Mio" in the style panel. Pure, seeded by
  * an injectable `random()`, and deliberately kept out of the panel

@@ -2,7 +2,7 @@
  * My WordPress — REST glue.
  *
  * Reads the bundle's localized config via the standard
- * `desktop_mode_register_window` config delivery channel, and wraps
+ * `open_station_register_window` config delivery channel, and wraps
  * `trackedFetch` so every request feeds the window's title-bar
  * activity indicator.
  */
@@ -23,14 +23,14 @@ import type {
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 export function getConfig(): MyWordPressConfig {
-	const store = window.desktopModeWindowConfig;
+	const store = window.openStationWindowConfig;
 	const cfg = store
 		? ( store[ WINDOW_ID ] as MyWordPressConfig | undefined )
 		: undefined;
@@ -111,7 +111,7 @@ export async function fetchEntityList(
 			'status',
 			'featured_media',
 			'link',
-			'desktop_mode_lock',
+			'open_station_lock',
 			'_links',
 			'_embedded',
 			...( entity.listFields ?? [] ),
@@ -164,7 +164,7 @@ export async function fetchEntityDetail(
 	const url = new URL( buildUrl( `${ entity.restPath }/${ id }` ) );
 	url.searchParams.set(
 		'_fields',
-		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,desktop_mode_contributors,desktop_mode_attached_media,_links,_embedded',
+		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,open_station_contributors,open_station_attached_media,_links,_embedded',
 	);
 	url.searchParams.set( '_embed', 'author,wp:term,wp:featuredmedia,replies' );
 
@@ -286,7 +286,7 @@ export async function fetchEntityTotal(
 }
 
 /**
- * Paged fetch of `/wp/v2/users` rows with the `desktop_mode_summary`
+ * Paged fetch of `/wp/v2/users` rows with the `open_station_summary`
  * REST field pulled in. Pagination via `X-WP-Total` / `X-WP-TotalPages`
  * matches the post list shape.
  *
@@ -300,7 +300,7 @@ export async function fetchEntityTotal(
  *     other value (including `'all'`) yields a 400.
  *
  * We try `context=edit` first and fall back to `who=authors` on a
- * 403. The `desktop_mode_summary` REST field gates its own private
+ * 403. The `open_station_summary` REST field gates its own private
  * bits internally, so the fall-through doesn't leak data.
  *
  * @public
@@ -326,7 +326,7 @@ export async function fetchUserList(
 		url.searchParams.set( 'per_page', String( params.perPage ) );
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,description,link,avatar_urls,desktop_mode_summary',
+			'id,name,slug,description,link,avatar_urls,open_station_summary',
 		);
 		url.searchParams.set( 'orderby', 'name' );
 		url.searchParams.set( 'order', 'asc' );
@@ -558,7 +558,7 @@ export function fetchUserStats( id: number ): Promise< UserStats > {
 
 /**
  * Aggregated category / tag dossier — matches the shape the
- * `desktop_mode/v1/term-stats/<taxonomy>/<id>` endpoint returns.
+ * `open_station/v1/term-stats/<taxonomy>/<id>` endpoint returns.
  *
  * @public
  */

@@ -10,7 +10,7 @@
  *
  * Every game receives the asset's URL as the framework-injected
  * `wordsUrl` key on its launch-context `config` (see
- * `desktop_mode_games_words_url()`); the word list is identical for
+ * `open_station_games_words_url()`); the word list is identical for
  * every player, which is what lets seeded games generate the same
  * puzzle worldwide.
  *
@@ -136,12 +136,12 @@ export async function loadDictionary(
 	);
 	if ( ! res.ok ) {
 		throw new Error(
-			`[desktop-mode] Games dictionary failed to load (${ res.status }).`,
+			`[openstation] Games dictionary failed to load (${ res.status }).`,
 		);
 	}
 	const dictionary = parseDictionary( await res.text() );
 	if ( dictionary.size === 0 ) {
-		throw new Error( '[desktop-mode] Games dictionary is empty.' );
+		throw new Error( '[openstation] Games dictionary is empty.' );
 	}
 	return dictionary;
 }

@@ -6,10 +6,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -30,12 +30,12 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 				unregister_post_type( $type );
 			}
 		}
-		remove_all_filters( 'desktop_mode_my_wordpress_post_types' );
-		remove_all_filters( 'desktop_mode_my_wordpress_post_type_entity' );
-		remove_all_filters( 'desktop_mode_my_wordpress_post_type_group' );
-		remove_all_filters( 'desktop_mode_my_wordpress_post_type_groups' );
-		remove_all_filters( 'desktop_mode_my_wordpress_post_type_rest_enabled' );
-		remove_all_filters( 'desktop_mode_my_wordpress_entities' );
+		remove_all_filters( 'open_station_my_wordpress_post_types' );
+		remove_all_filters( 'open_station_my_wordpress_post_type_entity' );
+		remove_all_filters( 'open_station_my_wordpress_post_type_group' );
+		remove_all_filters( 'open_station_my_wordpress_post_type_groups' );
+		remove_all_filters( 'open_station_my_wordpress_post_type_rest_enabled' );
+		remove_all_filters( 'open_station_my_wordpress_entities' );
 		parent::tear_down();
 	}
 
@@ -63,12 +63,12 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_eligible_includes_public_cpt() {
 		$this->register_type( 'dm_book' );
 
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayHasKey( 'dm_book', $types );
 	}
@@ -77,10 +77,10 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	 * Core builtins are already root sections (post, page, attachment)
 	 * or editor infrastructure (wp_block, wp_template).
 	 *
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_eligible_excludes_builtin_types() {
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayNotHasKey( 'post', $types );
 		$this->assertArrayNotHasKey( 'page', $types );
@@ -89,37 +89,37 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_eligible_excludes_types_without_ui() {
 		$this->register_type( 'dm_hidden', array( 'show_ui' => false ) );
 
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayNotHasKey( 'dm_hidden', $types );
 	}
 
 	/**
-	 * Desktop Mode's own bookkeeping post types are `show_ui => false`,
+	 * OpenStation's own bookkeeping post types are `show_ui => false`,
 	 * so they never surface as browsable folders.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_eligible_excludes_plugin_internal_types() {
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
-		if ( defined( 'DESKTOP_MODE_NOTES_POST_TYPE' ) ) {
-			$this->assertArrayNotHasKey( DESKTOP_MODE_NOTES_POST_TYPE, $types );
+		if ( defined( 'OPEN_STATION_NOTES_POST_TYPE' ) ) {
+			$this->assertArrayNotHasKey( OPEN_STATION_NOTES_POST_TYPE, $types );
 		}
-		if ( defined( 'DESKTOP_MODE_AGENT_CHAT_POST_TYPE' ) ) {
-			$this->assertArrayNotHasKey( DESKTOP_MODE_AGENT_CHAT_POST_TYPE, $types );
+		if ( defined( 'OPEN_STATION_AGENT_CHAT_POST_TYPE' ) ) {
+			$this->assertArrayNotHasKey( OPEN_STATION_AGENT_CHAT_POST_TYPE, $types );
 		}
 	}
 
 	/**
 	 * A user who can't edit the type never sees its folder.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_eligible_respects_capability() {
 		$this->register_type(
@@ -131,70 +131,70 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( self::$subscriber_id );
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayNotHasKey( 'dm_private', $types );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_post_types_filter_can_drop_a_type() {
 		$this->register_type( 'dm_book' );
 
 		add_filter(
-			'desktop_mode_my_wordpress_post_types',
+			'open_station_my_wordpress_post_types',
 			static function ( $slugs ) {
 				return array_values( array_diff( $slugs, array( 'dm_book' ) ) );
 			}
 		);
 
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayNotHasKey( 'dm_book', $types );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_rest_path
+	 * @covers ::open_station_my_wordpress_post_type_rest_path
 	 */
 	public function test_rest_path_uses_wp_v2_for_rest_exposed_types() {
 		$this->register_type( 'dm_book', array( 'rest_base' => 'books' ) );
 
-		$path = desktop_mode_my_wordpress_post_type_rest_path( get_post_type_object( 'dm_book' ) );
+		$path = open_station_my_wordpress_post_type_rest_path( get_post_type_object( 'dm_book' ) );
 
 		$this->assertSame( 'wp/v2/books', $path );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_rest_path
+	 * @covers ::open_station_my_wordpress_post_type_rest_path
 	 */
 	public function test_rest_path_uses_bridge_for_non_rest_types() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
-		$path = desktop_mode_my_wordpress_post_type_rest_path( get_post_type_object( 'dm_norest' ) );
+		$path = open_station_my_wordpress_post_type_rest_path( get_post_type_object( 'dm_norest' ) );
 
 		$this->assertSame( 'desktop-mode/v1/post-type/dm_norest', $path );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_is_bridged
+	 * @covers ::open_station_my_wordpress_post_type_is_bridged
 	 */
 	public function test_rest_exposed_types_are_not_bridged() {
 		$this->register_type( 'dm_book' );
 
-		$this->assertFalse( desktop_mode_my_wordpress_post_type_is_bridged( 'dm_book' ) );
+		$this->assertFalse( open_station_my_wordpress_post_type_is_bridged( 'dm_book' ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_is_bridged
+	 * @covers ::open_station_my_wordpress_post_type_is_bridged
 	 */
 	public function test_bridge_can_be_vetoed_per_type() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
-		$this->assertTrue( desktop_mode_my_wordpress_post_type_is_bridged( 'dm_norest' ) );
+		$this->assertTrue( open_station_my_wordpress_post_type_is_bridged( 'dm_norest' ) );
 
 		add_filter(
-			'desktop_mode_my_wordpress_post_type_rest_enabled',
+			'open_station_my_wordpress_post_type_rest_enabled',
 			static function ( $enabled, $post_type ) {
 				return 'dm_norest' === $post_type ? false : $enabled;
 			},
@@ -202,32 +202,32 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertFalse( desktop_mode_my_wordpress_post_type_is_bridged( 'dm_norest' ) );
+		$this->assertFalse( open_station_my_wordpress_post_type_is_bridged( 'dm_norest' ) );
 	}
 
 	/**
 	 * A vetoed non-REST type has no endpoint left, so it must not
 	 * render a folder that can't open.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_eligible_post_types
+	 * @covers ::open_station_my_wordpress_eligible_post_types
 	 */
 	public function test_vetoed_non_rest_type_is_not_eligible() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
-		add_filter( 'desktop_mode_my_wordpress_post_type_rest_enabled', '__return_false' );
+		add_filter( 'open_station_my_wordpress_post_type_rest_enabled', '__return_false' );
 
-		$types = desktop_mode_my_wordpress_eligible_post_types();
+		$types = open_station_my_wordpress_eligible_post_types();
 
 		$this->assertArrayNotHasKey( 'dm_norest', $types );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_entity
+	 * @covers ::open_station_my_wordpress_post_type_entity
 	 */
 	public function test_entity_shape() {
 		$this->register_type( 'dm_book', array( 'menu_icon' => 'dashicons-book' ) );
 
-		$entity = desktop_mode_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
+		$entity = open_station_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
 
 		$this->assertSame( 'cpt-dm_book', $entity['id'] );
 		$this->assertSame( 'Dm_book', $entity['label'] );
@@ -240,25 +240,25 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	/**
 	 * Types without thumbnail support opt out of featured-image tiles.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_post_type_entity
+	 * @covers ::open_station_my_wordpress_post_type_entity
 	 */
 	public function test_entity_thumbnails_follows_post_type_support() {
 		$this->register_type( 'dm_book', array( 'supports' => array( 'title' ) ) );
 
-		$entity = desktop_mode_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
+		$entity = open_station_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
 
 		$this->assertFalse( $entity['thumbnails'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_icon
+	 * @covers ::open_station_my_wordpress_post_type_icon
 	 */
 	public function test_icon_falls_back_when_menu_icon_is_absent_or_none() {
 		$this->register_type( 'dm_book', array( 'menu_icon' => 'none' ) );
 
 		$this->assertSame(
 			'dashicons-admin-post',
-			desktop_mode_my_wordpress_post_type_icon( get_post_type_object( 'dm_book' ) )
+			open_station_my_wordpress_post_type_icon( get_post_type_object( 'dm_book' ) )
 		);
 	}
 
@@ -266,7 +266,7 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	 * A data-URI or URL `menu_icon` passes through untouched — the
 	 * bundle's `renderIcon()` handles all three shapes.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_post_type_icon
+	 * @covers ::open_station_my_wordpress_post_type_icon
 	 */
 	public function test_icon_passes_through_data_uris() {
 		$uri = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
@@ -274,17 +274,17 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 
 		$this->assertSame(
 			$uri,
-			desktop_mode_my_wordpress_post_type_icon( get_post_type_object( 'dm_book' ) )
+			open_station_my_wordpress_post_type_icon( get_post_type_object( 'dm_book' ) )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_append_post_type_entities
+	 * @covers ::open_station_my_wordpress_append_post_type_entities
 	 */
 	public function test_entities_filter_appends_cpt_sections() {
 		$this->register_type( 'dm_book' );
 
-		$entities = desktop_mode_my_wordpress_entities();
+		$entities = open_station_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 
 		$this->assertContains( 'posts', $ids );
@@ -295,13 +295,13 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	 * A section already covering the post type wins — no duplicate
 	 * folder for a CPT a plugin registered by hand.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_append_post_type_entities
+	 * @covers ::open_station_my_wordpress_append_post_type_entities
 	 */
 	public function test_existing_section_is_not_duplicated() {
 		$this->register_type( 'dm_book' );
 
 		add_filter(
-			'desktop_mode_my_wordpress_entities',
+			'open_station_my_wordpress_entities',
 			static function ( $entities ) {
 				$entities[] = array(
 					'id'        => 'my-books',
@@ -316,17 +316,17 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 			1
 		);
 
-		$ids = wp_list_pluck( desktop_mode_my_wordpress_entities(), 'id' );
+		$ids = wp_list_pluck( open_station_my_wordpress_entities(), 'id' );
 
 		$this->assertContains( 'my-books', $ids );
 		$this->assertNotContains( 'cpt-dm_book', $ids );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_group_for_path
+	 * @covers ::open_station_my_wordpress_group_for_path
 	 */
 	public function test_group_for_path_resolves_a_plugin_folder() {
-		$group = desktop_mode_my_wordpress_group_for_path(
+		$group = open_station_my_wordpress_group_for_path(
 			trailingslashit( wp_normalize_path( WP_PLUGIN_DIR ) ) . 'acme-shop/includes/types.php'
 		);
 
@@ -338,11 +338,11 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_group_for_path
+	 * @covers ::open_station_my_wordpress_group_for_path
 	 */
 	public function test_group_for_path_resolves_a_theme() {
 		$theme = wp_get_theme();
-		$group = desktop_mode_my_wordpress_group_for_path(
+		$group = open_station_my_wordpress_group_for_path(
 			trailingslashit( wp_normalize_path( get_theme_root() ) ) .
 				$theme->get_stylesheet() . '/functions.php'
 		);
@@ -357,23 +357,23 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	 * Core / drop-in / unknown paths stay ungrouped so the type
 	 * renders loose at the root rather than in an invented folder.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_group_for_path
+	 * @covers ::open_station_my_wordpress_group_for_path
 	 */
 	public function test_group_for_path_returns_null_outside_extensions() {
 		$this->assertNull(
-			desktop_mode_my_wordpress_group_for_path( ABSPATH . 'wp-includes/post.php' )
+			open_station_my_wordpress_group_for_path( ABSPATH . 'wp-includes/post.php' )
 		);
-		$this->assertNull( desktop_mode_my_wordpress_group_for_path( '' ) );
+		$this->assertNull( open_station_my_wordpress_group_for_path( '' ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_post_type_group
+	 * @covers ::open_station_my_wordpress_post_type_group
 	 */
 	public function test_group_filter_can_override_attribution() {
 		$this->register_type( 'dm_book' );
 
 		add_filter(
-			'desktop_mode_my_wordpress_post_type_group',
+			'open_station_my_wordpress_post_type_group',
 			static function () {
 				return array(
 					'id'    => 'plugin:acme-suite',
@@ -384,7 +384,7 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 			}
 		);
 
-		$entity = desktop_mode_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
+		$entity = open_station_my_wordpress_post_type_entity( get_post_type_object( 'dm_book' ) );
 
 		$this->assertSame( 'plugin:acme-suite', $entity['group'] );
 		$this->assertSame( 'Acme Suite', $entity['groupLabel'] );
@@ -393,7 +393,7 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_collect_groups
+	 * @covers ::open_station_my_wordpress_collect_groups
 	 */
 	public function test_collect_groups_dedupes_and_orders() {
 		$entities = array(
@@ -421,7 +421,7 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 			),
 		);
 
-		$groups = desktop_mode_my_wordpress_collect_groups( $entities );
+		$groups = open_station_my_wordpress_collect_groups( $entities );
 
 		$this->assertCount( 2, $groups );
 		$this->assertSame( 'plugin:acme', $groups[0]['id'] );
@@ -429,17 +429,17 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_collect_groups
+	 * @covers ::open_station_my_wordpress_collect_groups
 	 */
 	public function test_collect_groups_is_filterable() {
 		add_filter(
-			'desktop_mode_my_wordpress_post_type_groups',
+			'open_station_my_wordpress_post_type_groups',
 			static function () {
 				return array();
 			}
 		);
 
-		$groups = desktop_mode_my_wordpress_collect_groups(
+		$groups = open_station_my_wordpress_collect_groups(
 			array( array( 'id' => 'cpt-a', 'group' => 'plugin:acme' ) )
 		);
 
@@ -450,12 +450,12 @@ class Tests_DesktopMode_MyWordpressPostTypes extends WP_UnitTestCase {
 	 * The window config ships both the entity list and the derived
 	 * group list the bundle renders folders from.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::open_station_my_wordpress_register_window
 	 */
 	public function test_window_config_ships_groups() {
-		desktop_mode_my_wordpress_register_window();
+		open_station_my_wordpress_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		$entry = open_station_native_window_registry( 'desktop-mode-my-wordpress' );
 
 		$this->assertIsArray( $entry );
 		$this->assertArrayHasKey( 'groups', $entry['config'] );

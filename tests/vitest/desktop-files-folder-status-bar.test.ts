@@ -46,7 +46,7 @@ describe( 'folder status bar', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		bar.mountFolderStatusBar( host, 5 );
-		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .os-folder-status-bar__label' );
 		expect( seg?.textContent ).toBe( '2 files, 1 folder' );
 	} );
 
@@ -70,7 +70,7 @@ describe( 'folder status bar', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		bar.mountFolderStatusBar( host, 7 );
-		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .os-folder-status-bar__label' );
 		expect( seg?.textContent ).toBe( '3 files, 1 folder (23.2 MB)' );
 	} );
 
@@ -81,7 +81,7 @@ describe( 'folder status bar', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		bar.mountFolderStatusBar( host, 8 );
-		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .os-folder-status-bar__label' );
 		expect( seg?.textContent ).toBe( '1 file' );
 	} );
 
@@ -92,7 +92,7 @@ describe( 'folder status bar', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		bar.mountFolderStatusBar( host, 0 );
-		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .os-folder-status-bar__label' );
 		expect( seg?.textContent ).toBe( '1 file' );
 	} );
 
@@ -102,7 +102,7 @@ describe( 'folder status bar', () => {
 		store.setFolderPlacements( 0, [] );
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.folder-window.status-bar',
+			'os.files.folder-window.status-bar',
 			'test/sync',
 			( segs: unknown ) => [
 				...( segs as Array< Record< string, unknown > > ),
@@ -125,7 +125,7 @@ describe( 'folder status bar', () => {
 		bar.mountFolderStatusBar( host, 0 );
 		store.setFolderPlacements( 0, [ placement( 1, 'post' ) ] );
 		const seg = host.querySelector< HTMLElement >(
-			'[data-segment-id="count"] .desktop-mode-folder-status-bar__label',
+			'[data-segment-id="count"] .os-folder-status-bar__label',
 		);
 		expect( seg?.textContent ).toBe( '1 file' );
 	} );
@@ -136,11 +136,11 @@ describe( 'folder status bar', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = bar.mountFolderStatusBar( host, 0 );
-		expect( host.querySelector( '.desktop-mode-folder-status-bar' ) ).not.toBeNull();
+		expect( host.querySelector( '.os-folder-status-bar' ) ).not.toBeNull();
 		handle.dispose();
-		expect( host.querySelector( '.desktop-mode-folder-status-bar' ) ).toBeNull();
+		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
 		// Subsequent store mutation must not re-create the bar.
 		store.setFolderPlacements( 0, [ placement( 9 ) ] );
-		expect( host.querySelector( '.desktop-mode-folder-status-bar' ) ).toBeNull();
+		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
 	} );
 } );

@@ -1,17 +1,17 @@
 /**
- * Desktop Mode — Cross-window shortcut drag protocol (legacy).
+ * OpenStation — Cross-window shortcut drag protocol (legacy).
  *
  * @deprecated Superseded by the centralized
  * {@link DragManagerApi}. The shell no longer wires HTML5
  * `dragstart` / `drop` for in-shell tile gestures; everything routes
- * through `wp.desktop.dragManager`. This module remains for
+ * through `wp.os.dragManager`. This module remains for
  * backwards compatibility with third-party plugins that still emit
- * HTML5 drags with the legacy MIME `application/x-desktop-mode-shortcut+json`,
+ * HTML5 drags with the legacy MIME `application/x-os-shortcut+json`,
  * but new code SHOULD use the manager directly:
  *
  * ```ts
  * tile.addEventListener( 'pointerdown', ( e ) => {
- *     window.wp.desktop.dragManager.start( {
+ *     window.wp.os.dragManager.start( {
  *         payload: {
  *             type: 'shortcut',
  *             source: tile,
@@ -38,7 +38,7 @@
  * @public
  */
 
-export const DROP_MIME = 'application/x-desktop-mode-shortcut+json';
+export const DROP_MIME = 'application/x-os-shortcut+json';
 
 export interface DesktopShortcutDragPayload {
 	type: string;

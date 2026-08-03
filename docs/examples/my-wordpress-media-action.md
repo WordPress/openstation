@@ -15,7 +15,7 @@ and toasts on success.
 ## PHP — declare the descriptor
 
 ```php
-add_filter( 'desktop_mode_my_wordpress_preview_actions', function ( $actions ) {
+add_filter( 'open_station_my_wordpress_preview_actions', function ( $actions ) {
     $actions[] = array(
         'id'         => 'my-plugin/compress-image',
         'label'      => __( 'Compress this image', 'my-plugin' ),
@@ -28,7 +28,7 @@ add_filter( 'desktop_mode_my_wordpress_preview_actions', function ( $actions ) {
     return $actions;
 } );
 
-// Register the JS bundle that wires the handler. Desktop Mode
+// Register the JS bundle that wires the handler. OpenStation
 // auto-enqueues the handle for users who can see the action.
 add_action( 'init', function () {
     wp_register_script(
@@ -57,11 +57,11 @@ What you got for free:
 
 ```js
 ( function () {
-    if ( ! window.wp || ! window.wp.hooks || ! window.wp.desktop ) {
+    if ( ! window.wp || ! window.wp.hooks || ! window.wp.os ) {
         return;
     }
     wp.hooks.addFilter(
-        'desktop-mode.my-wordpress.preview-actions',
+        'os.my-wordpress.preview-actions',
         'my-plugin/compress',
         function ( actions, ctx ) {
             return actions.map( function ( a ) {
@@ -71,13 +71,13 @@ What you got for free:
                 return Object.assign( {}, a, {
                     onSelect: async function ( c ) {
                         const id = c.item.id;
-                        const response = await wp.desktop.fetch(
+                        const response = await wp.os.fetch(
                             '/wp-json/my-plugin/v1/compress/' + id,
                             { method: 'POST' },
                             { source: 'my-plugin/compress' },
                         );
                         if ( response.ok ) {
-                            wp.desktop.notify( {
+                            wp.os.notify( {
                                 title: 'Compressed!',
                                 body: c.item.title.rendered,
                             } );
@@ -109,7 +109,7 @@ the slot action:
 
 ```js
 wp.hooks.addAction(
-    'desktop-mode.my-wordpress.preview-extras',
+    'os.my-wordpress.preview-extras',
     'my-plugin/cdn-status',
     function ( ctx ) {
         if ( ctx.slot !== 'meta' || ctx.kind !== 'media' ) {
@@ -132,7 +132,7 @@ Need a section beyond Posts / Pages / Users / Media? Register a
 `kind` server-side **and** a renderer client-side:
 
 ```php
-add_filter( 'desktop_mode_my_wordpress_entities', function ( $entities ) {
+add_filter( 'open_station_my_wordpress_entities', function ( $entities ) {
     $entities[] = array(
         'id'       => 'my-orders',
         'label'    => __( 'Orders', 'my-plugin' ),
@@ -145,7 +145,7 @@ add_filter( 'desktop_mode_my_wordpress_entities', function ( $entities ) {
 ```
 
 ```js
-wp.desktop.myWordpress.registerEntityKind(
+wp.os.myWordpress.registerEntityKind(
     'my-plugin/order',
     function ( host, entity ) {
         host.body.replaceChildren();

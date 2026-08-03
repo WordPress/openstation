@@ -3,7 +3,7 @@
  *
  * Regression for the "Edit Post in admin bar opens nothing" bug — the
  * portal-redirect-with-target case used to be indistinguishable from
- * a bare `/desktop-mode/` visit, so users with a saved session lost
+ * a bare `/openstation/` visit, so users with a saved session lost
  * the URL they clicked. The intent flag splits the two; this test
  * locks the matrix in place.
  */

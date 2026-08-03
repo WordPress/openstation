@@ -1,18 +1,18 @@
 /**
- * Desktop Mode — Folder window status bar.
+ * OpenStation — Folder window status bar.
  *
- * A bottom strip inside every `desktop-mode-folder-<id>` window
+ * A bottom strip inside every `os-folder-<id>` window
  * showing aggregate counts ("3 files, 1 folder") with a public
  * extension surface so plugins can append their own segments
  * (selection size, sync status, anything).
  *
- * Plugin contract — `desktop-mode.files.folder-window.status-bar`
+ * Plugin contract — `os.files.folder-window.status-bar`
  * filter receives an array of `StatusBarSegment` and returns a
  * mutated copy:
  *
  * ```ts
- * wp.desktop.hooks.addFilter(
- *     'desktop-mode.files.folder-window.status-bar',
+ * wp.os.hooks.addFilter(
+ *     'os.files.folder-window.status-bar',
  *     'my-plugin/sync',
  *     ( segments, ctx ) => [
  *         ...segments,
@@ -35,7 +35,7 @@ import { applyFilters } from '../hooks';
 import { formatBytes } from '../os-file-drop/format-bytes';
 import { getFilesState, subscribeFilesStore } from './store';
 
-export const STATUS_BAR_CLASS = 'desktop-mode-folder-status-bar';
+export const STATUS_BAR_CLASS = 'os-folder-status-bar';
 
 const ROOT_CLASS = STATUS_BAR_CLASS;
 
@@ -127,7 +127,7 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
 		},
 	];
 	const filtered = applyFilters< StatusBarSegment[], [ StatusBarContext ] >(
-		'desktop-mode.files.folder-window.status-bar',
+		'os.files.folder-window.status-bar',
 		builtIns,
 		ctx,
 	);

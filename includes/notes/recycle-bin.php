@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Pinned notes in the Recycle Bin.
+ * OpenStation — Pinned notes in the Recycle Bin.
  *
  * `wpd_note` is a headless CPT (`show_ui => false`), so the bin's
  * auto-capture of admin-UI post types skips it — this file opts it in
@@ -29,7 +29,7 @@
  * with its original private/publish status, and the Heartbeat delta
  * re-pins it on the wall without a reload.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -40,12 +40,12 @@ defined( 'ABSPATH' ) || exit;
  * @param string[] $types Tracked post types.
  * @return string[]
  */
-function desktop_mode_notes_recycle_bin_capture_types( $types ) {
+function open_station_notes_recycle_bin_capture_types( $types ) {
 	$types   = (array) $types;
-	$types[] = DESKTOP_MODE_NOTES_POST_TYPE;
+	$types[] = OPEN_STATION_NOTES_POST_TYPE;
 	return $types;
 }
-add_filter( 'desktop_mode_recycle_bin_capture_post_types', 'desktop_mode_notes_recycle_bin_capture_types' );
+add_filter( 'open_station_recycle_bin_capture_post_types', 'open_station_notes_recycle_bin_capture_types' );
 
 /**
  * Whether a trashed post is a note owned by the current user.
@@ -53,7 +53,7 @@ add_filter( 'desktop_mode_recycle_bin_capture_post_types', 'desktop_mode_notes_r
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function desktop_mode_notes_recycle_bin_owns( $post ) {
+function open_station_notes_recycle_bin_owns( $post ) {
 	return (int) $post->post_author === get_current_user_id();
 }
 
@@ -65,15 +65,15 @@ function desktop_mode_notes_recycle_bin_owns( $post ) {
  * @param WP_Post $post Trashed post.
  * @return bool
  */
-function desktop_mode_notes_recycle_bin_gate( $can, $post ) {
-	if ( DESKTOP_MODE_NOTES_POST_TYPE !== $post->post_type ) {
+function open_station_notes_recycle_bin_gate( $can, $post ) {
+	if ( OPEN_STATION_NOTES_POST_TYPE !== $post->post_type ) {
 		return $can;
 	}
-	return desktop_mode_notes_recycle_bin_owns( $post );
+	return open_station_notes_recycle_bin_owns( $post );
 }
-add_filter( 'desktop_mode_recycle_bin_user_can_view', 'desktop_mode_notes_recycle_bin_gate', 10, 2 );
-add_filter( 'desktop_mode_recycle_bin_user_can_restore', 'desktop_mode_notes_recycle_bin_gate', 10, 2 );
-add_filter( 'desktop_mode_recycle_bin_user_can_purge', 'desktop_mode_notes_recycle_bin_gate', 10, 2 );
+add_filter( 'open_station_recycle_bin_user_can_view', 'open_station_notes_recycle_bin_gate', 10, 2 );
+add_filter( 'open_station_recycle_bin_user_can_restore', 'open_station_notes_recycle_bin_gate', 10, 2 );
+add_filter( 'open_station_recycle_bin_user_can_purge', 'open_station_notes_recycle_bin_gate', 10, 2 );
 
 /**
  * Paper-flavored row shape for trashed notes.
@@ -82,13 +82,13 @@ add_filter( 'desktop_mode_recycle_bin_user_can_purge', 'desktop_mode_notes_recyc
  * @param WP_Post $post Source post.
  * @return array
  */
-function desktop_mode_notes_recycle_bin_item( $item, $post ) {
-	if ( DESKTOP_MODE_NOTES_POST_TYPE !== $post->post_type ) {
+function open_station_notes_recycle_bin_item( $item, $post ) {
+	if ( OPEN_STATION_NOTES_POST_TYPE !== $post->post_type ) {
 		return $item;
 	}
 	$item['type_label'] = __( 'Note', 'desktop-mode' );
 	$item['icon']       = 'dashicons-sticky';
-	$item['subtitle']   = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
+	$item['subtitle']   = wp_trim_words( open_station_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
 	// Notes have no admin edit screen — a chromeless post.php iframe
 	// would 403 on the headless CPT.
 	$item['edit_link'] = '';
@@ -109,7 +109,7 @@ function desktop_mode_notes_recycle_bin_item( $item, $post ) {
 
 	return $item;
 }
-add_filter( 'desktop_mode_recycle_bin_item', 'desktop_mode_notes_recycle_bin_item', 10, 2 );
+add_filter( 'open_station_recycle_bin_item', 'open_station_notes_recycle_bin_item', 10, 2 );
 
 /**
  * Number of trashed notes for a given scope.
@@ -117,9 +117,9 @@ add_filter( 'desktop_mode_recycle_bin_item', 'desktop_mode_notes_recycle_bin_ite
  * @param int|null $author_id Scope to one author, or null for all.
  * @return int
  */
-function desktop_mode_notes_recycle_bin_trashed_count( $author_id = null ) {
+function open_station_notes_recycle_bin_trashed_count( $author_id = null ) {
 	$args = array(
-		'post_type'      => DESKTOP_MODE_NOTES_POST_TYPE,
+		'post_type'      => OPEN_STATION_NOTES_POST_TYPE,
 		'post_status'    => 'trash',
 		'posts_per_page' => 1,
 		'fields'         => 'ids',
@@ -144,13 +144,13 @@ function desktop_mode_notes_recycle_bin_trashed_count( $author_id = null ) {
  * @param int $total Generic total.
  * @return int
  */
-function desktop_mode_notes_recycle_bin_count( $total ) {
+function open_station_notes_recycle_bin_count( $total ) {
 	$total = (int) $total;
-	$own   = desktop_mode_notes_recycle_bin_trashed_count( get_current_user_id() );
+	$own   = open_station_notes_recycle_bin_trashed_count( get_current_user_id() );
 
 	if ( current_user_can( 'edit_others_posts' ) ) {
 		// Counted everyone's notes; keep only ours.
-		$total = $total - desktop_mode_notes_recycle_bin_trashed_count() + $own;
+		$total = $total - open_station_notes_recycle_bin_trashed_count() + $own;
 	} elseif ( ! current_user_can( 'edit_posts' ) ) {
 		// Counted none of ours; add them.
 		$total = $total + $own;
@@ -159,4 +159,4 @@ function desktop_mode_notes_recycle_bin_count( $total ) {
 
 	return max( 0, $total );
 }
-add_filter( 'desktop_mode_recycle_bin_count', 'desktop_mode_notes_recycle_bin_count' );
+add_filter( 'open_station_recycle_bin_count', 'open_station_notes_recycle_bin_count' );

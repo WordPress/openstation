@@ -9,7 +9,7 @@
  * never leaks a Pixi app.
  *
  * Pixi lifecycle follows the Inkfall precedent: PixiJS from
- * `wp.desktop.loadModules(['pixijs'])`, `sharedTicker: false`, and
+ * `wp.os.loadModules(['pixijs'])`, `sharedTicker: false`, and
  * the options-object destroy — never `destroy( true )`.
  *
  * The puzzle itself is seeded by the current date (`dd-mm-yyyy`) —
@@ -542,7 +542,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 					{ label: __( 'Streak' ), value: String( scores.bestStreak ) },
 					{ label: __( 'Wave' ), value: String( wave ) },
 				],
-				footer: __( 'WordPress Desktop Mode' ),
+				footer: __( 'WordPress OpenStation' ),
 			};
 			const shareCanvas = document.createElement( 'canvas' );
 			shareCanvas.className = 'soup__share-canvas';
@@ -937,12 +937,12 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	const boot = async (): Promise< void > => {
 		const desktop = desktopGlobal();
 		if ( typeof desktop.loadModules !== 'function' ) {
-			throw new Error( '[desktop-mode] wp.desktop.loadModules missing.' );
+			throw new Error( '[openstation] wp.os.loadModules missing.' );
 		}
 		const wordsUrl = String( ctx.config.wordsUrl || '' );
 		if ( '' === wordsUrl ) {
 			throw new Error(
-				'[desktop-mode] Alphabet Soup config lacks the framework wordsUrl.',
+				'[openstation] Alphabet Soup config lacks the framework wordsUrl.',
 			);
 		}
 		const [ , loadedDictionary ] = await Promise.all( [
@@ -958,7 +958,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		dictionary = loadedDictionary;
 		pixi = getPixi();
 		if ( ! pixi ) {
-			throw new Error( '[desktop-mode] PixiJS failed to load.' );
+			throw new Error( '[openstation] PixiJS failed to load.' );
 		}
 
 		const instance = new pixi.Application();
@@ -990,7 +990,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				return;
 			}
 			// Pixi's ResizePlugin only reacts to `window` resize —
-			// resizing the desktop-mode window never fires that.
+			// resizing the openstation window never fires that.
 			app.resize();
 			board.relayout( fieldWidth(), fieldHeight() );
 		} );
@@ -1024,7 +1024,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				: __( 'Alphabet Soup could not start.' ),
 		);
 		if ( typeof console !== 'undefined' ) {
-			console.error( '[desktop-mode] Alphabet Soup boot failed:', err );
+			console.error( '[openstation] Alphabet Soup boot failed:', err );
 		}
 	} );
 

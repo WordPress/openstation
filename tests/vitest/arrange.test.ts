@@ -15,10 +15,10 @@ import {
 } from './helpers/hooks-stub';
 
 const ARRANGE_HOOKS = [
-	'desktop-mode.arrange.tile.starting',
-	'desktop-mode.arrange.tile.applied',
-	'desktop-mode.arrange.snap.changed',
-	'desktop-mode.window.unmaximized',
+	'os.arrange.tile.starting',
+	'os.arrange.tile.applied',
+	'os.arrange.snap.changed',
+	'os.window.unmaximized',
 ] as const;
 
 function openConfig( id: string ) {
@@ -77,7 +77,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		expect(
-			log.some( ( e ) => e.name.startsWith( 'desktop-mode.arrange.tile.' ) ),
+			log.some( ( e ) => e.name.startsWith( 'os.arrange.tile.' ) ),
 		).toBe( false );
 	} );
 
@@ -91,7 +91,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
+			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		expect( applied ).toBeDefined();
 		const payload = applied!.args[ 0 ] as {
@@ -114,11 +114,11 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		const tileEvents = log.filter( ( e ) =>
-			e.name.startsWith( 'desktop-mode.arrange.tile.' ),
+			e.name.startsWith( 'os.arrange.tile.' ),
 		);
 		expect( tileEvents.map( ( e ) => e.name ) ).toEqual( [
-			'desktop-mode.arrange.tile.starting',
-			'desktop-mode.arrange.tile.applied',
+			'os.arrange.tile.starting',
+			'os.arrange.tile.applied',
 		] );
 	} );
 
@@ -155,7 +155,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 		expect( manager.isSnapEnabled() ).toBe( true );
 		const evt = log.find(
-			( e ) => e.name === 'desktop-mode.arrange.snap.changed',
+			( e ) => e.name === 'os.arrange.snap.changed',
 		);
 		expect( evt ).toBeDefined();
 		expect( ( evt!.args[ 0 ] as { enabled: boolean } ).enabled ).toBe( true );
@@ -169,7 +169,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.setSnapEnabled( true );
 
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.arrange.snap.changed' ),
+			log.some( ( e ) => e.name === 'os.arrange.snap.changed' ),
 		).toBe( false );
 	} );
 
@@ -207,7 +207,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'd' ) );
 		// Force a 1×4 layout instead of the default 2×2.
 		hooks.addFilter(
-			'desktop-mode.arrange.tile.dimensions',
+			'os.arrange.tile.dimensions',
 			'test/force-1x4',
 			() => ( { cols: 1, rows: 4 } ),
 		);
@@ -216,7 +216,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
+			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		expect( payload.cols ).toBe( 1 );
@@ -228,7 +228,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'b' ) );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
-			'desktop-mode.arrange.tile.dimensions',
+			'os.arrange.tile.dimensions',
 			'test/inspect',
 			( value, ctx ) => {
 				receivedContext = ctx;
@@ -256,7 +256,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		// 1×2 only fits 2 windows; we have 4. Filter return must
 		// be discarded, default 2×2 used.
 		hooks.addFilter(
-			'desktop-mode.arrange.tile.dimensions',
+			'os.arrange.tile.dimensions',
 			'test/bad-grid',
 			() => ( { cols: 1, rows: 2 } ),
 		);
@@ -265,7 +265,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
+			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		expect( payload.cols ).toBe( 2 );
@@ -276,7 +276,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );
 		hooks.addFilter(
-			'desktop-mode.arrange.tile.dimensions',
+			'os.arrange.tile.dimensions',
 			'test/garbage',
 			() => 'not-a-grid',
 		);
@@ -285,7 +285,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.tile();
 
 		const applied = log.find(
-			( e ) => e.name === 'desktop-mode.arrange.tile.applied',
+			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
 		// Default for 2 windows on landscape is 2×1 (cellAspect 800
@@ -296,7 +296,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 	test( 'snap.cell-size filter overrides the auto-computed grid', async () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
-			'desktop-mode.arrange.snap.cell-size',
+			'os.arrange.snap.cell-size',
 			'test/force-100',
 			() => ( { cellWidth: 100, cellHeight: 100 } ),
 		);
@@ -310,7 +310,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 	test( 'snap.cell-size filter rejects non-positive values', async () => {
 		manager.setSnapEnabled( true );
 		hooks.addFilter(
-			'desktop-mode.arrange.snap.cell-size',
+			'os.arrange.snap.cell-size',
 			'test/zero',
 			() => ( { cellWidth: 0, cellHeight: -50 } ),
 		);
@@ -326,7 +326,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		manager.setSnapEnabled( true );
 		let receivedContext: unknown = null;
 		hooks.addFilter(
-			'desktop-mode.arrange.snap.cell-size',
+			'os.arrange.snap.cell-size',
 			'test/inspect',
 			( value, ctx ) => {
 				receivedContext = ctx;
@@ -422,11 +422,11 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 		win.maximize();
 		expect( win.state ).toBe( 'maximized' );
 		const log = recordActions( hooks, [
-			'desktop-mode.window.unmaximized',
+			'os.window.unmaximized',
 		] );
 
 		const titleBar = win.element.querySelector(
-			'.desktop-mode-window__titlebar',
+			'.os-window__titlebar',
 		) as HTMLElement;
 		// jsdom doesn't implement setPointerCapture — stub.
 		titleBar.setPointerCapture =
@@ -456,7 +456,7 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 
 		expect( win.state ).toBe( 'normal' );
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.window.unmaximized' ),
+			log.some( ( e ) => e.name === 'os.window.unmaximized' ),
 		).toBe( true );
 	} );
 } );

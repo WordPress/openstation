@@ -1,7 +1,7 @@
 /**
  * Desktop-layout section — segmented control (Classic / Unified /
  * Spatial) bound to `state.desktopLayout`. The shell root's
- * `data-desktop-mode-layout` attribute is the single source of truth
+ * `data-os-layout` attribute is the single source of truth
  * the layout dispatcher reads to rebuild the dock(s) and (for
  * Spatial) the synthesized desktop icons.
  */
@@ -31,27 +31,27 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Desktop layout' ) }
 					description=${ translateDesktopLayoutDescription(
 						ctx.state.desktopLayout,
 					) }
 				>
-					<wpd-segmented
+					<os-segmented
 						value=${ ctx.state.desktopLayout }
 						label=${ __( 'Desktop layout' ) }
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
 						${ DESKTOP_LAYOUTS.map(
-							( l ) => html`<wpd-segment value=${ l.id }
+							( l ) => html`<os-segment value=${ l.id }
 									>${ translateDesktopLayoutLabel(
 										l.id,
 										l.label,
-									) }</wpd-segment
+									) }</os-segment
 								>`,
 						) }
-					</wpd-segmented>
-				</wpd-section>
+					</os-segmented>
+				</os-section>
 			`,
 			wrapper,
 		);

@@ -39,7 +39,7 @@ function icon(
 
 function tile( over: Partial< PlaceableSystemTile > = {} ): PlaceableSystemTile {
 	return {
-		id: 'desktop-mode-mio-toggle',
+		id: 'os-mio-toggle',
 		title: 'Mio',
 		icon: 'dashicons-superhero-alt',
 		placeable: true,
@@ -68,7 +68,7 @@ describe( 'listPlaceableItems', () => {
 
 		const optedIn = listPlaceableItems( [], [], {}, [ tile() ] );
 		expect( optedIn.map( ( r ) => r.id ) ).toEqual( [
-			'desktop-mode-mio-toggle',
+			'os-mio-toggle',
 		] );
 	} );
 
@@ -96,7 +96,7 @@ describe( 'listPlaceableItems', () => {
 			listPlaceableItems(
 				[],
 				[],
-				{ 'desktop-mode-mio-toggle': 'hidden' },
+				{ 'os-mio-toggle': 'hidden' },
 				[ tile() ],
 			)[ 0 ].placement,
 		).toBe( 'hidden' );

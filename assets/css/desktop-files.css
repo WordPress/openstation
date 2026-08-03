@@ -1,14 +1,14 @@
 /**
- * Desktop Mode — Files-on-the-Desktop tile + layer styles.
+ * OpenStation — Files-on-the-Desktop tile + layer styles.
  *
  * The layer is an absolutely-positioned container inside
- * `#desktop-mode-area`; tiles inside use absolute positioning
+ * `#os-area`; tiles inside use absolute positioning
  * keyed off `(x, y)` coordinates persisted server-side.
  *
- * Tiles are intentionally close to the look of `desktop-mode-icon`
+ * Tiles are intentionally close to the look of `os-icon`
  * (the plugin-shortcut tiles) so the desktop reads as one
  * coherent surface — but they live in their own class namespace
- * (`desktop-mode-file-tile`) so plugins can theme each rail
+ * (`os-file-tile`) so plugins can theme each rail
  * independently.
  *
  * @since 0.9.0
@@ -17,13 +17,13 @@
 /*
  * Unified rail (since 0.9.0): plugin shortcuts now ride on the
  * same files layer as folders / posts / etc — they're a
- * `'shortcut'` file type. The legacy `.desktop-mode-icons` DIV
+ * `'shortcut'` file type. The legacy `.os-icons` DIV
  * still renders for backwards compatibility (existing tests and
  * non-files-active code paths), but when a files layer is
  * mounted as a sibling we hide it so we don't end up with two
  * rails competing for the same wallpaper.
  */
-#desktop-mode-area:has( > .desktop-mode-files-layer ) > .desktop-mode-icons {
+#os-area:has( > .os-files-layer ) > .os-icons {
 	display: none;
 }
 
@@ -39,7 +39,7 @@
  *
  * @since 0.18.0; visuals strengthened in 0.20.0.
  */
-@keyframes desktop-mode-drop-marching-ants {
+@keyframes os-drop-marching-ants {
 	to {
 		background-position: 24px 0, -24px 0, 0 24px, 0 -24px;
 	}
@@ -74,7 +74,7 @@
 	background-size: 12px 3px, 12px 3px, 3px 12px, 3px 12px;
 	background-position: 0 6px, 0 calc( 100% - 6px ), 6px 0, calc( 100% - 6px ) 0;
 	box-shadow: inset 0 0 32px 4px rgba( 34, 113, 177, 0.12 );
-	animation: desktop-mode-drop-marching-ants 0.6s linear infinite;
+	animation: os-drop-marching-ants 0.6s linear infinite;
 	transition: box-shadow 0.18s ease-out;
 }
 
@@ -84,14 +84,14 @@
 	}
 }
 
-.desktop-mode-files-layer {
+.os-files-layer {
 	position: absolute;
 	inset: 0;
 	z-index: 0;
 	/*
 	 * Layer doesn't intercept pointer events itself — tiles and
 	 * the wallpaper own that. Phase 4's wallpaper context menu
-	 * binds clicks on the parent `#desktop-mode-area`, which is
+	 * binds clicks on the parent `#os-area`, which is
 	 * unblocked because of this rule.
 	 */
 	pointer-events: none;
@@ -111,7 +111,7 @@
  *
  * @since 0.20.0
  */
-.desktop-mode-files-drop-preview {
+.os-files-drop-preview {
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -121,12 +121,12 @@
 	box-sizing: border-box;
 	border-radius: 12px;
 	background: var(
-		--desktop-mode-drop-preview-bg,
+		--os-drop-preview-bg,
 		rgba( 34, 113, 177, 0.08 )
 	);
 	border: 2px dashed
 		var(
-			--desktop-mode-drop-preview-border,
+			--os-drop-preview-border,
 			rgba( 34, 113, 177, 0.55 )
 		);
 	transition: transform 90ms ease-out;
@@ -139,12 +139,12 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-files-drop-preview {
+	.os-files-drop-preview {
 		transition: none;
 	}
 }
 
-.desktop-mode-file-tile {
+.os-file-tile {
 	pointer-events: auto;
 	position: absolute;
 	display: flex;
@@ -156,11 +156,11 @@
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
-	/* Tile foreground driven by `--desktop-mode-tile-fg` so any
+	/* Tile foreground driven by `--os-tile-fg` so any
 	 * light-on-dark surface (folder window, My WordPress preview)
 	 * can retint tiles by overriding the variable in its scope —
 	 * no per-surface selectors needed here. */
-	color: var( --desktop-mode-tile-fg, var( --desktop-mode-fg, #fff ) );
+	color: var( --os-tile-fg, var( --os-fg, #fff ) );
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease, transform 0.05s linear;
@@ -178,14 +178,14 @@
 	 * at its static `opacity: 1`, and never re-fires from later
 	 * state changes (drag, hover, drop-target).
 	 */
-	animation: desktop-mode-file-tile-enter
-		var( --desktop-mode-file-tile-enter-duration, 0.4s )
+	animation: os-file-tile-enter
+		var( --os-file-tile-enter-duration, 0.4s )
 		ease-out
-		var( --desktop-mode-file-tile-enter-delay, 0s )
+		var( --os-file-tile-enter-delay, 0s )
 		backwards;
 }
 
-@keyframes desktop-mode-file-tile-enter {
+@keyframes os-file-tile-enter {
 	from {
 		opacity: 0;
 	}
@@ -195,47 +195,47 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-file-tile {
+	.os-file-tile {
 		animation: none;
 	}
 }
 
-.desktop-mode-file-tile:hover,
-.desktop-mode-file-tile:focus-visible {
+.os-file-tile:hover,
+.os-file-tile:focus-visible {
 	background: var(
-		--desktop-mode-tile-hover-bg,
+		--os-tile-hover-bg,
 		rgba( 255, 255, 255, 0.12 )
 	);
 	outline: none;
 }
 
-.desktop-mode-file-tile:focus-visible {
+.os-file-tile:focus-visible {
 	/* Inset focus ring — outset rings extended past the tile and
 	 * visually overlapped the colindant icon when the canvas cell
 	 * pitch is tight (96 px cell, 88 px tile → only 4 px clearance
 	 * per side). Inset keeps the ring fully inside the tile. */
 	box-shadow: inset 0 0 0 2px
-		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
-/* Status ribbon sizing inside tiles. The `<wpd-ribbon>` defaults
+/* Status ribbon sizing inside tiles. The `<os-ribbon>` defaults
  * are tuned for cards (~90 px clipping window); 88 px-wide tiles
  * need a tighter footprint or the ribbon dominates the icon. We
  * override the component's CSS custom-property theming surface so
  * the ribbon stays a small accent in the corner. Authors who want
  * different sizing can override per-tile or per-section. */
-.desktop-mode-file-tile > wpd-ribbon {
-	--wpd-ribbon-size: 48px;
-	--wpd-ribbon-banner-width: 72px;
-	--wpd-ribbon-banner-offset: 12px;
-	--wpd-ribbon-banner-pull: -18px;
-	--wpd-ribbon-padding: 1px 0;
-	--wpd-ribbon-font: 700 7px/1.4 var( --desktop-mode-font, system-ui );
-	--wpd-ribbon-tracking: 0.05em;
-	--wpd-ribbon-shadow: 0 1px 2px rgba( 0, 0, 0, 0.2 );
+.os-file-tile > os-ribbon {
+	--os-ui-ribbon-size: 48px;
+	--os-ui-ribbon-banner-width: 72px;
+	--os-ui-ribbon-banner-offset: 12px;
+	--os-ui-ribbon-banner-pull: -18px;
+	--os-ui-ribbon-padding: 1px 0;
+	--os-ui-ribbon-font: 700 7px/1.4 var( --os-font, system-ui );
+	--os-ui-ribbon-tracking: 0.05em;
+	--os-ui-ribbon-shadow: 0 1px 2px rgba( 0, 0, 0, 0.2 );
 }
 
-.desktop-mode-file-tile--dragging {
+.os-file-tile--dragging {
 	/* The DragManager renders a separate ghost element that follows
 	 * the pointer; the SOURCE tile stays in place but is dimmed so
 	 * the user has a stable reference for "this is what I'm
@@ -253,12 +253,12 @@
  * No upfront visual cue: feedback now happens at the moment of the
  * gesture, not before, per @since 0.9.0 design feedback.
  *
- * Default `cursor: pointer` from the base `.desktop-mode-file-tile`
+ * Default `cursor: pointer` from the base `.os-file-tile`
  * rule covers click-to-open. Touch interactions stay as
  * `touch-action: auto` so the OS scroll gesture works on top of
  * the tile.
  */
-.desktop-mode-file-tile--pinned {
+.os-file-tile--pinned {
 	touch-action: auto;
 }
 
@@ -267,7 +267,7 @@
  * WordPress and is hovering over a folder. Bright outline, soft
  * pulse, and a slight scale so the folder reads unmistakably as
  * "yes, drop here." @since 0.8.0; pulse added 0.20.0. */
-@keyframes desktop-mode-drop-target-pulse {
+@keyframes os-drop-target-pulse {
 	0% {
 		box-shadow:
 			0 0 0 0 rgba( 34, 113, 177, 0.5 ),
@@ -280,18 +280,18 @@
 	}
 }
 
-.desktop-mode-file-tile--drop-target {
+.os-file-tile--drop-target {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: -4px;
 	background: rgba( 34, 113, 177, 0.2 );
 	transform: scale( 1.08 );
 	z-index: 5;
-	animation: desktop-mode-drop-target-pulse 1s ease-out infinite;
+	animation: os-drop-target-pulse 1s ease-out infinite;
 	border-radius: 12px;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-file-tile--drop-target {
+	.os-file-tile--drop-target {
 		animation: none;
 	}
 }
@@ -304,7 +304,7 @@
  *
  * @since 0.20.0
  */
-.desktop-mode-drag-hint {
+.os-drag-hint {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -318,7 +318,7 @@
 	user-select: none;
 	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.22 );
 	background: rgba( 30, 30, 30, 0.85 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	z-index: 2147483647;
 	transition:
 		background-color 0.12s ease,
@@ -326,20 +326,20 @@
 		transform 0.06s ease-out;
 }
 
-.desktop-mode-drag-hint--neutral {
+.os-drag-hint--neutral {
 	background: rgba( 30, 30, 30, 0.85 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.desktop-mode-drag-hint--accept {
+.os-drag-hint--accept {
 	background: #1e8449;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	box-shadow:
 		0 0 0 2px rgba( 30, 132, 73, 0.25 ),
 		0 6px 18px rgba( 30, 132, 73, 0.3 );
 }
 
-.desktop-mode-drag-hint--accept::before {
+.os-drag-hint--accept::before {
 	/* Tiny checkmark chevron prefix so "Drop here" reads as an
 	 * actionable affirmation rather than a passive label. The
 	 * checkmark is a real character (U+2713) so screen readers
@@ -347,15 +347,15 @@
 	content: '✓ ';
 }
 
-.desktop-mode-drag-hint--reject {
-	background: var( --wpd-danger-hover, #b32d2e );
-	color: var( --wpd-fg-on-accent, #fff );
+.os-drag-hint--reject {
+	background: var( --os-ui-danger-hover, #b32d2e );
+	color: var( --os-ui-fg-on-accent, #fff );
 	box-shadow:
 		0 0 0 2px rgba( 179, 45, 46, 0.25 ),
 		0 6px 18px rgba( 179, 45, 46, 0.3 );
 }
 
-.desktop-mode-drag-hint--reject::before {
+.os-drag-hint--reject::before {
 	content: '⊘ ';
 }
 
@@ -387,11 +387,11 @@
  * surface) are the entity, not a shortcut to it, so the arrow
  * would just be noise. `[data-placement-id]` is the canonical
  * placement marker. */
-.desktop-mode-file-tile[ data-placement-id ][ data-file-type="post" ]::after,
-.desktop-mode-file-tile[ data-placement-id ][ data-file-type="attachment" ]::after,
-.desktop-mode-file-tile[ data-placement-id ][ data-file-type="comment" ]::after,
-.desktop-mode-file-tile[ data-placement-id ][ data-file-type="user" ]::after,
-.desktop-mode-file-tile[ data-placement-id ][ data-file-type="term" ]::after {
+.os-file-tile[ data-placement-id ][ data-file-type="post" ]::after,
+.os-file-tile[ data-placement-id ][ data-file-type="attachment" ]::after,
+.os-file-tile[ data-placement-id ][ data-file-type="comment" ]::after,
+.os-file-tile[ data-placement-id ][ data-file-type="user" ]::after,
+.os-file-tile[ data-placement-id ][ data-file-type="term" ]::after {
 	content: "↗";
 	position: absolute;
 	right: 14px;
@@ -399,13 +399,13 @@
 	width: 18px;
 	height: 18px;
 	border-radius: 50%;
-	background: var( --desktop-mode-tile-shortcut-bg, rgba( 0, 0, 0, 0.65 ) );
-	color: var( --desktop-mode-tile-shortcut-fg, #fff );
+	background: var( --os-tile-shortcut-bg, rgba( 0, 0, 0, 0.65 ) );
+	color: var( --os-tile-shortcut-fg, #fff );
 	font-size: 11px;
 	line-height: 18px;
 	text-align: center;
 	box-shadow: var(
-		--desktop-mode-tile-shortcut-shadow,
+		--os-tile-shortcut-shadow,
 		0 1px 3px rgba( 0, 0, 0, 0.5 )
 	);
 	pointer-events: none;
@@ -418,7 +418,7 @@
  * file. Phase 6's per-placement permission re-check uses the
  * same affordance for "you can't see this" placeholders.
  */
-.desktop-mode-file-tile--missing {
+.os-file-tile--missing {
 	opacity: 0.5;
 }
 
@@ -428,27 +428,27 @@
  * underlying entity. Dim the tile, kill the pointer affordance,
  * and overlay a lock badge so the state reads at a glance.
  */
-.desktop-mode-file-tile--access-gated {
+.os-file-tile--access-gated {
 	opacity: 0.65;
 	cursor: not-allowed;
 }
-.desktop-mode-file-tile--access-gated .desktop-mode-file-tile__visual,
-.desktop-mode-file-tile--access-gated .desktop-mode-file-tile__preview {
+.os-file-tile--access-gated .os-file-tile__visual,
+.os-file-tile--access-gated .os-file-tile__preview {
 	filter: grayscale( 0.6 );
 }
-.desktop-mode-file-tile--access-gated:hover,
-.desktop-mode-file-tile--access-gated:focus-visible {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+.os-file-tile--access-gated:hover,
+.os-file-tile--access-gated:focus-visible {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) );
 }
-.desktop-mode-file-tile__lock {
+.os-file-tile__lock {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 4px;
 	width: 20px;
 	height: 20px;
 	border-radius: 50%;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.7 ) );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.7 ) );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font-size: 14px;
 	line-height: 20px;
 	text-align: center;
@@ -461,7 +461,7 @@
  * can't open. Big lock ring + clear copy + secondary hint. Designed
  * to read at a glance in the otherwise-busy preview column.
  */
-.desktop-mode-files__access-gated {
+.os-files__access-gated {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -470,9 +470,9 @@
 	padding: 32px 24px;
 	min-height: 240px;
 	text-align: center;
-	color: var( --desktop-mode-fg, inherit );
+	color: var( --os-fg, inherit );
 }
-.desktop-mode-files__access-gated-ring {
+.os-files__access-gated-ring {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -489,27 +489,27 @@
 		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
 		0 8px 24px rgba( 214, 54, 56, 0.18 );
 }
-.desktop-mode-files__access-gated-glyph {
+.os-files__access-gated-glyph {
 	font-size: 44px;
 	width: 44px;
 	height: 44px;
 	color: #ff8080;
 	filter: drop-shadow( 0 1px 2px rgba( 0, 0, 0, 0.4 ) );
 }
-.desktop-mode-files__access-gated-title {
+.os-files__access-gated-title {
 	margin: 0;
 	font-size: 17px;
 	font-weight: 600;
 	letter-spacing: 0.2px;
 }
-.desktop-mode-files__access-gated-sub {
+.os-files__access-gated-sub {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.5;
 	max-width: 340px;
 	opacity: 0.85;
 }
-.desktop-mode-files__access-gated-hint {
+.os-files__access-gated-hint {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.5;
@@ -517,7 +517,7 @@
 	opacity: 0.6;
 }
 
-.desktop-mode-file-tile__visual {
+.os-file-tile__visual {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -527,7 +527,7 @@
 	line-height: 1;
 }
 
-.desktop-mode-file-tile__icon {
+.os-file-tile__icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -537,7 +537,7 @@
 	line-height: 1;
 }
 
-.desktop-mode-file-tile__preview {
+.os-file-tile__preview {
 	width: 48px;
 	height: 48px;
 	object-fit: cover;
@@ -551,22 +551,22 @@
  * `draggable="false"` on every `<img>` it produces; this CSS rule
  * covers anything injected later (plugin filters, decorators)
  * without having to remember the attribute. */
-.desktop-mode-file-tile img {
+.os-file-tile img {
 	-webkit-user-drag: none;
 	user-select: none;
 }
 
 /*
- * Wallpaper + tile context menus use `<wpd-context-menu>` and
- * `<wpd-context-menu-option>` (Phase 4 / 0.9.0). Their host-level
+ * Wallpaper + tile context menus use `<os-context-menu>` and
+ * `<os-context-menu-option>` (Phase 4 / 0.9.0). Their host-level
  * styles live inside the component shadow DOM — see
- * `src/ui/components/wpd-context-menu/wpd-context-menu.styles.ts`.
- * No project CSS rules needed here; the legacy `.desktop-mode-
+ * `src/ui/components/os-context-menu/os-context-menu.styles.ts`.
+ * No project CSS rules needed here; the legacy `.os-
  * wallpaper-menu*` rules were removed when the components landed.
  */
 
 /*
- * Folder native window — the body of `desktop-mode-folder-<id>`
+ * Folder native window — the body of `os-folder-<id>`
  * contains a `FilesLayer` rendering that folder's contents.
  * We ensure the body has positioning context so absolutely-
  * positioned tiles inside the layer anchor correctly.
@@ -577,10 +577,10 @@
 	/* Same window background recipe as My WordPress — defaults to
 	 * the standard window bg (#fff) and themable per-window. */
 	background: var(
-		--desktop-mode-folder-window-bg,
-		var( --desktop-mode-window-bg, #fff )
+		--os-folder-window-bg,
+		var( --os-window-bg, #fff )
 	);
-	color: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
+	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 	display: flex;
 	flex-direction: column;
 	/* Light-on-dark context: the folder window opens inside a
@@ -588,16 +588,16 @@
 	 * tile color tokens here so dashicons + labels read against
 	 * a light background. Plugins / themes can override these
 	 * same variables at any scope to retint further. */
-	--desktop-mode-tile-fg: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
-	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
-	--desktop-mode-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
+	--os-tile-fg: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
+	--os-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--os-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
 	/* Light-context label rendering — share the same recipe with
 	 * every other light-bg tile surface (My WordPress, future
 	 * windows). One set of tokens, no per-surface duplication. */
-	--desktop-mode-tile-label-shadow: none;
-	--desktop-mode-tile-label-weight: 500;
-	--desktop-mode-tile-label-smoothing: antialiased;
-	--desktop-mode-tile-label-color: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
+	--os-tile-label-shadow: none;
+	--os-tile-label-weight: 500;
+	--os-tile-label-smoothing: antialiased;
+	--os-tile-label-color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 }
 
 /* Folder window's bottom status bar — paint with the same light-
@@ -605,16 +605,16 @@
  * muted dark text). Without this, the wallpaper-targeted defaults
  * (`background: rgba(0,0,0,0.18); color: white`) would show as a
  * dark band against the white window bg. */
-.desktop-mode-folder-window .desktop-mode-folder-status-bar {
-	border-top: 1px solid var( --wpd-border, #dcdcde );
+.desktop-mode-folder-window .os-folder-status-bar {
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	background: transparent;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 .desktop-mode-folder-window
-	.desktop-mode-folder-status-bar
-	button.desktop-mode-folder-status-bar__segment:hover {
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+	.os-folder-status-bar
+	button.os-folder-status-bar__segment:hover {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
 /* Generic breadcrumb header — any surface that grows a navigation
@@ -626,17 +626,17 @@
  *
  * @since 0.8.0
  */
-.desktop-mode-breadcrumbs {
+.os-breadcrumbs {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding: 6px 10px;
-	border-bottom: 1px solid var( --wpd-border, #dcdcde );
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 	background: transparent;
 	flex: 0 0 auto;
 }
 
-.desktop-mode-breadcrumbs__back {
+.os-breadcrumbs__back {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -651,25 +651,25 @@
 	flex: 0 0 auto;
 }
 
-.desktop-mode-breadcrumbs__back:hover:not(:disabled),
-.desktop-mode-breadcrumbs__back:focus-visible:not(:disabled) {
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+.os-breadcrumbs__back:hover:not(:disabled),
+.os-breadcrumbs__back:focus-visible:not(:disabled) {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	outline: none;
 }
 
-.desktop-mode-breadcrumbs__back:disabled {
+.os-breadcrumbs__back:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
 
-.desktop-mode-breadcrumbs__back .dashicons {
+.os-breadcrumbs__back .dashicons {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
 	line-height: 1;
 }
 
-.desktop-mode-breadcrumbs__crumbs {
+.os-breadcrumbs__crumbs {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -680,35 +680,35 @@
 	white-space: nowrap;
 }
 
-.desktop-mode-breadcrumbs__crumb {
+.os-breadcrumbs__crumb {
 	border: 0;
 	background: transparent;
-	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
+	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	cursor: pointer;
 	padding: 2px 4px;
 	border-radius: 4px;
 	font: inherit;
 }
 
-.desktop-mode-breadcrumbs__crumb:hover {
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+.os-breadcrumbs__crumb:hover {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
-.desktop-mode-breadcrumbs__crumb--current {
-	color: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
+.os-breadcrumbs__crumb--current {
+	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 	cursor: default;
 	font-weight: 600;
 }
 
-.desktop-mode-breadcrumbs__crumb--current:hover {
+.os-breadcrumbs__crumb--current:hover {
 	background: transparent;
 }
 
-.desktop-mode-breadcrumbs__sep {
-	color: var( --wpd-fg-muted, #787c82 );
+.os-breadcrumbs__sep {
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-folder-window__layer {
+.os-folder-window__layer {
 	position: relative;
 	flex: 1;
 	min-height: 0;
@@ -720,60 +720,60 @@
  * WordPress two-pane view so the UX is unified.
  *
  * @since 0.8.0 */
-.desktop-mode-folder-window__split {
+.os-folder-window__split {
 	display: grid;
 	grid-template-columns: minmax( 240px, 60% ) minmax( 0, 1fr );
 	flex: 1 1 auto;
 	min-height: 0;
 }
 
-.desktop-mode-folder-window__preview {
+.os-folder-window__preview {
 	overflow-y: auto;
 	min-width: 0;
-	background: var( --desktop-mode-window-bg, #fff );
-	border-inline-start: 1px solid var( --wpd-border, #dcdcde );
-	color: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
+	background: var( --os-window-bg, #fff );
+	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 }
 
 /* Selected file tile — light-blue accent on the wallpaper, soft
  * accent inside light-context windows. Variable-driven so plugins
  * can retune. */
-.desktop-mode-file-tile--selected,
-.desktop-mode-file-tile--selected:hover {
+.os-file-tile--selected,
+.os-file-tile--selected:hover {
 	background: var(
-		--desktop-mode-tile-selected-bg,
+		--os-tile-selected-bg,
 		rgba( 34, 113, 177, 0.18 )
 	);
 	box-shadow: inset 0 0 0 1px
-		var( --desktop-mode-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
 /* Inside a folder window the selected highlight should read on
  * white. */
 .desktop-mode-folder-window {
-	--desktop-mode-tile-selected-bg: rgba( 34, 113, 177, 0.12 );
+	--os-tile-selected-bg: rgba( 34, 113, 177, 0.12 );
 }
 
-.desktop-mode-folder-status-bar {
+.os-folder-status-bar {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	gap: 12px;
 	padding: 6px 12px;
 	border-top: 1px solid rgba( 255, 255, 255, 0.08 );
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.18 ) );
-	color: var( --desktop-mode-fg-muted, rgba( 255, 255, 255, 0.7 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.18 ) );
+	color: var( --os-fg-muted, rgba( 255, 255, 255, 0.7 ) );
 	font-size: 12px;
 	flex-shrink: 0;
 }
 
-.desktop-mode-folder-status-bar__cluster {
+.os-folder-status-bar__cluster {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 }
 
-.desktop-mode-folder-status-bar__segment {
+.os-folder-status-bar__segment {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -784,63 +784,63 @@
 	font: inherit;
 }
 
-button.desktop-mode-folder-status-bar__segment {
+button.os-folder-status-bar__segment {
 	cursor: pointer;
 	border-radius: 4px;
 	padding: 2px 6px;
 }
 
-button.desktop-mode-folder-status-bar__segment:hover {
+button.os-folder-status-bar__segment:hover {
 	background: rgba( 255, 255, 255, 0.1 );
 }
 
-.desktop-mode-folder-status-bar__icon {
+.os-folder-status-bar__icon {
 	font-size: 14px;
 }
 
 /*
  * File Associations OS Settings tab (Phase 5). One row per file
- * type: label on the left, a `<wpd-select>` of compatible
+ * type: label on the left, a `<os-select>` of compatible
  * openers on the right. Color tokens use the OS-Settings-canonical
- * `--wpd-fg-muted` so the tab inherits theme colors instead of
+ * `--os-ui-fg-muted` so the tab inherits theme colors instead of
  * falling back to white-on-light invisibility.
  */
-.desktop-mode-file-associations__intro {
+.os-file-associations__intro {
 	display: block;
 	margin: 0 0 16px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 13px;
 	line-height: 1.5;
 }
 
-.desktop-mode-file-associations__list {
+.os-file-associations__list {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 }
 
-.desktop-mode-file-associations__row {
+.os-file-associations__row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
 	padding: 8px 12px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
 	border-radius: 6px;
 }
 
-.desktop-mode-file-associations__label {
+.os-file-associations__label {
 	font-weight: 500;
 	flex: 1;
 }
 
-.desktop-mode-file-associations__select {
+.os-file-associations__select {
 	min-width: 220px;
 }
 
-.desktop-mode-file-associations__none,
-.desktop-mode-file-associations__empty {
-	color: var( --wpd-fg-muted, #50575e );
+.os-file-associations__none,
+.os-file-associations__empty {
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 12px;
 }
 
@@ -850,10 +850,10 @@ button.desktop-mode-folder-status-bar__segment:hover {
  * controls so it works as a building block before richer
  * dialog primitives land.
  */
-.desktop-mode-create-folder-dialog__overlay {
+.os-create-folder-dialog__overlay {
 	position: fixed;
 	inset: 0;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
 	backdrop-filter: blur( 2px );
 	display: flex;
 	align-items: center;
@@ -861,10 +861,10 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	z-index: 10000;
 }
 
-.desktop-mode-create-folder-dialog {
+.os-create-folder-dialog {
 	width: min( 420px, 92vw );
-	background: var( --desktop-mode-bg, #1d2327 );
-	color: var( --desktop-mode-fg, #fff );
+	background: var( --os-bg, #1d2327 );
+	color: var( --os-fg, #fff );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
 	border-radius: 10px;
 	box-shadow: 0 20px 50px rgba( 0, 0, 0, 0.6 );
@@ -874,18 +874,18 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	gap: 10px;
 }
 
-.desktop-mode-create-folder-dialog__title {
+.os-create-folder-dialog__title {
 	margin: 0 0 4px;
 	font-size: 16px;
 	font-weight: 600;
 }
 
-.desktop-mode-create-folder-dialog__label {
+.os-create-folder-dialog__label {
 	font-size: 12px;
-	color: var( --desktop-mode-fg-muted, rgba( 255, 255, 255, 0.7 ) );
+	color: var( --os-fg-muted, rgba( 255, 255, 255, 0.7 ) );
 }
 
-.desktop-mode-create-folder-dialog__input {
+.os-create-folder-dialog__input {
 	width: 100%;
 	padding: 8px 10px;
 	background: rgba( 255, 255, 255, 0.06 );
@@ -897,25 +897,25 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	box-sizing: border-box;
 }
 
-.desktop-mode-create-folder-dialog__input:focus {
+.os-create-folder-dialog__input:focus {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.4 );
 }
 
-.desktop-mode-create-folder-dialog__error {
+.os-create-folder-dialog__error {
 	margin: 0;
 	color: #ff8a8a;
 	font-size: 12px;
 }
 
-.desktop-mode-create-folder-dialog__actions {
+.os-create-folder-dialog__actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 6px;
 }
 
-.desktop-mode-create-folder-dialog__btn {
+.os-create-folder-dialog__btn {
 	border: 0;
 	border-radius: 6px;
 	padding: 8px 14px;
@@ -924,41 +924,41 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	font-weight: 500;
 }
 
-.desktop-mode-create-folder-dialog__btn--secondary {
+.os-create-folder-dialog__btn--secondary {
 	background: rgba( 255, 255, 255, 0.08 );
 	color: inherit;
 }
 
-.desktop-mode-create-folder-dialog__btn--secondary:hover {
+.os-create-folder-dialog__btn--secondary:hover {
 	background: rgba( 255, 255, 255, 0.14 );
 }
 
-.desktop-mode-create-folder-dialog__btn--primary {
+.os-create-folder-dialog__btn--primary {
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.desktop-mode-create-folder-dialog__btn--primary:hover {
+.os-create-folder-dialog__btn--primary:hover {
 	filter: brightness( 1.08 );
 }
 
-.desktop-mode-create-folder-dialog__btn:disabled {
+.os-create-folder-dialog__btn:disabled {
 	opacity: 0.55;
 	cursor: not-allowed;
 }
 
-.desktop-mode-create-folder-dialog--busy .desktop-mode-create-folder-dialog__input {
+.os-create-folder-dialog--busy .os-create-folder-dialog__input {
 	opacity: 0.7;
 }
 
 /*
  * Single label rule for every tile, regardless of host surface.
- * Visual properties read from `--desktop-mode-tile-label-*`
+ * Visual properties read from `--os-tile-label-*`
  * tokens — defined in `variables.css` for the dark wallpaper and
  * rebound by any light-context scope (folder window, My
  * WordPress, …) so all surfaces share one source of truth.
  */
-.desktop-mode-file-tile__label {
+.os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.2;
 	max-width: 84px;
@@ -968,10 +968,10 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
-	color: var( --desktop-mode-tile-label-color, var( --desktop-mode-tile-fg, #fff ) );
-	font-weight: var( --desktop-mode-tile-label-weight, 400 );
-	text-shadow: var( --desktop-mode-tile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.5 ) );
-	-webkit-font-smoothing: var( --desktop-mode-tile-label-smoothing, auto );
+	color: var( --os-tile-label-color, var( --os-tile-fg, #fff ) );
+	font-weight: var( --os-tile-label-weight, 400 );
+	text-shadow: var( --os-tile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.5 ) );
+	-webkit-font-smoothing: var( --os-tile-label-smoothing, auto );
 	-moz-osx-font-smoothing: grayscale;
 }
 
@@ -988,18 +988,18 @@ button.desktop-mode-folder-status-bar__segment:hover {
  *
  * @since 0.18.0
  */
-.desktop-mode-drag-ghost {
+.os-drag-ghost {
 	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.45 );
 	border-radius: 6px;
 	opacity: 0.95;
 	transition: none;
 }
 
-.desktop-mode-drag-ghost--accept {
+.os-drag-ghost--accept {
 	cursor: copy;
 }
 
-.desktop-mode-drag-ghost--reject {
+.os-drag-ghost--reject {
 	cursor: no-drop;
 }
 
@@ -1007,21 +1007,21 @@ button.desktop-mode-folder-status-bar__segment:hover {
  *  Upload progress HUD (since 0.31.0)
  *
  *  Pinned floating panel that surfaces the OS-file-drop manager's
- *  in-flight uploads. One row per file with a `<wpd-progress-bar>`,
+ *  in-flight uploads. One row per file with a `<os-progress-bar>`,
  *  a filename + status, and a Cancel/Dismiss action. The panel
  *  hides itself when there are no rows; it's purely reactive to
  *  the four upload-lifecycle hooks.
  * ============================================================ */
 
-.desktop-mode-upload-hud {
+.os-upload-hud {
 	position: fixed;
 	inset-block-end: 16px;
 	inset-inline-end: 16px;
 	width: 320px;
 	max-width: calc( 100vw - 32px );
-	background: var( --desktop-mode-panel-bg, var( --wpd-surface, #fff ) );
-	color: var( --desktop-mode-fg-on-light, var( --wpd-fg, #1d2327 ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-panel-bg, var( --os-ui-surface, #fff ) );
+	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 10px;
 	box-shadow: 0 8px 28px rgba( 0, 0, 0, 0.18 );
 	z-index: 99998;
@@ -1030,30 +1030,30 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	overflow: hidden;
 }
 
-.desktop-mode-upload-hud[ hidden ] {
+.os-upload-hud[ hidden ] {
 	display: none;
 }
 
-.desktop-mode-upload-hud__header {
+.os-upload-hud__header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 8px 12px;
-	background: var( --desktop-mode-panel-header-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
-	border-block-end: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-panel-header-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
 	font-weight: 600;
 	font-size: 12px;
 }
 
-.desktop-mode-upload-hud__title {
+.os-upload-hud__title {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.desktop-mode-upload-hud__close {
+.os-upload-hud__close {
 	border: 0;
 	background: transparent;
 	color: inherit;
@@ -1067,13 +1067,13 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	align-items: center;
 	justify-content: center;
 }
-.desktop-mode-upload-hud__close:hover,
-.desktop-mode-upload-hud__close:focus-visible {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) );
+.os-upload-hud__close:hover,
+.os-upload-hud__close:focus-visible {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) );
 	outline: none;
 }
 
-.desktop-mode-upload-hud__list {
+.os-upload-hud__list {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -1082,7 +1082,7 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	overflow-y: auto;
 }
 
-.desktop-mode-upload-hud__row {
+.os-upload-hud__row {
 	display: grid;
 	grid-template-columns: 1fr auto;
 	grid-template-areas:
@@ -1093,7 +1093,7 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	font-size: 12px;
 }
 
-.desktop-mode-upload-hud__meta {
+.os-upload-hud__meta {
 	grid-area: meta;
 	min-width: 0;
 	display: flex;
@@ -1101,24 +1101,24 @@ button.desktop-mode-folder-status-bar__segment:hover {
 	gap: 2px;
 }
 
-.desktop-mode-upload-hud__name {
+.os-upload-hud__name {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-weight: 500;
 }
 
-.desktop-mode-upload-hud__status {
+.os-upload-hud__status {
 	font-size: 11px;
 	opacity: 0.75;
 	font-variant-numeric: tabular-nums;
 }
 
-.desktop-mode-upload-hud__row wpd-progress-bar {
+.os-upload-hud__row os-progress-bar {
 	grid-area: bar;
 }
 
-.desktop-mode-upload-hud__actions {
+.os-upload-hud__actions {
 	grid-area: actions;
 	display: inline-flex;
 	gap: 4px;

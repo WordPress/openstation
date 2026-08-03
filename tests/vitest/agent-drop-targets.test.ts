@@ -54,12 +54,12 @@ beforeEach( () => {
 	installAgentTileDropHandlers();
 	agentsChatStore.state.activeAgent = null;
 	agentsChatStore.state.transcripts = {};
-	( window as unknown as Record< string, unknown > ).desktopModeConfig = {
+	( window as unknown as Record< string, unknown > ).openStationConfig = {
 		restUrl: 'https://example.test/wp-json/',
 		restNonce: 'shell-nonce',
 	};
 	( window as unknown as Record< string, unknown > ).wp = {
-		desktop: { openWindow: vi.fn( () => true ) },
+		os: { openWindow: vi.fn( () => true ) },
 	};
 } );
 
@@ -68,7 +68,7 @@ afterEach( () => {
 	__resetTilePayloadHandlersForTests();
 	__resetAgentTileDropHandlersForTests();
 	delete ( window as unknown as Record< string, unknown > )
-		.desktopModeConfig;
+		.openStationConfig;
 	delete ( window as unknown as Record< string, unknown > ).wp;
 } );
 

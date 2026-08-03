@@ -1,6 +1,6 @@
 /**
  * Tests for the wallpaper-icon badge surface
- * (`wp.desktop.icons.setBadge` / `clearBadge` / `getBadge`).
+ * (`wp.os.icons.setBadge` / `clearBadge` / `getBadge`).
  *
  * The icon rail is the third badge surface, alongside the dock and
  * taskbar — every event-driven contract that holds for the others
@@ -31,10 +31,10 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 function makeIcon( overrides: Partial< DesktopIconServerEntry > = {} ): DesktopIconServerEntry {
 	return {
-		id: 'desktop-mode-messages',
+		id: 'os-messages',
 		title: 'Messages',
 		icon: 'dashicons-email',
-		window: 'desktop-mode-messages',
+		window: 'os-messages',
 		url: '',
 		position: 10,
 		...overrides,
@@ -54,11 +54,11 @@ function mountGrid( icons: DesktopIconServerEntry[] ): HTMLElement {
 
 function badgeNode( host: HTMLElement, iconId: string ): HTMLElement | null {
 	return host.querySelector< HTMLElement >(
-		`[data-icon-id="${ iconId }"] > .desktop-mode-icon__badge`,
+		`[data-icon-id="${ iconId }"] > .os-icon__badge`,
 	);
 }
 
-describe( 'wp.desktop.icons.setBadge', () => {
+describe( 'wp.os.icons.setBadge', () => {
 	beforeEach( () => {
 		installHooksStub();
 		_resetIconBadgesForTests();
@@ -71,8 +71,8 @@ describe( 'wp.desktop.icons.setBadge', () => {
 
 	test( 'paints a badge on the matching tile', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 3 );
-		const badge = badgeNode( host, 'desktop-mode-messages' );
+		setIconBadge( 'os-messages', 3 );
+		const badge = badgeNode( host, 'os-messages' );
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( '3' );
 	} );
@@ -81,24 +81,24 @@ describe( 'wp.desktop.icons.setBadge', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
 		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
-		setIconBadge( 'desktop-mode-messages', 5 );
-		setIconBadge( 'desktop-mode-messages', 5 );
+		setIconBadge( 'os-messages', 5 );
+		setIconBadge( 'os-messages', 5 );
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 		off();
 	} );
 
 	test( '0 clears the badge node', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 4 );
-		expect( badgeNode( host, 'desktop-mode-messages' ) ).not.toBeNull();
-		clearIconBadge( 'desktop-mode-messages' );
-		expect( badgeNode( host, 'desktop-mode-messages' ) ).toBeNull();
+		setIconBadge( 'os-messages', 4 );
+		expect( badgeNode( host, 'os-messages' ) ).not.toBeNull();
+		clearIconBadge( 'os-messages' );
+		expect( badgeNode( host, 'os-messages' ) ).toBeNull();
 	} );
 
 	test( '>99 renders as 99+', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 137 );
-		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '99+' );
+		setIconBadge( 'os-messages', 137 );
+		expect( badgeNode( host, 'os-messages' )?.textContent ).toBe( '99+' );
 	} );
 
 	test( 'silent no-op when the id is not on the rail', () => {
@@ -115,9 +115,9 @@ describe( 'wp.desktop.icons.setBadge', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
 		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
-		setIconBadge( 'desktop-mode-messages', 7 );
+		setIconBadge( 'os-messages', 7 );
 		expect( cb ).toHaveBeenCalledWith( {
-			itemId: 'desktop-mode-messages',
+			itemId: 'os-messages',
 			count: 7,
 			rail: 'icon',
 		} );
@@ -127,17 +127,17 @@ describe( 'wp.desktop.icons.setBadge', () => {
 	test( 'fires HOOKS.ICON_BADGE_CHANGED with previousCount', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const ns = 'desktop-mode-tests/icon-badge';
+		const ns = 'os-tests/icon-badge';
 		addAction( HOOKS.ICON_BADGE_CHANGED, ns, cb );
-		setIconBadge( 'desktop-mode-messages', 4 );
-		setIconBadge( 'desktop-mode-messages', 9 );
+		setIconBadge( 'os-messages', 4 );
+		setIconBadge( 'os-messages', 9 );
 		expect( cb ).toHaveBeenNthCalledWith( 1, {
-			iconId: 'desktop-mode-messages',
+			iconId: 'os-messages',
 			count: 4,
 			previousCount: 0,
 		} );
 		expect( cb ).toHaveBeenNthCalledWith( 2, {
-			iconId: 'desktop-mode-messages',
+			iconId: 'os-messages',
 			count: 9,
 			previousCount: 4,
 		} );
@@ -146,15 +146,15 @@ describe( 'wp.desktop.icons.setBadge', () => {
 
 	test( 'getBadge returns the current count and 0 for unset ids', () => {
 		mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 11 );
-		expect( getIconBadge( 'desktop-mode-messages' ) ).toBe( 11 );
+		setIconBadge( 'os-messages', 11 );
+		expect( getIconBadge( 'os-messages' ) ).toBe( 11 );
 		expect( getIconBadge( 'never-set' ) ).toBe( 0 );
 	} );
 
 	test( 'badge survives a full grid rebuild', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 6 );
-		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '6' );
+		setIconBadge( 'os-messages', 6 );
+		expect( badgeNode( host, 'os-messages' )?.textContent ).toBe( '6' );
 
 		// Plugin activation lands a different icon list — the
 		// fingerprint changes, the renderer rebuilds. Without the
@@ -166,14 +166,14 @@ describe( 'wp.desktop.icons.setBadge', () => {
 			[ makeIcon(), makeIcon( { id: 'other-plugin', title: 'Other' } ) ],
 			{ openWindow: () => true, manager: stubManager },
 		);
-		const survived = badgeNode( host, 'desktop-mode-messages' );
+		const survived = badgeNode( host, 'os-messages' );
 		expect( survived ).not.toBeNull();
 		expect( survived?.textContent ).toBe( '6' );
 	} );
 
 	test( 'rebuild does not paint a badge for icons that never had one', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 2 );
+		setIconBadge( 'os-messages', 2 );
 		const stubManager = {} as ConstructorParameters< typeof renderDesktopIcons >[ 2 ][ 'manager' ];
 		renderDesktopIcons(
 			host,
@@ -181,15 +181,15 @@ describe( 'wp.desktop.icons.setBadge', () => {
 			{ openWindow: () => true, manager: stubManager },
 		);
 		expect( badgeNode( host, 'no-badge' ) ).toBeNull();
-		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '2' );
+		expect( badgeNode( host, 'os-messages' )?.textContent ).toBe( '2' );
 	} );
 
 	test( 'negative + fractional counts are clamped to 0 and floored', () => {
 		const host = mountGrid( [ makeIcon() ] );
-		setIconBadge( 'desktop-mode-messages', 5 );
-		setIconBadge( 'desktop-mode-messages', -3 );
-		expect( badgeNode( host, 'desktop-mode-messages' ) ).toBeNull();
-		setIconBadge( 'desktop-mode-messages', 4.7 );
-		expect( badgeNode( host, 'desktop-mode-messages' )?.textContent ).toBe( '4' );
+		setIconBadge( 'os-messages', 5 );
+		setIconBadge( 'os-messages', -3 );
+		expect( badgeNode( host, 'os-messages' ) ).toBeNull();
+		setIconBadge( 'os-messages', 4.7 );
+		expect( badgeNode( host, 'os-messages' )?.textContent ).toBe( '4' );
 	} );
 } );

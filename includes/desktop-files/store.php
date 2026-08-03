@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — Files placement store.
+ * OpenStation — Files placement store.
  *
  * CRUD primitives for the `_desktop_mode_file_placements` table.
- * Every read goes through `desktop_mode_files_query_args` so
+ * Every read goes through `open_station_files_query_args` so
  * plugins can scope what's visible (mirror of the recycle-bin's
  * filter pattern). Every write fires before / after actions so
  * other plugins can react and so Phase 6's Heartbeat sync has a
@@ -11,15 +11,15 @@
  *
  * Capability gate is per-call: callers pass the `$user_id` they
  * intend to act for; the function consults
- * `desktop_mode_files_can_place` (filter) and the file's
- * `Desktop_Mode_File::can_read()` before writing.
+ * `open_station_files_can_place` (filter) and the file's
+ * `Open_Station_File::can_read()` before writing.
  *
  * Tombstones are written only for permanent removals (hard
  * deletes); soft-trash and moves are surfaced to clients via
  * `updated_at_ms` / `trashed_at_ms` in the Heartbeat delta — see
- * desktop_mode_files_write_tombstone() for the invariant.
+ * open_station_files_write_tombstone() for the invariant.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  * @param array  $args      Optional. `x`, `y`, `sort_order`, `meta`.
  * @return int|WP_Error Placement id on success, `WP_Error` otherwise.
  */
-function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = array() ) {
+function open_station_files_place( $user_id, $parent_id, $type, $ref, $args = array() ) {
 	global $wpdb;
 
 	$user_id   = (int) $user_id;
@@ -44,11 +44,11 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	$ref       = (string) $ref;
 
 	if ( $user_id <= 0 ) {
-		return new WP_Error( 'desktop_mode_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$entry = desktop_mode_get_file_type( $type );
+	$entry = open_station_get_file_type( $type );
 	if ( ! $entry ) {
-		return new WP_Error( 'desktop_mode_files_unknown_type', __( 'Unknown file type.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_files_unknown_type', __( 'Unknown file type.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
 	/**
@@ -61,25 +61,25 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	 * @param string $type    File-type slug.
 	 * @param string $ref     Entity reference.
 	 */
-	$file = desktop_mode_resolve_file( $type, $ref );
+	$file = open_station_resolve_file( $type, $ref );
 	$can  = $file ? $file->can_read( $user_id ) : false;
-	$can  = (bool) apply_filters( 'desktop_mode_files_can_place', $can, $user_id, $type, $ref );
+	$can  = (bool) apply_filters( 'open_station_files_can_place', $can, $user_id, $type, $ref );
 	if ( ! $can ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You are not allowed to place this file.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_files_forbidden', __( 'You are not allowed to place this file.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	// Write-gate: placing INTO a non-owned folder requires the
 	// folder's `write` cap. Owner / desktop-root placements are
 	// always allowed.
 	if ( (int) $parent_id > 0 ) {
-		$target_folder = desktop_mode_files_get_folder( (int) $parent_id );
+		$target_folder = open_station_files_get_folder( (int) $parent_id );
 		if ( $target_folder && (int) $target_folder['owner_id'] !== $user_id ) {
-			$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
-				? desktop_mode_folder_share_user_capability( (int) $parent_id, $user_id )
+			$cap = function_exists( 'open_station_folder_share_user_capability' )
+				? open_station_folder_share_user_capability( (int) $parent_id, $user_id )
 				: 'none';
 			if ( 'write' !== $cap ) {
 				return new WP_Error(
-					'desktop_mode_files_no_write_in_shared_folder',
+					'open_station_files_no_write_in_shared_folder',
 					__( 'You only have read access to that folder.', 'desktop-mode' ),
 					array( 'status' => 403 )
 				);
@@ -97,8 +97,8 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		)
 	);
 
-	$tables = desktop_mode_files_table_names();
-	$now    = desktop_mode_files_now_ms();
+	$tables = open_station_files_table_names();
+	$now    = open_station_files_now_ms();
 	$row    = array(
 		'owner_id'      => $user_id,
 		'updated_by'    => $user_id,
@@ -151,13 +151,13 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 			ARRAY_A
 		);
 		if ( ! $existing ) {
-			return new WP_Error( 'desktop_mode_files_insert_failed', __( 'Failed to write placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+			return new WP_Error( 'open_station_files_insert_failed', __( 'Failed to write placement.', 'desktop-mode' ), array( 'status' => 500 ) );
 		}
 
 		$existing_id = (int) $existing['id'];
 
 		if ( ! empty( $existing['trashed_at_ms'] ) ) {
-			$restore = desktop_mode_files_restore_placement( $user_id, $existing_id );
+			$restore = open_station_files_restore_placement( $user_id, $existing_id );
 			if ( is_wp_error( $restore ) ) {
 				return $restore;
 			}
@@ -169,9 +169,9 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		// heartbeat tick can't surface "alive + removed" together.
 		// `restore_placement` already clears its own tombstones, so
 		// this is a no-op in the soft-trashed branch above.
-		desktop_mode_files_clear_tombstones_for( 'placement', $existing_id );
+		open_station_files_clear_tombstones_for( 'placement', $existing_id );
 
-		$move = desktop_mode_files_move(
+		$move = open_station_files_move(
 			$existing_id,
 			$user_id,
 			array(
@@ -198,7 +198,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	 * @param int   $id  Placement id.
 	 * @param array $row Inserted row.
 	 */
-	do_action( 'desktop_mode_file_placed', $id, $row );
+	do_action( 'open_station_file_placed', $id, $row );
 
 	return $id;
 }
@@ -215,25 +215,25 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
  * @param array $changes      `parent_id`, `x`, `y`, `sort_order`, `meta`.
  * @return true|WP_Error
  */
-function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) {
+function open_station_files_move( $placement_id, $user_id, $changes = array() ) {
 	global $wpdb;
 
 	$placement_id = (int) $placement_id;
 	$user_id      = (int) $user_id;
 	if ( $placement_id <= 0 || $user_id <= 0 ) {
-		return new WP_Error( 'desktop_mode_files_bad_request', __( 'Invalid arguments.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_files_bad_request', __( 'Invalid arguments.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$row = desktop_mode_files_get_placement( $placement_id );
+	$row = open_station_files_get_placement( $placement_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'open_station_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 
 	// Owner-lock for `upload` placements: only the stored file's
 	// owner may move them — folder-share write capability does NOT
 	// extend to uploaded files (recipients are read + download
 	// only; see stored-files-store.php).
-	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	$upload_lock = open_station_files_upload_owner_lock( $row, $user_id );
 	if ( is_wp_error( $upload_lock ) ) {
 		return $upload_lock;
 	}
@@ -245,15 +245,15 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	// the row (shared-namespace semantics).
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	if ( (int) $row['parent_id'] > 0 ) {
-		$source_folder = desktop_mode_files_get_folder( (int) $row['parent_id'] );
+		$source_folder = open_station_files_get_folder( (int) $row['parent_id'] );
 		if ( $source_folder ) {
 			$is_folder_owner = (int) $source_folder['owner_id'] === $user_id;
-			$source_cap      = function_exists( 'desktop_mode_folder_share_user_capability' )
-				? desktop_mode_folder_share_user_capability( (int) $row['parent_id'], $user_id )
+			$source_cap      = function_exists( 'open_station_folder_share_user_capability' )
+				? open_station_folder_share_user_capability( (int) $row['parent_id'], $user_id )
 				: 'none';
 			if ( ! $is_row_owner && ! $is_folder_owner && 'write' !== $source_cap ) {
 				return new WP_Error(
-					'desktop_mode_files_no_write_in_shared_folder',
+					'open_station_files_no_write_in_shared_folder',
 					__( 'You only have read access to this folder.', 'desktop-mode' ),
 					array( 'status' => 403 )
 				);
@@ -261,7 +261,7 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 			// Folder reader on their own row inside the folder — still no.
 			if ( $is_row_owner && ! $is_folder_owner && 'write' !== $source_cap ) {
 				return new WP_Error(
-					'desktop_mode_files_no_write_in_shared_folder',
+					'open_station_files_no_write_in_shared_folder',
 					__( 'You only have read access to this folder.', 'desktop-mode' ),
 					array( 'status' => 403 )
 				);
@@ -269,19 +269,19 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 		}
 	} elseif ( ! $is_row_owner ) {
 		// Row at root, viewer doesn't own it.
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot edit this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_files_forbidden', __( 'You cannot edit this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	if ( isset( $changes['parent_id'] ) ) {
 		$target_parent = max( 0, (int) $changes['parent_id'] );
 		if ( $target_parent > 0 ) {
-			$target = desktop_mode_files_get_folder( $target_parent );
+			$target = open_station_files_get_folder( $target_parent );
 			if ( $target && (int) $target['owner_id'] !== $user_id ) {
-				$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
-					? desktop_mode_folder_share_user_capability( $target_parent, $user_id )
+				$cap = function_exists( 'open_station_folder_share_user_capability' )
+					? open_station_folder_share_user_capability( $target_parent, $user_id )
 					: 'none';
 				if ( 'write' !== $cap ) {
 					return new WP_Error(
-						'desktop_mode_files_no_write_in_shared_folder',
+						'open_station_files_no_write_in_shared_folder',
 						__( 'You only have read access to that folder.', 'desktop-mode' ),
 						array( 'status' => 403 )
 					);
@@ -300,14 +300,14 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 			$moving_folder_id = (int) $row['file_ref'];
 			if ( $moving_folder_id > 0 ) {
 				if (
-					desktop_mode_files_would_create_folder_cycle(
+					open_station_files_would_create_folder_cycle(
 						$user_id,
 						$moving_folder_id,
 						$target_parent
 					)
 				) {
 					return new WP_Error(
-						'desktop_mode_files_folder_cycle',
+						'open_station_files_folder_cycle',
 						__( 'A folder cannot be placed inside itself or one of its descendants.', 'desktop-mode' ),
 						array( 'status' => 409 )
 					);
@@ -316,7 +316,7 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 		}
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	$set    = array();
 	$fmt    = array();
 
@@ -338,7 +338,7 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 		return true; // No-op.
 	}
 
-	$set['updated_at_ms'] = desktop_mode_files_now_ms();
+	$set['updated_at_ms'] = open_station_files_now_ms();
 	$fmt[]                = '%d';
 	// Track who actually fired this mutation so a future
 	// `If-Match` 409 can name the session that won the race,
@@ -348,10 +348,10 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 
 	$ok = $wpdb->update( $tables['placements'], $set, array( 'id' => $placement_id ), $fmt, array( '%d' ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_update_failed', __( 'Failed to update placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_files_update_failed', __( 'Failed to update placement.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	$next = desktop_mode_files_get_placement( $placement_id );
+	$next = open_station_files_get_placement( $placement_id );
 
 	/**
 	 * Fires after a placement is moved / mutated.
@@ -360,7 +360,7 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	 * @param array $next Row after the change.
 	 * @param array $prev Row before the change.
 	 */
-	do_action( 'desktop_mode_file_moved', $placement_id, $next, $row );
+	do_action( 'open_station_file_moved', $placement_id, $next, $row );
 
 	return true;
 }
@@ -372,18 +372,18 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
  * @param int $user_id      Acting user.
  * @return true|WP_Error
  */
-function desktop_mode_files_remove( $placement_id, $user_id ) {
+function open_station_files_remove( $placement_id, $user_id ) {
 	global $wpdb;
 
 	$placement_id = (int) $placement_id;
 	$user_id      = (int) $user_id;
-	$row          = desktop_mode_files_get_placement( $placement_id );
+	$row          = open_station_files_get_placement( $placement_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'open_station_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	// Owner-lock for `upload` placements — removal is destructive
 	// for real bytes, so only the stored file's owner may do it.
-	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	$upload_lock = open_station_files_upload_owner_lock( $row, $user_id );
 	if ( is_wp_error( $upload_lock ) ) {
 		return $upload_lock;
 	}
@@ -392,22 +392,22 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	$allowed      = $is_row_owner;
 	if ( ! $allowed && (int) $row['parent_id'] > 0 ) {
-		$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
-			? desktop_mode_folder_share_user_capability( (int) $row['parent_id'], $user_id )
+		$cap = function_exists( 'open_station_folder_share_user_capability' )
+			? open_station_folder_share_user_capability( (int) $row['parent_id'], $user_id )
 			: 'none';
 		$allowed = 'write' === $cap;
 	}
 	if ( ! $allowed ) {
-		return new WP_Error( 'desktop_mode_files_forbidden', __( 'You cannot remove this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_files_forbidden', __( 'You cannot remove this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	$ok     = $wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_files_delete_failed', __( 'Failed to remove placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_files_delete_failed', __( 'Failed to remove placement.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	desktop_mode_files_write_tombstone( 'placement', $placement_id );
+	open_station_files_write_tombstone( 'placement', $placement_id );
 
 	/**
 	 * Fires after a placement is removed.
@@ -415,7 +415,7 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	 * @param int   $id  Placement id.
 	 * @param array $row Removed row.
 	 */
-	do_action( 'desktop_mode_file_unplaced', $placement_id, $row );
+	do_action( 'open_station_file_unplaced', $placement_id, $row );
 
 	return true;
 }
@@ -434,14 +434,14 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
  * @param int   $user_id Acting user.
  * @return true|WP_Error
  */
-function desktop_mode_files_upload_owner_lock( $row, $user_id ) {
+function open_station_files_upload_owner_lock( $row, $user_id ) {
 	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
 		return true;
 	}
-	if ( ! function_exists( 'desktop_mode_stored_files_get' ) ) {
+	if ( ! function_exists( 'open_station_stored_files_get' ) ) {
 		return true;
 	}
-	$stored = desktop_mode_stored_files_get( (int) $row['file_ref'] );
+	$stored = open_station_stored_files_get( (int) $row['file_ref'] );
 	if ( ! $stored ) {
 		return true;
 	}
@@ -449,7 +449,7 @@ function desktop_mode_files_upload_owner_lock( $row, $user_id ) {
 		return true;
 	}
 	return new WP_Error(
-		'desktop_mode_files_upload_owner_locked',
+		'open_station_files_upload_owner_locked',
 		__( 'Only the file’s owner can move or delete an uploaded file.', 'desktop-mode' ),
 		array( 'status' => 403 )
 	);
@@ -461,9 +461,9 @@ function desktop_mode_files_upload_owner_lock( $row, $user_id ) {
  * @param int $placement_id Placement id.
  * @return array|null
  */
-function desktop_mode_files_get_placement( $placement_id ) {
+function open_station_files_get_placement( $placement_id ) {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare( "SELECT * FROM {$tables['placements']} WHERE id = %d", (int) $placement_id ),
 		ARRAY_A
@@ -471,19 +471,19 @@ function desktop_mode_files_get_placement( $placement_id ) {
 	if ( ! $row ) {
 		return null;
 	}
-	return desktop_mode_files_normalize_placement_row( $row );
+	return open_station_files_normalize_placement_row( $row );
 }
 
 /**
  * List placements for a user under a given folder (0 = desktop
- * root). Honors the `desktop_mode_files_query_args` filter and
+ * root). Honors the `open_station_files_query_args` filter and
  * applies the file-type's `can_read()` per row.
  *
  * @param int $user_id   Viewer.
  * @param int $parent_id Folder id (0 for desktop root).
  * @return array[]
  */
-function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
+function open_station_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$parent_id = max( 0, (int) $parent_id );
@@ -491,7 +491,7 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		return array();
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 
 	// Access gate + shared-namespace decision for non-root folders.
 	// Desktop root (parent_id = 0) is always per-user. For sub-
@@ -500,13 +500,13 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	// to the folder, not to the user who originally placed them.
 	$share_view = false;
 	if ( $parent_id > 0 ) {
-		$folder = desktop_mode_files_get_folder( $parent_id );
+		$folder = open_station_files_get_folder( $parent_id );
 		if ( ! $folder ) {
 			return array();
 		}
 		if ( (int) $folder['owner_id'] !== $user_id ) {
-			$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
-				? desktop_mode_folder_share_user_capability( $parent_id, $user_id )
+			$cap = function_exists( 'open_station_folder_share_user_capability' )
+				? open_station_folder_share_user_capability( $parent_id, $user_id )
 				: 'none';
 			if ( 'none' === $cap ) {
 				return array();
@@ -527,7 +527,7 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	 * @param int   $user_id     Viewer.
 	 * @param int   $parent_id   Folder id.
 	 */
-	$args = (array) apply_filters( 'desktop_mode_files_query_args', $args, $user_id, $parent_id );
+	$args = (array) apply_filters( 'open_station_files_query_args', $args, $user_id, $parent_id );
 
 	// Active queries always exclude trashed rows. Recycle-bin
 	// callers reach for the dedicated trash store.
@@ -565,8 +565,8 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	}
 	$out = array();
 	foreach ( $rows as $row ) {
-		$normalized = desktop_mode_files_normalize_placement_row( $row );
-		$file       = desktop_mode_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
+		$normalized = open_station_files_normalize_placement_row( $row );
+		$file       = open_station_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
 		if ( empty( $args['share_view'] ) ) {
 			// Private folder / desktop root — keep the existing
 			// per-row read filter so stale/inaccessible entities
@@ -600,7 +600,7 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
  *      (Pre-fix folder-create flow could leak these; new flow
  *      writes the placement atomically.)
  *
- *   2. Plugin shortcuts (`desktop_mode_register_icon()`) the
+ *   2. Plugin shortcuts (`open_station_register_icon()`) the
  *      viewer hasn't placed yet. The unified-rail merge means
  *      every registered icon shows up as a `shortcut` placement
  *      on first hydrate so plugin shortcuts behave like any
@@ -616,14 +616,14 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
  * @param int $user_id Viewer.
  * @return int Total number of orphans that were auto-placed.
  */
-function desktop_mode_files_auto_place_orphans( $user_id ) {
+function open_station_files_auto_place_orphans( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return 0;
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 
 	// 1) Owned folders without any placement. Skip trashed folders
 	// and trashed placement rows so a recycled folder doesn't get
@@ -648,14 +648,14 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 	//    table which the viewer already has — set difference
 	//    yields the orphans without a heavy join.
 	$shortcut_ids   = array();
-	$registry       = function_exists( 'desktop_mode_desktop_icon_registry' )
-		? desktop_mode_desktop_icon_registry()
+	$registry       = function_exists( 'open_station_desktop_icon_registry' )
+		? open_station_desktop_icon_registry()
 		: array();
 	if ( is_array( $registry ) ) {
-		// Run through the same `desktop_mode_icons` filter the
+		// Run through the same `open_station_icons` filter the
 		// build-payload path uses so plugins (and tests) can inject
 		// virtual entries.
-		$registry = (array) apply_filters( 'desktop_mode_icons', $registry );
+		$registry = (array) apply_filters( 'open_station_icons', $registry );
 	}
 	if ( is_array( $registry ) && ! empty( $registry ) ) {
 		$registered_ids = array_map( 'strval', array_keys( $registry ) );
@@ -720,7 +720,7 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 	$placed = 0;
 	$emit_at = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
 		$occupied[ "$col,$row" ] = true;
-		$result = desktop_mode_files_place(
+		$result = open_station_files_place(
 			$user_id,
 			0,
 			$type,
@@ -780,13 +780,13 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 /**
  * Backwards-compat alias for the older folder-only name.
  *
- * @deprecated Use {@see desktop_mode_files_auto_place_orphans}.
+ * @deprecated Use {@see open_station_files_auto_place_orphans}.
  *
  * @param int $user_id Viewer.
  * @return int
  */
-function desktop_mode_files_auto_place_orphan_folders( $user_id ) {
-	return desktop_mode_files_auto_place_orphans( $user_id );
+function open_station_files_auto_place_orphan_folders( $user_id ) {
+	return open_station_files_auto_place_orphans( $user_id );
 }
 
 /**
@@ -798,14 +798,14 @@ function desktop_mode_files_auto_place_orphan_folders( $user_id ) {
  * @param array $row Raw wpdb row.
  * @return array
  */
-function desktop_mode_files_normalize_placement_row( $row ) {
+function open_station_files_normalize_placement_row( $row ) {
 	$meta_raw = isset( $row['meta'] ) ? (string) $row['meta'] : '';
 	$meta     = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 	return array(
 		'id'            => (int) $row['id'],
 		'owner_id'      => (int) $row['owner_id'],
 		// `updated_by` is v10. Null on legacy rows — callers that
-		// need the actor (e.g. `desktop_mode_files_check_if_match`)
+		// need the actor (e.g. `open_station_files_check_if_match`)
 		// fall back to `owner_id` when this is null/missing.
 		'updated_by'    => isset( $row['updated_by'] ) ? (int) $row['updated_by'] : null,
 		'parent_id'     => (int) $row['parent_id'],
@@ -826,30 +826,30 @@ function desktop_mode_files_normalize_placement_row( $row ) {
  * ids of PERMANENTLY-DELETED rows. Never write one for a soft-
  * trashed row — soft-trash is reversible and the heartbeat already
  * surfaces it via the `trashed_at_ms IS NOT NULL` query in
- * `desktop_mode_files_compute_heartbeat_delta`. A tombstone on a
+ * `open_station_files_compute_heartbeat_delta`. A tombstone on a
  * soft-trashed row lingers past restore and tells clients the row
  * is gone while it is in fact alive — see the "shared folder
  * disappears on refresh" bug.
  *
- * Pair every revival path (`desktop_mode_files_restore_placement`,
- * `desktop_mode_files_restore_folder`, and the duplicate-key
- * revival branch in `desktop_mode_files_place`) with
- * {@see desktop_mode_files_clear_tombstones_for} so a row coming
+ * Pair every revival path (`open_station_files_restore_placement`,
+ * `open_station_files_restore_folder`, and the duplicate-key
+ * revival branch in `open_station_files_place`) with
+ * {@see open_station_files_clear_tombstones_for} so a row coming
  * back to life never carries lingering tombstones from a previous
  * removal that turned out to be reversible.
  *
  * @param string $kind 'placement' | 'folder'.
  * @param int    $ref  Removed id.
  */
-function desktop_mode_files_write_tombstone( $kind, $ref ) {
+function open_station_files_write_tombstone( $kind, $ref ) {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	$wpdb->insert(
 		$tables['tombstones'],
 		array(
 			'kind'          => (string) $kind,
 			'ref_id'        => (int) $ref,
-			'removed_at_ms' => desktop_mode_files_now_ms(),
+			'removed_at_ms' => open_station_files_now_ms(),
 		),
 		array( '%s', '%d', '%d' )
 	);
@@ -866,13 +866,13 @@ function desktop_mode_files_write_tombstone( $kind, $ref ) {
  * @param string $kind 'placement' | 'folder'.
  * @param int    $ref_id Row id whose tombstones should be dropped.
  */
-function desktop_mode_files_clear_tombstones_for( $kind, $ref_id ) {
+function open_station_files_clear_tombstones_for( $kind, $ref_id ) {
 	global $wpdb;
 	$ref_id = (int) $ref_id;
 	if ( $ref_id <= 0 ) {
 		return;
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	$wpdb->delete(
 		$tables['tombstones'],
 		array(
@@ -889,25 +889,25 @@ function desktop_mode_files_clear_tombstones_for( $kind, $ref_id ) {
  * is plenty since a client that's been offline that long will
  * always need a full REST resync anyway.
  */
-function desktop_mode_files_prune_tombstones() {
+function open_station_files_prune_tombstones() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
-	$cutoff = desktop_mode_files_now_ms() - ( 7 * DAY_IN_SECONDS * 1000 );
+	$tables = open_station_files_table_names();
+	$cutoff = open_station_files_now_ms() - ( 7 * DAY_IN_SECONDS * 1000 );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['tombstones']} WHERE removed_at_ms < %d", $cutoff ) );
 }
-add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_files_prune_tombstones' );
+add_action( 'desktop_mode_files_daily_prune', 'open_station_files_prune_tombstones' );
 
 /**
  * Schedule the daily prune. Hooked on `init` and idempotent via
  * wp_next_scheduled(), so a manual file-copy install (no activation
  * hook) still gets the cron event.
  */
-function desktop_mode_files_schedule_prune() {
+function open_station_files_schedule_prune() {
 	if ( ! wp_next_scheduled( 'desktop_mode_files_daily_prune' ) ) {
 		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'desktop_mode_files_daily_prune' );
 	}
 }
-add_action( 'init', 'desktop_mode_files_schedule_prune' );
+add_action( 'init', 'open_station_files_schedule_prune' );
 
 /**
  * Walk the folder-parentage chain upward from `$target_parent_id` and
@@ -932,7 +932,7 @@ add_action( 'init', 'desktop_mode_files_schedule_prune' );
  * @param int $target_parent_id New container folder id (0 = desktop root).
  * @return bool True when the move would create a cycle.
  */
-function desktop_mode_files_would_create_folder_cycle( $user_id, $moving_folder_id, $target_parent_id ) {
+function open_station_files_would_create_folder_cycle( $user_id, $moving_folder_id, $target_parent_id ) {
 	$moving_folder_id = (int) $moving_folder_id;
 	$target_parent_id = (int) $target_parent_id;
 	$user_id          = (int) $user_id;
@@ -943,7 +943,7 @@ function desktop_mode_files_would_create_folder_cycle( $user_id, $moving_folder_
 		return true;
 	}
 	global $wpdb;
-	$tables  = desktop_mode_files_table_names();
+	$tables  = open_station_files_table_names();
 	$visited = array();
 	$cursor  = $target_parent_id;
 	// Hard cap to defend against catastrophically deep trees too —

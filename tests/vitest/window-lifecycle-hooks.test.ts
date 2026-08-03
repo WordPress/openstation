@@ -15,14 +15,14 @@ import {
 } from './helpers/hooks-stub';
 
 const LIFECYCLE_HOOKS = [
-	'desktop-mode.window.minimized',
-	'desktop-mode.window.restored',
-	'desktop-mode.window.maximized',
-	'desktop-mode.window.unmaximized',
-	'desktop-mode.window.fullscreen-entered',
-	'desktop-mode.window.fullscreen-exited',
-	'desktop-mode.window.title-changed',
-	'desktop-mode.window.detached',
+	'os.window.minimized',
+	'os.window.restored',
+	'os.window.maximized',
+	'os.window.unmaximized',
+	'os.window.fullscreen-entered',
+	'os.window.fullscreen-exited',
+	'os.window.title-changed',
+	'os.window.detached',
 ] as const;
 
 function baseConfig( overrides: Partial<WindowConfig> = {} ): WindowConfig {
@@ -80,7 +80,7 @@ describe( 'Window — lifecycle hook firing', () => {
 
 		handle.win.setTitle( 'New Title' );
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.window.title-changed' );
+		const evt = log.find( ( e ) => e.name === 'os.window.title-changed' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { windowId: string; title: string };
 		expect( payload.windowId ).toBe( 'w1' );
@@ -92,7 +92,7 @@ describe( 'Window — lifecycle hook firing', () => {
 
 		handle.win.minimize();
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.window.minimized' );
+		const evt = log.find( ( e ) => e.name === 'os.window.minimized' );
 		expect( evt ).toBeDefined();
 		expect(
 			( evt!.args[ 0 ] as { windowId: string } ).windowId,
@@ -105,7 +105,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		const log = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.restore();
 
-		const restored = log.filter( ( e ) => e.name === 'desktop-mode.window.restored' );
+		const restored = log.filter( ( e ) => e.name === 'os.window.restored' );
 		expect( restored ).toHaveLength( 1 );
 
 		// Calling restore again with state already normal must NOT
@@ -113,7 +113,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		const log2 = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.restore();
 		expect(
-			log2.some( ( e ) => e.name === 'desktop-mode.window.restored' ),
+			log2.some( ( e ) => e.name === 'os.window.restored' ),
 		).toBe( false );
 	} );
 
@@ -122,7 +122,7 @@ describe( 'Window — lifecycle hook firing', () => {
 
 		handle.win.maximize();
 
-		const evts = log.filter( ( e ) => e.name === 'desktop-mode.window.maximized' );
+		const evts = log.filter( ( e ) => e.name === 'os.window.maximized' );
 		expect( evts ).toHaveLength( 1 );
 	} );
 
@@ -143,13 +143,13 @@ describe( 'Window — lifecycle hook firing', () => {
 		const names = log
 			.filter(
 				( e ) =>
-					e.name === 'desktop-mode.window.maximized'
-					|| e.name === 'desktop-mode.window.unmaximized',
+					e.name === 'os.window.maximized'
+					|| e.name === 'os.window.unmaximized',
 			)
 			.map( ( e ) => e.name );
 		expect( names ).toEqual( [
-			'desktop-mode.window.maximized',
-			'desktop-mode.window.unmaximized',
+			'os.window.maximized',
+			'os.window.unmaximized',
 		] );
 	} );
 
@@ -162,13 +162,13 @@ describe( 'Window — lifecycle hook firing', () => {
 		const names = log
 			.filter(
 				( e ) =>
-					e.name === 'desktop-mode.window.fullscreen-entered'
-					|| e.name === 'desktop-mode.window.fullscreen-exited',
+					e.name === 'os.window.fullscreen-entered'
+					|| e.name === 'os.window.fullscreen-exited',
 			)
 			.map( ( e ) => e.name );
 		expect( names ).toEqual( [
-			'desktop-mode.window.fullscreen-entered',
-			'desktop-mode.window.fullscreen-exited',
+			'os.window.fullscreen-entered',
+			'os.window.fullscreen-exited',
 		] );
 	} );
 
@@ -181,7 +181,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		handle = mountWindow(
 			baseConfig( {
 				id: 'posts',
-				url: `${ window.location.origin }/wp-admin/edit.php?desktop_mode_chromeless=1`,
+				url: `${ window.location.origin }/wp-admin/edit.php?open_station_chromeless=1`,
 			} ),
 		);
 
@@ -195,11 +195,11 @@ describe( 'Window — lifecycle hook firing', () => {
 
 		handle.win.detach();
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.window.detached' );
+		const evt = log.find( ( e ) => e.name === 'os.window.detached' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { windowId: string; url: string };
 		expect( payload.windowId ).toBe( 'posts' );
-		expect( payload.url ).not.toContain( 'desktop_mode_chromeless=1' );
+		expect( payload.url ).not.toContain( 'open_station_chromeless=1' );
 		expect( payload.url ).toContain( 'desktop_mode_classic=1' );
 
 		openSpy.mockRestore();
@@ -221,7 +221,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		handle.win.detach();
 
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.window.detached' ),
+			log.some( ( e ) => e.name === 'os.window.detached' ),
 		).toBe( false );
 		expect( openSpy ).not.toHaveBeenCalled();
 

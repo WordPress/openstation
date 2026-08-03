@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Render layer (umbrella loader).
+ * OpenStation — Render layer (umbrella loader).
  *
  * Was a 2,525-LOC god-module before the architecture-0.8.1 split;
  * the body has now been sliced into one focused file per concern
@@ -10,13 +10,13 @@
  * rendering surface they always did.
  *
  *   - body-classes.php           — admin_body_class filter
- *   - assets.php                 — desktop_mode_enqueue_assets()
- *   - shell.php                  — desktop_mode_render_shell()
+ *   - assets.php                 — open_station_enqueue_assets()
+ *   - shell.php                  — open_station_render_shell()
  *   - chromeless-bridge.php      — chromeless iframe bridge +
  *                                  the offset-neutralizer script
  *   - classic-link-interceptor.php — detached-tab link rewriter
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

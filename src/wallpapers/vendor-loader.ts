@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Lazy vendor-script loader.
+ * OpenStation — Lazy vendor-script loader.
  *
  * Canvas wallpapers routinely want heavy dependencies (PixiJS, Three,
  * phaser) that would balloon the main bundle if eagerly imported.
@@ -8,7 +8,7 @@
  * inject a `<script>` tag the first time a wallpaper needs it and
  * resolve a shared promise to subsequent callers.
  *
- * Exported on `wp.desktop.loadVendorScript` so third-party canvas
+ * Exported on `wp.os.loadVendorScript` so third-party canvas
  * plugins can reuse the same memoization and not race each other on
  * first activation.
  */
@@ -21,7 +21,7 @@ const pending = new Map<string, Promise<void>>();
 
 /**
  * Inline `extra` data harvested from a registered WP script handle by
- * {@link desktop_mode_resolve_script_payload} on the server. Without
+ * {@link open_station_resolve_script_payload} on the server. Without
  * this, the lazy-load path would silently drop everything attached
  * via `wp_localize_script` / `wp_add_inline_script` /
  * `wp_set_script_translations` — the dynamically-appended `<script
@@ -85,7 +85,7 @@ export function loadVendorScript(
 		// when re-entering — first caller's extras win, which matches
 		// the URL-keyed memoization above. Same URL → same registered
 		// handle → same extras.
-		const selector = `script[data-desktop-mode-vendor="${ cssEscape( url ) }"]`;
+		const selector = `script[data-os-vendor="${ cssEscape( url ) }"]`;
 		const preexisting = document.querySelector<HTMLScriptElement>( selector );
 		if ( preexisting ) {
 			if ( preexisting.dataset.loaded === '1' ) {
@@ -119,7 +119,7 @@ export function loadVendorScript(
 		const script = document.createElement( 'script' );
 		script.src = url;
 		script.async = true;
-		script.dataset.desktopModeVendor = url;
+		script.dataset.osVendor = url;
 		script.addEventListener(
 			'load',
 			() => {
@@ -164,7 +164,7 @@ function injectInline( code: string ): void {
 	}
 	const tag = document.createElement( 'script' );
 	tag.textContent = code;
-	tag.dataset.desktopModeVendorInline = '1';
+	tag.dataset.osVendorInline = '1';
 	document.head.appendChild( tag );
 }
 

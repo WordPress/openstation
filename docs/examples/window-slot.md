@@ -2,7 +2,7 @@
 
 The title bar is composed of named **slots** — regions plugins can replace, augment, or empty per-window. This is **Layer 3** of the four-layer window-chrome customization framework. See [Window themes](./window-theme.md) for Layer 1 and [Window controls](./window-controls.md) for Layer 2.
 
-The slot host elements live inside the title bar with `data-slot="<name>"` attributes; CSS targets them via `.desktop-mode-window__slot--<name>`.
+The slot host elements live inside the title bar with `data-slot="<name>"` attributes; CSS targets them via `.os-window__slot--<name>`.
 
 ## Available slots
 
@@ -25,7 +25,7 @@ The slot host elements live inside the title bar with `data-slot="<name>"` attri
 ## Recipe 1 — Replace the icon with custom HTML
 
 ```js
-wp.desktop.applyWindowSlot( 'edit-post', 'icon', {
+wp.os.applyWindowSlot( 'edit-post', 'icon', {
     html: '🎨',
 } );
 ```
@@ -35,7 +35,7 @@ wp.desktop.applyWindowSlot( 'edit-post', 'icon', {
 ## Recipe 2 — Add a status banner above the title bar
 
 ```js
-wp.desktop.applyWindowSlot( 'my-plugin/sync', 'before-titlebar', {
+wp.os.applyWindowSlot( 'my-plugin/sync', 'before-titlebar', {
     render: ( host ) => {
         host.style.background = 'linear-gradient(90deg, #38bdf8, #818cf8)';
         host.style.color = '#fff';
@@ -52,7 +52,7 @@ wp.desktop.applyWindowSlot( 'my-plugin/sync', 'before-titlebar', {
 ## Recipe 3 — Hide the title text
 
 ```js
-wp.desktop.applyWindowSlot( 'my-plugin/dashboard', 'title', null );
+wp.os.applyWindowSlot( 'my-plugin/dashboard', 'title', null );
 ```
 
 `null` empties the slot AND suppresses any matching global slot renderers — explicit "render nothing".
@@ -68,19 +68,19 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-decorator',
         plugins_url( 'decorator.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0', true
     );
     wp_enqueue_script( 'my-decorator' );
 } );
-desktop_mode_register_window_slot_script( 'my-decorator' );
+open_station_register_window_slot_script( 'my-decorator' );
 ```
 
 **decorator.js**
 
 ```js
-wp.desktop.whenReady( () => {
-    wp.desktop.registerWindowSlot( {
+wp.os.whenReady( () => {
+    wp.os.registerWindowSlot( {
         id:    'my-decorator/title-star',
         slot:  'title',
         replace: false, // append, don't wipe the default title
@@ -104,7 +104,7 @@ wp.desktop.whenReady( () => {
 Native windows can declare slot overrides inline:
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id:     'my-plugin/dashboard',
     title:  'Dashboard',
     icon:   'dashicons-dashboard',
@@ -137,15 +137,15 @@ wp.desktop.registerWindow( {
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop_mode_window_slot_script_registered` | action | `( string $handle )` | Fires after `desktop_mode_register_window_slot_script()` succeeds. |
-| `desktop_mode_window_slot_registered` | action | `( string $id, array $entry )` | Fires after `desktop_mode_register_window_slot()` stores metadata. |
+| `open_station_window_slot_script_registered` | action | `( string $handle )` | Fires after `open_station_register_window_slot_script()` succeeds. |
+| `open_station_window_slot_registered` | action | `( string $id, array $entry )` | Fires after `open_station_register_window_slot()` stores metadata. |
 
 ### JavaScript
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop-mode.window.chrome.slot` | filter | `( host, { windowId, slot, config } ) => host` | Mutate a slot's host element after content settles. Stable. |
-| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer } )` | Fires with `layer: 'slots'` after a paint. Stable. |
+| `os.window.chrome.slot` | filter | `( host, { windowId, slot, config } ) => host` | Mutate a slot's host element after content settles. Stable. |
+| `os.window.chrome.applied` | action | `( { windowId, layer } )` | Fires with `layer: 'slots'` after a paint. Stable. |
 
 ---
 
@@ -153,8 +153,8 @@ wp.desktop.registerWindow( {
 
 | Function | Purpose |
 |----------|---------|
-| `wp.desktop.registerWindowSlot( def )` | Register a global slot renderer. Throws on validation failure. |
-| `wp.desktop.unregisterWindowSlot( id )` | Drop by id. |
-| `wp.desktop.listWindowSlots()` | Snapshot of registered renderers. |
-| `wp.desktop.applyWindowSlot( windowId, slot, config )` | Per-window override at runtime. Pass `undefined` for `config` to clear. |
+| `wp.os.registerWindowSlot( def )` | Register a global slot renderer. Throws on validation failure. |
+| `wp.os.unregisterWindowSlot( id )` | Drop by id. |
+| `wp.os.listWindowSlots()` | Snapshot of registered renderers. |
+| `wp.os.applyWindowSlot( windowId, slot, config )` | Per-window override at runtime. Pass `undefined` for `config` to clear. |
 | `WindowConfig.appearance.slots` | Per-window declaration at registration time. |

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window-at-point resolution.
+ * OpenStation — Window-at-point resolution.
  *
  * Shared helper for modules that need to know which desktop window
  * the cursor is over during a DragManager session. The resolution is
@@ -16,12 +16,12 @@
  *     CSS (`window-states.css`), so they never match.
  *
  * Every window root — iframe and native alike — is built by
- * `window/dom.ts` as `.desktop-mode-window` with the id
+ * `window/dom.ts` as `.os-window` with the id
  * `wp-window-<windowId>`, which is what these helpers key off.
  */
 
 /** Selector matching every window root element (iframe + native). */
-export const WINDOW_ROOT_SELECTOR = '.desktop-mode-window';
+export const WINDOW_ROOT_SELECTOR = '.os-window';
 
 /** Prefix of the DOM id stamped on every window root. */
 export const WINDOW_ID_PREFIX = 'wp-window-';

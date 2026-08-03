@@ -1,19 +1,19 @@
 /**
- * Desktop Mode — Related-entities title-bar button.
+ * OpenStation — Related-entities title-bar button.
  *
  * Registers the built-in "Related" button through the very same
  * public surface a plugin would use (`registerTitleBarButton`). The
  * button appears only on windows whose content identity carries
  * related navigation targets — for posts/pages those are built
  * server-side (comments, assigned terms, attached media; see
- * `desktop_mode_window_related_entities_for_post()` in
+ * `open_station_window_related_entities_for_post()` in
  * `includes/window-links.php`) and travel with the
- * `desktop-mode-content-identity` bridge payload. Clicking an item
+ * `os-content-identity` bridge payload. Clicking an item
  * opens the target admin URL as its own desktop window.
  *
- * Developer surface: the `desktop_mode_window_related_entities` PHP
+ * Developer surface: the `open_station_window_related_entities` PHP
  * filter adds items for any screen; the
- * `desktop-mode.related-entities.items` JS filter
+ * `os.related-entities.items` JS filter
  * ({@link HOOKS.RELATED_ENTITIES_ITEMS}) rewrites the resolved list
  * per window. Both feed a single resolver used for the button's
  * `match` predicate AND the menu build, so visibility and menu
@@ -78,7 +78,7 @@ function isValidItem( item: unknown ): item is RelatedEntityItem {
 /**
  * Resolve the related-entity items for a window: the identity's
  * server-built `related` list run through the
- * `desktop-mode.related-entities.items` filter, with malformed
+ * `os.related-entities.items` filter, with malformed
  * filter output dropped item-wise (a plugin's one bad entry must not
  * hide the rest of the menu).
  *
@@ -107,7 +107,7 @@ export function resolveRelatedItems(
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.related-entities.items` filter ' +
+				'[openstation] `os.related-entities.items` filter ' +
 					'returned a non-array; falling back to the identity list.',
 			);
 		}
@@ -128,7 +128,7 @@ type RelatedPanelElement = HTMLElement & { _wpdRelatedClose?: () => void };
 function closePanels( root: HTMLElement | undefined ): void {
 	root
 		?.querySelectorAll< RelatedPanelElement >(
-			'.desktop-mode-window__related-panel',
+			'.os-window__related-panel',
 		)
 		.forEach( ( el ) => {
 			if ( el._wpdRelatedClose ) {
@@ -168,7 +168,7 @@ function openRelatedMenu(
 	openUrl: OpenRelatedEntity,
 ): void {
 	const titleBar = host.closest< HTMLElement >(
-		'.desktop-mode-window__titlebar',
+		'.os-window__titlebar',
 	);
 	if ( ! titleBar ) {
 		return;
@@ -277,7 +277,7 @@ export function bootRelatedEntities( {
 			host.addEventListener( 'click', ( e: Event ) => {
 				e.stopPropagation();
 				const open = win.element?.querySelector(
-					'.desktop-mode-window__related-panel',
+					'.os-window__related-panel',
 				);
 				if ( open ) {
 					closePanels( win.element );

@@ -63,7 +63,7 @@ function toId( raw: unknown ): number {
  * Normalize a drag payload into the entity it references, or null when
  * the payload doesn't reference a single entity agents understand.
  * Handles the two in-tree entity carriers: `'shortcut'` (site folder
- * tiles, wpd-tile drag-out) and `'desktop-file'` (wallpaper tiles).
+ * tiles, os-tile drag-out) and `'desktop-file'` (wallpaper tiles).
  *
  * @public
  */
@@ -242,7 +242,7 @@ export function openAgentChatWindow(
 	const openWindow = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					openWindow?: (
 						id: string,
 						opts?: { source?: string },
@@ -250,7 +250,7 @@ export function openAgentChatWindow(
 				};
 			};
 		}
-	).wp?.desktop?.openWindow;
+	).wp?.os?.openWindow;
 	if ( typeof openWindow === 'function' ) {
 		openWindow( 'desktop-mode-agent-run', { source } );
 	}

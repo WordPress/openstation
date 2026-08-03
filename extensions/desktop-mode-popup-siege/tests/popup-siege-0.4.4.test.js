@@ -85,13 +85,13 @@ test( 'the OpenStation adapter publishes one scored Popup Siege definition', () 
 		'games/popup-breaker/assets/openstation-adapter.js'
 	);
 	const window = {
-		desktopModeGames: {},
+		openStationGames: {},
 		document: {},
 	};
 	vm.runInNewContext( source, window, {
 		filename: 'openstation-adapter.js',
 	} );
-	const definition = window.desktopModeGames[ 'popup-siege' ];
+	const definition = window.openStationGames[ 'popup-siege' ];
 
 	assert.equal( definition.id, 'popup-siege' );
 	assert.equal( typeof definition.render, 'function' );

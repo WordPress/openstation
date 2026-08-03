@@ -194,7 +194,7 @@ export async function mountCategoriesMindmap(
 	host: HTMLElement,
 	client: PostsWindowClient,
 ): Promise< () => void > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( ! api || typeof api.loadModules !== 'function' ) {
 		host.textContent = __( 'Mindmap unavailable: shell modules API missing.' );
 		return () => {};
@@ -217,20 +217,20 @@ export async function mountCategoriesMindmap(
 	const pixi: PixiNamespace = pixiMaybe;
 
 	host.replaceChildren();
-	host.classList.add( 'wpd-mindmap' );
+	host.classList.add( 'os-mindmap' );
 
 	// --- Toolbar -------------------------------------------------------
 	const toolbar = document.createElement( 'div' );
-	toolbar.className = 'wpd-mindmap__toolbar';
+	toolbar.className = 'os-mindmap__toolbar';
 	const addRootBtn = document.createElement( 'button' );
 	addRootBtn.type = 'button';
-	addRootBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--primary';
+	addRootBtn.className = 'os-mindmap__btn os-mindmap__btn--primary';
 	addRootBtn.innerHTML =
 		'<span class="dashicons dashicons-plus" aria-hidden="true"></span>' +
 		__( 'Add root category' );
 	const recenterBtn = document.createElement( 'button' );
 	recenterBtn.type = 'button';
-	recenterBtn.className = 'wpd-mindmap__btn';
+	recenterBtn.className = 'os-mindmap__btn';
 	recenterBtn.innerHTML =
 		'<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>' +
 		__( 'Recenter' );
@@ -238,10 +238,10 @@ export async function mountCategoriesMindmap(
 	// exist; the DOM lives here so the toolbar paints with the box in
 	// place from the first frame.
 	const searchWrap = document.createElement( 'div' );
-	searchWrap.className = 'wpd-mindmap__search';
+	searchWrap.className = 'os-mindmap__search';
 	const searchInput = document.createElement( 'input' );
 	searchInput.type = 'search';
-	searchInput.className = 'wpd-mindmap__search-input';
+	searchInput.className = 'os-mindmap__search-input';
 	searchInput.placeholder = __( 'Search categories…' );
 	searchInput.setAttribute(
 		'aria-label',
@@ -249,11 +249,11 @@ export async function mountCategoriesMindmap(
 	);
 	searchWrap.appendChild( searchInput );
 	const searchResults = document.createElement( 'ul' );
-	searchResults.className = 'wpd-mindmap__search-results';
+	searchResults.className = 'os-mindmap__search-results';
 	searchResults.hidden = true;
 	searchWrap.appendChild( searchResults );
 	const hint = document.createElement( 'span' );
-	hint.className = 'wpd-mindmap__hint';
+	hint.className = 'os-mindmap__hint';
 	hint.textContent = __(
 		'Click a node to focus + edit · drag onto another to reparent · wheel to zoom',
 	);
@@ -265,7 +265,7 @@ export async function mountCategoriesMindmap(
 
 	// --- Layout: canvas on the left, fixed sidebar on the right -----
 	const layout = document.createElement( 'div' );
-	layout.className = 'wpd-mindmap__layout';
+	layout.className = 'os-mindmap__layout';
 	host.appendChild( layout );
 
 	// Stage is the host for Pixi's canvas. Chips and post chips now
@@ -274,7 +274,7 @@ export async function mountCategoriesMindmap(
 	// user can always see + edit term metadata without it covering
 	// the post nodes.
 	const stage = document.createElement( 'div' );
-	stage.className = 'wpd-mindmap__stage';
+	stage.className = 'os-mindmap__stage';
 	// `is-loading` keeps the stage at opacity:0 until the very first
 	// `fitToView()` runs (handled by the ResizeObserver). Without
 	// this the canvas briefly paints its tree at the default
@@ -286,7 +286,7 @@ export async function mountCategoriesMindmap(
 	// Sidebar — fixed-width right column. Empty state when no node is
 	// focused, full editor form when one is.
 	const sidebar = document.createElement( 'aside' );
-	sidebar.className = 'wpd-mindmap__sidebar';
+	sidebar.className = 'os-mindmap__sidebar';
 	layout.appendChild( sidebar );
 
 	// --- Pixi --------------------------------------------------------
@@ -299,7 +299,7 @@ export async function mountCategoriesMindmap(
 		resolution: Math.min( window.devicePixelRatio || 1, 2 ),
 	} );
 	stage.appendChild( app.canvas );
-	app.canvas.classList.add( 'wpd-mindmap__canvas' );
+	app.canvas.classList.add( 'os-mindmap__canvas' );
 
 	const world = new pixi.Container();
 	world.x = stage.clientWidth / 2;
@@ -513,7 +513,7 @@ export async function mountCategoriesMindmap(
 		showToast( title, err );
 
 	function isUncategorized( term: TermRow ): boolean {
-		// Server-side `desktop_mode_is_default` is the canonical
+		// Server-side `open_station_is_default` is the canonical
 		// signal — it reads `get_option('default_category')`, which
 		// works on any locale (Spanish "Sin categoría", German
 		// "Allgemein", etc) regardless of slug or id. Fall back to
@@ -536,11 +536,11 @@ export async function mountCategoriesMindmap(
 		// category lands. Called after every `buildTree()` so the
 		// banner state matches the current `terms` snapshot
 		// without an F5.
-		const existing = stage.querySelector< HTMLElement >( '.wpd-mindmap__empty' );
+		const existing = stage.querySelector< HTMLElement >( '.os-mindmap__empty' );
 		if ( terms.length <= 1 ) {
 			if ( ! existing ) {
 				const empty = document.createElement( 'div' );
-				empty.className = 'wpd-mindmap__empty';
+				empty.className = 'os-mindmap__empty';
 				empty.textContent = __(
 					'No custom categories yet. Click "Add root category" to start branching.',
 				);
@@ -2284,9 +2284,9 @@ export async function mountCategoriesMindmap(
 		const parentNode = d.parent !== 0 ? nodes.get( d.parent ) : null;
 
 		const header = document.createElement( 'div' );
-		header.className = 'wpd-mindmap__sidebar-header';
+		header.className = 'os-mindmap__sidebar-header';
 		const dot = document.createElement( 'span' );
-		dot.className = 'wpd-mindmap__sidebar-dot';
+		dot.className = 'os-mindmap__sidebar-dot';
 		// Draft uses the parent's cluster color when nesting, so the
 		// header dot matches the branch the new term will join.
 		const color = parentNode
@@ -2296,7 +2296,7 @@ export async function mountCategoriesMindmap(
 			.toString( 16 )
 			.padStart( 6, '0' ) }`;
 		const label = document.createElement( 'code' );
-		label.className = 'wpd-mindmap__sidebar-slug';
+		label.className = 'os-mindmap__sidebar-slug';
 		label.textContent = parentNode
 			? sprintf(
 				/* translators: %s: parent category name. */
@@ -2309,12 +2309,12 @@ export async function mountCategoriesMindmap(
 		sidebar.appendChild( header );
 
 		const nameLabel = document.createElement( 'label' );
-		nameLabel.className = 'wpd-mindmap__sidebar-label';
+		nameLabel.className = 'os-mindmap__sidebar-label';
 		nameLabel.textContent = __( 'Name' );
 		sidebar.appendChild( nameLabel );
 		const nameInput = document.createElement( 'input' );
 		nameInput.type = 'text';
-		nameInput.className = 'wpd-mindmap__editor-name';
+		nameInput.className = 'os-mindmap__editor-name';
 		nameInput.placeholder = __( 'e.g. Recipes' );
 		sidebar.appendChild( nameInput );
 		// Auto-focus the name field — Create is gated on a non-empty
@@ -2322,12 +2322,12 @@ export async function mountCategoriesMindmap(
 		requestAnimationFrame( () => nameInput.focus() );
 
 		const slugLabel = document.createElement( 'label' );
-		slugLabel.className = 'wpd-mindmap__sidebar-label';
+		slugLabel.className = 'os-mindmap__sidebar-label';
 		slugLabel.textContent = __( 'Slug' );
 		sidebar.appendChild( slugLabel );
 		const slugInput = document.createElement( 'input' );
 		slugInput.type = 'text';
-		slugInput.className = 'wpd-mindmap__editor-name';
+		slugInput.className = 'os-mindmap__editor-name';
 		slugInput.placeholder = __( 'auto-from-name' );
 		slugInput.spellcheck = false;
 		slugInput.autocapitalize = 'off';
@@ -2343,21 +2343,21 @@ export async function mountCategoriesMindmap(
 		sidebar.appendChild( slugInput );
 
 		const descLabel = document.createElement( 'label' );
-		descLabel.className = 'wpd-mindmap__sidebar-label';
+		descLabel.className = 'os-mindmap__sidebar-label';
 		descLabel.textContent = __( 'Description' );
 		sidebar.appendChild( descLabel );
 		const descInput = document.createElement( 'textarea' );
-		descInput.className = 'wpd-mindmap__editor-desc';
+		descInput.className = 'os-mindmap__editor-desc';
 		descInput.placeholder = __( 'Description (optional)' );
 		descInput.rows = 4;
 		sidebar.appendChild( descInput );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpd-mindmap__editor-actions';
+		actions.className = 'os-mindmap__editor-actions';
 
 		const createBtn = document.createElement( 'button' );
 		createBtn.type = 'button';
-		createBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--primary';
+		createBtn.className = 'os-mindmap__btn os-mindmap__btn--primary';
 		createBtn.textContent = __( 'Create' );
 
 		const cancelBtn = document.createElement( 'button' );
@@ -2365,7 +2365,7 @@ export async function mountCategoriesMindmap(
 		// Reuse the danger style so the dual-action row reads
 		// symmetrically with the regular editor's Save / Delete pair —
 		// "secondary" looked muted next to the prominent Create.
-		cancelBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--danger';
+		cancelBtn.className = 'os-mindmap__btn os-mindmap__btn--danger';
 		cancelBtn.textContent = __( 'Cancel' );
 
 		const handleCreate = async (): Promise< void > => {
@@ -2450,7 +2450,7 @@ export async function mountCategoriesMindmap(
 		}
 		if ( focusId === null ) {
 			const empty = document.createElement( 'div' );
-			empty.className = 'wpd-mindmap__sidebar-empty';
+			empty.className = 'os-mindmap__sidebar-empty';
 			const icon = document.createElement( 'span' );
 			icon.className = 'dashicons dashicons-admin-tools';
 			icon.setAttribute( 'aria-hidden', 'true' );
@@ -2475,38 +2475,38 @@ export async function mountCategoriesMindmap(
 		const id = node.id;
 
 		const header = document.createElement( 'div' );
-		header.className = 'wpd-mindmap__sidebar-header';
+		header.className = 'os-mindmap__sidebar-header';
 		const dot = document.createElement( 'span' );
-		dot.className = 'wpd-mindmap__sidebar-dot';
+		dot.className = 'os-mindmap__sidebar-dot';
 		dot.style.background = `#${ node.color
 			.toString( 16 )
 			.padStart( 6, '0' ) }`;
 		const term = terms.find( ( t ) => t.id === id );
 		const idLabel = document.createElement( 'code' );
-		idLabel.className = 'wpd-mindmap__sidebar-slug';
+		idLabel.className = 'os-mindmap__sidebar-slug';
 		idLabel.textContent = `#${ id }`;
 		header.appendChild( dot );
 		header.appendChild( idLabel );
 		sidebar.appendChild( header );
 
 		const nameLabel = document.createElement( 'label' );
-		nameLabel.className = 'wpd-mindmap__sidebar-label';
+		nameLabel.className = 'os-mindmap__sidebar-label';
 		nameLabel.textContent = __( 'Name' );
 		sidebar.appendChild( nameLabel );
 		const nameInput = document.createElement( 'input' );
 		nameInput.type = 'text';
-		nameInput.className = 'wpd-mindmap__editor-name';
+		nameInput.className = 'os-mindmap__editor-name';
 		nameInput.value = node.name;
 		nameInput.placeholder = __( 'Name' );
 		sidebar.appendChild( nameInput );
 
 		const slugLabel = document.createElement( 'label' );
-		slugLabel.className = 'wpd-mindmap__sidebar-label';
+		slugLabel.className = 'os-mindmap__sidebar-label';
 		slugLabel.textContent = __( 'Slug' );
 		sidebar.appendChild( slugLabel );
 		const slugInput = document.createElement( 'input' );
 		slugInput.type = 'text';
-		slugInput.className = 'wpd-mindmap__editor-name';
+		slugInput.className = 'os-mindmap__editor-name';
 		slugInput.value = term?.slug || '';
 		slugInput.placeholder = __( 'auto-from-name' );
 		slugInput.spellcheck = false;
@@ -2529,18 +2529,18 @@ export async function mountCategoriesMindmap(
 		sidebar.appendChild( slugInput );
 
 		const descLabel = document.createElement( 'label' );
-		descLabel.className = 'wpd-mindmap__sidebar-label';
+		descLabel.className = 'os-mindmap__sidebar-label';
 		descLabel.textContent = __( 'Description' );
 		sidebar.appendChild( descLabel );
 		const descInput = document.createElement( 'textarea' );
-		descInput.className = 'wpd-mindmap__editor-desc';
+		descInput.className = 'os-mindmap__editor-desc';
 		descInput.value = node.description || '';
 		descInput.placeholder = __( 'Description (optional)' );
 		descInput.rows = 4;
 		sidebar.appendChild( descInput );
 
 		const meta = document.createElement( 'p' );
-		meta.className = 'wpd-mindmap__sidebar-meta';
+		meta.className = 'os-mindmap__sidebar-meta';
 		meta.textContent = sprintf(
 			/* translators: %d: post count. */
 			_n(
@@ -2553,11 +2553,11 @@ export async function mountCategoriesMindmap(
 		sidebar.appendChild( meta );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpd-mindmap__editor-actions';
+		actions.className = 'os-mindmap__editor-actions';
 
 		const addChildBtn = document.createElement( 'button' );
 		addChildBtn.type = 'button';
-		addChildBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--secondary';
+		addChildBtn.className = 'os-mindmap__btn os-mindmap__btn--secondary';
 		addChildBtn.textContent = __( '+ Child' );
 		addChildBtn.addEventListener( 'click', () => {
 			startDraft( id );
@@ -2572,7 +2572,7 @@ export async function mountCategoriesMindmap(
 			: null;
 		if ( makeRootBtn ) {
 			makeRootBtn.type = 'button';
-			makeRootBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--secondary';
+			makeRootBtn.className = 'os-mindmap__btn os-mindmap__btn--secondary';
 			makeRootBtn.textContent = __( 'Make root' );
 			makeRootBtn.title = __(
 				'Promote this category to a top-level root (no parent).',
@@ -2594,7 +2594,7 @@ export async function mountCategoriesMindmap(
 
 		const saveBtn = document.createElement( 'button' );
 		saveBtn.type = 'button';
-		saveBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--primary';
+		saveBtn.className = 'os-mindmap__btn os-mindmap__btn--primary';
 		saveBtn.textContent = __( 'Save' );
 		saveBtn.addEventListener( 'click', async () => {
 			const name = nameInput.value.trim();
@@ -2649,7 +2649,7 @@ export async function mountCategoriesMindmap(
 
 		const delBtn = document.createElement( 'button' );
 		delBtn.type = 'button';
-		delBtn.className = 'wpd-mindmap__btn wpd-mindmap__btn--danger';
+		delBtn.className = 'os-mindmap__btn os-mindmap__btn--danger';
 		delBtn.textContent = __( 'Delete' );
 		let armResetTimer: number | null = null;
 		const armDelete = (): void => {
@@ -2840,7 +2840,7 @@ export async function mountCategoriesMindmap(
 	async function refreshCountsViaBulk(): Promise< void > {
 		// Defensive fallback — hit the plugin's bulk-count endpoint
 		// to get an authoritative count per term. The
-		// `desktop_mode_count` REST field is the primary source but
+		// `open_station_count` REST field is the primary source but
 		// some hosts strip it (caching, custom REST handlers); the
 		// bulk endpoint runs a single GROUP BY query and never
 		// returns stale data.
@@ -2934,7 +2934,7 @@ export async function mountCategoriesMindmap(
 	let selectedIndex = 0;
 	const repaintHighlight = (): void => {
 		const items = searchResults.querySelectorAll< HTMLButtonElement >(
-			'.wpd-mindmap__search-result',
+			'.os-mindmap__search-result',
 		);
 		items.forEach( ( el, i ) => {
 			const active = i === selectedIndex;
@@ -2971,15 +2971,15 @@ export async function mountCategoriesMindmap(
 			const li = document.createElement( 'li' );
 			const btn = document.createElement( 'button' );
 			btn.type = 'button';
-			btn.className = 'wpd-mindmap__search-result';
+			btn.className = 'os-mindmap__search-result';
 			if ( i === 0 ) {
 				btn.classList.add( 'is-active' );
 			}
 			const nameEl = document.createElement( 'span' );
-			nameEl.className = 'wpd-mindmap__search-title';
+			nameEl.className = 'os-mindmap__search-title';
 			nameEl.textContent = n.name || `#${ n.id }`;
 			const countEl = document.createElement( 'span' );
-			countEl.className = 'wpd-mindmap__search-meta';
+			countEl.className = 'os-mindmap__search-meta';
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a category. */
 				_n( '%d post', '%d posts', n.count ),
@@ -3084,7 +3084,7 @@ export async function mountCategoriesMindmap(
 			// Best-effort — Pixi sometimes throws on teardown races.
 		}
 		host.replaceChildren();
-		host.classList.remove( 'wpd-mindmap' );
+		host.classList.remove( 'os-mindmap' );
 	};
 }
 
@@ -3216,7 +3216,7 @@ function stripTags( html: string ): string {
 
 function showToast( title: string, err: unknown ): void {
 	const reason = err instanceof Error ? err.message : String( err );
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( {
 			message: `${ title } ${ reason }`.trim(),

@@ -1,6 +1,6 @@
 <?php
 /**
- * PHPUnit bootstrap for the WP Desktop Mode plugin.
+ * PHPUnit bootstrap for the WP OpenStation plugin.
  *
  * Loads the WordPress test framework and activates the plugin before
  * each run so the plugin's hooks are wired in the test environment.
@@ -9,7 +9,7 @@
  * (`.wp-env.tests.json`), whose `cli` container ships WordPress' test
  * library at /wordpress-phpunit and exposes it via WP_TESTS_DIR.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 // Composer autoload brings in phpunit-polyfills (required by modern
@@ -45,11 +45,11 @@ tests_add_filter(
 		// games test classes have the module available. Tests that
 		// exercise the disabled state remove this filter locally (the
 		// test framework restores hooks after every test).
-		add_filter( 'desktop_mode_games_enabled', '__return_true' );
+		add_filter( 'open_station_games_enabled', '__return_true' );
 
 		// Same deal for the agents framework — force it on so the
 		// agents test classes have the module available.
-		add_filter( 'desktop_mode_agents_enabled', '__return_true' );
+		add_filter( 'open_station_agents_enabled', '__return_true' );
 	}
 );
 

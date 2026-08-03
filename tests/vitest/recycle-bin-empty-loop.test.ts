@@ -1,7 +1,7 @@
 /**
  * Tests for the recycle-bin empty-loop driver.
  *
- * The server caps each `desktop_mode_recycle_bin_empty` call at a
+ * The server caps each `open_station_recycle_bin_empty` call at a
  * chunk (default 200) to avoid PHP timeouts. Issue #97 was that the
  * client called the endpoint exactly once and showed success — so a
  * 250-item bin appeared "emptied" with 50 items still in it. The

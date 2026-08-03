@@ -1,5 +1,5 @@
 /**
- * Vitest configuration for the wp-desktop-mode TypeScript test suite.
+ * Vitest configuration for the openstation TypeScript test suite.
  *
  * Mirrors the existing Vite build in key ways — same TypeScript
  * target, same module resolution — while swapping in a jsdom
@@ -30,7 +30,7 @@ export default defineConfig( {
 	test: {
 		environment: 'jsdom',
 		globals: false,
-		// Pre-register every `<wpd-*>` component class that production
+		// Pre-register every `<os-*>` component class that production
 		// code loads via the `shell-overlays[.min].js` lazy bundle
 		// (toast / confirm / context-menu). Production main bundle
 		// does NOT eager-import them anymore (Stage 9); the setup

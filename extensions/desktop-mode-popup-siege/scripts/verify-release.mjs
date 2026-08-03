@@ -74,7 +74,7 @@ const runtime = fs.readFileSync(
 	'utf8'
 );
 if ( runtime.includes( 'pixi.min.js' ) || runtime.includes( 'pixi.js/dist' ) ) {
-	throw new Error( 'Popup Siege must use Desktop Mode’s shared PixiJS module.' );
+	throw new Error( 'Popup Siege must use OpenStation’s shared PixiJS module.' );
 }
 
 for ( const file of [

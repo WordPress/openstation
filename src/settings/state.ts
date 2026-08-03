@@ -2,7 +2,7 @@
  * Persistence + sanitization for `OsSettingsState`.
  *
  * Source-of-truth hierarchy (highest to lowest):
- *   1. Server — `desktopModeConfig.osSettings` loaded from user meta at
+ *   1. Server — `openStationConfig.osSettings` loaded from user meta at
  *      page boot. Wins over localStorage so a setting changed on another
  *      device/browser is honoured on the next page load.
  *   2. localStorage — fast local cache; written on every change for
@@ -49,7 +49,7 @@ import { trackedFetch } from '../tracked-fetch';
 
 /**
  * Resolves the initial state. Prefers the server-provided snapshot
- * (`desktopModeConfig.osSettings`) over the localStorage cache so a
+ * (`openStationConfig.osSettings`) over the localStorage cache so a
  * preference changed in another browser shows up on the next page load
  * without the user having to manually refresh.
  *
@@ -84,11 +84,11 @@ export function loadState(): OsSettingsState {
 	return structuredDefaults();
 }
 
-/** Read `desktopModeConfig.osSettings` from the global config. */
+/** Read `openStationConfig.osSettings` from the global config. */
 function _readServerSettings(): Partial<OsSettingsState> | null {
 	const config = ( window as unknown as {
-		desktopModeConfig?: DesktopConfig;
-	} ).desktopModeConfig;
+		openStationConfig?: DesktopConfig;
+	} ).openStationConfig;
 	const raw = config?.osSettings;
 	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
 		return null;
@@ -576,8 +576,8 @@ let _pendingActivityWindowId: string | null = null;
 
 function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
 	const config = ( window as unknown as {
-		desktopModeConfig?: DesktopConfig;
-	} ).desktopModeConfig;
+		openStationConfig?: DesktopConfig;
+	} ).openStationConfig;
 	const url = config?.osSettingsUrl;
 	const nonce = config?.restNonce;
 	if ( ! url || ! nonce ) {
@@ -590,7 +590,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 	}
 
 	_emitSaveLifecycle( 'saving' );
-	// Prefer `wp.desktop.fetch` so the originating window's title-bar
+	// Prefer `wp.os.fetch` so the originating window's title-bar
 	// activity dot blinks while the save is in flight. The
 	// originating window — passed through from the call site that
 	// triggered the most recent debounce-collapsed save — defaults to
@@ -701,7 +701,7 @@ function _emitSaveLifecycle(
 		detail.rolledBackTo = rolledBackTo;
 	}
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-os-settings-save-lifecycle', { detail } ),
+		new CustomEvent( 'os-settings-save-lifecycle', { detail } ),
 	);
 }
 

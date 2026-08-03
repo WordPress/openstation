@@ -6,7 +6,7 @@
  * sanitizer that stripped slashes / colons / dots. A file-type
  * declaring its `icon` as an http(s) URL or a
  * `data:image/svg+xml;base64,…` data URI ended up with a class
- * like `dashicons httplocalhost8889wp-contentpluginswpd-tumblr…`
+ * like `dashicons httplocalhost8889wp-contentpluginsos-tumblr…`
  * — broken empty square at render time.
  *
  * The fix routes the icon through the canonical `renderIcon()`
@@ -23,7 +23,7 @@ const SVG_DATA_URI =
 		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>',
 	);
 
-const URL_ICON = 'https://example.test/wp-content/plugins/wpd-tumblr/assets/icon.svg';
+const URL_ICON = 'https://example.test/wp-content/plugins/os-tumblr/assets/icon.svg';
 
 interface PlacementOpts {
 	icon: string;
@@ -48,7 +48,7 @@ function makePlacement( id: number, opts: PlacementOpts ) {
 		meta: null,
 		file: {
 			type: 'shortcut',
-			ref: `wpd-tumblr-${ id }`,
+			ref: `os-tumblr-${ id }`,
 			title: 'Tumblr',
 			icon: opts.icon,
 			previewUrl: '',
@@ -75,7 +75,7 @@ describe( 'file-tile icon dispatch (regression — data URI / URL handling)', ()
 		const tile = fileTile.buildTile( makePlacement( 1, { icon: SVG_DATA_URI } ), 0 );
 		document.body.appendChild( tile );
 
-		const iconEl = tile.querySelector< HTMLElement >( '.desktop-mode-file-tile__icon' );
+		const iconEl = tile.querySelector< HTMLElement >( '.os-file-tile__icon' );
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( false );
 		expect( iconEl!.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
@@ -90,13 +90,13 @@ describe( 'file-tile icon dispatch (regression — data URI / URL handling)', ()
 
 		// The icon now appears as an <img>, NOT a span with a glued class.
 		const img = tile.querySelector< HTMLImageElement >(
-			'img.desktop-mode-file-tile__icon',
+			'img.os-file-tile__icon',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( URL_ICON );
 		// And there is NO span carrying the malformed Dashicons class.
 		const malformed = tile.querySelector(
-			'span.desktop-mode-file-tile__icon.dashicons',
+			'span.os-file-tile__icon.dashicons',
 		);
 		expect( malformed ).toBeNull();
 	} );
@@ -111,7 +111,7 @@ describe( 'file-tile icon dispatch (regression — data URI / URL handling)', ()
 		);
 		document.body.appendChild( tile );
 
-		const iconEl = tile.querySelector< HTMLElement >( '.desktop-mode-file-tile__icon' );
+		const iconEl = tile.querySelector< HTMLElement >( '.os-file-tile__icon' );
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( true );
 		expect( iconEl!.classList.contains( 'dashicons-star-filled' ) ).toBe( true );

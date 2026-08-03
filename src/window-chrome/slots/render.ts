@@ -30,7 +30,7 @@
  * painter — Layer 2's `paintWindowControls()` owns it. Plugins
  * targeting the controls cluster use the control registry instead.
  *
- * The `desktop-mode.window.chrome.slot` filter fires once per slot
+ * The `os.window.chrome.slot` filter fires once per slot
  * after content has settled, with the host as its value — plugins
  * can mutate the host without owning a registry entry (handy for
  * cross-cutting decorators).
@@ -200,7 +200,7 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		}
 
-		// Step 3 — fire the desktop-mode.window.chrome.slot filter so
+		// Step 3 — fire the os.window.chrome.slot filter so
 		// plugins can mutate the host without owning a registry entry.
 		// Filter value is the host element; subscribers may mutate it
 		// in place. We swallow the return value (action-shaped

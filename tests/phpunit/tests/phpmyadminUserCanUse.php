@@ -2,11 +2,11 @@
 /**
  * Tests for the phpMyAdmin composite access gate.
  *
- * Covers `desktop_mode_phpmyadmin_user_can_use()` — the authorization
+ * Covers `open_station_phpmyadmin_user_can_use()` — the authorization
  * chokepoint shared by the bundle endpoint and the window/icon
  * registration. The local-env and vendor-present gates are documented
  * as non-negotiable security gates: the
- * `desktop_mode_phpmyadmin_user_can_use` filter may adjust who can use
+ * `open_station_phpmyadmin_user_can_use` filter may adjust who can use
  * the shortcut, but it must never be able to bypass either hard gate.
  *
  * The extension constants are defined here to point the vendor dir at
@@ -16,9 +16,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
+class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -27,17 +27,17 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 
-		if ( ! defined( 'DESKTOP_MODE_PHPMYADMIN_DIR' ) ) {
-			define( 'DESKTOP_MODE_PHPMYADMIN_DIR', trailingslashit( get_temp_dir() ) . 'desktop-mode-phpmyadmin-test/' );
+		if ( ! defined( 'OPEN_STATION_PHPMYADMIN_DIR' ) ) {
+			define( 'OPEN_STATION_PHPMYADMIN_DIR', trailingslashit( get_temp_dir() ) . 'desktop-mode-phpmyadmin-test/' );
 		}
-		if ( ! defined( 'DESKTOP_MODE_PHPMYADMIN_URL' ) ) {
-			define( 'DESKTOP_MODE_PHPMYADMIN_URL', 'http://example.org/wp-content/plugins/desktop-mode-phpmyadmin/' );
+		if ( ! defined( 'OPEN_STATION_PHPMYADMIN_URL' ) ) {
+			define( 'OPEN_STATION_PHPMYADMIN_URL', 'http://example.org/wp-content/plugins/desktop-mode-phpmyadmin/' );
 		}
-		if ( ! defined( 'DESKTOP_MODE_PHPMYADMIN_VERSION' ) ) {
-			define( 'DESKTOP_MODE_PHPMYADMIN_VERSION', '0.0.0-test' );
+		if ( ! defined( 'OPEN_STATION_PHPMYADMIN_VERSION' ) ) {
+			define( 'OPEN_STATION_PHPMYADMIN_VERSION', '0.0.0-test' );
 		}
 
-		if ( ! function_exists( 'desktop_mode_phpmyadmin_user_can_use' ) ) {
+		if ( ! function_exists( 'open_station_phpmyadmin_user_can_use' ) ) {
 			require_once dirname( __DIR__, 3 ) . '/extensions/desktop-mode-phpmyadmin/includes/window.php';
 		}
 	}
@@ -47,7 +47,7 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_phpmyadmin_user_can_use' );
+		remove_all_filters( 'open_station_phpmyadmin_user_can_use' );
 		self::remove_vendor_index();
 		parent::tear_down();
 	}
@@ -57,7 +57,7 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	 * gate passes.
 	 */
 	protected static function create_vendor_index() {
-		$vendor = desktop_mode_phpmyadmin_vendor_dir();
+		$vendor = open_station_phpmyadmin_vendor_dir();
 		wp_mkdir_p( $vendor );
 		file_put_contents( $vendor . '/index.php', "<?php // test sentinel\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		clearstatcache();
@@ -68,7 +68,7 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	 * gate fails.
 	 */
 	protected static function remove_vendor_index() {
-		$index = desktop_mode_phpmyadmin_vendor_dir() . '/index.php';
+		$index = open_station_phpmyadmin_vendor_dir() . '/index.php';
 		if ( file_exists( $index ) ) {
 			unlink( $index );
 		}
@@ -89,15 +89,15 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	 * bundled vendor distribution is missing — the vendor-present gate
 	 * is a non-negotiable security gate.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_filter_cannot_bypass_vendor_gate() {
 		wp_set_current_user( self::$admin_id );
 
-		add_filter( 'desktop_mode_phpmyadmin_user_can_use', '__return_true' );
+		add_filter( 'open_station_phpmyadmin_user_can_use', '__return_true' );
 
-		$this->assertFalse( desktop_mode_phpmyadmin_vendor_present() );
-		$this->assertFalse( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertFalse( open_station_phpmyadmin_vendor_present() );
+		$this->assertFalse( open_station_phpmyadmin_user_can_use() );
 	}
 
 	/**
@@ -105,7 +105,7 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	 * non-local environment — the local-env gate is a non-negotiable
 	 * security gate.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_filter_cannot_bypass_environment_gate() {
 		if ( $this->environment_is_local() ) {
@@ -115,42 +115,42 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		self::create_vendor_index();
 
-		add_filter( 'desktop_mode_phpmyadmin_user_can_use', '__return_true' );
+		add_filter( 'open_station_phpmyadmin_user_can_use', '__return_true' );
 
-		$this->assertFalse( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertFalse( open_station_phpmyadmin_user_can_use() );
 	}
 
 	/**
 	 * The filter can still narrow access for a user who passes every
 	 * default gate.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_filter_can_narrow() {
 		wp_set_current_user( self::$admin_id );
 		self::create_vendor_index();
 
-		add_filter( 'desktop_mode_phpmyadmin_user_can_use', '__return_false' );
+		add_filter( 'open_station_phpmyadmin_user_can_use', '__return_false' );
 
-		$this->assertFalse( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertFalse( open_station_phpmyadmin_user_can_use() );
 	}
 
 	/**
 	 * Default gate: lower-privilege users are denied.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_subscriber_denied_by_default() {
 		wp_set_current_user( self::$subscriber_id );
 		self::create_vendor_index();
 
-		$this->assertFalse( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertFalse( open_station_phpmyadmin_user_can_use() );
 	}
 
 	/**
 	 * Default gate: an administrator passes when both hard gates pass.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_admin_allowed_when_all_gates_pass() {
 		if ( ! $this->environment_is_local() ) {
@@ -160,14 +160,14 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		self::create_vendor_index();
 
-		$this->assertTrue( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertTrue( open_station_phpmyadmin_user_can_use() );
 	}
 
 	/**
 	 * The filter may widen the capability portion (e.g. allow a
 	 * lower-privilege user) — but only while both hard gates pass.
 	 *
-	 * @covers ::desktop_mode_phpmyadmin_user_can_use
+	 * @covers ::open_station_phpmyadmin_user_can_use
 	 */
 	public function test_filter_can_widen_capability_when_hard_gates_pass() {
 		if ( ! $this->environment_is_local() ) {
@@ -177,8 +177,8 @@ class Tests_DesktopMode_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		wp_set_current_user( self::$subscriber_id );
 		self::create_vendor_index();
 
-		add_filter( 'desktop_mode_phpmyadmin_user_can_use', '__return_true' );
+		add_filter( 'open_station_phpmyadmin_user_can_use', '__return_true' );
 
-		$this->assertTrue( desktop_mode_phpmyadmin_user_can_use() );
+		$this->assertTrue( open_station_phpmyadmin_user_can_use() );
 	}
 }

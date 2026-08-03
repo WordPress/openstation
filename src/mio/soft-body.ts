@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio soft body.
+ * OpenStation — Mio soft body.
  *
  * A pressurised mass-spring ring. `points` particles sit on a circle
  * and are wired together by three families of springs plus an

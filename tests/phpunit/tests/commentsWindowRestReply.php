@@ -7,9 +7,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
+class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $contributor_id;
@@ -46,7 +46,7 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 	 * (a contributor replying on another author's post) must be rejected
 	 * with a 403 and no comment may be created.
 	 *
-	 * @covers ::desktop_mode_comments_window_rest_reply
+	 * @covers ::open_station_comments_window_rest_reply
 	 */
 	public function test_reply_forbidden_without_edit_post_on_target_post() {
 		wp_set_current_user( self::$contributor_id );
@@ -59,7 +59,7 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 			)
 		);
 
-		$resp = desktop_mode_comments_window_rest_reply(
+		$resp = open_station_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => self::$comment_id,
@@ -69,7 +69,7 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $resp );
-		$this->assertSame( 'desktop_mode_comments_forbidden', $resp->get_error_code() );
+		$this->assertSame( 'open_station_comments_forbidden', $resp->get_error_code() );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 
 		$after = (int) get_comments(
@@ -85,12 +85,12 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 	/**
 	 * A user who can edit the target post replies successfully.
 	 *
-	 * @covers ::desktop_mode_comments_window_rest_reply
+	 * @covers ::open_station_comments_window_rest_reply
 	 */
 	public function test_reply_allowed_for_user_who_can_edit_post() {
 		wp_set_current_user( self::$admin_id );
 
-		$resp = desktop_mode_comments_window_rest_reply(
+		$resp = open_station_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => self::$comment_id,
@@ -114,12 +114,12 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 	/**
 	 * A missing parent comment still 404s before the capability gate.
 	 *
-	 * @covers ::desktop_mode_comments_window_rest_reply
+	 * @covers ::open_station_comments_window_rest_reply
 	 */
 	public function test_reply_missing_parent_returns_404() {
 		wp_set_current_user( self::$admin_id );
 
-		$resp = desktop_mode_comments_window_rest_reply(
+		$resp = open_station_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => PHP_INT_MAX,
@@ -129,7 +129,7 @@ class Tests_DesktopMode_CommentsWindow_RestReply extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $resp );
-		$this->assertSame( 'desktop_mode_comments_no_parent', $resp->get_error_code() );
+		$this->assertSame( 'open_station_comments_no_parent', $resp->get_error_code() );
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 	}
 }

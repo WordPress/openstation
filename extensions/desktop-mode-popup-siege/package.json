@@ -2,7 +2,7 @@
 	"name": "desktop-mode-popup-siege",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Popup Siege companion game for Desktop Mode.",
+	"description": "Popup Siege companion game for OpenStation.",
 	"scripts": {
 		"build": "node scripts/build-runtime.mjs",
 		"check": "npm run build && node scripts/verify-release.mjs",

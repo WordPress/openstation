@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "New folder" inline dialog.
+ * OpenStation — "New folder" inline dialog.
  *
  * Replaces the placeholder `window.prompt` from the wallpaper
  * context menu's "Create folder" item. Mounts a small modal
@@ -12,13 +12,13 @@
  * Web Component dependency — so it works as a building block
  * before the Phase-6 share dialog UI lands. Plugins that want
  * a richer affordance can replace it via the
- * `desktop-mode.files.create-folder.dialog` filter (returns
+ * `os.files.create-folder.dialog` filter (returns
  * `false` to suppress the built-in dialog and own the flow).
  */
 
 import { applyFilters, doAction } from '../hooks';
 
-const ROOT_CLASS = 'desktop-mode-create-folder-dialog';
+const ROOT_CLASS = 'os-create-folder-dialog';
 
 export interface CreateFolderDialogOptions {
 	/** Initial value of the input. Default `'Untitled folder'`. */
@@ -60,7 +60,7 @@ export function closeCreateFolderDialog(): void {
 	active.dispatchEvent( new CustomEvent( 'create-folder-dialog-closed' ) );
 	active.remove();
 	active = null;
-	doAction( 'desktop-mode.files.create-folder.closed', {} );
+	doAction( 'os.files.create-folder.closed', {} );
 }
 
 /**
@@ -74,7 +74,7 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	// UX by registering a filter that returns `false`. Any other
 	// return value is ignored — the contract is presence-based.
 	const decision = applyFilters< unknown, [ CreateFolderDialogOptions ] >(
-		'desktop-mode.files.create-folder.dialog',
+		'os.files.create-folder.dialog',
 		null,
 		options,
 	);
@@ -148,7 +148,7 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	input.focus();
 	input.select();
 
-	doAction( 'desktop-mode.files.create-folder.opened', {} );
+	doAction( 'os.files.create-folder.opened', {} );
 
 	const setBusy = ( busy: boolean ): void => {
 		input.disabled = busy;

@@ -1,4 +1,4 @@
-# Desktop Mode taste review
+# OpenStation taste review
 
 ## Decision
 

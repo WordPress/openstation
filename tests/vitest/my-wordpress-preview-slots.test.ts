@@ -20,11 +20,11 @@ const WINDOW_ID = 'desktop-mode-my-wordpress';
 const NS = 'test/slots';
 
 interface NativeWindowsGlobal {
-	desktopModeNativeWindows?: Record<
+	openStationNativeWindows?: Record<
 		string,
 		( ( body: HTMLElement ) => void | ( () => void ) ) | undefined
 	>;
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationWindowConfig?: Record< string, unknown >;
 }
 
 const DETAIL: Record< string, unknown > = {
@@ -43,24 +43,24 @@ let detailFixture: Record< string, unknown > = DETAIL;
 
 function installTemplateMarkup( host: HTMLElement ): void {
 	host.innerHTML = `
-		<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-			<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-			<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-				<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+		<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+			<header data-os-my-wordpress-breadcrumbs></header>
+			<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+				<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 			</div>
-			<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+			<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 		</div>
 	`;
 }
 
 function mount(): HTMLElement {
 	const cb = ( window as unknown as NativeWindowsGlobal )
-		.desktopModeNativeWindows?.[ WINDOW_ID ];
+		.openStationNativeWindows?.[ WINDOW_ID ];
 	if ( typeof cb !== 'function' ) {
 		throw new Error( 'render callback not registered' );
 	}
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-window__body';
+	body.className = 'os-window__body';
 	installTemplateMarkup( body );
 	document.body.appendChild( body );
 	cb( body );
@@ -68,10 +68,10 @@ function mount(): HTMLElement {
 }
 
 function dblclickTile( body: HTMLElement, label: string ): void {
-	const tile = [ ...body.querySelectorAll< HTMLElement >( 'wpd-tile' ) ].find(
+	const tile = [ ...body.querySelectorAll< HTMLElement >( 'os-tile' ) ].find(
 		( t ) =>
 			(
-				t.querySelector( '.desktop-mode-file-tile__label' )
+				t.querySelector( '.os-file-tile__label' )
 					?.textContent ?? ''
 			).startsWith( label ),
 	);
@@ -85,7 +85,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	beforeEach( async () => {
 		detailFixture = DETAIL;
 		installHooksStub();
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig = {
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig = {
 			[ WINDOW_ID ]: {
 				restRoot: 'http://example.test/wp-json/',
 				restNonce: 'nonce',
@@ -143,10 +143,10 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	} );
 
 	afterEach( () => {
-		removeAction( 'desktop-mode.my-wordpress.preview-extras', NS );
-		removeAction( 'desktop-mode.my-wordpress.group-extras', NS );
-		removeAction( 'desktop-mode.my-wordpress.list-tile', NS );
-		removeFilter( 'desktop-mode.my-wordpress.list-bands', NS );
+		removeAction( 'os.my-wordpress.preview-extras', NS );
+		removeAction( 'os.my-wordpress.group-extras', NS );
+		removeAction( 'os.my-wordpress.list-tile', NS );
+		removeFilter( 'os.my-wordpress.list-bands', NS );
 		document.body.innerHTML = '';
 		clearHooksStub();
 		vi.unstubAllGlobals();
@@ -156,7 +156,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	test( 'group-extras fires with the group id and its member sections', () => {
 		const seen: Array< Record< string, unknown > > = [];
 		addAction(
-			'desktop-mode.my-wordpress.group-extras',
+			'os.my-wordpress.group-extras',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				seen.push( payload );
@@ -171,7 +171,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 		expect( seen[ 0 ].groupId ).toBe( 'plugin:woocommerce' );
 		expect( seen[ 0 ].entityIds ).toEqual( [ 'cpt-product' ] );
 		expect(
-			body.querySelector( '.desktop-mode-my-wordpress__group-extras' )
+			body.querySelector( '.os-my-wordpress__group-extras' )
 				?.textContent,
 		).toBe( 'store panel' );
 	} );
@@ -179,7 +179,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	test( 'preview-extras fires all three slots for a post-kind preview', async () => {
 		const slots: string[] = [];
 		addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				slots.push( String( payload.slot ) );
@@ -210,7 +210,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	test( 'preview-extras carries the entity and the item being previewed', async () => {
 		let payload: Record< string, unknown > | null = null;
 		addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			NS,
 			( p: Record< string, unknown > ) => {
 				if ( p.slot === 'header' ) {
@@ -260,7 +260,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 
 		const slots: string[] = [];
 		addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				slots.push( String( payload.slot ) );
@@ -280,14 +280,14 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 
 		await vi.waitFor( () => {
 			if (
-				! body.querySelector( '.desktop-mode-my-wordpress__article' )
+				! body.querySelector( '.os-my-wordpress__article' )
 			) {
 				throw new Error( 'article not rendered' );
 			}
 		} );
 
 		expect(
-			body.querySelector( '.desktop-mode-my-wordpress__article-title' )
+			body.querySelector( '.os-my-wordpress__article-title' )
 				?.textContent,
 		).toBe( 'SUMMER20' );
 		// The slots still fire, so a plugin panel is the thing the
@@ -296,14 +296,14 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 		// No empty content div where there is no content.
 		expect(
 			body.querySelector(
-				'.desktop-mode-my-wordpress__article-content',
+				'.os-my-wordpress__article-content',
 			),
 		).toBeNull();
 	} );
 
 	test( 'list-bands splits tiles into labelled bands in order', async () => {
 		addFilter(
-			'desktop-mode.my-wordpress.list-bands',
+			'os.my-wordpress.list-bands',
 			NS,
 			() => ( {
 				bands: [
@@ -327,7 +327,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 
 		const rendered = [
 			...body.querySelectorAll< HTMLElement >(
-				'.desktop-mode-my-wordpress__band',
+				'.os-my-wordpress__band',
 			),
 		];
 		// Only the band that actually received a row is rendered, and
@@ -338,7 +338,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 		).not.toBeNull();
 		expect(
 			rendered[ 0 ].querySelector(
-				'.desktop-mode-my-wordpress__band-count',
+				'.os-my-wordpress__band-count',
 			)?.textContent,
 		).toBe( '1' );
 	} );
@@ -351,7 +351,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 		// rows' occupied cells. The grid came back overlapping and
 		// unscrollable.
 		addFilter(
-			'desktop-mode.my-wordpress.list-bands',
+			'os.my-wordpress.list-bands',
 			NS,
 			() => ( {
 				bands: [ { id: 'all', label: 'All', order: 10, count: 1 } ],
@@ -369,25 +369,25 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 			}
 		} );
 
-		const bandBefore = body.querySelector( '.desktop-mode-my-wordpress__band' );
+		const bandBefore = body.querySelector( '.os-my-wordpress__band' );
 		expect( bandBefore?.isConnected ).toBe( true );
 
 		const input = body.querySelector< HTMLInputElement >(
-			'.desktop-mode-my-wordpress__list-toolbar-search-input',
+			'.os-my-wordpress__list-toolbar-search-input',
 		);
 		expect( input, 'search input present' ).not.toBeNull();
 		input!.value = 'shoe';
 		input!.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 
 		await vi.waitFor( () => {
-			const band = body.querySelector( '.desktop-mode-my-wordpress__band' );
+			const band = body.querySelector( '.os-my-wordpress__band' );
 			if ( ! band || band === bandBefore ) {
 				throw new Error( 'bands not rebuilt yet' );
 			}
 		} );
 
 		const bands = [
-			...body.querySelectorAll( '.desktop-mode-my-wordpress__band' ),
+			...body.querySelectorAll( '.os-my-wordpress__band' ),
 		];
 		// Exactly one band, freshly built, and the result tile lives
 		// inside it rather than loose on the root canvas.
@@ -401,13 +401,13 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 
 	test( 'list-tile fires with the tile already in the DOM', async () => {
 		// Regression: the action used to fire while the tile was still
-		// detached. `<wpd-tile>` paints on connect and its paint drops
-		// every `<wpd-ribbon>` child it finds, so a ribbon added
+		// detached. `<os-tile>` paints on connect and its paint drops
+		// every `<os-ribbon>` child it finds, so a ribbon added
 		// beforehand was deleted the moment the tile was appended —
 		// the decoration simply never appeared.
 		let connected: boolean | null = null;
 		addAction(
-			'desktop-mode.my-wordpress.list-tile',
+			'os.my-wordpress.list-tile',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				connected = ( payload.tile as HTMLElement ).isConnected;
@@ -430,7 +430,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 	test( 'list-tile fires per tile and can decorate it', async () => {
 		const seen: number[] = [];
 		addAction(
-			'desktop-mode.my-wordpress.list-tile',
+			'os.my-wordpress.list-tile',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				seen.push( Number( ( payload.item as { id: number } ).id ) );
@@ -459,7 +459,7 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 
 	test( 'a subscriber can paint into the header slot', async () => {
 		addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			NS,
 			( payload: Record< string, unknown > ) => {
 				if ( payload.slot !== 'header' ) {
@@ -492,12 +492,12 @@ describe( 'my-wordpress — preview + group extension slots', () => {
 		const panel = body.querySelector( '.test-woo-panel' );
 		expect( panel?.textContent ).toBe( 'SKU SHOE-42' );
 		// Header slot sits above the rendered content, not after it.
-		const article = body.querySelector( '.desktop-mode-my-wordpress__article' );
+		const article = body.querySelector( '.os-my-wordpress__article' );
 		const slotEl = article?.querySelector(
-			'.desktop-mode-my-wordpress__article-slot--header',
+			'.os-my-wordpress__article-slot--header',
 		);
 		const content = article?.querySelector(
-			'.desktop-mode-my-wordpress__article-content',
+			'.os-my-wordpress__article-content',
 		);
 		expect(
 			slotEl &&

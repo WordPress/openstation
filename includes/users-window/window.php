@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Users Window: registration, template, REST fields.
+ * OpenStation — Native Users Window: registration, template, REST fields.
  *
  * Mirrors the structure of the Posts/Pages windows
  * (`includes/posts-window/`, `includes/pages-window/`) adapted for
@@ -8,7 +8,7 @@
  * a Role/Email column set instead of taxonomies, and a much heavier
  * permission story (see `permissions.php` + `rest.php`).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,57 +17,57 @@ defined( 'ABSPATH' ) || exit;
  * Echoes the native Users window's template body.
  *
  * Same toolbar/table/pager structure as the Posts and Pages
- * windows. Reuses the `data-desktop-mode-posts-*` selectors so the
+ * windows. Reuses the `data-os-posts-*` selectors so the
  * shared JS bundle binds to the same hooks regardless of window
  * mode (the namespace is an internal contract — both windows use
  * the same template machinery).
  */
-function desktop_mode_users_window_render_template() {
+function open_station_users_window_render_template() {
 	$can_create = current_user_can( 'create_users' );
 	ob_start();
 	?>
-	<div class="desktop-mode-posts desktop-mode-users" data-desktop-mode-posts-root>
-		<wpd-tabs value="all" class="desktop-mode-users__tabs" data-desktop-mode-users-tabs>
-			<wpd-tab value="all"><?php esc_html_e( 'All users', 'desktop-mode' ); ?></wpd-tab>
+	<div class="desktop-mode-posts desktop-mode-users" data-os-posts-root>
+		<os-tabs value="all" class="os-users__tabs" data-os-users-tabs>
+			<os-tab value="all"><?php esc_html_e( 'All users', 'desktop-mode' ); ?></os-tab>
 			<?php if ( $can_create ) : ?>
-				<wpd-tab value="add-new"><?php esc_html_e( 'Add new', 'desktop-mode' ); ?></wpd-tab>
+				<os-tab value="add-new"><?php esc_html_e( 'Add new', 'desktop-mode' ); ?></os-tab>
 			<?php endif; ?>
 			<?php /* Profile tab — always visible, always shows the
 			       CURRENT logged-in user. Other-user row clicks
 			       open a separate `desktop-mode-user-edit`
 			       window. */ ?>
-			<wpd-tab value="edit" data-desktop-mode-users-edit-tab>
+			<os-tab value="edit" data-os-users-edit-tab>
 				<?php esc_html_e( 'Profile', 'desktop-mode' ); ?>
-			</wpd-tab>
-		</wpd-tabs>
+			</os-tab>
+		</os-tabs>
 
-		<wpd-tabpanel for="all" class="desktop-mode-posts__panel">
-			<header class="desktop-mode-posts__toolbar" data-desktop-mode-posts-toolbar>
-				<div class="desktop-mode-posts__toolbar-left">
-					<wpd-segmented data-desktop-mode-posts-status value=""></wpd-segmented>
-					<wpd-text-field
-						data-desktop-mode-posts-search
+		<os-tabpanel for="all" class="os-posts__panel">
+			<header class="os-posts__toolbar" data-os-posts-toolbar>
+				<div class="os-posts__toolbar-left">
+					<os-segmented data-os-posts-status value=""></os-segmented>
+					<os-text-field
+						data-os-posts-search
 						placeholder="<?php esc_attr_e( 'Search name, username, email…', 'desktop-mode' ); ?>"
-					></wpd-text-field>
+					></os-text-field>
 				</div>
-				<div class="desktop-mode-posts__toolbar-right" data-desktop-mode-posts-bulk hidden>
-					<span class="desktop-mode-posts__count" data-desktop-mode-posts-count></span>
-					<span class="desktop-mode-posts__bulk-actions" data-desktop-mode-posts-bulk-actions></span>
+				<div class="os-posts__toolbar-right" data-os-posts-bulk hidden>
+					<span class="os-posts__count" data-os-posts-count></span>
+					<span class="os-posts__bulk-actions" data-os-posts-bulk-actions></span>
 				</div>
-				<div class="desktop-mode-posts__toolbar-trailing">
-					<span class="desktop-mode-posts__toolbar-extras" data-desktop-mode-posts-toolbar-extras></span>
-					<wpd-button variant="ghost" data-desktop-mode-posts-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
+				<div class="os-posts__toolbar-trailing">
+					<span class="os-posts__toolbar-extras" data-os-posts-toolbar-extras></span>
+					<os-button variant="ghost" data-os-posts-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
 						<span class="dashicons dashicons-update" aria-hidden="true"></span>
-					</wpd-button>
-					<wpd-button variant="primary" data-desktop-mode-posts-new>
+					</os-button>
+					<os-button variant="primary" data-os-posts-new>
 						<span class="dashicons dashicons-plus" aria-hidden="true"></span>
 						<?php esc_html_e( 'Add new', 'desktop-mode' ); ?>
-					</wpd-button>
+					</os-button>
 				</div>
 			</header>
-			<div class="desktop-mode-posts__body" data-desktop-mode-posts-body>
-				<wpd-table
-					data-desktop-mode-posts-table
+			<div class="os-posts__body" data-os-posts-body>
+				<os-table
+					data-os-posts-table
 					selectable="multi"
 					sticky-header
 					sticky-columns="1"
@@ -76,31 +76,31 @@ function desktop_mode_users_window_render_template() {
 					bordered
 					loading
 				>
-					<div slot="empty" class="desktop-mode-posts__empty">
+					<div slot="empty" class="os-posts__empty">
 						<span class="dashicons dashicons-admin-users" aria-hidden="true"></span>
 						<p><?php esc_html_e( 'No users found.', 'desktop-mode' ); ?></p>
-						<p class="desktop-mode-posts__empty-hint">
+						<p class="os-posts__empty-hint">
 							<?php esc_html_e( 'Try a different search or change the role filter.', 'desktop-mode' ); ?>
 						</p>
 					</div>
-				</wpd-table>
+				</os-table>
 			</div>
-			<footer class="desktop-mode-posts__pager" data-desktop-mode-posts-pager>
-				<div class="desktop-mode-posts__pager-meta">
-					<span data-desktop-mode-posts-page-indicator>—</span>
+			<footer class="os-posts__pager" data-os-posts-pager>
+				<div class="os-posts__pager-meta">
+					<span data-os-posts-page-indicator>—</span>
 				</div>
-				<div class="desktop-mode-posts__pager-nav">
-					<wpd-button variant="ghost" data-desktop-mode-posts-prev disabled>
+				<div class="os-posts__pager-nav">
+					<os-button variant="ghost" data-os-posts-prev disabled>
 						<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>
 						<?php esc_html_e( 'Previous', 'desktop-mode' ); ?>
-					</wpd-button>
-					<wpd-button variant="ghost" data-desktop-mode-posts-next disabled>
+					</os-button>
+					<os-button variant="ghost" data-os-posts-next disabled>
 						<?php esc_html_e( 'Next', 'desktop-mode' ); ?>
 						<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
-					</wpd-button>
-					<label class="desktop-mode-posts__pager-perpage">
+					</os-button>
+					<label class="os-posts__pager-perpage">
 						<?php esc_html_e( 'Per page', 'desktop-mode' ); ?>
-						<select data-desktop-mode-posts-per-page>
+						<select data-os-posts-per-page>
 							<option value="10">10</option>
 							<option value="20" selected>20</option>
 							<option value="50">50</option>
@@ -109,70 +109,70 @@ function desktop_mode_users_window_render_template() {
 					</label>
 				</div>
 			</footer>
-		</wpd-tabpanel>
+		</os-tabpanel>
 
 		<?php if ( $can_create ) : ?>
-		<wpd-tabpanel for="add-new" class="desktop-mode-users__add-panel">
-			<wpd-form
-				data-desktop-mode-users-add-form
+		<os-tabpanel for="add-new" class="os-users__add-panel">
+			<os-form
+				data-os-users-add-form
 				submit-label="<?php esc_attr_e( 'Add user', 'desktop-mode' ); ?>"
 				reset-label="<?php esc_attr_e( 'Reset', 'desktop-mode' ); ?>"
 			>
 				<div slot="header">
 					<h2><?php esc_html_e( 'Add a new user', 'desktop-mode' ); ?></h2>
-					<p class="desktop-mode-users__form-lede">
+					<p class="os-users__form-lede">
 						<?php esc_html_e( 'WordPress will create the account and (optionally) email the user a notification with a link to set their own password.', 'desktop-mode' ); ?>
 					</p>
 				</div>
 
-				<wpd-text-field
+				<os-text-field
 					name="username"
 					label="<?php esc_attr_e( 'Username (required)', 'desktop-mode' ); ?>"
 					placeholder="<?php esc_attr_e( 'e.g. jane.doe', 'desktop-mode' ); ?>"
 					autocomplete="off"
 					required
-				></wpd-text-field>
-				<wpd-text-field
+				></os-text-field>
+				<os-text-field
 					name="email"
 					type="email"
 					label="<?php esc_attr_e( 'Email (required)', 'desktop-mode' ); ?>"
 					placeholder="<?php esc_attr_e( 'jane@example.com', 'desktop-mode' ); ?>"
 					autocomplete="off"
 					required
-				></wpd-text-field>
-				<wpd-text-field
+				></os-text-field>
+				<os-text-field
 					name="first_name"
 					label="<?php esc_attr_e( 'First name', 'desktop-mode' ); ?>"
 					autocomplete="off"
-				></wpd-text-field>
-				<wpd-text-field
+				></os-text-field>
+				<os-text-field
 					name="last_name"
 					label="<?php esc_attr_e( 'Last name', 'desktop-mode' ); ?>"
 					autocomplete="off"
-				></wpd-text-field>
-				<wpd-text-field
+				></os-text-field>
+				<os-text-field
 					name="url"
 					type="url"
 					label="<?php esc_attr_e( 'Website', 'desktop-mode' ); ?>"
 					placeholder="https://example.com"
 					autocomplete="off"
 					full-width
-				></wpd-text-field>
+				></os-text-field>
 				<?php /* The `role` and `locale` selects are declared here
 				       so the components upgrade with the rest of the
 				       form; the option list (which depends on the
 				       viewer's `editable_roles` map and the install's
 				       available languages) is appended JS-side in
 				       `mountAddUserForm`. */ ?>
-				<wpd-select
+				<os-select
 					name="role"
 					label="<?php esc_attr_e( 'Role', 'desktop-mode' ); ?>"
-				></wpd-select>
-				<wpd-select
+				></os-select>
+				<os-select
 					name="locale"
 					label="<?php esc_attr_e( 'Language', 'desktop-mode' ); ?>"
-				></wpd-select>
-				<wpd-text-field
+				></os-select>
+				<os-text-field
 					name="password"
 					type="password"
 					reveal
@@ -180,31 +180,31 @@ function desktop_mode_users_window_render_template() {
 					placeholder="<?php esc_attr_e( 'Auto-generated; click Generate to set one.', 'desktop-mode' ); ?>"
 					autocomplete="new-password"
 					full-width
-				></wpd-text-field>
-				<div class="desktop-mode-users__form-pwd-actions" full-width>
-					<wpd-button
+				></os-text-field>
+				<div class="os-users__form-pwd-actions" full-width>
+					<os-button
 						variant="ghost"
 						type="button"
 						data-action="generate-password"
 					>
 						<span class="dashicons dashicons-randomize" aria-hidden="true"></span>
 						<?php esc_html_e( 'Generate strong password', 'desktop-mode' ); ?>
-					</wpd-button>
-					<p class="desktop-mode-users__form-hint">
+					</os-button>
+					<p class="os-users__form-hint">
 						<?php esc_html_e( 'Leave blank to let WordPress generate one and email it to the user.', 'desktop-mode' ); ?>
 					</p>
 				</div>
-				<wpd-checkbox-label
+				<os-checkbox-label
 					name="send_notification"
 					label="<?php esc_attr_e( 'Send the new user an email about their account', 'desktop-mode' ); ?>"
 					checked
 					full-width
-				></wpd-checkbox-label>
-			</wpd-form>
-		</wpd-tabpanel>
+				></os-checkbox-label>
+			</os-form>
+		</os-tabpanel>
 		<?php endif; ?>
 
-		<wpd-tabpanel for="edit" class="desktop-mode-users__edit-panel">
+		<os-tabpanel for="edit" class="os-users__edit-panel">
 			<?php
 			/* The Profile tab is hard-wired to the viewer's own user
 			 * id — the JS render shell sets the `user-id` attribute
@@ -213,8 +213,8 @@ function desktop_mode_users_window_render_template() {
 			 * activity). Other-user editing happens in the dedicated
 			 * `desktop-mode-user-edit` window via row-click. */
 			?>
-			<wpd-user-profile data-wpd-user-profile-self></wpd-user-profile>
-		</wpd-tabpanel>
+			<os-user-profile data-os-user-profile-self></os-user-profile>
+		</os-tabpanel>
 	</div>
 	<?php
 	$html = (string) ob_get_clean();
@@ -224,10 +224,10 @@ function desktop_mode_users_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_users_window_template_html', $html );
+	$filtered = (string) apply_filters( 'open_station_users_window_template_html', $html );
 
-	if ( function_exists( 'desktop_mode_kses_native_window_template' ) ) {
-		echo desktop_mode_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
+		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		// Backwards-compatible fallback for the rare case the helper
 		// isn't loaded yet (e.g. a plugin echoing the template
@@ -239,8 +239,8 @@ function desktop_mode_users_window_render_template() {
 /**
  * Register the native Users window on `init` (priority 20).
  */
-function desktop_mode_users_window_register_window() {
-	if ( ! desktop_mode_users_window_user_can_register() ) {
+function open_station_users_window_register_window() {
+	if ( ! open_station_users_window_user_can_register() ) {
 		return;
 	}
 
@@ -249,12 +249,12 @@ function desktop_mode_users_window_register_window() {
 	$window_args = array(
 		'title'      => __( 'Users', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-users',
-		'template'   => 'desktop_mode_users_window_render_template',
+		'template'   => 'open_station_users_window_render_template',
 		// Reuse the Posts bundle — same script + style handles. The
 		// shared module branches on `cfg.mode` to render the Users
 		// view.
-		'script'     => 'desktop-mode-posts-window',
-		'style'      => 'desktop-mode-posts-window',
+		'script'     => 'os-posts-window',
+		'style'      => 'os-posts-window',
 		'width'      => 1100,
 		'height'     => 720,
 		'min_width'  => 720,
@@ -271,8 +271,8 @@ function desktop_mode_users_window_register_window() {
 			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
 			'currentUserId'    => $viewer_id,
 			'defaultPerPage'   => 20,
-			'queryArgs'        => desktop_mode_users_window_default_query_args(),
-			'introSeen'        => desktop_mode_has_seen_intro( $viewer_id, 'users' ),
+			'queryArgs'        => open_station_users_window_default_query_args(),
+			'introSeen'        => open_station_has_seen_intro( $viewer_id, 'users' ),
 			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
@@ -289,16 +289,16 @@ function desktop_mode_users_window_register_window() {
 
 			// Role list — `{ slug: name }` for every role the viewer
 			// can assign. Empty when the viewer lacks `promote_users`.
-			'assignableRoles'  => desktop_mode_users_window_role_label_map( $viewer_id ),
+			'assignableRoles'  => open_station_users_window_role_label_map( $viewer_id ),
 			// Full role catalog for the role-FILTER dropdown (which
 			// shows EVERY role on the site, even those the viewer
 			// can't assign — they can still filter by them).
-			'allRoles'         => desktop_mode_users_window_all_roles_map(),
+			'allRoles'         => open_station_users_window_all_roles_map(),
 
 			// Available site locales for the Add User form's
 			// language dropdown. `'site-default'` = empty string
 			// (the user inherits the site's locale).
-			'locales'          => desktop_mode_users_window_locales_map(),
+			'locales'          => open_station_users_window_locales_map(),
 			'siteLocale'       => (string) get_locale(),
 			'defaultRole'      => (string) get_option( 'default_role', 'subscriber' ),
 			'createUserUrl'    => esc_url_raw(
@@ -324,8 +324,8 @@ function desktop_mode_users_window_register_window() {
 				array(),
 				null
 			),
-			'colorSchemes'     => function_exists( 'desktop_mode_user_edit_window_color_schemes' )
-				? desktop_mode_user_edit_window_color_schemes()
+			'colorSchemes'     => function_exists( 'open_station_user_edit_window_color_schemes' )
+				? open_station_user_edit_window_color_schemes()
 				: array(),
 			'sendResetUrlBase' => esc_url_raw(
 				rest_url( 'desktop-mode/v1/users/' )
@@ -336,24 +336,24 @@ function desktop_mode_users_window_register_window() {
 	/**
 	 * Filter the args used to register the native Users window.
 	 *
-	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
+	 * @param array $window_args Args passed to `open_station_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'desktop_mode_users_window_args', $window_args );
+	$window_args = (array) apply_filters( 'open_station_users_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-users', $window_args );
+	$registered = open_station_register_window( 'desktop-mode-users', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] Native Users window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] Native Users window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'desktop_mode_users_window_register_window', 20 );
+add_action( 'init', 'open_station_users_window_register_window', 20 );
 
 /**
  * Default REST query args for the Users window.
  *
  * @return array
  */
-function desktop_mode_users_window_default_query_args() {
+function open_station_users_window_default_query_args() {
 	$args = array(
 		// `_fields` whitelists the columns we render plus the four
 		// REST fields registered below. Skipping the whitelist would
@@ -361,8 +361,8 @@ function desktop_mode_users_window_default_query_args() {
 		// emits — heavy on every page change.
 		'_fields'  =>
 			'id,name,slug,email,url,description,roles,registered_date,avatar_urls,'
-			. 'desktop_mode_user_stats,desktop_mode_last_login,desktop_mode_presence,'
-			. 'desktop_mode_can_edit,desktop_mode_assignable_roles',
+			. 'open_station_user_stats,open_station_last_login,open_station_presence,'
+			. 'open_station_can_edit,open_station_assignable_roles',
 		// `who=authors` would hide subscribers — we want the full
 		// list. `context=edit` is required because `email`, `roles`,
 		// and `registered_date` are edit-context-only on
@@ -380,18 +380,18 @@ function desktop_mode_users_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'desktop_mode_users_window_query_args', $args );
+	return (array) apply_filters( 'open_station_users_window_query_args', $args );
 }
 
 /**
  * Build the `{ slug: label }` map for every role on the install.
  *
  * Used by the Users window's role FILTER (vs. role-CHANGE menu —
- * see {@see desktop_mode_users_window_role_label_map()} for that).
+ * see {@see open_station_users_window_role_label_map()} for that).
  *
  * @return array<string,string>
  */
-function desktop_mode_users_window_all_roles_map() {
+function open_station_users_window_all_roles_map() {
 	$roles = wp_roles();
 	$map   = array();
 	foreach ( (array) $roles->roles as $slug => $info ) {
@@ -409,12 +409,12 @@ function desktop_mode_users_window_all_roles_map() {
  * @param int $viewer_id Viewer's user id.
  * @return array<string,string>
  */
-function desktop_mode_users_window_role_label_map( $viewer_id ) {
-	$slugs = desktop_mode_users_window_assignable_roles( (int) $viewer_id );
+function open_station_users_window_role_label_map( $viewer_id ) {
+	$slugs = open_station_users_window_assignable_roles( (int) $viewer_id );
 	if ( empty( $slugs ) ) {
 		return array();
 	}
-	$all = desktop_mode_users_window_all_roles_map();
+	$all = open_station_users_window_all_roles_map();
 	$out = array();
 	foreach ( $slugs as $slug ) {
 		if ( isset( $all[ $slug ] ) ) {
@@ -429,25 +429,25 @@ function desktop_mode_users_window_role_label_map( $viewer_id ) {
  *
  * Fields:
  *
- *   - desktop_mode_user_stats         — `{ posts: int, pages: int, comments: int }`
- *   - desktop_mode_last_login         — UTC unix timestamp, or null when never
- *   - desktop_mode_presence           — 'online' | 'inactive' | 'offline'
- *   - desktop_mode_can_edit           — viewer can edit / promote this row
- *   - desktop_mode_assignable_roles   — role slugs the viewer can assign to this row
+ *   - open_station_user_stats         — `{ posts: int, pages: int, comments: int }`
+ *   - open_station_last_login         — UTC unix timestamp, or null when never
+ *   - open_station_presence           — 'online' | 'inactive' | 'offline'
+ *   - open_station_can_edit           — viewer can edit / promote this row
+ *   - open_station_assignable_roles   — role slugs the viewer can assign to this row
  *
  * Each field returns sensible empty defaults when the viewer lacks
  * the cap to see the value, so the JS never has to defend against
  * "field present but null". The fields register on every REST request
  * (the `user` resource is partially public — published authors are
- * visible to anyone), so `desktop_mode_last_login` and
- * `desktop_mode_presence` gate on `list_users` (or self) inside their
- * callbacks; `desktop_mode_user_stats` stays open because it only
+ * visible to anyone), so `open_station_last_login` and
+ * `open_station_presence` gate on `list_users` (or self) inside their
+ * callbacks; `open_station_user_stats` stays open because it only
  * counts published content.
  */
-function desktop_mode_users_window_register_rest_fields() {
+function open_station_users_window_register_rest_fields() {
 	register_rest_field(
 		'user',
-		'desktop_mode_user_stats',
+		'open_station_user_stats',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -486,7 +486,7 @@ function desktop_mode_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'desktop_mode_last_login',
+		'open_station_last_login',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -499,7 +499,7 @@ function desktop_mode_users_window_register_rest_fields() {
 				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return null;
 				}
-				$ts = (int) get_user_meta( $id, DESKTOP_MODE_LAST_LOGIN_META_KEY, true );
+				$ts = (int) get_user_meta( $id, OPEN_STATION_LAST_LOGIN_META_KEY, true );
 				return $ts > 0 ? $ts : null;
 			},
 			'schema'       => array(
@@ -513,11 +513,11 @@ function desktop_mode_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'desktop_mode_presence',
+		'open_station_presence',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
-				if ( $id <= 0 || ! function_exists( 'desktop_mode_presence_status_for_user' ) ) {
+				if ( $id <= 0 || ! function_exists( 'open_station_presence_status_for_user' ) ) {
 					return 'offline';
 				}
 				// Live presence is sensitive. Only viewers who can see
@@ -526,7 +526,7 @@ function desktop_mode_users_window_register_rest_fields() {
 				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return 'offline';
 				}
-				return (string) desktop_mode_presence_status_for_user( $id );
+				return (string) open_station_presence_status_for_user( $id );
 			},
 			'schema'       => array(
 				'description' => __( 'Live presence status: online / inactive / offline.', 'desktop-mode' ),
@@ -540,7 +540,7 @@ function desktop_mode_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'desktop_mode_can_edit',
+		'open_station_can_edit',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id     = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -561,7 +561,7 @@ function desktop_mode_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'desktop_mode_assignable_roles',
+		'open_station_assignable_roles',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id     = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -569,7 +569,7 @@ function desktop_mode_users_window_register_rest_fields() {
 				if ( $id <= 0 || $viewer <= 0 ) {
 					return array();
 				}
-				return array_values( desktop_mode_users_window_assignable_roles( $viewer, $id ) );
+				return array_values( open_station_users_window_assignable_roles( $viewer, $id ) );
 			},
 			'schema'       => array(
 				'description' => __( 'Role slugs the requester can assign to this user.', 'desktop-mode' ),
@@ -581,7 +581,7 @@ function desktop_mode_users_window_register_rest_fields() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_users_window_register_rest_fields' );
+add_action( 'rest_api_init', 'open_station_users_window_register_rest_fields' );
 
 /**
  * Build the `[ slug => label ]` map for the Add User locale picker.
@@ -592,7 +592,7 @@ add_action( 'rest_api_init', 'desktop_mode_users_window_register_rest_fields' );
  *
  * @return array<string,string>
  */
-function desktop_mode_users_window_locales_map() {
+function open_station_users_window_locales_map() {
 	$out = array(
 		'' => sprintf(
 			// translators: %s is the site's current locale (e.g. "en_US").

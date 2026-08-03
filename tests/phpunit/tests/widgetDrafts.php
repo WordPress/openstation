@@ -8,9 +8,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
+class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 
 	/**
 	 * User who can edit posts.
@@ -64,16 +64,16 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_drafts_widget
+	 * @covers ::open_station_register_drafts_widget
 	 */
 	public function test_registers_for_a_user_who_can_edit_posts() {
 		wp_set_current_user( self::$editor_id );
 
-		$this->assertTrue( desktop_mode_register_drafts_widget() );
+		$this->assertTrue( open_station_register_drafts_widget() );
 
-		$entry = desktop_mode_desktop_widget_registry( 'desktop-mode/drafts' );
+		$entry = open_station_desktop_widget_registry( 'desktop-mode/drafts' );
 		$this->assertIsArray( $entry );
-		$this->assertSame( 'desktop-mode-drafts-widget', $entry['script'] );
+		$this->assertSame( 'os-drafts-widget', $entry['script'] );
 		$this->assertTrue( $entry['movable'] );
 		$this->assertTrue( $entry['resizable'] );
 	}
@@ -82,27 +82,27 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * A subscriber's `/wp/v2/posts?status=draft&context=edit` request is
 	 * rejected by core, so the widget must not be offered at all.
 	 *
-	 * @covers ::desktop_mode_register_drafts_widget
+	 * @covers ::open_station_register_drafts_widget
 	 */
 	public function test_is_denied_for_a_user_who_cannot_edit_posts() {
 		wp_set_current_user( self::$subscriber_id );
 
-		$result = desktop_mode_register_drafts_widget();
+		$result = open_station_register_drafts_widget();
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_capability_denied', $result->get_error_code() );
+		$this->assertSame( 'open_station_capability_denied', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_drafts_widget_assets
+	 * @covers ::open_station_register_drafts_widget_assets
 	 */
 	public function test_registers_its_script_and_style() {
-		desktop_mode_register_drafts_widget_assets();
+		open_station_register_drafts_widget_assets();
 
-		$this->assertTrue( wp_script_is( 'desktop-mode-drafts-widget', 'registered' ) );
-		$this->assertTrue( wp_style_is( 'desktop-mode-drafts-widget', 'registered' ) );
+		$this->assertTrue( wp_script_is( 'os-drafts-widget', 'registered' ) );
+		$this->assertTrue( wp_style_is( 'os-drafts-widget', 'registered' ) );
 
-		$script = wp_scripts()->registered['desktop-mode-drafts-widget'];
+		$script = wp_scripts()->registered['os-drafts-widget'];
 		$this->assertContains( 'wp-api-fetch', $script->deps );
 		$this->assertTrue( (bool) $script->extra['group'], 'script loads in the footer' );
 	}
@@ -110,7 +110,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	/**
 	 * draft-apply writes the chosen title + excerpt onto the post.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_writes_title_and_excerpt() {
 		wp_set_current_user( self::$editor_id );
@@ -139,7 +139,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	/**
 	 * draft-apply appends tags without clobbering existing ones.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_appends_tags() {
 		wp_set_current_user( self::$editor_id );
@@ -158,7 +158,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	/**
 	 * An editor (manage_categories) can create a new category via apply.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_creates_category_for_privileged_user() {
 		wp_set_current_user( self::$editor_id );
@@ -176,7 +176,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * An author (no manage_categories) can assign an EXISTING category but
 	 * cannot create a new one — the unknown category is skipped.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_does_not_create_category_for_unprivileged_user() {
 		$existing = self::factory()->term->create(
@@ -203,7 +203,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	/**
 	 * A subscriber cannot edit posts, so draft-apply is forbidden.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply_permission
+	 * @covers ::open_station_rest_draft_apply_permission
 	 */
 	public function test_apply_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
@@ -226,7 +226,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * The suggestion text round-trips through the browser, so the write
 	 * path sanitizes rather than trusting what comes back.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_sanitizes_the_title() {
 		wp_set_current_user( self::$editor_id );
@@ -247,7 +247,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	/**
 	 * An empty title is ignored rather than blanking the post.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_ignores_an_empty_title() {
 		wp_set_current_user( self::$editor_id );
@@ -265,9 +265,9 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	}
 
 	/**
-	 * `desktop_mode_drafts_suggestion_applied` reports what actually changed.
+	 * `open_station_drafts_suggestion_applied` reports what actually changed.
 	 *
-	 * @covers ::desktop_mode_rest_draft_apply
+	 * @covers ::open_station_rest_draft_apply
 	 */
 	public function test_apply_fires_the_applied_action() {
 		wp_set_current_user( self::$editor_id );
@@ -277,7 +277,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 
 		$seen = array();
 		add_action(
-			'desktop_mode_drafts_suggestion_applied',
+			'open_station_drafts_suggestion_applied',
 			function ( $id, $applied ) use ( &$seen ) {
 				$seen[] = array( $id, $applied );
 			},
@@ -297,7 +297,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * the post, so the response can't be used to probe whether the site has
 	 * an AI provider configured.
 	 *
-	 * @covers ::desktop_mode_rest_draft_suggestions_permission
+	 * @covers ::open_station_rest_draft_suggestions_permission
 	 */
 	public function test_suggestions_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
@@ -315,10 +315,10 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * With no AI provider configured, a user who CAN edit the post gets a
 	 * clean 503 rather than a fatal or a half-built response.
 	 *
-	 * @covers ::desktop_mode_rest_draft_suggestions_permission
+	 * @covers ::open_station_rest_draft_suggestions_permission
 	 */
 	public function test_suggestions_unavailable_without_a_provider() {
-		if ( desktop_mode_ai_provider_configured() ) {
+		if ( open_station_ai_provider_configured() ) {
 			$this->markTestSkipped( 'This environment has an AI provider configured.' );
 		}
 
@@ -330,7 +330,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 		$response = $this->suggestions_request( $post_id );
 
 		$this->assertSame( 503, $response->get_status() );
-		$this->assertSame( 'desktop_mode_ai_unavailable', $response->as_error()->get_error_code() );
+		$this->assertSame( 'open_station_ai_unavailable', $response->as_error()->get_error_code() );
 	}
 
 	/**
@@ -338,7 +338,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * categories — the last is what keeps the model classifying into the
 	 * site's taxonomy instead of inventing one.
 	 *
-	 * @covers ::desktop_mode_drafts_ai_prompt_text
+	 * @covers ::open_station_drafts_ai_prompt_text
 	 */
 	public function test_prompt_text_includes_title_content_and_existing_categories() {
 		self::factory()->term->create(
@@ -354,7 +354,7 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 			)
 		);
 
-		$text = desktop_mode_drafts_ai_prompt_text( $post );
+		$text = open_station_drafts_ai_prompt_text( $post );
 
 		$this->assertStringContainsString( 'Half a thought', $text );
 		$this->assertStringContainsString( 'Some marked-up body copy.', $text );
@@ -363,10 +363,10 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	}
 
 	/**
-	 * `desktop_mode_drafts_ai_content_limit` caps how much of the draft is
+	 * `open_station_drafts_ai_content_limit` caps how much of the draft is
 	 * sent to the model, without splitting a multibyte character.
 	 *
-	 * @covers ::desktop_mode_drafts_ai_prompt_text
+	 * @covers ::open_station_drafts_ai_prompt_text
 	 */
 	public function test_content_limit_filter_truncates_the_prompt() {
 		$post = get_post(
@@ -378,9 +378,9 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 			)
 		);
 
-		add_filter( 'desktop_mode_drafts_ai_content_limit', array( $this, 'return_ten' ) );
-		$text = desktop_mode_drafts_ai_prompt_text( $post );
-		remove_filter( 'desktop_mode_drafts_ai_content_limit', array( $this, 'return_ten' ) );
+		add_filter( 'open_station_drafts_ai_content_limit', array( $this, 'return_ten' ) );
+		$text = open_station_drafts_ai_prompt_text( $post );
+		remove_filter( 'open_station_drafts_ai_content_limit', array( $this, 'return_ten' ) );
 
 		$this->assertStringContainsString( str_repeat( 'é', 10 ) . '…', $text );
 		$this->assertStringNotContainsString( str_repeat( 'é', 11 ), $text );
@@ -395,21 +395,21 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * The instruction + schema are filterable, so a plugin can retune the
 	 * assistant without forking the route.
 	 *
-	 * @covers ::desktop_mode_drafts_ai_instructions
-	 * @covers ::desktop_mode_drafts_ai_schema
+	 * @covers ::open_station_drafts_ai_instructions
+	 * @covers ::open_station_drafts_ai_schema
 	 */
 	public function test_instructions_and_schema_are_filterable() {
 		$post = get_post(
 			self::factory()->post->create( array( 'post_status' => 'draft' ) )
 		);
 
-		add_filter( 'desktop_mode_drafts_ai_instructions', '__return_empty_string' );
-		$this->assertSame( '', desktop_mode_drafts_ai_instructions( $post ) );
-		remove_filter( 'desktop_mode_drafts_ai_instructions', '__return_empty_string' );
+		add_filter( 'open_station_drafts_ai_instructions', '__return_empty_string' );
+		$this->assertSame( '', open_station_drafts_ai_instructions( $post ) );
+		remove_filter( 'open_station_drafts_ai_instructions', '__return_empty_string' );
 
-		add_filter( 'desktop_mode_drafts_ai_schema', array( $this, 'return_marker_schema' ) );
-		$schema = desktop_mode_drafts_ai_schema( $post );
-		remove_filter( 'desktop_mode_drafts_ai_schema', array( $this, 'return_marker_schema' ) );
+		add_filter( 'open_station_drafts_ai_schema', array( $this, 'return_marker_schema' ) );
+		$schema = open_station_drafts_ai_schema( $post );
+		remove_filter( 'open_station_drafts_ai_schema', array( $this, 'return_marker_schema' ) );
 
 		$this->assertSame( array( 'type' => 'marker' ), $schema );
 	}
@@ -423,10 +423,10 @@ class Tests_DesktopMode_WidgetDrafts extends WP_UnitTestCase {
 	 * The list normalizer strips markup, drops blanks and non-scalars, and
 	 * caps the list — the model's output is never trusted verbatim.
 	 *
-	 * @covers ::desktop_mode_drafts_clean_list
+	 * @covers ::open_station_drafts_clean_list
 	 */
 	public function test_clean_list_normalizes_model_output() {
-		$out = desktop_mode_drafts_clean_list(
+		$out = open_station_drafts_clean_list(
 			array( '  spaced  ', '<b>bold</b>', '', array( 'nested' ), 'third', 'fourth' ),
 			3
 		);

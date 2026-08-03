@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Toast.
+ * OpenStation — Toast.
  *
  * Transient top-of-shell notification for shell-level events that
  * don't warrant a full dialog but should register with the user.
@@ -8,8 +8,8 @@
  * the URL in a real browser tab. Expected to pick up more callers
  * over time (save failures, shortcut reminders, etc.).
  *
- * Rendering lives in the `<wpd-toast-container>` + `<wpd-toast>`
- * web components under `src/ui/components/wpd-toast/`. As of
+ * Rendering lives in the `<os-toast-container>` + `<os-toast>`
+ * web components under `src/ui/components/os-toast/`. As of
  * 0.8.4 those classes ship in the lazy `shell-overlays[.min].js`
  * bundle, not in main — `desktop.ts` pre-loads that bundle after
  * first paint, and this file's `showToast()` awaits the loader
@@ -26,7 +26,7 @@ const DEFAULT_DURATION_MS = 4000;
 
 /**
  * Fade-out transition duration in ms — keeps JS + CSS in sync.
- * Must match the `:host` transition on `<wpd-toast>`.
+ * Must match the `:host` transition on `<os-toast>`.
  */
 const FADE_OUT_MS = 200;
 
@@ -138,17 +138,17 @@ export function showToast( options: ToastOptions ): () => void {
 
 /**
  * Construct + mount the toast element. Pre-condition: the
- * `<wpd-toast>` / `<wpd-toast-container>` custom elements are
+ * `<os-toast>` / `<os-toast-container>` custom elements are
  * already registered (the lazy bundle has loaded).
  */
 function renderToast( intent: ToastIntent ): () => void {
 	const container = ensureContainer();
-	const toast = document.createElement( 'wpd-toast' );
+	const toast = document.createElement( 'os-toast' );
 	toast.textContent = intent.message;
 
 	if ( intent.action ) {
 		toast.setAttribute( 'action', intent.action.label );
-		toast.addEventListener( 'wpd-toast-action', () => {
+		toast.addEventListener( 'os-toast-action', () => {
 			intent.action?.onClick();
 			dismiss();
 		} );
@@ -156,7 +156,7 @@ function renderToast( intent: ToastIntent ): () => void {
 
 	if ( intent.dismissible ) {
 		toast.setAttribute( 'dismissible', '' );
-		toast.addEventListener( 'wpd-toast-dismiss', () => {
+		toast.addEventListener( 'os-toast-dismiss', () => {
 			intent.onDismiss?.();
 			dismiss();
 		} );
@@ -210,12 +210,12 @@ function renderToast( intent: ToastIntent ): () => void {
  */
 function ensureContainer(): HTMLElement {
 	const existing = document.querySelector<HTMLElement>(
-		'wpd-toast-container',
+		'os-toast-container',
 	);
 	if ( existing ) {
 		return existing;
 	}
-	const el = document.createElement( 'wpd-toast-container' );
+	const el = document.createElement( 'os-toast-container' );
 	document.body.appendChild( el );
 	return el;
 }

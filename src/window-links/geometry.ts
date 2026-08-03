@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window-link anchor geometry.
+ * OpenStation — Window-link anchor geometry.
  *
  * Pure math for occlusion-aware spline anchoring. In a cascade of
  * overlapping windows, the naive "border point toward the target"

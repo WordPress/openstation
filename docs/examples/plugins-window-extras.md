@@ -11,7 +11,7 @@ Add a "Curated" tab to the Browse segmented filter that calls `plugins_api( 'que
 ```php
 <?php
 add_filter(
-    'desktop_mode_plugins_window_browse_args',
+    'open_station_plugins_window_browse_args',
     static function ( array $api_args, array $raw ): array {
         if ( 'curated' !== ( $raw['browse'] ?? '' ) ) {
             return $api_args;
@@ -26,12 +26,12 @@ add_filter(
 );
 ```
 
-JS side — **Planned, not yet implemented**: the `desktop_mode.pluginsWindow.browseFilters` filter below does not exist yet (the Browse segments are currently hard-coded in the bundle). The intended shape, once the JS filter registry lands:
+JS side — **Planned, not yet implemented**: the `open_station.pluginsWindow.browseFilters` filter below does not exist yet (the Browse segments are currently hard-coded in the bundle). The intended shape, once the JS filter registry lands:
 
 ```js
 // Planned — not yet implemented.
 addFilter(
-    'desktop_mode.pluginsWindow.browseFilters',
+    'open_station.pluginsWindow.browseFilters',
     'my-plugin/curated',
     ( filters ) => [
         ...filters,
@@ -40,7 +40,7 @@ addFilter(
 );
 ```
 
-> Until the JS filter registry lands, you can also subclass the segmented control or layer your own segment via the `desktop_mode_plugins_window_template_html` filter.
+> Until the JS filter registry lands, you can also subclass the segmented control or layer your own segment via the `open_station_plugins_window_template_html` filter.
 
 ---
 
@@ -56,7 +56,7 @@ For a non-standard convention (e.g. you ship `branding/logo.svg`), extend the ca
 ```php
 <?php
 add_filter(
-    'desktop_mode_plugins_window_local_icon_candidates',
+    'open_station_plugins_window_local_icon_candidates',
     static function ( $candidates ) {
         $candidates[] = 'branding/logo.svg';
         return $candidates;
@@ -64,12 +64,12 @@ add_filter(
 );
 ```
 
-To force a specific URL — e.g. a CDN-hosted icon for a premium plugin that doesn't ship art with the bundle — use the `desktop_mode_plugins_window_icon_url` filter instead:
+To force a specific URL — e.g. a CDN-hosted icon for a premium plugin that doesn't ship art with the bundle — use the `open_station_plugins_window_icon_url` filter instead:
 
 ```php
 <?php
 add_filter(
-    'desktop_mode_plugins_window_icon_url',
+    'open_station_plugins_window_icon_url',
     static function ( $url, string $slug, array $row ) {
         if ( 'my-premium-plugin' === $slug ) {
             return 'https://cdn.example.com/icons/my-premium-plugin@2x.png';
@@ -81,7 +81,7 @@ add_filter(
 );
 ```
 
-Returning `null` from `desktop_mode_plugins_window_icon_url` suppresses the icon entirely (forces the placeholder).
+Returning `null` from `open_station_plugins_window_icon_url` suppresses the icon entirely (forces the placeholder).
 
 ---
 
@@ -94,7 +94,7 @@ If you maintain a more robust parser (or have access to a private reviews API), 
 ```php
 <?php
 add_filter(
-    'desktop_mode_plugins_window_review_parser',
+    'open_station_plugins_window_review_parser',
     static function ( $items, string $slug ) {
         if ( null !== $items ) {
             return $items; // Already overridden upstream.
@@ -129,12 +129,12 @@ Return `null` to fall through to the default DOMDocument parser.
 
 ## 4. React to a successful .zip upload
 
-Hook the `desktop_mode_plugins_window_installed` action to seed defaults when a new plugin lands via the upload route:
+Hook the `open_station_plugins_window_installed` action to seed defaults when a new plugin lands via the upload route:
 
 ```php
 <?php
 add_action(
-    'desktop_mode_plugins_window_installed',
+    'open_station_plugins_window_installed',
     static function ( string $plugin_file ): void {
         // $plugin_file is e.g. "akismet/akismet.php"
         if ( 'my-plugin/my-plugin.php' === $plugin_file ) {
@@ -144,7 +144,7 @@ add_action(
 );
 ```
 
-This action only fires for the `wp_ajax_desktop_mode_plugins_upload` route. Installs that go through Core's `wp_ajax_install_plugin` (the slug-based path) trigger Core's own `upgrader_process_complete` action — wire to that for cross-source coverage.
+This action only fires for the `wp_ajax_open_station_plugins_upload` route. Installs that go through Core's `wp_ajax_install_plugin` (the slug-based path) trigger Core's own `upgrader_process_complete` action — wire to that for cross-source coverage.
 
 ---
 
@@ -153,16 +153,16 @@ This action only fires for the `wp_ajax_desktop_mode_plugins_upload` route. Inst
 The bundle reads an initial-tab hint from a shared store. Set it BEFORE `openById( 'desktop-mode-plugins' )`:
 
 ```ts
-import { setPluginsWindowTab } from 'desktop-mode/plugins-window/tab-target';
+import { setPluginsWindowTab } from 'openstation/plugins-window/tab-target';
 
 const myButton = document.querySelector( '#explore-plugins' )!;
 myButton.addEventListener( 'click', () => {
     setPluginsWindowTab( 'browse' );
-    window.wp.desktop.openWindow( 'desktop-mode-plugins' );
+    window.wp.os.openWindow( 'desktop-mode-plugins' );
 } );
 ```
 
-Backed by `wp.desktop.createSharedStore` so multiple bundles read the same value. The hint is consumed (cleared) on first read by the render callback, so a subsequent open without an explicit hint defaults back to "installed".
+Backed by `wp.os.createSharedStore` so multiple bundles read the same value. The hint is consumed (cleared) on first read by the render callback, so a subsequent open without an explicit hint defaults back to "installed".
 
 ---
 
@@ -171,7 +171,7 @@ Backed by `wp.desktop.createSharedStore` so multiple bundles read the same value
 Cards in the Browse gallery emit a `wporg-plugin` payload via the framework drag bridge. Register your own drop target so plugin authors can drag a card into your custom canvas:
 
 ```ts
-window.wp.desktop.dragManager.registerDropTarget( {
+window.wp.os.dragManager.registerDropTarget( {
     id: 'my-plugin/canvas',
     element: document.querySelector( '#my-canvas' )!,
     accept: ( payload ) => payload.type === 'wporg-plugin',

@@ -374,7 +374,7 @@
 			monitorFrame = global.requestAnimationFrame( monitor );
 		};
 
-		const desktop = global.wp && global.wp.desktop;
+		const desktop = global.wp && global.wp.os;
 		Promise.all( [
 			loadRuntime( ctx.config || {} ),
 			desktop && typeof desktop.loadModules === 'function'
@@ -513,8 +513,8 @@
 		};
 	}
 
-	global.desktopModeGames = global.desktopModeGames || {};
-	global.desktopModeGames[ GAME_ID ] = Object.freeze( {
+	global.openStationGames = global.openStationGames || {};
+	global.openStationGames[ GAME_ID ] = Object.freeze( {
 		id: GAME_ID,
 		title: 'Popup Siege',
 		description:

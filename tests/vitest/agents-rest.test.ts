@@ -31,7 +31,7 @@ function mockFetch(
 }
 
 beforeEach( () => {
-	( window as unknown as Record< string, unknown > ).desktopModeWindowConfig = {
+	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
 		[ WINDOW_ID ]: {
 			restRoot: 'https://example.test/wp-json/',
 			restNonce: 'test-nonce',
@@ -45,7 +45,7 @@ beforeEach( () => {
 afterEach( () => {
 	vi.restoreAllMocks();
 	delete ( window as unknown as Record< string, unknown > )
-		.desktopModeWindowConfig;
+		.openStationWindowConfig;
 } );
 
 describe( 'agents REST client', () => {

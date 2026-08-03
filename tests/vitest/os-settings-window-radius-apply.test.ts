@@ -3,7 +3,7 @@
  *
  * The preset has to reach the window elements, and the only thing
  * standing between it and them is CSS precedence. A desktop theme can
- * declare `--desktop-mode-window-radius` in its tokens, and the
+ * declare `--os-window-radius` in its tokens, and the
  * compiled stylesheet writes it on a selector matching the shell root
  * — an ANCESTOR of every window. The document-level write only reaches
  * windows by inheritance, so the theme would win and the preset would
@@ -22,10 +22,10 @@ import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { OsSettingsConfig } from '../../src/settings/types';
 import type { WallpaperLayer } from '../../src/wallpapers/layer';
 
-const RADIUS_VAR = '--desktop-mode-window-radius';
+const RADIUS_VAR = '--os-window-radius';
 
 function shellEl(): HTMLElement {
-	return document.getElementById( 'desktop-mode-shell' )!;
+	return document.getElementById( 'os-shell' )!;
 }
 
 function makeSettings(): OsSettings {
@@ -39,14 +39,14 @@ beforeEach( () => {
 	_resetAllSharedStoresForTests();
 	installHooksStub();
 	window.localStorage.clear();
-	delete ( window as unknown as { desktopModeConfig?: unknown } )
-		.desktopModeConfig;
+	delete ( window as unknown as { openStationConfig?: unknown } )
+		.openStationConfig;
 	document.body.innerHTML = '';
 	document.documentElement.removeAttribute( 'style' );
 	document.body.removeAttribute( 'style' );
 
 	const shell = document.createElement( 'div' );
-	shell.id = 'desktop-mode-shell';
+	shell.id = 'os-shell';
 	document.body.appendChild( shell );
 
 	return () => clearHooksStub();

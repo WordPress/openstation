@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — authenticated downloads for stored files.
+ * OpenStation — authenticated downloads for stored files.
  *
  * Two routes:
  *
@@ -27,7 +27,7 @@
  * Not-found and no-access are both 404 — a download probe must not
  * reveal that a file exists (the Drive behavior).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,20 +35,20 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the download routes.
  */
-function desktop_mode_files_register_download_rest_routes() {
+function open_station_files_register_download_rest_routes() {
 	$ns = 'desktop-mode/v1';
 	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/download', array(
 		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
-		'callback'            => 'desktop_mode_files_rest_download_file',
+		'permission_callback' => 'open_station_files_rest_permission',
+		'callback'            => 'open_station_files_rest_download_file',
 	) );
 	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/download', array(
 		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
-		'callback'            => 'desktop_mode_files_rest_download_folder_zip',
+		'permission_callback' => 'open_station_files_rest_permission',
+		'callback'            => 'open_station_files_rest_download_folder_zip',
 	) );
 }
-add_action( 'rest_api_init', 'desktop_mode_files_register_download_rest_routes' );
+add_action( 'rest_api_init', 'open_station_files_register_download_rest_routes' );
 
 /**
  * The masked not-found error shared by every failure path that
@@ -56,9 +56,9 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_download_rest_routes' 
  *
  * @return WP_Error
  */
-function desktop_mode_files_download_not_found() {
+function open_station_files_download_not_found() {
 	return new WP_Error(
-		'desktop_mode_files_not_found',
+		'open_station_files_not_found',
 		__( 'File not found.', 'desktop-mode' ),
 		array( 'status' => 404 )
 	);
@@ -70,16 +70,16 @@ function desktop_mode_files_download_not_found() {
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_files_rest_download_file( WP_REST_Request $req ) {
+function open_station_files_rest_download_file( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
 	$user_id = get_current_user_id();
-	$row     = desktop_mode_stored_files_get( $file_id );
-	if ( ! $row || ! desktop_mode_stored_file_user_can_read( $file_id, $user_id ) ) {
-		return desktop_mode_files_download_not_found();
+	$row     = open_station_stored_files_get( $file_id );
+	if ( ! $row || ! open_station_stored_file_user_can_read( $file_id, $user_id ) ) {
+		return open_station_files_download_not_found();
 	}
-	$path = desktop_mode_stored_file_path( $row );
+	$path = open_station_stored_file_path( $row );
 	if ( ! $path || ! file_exists( $path ) ) {
-		return desktop_mode_files_download_not_found();
+		return open_station_files_download_not_found();
 	}
 
 	/**
@@ -88,9 +88,9 @@ function desktop_mode_files_rest_download_file( WP_REST_Request $req ) {
 	 * @param int $file_id Stored-file id.
 	 * @param int $user_id Downloader.
 	 */
-	do_action( 'desktop_mode_stored_file_downloaded', $file_id, $user_id );
+	do_action( 'open_station_stored_file_downloaded', $file_id, $user_id );
 
-	return desktop_mode_files_download_stream_response(
+	return open_station_files_download_stream_response(
 		$path,
 		$row['display_name'],
 		$row['mime'],
@@ -104,25 +104,25 @@ function desktop_mode_files_rest_download_file( WP_REST_Request $req ) {
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
+function open_station_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
 	$user_id   = get_current_user_id();
-	$folder    = desktop_mode_files_get_folder( $folder_id );
+	$folder    = open_station_files_get_folder( $folder_id );
 	if ( ! $folder ) {
-		return desktop_mode_files_download_not_found();
+		return open_station_files_download_not_found();
 	}
 	$is_owner = (int) $folder['owner_id'] === $user_id;
 	if ( ! $is_owner ) {
-		$cap = function_exists( 'desktop_mode_folder_share_user_capability' )
-			? desktop_mode_folder_share_user_capability( $folder_id, $user_id )
+		$cap = function_exists( 'open_station_folder_share_user_capability' )
+			? open_station_folder_share_user_capability( $folder_id, $user_id )
 			: 'none';
 		if ( 'none' === $cap ) {
-			return desktop_mode_files_download_not_found();
+			return open_station_files_download_not_found();
 		}
 	}
 	if ( ! class_exists( 'ZipArchive' ) ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_no_zip',
+			'open_station_stored_files_no_zip',
 			__( 'Folder download requires the PHP zip extension.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
@@ -133,16 +133,16 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
 		'empty_dirs'  => array(), // path-in-zip (with trailing /).
 		'total_bytes' => 0,
 	);
-	$result   = desktop_mode_files_collect_zip_entries( $folder_id, $user_id, '', $manifest, array( $folder_id => true ), 0 );
+	$result   = open_station_files_collect_zip_entries( $folder_id, $user_id, '', $manifest, array( $folder_id => true ), 0 );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 	$manifest = $result;
 
 	require_once ABSPATH . 'wp-admin/includes/file.php';
-	$tmp = wp_tempnam( 'desktop-mode-folder-zip' );
+	$tmp = wp_tempnam( 'os-folder-zip' );
 	if ( ! $tmp ) {
-		return new WP_Error( 'desktop_mode_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	// Belt and braces for aborted connections — the normal path
 	// deletes right after streaming.
@@ -151,7 +151,7 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	$zip = new ZipArchive();
 	if ( true !== $zip->open( $tmp, ZipArchive::OVERWRITE ) ) {
 		wp_delete_file( $tmp );
-		return new WP_Error( 'desktop_mode_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	foreach ( $manifest['empty_dirs'] as $dir_entry ) {
 		$zip->addEmptyDir( $dir_entry );
@@ -168,7 +168,7 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	}
 	if ( ! $zip->close() ) {
 		wp_delete_file( $tmp );
-		return new WP_Error( 'desktop_mode_stored_files_zip_failed', __( 'Could not finish the archive (disk full?).', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_stored_files_zip_failed', __( 'Could not finish the archive (disk full?).', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
@@ -178,10 +178,10 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	 * @param int $user_id   Downloader.
 	 * @param int $count     Number of files in the archive.
 	 */
-	do_action( 'desktop_mode_folder_zip_downloaded', $folder_id, $user_id, count( $manifest['entries'] ) );
+	do_action( 'open_station_folder_zip_downloaded', $folder_id, $user_id, count( $manifest['entries'] ) );
 
 	$zip_name = sanitize_file_name( '' !== (string) $folder['name'] ? (string) $folder['name'] : 'folder' ) . '.zip';
-	return desktop_mode_files_download_stream_response( $tmp, $zip_name, 'application/zip', true );
+	return open_station_files_download_stream_response( $tmp, $zip_name, 'application/zip', true );
 }
 
 /**
@@ -200,7 +200,7 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
  * @param int   $depth     Current depth.
  * @return array|WP_Error The updated manifest.
  */
-function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, $manifest, $visited, $depth ) {
+function open_station_files_collect_zip_entries( $folder_id, $user_id, $prefix, $manifest, $visited, $depth ) {
 	if ( $depth > 32 ) {
 		return $manifest; // Depth cap — quietly stop descending.
 	}
@@ -212,14 +212,14 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
 	 * @param array $caps `{ max_entries: int, max_bytes: int }`.
 	 */
 	$caps = (array) apply_filters(
-		'desktop_mode_stored_files_zip_caps',
+		'open_station_stored_files_zip_caps',
 		array(
 			'max_entries' => 1000,
 			'max_bytes'   => 500 * MB_IN_BYTES,
 		)
 	);
 
-	$rows       = desktop_mode_files_get_for_user_folder( $user_id, $folder_id );
+	$rows       = open_station_files_get_for_user_folder( $user_id, $folder_id );
 	$used_names = array(); // lowercase name => count, per directory.
 	$had_child  = false;
 
@@ -229,18 +229,18 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
 			if ( $sub_id <= 0 || isset( $visited[ $sub_id ] ) ) {
 				continue;
 			}
-			$sub = desktop_mode_files_get_folder( $sub_id );
+			$sub = open_station_files_get_folder( $sub_id );
 			if ( ! $sub ) {
 				continue;
 			}
-			$dir_name = desktop_mode_files_zip_unique_name(
+			$dir_name = open_station_files_zip_unique_name(
 				sanitize_file_name( '' !== (string) $sub['name'] ? (string) $sub['name'] : 'folder' ),
 				$used_names
 			);
 			$had_child          = true;
 			$visited[ $sub_id ] = true;
 			$before             = count( $manifest['entries'] ) + count( $manifest['empty_dirs'] );
-			$manifest           = desktop_mode_files_collect_zip_entries( $sub_id, $user_id, $prefix . $dir_name . '/', $manifest, $visited, $depth + 1 );
+			$manifest           = open_station_files_collect_zip_entries( $sub_id, $user_id, $prefix . $dir_name . '/', $manifest, $visited, $depth + 1 );
 			if ( is_wp_error( $manifest ) ) {
 				return $manifest;
 			}
@@ -255,16 +255,16 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
 			continue; // References are not bytes; skipped by design.
 		}
 		$file_id = (int) $row['file_ref'];
-		$file    = desktop_mode_stored_files_get( $file_id );
-		if ( ! $file || ! desktop_mode_stored_file_user_can_read( $file_id, $user_id ) ) {
+		$file    = open_station_stored_files_get( $file_id );
+		if ( ! $file || ! open_station_stored_file_user_can_read( $file_id, $user_id ) ) {
 			continue;
 		}
-		$path = desktop_mode_stored_file_path( $file );
+		$path = open_station_stored_file_path( $file );
 		if ( ! $path || ! file_exists( $path ) ) {
 			continue;
 		}
 		$had_child  = true;
-		$entry_name = desktop_mode_files_zip_unique_name(
+		$entry_name = open_station_files_zip_unique_name(
 			sanitize_file_name( '' !== $file['display_name'] ? $file['display_name'] : 'file' ),
 			$used_names
 		);
@@ -272,14 +272,14 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
 		$manifest['total_bytes'] += (int) $file['size_bytes'];
 		if ( count( $manifest['entries'] ) + 1 > (int) $caps['max_entries'] ) {
 			return new WP_Error(
-				'desktop_mode_stored_files_zip_too_big',
+				'open_station_stored_files_zip_too_big',
 				__( 'This folder has too many files to download as one archive.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			);
 		}
 		if ( (int) $caps['max_bytes'] > 0 && $manifest['total_bytes'] > (int) $caps['max_bytes'] ) {
 			return new WP_Error(
-				'desktop_mode_stored_files_zip_too_big',
+				'open_station_stored_files_zip_too_big',
 				__( 'This folder is too large to download as one archive.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			);
@@ -306,7 +306,7 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
  * @param array  $used_names By-ref lowercase tally for the directory.
  * @return string
  */
-function desktop_mode_files_zip_unique_name( $name, &$used_names ) {
+function open_station_files_zip_unique_name( $name, &$used_names ) {
 	$key = strtolower( $name );
 	if ( ! isset( $used_names[ $key ] ) ) {
 		$used_names[ $key ] = 1;
@@ -334,10 +334,10 @@ function desktop_mode_files_zip_unique_name( $name, &$used_names ) {
  * @param bool   $delete_after Delete `$path` after streaming (zip temp).
  * @return WP_REST_Response
  */
-function desktop_mode_files_download_stream_response( $path, $name, $mime, $delete_after ) {
+function open_station_files_download_stream_response( $path, $name, $mime, $delete_after ) {
 	return new WP_REST_Response(
 		array(
-			'__desktop_mode_stream' => array(
+			'__open_station_stream' => array(
 				'path'         => (string) $path,
 				'name'         => (string) $name,
 				'mime'         => (string) $mime,
@@ -358,7 +358,7 @@ function desktop_mode_files_download_stream_response( $path, $name, $mime, $dele
  * @param WP_REST_Request  $request Request used.
  * @return bool
  */
-function desktop_mode_files_serve_download( $served, $result, $request ) {
+function open_station_files_serve_download( $served, $result, $request ) {
 	if ( $served || ! $result instanceof WP_HTTP_Response ) {
 		return $served;
 	}
@@ -367,23 +367,23 @@ function desktop_mode_files_serve_download( $served, $result, $request ) {
 		return $served;
 	}
 	$data = $result->get_data();
-	if ( ! is_array( $data ) || empty( $data['__desktop_mode_stream'] ) || 200 !== $result->get_status() ) {
+	if ( ! is_array( $data ) || empty( $data['__open_station_stream'] ) || 200 !== $result->get_status() ) {
 		return $served; // Error shapes serialize as normal JSON.
 	}
-	$stream = $data['__desktop_mode_stream'];
+	$stream = $data['__open_station_stream'];
 	$path   = (string) $stream['path'];
 	if ( '' === $path || ! file_exists( $path ) || ! is_readable( $path ) ) {
 		return $served;
 	}
 
-	desktop_mode_files_emit_download( $path, (string) $stream['name'], (string) $stream['mime'] );
+	open_station_files_emit_download( $path, (string) $stream['name'], (string) $stream['mime'] );
 
 	if ( ! empty( $stream['delete_after'] ) ) {
 		wp_delete_file( $path );
 	}
 	return true;
 }
-add_filter( 'rest_pre_serve_request', 'desktop_mode_files_serve_download', 10, 3 );
+add_filter( 'rest_pre_serve_request', 'open_station_files_serve_download', 10, 3 );
 
 /**
  * Send the headers and the bytes. Split out so PHPUnit can target
@@ -395,7 +395,7 @@ add_filter( 'rest_pre_serve_request', 'desktop_mode_files_serve_download', 10, 3
  * @param string $name Download filename.
  * @param string $mime MIME type.
  */
-function desktop_mode_files_emit_download( $path, $name, $mime ) {
+function open_station_files_emit_download( $path, $name, $mime ) {
 	$size = (int) filesize( $path );
 
 	// Kill every output buffer + compression layer so
@@ -436,8 +436,8 @@ function desktop_mode_files_emit_download( $path, $name, $mime ) {
  * Daily sweep of stale zip temp files (aborted downloads whose
  * shutdown cleanup never ran).
  */
-function desktop_mode_stored_files_sweep_zip_temps() {
-	$entries = glob( trailingslashit( get_temp_dir() ) . 'desktop-mode-folder-zip*' );
+function open_station_stored_files_sweep_zip_temps() {
+	$entries = glob( trailingslashit( get_temp_dir() ) . 'os-folder-zip*' );
 	foreach ( (array) $entries as $entry ) {
 		if ( ! is_file( $entry ) ) {
 			continue;
@@ -448,4 +448,4 @@ function desktop_mode_stored_files_sweep_zip_temps() {
 		}
 	}
 }
-add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_stored_files_sweep_zip_temps' );
+add_action( 'desktop_mode_files_daily_prune', 'open_station_stored_files_sweep_zip_temps' );

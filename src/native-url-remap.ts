@@ -14,7 +14,7 @@
  * accessor, and a single `tryRemap()` walker. No event bus, no public
  * surface — the consumers (`Dock.openPage`, the portal's deep-link
  * opener) import the functions directly. Plugins can hook the public
- * `wp.desktop.registerNativeUrlRemap()` (added later) when they ship
+ * `wp.os.registerNativeUrlRemap()` (added later) when they ship
  * their own native replacements.
  *
  * Why a singleton instead of constructor-injected callbacks: the Dock
@@ -80,7 +80,7 @@ interface RemapDeps {
 // `tryNativeUrlRemap()` in window-system would walk a different empty
 // one, and every cross-page admin-link click that should remap to a
 // native window would silently fall through. See `AGENTS.md`
-// § "Cross-bundle state — `wp.desktop.createSharedStore`".
+// § "Cross-bundle state — `wp.os.createSharedStore`".
 interface RemapRegistryState {
 	remaps: NativeUrlRemap[];
 	deps: RemapDeps | null;
@@ -226,7 +226,7 @@ export function tryNativeUrlRemap( url: string ): boolean {
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] URL remap onMatch hook threw for "${ entry.id }":`,
+					`[openstation] URL remap onMatch hook threw for "${ entry.id }":`,
 					err,
 				);
 			}

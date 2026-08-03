@@ -3,10 +3,10 @@
  *
  * Asserts that the wallpaper lifecycle actions fire at the correct
  * moments AND with the expected payload shape. Covers:
- *   - desktop-mode.wallpaper.mounting (pre-mount)
- *   - desktop-mode.wallpaper.mounted (post-successful-mount)
- *   - desktop-mode.wallpaper.unmounting (teardown of the active canvas)
- *   - desktop-mode.wallpaper.mount-failed (sync / async mount errors)
+ *   - os.wallpaper.mounting (pre-mount)
+ *   - os.wallpaper.mounted (post-successful-mount)
+ *   - os.wallpaper.unmounting (teardown of the active canvas)
+ *   - os.wallpaper.mount-failed (sync / async mount errors)
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WallpaperLayer } from '../../src/wallpapers/layer';
@@ -22,10 +22,10 @@ import {
 } from './helpers/hooks-stub';
 
 const WALLPAPER_HOOKS = [
-	'desktop-mode.wallpaper.mounting',
-	'desktop-mode.wallpaper.mounted',
-	'desktop-mode.wallpaper.unmounting',
-	'desktop-mode.wallpaper.mount-failed',
+	'os.wallpaper.mounting',
+	'os.wallpaper.mounted',
+	'os.wallpaper.unmounting',
+	'os.wallpaper.mount-failed',
 ] as const;
 
 describe( 'WallpaperLayer — hook firing', () => {
@@ -36,7 +36,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 	beforeEach( () => {
 		hooks = installHooksStub();
 		// A detached element is fine — `WallpaperLayer` only manipulates
-		// its own DOM + the shell's `#desktop-mode-shell` CSS var. We
+		// its own DOM + the shell's `#os-shell` CSS var. We
 		// don't need the full shell markup for lifecycle tests.
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
@@ -89,8 +89,8 @@ describe( 'WallpaperLayer — hook firing', () => {
 
 		const names = log.map( ( entry ) => entry.name );
 		expect( names ).toEqual( [
-			'desktop-mode.wallpaper.mounting',
-			'desktop-mode.wallpaper.mounted',
+			'os.wallpaper.mounting',
+			'os.wallpaper.mounted',
 		] );
 	} );
 
@@ -102,7 +102,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 		);
 
 		const mounting = log.find(
-			( e ) => e.name === 'desktop-mode.wallpaper.mounting',
+			( e ) => e.name === 'os.wallpaper.mounting',
 		);
 		expect( mounting ).toBeDefined();
 		const payload = mounting!.args[ 0 ] as {
@@ -132,7 +132,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 		layer.apply( cssDef() );
 
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.wallpaper.unmounting' ),
+			log.some( ( e ) => e.name === 'os.wallpaper.unmounting' ),
 		).toBe( true );
 		expect( teardownCalled ).toBe( true );
 	} );
@@ -151,8 +151,8 @@ describe( 'WallpaperLayer — hook firing', () => {
 		await Promise.resolve();
 
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'desktop-mode.wallpaper.mount-failed' );
-		expect( names ).not.toContain( 'desktop-mode.wallpaper.mounted' );
+		expect( names ).toContain( 'os.wallpaper.mount-failed' );
+		expect( names ).not.toContain( 'os.wallpaper.mounted' );
 	} );
 
 	test( 'async mount rejection fires mount-failed with the error payload', async () => {
@@ -167,7 +167,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 		await Promise.resolve();
 
 		const failed = log.find(
-			( e ) => e.name === 'desktop-mode.wallpaper.mount-failed',
+			( e ) => e.name === 'os.wallpaper.mount-failed',
 		);
 		expect( failed ).toBeDefined();
 		const payload = failed!.args[ 0 ] as { id: string; error: unknown };
@@ -202,7 +202,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 		// Recording starts AFTER the switch-away — if the stale mount
 		// did leak a `mounted`, it would show up here. It shouldn't.
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.wallpaper.mounted' ),
+			log.some( ( e ) => e.name === 'os.wallpaper.mounted' ),
 		).toBe( false );
 	} );
 } );

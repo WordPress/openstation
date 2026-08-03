@@ -20,15 +20,15 @@
 import { addAction, addFilter } from '../../hooks';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
-// Registers the `<wpd-ribbon>` tag this bundle stamps onto tiles. The
+// Registers the `<os-ribbon>` tag this bundle stamps onto tiles. The
 // main desktop bundle defines it too, but this bundle can load into a
 // window whose shell bundle hasn't, so it owns its own import.
-import '../../ui/components/wpd-ribbon/wpd-ribbon';
-import '../../ui/components/wpd-badge/wpd-badge';
-import type { WpdBadgeTone } from '../../ui/components/wpd-badge/wpd-badge';
+import '../../ui/components/os-ribbon/os-ribbon';
+import '../../ui/components/os-badge/os-badge';
+import type { OsBadgeTone } from '../../ui/components/os-badge/os-badge';
 
 /** Tone vocabulary shared by the status pills and the tile ribbons. */
-type BadgeTone = WpdBadgeTone;
+type BadgeTone = OsBadgeTone;
 
 /* -------------------------------------------------------------------
  * Contracts
@@ -44,7 +44,7 @@ interface OrderBand {
 
 /**
  * A band the server decided on. Rows carry their band id on
- * `desktop_mode_woo.band`, and the collection is already ordered to
+ * `open_station_woo.band`, and the collection is already ordered to
  * match, so the client only has to render.
  */
 interface WooBand {
@@ -96,7 +96,7 @@ interface ListBanding {
 	assign: ( item: Record< string, unknown > ) => string | null;
 }
 
-/** The `desktop_mode_woo` REST field on a product row. */
+/** The `open_station_woo` REST field on a product row. */
 interface ProductRowFacts {
 	stockStatus: string;
 	stockLevel: number | null;
@@ -183,7 +183,7 @@ interface StoreSummary {
 
 type Summary = ProductSummary | OrderSummary | CouponSummary;
 
-const PANEL_CLASS = 'desktop-mode-woo-panel';
+const PANEL_CLASS = 'os-woo-panel';
 
 /**
  * Units at or below which a managed-stock product is tinted amber.
@@ -199,8 +199,8 @@ const SECTION_PRODUCTS = 'cpt-product';
 const SECTION_COUPONS = 'cpt-shop_coupon';
 
 function getConfig(): WooConfig | null {
-	const cfg = ( window as unknown as { desktopModeWooConfig?: WooConfig } )
-		.desktopModeWooConfig;
+	const cfg = ( window as unknown as { openStationWooConfig?: WooConfig } )
+		.openStationWooConfig;
 	return cfg && typeof cfg.restRoot === 'string' ? cfg : null;
 }
 
@@ -243,7 +243,7 @@ async function fetchJson< T >(
 		if ( ! response.ok ) {
 			// eslint-disable-next-line no-console -- surfaces a failure the user would otherwise see as a blank panel.
 			console.warn(
-				`[desktop-mode] WooCommerce request failed: ${ response.status } ${ url }`,
+				`[openstation] WooCommerce request failed: ${ response.status } ${ url }`,
 			);
 			return {
 				error: sprintf(
@@ -260,7 +260,7 @@ async function fetchJson< T >(
 	} catch ( err ) {
 		// eslint-disable-next-line no-console -- ditto.
 		console.warn(
-			`[desktop-mode] WooCommerce request errored: ${ url }`,
+			`[openstation] WooCommerce request errored: ${ url }`,
 			err,
 		);
 		return {
@@ -376,11 +376,11 @@ function panel(
 /**
  * A status pill — active/inactive, order status, stock.
  *
- * `<wpd-badge>` owns the pill shape, the tone-coded dot and the
+ * `<os-badge>` owns the pill shape, the tone-coded dot and the
  * theming tokens; this is just the tone mapping.
  */
 function pill( text: string, tone: BadgeTone ): HTMLElement {
-	const badge = document.createElement( 'wpd-badge' );
+	const badge = document.createElement( 'os-badge' );
 	badge.setAttribute( 'tone', tone );
 	badge.className = `${ PANEL_CLASS }__pill`;
 	badge.textContent = text;
@@ -485,7 +485,7 @@ function paintPanel(
 		} )
 		.catch( ( err ) => {
 			// The payload passes through
-			// `desktop_mode_my_wordpress_woo_summary`, so a plugin can
+			// `open_station_my_wordpress_woo_summary`, so a plugin can
 			// rename or drop a field the row builders read. Without
 			// this the panel sat on its placeholders forever, looking
 			// like a request that never came back.
@@ -494,7 +494,7 @@ function paintPanel(
 			}
 			shell.removeAttribute( 'aria-busy' );
 			// eslint-disable-next-line no-console -- the panel shows a summary; the console carries the cause.
-			console.warn( '[desktop-mode] WooCommerce panel failed to render', err );
+			console.warn( '[openstation] WooCommerce panel failed to render', err );
 			fail( __( 'Could not show WooCommerce details.', 'desktop-mode' ) );
 		} );
 }
@@ -562,7 +562,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 			);
 
 	// Fields are read defensively throughout: the payload passes
-	// through `desktop_mode_my_wordpress_woo_summary`, so a plugin can
+	// through `open_station_my_wordpress_woo_summary`, so a plugin can
 	// legitimately drop or rename any of them and a bare dereference
 	// would take the whole panel down.
 	const reviews = Number( data.reviews ) || 0;
@@ -824,20 +824,20 @@ function summaryTypeFor( entityId: string ): Summary[ 'type' ] | null {
 	return null;
 }
 
-/** Read the `desktop_mode_woo` REST field off a product list row. */
+/** Read the `open_station_woo` REST field off a product list row. */
 function productFacts( item: Record< string, unknown > ): ProductRowFacts | null {
-	const facts = item.desktop_mode_woo as ProductRowFacts | null | undefined;
+	const facts = item.open_station_woo as ProductRowFacts | null | undefined;
 	return facts && typeof facts.stockStatus === 'string' ? facts : null;
 }
 
 /** The server-decided band id on any WooCommerce list row. */
 function wooBand( item: Record< string, unknown > ): string | null {
-	const facts = item.desktop_mode_woo as { band?: string } | null | undefined;
+	const facts = item.open_station_woo as { band?: string } | null | undefined;
 	return facts && typeof facts.band === 'string' ? facts.band : null;
 }
 
 addFilter(
-	'desktop-mode.my-wordpress.list-bands',
+	'os.my-wordpress.list-bands',
 	'desktop-mode/woocommerce',
 	(
 		banding: ListBanding | null,
@@ -887,7 +887,7 @@ addFilter(
 );
 
 addAction(
-	'desktop-mode.my-wordpress.list-tile',
+	'os.my-wordpress.list-tile',
 	'desktop-mode/woocommerce',
 	( payload: ListTilePayload ) => {
 		if ( payload.entityId !== SECTION_PRODUCTS ) {
@@ -901,7 +901,7 @@ addAction(
 		// An out-of-stock product is the one thing a merchant must not
 		// miss while scanning the grid, so it gets a badge on the tile
 		// rather than only a band heading.
-		// Labels stay short: `<wpd-ribbon>` crops its corner slice to
+		// Labels stay short: `<os-ribbon>` crops its corner slice to
 		// roughly 80px, so "Out of stock" would clip.
 		let label = '';
 		let tone: 'danger' | 'warning' | 'success' = 'warning';
@@ -930,7 +930,7 @@ addAction(
 			return;
 		}
 		// Remembered on the element so the ribbon can be restored
-		// after a repaint — `<wpd-tile>` clears every `<wpd-ribbon>`
+		// after a repaint — `<os-tile>` clears every `<os-ribbon>`
 		// it finds each time it paints, and it repaints on selection.
 		payload.tile.dataset.wooRibbon = `${ tone }|${ label }`;
 		stampRibbon( payload.tile );
@@ -940,10 +940,10 @@ addAction(
 /**
  * Put the stock ribbon back on a tile that remembers it.
  *
- * `<wpd-tile>._paint()` drops every direct `<wpd-ribbon>` child before
+ * `<os-tile>._paint()` drops every direct `<os-ribbon>` child before
  * rebuilding, so a decoration added from outside survives exactly
  * until the next repaint — which selection triggers. Re-stamping on
- * `desktop-mode.tile.rendered` (fired at the end of every paint) is
+ * `os.tile.rendered` (fired at the end of every paint) is
  * how a decoration stays put.
  *
  * @param tile The tile element.
@@ -953,27 +953,27 @@ function stampRibbon( tile: HTMLElement ): void {
 	if ( ! remembered ) {
 		return;
 	}
-	if ( tile.querySelector( ':scope > wpd-ribbon.desktop-mode-woo-ribbon' ) ) {
+	if ( tile.querySelector( ':scope > os-ribbon.os-woo-ribbon' ) ) {
 		return;
 	}
 	const sep = remembered.indexOf( '|' );
 	const tone = remembered.slice( 0, sep );
 	const label = remembered.slice( sep + 1 );
 
-	// `<wpd-ribbon>` owns the 45° corner slice, its clipping and
+	// `<os-ribbon>` owns the 45° corner slice, its clipping and
 	// rotation, and the tone colours. Placed top-start so it can't
 	// collide with the tile's own post-status ribbon, which takes the
 	// top-end corner.
-	const ribbon = document.createElement( 'wpd-ribbon' );
+	const ribbon = document.createElement( 'os-ribbon' );
 	ribbon.setAttribute( 'placement', 'top-start' );
 	ribbon.setAttribute( 'tone', tone );
-	ribbon.className = 'desktop-mode-woo-ribbon';
+	ribbon.className = 'os-woo-ribbon';
 	ribbon.textContent = label;
 	tile.appendChild( ribbon );
 }
 
 addAction(
-	'desktop-mode.tile.rendered',
+	'os.tile.rendered',
 	'desktop-mode/woocommerce',
 	( payload: { tile: HTMLElement } ) => {
 		stampRibbon( payload.tile );
@@ -981,7 +981,7 @@ addAction(
 );
 
 addAction(
-	'desktop-mode.my-wordpress.preview-extras',
+	'os.my-wordpress.preview-extras',
 	'desktop-mode/woocommerce',
 	( payload: PreviewExtrasPayload ) => {
 		// One panel per preview, above the content.
@@ -1026,7 +1026,7 @@ addAction(
 );
 
 addAction(
-	'desktop-mode.my-wordpress.group-extras',
+	'os.my-wordpress.group-extras',
 	'desktop-mode/woocommerce',
 	( payload: GroupExtrasPayload ) => {
 		if ( payload.groupId !== 'plugin:woocommerce' ) {

@@ -3,7 +3,7 @@
  *
  * Thin wrapper around `wp/v2/media` that:
  *
- *   1. Runs the `desktop-mode.drop.before-upload` filter (a
+ *   1. Runs the `os.drop.before-upload` filter (a
  *      plugin can return `null` to cancel or swap the file out).
  *   2. POSTs a `multipart/form-data` body via `XMLHttpRequest` so
  *      the `upload.progress` event surface is observable. The
@@ -11,10 +11,10 @@
  *      `title`, `alt_text`, `caption`, and `description` attached
  *      to the binary in one round-trip (the alternative — raw body
  *      + a follow-up PATCH — leaks half-attached media on failure).
- *   3. Emits `desktop-mode.drop.upload-started` at send time with an
- *      `abort()` handle, `desktop-mode.drop.upload-progress` on every
- *      progress event, and `desktop-mode.drop.after-upload` /
- *      `desktop-mode.drop.upload-failed` on the way out.
+ *   3. Emits `os.drop.upload-started` at send time with an
+ *      `abort()` handle, `os.drop.upload-progress` on every
+ *      progress event, and `os.drop.after-upload` /
+ *      `os.drop.upload-failed` on the way out.
  *
  * `fetch` cannot be substituted here — the spec exposes upload
  * progress only via XHR's `upload.onprogress` callback (the Streams-
@@ -22,7 +22,7 @@
  * and our floating HUD needs determinate bars). Activity-bus
  * visibility comes from the progress HUD (`progress-hud.ts`
  * publishes `desktop-mode/upload-hud-complete` on completion) —
- * XHR doesn't route through `wp.desktop.fetch` by design.
+ * XHR doesn't route through `wp.os.fetch` by design.
  */
 
 import { applyFilters, doAction } from '../hooks';
@@ -268,7 +268,7 @@ export async function uploadFile(
  */
 export class UploadCancelledError extends Error {
 	constructor() {
-		super( 'Upload cancelled by desktop-mode.drop.before-upload filter.' );
+		super( 'Upload cancelled by os.drop.before-upload filter.' );
 		this.name = 'UploadCancelledError';
 	}
 }

@@ -6,13 +6,13 @@
  *
  * Plus the AI writing assistant: it stays completely absent without a
  * configured provider, the suggestions panel is a disclosure driven by
- * `<wpd-*>` controls, and accepting a suggestion writes it through
+ * `<os-*>` controls, and accepting a suggestion writes it through
  * `/draft-apply` and reflects the result back into the row.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { WidgetContext } from '../../src/widgets/types';
 
-// Import for the side effect: registers window.desktopModeWidgets['desktop-mode/drafts'].
+// Import for the side effect: registers window.openStationWidgets['desktop-mode/drafts'].
 import '../../src/plugins/drafts-widget/index';
 
 type MountFn = (
@@ -24,9 +24,9 @@ const WIDGET_ID = 'desktop-mode/drafts';
 
 function getMount(): MountFn {
 	const w = window as unknown as {
-		desktopModeWidgets?: Record< string, MountFn >;
+		openStationWidgets?: Record< string, MountFn >;
 	};
-	const mount = w.desktopModeWidgets?.[ WIDGET_ID ];
+	const mount = w.openStationWidgets?.[ WIDGET_ID ];
 	if ( ! mount ) {
 		throw new Error( 'drafts widget did not register its mount' );
 	}
@@ -70,14 +70,14 @@ const SUGGESTIONS = {
 	readiness: { summary: 'Nearly there.', missing: [ 'a conclusion' ] },
 };
 
-/** Install `window.wp.desktop`; trackedFetch resolves it at call time. */
+/** Install `window.wp.os`; trackedFetch resolves it at call time. */
 function installShell( opts: {
 	drafts?: unknown;
 	ok?: boolean;
 	userId?: number;
 	withConfirm?: boolean;
 	confirmAnswer?: boolean;
-	/** Mirrors `desktopModeConfig.aiAssistant.providerConfigured`. */
+	/** Mirrors `openStationConfig.aiAssistant.providerConfigured`. */
 	ai?: boolean;
 	suggestions?: unknown;
 	suggestionsOk?: boolean;
@@ -117,8 +117,8 @@ function installShell( opts: {
 	if ( withConfirm ) {
 		desktop.confirm = vi.fn( () => Promise.resolve( confirmAnswer ) );
 	}
-	( window as unknown as { wp: unknown } ).wp = { desktop };
-	( window as unknown as { desktopModeConfig: unknown } ).desktopModeConfig = {
+	( window as unknown as { wp: unknown } ).wp = { os: desktop };
+	( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
 		aiAssistant: { providerConfigured: ai },
 	};
 	return desktop;
@@ -145,8 +145,8 @@ afterEach( () => {
 	teardown = null;
 	container.remove();
 	delete ( window as unknown as { wp?: unknown } ).wp;
-	delete ( window as unknown as { desktopModeConfig?: unknown } )
-		.desktopModeConfig;
+	delete ( window as unknown as { openStationConfig?: unknown } )
+		.openStationConfig;
 	vi.restoreAllMocks();
 } );
 
@@ -327,25 +327,25 @@ describe( 'drafts widget — AI writing assistant', () => {
 		expect( container.querySelector( '.dm-drafts__trash' ) ).not.toBeNull();
 	} );
 
-	test( 'renders the suggest button as a collapsed wpd-button disclosure', async () => {
+	test( 'renders the suggest button as a collapsed os-button disclosure', async () => {
 		installShell( { drafts: oneDraft, ai: true } );
 		teardown = await getMount()( container, makeCtx() );
 
 		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
-		expect( spark.tagName.toLowerCase() ).toBe( 'wpd-button' );
+		expect( spark.tagName.toLowerCase() ).toBe( 'os-button' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
 		expect( spark.getAttribute( 'aria-label' ) ).toBe(
 			'Suggest title, excerpt & tags',
 		);
 	} );
 
-	test( 'row actions are wpd-button components, not bare buttons', async () => {
+	test( 'row actions are os-button components, not bare buttons', async () => {
 		installShell( { drafts: oneDraft, ai: true } );
 		teardown = await getMount()( container, makeCtx() );
 
 		const row = container.querySelector( '.dm-drafts__row' ) as HTMLElement;
 		expect( row.querySelector( 'button' ) ).toBeNull();
-		expect( row.querySelectorAll( 'wpd-button' ) ).toHaveLength( 2 );
+		expect( row.querySelectorAll( 'os-button' ) ).toHaveLength( 2 );
 	} );
 
 	test( 'opening the panel asks the REST route for suggestions and marks itself expanded', async () => {
@@ -358,7 +358,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		// The panel appears immediately with a spinner while the round-trip runs.
 		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
 		expect( panel ).not.toBeNull();
-		const spinner = panel.querySelector( 'wpd-spinner' ) as HTMLElement;
+		const spinner = panel.querySelector( 'os-spinner' ) as HTMLElement;
 		expect( spinner ).not.toBeNull();
 		// The default mark-and-rings artwork is illegible at this size —
 		// the panel must ask for the bare inline arc.
@@ -382,7 +382,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		).toEqual( { post_id: 12 } );
 	} );
 
-	test( 'renders every suggestion group as a tap-to-apply wpd-button', async () => {
+	test( 'renders every suggestion group as a tap-to-apply os-button', async () => {
 		installShell( { drafts: oneDraft, ai: true } );
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
@@ -402,7 +402,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 			'Announcements',
 		] );
 		for ( const el of [ ...items, ...pills ] ) {
-			expect( el.tagName.toLowerCase() ).toBe( 'wpd-button' );
+			expect( el.tagName.toLowerCase() ).toBe( 'os-button' );
 		}
 	} );
 
@@ -411,7 +411,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
 
-		const notice = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		const notice = panel.querySelector( 'os-notice' ) as HTMLElement;
 		expect( notice.getAttribute( 'tone' ) ).toBe( 'warning' );
 		expect(
 			notice.querySelector( '.dm-drafts__readiness-summary' )?.textContent,
@@ -424,7 +424,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 	} );
 
 	test( 'panel notices carry the contrast-override class', async () => {
-		// `dm-drafts__notice` re-points <wpd-notice>'s color surface at
+		// `dm-drafts__notice` re-points <os-notice>'s color surface at
 		// currentColor. Without it the component falls back to its
 		// light-surface palette (#1d2327 text) and disappears into a dark
 		// glass widget card — a regression that is invisible to a DOM
@@ -433,7 +433,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
 
-		const readiness = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		const readiness = panel.querySelector( 'os-notice' ) as HTMLElement;
 		expect( readiness.classList.contains( 'dm-drafts__notice' ) ).toBe( true );
 		expect( readiness.classList.contains( 'dm-drafts__readiness' ) ).toBe(
 			true,
@@ -452,7 +452,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
 
-		const notice = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		const notice = panel.querySelector( 'os-notice' ) as HTMLElement;
 		expect( notice.getAttribute( 'tone' ) ).toBe( 'success' );
 		expect(
 			notice.querySelector( '.dm-drafts__readiness-missing' ),
@@ -549,12 +549,12 @@ describe( 'drafts widget — AI writing assistant', () => {
 		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
 
 		await vi.waitFor( () => {
-			const notice = panel.querySelector( 'wpd-notice' );
+			const notice = panel.querySelector( 'os-notice' );
 			expect( notice?.getAttribute( 'tone' ) ).toBe( 'error' );
 		} );
 		expect( panel.textContent ).toContain( 'Could not get suggestions.' );
 		expect(
-			panel.querySelector( 'wpd-notice' )?.classList.contains(
+			panel.querySelector( 'os-notice' )?.classList.contains(
 				'dm-drafts__notice',
 			),
 		).toBe( true );
@@ -579,7 +579,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 
 		desktop.fetch.mockClear();
 		// The blur nudge is the same code path the 60s poller uses.
-		document.dispatchEvent( new Event( 'desktop-mode-window-blurred' ) );
+		document.dispatchEvent( new Event( 'os-window-blurred' ) );
 		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
 
 		expect(
@@ -602,7 +602,7 @@ describe( 'drafts widget — teardown', () => {
 		teardown = null;
 
 		const events = remove.mock.calls.map( ( c ) => c[ 0 ] );
-		expect( events ).toContain( 'desktop-mode-window-closed' );
-		expect( events ).toContain( 'desktop-mode-window-blurred' );
+		expect( events ).toContain( 'os-window-closed' );
+		expect( events ).toContain( 'os-window-blurred' );
 	} );
 } );

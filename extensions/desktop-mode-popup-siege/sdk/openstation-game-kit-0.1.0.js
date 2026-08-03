@@ -231,10 +231,10 @@
 		const loader =
 			host &&
 			host.wp &&
-			host.wp.desktop &&
-			host.wp.desktop.loadModules;
+			host.wp.os &&
+			host.wp.os.loadModules;
 		if ( typeof loader === 'function' ) {
-			await loader.call( host.wp.desktop, [ 'pixijs' ] );
+			await loader.call( host.wp.os, [ 'pixijs' ] );
 		}
 		if ( ! host || ! host.PIXI ) {
 			throw new Error( 'OpenStation Game Kit could not load shared PixiJS.' );

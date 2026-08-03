@@ -439,7 +439,7 @@ export async function mountScene(
 			}
 			// Put the container's inline background back however we
 			// found it — next wallpaper's apply() takes over from
-			// there via `--desktop-mode-bg`.
+			// there via `--os-bg`.
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {

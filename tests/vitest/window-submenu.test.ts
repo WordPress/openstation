@@ -61,28 +61,28 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( win.element.isConnected ).toBe( true );
 
 		// Title bar + iframe body must exist.
-		expect( win.element.querySelector( '.desktop-mode-window__titlebar' ) ).not.toBeNull();
-		expect( win.element.querySelector( '.desktop-mode-window__iframe' ) ).not.toBeNull();
+		expect( win.element.querySelector( '.os-window__titlebar' ) ).not.toBeNull();
+		expect( win.element.querySelector( '.os-window__iframe' ) ).not.toBeNull();
 
 		// Submenu renders one tab per entry; first is active because
 		// it matches the window's initial URL.
-		const tabs = win.element.querySelectorAll( '.desktop-mode-window__tab' );
+		const tabs = win.element.querySelectorAll( '.os-window__tab' );
 		expect( tabs.length ).toBe( 3 );
-		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 
 		// Title-bar menu panel is present for iframe windows (holds
 		// "Open on startup"); its button only mounts if the panel has
 		// at least one item.
-		const menuBtn = win.element.querySelector( '.desktop-mode-window__menu-btn' );
-		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' );
+		const menuBtn = win.element.querySelector( '.os-window__menu-btn' );
+		const menuPanel = win.element.querySelector( '.os-window__menu-panel' );
 		expect( menuBtn ).not.toBeNull();
 		expect( menuPanel ).not.toBeNull();
-		const startup = menuPanel!.querySelector( '.desktop-mode-window__menu-item--startup' );
+		const startup = menuPanel!.querySelector( '.os-window__menu-item--startup' );
 		expect( startup ).not.toBeNull();
 
 		// For non-multi pages, "Open another" is absent.
 		expect(
-			menuPanel!.querySelector( '.desktop-mode-window__menu-item--open-another' ),
+			menuPanel!.querySelector( '.os-window__menu-item--open-another' ),
 		).toBeNull();
 	} );
 
@@ -105,14 +105,14 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 
-		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
 		expect( tabs.length ).toBe( 4 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Posts' );
 		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/edit.php' );
 		expect( tabs[ 0 ].dataset.kind ).toBe( 'submenu' );
 		// First tab is active because its URL matches the iframe's
 		// initial URL.
-		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 	} );
 
 	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', async () => {
@@ -136,7 +136,7 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 
-		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
 		// Synthetic Appearance + Add Theme + Editor.
 		expect( tabs.length ).toBe( 3 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Appearance' );
@@ -144,10 +144,10 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		// Add Theme is the active tab because its URL matches the
 		// iframe's current URL (theme-install.php).
 		expect( tabs[ 1 ].textContent ).toBe( 'Add Theme' );
-		expect( tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 1 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 		// Synthetic Appearance is NOT active — the iframe isn't on
 		// themes.php right now.
-		expect( tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( false );
+		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( false );
 	} );
 
 	test( 'synthetic parent tab is suppressed when parentUrl already in submenu (WC shape)', async () => {
@@ -170,14 +170,14 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 
-		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
 		// Just the three submenu entries — no synthetic, since
 		// "Home" already serves as the parent affordance.
 		expect( tabs.length ).toBe( 3 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Home' );
 		// "Orders" is active — that's the iframe's current URL.
 		expect( tabs[ 1 ].textContent ).toBe( 'Orders' );
-		expect( tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ) ).toBe( true );
+		expect( tabs[ 1 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 	} );
 
 	test( 'parentUrl absent — synthetic logic falls back to url (legacy behaviour)', async () => {
@@ -197,7 +197,7 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 
-		const tabs = win.element.querySelectorAll< HTMLElement >( '.desktop-mode-window__tab' );
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
 		// Two tabs: "All Posts" (which already covers the parent URL)
 		// and "Add New". No synthetic prepended.
 		expect( tabs.length ).toBe( 2 );
@@ -230,7 +230,7 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 		expect( second ).toBeDefined();
-		expect( second.element.querySelector( '.desktop-mode-window__iframe' ) ).not.toBeNull();
+		expect( second.element.querySelector( '.os-window__iframe' ) ).not.toBeNull();
 	} );
 
 	test( 'opens a fresh singleton instance on each virtual desktop', async () => {
@@ -292,9 +292,9 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 				{ title: 'Add New', url: 'http://example.test/wp-admin/post-new.php' },
 			],
 		} );
-		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' )!;
+		const menuPanel = win.element.querySelector( '.os-window__menu-panel' )!;
 		expect(
-			menuPanel.querySelector( '.desktop-mode-window__menu-item--open-another' ),
+			menuPanel.querySelector( '.os-window__menu-item--open-another' ),
 		).not.toBeNull();
 	} );
 
@@ -310,9 +310,9 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			icon: 'dashicons-admin-comments',
 			multi: false,
 		} );
-		const menuPanel = win.element.querySelector( '.desktop-mode-window__menu-panel' )!;
+		const menuPanel = win.element.querySelector( '.os-window__menu-panel' )!;
 		const item = menuPanel.querySelector(
-			'.desktop-mode-window__menu-item--open-in-new-window',
+			'.os-window__menu-item--open-in-new-window',
 		);
 		expect( item ).not.toBeNull();
 		expect( item!.getAttribute( 'role' ) ).toBe( 'menuitem' );

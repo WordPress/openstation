@@ -43,24 +43,24 @@ function myplugin_register_hello_widget_assets() {
 }
 add_action( 'init', 'myplugin_register_hello_widget_assets', 5 );
 
-// Eagerly enqueue the CSS on Desktop Mode shell pages only.
+// Eagerly enqueue the CSS on OpenStation shell pages only.
 function myplugin_enqueue_hello_widget_styles() {
-    if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+    if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
         return;
     }
-    if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+    if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
         return;
     }
     wp_enqueue_style( 'myplugin-hello-widget' );
 }
 add_action( 'admin_enqueue_scripts', 'myplugin_enqueue_hello_widget_styles', 20 );
 
-// Announce the widget to Desktop Mode so it appears in the picker.
+// Announce the widget to OpenStation so it appears in the picker.
 function myplugin_register_hello_widget() {
-    if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
+    if ( ! function_exists( 'open_station_register_widget' ) ) {
         return;
     }
-    desktop_mode_register_widget( 'myplugin/hello', array(
+    open_station_register_widget( 'myplugin/hello', array(
         'label'          => __( 'Hello Widget', 'myplugin' ),
         'description'    => __( 'A simple greeting.', 'myplugin' ),
         'icon'           => 'dashicons-smiley',
@@ -82,7 +82,7 @@ add_action( 'init', 'myplugin_register_hello_widget', 6 );
 import './styles.css';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-// Must match the id passed to desktop_mode_register_widget() in PHP exactly.
+// Must match the id passed to open_station_register_widget() in PHP exactly.
 // Do not rename this after users have the widget enabled — it is the
 // localStorage key for their preference and renaming it resets everyone.
 const WIDGET_ID = 'myplugin/hello';
@@ -101,10 +101,10 @@ const mount = (
 };
 
 const w = window as unknown as {
-    desktopModeWidgets?: Record< string, typeof mount >;
+    openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;
 ```
 
 Add a Vite target in `vite.config.js` inside the `TARGETS` object:
@@ -113,14 +113,14 @@ Add a Vite target in `vite.config.js` inside the `TARGETS` object:
 'widget-hello': {
     entry:    'src/plugins/hello-widget/index.ts',
     fileBase: 'widget-hello',
-    iifeName: 'desktopModeHelloWidget',
+    iifeName: 'openStationHelloWidget',
 },
 ```
 
 Add a build script in `package.json`:
 
 ```json
-"build:widget-hello": "DESKTOP_MODE_TARGET=widget-hello vite build --mode development && DESKTOP_MODE_TARGET=widget-hello vite build --mode production"
+"build:widget-hello": "OPEN_STATION_TARGET=widget-hello vite build --mode development && OPEN_STATION_TARGET=widget-hello vite build --mode production"
 ```
 
 Then build:
@@ -223,10 +223,10 @@ const mount = async (
 };
 
 const w = window as unknown as {
-    desktopModeWidgets?: Record< string, typeof mount >;
+    openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;
 ```
 
 ---
@@ -315,7 +315,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ) => {
 
 ## Size constraints reference
 
-All sizes are pixels, passed to `desktop_mode_register_widget()`:
+All sizes are pixels, passed to `open_station_register_widget()`:
 
 | Arg | Effect |
 |---|---|
@@ -334,6 +334,6 @@ and edge handles; column-docked widgets get a bottom-edge handle only.
 
 ## See also
 
-- [Hooks reference — `desktop_mode_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
-- [JavaScript reference — `wp.desktop.registerWidget()`](../javascript-reference.md) — the client-side equivalent.
+- [Hooks reference — `open_station_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
+- [JavaScript reference — `wp.os.registerWidget()`](../javascript-reference.md) — the client-side equivalent.
 - [Starter widget source](../../src/plugins/starter-widget/index.ts) — a heavily commented skeleton covering every pattern above in a single working widget. It only appears in the add-widget picker when the current user has "Enable developer mode" turned on (OS Settings → Features) — regular users don't see it.

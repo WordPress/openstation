@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — The built-in "Legacy" desktop theme.
+ * OpenStation — The built-in "Legacy" desktop theme.
  *
- * Legacy is Desktop Mode's own default look, written down: every
- * design token the shell and the `<wpd-*>` component kit read, at the
+ * Legacy is OpenStation's own default look, written down: every
+ * design token the shell and the `<os-*>` component kit read, at the
  * value it resolved to with no theme active when the snapshot was
  * taken. Wearing it changes (almost) nothing — that is the point. It
  * exists so a theme author can read the whole palette in one file,
@@ -14,7 +14,7 @@
  * It ships as data, in `assets/desktop-themes/legacy/theme.json` —
  * the same `theme.json` an uploaded ZIP carries, registered through
  * the same public API a plugin would use
- * ({@see desktop_mode_register_desktop_theme()}) and put through the
+ * ({@see open_station_register_desktop_theme()}) and put through the
  * same sanitizer. `bin/package-legacy-theme.sh` zips that directory
  * into the distributable a user could hand to someone else.
  *
@@ -32,9 +32,9 @@
  *
  * Because it is code-registered rather than uploaded, it is always
  * present and cannot be deleted: the delete route only ever touches
- * the uploaded index ({@see desktop_mode_desktop_theme_delete()}). A
+ * the uploaded index ({@see open_station_desktop_theme_delete()}). A
  * site that genuinely does not want it calls
- * `desktop_mode_unregister_desktop_theme( 'desktop-mode/legacy' )` on
+ * `open_station_unregister_desktop_theme( 'desktop-mode/legacy' )` on
  * `init` at a priority above 5.
  *
  * ## What Legacy deliberately does NOT declare
@@ -46,26 +46,26 @@
  *     focused title bar, the window-link splines and the selection
  *     ring track the user's WordPress admin colour scheme; a hex here
  *     would pin every scheme to Fresh blue.
- *   - Context-dependent tokens — `--desktop-mode-fg`,
- *     `--desktop-mode-tooltip-bg` and friends read light on the desk
+ *   - Context-dependent tokens — `--os-fg`,
+ *     `--os-tooltip-bg` and friends read light on the desk
  *     and dark inside a window, so one value breaks one of the two.
  *   - Derived sizes (the badge family) and the texture slots, which
  *     are written by the manifest's `textures` block, not `tokens`.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Manifest id of the built-in Legacy theme. */
-const DESKTOP_MODE_LEGACY_THEME_ID = 'desktop-mode/legacy';
+const OPEN_STATION_LEGACY_THEME_ID = 'desktop-mode/legacy';
 
 /**
  * Absolute path of the Legacy theme's `theme.json`.
  *
  * @return string
  */
-function desktop_mode_legacy_theme_manifest_path() {
+function open_station_legacy_theme_manifest_path() {
 	/**
 	 * Filters the path the built-in Legacy theme's manifest is read
 	 * from. A site that has forked the token set can point this at
@@ -74,8 +74,8 @@ function desktop_mode_legacy_theme_manifest_path() {
 	 * @param string $path Absolute path to a `theme.json`.
 	 */
 	return (string) apply_filters(
-		'desktop_mode_legacy_theme_manifest_path',
-		DESKTOP_MODE_DIR . 'assets/desktop-themes/legacy/theme.json'
+		'open_station_legacy_theme_manifest_path',
+		OPEN_STATION_DIR . 'assets/desktop-themes/legacy/theme.json'
 	);
 }
 
@@ -90,8 +90,8 @@ function desktop_mode_legacy_theme_manifest_path() {
  *                              empty array when the file is missing
  *                              or unreadable.
  */
-function desktop_mode_legacy_theme_tokens() {
-	$manifest = desktop_mode_legacy_theme_manifest();
+function open_station_legacy_theme_tokens() {
+	$manifest = open_station_legacy_theme_manifest();
 	return isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
 		? $manifest['tokens']
 		: array();
@@ -107,14 +107,14 @@ function desktop_mode_legacy_theme_tokens() {
  * @return array Decoded manifest, or an empty array when the file is
  *               missing or unreadable.
  */
-function desktop_mode_legacy_theme_manifest() {
+function open_station_legacy_theme_manifest() {
 	static $manifest = null;
 	if ( null !== $manifest ) {
 		return $manifest;
 	}
 
 	$manifest = array();
-	$path     = desktop_mode_legacy_theme_manifest_path();
+	$path     = open_station_legacy_theme_manifest_path();
 	if ( ! is_readable( $path ) ) {
 		return $manifest;
 	}
@@ -132,18 +132,18 @@ function desktop_mode_legacy_theme_manifest() {
  * Priority 5 on `init`, the same slot the built-in wallpapers use, so
  * the theme is in the registry before the shell config is built and
  * before any third-party plugin reacting to
- * `desktop_mode_desktop_theme_registered` runs.
+ * `open_station_desktop_theme_registered` runs.
  *
  * The name and description are duplicated between here and the
  * manifest on purpose: PHP's copy is translatable, the manifest's is
  * what a user sees if they install the ZIP on a site that does not
- * run Desktop Mode's own registration. Keep the two in step.
+ * run OpenStation's own registration. Keep the two in step.
  *
  * @return void
  */
-function desktop_mode_register_builtin_desktop_themes() {
-	$manifest = desktop_mode_legacy_theme_manifest();
-	$tokens   = desktop_mode_legacy_theme_tokens();
+function open_station_register_builtin_desktop_themes() {
+	$manifest = open_station_legacy_theme_manifest();
+	$tokens   = open_station_legacy_theme_tokens();
 	if ( empty( $tokens ) ) {
 		return;
 	}
@@ -160,17 +160,17 @@ function desktop_mode_register_builtin_desktop_themes() {
 		? $manifest['recommendedOsSettings']
 		: array();
 
-	desktop_mode_register_desktop_theme(
-		DESKTOP_MODE_LEGACY_THEME_ID,
+	open_station_register_desktop_theme(
+		OPEN_STATION_LEGACY_THEME_ID,
 		array(
-			'name'                  => __( 'Desktop Mode (Legacy)', 'desktop-mode' ),
+			'name'                  => __( 'OpenStation (Legacy)', 'desktop-mode' ),
 			'version'               => '1.0.0',
-			'author'                => 'Desktop Mode',
-			'description'           => __( 'The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
+			'author'                => 'OpenStation',
+			'description'           => __( 'The look OpenStation had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
 			// A code theme's assets are URLs it already serves. The
 			// artwork is the theme previewing itself: desk, dock and
 			// one window, painted in the tokens below.
-			'preview'               => DESKTOP_MODE_URL . 'assets/desktop-themes/legacy/preview.svg',
+			'preview'               => OPEN_STATION_URL . 'assets/desktop-themes/legacy/preview.svg',
 			'tokens'                => $tokens,
 			'recommendedOsSettings' => $recommended,
 		)
@@ -183,6 +183,6 @@ function desktop_mode_register_builtin_desktop_themes() {
  * sanitizing + compiling 377 tokens for a request that will never
  * render the shell is pure waste.
  */
-if ( desktop_mode_request_needs_admin_modules() ) {
-	add_action( 'init', 'desktop_mode_register_builtin_desktop_themes', 5 );
+if ( open_station_request_needs_admin_modules() ) {
+	add_action( 'init', 'open_station_register_builtin_desktop_themes', 5 );
 }

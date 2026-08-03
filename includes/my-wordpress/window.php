@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: window + pinned icon registration.
+ * OpenStation — My WordPress: window + pinned icon registration.
  *
  * Native window with id `desktop-mode-my-wordpress`, opened from a
  * pinned desktop icon that always sits in the top-left of the grid
@@ -11,13 +11,13 @@
  *
  * Filterable surface (mirrors the recycle-bin / posts-window modules):
  *
- *   - `desktop_mode_my_wordpress_window_args`
- *   - `desktop_mode_my_wordpress_icon_args`
- *   - `desktop_mode_my_wordpress_user_can_use`
- *   - `desktop_mode_my_wordpress_entities`
- *   - `desktop_mode_my_wordpress_template_html`
+ *   - `open_station_my_wordpress_window_args`
+ *   - `open_station_my_wordpress_icon_args`
+ *   - `open_station_my_wordpress_user_can_use`
+ *   - `open_station_my_wordpress_entities`
+ *   - `open_station_my_wordpress_template_html`
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool
  */
-function desktop_mode_my_wordpress_user_can_use() {
+function open_station_my_wordpress_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
@@ -39,7 +39,7 @@ function desktop_mode_my_wordpress_user_can_use() {
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'desktop_mode_my_wordpress_user_can_use', $can );
+	return (bool) apply_filters( 'open_station_my_wordpress_user_can_use', $can );
 }
 
 /**
@@ -56,13 +56,13 @@ function desktop_mode_my_wordpress_user_can_use() {
  * list with a post-shaped collection can omit the field; user- and
  * media-shaped collections must set `'user'` / `'media'`.
  * The optional `post_type` field specifies the WP post-type
- * slug used for `desktop-mode.<slug>.changed` cross-window broadcasts.
+ * slug used for `os.<slug>.changed` cross-window broadcasts.
  *
  * @return array[] Each entry is `array( 'id', 'label', 'icon',
  *                 'restPath', 'kind', 'post_type' )`. `restPath` is appended to
  *                 the `restRoot` config to derive the list URL.
  */
-function desktop_mode_my_wordpress_entities() {
+function open_station_my_wordpress_entities() {
 	$entities = array(
 		array(
 			'id'        => 'posts',
@@ -112,7 +112,7 @@ function desktop_mode_my_wordpress_entities() {
 	 *
 	 * Optional fields:
 	 *   - `kind`       — render strategy (`'post'` default, `'user'`, `'media'`).
-	 *   - `post_type`  — WP post-type slug for cross-window broadcast topic `desktop-mode.<slug>.changed`.
+	 *   - `post_type`  — WP post-type slug for cross-window broadcast topic `os.<slug>.changed`.
 	 *   - `thumbnails` — set false to keep the section icon on every tile
 	 *                    instead of the entity's featured image.
 	 *   - `group`      — folder id this section nests under at the root
@@ -121,25 +121,25 @@ function desktop_mode_my_wordpress_entities() {
 	 *
 	 * @param array[] $entities Default entities.
 	 */
-	$filtered = apply_filters( 'desktop_mode_my_wordpress_entities', $entities );
+	$filtered = apply_filters( 'open_station_my_wordpress_entities', $entities );
 	return is_array( $filtered ) ? array_values( $filtered ) : $entities;
 }
 
 /**
  * Render the My WordPress window's static template body. The bundle
- * mounts its UI into `[data-desktop-mode-my-wordpress-root]`.
+ * mounts its UI into `[data-os-my-wordpress-root]`.
  */
-function desktop_mode_my_wordpress_render_template() {
+function open_station_my_wordpress_render_template() {
 	ob_start();
 	?>
-	<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-		<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-		<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-			<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden>
-				<wpd-spinner></wpd-spinner>
+	<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+		<header data-os-my-wordpress-breadcrumbs></header>
+		<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+			<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden>
+				<os-spinner></os-spinner>
 			</div>
 		</div>
-		<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+		<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 	</div>
 	<?php
 	$html = (string) ob_get_clean();
@@ -149,10 +149,10 @@ function desktop_mode_my_wordpress_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_my_wordpress_template_html', $html );
+	$filtered = (string) apply_filters( 'open_station_my_wordpress_template_html', $html );
 
-	$allowed_html = function_exists( 'desktop_mode_native_window_allowed_html' )
-		? desktop_mode_native_window_allowed_html()
+	$allowed_html = function_exists( 'open_station_native_window_allowed_html' )
+		? open_station_native_window_allowed_html()
 		: wp_kses_allowed_html( 'post' );
 
 	echo wp_kses( $filtered, $allowed_html );
@@ -166,19 +166,19 @@ function desktop_mode_my_wordpress_render_template() {
  * emitted later on `admin_enqueue_scripts`, so a CPT registered after
  * this point would never reach the bundle.
  */
-function desktop_mode_my_wordpress_register_window() {
-	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
+function open_station_my_wordpress_register_window() {
+	if ( ! open_station_my_wordpress_user_can_use() ) {
 		return;
 	}
 
-	$site_title = desktop_mode_site_title();
+	$site_title = open_station_site_title();
 
-	$entities = desktop_mode_my_wordpress_entities();
+	$entities = open_station_my_wordpress_entities();
 
 	$window_args = array(
 		'title'      => $site_title,
 		'icon'       => 'dashicons-wordpress',
-		'template'   => 'desktop_mode_my_wordpress_render_template',
+		'template'   => 'open_station_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
 		'style'      => 'desktop-mode-my-wordpress',
 		'width'      => 960,
@@ -193,13 +193,13 @@ function desktop_mode_my_wordpress_register_window() {
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'siteName'        => $site_title,
 			'entities'        => $entities,
-			'groups'          => function_exists( 'desktop_mode_my_wordpress_collect_groups' )
-				? desktop_mode_my_wordpress_collect_groups( $entities )
+			'groups'          => function_exists( 'open_station_my_wordpress_collect_groups' )
+				? open_station_my_wordpress_collect_groups( $entities )
 				: array(),
 			'perPage'         => 24,
 			'mediaPerPage'    => 48,
-			'previewActions'  => function_exists( 'desktop_mode_my_wordpress_collect_preview_actions' )
-				? desktop_mode_my_wordpress_collect_preview_actions()
+			'previewActions'  => function_exists( 'open_station_my_wordpress_collect_preview_actions' )
+				? open_station_my_wordpress_collect_preview_actions()
 				: array(),
 		),
 	);
@@ -207,14 +207,14 @@ function desktop_mode_my_wordpress_register_window() {
 	/**
 	 * Filter the args used to register the My WordPress native window.
 	 *
-	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
+	 * @param array $window_args Args passed to `open_station_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'desktop_mode_my_wordpress_window_args', $window_args );
+	$window_args = (array) apply_filters( 'open_station_my_wordpress_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-my-wordpress', $window_args );
+	$registered = open_station_register_window( 'desktop-mode-my-wordpress', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] My WordPress window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] My WordPress window registration failed: ' . $registered->get_error_message() );
 		return;
 	}
 
@@ -233,23 +233,23 @@ function desktop_mode_my_wordpress_register_window() {
 	 * sort order — useful for sites that want the shortcut to feel
 	 * like any other plugin icon.
 	 *
-	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
+	 * @param array $icon_args Args passed to `open_station_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'desktop_mode_my_wordpress_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'open_station_my_wordpress_icon_args', $icon_args );
 
-	desktop_mode_register_icon( 'desktop-mode-my-wordpress', $icon_args );
+	open_station_register_icon( 'desktop-mode-my-wordpress', $icon_args );
 }
-add_action( 'init', 'desktop_mode_my_wordpress_register_window', 99 );
+add_action( 'init', 'open_station_my_wordpress_register_window', 99 );
 
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync and so does not need an
  * `admin_enqueue_scripts` call.
  */
-function desktop_mode_my_wordpress_enqueue_styles() {
-	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
+function open_station_my_wordpress_enqueue_styles() {
+	if ( ! open_station_my_wordpress_user_can_use() ) {
 		return;
 	}
 	wp_enqueue_style( 'desktop-mode-my-wordpress' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_my_wordpress_enqueue_styles', 30 );
+add_action( 'admin_enqueue_scripts', 'open_station_my_wordpress_enqueue_styles', 30 );

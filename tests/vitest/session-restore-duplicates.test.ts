@@ -66,7 +66,7 @@ describe( 'restoreSession — duplicate instances', () => {
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -188,7 +188,7 @@ describe( 'restoreSession — native windows', () => {
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -228,7 +228,7 @@ describe( 'restoreSession — native windows', () => {
 			id: 'desktop-mode-os-settings',
 			baseId: 'desktop-mode-os-settings',
 			native: true,
-			url: '#desktop-mode-os-settings',
+			url: '#os-settings',
 			title: 'OS Settings',
 			icon: 'dashicons-desktop',
 			...patch,
@@ -362,7 +362,7 @@ describe( 'WindowManager.snapshot — native windows', () => {
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -432,7 +432,7 @@ describe( 'WindowManager.openNew — instance id allocation', () => {
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {

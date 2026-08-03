@@ -3,7 +3,7 @@
  * guarantee, stub upgrading, and challenge-mode score routing.
  *
  * `launchGame` reaches every shell capability through the
- * `wp.desktop` global, so the tests install a fake surface and
+ * `wp.os` global, so the tests install a fake surface and
  * assert against it.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -84,8 +84,8 @@ describe( 'games/launch.ts', () => {
 		// hooks stub — attach the fake desktop surface alongside it
 		// rather than clobbering the object.
 		(
-			window.wp as unknown as { desktop?: FakeDesktop }
-		 ).desktop = fake;
+			window.wp as unknown as { os?: FakeDesktop }
+		 ).os = fake;
 	} );
 
 	afterEach( () => {
@@ -118,13 +118,13 @@ describe( 'games/launch.ts', () => {
 		await launch.launchGame( 'test-game' );
 
 		expect( fake.wallpaper.suspend ).toHaveBeenCalledWith(
-			'game:desktop-mode-game-test-game',
+			'game:os-game-test-game',
 		);
 		expect( fake.wallpaper.resume ).not.toHaveBeenCalled();
 
 		windowHandlers.closed?.();
 		expect( fake.wallpaper.resume ).toHaveBeenCalledWith(
-			'game:desktop-mode-game-test-game',
+			'game:os-game-test-game',
 		);
 	} );
 
@@ -214,9 +214,9 @@ describe( 'games/launch.ts', () => {
 		fake.loadVendorScript.mockImplementation( () => {
 			(
 				window as unknown as {
-					desktopModeGames?: Record< string, unknown >;
+					openStationGames?: Record< string, unknown >;
 				}
-			 ).desktopModeGames = {
+			 ).openStationGames = {
 				'test-game': {
 					id: 'test-game',
 					title: 'Test Game',
@@ -246,7 +246,7 @@ describe( 'games/launch.ts', () => {
 
 		await launch.launchGame( 'test-game' );
 
-		expect( capturedCtx?.windowId ).toBe( 'desktop-mode-game-test-game' );
+		expect( capturedCtx?.windowId ).toBe( 'os-game-test-game' );
 		expect( capturedCtx?.config ).toEqual( {
 			wordsUrl: 'https://example.test/words.txt',
 		} );

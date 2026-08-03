@@ -103,7 +103,7 @@ function buildSyntheticPlacement(
 function readDockItems(): DockItemConfig[] {
 	const api = ( window as unknown as {
 		wp?: {
-			desktop?: {
+			os?: {
 				getMenuItems?: () => Array< {
 					id: string;
 					title: string;
@@ -115,7 +115,7 @@ function readDockItems(): DockItemConfig[] {
 				} >;
 			};
 		};
-	} ).wp?.desktop;
+	} ).wp?.os;
 	if ( api?.getMenuItems ) {
 		const items = api.getMenuItems();
 		return items.map( ( i ) => ( {
@@ -128,14 +128,14 @@ function readDockItems(): DockItemConfig[] {
 			isCore: i.isCore,
 		} ) );
 	}
-	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
-		.desktopModeConfig;
+	const cfg = ( window as unknown as { openStationConfig?: DesktopConfig } )
+		.openStationConfig;
 	return cfg?.dockItems ?? [];
 }
 
 function readServerIcons(): DesktopIconServerEntry[] {
-	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
-		.desktopModeConfig;
+	const cfg = ( window as unknown as { openStationConfig?: DesktopConfig } )
+		.openStationConfig;
 	return cfg?.desktopIcons ?? [];
 }
 
@@ -174,14 +174,14 @@ const removedServerPlacementsByRef = new Map< string, RestPlacementShape >();
 function prunePromotedPositions( ids: string[] ): void {
 	const api = ( window as unknown as {
 		wp?: {
-			desktop?: {
+			os?: {
 				getOsSettings?: () => OsSettingsSnapshot;
 				updateOsSettings?: (
 					patch: Partial< OsSettingsSnapshot >,
 				) => void;
 			};
 		};
-	} ).wp?.desktop;
+	} ).wp?.os;
 	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
 		return;
 	}
@@ -302,7 +302,7 @@ export function syncShortcutsWithVisibility(
 		}
 
 		// 2. Reconcile server-registered shortcuts (icons registered via
-		//    `desktop_mode_register_icon()`) with the user's visibility:
+		//    `open_station_register_icon()`) with the user's visibility:
 		//
 		//    - 'dock' / 'hidden' → remove the placement from the files
 		//      store so the wallpaper stops painting the tile. Cache
@@ -311,7 +311,7 @@ export function syncShortcutsWithVisibility(
 		//    - 'desktop' / 'both' → if the cached copy says we removed
 		//      this icon earlier, put the placement back in the store.
 		//      The wallpaper-grid CSS-toggle path (`renderDesktopIcons`)
-		//      handles this for `.desktop-mode-icons` already, but that
+		//      handles this for `.os-icons` already, but that
 		//      grid is hidden whenever a files-layer is mounted
 		//      (see `desktop-files.css`'s `:has(...)` rule) — so the
 		//      visible surface is the files-layer, and the files-layer

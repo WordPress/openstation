@@ -1,10 +1,10 @@
 /**
- * Desktop Mode — Recycle Bin window styles.
+ * OpenStation — Recycle Bin window styles.
  *
  * Scoped to `.desktop-mode-recycle-bin` so the rules can't leak into other
  * windows. Layout: a sticky toolbar across the top, then a flex-1
- * body that hosts a `<wpd-table>`. The table is told to size to the
- * body via `--wpd-table-max-height: 100%` so its sticky header
+ * body that hosts a `<os-table>`. The table is told to size to the
+ * body via `--os-ui-table-max-height: 100%` so its sticky header
  * engages.
  */
 
@@ -13,23 +13,23 @@
 	flex-direction: column;
 	height: 100%;
 	width: 100%;
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.desktop-mode-recycle-bin__toolbar {
+.os-recycle-bin__toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
 	padding: 10px 14px;
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
 }
 
-.desktop-mode-recycle-bin__toolbar-left,
-.desktop-mode-recycle-bin__toolbar-right,
-.desktop-mode-recycle-bin__toolbar-trailing {
+.os-recycle-bin__toolbar-left,
+.os-recycle-bin__toolbar-right,
+.os-recycle-bin__toolbar-trailing {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -42,61 +42,61 @@
  * the expected behaviour so `bulk.hidden = true` from JS
  * actually hides the bulk action group when nothing is selected.
  */
-.desktop-mode-recycle-bin__toolbar-right[hidden] {
+.os-recycle-bin__toolbar-right[hidden] {
 	display: none;
 }
 
-.desktop-mode-recycle-bin__toolbar-trailing {
+.os-recycle-bin__toolbar-trailing {
 	margin-inline-start: auto;
 }
 
-.desktop-mode-recycle-bin__count {
+.os-recycle-bin__count {
 	font-size: 12px;
 	font-weight: 600;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-variant-numeric: tabular-nums;
 	padding-inline-end: 4px;
 }
 
-.desktop-mode-recycle-bin__body {
+.os-recycle-bin__body {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	padding: 8px 12px 12px;
 }
 
-.desktop-mode-recycle-bin__body wpd-table {
+.os-recycle-bin__body os-table {
 	flex: 1 1 auto;
-	--wpd-table-max-height: 100%;
+	--os-ui-table-max-height: 100%;
 }
 
 /*
  * NOTE — cell-content styles are now inlined in `src/recycle-bin/
- * index.ts`. `<wpd-table>` renders into its own shadow DOM, which
+ * index.ts`. `<os-table>` renders into its own shadow DOM, which
  * blocks document-level stylesheets (and Dashicons) from reaching
  * any node we return from a `column.render` callback. The empty-
  * state, toolbar, and body styles below remain CSS because they
  * live in the bin window's light-DOM template.
  */
 
-.desktop-mode-recycle-bin__empty {
+.os-recycle-bin__empty {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
 	padding: 32px 16px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: center;
 }
 
-.desktop-mode-recycle-bin__empty .dashicons {
+.os-recycle-bin__empty .dashicons {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
 	opacity: 0.6;
 }
 
-.desktop-mode-recycle-bin__empty-hint {
+.os-recycle-bin__empty-hint {
 	font-size: 12px;
 	max-width: 360px;
 }
@@ -104,10 +104,10 @@
 /*
  * Drop-target highlight for cross-window drag-to-trash. Set when
  * the desktop drag handler hit-tests the cursor over the bin's
- * root via `data-desktop-mode-trash-drop-active`. Returns to
+ * root via `data-os-trash-drop-active`. Returns to
  * normal on pointer-up or when the cursor leaves the window.
  */
-.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ] {
+.desktop-mode-recycle-bin[ data-os-trash-drop-active ] {
 	position: relative;
 	box-shadow: inset 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
 	transition: box-shadow 80ms ease;
@@ -120,7 +120,7 @@
  * first. The selector matches the dock tile's `data-system-id`
  * so this CSS applies wherever the recycle-bin dock entry
  * renders (left rail, bottom rail, future placements). */
-.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ][ data-desktop-mode-trash-drop-active ] {
+.os-dock__item[ data-system-id="desktop-mode-recycle-bin" ][ data-os-trash-drop-active ] {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 	border-radius: 12px;
@@ -134,7 +134,7 @@
 		background 80ms ease;
 }
 
-.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ]::before {
+.desktop-mode-recycle-bin[ data-os-trash-drop-active ]::before {
 	content: '';
 	position: absolute;
 	inset: 0;
@@ -147,7 +147,7 @@
 	z-index: 1;
 }
 
-.desktop-mode-recycle-bin[ data-desktop-mode-trash-drop-active ]::after {
+.desktop-mode-recycle-bin[ data-os-trash-drop-active ]::after {
 	content: '🗑  Drop to move to Trash';
 	position: absolute;
 	left: 50%;
@@ -156,7 +156,7 @@
 	padding: 10px 18px;
 	border-radius: 999px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font-weight: 600;
 	font-size: 13px;
 	letter-spacing: 0.2px;

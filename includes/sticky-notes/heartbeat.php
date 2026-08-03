@@ -1,20 +1,20 @@
 <?php
 /**
- * Desktop Mode — Sticky notes Heartbeat sync.
+ * OpenStation — Sticky notes Heartbeat sync.
  *
  * Gutenberg's Guidelines experiment owns the `wp_guideline` CPT and
- * `wp_guideline_type` taxonomy. Desktop Mode only mirrors sticky
+ * `wp_guideline_type` taxonomy. OpenStation only mirrors sticky
  * artifacts into the shell: the client subscribes with the sticky term
  * id, known guideline ids, and a high-water modified timestamp; the
  * server responds with changed sticky guidelines plus removals.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const DESKTOP_MODE_STICKY_NOTES_POST_TYPE = 'wp_guideline';
-const DESKTOP_MODE_STICKY_NOTES_TAXONOMY  = 'wp_guideline_type';
+const OPEN_STATION_STICKY_NOTES_POST_TYPE = 'wp_guideline';
+const OPEN_STATION_STICKY_NOTES_TAXONOMY  = 'wp_guideline_type';
 
 /**
  * Whether the sticky-notes surface is available on this site.
@@ -29,9 +29,9 @@ const DESKTOP_MODE_STICKY_NOTES_TAXONOMY  = 'wp_guideline_type';
  *
  * @return bool True when both the guideline CPT and taxonomy are registered.
  */
-function desktop_mode_sticky_notes_is_available() {
-	$available = post_type_exists( DESKTOP_MODE_STICKY_NOTES_POST_TYPE )
-		&& taxonomy_exists( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+function open_station_sticky_notes_is_available() {
+	$available = post_type_exists( OPEN_STATION_STICKY_NOTES_POST_TYPE )
+		&& taxonomy_exists( OPEN_STATION_STICKY_NOTES_TAXONOMY );
 
 	/**
 	 * Filters whether the sticky-notes surface is available.
@@ -41,7 +41,7 @@ function desktop_mode_sticky_notes_is_available() {
 	 *
 	 * @param bool $available Whether the guideline CPT + taxonomy are registered.
 	 */
-	return (bool) apply_filters( 'desktop_mode_sticky_notes_available', $available );
+	return (bool) apply_filters( 'open_station_sticky_notes_available', $available );
 }
 
 /**
@@ -51,23 +51,23 @@ function desktop_mode_sticky_notes_is_available() {
  * @param array $data     Client-sent payload.
  * @return array
  */
-function desktop_mode_sticky_notes_heartbeat_received( $response, $data ) {
+function open_station_sticky_notes_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( empty( $data['desktop_mode_sticky_notes_subscribe'] ) || ! is_array( $data['desktop_mode_sticky_notes_subscribe'] ) ) {
+	if ( empty( $data['open_station_sticky_notes_subscribe'] ) || ! is_array( $data['open_station_sticky_notes_subscribe'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+	if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
 		return $response;
 	}
-	if ( ! desktop_mode_sticky_notes_is_available() ) {
+	if ( ! open_station_sticky_notes_is_available() ) {
 		return $response;
 	}
 
-	$sub            = $data['desktop_mode_sticky_notes_subscribe'];
+	$sub            = $data['open_station_sticky_notes_subscribe'];
 	$sticky_term_id = isset( $sub['stickyTermId'] ) ? absint( $sub['stickyTermId'] ) : 0;
-	if ( $sticky_term_id <= 0 || ! term_exists( $sticky_term_id, DESKTOP_MODE_STICKY_NOTES_TAXONOMY ) ) {
+	if ( $sticky_term_id <= 0 || ! term_exists( $sticky_term_id, OPEN_STATION_STICKY_NOTES_TAXONOMY ) ) {
 		return $response;
 	}
 
@@ -78,7 +78,7 @@ function desktop_mode_sticky_notes_heartbeat_received( $response, $data ) {
 
 	$version = isset( $sub['version'] ) ? max( 0, (int) $sub['version'] ) : 0;
 
-	$response['desktop_mode_sticky_notes'] = desktop_mode_sticky_notes_compute_heartbeat_delta(
+	$response['open_station_sticky_notes'] = open_station_sticky_notes_compute_heartbeat_delta(
 		$sticky_term_id,
 		$known_ids,
 		$version,
@@ -87,7 +87,7 @@ function desktop_mode_sticky_notes_heartbeat_received( $response, $data ) {
 
 	return $response;
 }
-add_filter( 'heartbeat_received', 'desktop_mode_sticky_notes_heartbeat_received', 5, 2 );
+add_filter( 'heartbeat_received', 'open_station_sticky_notes_heartbeat_received', 5, 2 );
 
 /**
  * Compute sticky-note Heartbeat deltas.
@@ -98,9 +98,9 @@ add_filter( 'heartbeat_received', 'desktop_mode_sticky_notes_heartbeat_received'
  * @param int   $cap            Maximum notes to send in one tick.
  * @return array
  */
-function desktop_mode_sticky_notes_compute_heartbeat_delta( $sticky_term_id, $known_ids, $version, $cap ) {
+function open_station_sticky_notes_compute_heartbeat_delta( $sticky_term_id, $known_ids, $version, $cap ) {
 	$cap       = max( 1, (int) $cap );
-	$query_ids = desktop_mode_sticky_notes_query_changed_ids( $sticky_term_id, $version, $cap + 1 );
+	$query_ids = open_station_sticky_notes_query_changed_ids( $sticky_term_id, $version, $cap + 1 );
 	$truncated = count( $query_ids ) > $cap;
 	if ( $truncated ) {
 		$query_ids = array_slice( $query_ids, 0, $cap );
@@ -113,11 +113,11 @@ function desktop_mode_sticky_notes_compute_heartbeat_delta( $sticky_term_id, $kn
 		}
 		$post = get_post( $post_id );
 		if ( $post instanceof WP_Post ) {
-			$notes[] = desktop_mode_sticky_notes_shape_guideline( $post );
+			$notes[] = open_station_sticky_notes_shape_guideline( $post );
 		}
 	}
 
-	$alive_ids = desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids );
+	$alive_ids = open_station_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids );
 	$removed   = array_values( array_diff( array_map( 'intval', $known_ids ), $alive_ids ) );
 
 	return array(
@@ -136,9 +136,9 @@ function desktop_mode_sticky_notes_compute_heartbeat_delta( $sticky_term_id, $kn
  * @param int $limit          Max ids to return.
  * @return int[]
  */
-function desktop_mode_sticky_notes_query_changed_ids( $sticky_term_id, $version, $limit ) {
+function open_station_sticky_notes_query_changed_ids( $sticky_term_id, $version, $limit ) {
 	$args = array(
-		'post_type'      => DESKTOP_MODE_STICKY_NOTES_POST_TYPE,
+		'post_type'      => OPEN_STATION_STICKY_NOTES_POST_TYPE,
 		'post_status'    => 'private',
 		'posts_per_page' => max( 1, (int) $limit ),
 		'fields'         => 'ids',
@@ -147,7 +147,7 @@ function desktop_mode_sticky_notes_query_changed_ids( $sticky_term_id, $version,
 		'no_found_rows'  => true,
 		'tax_query'      => array(
 			array(
-				'taxonomy' => DESKTOP_MODE_STICKY_NOTES_TAXONOMY,
+				'taxonomy' => OPEN_STATION_STICKY_NOTES_TAXONOMY,
 				'field'    => 'term_id',
 				'terms'    => array( (int) $sticky_term_id ),
 			),
@@ -177,7 +177,7 @@ function desktop_mode_sticky_notes_query_changed_ids( $sticky_term_id, $version,
  * @param int[] $known_ids      Client-known guideline ids.
  * @return int[]
  */
-function desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids ) {
+function open_station_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids ) {
 	$known_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $known_ids ) ) ) );
 	if ( empty( $known_ids ) ) {
 		return array();
@@ -185,7 +185,7 @@ function desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids 
 
 	$query = new WP_Query(
 		array(
-			'post_type'      => DESKTOP_MODE_STICKY_NOTES_POST_TYPE,
+			'post_type'      => OPEN_STATION_STICKY_NOTES_POST_TYPE,
 			'post_status'    => 'private',
 			'post__in'       => $known_ids,
 			'posts_per_page' => count( $known_ids ),
@@ -193,7 +193,7 @@ function desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids 
 			'no_found_rows'  => true,
 			'tax_query'      => array(
 				array(
-					'taxonomy' => DESKTOP_MODE_STICKY_NOTES_TAXONOMY,
+					'taxonomy' => OPEN_STATION_STICKY_NOTES_TAXONOMY,
 					'field'    => 'term_id',
 					'terms'    => array( (int) $sticky_term_id ),
 				),
@@ -218,10 +218,10 @@ function desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids 
  * @param WP_Post $post Guideline post.
  * @return array
  */
-function desktop_mode_sticky_notes_shape_guideline( $post ) {
+function open_station_sticky_notes_shape_guideline( $post ) {
 	$term_ids = wp_get_object_terms(
 		$post->ID,
-		DESKTOP_MODE_STICKY_NOTES_TAXONOMY,
+		OPEN_STATION_STICKY_NOTES_TAXONOMY,
 		array( 'fields' => 'ids' )
 	);
 	if ( is_wp_error( $term_ids ) ) {
@@ -242,7 +242,7 @@ function desktop_mode_sticky_notes_shape_guideline( $post ) {
 			'raw' => (string) get_post_field( 'post_excerpt', $post, 'raw' ),
 		),
 		'modified'                 => mysql_to_rfc3339( $post->post_modified ),
-		'desktop_mode_modified_ms' => desktop_mode_sticky_notes_modified_ms( $post ),
+		'open_station_modified_ms' => open_station_sticky_notes_modified_ms( $post ),
 		'link'                     => (string) get_permalink( $post ),
 		'wp_guideline_type'        => array_values( array_map( 'intval', (array) $term_ids ) ),
 	);
@@ -254,6 +254,6 @@ function desktop_mode_sticky_notes_shape_guideline( $post ) {
  * @param WP_Post $post Post.
  * @return int
  */
-function desktop_mode_sticky_notes_modified_ms( $post ) {
+function open_station_sticky_notes_modified_ms( $post ) {
 	return (int) get_post_modified_time( 'U', true, $post ) * 1000;
 }

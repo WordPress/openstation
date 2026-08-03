@@ -18,7 +18,7 @@
  * The mask URL is interpolated into a CSS `url("…")`, so it is
  * re-validated here even though PHP already checked it — same
  * reasoning (and same character set) as `sanitizeIconSrc` in
- * `<wpd-window-button>`.
+ * `<os-window-button>`.
  */
 
 /**

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games REST routes.
+ * OpenStation — Games REST routes.
  *
  * Namespace `desktop-mode/v1`:
  *
@@ -19,9 +19,9 @@
  * mode enabled and the `read` capability (subscribers play games
  * too). Unknown game ids 404. Challenge routes additionally verify
  * party membership; sending gates through the
- * `desktop_mode_games_can_challenge` filter.
+ * `open_station_games_can_challenge` filter.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,15 +29,15 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Base permission gate shared by every games route.
  */
-function desktop_mode_games_rest_permission() {
+function open_station_games_rest_permission() {
 	if ( ! is_user_logged_in() ) {
-		return new WP_Error( 'desktop_mode_games_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
+		return new WP_Error( 'open_station_games_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
 	}
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled( get_current_user_id() ) ) {
-		return new WP_Error( 'desktop_mode_games_disabled', __( 'Desktop mode is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled( get_current_user_id() ) ) {
+		return new WP_Error( 'open_station_games_disabled', __( 'OpenStation is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	if ( ! current_user_can( 'read' ) ) {
-		return new WP_Error( 'desktop_mode_games_forbidden', __( 'You cannot use desktop games.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_games_forbidden', __( 'You cannot use desktop games.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -48,12 +48,12 @@ function desktop_mode_games_rest_permission() {
 	 * @param true|false|WP_Error $allowed Default `true`.
 	 * @param int                 $user_id Current user.
 	 */
-	$allowed = apply_filters( 'desktop_mode_games_rest_permission', true, get_current_user_id() );
+	$allowed = apply_filters( 'open_station_games_rest_permission', true, get_current_user_id() );
 	if ( is_wp_error( $allowed ) ) {
 		return $allowed;
 	}
 	if ( true !== $allowed ) {
-		return new WP_Error( 'desktop_mode_games_forbidden', __( 'You cannot use desktop games.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_games_forbidden', __( 'You cannot use desktop games.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -61,14 +61,14 @@ function desktop_mode_games_rest_permission() {
 /**
  * Register the routes.
  */
-function desktop_mode_games_register_rest_routes() {
+function open_station_games_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
 	register_rest_route( $ns, '/games/(?P<game>[a-z0-9_\-]+)/scores', array(
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_games_rest_permission',
-			'callback'            => 'desktop_mode_games_rest_list_scores',
+			'permission_callback' => 'open_station_games_rest_permission',
+			'callback'            => 'open_station_games_rest_list_scores',
 			'args'                => array(
 				'page'     => array( 'type' => 'integer', 'default' => 1, 'minimum' => 1 ),
 				'per_page' => array( 'type' => 'integer', 'default' => 25, 'minimum' => 1, 'maximum' => 100 ),
@@ -79,8 +79,8 @@ function desktop_mode_games_register_rest_routes() {
 		),
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_games_rest_permission',
-			'callback'            => 'desktop_mode_games_rest_submit_score',
+			'permission_callback' => 'open_station_games_rest_permission',
+			'callback'            => 'open_station_games_rest_submit_score',
 			'args'                => array(
 				'score' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ),
 				'meta'  => array( 'type' => 'object', 'default' => array() ),
@@ -91,8 +91,8 @@ function desktop_mode_games_register_rest_routes() {
 	register_rest_route( $ns, '/games/challenges', array(
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_games_rest_permission',
-			'callback'            => 'desktop_mode_games_rest_list_challenges',
+			'permission_callback' => 'open_station_games_rest_permission',
+			'callback'            => 'open_station_games_rest_list_challenges',
 			'args'                => array(
 				'box'   => array( 'type' => 'string', 'default' => 'all', 'enum' => array( 'incoming', 'outgoing', 'all' ) ),
 				'state' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'pending', 'accepted', 'declined', 'completed' ) ),
@@ -100,8 +100,8 @@ function desktop_mode_games_register_rest_routes() {
 		),
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_games_rest_permission',
-			'callback'            => 'desktop_mode_games_rest_create_challenge',
+			'permission_callback' => 'open_station_games_rest_permission',
+			'callback'            => 'open_station_games_rest_create_challenge',
 			'args'                => array(
 				'game'         => array( 'type' => 'string', 'required' => true ),
 				'recipient_id' => array( 'type' => 'integer', 'required' => true ),
@@ -113,20 +113,20 @@ function desktop_mode_games_register_rest_routes() {
 
 	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/accept', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_accept_challenge',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_accept_challenge',
 	) );
 
 	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/decline', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_decline_challenge',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_decline_challenge',
 	) );
 
 	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/complete', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_complete_challenge',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_complete_challenge',
 		'args'                => array(
 			'score' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ),
 			'meta'  => array( 'type' => 'object', 'default' => array() ),
@@ -135,14 +135,14 @@ function desktop_mode_games_register_rest_routes() {
 
 	register_rest_route( $ns, '/games/playtime', array(
 		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_get_playtime',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_get_playtime',
 	) );
 
 	register_rest_route( $ns, '/games/(?P<game>[a-z0-9_\-]+)/playtime', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_record_playtime',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_record_playtime',
 		'args'                => array(
 			'seconds' => array( 'type' => 'integer', 'required' => true, 'minimum' => 1 ),
 		),
@@ -150,15 +150,15 @@ function desktop_mode_games_register_rest_routes() {
 
 	register_rest_route( $ns, '/games/users/search', array(
 		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'desktop_mode_games_rest_permission',
-		'callback'            => 'desktop_mode_games_rest_search_users',
+		'permission_callback' => 'open_station_games_rest_permission',
+		'callback'            => 'open_station_games_rest_search_users',
 		'args'                => array(
 			'q'       => array( 'type' => 'string', 'default' => '' ),
 			'exclude' => array( 'type' => 'string', 'default' => '' ),
 		),
 	) );
 }
-add_action( 'rest_api_init', 'desktop_mode_games_register_rest_routes' );
+add_action( 'rest_api_init', 'open_station_games_register_rest_routes' );
 
 /**
  * Resolve + validate the `game` path param. 404s unknown ids so the
@@ -169,11 +169,11 @@ add_action( 'rest_api_init', 'desktop_mode_games_register_rest_routes' );
  * @param WP_REST_Request $req Request.
  * @return string|WP_Error The sanitized game id.
  */
-function desktop_mode_games_rest_resolve_game( WP_REST_Request $req ) {
+function open_station_games_rest_resolve_game( WP_REST_Request $req ) {
 	$game = sanitize_key( (string) $req->get_param( 'game' ) );
-	if ( '' === $game || ! desktop_mode_games_is_registered( $game ) ) {
+	if ( '' === $game || ! open_station_games_is_registered( $game ) ) {
 		return new WP_Error(
-			'desktop_mode_unknown_game',
+			'open_station_unknown_game',
 			__( 'Unknown game.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -184,12 +184,12 @@ function desktop_mode_games_rest_resolve_game( WP_REST_Request $req ) {
 /**
  * GET /games/{game}/scores
  */
-function desktop_mode_games_rest_list_scores( WP_REST_Request $req ) {
-	$game = desktop_mode_games_rest_resolve_game( $req );
+function open_station_games_rest_list_scores( WP_REST_Request $req ) {
+	$game = open_station_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
 		return $game;
 	}
-	$result = desktop_mode_games_get_scores( $game, array(
+	$result = open_station_games_get_scores( $game, array(
 		'page'     => (int) $req->get_param( 'page' ),
 		'per_page' => (int) $req->get_param( 'per_page' ),
 		'orderby'  => (string) $req->get_param( 'orderby' ),
@@ -206,12 +206,12 @@ function desktop_mode_games_rest_list_scores( WP_REST_Request $req ) {
  * POST /games/{game}/scores — always records for the current user;
  * there is no way to submit a score on someone else's behalf.
  */
-function desktop_mode_games_rest_submit_score( WP_REST_Request $req ) {
-	$game = desktop_mode_games_rest_resolve_game( $req );
+function open_station_games_rest_submit_score( WP_REST_Request $req ) {
+	$game = open_station_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
 		return $game;
 	}
-	$id = desktop_mode_games_save_score(
+	$id = open_station_games_save_score(
 		$game,
 		get_current_user_id(),
 		(int) $req->get_param( 'score' ),
@@ -226,17 +226,17 @@ function desktop_mode_games_rest_submit_score( WP_REST_Request $req ) {
 /**
  * GET /games/playtime — the current user's `game id => seconds` map.
  */
-function desktop_mode_games_rest_get_playtime() {
+function open_station_games_rest_get_playtime() {
 	$user_id = get_current_user_id();
 	// Day maps are cast per-game so empty buckets JSON-encode as `{}`.
 	$daily = array();
-	foreach ( desktop_mode_games_get_playtime_daily( $user_id ) as $game => $days ) {
+	foreach ( open_station_games_get_playtime_daily( $user_id ) as $game => $days ) {
 		$daily[ $game ] = (object) $days;
 	}
 	return rest_ensure_response( array(
-		'playtime' => (object) desktop_mode_games_get_playtime( $user_id ),
+		'playtime' => (object) open_station_games_get_playtime( $user_id ),
 		'daily'    => (object) $daily,
-		'today'    => desktop_mode_games_playtime_today_key(),
+		'today'    => open_station_games_playtime_today_key(),
 	) );
 }
 
@@ -244,12 +244,12 @@ function desktop_mode_games_rest_get_playtime() {
  * POST /games/{game}/playtime — always records for the current user;
  * there is no way to record play time on someone else's behalf.
  */
-function desktop_mode_games_rest_record_playtime( WP_REST_Request $req ) {
-	$game = desktop_mode_games_rest_resolve_game( $req );
+function open_station_games_rest_record_playtime( WP_REST_Request $req ) {
+	$game = open_station_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
 		return $game;
 	}
-	$total = desktop_mode_games_add_playtime(
+	$total = open_station_games_add_playtime(
 		$game,
 		get_current_user_id(),
 		(int) $req->get_param( 'seconds' )
@@ -263,12 +263,12 @@ function desktop_mode_games_rest_record_playtime( WP_REST_Request $req ) {
 /**
  * GET /games/challenges — challenges involving the current user.
  */
-function desktop_mode_games_rest_list_challenges( WP_REST_Request $req ) {
+function open_station_games_rest_list_challenges( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
 	$box     = (string) $req->get_param( 'box' );
 	$state   = (string) $req->get_param( 'state' );
 
-	$rows = desktop_mode_games_get_challenges_for_user( $user_id, 0, 100 );
+	$rows = open_station_games_get_challenges_for_user( $user_id, 0, 100 );
 	$out  = array();
 	foreach ( $rows as $row ) {
 		if ( 'incoming' === $box && (int) $row['recipient_id'] !== $user_id ) {
@@ -280,7 +280,7 @@ function desktop_mode_games_rest_list_challenges( WP_REST_Request $req ) {
 		if ( '' !== $state && $row['state'] !== $state ) {
 			continue;
 		}
-		$out[] = desktop_mode_games_shape_challenge( $row );
+		$out[] = open_station_games_shape_challenge( $row );
 	}
 	// Newest change first for the inbox view.
 	$out = array_reverse( $out );
@@ -290,14 +290,14 @@ function desktop_mode_games_rest_list_challenges( WP_REST_Request $req ) {
 /**
  * POST /games/challenges
  */
-function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
+function open_station_games_rest_create_challenge( WP_REST_Request $req ) {
 	$challenger_id = get_current_user_id();
 	$recipient_id  = (int) $req->get_param( 'recipient_id' );
 	$game          = sanitize_key( (string) $req->get_param( 'game' ) );
 
-	if ( ! desktop_mode_games_is_registered( $game ) ) {
+	if ( ! open_station_games_is_registered( $game ) ) {
 		return new WP_Error(
-			'desktop_mode_unknown_game',
+			'open_station_unknown_game',
 			__( 'Unknown game.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -313,19 +313,19 @@ function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
 	 * @param int           $recipient_id  Receiver.
 	 * @param string        $game          Game id.
 	 */
-	$allowed = apply_filters( 'desktop_mode_games_can_challenge', true, $challenger_id, $recipient_id, $game );
+	$allowed = apply_filters( 'open_station_games_can_challenge', true, $challenger_id, $recipient_id, $game );
 	if ( is_wp_error( $allowed ) ) {
 		return $allowed;
 	}
 	if ( true !== $allowed ) {
 		return new WP_Error(
-			'desktop_mode_challenge_blocked',
+			'open_station_challenge_blocked',
 			__( 'You cannot challenge this user.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
-	$id = desktop_mode_games_create_challenge(
+	$id = open_station_games_create_challenge(
 		$game,
 		$challenger_id,
 		$recipient_id,
@@ -335,8 +335,8 @@ function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	$row = desktop_mode_games_get_challenge( $id );
-	return rest_ensure_response( array( 'challenge' => desktop_mode_games_shape_challenge( $row ) ) );
+	$row = open_station_games_get_challenge( $id );
+	return rest_ensure_response( array( 'challenge' => open_station_games_shape_challenge( $row ) ) );
 }
 
 /**
@@ -347,18 +347,18 @@ function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
  * @param WP_REST_Request $req Request.
  * @return array|WP_Error The raw challenge row.
  */
-function desktop_mode_games_rest_resolve_recipient_challenge( WP_REST_Request $req ) {
-	$row = desktop_mode_games_get_challenge( (int) $req->get_param( 'id' ) );
+function open_station_games_rest_resolve_recipient_challenge( WP_REST_Request $req ) {
+	$row = open_station_games_get_challenge( (int) $req->get_param( 'id' ) );
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_challenge_not_found',
+			'open_station_challenge_not_found',
 			__( 'Challenge not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( (int) $row['recipient_id'] !== get_current_user_id() ) {
 		return new WP_Error(
-			'desktop_mode_challenge_forbidden',
+			'open_station_challenge_forbidden',
 			__( 'Only the challenged user can act on this challenge.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -369,44 +369,44 @@ function desktop_mode_games_rest_resolve_recipient_challenge( WP_REST_Request $r
 /**
  * POST /games/challenges/{id}/accept
  */
-function desktop_mode_games_rest_accept_challenge( WP_REST_Request $req ) {
-	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
+function open_station_games_rest_accept_challenge( WP_REST_Request $req ) {
+	$row = open_station_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
-	$result = desktop_mode_games_set_challenge_state( (int) $row['id'], 'accepted' );
+	$result = open_station_games_set_challenge_state( (int) $row['id'], 'accepted' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
-	$updated = desktop_mode_games_get_challenge( (int) $row['id'] );
-	return rest_ensure_response( array( 'challenge' => desktop_mode_games_shape_challenge( $updated ) ) );
+	$updated = open_station_games_get_challenge( (int) $row['id'] );
+	return rest_ensure_response( array( 'challenge' => open_station_games_shape_challenge( $updated ) ) );
 }
 
 /**
  * POST /games/challenges/{id}/decline
  */
-function desktop_mode_games_rest_decline_challenge( WP_REST_Request $req ) {
-	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
+function open_station_games_rest_decline_challenge( WP_REST_Request $req ) {
+	$row = open_station_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
-	$result = desktop_mode_games_set_challenge_state( (int) $row['id'], 'declined' );
+	$result = open_station_games_set_challenge_state( (int) $row['id'], 'declined' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
-	$updated = desktop_mode_games_get_challenge( (int) $row['id'] );
-	return rest_ensure_response( array( 'challenge' => desktop_mode_games_shape_challenge( $updated ) ) );
+	$updated = open_station_games_get_challenge( (int) $row['id'] );
+	return rest_ensure_response( array( 'challenge' => open_station_games_shape_challenge( $updated ) ) );
 }
 
 /**
  * POST /games/challenges/{id}/complete
  */
-function desktop_mode_games_rest_complete_challenge( WP_REST_Request $req ) {
-	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
+function open_station_games_rest_complete_challenge( WP_REST_Request $req ) {
+	$row = open_station_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
 		return $row;
 	}
-	$updated = desktop_mode_games_complete_challenge(
+	$updated = open_station_games_complete_challenge(
 		(int) $row['id'],
 		(int) $req->get_param( 'score' ),
 		(array) $req->get_param( 'meta' )
@@ -414,7 +414,7 @@ function desktop_mode_games_rest_complete_challenge( WP_REST_Request $req ) {
 	if ( is_wp_error( $updated ) ) {
 		return $updated;
 	}
-	return rest_ensure_response( array( 'challenge' => desktop_mode_games_shape_challenge( $updated ) ) );
+	return rest_ensure_response( array( 'challenge' => open_station_games_shape_challenge( $updated ) ) );
 }
 
 /**
@@ -422,7 +422,7 @@ function desktop_mode_games_rest_complete_challenge( WP_REST_Request $req ) {
  * opponent picker. Thin sibling of the folder-share picker, gated on
  * `read` instead of `edit_posts` so subscribers can be challenged.
  */
-function desktop_mode_games_rest_search_users( WP_REST_Request $req ) {
+function open_station_games_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
 	$exclude = array_filter( array_map( 'intval', explode( ',', (string) $req->get_param( 'exclude' ) ) ) );
 
@@ -449,7 +449,7 @@ function desktop_mode_games_rest_search_users( WP_REST_Request $req ) {
 	 * @param array $args Default args.
 	 * @param array $req  Request params (`q`, `exclude`).
 	 */
-	$args = (array) apply_filters( 'desktop_mode_games_user_query_args', $args, $req->get_params() );
+	$args = (array) apply_filters( 'open_station_games_user_query_args', $args, $req->get_params() );
 
 	$query = new WP_User_Query( $args );
 	$users = $query->get_results();

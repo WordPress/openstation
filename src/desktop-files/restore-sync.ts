@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Files restore-from-bin sync.
+ * OpenStation — Files restore-from-bin sync.
  *
  * Symmetric counterpart to `trash.ts`. Trash optimistically evicts
  * the placement (and folder, for folder placements) on its way INTO
- * the bin and emits `desktop-mode.{placement,shortcut,folder}.changed`
+ * the bin and emits `os.{placement,shortcut,folder}.changed`
  * so cross-window listeners can react. The reverse path — restoring
  * an item from the Recycle Bin window — emits the same topics with
  * `action: 'untrashed'`, but nothing on the desktop-files side was
@@ -61,9 +61,9 @@ export function startFilesRestoreSync(): void {
 	};
 
 	unsubscribers.push(
-		subscribe( 'desktop-mode.placement.changed', onChange ),
-		subscribe( 'desktop-mode.shortcut.changed', onChange ),
-		subscribe( 'desktop-mode.folder.changed', onChange ),
+		subscribe( 'os.placement.changed', onChange ),
+		subscribe( 'os.shortcut.changed', onChange ),
+		subscribe( 'os.folder.changed', onChange ),
 	);
 }
 
@@ -81,7 +81,7 @@ function resyncFromServer(): void {
 		.catch( ( err ) => {
 			// eslint-disable-next-line no-console
 			console.error(
-				'[desktop-mode] files restore-sync: listFolders failed',
+				'[openstation] files restore-sync: listFolders failed',
 				err,
 			);
 		} );
@@ -97,7 +97,7 @@ function resyncFromServer(): void {
 			.catch( ( err ) => {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] files restore-sync: listPlacements failed for',
+					'[openstation] files restore-sync: listPlacements failed for',
 					folderId,
 					err,
 				);

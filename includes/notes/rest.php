@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Pinned notes REST routes.
+ * OpenStation — Pinned notes REST routes.
  *
  * Routes under `/desktop-mode/v1/notes`:
  *
@@ -22,25 +22,25 @@
  *
  * Optimistic concurrency: PATCH accepts an `updatedAtMs` field
  * carrying the client's last-seen modified timestamp; a mismatch
- * returns 409 `desktop_mode_notes_conflict` with the server copy in
+ * returns 409 `open_station_notes_conflict` with the server copy in
  * `data.current` so the client can re-render instead of clobbering.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Base permission: logged-in + desktop mode enabled.
+ * Base permission: logged-in + OpenStation enabled.
  *
  * @return true|WP_Error
  */
-function desktop_mode_notes_rest_permission() {
+function open_station_notes_rest_permission() {
 	if ( ! is_user_logged_in() ) {
-		return new WP_Error( 'desktop_mode_notes_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
+		return new WP_Error( 'open_station_notes_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
 	}
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled( get_current_user_id() ) ) {
-		return new WP_Error( 'desktop_mode_notes_disabled', __( 'Desktop mode is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled( get_current_user_id() ) ) {
+		return new WP_Error( 'open_station_notes_disabled', __( 'OpenStation is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -48,7 +48,7 @@ function desktop_mode_notes_rest_permission() {
 /**
  * Register the routes.
  */
-function desktop_mode_notes_register_rest_routes() {
+function open_station_notes_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
 	register_rest_route(
@@ -57,13 +57,13 @@ function desktop_mode_notes_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'permission_callback' => 'desktop_mode_notes_rest_permission',
-				'callback'            => 'desktop_mode_notes_rest_list',
+				'permission_callback' => 'open_station_notes_rest_permission',
+				'callback'            => 'open_station_notes_rest_list',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'permission_callback' => 'desktop_mode_notes_rest_permission',
-				'callback'            => 'desktop_mode_notes_rest_create',
+				'permission_callback' => 'open_station_notes_rest_permission',
+				'callback'            => 'open_station_notes_rest_create',
 				'args'                => array(
 					'text'   => array(
 						'type'              => 'string',
@@ -73,7 +73,7 @@ function desktop_mode_notes_register_rest_routes() {
 					'color'  => array(
 						'type'              => 'string',
 						'default'           => 'butter',
-						'sanitize_callback' => 'desktop_mode_notes_sanitize_color',
+						'sanitize_callback' => 'open_station_notes_sanitize_color',
 					),
 					'x'      => array( 'type' => 'number', 'default' => 0.1 ),
 					'y'      => array( 'type' => 'number', 'default' => 0.1 ),
@@ -94,13 +94,13 @@ function desktop_mode_notes_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::EDITABLE,
-				'permission_callback' => 'desktop_mode_notes_rest_permission',
-				'callback'            => 'desktop_mode_notes_rest_update',
+				'permission_callback' => 'open_station_notes_rest_permission',
+				'callback'            => 'open_station_notes_rest_update',
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'permission_callback' => 'desktop_mode_notes_rest_permission',
-				'callback'            => 'desktop_mode_notes_rest_delete',
+				'permission_callback' => 'open_station_notes_rest_permission',
+				'callback'            => 'open_station_notes_rest_delete',
 			),
 		)
 	);
@@ -110,8 +110,8 @@ function desktop_mode_notes_register_rest_routes() {
 		'/notes/(?P<id>\d+)/restore',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_notes_rest_permission',
-			'callback'            => 'desktop_mode_notes_rest_restore',
+			'permission_callback' => 'open_station_notes_rest_permission',
+			'callback'            => 'open_station_notes_rest_restore',
 		)
 	);
 
@@ -120,12 +120,12 @@ function desktop_mode_notes_register_rest_routes() {
 		'/notes/(?P<id>\d+)/convert',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_notes_rest_permission',
-			'callback'            => 'desktop_mode_notes_rest_convert',
+			'permission_callback' => 'open_station_notes_rest_permission',
+			'callback'            => 'open_station_notes_rest_convert',
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_notes_register_rest_routes' );
+add_action( 'rest_api_init', 'open_station_notes_register_rest_routes' );
 
 /**
  * Fetch a note post, or a WP_Error when it doesn't exist / isn't a note.
@@ -134,14 +134,14 @@ add_action( 'rest_api_init', 'desktop_mode_notes_register_rest_routes' );
  * @param bool $allow_trash Whether a trashed note is acceptable (restore path).
  * @return WP_Post|WP_Error
  */
-function desktop_mode_notes_get_note( $id, $allow_trash = false ) {
+function open_station_notes_get_note( $id, $allow_trash = false ) {
 	$post = get_post( (int) $id );
-	if ( ! $post instanceof WP_Post || DESKTOP_MODE_NOTES_POST_TYPE !== $post->post_type ) {
-		return new WP_Error( 'desktop_mode_notes_not_found', __( 'Note not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+	if ( ! $post instanceof WP_Post || OPEN_STATION_NOTES_POST_TYPE !== $post->post_type ) {
+		return new WP_Error( 'open_station_notes_not_found', __( 'Note not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	$allowed = $allow_trash ? array( 'private', 'publish', 'trash' ) : array( 'private', 'publish' );
 	if ( ! in_array( $post->post_status, $allowed, true ) ) {
-		return new WP_Error( 'desktop_mode_notes_not_found', __( 'Note not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'open_station_notes_not_found', __( 'Note not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	return $post;
 }
@@ -156,9 +156,9 @@ function desktop_mode_notes_get_note( $id, $allow_trash = false ) {
  * @param WP_Post $post Note post.
  * @return true|WP_Error
  */
-function desktop_mode_notes_require_owner( $post ) {
+function open_station_notes_require_owner( $post ) {
 	if ( (int) $post->post_author !== get_current_user_id() ) {
-		return new WP_Error( 'desktop_mode_notes_forbidden', __( 'Only the note owner can change it.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_notes_forbidden', __( 'Only the note owner can change it.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -172,7 +172,7 @@ function desktop_mode_notes_require_owner( $post ) {
  * @param WP_Post $post Post.
  * @return int
  */
-function desktop_mode_notes_modified_ms( $post ) {
+function open_station_notes_modified_ms( $post ) {
 	return (int) get_post_modified_time( 'U', true, $post ) * 1000;
 }
 
@@ -182,16 +182,16 @@ function desktop_mode_notes_modified_ms( $post ) {
  * @param WP_Post $post Note post.
  * @return array
  */
-function desktop_mode_notes_prepare( $post ) {
+function open_station_notes_prepare( $post ) {
 	$owner_id = (int) $post->post_author;
 	$owner    = get_userdata( $owner_id );
 
 	return array(
 		'id'          => (int) $post->ID,
 		'text'        => (string) get_post_field( 'post_content', $post, 'raw' ),
-		'color'       => desktop_mode_notes_sanitize_color( get_post_meta( $post->ID, '_wpd_note_color', true ) ),
-		'x'           => desktop_mode_notes_sanitize_fraction( get_post_meta( $post->ID, '_wpd_note_x', true ) ),
-		'y'           => desktop_mode_notes_sanitize_fraction( get_post_meta( $post->ID, '_wpd_note_y', true ) ),
+		'color'       => open_station_notes_sanitize_color( get_post_meta( $post->ID, '_wpd_note_color', true ) ),
+		'x'           => open_station_notes_sanitize_fraction( get_post_meta( $post->ID, '_wpd_note_x', true ) ),
+		'y'           => open_station_notes_sanitize_fraction( get_post_meta( $post->ID, '_wpd_note_y', true ) ),
 		'z'           => (int) get_post_meta( $post->ID, '_wpd_note_z', true ),
 		'public'      => 'publish' === $post->post_status,
 		'seed'        => (int) get_post_meta( $post->ID, '_wpd_note_seed', true ),
@@ -199,7 +199,7 @@ function desktop_mode_notes_prepare( $post ) {
 		'ownerName'   => $owner instanceof WP_User ? (string) $owner->display_name : '',
 		'ownerAvatar' => (string) get_avatar_url( $owner_id, array( 'size' => 48 ) ),
 		'canEdit'     => get_current_user_id() === $owner_id,
-		'updatedAtMs' => desktop_mode_notes_modified_ms( $post ),
+		'updatedAtMs' => open_station_notes_modified_ms( $post ),
 	);
 }
 
@@ -211,7 +211,7 @@ function desktop_mode_notes_prepare( $post ) {
  * @param string $text Note text.
  * @return string
  */
-function desktop_mode_notes_derive_title( $text ) {
+function open_station_notes_derive_title( $text ) {
 	foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
 		$line = trim( $line );
 		if ( '' !== $line ) {
@@ -226,7 +226,7 @@ function desktop_mode_notes_derive_title( $text ) {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_notes_rest_list() {
+function open_station_notes_rest_list() {
 	$user_id = get_current_user_id();
 
 	// Newest first: the per-half cap exists as a runaway guard, and
@@ -236,7 +236,7 @@ function desktop_mode_notes_rest_list() {
 	// ever backfilling them).
 	$own = new WP_Query(
 		array(
-			'post_type'      => DESKTOP_MODE_NOTES_POST_TYPE,
+			'post_type'      => OPEN_STATION_NOTES_POST_TYPE,
 			'post_status'    => array( 'private', 'publish' ),
 			'author'         => $user_id,
 			'posts_per_page' => 200,
@@ -248,7 +248,7 @@ function desktop_mode_notes_rest_list() {
 
 	$public = new WP_Query(
 		array(
-			'post_type'      => DESKTOP_MODE_NOTES_POST_TYPE,
+			'post_type'      => OPEN_STATION_NOTES_POST_TYPE,
 			'post_status'    => 'publish',
 			'author__not_in' => array( $user_id ),
 			'posts_per_page' => 200,
@@ -260,7 +260,7 @@ function desktop_mode_notes_rest_list() {
 
 	$notes = array();
 	foreach ( array_merge( (array) $own->posts, (array) $public->posts ) as $post ) {
-		$notes[] = desktop_mode_notes_prepare( $post );
+		$notes[] = open_station_notes_prepare( $post );
 	}
 	wp_reset_postdata();
 
@@ -273,11 +273,11 @@ function desktop_mode_notes_rest_list() {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_notes_rest_create( $request ) {
+function open_station_notes_rest_create( $request ) {
 	/**
 	 * Filters whether the current user may create a note.
 	 *
-	 * Notes default to any logged-in desktop-mode user — including
+	 * Notes default to any logged-in openstation user — including
 	 * publishing PUBLIC notes onto every other user's wallpaper.
 	 * Sites that want to restrict that (by role, capability, or the
 	 * request's `public` flag) hook here.
@@ -286,19 +286,19 @@ function desktop_mode_notes_rest_create( $request ) {
 	 * @param int             $user_id    Current user id.
 	 * @param WP_REST_Request $request    The create request (inspect `public`, `text`, ...).
 	 */
-	$can_create = apply_filters( 'desktop_mode_notes_user_can_create', true, get_current_user_id(), $request );
+	$can_create = apply_filters( 'open_station_notes_user_can_create', true, get_current_user_id(), $request );
 	if ( ! $can_create ) {
-		return new WP_Error( 'desktop_mode_notes_forbidden', __( 'You are not allowed to create notes.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_notes_forbidden', __( 'You are not allowed to create notes.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	$text = sanitize_textarea_field( (string) $request['text'] );
 
 	$post_id = wp_insert_post(
 		array(
-			'post_type'    => DESKTOP_MODE_NOTES_POST_TYPE,
+			'post_type'    => OPEN_STATION_NOTES_POST_TYPE,
 			'post_status'  => $request['public'] ? 'publish' : 'private',
 			'post_author'  => get_current_user_id(),
-			'post_title'   => desktop_mode_notes_derive_title( $text ),
+			'post_title'   => open_station_notes_derive_title( $text ),
 			'post_content' => $text,
 		),
 		true
@@ -308,10 +308,10 @@ function desktop_mode_notes_rest_create( $request ) {
 		return $post_id;
 	}
 
-	update_post_meta( $post_id, '_wpd_note_color', desktop_mode_notes_sanitize_color( $request['color'] ) );
-	update_post_meta( $post_id, '_wpd_note_x', desktop_mode_notes_sanitize_fraction( $request['x'] ) );
-	update_post_meta( $post_id, '_wpd_note_y', desktop_mode_notes_sanitize_fraction( $request['y'] ) );
-	update_post_meta( $post_id, '_wpd_note_z', desktop_mode_notes_next_z() );
+	update_post_meta( $post_id, '_wpd_note_color', open_station_notes_sanitize_color( $request['color'] ) );
+	update_post_meta( $post_id, '_wpd_note_x', open_station_notes_sanitize_fraction( $request['x'] ) );
+	update_post_meta( $post_id, '_wpd_note_y', open_station_notes_sanitize_fraction( $request['y'] ) );
+	update_post_meta( $post_id, '_wpd_note_z', open_station_notes_next_z() );
 	// The jitter seed is written ONCE, here — PATCH never touches it,
 	// so editing a note's text never re-tilts its paper. The client
 	// sends its own text hash (keeps the optimistic render identical);
@@ -323,7 +323,7 @@ function desktop_mode_notes_rest_create( $request ) {
 	}
 	update_post_meta( $post_id, '_wpd_note_seed', $seed );
 
-	return rest_ensure_response( desktop_mode_notes_prepare( get_post( $post_id ) ) );
+	return rest_ensure_response( open_station_notes_prepare( get_post( $post_id ) ) );
 }
 
 /**
@@ -336,7 +336,7 @@ function desktop_mode_notes_rest_create( $request ) {
  *
  * @return int
  */
-function desktop_mode_notes_next_z() {
+function open_station_notes_next_z() {
 	global $wpdb;
 	$max = $wpdb->get_var(
 		$wpdb->prepare(
@@ -345,7 +345,7 @@ function desktop_mode_notes_next_z() {
 			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
 			 WHERE pm.meta_key = %s AND p.post_type = %s AND p.post_status IN ( 'private', 'publish' )",
 			'_wpd_note_z',
-			DESKTOP_MODE_NOTES_POST_TYPE
+			OPEN_STATION_NOTES_POST_TYPE
 		)
 	);
 	return (int) $max + 1;
@@ -357,12 +357,12 @@ function desktop_mode_notes_next_z() {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_notes_rest_update( $request ) {
-	$post = desktop_mode_notes_get_note( $request['id'] );
+function open_station_notes_rest_update( $request ) {
+	$post = open_station_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
 		return $post;
 	}
-	$owner = desktop_mode_notes_require_owner( $post );
+	$owner = open_station_notes_require_owner( $post );
 	if ( is_wp_error( $owner ) ) {
 		return $owner;
 	}
@@ -370,13 +370,13 @@ function desktop_mode_notes_rest_update( $request ) {
 	// Optimistic concurrency — a stale token means another session
 	// (or device) changed the note since this client last saw it.
 	$client_ms = $request['updatedAtMs'];
-	if ( null !== $client_ms && (int) $client_ms !== desktop_mode_notes_modified_ms( $post ) ) {
+	if ( null !== $client_ms && (int) $client_ms !== open_station_notes_modified_ms( $post ) ) {
 		return new WP_Error(
-			'desktop_mode_notes_conflict',
+			'open_station_notes_conflict',
 			__( 'The note was changed by another session.', 'desktop-mode' ),
 			array(
 				'status'  => 409,
-				'current' => desktop_mode_notes_prepare( $post ),
+				'current' => open_station_notes_prepare( $post ),
 			)
 		);
 	}
@@ -386,20 +386,20 @@ function desktop_mode_notes_rest_update( $request ) {
 	if ( null !== $request['text'] ) {
 		$text                   = sanitize_textarea_field( (string) $request['text'] );
 		$update['post_content'] = $text;
-		$update['post_title']   = desktop_mode_notes_derive_title( $text );
+		$update['post_title']   = open_station_notes_derive_title( $text );
 	}
 	if ( null !== $request['public'] ) {
 		$update['post_status'] = rest_sanitize_boolean( $request['public'] ) ? 'publish' : 'private';
 	}
 
 	if ( null !== $request['color'] ) {
-		update_post_meta( $post->ID, '_wpd_note_color', desktop_mode_notes_sanitize_color( $request['color'] ) );
+		update_post_meta( $post->ID, '_wpd_note_color', open_station_notes_sanitize_color( $request['color'] ) );
 	}
 	if ( null !== $request['x'] ) {
-		update_post_meta( $post->ID, '_wpd_note_x', desktop_mode_notes_sanitize_fraction( $request['x'] ) );
+		update_post_meta( $post->ID, '_wpd_note_x', open_station_notes_sanitize_fraction( $request['x'] ) );
 	}
 	if ( null !== $request['y'] ) {
-		update_post_meta( $post->ID, '_wpd_note_y', desktop_mode_notes_sanitize_fraction( $request['y'] ) );
+		update_post_meta( $post->ID, '_wpd_note_y', open_station_notes_sanitize_fraction( $request['y'] ) );
 	}
 	if ( null !== $request['z'] ) {
 		update_post_meta( $post->ID, '_wpd_note_z', absint( $request['z'] ) );
@@ -414,7 +414,7 @@ function desktop_mode_notes_rest_update( $request ) {
 		return $result;
 	}
 
-	return rest_ensure_response( desktop_mode_notes_prepare( get_post( $post->ID ) ) );
+	return rest_ensure_response( open_station_notes_prepare( get_post( $post->ID ) ) );
 }
 
 /**
@@ -423,18 +423,18 @@ function desktop_mode_notes_rest_update( $request ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_notes_rest_delete( $request ) {
-	$post = desktop_mode_notes_get_note( $request['id'] );
+function open_station_notes_rest_delete( $request ) {
+	$post = open_station_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
 		return $post;
 	}
-	$owner = desktop_mode_notes_require_owner( $post );
+	$owner = open_station_notes_require_owner( $post );
 	if ( is_wp_error( $owner ) ) {
 		return $owner;
 	}
 
 	if ( ! wp_trash_post( $post->ID ) ) {
-		return new WP_Error( 'desktop_mode_notes_trash_failed', __( 'Could not move the note to the trash.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_notes_trash_failed', __( 'Could not move the note to the trash.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	return rest_ensure_response( array( 'trashed' => true, 'id' => (int) $post->ID ) );
@@ -446,21 +446,21 @@ function desktop_mode_notes_rest_delete( $request ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_notes_rest_restore( $request ) {
-	$post = desktop_mode_notes_get_note( $request['id'], true );
+function open_station_notes_rest_restore( $request ) {
+	$post = open_station_notes_get_note( $request['id'], true );
 	if ( is_wp_error( $post ) ) {
 		return $post;
 	}
-	$owner = desktop_mode_notes_require_owner( $post );
+	$owner = open_station_notes_require_owner( $post );
 	if ( is_wp_error( $owner ) ) {
 		return $owner;
 	}
 	if ( 'trash' !== $post->post_status ) {
-		return rest_ensure_response( desktop_mode_notes_prepare( $post ) );
+		return rest_ensure_response( open_station_notes_prepare( $post ) );
 	}
 
 	if ( ! wp_untrash_post( $post->ID ) ) {
-		return new WP_Error( 'desktop_mode_notes_restore_failed', __( 'Could not restore the note.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_notes_restore_failed', __( 'Could not restore the note.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	// If this note was trashed by a "convert to post" action, undoing
@@ -478,7 +478,7 @@ function desktop_mode_notes_rest_restore( $request ) {
 		}
 	}
 
-	return rest_ensure_response( desktop_mode_notes_prepare( get_post( $post->ID ) ) );
+	return rest_ensure_response( open_station_notes_prepare( get_post( $post->ID ) ) );
 }
 
 /**
@@ -491,7 +491,7 @@ function desktop_mode_notes_rest_restore( $request ) {
  * @param string $text Note text.
  * @return string Serialized block markup (empty string for empty text).
  */
-function desktop_mode_notes_text_to_blocks( $text ) {
+function open_station_notes_text_to_blocks( $text ) {
 	$text       = str_replace( array( "\r\n", "\r" ), "\n", (string) $text );
 	$paragraphs = preg_split( '/\n{2,}/', trim( $text ) );
 	$blocks     = array();
@@ -512,26 +512,26 @@ function desktop_mode_notes_text_to_blocks( $text ) {
  *
  * The note is trashed (not hard-deleted) and linked to its new draft
  * via `_wpd_note_converted_post` so the standard restore route can undo
- * both sides of the conversion (see `desktop_mode_notes_rest_restore`).
+ * both sides of the conversion (see `open_station_notes_rest_restore`).
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_notes_rest_convert( $request ) {
-	$post = desktop_mode_notes_get_note( $request['id'] );
+function open_station_notes_rest_convert( $request ) {
+	$post = open_station_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
 		return $post;
 	}
-	$owner = desktop_mode_notes_require_owner( $post );
+	$owner = open_station_notes_require_owner( $post );
 	if ( is_wp_error( $owner ) ) {
 		return $owner;
 	}
 	if ( ! current_user_can( 'edit_posts' ) ) {
-		return new WP_Error( 'desktop_mode_notes_cannot_create_posts', __( 'You are not allowed to create posts.', 'desktop-mode' ), array( 'status' => 403 ) );
+		return new WP_Error( 'open_station_notes_cannot_create_posts', __( 'You are not allowed to create posts.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	$text  = (string) get_post_field( 'post_content', $post, 'raw' );
-	$title = desktop_mode_notes_derive_title( $text );
+	$title = open_station_notes_derive_title( $text );
 
 	/**
 	 * Filters the arguments used to create the draft post from a note.
@@ -544,13 +544,13 @@ function desktop_mode_notes_rest_convert( $request ) {
 	 * @param WP_REST_Request $request   The convert request.
 	 */
 	$post_args = apply_filters(
-		'desktop_mode_notes_convert_post_args',
+		'open_station_notes_convert_post_args',
 		array(
 			'post_type'    => 'post',
 			'post_status'  => 'draft',
 			'post_author'  => (int) $post->post_author,
 			'post_title'   => $title,
-			'post_content' => desktop_mode_notes_text_to_blocks( $text ),
+			'post_content' => open_station_notes_text_to_blocks( $text ),
 		),
 		$post,
 		$request
@@ -569,7 +569,7 @@ function desktop_mode_notes_rest_convert( $request ) {
 	if ( ! wp_trash_post( $post->ID ) ) {
 		wp_delete_post( $new_post_id, true );
 		delete_post_meta( $post->ID, '_wpd_note_converted_post' );
-		return new WP_Error( 'desktop_mode_notes_convert_failed', __( 'Could not convert the note to a post.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'open_station_notes_convert_failed', __( 'Could not convert the note to a post.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	/**
@@ -579,7 +579,7 @@ function desktop_mode_notes_rest_convert( $request ) {
 	 * @param WP_Post         $post        The source note (now trashed).
 	 * @param WP_REST_Request $request     The convert request.
 	 */
-	do_action( 'desktop_mode_notes_converted', (int) $new_post_id, $post, $request );
+	do_action( 'open_station_notes_converted', (int) $new_post_id, $post, $request );
 
 	return rest_ensure_response(
 		array(

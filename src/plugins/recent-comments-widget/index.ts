@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Recent Comments Widget (lazy bundle).
+ * OpenStation — Recent Comments Widget (lazy bundle).
  *
  * Shows a live feed of the latest comments with status badges,
  * commenter name, parent post title, and time-ago stamps.
@@ -181,7 +181,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

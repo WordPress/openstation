@@ -1,4 +1,4 @@
-=== Desktop Mode ===
+=== OpenStation ===
 Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
@@ -16,7 +16,7 @@ Turn wp-admin into a desktop OS — windows, dock, virtual desktops, and an AI a
 
 https://www.youtube.com/watch?v=jii_gGbqUx4
 
-Desktop Mode is opt-in per user: one click in the admin bar switches you in, one click switches you back. Nobody else on the site sees any change, and deactivating the plugin restores the classic admin exactly. Zero Core patches — every feature runs through public WordPress hooks.
+OpenStation is opt-in per user: one click in the admin bar switches you in, one click switches you back. Nobody else on the site sees any change, and deactivating the plugin restores the classic admin exactly. Zero Core patches — every feature runs through public WordPress hooks.
 
 Built and maintained by [Automattic](https://automattic.com), the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr.
 
@@ -42,7 +42,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 
 = Built to be extended =
 
-Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `desktop_mode_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
+Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `open_station_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
 
 = External services =
 
@@ -67,14 +67,14 @@ No other external services are contacted by this plugin.
 = Optional: enable the AI Assistant =
 
 1. In **Settings → Connectors**, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+.
-2. In desktop mode, open **OS Settings → Features** and turn on **AI assistant** (it's off by default).
-3. Press **Cmd+K** (or **Ctrl+K**) anywhere in desktop mode to open the AI assistant.
+2. In OpenStation, open **OS Settings → Features** and turn on **AI assistant** (it's off by default).
+3. Press **Cmd+K** (or **Ctrl+K**) anywhere in OpenStation to open the AI assistant.
 
 == Frequently Asked Questions ==
 
 = Does this change anything for users who don't opt in? =
 
-No. The classic admin is untouched until a user toggles desktop mode on for themselves. Deactivating the plugin restores vanilla Core exactly.
+No. The classic admin is untouched until a user toggles OpenStation on for themselves. Deactivating the plugin restores vanilla Core exactly.
 
 = Does the plugin require an external service to function? =
 
@@ -84,7 +84,7 @@ No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wall
 
 No. Every feature is wired through public WordPress actions and filters.
 
-= How do I disable desktop mode for my user? =
+= How do I disable OpenStation for my user? =
 
 Click the desktop icon in the admin bar a second time to flip the toggle off. The plugin can also be deactivated globally from the Plugins screen.
 
@@ -104,7 +104,7 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 
 == Credits ==
 
-Desktop Mode is brought to you by [Automattic](https://automattic.com). The plugin is open source under GPLv2-or-later; contributions are welcome on [GitHub](https://github.com/WordPress/desktop-mode).
+OpenStation is brought to you by [Automattic](https://automattic.com). The plugin is open source under GPLv2-or-later; contributions are welcome on [GitHub](https://github.com/WordPress/desktop-mode).
 
 = Third-party libraries =
 
@@ -153,7 +153,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Close privilege-escalation and session-bypass paths
 * Enforce strict structured-output schemas at the provider boundary
 * Add window reveal animations
-* Add Popup Siege as a Desktop Mode game extension
+* Add Popup Siege as a OpenStation game extension
 * Add SOL Inbound Monologue RSS reader extension
 * Drop the esbuild CSS syntax warning in the drafts widget
 * Improve the agents chat and Agents section UX
@@ -189,13 +189,13 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Keep URL-style menu slugs (ACF) as direct admin links
 * Add Alphabet Soup game; generalize game infra out of Inkfall
 * Fix 404 from wallpaper Sort By when a synthetic tile is on the desktop
-* Fix illegible text fields inside wpd-modal dialogs
+* Fix illegible text fields inside os-modal dialogs
 * Fix empty custom-gradient editor after re-selecting the wallpaper
 * Add Related-entities title-bar navigation with open PHP/JS filter surface
 * Admin bar visibility when fullscreen window is minimized
 * Allow selecting window from Overview view
 * Show open window indicators for bottom dock tiles
-* Add busy state and spinner to wpd-button
+* Add busy state and spinner to os-button
 * Redesign session-expiry recovery: one login prompt, in-place recovery
 * Fix folder rename not reflected on the desktop until refresh
 * Live-refresh list windows on content changes (posts, CPTs, comments, WooCommerce orders)
@@ -205,9 +205,9 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 = 0.9.5 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
-* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`desktop_mode_register_ai_tool()` was removed)
+* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`open_station_register_ai_tool()` was removed)
 * Removed the OS Settings → AI tab; the per-user "AI assistant" toggle now lives in OS Settings → Features next to "Score new comments with AI"
-* Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of Desktop Mode is unaffected
+* Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of OpenStation is unaffected
 * Stored AI keys are deleted from the database on upgrade
 * Five new built-in widgets: Recent Comments, Post Stats, Site Views, Jazz Quote, and Starter
 * Widgets can now be resized, and docked widget heights persist across sessions
@@ -230,7 +230,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Review: doc/comment accuracy, security hardening, and cleanups across the plugin
 
 = 0.9.2 =
-* Persist welcome-dialog dismissal when Desktop Mode is disabled
+* Persist welcome-dialog dismissal when OpenStation is disabled
 * Welcome dialog reappears on every page when the admin is served from an origin that differs from `site_url`
 
 = 0.9.1 =
@@ -242,7 +242,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Add "View activity footprint" row action in Users list
 
 = 0.9.0 =
-* Gate per-user REST routes on desktop mode enabled
+* Gate per-user REST routes on OpenStation enabled
 * Refine recycle bin badge styling and sync on stop
 * Clear comments selection after applying action
 * Don't let a failing sync block the agent
@@ -254,7 +254,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Open an app from the wallpaper or from the dock — it's the same window now (no more two copies floating around)
 * Minimize a window and the dock icon shows it's minimized — even if you opened it from the desktop icon
 * Click "+ New" twice and you get two editors. Drafting a post and want to start another? Just click again
-* "Switch to Desktop Mode" always takes you to the dashboard, so you know where you're starting from
+* "Switch to OpenStation" always takes you to the dashboard, so you know where you're starting from
 * Resizing a window and accidentally letting go over the desktop no longer minimizes everything
 * WooCommerce: the "Add Order" button is back on the Orders page
 * "Add New" buttons (Add Post, Add Order, Add anything) stay visible inside every plugin page
@@ -297,7 +297,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Polish four framework surfaces for plugin authors
 * Disable focus on other window actions
 * Add Media section to "My WordPress" + uniform preview-pane hook surface
-* Refactor My WordPress to use `<wpd-tile>` + add post status ribbons
+* Refactor My WordPress to use `<os-tile>` + add post status ribbons
 * Allow deactivating plugins in CMO desktop & dock
 * OS-file drop — progress UI, live refresh, cancel cleanup, CMO
 * Group-by selector + click-to-deselect + focused-icon centering
@@ -319,10 +319,10 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Fix window refresh issue on new sessions
 
 = 0.8.4 =
-* Faster Desktop Mode, main bundle cut by 59 %
+* Faster OpenStation, main bundle cut by 59 %
 * "Edit Post" from the front-end admin bar opens nothing
 * Cross-page admin-link clicks: state, destructive actions, referer hint
-* Warn loudly when a `<wpd-*>` tag is used without being imported
+* Warn loudly when a `<os-*>` tag is used without being imported
 * Support re-uploading existing plugins, add post-install Activate panel
 * Restore the full WordPress command palette inside Cmd+K
 
@@ -341,10 +341,10 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 = 0.8.2 =
 * Many fixes and new features
 * Add unit test to ensure bridge script skips core AJAX update buttons
-* Native Plugins window + `<wpd-card>`
+* Native Plugins window + `<os-card>`
 * Appearance window polish + dock-peek fixes
 * Fix upload theme
-* Implement favicon resolver and associated tests for desktop mode
+* Implement favicon resolver and associated tests for OpenStation
 * Auto-inject X-WP-Nonce for REST API requests
 * Enhance user management functionality in WordPress REST API
 * Fix user role updates
@@ -353,7 +353,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Fix rearrange icons out of desktop
 * Open each post in its own window
 * Add item visibility and dock order settings
-* Add first-run welcome dialog for Desktop Mode
+* Add first-run welcome dialog for OpenStation
 * Fix dock management
 * Refetch desktop placements on Recycle Bin restore
 
@@ -367,17 +367,17 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 = 0.5.1 =
 * Code editor and framework improvements.
-* Enhanced AI provider integration: third-party providers may register through `desktop_mode_register_ai_provider()`.
+* Enhanced AI provider integration: third-party providers may register through `open_station_register_ai_provider()`.
 * Title-bar button registry with icon painting for plugin authors.
-* OS Settings tabs are now extensible via `desktop_mode_register_settings_tab_script()` / `desktop_mode_register_settings_tab()`.
-* AI Copilot extensibility: server-side tool registry (`desktop_mode_register_ai_tool()`) and client-side `wp.desktop.ai.ask()` programmatic entry point.
-* UI component kit expansion (~25 `<wpd-*>` web components).
+* OS Settings tabs are now extensible via `open_station_register_settings_tab_script()` / `open_station_register_settings_tab()`.
+* AI Copilot extensibility: server-side tool registry (`open_station_register_ai_tool()`) and client-side `wp.os.ai.ask()` programmatic entry point.
+* UI component kit expansion (~25 `<os-*>` web components).
 * Backtick hotkey to cycle window focus.
 * Unified command palettes via the palette registry.
 * OS Settings Help tab.
 
 = 0.5.0 =
-* Command registration APIs (`desktop_mode_register_command_script()` / `desktop_mode_register_command()`) with live install/activate refresh.
+* Command registration APIs (`open_station_register_command_script()` / `open_station_register_command()`) with live install/activate refresh.
 * Media-library enhancement enabled by default, with opt-out.
 * Dock CSS selectors updated; overflow handling improved.
 

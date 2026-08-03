@@ -2,12 +2,12 @@
 /**
  * phpMyAdmin window registration + bundle delivery.
  *
- * Registers the `wpdc-phpmyadmin` native window plus a matching desktop
+ * Registers the `osc-phpmyadmin` native window plus a matching desktop
  * icon, applies the env/cap/vendor gates, and installs the Playground
  * config + SQLite driver adapter into the bundled phpMyAdmin
  * distribution.
  *
- * The script handle is served through `admin-ajax.php?action=desktop_mode_phpmyadmin_bundle`
+ * The script handle is served through `admin-ajax.php?action=open_station_phpmyadmin_bundle`
  * — the response body starts with the config assignment, then streams
  * the prebuilt bundle. Everything the bundle needs is in a single HTTP
  * response, so there is no `wp_print_scripts` lifecycle to depend on,
@@ -15,7 +15,7 @@
  * path, and no admin-template hook that has to fire on the consuming
  * user's environment.
  *
- * @package DesktopModePhpMyAdmin
+ * @package OpenStationPhpMyAdmin
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,8 +25,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string
  */
-function desktop_mode_phpmyadmin_vendor_dir() {
-	return DESKTOP_MODE_PHPMYADMIN_DIR . 'assets/vendor/phpmyadmin';
+function open_station_phpmyadmin_vendor_dir() {
+	return OPEN_STATION_PHPMYADMIN_DIR . 'assets/vendor/phpmyadmin';
 }
 
 /**
@@ -36,8 +36,8 @@ function desktop_mode_phpmyadmin_vendor_dir() {
  *
  * @return string
  */
-function desktop_mode_phpmyadmin_vendor_url() {
-	return untrailingslashit( DESKTOP_MODE_PHPMYADMIN_URL . 'assets/vendor/phpmyadmin' );
+function open_station_phpmyadmin_vendor_url() {
+	return untrailingslashit( OPEN_STATION_PHPMYADMIN_URL . 'assets/vendor/phpmyadmin' );
 }
 
 /**
@@ -45,7 +45,7 @@ function desktop_mode_phpmyadmin_vendor_url() {
  *
  * @return bool
  */
-function desktop_mode_phpmyadmin_environment_allowed() {
+function open_station_phpmyadmin_environment_allowed() {
 	return 'local' === wp_get_environment_type();
 }
 
@@ -54,8 +54,8 @@ function desktop_mode_phpmyadmin_environment_allowed() {
  *
  * @return bool
  */
-function desktop_mode_phpmyadmin_vendor_present() {
-	return is_file( desktop_mode_phpmyadmin_vendor_dir() . '/index.php' );
+function open_station_phpmyadmin_vendor_present() {
+	return is_file( open_station_phpmyadmin_vendor_dir() . '/index.php' );
 }
 
 /**
@@ -65,9 +65,9 @@ function desktop_mode_phpmyadmin_vendor_present() {
  *
  * @return bool
  */
-function desktop_mode_phpmyadmin_user_can_use() {
-	$hard_gates = desktop_mode_phpmyadmin_environment_allowed()
-		&& desktop_mode_phpmyadmin_vendor_present();
+function open_station_phpmyadmin_user_can_use() {
+	$hard_gates = open_station_phpmyadmin_environment_allowed()
+		&& open_station_phpmyadmin_vendor_present();
 
 	$can = $hard_gates && current_user_can( 'manage_options' );
 
@@ -81,7 +81,7 @@ function desktop_mode_phpmyadmin_user_can_use() {
 	 *
 	 * @param bool $can Default: local env + vendor present + manage_options.
 	 */
-	return $hard_gates && (bool) apply_filters( 'desktop_mode_phpmyadmin_user_can_use', $can );
+	return $hard_gates && (bool) apply_filters( 'open_station_phpmyadmin_user_can_use', $can );
 }
 
 /**
@@ -89,14 +89,15 @@ function desktop_mode_phpmyadmin_user_can_use() {
  *
  * The render callback is JS-side; this skeleton just declares the
  * mount point + a loading state in case the iframe takes a moment to
- * wire up. The `wpdc-phpmyadmin` class names and `data-wpdc-phpmyadmin-*`
- * attributes are kept on the legacy `wpdc-` spelling because the
- * prebuilt JS bundle queries them by exactly those selectors.
+ * wire up. The `osc-phpmyadmin` class names and `data-osc-phpmyadmin-*`
+ * attributes must stay byte-identical to what the prebuilt JS bundle
+ * queries — `assets/js/phpmyadmin.js` has no source in this tree, so a
+ * selector renamed here and not there silently stops matching.
  */
-function desktop_mode_phpmyadmin_render_template() {
+function open_station_phpmyadmin_render_template() {
 	?>
-	<div class="wpdc-phpmyadmin" data-wpdc-phpmyadmin-root>
-		<div class="wpdc-phpmyadmin__loading" data-wpdc-phpmyadmin-loading>
+	<div class="osc-phpmyadmin" data-osc-phpmyadmin-root>
+		<div class="osc-phpmyadmin__loading" data-osc-phpmyadmin-loading>
 			<span class="dashicons dashicons-database" aria-hidden="true"></span>
 			<p><?php esc_html_e( 'Loading phpMyAdmin…', 'desktop-mode-phpmyadmin' ); ?></p>
 		</div>
@@ -110,7 +111,7 @@ function desktop_mode_phpmyadmin_render_template() {
  *
  * @return bool
  */
-function desktop_mode_phpmyadmin_using_sqlite() {
+function open_station_phpmyadmin_using_sqlite() {
 	if ( class_exists( 'WP_SQLite_Driver' ) ) {
 		return true;
 	}
@@ -135,10 +136,10 @@ function desktop_mode_phpmyadmin_using_sqlite() {
  * this function restores from it when SQLite isn't in use and our
  * adapter is currently installed.
  */
-function desktop_mode_phpmyadmin_install_config() {
-	$vendor = desktop_mode_phpmyadmin_vendor_dir();
+function open_station_phpmyadmin_install_config() {
+	$vendor = open_station_phpmyadmin_vendor_dir();
 
-	$config_src = DESKTOP_MODE_PHPMYADMIN_DIR . 'includes/config.inc.php';
+	$config_src = OPEN_STATION_PHPMYADMIN_DIR . 'includes/config.inc.php';
 	if ( is_readable( $config_src ) ) {
 		// Unconditional — is_writable() returns false for some wasm
 		// filesystems where copy() actually succeeds.
@@ -146,22 +147,24 @@ function desktop_mode_phpmyadmin_install_config() {
 	}
 
 	$driver_path  = $vendor . '/libraries/classes/Dbal/DbiMysqli.php';
-	$adapter_src  = DESKTOP_MODE_PHPMYADMIN_DIR . 'includes/DbiMysqli-sqlite.php';
+	$adapter_src  = OPEN_STATION_PHPMYADMIN_DIR . 'includes/DbiMysqli-sqlite.php';
 	$stock_backup = $driver_path . '.stock';
 
 	if ( ! is_dir( dirname( $driver_path ) ) ) {
 		return;
 	}
 
-	if ( desktop_mode_phpmyadmin_using_sqlite() ) {
+	if ( open_station_phpmyadmin_using_sqlite() ) {
 		if ( is_readable( $adapter_src ) ) {
 			@copy( $adapter_src, $driver_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 	} elseif ( is_file( $driver_path ) && is_file( $stock_backup ) ) {
 		// Non-SQLite environment but our adapter may be in place from a
 		// previous install. Detect via marker string and restore stock.
+		// Both markers are checked: adapters written before the rebrand
+		// carry the old one, and they still need restoring.
 		$current = (string) @file_get_contents( $driver_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_get_contents, WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false !== strpos( $current, 'wp-desktop-mode' ) ) {
+		if ( false !== strpos( $current, 'openstation' ) || false !== strpos( $current, 'OpenStation' ) ) {
 			@copy( $stock_backup, $driver_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 	}
@@ -171,27 +174,27 @@ function desktop_mode_phpmyadmin_install_config() {
  * Register the script + style handles backing the phpMyAdmin window.
  *
  * The script URL points at admin-ajax so the bundle response can carry
- * its `window.wpDesktopPhpMyAdminConfig` config inline — see
- * {@see desktop_mode_phpmyadmin_serve_bundle()} for why.
+ * its `window.openStationPhpMyAdminConfig` config inline — see
+ * {@see open_station_phpmyadmin_serve_bundle()} for why.
  */
-function desktop_mode_phpmyadmin_register_assets() {
+function open_station_phpmyadmin_register_assets() {
 	wp_register_style(
 		'desktop-mode-phpmyadmin',
-		DESKTOP_MODE_PHPMYADMIN_URL . 'assets/css/phpmyadmin.css',
-		array( 'desktop-mode-variables', 'dashicons' ),
-		DESKTOP_MODE_PHPMYADMIN_VERSION
+		OPEN_STATION_PHPMYADMIN_URL . 'assets/css/phpmyadmin.css',
+		array( 'os-variables', 'dashicons' ),
+		OPEN_STATION_PHPMYADMIN_VERSION
 	);
 
 	$bundle_url = add_query_arg(
-		array( 'action' => 'desktop_mode_phpmyadmin_bundle' ),
+		array( 'action' => 'open_station_phpmyadmin_bundle' ),
 		admin_url( 'admin-ajax.php' )
 	);
 
 	wp_register_script(
 		'desktop-mode-phpmyadmin',
 		$bundle_url,
-		array( 'wp-i18n', 'desktop-mode' ),
-		DESKTOP_MODE_PHPMYADMIN_VERSION,
+		array( 'wp-i18n', 'openstation' ),
+		OPEN_STATION_PHPMYADMIN_VERSION,
 		true
 	);
 }
@@ -199,24 +202,23 @@ function desktop_mode_phpmyadmin_register_assets() {
 /**
  * Serve the phpMyAdmin bundle with its config baked in.
  *
- * Hooked on `wp_ajax_desktop_mode_phpmyadmin_bundle`. Outputs:
+ * Hooked on `wp_ajax_open_station_phpmyadmin_bundle`. Outputs:
  *
- *  1. `window.wpDesktopPhpMyAdminConfig = {...};` — vendor URL.
+ *  1. `window.openStationPhpMyAdminConfig = {...};` — vendor URL.
  *  2. The prebuilt phpMyAdmin shim bundle (min when not SCRIPT_DEBUG).
  *
- * The JS-side global name (`wpDesktopPhpMyAdminConfig`) and the native
- * window id (`wpdc-phpmyadmin`) are kept on the legacy spelling because
- * the prebuilt bundle hardcodes them — renaming would require
- * rebuilding from source.
+ * The JS-side global name (`openStationPhpMyAdminConfig`) and the native
+ * window id (`osc-phpmyadmin`) must stay in lockstep with the prebuilt
+ * bundle, which hardcodes both and has no source in this tree.
  */
-function desktop_mode_phpmyadmin_serve_bundle() {
-	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
+function open_station_phpmyadmin_serve_bundle() {
+	if ( ! open_station_phpmyadmin_user_can_use() ) {
 		status_header( 403 );
 		exit;
 	}
 
 	$config = array(
-		'vendorUrl' => desktop_mode_phpmyadmin_vendor_url(),
+		'vendorUrl' => open_station_phpmyadmin_vendor_url(),
 	);
 
 	nocache_headers();
@@ -224,12 +226,12 @@ function desktop_mode_phpmyadmin_serve_bundle() {
 	header( 'Vary: Cookie' );
 
 	echo '/* desktop-mode-phpmyadmin config + bundle */' . "\n";
-	echo 'window.wpDesktopPhpMyAdminConfig = ' . wp_json_encode( $config ) . ';' . "\n";
+	echo 'window.openStationPhpMyAdminConfig = ' . wp_json_encode( $config ) . ';' . "\n";
 
 	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
-	$bundle = DESKTOP_MODE_PHPMYADMIN_DIR . 'assets/js/phpmyadmin' . $suffix . '.js';
+	$bundle = OPEN_STATION_PHPMYADMIN_DIR . 'assets/js/phpmyadmin' . $suffix . '.js';
 	if ( ! file_exists( $bundle ) ) {
-		$bundle = DESKTOP_MODE_PHPMYADMIN_DIR . 'assets/js/phpmyadmin.js';
+		$bundle = OPEN_STATION_PHPMYADMIN_DIR . 'assets/js/phpmyadmin.js';
 	}
 	if ( file_exists( $bundle ) ) {
 		readfile( $bundle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
@@ -242,21 +244,21 @@ function desktop_mode_phpmyadmin_serve_bundle() {
  * Register the phpMyAdmin window + desktop icon on `init`.
  *
  * No-op when the composite gate fails. Hooked at priority 20 so the
- * native-window registry has been bootstrapped by desktop-mode core.
+ * native-window registry has been bootstrapped by openstation core.
  */
-function desktop_mode_phpmyadmin_register_window() {
-	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
+function open_station_phpmyadmin_register_window() {
+	if ( ! open_station_phpmyadmin_user_can_use() ) {
 		return;
 	}
 
-	desktop_mode_phpmyadmin_install_config();
+	open_station_phpmyadmin_install_config();
 
-	$registered = desktop_mode_register_window(
-		'wpdc-phpmyadmin',
+	$registered = open_station_register_window(
+		'osc-phpmyadmin',
 		array(
 			'title'        => __( 'phpMyAdmin', 'desktop-mode-phpmyadmin' ),
 			'icon'         => 'dashicons-database',
-			'template'     => 'desktop_mode_phpmyadmin_render_template',
+			'template'     => 'open_station_phpmyadmin_render_template',
 			'script'       => 'desktop-mode-phpmyadmin',
 			'width'        => 1100,
 			'height'       => 720,
@@ -273,12 +275,12 @@ function desktop_mode_phpmyadmin_register_window() {
 		return;
 	}
 
-	desktop_mode_register_icon(
-		'wpdc-phpmyadmin',
+	open_station_register_icon(
+		'osc-phpmyadmin',
 		array(
 			'title'        => __( 'phpMyAdmin', 'desktop-mode-phpmyadmin' ),
 			'icon'         => 'dashicons-database',
-			'window'       => 'wpdc-phpmyadmin',
+			'window'       => 'osc-phpmyadmin',
 			'position'     => 60,
 			'capabilities' => array( 'manage_options' ),
 		)
@@ -286,34 +288,34 @@ function desktop_mode_phpmyadmin_register_window() {
 }
 
 /**
- * Enqueue the phpMyAdmin stylesheet for any desktop-mode admin page.
+ * Enqueue the phpMyAdmin stylesheet for any openstation admin page.
  *
  * The CSS has to be in place before the template is cloned so the
  * loading state renders correctly.
  */
-function desktop_mode_phpmyadmin_enqueue_style() {
-	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
+function open_station_phpmyadmin_enqueue_style() {
+	if ( ! open_station_phpmyadmin_user_can_use() ) {
 		return;
 	}
 	wp_enqueue_style( 'desktop-mode-phpmyadmin' );
 }
 
 /**
- * Wire the UI surface to Desktop Mode once we know it's loaded.
+ * Wire the UI surface to OpenStation once we know it's loaded.
  */
-function desktop_mode_phpmyadmin_maybe_init_ui() {
-	if ( ! function_exists( 'desktop_mode_register_window' ) ) {
+function open_station_phpmyadmin_maybe_init_ui() {
+	if ( ! function_exists( 'open_station_register_window' ) ) {
 		return;
 	}
 
-	add_action( 'init', 'desktop_mode_phpmyadmin_register_assets', 20 );
-	add_action( 'init', 'desktop_mode_phpmyadmin_register_window', 20 );
-	add_action( 'admin_enqueue_scripts', 'desktop_mode_phpmyadmin_enqueue_style', 30 );
+	add_action( 'init', 'open_station_phpmyadmin_register_assets', 20 );
+	add_action( 'init', 'open_station_phpmyadmin_register_window', 20 );
+	add_action( 'admin_enqueue_scripts', 'open_station_phpmyadmin_enqueue_style', 30 );
 }
 
 // The bundle endpoint is wired unconditionally so the config is
 // reachable even when the consumer's page-render hooks misbehave —
-// `desktop_mode_phpmyadmin_user_can_use()` is the actual auth gate
+// `open_station_phpmyadmin_user_can_use()` is the actual auth gate
 // inside the handler.
-add_action( 'wp_ajax_desktop_mode_phpmyadmin_bundle', 'desktop_mode_phpmyadmin_serve_bundle' );
-add_action( 'plugins_loaded', 'desktop_mode_phpmyadmin_maybe_init_ui', 20 );
+add_action( 'wp_ajax_open_station_phpmyadmin_bundle', 'open_station_phpmyadmin_serve_bundle' );
+add_action( 'plugins_loaded', 'open_station_phpmyadmin_maybe_init_ui', 20 );

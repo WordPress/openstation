@@ -1,11 +1,11 @@
 /**
- * Desktop Mode — Extension client-side window helper.
+ * OpenStation — Extension client-side window helper.
  *
- * Companion JS-side helper to the PHP `Desktop_Mode_Extension_Window`
+ * Companion JS-side helper to the PHP `Open_Station_Extension_Window`
  * base. Removes the per-extension boilerplate that fetches the
  * config blob from the bundle's global, registers the render
- * callback against `window.desktopModeNativeWindows[ id ]`, and
- * wires the `wp.desktop.openWindow()` flow.
+ * callback against `window.openStationNativeWindows[ id ]`, and
+ * wires the `wp.os.openWindow()` flow.
  */
 
 export interface CreateExtensionWindowOptions< Config > {
@@ -14,7 +14,7 @@ export interface CreateExtensionWindowOptions< Config > {
 	/**
 	 * Name of the global the bundle reads its config from. Must
 	 * match the PHP `config_global()` value (e.g.
-	 * `'wpDesktopMyExtConfig'`).
+	 * `'openStationMyExtConfig'`).
 	 */
 	configGlobal: string;
 	/** Render callback invoked when the window opens. */
@@ -27,7 +27,7 @@ interface NativeWindowsBag {
 
 interface ExtensionWindow {
 	[ k: string ]: unknown;
-	desktopModeNativeWindows?: NativeWindowsBag;
+	openStationNativeWindows?: NativeWindowsBag;
 }
 
 /**
@@ -40,7 +40,7 @@ export function createExtensionWindow< Config >(
 	opts: CreateExtensionWindowOptions< Config >,
 ): void {
 	const w = window as unknown as ExtensionWindow;
-	const bag: NativeWindowsBag = ( w.desktopModeNativeWindows ??= {} );
+	const bag: NativeWindowsBag = ( w.openStationNativeWindows ??= {} );
 	bag[ opts.id ] = ( container, ctx ) => {
 		const config = ( window as Record< string, unknown > )[
 			opts.configGlobal

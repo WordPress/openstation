@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Dock.
+ * OpenStation — Dock.
  *
  * Renders the icon-only dock on the left edge of the desktop.
- * Icons come from the admin menu data passed via desktopModeConfig.dockItems.
+ * Icons come from the admin menu data passed via openStationConfig.dockItems.
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
  */
@@ -111,7 +111,7 @@ export interface DockItem {
 	/**
 	 * Native-window id this tile targets, when known up front.
 	 * Populated for synthesized tiles built from a
-	 * `desktop_mode_register_icon()` entry whose `window` field points
+	 * `open_station_register_icon()` entry whose `window` field points
 	 * at a registered native window (no `url`). The dock prefers this
 	 * over deriving an id from `url` for indicator + hover-peek
 	 * lookups — without it those synth tiles fall back to
@@ -130,15 +130,15 @@ export interface DockItem {
 	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
 	 * taxonomies). Used by the dock to render a visual separator
 	 * between core and plugin tiles. Server-side classifier lives
-	 * in `desktop_mode_is_core_menu_slug`.
+	 * in `open_station_is_core_menu_slug`.
 	 */
 	isCore?: boolean;
 	/**
 	 * Plugin file (e.g. `woocommerce/woocommerce.php`) that owns this
 	 * menu, when resolvable. Set server-side by
-	 * `desktop_mode_resolve_menu_plugin_file()`. Used by the dock
+	 * `open_station_resolve_menu_plugin_file()`. Used by the dock
 	 * right-click menu to surface a "Deactivate plugin" action. Always
-	 * `null` for core menus, mu-plugins, drop-ins, and Desktop Mode
+	 * `null` for core menus, mu-plugins, drop-ins, and OpenStation
 	 * itself — none of those are deactivatable via `wp/v2/plugins`.
 	 */
 	pluginFile?: string | null;
@@ -162,8 +162,8 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * (Classic layout's left side bar + bottom dock) without reaching
  * into the DOM.
  *
- * `dockId` is the host element's `id` attribute — `'desktop-mode-dock'`
- * for the bottom rail, `'desktop-mode-side-dock'` for the Classic side
+ * `dockId` is the host element's `id` attribute — `'os-dock'`
+ * for the bottom rail, `'os-side-dock'` for the Classic side
  * rail. `rail` mirrors `Dock.rail` (`'dock'` or `'taskbar'`) and
  * `orientation` carries the placement.
  *
@@ -221,7 +221,7 @@ export interface DockAttentionOptions {
  * Manages a single dock element, its icons, tooltips, and interaction
  * with the window manager. A dock can render along any of three edges
  * (left, right, or bottom); placement is reflected on the dock
- * element's own `data-desktop-mode-dock-placement` attribute, which CSS
+ * element's own `data-os-dock-placement` attribute, which CSS
  * keys off for layout, tooltip anchor, and indicator position. This
  * lets two `Dock` instances coexist in the same shell (used by the
  * Classic desktop layout: a left side bar with core menus + a bottom
@@ -231,7 +231,7 @@ export class Dock {
 	private container: HTMLElement;
 	/**
 	 * Where menu tiles + the inline group separator live. For vertical
-	 * placements this is the inner `.desktop-mode-dock__scroll` wrapper
+	 * placements this is the inner `.os-dock__scroll` wrapper
 	 * (a scrollable flex column) so a long admin menu doesn't push the
 	 * system tiles off-screen; the wrapper takes the scroll while the
 	 * outer dock stays the height of the shell body. For the bottom
@@ -241,7 +241,7 @@ export class Dock {
 	private itemHost: HTMLElement;
 	/**
 	 * Where system tiles + their hairline separator live. For vertical
-	 * placements this is the `.desktop-mode-dock__pinned` wrapper sat
+	 * placements this is the `.os-dock__pinned` wrapper sat
 	 * below `itemHost`, so OS Settings / Recycle Bin / etc. stay visible
 	 * at the bottom regardless of scroll position. For the bottom
 	 * placement it's the dock itself.
@@ -343,7 +343,7 @@ export class Dock {
 		// without their CSS scopes colliding. dock.css reads this
 		// attribute for layout, tooltip anchor, and indicator anchor.
 		this.container.setAttribute(
-			'data-desktop-mode-dock-placement',
+			'data-os-dock-placement',
 			orientation,
 		);
 
@@ -355,9 +355,9 @@ export class Dock {
 		// placement attribute + orientation chrome; the wrappers carry
 		// the actual flow.
 		const scroll = document.createElement( 'div' );
-		scroll.className = 'desktop-mode-dock__scroll';
+		scroll.className = 'os-dock__scroll';
 		const pinned = document.createElement( 'div' );
-		pinned.className = 'desktop-mode-dock__pinned';
+		pinned.className = 'os-dock__pinned';
 		container.appendChild( scroll );
 		container.appendChild( pinned );
 		this.itemHost = scroll;
@@ -367,7 +367,7 @@ export class Dock {
 		// orientation so the tooltip sits outside the dock regardless
 		// of which edge it hugs.
 		this.tooltip = document.createElement( 'div' );
-		this.tooltip.className = 'desktop-mode-dock__tooltip';
+		this.tooltip.className = 'os-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
 		// Anchor modifier — applied directly to the tooltip element
 		// (not via a descendant selector on the dock) because the
@@ -375,11 +375,11 @@ export class Dock {
 		// reasons. CSS keys off this class for the slide-in animation
 		// direction; `positionTooltip()` writes the absolute coords.
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
+			this.tooltip.classList.add( 'os-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
+			this.tooltip.classList.add( 'os-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
+			this.tooltip.classList.add( 'os-dock__tooltip--after' );
 		}
 		document.body.appendChild( this.tooltip );
 
@@ -407,7 +407,7 @@ export class Dock {
 	 */
 	/**
 	 * Update the dock's orientation. Writes the new value to the
-	 * dock element's `data-desktop-mode-dock-placement` attribute (CSS
+	 * dock element's `data-os-dock-placement` attribute (CSS
 	 * keys off it for layout) and keeps the tooltip anchor in sync.
 	 *
 	 * In practice, the layout dispatcher in `desktop.ts` rebuilds the
@@ -421,20 +421,20 @@ export class Dock {
 		}
 		this.orientation = orientation;
 		this.container.setAttribute(
-			'data-desktop-mode-dock-placement',
+			'data-os-dock-placement',
 			orientation,
 		);
 		this.tooltip.classList.remove(
-			'desktop-mode-dock__tooltip--above',
-			'desktop-mode-dock__tooltip--before',
-			'desktop-mode-dock__tooltip--after',
+			'os-dock__tooltip--above',
+			'os-dock__tooltip--before',
+			'os-dock__tooltip--after',
 		);
 		if ( orientation === 'bottom' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--above' );
+			this.tooltip.classList.add( 'os-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--before' );
+			this.tooltip.classList.add( 'os-dock__tooltip--before' );
 		} else {
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--after' );
+			this.tooltip.classList.add( 'os-dock__tooltip--after' );
 		}
 	}
 
@@ -464,7 +464,7 @@ export class Dock {
 		// Also remove any stale group separator from a previous render.
 		this.itemHost
 			.querySelectorAll(
-				'.desktop-mode-dock__separator--group',
+				'.os-dock__separator--group',
 			)
 			.forEach( ( el ) => el.remove() );
 		this.itemElements.clear();
@@ -485,7 +485,7 @@ export class Dock {
 				if ( tilesInsertedThisPass > 0 ) {
 					const sep = document.createElement( 'div' );
 					sep.className =
-						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
+						'os-dock__separator os-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
 					this.itemHost.appendChild( sep );
 				}
@@ -504,7 +504,7 @@ export class Dock {
 			const override = this.badgeOverrides.get( item.id );
 			if ( override !== undefined ) {
 				const primary = btn.querySelector< HTMLElement >(
-					'.desktop-mode-dock__item-primary',
+					'.os-dock__item-primary',
 				);
 				_applyBadgeNode( primary ?? btn, override );
 			}
@@ -610,7 +610,7 @@ export class Dock {
 		}
 
 		const primary = tile.querySelector< HTMLElement >(
-			'.desktop-mode-dock__item-primary',
+			'.os-dock__item-primary',
 		);
 		_applyBadgeNode( primary ?? tile, safe );
 
@@ -667,21 +667,21 @@ export class Dock {
 
 		// Strip every prior attention class before applying the new one.
 		tile.classList.remove(
-			'desktop-mode-dock__item--attention-pulse',
-			'desktop-mode-dock__item--attention-shake',
-			'desktop-mode-dock__item--attention-bounce',
-			'desktop-mode-dock__item--intensity-subtle',
-			'desktop-mode-dock__item--intensity-normal',
-			'desktop-mode-dock__item--intensity-strong',
+			'os-dock__item--attention-pulse',
+			'os-dock__item--attention-shake',
+			'os-dock__item--attention-bounce',
+			'os-dock__item--intensity-subtle',
+			'os-dock__item--intensity-normal',
+			'os-dock__item--intensity-strong',
 		);
 
 		if ( mode === null ) {
 			return;
 		}
 
-		tile.classList.add( `desktop-mode-dock__item--attention-${ mode }` );
+		tile.classList.add( `os-dock__item--attention-${ mode }` );
 		const intensity = opts.intensity ?? 'normal';
-		tile.classList.add( `desktop-mode-dock__item--intensity-${ intensity }` );
+		tile.classList.add( `os-dock__item--intensity-${ intensity }` );
 
 		const duration = opts.durationMs ?? 4000;
 		if ( duration > 0 ) {
@@ -721,7 +721,7 @@ export class Dock {
 
 		if ( ! this.systemSeparator ) {
 			this.systemSeparator = document.createElement( 'div' );
-			this.systemSeparator.className = 'desktop-mode-dock__separator';
+			this.systemSeparator.className = 'os-dock__separator';
 			this.systemSeparator.setAttribute( 'aria-hidden', 'true' );
 			this.systemHost.appendChild( this.systemSeparator );
 		}
@@ -791,7 +791,7 @@ export class Dock {
 				if ( this.itemHost.childElementCount > 0 ) {
 					const sep = document.createElement( 'div' );
 					sep.className =
-						'desktop-mode-dock__separator desktop-mode-dock__separator--group';
+						'os-dock__separator os-dock__separator--group';
 					sep.setAttribute( 'aria-hidden', 'true' );
 					this.itemHost.appendChild( sep );
 				}
@@ -830,8 +830,8 @@ export class Dock {
 
 		const tile = document.createElement( 'div' );
 		const baseClasses = [
-			'desktop-mode-dock__item',
-			'desktop-mode-dock__item--system',
+			'os-dock__item',
+			'os-dock__item--system',
 		];
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -842,7 +842,7 @@ export class Dock {
 		tile.dataset.systemId = item.id;
 
 		const primary = document.createElement( 'button' );
-		primary.className = 'desktop-mode-dock__item-primary';
+		primary.className = 'os-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -893,7 +893,7 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'desktop-mode-dock__tooltip--visible',
+						'os-dock__tooltip--visible',
 					);
 				}
 			},
@@ -924,9 +924,9 @@ export class Dock {
 		};
 
 		const tile = document.createElement( 'div' );
-		const baseClasses = [ 'desktop-mode-dock__item' ];
+		const baseClasses = [ 'os-dock__item' ];
 		if ( item.multi ) {
-			baseClasses.push( 'desktop-mode-dock__item--multi' );
+			baseClasses.push( 'os-dock__item--multi' );
 		}
 		const filteredClasses = applyFilters< string[] >(
 			HOOKS.DOCK_TILE_CLASS,
@@ -938,7 +938,7 @@ export class Dock {
 
 		// Primary button — the icon body. Focuses existing or opens first.
 		const primary = document.createElement( 'button' );
-		primary.className = 'desktop-mode-dock__item-primary';
+		primary.className = 'os-dock__item-primary';
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
@@ -956,7 +956,7 @@ export class Dock {
 			// stretching to three or four digits.
 			const displayCount = item.badge > 99 ? '99+' : String( item.badge );
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-dock__badge';
+			badge.className = 'os-dock__badge';
 			badge.textContent = displayCount;
 			badge.setAttribute(
 				'aria-label',
@@ -1044,7 +1044,7 @@ export class Dock {
 			suppressTooltip: ( on: boolean ) => {
 				if ( on ) {
 					this.tooltip.classList.remove(
-						'desktop-mode-dock__tooltip--visible',
+						'os-dock__tooltip--visible',
 					);
 				}
 			},
@@ -1097,7 +1097,7 @@ export class Dock {
 		// a gesture is already running.
 		const hardReset = (): void => {
 			active = false;
-			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.classList.remove( 'os-dock__item--dragging' );
 			tile.style.transform = '';
 			tile.style.transition = '';
 			document.removeEventListener( 'pointermove', onMove );
@@ -1114,8 +1114,8 @@ export class Dock {
 			return (
 				!! el &&
 				el instanceof HTMLElement &&
-				el.classList.contains( 'desktop-mode-dock__item' ) &&
-				! el.classList.contains( 'desktop-mode-dock__item--system' ) &&
+				el.classList.contains( 'os-dock__item' ) &&
+				! el.classList.contains( 'os-dock__item--system' ) &&
 				!! el.dataset.menuSlug
 			);
 		};
@@ -1191,10 +1191,10 @@ export class Dock {
 				originalOrder = snapshotMenuOrder();
 				originalNext = tile.nextSibling;
 				originRect = tile.getBoundingClientRect();
-				tile.classList.add( 'desktop-mode-dock__item--dragging' );
+				tile.classList.add( 'os-dock__item--dragging' );
 				// Suppress the hover tooltip & peek for the duration.
 				this.tooltip.classList.remove(
-					'desktop-mode-dock__tooltip--visible',
+					'os-dock__tooltip--visible',
 				);
 			}
 
@@ -1213,7 +1213,7 @@ export class Dock {
 			// itself — the deepest non-dragged element wins.
 			const under = document.elementFromPoint( ev.clientX, ev.clientY );
 			const targetTile = under?.closest(
-				'.desktop-mode-dock__item',
+				'.os-dock__item',
 			) as HTMLElement | null;
 			if ( ! targetTile || targetTile === tile ) {
 				return;
@@ -1270,7 +1270,7 @@ export class Dock {
 		};
 
 		const cleanup = (): void => {
-			tile.classList.remove( 'desktop-mode-dock__item--dragging' );
+			tile.classList.remove( 'os-dock__item--dragging' );
 			tile.style.transform = '';
 			tile.style.transition = '';
 			document.removeEventListener( 'pointermove', onMove );
@@ -1305,7 +1305,7 @@ export class Dock {
 			const api = (
 				window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							getOsSettings?: () => {
 								dockOrder: string[];
 							};
@@ -1315,7 +1315,7 @@ export class Dock {
 						};
 					};
 				}
-			).wp?.desktop;
+			).wp?.os;
 			if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
 				return;
 			}
@@ -1499,7 +1499,7 @@ export class Dock {
 		//     Ahead of every image branch below because it supersedes
 		//     all of them; dashicons fall through to branch 1, where a
 		//     tint is just `color`.
-		//     Deliberately NOT `desktop-mode-dock__item-svg`: that class
+		//     Deliberately NOT `os-dock__item-svg`: that class
 		//     carries `filter: brightness(0) invert(1)`, which exists to
 		//     force plugin SVGs with hardcoded `fill` attributes to
 		//     white. It would flatten the theme's chosen tint to white
@@ -1555,7 +1555,7 @@ export class Dock {
 		// 3. http(s) URL — direct image.
 		if ( icon.startsWith( 'http://' ) || icon.startsWith( 'https://' ) ) {
 			const img = document.createElement( 'img' );
-			img.className = 'desktop-mode-dock__item-img';
+			img.className = 'os-dock__item-img';
 			img.src = icon;
 			img.alt = '';
 			img.setAttribute( 'aria-hidden', 'true' );
@@ -1599,10 +1599,10 @@ export class Dock {
 	 */
 	private _makeMaskSpan(): HTMLElement {
 		const el = document.createElement( 'span' );
-		el.className = 'desktop-mode-dock__item-mask';
+		el.className = 'os-dock__item-mask';
 		el.setAttribute( 'aria-hidden', 'true' );
-		el.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
-		el.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
+		el.style.width = 'var( --os-dock-icon-size, 20px )';
+		el.style.height = 'var( --os-dock-icon-size, 20px )';
 		el.style.display = 'block';
 		el.style.flexShrink = '0';
 		return el;
@@ -1623,7 +1623,7 @@ export class Dock {
 	 * A mask filled with `currentColor` flattens identically — both
 	 * paths keep only the source's alpha — and lands on the tile's own
 	 * glyph colour, so plugin art now follows
-	 * `--desktop-mode-dock-icon-color` like every other glyph. Unthemed
+	 * `--os-dock-icon-color` like every other glyph. Unthemed
 	 * that colour is `rgba( 255, 255, 255, 0.7 )` at rest and `#fff` on
 	 * hover: the same two values the filter and its opacity pair
 	 * produced before, which is why nothing moves by default.
@@ -1650,7 +1650,7 @@ export class Dock {
 		}
 
 		const el = document.createElement( 'span' );
-		el.className = 'desktop-mode-dock__item-svg';
+		el.className = 'os-dock__item-svg';
 		el.style.backgroundImage = bgValue.startsWith( 'url(' )
 			? bgValue
 			: `url("${ bgValue }")`;
@@ -1717,7 +1717,7 @@ export class Dock {
 		const img = imgWrap.querySelector( 'img' );
 		if ( img && img.src ) {
 			const el = document.createElement( 'img' );
-			el.className = 'desktop-mode-dock__item-img';
+			el.className = 'os-dock__item-img';
 			el.src = img.src;
 			el.alt = '';
 			el.setAttribute( 'aria-hidden', 'true' );
@@ -1763,7 +1763,7 @@ export class Dock {
 	 */
 	private createLetterBadge( title: string ): HTMLElement {
 		const el = document.createElement( 'span' );
-		el.className = 'desktop-mode-dock__item-letter';
+		el.className = 'os-dock__item-letter';
 		el.setAttribute( 'aria-hidden', 'true' );
 
 		const trimmed = title.trim();
@@ -1817,10 +1817,10 @@ export class Dock {
 		}
 		tile.addEventListener( 'pointerenter', () => {
 			this.positionTooltip( tile, filtered );
-			this.tooltip.classList.add( 'desktop-mode-dock__tooltip--visible' );
+			this.tooltip.classList.add( 'os-dock__tooltip--visible' );
 		} );
 		tile.addEventListener( 'pointerleave', () => {
-			this.tooltip.classList.remove( 'desktop-mode-dock__tooltip--visible' );
+			this.tooltip.classList.remove( 'os-dock__tooltip--visible' );
 		} );
 	}
 
@@ -1849,7 +1849,7 @@ export class Dock {
 			// 8px gap so it clears the rail's outer border. Vertical
 			// centering computed inline; CSS `--after` modifier
 			// handles only the slide-in animation. (Body-attached
-			// tooltips can't rely on `.desktop-mode-dock[…] .tooltip`
+			// tooltips can't rely on `.os-dock[…] .tooltip`
 			// descendant selectors; the position lives in JS.)
 			this.tooltip.style.top = `${ rect.top + rect.height / 2 - 14 }px`;
 			this.tooltip.style.left = `${ rect.right + 8 }px`;
@@ -1871,26 +1871,26 @@ export class Dock {
 		// Synthesized dock tiles (created from desktop icons promoted
 		// to the dock via the user's `itemVisibility` settings)
 		// carry id prefix `dock:<icon-id>`. Their native opener
-		// lives on the original `desktop_mode_register_icon` entry —
+		// lives on the original `open_station_register_icon` entry —
 		// `window` for a native-window target, `url` otherwise.
 		// Without this branch the click would derive a window id
 		// from an empty URL and silently no-op.
 		if ( item.id.startsWith( 'dock:' ) ) {
 			const iconId = item.id.slice( 5 );
 			const cfg = ( window as unknown as {
-				desktopModeConfig?: { desktopIcons?: Array< {
+				openStationConfig?: { desktopIcons?: Array< {
 					id: string;
 					window?: string;
 					url?: string;
 					title: string;
 					icon: string;
 				} > };
-			} ).desktopModeConfig;
+			} ).openStationConfig;
 			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
 			if ( icon?.window ) {
 				const wp = ( window as unknown as {
-					wp?: { desktop?: { openWindow?: ( id: string ) => unknown } };
-				} ).wp?.desktop;
+					wp?: { os?: { openWindow?: ( id: string ) => unknown } };
+				} ).wp?.os;
 				wp?.openWindow?.( icon.window );
 				return;
 			}
@@ -1964,11 +1964,11 @@ export class Dock {
 		}
 
 		// Resolved through the public-API global typed in `global.d.ts`
-		// (WpDesktopPublicApi), so a future signature change to
+		// (OpenStationPublicApi), so a future signature change to
 		// `openNewWindow` shows up at THIS call site instead of being
 		// hidden behind an inline `as unknown as { wp?: … }` cast that
 		// pinned a stale local shape.
-		const openNewWindow = window.wp?.desktop?.openNewWindow;
+		const openNewWindow = window.wp?.os?.openNewWindow;
 
 		// Dock-promoted desktop icons whose target is a native window
 		// (My WordPress, Jorvy, plugin-registered launchers) carry the
@@ -2024,7 +2024,7 @@ export class Dock {
 	 * Resolve the window-manager key for a dock tile, in this order:
 	 *
 	 * 1. `item.windowId` — set by `applyDockPlacement` when the tile
-	 *    is synthesized from a `desktop_mode_register_icon()` entry
+	 *    is synthesized from a `open_station_register_icon()` entry
 	 *    whose target is a native window. Native-window ids never
 	 *    pass through the URL → native-window remap layer, so we
 	 *    short-circuit before touching it.
@@ -2045,12 +2045,12 @@ export class Dock {
 		if ( item.id.startsWith( 'dock:' ) ) {
 			const iconId = item.id.slice( 5 );
 			const cfg = ( window as unknown as {
-				desktopModeConfig?: { desktopIcons?: Array< {
+				openStationConfig?: { desktopIcons?: Array< {
 					id: string;
 					window?: string;
 					url?: string;
 				} > };
-			} ).desktopModeConfig;
+			} ).openStationConfig;
 			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
 			if ( icon?.window ) {
 				return icon.window;
@@ -2081,20 +2081,20 @@ export class Dock {
 	private bindWindowEvents(): void {
 		const refresh = (): void => this.updateActiveStates();
 		this.boundRefresh = refresh;
-		document.addEventListener( 'desktop-mode-window-opened', refresh );
-		document.addEventListener( 'desktop-mode-window-closed', refresh );
-		document.addEventListener( 'desktop-mode-window-focused', refresh );
+		document.addEventListener( 'os-window-opened', refresh );
+		document.addEventListener( 'os-window-closed', refresh );
+		document.addEventListener( 'os-window-focused', refresh );
 		// Desktop switches change which windows count as "open on
 		// the active desktop" even though the stack is unchanged.
 		// Listen via the hook bus so a plugin that manually calls
 		// switchDesktop() also triggers a repaint.
 		window.wp?.hooks?.addAction?.(
-			'desktop-mode.desktop.switched',
+			'os.os.switched',
 			this.hooksNamespace,
 			refresh,
 		);
 		window.wp?.hooks?.addAction?.(
-			'desktop-mode.desktop.closed',
+			'os.os.closed',
 			this.hooksNamespace,
 			refresh,
 		);
@@ -2130,23 +2130,23 @@ export class Dock {
 	 */
 	public destroy(): void {
 		document.removeEventListener(
-			'desktop-mode-window-opened',
+			'os-window-opened',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-closed',
+			'os-window-closed',
 			this.boundRefresh,
 		);
 		document.removeEventListener(
-			'desktop-mode-window-focused',
+			'os-window-focused',
 			this.boundRefresh,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'desktop-mode.desktop.switched',
+			'os.os.switched',
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
-			'desktop-mode.desktop.closed',
+			'os.os.closed',
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(
@@ -2177,7 +2177,7 @@ export class Dock {
 		this.systemItemElements.clear();
 		this.systemItems = [];
 		this.systemSeparator = null;
-		this.container.removeAttribute( 'data-desktop-mode-dock-placement' );
+		this.container.removeAttribute( 'data-os-dock-placement' );
 	}
 
 	/**
@@ -2244,14 +2244,14 @@ export class Dock {
 				! isMinimized( focused ) &&
 				instances.some( ( w ) => w.id === focused.id || ( focused.config.baseId || focused.id ) === baseId );
 
-			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
-			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
+			tile.classList.toggle( 'os-dock__item--active', isOpen );
+			tile.classList.toggle( 'os-dock__item--focused', isFocused );
 			tile.classList.toggle(
-				'desktop-mode-dock__item--all-minimized',
+				'os-dock__item--all-minimized',
 				allMinimized,
 			);
 			tile.classList.toggle(
-				'desktop-mode-dock__item--stacked',
+				'os-dock__item--stacked',
 				isOpen && instances.length > 1,
 			);
 		}
@@ -2269,10 +2269,10 @@ export class Dock {
 			const allMinimized = !! sysWin && isMinimized( sysWin );
 			const isFocused =
 				!! focused && focused.id === sys.id && ! isMinimized( focused );
-			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
-			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
+			tile.classList.toggle( 'os-dock__item--active', isOpen );
+			tile.classList.toggle( 'os-dock__item--focused', isFocused );
 			tile.classList.toggle(
-				'desktop-mode-dock__item--all-minimized',
+				'os-dock__item--all-minimized',
 				allMinimized,
 			);
 		}
@@ -2287,7 +2287,7 @@ export class Dock {
 	}
 
 	/**
-	 * Toggle `body.desktop-mode-show-desktop-active` based on whether
+	 * Toggle `body.os-show-desktop-active` based on whether
 	 * every live window on the active desktop is minimized. Mirrors
 	 * the heuristic inside {@link WindowManager.toggleShowDesktop} so
 	 * the visual cue tracks the actual state — set by Show Desktop
@@ -2307,7 +2307,7 @@ export class Dock {
 		const showDesktop =
 			live.length > 0 && live.every( ( w ) => w.state === 'minimized' );
 		document.body.classList.toggle(
-			'desktop-mode-show-desktop-active',
+			'os-show-desktop-active',
 			showDesktop,
 		);
 	}
@@ -2325,7 +2325,7 @@ export class Dock {
  */
 function _applyBadgeNode( host: HTMLElement, count: number ): void {
 	const existing = host.querySelector< HTMLElement >(
-		':scope > .desktop-mode-dock__badge',
+		':scope > .os-dock__badge',
 	);
 	if ( count <= 0 ) {
 		existing?.remove();
@@ -2347,7 +2347,7 @@ function _applyBadgeNode( host: HTMLElement, count: number ): void {
 		return;
 	}
 	const badge = document.createElement( 'span' );
-	badge.className = 'desktop-mode-dock__badge';
+	badge.className = 'os-dock__badge';
 	badge.textContent = display;
 	badge.setAttribute(
 		'aria-label',

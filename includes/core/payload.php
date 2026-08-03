@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — payload building helpers.
+ * OpenStation — payload building helpers.
  *
  * Dock-item construction, native-window payload assembly, menu
  * payload (the data the shell shows in the dock + on bootstrap),
@@ -14,7 +14,7 @@
  * up by name at hook-fire time, so existing callers continue to
  * resolve regardless of which file owns the definition.
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
  * @return array[] Array of dock item arrays, each containing:
  *                 id, title, icon, url, badge, submenu.
  */
-function desktop_mode_build_dock_items() {
+function open_station_build_dock_items() {
 	global $menu, $submenu;
 
 	if ( empty( $menu ) ) {
@@ -78,15 +78,15 @@ function desktop_mode_build_dock_items() {
 		if (
 			'plugins.php' === $item[2] &&
 			! is_multisite() &&
-			function_exists( 'desktop_mode_plugins_window_count_visible_updates' )
+			function_exists( 'open_station_plugins_window_count_visible_updates' )
 		) {
-			$badge = desktop_mode_plugins_window_count_visible_updates();
+			$badge = open_station_plugins_window_count_visible_updates();
 		}
 
 		// Determine the icon. Menu entries can set `$item[6]` to anything
 		// — a dashicon class, a remote URL, a data:URI, 'none', or 'div'
 		// — so normalize before we serialize it for the shell JS.
-		$icon = desktop_mode_sanitize_dock_icon( $item[6] ?? '' );
+		$icon = open_station_sanitize_dock_icon( $item[6] ?? '' );
 
 		// Build the full URL for the menu item.
 		//
@@ -96,7 +96,7 @@ function desktop_mode_build_dock_items() {
 		// The effective `$url` we ship to the shell can be rewritten
 		// further down to the first visible submenu's URL — see the
 		// note after the loop.
-		$parent_url = desktop_mode_menu_item_url( $item[2] );
+		$parent_url = open_station_menu_item_url( $item[2] );
 		$url        = $parent_url;
 
 		// Build submenu items.
@@ -113,7 +113,7 @@ function desktop_mode_build_dock_items() {
 		//   - `submenu.length > 0` reliably means "has real child links"
 		//     — every entry points at a distinct URL.
 		//
-		// Detection by URL (post-`desktop_mode_menu_item_url()` normalize)
+		// Detection by URL (post-`open_station_menu_item_url()` normalize)
 		// rather than slug equality covers plugins that register a child
 		// at a different slug pointing at the parent's URL.
 		$sub_items             = array();
@@ -129,7 +129,7 @@ function desktop_mode_build_dock_items() {
 				// when `<body class=\"no-customize-support\">`". The
 				// Customizer is supported inside chromeless iframes, so
 				// these entries belong in the dock.
-				$sub_url = desktop_mode_menu_item_url( $sub_item[2] );
+				$sub_url = open_station_menu_item_url( $sub_item[2] );
 				// Capture the first capability-passing submenu URL so
 				// we can use it as the parent's effective URL below
 				// (mirrors `wp-admin/menu-header.php`). Captured BEFORE
@@ -183,14 +183,14 @@ function desktop_mode_build_dock_items() {
 			'url'       => $url,
 			'badge'     => $badge,
 			'submenu'   => $sub_items,
-			'multi'      => desktop_mode_dock_item_is_multi( $item[2] ),
-			'placement'  => desktop_mode_dock_placement( $item[2] ),
-			'isCore'     => desktop_mode_is_core_menu_slug( $item[2] ),
-			'pluginFile' => desktop_mode_resolve_menu_plugin_file( $item[2] ),
+			'multi'      => open_station_dock_item_is_multi( $item[2] ),
+			'placement'  => open_station_dock_placement( $item[2] ),
+			'isCore'     => open_station_is_core_menu_slug( $item[2] ),
+			'pluginFile' => open_station_resolve_menu_plugin_file( $item[2] ),
 			'pluginName' => null,
 		);
 		if ( $dock_item['pluginFile'] ) {
-			$dock_item['pluginName'] = desktop_mode_plugin_display_name( $dock_item['pluginFile'] );
+			$dock_item['pluginName'] = open_station_plugin_display_name( $dock_item['pluginFile'] );
 		}
 
 		/**
@@ -199,7 +199,7 @@ function desktop_mode_build_dock_items() {
 		 * @param array  $dock_item The dock item data.
 		 * @param string $menu_slug The menu slug.
 		 */
-		$dock_item = apply_filters( 'desktop_mode_dock_item', $dock_item, $item[2] );
+		$dock_item = apply_filters( 'open_station_dock_item', $dock_item, $item[2] );
 
 		$items[] = $dock_item;
 	}
@@ -209,7 +209,7 @@ function desktop_mode_build_dock_items() {
 	 *
 	 * @param array[] $items Array of dock item arrays.
 	 */
-	return apply_filters( 'desktop_mode_dock_items', $items );
+	return apply_filters( 'open_station_dock_items', $items );
 }
 
 /**
@@ -244,7 +244,7 @@ function desktop_mode_build_dock_items() {
  * @param mixed $icon Raw icon value from the menu registration.
  * @return string Sanitized icon string.
  */
-function desktop_mode_sanitize_dock_icon( $icon ) {
+function open_station_sanitize_dock_icon( $icon ) {
 	$fallback = 'dashicons-admin-generic';
 	if ( ! is_string( $icon ) || '' === $icon ) {
 		return $fallback;
@@ -305,7 +305,7 @@ function desktop_mode_sanitize_dock_icon( $icon ) {
  *
  * The default rule matches the base filename of the menu slug against a
  * known list. Plugin authors can override via the
- * `desktop_mode_dock_item_multi` filter to mark any custom page as multi
+ * `open_station_dock_item_multi` filter to mark any custom page as multi
  * (or force a stock list page into singleton mode).
  *
  * @param string $menu_slug The raw menu slug (e.g. `edit.php`, `upload.php`,
@@ -313,7 +313,7 @@ function desktop_mode_sanitize_dock_icon( $icon ) {
  *                          so `edit.php?post_type=page` resolves correctly.
  * @return bool True if this page supports multiple simultaneous windows.
  */
-function desktop_mode_dock_item_is_multi( $menu_slug ) {
+function open_station_dock_item_is_multi( $menu_slug ) {
 	// Multi-capable admin files. Match by the base file regardless of
 	// any query string (post_type, taxonomy, page, paged, etc.) so every
 	// CPT and every taxonomy inherits the same rule as their parent.
@@ -339,7 +339,7 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
 	 */
-	return (bool) apply_filters( 'desktop_mode_dock_item_multi', $multi, $menu_slug );
+	return (bool) apply_filters( 'open_station_dock_item_multi', $multi, $menu_slug );
 }
 
 /**
@@ -365,11 +365,11 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
  *      below).
  *
  * Plugins + site admins can override any answer via
- * `desktop_mode_dock_placement`:
+ * `open_station_dock_placement`:
  *
  * ```php
  * // Keep Jetpack on the left dock:
- * add_filter( 'desktop_mode_dock_placement', function ( $placement, $slug ) {
+ * add_filter( 'open_station_dock_placement', function ( $placement, $slug ) {
  *     return 'jetpack' === $slug ? 'dock' : $placement;
  * }, 10, 2 );
  * ```
@@ -377,7 +377,7 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
  * @param string $menu_slug Menu item slug (e.g. `edit.php`, `edit.php?post_type=foo`, `woocommerce`).
  * @return bool True when the slug is a core admin page.
  */
-function desktop_mode_is_core_menu_slug( $menu_slug ) {
+function open_station_is_core_menu_slug( $menu_slug ) {
 	$slug = (string) $menu_slug;
 	$base = strtok( $slug, '?' );
 
@@ -430,7 +430,7 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  *
  * Returns the plugin's main file path (relative to `WP_PLUGIN_DIR`) when
  * the menu was registered by a regular plugin, `null` otherwise. Core
- * menus, mu-plugins, drop-ins, theme-registered menus, and Desktop Mode
+ * menus, mu-plugins, drop-ins, theme-registered menus, and OpenStation
  * itself all return `null` — none of these are deactivatable through the
  * `wp/v2/plugins` REST route, so the dock right-click menu should not
  * offer a deactivate action for them.
@@ -446,7 +446,7 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  *   3. Reflect each callback to find its declaring file. Match the file
  *      path against `WP_PLUGIN_DIR/<folder>/…` and use `<folder>` to look
  *      up an entry in `get_plugins()`. Return the matching `<folder>/<file>.php`.
- *   4. Exclude Desktop Mode itself — deactivating from inside the shell
+ *   4. Exclude OpenStation itself — deactivating from inside the shell
  *      is handled by the plugins-window's self-deactivate path.
  *
  * @param string $menu_slug The menu slug from `$menu[$i][2]` (e.g. `woocommerce`,
@@ -454,7 +454,7 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  * @return string|null Plugin file path relative to `WP_PLUGIN_DIR`, or null
  *                     when the slug isn't owned by a deactivatable plugin.
  */
-function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
+function open_station_resolve_menu_plugin_file( $menu_slug ) {
 	$slug = (string) $menu_slug;
 
 	// `get_plugin_page_hookname` + `get_plugins` come from
@@ -467,17 +467,17 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
 		return null;
 	}
 
-	$self_basename = defined( 'DESKTOP_MODE_FILE' ) ? plugin_basename( DESKTOP_MODE_FILE ) : '';
+	$self_basename = defined( 'OPEN_STATION_FILE' ) ? plugin_basename( OPEN_STATION_FILE ) : '';
 
 	// Strategy 1 — registration-time attribution. The admin_menu hook
-	// wrapper (see `desktop_mode_install_menu_attribution_tracker`) snapshots
+	// wrapper (see `open_station_install_menu_attribution_tracker`) snapshots
 	// `$menu`/`$submenu` around every admin_menu callback and records
 	// "this plugin file added this slug". This is the authoritative
 	// source — it captures menus whose page hook isn't predictable from
 	// the slug (e.g. WC's `wc-admin&path=/marketing`) and handles
 	// callbacks that simply forward to a shared renderer (which
 	// reflection would mis-attribute).
-	$map = desktop_mode_menu_attribution_map();
+	$map = open_station_menu_attribution_map();
 	if ( isset( $map[ $slug ] ) ) {
 		$plugin_file = $map[ $slug ];
 		if ( $self_basename && $plugin_file === $self_basename ) {
@@ -491,7 +491,7 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
 	// point at the registering plugin. We caught the plugin at
 	// `register_post_type()` / `register_taxonomy()` time via
 	// `debug_backtrace()`.
-	$tracked = desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug );
+	$tracked = open_station_lookup_taxonomy_or_post_type_plugin_file( $slug );
 	if ( null !== $tracked ) {
 		if ( $self_basename && $tracked === $self_basename ) {
 			return null;
@@ -503,10 +503,10 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
 
 	// Cheap reject: literal core PHP files with no `?page=` parameter
 	// (the universal "a plugin registered an admin route" signal). We
-	// can't reuse `desktop_mode_is_core_menu_slug()` here — that
+	// can't reuse `open_station_is_core_menu_slug()` here — that
 	// classifier strtok's the query string and treats `admin.php?page=foo`
 	// as core, which would hide every plugin-registered top-level tile.
-	if ( desktop_mode_is_pure_core_file( $base ) && false === strpos( $slug, '?page=' ) ) {
+	if ( open_station_is_pure_core_file( $base ) && false === strpos( $slug, '?page=' ) ) {
 		return null;
 	}
 
@@ -524,7 +524,7 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
 	$hook = $wp_filter[ $hookname ];
 	foreach ( $hook->callbacks as $cbs ) {
 		foreach ( $cbs as $cb ) {
-			$plugin_file = desktop_mode_plugin_file_for_callback( $cb['function'] ?? null );
+			$plugin_file = open_station_plugin_file_for_callback( $cb['function'] ?? null );
 			if ( ! $plugin_file ) {
 				continue;
 			}
@@ -547,7 +547,7 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
  * @param string $plugin_file Plugin file relative to `WP_PLUGIN_DIR`.
  * @return string Display name.
  */
-function desktop_mode_plugin_display_name( $plugin_file ) {
+function open_station_plugin_display_name( $plugin_file ) {
 	if ( ! function_exists( 'get_plugins' ) ) {
 		return strtok( $plugin_file, '/' ) ?: $plugin_file;
 	}
@@ -568,7 +568,7 @@ function desktop_mode_plugin_display_name( $plugin_file ) {
  * @param string $file Absolute filesystem path.
  * @return string|null Plugin file (`<folder>/<file>.php`) or null.
  */
-function desktop_mode_plugin_file_for_path( $file ) {
+function open_station_plugin_file_for_path( $file ) {
 	if ( ! is_string( $file ) || '' === $file ) {
 		return null;
 	}
@@ -599,25 +599,25 @@ function desktop_mode_plugin_file_for_path( $file ) {
 /**
  * Convenience wrapper: reflect on a callback to find its declaring
  * file, then map that file to an active plugin via
- * {@see desktop_mode_plugin_file_for_path()}.
+ * {@see open_station_plugin_file_for_path()}.
  *
  * @param mixed $callback A WP-style callback.
  * @return string|null Plugin file or null.
  */
-function desktop_mode_plugin_file_for_callback( $callback ) {
-	$file = desktop_mode_callback_source_file( $callback );
-	return $file ? desktop_mode_plugin_file_for_path( $file ) : null;
+function open_station_plugin_file_for_callback( $callback ) {
+	$file = open_station_callback_source_file( $callback );
+	return $file ? open_station_plugin_file_for_path( $file ) : null;
 }
 
 /**
  * Lazy accessor + lazy initializer for the registration-time menu
  * attribution map: `slug → plugin_file`. The map is populated by the
  * wrapped admin_menu callbacks installed by
- * {@see desktop_mode_install_menu_attribution_tracker()}.
+ * {@see open_station_install_menu_attribution_tracker()}.
  *
  * @return array<string,string>
  */
-function &desktop_mode_menu_attribution_map() {
+function &open_station_menu_attribution_map() {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array();
@@ -645,7 +645,7 @@ function &desktop_mode_menu_attribution_map() {
  * This is the source of truth for plugin → menu ownership because it
  * captures menus regardless of slug shape, hook name predictability,
  * or whether the plugin shares a render callback. Reflection on the
- * page hook (in `desktop_mode_resolve_menu_plugin_file`) is now a
+ * page hook (in `open_station_resolve_menu_plugin_file`) is now a
  * fallback for the rare cases where the tracker wasn't able to install
  * in time.
  *
@@ -654,7 +654,7 @@ function &desktop_mode_menu_attribution_map() {
  *
  * @return void
  */
-function desktop_mode_install_menu_attribution_tracker() {
+function open_station_install_menu_attribution_tracker() {
 	static $installed = false;
 	if ( $installed ) {
 		return;
@@ -670,7 +670,7 @@ function desktop_mode_install_menu_attribution_tracker() {
 	foreach ( $hook->callbacks as $priority => $cbs ) {
 		foreach ( $cbs as $id => $cb ) {
 			$orig        = $cb['function'] ?? null;
-			$plugin_file = desktop_mode_plugin_file_for_callback( $orig );
+			$plugin_file = open_station_plugin_file_for_callback( $orig );
 			if ( ! $plugin_file || ! is_callable( $orig ) ) {
 				continue;
 			}
@@ -704,7 +704,7 @@ function desktop_mode_install_menu_attribution_tracker() {
 				$args   = func_get_args();
 				$return = call_user_func_array( $orig, $args );
 
-				$map = &desktop_mode_menu_attribution_map();
+				$map = &open_station_menu_attribution_map();
 
 				if ( is_array( $menu ) ) {
 					foreach ( $menu as $entry ) {
@@ -762,12 +762,12 @@ function desktop_mode_install_menu_attribution_tracker() {
 	}
 }
 
-add_action( '_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
-add_action( '_network_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
-add_action( '_user_admin_menu', 'desktop_mode_install_menu_attribution_tracker', -PHP_INT_MAX );
+add_action( '_admin_menu', 'open_station_install_menu_attribution_tracker', -PHP_INT_MAX );
+add_action( '_network_admin_menu', 'open_station_install_menu_attribution_tracker', -PHP_INT_MAX );
+add_action( '_user_admin_menu', 'open_station_install_menu_attribution_tracker', -PHP_INT_MAX );
 
 /**
- * The subset of `desktop_mode_is_core_menu_slug`'s "core files" that's
+ * The subset of `open_station_is_core_menu_slug`'s "core files" that's
  * actually owned by Core regardless of any query string — this is what
  * we use inside the plugin-file resolver to reject Posts / Pages / etc.
  * without rejecting `admin.php?page=…` (a universal plugin signal that
@@ -780,7 +780,7 @@ add_action( '_user_admin_menu', 'desktop_mode_install_menu_attribution_tracker',
  * @param string $base Slug with query string already stripped.
  * @return bool True when the base filename is a Core admin handler.
  */
-function desktop_mode_is_pure_core_file( $base ) {
+function open_station_is_pure_core_file( $base ) {
 	$core_files = array(
 		'index.php',
 		'edit-comments.php',
@@ -832,7 +832,7 @@ function desktop_mode_is_pure_core_file( $base ) {
  * @param string $slug Menu slug.
  * @return string|null Plugin file or null.
  */
-function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
+function open_station_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 	if ( false !== strpos( $slug, 'edit.php?' ) && false !== strpos( $slug, 'post_type=' ) ) {
 		$qs = wp_parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
 		parse_str( (string) $qs, $args );
@@ -840,8 +840,8 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 		if ( '' === $pt ) {
 			return null;
 		}
-		$file = desktop_mode_type_registrant_file( $pt, 'post_type' );
-		return null === $file ? null : desktop_mode_plugin_file_for_path( $file );
+		$file = open_station_type_registrant_file( $pt, 'post_type' );
+		return null === $file ? null : open_station_plugin_file_for_path( $file );
 	}
 	if ( false !== strpos( $slug, 'edit-tags.php?' ) && false !== strpos( $slug, 'taxonomy=' ) ) {
 		$qs = wp_parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
@@ -850,15 +850,15 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 		if ( '' === $tx ) {
 			return null;
 		}
-		$file = desktop_mode_type_registrant_file( $tx, 'taxonomy' );
-		return null === $file ? null : desktop_mode_plugin_file_for_path( $file );
+		$file = open_station_type_registrant_file( $tx, 'taxonomy' );
+		return null === $file ? null : open_station_plugin_file_for_path( $file );
 	}
 	return null;
 }
 
 /**
  * Lazy accessor for the CPT/taxonomy → registering-file map. The map is
- * populated by `desktop_mode_record_type_registrant()` (hooked on
+ * populated by `open_station_record_type_registrant()` (hooked on
  * `registered_post_type` / `registered_taxonomy`, which fire during
  * `init`), so by the time the dock payload is built — on
  * `admin_enqueue_scripts`, well after `init` — every non-builtin type
@@ -871,13 +871,13 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
  * until `wp-admin/admin.php` runs it *after* `wp-load.php` has already
  * fired `init` — so a plugin file cannot be resolved at record time.
  * Callers resolve the path lazily instead:
- * `desktop_mode_lookup_taxonomy_or_post_type_plugin_file()` for the
+ * `open_station_lookup_taxonomy_or_post_type_plugin_file()` for the
  * dock's plugin attribution, and the My WordPress group resolver for
  * the plugin / mu-plugin / theme split.
  *
  * @return array{post_type: array<string,string>, taxonomy: array<string,string>}
  */
-function &desktop_mode_get_typed_registrant_map() {
+function &open_station_get_typed_registrant_map() {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array(
@@ -895,8 +895,8 @@ function &desktop_mode_get_typed_registrant_map() {
  * @param string $kind Either `'post_type'` or `'taxonomy'`.
  * @return string|null Absolute normalized path, or null when unrecorded.
  */
-function desktop_mode_type_registrant_file( $type, $kind ) {
-	$map = desktop_mode_get_typed_registrant_map();
+function open_station_type_registrant_file( $type, $kind ) {
+	$map = open_station_get_typed_registrant_map();
 	return $map[ $kind ][ $type ] ?? null;
 }
 
@@ -918,7 +918,7 @@ function desktop_mode_type_registrant_file( $type, $kind ) {
  *
  * @return bool
  */
-function desktop_mode_should_track_type_registrants() {
+function open_station_should_track_type_registrants() {
 	$track = is_admin();
 
 	/**
@@ -934,7 +934,7 @@ function desktop_mode_should_track_type_registrants() {
 	 *
 	 * @param bool $track Default: admin requests only.
 	 */
-	return (bool) apply_filters( 'desktop_mode_track_type_registrants', $track );
+	return (bool) apply_filters( 'open_station_track_type_registrants', $track );
 }
 
 /**
@@ -953,11 +953,11 @@ function desktop_mode_should_track_type_registrants() {
  * @param string $kind              Either `'post_type'` or `'taxonomy'`.
  * @return void
  */
-function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
+function open_station_record_type_registrant( $type_or_post_type, $kind ) {
 	if ( '' === (string) $type_or_post_type ) {
 		return;
 	}
-	if ( ! desktop_mode_should_track_type_registrants() ) {
+	if ( ! open_station_should_track_type_registrants() ) {
 		return;
 	}
 	// Skip Core builtin types — they're registered from Core itself
@@ -975,11 +975,11 @@ function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
 		}
 	}
 
-	$file = desktop_mode_registrant_file_from_backtrace();
+	$file = open_station_registrant_file_from_backtrace();
 	if ( null === $file ) {
 		return;
 	}
-	$map = &desktop_mode_get_typed_registrant_map();
+	$map = &open_station_get_typed_registrant_map();
 	$map[ $kind ][ $type_or_post_type ] = $file;
 }
 
@@ -990,7 +990,7 @@ function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
  *
  * @return string[] Normalized directory prefixes.
  */
-function desktop_mode_extension_dirs() {
+function open_station_extension_dirs() {
 	static $dirs = null;
 	if ( null !== $dirs ) {
 		return $dirs;
@@ -1015,7 +1015,7 @@ function desktop_mode_extension_dirs() {
  * Walk the current PHP backtrace and return the closest frame that
  * lives inside an extension directory (plugin, mu-plugin, or theme).
  *
- * Frames belonging to Desktop Mode itself are skipped: this function is
+ * Frames belonging to OpenStation itself are skipped: this function is
  * called from `payload.php`, which is under `WP_PLUGIN_DIR`, so the two
  * innermost frames would otherwise match and attribute every registered
  * type to us.
@@ -1027,10 +1027,10 @@ function desktop_mode_extension_dirs() {
  *
  * @return string|null Normalized absolute path, or null.
  */
-function desktop_mode_registrant_file_from_backtrace() {
-	$self_dir = defined( 'DESKTOP_MODE_DIR' ) ? wp_normalize_path( DESKTOP_MODE_DIR ) : '';
+function open_station_registrant_file_from_backtrace() {
+	$self_dir = defined( 'OPEN_STATION_DIR' ) ? wp_normalize_path( OPEN_STATION_DIR ) : '';
 	$self_dir = $self_dir ? trailingslashit( $self_dir ) : '';
-	$dirs     = desktop_mode_extension_dirs();
+	$dirs     = open_station_extension_dirs();
 	if ( empty( $dirs ) ) {
 		return null;
 	}
@@ -1056,7 +1056,7 @@ function desktop_mode_registrant_file_from_backtrace() {
 add_action(
 	'registered_post_type',
 	static function ( $post_type ) {
-		desktop_mode_record_type_registrant( $post_type, 'post_type' );
+		open_station_record_type_registrant( $post_type, 'post_type' );
 	},
 	9999,
 	1
@@ -1065,7 +1065,7 @@ add_action(
 add_action(
 	'registered_taxonomy',
 	static function ( $taxonomy ) {
-		desktop_mode_record_type_registrant( $taxonomy, 'taxonomy' );
+		open_station_record_type_registrant( $taxonomy, 'taxonomy' );
 	},
 	9999,
 	1
@@ -1081,7 +1081,7 @@ add_action(
  * @param mixed $callback A callback as stored in `WP_Hook::$callbacks[$prio][$id]['function']`.
  * @return string|null Absolute filesystem path of the declaring file, or null.
  */
-function desktop_mode_callback_source_file( $callback ) {
+function open_station_callback_source_file( $callback ) {
 	if ( empty( $callback ) ) {
 		return null;
 	}
@@ -1116,12 +1116,12 @@ function desktop_mode_callback_source_file( $callback ) {
  *                  desktop-shell tile.
  *
  * Default is `'dock'` for every menu item. Plugins + site admins can
- * hide individual items via the `desktop_mode_dock_placement` filter.
+ * hide individual items via the `open_station_dock_placement` filter.
  *
  * @param string $menu_slug The menu slug (e.g. `edit.php`, `woocommerce`).
  * @return string `'dock'` or `'hidden'`.
  */
-function desktop_mode_dock_placement( $menu_slug ) {
+function open_station_dock_placement( $menu_slug ) {
 	/**
 	 * Filter whether a specific menu item is shown in the dock.
 	 *
@@ -1133,7 +1133,7 @@ function desktop_mode_dock_placement( $menu_slug ) {
 	 * @param string $placement Default — always `'dock'`.
 	 * @param string $menu_slug The menu slug triggering the lookup.
 	 */
-	$filtered = apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
+	$filtered = apply_filters( 'open_station_dock_placement', 'dock', $menu_slug );
 	return 'hidden' === $filtered ? 'hidden' : 'dock';
 }
 
@@ -1147,14 +1147,14 @@ function desktop_mode_dock_placement( $menu_slug ) {
  *
  * Extracted out of `includes/render.php` so both the initial PHP
  * localize AND the chromeless bridge's live-refresh emit (including
- * the hidden-iframe probe spawned by `wp.desktop.refreshMenu()`)
+ * the hidden-iframe probe spawned by `wp.os.refreshMenu()`)
  * read from a single source of truth — any drift would desync the
  * live refresh.
  *
  * @return array{dockItems: array[]} Menu payload.
  */
-function desktop_mode_build_menu_payload() {
-	$all = desktop_mode_build_dock_items();
+function open_station_build_menu_payload() {
+	$all = open_station_build_dock_items();
 
 	// Drop hidden items; preserve the default "core first, plugins
 	// after" ordering by partitioning on the core classifier.
@@ -1168,9 +1168,9 @@ function desktop_mode_build_menu_payload() {
 	);
 
 	// Partition on the per-item `isCore` flag set in
-	// desktop_mode_build_dock_items — that classifier ran against the
+	// open_station_build_dock_items — that classifier ran against the
 	// raw menu slug ($item[2]), which is what
-	// desktop_mode_is_core_menu_slug actually compares. The outer 'id'
+	// open_station_is_core_menu_slug actually compares. The outer 'id'
 	// field is a sanitized CSS id (e.g. `toplevel_page_jetpack`) and
 	// would never match.
 	$core = array();
@@ -1187,35 +1187,35 @@ function desktop_mode_build_menu_payload() {
 
 	$payload = array(
 		'dockItems'     => $dock,
-		'nativeWindows' => desktop_mode_build_native_windows_payload(),
+		'nativeWindows' => open_station_build_native_windows_payload(),
 	);
 
 	// Optional per-surface payload builders — each module ships a
-	// zero-arg `desktop_mode_build_*_payload()`; modules that aren't
+	// zero-arg `open_station_build_*_payload()`; modules that aren't
 	// loaded this request contribute an empty array.
 	$builders = array(
-		'serverWidgets'                   => 'desktop_mode_build_desktop_widgets_payload',
-		'serverWallpapers'                => 'desktop_mode_build_desktop_wallpapers_payload',
-		'serverCommandScripts'            => 'desktop_mode_build_desktop_command_scripts_payload',
-		'serverCommands'                  => 'desktop_mode_build_desktop_commands_payload',
-		'serverSettingsTabScripts'        => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
-		'serverSettingsTabs'              => 'desktop_mode_build_desktop_settings_tabs_payload',
-		'serverDockRailRendererScripts'   => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
-		'serverTitleBarButtonScripts'     => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
-		'serverUnfocusEffectScripts'      => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
-		'serverWindowLinkRendererScripts' => 'desktop_mode_build_window_link_renderer_scripts_payload',
-		'serverWindowThemeScripts'        => 'desktop_mode_build_window_theme_scripts_payload',
-		'serverWindowThemes'              => 'desktop_mode_build_window_themes_payload',
-		'serverWindowControlScripts'      => 'desktop_mode_build_window_control_scripts_payload',
-		'serverWindowControls'            => 'desktop_mode_build_window_controls_payload',
-		'serverWindowSlotScripts'         => 'desktop_mode_build_window_slot_scripts_payload',
-		'serverWindowSlots'               => 'desktop_mode_build_window_slots_payload',
-		'serverWindowChromeScripts'       => 'desktop_mode_build_window_chrome_scripts_payload',
-		'serverWindowChromes'             => 'desktop_mode_build_window_chromes_payload',
-		'serverWindowNotices'             => 'desktop_mode_build_window_notices_payload',
-		'serverGames'                     => 'desktop_mode_build_desktop_games_payload',
-		'serverDesktopThemes'             => 'desktop_mode_build_desktop_themes_payload',
-		'desktopIcons'                    => 'desktop_mode_build_desktop_icons_payload',
+		'serverWidgets'                   => 'open_station_build_desktop_widgets_payload',
+		'serverWallpapers'                => 'open_station_build_desktop_wallpapers_payload',
+		'serverCommandScripts'            => 'open_station_build_desktop_command_scripts_payload',
+		'serverCommands'                  => 'open_station_build_desktop_commands_payload',
+		'serverSettingsTabScripts'        => 'open_station_build_desktop_settings_tab_scripts_payload',
+		'serverSettingsTabs'              => 'open_station_build_desktop_settings_tabs_payload',
+		'serverDockRailRendererScripts'   => 'open_station_build_dock_rail_renderer_scripts_payload',
+		'serverTitleBarButtonScripts'     => 'open_station_build_desktop_titlebar_button_scripts_payload',
+		'serverUnfocusEffectScripts'      => 'open_station_build_desktop_unfocus_effect_scripts_payload',
+		'serverWindowLinkRendererScripts' => 'open_station_build_window_link_renderer_scripts_payload',
+		'serverWindowThemeScripts'        => 'open_station_build_window_theme_scripts_payload',
+		'serverWindowThemes'              => 'open_station_build_window_themes_payload',
+		'serverWindowControlScripts'      => 'open_station_build_window_control_scripts_payload',
+		'serverWindowControls'            => 'open_station_build_window_controls_payload',
+		'serverWindowSlotScripts'         => 'open_station_build_window_slot_scripts_payload',
+		'serverWindowSlots'               => 'open_station_build_window_slots_payload',
+		'serverWindowChromeScripts'       => 'open_station_build_window_chrome_scripts_payload',
+		'serverWindowChromes'             => 'open_station_build_window_chromes_payload',
+		'serverWindowNotices'             => 'open_station_build_window_notices_payload',
+		'serverGames'                     => 'open_station_build_desktop_games_payload',
+		'serverDesktopThemes'             => 'open_station_build_desktop_themes_payload',
+		'desktopIcons'                    => 'open_station_build_desktop_icons_payload',
 	);
 
 	foreach ( $builders as $key => $builder ) {
@@ -1251,8 +1251,8 @@ function desktop_mode_build_menu_payload() {
 	// payload so the shell can seed / update its last-known signature
 	// without recomputing it client-side (which would risk drift from
 	// the server's capability-gated view). See
-	// desktop_mode_menu_signature().
-	$payload['menuSig'] = desktop_mode_menu_signature();
+	// open_station_menu_signature().
+	$payload['menuSig'] = open_station_menu_signature();
 
 	return $payload;
 }
@@ -1273,7 +1273,7 @@ function desktop_mode_build_menu_payload() {
  * that case would be wasteful — most navigations don't touch the menu.
  * Instead every chromeless page ships this lightweight signature; the
  * shell compares it against its last-known value and only spends a
- * `wp.desktop.refreshMenu()` probe when it actually changed.
+ * `wp.os.refreshMenu()` probe when it actually changed.
  *
  * The hash covers the capability-passing top-level + submenu slugs and
  * their (badge-stripped) titles — i.e. exactly the add / remove /
@@ -1284,7 +1284,7 @@ function desktop_mode_build_menu_payload() {
  * @return string 32-char md5 fingerprint, or '' when the menu is
  *                unavailable (non-admin context).
  */
-function desktop_mode_menu_signature() {
+function open_station_menu_signature() {
 	global $menu, $submenu;
 
 	if ( empty( $menu ) || ! is_array( $menu ) ) {
@@ -1292,7 +1292,7 @@ function desktop_mode_menu_signature() {
 	}
 
 	$clean_title = static function ( $raw ) {
-		// Mirror desktop_mode_build_dock_items(): drop badge spans first,
+		// Mirror open_station_build_dock_items(): drop badge spans first,
 		// then any remaining markup, so update counts don't move the hash.
 		$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw );
 		return trim( wp_strip_all_tags( (string) $stripped ) );
@@ -1358,8 +1358,8 @@ function desktop_mode_menu_signature() {
  * is unregistered or has no source — callers treat that as "no
  * script to load."
  *
- * Shared between `desktop_mode_register_window()` and
- * `desktop_mode_register_widget()` (and every other registration that
+ * Shared between `open_station_register_window()` and
+ * `open_station_register_widget()` (and every other registration that
  * relies on lazy script loading in the shell) because all of them
  * need identical handle→payload plumbing to power mid-session dynamic
  * script loading without the `wp_print_scripts` lifecycle.
@@ -1367,7 +1367,7 @@ function desktop_mode_menu_signature() {
  * @param string $handle WP script handle.
  * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
  */
-function desktop_mode_resolve_script_payload( $handle ) {
+function open_station_resolve_script_payload( $handle ) {
 	$empty = array(
 		'url'          => '',
 		'before'       => array(),
@@ -1453,7 +1453,7 @@ function desktop_mode_resolve_script_payload( $handle ) {
 /**
  * Resolves a registered style handle to its print-time URL + harvested
  * inline CSS, the styles-side mirror of
- * {@see desktop_mode_resolve_script_payload()}.
+ * {@see open_station_resolve_script_payload()}.
  *
  * Why this exists: when a plugin's native window (or window-chrome
  * theme/control/slot/chrome) is activated mid-session — i.e. the user
@@ -1471,7 +1471,7 @@ function desktop_mode_resolve_script_payload( $handle ) {
  * @param string $handle WP style handle.
  * @return array{ url:string, inline:string[] } Payload (empty `url` on miss).
  */
-function desktop_mode_resolve_style_payload( $handle ) {
+function open_station_resolve_style_payload( $handle ) {
 	$empty = array(
 		'url'    => '',
 		'inline' => array(),
@@ -1524,17 +1524,17 @@ function desktop_mode_resolve_style_payload( $handle ) {
 
 /**
  * Fire a `_doing_it_wrong()` notice exactly once per handle per
- * request. Shared by every `desktop_mode_build_desktop_*_scripts_payload()`
+ * request. Shared by every `open_station_build_desktop_*_scripts_payload()`
  * caller — payload builders run on every shell-config rebuild
  * (multiple times per page load via REST + admin-bar refresh +
  * tests), so undeduped notices spam the error log AND trip
  * `expectedIncorrectUsage` assertions in unrelated tests.
  *
- * @param string $function_name `desktop_mode_register_*_script` — passed verbatim to `_doing_it_wrong`.
+ * @param string $function_name `open_station_register_*_script` — passed verbatim to `_doing_it_wrong`.
  * @param string $kind          Human label: `Command`, `Settings-tab`, `Title-bar button`.
  * @param string $handle        Offending script handle.
  */
-function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $handle ) {
+function open_station_warn_unresolvable_script_handle( $function_name, $kind, $handle ) {
 	static $warned = array();
 	$cache_key = $function_name . '|' . $handle;
 	if ( isset( $warned[ $cache_key ] ) ) {
@@ -1567,23 +1567,23 @@ function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $h
  * `set_up` so prior tests' synthetic handles can't leak into
  * later assertions about payload shape.
  */
-function desktop_mode_flush_script_handle_registries() {
+function open_station_flush_script_handle_registries() {
 	$flushers = array(
-		'desktop_mode_flush_desktop_command_script_registry',
-		'desktop_mode_flush_desktop_settings_tab_script_registry',
-		'desktop_mode_flush_dock_rail_renderer_script_registry',
-		'desktop_mode_flush_desktop_titlebar_button_script_registry',
-		'desktop_mode_flush_desktop_unfocus_effect_script_registry',
-		'desktop_mode_flush_window_link_renderer_script_registry',
-		'desktop_mode_flush_window_theme_script_registry',
-		'desktop_mode_flush_window_theme_registry',
-		'desktop_mode_flush_window_control_script_registry',
-		'desktop_mode_flush_window_control_registry',
-		'desktop_mode_flush_window_slot_script_registry',
-		'desktop_mode_flush_window_slot_registry',
-		'desktop_mode_flush_window_chrome_script_registry',
-		'desktop_mode_flush_window_chrome_registry',
-		'desktop_mode_flush_window_notice_registry',
+		'open_station_flush_desktop_command_script_registry',
+		'open_station_flush_desktop_settings_tab_script_registry',
+		'open_station_flush_dock_rail_renderer_script_registry',
+		'open_station_flush_desktop_titlebar_button_script_registry',
+		'open_station_flush_desktop_unfocus_effect_script_registry',
+		'open_station_flush_window_link_renderer_script_registry',
+		'open_station_flush_window_theme_script_registry',
+		'open_station_flush_window_theme_registry',
+		'open_station_flush_window_control_script_registry',
+		'open_station_flush_window_control_registry',
+		'open_station_flush_window_slot_script_registry',
+		'open_station_flush_window_slot_registry',
+		'open_station_flush_window_chrome_script_registry',
+		'open_station_flush_window_chrome_registry',
+		'open_station_flush_window_notice_registry',
 	);
 
 	foreach ( $flushers as $flusher ) {
@@ -1592,13 +1592,13 @@ function desktop_mode_flush_script_handle_registries() {
 		}
 	}
 
-	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
+	open_station_warn_unresolvable_script_handle( '', '', '__flush__' );
 }
 
 /**
  * Serialize the server-declared native-window registry into the
  * payload shape the shell consumes. For each entry registered via
- * `desktop_mode_register_window()`, we capture: the window's
+ * `open_station_register_window()`, we capture: the window's
  * metadata (id/title/icon/placement/dimensions/autofocus), the
  * rendered template HTML (by running the template callback into an
  * output buffer), and the URL of the enqueued script handle (so
@@ -1607,11 +1607,11 @@ function desktop_mode_flush_script_handle_registries() {
  *
  * @return array[]
  */
-function desktop_mode_build_native_windows_payload() {
-	if ( ! function_exists( 'desktop_mode_native_window_registry' ) ) {
+function open_station_build_native_windows_payload() {
+	if ( ! function_exists( 'open_station_native_window_registry' ) ) {
 		return array();
 	}
-	$registry = desktop_mode_native_window_registry();
+	$registry = open_station_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -1624,20 +1624,20 @@ function desktop_mode_build_native_windows_payload() {
 
 		// Capture the template HTML (tab-wrapped when any
 		// additional tabs are registered via
-		// `desktop_mode_register_window_tab()`; flat otherwise).
+		// `open_station_register_window_tab()`; flat otherwise).
 		// Captured as a string so the shell can inject it as a
 		// `<template>` at mid-session plugin activation without a
 		// reload.
-		$template_html = desktop_mode_build_native_window_template_html( $entry );
+		$template_html = open_station_build_native_window_template_html( $entry );
 
 		// Resolve script handle → full payload (URL + harvested
 		// `extra` data) so the shell can inject a `<script>` tag
 		// dynamically on mid-session activation WITHOUT dropping
 		// `wp_localize_script` / `wp_add_inline_script` data the way
 		// the bare `<script src>` lazy-load path would. See
-		// `desktop_mode_resolve_script_payload()` for shape.
+		// `open_station_resolve_script_payload()` for shape.
 		$script_handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$script_payload = desktop_mode_resolve_script_payload( $script_handle );
+		$script_payload = open_station_resolve_script_payload( $script_handle );
 
 		// Resolve the optional style handle alongside the script so the
 		// shell's lazy-loader can inject a `<link rel="stylesheet">`
@@ -1645,17 +1645,17 @@ function desktop_mode_build_native_windows_payload() {
 		// activation. Empty payload when no handle was declared OR the
 		// handle isn't registered — both treated as "no styles to load."
 		$style_handle  = isset( $entry['style'] ) ? (string) $entry['style'] : '';
-		$style_payload = desktop_mode_resolve_style_payload( $style_handle );
+		$style_payload = open_station_resolve_style_payload( $style_handle );
 
-		// `config` arg on `desktop_mode_register_window()` — discoverable
+		// `config` arg on `open_station_register_window()` — discoverable
 		// alternative to `wp_localize_script`. We synthesize a localize
 		// snippet so it lands through the same delivery path as native
 		// `wp_localize_script`. The bundle reads
-		// `window.desktopModeWindowConfig[id]` (or via
-		// `wp.desktop.getWindowConfig(id)`).
+		// `window.openStationWindowConfig[id]` (or via
+		// `wp.os.getWindowConfig(id)`).
 		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
 			$script_payload['l10n'][] = sprintf(
-				'window.desktopModeWindowConfig=window.desktopModeWindowConfig||{};window.desktopModeWindowConfig[%s]=%s;',
+				'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
 				wp_json_encode( $entry['id'] ),
 				wp_json_encode( $entry['config'] )
 			);
@@ -1665,11 +1665,11 @@ function desktop_mode_build_native_windows_payload() {
 		// the template so the shell can render a picker UI or load
 		// additional tab scripts when a tab's activation is late.
 		$tab_descriptors = array();
-		if ( function_exists( 'desktop_mode_get_native_window_tabs' ) ) {
-			foreach ( desktop_mode_get_native_window_tabs( $entry['id'] ) as $tab ) {
+		if ( function_exists( 'open_station_get_native_window_tabs' ) ) {
+			foreach ( open_station_get_native_window_tabs( $entry['id'] ) as $tab ) {
 				// The resolver returns the empty payload shape itself
 				// for an empty handle — no need to hand-write it here.
-				$tab_payload       = desktop_mode_resolve_script_payload( $tab['script'] );
+				$tab_payload       = open_station_resolve_script_payload( $tab['script'] );
 				$tab_descriptors[] = array(
 					'value'             => $tab['value'],
 					'label'             => $tab['label'],
@@ -1694,7 +1694,7 @@ function desktop_mode_build_native_windows_payload() {
 			'minWidth'          => $entry['min_width'],
 			'minHeight'         => $entry['min_height'],
 			'autofocus'         => $entry['autofocus'],
-			'templateId'        => 'desktop-mode-native-window-' . $entry['id'],
+			'templateId'        => 'os-native-window-' . $entry['id'],
 			'templateHtml'      => $template_html,
 			'scriptUrl'         => $script_payload['url'],
 			'scriptHandle'      => $script_handle,
@@ -1735,7 +1735,7 @@ function desktop_mode_build_native_windows_payload() {
  * @param string $slug The raw menu item slug.
  * @return bool True when the query-stripped slug is a file under `wp-admin/`.
  */
-function desktop_mode_is_admin_file_slug( $slug ) {
+function open_station_is_admin_file_slug( $slug ) {
 	$file = $slug;
 	$pos  = strpos( $file, '?' );
 	if ( false !== $pos ) {
@@ -1784,7 +1784,7 @@ function desktop_mode_is_admin_file_slug( $slug ) {
  * @param string $slug The menu item slug or URL.
  * @return string The full admin URL, sanitized via `esc_url_raw()`.
  */
-function desktop_mode_menu_item_url( $slug ) {
+function open_station_menu_item_url( $slug ) {
 	// Already a full URL.
 	if ( str_starts_with( $slug, 'http://' ) || str_starts_with( $slug, 'https://' ) ) {
 		return esc_url_raw( $slug );
@@ -1815,7 +1815,7 @@ function desktop_mode_menu_item_url( $slug ) {
 	// admin's `menu-header.php`.
 	if (
 		false !== strpos( $slug, '.php' ) &&
-		( ! isset( $_parent_pages[ $slug ] ) || desktop_mode_is_admin_file_slug( $slug ) )
+		( ! isset( $_parent_pages[ $slug ] ) || open_station_is_admin_file_slug( $slug ) )
 	) {
 		return esc_url_raw( admin_url( $slug ) );
 	}

@@ -9,7 +9,7 @@
  * callback reads back on first paint, then clear so the next open
  * without an explicit hint defaults to "installed".
  *
- * Shared via `wp.desktop.createSharedStore` (see CLAUDE.md
+ * Shared via `wp.os.createSharedStore` (see CLAUDE.md
  * "Cross-bundle state") so the same module loaded into different
  * bundles is the single source of truth.
  */
@@ -44,8 +44,8 @@ function getStore(): SharedStoreApi< TabTargetState > | null {
 	if ( _store ) {
 		return _store;
 	}
-	const w = window as unknown as { wp?: { desktop?: DesktopFacade } };
-	const factory = w.wp?.desktop?.createSharedStore;
+	const w = window as unknown as { wp?: { os?: DesktopFacade } };
+	const factory = w.wp?.os?.createSharedStore;
 	if ( typeof factory !== 'function' ) {
 		return null;
 	}

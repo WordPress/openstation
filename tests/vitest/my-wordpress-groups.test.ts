@@ -5,7 +5,7 @@
  *
  * Test pattern mirrors `my-wordpress-multi-instance.test.ts`: load the
  * bundle (the side-effect import registers a render callback on
- * `window.desktopModeNativeWindows`), invoke that callback against a
+ * `window.openStationNativeWindows`), invoke that callback against a
  * body carrying the window template, then drive the UI by dispatching
  * real events on the painted tiles.
  */
@@ -15,33 +15,33 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 interface NativeWindowsGlobal {
-	desktopModeNativeWindows?: Record<
+	openStationNativeWindows?: Record<
 		string,
 		( ( body: HTMLElement ) => void | ( () => void ) ) | undefined
 	>;
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationWindowConfig?: Record< string, unknown >;
 }
 
 function installTemplateMarkup( host: HTMLElement ): void {
 	host.innerHTML = `
-		<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-			<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-			<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-				<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+		<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+			<header data-os-my-wordpress-breadcrumbs></header>
+			<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+				<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 			</div>
-			<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+			<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 		</div>
 	`;
 }
 
 function mountWindow(): HTMLElement {
 	const cb = ( window as unknown as NativeWindowsGlobal )
-		.desktopModeNativeWindows?.[ WINDOW_ID ];
+		.openStationNativeWindows?.[ WINDOW_ID ];
 	if ( typeof cb !== 'function' ) {
 		throw new Error( 'render callback not registered' );
 	}
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-window__body';
+	body.className = 'os-window__body';
 	installTemplateMarkup( body );
 	document.body.appendChild( body );
 	cb( body );
@@ -51,25 +51,25 @@ function mountWindow(): HTMLElement {
 /** Tile labels in the current grid, with any live count suffix cut. */
 function tileLabels( body: HTMLElement ): string[] {
 	return [
-		...body.querySelectorAll( '.desktop-mode-file-tile__label' ),
+		...body.querySelectorAll( '.os-file-tile__label' ),
 	].map( ( n ) => ( n.textContent ?? '' ).split( ' · ' )[ 0 ] );
 }
 
 function breadcrumbLabels( body: HTMLElement ): string[] {
 	const header = body.querySelector(
-		'[data-desktop-mode-my-wordpress-breadcrumbs]',
+		'[data-os-my-wordpress-breadcrumbs]',
 	);
 	return [
-		...( header?.querySelectorAll( '.desktop-mode-breadcrumbs__crumb' ) ??
+		...( header?.querySelectorAll( '.os-breadcrumbs__crumb' ) ??
 			[] ),
 	].map( ( n ) => ( n.textContent ?? '' ).trim() );
 }
 
 function dblclickTile( body: HTMLElement, label: string ): void {
-	const tile = [ ...body.querySelectorAll< HTMLElement >( 'wpd-tile' ) ].find(
+	const tile = [ ...body.querySelectorAll< HTMLElement >( 'os-tile' ) ].find(
 		( t ) =>
 			(
-				t.querySelector( '.desktop-mode-file-tile__label' )
+				t.querySelector( '.os-file-tile__label' )
 					?.textContent ?? ''
 			).startsWith( label ),
 	);
@@ -82,7 +82,7 @@ function dblclickTile( body: HTMLElement, label: string ): void {
 describe( 'my-wordpress — folder groups', () => {
 	beforeEach( async () => {
 		installHooksStub();
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig = {
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig = {
 			[ WINDOW_ID ]: {
 				restRoot: 'http://example.test/wp-json/',
 				restNonce: 'nonce',
@@ -181,7 +181,7 @@ describe( 'my-wordpress — folder groups', () => {
 	test( 'group folder is labelled with its member count', () => {
 		const body = mountWindow();
 		const group = [
-			...body.querySelectorAll( '.desktop-mode-file-tile__label' ),
+			...body.querySelectorAll( '.os-file-tile__label' ),
 		].find( ( n ) => ( n.textContent ?? '' ).startsWith( 'WooCommerce' ) );
 
 		expect( group?.textContent ).toBe( 'WooCommerce · 2' );
@@ -231,7 +231,7 @@ describe( 'my-wordpress — folder groups', () => {
 
 		const crumb = [
 			...body.querySelectorAll< HTMLElement >(
-				'[data-desktop-mode-my-wordpress-breadcrumbs] button, [data-desktop-mode-my-wordpress-breadcrumbs] a',
+				'[data-os-my-wordpress-breadcrumbs] button, [data-os-my-wordpress-breadcrumbs] a',
 			),
 		].find( ( n ) => ( n.textContent ?? '' ).trim() === 'WooCommerce' );
 
@@ -295,7 +295,7 @@ describe( 'my-wordpress — folder groups', () => {
 		} );
 
 		const canvas = body.querySelector< HTMLElement >(
-			'.desktop-mode-my-wordpress__tiles',
+			'.os-my-wordpress__tiles',
 		);
 		const minHeight = parseFloat( canvas?.style.minHeight || '0' );
 		const lowestTop = Math.max(
@@ -311,12 +311,12 @@ describe( 'my-wordpress — folder groups', () => {
 
 	test( 'group folders keep a separate persisted tile layout', () => {
 		const body = mountWindow();
-		const rootGrid = body.querySelector( '.desktop-mode-my-wordpress__grid' );
+		const rootGrid = body.querySelector( '.os-my-wordpress__grid' );
 		expect( rootGrid ).not.toBeNull();
 
 		dblclickTile( body, 'WooCommerce' );
 		const groupGrid = body.querySelector(
-			'.desktop-mode-my-wordpress__grid',
+			'.os-my-wordpress__grid',
 		);
 		// A fresh grid element per view — the group's arrangement is
 		// stored under its own scope key rather than overwriting root's.

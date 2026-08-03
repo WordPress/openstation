@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -75,8 +75,8 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 				unregister_post_type( $type );
 			}
 		}
-		remove_all_filters( 'desktop_mode_my_wordpress_post_type_rest_enabled' );
-		remove_all_filters( 'desktop_mode_my_wordpress_user_can_use' );
+		remove_all_filters( 'open_station_my_wordpress_post_type_rest_enabled' );
+		remove_all_filters( 'open_station_my_wordpress_user_can_use' );
 		$this->post_ids = array();
 		parent::tear_down();
 	}
@@ -91,7 +91,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
+	 * @covers ::open_station_my_wordpress_register_post_type_routes
 	 */
 	public function test_route_is_registered_for_non_rest_type() {
 		$routes = rest_get_server()->get_routes();
@@ -102,7 +102,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	/**
 	 * A type that already has a `wp/v2` collection needs no bridge.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
+	 * @covers ::open_station_my_wordpress_register_post_type_routes
 	 */
 	public function test_no_route_for_rest_exposed_type() {
 		$routes = rest_get_server()->get_routes();
@@ -117,7 +117,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * callback itself (defence in depth, since the routes are
 	 * registered per-request); this covers the outer gate.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
+	 * @covers ::open_station_my_wordpress_register_post_type_routes
 	 */
 	public function test_routes_are_not_registered_for_users_who_cannot_use_the_window() {
 		foreach ( array( 0, self::$subscriber_id ) as $user_id ) {
@@ -126,7 +126,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 			// Rebuild the server so registration re-runs as this user.
 			global $wp_rest_server;
 			$wp_rest_server = null;
-			add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_post_type_routes' );
+			add_action( 'rest_api_init', 'open_station_my_wordpress_register_post_type_routes' );
 
 			$this->assertArrayNotHasKey(
 				'/desktop-mode/v1/post-type/dm_coupon',
@@ -137,26 +137,26 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
+	 * @covers ::open_station_my_wordpress_register_post_type_routes
 	 */
 	public function test_rest_enabled_filter_suppresses_registration() {
 		remove_all_actions( 'rest_api_init' );
 		rest_get_server()->override_by_default = false;
 
-		add_filter( 'desktop_mode_my_wordpress_post_type_rest_enabled', '__return_false' );
+		add_filter( 'open_station_my_wordpress_post_type_rest_enabled', '__return_false' );
 
 		// Rebuild the server so route registration runs again.
 		global $wp_rest_server;
 		$wp_rest_server = null;
 		require_once ABSPATH . WPINC . '/rest-api.php';
-		add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_post_type_routes' );
+		add_action( 'rest_api_init', 'open_station_my_wordpress_register_post_type_routes' );
 		$routes = rest_get_server()->get_routes();
 
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/post-type/dm_coupon', $routes );
 	}
 
 	/**
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_items
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_items
 	 */
 	public function test_editor_can_list_items() {
 		$response = $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_coupon' );
@@ -169,7 +169,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * Pagination headers are what the bundle's infinite scroll and
 	 * folder counters read.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_items
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_items
 	 */
 	public function test_list_sends_total_headers() {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/post-type/dm_coupon' );
@@ -187,7 +187,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * never become a public read endpoint for content its author kept
 	 * off the REST API.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_items_permissions_check
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_items_permissions_check
 	 */
 	public function test_logged_out_is_denied() {
 		wp_set_current_user( 0 );
@@ -198,7 +198,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_items_permissions_check
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_items_permissions_check
 	 */
 	public function test_subscriber_is_denied() {
 		wp_set_current_user( self::$subscriber_id );
@@ -209,7 +209,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_item_permissions_check
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_item_permissions_check
 	 */
 	public function test_single_item_is_gated_too() {
 		$id = $this->post_ids[0];
@@ -226,7 +226,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	/**
 	 * Trash parity with `wp/v2` — the recycle bin drops tiles here.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::register_routes
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::register_routes
 	 */
 	public function test_delete_trashes_the_post() {
 		$id = $this->post_ids[0];
@@ -238,7 +238,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::delete_item_permissions_check
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::delete_item_permissions_check
 	 */
 	public function test_subscriber_cannot_trash() {
 		$id = $this->post_ids[0];
@@ -254,7 +254,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * Only read + trash are registered. A write schema the type's
 	 * author never vetted is not ours to expose.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::register_routes
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::register_routes
 	 */
 	public function test_create_and_update_are_not_registered() {
 		$routes = rest_get_server()->get_routes();
@@ -288,7 +288,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * route is `wp/v2`, so it works even though the parent type is not
 	 * REST-exposed.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::get_items
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::get_items
 	 */
 	public function test_featured_media_is_embeddable() {
 		$attachment_id = self::factory()->attachment->create_object(
@@ -319,7 +319,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * and bail before their own filters, so `self` / `collection` would
 	 * otherwise resolve to the bare REST root.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::prepare_links
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::prepare_links
 	 */
 	public function test_self_and_collection_links_point_at_the_bridge() {
 		$id = $this->post_ids[0];
@@ -342,7 +342,7 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	 * The override is scoped to the controller's own type — Core's
 	 * routing for everything else is untouched.
 	 *
-	 * @covers Desktop_Mode_My_WordPress_Post_Type_Controller::prepare_links
+	 * @covers Open_Station_My_WordPress_Post_Type_Controller::prepare_links
 	 */
 	public function test_core_post_routes_are_untouched() {
 		$post_id = self::factory()->post->create();
@@ -352,13 +352,13 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Desktop Mode's own REST fields follow the bridged type, so a
+	 * OpenStation's own REST fields follow the bridged type, so a
 	 * bridged section shows lock badges like a `wp/v2` one.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_rest_field_post_types
+	 * @covers ::open_station_my_wordpress_rest_field_post_types
 	 */
-	public function test_bridged_types_carry_desktop_mode_rest_fields() {
-		$types = desktop_mode_my_wordpress_rest_field_post_types();
+	public function test_bridged_types_carry_open_station_rest_fields() {
+		$types = open_station_my_wordpress_rest_field_post_types();
 
 		$this->assertContains( 'dm_coupon', $types );
 		$this->assertContains( 'post', $types );

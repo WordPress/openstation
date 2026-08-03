@@ -8,9 +8,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_Presence extends WP_UnitTestCase {
+class Tests_OpenStation_Presence extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $editor_id;
@@ -22,27 +22,27 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		delete_option( DESKTOP_MODE_PRESENCE_OPTION );
+		delete_option( OPEN_STATION_PRESENCE_OPTION );
 	}
 
 	public function tear_down() {
-		delete_option( DESKTOP_MODE_PRESENCE_OPTION );
+		delete_option( OPEN_STATION_PRESENCE_OPTION );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$editor_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
-	 * @covers ::desktop_mode_presence_status_for_user
+	 * @covers ::open_station_presence_record
+	 * @covers ::open_station_presence_status_for_user
 	 */
 	public function test_record_makes_user_online() {
-		desktop_mode_presence_record( self::$admin_id, true );
-		$this->assertSame( 'online', desktop_mode_presence_status_for_user( self::$admin_id ) );
+		open_station_presence_record( self::$admin_id, true );
+		$this->assertSame( 'online', open_station_presence_status_for_user( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_status_from_record
+	 * @covers ::open_station_presence_status_from_record
 	 */
 	public function test_inactive_threshold_demotes_online_to_inactive() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
@@ -51,11 +51,11 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 			'last_seen_ms'   => $now_ms,
 			'last_active_ms' => $now_ms - ( 6 * 60 * 1000 ),
 		);
-		$this->assertSame( 'inactive', desktop_mode_presence_status_from_record( $record ) );
+		$this->assertSame( 'inactive', open_station_presence_status_from_record( $record ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_status_from_record
+	 * @covers ::open_station_presence_status_from_record
 	 */
 	public function test_offline_threshold_dominates() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
@@ -64,11 +64,11 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 			'last_seen_ms'   => $now_ms - ( 3 * 60 * 1000 ),
 			'last_active_ms' => $now_ms,
 		);
-		$this->assertSame( 'offline', desktop_mode_presence_status_from_record( $record ) );
+		$this->assertSame( 'offline', open_station_presence_status_from_record( $record ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
+	 * @covers ::open_station_presence_record
 	 */
 	public function test_record_active_false_preserves_last_active() {
 		// Seed a stored record old enough to clear the write throttle
@@ -78,38 +78,38 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 			'last_seen_ms'   => $now_ms - ( 61 * 1000 ),
 			'last_active_ms' => $now_ms - ( 61 * 1000 ),
 		);
-		update_option( DESKTOP_MODE_PRESENCE_OPTION, array( self::$admin_id => $seeded ), false );
+		update_option( OPEN_STATION_PRESENCE_OPTION, array( self::$admin_id => $seeded ), false );
 
-		desktop_mode_presence_record( self::$admin_id, false );
-		$stored = desktop_mode_presence_get_all()[ self::$admin_id ];
+		open_station_presence_record( self::$admin_id, false );
+		$stored = open_station_presence_get_all()[ self::$admin_id ];
 		$this->assertGreaterThan( $seeded['last_seen_ms'], $stored['last_seen_ms'], 'last_seen persists once past the throttle window' );
 		$this->assertSame( $seeded['last_active_ms'], $stored['last_active_ms'], 'last_active stays put when active=false' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
-	 * @covers ::desktop_mode_presence_should_persist
+	 * @covers ::open_station_presence_record
+	 * @covers ::open_station_presence_should_persist
 	 */
 	public function test_redundant_bump_within_throttle_window_skips_the_write() {
-		desktop_mode_presence_record( self::$admin_id, true );
-		$first = desktop_mode_presence_get_all()[ self::$admin_id ];
+		open_station_presence_record( self::$admin_id, true );
+		$first = open_station_presence_get_all()[ self::$admin_id ];
 		usleep( 5000 );
 		// Same status, timestamps moved by only ~5ms — no persist.
-		desktop_mode_presence_record( self::$admin_id, true );
-		$second = desktop_mode_presence_get_all()[ self::$admin_id ];
+		open_station_presence_record( self::$admin_id, true );
+		$second = open_station_presence_get_all()[ self::$admin_id ];
 		$this->assertSame( $first, $second, 'a redundant bump inside the throttle window must not rewrite the option' );
-		$this->assertSame( 'online', desktop_mode_presence_status_for_user( self::$admin_id ) );
+		$this->assertSame( 'online', open_station_presence_status_for_user( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
-	 * @covers ::desktop_mode_presence_should_persist
+	 * @covers ::open_station_presence_record
+	 * @covers ::open_station_presence_should_persist
 	 */
 	public function test_status_transition_persists_despite_throttle() {
 		// Stored record reads `inactive` (seen recently, idle 6 min).
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		update_option(
-			DESKTOP_MODE_PRESENCE_OPTION,
+			OPEN_STATION_PRESENCE_OPTION,
 			array(
 				self::$admin_id => array(
 					'last_seen_ms'   => $now_ms - 1000,
@@ -118,23 +118,23 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 			),
 			false
 		);
-		$this->assertSame( 'inactive', desktop_mode_presence_status_for_user( self::$admin_id ) );
+		$this->assertSame( 'inactive', open_station_presence_status_for_user( self::$admin_id ) );
 
 		// An active bump transitions to online — must persist even
 		// though last_seen moved by only ~1s.
-		desktop_mode_presence_record( self::$admin_id, true );
-		$this->assertSame( 'online', desktop_mode_presence_status_for_user( self::$admin_id ) );
-		$stored = desktop_mode_presence_get_all()[ self::$admin_id ];
+		open_station_presence_record( self::$admin_id, true );
+		$this->assertSame( 'online', open_station_presence_status_for_user( self::$admin_id ) );
+		$stored = open_station_presence_get_all()[ self::$admin_id ];
 		$this->assertGreaterThanOrEqual( $now_ms, $stored['last_active_ms'], 'transitioning bump rewrites the stored record' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
+	 * @covers ::open_station_presence_record
 	 */
 	public function test_changed_action_fires_only_on_transition() {
 		$transitions = array();
 		add_action(
-			'desktop_mode_presence_changed',
+			'open_station_presence_changed',
 			function ( $user_id, $new_status, $old_status ) use ( &$transitions ) {
 				$transitions[] = array( $user_id, $old_status, $new_status );
 			},
@@ -143,9 +143,9 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 		);
 
 		// First record — transitions from offline (default) to online.
-		desktop_mode_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$admin_id, true );
 		// Second record — same status, no transition.
-		desktop_mode_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$admin_id, true );
 
 		$this->assertCount( 1, $transitions );
 		$this->assertSame( self::$admin_id, $transitions[0][0] );
@@ -154,81 +154,81 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
+	 * @covers ::open_station_presence_record
 	 */
 	public function test_recorded_action_fires_every_time() {
 		$count = 0;
 		add_action(
-			'desktop_mode_presence_recorded',
+			'open_station_presence_recorded',
 			function () use ( &$count ) {
 				$count++;
 			}
 		);
-		desktop_mode_presence_record( self::$admin_id, true );
-		desktop_mode_presence_record( self::$admin_id, true );
-		desktop_mode_presence_record( self::$admin_id, false );
+		open_station_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$admin_id, false );
 		$this->assertSame( 3, $count );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
+	 * @covers ::open_station_presence_record
 	 */
 	public function test_can_track_filter_vetoes_recording() {
-		add_filter( 'desktop_mode_presence_can_track', '__return_false' );
-		$ok = desktop_mode_presence_record( self::$admin_id, true );
+		add_filter( 'open_station_presence_can_track', '__return_false' );
+		$ok = open_station_presence_record( self::$admin_id, true );
 		$this->assertFalse( $ok );
-		$this->assertSame( 'offline', desktop_mode_presence_status_for_user( self::$admin_id ) );
-		remove_filter( 'desktop_mode_presence_can_track', '__return_false' );
+		$this->assertSame( 'offline', open_station_presence_status_for_user( self::$admin_id ) );
+		remove_filter( 'open_station_presence_can_track', '__return_false' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_snapshot
+	 * @covers ::open_station_presence_snapshot
 	 */
 	public function test_snapshot_with_null_returns_all_tracked_users() {
-		desktop_mode_presence_record( self::$admin_id, true );
-		desktop_mode_presence_record( self::$editor_id, false );
-		$snap = desktop_mode_presence_snapshot();
+		open_station_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$editor_id, false );
+		$snap = open_station_presence_snapshot();
 		$this->assertArrayHasKey( (string) self::$admin_id, $snap );
 		$this->assertArrayHasKey( (string) self::$editor_id, $snap );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_snapshot
+	 * @covers ::open_station_presence_snapshot
 	 */
 	public function test_snapshot_with_id_list_filters_to_those_only() {
-		desktop_mode_presence_record( self::$admin_id, true );
-		desktop_mode_presence_record( self::$editor_id, true );
-		$snap = desktop_mode_presence_snapshot( array( self::$admin_id ) );
+		open_station_presence_record( self::$admin_id, true );
+		open_station_presence_record( self::$editor_id, true );
+		$snap = open_station_presence_snapshot( array( self::$admin_id ) );
 		$this->assertCount( 1, $snap );
 		$this->assertArrayHasKey( (string) self::$admin_id, $snap );
 		$this->assertArrayNotHasKey( (string) self::$editor_id, $snap );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_visible_users
+	 * @covers ::open_station_presence_visible_users
 	 */
 	public function test_visible_users_filter_can_narrow_the_set() {
 		add_filter(
-			'desktop_mode_presence_visible_users',
+			'open_station_presence_visible_users',
 			function ( $ids, $viewer ) {
 				return array( $ids[0] ?? 0 );
 			},
 			10,
 			2
 		);
-		$ids = desktop_mode_presence_visible_users( array( 1, 2, 3 ), self::$admin_id );
+		$ids = open_station_presence_visible_users( array( 1, 2, 3 ), self::$admin_id );
 		$this->assertSame( array( 1 ), $ids );
-		remove_all_filters( 'desktop_mode_presence_visible_users' );
+		remove_all_filters( 'open_station_presence_visible_users' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_cron_prune
+	 * @covers ::open_station_presence_cron_prune
 	 */
 	public function test_cron_prune_drops_stale_entries() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		// Manually seed the option with a fresh + a 30-day-old entry.
 		update_option(
-			DESKTOP_MODE_PRESENCE_OPTION,
+			OPEN_STATION_PRESENCE_OPTION,
 			array(
 				self::$admin_id  => array(
 					'last_seen_ms'   => $now_ms,
@@ -241,26 +241,26 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 			),
 			false
 		);
-		desktop_mode_presence_cron_prune();
-		$all = desktop_mode_presence_get_all();
+		open_station_presence_cron_prune();
+		$all = open_station_presence_get_all();
 		$this->assertArrayHasKey( self::$admin_id, $all );
 		$this->assertArrayNotHasKey( self::$editor_id, $all );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_record
+	 * @covers ::open_station_presence_record
 	 */
 	public function test_invalid_user_id_is_a_noop() {
-		$ok = desktop_mode_presence_record( 0, true );
+		$ok = open_station_presence_record( 0, true );
 		$this->assertFalse( $ok );
-		$this->assertSame( array(), desktop_mode_presence_get_all() );
+		$this->assertSame( array(), open_station_presence_get_all() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_presence_status_for_user
+	 * @covers ::open_station_presence_status_for_user
 	 */
 	public function test_unknown_user_is_offline() {
-		$this->assertSame( 'offline', desktop_mode_presence_status_for_user( 99999 ) );
+		$this->assertSame( 'offline', open_station_presence_status_for_user( 99999 ) );
 	}
 
 }

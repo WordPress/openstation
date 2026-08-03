@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Mio.
+ * OpenStation — Mio.
  *
  * Server side of the desk companion: the appearance / physics
  * defaults shipped to the shell, and the filter plugins use to
@@ -17,7 +17,7 @@
  * returns nonsense produces a plain-looking Mio rather than a
  * broken shell.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -52,7 +52,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array Mio configuration.
  */
-function desktop_mode_mio_config() {
+function open_station_mio_config() {
 	$defaults = array(
 		'appearance' => array(
 			'radius'       => 56,
@@ -140,7 +140,7 @@ function desktop_mode_mio_config() {
 	 *
 	 * Example — a slower, heavier, teal mio:
 	 *
-	 *     add_filter( 'desktop_mode_mio_config', function ( $config ) {
+	 *     add_filter( 'open_station_mio_config', function ( $config ) {
 	 *         $config['appearance']['hueStart']      = 170;
 	 *         $config['appearance']['hueSpan']       = 40;
 	 *         $config['physics']['magnetStrength']   = 3400;
@@ -149,7 +149,7 @@ function desktop_mode_mio_config() {
 	 *
 	 * @param array $defaults Default configuration, as documented above.
 	 */
-	$config = apply_filters( 'desktop_mode_mio_config', $defaults );
+	$config = apply_filters( 'open_station_mio_config', $defaults );
 
 	return is_array( $config ) ? $config : $defaults;
 }
@@ -163,7 +163,7 @@ function desktop_mode_mio_config() {
  *
  * @return string[]
  */
-function desktop_mode_mio_look_appearance_keys() {
+function open_station_mio_look_appearance_keys() {
 	return array(
 		'radius',
 		'bodyColor',
@@ -196,7 +196,7 @@ function desktop_mode_mio_look_appearance_keys() {
  *
  * @return string[]
  */
-function desktop_mode_mio_look_physics_keys() {
+function open_station_mio_look_physics_keys() {
 	return array(
 		'shapePreset',
 		'shapeLobes',
@@ -229,7 +229,7 @@ function desktop_mode_mio_look_physics_keys() {
  *     @type array $physics    Partial silhouette + idle overrides.
  * }
  */
-function desktop_mode_sanitize_mio_look( $raw ) {
+function open_station_sanitize_mio_look( $raw ) {
 	$clean = array(
 		'appearance' => array(),
 		'physics'    => array(),
@@ -240,8 +240,8 @@ function desktop_mode_sanitize_mio_look( $raw ) {
 	}
 
 	$groups = array(
-		'appearance' => desktop_mode_mio_look_appearance_keys(),
-		'physics'    => desktop_mode_mio_look_physics_keys(),
+		'appearance' => open_station_mio_look_appearance_keys(),
+		'physics'    => open_station_mio_look_physics_keys(),
 	);
 
 	foreach ( $groups as $group => $keys ) {

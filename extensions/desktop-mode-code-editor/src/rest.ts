@@ -49,10 +49,10 @@ export class RestError extends Error {
 }
 
 function getConfig(): CodeEditorConfig {
-	const config = window.wpDesktopCodeEditorConfig;
+	const config = window.openStationCodeEditorConfig;
 	if ( ! config ) {
 		throw new Error(
-			'wp-desktop-code-editor: wpDesktopCodeEditorConfig missing — is the editor enqueued?',
+			'os-code-editor: openStationCodeEditorConfig missing — is the editor enqueued?',
 		);
 	}
 	return config;
@@ -94,7 +94,7 @@ async function getJson< T >(
 		};
 		throw new RestError(
 			obj.message ?? `HTTP ${ res.status }`,
-			obj.code ?? 'wpdc_http_error',
+			obj.code ?? 'osc_http_error',
 			res.status,
 			obj.data ?? null,
 		);
@@ -227,7 +227,7 @@ export async function fetchPhpSymbolDetail(
 		const obj = ( body ?? {} ) as { code?: string; message?: string };
 		throw new RestError(
 			obj.message ?? `HTTP ${ res.status }`,
-			obj.code ?? 'wpdc_http_error',
+			obj.code ?? 'osc_http_error',
 			res.status,
 			null,
 		);
@@ -314,7 +314,7 @@ export async function saveFile(
 		};
 		throw new RestError(
 			obj.message ?? `HTTP ${ res.status }`,
-			obj.code ?? 'wpdc_http_error',
+			obj.code ?? 'osc_http_error',
 			res.status,
 			obj.data ?? null,
 		);

@@ -25,9 +25,9 @@ type FetchMock = ReturnType< typeof vi.fn >;
 function getRender(): RenderCallback {
 	const bag = (
 		window as unknown as {
-			desktopModeNativeWindows?: Record< string, RenderCallback >;
+			openStationNativeWindows?: Record< string, RenderCallback >;
 		}
-	 ).desktopModeNativeWindows;
+	 ).openStationNativeWindows;
 	expect( bag?.[ WINDOW_ID ] ).toBeTypeOf( 'function' );
 	return bag![ WINDOW_ID ];
 }
@@ -35,7 +35,7 @@ function getRender(): RenderCallback {
 function makeBody(): HTMLElement {
 	const body = document.createElement( 'div' );
 	const root = document.createElement( 'div' );
-	root.setAttribute( 'data-desktop-mode-agent-run-root', '' );
+	root.setAttribute( 'data-os-agent-run-root', '' );
 	body.appendChild( root );
 	document.body.appendChild( body );
 	return body;
@@ -47,7 +47,7 @@ async function flush(): Promise< void > {
 }
 
 beforeEach( () => {
-	( window as unknown as Record< string, unknown > ).desktopModeWindowConfig = {
+	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
 		[ WINDOW_ID ]: {
 			restRoot: 'https://example.test/wp-json/',
 			restNonce: 'test-nonce',
@@ -64,7 +64,7 @@ afterEach( () => {
 	vi.restoreAllMocks();
 	document.body.replaceChildren();
 	delete ( window as unknown as Record< string, unknown > )
-		.desktopModeWindowConfig;
+		.openStationWindowConfig;
 } );
 
 describe( 'agent chat window', () => {
@@ -76,7 +76,7 @@ describe( 'agent chat window', () => {
 		const body = makeBody();
 		const cleanup = getRender()( body );
 
-		expect( body.querySelector( 'wpd-empty-state' ) ).not.toBeNull();
+		expect( body.querySelector( 'os-empty-state' ) ).not.toBeNull();
 		if ( typeof cleanup === 'function' ) {
 			cleanup();
 		}
@@ -129,11 +129,11 @@ describe( 'agent chat window', () => {
 			avatarUrl: 'data:image/svg+xml;base64,x',
 		} );
 
-		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+		const input = body.querySelector( 'os-textarea' ) as HTMLElement & {
 			value: string;
 		};
 		input.value = 'Audit post 1';
-		( body.querySelector( '.dm-agent-chat__composer wpd-button' ) as HTMLElement ).click();
+		( body.querySelector( '.dm-agent-chat__composer os-button' ) as HTMLElement ).click();
 		await flush();
 
 		const invoke = fetchMock.mock.calls.find( ( c ) =>
@@ -174,7 +174,7 @@ describe( 'agent chat window', () => {
 		agentsChatStore.notify();
 
 		// WhatsApp-style: agent avatar left row, viewer avatar from the
-		// window config on the user row. `<wpd-avatar>` rather than a
+		// window config on the user row. `<os-avatar>` rather than a
 		// bare `<img>` so a Gravatar-less viewer gets initials instead
 		// of the mystery-person silhouette — the URL lands on the
 		// element once the resolver's probe settles.
@@ -182,7 +182,7 @@ describe( 'agent chat window', () => {
 		const agentAvatar = body.querySelector(
 			'.dm-agent-chat__line--agent .dm-agent-chat__msg-avatar',
 		) as HTMLElement;
-		expect( agentAvatar?.tagName.toLowerCase() ).toBe( 'wpd-avatar' );
+		expect( agentAvatar?.tagName.toLowerCase() ).toBe( 'os-avatar' );
 		expect( agentAvatar?.getAttribute( 'src' ) ).toBe(
 			'https://example.test/agent.svg',
 		);
@@ -240,13 +240,13 @@ describe( 'agent chat window', () => {
 		];
 		agentsChatStore.notify();
 
-		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+		const input = body.querySelector( 'os-textarea' ) as HTMLElement & {
 			value: string;
 		};
 		input.value = 'Yes, please';
 		(
 			body.querySelector(
-				'.dm-agent-chat__composer wpd-button',
+				'.dm-agent-chat__composer os-button',
 			) as HTMLElement
 		 ).click();
 		await flush();
@@ -284,7 +284,7 @@ describe( 'agent chat window', () => {
 		const targets: StubTarget[] = [];
 		const openWindow = vi.fn( () => true );
 		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: {
+			os: {
 				openWindow,
 				dragManager: {
 					registerDropTarget: ( target: StubTarget ) => {
@@ -416,20 +416,20 @@ describe( 'agent chat window', () => {
 			avatarUrl: 'https://example.test/bot.svg',
 		} );
 
-		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+		const input = body.querySelector( 'os-textarea' ) as HTMLElement & {
 			value: string;
 		};
 		input.value = 'Propose the update.';
 		(
 			body.querySelector(
-				'.dm-agent-chat__composer wpd-button',
+				'.dm-agent-chat__composer os-button',
 			) as HTMLElement
 		 ).click();
 		await flush();
 
 		// Buttons render under the agent's answer with their variants.
 		const buttons = body.querySelectorAll< HTMLElement >(
-			'.dm-agent-chat__ctas wpd-button',
+			'.dm-agent-chat__ctas os-button',
 		);
 		expect( buttons ).toHaveLength( 2 );
 		expect( buttons[ 0 ].textContent ).toBe( 'Accept' );
@@ -457,7 +457,7 @@ describe( 'agent chat window', () => {
 
 		// The spent buttons persist but are disabled.
 		const spent = body.querySelectorAll< HTMLElement >(
-			'.dm-agent-chat__ctas wpd-button',
+			'.dm-agent-chat__ctas os-button',
 		);
 		expect( spent[ 0 ].hasAttribute( 'disabled' ) ).toBe( true );
 		expect(
@@ -578,7 +578,7 @@ describe( 'agent chat window', () => {
 
 		const openWindow = vi.fn( () => true );
 		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: { openWindow },
+			os: { openWindow },
 		};
 
 		try {
@@ -614,7 +614,7 @@ describe( 'agent chat window', () => {
 	test( 'a message attachment renders as a card that opens the object', () => {
 		const open = vi.fn();
 		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: {
+			os: {
 				config: { adminUrl: 'https://example.test/wp-admin/' },
 				deriveWindowId: () => 'post-php-188',
 				windowManager: { open },
@@ -684,11 +684,11 @@ describe( 'agent chat window', () => {
 			avatarUrl: 'data:image/svg+xml;base64,x',
 		} );
 
-		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+		const input = body.querySelector( 'os-textarea' ) as HTMLElement & {
 			value: string;
 		};
 		input.value = 'hi';
-		( body.querySelector( '.dm-agent-chat__composer wpd-button' ) as HTMLElement ).click();
+		( body.querySelector( '.dm-agent-chat__composer os-button' ) as HTMLElement ).click();
 		await flush();
 
 		expect(

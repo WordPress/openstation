@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -126,7 +126,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 
 	public function tear_down() {
 		unregister_post_type( 'dm_test_book' );
-		remove_all_filters( 'desktop_mode_my_wordpress_user_stats' );
+		remove_all_filters( 'open_station_my_wordpress_user_stats' );
 		parent::tear_down();
 	}
 
@@ -144,7 +144,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	/**
 	 * Logged-out requests are rejected by the permission callback.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_user_stats_route
+	 * @covers ::open_station_my_wordpress_register_user_stats_route
 	 */
 	public function test_logged_out_request_is_rejected() {
 		wp_set_current_user( 0 );
@@ -156,7 +156,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	 * A viewer without `list_users` must not receive another user's
 	 * draft / pending / private posts in the `recent` list.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_sees_published_recent_only() {
 		wp_set_current_user( self::$subscriber_id );
@@ -178,7 +178,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	 * the per-status breakdown is omitted and `total` collapses to
 	 * the publish count.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_gets_publish_only_counts() {
 		wp_set_current_user( self::$subscriber_id );
@@ -204,7 +204,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	 * The CPT count and the comments-received count must also be
 	 * restricted to published content for unprivileged viewers.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_cpt_and_comment_counts_exclude_non_public() {
 		wp_set_current_user( self::$subscriber_id );
@@ -217,7 +217,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	/**
 	 * Sensitive profile fields stay gated on the cap.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_unprivileged_viewer_profile_omits_sensitive_fields() {
 		wp_set_current_user( self::$subscriber_id );
@@ -234,7 +234,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	 * per-status breakdown, non-public recents, unrestricted CPT and
 	 * comment counts, and the sensitive profile fields.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_privileged_viewer_sees_full_data() {
 		wp_set_current_user( self::$admin_id );
@@ -258,7 +258,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 	/**
 	 * Users always see their own full dossier, `list_users` or not.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_user_stats_callback
+	 * @covers ::open_station_my_wordpress_user_stats_callback
 	 */
 	public function test_self_sees_full_data_without_list_users() {
 		wp_set_current_user( self::$author_id );

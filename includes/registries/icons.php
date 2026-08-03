@@ -1,12 +1,12 @@
 <?php
 /**
- * Desktop Mode — Desktop-icons registry.
+ * OpenStation — Desktop-icons registry.
  *
  * Owns the registration API + payload builder for the wallpaper-
- * surface app icons (`wp.desktop.icons`). The dock has its own
+ * surface app icons (`wp.os.icons`). The dock has its own
  * rail; this is the second surface — clickable shortcuts that
  * sit on the desktop wallpaper itself, registered via
- * `desktop_mode_register_icon()` and rendered by
+ * `open_station_register_icon()` and rendered by
  * `src/desktop-icons.ts`.
  *
  * Extracted from the 2,101-LOC `components.php` during the
@@ -15,7 +15,7 @@
  * code is identical. PHP looks function references up by name at
  * hook-fire time, so existing call sites resolve from any module.
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,8 +35,8 @@ defined( 'ABSPATH' ) || exit;
  * Example — the classic Jorvy recipe:
  *
  * ```php
- * desktop_mode_register_window( 'jorvy', array( …window args… ) );
- * desktop_mode_register_icon( 'jorvy', array(
+ * open_station_register_window( 'jorvy', array( …window args… ) );
+ * open_station_register_icon( 'jorvy', array(
  *     'title'    => __( 'Jorvy', 'jorvy' ),
  *     'icon'     => 'dashicons-star-filled',
  *     'window'   => 'jorvy',
@@ -63,7 +63,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  same sanitizer as `icon`. Wins over
  *                                  `icon` when both are supplied. Markup
  *                                  containing a `<script>` tag is rejected
- *                                  with `desktop_mode_invalid_icon_svg`.
+ *                                  with `open_station_invalid_icon_svg`.
  *     @type string   $window       Id of a registered native window to
  *                                  open on click. Mutually exclusive
  *                                  with `url`.
@@ -81,15 +81,15 @@ defined( 'ABSPATH' ) || exit;
  *                                  Default `false`.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
- *                                  `WP_Error desktop_mode_capability_denied`.
+ *                                  `WP_Error open_station_capability_denied`.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function desktop_mode_register_icon( $id, $args = array() ) {
+function open_station_register_icon( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return open_station_registration_error(
+			'open_station_missing_id',
 			__( 'Desktop icon id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
@@ -113,15 +113,15 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 		// sandboxes scripts inside SVG), but defence-in-depth catches
 		// callers who paste an SVG harvested from an untrusted source.
 		if ( false !== stripos( $svg, '<script' ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_icon_svg',
+			return open_station_registration_error(
+				'open_station_invalid_icon_svg',
 				__( 'Desktop icon `icon_svg` must not contain a <script> tag.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
 		}
 		if ( 0 !== stripos( ltrim( $svg ), '<svg' ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_icon_svg',
+			return open_station_registration_error(
+				'open_station_invalid_icon_svg',
 				__( 'Desktop icon `icon_svg` must start with a <svg> root element.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
@@ -131,8 +131,8 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return open_station_registration_error(
+				'open_station_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this desktop icon.', 'desktop-mode' ),
@@ -144,8 +144,8 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['title'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_title',
+		return open_station_registration_error(
+			'open_station_missing_title',
 			__( 'Desktop icon registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -154,15 +154,15 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	$window = sanitize_key( (string) $args['window'] );
 	$url    = (string) $args['url'];
 	if ( '' !== $window && '' !== $url ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_conflicting_target',
+		return open_station_registration_error(
+			'open_station_conflicting_target',
 			__( 'Desktop icon cannot declare both `window` and `url`; pick one target.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === $window && '' === $url ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_target',
+		return open_station_registration_error(
+			'open_station_missing_target',
 			__( 'Desktop icon must declare a `window` id or a `url` target.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -173,8 +173,8 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 		// click time (shell decides).
 		$url = esc_url_raw( $url, array( 'http', 'https' ) );
 		if ( '' === $url ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_url',
+			return open_station_registration_error(
+				'open_station_invalid_url',
 				__( 'Desktop icon `url` must be a valid http(s) URL.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
@@ -184,44 +184,44 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	$entry = array(
 		'id'       => $id,
 		'title'    => (string) $args['title'],
-		'icon'     => desktop_mode_sanitize_dock_icon( (string) $args['icon'] ),
+		'icon'     => open_station_sanitize_dock_icon( (string) $args['icon'] ),
 		'window'   => $window,
 		'url'      => $url,
 		'position' => (int) $args['position'],
 		'pinned'   => (bool) $args['pinned'],
 	);
-	desktop_mode_desktop_icon_registry( $id, $entry );
+	open_station_desktop_icon_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop icon is successfully registered.
 	 *
-	 * Does NOT fire when `desktop_mode_register_icon()` returns a
+	 * Does NOT fire when `open_station_register_icon()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The icon id.
 	 * @param array  $entry The stored registry entry (id, title,
 	 *                      icon, window, url, position, pinned).
 	 */
-	do_action( 'desktop_mode_icon_registered', $id, $entry );
+	do_action( 'open_station_icon_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for desktop icons registered via
- * {@see desktop_mode_register_icon()}. Same static-store pattern as
+ * {@see open_station_register_icon()}. Same static-store pattern as
  * the widget + native-window + wallpaper registries.
  *
  * @internal
  */
-function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
+function open_station_desktop_icon_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
 		return $store;
 	}
 	// Sentinel write: passing the literal string `__unset__` removes
-	// the entry. Used by `desktop_mode_unregister_icon()` and by
+	// the entry. Used by `open_station_unregister_icon()` and by
 	// PHPUnit teardowns; lets us clear test-only registrations
 	// without exposing the static `$store` directly.
 	if ( '__unset__' === $entry ) {
@@ -236,32 +236,32 @@ function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
 
 /**
  * Remove a previously registered desktop icon from the static
- * registry. Mirror of `desktop_mode_register_icon()` — handy for
+ * registry. Mirror of `open_station_register_icon()` — handy for
  * plugins that register icons conditionally and need to drop them
  * mid-request, and for PHPUnit teardowns that shouldn't leak
  * registrations into other tests.
  *
- * @param string $id Icon id passed to `desktop_mode_register_icon()`.
+ * @param string $id Icon id passed to `open_station_register_icon()`.
  * @return void
  */
-function desktop_mode_unregister_icon( $id ) {
+function open_station_unregister_icon( $id ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
 		return;
 	}
-	desktop_mode_desktop_icon_registry( $id, '__unset__' );
+	open_station_desktop_icon_registry( $id, '__unset__' );
 }
 
 /**
  * Build the desktop-icon list for the shell payload. Applies a
- * `desktop_mode_icons` filter so plugins can hide / reorder / rename
+ * `open_station_icons` filter so plugins can hide / reorder / rename
  * entries registered by others — mirrors the wallpaper payload
  * builder's filter discipline.
  *
  * @return array[]
  */
-function desktop_mode_build_desktop_icons_payload() {
-	$registry = desktop_mode_desktop_icon_registry();
+function open_station_build_desktop_icons_payload() {
+	$registry = open_station_desktop_icon_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -269,12 +269,12 @@ function desktop_mode_build_desktop_icons_payload() {
 	/**
 	 * Filters the full desktop-icon registry before it ships to the
 	 * shell. Each entry is the shape stored by
-	 * `desktop_mode_register_icon()` (`id`, `title`, `icon`, `window`,
+	 * `open_station_register_icon()` (`id`, `title`, `icon`, `window`,
 	 * `url`, `position`, `pinned`). Return a reordered / filtered array.
 	 *
 	 * @param array[] $registry The registered icon entries.
 	 */
-	$registry = apply_filters( 'desktop_mode_icons', $registry );
+	$registry = apply_filters( 'open_station_icons', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}

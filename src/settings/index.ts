@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — OS Settings.
+ * OpenStation — OS Settings.
  *
  * Shell-level preferences that live outside WordPress: wallpaper, accent
  * color, dock size. Persisted to localStorage so they survive reloads
@@ -10,7 +10,7 @@
  *
  * Wallpapers are registry-driven: built-in presets live in
  * `src/wallpapers/built-in.ts`, third-party plugins register via the
- * public `wp.desktop.registerWallpaper()` / `desktop-mode.wallpapers`
+ * public `wp.os.registerWallpaper()` / `os.wallpapers`
  * filter, and this module is responsible only for
  *
  *   - managing user preference state (current wallpaper id, accent,
@@ -74,31 +74,31 @@ export type { OsSettingsConfig };
  * Lazy-load the `os-settings-panel[.min].js` bundle.
  *
  * Idempotent — concurrent callers share a single promise; once the
- * bundle has registered `window.desktopModeRenderOsSettingsPanel`,
+ * bundle has registered `window.openStationRenderOsSettingsPanel`,
  * subsequent calls resolve synchronously from the global.
  */
 let _panelLoadPromise:
-	| Promise< NonNullable< Window[ 'desktopModeRenderOsSettingsPanel' ] > >
+	| Promise< NonNullable< Window[ 'openStationRenderOsSettingsPanel' ] > >
 	| null = null;
 function loadOsSettingsPanelBundle(
 	scriptUrl: string,
-): Promise< NonNullable< Window[ 'desktopModeRenderOsSettingsPanel' ] > > {
-	if ( window.desktopModeRenderOsSettingsPanel ) {
-		return Promise.resolve( window.desktopModeRenderOsSettingsPanel );
+): Promise< NonNullable< Window[ 'openStationRenderOsSettingsPanel' ] > > {
+	if ( window.openStationRenderOsSettingsPanel ) {
+		return Promise.resolve( window.openStationRenderOsSettingsPanel );
 	}
 	if ( _panelLoadPromise ) {
 		return _panelLoadPromise;
 	}
 	_panelLoadPromise = new Promise( ( resolve, reject ) => {
 		const existing = document.querySelector< HTMLScriptElement >(
-			'script[data-desktop-mode-os-settings-panel="1"]',
+			'script[data-os-settings-panel="1"]',
 		);
 		const finish = (): void => {
-			const fn = window.desktopModeRenderOsSettingsPanel;
+			const fn = window.openStationRenderOsSettingsPanel;
 			if ( ! fn ) {
 				reject(
 					new Error(
-						'[desktop-mode] os-settings-panel bundle loaded but did not register desktopModeRenderOsSettingsPanel',
+						'[openstation] os-settings-panel bundle loaded but did not register openStationRenderOsSettingsPanel',
 					),
 				);
 				return;
@@ -106,7 +106,7 @@ function loadOsSettingsPanelBundle(
 			resolve( fn );
 		};
 		if ( existing ) {
-			if ( window.desktopModeRenderOsSettingsPanel ) {
+			if ( window.openStationRenderOsSettingsPanel ) {
 				finish();
 			} else {
 				existing.addEventListener( 'load', finish );
@@ -119,7 +119,7 @@ function loadOsSettingsPanelBundle(
 		const s = document.createElement( 'script' );
 		s.src = scriptUrl;
 		s.async = true;
-		s.dataset.desktopModeOsSettingsPanel = '1';
+		s.dataset.osSettingsPanel = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
 			reject( new Error( 'failed to load os-settings-panel bundle' ) ),
@@ -162,7 +162,7 @@ export class OsSettings implements SettingsCtx {
 
 	/**
 	 * Most-recent active settings tab id, captured from
-	 * `wpd-tab-change`. Used to keep the user on whatever tab they
+	 * `os-tab-change`. Used to keep the user on whatever tab they
 	 * picked when a registry mutation forces the panel to re-render
 	 * (e.g. when a third-party plugin live-registers a new settings
 	 * tab via the chromeless plugins-changed bridge).
@@ -254,7 +254,7 @@ export class OsSettings implements SettingsCtx {
 		// save fails, and the toggle stays in its (incorrect) flipped
 		// position until a manual reload reconciles with the server.
 		document.addEventListener(
-			'desktop-mode-os-settings-save-lifecycle',
+			'os-settings-save-lifecycle',
 			( e: Event ) => {
 				const detail = ( e as CustomEvent< OsSettingsSaveLifecycleDetail > )
 					.detail;
@@ -284,7 +284,7 @@ export class OsSettings implements SettingsCtx {
 	 * generation counter; CSS property writes are idempotent.
 	 */
 	public apply(): void {
-		const shell = document.getElementById( 'desktop-mode-shell' );
+		const shell = document.getElementById( 'os-shell' );
 		if ( ! shell ) {
 			return;
 		}
@@ -297,7 +297,7 @@ export class OsSettings implements SettingsCtx {
 		seedWallpaperSettings( this.state.wallpaperSettings );
 
 		// Wallpaper — look up in the registry. Fall back to the
-		// server-declared default id (via `desktop_mode_default_wallpaper`)
+		// server-declared default id (via `open_station_default_wallpaper`)
 		// if the saved wallpaper was registered by a plugin that's no
 		// longer loaded, then to the TS compile-time default as a last
 		// resort.
@@ -319,15 +319,15 @@ export class OsSettings implements SettingsCtx {
 			WINDOW_RADII[ 1 ];
 
 		// Set on <body> rather than the shell so the cascade reaches
-		// siblings of #desktop-mode-shell — specifically the WordPress
-		// admin bar, which needs --desktop-mode-dock-width to size its
+		// siblings of #os-shell — specifically the WordPress
+		// admin bar, which needs --os-dock-width to size its
 		// leftmost (W-logo) slot in visual alignment with the dock
 		// below it. Shell-scoped variables cascade to shell children
 		// only; everything the shell page renders is inside <body>.
 		//
 		// <body> specifically, not <html>, and that is load-bearing:
 		// the brand palette declares `--wp-admin-theme-color` on
-		// `body.desktop-mode-active` (see `variables.css`, which is
+		// `body.os-active` (see `variables.css`, which is
 		// scoped there so it cannot leak into iframe documents). A
 		// custom property inherits from the NEAREST ancestor that has
 		// one, regardless of the specificity behind it — so a value
@@ -336,18 +336,18 @@ export class OsSettings implements SettingsCtx {
 		// nothing. On the same element, an inline style always wins.
 		const root = document.body;
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
-		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
-		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
+		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
-			'--desktop-mode-window-radius',
+			'--os-window-radius',
 			`${ windowRadius.value }px`,
 		);
 		// ALSO on the shell element, and this one is not redundant.
 		//
-		// A desktop theme may declare `--desktop-mode-window-radius`
+		// A desktop theme may declare `--os-window-radius`
 		// in its `tokens`, and the compiled stylesheet writes it on
-		// `.desktop-mode-shell[data-desktop-mode-desktop-theme="…"]`
-		// and `body.desktop-mode-desktop-theme-…`. Both of those
+		// `.os-shell[data-os-desktop-theme="…"]`
+		// and `body.os-desktop-theme-…`. Both of those
 		// MATCH an ancestor of every window, while the `:root` write
 		// above only reaches windows by inheritance — so the theme
 		// would win and the Window-corners preset would silently do
@@ -359,7 +359,7 @@ export class OsSettings implements SettingsCtx {
 		// `recommendedOsSettings.windowRadius`, which sets the user's
 		// preference once and leaves it theirs to change.
 		shell.style.setProperty(
-			'--desktop-mode-window-radius',
+			'--os-window-radius',
 			`${ windowRadius.value }px`,
 		);
 
@@ -374,7 +374,7 @@ export class OsSettings implements SettingsCtx {
 			ADMIN_BAR_MODES[ 0 ];
 		for ( const mode of ADMIN_BAR_MODES ) {
 			document.body.classList.toggle(
-				`desktop-mode-admin-bar-${ mode.id }`,
+				`os-admin-bar-${ mode.id }`,
 				mode.id === adminBarMode.id,
 			);
 		}
@@ -387,7 +387,7 @@ export class OsSettings implements SettingsCtx {
 		// state got to this point (init from localStorage, picker
 		// change, reset).
 		shell.setAttribute(
-			'data-desktop-mode-layout',
+			'data-os-layout',
 			this.state.desktopLayout,
 		);
 
@@ -418,7 +418,7 @@ export class OsSettings implements SettingsCtx {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] os-settings listener threw:',
+							'[openstation] os-settings listener threw:',
 							err,
 						);
 					}
@@ -438,11 +438,11 @@ export class OsSettings implements SettingsCtx {
 	 * Render the settings panel into the given native-window body.
 	 *
 	 * Lazy — the actual rendering logic plus every
-	 * `<wpd-*>` component the panel uses lives in
+	 * `<os-*>` component the panel uses lives in
 	 * `src/settings/panel.ts`, compiled into its own Vite target
 	 * `os-settings-panel[.min].js`. The script is injected on the
 	 * first call below and the matching
-	 * `window.desktopModeRenderOsSettingsPanel( ctx, body )` global
+	 * `window.openStationRenderOsSettingsPanel( ctx, body )` global
 	 * is then invoked. Subsequent calls (registry-driven re-render,
 	 * save-failure rollback) skip the load and forward immediately.
 	 *
@@ -456,7 +456,7 @@ export class OsSettings implements SettingsCtx {
 	/**
 	 * Switch the active settings tab. Records the choice on
 	 * {@link activeTabId} (so the next render mounts on it) and, when
-	 * the panel is currently mounted, flips the live `<wpd-tabs>` value
+	 * the panel is currently mounted, flips the live `<os-tabs>` value
 	 * in place so an already-open OS Settings window jumps to the tab
 	 * without a full re-render. Deep-linking entry points
 	 * (`openOsSettings({ tabId })`) call this after opening the window.
@@ -469,7 +469,7 @@ export class OsSettings implements SettingsCtx {
 		if ( ! body?.isConnected ) {
 			return;
 		}
-		const tabs = body.querySelector( 'wpd-tabs' ) as
+		const tabs = body.querySelector( 'os-tabs' ) as
 			| ( HTMLElement & { value?: string } )
 			| null;
 		if ( tabs ) {
@@ -482,7 +482,7 @@ export class OsSettings implements SettingsCtx {
 		// re-render after restoring the last-confirmed state.
 		this._lastRenderedBody = body;
 
-		const fn = window.desktopModeRenderOsSettingsPanel;
+		const fn = window.openStationRenderOsSettingsPanel;
 		if ( fn ) {
 			fn( this, body );
 			return;
@@ -500,7 +500,7 @@ export class OsSettings implements SettingsCtx {
 			.catch( ( err ) => {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] OS Settings panel failed to load:',
+						'[openstation] OS Settings panel failed to load:',
 						err,
 					);
 				}

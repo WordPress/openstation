@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — built-in JS openers for the built-in file types.
+ * OpenStation — built-in JS openers for the built-in file types.
  *
  * Mirrors `includes/desktop-files/built-in-openers.php` — same
  * ids, same labels, same `isDefault` flags. The PHP side ships
@@ -8,9 +8,9 @@
  * any plugin code involved.
  *
  * Built around `adminUrl` from the shell config (read via
- * `wp.desktop.config`). The openers register on bundle boot
+ * `wp.os.config`). The openers register on bundle boot
  * with placeholder URL builders that read `adminUrl` lazily —
- * which means the openers are ready before `wp.desktop.config`
+ * which means the openers are ready before `wp.os.config`
  * exists, and the lookup happens at click time (when the shell
  * is fully booted).
  */
@@ -44,7 +44,7 @@ interface ConfigShape {
 }
 
 function adminBase(): string {
-	const cfg = ( window.wp as { desktop?: { config?: ConfigShape } } | undefined )?.desktop?.config;
+	const cfg = ( window.wp as { os?: { config?: ConfigShape } } | undefined )?.os?.config;
 	const url = cfg?.adminUrl ?? '/wp-admin/';
 	return url.endsWith( '/' ) ? url : `${ url }/`;
 }
@@ -212,18 +212,18 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! folderId ) {
 					return;
 				}
-				const wm = ( window.wp as { desktop?: { windowManager?: {
+				const wm = ( window.wp as { os?: { windowManager?: {
 					open: ( cfg: Record< string, unknown > ) => unknown;
-				} } } | undefined )?.desktop?.windowManager;
+				} } } | undefined )?.os?.windowManager;
 				if ( ! wm ) {
 					return;
 				}
-				const id = `desktop-mode-folder-${ folderId }`;
+				const id = `os-folder-${ folderId }`;
 				// Visual cue when the viewer is a recipient (not
 				// the folder's owner) — append "· Shared" to the
 				// title so it's clear this folder is collaborative.
 				const folderRow = filesStoreApi.getState().folders.get( folderId );
-				const viewerId = Number( window.desktopModeConfig?.currentUserId ?? 0 );
+				const viewerId = Number( window.openStationConfig?.currentUserId ?? 0 );
 				const isRecipient =
 					!! folderRow && folderRow.ownerId > 0 && folderRow.ownerId !== viewerId;
 				const baseTitle = file.title();
@@ -317,17 +317,17 @@ export function registerBuiltInFileOpeners(): void {
 							// is unified across folder surfaces.
 							const split = document.createElement( 'div' );
 							split.className =
-								'desktop-mode-folder-window__split';
+								'os-folder-window__split';
 							bodyHost.appendChild( split );
 
 							const layerHost = document.createElement( 'div' );
 							layerHost.className =
-								'desktop-mode-folder-window__layer';
+								'os-folder-window__layer';
 							split.appendChild( layerHost );
 
 							const previewPane = document.createElement( 'div' );
 							previewPane.className =
-								'desktop-mode-folder-window__preview';
+								'os-folder-window__preview';
 							previewPane.appendChild( renderPreviewEmpty() );
 							split.appendChild( previewPane );
 
@@ -364,7 +364,7 @@ export function registerBuiltInFileOpeners(): void {
 									return;
 								}
 								const tile = e.target.closest< HTMLElement >(
-									'.desktop-mode-file-tile',
+									'.os-file-tile',
 								);
 								if ( ! tile ) {
 									return;
@@ -384,7 +384,7 @@ export function registerBuiltInFileOpeners(): void {
 								e.stopPropagation();
 								const subTitle =
 									tile.querySelector< HTMLElement >(
-										'.desktop-mode-file-tile__label',
+										'.os-file-tile__label',
 									)?.textContent ?? `#${ subId }`;
 								routes.push( {
 									folderId: subId,
@@ -399,14 +399,14 @@ export function registerBuiltInFileOpeners(): void {
 							);
 
 							// Same Sort By menu My WordPress uses — one
-							// `<wpd-context-menu>` recipe across every
+							// `<os-context-menu>` recipe across every
 							// icon canvas in the shell. The folder
 							// window also adds "New folder" as an
 							// extra entry so users can create sub-
 							// folders directly inside the active
 							// folder, matching the wallpaper's CMO.
 							const menu = attachIconCanvasMenu( layerHost, {
-								scope: `desktop-mode-folder:${ route.folderId }`,
+								scope: `os-folder:${ route.folderId }`,
 								onSort: ( mode ) => layer.sort( mode ),
 								extraItems: [
 									{
@@ -504,7 +504,7 @@ export function registerBuiltInFileOpeners(): void {
 					shortcutWindow?: string;
 					shortcutUrl?: string;
 				};
-				type WpDesktopShape = {
+				type OpenStationShape = {
 					openWindow?: ( id: string ) => unknown;
 					windowManager?: {
 						open: ( cfg: Record< string, unknown > ) => unknown;
@@ -512,8 +512,8 @@ export function registerBuiltInFileOpeners(): void {
 					config?: { adminUrl?: string };
 				};
 				const wp = ( window.wp as
-					| { desktop?: WpDesktopShape }
-					| undefined )?.desktop;
+					| { os?: OpenStationShape }
+					| undefined )?.os;
 				if ( ! wp ) {
 					return;
 				}

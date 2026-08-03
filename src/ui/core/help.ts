@@ -1,7 +1,7 @@
 /**
- * wpd-ui — in-product component help descriptors.
+ * os-ui — in-product component help descriptors.
  *
- * Every `<wpd-*>` component may declare a `static help: WpdHelp`
+ * Every `<os-*>` component may declare a `static help: OsHelp`
  * descriptor on its class. Those descriptors power the Help tab in
  * OS Settings (developer-facing, admin-gated) so plugin authors can
  * browse the component library without leaving WordPress.
@@ -22,53 +22,53 @@
 import type { TemplateResult } from './html';
 
 /** Stability contract label, borrowed from `docs/hooks-reference.md`. */
-export type WpdHelpStatus = 'stable' | 'experimental' | 'planned';
+export type OsHelpStatus = 'stable' | 'experimental' | 'planned';
 
-export interface WpdHelpProp {
+export interface OsHelpProp {
 	name: string;
 	type?: string;
 	default?: string;
 	description?: string;
 }
 
-export interface WpdHelpSlot {
+export interface OsHelpSlot {
 	/** Slot name; use `'(default)'` for the unnamed default slot. */
 	name: string;
 	description?: string;
 }
 
-export interface WpdHelpPart {
+export interface OsHelpPart {
 	name: string;
 	description?: string;
 }
 
-export interface WpdHelpCssProp {
+export interface OsHelpCssProp {
 	name: string;
 	description?: string;
 	default?: string;
 }
 
-export interface WpdHelpEvent {
+export interface OsHelpEvent {
 	name: string;
 	description?: string;
 	/** One-line shape hint for the event's `detail` payload. */
 	detail?: string;
 }
 
-export interface WpdHelp {
+export interface OsHelp {
 	/** Human-readable title — e.g., `'Button'`. Defaults to the tag name. */
 	title?: string;
 	/** One-paragraph summary. Keep short; examples carry the nuance. */
 	summary?: string;
 	/** Stability label. Defaults to `'stable'` when omitted. */
-	status?: WpdHelpStatus;
+	status?: OsHelpStatus;
 	/** Semver the component first shipped in (e.g. `'0.9.0'`). */
 	since?: string;
-	props?: readonly WpdHelpProp[];
-	slots?: readonly WpdHelpSlot[];
-	parts?: readonly WpdHelpPart[];
-	cssProps?: readonly WpdHelpCssProp[];
-	events?: readonly WpdHelpEvent[];
+	props?: readonly OsHelpProp[];
+	slots?: readonly OsHelpSlot[];
+	parts?: readonly OsHelpPart[];
+	cssProps?: readonly OsHelpCssProp[];
+	events?: readonly OsHelpEvent[];
 	/**
 	 * Live example rendered inside the Help panel. Must be a plain
 	 * `html\`\`` template — the panel renders it into an isolated

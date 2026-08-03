@@ -1,14 +1,14 @@
 /**
- * Desktop Mode — Pinned notes.
+ * OpenStation — Pinned notes.
  *
  * Paper notes pinned to the wallpaper with a pushpin. Deliberately
  * differentiated from the window-like Guidelines sticky cards
- * (`.desktop-mode-sticky-note`): no chrome header, no border, no
+ * (`.os-sticky-note`): no chrome header, no border, no
  * resize handle — a pin, a paper, ink.
  *
  * The pastel tokens are shared with the Note Pad widget
  * (`widget-notes.css` consumes them) — keep the slug list in sync
- * with `desktop_mode_notes_colors()` (PHP) and `src/notes/colors.ts`.
+ * with `open_station_notes_colors()` (PHP) and `src/notes/colors.ts`.
  */
 
 /* ------------------------------------------------------------------
@@ -115,7 +115,7 @@
    Layer root
    ------------------------------------------------------------------ */
 
-.desktop-mode-notes {
+.os-notes {
 	position: absolute;
 	inset: 0;
 	z-index: 2;
@@ -124,11 +124,11 @@
 
 /* Mission-control style overview hides the wall, like the sticky
    layer does. */
-.desktop-mode-area--overview .desktop-mode-notes {
+.os-area--overview .os-notes {
 	display: none;
 }
 
-.desktop-mode-notes__live {
+.os-notes__live {
 	position: absolute;
 	width: 1px;
 	height: 1px;
@@ -140,7 +140,7 @@
    The pinned note
    ------------------------------------------------------------------ */
 
-.desktop-mode-pinned-note {
+.os-pinned-note {
 	position: absolute;
 	width: 208px;
 	pointer-events: auto;
@@ -149,7 +149,7 @@
 	transform-origin: calc(50% + var(--dm-pin-dx, 0px)) 14px;
 }
 
-.desktop-mode-pinned-note__paper {
+.os-pinned-note__paper {
 	position: relative;
 	min-height: 190px;
 	max-height: 320px;
@@ -178,7 +178,7 @@
 }
 
 /* Focus = the paper lifts a hair; never an outline rectangle. */
-.desktop-mode-pinned-note:focus-within .desktop-mode-pinned-note__paper {
+.os-pinned-note:focus-within .os-pinned-note__paper {
 	box-shadow:
 		0 2px 3px rgba(0, 0, 0, 0.18),
 		0 12px 26px -6px rgba(0, 0, 0, 0.34),
@@ -195,7 +195,7 @@
    The pushpin
    ------------------------------------------------------------------ */
 
-.desktop-mode-pinned-note__pin {
+.os-pinned-note__pin {
 	position: absolute;
 	/* Needle tip lands at (50% + dx, 10px) of the note. Tip fractions
 	   from assets/images/pushpin.svg: 57.0% / 52.5%. Keep the pixel
@@ -214,17 +214,17 @@
 	touch-action: none;
 }
 
-.desktop-mode-pinned-note__pin:active {
+.os-pinned-note__pin:active {
 	cursor: grabbing;
 }
 
-.desktop-mode-pinned-note__pin:focus-visible {
+.os-pinned-note__pin:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
 	outline-offset: 3px;
 	border-radius: 50%;
 }
 
-.desktop-mode-pinned-note__pin-img {
+.os-pinned-note__pin-img {
 	display: block;
 	width: 56px;
 	height: 52px;
@@ -232,13 +232,13 @@
 }
 
 /* Other users' pins are steel — scenery, not a handle. */
-.desktop-mode-pinned-note[data-owner="other"] .desktop-mode-pinned-note__pin {
+.os-pinned-note[data-owner="other"] .os-pinned-note__pin {
 	cursor: default;
 	pointer-events: none;
 	transform: rotate(var(--dm-pin-rot, 0deg)) scale(0.9);
 }
 
-.desktop-mode-pinned-note[data-owner="other"] .desktop-mode-pinned-note__pin-img {
+.os-pinned-note[data-owner="other"] .os-pinned-note__pin-img {
 	filter: saturate(0.12) brightness(1.08) contrast(0.95);
 }
 
@@ -246,7 +246,7 @@
    Owner chrome — hover/focus-revealed
    ------------------------------------------------------------------ */
 
-.desktop-mode-pinned-note__meta {
+.os-pinned-note__meta {
 	position: absolute;
 	inset-inline: 8px;
 	top: 6px;
@@ -262,18 +262,18 @@
 /* Push the color dot to the left edge; the action buttons cluster on
    the right. Keeps a stable layout whether or not the convert button
    is present (it's gated on the `edit_posts` capability). */
-.desktop-mode-pinned-note__meta .desktop-mode-pinned-note__color-dot {
+.os-pinned-note__meta .os-pinned-note__color-dot {
 	margin-inline-end: auto;
 }
 
-.desktop-mode-pinned-note:hover .desktop-mode-pinned-note__meta,
-.desktop-mode-pinned-note:focus-within .desktop-mode-pinned-note__meta {
+.os-pinned-note:hover .os-pinned-note__meta,
+.os-pinned-note:focus-within .os-pinned-note__meta {
 	opacity: 1;
 }
 
 /* Color dot: painted in the NEXT color — the affordance shows the
    outcome. */
-.desktop-mode-pinned-note__color-dot {
+.os-pinned-note__color-dot {
 	width: 20px;
 	height: 20px;
 	padding: 0;
@@ -284,25 +284,25 @@
 	transition: transform 140ms ease-out;
 }
 
-.desktop-mode-pinned-note__color-dot:hover {
+.os-pinned-note__color-dot:hover {
 	transform: scale(1.25);
 }
 
-.desktop-mode-pinned-note__color-dot:focus-visible {
+.os-pinned-note__color-dot:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
 	outline-offset: 2px;
 }
 
-.desktop-mode-pinned-note__visibility {
-	--wpd-btn-color: var(--dm-note-ink-soft);
+.os-pinned-note__visibility {
+	--os-ui-btn-color: var(--dm-note-ink-soft);
 	opacity: 0.75;
 }
 
-.desktop-mode-pinned-note__visibility:hover {
+.os-pinned-note__visibility:hover {
 	opacity: 1;
 }
 
-.desktop-mode-pinned-note__visibility .dashicons {
+.os-pinned-note__visibility .dashicons {
 	/* Match the color-cycle dot (20px) — the lock/globe was too easy
 	   to miss at dashicons' default size. */
 	font-size: 20px;
@@ -313,16 +313,16 @@
 
 /* "Convert to post" — same treatment as the visibility toggle. Only
    rendered for users who can author posts. */
-.desktop-mode-pinned-note__convert {
-	--wpd-btn-color: var(--dm-note-ink-soft);
+.os-pinned-note__convert {
+	--os-ui-btn-color: var(--dm-note-ink-soft);
 	opacity: 0.75;
 }
 
-.desktop-mode-pinned-note__convert:hover {
+.os-pinned-note__convert:hover {
 	opacity: 1;
 }
 
-.desktop-mode-pinned-note__convert svg {
+.os-pinned-note__convert svg {
 	width: 20px;
 	height: 20px;
 	fill: var(--dm-note-ink, #4d4419);
@@ -332,10 +332,10 @@
    "Convert to post" drop-target highlight
    ------------------------------------------------------------------
    Set on the Posts dock tile / native Posts window body while a note
-   pin is dragged over it (`data-desktop-mode-posts-drop-active`, from
+   pin is dragged over it (`data-os-posts-drop-active`, from
    src/notes/posts-drop-target.ts). Mirrors the recycle-bin affordance. */
-.desktop-mode-dock__item[data-menu-slug="menu-posts"][data-desktop-mode-posts-drop-active],
-.desktop-mode-dock__item[data-menu-slug="editphp"][data-desktop-mode-posts-drop-active] {
+.os-dock__item[data-menu-slug="menu-posts"][data-os-posts-drop-active],
+.os-dock__item[data-menu-slug="editphp"][data-os-posts-drop-active] {
 	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
 	outline-offset: 2px;
 	border-radius: 12px;
@@ -349,7 +349,7 @@
 		background 80ms ease;
 }
 
-[data-desktop-mode-posts-root][data-desktop-mode-posts-drop-active] {
+[data-os-posts-root][data-os-posts-drop-active] {
 	position: relative;
 	box-shadow: inset 0 0 0 2px var(--wp-admin-theme-color, #3858e9);
 	transition: box-shadow 80ms ease;
@@ -359,12 +359,12 @@
    Ink
    ------------------------------------------------------------------ */
 
-.desktop-mode-pinned-note__editor {
+.os-pinned-note__editor {
 	flex: 1 1 auto;
 	font-family: var(--dm-note-hand-font);
 }
 
-.desktop-mode-pinned-note__editor::part(textarea) {
+.os-pinned-note__editor::part(textarea) {
 	background: transparent;
 	border: none;
 	box-shadow: none;
@@ -375,7 +375,7 @@
 	line-height: 1.45;
 }
 
-.desktop-mode-pinned-note__body {
+.os-pinned-note__body {
 	flex: 1 1 auto;
 	overflow-y: auto;
 	font-family: var(--dm-note-hand-font);
@@ -386,22 +386,22 @@
 	user-select: text;
 }
 
-.desktop-mode-pinned-note__body::selection {
+.os-pinned-note__body::selection {
 	background: var(--dm-note-paper-deep, #f4df7c);
 }
 
-.desktop-mode-pinned-note__footer {
+.os-pinned-note__footer {
 	display: flex;
 	justify-content: flex-start;
 	min-height: 16px;
 }
 
-.desktop-mode-pinned-note__status {
+.os-pinned-note__status {
 	opacity: 0.6;
 }
 
 /* Author sticker on read-only public notes — always visible. */
-.desktop-mode-pinned-note__attribution {
+.os-pinned-note__attribution {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -423,17 +423,17 @@
 
 /* The imprint: while the pin is out, the real note stays as a faint
    "where it was" mark. Class stamped by the DragManager at lift. */
-.desktop-mode-pinned-note.desktop-mode-file-tile--dragging {
+.os-pinned-note.os-file-tile--dragging {
 	opacity: 0.18;
 	filter: saturate(0.3);
 }
 
-.desktop-mode-pinned-note.desktop-mode-file-tile--dragging .desktop-mode-pinned-note__paper {
+.os-pinned-note.os-file-tile--dragging .os-pinned-note__paper {
 	box-shadow: none;
 }
 
 /* Keyboard move mode: carried look on the real note. */
-.desktop-mode-pinned-note--move-mode .desktop-mode-pinned-note__paper {
+.os-pinned-note--move-mode .os-pinned-note__paper {
 	box-shadow:
 		0 3px 5px rgba(0, 0, 0, 0.2),
 		0 26px 48px -10px rgba(0, 0, 0, 0.42),
@@ -442,21 +442,21 @@
 
 /* The ghost — the note you're carrying by its pin. The DragManager
    owns the ROOT's transform; the pendulum owns the swing wrapper. */
-.desktop-mode-pinned-note-ghost {
+.os-pinned-note-ghost {
 	position: relative;
 }
 
-.desktop-mode-pinned-note-ghost__swing {
+.os-pinned-note-ghost__swing {
 	position: relative;
 	width: 100%;
 	height: 100%;
 }
 
-.desktop-mode-pinned-note-ghost .desktop-mode-pinned-note__pin {
+.os-pinned-note-ghost .os-pinned-note__pin {
 	pointer-events: none;
 }
 
-.desktop-mode-pinned-note-ghost__paper {
+.os-pinned-note-ghost__paper {
 	/* Clearly airborne. */
 	transform: scale(1.04) rotate(2.5deg);
 	transform-origin: 50% 14px;
@@ -486,7 +486,7 @@
 }
 
 /* Over the recycle bin: the paper knows what's coming. */
-.desktop-mode-pinned-note-ghost--doom .desktop-mode-pinned-note-ghost__paper {
+.os-pinned-note-ghost--doom .os-pinned-note-ghost__paper {
 	transform: scale(0.88);
 	filter: saturate(0.75) brightness(0.95);
 	animation: dm-note-doom-shiver 180ms ease-in-out infinite alternate;
@@ -503,7 +503,7 @@
 }
 
 /* The one-shot "thunk" ripple at the pin anchor. */
-.desktop-mode-pinned-note__ripple {
+.os-pinned-note__ripple {
 	position: absolute;
 	left: calc(50% + var(--dm-pin-dx, 0px) - 4px);
 	top: 6px;
@@ -519,12 +519,12 @@
    ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-	.desktop-mode-pinned-note__paper,
+	.os-pinned-note__paper,
 	.dm-notes-pad__sheet {
 		transition: none;
 	}
 
-	.desktop-mode-pinned-note-ghost--doom .desktop-mode-pinned-note-ghost__paper {
+	.os-pinned-note-ghost--doom .os-pinned-note-ghost__paper {
 		animation: none;
 		transform: scale(0.92);
 	}

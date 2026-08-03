@@ -1,6 +1,6 @@
 # Register a wallpaper
 
-The OS Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.desktop.registerWallpaper()` from inside a `desktop-mode.init` action so the public API is guaranteed available.
+The OS Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.os.registerWallpaper()` from inside a `os.init` action so the public API is guaranteed available.
 
 Two types today: **CSS** (a static `background` value) and **canvas** (a plugin-managed DOM subtree, typically a WebGL/2D canvas).
 
@@ -21,7 +21,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'my-wallpaper',
         plugins_url( 'my-wallpaper.js', __FILE__ ),
-        array( 'desktop-mode' ),   // <- hooks into the shell
+        array( 'openstation' ),   // <- hooks into the shell
         '1.0.0',
         true
     );
@@ -31,8 +31,8 @@ add_action( 'admin_enqueue_scripts', function () {
 **my-wallpaper.js**
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/ocean',
         label: 'Ocean',
         type: 'css',
@@ -43,9 +43,9 @@ wp.desktop.ready( () => {
 } );
 ```
 
-The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--desktop-mode-bg` and persists the user's selection to `localStorage`.
+The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--os-bg` and persists the user's selection to `localStorage`.
 
-`description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `desktop_mode_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
+`description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `open_station_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
 
 ---
 
@@ -54,8 +54,8 @@ The swatch appears in OS Settings next time the panel opens. Clicking it writes 
 Declare dependencies by module id — the shell ships `pixijs` pre-registered and loads it before `mount` fires the first time anyone activates a wallpaper that needs it. Concurrent activations dedupe the fetch automatically.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/particles',
         label: 'Particles',
         type: 'canvas',
@@ -81,7 +81,7 @@ wp.desktop.ready( () => {
                 else app.ticker.start();
             };
             wp.hooks.addAction(
-                'desktop-mode.wallpaper.visibility',
+                'os.wallpaper.visibility',
                 'my-plugin/particles-visibility',
                 onVisibility
             );
@@ -90,7 +90,7 @@ wp.desktop.ready( () => {
             // switching wallpapers leaks memory.
             return () => {
                 wp.hooks.removeAction(
-                    'desktop-mode.wallpaper.visibility',
+                    'os.wallpaper.visibility',
                     'my-plugin/particles-visibility'
                 );
                 app.destroy( { removeView: true } );
@@ -107,16 +107,16 @@ wp.desktop.ready( () => {
 If you use a library that isn't pre-registered, register it once. Other plugins can then `needs:` it by id and share your fetch.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerModule( {
+wp.os.ready( () => {
+    wp.os.registerModule( {
         id: 'three-js',
-        url: `${ wp.desktop.config.pluginUrl }/vendor/three.min.js`,
+        url: `${ wp.os.config.pluginUrl }/vendor/three.min.js`,
         isReady: () => typeof window.THREE !== 'undefined',
     } );
 } );
 
 // ...elsewhere (same plugin or another):
-wp.desktop.registerWallpaper( {
+wp.os.registerWallpaper( {
     id: 'my-plugin/starfield',
     type: 'canvas',
     needs: [ 'three-js' ],
@@ -133,8 +133,8 @@ Any wallpaper can ship `renderEditor`. When that wallpaper is the selected swatc
 ```javascript
 const state = { tint: '#6366f1' };
 
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/tintable',
         label: 'Tintable',
         type: 'css',
@@ -148,7 +148,7 @@ wp.desktop.ready( () => {
                 state.tint = input.value;
                 // Force an apply so the layer re-reads resolveValue.
                 // (A helper for this pattern may ship in a future release.)
-                wp.desktop.registerWallpaper( {
+                wp.os.registerWallpaper( {
                     id: 'my-plugin/tintable',
                     label: 'Tintable',
                     type: 'css',
@@ -170,11 +170,11 @@ wp.desktop.ready( () => {
 
 A canvas wallpaper's `preview` string is a static stand-in. Ship `renderPreview` and the OS Settings picker mounts the real thing (or a cheap facsimile) inside the swatch tile — lazily, only while the tile is visible, capped at 4 concurrent previews page-wide, with the CSS `preview` as the fallback for every failure mode.
 
-`ctx.params` parametrizes what the preview depicts: it's your def's `previewParams` after the `desktop-mode.wallpaper.preview-params` filter. Use it when the honest render would look wrong in a thumbnail — the built-in Living Tree previews a 540-day-old showcase site so a day-old install doesn't advertise the wallpaper as a bare sprout.
+`ctx.params` parametrizes what the preview depicts: it's your def's `previewParams` after the `os.wallpaper.preview-params` filter. Use it when the honest render would look wrong in a thumbnail — the built-in Living Tree previews a 540-day-old showcase site so a day-old install doesn't advertise the wallpaper as a bare sprout.
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWallpaper( {
+wp.os.ready( () => {
+    wp.os.registerWallpaper( {
         id: 'my-plugin/aquarium',
         label: 'Aquarium',
         type: 'canvas',
@@ -201,7 +201,7 @@ Site owners and plugins can re-parametrize any wallpaper's preview without touch
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.wallpaper.preview-params',
+    'os.wallpaper.preview-params',
     'my-plugin/more-fish',
     ( params, wallpaperId ) =>
         wallpaperId === 'my-plugin/aquarium'
@@ -214,12 +214,12 @@ wp.hooks.addFilter(
 
 ## Recipe 5 — A settings dialog with persisted values
 
-`renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OS Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<wpd-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OS Settings (localStorage + user meta — values follow the user across devices).
+`renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OS Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<os-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OS Settings (localStorage + user meta — values follow the user across devices).
 
-Every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) reads the persisted bag back as `ctx.settings`. Each `setSettings` call also fires the `desktop-mode.wallpaper.settings-changed` action with the full post-merge bag, so a mounted wallpaper applies edits live — the dialog doubles as a tuning panel.
+Every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) reads the persisted bag back as `ctx.settings`. Each `setSettings` call also fires the `os.wallpaper.settings-changed` action with the full post-merge bag, so a mounted wallpaper applies edits live — the dialog doubles as a tuning panel.
 
 ```javascript
-window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
+window.openStationWallpapers[ 'my-plugin/aquarium' ] = {
     id: 'my-plugin/aquarium',
     label: 'Aquarium',
     type: 'canvas',
@@ -237,13 +237,13 @@ window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
             scene.setFishCount( Number( detail.settings.fishCount ) || 12 );
         };
         wp.hooks.addAction(
-            'desktop-mode.wallpaper.settings-changed',
+            'os.wallpaper.settings-changed',
             'my-plugin/aquarium-live',
             onSettings
         );
         return () => {
             wp.hooks.removeAction(
-                'desktop-mode.wallpaper.settings-changed',
+                'os.wallpaper.settings-changed',
                 'my-plugin/aquarium-live'
             );
             scene.destroy();
@@ -251,12 +251,12 @@ window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
     },
 
     renderConfig: ( container, ctx ) => {
-        const field = document.createElement( 'wpd-range-field' );
+        const field = document.createElement( 'os-range-field' );
         field.setAttribute( 'label', 'Fish' );
         field.setAttribute( 'min', '1' );
         field.setAttribute( 'max', '60' );
         field.setAttribute( 'value', String( Number( ctx.settings.fishCount ) || 12 ) );
-        field.addEventListener( 'wpd-range-change', ( e ) => {
+        field.addEventListener( 'os-range-change', ( e ) => {
             ctx.setSettings( { fishCount: e.detail.value } );  // persists + fires the action
         } );
         container.appendChild( field );
@@ -271,12 +271,12 @@ Scalar values only (`string | number | boolean`) — the server-side sanitizer d
 
 ## Removing or reordering built-ins
 
-The `desktop-mode.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
+The `os.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
 
 ```javascript
 // Hide the stock 'aurora' preset.
 wp.hooks.addFilter(
-    'desktop-mode.wallpapers',
+    'os.wallpapers',
     'my-plugin/hide-aurora',
     ( list ) => list.filter( ( w ) => w.id !== 'aurora' )
 );
@@ -286,14 +286,14 @@ wp.hooks.addFilter(
 
 ## A canvas wallpaper driven by REST data
 
-A canvas wallpaper doesn't have to be self-contained — it can pull site data over REST at mount time and shape itself from it. The built-in **Living Tree** wallpaper (`wp-living-tree`) is the reference for this pattern: on mount it fetches `desktop-mode/v1/living-tree/snapshot` through `wp.desktop.fetch` (so the request feeds the activity bus), turns the compact site "DNA" into normalised parameters, and renders a growing tree with PixiJS. Its algorithm is fully specified in [`../living-tree-algorithm.md`](../living-tree-algorithm.md), and the source under `src/plugins/living-tree-wallpaper/` is a good skeleton to copy: `index.ts` (fetch + publish the def), `scene.ts` (PixiJS app, layers, ticker, teardown), plus a narrow `pixi-types.ts` so the bundle never imports `pixi.js` directly.
+A canvas wallpaper doesn't have to be self-contained — it can pull site data over REST at mount time and shape itself from it. The built-in **Living Tree** wallpaper (`wp-living-tree`) is the reference for this pattern: on mount it fetches `desktop-mode/v1/living-tree/snapshot` through `wp.os.fetch` (so the request feeds the activity bus), turns the compact site "DNA" into normalised parameters, and renders a growing tree with PixiJS. Its algorithm is fully specified in [`../living-tree-algorithm.md`](../living-tree-algorithm.md), and the source under `src/plugins/living-tree-wallpaper/` is a good skeleton to copy: `index.ts` (fetch + publish the def), `scene.ts` (PixiJS app, layers, ticker, teardown), plus a narrow `pixi-types.ts` so the bundle never imports `pixi.js` directly.
 
-The one rule worth stealing: **fetch through the framework, never raw `fetch()`** — use `trackedFetch` (in-bundle) or `window.wp.desktop.fetch` (external), with `{ silent: true }` for a background pull the user didn't initiate.
+The one rule worth stealing: **fetch through the framework, never raw `fetch()`** — use `trackedFetch` (in-bundle) or `window.wp.os.fetch` (external), with `{ silent: true }` for a background pull the user didn't initiate.
 
 ---
 
 ## Reference
 
-- [Hooks catalog](../javascript-reference.md#4-hooks--desktop-mode) — every `desktop-mode.*` hook with its payload shape.
+- [Hooks catalog](../javascript-reference.md#4-hooks--openstation) — every `os.*` hook with its payload shape.
 - [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type, including `renderPreview` / `previewParams` / `renderConfig`.
 - [The Living Tree — algorithm definition](../living-tree-algorithm.md) — a worked canvas-wallpaper spec that consumes REST site data.

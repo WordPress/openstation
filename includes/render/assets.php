@@ -1,47 +1,47 @@
 <?php
 /**
- * Desktop Mode — Asset enqueue.
+ * OpenStation — Asset enqueue.
  *
- * Loads the desktop shell CSS + JS bundles when desktop mode is
+ * Loads the desktop shell CSS + JS bundles when OpenStation is
  * active and the request isn't chromeless / classic-overridden.
- * Owns the entire `desktop_mode_enqueue_assets()` body — the
+ * Owns the entire `open_station_enqueue_assets()` body — the
  * largest hook in the original render.php and the natural seam
  * for "what does the shell ship to the browser today?".
  *
  * Extracted from `render.php` during the architecture-0.8.1 PHP
  * slicing (phase 6).
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Enqueues the desktop mode shell assets (CSS + JS) when desktop mode is active.
+ * Enqueues the OpenStation shell assets (CSS + JS) when OpenStation is active.
  *
  * Only loads the full desktop shell scripts and styles when the user has
- * desktop mode enabled and the request is not a chromeless iframe load.
+ * OpenStation enabled and the request is not a chromeless iframe load.
  */
-function desktop_mode_enqueue_assets() {
+function open_station_enqueue_assets() {
 	if ( ! is_admin() ) {
 		return;
 	}
 
-	// Auto-enqueue the iframe bridge anywhere a desktop-mode user
+	// Auto-enqueue the iframe bridge anywhere a openstation user
 	// might land. The bundle self-bails when not inside an iframe
 	// (`window.parent === window`), so it's a no-op on the parent
 	// shell — but cheap insurance against the failure mode the
 	// developer hit: an internal admin navigation drops the
-	// `?desktop_mode_chromeless=1` flag, the chromeless inline bridge doesn't
-	// run, and `wp.desktop.iframe` silently disappears. With this
+	// `?open_station_chromeless=1` flag, the chromeless inline bridge doesn't
+	// run, and `wp.os.iframe` silently disappears. With this
 	// auto-enqueue, the API is universally present for any same-
-	// origin admin page a desktop-mode user opens — chromeless or
+	// origin admin page a openstation user opens — chromeless or
 	// accidentally classic.
-	if ( desktop_mode_is_enabled() ) {
-		wp_enqueue_script( 'desktop-mode-iframe-bridge' );
+	if ( open_station_is_enabled() ) {
+		wp_enqueue_script( 'os-iframe-bridge' );
 
 		// Block Editor cross-window drop receiver. Listens for
-		// `desktop-mode-drop` postMessages from the parent shell and
+		// `os-drop` postMessages from the parent shell and
 		// inserts the matching block. Only enqueue inside the
 		// post-edit Block Editor screens — every other admin page
 		// would be paying for a bundle it never uses.
@@ -54,44 +54,44 @@ function desktop_mode_enqueue_assets() {
 		// once we have a reliable readiness signal in that context.
 		global $hook_suffix;
 		if ( 'post.php' === $hook_suffix || 'post-new.php' === $hook_suffix ) {
-			wp_enqueue_script( 'desktop-mode-gutenberg-drop-receiver' );
+			wp_enqueue_script( 'os-gutenberg-drop-receiver' );
 		}
 	}
 
 	// Chromeless requests (iframes) need chromeless styles and overrides.
-	if ( desktop_mode_is_chromeless_request() ) {
-		wp_enqueue_style( 'desktop-mode' );
-		wp_enqueue_style( 'desktop-mode-chromeless' );
+	if ( open_station_is_chromeless_request() ) {
+		wp_enqueue_style( 'openstation' );
+		wp_enqueue_style( 'os-chromeless' );
 
 		/**
-		 * Fires when chromeless styles are enqueued inside a desktop mode iframe.
+		 * Fires when chromeless styles are enqueued inside a OpenStation iframe.
 		 *
 		 * Plugin and theme authors can hook here to enqueue their own CSS
 		 * overrides for legacy pages rendered in chromeless mode. Use the
-		 * `.desktop-mode-chromeless` body class to scope your rules.
+		 * `.os-chromeless` body class to scope your rules.
 		 */
-		do_action( 'desktop_mode_chromeless_styles' );
+		do_action( 'open_station_chromeless_styles' );
 		return;
 	}
 
-	if ( ! desktop_mode_is_enabled() || desktop_mode_is_classic_request() ) {
+	if ( ! open_station_is_enabled() || open_station_is_classic_request() ) {
 		return;
 	}
 
 	// CSS.
-	wp_enqueue_style( 'desktop-mode' );
-	wp_enqueue_style( 'desktop-mode-windows' );
-	wp_enqueue_style( 'desktop-mode-window-overview' );
-	wp_enqueue_style( 'desktop-mode-os-settings' );
-	wp_enqueue_style( 'desktop-mode-dock' );
-	wp_enqueue_style( 'desktop-mode-dock-peek' );
+	wp_enqueue_style( 'openstation' );
+	wp_enqueue_style( 'os-windows' );
+	wp_enqueue_style( 'os-window-overview' );
+	wp_enqueue_style( 'os-settings' );
+	wp_enqueue_style( 'os-dock' );
+	wp_enqueue_style( 'os-dock-peek' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
-	wp_enqueue_style( 'desktop-mode-files' );
-	wp_enqueue_style( 'desktop-mode-notes' );
+	wp_enqueue_style( 'os-files' );
+	wp_enqueue_style( 'os-notes' );
 
 	// JS.
-	wp_enqueue_script( 'desktop-mode' );
+	wp_enqueue_script( 'openstation' );
 
 	// `wp_enqueue_command_palette_assets()` (WP 6.9+) enqueues the
 	// `wp-commands` store package, the `wp-core-commands` script that
@@ -132,10 +132,10 @@ function desktop_mode_enqueue_assets() {
 		// the time `src/commands/shell-harvester.ts` classifies any
 		// command. Decoupled from WP's command-palette mount timing
 		// (which fires from a core-registered hook we can't reorder).
-		$menu_map = desktop_mode_build_command_menu_map();
+		$menu_map = open_station_build_command_menu_map();
 		wp_add_inline_script(
-			'desktop-mode',
-			'window.__desktopModeMenuCommands = ' . wp_json_encode( $menu_map ) . ';',
+			'openstation',
+			'window.__openStationMenuCommands = ' . wp_json_encode( $menu_map ) . ';',
 			'before'
 		);
 	}
@@ -155,11 +155,11 @@ function desktop_mode_enqueue_assets() {
 
 	// Build dock items from the admin menu. Core pages are ordered
 	// first (Dashboard, Posts, Plugins, Users, Settings, …), then
-	// plugin-contributed top-level routes. `desktop_mode_dock_placement`
+	// plugin-contributed top-level routes. `open_station_dock_placement`
 	// is the per-item filter escape hatch for hiding. Shared with the
 	// REST menu endpoint so live refreshes (post plugin-activation)
 	// produce the same ordering as the boot payload.
-	$menu_payload    = desktop_mode_build_menu_payload();
+	$menu_payload    = open_station_build_menu_payload();
 	$dock_items      = $menu_payload['dockItems'];
 	$native_windows  = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
@@ -236,23 +236,23 @@ function desktop_mode_enqueue_assets() {
 	// Files-on-the-Desktop payload (Phase 0+1). Plugin-registered
 	// file types and openers ship as metadata only; the JS side
 	// holds the executable handlers and resolves on double-click.
-	$server_file_types        = function_exists( 'desktop_mode_build_file_types_payload' )
-		? desktop_mode_build_file_types_payload()
+	$server_file_types        = function_exists( 'open_station_build_file_types_payload' )
+		? open_station_build_file_types_payload()
 		: array();
-	$server_file_openers      = function_exists( 'desktop_mode_build_file_openers_payload' )
-		? desktop_mode_build_file_openers_payload()
+	$server_file_openers      = function_exists( 'open_station_build_file_openers_payload' )
+		? open_station_build_file_openers_payload()
 		: array();
-	$user_file_associations   = function_exists( 'desktop_mode_get_user_file_associations' )
-		? desktop_mode_get_user_file_associations( get_current_user_id() )
+	$user_file_associations   = function_exists( 'open_station_get_user_file_associations' )
+		? open_station_get_user_file_associations( get_current_user_id() )
 		: array();
-	$server_wallpaper_menu_items = function_exists( 'desktop_mode_build_wallpaper_menu_items' )
-		? desktop_mode_build_wallpaper_menu_items()
+	$server_wallpaper_menu_items = function_exists( 'open_station_build_wallpaper_menu_items' )
+		? open_station_build_wallpaper_menu_items()
 		: array();
 
 	/*
 	 * OS-file drop config — what the browser drop manager will
 	 * accept when the user drags a file from their native desktop
-	 * onto any surface inside Desktop Mode (wallpaper, a folder,
+	 * onto any surface inside OpenStation (wallpaper, a folder,
 	 * a window, or a chromeless iframe). The allowed-mimes list is
 	 * the user-scoped `get_allowed_mime_types()` (already capability
 	 * gated by WordPress); the size cap is `wp_max_upload_size()`.
@@ -270,7 +270,7 @@ function desktop_mode_enqueue_assets() {
 	 * @param array<string,string> $mimes_map  `ext => mime-type` map (same shape `get_allowed_mime_types()` returns).
 	 * @param int                  $user_id    The current user id.
 	 */
-	$drop_allowed_mimes_map = apply_filters( 'desktop_mode_drop_allowed_mimes', $drop_allowed_mimes_map, get_current_user_id() );
+	$drop_allowed_mimes_map = apply_filters( 'open_station_drop_allowed_mimes', $drop_allowed_mimes_map, get_current_user_id() );
 	$drop_allowed_mimes_map = is_array( $drop_allowed_mimes_map ) ? $drop_allowed_mimes_map : array();
 	$drop_allowed_mimes     = array_values( array_unique( array_values( $drop_allowed_mimes_map ) ) );
 
@@ -283,7 +283,7 @@ function desktop_mode_enqueue_assets() {
 	 * @param int $max_size  Default `wp_max_upload_size()`.
 	 * @param int $user_id   The current user id.
 	 */
-	$drop_max_size = (int) apply_filters( 'desktop_mode_drop_max_size', $drop_max_size, get_current_user_id() );
+	$drop_max_size = (int) apply_filters( 'open_station_drop_max_size', $drop_max_size, get_current_user_id() );
 
 	/**
 	 * Filter the master OS-file drop enable gate. Lets plugins
@@ -295,7 +295,7 @@ function desktop_mode_enqueue_assets() {
 	 * @param int  $user_id  The current user id.
 	 */
 	$drop_enabled = (bool) apply_filters(
-		'desktop_mode_drop_enabled',
+		'open_station_drop_enabled',
 		current_user_can( 'upload_files' ),
 		get_current_user_id()
 	);
@@ -313,22 +313,22 @@ function desktop_mode_enqueue_assets() {
 	// go through `wp_register_script`, so they don't pick up WordPress's
 	// usual `?ver=<filemtime>` cache-buster. Without one, the browser
 	// happily serves a stale cached copy across plugin updates that
-	// don't bump `DESKTOP_MODE_VERSION`, and the main bundle's loader
+	// don't bump `OPEN_STATION_VERSION`, and the main bundle's loader
 	// fires a `<script>`-loaded event for a file that's missing the
-	// fresh `window.desktopMode*` factory the new code expects.
+	// fresh `window.openStation*` factory the new code expects.
 	//
 	// Mirror the `$built_version( … )` helper in `includes/assets.php`:
 	// prefer the on-disk mtime of the actual file, fall back to the
 	// plugin version when the file is missing (dev environments where
 	// the bundle hasn't been built yet).
-	$suffix = desktop_mode_asset_suffix();
+	$suffix = open_station_asset_suffix();
 	$lazy_bundle_url = static function ( $base ) use ( $suffix ) {
-		$path = DESKTOP_MODE_DIR . 'assets/js/' . $base . $suffix . '.js';
+		$path = OPEN_STATION_DIR . 'assets/js/' . $base . $suffix . '.js';
 		$ver  = file_exists( $path )
 			? (string) filemtime( $path )
-			: DESKTOP_MODE_VERSION;
+			: OPEN_STATION_VERSION;
 		return esc_url_raw(
-			DESKTOP_MODE_URL . 'assets/js/' . $base . $suffix . '.js?ver=' . $ver
+			OPEN_STATION_URL . 'assets/js/' . $base . $suffix . '.js?ver=' . $ver
 		);
 	};
 
@@ -337,11 +337,11 @@ function desktop_mode_enqueue_assets() {
 	// for the same page — otherwise auto-opening the entry window and
 	// clicking the same dock icon would create a duplicate.
 	$current_query = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	unset( $current_query[ DESKTOP_MODE_PORTAL_FLAG ], $current_query[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] );
+	unset( $current_query[ OPEN_STATION_PORTAL_FLAG ], $current_query[ OPEN_STATION_PORTAL_INTENT_FLAG ] );
 	$current_page = admin_url( $pagenow ) . ( ! empty( $current_query ) ? '?' . http_build_query( $current_query ) : '' );
 
-	$from_portal        = ! empty( $_GET[ DESKTOP_MODE_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$from_portal_intent = ! empty( $_GET[ DESKTOP_MODE_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$from_portal        = ! empty( $_GET[ OPEN_STATION_PORTAL_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$from_portal_intent = ! empty( $_GET[ OPEN_STATION_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	/**
 	 * Filters the desktop shell configuration passed to JavaScript.
@@ -354,18 +354,18 @@ function desktop_mode_enqueue_assets() {
 	 *     @type string $currentIcon  Dashicon class for the current page.
 	 *     @type string $adminUrl     The base admin URL.
 	 *     @type string $colorScheme  The active admin color scheme.
-	 *     @type array  $dockItems    Dock items derived from the admin menu. Core WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…) are ordered first; plugin-contributed top-level routes (admin.php?page=*) follow. Items hidden via `desktop_mode_dock_placement` are omitted.
-	 *     @type array  $nativeWindows Server-declared native windows (via `desktop_mode_register_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
-	 *     @type array  $serverWidgets Server-declared right-column widgets (via `desktop_mode_register_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
-	 *     @type array  $serverWallpapers Server-declared wallpapers (via `desktop_mode_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.desktopModeWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
-	 *     @type array  $serverCommandScripts Script handles opted-in via `desktop_mode_register_command_script`. Shell injects each URL on activation so commands registered by `wp.desktop.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
-	 *     @type array  $serverCommands   Server-declared command metadata (via `desktop_mode_register_command`). Advisory today — reserved for future pre-registration shims.
-	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `desktop_mode_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.desktop.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
-	 *     @type array  $serverSettingsTabs Server-declared settings-tab metadata (via `desktop_mode_register_settings_tab`). Enables live unregistration on plugin deactivation without requiring JS to set `owner`.
-	 *     @type array  $desktopIcons     Server-declared desktop icons (via `desktop_mode_register_icon`). Rendered on the wallpaper as clickable shortcut tiles.
-	 *     @type array  $accentColors     Swatch list for the OS Settings accent picker. Filterable via `desktop_mode_accent_colors`.
-	 *     @type array  $toastTypes       Toast-notification type map. Filterable via `desktop_mode_toast_types`.
-	 *     @type string $defaultWallpaper Wallpaper slug applied on first boot. Filterable via `desktop_mode_default_wallpaper`.
+	 *     @type array  $dockItems    Dock items derived from the admin menu. Core WordPress pages (Dashboard, Posts, Plugins, Users, Settings, CPTs…) are ordered first; plugin-contributed top-level routes (admin.php?page=*) follow. Items hidden via `open_station_dock_placement` are omitted.
+	 *     @type array  $nativeWindows Server-declared native windows (via `open_station_register_window`). Shell registers + syncs tiles based on this list — activation/deactivation is a diff without shell reload.
+	 *     @type array  $serverWidgets Server-declared right-column widgets (via `open_station_register_widget`). Shell syncs the widget registry + dynamically loads plugin scripts so widgets appear in the picker without a shell reload.
+	 *     @type array  $serverWallpapers Server-declared wallpapers (via `open_station_register_wallpaper`). Same lifecycle — shell loads the plugin's JS, reads the full `WallpaperDef` from `window.openStationWallpapers[id]`, and registers / unregisters as plugins activate / deactivate.
+	 *     @type array  $serverCommandScripts Script handles opted-in via `open_station_register_command_script`. Shell injects each URL on activation so commands registered by `wp.os.registerCommand` appear in the palette live. Deactivation unregisters any commands whose `owner` matches the departing handle.
+	 *     @type array  $serverCommands   Server-declared command metadata (via `open_station_register_command`). Advisory today — reserved for future pre-registration shims.
+	 *     @type array  $serverSettingsTabScripts Script handles opted-in via `open_station_register_settings_tab_script`. Shell injects each URL on activation so tabs registered by `wp.os.registerSettingsTab` appear in the OS Settings window live. Deactivation unregisters tabs attributable to the departing handle.
+	 *     @type array  $serverSettingsTabs Server-declared settings-tab metadata (via `open_station_register_settings_tab`). Enables live unregistration on plugin deactivation without requiring JS to set `owner`.
+	 *     @type array  $desktopIcons     Server-declared desktop icons (via `open_station_register_icon`). Rendered on the wallpaper as clickable shortcut tiles.
+	 *     @type array  $accentColors     Swatch list for the OS Settings accent picker. Filterable via `open_station_accent_colors`.
+	 *     @type array  $toastTypes       Toast-notification type map. Filterable via `open_station_toast_types`.
+	 *     @type string $defaultWallpaper Wallpaper slug applied on first boot. Filterable via `open_station_default_wallpaper`.
 	 *     @type array  $session      Saved session (windows, focused, updated).
 	 *     @type string $sessionUrl       REST endpoint for saving the session.
 	 *     @type string $mediaUrl         REST endpoint for media uploads (wp/v2/media).
@@ -376,16 +376,16 @@ function desktop_mode_enqueue_assets() {
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
-	 *     @type string $portalUrl    Canonical `/desktop-mode/` URL.
+	 *     @type string $portalUrl    Canonical `/openstation/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
-	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/desktop-mode/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
+	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
-	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `desktop_mode_sticky_notes_is_available()`.
+	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `open_station_sticky_notes_is_available()`.
 	 * }
 	 */
 	$config = apply_filters(
-		'desktop_mode_shell_config',
+		'open_station_shell_config',
 		array(
 			'currentPage'      => esc_url( $current_page ),
 			'currentTitle'     => wp_strip_all_tags( $title ),
@@ -434,25 +434,25 @@ function desktop_mode_enqueue_assets() {
 			// who can author posts.
 			'canCreatePosts'         => current_user_can( 'edit_posts' ),
 			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
-			'accentColors'     => desktop_mode_get_accent_colors(),
-			'toastTypes'       => desktop_mode_get_toast_types(),
-			'coreUpdate'       => desktop_mode_get_core_update(),
-			'coreNotices'      => desktop_mode_get_core_notices(),
-			'pluginNotices'    => desktop_mode_get_plugin_notices(),
-			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
-			'session'          => desktop_mode_get_session( get_current_user_id() ),
+			'accentColors'     => open_station_get_accent_colors(),
+			'toastTypes'       => open_station_get_toast_types(),
+			'coreUpdate'       => open_station_get_core_update(),
+			'coreNotices'      => open_station_get_core_notices(),
+			'pluginNotices'    => open_station_get_plugin_notices(),
+			'defaultWallpaper' => open_station_get_default_wallpaper(),
+			'session'          => open_station_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
 			'restUrl'          => esc_url_raw( rest_url() ),
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
 			'dropConfig'       => $drop_config,
 			'defaultWindowUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),
-			'defaultWindow'    => desktop_mode_get_default_window( get_current_user_id() ),
+			'defaultWindow'    => open_station_get_default_window( get_current_user_id() ),
 			'canUpload'        => current_user_can( 'upload_files' ),
-			'pluginUrl'        => esc_url_raw( untrailingslashit( DESKTOP_MODE_URL ) ),
-			'pluginVersion'    => DESKTOP_MODE_VERSION,
+			'pluginUrl'        => esc_url_raw( untrailingslashit( OPEN_STATION_URL ) ),
+			'pluginVersion'    => OPEN_STATION_VERSION,
 			'iframeBridgeUrl'  => $lazy_bundle_url( 'iframe-bridge' ),
 			// URL of the AI Assistant lazy bundle. The main bundle
-			// ships a stub matching the public `wp.desktop.ai` API; the
+			// ships a stub matching the public `wp.os.ai` API; the
 			// stub `<script>`-injects this URL the first time the user
 			// opens the assistant. Picking `.js` vs `.min.js` here keeps
 			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
@@ -465,7 +465,7 @@ function desktop_mode_enqueue_assets() {
 			// URL of the OS Settings panel lazy bundle. Injected by
 			// the main bundle's `OsSettings.renderPanel()` stub on
 			// the user's first Settings open. Holds every section
-			// renderer + the `<wpd-*>` components only the panel
+			// renderer + the `<os-*>` components only the panel
 			// uses, so nothing about Settings ships in
 			// `desktop.min.js` for users who never open it.
 			'osSettingsPanelBundleUrl' => $lazy_bundle_url( 'os-settings-panel' ),
@@ -475,7 +475,7 @@ function desktop_mode_enqueue_assets() {
 			// instant the first time they fire.
 			'shellOverlaysBundleUrl' => $lazy_bundle_url( 'shell-overlays' ),
 			// Mio — the desk companion. `mio` carries the
-			// appearance + physics (see `desktop_mode_mio_config()`);
+			// appearance + physics (see `open_station_mio_config()`);
 			// `mioBundleUrl` is the lazy PixiJS bundle the shell
 			// controller injects the first time a user switches the
 			// Mio on from its dock tile. Shipping the URL
@@ -487,9 +487,9 @@ function desktop_mode_enqueue_assets() {
 			// and that is the whole of its cost to a shell that doesn't:
 			// ~470 bytes gzipped of config, plus a URL. No script, no
 			// style, no PixiJS. The config has to be here rather than
-			// fetched on first toggle, or the `desktop_mode_mio_config`
+			// fetched on first toggle, or the `open_station_mio_config`
 			// filter would silently not apply until the next reload.
-			'mio'                 => desktop_mode_mio_config(),
+			'mio'                 => open_station_mio_config(),
 			'mioBundleUrl'        => $lazy_bundle_url( 'mio' ),
 			// URL of the lazy window-system bundle (Stage 11).
 			// Holds the `Window` class and its DOM / pointer / tab /
@@ -508,9 +508,9 @@ function desktop_mode_enqueue_assets() {
 			// when a core update is actually pending.
 			'releaseCardBundleUrl' => $lazy_bundle_url( 'release-card' ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
+			'osSettings'            => open_station_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
-			'seenIntros'            => desktop_mode_get_seen_intros( get_current_user_id() ),
+			'seenIntros'            => open_station_get_seen_intros( get_current_user_id() ),
 			'seenIntrosUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
 			// Sticky notes ride on Gutenberg's Guidelines experiment
 			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
@@ -518,24 +518,24 @@ function desktop_mode_enqueue_assets() {
 			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
 			// noisy — so the shell skips booting the layer entirely.
 			'stickyNotes'           => array(
-				'available' => desktop_mode_sticky_notes_is_available(),
+				'available' => open_station_sticky_notes_is_available(),
 			),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
-			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
+			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'open_station_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
 			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
-			'aiAssistant'           => function_exists( 'desktop_mode_ai_assistant_config' )
-				? desktop_mode_ai_assistant_config()
+			'aiAssistant'           => function_exists( 'open_station_ai_assistant_config' )
+				? open_station_ai_assistant_config()
 				: null,
 			// Lets the Features tab re-check provider availability without a
 			// reload after a connector is configured in Settings → Connectors.
 			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
-			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
+			'extendedOptions'       => current_user_can( 'manage_options' ) ? open_station_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			// Site-wide games kill switch (Extended options). Exposed to
 			// every user — the shell skips the challenges Heartbeat
 			// channel when the framework is off.
-			'gamesEnabled'          => desktop_mode_games_enabled(),
+			'gamesEnabled'          => open_station_games_enabled(),
 			// Comments-window AI moderation toggle — surfaced at the
 			// shell level so the OS Settings → Features tab can render
 			// the toggle without depending on the Comments window
@@ -550,27 +550,27 @@ function desktop_mode_enqueue_assets() {
 			// Settings → Connectors screen that doesn't exist there.
 			'commentsAi'            => (
 				current_user_can( 'manage_options' )
-				&& function_exists( 'desktop_mode_ai_is_available' )
-				&& desktop_mode_ai_is_available()
+				&& function_exists( 'open_station_ai_is_available' )
+				&& open_station_ai_is_available()
 			)
 				? array(
-					'enabled'            => function_exists( 'desktop_mode_comments_ai_is_enabled' )
-						? desktop_mode_comments_ai_is_enabled()
+					'enabled'            => function_exists( 'open_station_comments_ai_is_enabled' )
+						? open_station_comments_ai_is_enabled()
 						: false,
-					'providerConfigured' => function_exists( 'desktop_mode_comments_ai_provider_configured' )
-						? desktop_mode_comments_ai_provider_configured()
+					'providerConfigured' => function_exists( 'open_station_comments_ai_provider_configured' )
+						? open_station_comments_ai_provider_configured()
 						: false,
 				)
 				: null,
 			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
-			'portalUrl'        => esc_url( desktop_mode_portal_url() ),
+			'portalUrl'        => esc_url( open_station_portal_url() ),
 			'fromPortal'       => $from_portal,
 			'fromPortalIntent' => $from_portal_intent,
 			'pwa'              => array(
-				'manifestUrl'    => esc_url_raw( desktop_mode_pwa_manifest_url() ),
-				'swUrl'          => esc_url_raw( desktop_mode_pwa_sw_url() ),
+				'manifestUrl'    => esc_url_raw( open_station_pwa_manifest_url() ),
+				'swUrl'          => esc_url_raw( open_station_pwa_sw_url() ),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
-				'state'          => desktop_mode_pwa_get_user_state( get_current_user_id() ),
+				'state'          => open_station_pwa_get_user_state( get_current_user_id() ),
 				// Mirrors the manifest's `name` field — used by the
 				// install pill so the button reads "Install <site>"
 				// rather than "Install <current page>" (which would
@@ -578,25 +578,25 @@ function desktop_mode_enqueue_assets() {
 				// app, not the dashboard window the user happens to
 				// be viewing).
 				'appName'        => get_bloginfo( 'name' ),
-				// Operators set the `desktop_mode_pwa_force_replace_sw`
+				// Operators set the `open_station_pwa_force_replace_sw`
 				// filter to `true` when another root-scope service
-				// worker on the origin is blocking desktop-mode
+				// worker on the origin is blocking openstation
 				// installability (foreign-SW guard in
 				// `src/pwa/sw-register.ts`). Default `false` preserves
 				// the polite behaviour where we yield to existing PWAs.
-				'forceReplaceSw' => desktop_mode_pwa_force_replace_sw(),
+				'forceReplaceSw' => open_station_pwa_force_replace_sw(),
 			),
 		)
 	);
 
-	wp_localize_script( 'desktop-mode', 'desktopModeConfig', $config );
+	wp_localize_script( 'openstation', 'openStationConfig', $config );
 
 	/**
-	 * Fires when desktop mode assets are enqueued.
+	 * Fires when OpenStation assets are enqueued.
 	 */
-	do_action( 'desktop_mode_mode_init' );
+	do_action( 'open_station_mode_init' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
+add_action( 'admin_enqueue_scripts', 'open_station_enqueue_assets' );
 
 /**
  * Emits `<link rel="preload">` hints for the shell's critical-path
@@ -633,7 +633,7 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
  * warns "preloaded but not used in time"), so `prefetch` keeps the early
  * low-priority cache fill without the must-use-now contract.
  *
- * Plugins can extend the hint list via the `desktop_mode_preload_hints`
+ * Plugins can extend the hint list via the `open_station_preload_hints`
  * filter — e.g. a settings tab whose bundle the user opens on every
  * visit can opt its own URL into the preload phase.
  *
@@ -642,22 +642,22 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
  * supply absolute URLs through the filter; in that case the consumer
  * is responsible for the `crossorigin` semantics.
  */
-function desktop_mode_print_preload_hints() {
+function open_station_print_preload_hints() {
 	if (
 		! is_admin()
-		|| ! desktop_mode_is_enabled()
-		|| desktop_mode_is_chromeless_request()
-		|| desktop_mode_is_classic_request()
+		|| ! open_station_is_enabled()
+		|| open_station_is_chromeless_request()
+		|| open_station_is_classic_request()
 	) {
 		return;
 	}
 
-	$suffix = desktop_mode_asset_suffix();
+	$suffix = open_station_asset_suffix();
 
 	$build_url = static function ( $relative ) {
-		$path = DESKTOP_MODE_DIR . $relative;
-		$ver  = file_exists( $path ) ? (string) filemtime( $path ) : DESKTOP_MODE_VERSION;
-		return DESKTOP_MODE_URL . $relative . '?ver=' . $ver;
+		$path = OPEN_STATION_DIR . $relative;
+		$ver  = file_exists( $path ) ? (string) filemtime( $path ) : OPEN_STATION_VERSION;
+		return OPEN_STATION_URL . $relative . '?ver=' . $ver;
 	};
 
 	$hints = array(
@@ -708,7 +708,7 @@ function desktop_mode_print_preload_hints() {
 	 *                     `preload`; window-system + shell-overlays as
 	 *                     `prefetch`).
 	 */
-	$hints = apply_filters( 'desktop_mode_preload_hints', $hints );
+	$hints = apply_filters( 'open_station_preload_hints', $hints );
 
 	if ( ! is_array( $hints ) ) {
 		return;
@@ -738,10 +738,10 @@ function desktop_mode_print_preload_hints() {
 		);
 	}
 }
-add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
+add_action( 'admin_print_styles', 'open_station_print_preload_hints', 1 );
 
 /**
- * Defers loading of non-critical desktop-mode stylesheets so they
+ * Defers loading of non-critical openstation stylesheets so they
  * don't block first paint.
  *
  * Three stylesheets in the default enqueue list are only needed
@@ -767,7 +767,7 @@ add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
  * `<noscript>` fallback restores critical-path behavior for JS-off
  * browsers, so accessibility isn't degraded.
  *
- * Filterable via `desktop_mode_deferred_styles` so plugins can opt
+ * Filterable via `open_station_deferred_styles` so plugins can opt
  * their own non-critical stylesheets in (or pull a built-in out).
  * Chromeless iframes are skipped — their CSS pipeline is separate.
  *
@@ -777,20 +777,20 @@ add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
  * @param string $media  The media attribute value WP resolved.
  * @return string Possibly-rewritten tag.
  */
-function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media ) {
+function open_station_defer_non_critical_styles( $html, $handle, $href, $media ) {
 	// Cheap gates first — `style_loader_tag` fires once per enqueued
 	// stylesheet on EVERY admin page (frontend doesn't go through
-	// this filter, but admin does, including pages where desktop mode
-	// is disabled). The deferred handles only ship when desktop mode
+	// this filter, but admin does, including pages where OpenStation
+	// is disabled). The deferred handles only ship when OpenStation
 	// is active, so the in_array check below would always miss on
 	// classic-only admin pages — but the `apply_filters` call still
 	// builds an array and walks subscribers per stylesheet. Short-
 	// circuit on the cheap helper checks (`is_admin` / enabled /
-	// chromeless) so non-desktop-mode users pay nothing.
-	if ( ! desktop_mode_is_enabled() ) {
+	// chromeless) so non-openstation users pay nothing.
+	if ( ! open_station_is_enabled() ) {
 		return $html;
 	}
-	if ( desktop_mode_is_chromeless_request() ) {
+	if ( open_station_is_chromeless_request() ) {
 		return $html;
 	}
 
@@ -804,13 +804,13 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 	 * @param string[] $handles Default deferred handles.
 	 */
 	$deferred = apply_filters(
-		'desktop_mode_deferred_styles',
+		'open_station_deferred_styles',
 		array(
-			'desktop-mode-dock-peek',
+			'os-dock-peek',
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
-			'desktop-mode-window-overview',
-			'desktop-mode-os-settings',
+			'os-window-overview',
+			'os-settings',
 		)
 	);
 
@@ -851,17 +851,17 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 
 	return $markup;
 }
-add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 );
+add_filter( 'style_loader_tag', 'open_station_defer_non_critical_styles', 10, 4 );
 
 /**
  * Build the admin-menu command map (name → URL) and expose it on
- * `window.__desktopModeMenuCommands`. The shell command harvester
+ * `window.__openStationMenuCommands`. The shell command harvester
  * (`src/commands/shell-harvester.ts`) reads this slot to resolve URLs
  * for "Go to: …" commands whose JS callbacks
  * (`document.location = menuCommand.url`) close over a variable URL
  * we can't extract from source. Without this map those commands
  * either get skipped (no URL recoverable) or — if the location
- * shadow misses — navigate the SHELL out of desktop mode.
+ * shadow misses — navigate the SHELL out of OpenStation.
  *
  * Mirrors what WordPress core's `wp_enqueue_command_palette_assets()`
  * builds for `wp.coreCommands.initializeCommandPalette(...)`. We
@@ -876,7 +876,7 @@ add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 
  * @global array $submenu
  * @return array<int, array{label:string, url:string, name:string}>
  */
-function desktop_mode_build_command_menu_map() {
+function open_station_build_command_menu_map() {
 	global $menu, $submenu, $_parent_pages;
 	if ( ! is_array( $menu ) ) {
 		return array();
@@ -931,7 +931,7 @@ function desktop_mode_build_command_menu_map() {
 		// (ACF's 'edit.php?post_type=acf-field-group' — also a
 		// registered page) — those stay direct links, matching
 		// classic admin's menu-header.php.
-		if ( ( ! isset( $_parent_pages[ $menu_slug ] ) || desktop_mode_is_admin_file_slug( $menu_slug ) ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
+		if ( ( ! isset( $_parent_pages[ $menu_slug ] ) || open_station_is_admin_file_slug( $menu_slug ) ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
 			$menu_url = $menu_slug;
 		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
 			$menu_url = menu_page_url( $menu_slug, false );
@@ -956,7 +956,7 @@ function desktop_mode_build_command_menu_map() {
 				$submenu_url   = '';
 				// Same registered-page vs admin-file rule as the
 				// top-level loop.
-				if ( ( ! isset( $_parent_pages[ $submenu_slug ] ) || desktop_mode_is_admin_file_slug( $submenu_slug ) ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
+				if ( ( ! isset( $_parent_pages[ $submenu_slug ] ) || open_station_is_admin_file_slug( $submenu_slug ) ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
 					$submenu_url = $submenu_slug;
 				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
 					$submenu_url = menu_page_url( $submenu_slug, false );

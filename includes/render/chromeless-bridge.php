@@ -1,17 +1,17 @@
 <?php
 /**
- * Desktop Mode — Chromeless iframe bridge.
+ * OpenStation — Chromeless iframe bridge.
  *
  * Two cooperative pieces emitted into chromeless admin pages:
  *
- *   - `desktop_mode_chromeless_offset_neutralizer_script()` —
+ *   - `open_station_chromeless_offset_neutralizer_script()` —
  *     runs on `admin_head @ 1` and rewrites positioned-element
  *     `top` values that match common admin-bar offsets (32px /
  *     46px) to 0 inside chromeless iframes. Catches plugins that
  *     hardcode the admin-bar height instead of using the WP CSS
  *     custom property.
  *
- *   - `desktop_mode_chromeless_bridge_script()` — runs on
+ *   - `open_station_chromeless_bridge_script()` — runs on
  *     `admin_footer` and emits the chromeless ↔ shell bridge
  *     script that handles screen-meta detection, command-palette
  *     harvesting, plugin-changed payloads, etc. The biggest
@@ -21,7 +21,7 @@
  * Extracted from `render.php` during the architecture-0.8.1 PHP
  * slicing (phase 6).
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -55,7 +55,7 @@ defined( 'ABSPATH' ) || exit;
  * inside chromeless. We've never seen one in the wild, and if a
  * site hits it, the filter below lets them narrow the scan.
  *
- * Scoped via the `desktop-mode-chromeless` body class. Runs ONE
+ * Scoped via the `os-chromeless` body class. Runs ONE
  * full walk at DOMContentLoaded, then watches for late additions
  * with a `MutationObserver` so React-mounted components are
  * corrected as they appear instead of via a second full-DOM walk
@@ -71,8 +71,8 @@ defined( 'ABSPATH' ) || exit;
  * already ships MO, so the fallback only fires on extreme
  * outliers — but it's free insurance.
  */
-function desktop_mode_chromeless_offset_neutralizer_script() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function open_station_chromeless_offset_neutralizer_script() {
+	if ( ! open_station_is_chromeless_request() ) {
 		return;
 	}
 
@@ -88,7 +88,7 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 	 * @param string[] $values Default `[ '32px', '46px' ]`.
 	 */
 	$top_values = apply_filters(
-		'desktop_mode_chromeless_admin_bar_top_values',
+		'open_station_chromeless_admin_bar_top_values',
 		array( '32px', '46px' )
 	);
 
@@ -126,7 +126,7 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 	$js .= 'var started=false;';
 	$js .= 'function start(){';
 	$js .=   'if(started)return;';
-	$js .=   "if(!document.body||!document.body.classList.contains('desktop-mode-chromeless'))return;";
+	$js .=   "if(!document.body||!document.body.classList.contains('os-chromeless'))return;";
 	$js .=   'started=true;';
 	$js .=   'var MO=window.MutationObserver;';
 	$js .=   'if(MO){';
@@ -157,10 +157,10 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1 );
+add_action( 'admin_head', 'open_station_chromeless_offset_neutralizer_script', 1 );
 
 /**
- * Short-circuit `admin.php?desktop_mode_menu_refresh=1` requests with
+ * Short-circuit `admin.php?open_station_menu_refresh=1` requests with
  * a tiny inline-script response that postMessages the current menu
  * payload to the parent shell.
  *
@@ -170,7 +170,7 @@ add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1
  * in admin.php) never includes the footer — the file just runs the
  * `load-{$pagenow}` hook in the `else` branch and exits. The full
  * bridge therefore never emits its payload, and the parent's
- * `wp.desktop.refreshMenu()` waits out its 8-second timeout for a
+ * `wp.os.refreshMenu()` waits out its 8-second timeout for a
  * message that's never coming. That's the source of "deactivating a
  * plugin leaves its dock icons behind" — the hidden probe iframe
  * the shell spawns to harvest the post-mutation menu lands on a
@@ -190,12 +190,12 @@ add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1
  * default gear icon on a live refresh until the next full page load
  * — strictly better than today's "dock doesn't update at all."
  */
-function desktop_mode_emit_menu_refresh_probe() {
+function open_station_emit_menu_refresh_probe() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
-	if ( empty( $_GET['desktop_mode_menu_refresh'] ) ) {
+	if ( empty( $_GET['open_station_menu_refresh'] ) ) {
 		return;
 	}
-	if ( ! desktop_mode_is_chromeless_request() ) {
+	if ( ! open_station_is_chromeless_request() ) {
 		return;
 	}
 	// Only short-circuit the bare `admin.php` probe — for any real
@@ -206,7 +206,7 @@ function desktop_mode_emit_menu_refresh_probe() {
 		return;
 	}
 
-	$payload = desktop_mode_build_menu_payload();
+	$payload = open_station_build_menu_payload();
 	$encoded = wp_json_encode( $payload );
 	if ( false === $encoded ) {
 		return;
@@ -219,14 +219,14 @@ function desktop_mode_emit_menu_refresh_probe() {
 	// listener consumes both.
 	echo '<!doctype html><html><head><meta charset="utf-8"><title></title></head><body>';
 	echo '<script>';
-	echo '(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"desktop-mode-plugins-changed",payload:';
+	echo '(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"os-plugins-changed",payload:';
 	echo $encoded; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode produces JSON-safe output.
 	echo '},window.location.origin);}}catch(e){}})();';
 	echo '</script>';
 	echo '</body></html>';
 	exit;
 }
-add_action( 'admin_init', 'desktop_mode_emit_menu_refresh_probe', 99 );
+add_action( 'admin_init', 'open_station_emit_menu_refresh_probe', 99 );
 
 /**
  * Outputs the chromeless screen-meta bridge script.
@@ -236,17 +236,17 @@ add_action( 'admin_init', 'desktop_mode_emit_menu_refresh_probe', 99 );
  * via postMessage. The parent shell uses this to render matching
  * buttons in the window title bar.
  */
-function desktop_mode_chromeless_bridge_script() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function open_station_chromeless_bridge_script() {
+	if ( ! open_station_is_chromeless_request() ) {
 		return;
 	}
 
 	/**
-	 * Fires after chromeless content in desktop mode.
+	 * Fires after chromeless content in OpenStation.
 	 *
 	 * @param string $hook_suffix The current admin page hook suffix.
 	 */
-	do_action( 'desktop_mode_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
+	do_action( 'open_station_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
 
 	// Menu payload — built from the LIVE $menu / $submenu globals
 	// populated by real admin-context bootstrapping. We capture it here
@@ -262,8 +262,8 @@ function desktop_mode_chromeless_bridge_script() {
 	//
 	// Narrowed to the set of pages whose completion commonly mutates
 	// the admin menu (activation / deactivation / install / theme
-	// switch), plus the explicit `desktop_mode_menu_refresh=1` signal
-	// the shell sets when `wp.desktop.refreshMenu()` spawns a hidden
+	// switch), plus the explicit `open_station_menu_refresh=1` signal
+	// the shell sets when `wp.os.refreshMenu()` spawns a hidden
 	// iframe to harvest a fresh payload from real admin context.
 	// Navigating to edit.php or similar doesn't change the menu so we
 	// don't bother sending a payload otherwise — the debounce +
@@ -271,7 +271,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// safe, just wasteful.
 	$menu_payload_json = 'null';
 	$pagenow           = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
-	$is_refresh_probe  = ! empty( $_GET['desktop_mode_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
+	$is_refresh_probe  = ! empty( $_GET['open_station_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
 	if (
 		$is_refresh_probe
 		|| in_array(
@@ -280,7 +280,7 @@ function desktop_mode_chromeless_bridge_script() {
 			true
 		)
 	) {
-		$encoded = wp_json_encode( desktop_mode_build_menu_payload() );
+		$encoded = wp_json_encode( open_station_build_menu_payload() );
 		if ( false !== $encoded ) {
 			$menu_payload_json = $encoded;
 		}
@@ -292,7 +292,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// emitted (including `null`) so navigating an iframe from an
 	// identified page to an unidentified one clears the stale identity
 	// in the parent's relations engine.
-	$content_identity_json = wp_json_encode( desktop_mode_build_content_identity() );
+	$content_identity_json = wp_json_encode( open_station_build_content_identity() );
 	if ( false === $content_identity_json ) {
 		$content_identity_json = 'null';
 	}
@@ -300,20 +300,20 @@ function desktop_mode_chromeless_bridge_script() {
 	// Emit via wp_print_inline_script_tag so CSP nonces and `<script>`
 	// attribute hygiene go through Core rather than being hand-rolled.
 	$js = <<<'JS'
-//# sourceURL=desktop-mode-chromeless-bridge.js
+//# sourceURL=os-chromeless-bridge.js
 ( function() {
 	// Escape hatch: a chromeless page is only meant to live inside a
-	// desktop-mode window iframe. If the top window IS this page, the
+	// openstation window iframe. If the top window IS this page, the
 	// user ended up here directly — either bookmarked it, followed a
 	// stale link, or got stranded by a bad portal redirect. Without
-	// an admin bar there's no toggle to turn desktop mode off, so
+	// an admin bar there's no toggle to turn OpenStation off, so
 	// strip the chromeless flag and reload as classic admin. That
 	// puts the admin bar back and lets the user decide what to do.
 	if ( ! window.parent || window.parent === window ) {
 		try {
 			var here = new URL( window.location.href );
-			if ( here.searchParams.has( 'desktop_mode_chromeless' ) ) {
-				here.searchParams.delete( 'desktop_mode_chromeless' );
+			if ( here.searchParams.has( 'open_station_chromeless' ) ) {
+				here.searchParams.delete( 'open_station_chromeless' );
 				here.searchParams.delete( 'desktop_mode_portal' );
 				window.location.replace( here.toString() );
 			}
@@ -338,14 +338,14 @@ function desktop_mode_chromeless_bridge_script() {
 	 * depends on nothing else in this script: a page-specific runtime
 	 * failure in any of the feature blocks below (screen-meta harvest,
 	 * command scan, link interceptor, …) must not cost the shell its
-	 * window relations. The `desktop-mode-ready` signal intentionally
+	 * window relations. The `os-ready` signal intentionally
 	 * stays LAST — it means "every listener below is wired".
 	 */
 	try {
 		window.parent.postMessage(
 			{
-				type: 'desktop-mode-content-identity',
-				identity: /*__DESKTOP_MODE_CONTENT_IDENTITY__*/
+				type: 'os-content-identity',
+				identity: /*__OPEN_STATION_CONTENT_IDENTITY__*/
 			},
 			window.location.origin
 		);
@@ -423,9 +423,9 @@ function desktop_mode_chromeless_bridge_script() {
 					try {
 						window.parent.postMessage(
 							{
-								type: 'desktop-mode-broadcast',
+								type: 'os-broadcast',
 								topic:
-									'desktop-mode.' +
+									'os.' +
 									editor.getCurrentPostType() +
 									'.changed',
 								payload: {
@@ -447,7 +447,7 @@ function desktop_mode_chromeless_bridge_script() {
 						if ( res && res.identity ) {
 							window.parent.postMessage(
 								{
-									type: 'desktop-mode-content-identity',
+									type: 'os-content-identity',
 									identity: res.identity,
 								},
 								window.location.origin
@@ -479,11 +479,11 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Two listeners and two wrappers land here:
 	 *
 	 *   - `error` + `unhandledrejection` on window → postMessage
-	 *     `desktop-mode-iframe-error`. Parent dispatches `HOOKS.
+	 *     `os-iframe-error`. Parent dispatches `HOOKS.
 	 *     IFRAME_ERROR`.
 	 *   - `fetch` + `XMLHttpRequest` are wrapped so every completed
 	 *     request (including failures) posts
-	 *     `desktop-mode-iframe-network` with `{ method, url, status,
+	 *     `os-iframe-network` with `{ method, url, status,
 	 *     duration, failed }`. Parent dispatches `HOOKS.
 	 *     IFRAME_NETWORK_COMPLETED`.
 	 *
@@ -496,7 +496,7 @@ function desktop_mode_chromeless_bridge_script() {
 		window.addEventListener( 'error', function ( e ) {
 			try {
 				window.parent.postMessage( {
-					type: 'desktop-mode-iframe-error',
+					type: 'os-iframe-error',
 					kind: 'error',
 					message: e && e.message ? String( e.message ) : '',
 					filename: e && e.filename ? String( e.filename ) : null,
@@ -519,7 +519,7 @@ function desktop_mode_chromeless_bridge_script() {
 					try { message = String( reason ); } catch ( _s ) { message = '[unstringifiable]'; }
 				}
 				window.parent.postMessage( {
-					type: 'desktop-mode-iframe-error',
+					type: 'os-iframe-error',
 					kind: 'unhandledrejection',
 					message: message,
 					filename: null,
@@ -531,7 +531,7 @@ function desktop_mode_chromeless_bridge_script() {
 		} );
 
 		// Devtools instrumentation slot — populated by
-		// `desktop-mode-instrument-set` messages from the parent shell.
+		// `os-instrument-set` messages from the parent shell.
 		// Mutable: parent overwrites the whole object on every change
 		// (header add/remove, observe toggle).
 		//
@@ -547,7 +547,7 @@ function desktop_mode_chromeless_bridge_script() {
 					return;
 				}
 				var d = ev && ev.data;
-				if ( ! d || typeof d !== 'object' || d.type !== 'desktop-mode-instrument-set' ) {
+				if ( ! d || typeof d !== 'object' || d.type !== 'os-instrument-set' ) {
 					return;
 				}
 				window.__wpdInstrument = {
@@ -557,10 +557,10 @@ function desktop_mode_chromeless_bridge_script() {
 			} );
 		} catch ( _err ) { /* swallow — instrumentation is best-effort */ }
 
-		var wpdReportNetwork = function ( method, url, status, duration, failed, extra ) {
+		var osReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
 				var msg = {
-					type: 'desktop-mode-iframe-network',
+					type: 'os-iframe-network',
 					method: String( method || 'GET' ).toUpperCase(),
 					url: String( url || '' ),
 					status: typeof status === 'number' ? status : 0,
@@ -588,8 +588,8 @@ function desktop_mode_chromeless_bridge_script() {
 		// out of third-party 403s. The URL gate avoids looping on
 		// heartbeat itself (heartbeat shouldn't 403 — but if it does
 		// the recursive connectNow would not help anyway).
-		var wpdAuthCheckCooldownUntil = 0;
-		var wpdMaybeForceAuthCheck = function ( status, url ) {
+		var osAuthCheckCooldownUntil = 0;
+		var osMaybeForceAuthCheck = function ( status, url ) {
 			if ( status !== 401 && status !== 403 ) {
 				return;
 			}
@@ -619,10 +619,10 @@ function desktop_mode_chromeless_bridge_script() {
 				return;
 			}
 			var now = Date.now();
-			if ( now < wpdAuthCheckCooldownUntil ) {
+			if ( now < osAuthCheckCooldownUntil ) {
 				return;
 			}
-			wpdAuthCheckCooldownUntil = now + 5000;
+			osAuthCheckCooldownUntil = now + 5000;
 			try {
 				if (
 					window.wp
@@ -638,7 +638,7 @@ function desktop_mode_chromeless_bridge_script() {
 		// plain `{ name: value }` map so the instrument layer can
 		// merge contributed headers without caring whether the caller
 		// passed a Headers, an array of pairs, or a plain object.
-		var wpdHeadersToObject = function ( h ) {
+		var osHeadersToObject = function ( h ) {
 			var out = {};
 			if ( ! h ) {
 				return out;
@@ -671,7 +671,7 @@ function desktop_mode_chromeless_bridge_script() {
 		// Header values can theoretically come and go between requests
 		// (parent ref-counts contributions) so we read fresh on every
 		// call rather than caching at wrap time.
-		var wpdContributedHeaders = function () {
+		var osContributedHeaders = function () {
 			var inst = window.__wpdInstrument || {};
 			var headers = inst.headers || {};
 			var out = {};
@@ -698,7 +698,7 @@ function desktop_mode_chromeless_bridge_script() {
 		//   - When `__wpdInstrument.observe`: also relay request +
 		//     response headers in the parent-bound network message.
 		if ( typeof window.fetch === 'function' ) {
-			var wpdOrigFetch = window.fetch;
+			var osOrigFetch = window.fetch;
 			window.fetch = function ( input, init ) {
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
@@ -719,7 +719,7 @@ function desktop_mode_chromeless_bridge_script() {
 				// `Headers` instance so contributed values overwrite /
 				// stack predictably regardless of the caller's input
 				// shape, then re-attach to a cloned init.
-				var contributed = wpdContributedHeaders();
+				var contributed = osContributedHeaders();
 				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
 				var requestHeaders = null;
 				var hasContributed = false;
@@ -730,9 +730,9 @@ function desktop_mode_chromeless_bridge_script() {
 					}
 				}
 				if ( hasContributed || observe ) {
-					var existing = wpdHeadersToObject( init && init.headers );
+					var existing = osHeadersToObject( init && init.headers );
 					if ( input && typeof input === 'object' && input.headers ) {
-						var fromReq = wpdHeadersToObject( input.headers );
+						var fromReq = osHeadersToObject( input.headers );
 						for ( var rk in fromReq ) {
 							if ( Object.prototype.hasOwnProperty.call( fromReq, rk ) && ! ( rk in existing ) ) {
 								existing[ rk ] = fromReq[ rk ];
@@ -756,9 +756,9 @@ function desktop_mode_chromeless_bridge_script() {
 
 				var promise;
 				try {
-					promise = wpdOrigFetch.apply( this, arguments );
+					promise = osOrigFetch.apply( this, arguments );
 				} catch ( sync ) {
-					wpdReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+					osReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 					throw sync;
 				}
 				return promise.then(
@@ -777,15 +777,15 @@ function desktop_mode_chromeless_bridge_script() {
 								extra.responseHeaders = rh;
 							} catch ( _hErr ) { /* swallow */ }
 						}
-						wpdReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
-						wpdMaybeForceAuthCheck( res.status, url );
+						osReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
+						osMaybeForceAuthCheck( res.status, url );
 						return res;
 					},
 					function ( err ) {
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						wpdReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+						osReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
 						throw err;
 					}
 				);
@@ -802,16 +802,16 @@ function desktop_mode_chromeless_bridge_script() {
 		// caller's own headers are tracked so observation can include
 		// them alongside the contributed ones.
 		if ( typeof XMLHttpRequest !== 'undefined' ) {
-			var wpdOrigOpen = XMLHttpRequest.prototype.open;
-			var wpdOrigSend = XMLHttpRequest.prototype.send;
-			var wpdOrigSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+			var osOrigOpen = XMLHttpRequest.prototype.open;
+			var osOrigSend = XMLHttpRequest.prototype.send;
+			var osOrigSetHeader = XMLHttpRequest.prototype.setRequestHeader;
 			XMLHttpRequest.prototype.open = function ( method, url ) {
 				try {
 					this.__wpdMethod = method;
 					this.__wpdUrl = url;
 					this.__wpdReqHeaders = {};
 				} catch ( _err ) { /* frozen instance — skip */ }
-				return wpdOrigOpen.apply( this, arguments );
+				return osOrigOpen.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.setRequestHeader = function ( name, value ) {
 				try {
@@ -820,7 +820,7 @@ function desktop_mode_chromeless_bridge_script() {
 					}
 					this.__wpdReqHeaders[ name ] = value;
 				} catch ( _err ) { /* swallow */ }
-				return wpdOrigSetHeader.apply( this, arguments );
+				return osOrigSetHeader.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.send = function () {
 				var xhr = this;
@@ -832,12 +832,12 @@ function desktop_mode_chromeless_bridge_script() {
 				// here rather than in open() means contributions added
 				// after open() (e.g. in async-built request flows) still
 				// land on the wire.
-				var contributed = wpdContributedHeaders();
+				var contributed = osContributedHeaders();
 				var observe = window.__wpdInstrument && window.__wpdInstrument.observe;
 				for ( var hk in contributed ) {
 					if ( Object.prototype.hasOwnProperty.call( contributed, hk ) ) {
 						try {
-							wpdOrigSetHeader.call( xhr, hk, contributed[ hk ] );
+							osOrigSetHeader.call( xhr, hk, contributed[ hk ] );
 							if ( ! xhr.__wpdReqHeaders ) {
 								xhr.__wpdReqHeaders = {};
 							}
@@ -870,7 +870,7 @@ function desktop_mode_chromeless_bridge_script() {
 							extra.responseHeaders = resHeaders;
 						} catch ( _rErr ) { /* swallow */ }
 					}
-					wpdReportNetwork(
+					osReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
 						xhr.status,
@@ -878,12 +878,12 @@ function desktop_mode_chromeless_bridge_script() {
 						xhr.status === 0 || xhr.status >= 400,
 						extra
 					);
-					wpdMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
+					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
-				return wpdOrigSend.apply( this, arguments );
+				return osOrigSend.apply( this, arguments );
 			};
 		}
 
@@ -895,9 +895,9 @@ function desktop_mode_chromeless_bridge_script() {
 		// guaranteed POST + same fire-and-forget intent + custom headers
 		// allowed. Without contributions we just relay the call.
 		if ( typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' ) {
-			var wpdOrigBeacon = navigator.sendBeacon.bind( navigator );
+			var osOrigBeacon = navigator.sendBeacon.bind( navigator );
 			navigator.sendBeacon = function ( url, data ) {
-				var contributed = wpdContributedHeaders();
+				var contributed = osContributedHeaders();
 				var hasContributed = false;
 				for ( var ck in contributed ) {
 					if ( Object.prototype.hasOwnProperty.call( contributed, ck ) ) {
@@ -910,8 +910,8 @@ function desktop_mode_chromeless_bridge_script() {
 					: Date.now();
 				if ( ! hasContributed ) {
 					var ok = false;
-					try { ok = !! wpdOrigBeacon( url, data ); } catch ( _e ) { ok = false; }
-					wpdReportNetwork( 'POST', url, ok ? 200 : 0, 0, ! ok );
+					try { ok = !! osOrigBeacon( url, data ); } catch ( _e ) { ok = false; }
+					osReportNetwork( 'POST', url, ok ? 200 : 0, 0, ! ok );
 					return ok;
 				}
 				try {
@@ -933,13 +933,13 @@ function desktop_mode_chromeless_bridge_script() {
 							var dur = ( ( typeof performance !== 'undefined' && performance.now )
 								? performance.now()
 								: Date.now() ) - start;
-							wpdReportNetwork( 'POST', url, res.status, Math.round( dur ), ! res.ok, observe ? { requestHeaders: headers } : null );
+							osReportNetwork( 'POST', url, res.status, Math.round( dur ), ! res.ok, observe ? { requestHeaders: headers } : null );
 						},
 						function () {
 							var dur = ( ( typeof performance !== 'undefined' && performance.now )
 								? performance.now()
 								: Date.now() ) - start;
-							wpdReportNetwork( 'POST', url, 0, Math.round( dur ), true, observe ? { requestHeaders: headers } : null );
+							osReportNetwork( 'POST', url, 0, Math.round( dur ), true, observe ? { requestHeaders: headers } : null );
 						}
 					);
 					return true;
@@ -982,8 +982,8 @@ function desktop_mode_chromeless_bridge_script() {
 	 *                           plugin + upload-plugin actions).
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
-	var __DESKTOP_MODE_MENU_PAYLOAD__ = /*__DESKTOP_MODE_MENU_PAYLOAD__*/;
-	var __DESKTOP_MODE_MENU_SIG__ = /*__DESKTOP_MODE_MENU_SIG__*/;
+	var __OPEN_STATION_MENU_PAYLOAD__ = /*__OPEN_STATION_MENU_PAYLOAD__*/;
+	var __OPEN_STATION_MENU_SIG__ = /*__OPEN_STATION_MENU_SIG__*/;
 	/*
 	 * Icon harvest from the iframe's authoritative #adminmenu.
 	 *
@@ -1003,8 +1003,8 @@ function desktop_mode_chromeless_bridge_script() {
 	 */
 	try {
 		if (
-			__DESKTOP_MODE_MENU_PAYLOAD__
-			&& Array.isArray( __DESKTOP_MODE_MENU_PAYLOAD__.dockItems )
+			__OPEN_STATION_MENU_PAYLOAD__
+			&& Array.isArray( __OPEN_STATION_MENU_PAYLOAD__.dockItems )
 		) {
 			var __wpdAdminMenu = document.getElementById( 'adminmenu' );
 			if ( __wpdAdminMenu ) {
@@ -1059,7 +1059,7 @@ function desktop_mode_chromeless_bridge_script() {
 					} catch ( __wpdE2 ) { /* getComputedStyle may throw on detached nodes */ }
 				}
 
-				var __wpdItems = __DESKTOP_MODE_MENU_PAYLOAD__.dockItems;
+				var __wpdItems = __OPEN_STATION_MENU_PAYLOAD__.dockItems;
 				for ( var __wpdDi = 0; __wpdDi < __wpdItems.length; __wpdDi++ ) {
 					var __wpdItem = __wpdItems[ __wpdDi ];
 					if ( ! __wpdItem || __wpdItem.icon !== 'dashicons-admin-generic' ) { continue; }
@@ -1093,15 +1093,15 @@ function desktop_mode_chromeless_bridge_script() {
 	 */
 	try {
 		var __wpdShell = window.top || window.parent;
-		if ( __DESKTOP_MODE_MENU_PAYLOAD__ ) {
+		if ( __OPEN_STATION_MENU_PAYLOAD__ ) {
 			__wpdShell.postMessage(
 				{
-					type: 'desktop-mode-plugins-changed',
-					payload: __DESKTOP_MODE_MENU_PAYLOAD__
+					type: 'os-plugins-changed',
+					payload: __OPEN_STATION_MENU_PAYLOAD__
 				},
 				window.location.origin
 			);
-		} else if ( __DESKTOP_MODE_MENU_SIG__ ) {
+		} else if ( __OPEN_STATION_MENU_SIG__ ) {
 			/*
 			 * No full payload on this page — but we still ship the cheap
 			 * menu signature so the shell can notice a menu change that
@@ -1112,8 +1112,8 @@ function desktop_mode_chromeless_bridge_script() {
 			 */
 			__wpdShell.postMessage(
 				{
-					type: 'desktop-mode-menu-signature',
-					sig: __DESKTOP_MODE_MENU_SIG__
+					type: 'os-menu-signature',
+					sig: __OPEN_STATION_MENU_SIG__
 				},
 				window.location.origin
 			);
@@ -1129,7 +1129,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Link & form interceptor.
 	 *
 	 * Every same-origin wp-admin <a> href and <form> action gets the
-	 * `desktop_mode_chromeless=1` flag appended so navigation inside the iframe stays
+	 * `open_station_chromeless=1` flag appended so navigation inside the iframe stays
 	 * chromeless. Without this, a stray link to /wp-admin/edit.php (see
 	 * Gutenberg's fullscreen close button, help-tab links, "Return to
 	 * posts" affordances, etc.) re-renders the full classic admin inside
@@ -1143,7 +1143,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 *   - in-page anchors (#)
 	 *   - mailto:, tel:, javascript: schemes
 	 *   - cross-origin URLs
-	 *   - URLs that already carry desktop_mode_chromeless=
+	 *   - URLs that already carry open_station_chromeless=
 	 */
 	function rewriteAdminUrl( href, base ) {
 		if ( ! href || href.charAt( 0 ) === '#' ) {
@@ -1164,10 +1164,10 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( url.pathname.indexOf( '/wp-admin/' ) === -1 ) {
 			return null;
 		}
-		if ( url.searchParams.has( 'desktop_mode_chromeless' ) ) {
+		if ( url.searchParams.has( 'open_station_chromeless' ) ) {
 			return null;
 		}
-		url.searchParams.set( 'desktop_mode_chromeless', '1' );
+		url.searchParams.set( 'open_station_chromeless', '1' );
 		return url.toString();
 	}
 
@@ -1231,8 +1231,8 @@ function desktop_mode_chromeless_bridge_script() {
 		/*
 		 * Activity-footprint launcher. A "View activity footprint" row
 		 * action (added to the Users list table by
-		 * `desktop_mode_user_footprint_row_action`) carries the target
-		 * user id in `data-desktop-mode-footprint`. The iframe has no
+		 * `open_station_user_footprint_row_action`) carries the target
+		 * user id in `data-os-footprint`. The iframe has no
 		 * shell API of its own, so we escalate the click to the parent
 		 * shell, which opens the My WordPress window on that user's
 		 * footprint. Checked BEFORE classifyLink so the link's real
@@ -1241,7 +1241,7 @@ function desktop_mode_chromeless_bridge_script() {
 		 * already filtered above, so cmd/ctrl-click still opens that
 		 * fallback in a new browser tab.
 		 */
-		var footprintAttr = link.getAttribute( 'data-desktop-mode-footprint' );
+		var footprintAttr = link.getAttribute( 'data-os-footprint' );
 		if ( footprintAttr ) {
 			var footprintUid = parseInt( footprintAttr, 10 );
 			if ( footprintUid > 0 ) {
@@ -1249,9 +1249,9 @@ function desktop_mode_chromeless_bridge_script() {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-open-user-footprint',
+							type: 'os-open-user-footprint',
 							userId: footprintUid,
-							userName: link.getAttribute( 'data-desktop-mode-footprint-name' ) || ''
+							userName: link.getAttribute( 'data-os-footprint-name' ) || ''
 						},
 						window.location.origin
 					);
@@ -1358,7 +1358,7 @@ function desktop_mode_chromeless_bridge_script() {
 					'';
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-iframe-admin-link',
+						type: 'os-iframe-admin-link',
 						url: absolute,
 						label: adminLabel.slice( 0, 80 )
 					},
@@ -1395,7 +1395,7 @@ function desktop_mode_chromeless_bridge_script() {
 				absolute;
 			window.parent.postMessage(
 				{
-					type: 'desktop-mode-external-link',
+					type: 'os-external-link',
 					url: absolute,
 					label: label.slice( 0, 80 )
 				},
@@ -1423,7 +1423,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * boundary — the parent shell's pointerdown / focusin listeners
 	 * never see them, so without this hook the only way to focus an
 	 * iframe window would be clicking its title bar chrome. Post a
-	 * `desktop-mode-focus-request` message on every pointerdown; the
+	 * `os-focus-request` message on every pointerdown; the
 	 * parent Window class treats it as an onFocusRequest. Capture
 	 * phase so the signal fires before any stopPropagation inside
 	 * a page's own handlers.
@@ -1431,7 +1431,7 @@ function desktop_mode_chromeless_bridge_script() {
 	function postFocusRequest() {
 		try {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-focus-request' },
+				{ type: 'os-focus-request' },
 				window.location.origin
 			);
 		} catch ( err ) {
@@ -1646,7 +1646,7 @@ function desktop_mode_chromeless_bridge_script() {
 		try {
 			window.parent.postMessage(
 				{
-					type: 'desktop-mode-os-file-drop',
+					type: 'os-file-drop',
 					files: files,
 					x: ev.clientX,
 					y: ev.clientY,
@@ -1674,8 +1674,8 @@ function desktop_mode_chromeless_bridge_script() {
 	 * and unlike the drop forwarder above there is no
 	 * `defaultPrevented` handshake to dedupe a double install.
 	 */
-	if ( ! window.__desktopModeDragHoverForwarderInstalled ) {
-		window.__desktopModeDragHoverForwarderInstalled = true;
+	if ( ! window.__openStationDragHoverForwarderInstalled ) {
+		window.__openStationDragHoverForwarderInstalled = true;
 		var dragHoverLastSent = 0;
 		document.addEventListener( 'dragover', function ( ev ) {
 			var now = Date.now();
@@ -1686,7 +1686,7 @@ function desktop_mode_chromeless_bridge_script() {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-drag-hover',
+						type: 'os-drag-hover',
 						payloadType: bridgeHasFiles( ev ) ? 'os-file' : 'external',
 					},
 					window.location.origin
@@ -1707,10 +1707,10 @@ function desktop_mode_chromeless_bridge_script() {
 	 * through the iframe element's own rect.
 	 *
 	 * Strictly opt-in: the parent posts
-	 * `desktop-mode-pointer-track { enabled: true }` when a consumer
+	 * `os-pointer-track { enabled: true }` when a consumer
 	 * starts, and `{ enabled: false }` when the last one stops. A
 	 * shell with no consumer never turns this on and pays nothing.
-	 * `desktop-mode-bridge-ready` (emitted at the end of this script,
+	 * `os-bridge-ready` (emitted at the end of this script,
 	 * i.e. on every navigation) is the parent's cue to re-arm a
 	 * freshly-loaded frame.
 	 *
@@ -1721,13 +1721,13 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Sentinel-guarded: the standalone bridge bundle
 	 * (`iframe-bridge-standalone.ts`) installs the same forwarder.
 	 */
-	if ( ! window.__desktopModePointerForwarderInstalled ) {
-		window.__desktopModePointerForwarderInstalled = true;
+	if ( ! window.__openStationPointerForwarderInstalled ) {
+		window.__openStationPointerForwarderInstalled = true;
 		var pointerTrackOn = false;
 		var pointerLastSent = 0;
 		window.addEventListener( 'message', function ( e ) {
 			if ( e.origin !== window.location.origin ) return;
-			if ( ! e.data || e.data.type !== 'desktop-mode-pointer-track' ) return;
+			if ( ! e.data || e.data.type !== 'os-pointer-track' ) return;
 			pointerTrackOn = !! e.data.enabled;
 		} );
 		document.addEventListener( 'pointermove', function ( ev ) {
@@ -1740,7 +1740,7 @@ function desktop_mode_chromeless_bridge_script() {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-pointer-move',
+						type: 'os-pointer-move',
 						x: ev.clientX,
 						y: ev.clientY
 					},
@@ -1775,7 +1775,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 		try {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-palette-cycle' },
+				{ type: 'os-palette-cycle' },
 				window.location.origin
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }
@@ -1785,9 +1785,9 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Command harvester — bridges `wp.data.select('core/commands')` to
 	 * the parent shell.
 	 *
-	 * On `desktop-mode-commands-subscribe` from the parent, subscribe to
-	 * the `core/commands` store and post `desktop-mode-commands-list` on
-	 * every change (de-duplicated). On `desktop-mode-commands-invoke`, run
+	 * On `os-commands-subscribe` from the parent, subscribe to
+	 * the `core/commands` store and post `os-commands-list` on
+	 * every change (de-duplicated). On `os-commands-invoke`, run
 	 * the original callback inside this iframe — the parent fires this
 	 * when the user selects a proxied command from the shell palette.
 	 *
@@ -2159,7 +2159,7 @@ function desktop_mode_chromeless_bridge_script() {
 		__wpdCommandsLastPayload = key;
 		try {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-commands-list', commands: list },
+				{ type: 'os-commands-list', commands: list },
 				__wpdCommandsOrigin
 			);
 		} catch ( _err ) {
@@ -2268,11 +2268,11 @@ function desktop_mode_chromeless_bridge_script() {
 	window.addEventListener( 'message', function ( e ) {
 		if ( e.origin !== __wpdCommandsOrigin ) return;
 		if ( ! e.data || typeof e.data.type !== 'string' ) return;
-		if ( e.data.type === 'desktop-mode-commands-subscribe' ) {
+		if ( e.data.type === 'os-commands-subscribe' ) {
 			__wpdSubscribeCommands();
-		} else if ( e.data.type === 'desktop-mode-commands-unsubscribe' ) {
+		} else if ( e.data.type === 'os-commands-unsubscribe' ) {
 			__wpdUnsubscribeCommands();
-		} else if ( e.data.type === 'desktop-mode-commands-invoke' && typeof e.data.name === 'string' ) {
+		} else if ( e.data.type === 'os-commands-invoke' && typeof e.data.name === 'string' ) {
 			__wpdInvokeCommand( e.data.name );
 		}
 	} );
@@ -2285,7 +2285,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// though `wp.data.select('core/commands')` is perfectly happy.
 	try {
 		window.parent.postMessage(
-			{ type: 'desktop-mode-bridge-ready' },
+			{ type: 'os-bridge-ready' },
 			__wpdCommandsOrigin
 		);
 	} catch ( _err ) {
@@ -2336,7 +2336,7 @@ function desktop_mode_chromeless_bridge_script() {
 		try {
 			window.parent.postMessage(
 				{
-					type:      'desktop-mode-window-switch',
+					type:      'os-window-switch',
 					direction: e.shiftKey ? 'prev' : 'next'
 				},
 				window.location.origin
@@ -2347,12 +2347,12 @@ function desktop_mode_chromeless_bridge_script() {
 	// Skip if the standalone iframe-bridge bundle already wired
 	// screen-meta hoisting on this page. Two bridges racing to read
 	// `aria-expanded` and reflect state would double-fire the
-	// `desktop-mode-screen-meta-state` message and flicker the
+	// `os-screen-meta-state` message and flicker the
 	// title-bar buttons.
-	if ( window.__desktopModeScreenMetaInstalled ) {
+	if ( window.__openStationScreenMetaInstalled ) {
 		return;
 	}
-	window.__desktopModeScreenMetaInstalled = true;
+	window.__openStationScreenMetaInstalled = true;
 
 	// Real screen options render form controls (column toggles, a
 	// per-page input, custom settings). An empty wrap should not
@@ -2400,7 +2400,7 @@ function desktop_mode_chromeless_bridge_script() {
 	// same-slug navigation) has no screen meta. addScreenMetaButtons()
 	// clears then repopulates, so an empty array removes everything.
 	window.parent.postMessage( {
-		type: 'desktop-mode-screen-meta',
+		type: 'os-screen-meta',
 		panels: panels
 	}, origin );
 
@@ -2420,7 +2420,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 	function reportState() {
 		window.parent.postMessage( {
-			type: 'desktop-mode-screen-meta-state',
+			type: 'os-screen-meta-state',
 			open: getOpenPanel()
 		}, origin );
 	}
@@ -2467,11 +2467,11 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Broadcast receiver — iframe side.
 	 *
 	 * The parent shell publishes broadcasts via
-	 * `wp.desktop.broadcast(topic, payload)` (see `src/broadcast.ts`).
-	 * It posts `{ type: 'desktop-mode-broadcast', topic, payload }` to
+	 * `wp.os.broadcast(topic, payload)` (see `src/broadcast.ts`).
+	 * It posts `{ type: 'os-broadcast', topic, payload }` to
 	 * every open iframe. Here we re-dispatch that as a CustomEvent
 	 * on the iframe's own document so admin pages can subscribe with
-	 * plain `document.addEventListener( 'desktop-mode-broadcast', cb )`
+	 * plain `document.addEventListener( 'os-broadcast', cb )`
 	 * — no extra script handle required.
 	 *
 	 * Iframe-side admin code can also publish UPSTREAM by posting
@@ -2483,11 +2483,11 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( e.origin !== origin ) {
 			return;
 		}
-		if ( ! e.data || e.data.type !== 'desktop-mode-broadcast' ) {
+		if ( ! e.data || e.data.type !== 'os-broadcast' ) {
 			return;
 		}
 		try {
-			document.dispatchEvent( new CustomEvent( 'desktop-mode-broadcast', {
+			document.dispatchEvent( new CustomEvent( 'os-broadcast', {
 				detail: { topic: e.data.topic, payload: e.data.payload }
 			} ) );
 		} catch ( _err ) { /* old browser without CustomEvent ctor — ignore */ }
@@ -2496,7 +2496,7 @@ function desktop_mode_chromeless_bridge_script() {
 	/* -----------------------------------------------------------------
 	 * Soft-reload — iframe-side default handler.
 	 *
-	 * When a `desktop-mode.<post_type>.changed` broadcast fires AND the
+	 * When a `os.<post_type>.changed` broadcast fires AND the
 	 * current iframe is on a known list page for that post type, we
 	 * fetch the current URL and replace the iframe's `#wpbody-content`
 	 * in place. The user sees the new state of the list — restored
@@ -2513,12 +2513,12 @@ function desktop_mode_chromeless_bridge_script() {
 	 * from the URL (`edit.php` → its `post_type` param or `post`,
 	 * `upload.php` → `attachment`, `edit-comments.php` → `comment`)
 	 * and compared against the `<type>` captured from any
-	 * `desktop-mode.<type>.changed` topic — so every custom post
+	 * `os.<type>.changed` topic — so every custom post
 	 * type's `edit.php?post_type=X` screen participates with zero
 	 * per-type code. Non-`edit.php` list screens (e.g. WooCommerce's
 	 * HPOS `admin.php?page=wc-orders`) are covered by declarative
 	 * extra rules, filterable server-side via
-	 * `desktop_mode_soft_reload_rules`.
+	 * `open_station_soft_reload_rules`.
 	 *
 	 * The fetch carries a custom header so a later phase can serve a
 	 * minimal partial response if we want to optimise; for now WP
@@ -2527,23 +2527,23 @@ function desktop_mode_chromeless_bridge_script() {
 	 * WP list-table JS uses event delegation on `document`/`body`,
 	 * which survives `replaceWith`. If a specific page breaks after
 	 * a swap (e.g. inline-edit double-binding), that page's plugin
-	 * should listen for `desktop-mode-soft-reloaded` and rebind.
+	 * should listen for `os-soft-reloaded` and rebind.
 	 * ----------------------------------------------------------------- */
-	var DESKTOP_MODE_SOFT_RELOAD_EXTRAS = /*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/;
+	var OPEN_STATION_SOFT_RELOAD_EXTRAS = /*__OPEN_STATION_SOFT_RELOAD_EXTRAS__*/;
 
-	function _desktop_modeEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+	function _open_stationEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
 
-	function _desktop_modeListType() {
-		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) {
+	function _open_stationListType() {
+		if ( _open_stationEndsWith( location.pathname, '/wp-admin/edit.php' ) ) {
 			return new URLSearchParams( location.search ).get( 'post_type' ) || 'post';
 		}
-		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/upload.php' ) ) {
+		if ( _open_stationEndsWith( location.pathname, '/wp-admin/upload.php' ) ) {
 			return 'attachment';
 		}
-		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
+		if ( _open_stationEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
 			return 'comment';
 		}
-		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
+		if ( _open_stationEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
 			return 'plugin';
 		}
 		// plugin-install.php is intentionally not a soft-reload target.
@@ -2554,11 +2554,11 @@ function desktop_mode_chromeless_bridge_script() {
 		return null;
 	}
 
-	function _desktop_modeMatchesExtraRule( rule ) {
+	function _open_stationMatchesExtraRule( rule ) {
 		if ( ! rule || ! rule.path ) {
 			return false;
 		}
-		if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/' + rule.path ) ) {
+		if ( ! _open_stationEndsWith( location.pathname, '/wp-admin/' + rule.path ) ) {
 			return false;
 		}
 		var params = new URLSearchParams( location.search );
@@ -2582,29 +2582,29 @@ function desktop_mode_chromeless_bridge_script() {
 		return true;
 	}
 
-	function _desktop_modeSoftReloadTopicMatches( topic ) {
-		var m = /^desktop-mode\.(.+)\.changed$/.exec( topic );
-		if ( m && m[ 1 ] === _desktop_modeListType() ) {
+	function _open_stationSoftReloadTopicMatches( topic ) {
+		var m = /^openstation\.(.+)\.changed$/.exec( topic );
+		if ( m && m[ 1 ] === _open_stationListType() ) {
 			return true;
 		}
-		for ( var i = 0; i < DESKTOP_MODE_SOFT_RELOAD_EXTRAS.length; i++ ) {
-			var rule = DESKTOP_MODE_SOFT_RELOAD_EXTRAS[ i ];
-			if ( rule && rule.topic === topic && _desktop_modeMatchesExtraRule( rule ) ) {
+		for ( var i = 0; i < OPEN_STATION_SOFT_RELOAD_EXTRAS.length; i++ ) {
+			var rule = OPEN_STATION_SOFT_RELOAD_EXTRAS[ i ];
+			if ( rule && rule.topic === topic && _open_stationMatchesExtraRule( rule ) ) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	var _desktop_modeSoftReloadInFlight = false;
-	var _desktop_modeSoftReloadQueued = false;
+	var _open_stationSoftReloadInFlight = false;
+	var _open_stationSoftReloadQueued = false;
 
-	function _desktop_modeSoftReload() {
-		if ( _desktop_modeSoftReloadInFlight ) {
-			_desktop_modeSoftReloadQueued = true;
+	function _open_stationSoftReload() {
+		if ( _open_stationSoftReloadInFlight ) {
+			_open_stationSoftReloadQueued = true;
 			return;
 		}
-		_desktop_modeSoftReloadInFlight = true;
+		_open_stationSoftReloadInFlight = true;
 		fetch( location.href, {
 			credentials: 'same-origin',
 			cache: 'no-cache',
@@ -2625,7 +2625,7 @@ function desktop_mode_chromeless_bridge_script() {
 			}
 			live.replaceWith( fresh );
 			try {
-				document.dispatchEvent( new CustomEvent( 'desktop-mode-soft-reloaded' ) );
+				document.dispatchEvent( new CustomEvent( 'os-soft-reloaded' ) );
 			} catch ( _err ) {}
 			/* Some WP scripts re-init on DOMContentLoaded only — let
 			 * pages opt-in to a re-init by listening to the event
@@ -2636,23 +2636,23 @@ function desktop_mode_chromeless_bridge_script() {
 			 * next manual interaction will refresh state, and the
 			 * next broadcast will retry. */
 			if ( window.console && window.console.warn ) {
-				window.console.warn( '[desktop-mode] soft-reload skipped:', err );
+				window.console.warn( '[openstation] soft-reload skipped:', err );
 			}
 		} ).then( function () {
-			_desktop_modeSoftReloadInFlight = false;
-			if ( _desktop_modeSoftReloadQueued ) {
-				_desktop_modeSoftReloadQueued = false;
-				_desktop_modeSoftReload();
+			_open_stationSoftReloadInFlight = false;
+			if ( _open_stationSoftReloadQueued ) {
+				_open_stationSoftReloadQueued = false;
+				_open_stationSoftReload();
 			}
 		} );
 	}
 
-	document.addEventListener( 'desktop-mode-broadcast', function ( e ) {
+	document.addEventListener( 'os-broadcast', function ( e ) {
 		var detail = e.detail || {};
 		var topic = detail.topic;
 		if ( ! topic ) return;
-		if ( _desktop_modeSoftReloadTopicMatches( topic ) ) {
-			_desktop_modeSoftReload();
+		if ( _open_stationSoftReloadTopicMatches( topic ) ) {
+			_open_stationSoftReload();
 		}
 	} );
 
@@ -2660,7 +2660,7 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( e.origin !== origin ) {
 			return;
 		}
-		if ( ! e.data || e.data.type !== 'desktop-mode-toggle-panel' ) {
+		if ( ! e.data || e.data.type !== 'os-toggle-panel' ) {
 			return;
 		}
 		var target = null;
@@ -2682,9 +2682,9 @@ function desktop_mode_chromeless_bridge_script() {
 	/* -----------------------------------------------------------------
 	 * Connection bridge — iframe side.
 	 *
-	 * Plugins call `wp.desktop.iframe.publish(topic, payload)` /
+	 * Plugins call `wp.os.iframe.publish(topic, payload)` /
 	 * `subscribe(topic, cb)` / `onConnection(cb)` to talk to a parent-
-	 * side `wp.desktop.connect()` caller. The shell only routes;
+	 * side `wp.os.connect()` caller. The shell only routes;
 	 * topic semantics are plugin-defined.
 	 *
 	 * Connections are tracked locally so `onConnection` can fire when
@@ -2720,7 +2720,7 @@ function desktop_mode_chromeless_bridge_script() {
 	function _wpdEmitToParent( connectionId, topic, payload ) {
 		try {
 			window.parent.postMessage( {
-				type: 'desktop-mode-bridge-publish',
+				type: 'os-bridge-publish',
 				connectionId: connectionId,
 				topic: topic,
 				payload: payload
@@ -2737,7 +2737,7 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-beforeunload-query' ) {
+		if ( data.type === 'os-bridge-beforeunload-query' ) {
 			var prevent = false;
 			var msg = '';
 
@@ -2789,7 +2789,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 			try {
 				window.parent.postMessage( {
-					type: 'desktop-mode-bridge-beforeunload-response',
+					type: 'os-bridge-beforeunload-response',
 					prevent: prevent,
 					message: msg
 				}, _wpdParentOrigin );
@@ -2797,9 +2797,9 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-handshake' && typeof data.connectionId === 'string' ) {
+		if ( data.type === 'os-bridge-handshake' && typeof data.connectionId === 'string' ) {
 			/* The parent's handshake carries the host window id —
-			 * stash it so `wp.desktop.iframe.windowId` and
+			 * stash it so `wp.os.iframe.windowId` and
 			 * `whenWindowId()` can serve callers that need to know
 			 * which native window opened this iframe. */
 			if ( typeof data.targetWindowId === 'string' && data.targetWindowId !== '' ) {
@@ -2810,7 +2810,7 @@ function desktop_mode_chromeless_bridge_script() {
 				 * acking again so the parent can resume. */
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-bridge-handshake-ack',
+						type: 'os-bridge-handshake-ack',
 						connectionId: data.connectionId
 					}, _wpdParentOrigin );
 				} catch ( _err ) { /* swallow */ }
@@ -2823,7 +2823,7 @@ function desktop_mode_chromeless_bridge_script() {
 			_wpdConnections[ conn.id ] = conn;
 			try {
 				window.parent.postMessage( {
-					type: 'desktop-mode-bridge-handshake-ack',
+					type: 'os-bridge-handshake-ack',
 					connectionId: conn.id
 				}, _wpdParentOrigin );
 			} catch ( _err ) { /* swallow */ }
@@ -2838,7 +2838,7 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-publish' && typeof data.topic === 'string' ) {
+		if ( data.type === 'os-bridge-publish' && typeof data.topic === 'string' ) {
 			var bucket = _wpdSubs[ data.topic ];
 			if ( bucket ) {
 				for ( var j = 0; j < bucket.length; j++ ) {
@@ -2858,16 +2858,16 @@ function desktop_mode_chromeless_bridge_script() {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-disconnect' && typeof data.connectionId === 'string' ) {
+		if ( data.type === 'os-bridge-disconnect' && typeof data.connectionId === 'string' ) {
 			delete _wpdConnections[ data.connectionId ];
 			return;
 		}
 
 		/* Unified window-channel delivery from the parent. Fires
-		 * every `wp.desktop.on( channel, cb )` subscriber for the
+		 * every `wp.os.on( channel, cb )` subscriber for the
 		 * matching channel — same protocol as
 		 * `assets/js/iframe-bridge.js`. */
-		if ( data.type === 'desktop-mode-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
+		if ( data.type === 'os-window-send' && typeof data.channel === 'string' && data.channel !== '' ) {
 			var meta = { channel: data.channel };
 			var cBucket = _wpdChannelSubs[ data.channel ];
 			if ( cBucket ) {
@@ -2992,7 +2992,7 @@ function desktop_mode_chromeless_bridge_script() {
 					if (
 						! d ||
 						typeof d !== 'object' ||
-						d.type !== 'desktop-mode-bridge-connection-ack' ||
+						d.type !== 'os-bridge-connection-ack' ||
 						d.requestId !== requestId
 					) {
 						return;
@@ -3018,7 +3018,7 @@ function desktop_mode_chromeless_bridge_script() {
 
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-bridge-connection-request',
+						type: 'os-bridge-connection-request',
 						requestId: requestId,
 						topics: topics
 					}, _wpdParentOrigin );
@@ -3036,7 +3036,7 @@ function desktop_mode_chromeless_bridge_script() {
 			setTheme: function ( tokens ) {
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-chrome-theme',
+						type: 'os-chrome-theme',
 						tokens: tokens || {}
 					}, _wpdParentOrigin );
 				} catch ( _err ) { /* parent gone */ }
@@ -3044,7 +3044,7 @@ function desktop_mode_chromeless_bridge_script() {
 			setControls: function ( config ) {
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-chrome-controls',
+						type: 'os-chrome-controls',
 						config: config === undefined ? null : config
 					}, _wpdParentOrigin );
 				} catch ( _err ) { /* parent gone */ }
@@ -3055,7 +3055,7 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-chrome-slot',
+						type: 'os-chrome-slot',
 						slot: name,
 						html: typeof html === 'string' ? html : ''
 					}, _wpdParentOrigin );
@@ -3106,32 +3106,32 @@ function desktop_mode_chromeless_bridge_script() {
 	};
 
 	if ( ! window.wp ) { window.wp = {}; }
-	if ( ! window.wp.desktop ) { window.wp.desktop = {}; }
-	window.wp.desktop.iframe = iframeApi;
+	if ( ! window.wp.os ) { window.wp.os = {}; }
+	window.wp.os.iframe = iframeApi;
 
 	/* Unified window-channel API. Mirror of the equivalent block
 	 * in `assets/js/iframe-bridge.js` — keep both in sync. The
-	 * parent shell posts `desktop-mode-window-send` on
+	 * parent shell posts `os-window-send` on
 	 * `Window.send( channel, payload )`; iframe-side handlers
-	 * register via `wp.desktop.on( channel, cb )`. Sending the
-	 * other way (`wp.desktop.send`) posts up to the parent where
+	 * register via `wp.os.on( channel, cb )`. Sending the
+	 * other way (`wp.os.send`) posts up to the parent where
 	 * `Window.on( channel, cb )` subscribers fire. */
-	if ( typeof window.wp.desktop.send !== 'function' ) {
-		window.wp.desktop.send = function ( channel, payload ) {
+	if ( typeof window.wp.os.send !== 'function' ) {
+		window.wp.os.send = function ( channel, payload ) {
 			if ( typeof channel !== 'string' || channel === '' ) {
 				return;
 			}
 			try {
 				window.parent.postMessage( {
-					type: 'desktop-mode-window-publish',
+					type: 'os-window-publish',
 					channel: channel,
 					payload: payload
 				}, _wpdParentOrigin );
 			} catch ( _err ) { /* parent gone */ }
 		};
 	}
-	if ( typeof window.wp.desktop.on !== 'function' ) {
-		window.wp.desktop.on = function ( channel, cb ) {
+	if ( typeof window.wp.os.on !== 'function' ) {
+		window.wp.os.on = function ( channel, cb ) {
 			if ( typeof channel !== 'string' || channel === '' || typeof cb !== 'function' ) {
 				return function () {};
 			}
@@ -3155,7 +3155,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 *
 	 * When the user's session expires while a chromeless window is
 	 * open, this iframe does NOT show core's `wp-auth-check` login
-	 * modal — `desktop_mode_chromeless_suppress_auth_check()` keeps
+	 * modal — `open_station_chromeless_suppress_auth_check()` keeps
 	 * the modal assets out of chromeless requests so the parent
 	 * shell owns the single prompt for the whole desktop. Detection
 	 * still works without the modal JS: core attaches the
@@ -3175,7 +3175,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * back to `true`, the user re-authed mid-session and every
 	 * cached nonce in this iframe is stale — reload so they
 	 * regenerate from the fresh session. The parent is nudged
-	 * first (`desktop-mode-reauth-detected`) so its own recovery
+	 * first (`os-reauth-detected`) so its own recovery
 	 * (`src/auth-recovery/index.ts`: in-place nonce refresh + a
 	 * reload sweep over sibling iframes that haven't ticked yet)
 	 * starts immediately instead of waiting for the parent's
@@ -3192,7 +3192,7 @@ function desktop_mode_chromeless_bridge_script() {
 				return;
 			}
 			attached = true;
-			window.jQuery( document ).on( 'heartbeat-tick.wpdAuthRecover', function ( ev, data ) {
+			window.jQuery( document ).on( 'heartbeat-tick.osAuthRecover', function ( ev, data ) {
 				if ( ! data || typeof data !== 'object' || ! ( 'wp-auth-check' in data ) ) {
 					return;
 				}
@@ -3211,7 +3211,7 @@ function desktop_mode_chromeless_bridge_script() {
 					try {
 						if ( window.parent && window.parent !== window ) {
 							window.parent.postMessage(
-								{ type: 'desktop-mode-reauth-detected' },
+								{ type: 'os-reauth-detected' },
 								window.location.origin
 							);
 						}
@@ -3264,7 +3264,7 @@ function desktop_mode_chromeless_bridge_script() {
 				var shell = window.top || window.parent;
 				if ( shell && shell !== window ) {
 					shell.postMessage(
-						{ type: 'desktop-mode-updates-changed' },
+						{ type: 'os-updates-changed' },
 						window.location.origin
 					);
 				}
@@ -3274,7 +3274,7 @@ function desktop_mode_chromeless_bridge_script() {
 			// `wp-plugin-install-success` fires after an AJAX install on
 			// plugin-install.php with no page navigation. The PHP
 			// `upgrader_process_complete` hook records the change correctly,
-			// but `desktop_mode_content_changes_emit_footer` only runs on
+			// but `open_station_content_changes_emit_footer` only runs on
 			// chromeless page requests — admin-ajax.php is not in the
 			// chromeless allowlist, so there's no in-band emit from that
 			// request. The Heartbeat buffer will eventually deliver it, but
@@ -3286,8 +3286,8 @@ function desktop_mode_chromeless_bridge_script() {
 				if ( shell && shell !== window ) {
 					shell.postMessage(
 						{
-							type: 'desktop-mode-broadcast',
-							topic: 'desktop-mode.plugin.changed',
+							type: 'os-broadcast',
+							topic: 'os.plugin.changed',
 							payload: { source: 'chromeless-bridge', action: 'install' }
 						},
 						window.location.origin
@@ -3302,16 +3302,16 @@ function desktop_mode_chromeless_bridge_script() {
 			attached = true;
 			window.jQuery( document ).on(
 				[
-					'wp-plugin-update-success.wpdUpdates',
-					'wp-plugin-update-error.wpdUpdates',
-					'wp-plugin-delete-success.wpdUpdates',
-					'wp-theme-update-success.wpdUpdates',
-					'wp-theme-update-error.wpdUpdates',
-					'wp-theme-delete-success.wpdUpdates'
+					'wp-plugin-update-success.osUpdates',
+					'wp-plugin-update-error.osUpdates',
+					'wp-plugin-delete-success.osUpdates',
+					'wp-theme-update-success.osUpdates',
+					'wp-theme-update-error.osUpdates',
+					'wp-theme-delete-success.osUpdates'
 				].join( ' ' ),
 				notify
 			);
-			window.jQuery( document ).on( 'wp-plugin-install-success.wpdUpdates', notifyPluginInstall );
+			window.jQuery( document ).on( 'wp-plugin-install-success.osUpdates', notifyPluginInstall );
 		}
 		attach();
 		if ( document.readyState === 'loading' ) {
@@ -3338,7 +3338,7 @@ function desktop_mode_chromeless_bridge_script() {
 	try {
 		if ( window.parent && window.parent !== window ) {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-ready' },
+				{ type: 'os-ready' },
 				window.location.origin
 			);
 		}
@@ -3353,7 +3353,7 @@ JS;
 	// there's no point recomputing it when one is being sent. GH#325.
 	$menu_sig_json = 'null';
 	if ( 'null' === $menu_payload_json ) {
-		$menu_sig = desktop_mode_menu_signature();
+		$menu_sig = open_station_menu_signature();
 		if ( '' !== $menu_sig ) {
 			$encoded_sig = wp_json_encode( $menu_sig );
 			if ( false !== $encoded_sig ) {
@@ -3366,7 +3366,7 @@ JS;
 	// standard `edit.php?post_type=<type>` / `upload.php` /
 	// `edit-comments.php` page (those are matched generically in the
 	// bridge script). Rule shape:
-	//   - `topic`       — the `desktop-mode.<type>.changed` topic.
+	//   - `topic`       — the `os.<type>.changed` topic.
 	//   - `path`        — wp-admin filename (`admin.php`).
 	//   - `query`       — required query params (exact match).
 	//   - `queryAbsent` — params that must NOT be present.
@@ -3379,7 +3379,7 @@ JS;
 	// absent the URL never renders and the rule is inert.
 	$soft_reload_rules = array(
 		array(
-			'topic'       => 'desktop-mode.shop_order.changed',
+			'topic'       => 'os.shop_order.changed',
 			'path'        => 'admin.php',
 			'query'       => array( 'page' => 'wc-orders' ),
 			'queryAbsent' => array( 'action' ),
@@ -3392,13 +3392,13 @@ JS;
 	 *
 	 * Lets a plugin whose list screen lives on a custom admin URL
 	 * participate in cross-window refresh: pair a rule here with
-	 * `desktop_mode_content_changes_record()` calls (or your own
-	 * `desktop-mode.<type>.changed` broadcasts) on the publish side.
+	 * `open_station_content_changes_record()` calls (or your own
+	 * `os.<type>.changed` broadcasts) on the publish side.
 	 *
 	 * @param array $soft_reload_rules Rule arrays with keys `topic`,
 	 *                                 `path`, `query`, `queryAbsent`.
 	 */
-	$soft_reload_rules = (array) apply_filters( 'desktop_mode_soft_reload_rules', $soft_reload_rules );
+	$soft_reload_rules = (array) apply_filters( 'open_station_soft_reload_rules', $soft_reload_rules );
 	$soft_reload_json  = wp_json_encode( array_values( $soft_reload_rules ) );
 	if ( ! $soft_reload_json ) {
 		$soft_reload_json = '[]';
@@ -3409,11 +3409,11 @@ JS;
 	// for an additional escape pass. When the page isn't on our
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
-	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
-	$js = str_replace( '/*__DESKTOP_MODE_MENU_SIG__*/', $menu_sig_json, $js );
-	$js = str_replace( '/*__DESKTOP_MODE_CONTENT_IDENTITY__*/', $content_identity_json, $js );
-	$js = str_replace( '/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/', $soft_reload_json, $js );
+	$js = str_replace( '/*__OPEN_STATION_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__OPEN_STATION_MENU_SIG__*/', $menu_sig_json, $js );
+	$js = str_replace( '/*__OPEN_STATION_CONTENT_IDENTITY__*/', $content_identity_json, $js );
+	$js = str_replace( '/*__OPEN_STATION_SOFT_RELOAD_EXTRAS__*/', $soft_reload_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'desktop_mode_chromeless_bridge_script' );
+add_action( 'admin_footer', 'open_station_chromeless_bridge_script' );

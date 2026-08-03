@@ -6,8 +6,8 @@
  * dependency graph.
  *
  * Most values are fallbacks. The live set comes from
- * `desktopModeConfig.accentColors` / `.defaultWallpaper`, populated by
- * PHP via `desktop_mode_accent_colors` / `desktop_mode_default_wallpaper`
+ * `openStationConfig.accentColors` / `.defaultWallpaper`, populated by
+ * PHP via `open_station_accent_colors` / `open_station_default_wallpaper`
  * filters. The getters in this file do the `runtime config → fallback`
  * dance so callers never have to branch on "is the config hydrated?"
  */
@@ -41,9 +41,9 @@ export const DEFAULT_WALLPAPER_ID = 'galaxy';
  * Built-in accent swatches applied to `--wp-admin-theme-color`.
  *
  * This is the compile-time fallback list used when PHP doesn't hand
- * us a live `accentColors` array in `desktopModeConfig` — the live list
+ * us a live `accentColors` array in `openStationConfig` — the live list
  * is what the picker actually renders. Plugins that want to
- * customise the list should hook `desktop_mode_accent_colors` in PHP,
+ * customise the list should hook `open_station_accent_colors` in PHP,
  * not fork this constant.
  */
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
@@ -60,16 +60,16 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
 /**
  * Resolve the live accent-color list.
  *
- * Reads `window.wp.desktop.config.accentColors` (populated by PHP via
- * `desktop_mode_accent_colors`) and validates each entry shape. Drops
+ * Reads `window.wp.os.config.accentColors` (populated by PHP via
+ * `open_station_accent_colors`) and validates each entry shape. Drops
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
  */
 export function getAccents(): readonly AccentColor[] {
 	const config = ( window as unknown as {
-		wp?: { desktop?: { config?: DesktopConfig } };
-	} ).wp?.desktop?.config;
+		wp?: { os?: { config?: DesktopConfig } };
+	} ).wp?.os?.config;
 	const raw = config?.accentColors;
 	if ( ! Array.isArray( raw ) || raw.length === 0 ) {
 		return DEFAULT_ACCENTS;
@@ -94,13 +94,13 @@ export function getAccents(): readonly AccentColor[] {
 
 /**
  * Resolve the live default-wallpaper slug. Reads
- * `window.wp.desktop.config.defaultWallpaper` and falls back to
+ * `window.wp.os.config.defaultWallpaper` and falls back to
  * {@link DEFAULT_WALLPAPER_ID} when absent/invalid.
  */
 export function getDefaultWallpaperId(): string {
 	const config = ( window as unknown as {
-		wp?: { desktop?: { config?: DesktopConfig } };
-	} ).wp?.desktop?.config;
+		wp?: { os?: { config?: DesktopConfig } };
+	} ).wp?.os?.config;
 	const raw = config?.defaultWallpaper;
 	if ( typeof raw === 'string' && raw !== '' ) {
 		return raw;
@@ -117,7 +117,7 @@ export const DOCK_SIZES = [
 
 /**
  * Window corner-radius presets. `value` (px) is written to the
- * `--desktop-mode-window-radius` custom property by the settings apply
+ * `--os-window-radius` custom property by the settings apply
  * pass, so the choice reflows every open window's corners live.
  */
 export const WINDOW_RADII = [
@@ -128,7 +128,7 @@ export const WINDOW_RADII = [
 
 /**
  * Admin-bar presentation modes. Drives the
- * `desktop-mode-admin-bar-<id>` body class (written by PHP on render
+ * `os-admin-bar-<id>` body class (written by PHP on render
  * and re-written by the settings apply pass), which is what
  * `desktop.css` keys off to place — or hide — the WordPress admin bar
  * above the shell.
@@ -140,13 +140,13 @@ export const WINDOW_RADII = [
  *               the top of the viewport or something inside it takes
  *               keyboard focus. The reveal zone is deliberately taller
  *               than the visible peek (see the two
- *               `--desktop-mode-admin-bar-*` tokens). The shell
+ *               `--os-admin-bar-*` tokens). The shell
  *               reclaims the full viewport and the bar overlays it
  *               when revealed. Modeled on the classic Windows
  *               auto-hide taskbar.
  * - `hidden`  — the bar is not rendered at all. The "Exit Desktop
  *               Mode" tile on the dock's core rail
- *               (`src/exit-desktop-mode.ts`) is the way back to
+ *               (`src/exit-os.ts`) is the way back to
  *               classic admin, so this is not a one-way door.
  */
 export const ADMIN_BAR_MODES = [
@@ -156,7 +156,7 @@ export const ADMIN_BAR_MODES = [
 ] as const;
 
 /**
- * Dock-placement options. Drives the `data-desktop-mode-dock-placement`
+ * Dock-placement options. Drives the `data-os-dock-placement`
  * attribute that each `Dock` instance writes onto its own root. CSS
  * keys off that attribute to position the rail, flip the tooltip
  * anchor, and adjust the desktop-area inset.
@@ -174,7 +174,7 @@ export const DOCK_PLACEMENTS = [
 
 /**
  * Desktop layout options. User picks one in OS Settings → Appearance;
- * the shell root reflects the choice in `data-desktop-mode-layout` and
+ * the shell root reflects the choice in `data-os-layout` and
  * the layout dispatcher rebuilds the dock(s) + desktop icons.
  */
 export const DESKTOP_LAYOUTS = [

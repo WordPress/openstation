@@ -1,6 +1,6 @@
 {
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "landingPage": "/desktop-mode/",
+  "landingPage": "/openstation/",
   "preferredVersions": {
     "php": "8.3",
     "wp": "latest"
@@ -37,7 +37,7 @@
     },
     {
       "step": "runPHP",
-      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n$options = get_option( 'desktop_mode_extended_options', array() );\n$options = is_array( $options ) ? $options : array();\n$options['games'] = true;\nupdate_option( 'desktop_mode_extended_options', $options, false );\nupdate_option( 'blogname', 'WP Desktop Mode — Popup Siege Demo' );"
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n$options = get_option( 'desktop_mode_extended_options', array() );\n$options = is_array( $options ) ? $options : array();\n$options['games'] = true;\nupdate_option( 'desktop_mode_extended_options', $options, false );\nupdate_option( 'blogname', 'WP OpenStation — Popup Siege Demo' );"
     },
     {
       "step": "writeFile",
@@ -45,7 +45,7 @@
       "data": {
         "resource": "literal",
         "name": "popup-siege-demo.php",
-        "contents": "<?php\n/** Automatically stage Popup Siege on the disposable Playground demo. */\nadd_action(\n\t'admin_enqueue_scripts',\n\tstatic function () {\n\t\tif ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {\n\t\t\treturn;\n\t\t}\n\t\twp_add_inline_script(\n\t\t\t'desktop-mode',\n\t\t\t'window.wp.desktop.ready(function(){var games=window.wp.desktop.games;if(games&&typeof games.launch===\"function\"){Promise.resolve(games.launch(\"popup-siege\")).catch(function(){window.wp.desktop.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});});}else{window.wp.desktop.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});}});',\n\t\t\t'after'\n\t\t);\n\t},\n\t100\n);"
+        "contents": "<?php\n/** Automatically stage Popup Siege on the disposable Playground demo. */\nadd_action(\n\t'admin_enqueue_scripts',\n\tstatic function () {\n\t\tif ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {\n\t\t\treturn;\n\t\t}\n\t\twp_add_inline_script(\n\t\t\t'openstation',\n\t\t\t'window.wp.os.ready(function(){var games=window.wp.os.games;if(games&&typeof games.launch===\"function\"){Promise.resolve(games.launch(\"popup-siege\")).catch(function(){window.wp.os.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});});}else{window.wp.os.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});}});',\n\t\t\t'after'\n\t\t);\n\t},\n\t100\n);"
       }
     }
   ]

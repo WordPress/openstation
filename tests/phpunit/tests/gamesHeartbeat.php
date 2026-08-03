@@ -6,10 +6,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-games
  */
-class Tests_DesktopMode_GamesHeartbeat extends WP_UnitTestCase {
+class Tests_OpenStation_GamesHeartbeat extends WP_UnitTestCase {
 
 	protected static $challenger;
 	protected static $recipient;
@@ -21,8 +21,8 @@ class Tests_DesktopMode_GamesHeartbeat extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		desktop_mode_games_install_schema();
-		desktop_mode_register_game( 'test-game', array(
+		open_station_games_install_schema();
+		open_station_register_game( 'test-game', array(
 			'title'  => 'Test Game',
 			'script' => 'test-game-script',
 		) );
@@ -33,47 +33,47 @@ class Tests_DesktopMode_GamesHeartbeat extends WP_UnitTestCase {
 
 	public function tear_down() {
 		global $wpdb;
-		foreach ( desktop_mode_games_table_names() as $t ) {
+		foreach ( open_station_games_table_names() as $t ) {
 			$wpdb->query( "TRUNCATE TABLE $t" );
 		}
-		desktop_mode_unregister_game( 'test-game' );
-		remove_all_filters( 'desktop_mode_games_heartbeat_max_rows' );
+		open_station_unregister_game( 'test-game' );
+		remove_all_filters( 'open_station_games_heartbeat_max_rows' );
 		parent::tear_down();
 	}
 
 	private function tick( $version = 0 ) {
-		return desktop_mode_games_heartbeat_received(
+		return open_station_games_heartbeat_received(
 			array(),
-			array( 'desktop_mode_games_subscribe' => array( 'challengesVersion' => $version ) )
+			array( 'open_station_games_subscribe' => array( 'challengesVersion' => $version ) )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_heartbeat_received
+	 * @covers ::open_station_games_heartbeat_received
 	 */
 	public function test_no_subscription_no_payload() {
-		$response = desktop_mode_games_heartbeat_received( array(), array() );
-		$this->assertArrayNotHasKey( 'desktop_mode_games', $response );
+		$response = open_station_games_heartbeat_received( array(), array() );
+		$this->assertArrayNotHasKey( 'open_station_games', $response );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_heartbeat_received
+	 * @covers ::open_station_games_heartbeat_received
 	 */
-	public function test_requires_desktop_mode_enabled() {
+	public function test_requires_open_station_enabled() {
 		delete_user_meta( self::$recipient, 'desktop_mode_mode' );
 		$response = $this->tick();
-		$this->assertArrayNotHasKey( 'desktop_mode_games', $response );
+		$this->assertArrayNotHasKey( 'open_station_games', $response );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_heartbeat_received
+	 * @covers ::open_station_games_heartbeat_received
 	 */
 	public function test_recipient_sees_pending_challenge_once() {
-		desktop_mode_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
+		open_station_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
 
 		$response = $this->tick( 0 );
-		$this->assertArrayHasKey( 'desktop_mode_games', $response );
-		$payload = $response['desktop_mode_games'];
+		$this->assertArrayHasKey( 'open_station_games', $response );
+		$payload = $response['open_station_games'];
 		$this->assertCount( 1, $payload['challenges'] );
 		$this->assertSame( 'pending', $payload['challenges'][0]['state'] );
 		$this->assertFalse( $payload['truncated'] );
@@ -82,39 +82,39 @@ class Tests_DesktopMode_GamesHeartbeat extends WP_UnitTestCase {
 		// channel.
 		$version = $payload['challenges'][0]['updatedAtMs'];
 		$quiet   = $this->tick( $version );
-		$this->assertSame( array(), $quiet['desktop_mode_games']['challenges'] );
+		$this->assertSame( array(), $quiet['open_station_games']['challenges'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_heartbeat_received
+	 * @covers ::open_station_games_heartbeat_received
 	 */
 	public function test_challenger_sees_completion() {
-		$id = desktop_mode_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
-		$created_version = (int) desktop_mode_games_get_challenge( $id )['updated_at_ms'];
-		desktop_mode_games_set_challenge_state( $id, 'accepted' );
-		desktop_mode_games_complete_challenge( $id, 150 );
+		$id = open_station_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
+		$created_version = (int) open_station_games_get_challenge( $id )['updated_at_ms'];
+		open_station_games_set_challenge_state( $id, 'accepted' );
+		open_station_games_complete_challenge( $id, 150 );
 
 		wp_set_current_user( self::$challenger );
-		$payload = $this->tick( $created_version )['desktop_mode_games'];
+		$payload = $this->tick( $created_version )['open_station_games'];
 		$this->assertCount( 1, $payload['challenges'] );
 		$this->assertSame( 'completed', $payload['challenges'][0]['state'] );
 		$this->assertSame( 'beaten', $payload['challenges'][0]['result'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_heartbeat_received
+	 * @covers ::open_station_games_heartbeat_received
 	 */
 	public function test_truncation_flag_past_cap() {
 		add_filter(
-			'desktop_mode_games_heartbeat_max_rows',
+			'open_station_games_heartbeat_max_rows',
 			static function () {
 				return 2;
 			}
 		);
 		for ( $i = 0; $i < 3; $i++ ) {
-			desktop_mode_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 10 + $i );
+			open_station_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 10 + $i );
 		}
-		$payload = $this->tick( 0 )['desktop_mode_games'];
+		$payload = $this->tick( 0 )['open_station_games'];
 		$this->assertCount( 2, $payload['challenges'] );
 		$this->assertTrue( $payload['truncated'] );
 	}

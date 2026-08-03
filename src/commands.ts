@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Command Palette registry.
+ * OpenStation — Command Palette registry.
  *
  * Third-party plugins contribute slash-commands via the public
- * `wp.desktop.registerCommand()` API. The AI Assistant reads from
+ * `wp.os.registerCommand()` API. The AI Assistant reads from
  * this registry the moment the user types `/` as the first character
  * of their query, and rendering / selection / invocation happens in
  * `ai-assistant.ts`.
@@ -75,9 +75,9 @@ export interface CommandContext {
 	 * route through the shared toast layer in a follow-up release. If
 	 * you need user feedback from a command `run()` right now, return
 	 * a `string` or `{ message: string }` from `run()` and the
-	 * assistant overlay / `wp.desktop.ai.ask()` caller will surface
+	 * assistant overlay / `wp.os.ai.ask()` caller will surface
 	 * it as `res.message`. For out-of-band toasts, dispatch
-	 * `desktop-mode.shell.toast` via `wp.desktop.hooks.doAction()`.
+	 * `os.shell.toast` via `wp.os.hooks.doAction()`.
 	 *
 	 * This field stays typed so command code written today compiles
 	 * against the final API unchanged.
@@ -182,7 +182,7 @@ export interface DesktopCommand {
 	/**
 	 * Opt into being callable by the AI Copilot as a tool.
 	 *
-	 * When `true`, `wp.desktop.ai.ask()` harvests this command into
+	 * When `true`, `wp.os.ai.ask()` harvests this command into
 	 * the `command_tools` array sent to `/ai/search`. If the model
 	 * matches the user's query to this command, the server returns
 	 * `{ answer_type: 'tool_call', tool: { slug, args } }` and the
@@ -232,7 +232,7 @@ export interface DesktopCommand {
 const COMMAND_SLUG = /^[a-z0-9_/-]+$/;
 
 // Cross-bundle shared state — see `docs/examples/shared-store.md`.
-// Each Desktop Mode feature ships as its own Vite IIFE bundle; without
+// Each OpenStation feature ships as its own Vite IIFE bundle; without
 // the shared store, the `desktop` bundle and the `ai-assistant` bundle
 // each get their own compiled copy of this module and therefore their
 // own `registry` Map. The shell harvester registers commands into the
@@ -270,7 +270,7 @@ const listeners = commandRegistryStore.state.listeners;
  * Called by plugins:
  *
  * ```js
- * wp.desktop.registerCommand({
+ * wp.os.registerCommand({
  *     slug: 'turn_on_comments',
  *     label: 'Turn on comments',
  *     hint: '[post id]',
@@ -281,7 +281,7 @@ const listeners = commandRegistryStore.state.listeners;
  *         if (!id) return 'Usage: /turn_on_comments [post id]';
  *         await fetch(`/wp-json/my-plugin/v1/enable-comments/${id}`, {
  *             method: 'POST',
- *             headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
+ *             headers: { 'X-WP-Nonce': openStationConfig.restNonce },
  *         });
  *         ctx.close();
  *         return `Comments enabled on post ${id}.`;
@@ -433,7 +433,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] command-registry listener threw:', err );
+				console.error( '[openstation] command-registry listener threw:', err );
 			}
 		}
 	}

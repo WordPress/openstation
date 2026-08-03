@@ -1,0 +1,58 @@
+/**
+ * `<os-stack>` — smoke test. Verifies the gap + align attributes
+ * flow through to the host's inline custom properties and that
+ * slotted children reach light DOM.
+ */
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import './os-stack';
+
+const tick = (): Promise< void > => Promise.resolve();
+
+describe( '<os-stack>', () => {
+	let host: HTMLElement;
+	beforeEach( () => {
+		host = document.createElement( 'div' );
+		document.body.appendChild( host );
+	} );
+	afterEach( () => host.remove() );
+
+	test( 'writes `gap` + `align` as custom properties on the host', async () => {
+		host.innerHTML = `
+			<os-stack gap="24" align="center">
+				<span class="child">a</span>
+				<span class="child">b</span>
+			</os-stack>
+		`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'os-stack' )!;
+		expect( stack.style.getPropertyValue( '--os-ui-stack-gap' ) ).toBe( '24px' );
+		expect( stack.style.getPropertyValue( '--os-ui-stack-align' ) ).toBe( 'center' );
+		expect( stack.querySelectorAll( '.child' ) ).toHaveLength( 2 );
+	} );
+
+	test( 'non-numeric gap is ignored (falls back to CSS default)', async () => {
+		host.innerHTML = `<os-stack gap="huge"></os-stack>`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'os-stack' )!;
+		expect( stack.style.getPropertyValue( '--os-ui-stack-gap' ) ).toBe( '' );
+	} );
+
+	test( 'writes `padding` as a custom property — accepts 0', async () => {
+		host.innerHTML = `<os-stack padding="16"></os-stack>`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'os-stack' )!;
+		expect( stack.style.getPropertyValue( '--os-ui-stack-padding' ) ).toBe( '16px' );
+
+		host.innerHTML = `<os-stack padding="0"></os-stack>`;
+		await tick();
+		const zero = host.querySelector< HTMLElement >( 'os-stack' )!;
+		expect( zero.style.getPropertyValue( '--os-ui-stack-padding' ) ).toBe( '0px' );
+	} );
+
+	test( 'non-numeric padding is ignored', async () => {
+		host.innerHTML = `<os-stack padding="big"></os-stack>`;
+		await tick();
+		const stack = host.querySelector< HTMLElement >( 'os-stack' )!;
+		expect( stack.style.getPropertyValue( '--os-ui-stack-padding' ) ).toBe( '' );
+	} );
+} );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents: default agent definitions.
+ * OpenStation — Agents: default agent definitions.
  *
  * Five ready-to-use agents seeded ONCE, and only on sites that have
  * no agents at all — an install that already built its own roster is
@@ -13,20 +13,20 @@
  * runner at tool-build time — allowlisting them here costs nothing
  * and lights them up when the provider plugin lands.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Option flag: defaults were seeded (or deliberately skipped). */
-const DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION = 'desktop_mode_agents_defaults_seeded';
+const OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION = 'desktop_mode_agents_defaults_seeded';
 
 /**
  * The default agent roster.
  *
  * @return array<int, array<string, mixed>>
  */
-function desktop_mode_agents_default_definitions() {
+function open_station_agents_default_definitions() {
 	return array(
 		array(
 			'name'         => 'tl;dr',
@@ -346,19 +346,19 @@ DM_AGENT_ALT_INSTRUCTIONS,
  *
  * @return void
  */
-function desktop_mode_agents_seed_defaults() {
-	if ( get_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION ) ) {
+function open_station_agents_seed_defaults() {
+	if ( get_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION ) ) {
 		return;
 	}
 
-	$existing = desktop_mode_agent_get_agents();
+	$existing = open_station_agent_get_agents();
 	if ( ! empty( $existing ) ) {
-		update_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
+		update_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
 		return;
 	}
 
-	foreach ( desktop_mode_agents_default_definitions() as $definition ) {
-		$user = desktop_mode_agent_create(
+	foreach ( open_station_agents_default_definitions() as $definition ) {
+		$user = open_station_agent_create(
 			array(
 				'name'         => $definition['name'],
 				'role'         => $definition['role'],
@@ -369,13 +369,13 @@ function desktop_mode_agents_seed_defaults() {
 		);
 		if ( is_wp_error( $user ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[desktop-mode] Default agent "' . $definition['name'] . '" failed to seed: ' . $user->get_error_message() );
+			error_log( '[openstation] Default agent "' . $definition['name'] . '" failed to seed: ' . $user->get_error_message() );
 			continue;
 		}
-		desktop_mode_agent_update( $user->ID, array( 'triggers' => $definition['triggers'] ) );
+		open_station_agent_update( $user->ID, array( 'triggers' => $definition['triggers'] ) );
 	}
 
-	update_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
+	update_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
 }
 /**
  * Hook wrapper — seed only on wp-admin requests by a user who could
@@ -384,10 +384,10 @@ function desktop_mode_agents_seed_defaults() {
  *
  * @return void
  */
-function desktop_mode_agents_maybe_seed_defaults() {
+function open_station_agents_maybe_seed_defaults() {
 	if ( ! is_admin() || ! current_user_can( 'edit_users' ) ) {
 		return;
 	}
-	desktop_mode_agents_seed_defaults();
+	open_station_agents_seed_defaults();
 }
-add_action( 'admin_init', 'desktop_mode_agents_maybe_seed_defaults' );
+add_action( 'admin_init', 'open_station_agents_maybe_seed_defaults' );

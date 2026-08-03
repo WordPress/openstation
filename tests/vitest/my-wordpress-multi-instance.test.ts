@@ -7,7 +7,7 @@
  * because the singleton `activeState` no longer pointed at it.
  *
  * Test pattern: load the my-wordpress module (it registers a callback
- * on `window.desktopModeNativeWindows[WINDOW_ID]`), call that callback
+ * on `window.openStationNativeWindows[WINDOW_ID]`), call that callback
  * against two distinct bodies, and confirm both ended up with the
  * root tile grid painted.
  */
@@ -19,21 +19,21 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 interface NativeWindowsGlobal {
-	desktopModeNativeWindows?: Record<
+	openStationNativeWindows?: Record<
 		string,
 		( ( body: HTMLElement ) => void | ( () => void ) ) | undefined
 	>;
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationWindowConfig?: Record< string, unknown >;
 }
 
 function installTemplateMarkup( host: HTMLElement ): void {
 	host.innerHTML = `
-		<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-			<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-			<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-				<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+		<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+			<header data-os-my-wordpress-breadcrumbs></header>
+			<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+				<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 			</div>
-			<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+			<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 		</div>
 	`;
 }
@@ -42,7 +42,7 @@ describe( 'my-wordpress — multi-instance render', () => {
 	beforeEach( async () => {
 		installHooksStub();
 		// Stub the shell config the bundle reads via `getConfig()`.
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig = {
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig = {
 			[ WINDOW_ID ]: {
 				restRoot: 'http://example.test/wp-json/',
 				restNonce: 'nonce',
@@ -80,7 +80,7 @@ describe( 'my-wordpress — multi-instance render', () => {
 	} );
 
 	afterEach( () => {
-		// Don't wipe `desktopModeNativeWindows` — Vitest caches the
+		// Don't wipe `openStationNativeWindows` — Vitest caches the
 		// side-effect import, so the bundle's registration only runs
 		// once across the whole file. Clearing the global between
 		// tests strands every subsequent test without a callback.
@@ -92,34 +92,34 @@ describe( 'my-wordpress — multi-instance render', () => {
 
 	test( 'callback paints content into a single body', async () => {
 		const cb = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		expect( typeof cb ).toBe( 'function' );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-window__body';
+		body.className = 'os-window__body';
 		installTemplateMarkup( body );
 		document.body.appendChild( body );
 
 		cb!( body );
 
-		const grid = body.querySelector( '.desktop-mode-my-wordpress__grid' );
+		const grid = body.querySelector( '.os-my-wordpress__grid' );
 		expect( grid ).not.toBeNull();
 		expect( grid!.children.length ).toBeGreaterThan( 0 );
 	} );
 
 	test( 'callback paints content into BOTH bodies when invoked twice', async () => {
 		const cb = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		expect( typeof cb ).toBe( 'function' );
 
 		const body1 = document.createElement( 'div' );
-		body1.className = 'desktop-mode-window__body';
+		body1.className = 'os-window__body';
 		body1.dataset.instance = '1';
 		installTemplateMarkup( body1 );
 		document.body.appendChild( body1 );
 
 		const body2 = document.createElement( 'div' );
-		body2.className = 'desktop-mode-window__body';
+		body2.className = 'os-window__body';
 		body2.dataset.instance = '2';
 		installTemplateMarkup( body2 );
 		document.body.appendChild( body2 );
@@ -127,8 +127,8 @@ describe( 'my-wordpress — multi-instance render', () => {
 		const teardown1 = cb!( body1 );
 		const teardown2 = cb!( body2 );
 
-		const grid1 = body1.querySelector( '.desktop-mode-my-wordpress__grid' );
-		const grid2 = body2.querySelector( '.desktop-mode-my-wordpress__grid' );
+		const grid1 = body1.querySelector( '.os-my-wordpress__grid' );
+		const grid2 = body2.querySelector( '.os-my-wordpress__grid' );
 		expect( grid1, 'first body grid' ).not.toBeNull();
 		expect( grid2, 'second body grid' ).not.toBeNull();
 
@@ -144,7 +144,7 @@ describe( 'my-wordpress — multi-instance render', () => {
 			teardown1();
 		}
 		const grid2After = body2.querySelector(
-			'.desktop-mode-my-wordpress__grid',
+			'.os-my-wordpress__grid',
 		);
 		expect( grid2After, 'instance 2 grid after instance 1 teardown' )
 			.not.toBeNull();
@@ -156,11 +156,11 @@ describe( 'my-wordpress — multi-instance render', () => {
 
 	test( 'callback returns a per-instance teardown function', async () => {
 		const cb = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		expect( typeof cb ).toBe( 'function' );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-window__body';
+		body.className = 'os-window__body';
 		installTemplateMarkup( body );
 		document.body.appendChild( body );
 
@@ -177,18 +177,18 @@ describe( 'my-wordpress — multi-instance render', () => {
 	test( 'opening a second window via manager.openNew with the my-wordpress finalRender shape renders content in the second window', async () => {
 		// This mirrors what `openNewFromEntry` does for native windows
 		// — the user-reported scenario: an open My WordPress window,
-		// then `wp.desktop.openNewWindow( 'desktop-mode-my-wordpress' )`
+		// then `wp.os.openNewWindow( 'desktop-mode-my-wordpress' )`
 		// (or any path that routes through `manager.openNew`).
-		const TEMPLATE_ID = `desktop-mode-native-window-${ WINDOW_ID }`;
+		const TEMPLATE_ID = `os-native-window-${ WINDOW_ID }`;
 		const tpl = document.createElement( 'template' );
 		tpl.id = TEMPLATE_ID;
 		tpl.innerHTML = `
-			<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-				<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-				<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-					<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+			<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+				<header data-os-my-wordpress-breadcrumbs></header>
+				<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+					<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 				</div>
-				<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+				<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 			</div>
 		`;
 		document.body.appendChild( tpl );
@@ -214,7 +214,7 @@ describe( 'my-wordpress — multi-instance render', () => {
 		const manager = new WindowManager( desktop );
 
 		const render = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		expect( typeof render ).toBe( 'function' );
 
 		// Same shape as `openNewFromEntry`'s `finalRender`.
@@ -246,10 +246,10 @@ describe( 'my-wordpress — multi-instance render', () => {
 
 		for ( const win of wins ) {
 			const body = win.element.querySelector< HTMLElement >(
-				'.desktop-mode-window__body',
+				'.os-window__body',
 			);
 			expect( body, `body for ${ win.id }` ).not.toBeNull();
-			const grid = body!.querySelector( '.desktop-mode-my-wordpress__grid' );
+			const grid = body!.querySelector( '.os-my-wordpress__grid' );
 			expect(
 				grid,
 				`grid for ${ win.id } — pre-fix only the FIRST window had a grid; the second one's renderInto silently bailed because module-level state was stale`,

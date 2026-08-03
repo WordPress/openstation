@@ -2,7 +2,7 @@
 /**
  * Feed fetching, normalization, persistence, and unread-state service.
  *
- * @package DesktopModeFeedBuddy
+ * @package OpenStationFeedBuddy
  */
 
 defined( 'ABSPATH' ) || exit;

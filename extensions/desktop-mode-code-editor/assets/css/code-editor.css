@@ -8,7 +8,7 @@
  * @since 0.18.0
  */
 
-.wpdc-editor {
+.osc-editor {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -18,7 +18,7 @@
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
-.wpdc-editor__loading {
+.osc-editor__loading {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -29,13 +29,13 @@
 	opacity: 0.65;
 }
 
-.wpdc-editor__loading .dashicons {
+.osc-editor__loading .dashicons {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
 }
 
-.wpdc-editor__loading p {
+.osc-editor__loading p {
 	margin: 0;
 }
 
@@ -44,21 +44,21 @@
  * size — Monaco won't measure a zero-height parent gracefully, hence
  * `automaticLayout: true` in the editor options + flex: 1 here.
  */
-.wpdc-editor__monaco {
+.osc-editor__monaco {
 	flex: 1;
 	min-height: 0;
 	display: none;
 }
 
-.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__monaco {
+.osc-editor:not(.osc-editor--loading) .osc-editor__monaco {
 	display: block;
 }
 
-.wpdc-editor:not(.wpdc-editor--loading) .wpdc-editor__loading {
+.osc-editor:not(.osc-editor--loading) .osc-editor__loading {
 	display: none;
 }
 
-.wpdc-editor--error .wpdc-editor__monaco {
+.osc-editor--error .osc-editor__monaco {
 	display: block;
 	padding: 16px;
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -70,7 +70,7 @@
  * Phase 2 — two-pane layout: tree | (editor + status bar).
  * --------------------------------------------------------------- */
 
-.wpdc-editor__split {
+.osc-editor__split {
 	display: grid;
 	grid-template-columns: 240px 1fr;
 	width: 100%;
@@ -78,7 +78,7 @@
 	min-height: 0;
 }
 
-.wpdc-editor__tree {
+.osc-editor__tree {
 	overflow: auto;
 	background: #252526; /* Matches Monaco's vs-dark side bar. */
 	border-right: 1px solid #1e1e1e;
@@ -87,18 +87,18 @@
 	color: #cccccc;
 }
 
-.wpdc-editor__right {
+.osc-editor__right {
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
 }
 
-.wpdc-editor__tabs-host {
+.osc-editor__tabs-host {
 	flex: 0 0 auto;
 }
 
-.wpdc-editor__monaco-host {
+.osc-editor__monaco-host {
 	flex: 1;
 	min-height: 0;
 }
@@ -114,7 +114,7 @@
  * opacity-1 when dirty. Close × is always visible.
  * --------------------------------------------------------------- */
 
-.wpdc-tabs {
+.osc-tabs {
 	background: #252526;
 	border-bottom: 1px solid #1e1e1e;
 	overflow-x: auto;
@@ -126,23 +126,23 @@
  * Higher-specificity reset — wp-admin's default `<ul>` and `<li>`
  * styles set a margin-block-end, which (because flex containers
  * shrink to fit the children's margin box) leaks out as a gap
- * below the tab strip. Plain `.wpdc-tabs__list { margin: 0 }`
- * loses to `.wp-admin ul` etc; `.wpdc-tabs ul` ties their
+ * below the tab strip. Plain `.osc-tabs__list { margin: 0 }`
+ * loses to `.wp-admin ul` etc; `.osc-tabs ul` ties their
  * specificity and the later rule wins.
  */
-.wpdc-tabs ul.wpdc-tabs__list,
-.wpdc-tabs ul.wpdc-tabs__list li.wpdc-tabs__tab {
+.osc-tabs ul.osc-tabs__list,
+.osc-tabs ul.osc-tabs__list li.osc-tabs__tab {
 	margin: 0;
 	padding: 0;
 }
 
-.wpdc-tabs__list {
+.osc-tabs__list {
 	display: flex;
 	flex-wrap: nowrap;
 	list-style: none;
 }
 
-.wpdc-tabs__tab {
+.osc-tabs__tab {
 	display: flex;
 	align-items: center;
 	min-width: 120px;
@@ -157,16 +157,16 @@
 	list-style: none;
 }
 
-.wpdc-tabs__tab:hover {
+.osc-tabs__tab:hover {
 	background: #2a2d2e;
 }
 
-.wpdc-tabs__tab--active {
+.osc-tabs__tab--active {
 	background: #1e1e1e;
 	color: #ffffff;
 }
 
-.wpdc-tabs__tab--active::before {
+.osc-tabs__tab--active::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -176,7 +176,7 @@
 	background: #007acc;
 }
 
-.wpdc-tabs__body {
+.osc-tabs__body {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -193,12 +193,12 @@
 	text-align: left;
 }
 
-.wpdc-tabs__body:focus-visible {
+.osc-tabs__body:focus-visible {
 	outline: 1px solid #007acc;
 	outline-offset: -3px;
 }
 
-.wpdc-tabs__icon {
+.osc-tabs__icon {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
@@ -206,14 +206,14 @@
 	color: #c5c5c5;
 }
 
-.wpdc-tabs__label {
+.osc-tabs__label {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpdc-tabs__trailing {
+.osc-tabs__trailing {
 	display: flex;
 	align-items: center;
 	gap: 2px;
@@ -221,7 +221,7 @@
 	flex-shrink: 0;
 }
 
-.wpdc-tabs__dirty {
+.osc-tabs__dirty {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -232,11 +232,11 @@
 	opacity: 0;
 }
 
-.wpdc-tabs__tab--dirty .wpdc-tabs__dirty {
+.osc-tabs__tab--dirty .osc-tabs__dirty {
 	opacity: 1;
 }
 
-.wpdc-tabs__close {
+.osc-tabs__close {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -251,20 +251,20 @@
 	cursor: pointer;
 }
 
-.wpdc-tabs__close:hover {
+.osc-tabs__close:hover {
 	background: #3c3c3c;
 	color: #ffffff;
 }
 
-.wpdc-tabs__tab--active .wpdc-tabs__close {
+.osc-tabs__tab--active .osc-tabs__close {
 	color: #cccccc;
 }
 
-.wpdc-tabs__tab--dirty .wpdc-tabs__label {
+.osc-tabs__tab--dirty .osc-tabs__label {
 	font-style: italic;
 }
 
-.wpdc-editor__statusbar {
+.osc-editor__statusbar {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
@@ -278,7 +278,7 @@
 	border-top: 1px solid #1e1e1e;
 }
 
-.wpdc-editor__statusbar-left {
+.osc-editor__statusbar-left {
 	flex: 1;
 	min-width: 0;
 	white-space: nowrap;
@@ -286,17 +286,17 @@
 	text-overflow: ellipsis;
 }
 
-.wpdc-editor__statusbar-right {
+.osc-editor__statusbar-right {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
 	opacity: 0.92;
 }
 
-.wpdc-editor__statusbar--error {
+.osc-editor__statusbar--error {
 	background: #be3a31;
 }
 
-.wpdc-editor__statusbar--success {
+.osc-editor__statusbar--success {
 	background: #2d8b2d;
 }
 
@@ -304,7 +304,7 @@
  * Conflict dialog (save flow).
  * --------------------------------------------------------------- */
 
-.wpdc-conflict-overlay {
+.osc-conflict-overlay {
 	position: fixed;
 	inset: 0;
 	background: rgba(0, 0, 0, 0.55);
@@ -315,7 +315,7 @@
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
-.wpdc-conflict-dialog {
+.osc-conflict-dialog {
 	background: #252526;
 	color: #cccccc;
 	border: 1px solid #1e1e1e;
@@ -325,31 +325,31 @@
 	width: min(520px, 90vw);
 }
 
-.wpdc-conflict-dialog__title {
+.osc-conflict-dialog__title {
 	font-size: 16px;
 	margin: 0 0 12px;
 	color: #ffffff;
 }
 
-.wpdc-conflict-dialog__body {
+.osc-conflict-dialog__body {
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0 0 8px;
 }
 
-.wpdc-conflict-dialog__meta {
+.osc-conflict-dialog__meta {
 	font-size: 11px;
 	color: #969696;
 	margin: 0 0 20px;
 }
 
-.wpdc-conflict-dialog__actions {
+.osc-conflict-dialog__actions {
 	display: flex;
 	gap: 8px;
 	justify-content: flex-end;
 }
 
-.wpdc-conflict-dialog__btn {
+.osc-conflict-dialog__btn {
 	padding: 6px 14px;
 	background: #0e639c;
 	color: #ffffff;
@@ -360,28 +360,28 @@
 	cursor: pointer;
 }
 
-.wpdc-conflict-dialog__btn:hover {
+.osc-conflict-dialog__btn:hover {
 	background: #1177bb;
 }
 
-.wpdc-conflict-dialog__btn:focus-visible {
+.osc-conflict-dialog__btn:focus-visible {
 	outline: 2px solid #007acc;
 	outline-offset: 1px;
 }
 
-.wpdc-conflict-dialog__btn--danger {
+.osc-conflict-dialog__btn--danger {
 	background: #be3a31;
 }
 
-.wpdc-conflict-dialog__btn--danger:hover {
+.osc-conflict-dialog__btn--danger:hover {
 	background: #d54034;
 }
 
-.wpdc-conflict-dialog__btn--quiet {
+.osc-conflict-dialog__btn--quiet {
 	background: #3c3c3c;
 }
 
-.wpdc-conflict-dialog__btn--quiet:hover {
+.osc-conflict-dialog__btn--quiet:hover {
 	background: #4a4a4a;
 }
 
@@ -389,22 +389,22 @@
  * File tree.
  * --------------------------------------------------------------- */
 
-.wpdc-tree {
+.osc-tree {
 	user-select: none;
 }
 
-.wpdc-tree ul {
+.osc-tree ul {
 	list-style: none;
 	margin: 0;
 	/*
-	 * Padding is intentionally NOT reset here — `.wpdc-tree__root`
-	 * and `.wpdc-tree__children` each set their own. Resetting at
+	 * Padding is intentionally NOT reset here — `.osc-tree__root`
+	 * and `.osc-tree__children` each set their own. Resetting at
 	 * this level out-specificities the per-class rules and the
 	 * tree paints flat.
 	 */
 }
 
-.wpdc-tree__root {
+.osc-tree__root {
 	padding: 0 4px;
 }
 
@@ -414,7 +414,7 @@
  * level brings its own background — no depth math, no per-row
  * inline styles. Same idea VS Code uses for its tree.
  */
-.wpdc-tree__children {
+.osc-tree__children {
 	padding-left: 16px;
 	background-image: linear-gradient(
 		to right,
@@ -427,11 +427,11 @@
 	background-position: 0 0;
 }
 
-.wpdc-tree__row {
+.osc-tree__row {
 	margin: 0;
 }
 
-.wpdc-tree__btn {
+.osc-tree__btn {
 	display: flex;
 	align-items: center;
 	gap: 4px;
@@ -446,27 +446,27 @@
 	border-radius: 3px;
 }
 
-.wpdc-tree__btn:hover {
+.osc-tree__btn:hover {
 	background: #2a2d2e;
 }
 
-.wpdc-tree__btn:focus-visible {
+.osc-tree__btn:focus-visible {
 	outline: 1px solid #007acc;
 	outline-offset: -1px;
 }
 
-.wpdc-tree__row--active > .wpdc-tree__btn,
-.wpdc-tree__row--active > .wpdc-tree__btn:hover {
+.osc-tree__row--active > .osc-tree__btn,
+.osc-tree__row--active > .osc-tree__btn:hover {
 	background: #094771;
 	color: #ffffff;
 }
 
-.wpdc-tree__row--disabled > .wpdc-tree__btn {
+.osc-tree__row--disabled > .osc-tree__btn {
 	opacity: 0.4;
 	cursor: not-allowed;
 }
 
-.wpdc-tree__caret {
+.osc-tree__caret {
 	display: inline-block;
 	width: 10px;
 	font-size: 9px;
@@ -474,7 +474,7 @@
 	flex-shrink: 0;
 }
 
-.wpdc-tree__icon {
+.osc-tree__icon {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
@@ -482,24 +482,24 @@
 	flex-shrink: 0;
 }
 
-.wpdc-tree__row--dir > .wpdc-tree__btn .wpdc-tree__icon {
+.osc-tree__row--dir > .osc-tree__btn .osc-tree__icon {
 	color: #dcb67a; /* VS Code folder yellow. */
 }
 
-.wpdc-tree__label {
+.osc-tree__label {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpdc-tree__loading,
-.wpdc-tree__error {
+.osc-tree__loading,
+.osc-tree__error {
 	padding: 4px 8px;
 	color: #969696;
 	font-style: italic;
 }
 
-.wpdc-tree__error {
+.osc-tree__error {
 	color: #f48771;
 }

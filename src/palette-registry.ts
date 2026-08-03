@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — palette registry.
+ * OpenStation — palette registry.
  *
  * A "palette" is any Cmd+K-triggered overlay UI — the built-in AI
  * Assistant is one, a plugin's custom launcher could be another. The
@@ -103,7 +103,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] palette-registry listener threw:', err );
+				console.error( '[openstation] palette-registry listener threw:', err );
 			}
 		}
 	}
@@ -254,7 +254,7 @@ export function installPaletteShortcut(): void {
 			return;
 		}
 		const data = e.data as { type?: string } | null;
-		if ( data && data.type === 'desktop-mode-palette-cycle' ) {
+		if ( data && data.type === 'os-palette-cycle' ) {
 			cyclePalettes();
 		}
 	} );

@@ -18,10 +18,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-recycle-bin
  */
-class Tests_DesktopMode_RecycleBinMediaTab extends WP_UnitTestCase {
+class Tests_OpenStation_RecycleBinMediaTab extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -35,7 +35,7 @@ class Tests_DesktopMode_RecycleBinMediaTab extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_recycle_bin_render_template
+	 * @covers ::open_station_recycle_bin_render_template
 	 */
 	public function test_media_segment_hidden_when_media_trash_is_off() {
 		// Guard: this test only makes sense in the default MEDIA_TRASH=false
@@ -49,7 +49,7 @@ class Tests_DesktopMode_RecycleBinMediaTab extends WP_UnitTestCase {
 		}
 
 		ob_start();
-		desktop_mode_recycle_bin_render_template();
+		open_station_recycle_bin_render_template();
 		$html = (string) ob_get_clean();
 
 		$this->assertStringNotContainsString(

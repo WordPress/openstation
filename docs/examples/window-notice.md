@@ -8,7 +8,7 @@ re-appears for them.
 
 Notices are pure declarative data: tone, message (HTML), an optional
 dashicons glyph, and an optional `match` selector. The shell renders
-each entry as a `<wpd-notice>` web component inside the matching
+each entry as a `<os-notice>` web component inside the matching
 window's `after-titlebar` slot.
 
 ## PHP — register a banner on a single window
@@ -18,7 +18,7 @@ window's `after-titlebar` slot.
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'init', function () {
-    desktop_mode_register_window_notice( array(
+    open_station_register_window_notice( array(
         'id'      => 'my-plugin/welcome-posts',
         'tone'    => 'info',
         'message' => __(
@@ -34,7 +34,7 @@ add_action( 'init', function () {
 ## PHP — banner that applies to several "kinds" of window
 
 ```php
-desktop_mode_register_window_notice( array(
+open_station_register_window_notice( array(
     'id'      => 'my-plugin/holiday-banner',
     'tone'    => 'warning',
     'message' => __( 'Holiday freeze in effect — content edits are read-only.', 'my-plugin' ),
@@ -55,7 +55,7 @@ For plugin pages whose window id is derived from a long URL (e.g.
 instead of trying to predict the slug:
 
 ```php
-desktop_mode_register_window_notice( array(
+open_station_register_window_notice( array(
     'id'      => 'my-plugin/wc-promo',
     'tone'    => 'success',
     'message' => __( 'Black Friday rate now available on the API.', 'my-plugin' ),
@@ -76,7 +76,7 @@ Three selector types are accepted: `window` (single id), `windows`
   `wc-admin`*:
 
   ```php
-  desktop_mode_register_window_notice( array(
+  open_station_register_window_notice( array(
       'id'    => 'my-plugin/wc-posts',
       // …
       'match' => array(
@@ -93,11 +93,11 @@ Three selector types are accepted: `window` (single id), `windows`
 
 ## JavaScript — register from a plugin bundle
 
-The same API is exposed on `wp.desktop` with a fully-flexible `match`
+The same API is exposed on `wp.os` with a fully-flexible `match`
 predicate (any synchronous function of the `Window` instance):
 
 ```js
-const unregister = wp.desktop.registerWindowNotice( {
+const unregister = wp.os.registerWindowNotice( {
     id: 'my-plugin/welcome',
     tone: 'info',
     message: 'Welcome! <a href="/wp-admin/">Open admin home</a>.',
@@ -112,25 +112,25 @@ unregister();
 
 ```js
 // Mark a notice as dismissed for the current user.
-wp.desktop.dismissWindowNotice( 'my-plugin/welcome' );
+wp.os.dismissWindowNotice( 'my-plugin/welcome' );
 
 // Clear the dismissal so it shows again on next mount.
-wp.desktop.undismissWindowNotice( 'my-plugin/welcome' );
+wp.os.undismissWindowNotice( 'my-plugin/welcome' );
 
 // Snapshot for debugging:
-console.log( wp.desktop.listWindowNotices() );
+console.log( wp.os.listWindowNotices() );
 ```
 
 ## Allowed tones
 
 `info` (default), `success`, `warning`, `error` (alias `danger`),
 `neutral`. Plugins that need a brand color can override the
-underlying CSS variables on the `<wpd-notice>` host:
+underlying CSS variables on the `<os-notice>` host:
 
 ```css
-wpd-notice[ tone='info' ] {
-    --wpd-notice-info: #6a4af5;
-    --wpd-notice-info-bg: rgba( 106, 74, 245, 0.08 );
+os-notice[ tone='info' ] {
+    --os-ui-notice-info: #6a4af5;
+    --os-ui-notice-info-bg: rgba( 106, 74, 245, 0.08 );
 }
 ```
 
@@ -152,7 +152,7 @@ Pass `dismissible: false` (PHP) or the `not-dismissible` attribute
 hard-coded state messages like "Read-only mode."
 
 ```php
-desktop_mode_register_window_notice( array(
+open_station_register_window_notice( array(
     'id'          => 'my-plugin/read-only',
     'tone'        => 'warning',
     'dismissible' => false,
@@ -162,8 +162,8 @@ desktop_mode_register_window_notice( array(
 
 ## Stacking multiple notices
 
-Each call to `desktop_mode_register_window_notice()` /
-`wp.desktop.registerWindowNotice()` registers an independent slot
+Each call to `open_station_register_window_notice()` /
+`wp.os.registerWindowNotice()` registers an independent slot
 renderer. When multiple notices match the same window, they stack in
 `order` ascending (default 100). Set `order` explicitly to control
 the visual hierarchy.
@@ -175,7 +175,7 @@ shell — handy for request-time banners (e.g. "your trial expires
 today"):
 
 ```php
-add_filter( 'desktop_mode_window_notices', function ( $entries ) {
+add_filter( 'open_station_window_notices', function ( $entries ) {
     if ( my_plugin_trial_expires_today() ) {
         $entries[] = array(
             'id'      => 'my-plugin/trial-expires',

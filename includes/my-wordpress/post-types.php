@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: custom post types as browsable folders.
+ * OpenStation — My WordPress: custom post types as browsable folders.
  *
  * Every non-builtin post type the current user can edit becomes a
  * section in the site window, grouped into a folder named after the
@@ -13,16 +13,16 @@
  * are already root sections, and `wp_block` / `wp_template` /
  * `wp_navigation` and friends are editor infrastructure rather than
  * content someone browses. The `show_ui` requirement additionally
- * excludes internal bookkeeping types, including Desktop Mode's own
+ * excludes internal bookkeeping types, including OpenStation's own
  * (`wpd_note`, agent conversations).
  *
  * Filterable surface:
  *
- *   - `desktop_mode_my_wordpress_post_types`
- *   - `desktop_mode_my_wordpress_post_type_entity`
- *   - `desktop_mode_my_wordpress_post_type_rest_enabled`
+ *   - `open_station_my_wordpress_post_types`
+ *   - `open_station_my_wordpress_post_type_entity`
+ *   - `open_station_my_wordpress_post_type_rest_enabled`
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,14 +32,14 @@ defined( 'ABSPATH' ) || exit;
  * under. Kept as a helper so the entity builder and the controller
  * cannot drift apart.
  */
-const DESKTOP_MODE_MY_WORDPRESS_POST_TYPE_NAMESPACE = 'desktop-mode/v1';
+const OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE = 'desktop-mode/v1';
 
 /**
  * Post types eligible to appear as sections in the site window.
  *
  * @return WP_Post_Type[] Keyed by post type name.
  */
-function desktop_mode_my_wordpress_eligible_post_types() {
+function open_station_my_wordpress_eligible_post_types() {
 	$types = array();
 
 	foreach ( get_post_types( array(), 'objects' ) as $name => $post_type ) {
@@ -59,7 +59,7 @@ function desktop_mode_my_wordpress_eligible_post_types() {
 		}
 		// A type that is neither REST-exposed nor bridgeable has no
 		// endpoint to browse — don't render a folder that can't open.
-		if ( empty( $post_type->show_in_rest ) && ! desktop_mode_my_wordpress_post_type_is_bridged( $name ) ) {
+		if ( empty( $post_type->show_in_rest ) && ! open_station_my_wordpress_post_type_is_bridged( $name ) ) {
 			continue;
 		}
 		$types[ $name ] = $post_type;
@@ -78,7 +78,7 @@ function desktop_mode_my_wordpress_eligible_post_types() {
 	 *
 	 * @param string[] $slugs Eligible post type slugs.
 	 */
-	$slugs = apply_filters( 'desktop_mode_my_wordpress_post_types', array_keys( $types ) );
+	$slugs = apply_filters( 'open_station_my_wordpress_post_types', array_keys( $types ) );
 
 	$out = array();
 	foreach ( (array) $slugs as $slug ) {
@@ -99,7 +99,7 @@ function desktop_mode_my_wordpress_eligible_post_types() {
 }
 
 /**
- * Whether a post type should be served through the Desktop Mode bridge
+ * Whether a post type should be served through the OpenStation bridge
  * controller rather than `wp/v2`.
  *
  * Only ever true for types that opted out of the REST API. Those types
@@ -109,7 +109,7 @@ function desktop_mode_my_wordpress_eligible_post_types() {
  * @param string $post_type Post type slug.
  * @return bool
  */
-function desktop_mode_my_wordpress_post_type_is_bridged( $post_type ) {
+function open_station_my_wordpress_post_type_is_bridged( $post_type ) {
 	$object = get_post_type_object( (string) $post_type );
 	if ( ! $object instanceof WP_Post_Type ) {
 		return false;
@@ -122,7 +122,7 @@ function desktop_mode_my_wordpress_post_type_is_bridged( $post_type ) {
 
 	/**
 	 * Filter whether a non-REST post type may be re-exposed through
-	 * the Desktop Mode bridge route.
+	 * the OpenStation bridge route.
 	 *
 	 * The type's author set `show_in_rest => false`, so this is an
 	 * opt-out worth honouring: return false to keep a type out of the
@@ -136,7 +136,7 @@ function desktop_mode_my_wordpress_post_type_is_bridged( $post_type ) {
 	 * @param bool   $enabled   Whether the bridge is allowed.
 	 * @param string $post_type Post type slug.
 	 */
-	return (bool) apply_filters( 'desktop_mode_my_wordpress_post_type_rest_enabled', $enabled, (string) $post_type );
+	return (bool) apply_filters( 'open_station_my_wordpress_post_type_rest_enabled', $enabled, (string) $post_type );
 }
 
 /**
@@ -145,9 +145,9 @@ function desktop_mode_my_wordpress_post_type_is_bridged( $post_type ) {
  * @param WP_Post_Type $post_type Post type object.
  * @return string REST path (e.g. `wp/v2/product`).
  */
-function desktop_mode_my_wordpress_post_type_rest_path( $post_type ) {
+function open_station_my_wordpress_post_type_rest_path( $post_type ) {
 	if ( empty( $post_type->show_in_rest ) ) {
-		return DESKTOP_MODE_MY_WORDPRESS_POST_TYPE_NAMESPACE . '/post-type/' . $post_type->name;
+		return OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE . '/post-type/' . $post_type->name;
 	}
 	$namespace = ! empty( $post_type->rest_namespace ) ? $post_type->rest_namespace : 'wp/v2';
 	$base      = ! empty( $post_type->rest_base ) ? $post_type->rest_base : $post_type->name;
@@ -162,7 +162,7 @@ function desktop_mode_my_wordpress_post_type_rest_path( $post_type ) {
  * @param WP_Post_Type $post_type Post type object.
  * @return string Icon reference.
  */
-function desktop_mode_my_wordpress_post_type_icon( $post_type ) {
+function open_station_my_wordpress_post_type_icon( $post_type ) {
 	$icon = isset( $post_type->menu_icon ) ? (string) $post_type->menu_icon : '';
 	// `'none'` is the documented way to opt out of a menu icon and
 	// style it in CSS instead; treat it as absent.
@@ -173,9 +173,9 @@ function desktop_mode_my_wordpress_post_type_icon( $post_type ) {
 }
 
 /**
- * Post types that should carry Desktop Mode's own REST fields
- * (`desktop_mode_lock`, `desktop_mode_contributors`,
- * `desktop_mode_attached_media`).
+ * Post types that should carry OpenStation's own REST fields
+ * (`open_station_lock`, `open_station_contributors`,
+ * `open_station_attached_media`).
  *
  * That is every public REST-exposed type — the historical set — plus
  * the types this module bridges, so a bridged section shows lock
@@ -186,7 +186,7 @@ function desktop_mode_my_wordpress_post_type_icon( $post_type ) {
  *
  * @return string[] Post type slugs.
  */
-function desktop_mode_my_wordpress_rest_field_post_types() {
+function open_station_my_wordpress_rest_field_post_types() {
 	$types = get_post_types(
 		array(
 			'show_in_rest' => true,
@@ -195,7 +195,7 @@ function desktop_mode_my_wordpress_rest_field_post_types() {
 		'names'
 	);
 
-	foreach ( desktop_mode_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( empty( $post_type->show_in_rest ) ) {
 			$types[ $name ] = $name;
 		}
@@ -210,9 +210,9 @@ function desktop_mode_my_wordpress_rest_field_post_types() {
  * @param WP_Post_Type $post_type Post type object.
  * @return array Entity descriptor.
  */
-function desktop_mode_my_wordpress_post_type_entity( $post_type ) {
-	$group = function_exists( 'desktop_mode_my_wordpress_post_type_group' )
-		? desktop_mode_my_wordpress_post_type_group( $post_type->name )
+function open_station_my_wordpress_post_type_entity( $post_type ) {
+	$group = function_exists( 'open_station_my_wordpress_post_type_group' )
+		? open_station_my_wordpress_post_type_group( $post_type->name )
 		: null;
 
 	$label = isset( $post_type->labels->name ) && '' !== $post_type->labels->name
@@ -222,8 +222,8 @@ function desktop_mode_my_wordpress_post_type_entity( $post_type ) {
 	$entity = array(
 		'id'         => 'cpt-' . $post_type->name,
 		'label'      => $label,
-		'icon'       => desktop_mode_my_wordpress_post_type_icon( $post_type ),
-		'restPath'   => desktop_mode_my_wordpress_post_type_rest_path( $post_type ),
+		'icon'       => open_station_my_wordpress_post_type_icon( $post_type ),
+		'restPath'   => open_station_my_wordpress_post_type_rest_path( $post_type ),
 		'kind'       => 'post',
 		'post_type'  => (string) $post_type->name,
 		'thumbnails' => post_type_supports( $post_type->name, 'thumbnail' ),
@@ -236,7 +236,7 @@ function desktop_mode_my_wordpress_post_type_entity( $post_type ) {
 	/**
 	 * Filter the entity descriptor built for a single post type.
 	 *
-	 * Same contract as an entry in `desktop_mode_my_wordpress_entities`
+	 * Same contract as an entry in `open_station_my_wordpress_entities`
 	 * — see that filter for the field list.
 	 *
 	 * **Status: Experimental**
@@ -244,7 +244,7 @@ function desktop_mode_my_wordpress_post_type_entity( $post_type ) {
 	 * @param array        $entity    Entity descriptor.
 	 * @param WP_Post_Type $post_type Post type object.
 	 */
-	return (array) apply_filters( 'desktop_mode_my_wordpress_post_type_entity', $entity, $post_type );
+	return (array) apply_filters( 'open_station_my_wordpress_post_type_entity', $entity, $post_type );
 }
 
 /**
@@ -254,7 +254,7 @@ function desktop_mode_my_wordpress_post_type_entity( $post_type ) {
  * @param array[] $entities Existing entity descriptors.
  * @return array[] Entity descriptors with CPT sections appended.
  */
-function desktop_mode_my_wordpress_append_post_type_entities( $entities ) {
+function open_station_my_wordpress_append_post_type_entities( $entities ) {
 	if ( ! is_array( $entities ) ) {
 		return $entities;
 	}
@@ -266,13 +266,13 @@ function desktop_mode_my_wordpress_append_post_type_entities( $entities ) {
 		}
 	}
 
-	foreach ( desktop_mode_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( isset( $existing[ $name ] ) ) {
 			continue;
 		}
-		$entities[] = desktop_mode_my_wordpress_post_type_entity( $post_type );
+		$entities[] = open_station_my_wordpress_post_type_entity( $post_type );
 	}
 
 	return $entities;
 }
-add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_my_wordpress_append_post_type_entities' );
+add_filter( 'open_station_my_wordpress_entities', 'open_station_my_wordpress_append_post_type_entities' );

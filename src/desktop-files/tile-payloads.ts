@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Shortcut/reference tile drop-payload handlers.
+ * OpenStation — Shortcut/reference tile drop-payload handlers.
  *
  * Same seam shape as `recycle-bin-payloads.ts` and `canvas-payloads.ts`,
  * but for the per-tile "reject" claimants the files layer registers on

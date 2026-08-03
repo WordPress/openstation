@@ -1,13 +1,13 @@
 /**
- * Desktop Mode — editor-preview ("eye") title-bar button.
+ * OpenStation — editor-preview ("eye") title-bar button.
  *
  * Registers the built-in "Preview" button through the very same
  * public surface a plugin would use (`registerTitleBarButton`). The
  * button appears only on windows whose content identity carries a
  * `previewUrl` — built server-side by
- * `desktop_mode_window_preview_url()` in `includes/window-links.php`
+ * `open_station_window_preview_url()` in `includes/window-links.php`
  * for post/page/CPT edit screens of viewable post types, and
- * travelling with the `desktop-mode-content-identity` bridge payload.
+ * travelling with the `os-content-identity` bridge payload.
  *
  * Clicking the eye:
  *  1. Snaps the editor window to the left half (instant feedback;
@@ -19,14 +19,14 @@
  *     the right half, and records the editor↔preview pairing.
  *
  * The pairing drives everything after that: the preview auto-reloads
- * whenever the post is saved (via the `desktop-mode.<type>.changed`
+ * whenever the post is saved (via the `os.<type>.changed`
  * broadcast every save path already emits), closes when the editor
  * closes or navigates to different content, and toggles off on a
  * second eye click. Closing the preview never touches the editor.
  * After the initial placement the module never re-snaps either window
  * — the user is free to rearrange, the pairing survives.
  *
- * Developer surface: the `desktop_mode_window_preview_url` PHP filter
+ * Developer surface: the `open_station_window_preview_url` PHP filter
  * rewrites/suppresses the URL; `HOOKS.EDITOR_PREVIEW_WINDOW_CONFIG`
  * filters the companion's `WindowConfig`;
  * `HOOKS.EDITOR_PREVIEW_OPENED` / `EDITOR_PREVIEW_CLOSED` (and the
@@ -93,9 +93,9 @@ interface PreviewPairing {
 	reloadTimer: number | null;
 	/**
 	 * Correlation id of the iframe-side live watch (typing →
-	 * debounced autosave → `desktop-mode-editor-live-saved`).
+	 * debounced autosave → `os-editor-live-saved`).
 	 * Empty when live updates are disabled via the
-	 * `desktop-mode.editor-preview.live` filter.
+	 * `os.editor-preview.live` filter.
 	 */
 	watchId: string;
 }
@@ -122,7 +122,7 @@ const RELOAD_DEBOUNCE_MS = 400;
  * Default settle window for live (typing-driven) preview updates —
  * how long after the last edit the editor iframe waits before
  * autosaving and nudging the preview to reload. Filterable via
- * `desktop-mode.editor-preview.live`.
+ * `os.editor-preview.live`.
  */
 const LIVE_DEBOUNCE_DEFAULT_MS = 1500;
 
@@ -210,7 +210,7 @@ function teardownPairing(
 		try {
 			editorWin?.iframe?.contentWindow?.postMessage(
 				{
-					type: 'desktop-mode-editor-live-unwatch',
+					type: 'os-editor-live-unwatch',
 					watchId: pairing.watchId,
 				},
 				window.location.origin,
@@ -237,7 +237,7 @@ function teardownPairing(
 		reason,
 	};
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-editor-preview-closed', { detail } ),
+		new CustomEvent( 'os-editor-preview-closed', { detail } ),
 	);
 	doAction( HOOKS.EDITOR_PREVIEW_CLOSED, detail );
 
@@ -292,7 +292,7 @@ function scheduleReload(
 /**
  * Wire the save-driven reload for a fresh pairing: subscribe to the
  * content-change topic every save path emits
- * (`desktop-mode.<type>.changed` — Gutenberg save-watcher, classic
+ * (`os.<type>.changed` — Gutenberg save-watcher, classic
  * footer emitter, Heartbeat catch-up) and soft-reload the companion,
  * debounced.
  */
@@ -301,7 +301,7 @@ function wireSaveReload(
 	pairing: PreviewPairing,
 	content: WindowContentRef,
 ): void {
-	const topic = `desktop-mode.${ content.type }.changed`;
+	const topic = `os.${ content.type }.changed`;
 	const postId = String( content.id );
 
 	pairing.unsubscribe = subscribe< { ids?: unknown } >(
@@ -324,8 +324,8 @@ let watchCounter = 0;
 
 /**
  * Ask the editor iframe to watch its own content and autosave after
- * every typing pause (`desktop-mode-editor-live-watch`) — the live
- * half of the preview. The `desktop-mode.editor-preview.live` filter
+ * every typing pause (`os-editor-live-watch`) — the live
+ * half of the preview. The `os.editor-preview.live` filter
  * can disable it or tune the settle window; without a reachable
  * iframe (or with `enabled: false`) the pairing falls back to
  * save-driven reloads only.
@@ -358,7 +358,7 @@ function startLiveWatch(
 	try {
 		target.postMessage(
 			{
-				type: 'desktop-mode-editor-live-watch',
+				type: 'os-editor-live-watch',
 				watchId,
 				debounceMs:
 					typeof live.debounceMs === 'number'
@@ -497,7 +497,7 @@ async function onEyeClick(
 			config = filtered;
 		} else if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.editor-preview.window-config` ' +
+				'[openstation] `os.editor-preview.window-config` ' +
 					'filter returned an invalid config; using the default.',
 			);
 		}
@@ -535,7 +535,7 @@ async function onEyeClick(
 			content: latest,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-editor-preview-opened', {
+			new CustomEvent( 'os-editor-preview-opened', {
 				detail,
 			} ),
 		);
@@ -585,7 +585,7 @@ export function bootEditorPreview( {
 				host.setAttribute( 'aria-disabled', 'true' );
 				host.setAttribute( 'aria-label', hint );
 				host.setAttribute( 'title', hint );
-				host.classList.add( 'desktop-mode-window__btn--disabled' );
+				host.classList.add( 'os-window__btn--disabled' );
 				host.addEventListener( 'click', ( e: Event ) => {
 					e.stopPropagation();
 					showToast( {
@@ -602,7 +602,7 @@ export function bootEditorPreview( {
 			host.setAttribute( 'aria-pressed', String( paired ) );
 			if ( busy ) {
 				host.setAttribute( 'aria-busy', 'true' );
-				host.classList.add( 'desktop-mode-window__btn--busy' );
+				host.classList.add( 'os-window__btn--busy' );
 			}
 			host.addEventListener( 'click', ( e: Event ) => {
 				e.stopPropagation();
@@ -683,7 +683,7 @@ export function bootEditorPreview( {
 		if (
 			! data ||
 			typeof data !== 'object' ||
-			data.type !== 'desktop-mode-editor-live-saved' ||
+			data.type !== 'os-editor-live-saved' ||
 			typeof data.watchId !== 'string'
 		) {
 			return;

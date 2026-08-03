@@ -45,8 +45,8 @@ import type * as Monaco from 'monaco-editor';
 
 /**
  * Shape of the config every editor module reads. Injected as
- * `window.wpDesktopCodeEditorConfig` by
- * `desktop_mode_code_editor_serve_bundle()` in `includes/window.php`,
+ * `window.openStationCodeEditorConfig` by
+ * `open_station_code_editor_serve_bundle()` in `includes/window.php`,
  * which prepends the config assignment to the AJAX-served bundle.
  * Re-declared here in `monaco-bootstrap.ts` only — every other module
  * imports the type to keep one canonical declaration.
@@ -63,7 +63,7 @@ export interface CodeEditorConfig {
 
 declare global {
 	interface Window {
-		wpDesktopCodeEditorConfig?: CodeEditorConfig;
+		openStationCodeEditorConfig?: CodeEditorConfig;
 	}
 }
 
@@ -123,10 +123,10 @@ export async function loadMonaco(): Promise< typeof Monaco > {
 		return pending;
 	}
 
-	const config = window.wpDesktopCodeEditorConfig;
+	const config = window.openStationCodeEditorConfig;
 	if ( ! config?.monacoVendorUrl ) {
 		throw new Error(
-			'wp-desktop-code-editor: monacoVendorUrl missing from wpDesktopCodeEditorConfig — is window.php enqueued?',
+			'os-code-editor: monacoVendorUrl missing from openStationCodeEditorConfig — is window.php enqueued?',
 		);
 	}
 

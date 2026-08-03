@@ -7,10 +7,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-agents
+ * @group openstation
+ * @group os-agents
  */
-class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
+class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $editor_id;
@@ -21,7 +21,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
 
 		wp_set_current_user( self::$admin_id );
-		$agent = desktop_mode_agent_create(
+		$agent = open_station_agent_create(
 			array(
 				'name'         => 'Conversation Agent',
 				'role'         => 'author',
@@ -60,7 +60,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 				),
 			);
 		}
-		$response = desktop_mode_agents_rest_conversations_create(
+		$response = open_station_agents_rest_conversations_create(
 			$this->request(
 				'POST',
 				'/agents/conversations',
@@ -75,7 +75,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversations_register_routes
+	 * @covers ::open_station_agent_conversations_register_routes
 	 */
 	public function test_routes_registered() {
 		do_action( 'rest_api_init' );
@@ -85,7 +85,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_create
+	 * @covers ::open_station_agents_rest_conversations_create
 	 */
 	public function test_create_derives_title_and_owner() {
 		$data = $this->create_conversation();
@@ -97,7 +97,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'user', $data['messages'][0]['role'] );
 
 		$post = get_post( $data['id'] );
-		$this->assertSame( DESKTOP_MODE_AGENT_CHAT_POST_TYPE, $post->post_type );
+		$this->assertSame( OPEN_STATION_AGENT_CHAT_POST_TYPE, $post->post_type );
 		$this->assertSame( self::$admin_id, (int) $post->post_author );
 	}
 
@@ -106,10 +106,10 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	 * the title comes from the first user message, so every chat that
 	 * starts the same way looks identical without it.
 	 *
-	 * @covers ::desktop_mode_agent_conversation_preview
+	 * @covers ::open_station_agent_conversation_preview
 	 */
 	public function test_preview_reads_the_tail_of_the_last_message() {
-		$short = desktop_mode_agent_conversation_preview(
+		$short = open_station_agent_conversation_preview(
 			array(
 				array(
 					'role' => 'user',
@@ -127,7 +127,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'Done. Here it is.', $short );
 
 		$tail = str_repeat( 'a', 200 ) . ' and search relevance.';
-		$long = desktop_mode_agent_conversation_preview(
+		$long = open_station_agent_conversation_preview(
 			array(
 				array(
 					'role' => 'agent',
@@ -139,18 +139,18 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		$this->assertStringStartsWith( '…', $long );
 		$this->assertStringEndsWith( 'and search relevance.', $long );
 		$this->assertSame(
-			DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP + 1,
+			OPEN_STATION_AGENT_CONVERSATION_PREVIEW_CAP + 1,
 			mb_strlen( $long )
 		);
 
-		$this->assertSame( '', desktop_mode_agent_conversation_preview( array() ) );
+		$this->assertSame( '', open_station_agent_conversation_preview( array() ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversation_preview
+	 * @covers ::open_station_agent_conversation_preview
 	 */
 	public function test_preview_prefers_the_attachment_title() {
-		$preview = desktop_mode_agent_conversation_preview(
+		$preview = open_station_agent_conversation_preview(
 			array(
 				array(
 					'role'       => 'user',
@@ -171,8 +171,8 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	 * A dropped / "Send to" object survives the round-trip so a
 	 * reopened conversation still renders the clickable card.
 	 *
-	 * @covers ::desktop_mode_agent_conversation_sanitize_attachment
-	 * @covers ::desktop_mode_agent_conversation_prepare
+	 * @covers ::open_station_agent_conversation_sanitize_attachment
+	 * @covers ::open_station_agent_conversation_prepare
 	 */
 	public function test_attachments_round_trip_and_are_validated() {
 		$data = $this->create_conversation(
@@ -225,7 +225,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		// has something to render.
 		$this->assertSame(
 			'#9',
-			desktop_mode_agent_conversation_sanitize_attachment(
+			open_station_agent_conversation_sanitize_attachment(
 				array(
 					'kind' => 'user',
 					'id'   => 9,
@@ -233,12 +233,12 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 			)['title']
 		);
 		$this->assertNull(
-			desktop_mode_agent_conversation_sanitize_attachment( 'not-an-array' )
+			open_station_agent_conversation_sanitize_attachment( 'not-an-array' )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversation_prepare
+	 * @covers ::open_station_agent_conversation_prepare
 	 */
 	public function test_prepare_ships_preview_and_last_role() {
 		$data = $this->create_conversation();
@@ -248,10 +248,10 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_create
+	 * @covers ::open_station_agents_rest_conversations_create
 	 */
 	public function test_create_rejects_non_agent_target() {
-		$response = desktop_mode_agents_rest_conversations_create(
+		$response = open_station_agents_rest_conversations_create(
 			$this->request(
 				'POST',
 				'/agents/conversations',
@@ -267,14 +267,14 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 			)
 		);
 		$this->assertWPError( $response );
-		$this->assertSame( 'desktop_mode_agent_not_found', $response->get_error_code() );
+		$this->assertSame( 'open_station_agent_not_found', $response->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 * @covers ::open_station_agent_conversation_sanitize_messages
 	 */
 	public function test_sanitizer_filters_roles_and_drops_tool_output() {
-		$clean = desktop_mode_agent_conversation_sanitize_messages(
+		$clean = open_station_agent_conversation_sanitize_messages(
 			array(
 				array(
 					'role'      => 'agent',
@@ -311,10 +311,10 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	 * Call-to-action buttons round-trip with the message, including the
 	 * spent flag, so reopened conversations render them disabled.
 	 *
-	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 * @covers ::open_station_agent_conversation_sanitize_messages
 	 */
 	public function test_sanitizer_keeps_call_to_actions() {
-		$clean = desktop_mode_agent_conversation_sanitize_messages(
+		$clean = open_station_agent_conversation_sanitize_messages(
 			array(
 				array(
 					'role'          => 'agent',
@@ -337,54 +337,54 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 * @covers ::open_station_agent_conversation_sanitize_messages
 	 */
 	public function test_sanitizer_caps_message_count() {
 		$many = array();
-		for ( $i = 0; $i < DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP + 25; $i++ ) {
+		for ( $i = 0; $i < OPEN_STATION_AGENT_CONVERSATION_MESSAGE_CAP + 25; $i++ ) {
 			$many[] = array(
 				'role' => 'user',
 				'text' => "row {$i}",
 			);
 		}
-		$clean = desktop_mode_agent_conversation_sanitize_messages( $many );
-		$this->assertCount( DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP, $clean );
+		$clean = open_station_agent_conversation_sanitize_messages( $many );
+		$this->assertCount( OPEN_STATION_AGENT_CONVERSATION_MESSAGE_CAP, $clean );
 		// Newest rows survive.
-		$this->assertSame( 'row ' . ( DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP + 24 ), end( $clean )['text'] );
+		$this->assertSame( 'row ' . ( OPEN_STATION_AGENT_CONVERSATION_MESSAGE_CAP + 24 ), end( $clean )['text'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_list
+	 * @covers ::open_station_agents_rest_conversations_list
 	 */
 	public function test_list_is_scoped_to_the_caller() {
 		$this->create_conversation();
 
-		$mine = desktop_mode_agents_rest_conversations_list()->get_data();
+		$mine = open_station_agents_rest_conversations_list()->get_data();
 		$this->assertCount( 1, $mine );
 		$this->assertArrayNotHasKey( 'messages', $mine[0], 'The list must stay light — no message bodies.' );
 
 		// Another user sees nothing — including administrators-of-other-people.
 		wp_set_current_user( self::$editor_id );
-		$theirs = desktop_mode_agents_rest_conversations_list()->get_data();
+		$theirs = open_station_agents_rest_conversations_list()->get_data();
 		$this->assertSame( array(), $theirs );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_get
-	 * @covers ::desktop_mode_agents_rest_conversations_update
-	 * @covers ::desktop_mode_agents_rest_conversations_delete
+	 * @covers ::open_station_agents_rest_conversations_get
+	 * @covers ::open_station_agents_rest_conversations_update
+	 * @covers ::open_station_agents_rest_conversations_delete
 	 */
 	public function test_foreign_conversations_read_as_missing() {
 		$data = $this->create_conversation();
 		wp_set_current_user( self::$editor_id );
 
-		$get = desktop_mode_agents_rest_conversations_get(
+		$get = open_station_agents_rest_conversations_get(
 			$this->request( 'GET', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
 		);
 		$this->assertWPError( $get );
 		$this->assertSame( 404, $get->get_error_data()['status'] );
 
-		$update = desktop_mode_agents_rest_conversations_update(
+		$update = open_station_agents_rest_conversations_update(
 			$this->request(
 				'PUT',
 				"/agents/conversations/{$data['id']}",
@@ -401,7 +401,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		);
 		$this->assertWPError( $update );
 
-		$del = desktop_mode_agents_rest_conversations_delete(
+		$del = open_station_agents_rest_conversations_delete(
 			$this->request( 'DELETE', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
 		);
 		$this->assertWPError( $del );
@@ -409,12 +409,12 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_update
+	 * @covers ::open_station_agents_rest_conversations_update
 	 */
 	public function test_update_replaces_messages_and_retitles() {
 		$data = $this->create_conversation();
 
-		$response = desktop_mode_agents_rest_conversations_update(
+		$response = open_station_agents_rest_conversations_update(
 			$this->request(
 				'PUT',
 				"/agents/conversations/{$data['id']}",
@@ -445,18 +445,18 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 3, $updated['messageCount'] );
 		$this->assertSame( 'A different opener', $updated['title'] );
 
-		$reread = desktop_mode_agents_rest_conversations_get(
+		$reread = open_station_agents_rest_conversations_get(
 			$this->request( 'GET', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
 		)->get_data();
 		$this->assertSame( 'Follow-up', end( $reread['messages'] )['text'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_rest_conversations_delete
+	 * @covers ::open_station_agents_rest_conversations_delete
 	 */
 	public function test_delete_removes_the_row() {
 		$data = $this->create_conversation();
-		$response = desktop_mode_agents_rest_conversations_delete(
+		$response = open_station_agents_rest_conversations_delete(
 			$this->request( 'DELETE', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
 		);
 		$this->assertNotWPError( $response );
@@ -464,13 +464,13 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_conversations_prune
+	 * @covers ::open_station_agent_conversations_prune
 	 */
 	public function test_creating_past_the_cap_prunes_the_oldest() {
 		$tighten = static function () {
 			return 2;
 		};
-		add_filter( 'desktop_mode_agent_conversation_cap', $tighten );
+		add_filter( 'open_station_agent_conversation_cap', $tighten );
 
 		try {
 			$first = $this->create_conversation(
@@ -513,15 +513,15 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 			$this->assertInstanceOf( WP_Post::class, get_post( $second['id'] ) );
 			$this->assertInstanceOf( WP_Post::class, get_post( $third['id'] ) );
 		} finally {
-			remove_filter( 'desktop_mode_agent_conversation_cap', $tighten );
+			remove_filter( 'open_station_agent_conversation_cap', $tighten );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_runner_sanitize_history
+	 * @covers ::open_station_agent_runner_sanitize_history
 	 */
 	public function test_history_replay_cap_is_fifty() {
-		$this->assertSame( 50, DESKTOP_MODE_AGENT_HISTORY_TURN_CAP );
+		$this->assertSame( 50, OPEN_STATION_AGENT_HISTORY_TURN_CAP );
 
 		$many = array();
 		for ( $i = 0; $i < 60; $i++ ) {
@@ -530,7 +530,7 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 				'text' => "turn {$i}",
 			);
 		}
-		$clean = desktop_mode_agent_runner_sanitize_history( $many );
+		$clean = open_station_agent_runner_sanitize_history( $many );
 		$this->assertCount( 50, $clean );
 		$this->assertSame( 'turn 59', end( $clean )['text'] );
 	}

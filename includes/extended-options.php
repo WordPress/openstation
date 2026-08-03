@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — Platform-wide extended options.
+ * OpenStation — Platform-wide extended options.
  *
  * System-level toggles that enhance the WordPress admin with extra
- * desktop-mode capabilities. Stored in `wp_options` (not per-user) so
+ * openstation capabilities. Stored in `wp_options` (not per-user) so
  * they affect every user on the site. Admin-only to read or write.
  *
  * Current options:
@@ -22,21 +22,21 @@
  *     OS Settings → Features → Extended options. While off,
  *     `includes/games/bootstrap.php` skips every module file, so the
  *     framework consumes no resources at all (see
- *     `desktop_mode_games_enabled()`).
+ *     `open_station_games_enabled()`).
  *   - agents: when true, the AI Agents framework loads — synthetic
  *     agent users, the `/desktop-mode/v1/agents` REST surface, the
  *     Agents section in My WordPress, and the Agent chat window.
  *     **Defaults to `false`** — agents are opt-IN. While off,
  *     `includes/agents/bootstrap.php` skips every module file (see
- *     `desktop_mode_agents_enabled()`).
+ *     `open_station_agents_enabled()`).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** wp_options key for the extended options bundle. */
-const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
+const OPEN_STATION_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 
 // ---------------------------------------------------------------------------
 // Get / save
@@ -47,13 +47,13 @@ const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
  *
  * @return array{ media_library_enhanced: bool, games: bool, agents: bool }
  */
-function desktop_mode_get_extended_options() {
+function open_station_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
 		'games'                  => false,
 		'agents'                 => false,
 	);
-	$raw = get_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, array() );
+	$raw = get_option( OPEN_STATION_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
@@ -76,19 +76,19 @@ function desktop_mode_get_extended_options() {
  * @param mixed $raw Incoming payload.
  * @return bool
  */
-function desktop_mode_save_extended_options( $raw ) {
+function open_station_save_extended_options( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
 	// Merge over the current values so a payload that omits a key (an
 	// older client, a partial save) can't silently reset it.
-	$clean = desktop_mode_get_extended_options();
+	$clean = open_station_get_extended_options();
 	foreach ( $clean as $key => $current ) {
 		if ( array_key_exists( $key, $raw ) ) {
 			$clean[ $key ] = ! empty( $raw[ $key ] );
 		}
 	}
-	return update_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, $clean, false );
+	return update_option( OPEN_STATION_EXTENDED_OPTIONS_KEY, $clean, false );
 }
 
 // ---------------------------------------------------------------------------
@@ -98,20 +98,20 @@ function desktop_mode_save_extended_options( $raw ) {
 /**
  * Registers the extended options REST route.
  */
-function desktop_mode_register_extended_options_rest_routes() {
+function open_station_register_extended_options_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/extended-options',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_rest_get_extended_options',
-				'permission_callback' => 'desktop_mode_rest_extended_options_permission',
+				'callback'            => 'open_station_rest_get_extended_options',
+				'permission_callback' => 'open_station_rest_extended_options_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'desktop_mode_rest_save_extended_options',
-				'permission_callback' => 'desktop_mode_rest_extended_options_permission',
+				'callback'            => 'open_station_rest_save_extended_options',
+				'permission_callback' => 'open_station_rest_extended_options_permission',
 				'args'                => array(
 					'options' => array(
 						'required' => true,
@@ -122,17 +122,17 @@ function desktop_mode_register_extended_options_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_extended_options_rest_routes' );
+add_action( 'rest_api_init', 'open_station_register_extended_options_rest_routes' );
 
 /**
  * Permission: admins only.
  *
  * @return bool|WP_Error
  */
-function desktop_mode_rest_extended_options_permission() {
+function open_station_rest_extended_options_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'desktop_mode_extended_forbidden',
+			'open_station_extended_forbidden',
 			'Only administrators can manage extended options.',
 			array( 'status' => 403 )
 		);
@@ -145,8 +145,8 @@ function desktop_mode_rest_extended_options_permission() {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_rest_get_extended_options() {
-	return rest_ensure_response( desktop_mode_get_extended_options() );
+function open_station_rest_get_extended_options() {
+	return rest_ensure_response( open_station_get_extended_options() );
 }
 
 /**
@@ -155,10 +155,10 @@ function desktop_mode_rest_get_extended_options() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function desktop_mode_rest_save_extended_options( WP_REST_Request $request ) {
+function open_station_rest_save_extended_options( WP_REST_Request $request ) {
 	$payload = $request->get_param( 'options' );
-	desktop_mode_save_extended_options( $payload );
-	return rest_ensure_response( desktop_mode_get_extended_options() );
+	open_station_save_extended_options( $payload );
+	return rest_ensure_response( open_station_get_extended_options() );
 }
 
 // ---------------------------------------------------------------------------
@@ -171,22 +171,22 @@ function desktop_mode_rest_save_extended_options( WP_REST_Request $request ) {
  * loaded (it checks at runtime), so there's no harm in enqueuing
  * globally in the admin.
  */
-function desktop_mode_enqueue_media_library_enhancement() {
+function open_station_enqueue_media_library_enhancement() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
 
-	$options = desktop_mode_get_extended_options();
+	$options = open_station_get_extended_options();
 	if ( empty( $options['media_library_enhanced'] ) ) {
 		return;
 	}
 
 	wp_enqueue_script(
-		'desktop-mode-media-library-enhanced',
-		DESKTOP_MODE_URL . 'assets/js/media-library-enhanced.js',
+		'os-media-library-enhanced',
+		OPEN_STATION_URL . 'assets/js/media-library-enhanced.js',
 		array(),
-		DESKTOP_MODE_VERSION,
+		OPEN_STATION_VERSION,
 		true
 	);
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_media_library_enhancement', 20 );
+add_action( 'admin_enqueue_scripts', 'open_station_enqueue_media_library_enhancement', 20 );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Desktop-theme REST routes.
+ * OpenStation — Desktop-theme REST routes.
  *
  *   POST   /desktop-mode/v1/desktop-themes         multipart `file`
  *   DELETE /desktop-mode/v1/desktop-themes/<slug>
@@ -9,25 +9,25 @@
  * (`serverDesktopThemes`), so a separate read route would be a
  * second source of truth to keep in sync for no gain.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Permission gate: the standard desktop-mode REST gate plus the
+ * Permission gate: the standard openstation REST gate plus the
  * theme-management capability.
  *
  * @return true|WP_Error
  */
-function desktop_mode_desktop_themes_rest_permission() {
-	$base = desktop_mode_rest_require_enabled();
+function open_station_desktop_themes_rest_permission() {
+	$base = open_station_rest_require_enabled();
 	if ( is_wp_error( $base ) ) {
 		return $base;
 	}
-	if ( ! current_user_can( desktop_mode_desktop_theme_upload_capability() ) ) {
+	if ( ! current_user_can( open_station_desktop_theme_upload_capability() ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_cannot_manage',
+			'open_station_desktop_theme_cannot_manage',
 			__( 'You are not allowed to manage desktop themes.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -38,15 +38,15 @@ function desktop_mode_desktop_themes_rest_permission() {
 /**
  * Register the routes.
  */
-function desktop_mode_register_desktop_themes_rest_routes() {
+function open_station_register_desktop_themes_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/desktop-themes',
 		array(
 			// POST only — PHP populates `$_FILES` for real POSTs only.
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_desktop_themes_rest_permission',
-			'callback'            => 'desktop_mode_rest_upload_desktop_theme',
+			'permission_callback' => 'open_station_desktop_themes_rest_permission',
+			'callback'            => 'open_station_rest_upload_desktop_theme',
 		)
 	);
 
@@ -55,8 +55,8 @@ function desktop_mode_register_desktop_themes_rest_routes() {
 		'/desktop-themes/(?P<slug>[a-z0-9_-]+)',
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'permission_callback' => 'desktop_mode_desktop_themes_rest_permission',
-			'callback'            => 'desktop_mode_rest_delete_desktop_theme',
+			'permission_callback' => 'open_station_desktop_themes_rest_permission',
+			'callback'            => 'open_station_rest_delete_desktop_theme',
 			'args'                => array(
 				'slug' => array(
 					'type'     => 'string',
@@ -66,7 +66,7 @@ function desktop_mode_register_desktop_themes_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_desktop_themes_rest_routes' );
+add_action( 'rest_api_init', 'open_station_register_desktop_themes_rest_routes' );
 
 /**
  * POST /desktop-mode/v1/desktop-themes
@@ -74,7 +74,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_desktop_themes_rest_routes' 
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error The payload-shaped entry.
  */
-function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
+function open_station_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	$files = $request->get_file_params();
 
 	// A body over `post_max_size` reaches PHP with $_POST and $_FILES
@@ -85,20 +85,20 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 		$content_length = isset( $_SERVER['CONTENT_LENGTH'] ) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
 		if ( $content_length > 0 ) {
 			return new WP_Error(
-				'desktop_mode_desktop_theme_too_large',
+				'open_station_desktop_theme_too_large',
 				__( 'That theme archive is larger than this server accepts.', 'desktop-mode' ),
 				array( 'status' => 413 )
 			);
 		}
 		return new WP_Error(
-			'desktop_mode_desktop_theme_no_file',
+			'open_station_desktop_theme_no_file',
 			__( 'No theme archive was uploaded.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( empty( $files['file'] ) || ! is_array( $files['file'] ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_no_file',
+			'open_station_desktop_theme_no_file',
 			__( 'No theme archive was uploaded.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -114,7 +114,7 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	$last     = array_pop( $segments );
 	if ( 'zip' !== $last ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_not_zip',
+			'open_station_desktop_theme_not_zip',
 			__( 'A desktop theme must be uploaded as a .zip archive.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -124,7 +124,7 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	foreach ( $segments as $segment ) {
 		if ( in_array( $segment, $denied, true ) ) {
 			return new WP_Error(
-				'desktop_mode_desktop_theme_not_zip',
+				'open_station_desktop_theme_not_zip',
 				__( 'That file name is not allowed.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			);
@@ -134,7 +134,7 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	$max = (int) wp_max_upload_size();
 	if ( $max > 0 && isset( $file['size'] ) && (int) $file['size'] > $max ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_too_large',
+			'open_station_desktop_theme_too_large',
 			sprintf(
 				/* translators: %s: formatted maximum file size. */
 				__( 'That theme archive is larger than the allowed maximum of %s.', 'desktop-mode' ),
@@ -147,21 +147,21 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	$tmp = isset( $file['tmp_name'] ) ? (string) $file['tmp_name'] : '';
 	if ( '' === $tmp || ! file_exists( $tmp ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_no_file',
+			'open_station_desktop_theme_no_file',
 			__( 'The uploaded archive could not be read.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$entry = desktop_mode_desktop_theme_install_from_zip( $tmp );
+	$entry = open_station_desktop_theme_install_from_zip( $tmp );
 	if ( is_wp_error( $entry ) ) {
 		return $entry;
 	}
 
-	$shaped = desktop_mode_shape_desktop_theme_payload_entry( $entry, 'upload' );
+	$shaped = open_station_shape_desktop_theme_payload_entry( $entry, 'upload' );
 	if ( ! $shaped ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_install_failed',
+			'open_station_desktop_theme_install_failed',
 			__( 'The theme installed but could not be described back to the shell.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -169,7 +169,7 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 
 	// Wallpapers the theme brought with it.
 	//
-	// `desktop_mode_register_desktop_theme_wallpapers()` already ran on
+	// `open_station_register_desktop_theme_wallpapers()` already ran on
 	// `init` for THIS request — before the upload existed — so the new
 	// theme's wallpapers are not in the registry yet. Re-running it now
 	// picks them up (registration is idempotent: same ids, same store),
@@ -177,8 +177,8 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 	// this the wallpapers only appeared on the next page load, which is
 	// exactly the kind of "it works after F5" seam this payload channel
 	// exists to remove.
-	desktop_mode_register_desktop_theme_wallpapers();
-	$shaped['serverWallpapers'] = desktop_mode_build_desktop_wallpapers_payload();
+	open_station_register_desktop_theme_wallpapers();
+	$shaped['serverWallpapers'] = open_station_build_desktop_wallpapers_payload();
 
 	return rest_ensure_response( $shaped );
 }
@@ -189,9 +189,9 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_rest_delete_desktop_theme( WP_REST_Request $request ) {
+function open_station_rest_delete_desktop_theme( WP_REST_Request $request ) {
 	$slug    = sanitize_key( (string) $request['slug'] );
-	$deleted = desktop_mode_desktop_theme_delete( $slug );
+	$deleted = open_station_desktop_theme_delete( $slug );
 	if ( is_wp_error( $deleted ) ) {
 		return $deleted;
 	}
@@ -200,9 +200,9 @@ function desktop_mode_rest_delete_desktop_theme( WP_REST_Request $request ) {
 	// them out of the response is enough and avoids inventing one: the
 	// store dies with the request, and the next one never registers
 	// them because the theme is gone.
-	$prefix     = DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/';
+	$prefix     = OPEN_STATION_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/';
 	$wallpapers = array();
-	foreach ( desktop_mode_build_desktop_wallpapers_payload() as $wallpaper ) {
+	foreach ( open_station_build_desktop_wallpapers_payload() as $wallpaper ) {
 		$id = isset( $wallpaper['id'] ) ? (string) $wallpaper['id'] : '';
 		if ( '' !== $id && 0 === strpos( $id, $prefix ) ) {
 			continue;

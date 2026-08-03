@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * Desktop Mode — Starter Widget
+ * OpenStation — Starter Widget
  * A copy-paste starting point for building your own widget.
  * =============================================================================
  *
@@ -23,11 +23,11 @@
  *
  * HOW A WIDGET WORKS — THE BIG PICTURE
  * --------------------------------------
- * PHP side  →  Tells Desktop Mode the widget EXISTS (label, icon, size limits,
+ * PHP side  →  Tells OpenStation the widget EXISTS (label, icon, size limits,
  *              which JS handle to load). Lives in includes/widgets/.
  *
  * JS side   →  Does the actual work. Registers a mount() function on
- *              window.desktopModeWidgets[ id ]. The shell calls mount() when
+ *              window.openStationWidgets[ id ]. The shell calls mount() when
  *              the user adds the widget, passing a container element to paint
  *              into. mount() must return a teardown() function that cleans up
  *              everything when the widget is removed.
@@ -48,8 +48,8 @@ import { decodeHTML } from '../../utils';
 // Pick a unique namespaced slug in the format 'yourplugin/widget-name'.
 // This same string must appear in THREE places:
 //   1. Here, as WIDGET_ID
-//   2. In your PHP file, as the first argument to desktop_mode_register_widget()
-//   3. In the window.desktopModeWidgets registration at the bottom of this file
+//   2. In your PHP file, as the first argument to open_station_register_widget()
+//   3. In the window.openStationWidgets registration at the bottom of this file
 //
 // WARNING: Do not rename this after your widget is live. It is the key used
 // to store the user's enabled/disabled preference in localStorage. Renaming it
@@ -125,7 +125,7 @@ const mount = async (
 	// ctx.storage is a namespaced localStorage wrapper with get/set/remove/clear.
 	// Keys are scoped to your widget id automatically:
 	//   ctx.storage.set( 'clicks', 5 )
-	//   → stored as 'desktop-mode.widget.desktop-mode/starter.clicks'
+	//   → stored as 'os.widget.os-mode/starter.clicks'
 	//
 	// get() returns null when the key does not exist yet. Always provide a
 	// fallback default — never assume storage is available (private browsing,
@@ -287,17 +287,17 @@ const mount = async (
 // =============================================================================
 //
 // The shell's server-sync loads your script bundle lazily when the picker
-// opens or the widget mounts, then looks for window.desktopModeWidgets[ id ]
+// opens or the widget mounts, then looks for window.openStationWidgets[ id ]
 // and calls it as the mount function.
 //
 // This must happen at module evaluation time (top level, not inside mount).
 // The key must exactly match WIDGET_ID and your PHP registration id.
 //
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;
 
 // =============================================================================
 // STEPS 5–8 — WIRING UP THE REST OF THE SYSTEM
@@ -308,18 +308,18 @@ w.desktopModeWidgets[ WIDGET_ID ] = mount;
 //   Replace "starter" with your name throughout. Update label/description/icon.
 //
 // STEP 6 — Require it in desktop-mode.php
-//   require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-my.php';
+//   require_once OPEN_STATION_DIR . 'includes/widgets/widget-my.php';
 //
 // STEP 7 — Add a Vite target in vite.config.js (inside the TARGETS object):
 //   'widget-my': {
 //       entry:    'src/plugins/my-widget/index.ts',
 //       fileBase: 'widget-my',
-//       iifeName: 'desktopModeMyWidget',
+//       iifeName: 'openStationMyWidget',
 //   },
 //
 // STEP 8 — Add a build script in package.json (inside "scripts"):
-//   "build:widget-my": "DESKTOP_MODE_TARGET=widget-my vite build --mode development
-//       && DESKTOP_MODE_TARGET=widget-my vite build --mode production"
+//   "build:widget-my": "OPEN_STATION_TARGET=widget-my vite build --mode development
+//       && OPEN_STATION_TARGET=widget-my vite build --mode production"
 //
 // Then: npm run build:widget-my
 // =============================================================================

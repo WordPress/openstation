@@ -35,17 +35,17 @@ import {
 	clearCommentsPostFilter,
 	subscribeCommentsPostFilter,
 } from './post-filter';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-badge/wpd-badge';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-icon/wpd-icon';
-import '../ui/components/wpd-relative-time/wpd-relative-time';
-import '../ui/components/wpd-spinner/wpd-spinner';
-import '../ui/components/wpd-text-field/wpd-text-field';
-import '../ui/components/wpd-textarea/wpd-textarea';
-import '../ui/components/wpd-tabs/wpd-tabs';
+import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-badge/os-badge';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-icon/os-icon';
+import '../ui/components/os-relative-time/os-relative-time';
+import '../ui/components/os-spinner/os-spinner';
+import '../ui/components/os-text-field/os-text-field';
+import '../ui/components/os-textarea/os-textarea';
+import '../ui/components/os-tabs/os-tabs';
 
 const NS = 'desktop-mode-comments';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -81,12 +81,12 @@ interface Ctx {
 
 function readConfig(): CommentsConfig | null {
 	const w = window as unknown as {
-		desktopModeWindowConfig?: Record< string, CommentsConfig | undefined >;
-		desktopModeNativeWindowConfig?: Record< string, CommentsConfig | undefined >;
+		openStationWindowConfig?: Record< string, CommentsConfig | undefined >;
+		openStationNativeWindowConfig?: Record< string, CommentsConfig | undefined >;
 	};
 	return (
-		w.desktopModeWindowConfig?.[ 'desktop-mode-comments' ] ??
-		w.desktopModeNativeWindowConfig?.[ 'desktop-mode-comments' ] ??
+		w.openStationWindowConfig?.[ 'desktop-mode-comments' ] ??
+		w.openStationNativeWindowConfig?.[ 'desktop-mode-comments' ] ??
 		null
 	);
 }
@@ -94,8 +94,8 @@ function readConfig(): CommentsConfig | null {
 /** wp-admin base URL, for building editor links the shell intercepts. */
 function adminUrl(): string {
 	const desktop = ( window as unknown as {
-		wp?: { desktop?: { config?: { adminUrl?: string } } };
-	} ).wp?.desktop;
+		wp?: { os?: { config?: { adminUrl?: string } } };
+	} ).wp?.os;
 	return desktop?.config?.adminUrl || '/wp-admin/';
 }
 
@@ -103,7 +103,7 @@ function adminUrl(): string {
  * The `external` glyph from `@wordpress/icons` — the same mark the block
  * editor puts on its own "View Post" link. Inlined rather than pulled
  * from Dashicons so the two surfaces are pixel-identical; a link that
- * leaves Desktop Mode should look the same wherever WordPress offers it.
+ * leaves OpenStation should look the same wherever WordPress offers it.
  */
 function externalIcon(): SVGElement {
 	const svg = document.createElementNS( SVG_NS, 'svg' );
@@ -134,8 +134,8 @@ function announcePostIdentity(
 	title?: string,
 ): void {
 	const relations = ( window as unknown as {
-		wp?: { desktop?: { relations?: { set?: ( id: string, ref: unknown ) => void } } };
-	} ).wp?.desktop?.relations;
+		wp?: { os?: { relations?: { set?: ( id: string, ref: unknown ) => void } } };
+	} ).wp?.os?.relations;
 	// The relations API keys by the manager's window id — the DOM root is
 	// `id="wp-window-<windowId>"`, so strip the prefix (matches
 	// resolveMountedWindowId in native-windows.ts).
@@ -187,7 +187,7 @@ function statusLabel( status: string ): string {
 	}
 }
 
-/** `<wpd-badge>` tone that reads the way the status feels. */
+/** `<os-badge>` tone that reads the way the status feels. */
 function statusTone( status: string ): string {
 	switch ( status ) {
 		case 'approved':
@@ -202,7 +202,7 @@ function statusTone( status: string ): string {
 }
 
 /**
- * Moderation status as a `<wpd-badge>`.
+ * Moderation status as a `<os-badge>`.
  *
  * `dotOnly` shrinks the pill to just its tone dot for the rail, where
  * there's no room for a word — the label rides along as slotted
@@ -213,7 +213,7 @@ function statusTone( status: string ): string {
  * @param dotOnly Collapse to the dot (rail) instead of a labelled pill.
  */
 function statusBadge( status: string, dotOnly = false ): HTMLElement {
-	const badge = document.createElement( 'wpd-badge' );
+	const badge = document.createElement( 'os-badge' );
 	badge.setAttribute( 'tone', statusTone( status ) );
 	const label = statusLabel( status );
 	if ( dotOnly ) {
@@ -233,7 +233,7 @@ function statusBadge( status: string, dotOnly = false ): HTMLElement {
 /**
  * A live timestamp for `date_gmt`.
  *
- * `<wpd-relative-time>` takes WordPress's MySQL-style `*_gmt` string
+ * `<os-relative-time>` takes WordPress's MySQL-style `*_gmt` string
  * directly (it treats a space-separated value as UTC), formats through
  * `Intl.RelativeTimeFormat` so the copy pluralizes and localizes
  * properly, renders a semantic `<time datetime>`, carries the absolute
@@ -244,7 +244,7 @@ function statusBadge( status: string, dotOnly = false ): HTMLElement {
  * @param compact Abbreviated form for the narrow rail cell.
  */
 function timestamp( gmt: string, compact = false ): HTMLElement {
-	const el = document.createElement( 'wpd-relative-time' );
+	const el = document.createElement( 'os-relative-time' );
 	el.setAttribute( 'datetime', gmt );
 	if ( compact ) {
 		el.setAttribute( 'compact', '' );
@@ -261,7 +261,7 @@ function snippet( row: CommentRow ): string {
 /**
  * The commenter's avatar.
  *
- * `<wpd-avatar>` already does everything the old hand-rolled disc did
+ * `<os-avatar>` already does everything the old hand-rolled disc did
  * — deterministic hue, initials fallback, circular clip — plus the two
  * things it got wrong. It falls back to the initials tile when the
  * image fails, and it is what `applyAvatarSrc` is documented to drive:
@@ -273,7 +273,7 @@ function snippet( row: CommentRow ): string {
  * @param size Tile size in px — 36 in the rail, 34 in the thread.
  */
 function avatar( row: CommentRow, size: number ): HTMLElement {
-	const el = document.createElement( 'wpd-avatar' );
+	const el = document.createElement( 'os-avatar' );
 	el.className = `${ NS }__disc`;
 	el.setAttribute( 'name', row.author_name || '?' );
 	el.setAttribute( 'size', String( size ) );
@@ -294,7 +294,7 @@ function avatar( row: CommentRow, size: number ): HTMLElement {
 /**
  * One action in the per-message row.
  *
- * Rendered as `<wpd-button variant="link">` — the chrome-less variant —
+ * Rendered as `<os-button variant="link">` — the chrome-less variant —
  * so the row reads as wp-admin's own comment row actions
  * (`Approve | Reply | Edit | Spam | Trash`): plain links, pipe
  * separators from CSS, red for the two that take a comment out of the
@@ -311,7 +311,7 @@ function actionButton(
 	tone: 'default' | 'danger',
 	onClick: ( button: HTMLElement ) => void,
 ): HTMLElement {
-	const button = document.createElement( 'wpd-button' );
+	const button = document.createElement( 'os-button' );
 	button.className = `${ NS }__act${ tone === 'danger' ? ' is-danger' : '' }`;
 	button.setAttribute( 'variant', 'link' );
 	button.textContent = label;
@@ -338,7 +338,7 @@ interface Editor {
 }
 
 /**
- * A `<wpd-textarea>` wired to the kit's event shape.
+ * A `<os-textarea>` wired to the kit's event shape.
  *
  * `submit-on-enter` gives the reply composer chat semantics (Enter
  * sends, Shift+Enter newlines) straight from the component; the inline
@@ -353,7 +353,7 @@ function mountEditor( opts: {
 	submitOnEnter?: boolean;
 	onSubmit?: () => void;
 } ): Editor {
-	const el = document.createElement( 'wpd-textarea' );
+	const el = document.createElement( 'os-textarea' );
 	el.className = `${ NS }__reply-input`;
 	el.setAttribute( 'placeholder', opts.placeholder );
 	el.setAttribute( 'aria-label', opts.ariaLabel );
@@ -371,10 +371,10 @@ function mountEditor( opts: {
 	const track = ( e: Event ): void => {
 		current = String( ( e as CustomEvent< { value: string } > ).detail?.value ?? '' );
 	};
-	el.addEventListener( 'wpd-input-change', track );
-	el.addEventListener( 'wpd-input-commit', track );
+	el.addEventListener( 'os-input-change', track );
+	el.addEventListener( 'os-input-commit', track );
 	if ( opts.onSubmit ) {
-		el.addEventListener( 'wpd-submit', ( e ) => {
+		el.addEventListener( 'os-submit', ( e ) => {
 			track( e );
 			opts.onSubmit?.();
 		} );
@@ -423,7 +423,7 @@ function mountEditor( opts: {
 /* Tabs                                                                       */
 /* -------------------------------------------------------------------------- */
 
-/** Mark one tab active by handing the value back to `<wpd-tabs>`. */
+/** Mark one tab active by handing the value back to `<os-tabs>`. */
 function setActiveTab( tabsEl: HTMLElement, tabValue: string ): void {
 	// The component owns aria-selected + roving tabindex off this prop.
 	( tabsEl as unknown as { value: string } ).value = tabValue;
@@ -445,7 +445,7 @@ function paintTabCounts( tabsEl: HTMLElement, counts: CommentCounts ): void {
 		trash: counts.trash,
 		mine: null,
 	};
-	tabsEl.querySelectorAll< HTMLElement >( 'wpd-tab' ).forEach( ( tab ) => {
+	tabsEl.querySelectorAll< HTMLElement >( 'os-tab' ).forEach( ( tab ) => {
 		const value = tab.getAttribute( 'value' ) ?? '';
 		const count = forTab[ value ];
 		let chip = tab.querySelector< HTMLElement >( `.${ NS }__tab-count` );
@@ -454,7 +454,7 @@ function paintTabCounts( tabsEl: HTMLElement, counts: CommentCounts ): void {
 			return;
 		}
 		if ( ! chip ) {
-			chip = document.createElement( 'wpd-badge' );
+			chip = document.createElement( 'os-badge' );
 			chip.className = `${ NS }__tab-count`;
 			chip.setAttribute( 'tone', 'neutral' );
 			chip.setAttribute( 'no-dot', '' );
@@ -507,7 +507,7 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	snip.textContent = snippet( row );
 	const post = document.createElement( 'div' );
 	post.className = `${ NS }__thread-post`;
-	post.textContent = decodeHTML( row.desktop_mode_post_title || '' );
+	post.textContent = decodeHTML( row.open_station_post_title || '' );
 	main.append( name, snip, post );
 
 	const meta = document.createElement( 'div' );
@@ -515,18 +515,18 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	const time = timestamp( row.date_gmt, true );
 	time.className = `${ NS }__thread-time`;
 	meta.appendChild( time );
-	if ( row.desktop_mode_replies_count > 0 ) {
-		const rc = document.createElement( 'wpd-badge' );
+	if ( row.open_station_replies_count > 0 ) {
+		const rc = document.createElement( 'os-badge' );
 		rc.className = `${ NS }__reply-count`;
 		rc.setAttribute( 'tone', 'neutral' );
 		rc.setAttribute( 'no-dot', '' );
-		rc.textContent = String( row.desktop_mode_replies_count );
+		rc.textContent = String( row.open_station_replies_count );
 		const rcLabel = document.createElement( 'span' );
 		rcLabel.className = 'screen-reader-text';
 		rcLabel.textContent = sprintf(
 			/* translators: %d: number of direct replies. */
 			__( '%d replies' ),
-			row.desktop_mode_replies_count,
+			row.open_station_replies_count,
 		);
 		rc.appendChild( rcLabel );
 		meta.appendChild( rc );
@@ -544,11 +544,11 @@ function filterBanner( ctx: Ctx ): HTMLElement {
 	bar.className = `${ NS }__rail-filter`;
 	const label = document.createElement( 'span' );
 	label.className = `${ NS }__rail-filter-label`;
-	const title = ctx.threads[ 0 ]?.desktop_mode_post_title;
+	const title = ctx.threads[ 0 ]?.open_station_post_title;
 	label.textContent = title
 		? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
 		: __( 'Comments on this post' );
-	const clear = document.createElement( 'wpd-button' );
+	const clear = document.createElement( 'os-button' );
 	clear.className = `${ NS }__rail-filter-clear`;
 	clear.setAttribute( 'variant', 'link' );
 	clear.textContent = __( 'Show all' );
@@ -566,7 +566,7 @@ function filterBanner( ctx: Ctx ): HTMLElement {
 function loadingRow(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = `${ NS }__list-loading`;
-	const spinner = document.createElement( 'wpd-spinner' );
+	const spinner = document.createElement( 'os-spinner' );
 	spinner.setAttribute( 'size', '24' );
 	// The spinner is decorative; the live region carries the state for
 	// anyone who isn't watching it turn.
@@ -581,7 +581,7 @@ function loadingRow(): HTMLElement {
 function loadMoreRow( ctx: Ctx ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = `${ NS }__load-more`;
-	const button = document.createElement( 'wpd-button' );
+	const button = document.createElement( 'os-button' );
 	button.setAttribute( 'variant', 'ghost' );
 	button.textContent = __( 'Load more' );
 	button.addEventListener( 'click', () => {
@@ -699,7 +699,7 @@ async function loadRail(
 /**
  * The canonical "nothing selected / nothing here" shape.
  *
- * `<wpd-empty-state>` owns the icon + heading + description layout, so
+ * `<os-empty-state>` owns the icon + heading + description layout, so
  * every empty surface in the shell reads the same way.
  */
 function emptyState(
@@ -707,7 +707,7 @@ function emptyState(
 	heading: string,
 	description = '',
 ): HTMLElement {
-	const el = document.createElement( 'wpd-empty-state' );
+	const el = document.createElement( 'os-empty-state' );
 	el.className = `${ NS }__placeholder`;
 	el.setAttribute( 'icon', icon );
 	el.setAttribute( 'heading', heading );
@@ -811,7 +811,7 @@ function convoHead( root: CommentRow ): HTMLElement {
 	kicker.className = `${ NS }__convo-kicker`;
 	kicker.textContent = __( 'In response to' );
 
-	const title = decodeHTML( root.desktop_mode_post_title || __( '(no title)' ) );
+	const title = decodeHTML( root.open_station_post_title || __( '(no title)' ) );
 	// The title IS the edit affordance — a same-origin wp-admin link with
 	// no target, which the shell's link interceptor catches and mounts as
 	// a window (the same path the Drafts widget uses); it does NOT
@@ -824,7 +824,7 @@ function convoHead( root: CommentRow ): HTMLElement {
 		link.href = `${ adminUrl() }post.php?post=${ root.post }&action=edit`;
 		link.title = __( 'Edit this post' );
 		link.append( document.createTextNode( title ) );
-		const pencil = document.createElement( 'wpd-icon' );
+		const pencil = document.createElement( 'os-icon' );
 		pencil.className = `${ NS }__convo-post-pencil`;
 		pencil.setAttribute( 'name', 'edit' );
 		pencil.setAttribute( 'size', '15' );
@@ -844,10 +844,10 @@ function convoHead( root: CommentRow ): HTMLElement {
 
 	const actions = document.createElement( 'div' );
 	actions.className = `${ NS }__convo-head-actions`;
-	if ( root.desktop_mode_post_link ) {
+	if ( root.open_station_post_link ) {
 		const a = document.createElement( 'a' );
 		a.className = `${ NS }__convo-link`;
-		a.href = root.desktop_mode_post_link;
+		a.href = root.open_station_post_link;
 		a.target = '_blank';
 		a.rel = 'noopener';
 		a.append( document.createTextNode( __( 'View post' ) ), externalIcon() );
@@ -893,7 +893,7 @@ function renderMessage(
 	name.textContent = row.author_name || __( 'Anonymous' );
 	head.appendChild( name );
 	if ( row.author > 0 && row.author === ctx.cfg.currentUserId ) {
-		const you = document.createElement( 'wpd-badge' );
+		const you = document.createElement( 'os-badge' );
 		you.className = `${ NS }__msg-you`;
 		you.setAttribute( 'tone', 'info' );
 		you.setAttribute( 'no-dot', '' );
@@ -937,7 +937,7 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 	// Order mirrors wp-admin's comment row actions: the moderation verb
 	// first, then the authoring verbs, then the two destructive ones.
 	const items: HTMLElement[] = [];
-	if ( row.desktop_mode_can_moderate ) {
+	if ( row.open_station_can_moderate ) {
 		const approveLabel = status === 'approved' ? __( 'Unapprove' ) : __( 'Approve' );
 		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
 		items.push(
@@ -953,12 +953,12 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 			actionButton( __( 'Reply' ), 'default', () => openComposerFor( ctx, row ) ),
 		);
 	}
-	if ( row.desktop_mode_can_edit ) {
+	if ( row.open_station_can_edit ) {
 		items.push(
 			actionButton( __( 'Edit' ), 'default', () => openInlineEdit( ctx, row ) ),
 		);
 	}
-	if ( row.desktop_mode_can_moderate ) {
+	if ( row.open_station_can_moderate ) {
 		if ( status !== 'spam' ) {
 			items.push(
 				actionButton( __( 'Spam' ), 'danger', ( button ) =>
@@ -977,7 +977,7 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 
 	// Interleave the wp-admin pipe separators as real nodes. A CSS
 	// `::before` on the action itself would be unreliable here — every
-	// `<wpd-button>` is a shadow host, and generated content on a shadow
+	// `<os-button>` is a shadow host, and generated content on a shadow
 	// host is at the mercy of flat-tree slotting. Building them means
 	// they land between whichever actions this viewer actually got, with
 	// no separator dangling at either end.
@@ -1000,8 +1000,8 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 
 function toast( message: string ): void {
 	const api = ( window as unknown as {
-		wp?: { desktop?: { showToast?: ( o: { message: string } ) => void } };
-	} ).wp?.desktop;
+		wp?: { os?: { showToast?: ( o: { message: string } ) => void } };
+	} ).wp?.os;
 	if ( api?.showToast ) {
 		api.showToast( { message } );
 	}
@@ -1056,7 +1056,7 @@ async function moderate(
 	button?: HTMLElement,
 ): Promise< void > {
 	const prompt = DESTRUCTIVE[ action ];
-	if ( prompt && ! ( await wpdConfirm( { ...prompt, danger: true } ) ) ) {
+	if ( prompt && ! ( await osConfirm( { ...prompt, danger: true } ) ) ) {
 		return;
 	}
 	button?.setAttribute( 'busy', '' );
@@ -1095,7 +1095,7 @@ function composer( ctx: Ctx, target: CommentRow ): HTMLElement {
 	b.textContent = target.author_name || __( 'Anonymous' );
 	to.append( document.createTextNode( __( 'Replying to' ) + ' ' ), b );
 
-	const send = document.createElement( 'wpd-button' );
+	const send = document.createElement( 'os-button' );
 	send.setAttribute( 'variant', 'primary' );
 	send.textContent = __( 'Send reply' );
 
@@ -1204,10 +1204,10 @@ function openInlineEdit( ctx: Ctx, row: CommentRow ): void {
 
 	const bar = document.createElement( 'div' );
 	bar.className = `${ NS }__composer-row ${ NS }__edit-bar`;
-	const cancel = document.createElement( 'wpd-button' );
+	const cancel = document.createElement( 'os-button' );
 	cancel.setAttribute( 'variant', 'ghost' );
 	cancel.textContent = __( 'Cancel' );
-	const save = document.createElement( 'wpd-button' );
+	const save = document.createElement( 'os-button' );
 	save.setAttribute( 'variant', 'primary' );
 	save.textContent = __( 'Save' );
 
@@ -1266,14 +1266,14 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	setActiveWindowId( 'desktop-mode-comments' );
 	setActiveConfig( cfg );
 
-	const listEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-list]' );
-	const convoEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-convo]' );
-	const tabsEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-tabs]' );
+	const listEl = body.querySelector< HTMLElement >( '[data-os-comments-list]' );
+	const convoEl = body.querySelector< HTMLElement >( '[data-os-comments-convo]' );
+	const tabsEl = body.querySelector< HTMLElement >( '[data-os-comments-tabs]' );
 	if ( ! listEl || ! convoEl || ! tabsEl ) {
 		return;
 	}
-	const searchEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-search]' );
-	const statusEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-status]' );
+	const searchEl = body.querySelector< HTMLElement >( '[data-os-comments-search]' );
+	const statusEl = body.querySelector< HTMLElement >( '[data-os-comments-status]' );
 
 	// A pending `edit-comments.php?p=<id>` open scopes the rail to that
 	// post; a filtered open starts on "All" so the post's whole thread is
@@ -1295,7 +1295,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		totalPages: 1,
 		railSeq: 0,
 		announceIdentity: ( postId: number ) =>
-			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.desktop_mode_post_title ),
+			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.open_station_post_title ),
 		announce: ( message: string ) => {
 			if ( statusEl ) {
 				statusEl.textContent = message;
@@ -1312,10 +1312,10 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 
 	showPlaceholder( ctx );
 
-	// Tabs — `<wpd-tabs>` owns aria-selected + roving tabindex; we only
+	// Tabs — `<os-tabs>` owns aria-selected + roving tabindex; we only
 	// set the initial value (a filtered open starts on All) and listen.
 	setActiveTab( tabsEl, ctx.tab );
-	tabsEl.addEventListener( 'wpd-tab-change', ( e ) => {
+	tabsEl.addEventListener( 'os-tab-change', ( e ) => {
 		const next = ( ( e as CustomEvent< { value: string } > ).detail?.value ||
 			'pending' ) as CommentTab;
 		if ( next === ctx.tab ) {
@@ -1327,7 +1327,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 
 	// Search (debounced)
 	let searchTimer: number | null = null;
-	searchEl?.addEventListener( 'wpd-input-change', ( e ) => {
+	searchEl?.addEventListener( 'os-input-change', ( e ) => {
 		const value = ( e as CustomEvent ).detail?.value ?? '';
 		if ( searchTimer ) {
 			window.clearTimeout( searchTimer );
@@ -1370,10 +1370,10 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 				window.clearTimeout( searchTimer );
 			}
 			unsubscribe();
-			document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+			document.removeEventListener( 'os-window-closed', onWindowClosed );
 		}
 	};
-	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+	document.addEventListener( 'os-window-closed', onWindowClosed );
 
 	void refreshCounts( ctx );
 	await loadRail( ctx );

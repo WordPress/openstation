@@ -1,28 +1,28 @@
-var wpDesktopCodeEditor = function(exports) {
+var openStationCodeEditor = function(exports) {
   "use strict";
   function showConflictDialog(args) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
-      overlay.className = "wpdc-conflict-overlay";
+      overlay.className = "osc-conflict-overlay";
       const dialog = document.createElement("div");
-      dialog.className = "wpdc-conflict-dialog";
+      dialog.className = "osc-conflict-dialog";
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
-      dialog.setAttribute("aria-labelledby", "wpdc-conflict-title");
+      dialog.setAttribute("aria-labelledby", "osc-conflict-title");
       const title = document.createElement("h2");
-      title.id = "wpdc-conflict-title";
-      title.className = "wpdc-conflict-dialog__title";
+      title.id = "osc-conflict-title";
+      title.className = "osc-conflict-dialog__title";
       title.textContent = "File changed on disk";
       const body = document.createElement("p");
-      body.className = "wpdc-conflict-dialog__body";
+      body.className = "osc-conflict-dialog__body";
       body.textContent = `Someone else (or another tab) modified ${args.path} since you opened it. Choose how to resolve:`;
       const meta = document.createElement("p");
-      meta.className = "wpdc-conflict-dialog__meta";
+      meta.className = "osc-conflict-dialog__meta";
       meta.textContent = `Server version: ${args.serverSize} bytes · ${new Date(
         args.serverMtime * 1e3
       ).toLocaleString()}`;
       const actions = document.createElement("div");
-      actions.className = "wpdc-conflict-dialog__actions";
+      actions.className = "osc-conflict-dialog__actions";
       const finish = (choice) => {
         document.removeEventListener("keydown", onKey);
         overlay.remove();
@@ -30,19 +30,19 @@ var wpDesktopCodeEditor = function(exports) {
       };
       const reload = document.createElement("button");
       reload.type = "button";
-      reload.className = "wpdc-conflict-dialog__btn";
+      reload.className = "osc-conflict-dialog__btn";
       reload.textContent = "Reload from disk";
       reload.title = "Discard your edits and load the server version.";
       reload.addEventListener("click", () => finish("reload"));
       const overwrite = document.createElement("button");
       overwrite.type = "button";
-      overwrite.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--danger";
+      overwrite.className = "osc-conflict-dialog__btn osc-conflict-dialog__btn--danger";
       overwrite.textContent = "Overwrite anyway";
       overwrite.title = "Save your edits, replacing the server version.";
       overwrite.addEventListener("click", () => finish("overwrite"));
       const cancel = document.createElement("button");
       cancel.type = "button";
-      cancel.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet";
+      cancel.className = "osc-conflict-dialog__btn osc-conflict-dialog__btn--quiet";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => finish("cancel"));
       actions.append(cancel, reload, overwrite);
@@ -156,24 +156,24 @@ var wpDesktopCodeEditor = function(exports) {
   const FLAG = "__wpdcEditorListenersInstalled";
   function getDesktop() {
     const w = window;
-    return w.wp?.desktop ?? null;
+    return w.wp?.os ?? null;
   }
   function openEditorWindow() {
     const desktop = getDesktop();
     if (!desktop) {
       return false;
     }
-    const existing = desktop.windowManager.getById("wpdc-editor");
+    const existing = desktop.windowManager.getById("osc-editor");
     if (existing) {
       existing.focus?.();
       return true;
     }
-    return desktop.openWindow("wpdc-editor");
+    return desktop.openWindow("osc-editor");
   }
   function openEditorAtPath(path, line = 1) {
     openEditorWindow();
     const fire = () => window.postMessage(
-      { type: "wp-desktop-code-open", path, line },
+      { type: "os-code-open", path, line },
       window.location.origin
     );
     requestAnimationFrame(fire);
@@ -183,7 +183,7 @@ var wpDesktopCodeEditor = function(exports) {
       return false;
     }
     const msg = data;
-    return msg.type === "wp-desktop-code-open" && typeof msg.path === "string" && (msg.line === void 0 || typeof msg.line === "number");
+    return msg.type === "os-code-open" && typeof msg.path === "string" && (msg.line === void 0 || typeof msg.line === "number");
   }
   function installPostMessageListener() {
     window.addEventListener("message", (event) => {
@@ -194,7 +194,7 @@ var wpDesktopCodeEditor = function(exports) {
         return;
       }
       const desktop = getDesktop();
-      const existing = desktop?.windowManager.getById("wpdc-editor");
+      const existing = desktop?.windowManager.getById("osc-editor");
       if (!existing) {
         openEditorAtPath(event.data.path, event.data.line ?? 1);
       }
@@ -206,7 +206,7 @@ var wpDesktopCodeEditor = function(exports) {
       (e) => {
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
           const target = e.target;
-          if (target?.isContentEditable && !target.closest("[data-wpdc-editor-root]")) {
+          if (target?.isContentEditable && !target.closest("[data-osc-editor-root]")) {
             return;
           }
           e.preventDefault();
@@ -692,10 +692,10 @@ var wpDesktopCodeEditor = function(exports) {
     }
   }
   function getConfig() {
-    const config2 = window.wpDesktopCodeEditorConfig;
+    const config2 = window.openStationCodeEditorConfig;
     if (!config2) {
       throw new Error(
-        "wp-desktop-code-editor: wpDesktopCodeEditorConfig missing — is the editor enqueued?"
+        "os-code-editor: openStationCodeEditorConfig missing — is the editor enqueued?"
       );
     }
     return config2;
@@ -725,7 +725,7 @@ var wpDesktopCodeEditor = function(exports) {
       const obj = body ?? {};
       throw new RestError(
         obj.message ?? `HTTP ${res.status}`,
-        obj.code ?? "wpdc_http_error",
+        obj.code ?? "osc_http_error",
         res.status,
         obj.data ?? null
       );
@@ -779,7 +779,7 @@ var wpDesktopCodeEditor = function(exports) {
       const obj = body ?? {};
       throw new RestError(
         obj.message ?? `HTTP ${res.status}`,
-        obj.code ?? "wpdc_http_error",
+        obj.code ?? "osc_http_error",
         res.status,
         null
       );
@@ -821,7 +821,7 @@ var wpDesktopCodeEditor = function(exports) {
       const obj = body ?? {};
       throw new RestError(
         obj.message ?? `HTTP ${res.status}`,
-        obj.code ?? "wpdc_http_error",
+        obj.code ?? "osc_http_error",
         res.status,
         obj.data ?? null
       );
@@ -1105,10 +1105,10 @@ var wpDesktopCodeEditor = function(exports) {
     if (pending) {
       return pending;
     }
-    const config2 = window.wpDesktopCodeEditorConfig;
+    const config2 = window.openStationCodeEditorConfig;
     if (!config2?.monacoVendorUrl) {
       throw new Error(
-        "wp-desktop-code-editor: monacoVendorUrl missing from wpDesktopCodeEditorConfig — is window.php enqueued?"
+        "os-code-editor: monacoVendorUrl missing from openStationCodeEditorConfig — is window.php enqueued?"
       );
     }
     installWorkerEnvironment(config2.monacoVendorUrl);
@@ -1159,21 +1159,21 @@ var wpDesktopCodeEditor = function(exports) {
   function showConfirm(args) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
-      overlay.className = "wpdc-conflict-overlay";
+      overlay.className = "osc-conflict-overlay";
       const dialog = document.createElement("div");
-      dialog.className = "wpdc-conflict-dialog";
+      dialog.className = "osc-conflict-dialog";
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
-      dialog.setAttribute("aria-labelledby", "wpdc-confirm-title");
+      dialog.setAttribute("aria-labelledby", "osc-confirm-title");
       const title = document.createElement("h2");
-      title.id = "wpdc-confirm-title";
-      title.className = "wpdc-conflict-dialog__title";
+      title.id = "osc-confirm-title";
+      title.className = "osc-conflict-dialog__title";
       title.textContent = args.title;
       const body = document.createElement("p");
-      body.className = "wpdc-conflict-dialog__body";
+      body.className = "osc-conflict-dialog__body";
       body.textContent = args.body;
       const actions = document.createElement("div");
-      actions.className = "wpdc-conflict-dialog__actions";
+      actions.className = "osc-conflict-dialog__actions";
       const finish = (ok) => {
         document.removeEventListener("keydown", onKey);
         overlay.remove();
@@ -1181,14 +1181,14 @@ var wpDesktopCodeEditor = function(exports) {
       };
       const cancel = document.createElement("button");
       cancel.type = "button";
-      cancel.className = "wpdc-conflict-dialog__btn wpdc-conflict-dialog__btn--quiet";
+      cancel.className = "osc-conflict-dialog__btn osc-conflict-dialog__btn--quiet";
       cancel.textContent = args.cancelLabel ?? "Cancel";
       cancel.addEventListener("click", () => finish(false));
       const confirm = document.createElement("button");
       confirm.type = "button";
-      confirm.className = "wpdc-conflict-dialog__btn";
+      confirm.className = "osc-conflict-dialog__btn";
       {
-        confirm.classList.add("wpdc-conflict-dialog__btn--danger");
+        confirm.classList.add("osc-conflict-dialog__btn--danger");
       }
       confirm.textContent = args.confirmLabel ?? "Confirm";
       confirm.addEventListener("click", () => finish(true));
@@ -1216,16 +1216,16 @@ var wpDesktopCodeEditor = function(exports) {
   }
   function mountTabsStrip(opts) {
     const { mount, onActivate, onClose } = opts;
-    mount.classList.add("wpdc-tabs");
+    mount.classList.add("osc-tabs");
     const ul = document.createElement("ul");
-    ul.className = "wpdc-tabs__list";
+    ul.className = "osc-tabs__list";
     mount.replaceChildren(ul);
     const tabs = /* @__PURE__ */ new Map();
     const order = [];
     let active = null;
     const updateActiveClass = () => {
       for (const [path, tab] of tabs) {
-        tab.li.classList.toggle("wpdc-tabs__tab--active", path === active);
+        tab.li.classList.toggle("osc-tabs__tab--active", path === active);
       }
     };
     const indexOf = (path) => order.indexOf(path);
@@ -1284,12 +1284,12 @@ var wpDesktopCodeEditor = function(exports) {
     };
     const buildTab = (file) => {
       const li = document.createElement("li");
-      li.className = "wpdc-tabs__tab";
+      li.className = "osc-tabs__tab";
       li.dataset.path = file.path;
       li.title = file.path;
       const body = document.createElement("button");
       body.type = "button";
-      body.className = "wpdc-tabs__body";
+      body.className = "osc-tabs__body";
       body.addEventListener("click", () => {
         if (active !== file.path) {
           active = file.path;
@@ -1298,21 +1298,21 @@ var wpDesktopCodeEditor = function(exports) {
         }
       });
       const icon = document.createElement("span");
-      icon.className = `wpdc-tabs__icon dashicons ${file.icon}`;
+      icon.className = `osc-tabs__icon dashicons ${file.icon}`;
       icon.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
-      label.className = "wpdc-tabs__label";
+      label.className = "osc-tabs__label";
       label.textContent = file.label;
       body.append(icon, label);
       const trailing = document.createElement("span");
-      trailing.className = "wpdc-tabs__trailing";
+      trailing.className = "osc-tabs__trailing";
       const dirtyEl = document.createElement("span");
-      dirtyEl.className = "wpdc-tabs__dirty";
+      dirtyEl.className = "osc-tabs__dirty";
       dirtyEl.textContent = "●";
       dirtyEl.setAttribute("aria-label", "Unsaved changes");
       const closeBtn = document.createElement("button");
       closeBtn.type = "button";
-      closeBtn.className = "wpdc-tabs__close";
+      closeBtn.className = "osc-tabs__close";
       closeBtn.setAttribute("aria-label", "Close tab");
       closeBtn.textContent = "×";
       closeBtn.addEventListener("click", (e) => {
@@ -1335,7 +1335,7 @@ var wpDesktopCodeEditor = function(exports) {
         return;
       }
       tab.dirty = dirty;
-      tab.li.classList.toggle("wpdc-tabs__tab--dirty", dirty);
+      tab.li.classList.toggle("osc-tabs__tab--dirty", dirty);
     };
     return {
       open(file) {
@@ -1427,7 +1427,7 @@ var wpDesktopCodeEditor = function(exports) {
     return DARK_SCHEMES.has(scheme) ? "vs-dark" : "vs";
   }
   function currentColorScheme() {
-    const cfg = window.wpDesktopConfig;
+    const cfg = window.openStationConfig;
     return cfg?.colorScheme ?? "";
   }
   const FOLDER_ICON_CLOSED = "dashicons-category";
@@ -1466,33 +1466,33 @@ var wpDesktopCodeEditor = function(exports) {
   }
   function mountFileTree(opts) {
     const { mount, onOpen } = opts;
-    mount.classList.add("wpdc-tree");
+    mount.classList.add("osc-tree");
     mount.replaceChildren();
     const childrenByPath = /* @__PURE__ */ new Map();
     const expanded = /* @__PURE__ */ new Set();
     const inflight = /* @__PURE__ */ new Map();
     const renderRow = (entry) => {
       const li = document.createElement("li");
-      li.className = `wpdc-tree__row wpdc-tree__row--${entry.type}`;
+      li.className = `osc-tree__row osc-tree__row--${entry.type}`;
       if (!entry.allowed && entry.type === "file") {
-        li.classList.add("wpdc-tree__row--disabled");
+        li.classList.add("osc-tree__row--disabled");
       }
       li.dataset.path = entry.path;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "wpdc-tree__btn";
+      button.className = "osc-tree__btn";
       if (!entry.allowed && entry.type === "file") {
         button.disabled = true;
         button.title = "File extension is not in the editor allowlist.";
       }
       const caret = document.createElement("span");
-      caret.className = "wpdc-tree__caret";
+      caret.className = "osc-tree__caret";
       caret.textContent = entry.type === "dir" ? "▸" : "";
       const icon = document.createElement("span");
-      icon.className = `wpdc-tree__icon dashicons ${iconFor(entry, false)}`;
+      icon.className = `osc-tree__icon dashicons ${iconFor(entry, false)}`;
       icon.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
-      label.className = "wpdc-tree__label";
+      label.className = "osc-tree__label";
       label.textContent = entry.name;
       button.append(caret, icon, label);
       li.append(button);
@@ -1501,21 +1501,21 @@ var wpDesktopCodeEditor = function(exports) {
           if (!entry.allowed) {
             return;
           }
-          mount.querySelectorAll(".wpdc-tree__row--active").forEach(
-            (el) => el.classList.remove("wpdc-tree__row--active")
+          mount.querySelectorAll(".osc-tree__row--active").forEach(
+            (el) => el.classList.remove("osc-tree__row--active")
           );
-          li.classList.add("wpdc-tree__row--active");
+          li.classList.add("osc-tree__row--active");
           onOpen(entry.path);
         });
         return li;
       }
       const childUl = document.createElement("ul");
-      childUl.className = "wpdc-tree__children";
+      childUl.className = "osc-tree__children";
       childUl.hidden = true;
       li.append(childUl);
       const setExpanded = (open) => {
         caret.textContent = open ? "▾" : "▸";
-        icon.className = `wpdc-tree__icon dashicons ${iconFor(entry, open)}`;
+        icon.className = `osc-tree__icon dashicons ${iconFor(entry, open)}`;
         childUl.hidden = !open;
         button.setAttribute("aria-expanded", open ? "true" : "false");
       };
@@ -1536,7 +1536,7 @@ var wpDesktopCodeEditor = function(exports) {
         inflight.set(entry.path, ac);
         try {
           const placeholder = document.createElement("li");
-          placeholder.className = "wpdc-tree__loading";
+          placeholder.className = "osc-tree__loading";
           placeholder.textContent = "Loading…";
           childUl.append(placeholder);
           const resp = await fetchTree(entry.path, ac.signal);
@@ -1551,7 +1551,7 @@ var wpDesktopCodeEditor = function(exports) {
           }
           childUl.replaceChildren();
           const errorRow = document.createElement("li");
-          errorRow.className = "wpdc-tree__error";
+          errorRow.className = "osc-tree__error";
           errorRow.textContent = err instanceof Error ? err.message : "Failed to load";
           childUl.append(errorRow);
         } finally {
@@ -1562,10 +1562,10 @@ var wpDesktopCodeEditor = function(exports) {
       return li;
     };
     const rootUl = document.createElement("ul");
-    rootUl.className = "wpdc-tree__root";
+    rootUl.className = "osc-tree__root";
     mount.append(rootUl);
     const loading = document.createElement("li");
-    loading.className = "wpdc-tree__loading";
+    loading.className = "osc-tree__loading";
     loading.textContent = "Loading workspace…";
     rootUl.append(loading);
     const rootController = new AbortController();
@@ -1582,7 +1582,7 @@ var wpDesktopCodeEditor = function(exports) {
         }
         rootUl.replaceChildren();
         const errorRow = document.createElement("li");
-        errorRow.className = "wpdc-tree__error";
+        errorRow.className = "osc-tree__error";
         errorRow.textContent = err instanceof Error ? err.message : "Failed to load workspace";
         rootUl.append(errorRow);
       }
@@ -1600,29 +1600,29 @@ var wpDesktopCodeEditor = function(exports) {
       }
     };
   }
-  const ROOT_SELECTOR = "[data-wpdc-editor-root]";
-  const MONACO_MOUNT_SELECTOR = "[data-wpdc-editor-monaco]";
-  const LOADING_CLASS = "wpdc-editor--loading";
-  const ERROR_CLASS = "wpdc-editor--error";
+  const ROOT_SELECTOR = "[data-osc-editor-root]";
+  const MONACO_MOUNT_SELECTOR = "[data-osc-editor-monaco]";
+  const LOADING_CLASS = "osc-editor--loading";
+  const ERROR_CLASS = "osc-editor--error";
   function buildShell(root, monacoSlot) {
-    root.classList.add("wpdc-editor--phase3");
+    root.classList.add("osc-editor--phase3");
     const split = document.createElement("div");
-    split.className = "wpdc-editor__split";
+    split.className = "osc-editor__split";
     const treeMount = document.createElement("div");
-    treeMount.className = "wpdc-editor__tree";
+    treeMount.className = "osc-editor__tree";
     const right = document.createElement("div");
-    right.className = "wpdc-editor__right";
+    right.className = "osc-editor__right";
     const tabsMount = document.createElement("div");
-    tabsMount.className = "wpdc-editor__tabs-host";
+    tabsMount.className = "osc-editor__tabs-host";
     const editorMount = document.createElement("div");
-    editorMount.className = "wpdc-editor__monaco-host";
+    editorMount.className = "osc-editor__monaco-host";
     const statusBar = document.createElement("div");
-    statusBar.className = "wpdc-editor__statusbar";
+    statusBar.className = "osc-editor__statusbar";
     const statusLeft = document.createElement("span");
-    statusLeft.className = "wpdc-editor__statusbar-left";
+    statusLeft.className = "osc-editor__statusbar-left";
     statusLeft.textContent = "Select a file from the tree.";
     const statusRight = document.createElement("span");
-    statusRight.className = "wpdc-editor__statusbar-right";
+    statusRight.className = "osc-editor__statusbar-right";
     statusBar.append(statusLeft, statusRight);
     right.append(tabsMount, editorMount, statusBar);
     split.append(treeMount, right);
@@ -1652,7 +1652,7 @@ var wpDesktopCodeEditor = function(exports) {
     const monacoSlot = body.querySelector(MONACO_MOUNT_SELECTOR);
     if (!root || !monacoSlot) {
       console.error(
-        "[wp-desktop-code-editor] Template mount nodes missing; ensure wpdc_render_editor_template ran."
+        "[os-code-editor] Template mount nodes missing; ensure osc_render_editor_template ran."
       );
       return;
     }
@@ -1722,7 +1722,7 @@ var wpDesktopCodeEditor = function(exports) {
     const openControllers = /* @__PURE__ */ new Map();
     let saveController = null;
     const setWindowTitle = (title) => {
-      const win = window.wp?.desktop?.windowManager?.getById("wpdc-editor");
+      const win = window.wp?.os?.windowManager?.getById("osc-editor");
       win?.setTitle?.(title);
     };
     const baseTitle = "Code";
@@ -1743,11 +1743,11 @@ var wpDesktopCodeEditor = function(exports) {
     const setStatus = (text, kind = "info") => {
       statusLeft.textContent = text;
       statusBar.classList.toggle(
-        "wpdc-editor__statusbar--error",
+        "osc-editor__statusbar--error",
         kind === "error"
       );
       statusBar.classList.toggle(
-        "wpdc-editor__statusbar--success",
+        "osc-editor__statusbar--success",
         kind === "success"
       );
     };
@@ -1915,7 +1915,7 @@ var wpDesktopCodeEditor = function(exports) {
         if (err.name === "AbortError") {
           return;
         }
-        if (err instanceof RestError && err.code === "wpdc_conflict") {
+        if (err instanceof RestError && err.code === "osc_conflict") {
           const data = err.data ?? null;
           if (!data) {
             setStatus(
@@ -1975,7 +1975,7 @@ var wpDesktopCodeEditor = function(exports) {
       }
     );
     editor.addAction({
-      id: "wpdc.saveFile",
+      id: "osc.saveFile",
       label: "Save File",
       // eslint-disable-next-line no-bitwise
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
@@ -1997,7 +1997,7 @@ var wpDesktopCodeEditor = function(exports) {
         return;
       }
       const data = event.data;
-      if (!data || data.type !== "wp-desktop-code-open" || typeof data.path !== "string") {
+      if (!data || data.type !== "os-code-open" || typeof data.path !== "string") {
         return;
       }
       void openFileAtLine(data.path, data.line ?? 1);
@@ -2012,8 +2012,8 @@ var wpDesktopCodeEditor = function(exports) {
     root.classList.remove(LOADING_CLASS);
   }
   installEditorGlobalListeners();
-  const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
-  registry["wpdc-editor"] = (body) => {
+  const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
+  registry["osc-editor"] = (body) => {
     void renderEditor(body);
   };
   exports.ERROR_CLASS = ERROR_CLASS;

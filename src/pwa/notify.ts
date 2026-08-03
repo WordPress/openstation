@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — local notifications.
+ * OpenStation — local notifications.
  *
- * `wp.desktop.notify( opts )` is the public surface for any plugin
+ * `wp.os.notify( opts )` is the public surface for any plugin
  * that needs to ping the user with a notification. v1 uses the
  * browser's `Notification` API directly — no server round-trip, no
  * push subscription. The shape of `opts` is forward-compatible with
@@ -176,7 +176,7 @@ function renderNative( intent: NotifyIntent ): ( () => void ) | null {
 		// so notify() falls back to the toast surface (which also
 		// publishes `notification-shown` with `fallback: 'toast'`).
 		if ( typeof console !== 'undefined' ) {
-			console.warn( '[desktop-mode] Notification ctor threw:', err );
+			console.warn( '[openstation] Notification ctor threw:', err );
 		}
 		return null;
 	}
@@ -189,7 +189,7 @@ function renderNative( intent: NotifyIntent ): ( () => void ) | null {
 			} catch ( hErr ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] notification onClick threw:',
+						'[openstation] notification onClick threw:',
 						hErr,
 					);
 				}

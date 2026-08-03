@@ -2,8 +2,8 @@
  * Deprecation helpers for the public API.
  *
  * The architecture-0.8.1 refactor renamed a handful of legacy
- * surfaces (`wpdm_*` PHP hooks → `desktop_mode_*`, the occasional
- * stray `wp.desktop.fooLegacy()` JS method) to bring everything
+ * surfaces (`osm_*` PHP hooks → `open_station_*`, the occasional
+ * stray `wp.os.fooLegacy()` JS method) to bring everything
  * under one prefix. We promised plugin authors that no existing
  * name would silently disappear: instead, every renamed surface
  * is kept as a deprecation shim that forwards to the canonical
@@ -17,16 +17,16 @@
 const warned = new Set< string >();
 
 /**
- * Install a deprecation alias on `wp.desktop.<oldName>` that
- * forwards to `wp.desktop.<newName>`.
+ * Install a deprecation alias on `wp.os.<oldName>` that
+ * forwards to `wp.os.<newName>`.
  *
  * The alias is a function that, on first call only, prints a
  * `console.warn` pointing at the replacement. Subsequent calls
- * forward silently. The `wp.desktop` object is read each call so
+ * forward silently. The `wp.os` object is read each call so
  * the canonical method stays live even if late code reassigns
  * the slot.
  *
- * @param target  The `wp.desktop` namespace object.
+ * @param target  The `wp.os` namespace object.
  * @param oldName Property to install the deprecated alias under.
  * @param newName Canonical property name to forward to.
  * @param hint    Optional extra hint shown after the rename
@@ -38,13 +38,13 @@ export function installDeprecatedAlias(
 	newName: string,
 	hint?: string,
 ): void {
-	const warnKey = `wp.desktop.${ oldName }→${ newName }`;
+	const warnKey = `wp.os.${ oldName }→${ newName }`;
 	target[ oldName ] = function deprecatedShim( ...args: unknown[] ) {
 		if ( ! warned.has( warnKey ) ) {
 			warned.add( warnKey );
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					`[desktop-mode] wp.desktop.${ oldName }() is deprecated; use wp.desktop.${ newName }() instead.${
+					`[openstation] wp.os.${ oldName }() is deprecated; use wp.os.${ newName }() instead.${
 						hint ? ' ' + hint : ''
 					}`,
 				);
@@ -53,7 +53,7 @@ export function installDeprecatedAlias(
 		const fn = ( target as Record< string, unknown > )[ newName ];
 		if ( typeof fn !== 'function' ) {
 			throw new TypeError(
-				`[desktop-mode] wp.desktop.${ newName } is not available; cannot forward from deprecated alias "${ oldName }".`,
+				`[openstation] wp.os.${ newName } is not available; cannot forward from deprecated alias "${ oldName }".`,
 			);
 		}
 		return ( fn as ( ...a: unknown[] ) => unknown ).apply( target, args );

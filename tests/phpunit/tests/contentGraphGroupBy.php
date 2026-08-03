@@ -9,10 +9,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group content-graph
  */
-class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
+class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	protected static $author_a_id;
 	protected static $author_b_id;
@@ -36,7 +36,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		parent::set_up();
 		// Each test starts from a clean transient cache so we exercise
 		// the build path and not a cached payload from a prior test.
-		desktop_mode_content_graph_flush_cache();
+		open_station_content_graph_flush_cache();
 	}
 
 	public function test_per_node_fields_populated() {
@@ -54,7 +54,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		wp_set_object_terms( $post_id, array( $cat_id ), 'category' );
 		wp_set_object_terms( $post_id, array( $tag_id ), 'post_tag' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		$this->assertSame( self::$author_a_id, $node['author_id'] );
@@ -78,7 +78,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		// captures the CURRENT user as the revision author — in unit
 		// tests no current user is set, so we'd get a revision
 		// authored by `0`. Inserting the revision row explicitly
-		// avoids that and matches the shape `desktop_mode_content_
+		// avoids that and matches the shape `open_station_content_
 		// graph_collect_post_contributors` reads from.
 		wp_insert_post(
 			array(
@@ -92,7 +92,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			)
 		);
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		$this->assertSame( self::$author_a_id, $node['author_id'] );
@@ -128,7 +128,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		wp_set_object_terms( $post_id, array(), 'category' );
 		wp_set_object_terms( $post_id, array(), 'post_tag' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		$this->assertSame(
@@ -151,7 +151,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 		wp_set_object_terms( $post_id, array(), 'category' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 
 		// The client resolves cluster labels from groups.categories;
 		// the fallback ID must be present there so the label renders.
@@ -181,13 +181,13 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			)
 		);
 
-		$payload = desktop_mode_content_graph_build( array( 'dm_test_no_cat' ) );
+		$payload = open_station_content_graph_build( array( 'dm_test_no_cat' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		// Clean up BEFORE asserting so the CPT never leaks into other
 		// tests even when an assertion fails.
 		unregister_post_type( 'dm_test_no_cat' );
-		desktop_mode_content_graph_flush_cache();
+		open_station_content_graph_flush_cache();
 
 		// category is not registered for this type — the default
 		// category fallback must NOT be injected.
@@ -211,7 +211,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 		wp_set_object_terms( $post_id, array( $cat_a, $cat_b ), 'category' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		sort( $node['category_ids'] );
@@ -233,7 +233,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 		wp_set_object_terms( $post_id, array( $cat_used ), 'category' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 
 		$this->assertArrayHasKey( $cat_used, $payload['groups']['categories'] );
 		$this->assertArrayNotHasKey(
@@ -260,7 +260,7 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			)
 		);
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 
 		$this->assertSame(
 			'Alice Example',
@@ -286,12 +286,12 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		wp_set_object_terms( $post_id, array( $cat_old ), 'category' );
 
 		// Prime the cache.
-		desktop_mode_content_graph_build( array( 'post' ) );
+		open_station_content_graph_build( array( 'post' ) );
 
 		// Retag without re-saving the post.
 		wp_set_object_terms( $post_id, array( $cat_new ), 'category' );
 
-		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$payload = open_station_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
 		$this->assertSame(
@@ -315,9 +315,9 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			return $types;
 		};
 
-		add_filter( 'desktop_mode_content_graph_post_types', $filter_callback );
-		$post_types = desktop_mode_content_graph_post_types();
-		remove_filter( 'desktop_mode_content_graph_post_types', $filter_callback );
+		add_filter( 'open_station_content_graph_post_types', $filter_callback );
+		$post_types = open_station_content_graph_post_types();
+		remove_filter( 'open_station_content_graph_post_types', $filter_callback );
 
 		$legacy_entry = null;
 		foreach ( $post_types as $entry ) {

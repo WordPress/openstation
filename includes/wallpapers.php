@@ -1,11 +1,11 @@
 <?php
 /**
- * Desktop Mode — Built-in wallpaper presets.
+ * OpenStation — Built-in wallpaper presets.
  *
  * The built-in wallpapers that ship with the plugin — five gradient /
  * solid CSS presets plus the Animated WordPress Logo canvas wallpaper —
  * each registered through the same public API third-party plugins use
- * (`desktop_mode_register_wallpaper()`). Dogfooding the registration
+ * (`open_station_register_wallpaper()`). Dogfooding the registration
  * surface for the built-ins is how we discover whether the API is
  * expressive enough for plugin authors — if we couldn't describe our
  * own presets through it, the API is broken.
@@ -14,9 +14,9 @@
  * before the shell config is built (shell render runs on
  * `admin_enqueue_scripts`, which fires after `init`), and before any
  * late third-party plugin that wants to react via the
- * `desktop_mode_wallpaper_registered` action.
+ * `open_station_wallpaper_registered` action.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * Registers the built-in wallpapers: five gradient / solid CSS presets
  * plus the Animated WordPress Logo canvas wallpaper.
  */
-function desktop_mode_register_builtin_wallpapers() {
+function open_station_register_builtin_wallpapers() {
 	/*
 	 * The four brand surfaces, straight from the OpenStation brand
 	 * guidelines. Registered as `css` wallpapers pointing at the
@@ -37,7 +37,7 @@ function desktop_mode_register_builtin_wallpapers() {
 	 * not shift under a window drag.
 	 *
 	 * Galaxy is the default desk — see the `wallpaper` default in
-	 * `desktop_mode_default_os_settings()`.
+	 * `open_station_default_os_settings()`.
 	 */
 	$brand = array(
 		array(
@@ -67,14 +67,14 @@ function desktop_mode_register_builtin_wallpapers() {
 	);
 
 	foreach ( $brand as $wallpaper ) {
-		$css = 'url( ' . DESKTOP_MODE_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat fixed';
-		desktop_mode_register_wallpaper( $wallpaper['id'], array(
+		$css = 'url( ' . OPEN_STATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat fixed';
+		open_station_register_wallpaper( $wallpaper['id'], array(
 			'label'       => $wallpaper['label'],
 			'type'        => 'css',
 			// The swatch is the same artwork, sized to the chip rather
 			// than the desk: `cover` on a 40px square would crop to a
 			// meaningless corner of the composition.
-			'preview'     => 'url( ' . DESKTOP_MODE_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
+			'preview'     => 'url( ' . OPEN_STATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
 			'value'       => $css,
 			'description' => $wallpaper['description'],
 		) );
@@ -114,7 +114,7 @@ function desktop_mode_register_builtin_wallpapers() {
 	);
 
 	foreach ( $presets as $preset ) {
-		desktop_mode_register_wallpaper( $preset['id'], array(
+		open_station_register_wallpaper( $preset['id'], array(
 			'label'       => $preset['label'],
 			'preview'     => $preset['value'],
 			'value'       => $preset['value'],
@@ -129,11 +129,11 @@ function desktop_mode_register_builtin_wallpapers() {
 	// enqueued handle (registered in `includes/assets.php`); the
 	// shell's wallpaper sync injects its URL when the wallpaper
 	// def is needed (selected, or shown in the OS Settings picker).
-	desktop_mode_register_wallpaper( 'wp-animated-logo', array(
+	open_station_register_wallpaper( 'wp-animated-logo', array(
 		'label'       => __( 'Animated WordPress Logo', 'desktop-mode' ),
 		'preview'     => 'radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0b0f25 100%)',
 		'type'        => 'canvas',
-		'script'      => 'desktop-mode-animated-logo-wallpaper',
+		'script'      => 'os-animated-logo-wallpaper',
 		'description' => __( 'Thousands of luminous particles holding the shape of the WordPress W. Sweep your cursor through and they scatter like sand, then drift home again.', 'desktop-mode' ),
 	) );
 
@@ -145,12 +145,12 @@ function desktop_mode_register_builtin_wallpapers() {
 	// different one once selected. First built-in wallpaper with a
 	// `renderConfig` settings dialog (wind, snowflake count, flake
 	// size, background colour).
-	desktop_mode_register_wallpaper( 'wp-snow', array(
+	open_station_register_wallpaper( 'wp-snow', array(
 		'label'       => __( 'Snow', 'desktop-mode' ),
 		'preview'     => 'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
 		'type'        => 'canvas',
-		'script'      => 'desktop-mode-snow-wallpaper',
+		'script'      => 'os-snow-wallpaper',
 		'description' => __( 'Snow falling over a midnight sky. Flakes settle on the top edge of every window, pile into little drifts, then quietly melt away. Open the wallpaper settings to tune the wind, the snowfall, the flake size, and the colour of the night.', 'desktop-mode' ),
 	) );
 }
-add_action( 'init', 'desktop_mode_register_builtin_wallpapers', 5 );
+add_action( 'init', 'open_station_register_builtin_wallpapers', 5 );

@@ -1,6 +1,6 @@
 # Development guide
 
-This file is for people working **on** `desktop-mode` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](./getting-started.md).
+This file is for people working **on** `openstation` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](./getting-started.md).
 
 ## Dev loop
 
@@ -61,13 +61,13 @@ src/
 │                            #   symbol? Add it here too.
 ├── desktop.ts               # Shell entry — boots the window manager,
 │                            #   dock, widget layer, wallpaper layer, and
-│                            #   exposes `window.wp.desktop`.
+│                            #   exposes `window.wp.os`.
 ├── hooks.ts                 # @wordpress/hooks bridge + the typed HOOKS
 │                            #   enum that names every event we fire.
 ├── types.ts                 # Window / session / config interfaces.
 ├── shared-store.ts          # Cross-bundle reactive state primitive
-│                            #   (`wp.desktop.createSharedStore`).
-├── tracked-fetch.ts         # Cross-bundle bridge to `wp.desktop.fetch`.
+│                            #   (`wp.os.createSharedStore`).
+├── tracked-fetch.ts         # Cross-bundle bridge to `wp.os.fetch`.
 ├── window/                  # Window class + its pointer / chrome / tabs
 │                            #   / iframe-bridge / menu helpers.
 ├── window-manager/          # WindowManager + desktops + arrange + snap
@@ -81,10 +81,10 @@ src/
 │                            #   and context menus (entry + loader).
 ├── commands/                # Command registration: server-sync, shell
 │                            #   harvester, iframe bridge.
-├── presence/                # Presence store (`wp.desktop.presence`).
+├── presence/                # Presence store (`wp.os.presence`).
 ├── pwa/                     # PWA: install, notify, service worker.
 ├── desktop-files/           # Files/folders on the wallpaper
-│                            #   (`wp.desktop.files`).
+│                            #   (`wp.os.files`).
 ├── recycle-bin/             # Feature windows — one directory per
 ├── posts-window/            #   window, each compiled to its own
 ├── plugins-window/          #   lazy Vite bundle (see the `build:*`
@@ -101,7 +101,7 @@ src/
 ├── ui/
 │   ├── core/                # The tagged-template renderer + base
 │   │                        #   Component class + css` helper.
-│   └── components/          # <wpd-*> web components (one folder per
+│   └── components/          # <os-*> web components (one folder per
 │                            #   tag, each with .ts / .styles.ts / .test.ts).
 ├── modules/                 # Vendor-script registry (PixiJS today,
 │                            #   more later). Used by canvas wallpapers.
@@ -110,7 +110,7 @@ src/
 │                            #   example for third-party authors.
 ├── dock.ts                  # The left-edge dock (icons, tooltips,
 │                            #   submenu popover, instance rail).
-├── toast.ts                 # Toast queue (wraps <wpd-toast-container>).
+├── toast.ts                 # Toast queue (wraps <os-toast-container>).
 ├── utils.ts                 # urlMatchKey, deriveWindowId, sanitize*.
 └── i18n.ts                  # Thin wrapper around window.wp.i18n.
 ```
@@ -119,7 +119,7 @@ The tree above is curated, not exhaustive — `src/` holds many more
 single-purpose modules and feature directories (drag bridge, devtools,
 sticky notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
-`package.json`, resolved via `DESKTOP_MODE_TARGET` in `vite.config.js`.
+`package.json`, resolved via `OPEN_STATION_TARGET` in `vite.config.js`.
 
 ## Public vs internal
 
@@ -153,8 +153,8 @@ public _privateField: Map< string, unknown > = new Map();
 
 ## Adding a new hook
 
-1. **Name it.** Convention: `desktop-mode.<domain>.<event>` (JS) or
-   `desktop_mode_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
+1. **Name it.** Convention: `os.<domain>.<event>` (JS) or
+   `open_station_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
    enum in `src/hooks.ts` with a JSDoc describing payload + timing.
 2. **Fire it.** `doAction( HOOKS.NEW_THING, payload )` for actions or
    `applyFilters( HOOKS.NEW_THING, value, context )` for filters.
@@ -170,11 +170,11 @@ public _privateField: Map< string, unknown > = new Map();
 
 ## Adding a new public API method
 
-Everything on `window.wp.desktop` lives in the `WpDesktopPublicApi`
+Everything on `window.wp.os` lives in the `OpenStationPublicApi`
 interface in `src/desktop.ts`. To add a method:
 
 1. Add the field to the interface with a JSDoc.
-2. Wire it up inside the `window.wp.desktop = { … }` assignment.
+2. Wire it up inside the `window.wp.os = { … }` assignment.
 3. Re-export whatever types it uses from `src/public-api.ts`.
 4. Document it in `docs/javascript-reference.md`.
 
@@ -183,7 +183,7 @@ interface in `src/desktop.ts`. To add a method:
 - **TS**: strict mode, tabs, `snake_case` for PHP / `camelCase` for JS.
   Prefer `const` over `let`. No `any`; use `unknown` + type-narrow.
 - **CSS**: custom properties for theming. BEM-ish
-  `.desktop-mode-{component}__{element}--{modifier}`.
+  `.os-{component}__{element}--{modifier}`.
 - **PHP**: WordPress standards (tabs, Yoda conditions, `snake_case`),
   `defined( 'ABSPATH' ) || exit;` at the top of every file.
 - **Comments**: the "why", not the "what". If a workaround exists for
@@ -197,15 +197,15 @@ Strings flow through three files per locale in `languages/`:
 - `desktop-mode.pot` — extracted from PHP and TS sources. Regenerate
   with `npm run extract:i18n` (wraps `wp i18n make-pot` and then
   `msgmerge`-es the refreshed POT into every existing
-  `desktop-mode-{locale}.po`).
-- `desktop-mode-{locale}.po` / `.mo` — translator output, one pair per
+  `os-{locale}.po`).
+- `os-{locale}.po` / `.mo` — translator output, one pair per
   shipped locale.
-- `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
+- `os-{locale}-{handle}.json` — JS translation bundles.
   WordPress's `wp_set_script_translations()` looks up these files by
   the script handle, NOT by source-file hash, because we pass a path
   argument from `includes/assets.php`. Today three handles have
-  populated bundles — `desktop-mode` (the main shell),
-  `desktop-mode-posts-window`, and `desktop-mode-recycle-bin`; see
+  populated bundles — `openstation` (the main shell),
+  `os-posts-window`, and `desktop-mode-recycle-bin`; see
   `bin/build-i18n.sh` for the handle to source-prefix map.
 
 The two-step pipeline is:
@@ -245,7 +245,7 @@ file churn in the release commit:
 
 - **Vitest** — `tests/vitest/*.test.ts` + colocated
   `src/**/*.test.ts`. Runs in jsdom.
-- **PHPUnit** — `tests/phpunit/tests/*.php`. Tagged `@group desktop-mode`.
+- **PHPUnit** — `tests/phpunit/tests/*.php`. Tagged `@group openstation`.
   Runs inside the dedicated wp-env tests instance (PHPUnit 9.6 +
   phpunit-polyfills). Configured in `.wp-env.tests.json` + `composer.json`.
 - **E2E** — planned (Playwright). Nothing landed yet.

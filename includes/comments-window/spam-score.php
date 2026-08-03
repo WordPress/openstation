@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Comments Window: spam confidence scoring.
+ * OpenStation — Native Comments Window: spam confidence scoring.
  *
  * Returns a 0–100 integer for every comment row exposing how likely
  * the framework thinks the comment is spam. The default heuristics
@@ -16,11 +16,11 @@
  *          previously-approved comment.
  *
  * The score caps at 100 and floors at 0. Sites can shape this score
- * via the `desktop_mode_comments_window_spam_score` filter — that's
+ * via the `open_station_comments_window_spam_score` filter — that's
  * where the AI fallback should hook when the site has no Akismet
  * but does have an AI provider configured.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int|WP_Comment $comment Comment id or object.
  * @return int 0–100. Higher = more spam-like.
  */
-function desktop_mode_comments_window_spam_score( $comment ) {
+function open_station_comments_window_spam_score( $comment ) {
 	$comment = get_comment( $comment );
 	if ( ! $comment instanceof WP_Comment ) {
 		return 0;
@@ -135,7 +135,7 @@ function desktop_mode_comments_window_spam_score( $comment ) {
 	 * @param WP_Comment $comment Comment object.
 	 */
 	$score = (int) apply_filters(
-		'desktop_mode_comments_window_spam_score',
+		'open_station_comments_window_spam_score',
 		$score,
 		$comment
 	);

@@ -14,7 +14,7 @@ public hook a plugin would use. This page shows a plugin adding its own.
 The framework owns *when* the chosen effect runs — it watches focus
 changes, the user's selection, and excludes minimized windows — and
 toggles your effect on every unfocused window's root element
-(`.desktop-mode-window`). Your def owns *what* the effect is: either a
+(`.os-window`). Your def owns *what* the effect is: either a
 CSS class to toggle (the cheap path) or `apply`/`clear` callbacks for
 anything a static class can't express.
 
@@ -27,8 +27,8 @@ setting.
 Ship a stylesheet rule and register an effect that names its class:
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerUnfocusEffect( {
+wp.os.ready( () => {
+    wp.os.registerUnfocusEffect( {
         id:          'acme/blur',
         label:       'Blur',
         description: 'Softly blur windows you are not working in.',
@@ -58,7 +58,7 @@ When a static class isn't enough (you need to compute per-window
 state, attach a canvas, etc.), provide callbacks instead:
 
 ```javascript
-wp.desktop.registerUnfocusEffect( {
+wp.os.registerUnfocusEffect( {
     id:    'acme/grayscale-fade',
     label: 'Grayscale',
     apply: ( el ) => {
@@ -87,13 +87,13 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'acme-effects',
         plugins_url( 'js/effects.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
     wp_enqueue_script( 'acme-effects' );
 } );
-desktop_mode_register_unfocus_effect_script( 'acme-effects' );
+open_station_register_unfocus_effect_script( 'acme-effects' );
 ```
 
 The handle you pass here should match the `owner` on your
@@ -107,10 +107,10 @@ live-unregister your effect when the plugin is deactivated.
 - **Namespacing.** Ids accept `vendor/sub-id` (`[a-z0-9_/-]+`). The
   persisted setting preserves the slash, so a namespaced id round-trips
   cleanly.
-- **Reading the selection.** `wp.desktop.getOsSettings().unfocusEffect`
+- **Reading the selection.** `wp.os.getOsSettings().unfocusEffect`
   is the active effect id (or `'none'`).
-- **Filter.** The raw `desktop-mode.unfocus-effects` JS filter receives
+- **Filter.** The raw `os.unfocus-effects` JS filter receives
   the registry array on every read — reorder, remove, or conditionally
-  swap effects, mirroring `desktop-mode.wallpapers`.
+  swap effects, mirroring `os.wallpapers`.
 
-See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def---experimental) in the JavaScript reference and [`desktop_mode_register_unfocus_effect_script`](../hooks-reference.md#desktop_mode_register_unfocus_effect_script-handle---experimental-php-function) in the hooks reference.
+See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def---experimental) in the JavaScript reference and [`open_station_register_unfocus_effect_script`](../hooks-reference.md#open_station_register_unfocus_effect_script-handle---experimental-php-function) in the hooks reference.

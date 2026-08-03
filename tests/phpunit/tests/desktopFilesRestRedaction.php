@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-files
+ * @group openstation
+ * @group os-files
  */
-class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
+class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 
 	protected static $owner_id;
 	protected static $editor_id;
@@ -36,13 +36,13 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		desktop_mode_files_install_schema();
+		open_station_files_install_schema();
 		wp_set_current_user( self::$owner_id );
 	}
 
 	public function tear_down() {
 		global $wpdb;
-		$tables = desktop_mode_files_table_names();
+		$tables = open_station_files_table_names();
 		foreach ( $tables as $t ) {
 			$wpdb->query( "TRUNCATE TABLE $t" );
 		}
@@ -72,10 +72,10 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_files_shape_placement
+	 * @covers ::open_station_files_shape_placement
 	 */
 	public function test_shape_placement_redacts_access_gated_rows() {
-		$shape = desktop_mode_files_shape_placement(
+		$shape = open_station_files_shape_placement(
 			$this->placement_row( array( 'access_gated' => true ) )
 		);
 
@@ -98,10 +98,10 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_files_shape_placement
+	 * @covers ::open_station_files_shape_placement
 	 */
 	public function test_shape_placement_serializes_normally_without_access_gate() {
-		$shape = desktop_mode_files_shape_placement( $this->placement_row() );
+		$shape = open_station_files_shape_placement( $this->placement_row() );
 
 		$this->assertFalse( $shape['accessGated'] );
 		$this->assertSame( 'Quarterly Numbers', $shape['file']['title'] );
@@ -121,16 +121,16 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_files_check_if_match
+	 * @covers ::open_station_files_check_if_match
 	 */
 	public function test_if_match_409_hides_parent_identity_from_out_of_scope_viewer() {
-		$folder_id    = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
-		$placement_id = desktop_mode_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
-		$row          = desktop_mode_files_get_placement( $placement_id );
+		$folder_id    = open_station_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
+		$placement_id = open_station_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
+		$row          = open_station_files_get_placement( $placement_id );
 
 		// Unrelated viewer — no ownership, no share on the folder.
 		wp_set_current_user( self::$author_id );
-		$err = desktop_mode_files_check_if_match( (int) $row['updated_at_ms'], $this->stale_if_match_request(), $row );
+		$err = open_station_files_check_if_match( (int) $row['updated_at_ms'], $this->stale_if_match_request(), $row );
 
 		$this->assertWPError( $err );
 		$data = $err->get_error_data();
@@ -145,15 +145,15 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_files_check_if_match
+	 * @covers ::open_station_files_check_if_match
 	 */
 	public function test_if_match_409_keeps_parent_identity_for_in_scope_viewer() {
-		$folder_id    = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
-		$placement_id = desktop_mode_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
-		$row          = desktop_mode_files_get_placement( $placement_id );
+		$folder_id    = open_station_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
+		$placement_id = open_station_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
+		$row          = open_station_files_get_placement( $placement_id );
 
 		wp_set_current_user( self::$owner_id );
-		$err = desktop_mode_files_check_if_match( (int) $row['updated_at_ms'], $this->stale_if_match_request(), $row );
+		$err = open_station_files_check_if_match( (int) $row['updated_at_ms'], $this->stale_if_match_request(), $row );
 
 		$this->assertWPError( $err );
 		$data = $err->get_error_data();
@@ -166,23 +166,23 @@ class Tests_DesktopMode_Files_RestRedaction extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_files_shape_folder
+	 * @covers ::open_station_files_shape_folder
 	 */
 	public function test_share_summary_recipient_count_is_owner_only() {
-		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
-		$share_id  = desktop_mode_folder_share_invite( $folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read' );
-		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
-		$row = desktop_mode_files_get_folder( $folder_id );
+		$folder_id = open_station_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
+		$share_id  = open_station_folder_share_invite( $folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read' );
+		open_station_folder_share_accept( $share_id, self::$editor_id );
+		$row = open_station_files_get_folder( $folder_id );
 
 		// Owner (can manage) sees the real count.
 		wp_set_current_user( self::$owner_id );
-		$shape = desktop_mode_files_shape_folder( $row );
+		$shape = open_station_files_shape_folder( $row );
 		$this->assertTrue( $shape['shareSummary']['shared'] );
 		$this->assertSame( 1, $shape['shareSummary']['recipientCount'] );
 
 		// Recipient keeps the badge flag but not the roster size.
 		wp_set_current_user( self::$editor_id );
-		$shape = desktop_mode_files_shape_folder( $row );
+		$shape = open_station_files_shape_folder( $row );
 		$this->assertTrue( $shape['shareSummary']['shared'] );
 		$this->assertSame( 0, $shape['shareSummary']['recipientCount'] );
 	}

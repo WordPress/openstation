@@ -1,12 +1,12 @@
 /**
- * Desktop Mode — File-tile right-click context menu.
+ * OpenStation — File-tile right-click context menu.
  *
  * Sister of the wallpaper context menu, scoped to a single
  * placement. Built-in items: Open, Delete (or "Delete folder"
  * when the placement is a folder). Plugin authors extend the
- * list via the `desktop-mode.files.tile-menu` filter.
+ * list via the `os.files.tile-menu` filter.
  *
- * Reuses the wallpaper-menu's CSS (`.desktop-mode-wallpaper-menu*`)
+ * Reuses the wallpaper-menu's CSS (`.os-wallpaper-menu*`)
  * so the two menus look identical.
  */
 
@@ -25,7 +25,7 @@ export interface TileMenuItem {
 	onClick: ( e: MouseEvent ) => void | Promise< void >;
 }
 
-const MENU_CLASS = 'desktop-mode-wallpaper-menu';
+const MENU_CLASS = 'os-wallpaper-menu';
 
 let activeMenu: HTMLElement | null = null;
 
@@ -40,7 +40,7 @@ export function closeTileMenu(): void {
 	activeMenu.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
 	activeMenu.remove();
 	activeMenu = null;
-	doAction( 'desktop-mode.files.tile-menu.closed', {} );
+	doAction( 'os.files.tile-menu.closed', {} );
 }
 
 export interface OpenTileMenuOptions {
@@ -54,7 +54,7 @@ let openGeneration = 0;
  * Open the tile context menu at viewport coordinates.
  *
  * Construction is deferred behind the shell-overlays loader so the
- * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
+ * `<os-context-menu>` / `<os-context-menu-option>` classes ship
  * in the lazy bundle rather than `desktop.min.js`.
  */
 export function openTileMenu(
@@ -74,7 +74,7 @@ function openTileMenuImmediate(
 	{ placement, items }: OpenTileMenuOptions,
 ): void {
 	const list = applyFilters< TileMenuItem[], [ RestPlacementShape ] >(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		items.slice(),
 		placement,
 	);
@@ -93,7 +93,7 @@ function openTileMenuImmediate(
 		return;
 	}
 
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( MENU_CLASS );
 	( menu as HTMLElement ).dataset.placementId = String( placement.id );
@@ -103,7 +103,7 @@ function openTileMenuImmediate(
 	const itemById = new Map< string, TileMenuItem >();
 	for ( const item of sorted ) {
 		itemById.set( item.id, item );
-		const opt = document.createElement( 'wpd-context-menu-option' );
+		const opt = document.createElement( 'os-context-menu-option' );
 		opt.dataset.menuItemId = item.id;
 		opt.setAttribute( 'value', item.id );
 		if ( item.danger ) {
@@ -119,7 +119,7 @@ function openTileMenuImmediate(
 		menu.appendChild( opt );
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
 		const item = itemById.get( detail.id );
 		if ( ! item ) {
@@ -145,7 +145,7 @@ function openTileMenuImmediate(
 	} );
 	menu.addEventListener( 'tile-menu-closed', detach );
 
-	doAction( 'desktop-mode.files.tile-menu.opened', {
+	doAction( 'os.files.tile-menu.opened', {
 		placementId: placement.id,
 		items: sorted.map( ( i ) => i.id ),
 	} );

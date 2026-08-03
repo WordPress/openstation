@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — upload REST intake.
+ * OpenStation — upload REST intake.
  *
  * One route:
  *
@@ -19,7 +19,7 @@
  * receive (bytes → disk) and register (row + placement) so a future
  * resumable-upload layer can feed the same register step.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string[]
  */
-function desktop_mode_stored_files_denied_extensions() {
+function open_station_stored_files_denied_extensions() {
 	$denied = array(
 		'php', 'php3', 'php4', 'php5', 'php7', 'php8',
 		'phtml', 'phar', 'pht', 'phps',
@@ -47,7 +47,7 @@ function desktop_mode_stored_files_denied_extensions() {
 	 *
 	 * @param string[] $denied Lowercase extensions.
 	 */
-	return (array) apply_filters( 'desktop_mode_stored_files_denied_extensions', $denied );
+	return (array) apply_filters( 'open_station_stored_files_denied_extensions', $denied );
 }
 
 /**
@@ -56,14 +56,14 @@ function desktop_mode_stored_files_denied_extensions() {
  * @param string $name Client filename.
  * @return bool True when the name is forbidden.
  */
-function desktop_mode_stored_files_is_denied_filename( $name ) {
+function open_station_stored_files_is_denied_filename( $name ) {
 	$name = strtolower( trim( (string) $name ) );
 	if ( in_array( $name, array( '.htaccess', '.user.ini', 'web.config' ), true ) ) {
 		return true;
 	}
 	$segments = explode( '.', $name );
 	array_shift( $segments ); // Everything after the first dot is an "extension" segment.
-	$denied = desktop_mode_stored_files_denied_extensions();
+	$denied = open_station_stored_files_denied_extensions();
 	foreach ( $segments as $segment ) {
 		if ( in_array( $segment, $denied, true ) ) {
 			return true;
@@ -78,7 +78,7 @@ function desktop_mode_stored_files_is_denied_filename( $name ) {
  * @param int $user_id User.
  * @return int
  */
-function desktop_mode_stored_files_max_upload_bytes( $user_id ) {
+function open_station_stored_files_max_upload_bytes( $user_id ) {
 	$max = (int) wp_max_upload_size();
 	/**
 	 * Filters the per-file upload cap for desktop storage. May only
@@ -88,20 +88,20 @@ function desktop_mode_stored_files_max_upload_bytes( $user_id ) {
 	 * @param int $max     Cap in bytes. Default `wp_max_upload_size()`.
 	 * @param int $user_id User.
 	 */
-	return max( 0, (int) apply_filters( 'desktop_mode_stored_files_max_upload_bytes', $max, (int) $user_id ) );
+	return max( 0, (int) apply_filters( 'open_station_stored_files_max_upload_bytes', $max, (int) $user_id ) );
 }
 
 /**
  * Permission: base files gate + the upload capability.
  */
-function desktop_mode_files_rest_uploads_permission() {
-	$base = desktop_mode_files_rest_permission();
+function open_station_files_rest_uploads_permission() {
+	$base = open_station_files_rest_permission();
 	if ( is_wp_error( $base ) ) {
 		return $base;
 	}
-	if ( ! current_user_can( desktop_mode_stored_files_upload_capability() ) ) {
+	if ( ! current_user_can( open_station_stored_files_upload_capability() ) ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_cannot_upload',
+			'open_station_stored_files_cannot_upload',
 			__( 'You are not allowed to upload files.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -112,13 +112,13 @@ function desktop_mode_files_rest_uploads_permission() {
 /**
  * Register the upload route.
  */
-function desktop_mode_files_register_upload_rest_routes() {
+function open_station_files_register_upload_rest_routes() {
 	register_rest_route( 'desktop-mode/v1', '/files/uploads', array(
 		// POST only — PHP parses multipart into $_FILES for real
 		// POST requests exclusively.
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_uploads_permission',
-		'callback'            => 'desktop_mode_files_rest_upload',
+		'permission_callback' => 'open_station_files_rest_uploads_permission',
+		'callback'            => 'open_station_files_rest_upload',
 		'args'                => array(
 			'parentId'     => array( 'type' => 'integer', 'default' => 0, 'sanitize_callback' => 'absint' ),
 			'relativePath' => array( 'type' => 'string', 'default' => '' ),
@@ -131,8 +131,8 @@ function desktop_mode_files_register_upload_rest_routes() {
 
 	register_rest_route( 'desktop-mode/v1', '/files/uploads/paths', array(
 		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'desktop_mode_files_rest_uploads_permission',
-		'callback'            => 'desktop_mode_files_rest_ensure_upload_path',
+		'permission_callback' => 'open_station_files_rest_uploads_permission',
+		'callback'            => 'open_station_files_rest_ensure_upload_path',
 		'args'                => array(
 			'parentId'     => array( 'type' => 'integer', 'default' => 0, 'sanitize_callback' => 'absint' ),
 			'relativePath' => array( 'type' => 'string', 'required' => true ),
@@ -141,8 +141,8 @@ function desktop_mode_files_register_upload_rest_routes() {
 
 	register_rest_route( 'desktop-mode/v1', '/files/uploads/(?P<id>\d+)', array(
 		'methods'             => WP_REST_Server::EDITABLE,
-		'permission_callback' => 'desktop_mode_files_rest_permission',
-		'callback'            => 'desktop_mode_files_rest_rename_upload',
+		'permission_callback' => 'open_station_files_rest_permission',
+		'callback'            => 'open_station_files_rest_rename_upload',
 		'args'                => array(
 			'name' => array( 'type' => 'string', 'required' => true ),
 		),
@@ -158,15 +158,15 @@ function desktop_mode_files_register_upload_rest_routes() {
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_files_rest_ensure_upload_path( WP_REST_Request $req ) {
+function open_station_files_rest_ensure_upload_path( WP_REST_Request $req ) {
 	$rel = (string) $req->get_param( 'relativePath' );
 	if ( '' === trim( $rel, " \t/" ) ) {
-		return new WP_Error( 'desktop_mode_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 	if ( '/' !== substr( $rel, -1 ) ) {
 		$rel .= '/'; // Whole string is a directory path.
 	}
-	$folder_id = desktop_mode_files_resolve_relative_path(
+	$folder_id = open_station_files_resolve_relative_path(
 		get_current_user_id(),
 		(int) $req->get_param( 'parentId' ),
 		$rel
@@ -184,18 +184,18 @@ function desktop_mode_files_rest_ensure_upload_path( WP_REST_Request $req ) {
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_files_rest_rename_upload( WP_REST_Request $req ) {
+function open_station_files_rest_rename_upload( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
 	$user_id = get_current_user_id();
-	$row     = desktop_mode_stored_files_get( $file_id );
+	$row     = open_station_stored_files_get( $file_id );
 	if ( ! $row || (int) $row['owner_id'] !== $user_id ) {
-		return desktop_mode_files_download_not_found();
+		return open_station_files_download_not_found();
 	}
-	$ok = desktop_mode_stored_files_rename( $file_id, (string) $req->get_param( 'name' ) );
+	$ok = open_station_stored_files_rename( $file_id, (string) $req->get_param( 'name' ) );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	$row = desktop_mode_stored_files_get( $file_id );
+	$row = open_station_stored_files_get( $file_id );
 	return rest_ensure_response(
 		array(
 			'id'        => (int) $row['id'],
@@ -205,7 +205,7 @@ function desktop_mode_files_rest_rename_upload( WP_REST_Request $req ) {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_files_register_upload_rest_routes' );
+add_action( 'rest_api_init', 'open_station_files_register_upload_rest_routes' );
 
 /**
  * POST /files/uploads
@@ -213,7 +213,7 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_upload_rest_routes' );
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
+function open_station_files_rest_upload( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
 	$files   = $req->get_file_params();
 
@@ -225,26 +225,26 @@ function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
 		$content_length = isset( $_SERVER['CONTENT_LENGTH'] ) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
 		if ( $content_length > 0 ) {
 			return new WP_Error(
-				'desktop_mode_stored_files_too_large',
+				'open_station_stored_files_too_large',
 				__( 'That file is larger than this server accepts.', 'desktop-mode' ),
 				array( 'status' => 413 )
 			);
 		}
 		return new WP_Error(
-			'desktop_mode_stored_files_no_file',
+			'open_station_stored_files_no_file',
 			__( 'No file was uploaded.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( empty( $files['file'] ) || ! is_array( $files['file'] ) ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_no_file',
+			'open_station_stored_files_no_file',
 			__( 'No file was uploaded.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$received = desktop_mode_files_upload_receive( $files['file'], $user_id );
+	$received = open_station_files_upload_receive( $files['file'], $user_id );
 	if ( is_wp_error( $received ) ) {
 		return $received;
 	}
@@ -258,7 +258,7 @@ function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
 		)
 		: null;
 
-	$registered = desktop_mode_files_upload_register(
+	$registered = open_station_files_upload_register(
 		$user_id,
 		$received,
 		(int) $req->get_param( 'parentId' ),
@@ -273,10 +273,10 @@ function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
 		return $registered;
 	}
 
-	$row = desktop_mode_files_get_placement( $registered['placement_id'] );
+	$row = open_station_files_get_placement( $registered['placement_id'] );
 	return rest_ensure_response(
 		array(
-			'placement'    => desktop_mode_files_shape_placement( $row ),
+			'placement'    => open_station_files_shape_placement( $row ),
 			'storedFileId' => (int) $registered['file_id'],
 		)
 	);
@@ -294,23 +294,23 @@ function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
  * @param int   $user_id Uploader.
  * @return array|WP_Error
  */
-function desktop_mode_files_upload_receive( $file, $user_id ) {
+function open_station_files_upload_receive( $file, $user_id ) {
 	$user_id     = (int) $user_id;
 	$client_name = isset( $file['name'] ) ? (string) $file['name'] : '';
 
-	if ( desktop_mode_stored_files_is_denied_filename( $client_name ) ) {
+	if ( open_station_stored_files_is_denied_filename( $client_name ) ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_forbidden_type',
+			'open_station_stored_files_forbidden_type',
 			__( 'This file type is not allowed.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
 	$size = isset( $file['size'] ) ? (int) $file['size'] : 0;
-	$max  = desktop_mode_stored_files_max_upload_bytes( $user_id );
+	$max  = open_station_stored_files_max_upload_bytes( $user_id );
 	if ( $max > 0 && $size > $max ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_too_large',
+			'open_station_stored_files_too_large',
 			sprintf(
 				/* translators: %s: formatted maximum file size. */
 				__( 'That file is larger than the allowed maximum of %s.', 'desktop-mode' ),
@@ -320,16 +320,16 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 		);
 	}
 
-	$quota = desktop_mode_stored_files_user_quota_bytes( $user_id );
-	if ( $quota > 0 && ( desktop_mode_stored_files_total_bytes( $user_id ) + $size ) > $quota ) {
+	$quota = open_station_stored_files_user_quota_bytes( $user_id );
+	if ( $quota > 0 && ( open_station_stored_files_total_bytes( $user_id ) + $size ) > $quota ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_quota_exceeded',
+			'open_station_stored_files_quota_exceeded',
 			__( 'Your desktop storage is full.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 
-	$dir = desktop_mode_stored_files_ensure_dir( $user_id );
+	$dir = open_station_stored_files_ensure_dir( $user_id );
 	if ( is_wp_error( $dir ) ) {
 		return $dir;
 	}
@@ -347,7 +347,7 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 	 * @param int                  $user_id Uploader.
 	 */
 	$mimes = (array) apply_filters(
-		'desktop_mode_stored_files_allowed_mimes',
+		'open_station_stored_files_allowed_mimes',
 		get_allowed_mime_types( $user_id ),
 		$user_id
 	);
@@ -360,11 +360,11 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 		return $disk_name;
 	};
 	// Resolve the target paths BEFORE hooking `upload_dir` and close
-	// over plain strings — `desktop_mode_stored_files_dir()` calls
+	// over plain strings — `open_station_stored_files_dir()` calls
 	// `wp_get_upload_dir()`, which applies the `upload_dir` filter,
 	// so calling it from inside the closure would recurse infinitely.
-	$target_base = desktop_mode_stored_files_dir();
-	$target_dir  = desktop_mode_stored_files_dir( $user_id );
+	$target_base = open_station_stored_files_dir();
+	$target_dir  = open_station_stored_files_dir( $user_id );
 	$redirect    = static function ( $dirs ) use ( $user_id, $target_base, $target_dir ) {
 		$dirs['subdir']  = '/' . $user_id;
 		$dirs['path']    = $target_dir;
@@ -384,7 +384,7 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 	 * @param int   $user_id   Uploader.
 	 */
 	$overrides = (array) apply_filters(
-		'desktop_mode_stored_files_upload_overrides',
+		'open_station_stored_files_upload_overrides',
 		array(
 			'test_form'                => false,
 			'mimes'                    => $mimes,
@@ -401,7 +401,7 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 
 	if ( isset( $result['error'] ) ) {
 		return new WP_Error(
-			'desktop_mode_stored_files_upload_failed',
+			'open_station_stored_files_upload_failed',
 			(string) $result['error'],
 			array( 'status' => 400 )
 		);
@@ -431,18 +431,18 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
  *                                  to auto-place at the next free slot.
  * @return array|WP_Error `{ file_id, placement_id }`.
  */
-function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $relative_path = '', $coords = null ) {
+function open_station_files_upload_register( $user_id, $received, $parent_id, $relative_path = '', $coords = null ) {
 	$parent_id = max( 0, (int) $parent_id );
 
 	if ( '' !== (string) $relative_path ) {
-		$resolved = desktop_mode_files_resolve_relative_path( (int) $user_id, $parent_id, (string) $relative_path );
+		$resolved = open_station_files_resolve_relative_path( (int) $user_id, $parent_id, (string) $relative_path );
 		if ( is_wp_error( $resolved ) ) {
 			return $resolved;
 		}
 		$parent_id = $resolved;
 	}
 
-	$file_id = desktop_mode_stored_files_create(
+	$file_id = open_station_stored_files_create(
 		(int) $user_id,
 		array(
 			'display_name' => $received['display_name'],
@@ -456,7 +456,7 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 	}
 
 	if ( is_array( $coords ) && isset( $coords['x'], $coords['y'] ) ) {
-		$placement_id = desktop_mode_files_place(
+		$placement_id = open_station_files_place(
 			(int) $user_id,
 			$parent_id,
 			'upload',
@@ -470,7 +470,7 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 		// No coords sent (folder-tree members, batch files after
 		// the first) — the server picks the next free grid slot so
 		// tiles never stack at the origin.
-		$placement_id = desktop_mode_files_place_at_next_free_slot(
+		$placement_id = open_station_files_place_at_next_free_slot(
 			(int) $user_id,
 			$parent_id,
 			'upload',
@@ -479,10 +479,10 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 	}
 	if ( is_wp_error( $placement_id ) ) {
 		// Roll back through the store primitive so the documented
-		// `desktop_mode_stored_file_created` / `_deleted` action pair
+		// `open_station_stored_file_created` / `_deleted` action pair
 		// stays balanced for subscribers (and the bytes go with the
 		// row — the caller's outer cleanup guard becomes a no-op).
-		desktop_mode_stored_files_delete( (int) $file_id );
+		open_station_stored_files_delete( (int) $file_id );
 		return $placement_id;
 	}
 
@@ -494,7 +494,7 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 	 * @param int $placement_id Placement id.
 	 * @param int $user_id      Uploader.
 	 */
-	do_action( 'desktop_mode_stored_file_uploaded', (int) $file_id, (int) $placement_id, (int) $user_id );
+	do_action( 'open_station_stored_file_uploaded', (int) $file_id, (int) $placement_id, (int) $user_id );
 
 	return array(
 		'file_id'      => (int) $file_id,
@@ -518,14 +518,14 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
  *                               an empty folder from a drag).
  * @return int|WP_Error Folder id to place the file in.
  */
-function desktop_mode_files_resolve_relative_path( $user_id, $base_parent_id, $relative_path ) {
+function open_station_files_resolve_relative_path( $user_id, $base_parent_id, $relative_path ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$parent_id = max( 0, (int) $base_parent_id );
 	$path      = str_replace( '\\', '/', (string) $relative_path );
 
 	if ( false !== strpos( $path, "\0" ) ) {
-		return new WP_Error( 'desktop_mode_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
 	$is_dir_path = '/' === substr( $path, -1 );
@@ -537,17 +537,17 @@ function desktop_mode_files_resolve_relative_path( $user_id, $base_parent_id, $r
 		return $parent_id;
 	}
 	if ( count( $segments ) > 32 ) {
-		return new WP_Error( 'desktop_mode_stored_files_path_too_deep', __( 'That folder tree is nested too deeply.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'open_station_stored_files_path_too_deep', __( 'That folder tree is nested too deeply.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = open_station_files_table_names();
 	foreach ( $segments as $segment ) {
 		if ( '.' === $segment || '..' === $segment ) {
-			return new WP_Error( 'desktop_mode_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'open_station_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$name = sanitize_file_name( wp_strip_all_tags( $segment ) );
 		if ( '' === $name ) {
-			return new WP_Error( 'desktop_mode_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'open_station_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 
 		// Dedupe: a live folder of this name, placed in this parent,
@@ -576,11 +576,11 @@ function desktop_mode_files_resolve_relative_path( $user_id, $base_parent_id, $r
 			continue;
 		}
 
-		$folder_id = desktop_mode_files_create_folder( $user_id, array( 'name' => $name ) );
+		$folder_id = open_station_files_create_folder( $user_id, array( 'name' => $name ) );
 		if ( is_wp_error( $folder_id ) ) {
 			return $folder_id;
 		}
-		$placement = desktop_mode_files_place( $user_id, $parent_id, 'folder', (string) $folder_id );
+		$placement = open_station_files_place( $user_id, $parent_id, 'folder', (string) $folder_id );
 		if ( is_wp_error( $placement ) ) {
 			return $placement;
 		}
@@ -596,14 +596,14 @@ function desktop_mode_files_resolve_relative_path( $user_id, $base_parent_id, $r
  * @param array $config Shell config.
  * @return array
  */
-function desktop_mode_stored_files_inject_shell_config( $config ) {
+function open_station_stored_files_inject_shell_config( $config ) {
 	$user_id = get_current_user_id();
 	$config['desktopStorage'] = array(
-		'canUpload'    => $user_id > 0 && current_user_can( desktop_mode_stored_files_upload_capability() ),
-		'maxBytes'     => desktop_mode_stored_files_max_upload_bytes( $user_id ),
-		'quotaBytes'   => desktop_mode_stored_files_user_quota_bytes( $user_id ),
+		'canUpload'    => $user_id > 0 && current_user_can( open_station_stored_files_upload_capability() ),
+		'maxBytes'     => open_station_stored_files_max_upload_bytes( $user_id ),
+		'quotaBytes'   => open_station_stored_files_user_quota_bytes( $user_id ),
 		'zipAvailable' => class_exists( 'ZipArchive' ),
 	);
 	return $config;
 }
-add_filter( 'desktop_mode_shell_config', 'desktop_mode_stored_files_inject_shell_config', 20 );
+add_filter( 'open_station_shell_config', 'open_station_stored_files_inject_shell_config', 20 );

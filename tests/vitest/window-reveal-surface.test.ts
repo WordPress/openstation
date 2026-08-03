@@ -3,7 +3,7 @@
  *
  * Three behaviours here are easy to get wrong and invisible in review:
  *
- *  1. **The reveal always plays.** The `<wpd-spinner>` overlay has a
+ *  1. **The reveal always plays.** The `<os-spinner>` overlay has a
  *     120 ms entry delay, so fast loads never paint it. What varies is
  *     only WHEN the reveal starts — after the spinner's 250 ms fade-out
  *     if there was a spinner, immediately if there was not. Gating the
@@ -53,12 +53,12 @@ async function load(): Promise< Modules > {
 /** Minimal window fixture: root + body + iframe, mounted. */
 function makeWindow(): HTMLElement {
 	const el = document.createElement( 'div' );
-	el.className = 'desktop-mode-window';
+	el.className = 'os-window';
 	el.id = 'wp-window-test';
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-window__body desktop-mode-window__body--loading';
+	body.className = 'os-window__body os-window__body--loading';
 	const iframe = document.createElement( 'iframe' );
-	iframe.className = 'desktop-mode-window__iframe';
+	iframe.className = 'os-window__iframe';
 	body.appendChild( iframe );
 	el.appendChild( body );
 	document.body.appendChild( el );
@@ -66,25 +66,25 @@ function makeWindow(): HTMLElement {
 }
 
 function bodyOf( el: HTMLElement ): HTMLElement {
-	return el.querySelector< HTMLElement >( '.desktop-mode-window__body' )!;
+	return el.querySelector< HTMLElement >( '.os-window__body' )!;
 }
 
 /** The covering surface — the reveal layer that is NOT the edge. */
 function surfaceOf( el: HTMLElement ): HTMLElement | null {
 	return el.querySelector< HTMLElement >(
-		'.desktop-mode-window__reveal:not(.desktop-mode-window__reveal--edge)',
+		'.os-window__reveal:not(.os-window__reveal--edge)',
 	);
 }
 
 function edgeOf( el: HTMLElement ): HTMLElement | null {
 	return el.querySelector< HTMLElement >(
-		'.desktop-mode-window__reveal--edge',
+		'.os-window__reveal--edge',
 	);
 }
 
 function layersOf( el: HTMLElement ): HTMLElement[] {
 	return Array.from(
-		el.querySelectorAll< HTMLElement >( '.desktop-mode-window__reveal' ),
+		el.querySelectorAll< HTMLElement >( '.os-window__reveal' ),
 	);
 }
 
@@ -150,15 +150,15 @@ function stubStyles(
 		'getComputedStyle',
 		vi.fn( ( el: Element ) => {
 			const isEdge = el.classList?.contains(
-				'desktop-mode-window__reveal--edge',
+				'os-window__reveal--edge',
 			);
 			const visible = isEdge ? edgeVisible : surfaceVisible;
 			return {
 				getPropertyValue: ( prop: string ) => {
-					if ( prop === '--desktop-mode-window-reveal-duration' ) {
+					if ( prop === '--os-window-reveal-duration' ) {
 						return opts.duration ?? '';
 					}
-					if ( prop === '--desktop-mode-window-reveal-edge-thickness' ) {
+					if ( prop === '--os-window-reveal-edge-thickness' ) {
 						return opts.thickness ?? '';
 					}
 					return '';
@@ -222,7 +222,7 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 				true,
 			);
 			expect( layer.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-			expect( layer.getAttribute( 'data-desktop-mode-reveal' ) ).toBe( 'iris' );
+			expect( layer.getAttribute( 'data-os-reveal' ) ).toBe( 'iris' );
 			expect( layer.style.clipPath ).toBe( from );
 		}
 	} );
@@ -250,7 +250,7 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 		const { surface, engine } = await load();
 		engine.setActiveWindowRevealId( 'sweep' );
 		for ( const layer of surface.createRevealLayers() ) {
-			expect( layer.getAttribute( 'data-desktop-mode-reveal-armed' ) ).toBe(
+			expect( layer.getAttribute( 'data-os-reveal-armed' ) ).toBe(
 				'1700000000000',
 			);
 		}
@@ -1131,7 +1131,7 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 describe( 'reveals/surface.ts — failure containment', () => {
 	test( 'uncovers the window instead of throwing when `animate()` refuses its input', async () => {
 		// Registration validates `easing`, but a def injected through
-		// the `desktop-mode.window-reveals` filter never went through
+		// the `os.window-reveals` filter never went through
 		// registration — `animate()` can still throw. The one
 		// unacceptable outcome is a window stranded under the opaque
 		// armed surface.
@@ -1157,7 +1157,7 @@ describe( 'reveals/surface.ts — failure containment', () => {
 	} );
 
 	test( 'uncovers the window when the reveals filter throws at play time', async () => {
-		// The play-time def lookup runs the `desktop-mode.window-reveals`
+		// The play-time def lookup runs the `os.window-reveals`
 		// filter; a plugin's throwing callback must degrade to "no
 		// reveal", not propagate with the surface still covering the
 		// window.
@@ -1169,7 +1169,7 @@ describe( 'reveals/surface.ts — failure containment', () => {
 		engine.setActiveWindowRevealId( 'sweep' );
 		const win = makeWindow();
 		surface.armWindowReveal( win );
-		hooks.addFilter( 'desktop-mode.window-reveals', 'test/boom', () => {
+		hooks.addFilter( 'os.window-reveals', 'test/boom', () => {
 			throw new Error( 'boom' );
 		} );
 

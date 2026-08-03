@@ -1,24 +1,24 @@
 <?php
 /**
- * Desktop Mode — Widgets registry.
+ * OpenStation — Widgets registry.
  *
  * Server-side registration API + payload builder + asset enqueue
  * for the right-column widget layer. Plugin-side JS publishes
- * the full widget def on `window.desktopModeWidgets[ id ]`; this
+ * the full widget def on `window.openStationWidgets[ id ]`; this
  * module is the PHP side that announces them and ships their
  * script handles into the boot payload.
  *
  * Extracted from `components.php` during the architecture-0.8.1
  * PHP slicing (phase 6).
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register a server-side desktop widget. Symmetric to
- * {@see desktop_mode_register_window()} for the right-column widget
+ * {@see open_station_register_window()} for the right-column widget
  * layer: plugin declares the widget's metadata + script handle in
  * PHP; shell syncs its registry from the live payload so
  * activation / deactivation map to picker add / remove without a
@@ -26,14 +26,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * The mount callback still lives in JS — not serializable across
  * the wire. Plugins register it on
- * `window.desktopModeWidgets[ <id> ]` as a `(container, ctx) =>
+ * `window.openStationWidgets[ <id> ]` as a `(container, ctx) =>
  * teardown` function. The shell reads that global once the
  * declared script loads and wraps it into a WidgetDef.
  *
  * Example:
  *
  * ```php
- * desktop_mode_register_widget( 'myplugin/stats', array(
+ * open_station_register_widget( 'myplugin/stats', array(
  *     'label'          => __( 'Stats', 'my-plugin' ),
  *     'description'    => __( 'Live analytics rollup', 'my-plugin' ),
  *     'icon'           => 'dashicons-chart-bar',
@@ -47,15 +47,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * ```js
  * // Inside my-plugin-desktop-widgets.js:
- * window.desktopModeWidgets = window.desktopModeWidgets || {};
- * window.desktopModeWidgets[ 'myplugin/stats' ] = function ( container, ctx ) {
+ * window.openStationWidgets = window.openStationWidgets || {};
+ * window.openStationWidgets[ 'myplugin/stats' ] = function ( container, ctx ) {
  *     container.append( buildDOM() );
  *     return function teardown() { };
  * };
  * ```
  *
  * @param string $id   Widget id. Must match the key the JS side
- *                     uses on `window.desktopModeWidgets[ … ]`.
+ *                     uses on `window.openStationWidgets[ … ]`.
  * @param array  $args {
  *     @type string   $label          Human-readable picker label. Required.
  *     @type string   $description    Picker subtitle. Default empty.
@@ -76,15 +76,15 @@ defined( 'ABSPATH' ) || exit;
  *     @type int      $default_height First-mount floating height.
  *     @type string[] $capabilities   Gate: ALL caps must match. Any
  *                                    missed cap returns
- *                                    `WP_Error desktop_mode_capability_denied`.
+ *                                    `WP_Error open_station_capability_denied`.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function desktop_mode_register_widget( $id, $args = array() ) {
+function open_station_register_widget( $id, $args = array() ) {
 	$id = (string) $id;
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return open_station_registration_error(
+			'open_station_missing_id',
 			__( 'Widget id is required.', 'desktop-mode' )
 		);
 	}
@@ -108,8 +108,8 @@ function desktop_mode_register_widget( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return open_station_registration_error(
+				'open_station_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this widget.', 'desktop-mode' ),
@@ -124,8 +124,8 @@ function desktop_mode_register_widget( $id, $args = array() ) {
 	// a plugin could register a widget whose mount callback is
 	// declared on the shell page's own JS (edge case; still valid).
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return open_station_registration_error(
+			'open_station_missing_label',
 			__( 'Widget registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -146,30 +146,30 @@ function desktop_mode_register_widget( $id, $args = array() ) {
 		'default_width'  => (int) $args['default_width'],
 		'default_height' => (int) $args['default_height'],
 	);
-	desktop_mode_desktop_widget_registry( $id, $entry );
+	open_station_desktop_widget_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop widget is successfully registered.
 	 *
-	 * Does NOT fire when `desktop_mode_register_widget()` returns a
+	 * Does NOT fire when `open_station_register_widget()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The widget id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_widget_registered', $id, $entry );
+	do_action( 'open_station_widget_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for widgets registered via
- * {@see desktop_mode_register_widget()}. Same pattern as
- * {@see desktop_mode_native_window_registry()}.
+ * {@see open_station_register_widget()}. Same pattern as
+ * {@see open_station_native_window_registry()}.
  *
  * @internal
  */
-function desktop_mode_desktop_widget_registry( $id = '', $entry = null ) {
+function open_station_desktop_widget_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -183,22 +183,22 @@ function desktop_mode_desktop_widget_registry( $id = '', $entry = null ) {
 
 /**
  * Build the widget list for the shell payload. Runs through
- * every entry registered via `desktop_mode_register_widget()` and
+ * every entry registered via `open_station_register_widget()` and
  * attaches the resolved script URL (`wp_scripts()` lookup) so
  * the shell can dynamically inject the script on mid-session
  * plugin activation.
  *
  * @return array[]
  */
-function desktop_mode_build_desktop_widgets_payload() {
-	$registry = desktop_mode_desktop_widget_registry();
+function open_station_build_desktop_widgets_payload() {
+	$registry = open_station_desktop_widget_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$script_payload = desktop_mode_resolve_script_payload( $entry['script'] );
+		$script_payload = open_station_resolve_script_payload( $entry['script'] );
 
 		$out[] = array(
 			'id'                => $entry['id'],
@@ -229,11 +229,11 @@ function desktop_mode_build_desktop_widgets_payload() {
  * widgets active at boot time have their mount callbacks
  * available without any dynamic-load roundtrip.
  */
-function desktop_mode_enqueue_desktop_widget_scripts() {
-	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+function open_station_enqueue_desktop_widget_scripts() {
+	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
 		return;
 	}
-	$registry = desktop_mode_desktop_widget_registry();
+	$registry = open_station_desktop_widget_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -243,4 +243,4 @@ function desktop_mode_enqueue_desktop_widget_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_desktop_widget_scripts', 20 );
+add_action( 'admin_enqueue_scripts', 'open_station_enqueue_desktop_widget_scripts', 20 );

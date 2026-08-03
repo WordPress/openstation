@@ -1,14 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200" role="img" aria-label="Desktop Mode (Legacy)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200" role="img" aria-label="OpenStation (Legacy)">
 	<!--
 		The theme previewing itself: every colour below is one of the
 		tokens this manifest declares, at the value it declares.
 
-		desk       desktop-mode-bg
-		dock       desktop-mode-dock-bg / dock-border / dock-icon-color
-		window     desktop-mode-window-bg / window-border / window-radius
-		title bar  desktop-mode-titlebar-bg / titlebar-color
-		controls   desktop-mode-titlebar-btn-color
-		body       wpd-fg / wpd-fg-muted / wpd-border / wpd-accent
+		desk       os-bg
+		dock       os-dock-bg / dock-border / dock-icon-color
+		window     os-window-bg / window-border / window-radius
+		title bar  os-titlebar-bg / titlebar-color
+		controls   os-titlebar-btn-color
+		body       os-fg / os-fg-muted / os-border / os-accent
 
 		XML comments cannot carry a double hyphen, so the token names
 		above are written without their leading dashes.
@@ -43,7 +43,7 @@
 			<rect x="268" y="42" width="7" height="7" rx="1" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="1.5"/>
 			<path d="M278.5 42.5l6 6m0-6l-6 6" stroke="#000" stroke-opacity="0.45" stroke-width="1.5" fill="none"/>
 		</g>
-		<text x="70" y="51" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#50575e">Desktop Mode (Legacy)</text>
+		<text x="70" y="51" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#50575e">OpenStation (Legacy)</text>
 
 		<!-- Body -->
 		<rect x="70" y="74" width="96" height="9" rx="2" fill="#1d2327"/>

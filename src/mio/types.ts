@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio shared types.
+ * OpenStation — Mio shared types.
  *
  * Split out of the implementation modules so the always-on shell
  * controller (`src/mio/controller.ts`, main bundle) and the lazy
@@ -8,8 +8,8 @@
  *
  * Everything here is data — no imports, no runtime. Third-party
  * plugins read these shapes off the public API
- * (`wp.desktop.mio`) and through the
- * `desktop-mode.mio.config` filter.
+ * (`wp.os.mio`) and through the
+ * `os.mio.config` filter.
  */
 
 /**
@@ -451,6 +451,6 @@ declare global {
 		 * Published by `assets/js/mio[.min].js`. The shell-side
 		 * controller script-injects that bundle and calls this.
 		 */
-		desktopModeMountMio?: MioMountFn;
+		openStationMountMio?: MioMountFn;
 	}
 }

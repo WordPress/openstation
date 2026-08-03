@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files-on-the-desktop drag payload contracts.
+ * OpenStation — Files-on-the-desktop drag payload contracts.
  *
  * Two payload shapes flow through the DragManager for desktop-files
  * gestures. Drop targets switch on `payload.type` and read the
@@ -61,10 +61,10 @@ export interface ShortcutDragData {
 	entityId?: string;
 	/**
 	 * Optional cross-frame bridge payload. When present the shell
-	 * fans this into `wp.desktop.dragBridge` at lift time so iframe
+	 * fans this into `wp.os.dragBridge` at lift time so iframe
 	 * receivers (e.g. the Gutenberg drop-receiver) can react to the
 	 * drag — the receiver inserts a block built from this payload on
-	 * `desktop-mode-drop`. Tiles that omit it still drag-out for
+	 * `os-drop`. Tiles that omit it still drag-out for
 	 * placement purposes; they just don't trigger any iframe-side
 	 * drop behavior.
 	 */

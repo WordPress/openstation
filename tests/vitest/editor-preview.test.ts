@@ -7,7 +7,7 @@
  *   - click flow: snap-left, autosave transport, companion window
  *     opened snapped-right + ephemeral, singleton id per post,
  *     fresh-autosave previewUrl preferred over the identity's
- *   - the `desktop-mode.editor-preview.window-config` filter
+ *   - the `os.editor-preview.window-config` filter
  *   - toggle-off on second click
  *   - lifecycle: editor close destroys the companion, preview close
  *     only clears the pairing, content change to a different post
@@ -140,7 +140,7 @@ async function clickEye(
 	},
 	win: FakeWin,
 ) {
-	const host = document.createElement( 'wpd-window-button' );
+	const host = document.createElement( 'os-window-button' );
 	document.body.appendChild( host );
 	def.render!( host, win as never );
 	host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
@@ -214,7 +214,7 @@ describe( 'bootEditorPreview', () => {
 
 		expect( host.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
 		expect(
-			host.classList.contains( 'desktop-mode-window__btn--disabled' ),
+			host.classList.contains( 'os-window__btn--disabled' ),
 		).toBe( true );
 		expect( transport ).not.toHaveBeenCalled();
 		expect( manager.open ).not.toHaveBeenCalled();
@@ -409,7 +409,7 @@ describe( 'eye click', () => {
 			},
 		);
 
-		const host = document.createElement( 'wpd-window-button' );
+		const host = document.createElement( 'os-window-button' );
 		document.body.appendChild( host );
 		def.render!( host, editor as never );
 		host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
@@ -442,7 +442,7 @@ describe( 'eye click', () => {
 			previewUrl: PREVIEW_URL,
 		} );
 
-		const host = document.createElement( 'wpd-window-button' );
+		const host = document.createElement( 'os-window-button' );
 		def.render!( host, editor as never );
 		// Close the editor before the transport resolves.
 		manager.remove( 'w1' );
@@ -548,12 +548,12 @@ describe( 'save-driven reload', () => {
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
 		vi.useFakeTimers();
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 1 ],
 		} );
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 1 ],
@@ -581,7 +581,7 @@ describe( 'save-driven reload', () => {
 		delete preview.swapReload;
 
 		vi.useFakeTimers();
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 1 ],
@@ -604,7 +604,7 @@ describe( 'save-driven reload', () => {
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
 		vi.useFakeTimers();
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 99 ],
@@ -636,7 +636,7 @@ describe( 'save-driven reload', () => {
 		} );
 
 		vi.useFakeTimers();
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 1 ],
@@ -663,7 +663,7 @@ describe( 'save-driven reload', () => {
 		// The pairing asked the editor iframe to start a live watch.
 		const watchMsg = frame.postMessage.mock.calls
 			.map( ( c ) => c[ 0 ] as { type?: string; watchId?: string; debounceMs?: number } )
-			.find( ( m ) => m.type === 'desktop-mode-editor-live-watch' );
+			.find( ( m ) => m.type === 'os-editor-live-watch' );
 		expect( watchMsg ).toBeDefined();
 		expect( watchMsg!.debounceMs ).toBe( 1500 );
 
@@ -672,7 +672,7 @@ describe( 'save-driven reload', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-editor-live-saved',
+					type: 'os-editor-live-saved',
 					watchId: watchMsg!.watchId,
 				},
 			} ),
@@ -700,7 +700,7 @@ describe( 'save-driven reload', () => {
 		const types = frame.postMessage.mock.calls.map(
 			( c ) => ( c[ 0 ] as { type?: string } ).type,
 		);
-		expect( types ).toContain( 'desktop-mode-editor-live-unwatch' );
+		expect( types ).toContain( 'os-editor-live-unwatch' );
 	} );
 
 	test( 'the live filter can disable typing-driven updates', async () => {
@@ -724,7 +724,7 @@ describe( 'save-driven reload', () => {
 		const types = frame.postMessage.mock.calls.map(
 			( c ) => ( c[ 0 ] as { type?: string } ).type,
 		);
-		expect( types ).not.toContain( 'desktop-mode-editor-live-watch' );
+		expect( types ).not.toContain( 'os-editor-live-watch' );
 	} );
 
 	test( 'the subscription is torn down with the pairing', async () => {
@@ -742,7 +742,7 @@ describe( 'save-driven reload', () => {
 		// Toggle off, then broadcast — nothing may reload.
 		await clickEye( api.def, editor );
 		vi.useFakeTimers();
-		api.broadcast( 'desktop-mode.post.changed', {
+		api.broadcast( 'os.post.changed', {
 			source: 'editor',
 			action: 'updated',
 			ids: [ 1 ],

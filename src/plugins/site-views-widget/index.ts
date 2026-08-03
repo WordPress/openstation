@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Site Views Widget (lazy bundle).
+ * OpenStation — Site Views Widget (lazy bundle).
  *
  * Smooth SVG sparkline of page views for the last 7 days,
  * total view count, and a week-over-week delta arrow.
@@ -254,7 +254,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window content-relations types.
+ * OpenStation — Window content-relations types.
  *
  * A window may carry a **content identity**: the piece of content it
  * shows ("I am post 123", "I am comment 45 *of* post 123"). Identities
@@ -21,8 +21,8 @@ import type { WindowState } from '../types';
  * A ready-to-open navigation target related to a window's content —
  * one entry in the title bar's "Related" menu. Built server-side for
  * posts/pages (comments, assigned terms, attached media) and open to
- * plugins via the `desktop_mode_window_related_entities` PHP filter
- * and the `desktop-mode.related-entities.items` JS filter.
+ * plugins via the `open_station_window_related_entities` PHP filter
+ * and the `os.related-entities.items` JS filter.
  */
 export interface RelatedEntityItem {
 	/**
@@ -110,7 +110,7 @@ export interface WindowContentRef {
 	 * Ready-to-open navigation targets related to this content — what
 	 * the title bar's "Related" button lists. Built server-side (the
 	 * chromeless bridge announces it with the identity) and filterable
-	 * client-side via `desktop-mode.related-entities.items`. Not part
+	 * client-side via `os.related-entities.items`. Not part
 	 * of group membership — purely a navigation affordance.
 	 */
 	related?: RelatedEntityItem[];
@@ -127,7 +127,7 @@ export interface WindowContentRef {
 	 * Provenance, stamped by the engine — never set it yourself:
 	 * `'config'` (seeded from `WindowConfig.content`), `'bridge'`
 	 * (announced by the chromeless iframe bridge), `'api'`
-	 * (`wp.desktop.relations.set()`).
+	 * (`wp.os.relations.set()`).
 	 */
 	source?: 'config' | 'bridge' | 'api';
 }
@@ -191,7 +191,7 @@ export interface WindowLinkFrame {
 			content: WindowContentRef;
 			/**
 			 * Window geometry relative to the link layer (which shares
-			 * `#desktop-mode-area` as offset parent with the windows).
+			 * `#os-area` as offset parent with the windows).
 			 * `null` when the window is minimized, snapped into split
 			 * view (`snapped-left` / `snapped-right` — a half-screen
 			 * tile draws no ties), on another virtual desktop, or
@@ -292,7 +292,7 @@ export interface WindowLinkRendererContext {
 /**
  * A pluggable window-link renderer — how relation groups are drawn on
  * the desktop. The built-in `svg-splines` registers through the same
- * public API (`wp.desktop.registerWindowLinkRenderer`) a plugin would
+ * public API (`wp.os.registerWindowLinkRenderer`) a plugin would
  * use; the user picks the active renderer in OS Settings → Effects.
  */
 export interface WindowLinkRendererDef {
@@ -323,7 +323,7 @@ export interface WindowLinkRendererDef {
 }
 
 /**
- * The `wp.desktop.relations` public API surface.
+ * The `wp.os.relations` public API surface.
  */
 export interface WindowRelationsApi {
 	/** Current content identity of a window, if any. */

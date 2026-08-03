@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — generic tile spec + renderer.
+ * OpenStation — generic tile spec + renderer.
  *
- * One canonical `<button class="desktop-mode-file-tile">` everywhere
+ * One canonical `<button class="os-file-tile">` everywhere
  * a tile shows up — desktop wallpaper, folder windows, the My
  * WordPress sections (Posts, Pages, Users, Media, drill-in usage),
  * and any plugin surface that wants the same visual chrome.
@@ -17,11 +17,11 @@
  * The legacy `buildTile(placement, folderId)` in `file-tile.ts`
  * keeps its placement-specific contract and now sits on top of
  * this generic renderer via a `placementToSpec()` adapter so the
- * `desktop-mode.files.tile-*` hook surface is unchanged for plugin
+ * `os.files.tile-*` hook surface is unchanged for plugin
  * authors.
  */
 
-import { TILE_CLASS, getDragManager } from '../ui/components/wpd-tile/wpd-tile';
+import { TILE_CLASS, getDragManager } from '../ui/components/os-tile/os-tile';
 import { applyFilters } from '../hooks';
 import type { ShortcutDragData } from './drag-payloads';
 
@@ -104,32 +104,32 @@ export interface TileSpec {
 	ariaLabel?: string;
 	/**
 	 * Visual signal that the underlying entity has been removed —
-	 * mirrors the `desktop-mode-file-tile--missing` modifier the
+	 * mirrors the `os-file-tile--missing` modifier the
 	 * desktop-files renderer uses.
 	 */
 	missing?: boolean;
 	/**
 	 * Visual signal that the viewer doesn't have permission to
 	 * open the underlying entity — mirrors the
-	 * `desktop-mode-file-tile--access-gated` modifier.
+	 * `os-file-tile--access-gated` modifier.
 	 */
 	accessGated?: boolean;
 }
 
 /**
- * Build a tile from a spec by instantiating a `<wpd-tile>` element
+ * Build a tile from a spec by instantiating a `<os-tile>` element
  * and reflecting the spec fields onto it as attributes. The
  * component owns the DOM rendering (icon vs thumbnail decision,
  * status ribbon, lock badge, drag-out wiring).
  *
- * Returns the `<wpd-tile>` host so callers can attach event
+ * Returns the `<os-tile>` host so callers can attach event
  * listeners (`click`, `dblclick`, `contextmenu`) directly — those
  * events bubble up from the inner button.
  *
  * @public
  */
 export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
-	const tile = document.createElement( 'wpd-tile' );
+	const tile = document.createElement( 'os-tile' );
 
 	tile.setAttribute( 'type', spec.type );
 	tile.setAttribute( 'ref', spec.ref );
@@ -179,7 +179,7 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 	// component paints. `applyFilters` is sync, so the result lands
 	// before the first render pass.
 	const classFiltered = applyFilters< string, [ TileSpec ] >(
-		'desktop-mode.tile.class',
+		'os.tile.class',
 		tile.className,
 		spec,
 	);
@@ -223,9 +223,9 @@ export interface TileDragOutPayload {
 	entityId?: string;
 	/**
 	 * Optional cross-frame bridge payload. When set the shell fans
-	 * this into `wp.desktop.dragBridge` while the gesture is live so
+	 * this into `wp.os.dragBridge` while the gesture is live so
 	 * iframe receivers (Gutenberg drop-receiver, future Media Library
-	 * receiver) can insert a block on `desktop-mode-drop`. See
+	 * receiver) can insert a block on `os-drop`. See
 	 * `ShortcutDragData.bridgePayload`.
 	 */
 	bridgePayload?: import( '../drag-bridge' ).DragBridgePayload;

@@ -22,7 +22,7 @@ describe( 'create-folder dialog', () => {
 		const mod = await load();
 		mod.openCreateFolderDialog( { onSubmit: () => undefined } );
 		const input = document.querySelector< HTMLInputElement >(
-			'.desktop-mode-create-folder-dialog__input',
+			'.os-create-folder-dialog__input',
 		);
 		expect( input ).not.toBeNull();
 		expect( document.activeElement ).toBe( input );
@@ -34,18 +34,18 @@ describe( 'create-folder dialog', () => {
 		const onSubmit = vi.fn().mockResolvedValue( undefined );
 		mod.openCreateFolderDialog( { onSubmit } );
 		const input = document.querySelector< HTMLInputElement >(
-			'.desktop-mode-create-folder-dialog__input',
+			'.os-create-folder-dialog__input',
 		)!;
 		input.value = '  Projects  ';
 		document
 			.querySelector< HTMLButtonElement >(
-				'.desktop-mode-create-folder-dialog__btn--primary',
+				'.os-create-folder-dialog__btn--primary',
 			)!
 			.click();
 		await Promise.resolve();
 		await Promise.resolve();
 		expect( onSubmit ).toHaveBeenCalledWith( 'Projects' );
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 	} );
 
 	test( 'empty name shows error and does not submit', async () => {
@@ -53,18 +53,18 @@ describe( 'create-folder dialog', () => {
 		const onSubmit = vi.fn();
 		mod.openCreateFolderDialog( { onSubmit } );
 		const input = document.querySelector< HTMLInputElement >(
-			'.desktop-mode-create-folder-dialog__input',
+			'.os-create-folder-dialog__input',
 		)!;
 		input.value = '   ';
 		document
 			.querySelector< HTMLButtonElement >(
-				'.desktop-mode-create-folder-dialog__btn--primary',
+				'.os-create-folder-dialog__btn--primary',
 			)!
 			.click();
 		expect( onSubmit ).not.toHaveBeenCalled();
 		expect(
 			document.querySelector< HTMLElement >(
-				'.desktop-mode-create-folder-dialog__error',
+				'.os-create-folder-dialog__error',
 			)!.hidden,
 		).toBe( false );
 	} );
@@ -74,13 +74,13 @@ describe( 'create-folder dialog', () => {
 		const onCancel = vi.fn();
 		mod.openCreateFolderDialog( { onSubmit: () => undefined, onCancel } );
 		const dialog = document.querySelector< HTMLElement >(
-			'.desktop-mode-create-folder-dialog',
+			'.os-create-folder-dialog',
 		)!;
 		dialog.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ),
 		);
 		expect( onCancel ).toHaveBeenCalledTimes( 1 );
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 	} );
 
 	test( 'Enter inside the dialog submits', async () => {
@@ -88,7 +88,7 @@ describe( 'create-folder dialog', () => {
 		const onSubmit = vi.fn().mockResolvedValue( undefined );
 		mod.openCreateFolderDialog( { onSubmit } );
 		const input = document.querySelector< HTMLInputElement >(
-			'.desktop-mode-create-folder-dialog__input',
+			'.os-create-folder-dialog__input',
 		)!;
 		input.value = 'Quick';
 		input.dispatchEvent(
@@ -104,18 +104,18 @@ describe( 'create-folder dialog', () => {
 		const onCancel = vi.fn();
 		mod.openCreateFolderDialog( { onSubmit: () => undefined, onCancel } );
 		const overlay = document.querySelector< HTMLElement >(
-			'.desktop-mode-create-folder-dialog__overlay',
+			'.os-create-folder-dialog__overlay',
 		)!;
 		const dialog = overlay.querySelector< HTMLElement >(
-			'.desktop-mode-create-folder-dialog',
+			'.os-create-folder-dialog',
 		)!;
 		// Clicking the dialog body should not close.
 		dialog.click();
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).not.toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).not.toBeNull();
 		// Clicking the overlay should.
 		overlay.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		// Need to dispatch with the overlay as the actual target — `.click()` would target the overlay too.
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 		expect( onCancel ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -125,30 +125,30 @@ describe( 'create-folder dialog', () => {
 		mod.openCreateFolderDialog( { onSubmit } );
 		document
 			.querySelector< HTMLButtonElement >(
-				'.desktop-mode-create-folder-dialog__btn--primary',
+				'.os-create-folder-dialog__btn--primary',
 			)!
 			.click();
 		await Promise.resolve();
 		await Promise.resolve();
 		await Promise.resolve();
 		const err = document.querySelector< HTMLElement >(
-			'.desktop-mode-create-folder-dialog__error',
+			'.os-create-folder-dialog__error',
 		)!;
 		expect( err.hidden ).toBe( false );
 		expect( err.textContent ).toBe( 'Boom' );
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).not.toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).not.toBeNull();
 	} );
 
 	test( 'create-folder.dialog filter returning false suppresses the built-in', async () => {
 		const mod = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.create-folder.dialog',
+			'os.files.create-folder.dialog',
 			'test/own',
 			() => false,
 		);
 		mod.openCreateFolderDialog( { onSubmit: () => undefined } );
-		expect( document.querySelector( '.desktop-mode-create-folder-dialog' ) ).toBeNull();
+		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 	} );
 
 	test( 'opening twice replaces the existing dialog', async () => {
@@ -156,7 +156,7 @@ describe( 'create-folder dialog', () => {
 		mod.openCreateFolderDialog( { onSubmit: () => undefined, initialName: 'A' } );
 		mod.openCreateFolderDialog( { onSubmit: () => undefined, initialName: 'B' } );
 		const inputs = document.querySelectorAll< HTMLInputElement >(
-			'.desktop-mode-create-folder-dialog__input',
+			'.os-create-folder-dialog__input',
 		);
 		expect( inputs.length ).toBe( 1 );
 		expect( inputs[ 0 ].value ).toBe( 'B' );

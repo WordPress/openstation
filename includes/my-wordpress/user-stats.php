@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-user stats endpoint.
+ * OpenStation — My WordPress: per-user stats endpoint.
  *
  * `GET /desktop-mode/v1/user-stats/<id>` returns an aggregated
  * profile + activity blob for the requested user. The right
@@ -15,7 +15,7 @@
  * published-only counts and recent posts). Sensitive fields
  * (email, registered date, role) are gated on the cap.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,13 +23,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function desktop_mode_my_wordpress_register_user_stats_route() {
+function open_station_my_wordpress_register_user_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/user-stats/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_user_stats_callback',
+			'callback'            => 'open_station_my_wordpress_user_stats_callback',
 			'permission_callback' => static function () {
 				// Logged-in users only — author archives are public,
 				// but the dossier mixes counts that aren't.
@@ -45,7 +45,7 @@ function desktop_mode_my_wordpress_register_user_stats_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_route' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_register_user_stats_route' );
 
 /**
  * Aggregator callback. Returns the dossier shape (see file
@@ -54,13 +54,13 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_rout
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_user_stats_callback( $request ) {
+function open_station_my_wordpress_user_stats_callback( $request ) {
 	global $wpdb;
 	$user_id = (int) $request->get_param( 'id' );
 	$user    = get_userdata( $user_id );
 	if ( ! $user ) {
 		return new WP_Error(
-			'desktop_mode_user_not_found',
+			'open_station_user_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -346,5 +346,5 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 	 * @param array $payload Stats payload.
 	 * @param int   $user_id Subject user id.
 	 */
-	return apply_filters( 'desktop_mode_my_wordpress_user_stats', $payload, $user_id );
+	return apply_filters( 'open_station_my_wordpress_user_stats', $payload, $user_id );
 }

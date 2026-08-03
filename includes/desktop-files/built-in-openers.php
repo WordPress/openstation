@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — built-in file-opener registrations.
+ * OpenStation — built-in file-opener registrations.
  *
  * Ships one default opener per built-in file type so the user can
  * double-click any tile and have something happen out of the box.
@@ -12,7 +12,7 @@
  * (priority 5) and before the shell config is built. Same ordering
  * as the wallpapers / icons modules.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the built-in openers (one per file type).
  */
-function desktop_mode_register_builtin_file_openers() {
+function open_station_register_builtin_file_openers() {
 	$openers = array(
 		array(
 			'id'    => 'wp-post-editor',
@@ -73,7 +73,7 @@ function desktop_mode_register_builtin_file_openers() {
 	);
 
 	foreach ( $openers as $args ) {
-		desktop_mode_register_file_opener( $args['id'], array(
+		open_station_register_file_opener( $args['id'], array(
 			'label'      => $args['label'],
 			'types'      => $args['types'],
 			'is_default' => true,
@@ -81,4 +81,4 @@ function desktop_mode_register_builtin_file_openers() {
 		) );
 	}
 }
-add_action( 'init', 'desktop_mode_register_builtin_file_openers', 6 );
+add_action( 'init', 'open_station_register_builtin_file_openers', 6 );

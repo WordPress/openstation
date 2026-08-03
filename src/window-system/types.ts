@@ -4,7 +4,7 @@
  * class implementation.
  *
  * The lazy bundle's entry (`./entry.ts`) publishes
- * `window.desktopModeWindowSystem` with this shape. The main-bundle
+ * `window.openStationWindowSystem` with this shape. The main-bundle
  * loader (`./loader.ts`) awaits the `<script>` load and reads the
  * factory; `WindowManager.open()` / `openNew()` then call
  * `createWindow( … )` to construct a real `Window` instance.
@@ -32,6 +32,6 @@ declare global {
 	// Augment the DOM `Window` (the browser global, not our class).
 	// eslint-disable-next-line @typescript-eslint/no-shadow
 	interface Window {
-		desktopModeWindowSystem?: WindowSystemApi;
+		openStationWindowSystem?: WindowSystemApi;
 	}
 }

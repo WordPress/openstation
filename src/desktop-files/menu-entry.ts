@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Admin-menu entry lookup for URL-based openers.
+ * OpenStation — Admin-menu entry lookup for URL-based openers.
  *
  * Windows opened straight from a URL (wallpaper shortcut tiles,
  * server-registered desktop icons) historically shipped a bare
@@ -22,7 +22,7 @@ import type { DesktopConfig, DockItemConfig } from '../types';
 
 /** Runtime shape of the `window.wp` global the lookup reads. */
 interface ShellGlobalShape {
-	desktop?: {
+	os?: {
 		getMenuItems?: () => DockItemConfig[];
 		config?: { adminUrl?: string };
 	};
@@ -32,9 +32,9 @@ interface ShellGlobalShape {
  * Find the dock entry — top-level item or the parent of a matching
  * submenu child — whose URL derives the same window id as `url`.
  *
- * Reads the live menu list from `wp.desktop.getMenuItems()` when the
+ * Reads the live menu list from `wp.os.getMenuItems()` when the
  * shell API is up (it reflects live menu refreshes), falling back to
- * the boot `desktopModeConfig.dockItems` snapshot. Returns the
+ * the boot `openStationConfig.dockItems` snapshot. Returns the
  * PARENT top-level entry in both match cases — mirroring
  * `findDockEntryForUrl()` in `boot/geometry.ts` — so callers can
  * read `submenu` / `multi` and use `entry.url` as the window's
@@ -44,10 +44,10 @@ interface ShellGlobalShape {
  * @return The matching top-level dock item, or `null`.
  */
 export function findMenuEntryForUrl( url: string ): DockItemConfig | null {
-	const wp = ( window.wp as ShellGlobalShape | undefined )?.desktop;
+	const wp = ( window.wp as ShellGlobalShape | undefined )?.os;
 	const bootConfig = (
-		window as unknown as { desktopModeConfig?: DesktopConfig }
-	).desktopModeConfig;
+		window as unknown as { openStationConfig?: DesktopConfig }
+	).openStationConfig;
 
 	const adminUrl = wp?.config?.adminUrl ?? bootConfig?.adminUrl;
 	if ( ! adminUrl ) {

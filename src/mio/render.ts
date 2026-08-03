@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio renderer.
+ * OpenStation — Mio renderer.
  *
  * Draws one frame of the soft body as the reference design: a pure
  * black blob wrapped in a neon "chroma" ring, with two white pill

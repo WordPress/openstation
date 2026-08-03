@@ -29,7 +29,7 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 export async function showPluginsIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		const backdrop = document.createElement( 'div' );
-		backdrop.className = 'desktop-mode-plugins-intro__backdrop';
+		backdrop.className = 'os-plugins-intro__backdrop';
 		backdrop.setAttribute( 'role', 'presentation' );
 		Object.assign( backdrop.style, {
 			position: 'fixed',
@@ -48,8 +48,8 @@ export async function showPluginsIntroDialog(): Promise< IntroResult > {
 		const dialog = document.createElement( 'div' );
 		dialog.setAttribute( 'role', 'dialog' );
 		dialog.setAttribute( 'aria-modal', 'true' );
-		dialog.setAttribute( 'aria-labelledby', 'desktop-mode-plugins-intro-title' );
-		dialog.className = 'desktop-mode-plugins-intro';
+		dialog.setAttribute( 'aria-labelledby', 'os-plugins-intro-title' );
+		dialog.className = 'os-plugins-intro';
 		Object.assign( dialog.style, {
 			background: 'var(--wp-admin-theme-bg, #fff)',
 			color: 'var(--wp-admin-theme-fg, #1d2327)',
@@ -115,7 +115,7 @@ export async function showPluginsIntroDialog(): Promise< IntroResult > {
 function renderDialogMarkup(): string {
 	const title = __( 'Welcome to the new Plugins window', 'desktop-mode' );
 	const lede = __(
-		'You\'re looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.',
+		'You\'re looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how OpenStation wants you to work.',
 		'desktop-mode',
 	);
 
@@ -158,32 +158,32 @@ function renderDialogMarkup(): string {
 
 	return `
 		<style>
-			.desktop-mode-plugins-intro h2 {
+			.os-plugins-intro h2 {
 				margin: 0 0 8px;
 				font-size: 22px;
 				font-weight: 600;
 				letter-spacing: -0.01em;
 			}
-			.desktop-mode-plugins-intro p.lede {
+			.os-plugins-intro p.lede {
 				margin: 0 0 20px;
 				color: var(--wp-admin-theme-fg-muted, #50575e);
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-plugins-intro__list {
+			.os-plugins-intro__list {
 				list-style: none;
 				margin: 0 0 22px;
 				padding: 0;
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-plugins-intro__list li {
+			.os-plugins-intro__list li {
 				display: flex;
 				align-items: flex-start;
 				gap: 10px;
 				padding: 6px 0;
 			}
-			.desktop-mode-plugins-intro__list .dot {
+			.os-plugins-intro__list .dot {
 				flex: 0 0 auto;
 				width: 6px;
 				height: 6px;
@@ -191,13 +191,13 @@ function renderDialogMarkup(): string {
 				border-radius: 50%;
 				background: var(--wp-admin-theme-color, #2271b1);
 			}
-			.desktop-mode-plugins-intro__footer {
+			.os-plugins-intro__footer {
 				display: flex;
 				justify-content: flex-end;
 				gap: 8px;
 				margin-top: 8px;
 			}
-			.desktop-mode-plugins-intro__footer button {
+			.os-plugins-intro__footer button {
 				appearance: none;
 				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
 				background: var(--wp-admin-theme-bg, #fff);
@@ -207,24 +207,24 @@ function renderDialogMarkup(): string {
 				font-size: 13px;
 				cursor: pointer;
 			}
-			.desktop-mode-plugins-intro__footer button.primary {
+			.os-plugins-intro__footer button.primary {
 				border-color: var(--wp-admin-theme-color, #2271b1);
 				background: var(--wp-admin-theme-color, #2271b1);
 				color: #fff;
 				font-weight: 500;
 			}
-			.desktop-mode-plugins-intro__footer button:hover {
+			.os-plugins-intro__footer button:hover {
 				filter: brightness(1.05);
 			}
-			.desktop-mode-plugins-intro__footer button:focus-visible {
+			.os-plugins-intro__footer button:focus-visible {
 				outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 				outline-offset: 2px;
 			}
 		</style>
-		<h2 id="desktop-mode-plugins-intro-title">${ escapeHtml( title ) }</h2>
+		<h2 id="os-plugins-intro-title">${ escapeHtml( title ) }</h2>
 		<p class="lede">${ escapeHtml( lede ) }</p>
-		<ul class="desktop-mode-plugins-intro__list">${ li( highlights ) }</ul>
-		<div class="desktop-mode-plugins-intro__footer">
+		<ul class="os-plugins-intro__list">${ li( highlights ) }</ul>
+		<div class="os-plugins-intro__footer">
 			<button type="button" data-action="settings">${ escapeHtml(
 				__( 'Take me to settings', 'desktop-mode' ),
 			) }</button>

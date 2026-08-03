@@ -16,7 +16,7 @@
  *     the iframe has sub-navigated elsewhere (a dock click must not
  *     yank the window back to its landing page);
  *   - any other URL → the existing iframe navigates to it in place,
- *     and the `desktop-mode-window-reopened` detail reports
+ *     and the `os-window-reopened` detail reports
  *     `navigated: true`.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -80,7 +80,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -100,11 +100,11 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		document.body.appendChild( desktop );
 		manager = new WindowManager( desktop );
 		reopenedDetails = [];
-		document.addEventListener( 'desktop-mode-window-reopened', onReopened );
+		document.addEventListener( 'os-window-reopened', onReopened );
 	} );
 
 	afterEach( () => {
-		document.removeEventListener( 'desktop-mode-window-reopened', onReopened );
+		document.removeEventListener( 'os-window-reopened', onReopened );
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -116,7 +116,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?desktop_mode_chromeless=1`,
+			`${ PLUGINS_URL }?open_station_chromeless=1`,
 		);
 		const srcBefore = win.iframe!.src;
 
@@ -134,7 +134,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		// The user paged / filtered inside the window since opening it.
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?plugin_status=active&paged=2&desktop_mode_chromeless=1`,
+			`${ PLUGINS_URL }?plugin_status=active&paged=2&open_station_chromeless=1`,
 		);
 
 		// Dock click — same landing URL the tile always carries.
@@ -149,7 +149,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?desktop_mode_chromeless=1`,
+			`${ PLUGINS_URL }?open_station_chromeless=1`,
 		);
 
 		const again = await manager.open( openConfig( { url: ACTIVATE_URL } ) );
@@ -162,7 +162,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const target = new URL( assigned[ 0 ] );
 		expect( target.searchParams.get( 'action' ) ).toBe( 'activate' );
 		expect( target.searchParams.get( '_wpnonce' ) ).toBe( 'abc123' );
-		expect( target.searchParams.get( 'desktop_mode_chromeless' ) ).toBe( '1' );
+		expect( target.searchParams.get( 'open_station_chromeless' ) ).toBe( '1' );
 		expect( reopenedDetails ).toHaveLength( 1 );
 		expect( reopenedDetails[ 0 ].navigated ).toBe( true );
 	} );
@@ -171,7 +171,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?desktop_mode_chromeless=1`,
+			`${ PLUGINS_URL }?open_station_chromeless=1`,
 		);
 
 		// Cross-window links get `_wp_http_referer` stamped on by the
@@ -199,7 +199,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 
 		const target = new URL( win.iframe!.src );
 		expect( target.searchParams.get( 'action' ) ).toBe( 'activate' );
-		expect( target.searchParams.get( 'desktop_mode_chromeless' ) ).toBe( '1' );
+		expect( target.searchParams.get( 'open_station_chromeless' ) ).toBe( '1' );
 		expect( reopenedDetails[ 0 ].navigated ).toBe( true );
 	} );
 
@@ -207,7 +207,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?desktop_mode_chromeless=1`,
+			`${ PLUGINS_URL }?open_station_chromeless=1`,
 		);
 		const srcBefore = win.iframe!.src;
 

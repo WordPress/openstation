@@ -14,8 +14,8 @@ Registering your own `DropTarget` on the tile element:
 
 ```js
 // ✗ Silently displaced.
-wp.hooks.addAction( 'desktop-mode.files.tile-rendered', 'my-plugin/drop', ( { tile } ) => {
-    wp.desktop.dragManager.registerDropTarget( { element: tile, /* … */ } );
+wp.hooks.addAction( 'os.files.tile-rendered', 'my-plugin/drop', ( { tile } ) => {
+    wp.os.dragManager.registerDropTarget( { element: tile, /* … */ } );
 } );
 ```
 
@@ -33,7 +33,7 @@ registry for its accept predicate, its hover chip, and its drop —
 register there and the layer does the rest.
 
 ```js
-const off = wp.desktop.files.registerTilePayloadHandler( 'shortcut', {
+const off = wp.os.files.registerTilePayloadHandler( 'shortcut', {
     // Narrow: only my icon, nobody else's.
     appliesTo: ( { placement } ) => placement.file.ref === 'lienzo',
 
@@ -68,7 +68,7 @@ Register one handler per type you want to accept:
 
 ```js
 [ 'shortcut', 'attachment' ].forEach( ( type ) =>
-    wp.desktop.files.registerTilePayloadHandler( type, handler )
+    wp.os.files.registerTilePayloadHandler( type, handler )
 );
 ```
 
@@ -96,7 +96,7 @@ appliesTo: () => true,
 
 `placement.file` carries `type`, `ref`, `title`, `icon`, and
 `shortcutUrl` — `ref` is the id you passed to
-`desktop_mode_register_icon()`.
+`open_station_register_icon()`.
 
 ## Feedback the user sees
 
@@ -108,6 +108,6 @@ appliesTo: () => true,
 
 ## See also
 
-- [JavaScript reference — `wp.desktop.files`](../javascript-reference.md#wpdesktopfiles--the-files-on-the-desktop-registry-experimental)
+- [JavaScript reference — `wp.os.files`](../javascript-reference.md#wpdesktopfiles--the-files-on-the-desktop-registry-experimental)
 - [Files on the desktop](../files-on-desktop.md)
 - [Register a desktop icon](../hooks-reference.md)

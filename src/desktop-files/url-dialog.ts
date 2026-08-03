@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "New web link / window" dialog.
+ * OpenStation — "New web link / window" dialog.
  *
  * Two-field modal (name + URL) used by the wallpaper context menu's
  * "New" submenu. Title / labels / submit copy are configurable so
@@ -9,14 +9,14 @@
  * Mirrors the create-folder dialog's structure (overlay, focused
  * input, Escape/Enter, busy state, error) so the shell's two
  * built-in modals feel identical. Built on the framework's
- * `<wpd-text-field>` so it inherits keyboard nav, focus styling,
+ * `<os-text-field>` so it inherits keyboard nav, focus styling,
  * and color-scheme tokens for free.
  */
 
 import { applyFilters, doAction } from '../hooks';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
-const ROOT_CLASS = 'desktop-mode-url-dialog';
+const ROOT_CLASS = 'os-url-dialog';
 
 export interface UrlDialogOptions {
 	/** Heading copy. */
@@ -52,7 +52,7 @@ export function closeUrlDialog(): void {
 	active.dispatchEvent( new CustomEvent( 'url-dialog-closed' ) );
 	active.remove();
 	active = null;
-	doAction( 'desktop-mode.files.url-dialog.closed', {} );
+	doAction( 'os.files.url-dialog.closed', {} );
 }
 
 /** Open the dialog. */
@@ -61,7 +61,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 
 	// Plugins can short-circuit by returning `false`.
 	const decision = applyFilters< unknown, [ UrlDialogOptions ] >(
-		'desktop-mode.files.url-dialog',
+		'os.files.url-dialog',
 		null,
 		options,
 	);
@@ -70,18 +70,18 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	}
 
 	const overlay = document.createElement( 'div' );
-	overlay.className = `${ ROOT_CLASS }__overlay desktop-mode-create-folder-dialog__overlay`;
+	overlay.className = `${ ROOT_CLASS }__overlay os-create-folder-dialog__overlay`;
 	overlay.setAttribute( 'role', 'presentation' );
 
 	const dialog = document.createElement( 'div' );
-	dialog.className = `${ ROOT_CLASS } desktop-mode-create-folder-dialog`;
+	dialog.className = `${ ROOT_CLASS } os-create-folder-dialog`;
 	dialog.setAttribute( 'role', 'dialog' );
 	dialog.setAttribute( 'aria-modal', 'true' );
 	dialog.setAttribute( 'aria-labelledby', `${ ROOT_CLASS }-title` );
 
 	const title = document.createElement( 'h2' );
 	title.id = `${ ROOT_CLASS }-title`;
-	title.className = 'desktop-mode-create-folder-dialog__title';
+	title.className = 'os-create-folder-dialog__title';
 	title.textContent = options.title;
 	dialog.appendChild( title );
 
@@ -92,14 +92,14 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 		dialog.appendChild( desc );
 	}
 
-	const nameField = document.createElement( 'wpd-text-field' );
+	const nameField = document.createElement( 'os-text-field' );
 	nameField.setAttribute( 'label', options.nameLabel ?? 'Name' );
 	nameField.setAttribute( 'value', options.initialName ?? '' );
 	nameField.setAttribute( 'placeholder', 'My web app' );
 	nameField.setAttribute( 'autocomplete', 'off' );
 	dialog.appendChild( nameField );
 
-	const urlField = document.createElement( 'wpd-text-field' );
+	const urlField = document.createElement( 'os-text-field' );
 	urlField.setAttribute( 'label', options.urlLabel ?? 'URL' );
 	urlField.setAttribute( 'value', options.initialUrl ?? 'https://' );
 	urlField.setAttribute( 'placeholder', 'https://example.com' );
@@ -108,24 +108,24 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	dialog.appendChild( urlField );
 
 	const error = document.createElement( 'p' );
-	error.className = 'desktop-mode-create-folder-dialog__error';
+	error.className = 'os-create-folder-dialog__error';
 	error.hidden = true;
 	error.setAttribute( 'role', 'alert' );
 	dialog.appendChild( error );
 
 	const actions = document.createElement( 'div' );
-	actions.className = 'desktop-mode-create-folder-dialog__actions';
+	actions.className = 'os-create-folder-dialog__actions';
 
 	const cancel = document.createElement( 'button' );
 	cancel.type = 'button';
 	cancel.className =
-		'desktop-mode-create-folder-dialog__btn desktop-mode-create-folder-dialog__btn--secondary';
+		'os-create-folder-dialog__btn os-create-folder-dialog__btn--secondary';
 	cancel.textContent = 'Cancel';
 
 	const submit = document.createElement( 'button' );
 	submit.type = 'button';
 	submit.className =
-		'desktop-mode-create-folder-dialog__btn desktop-mode-create-folder-dialog__btn--primary';
+		'os-create-folder-dialog__btn os-create-folder-dialog__btn--primary';
 	submit.textContent = options.submitLabel ?? 'Create';
 
 	actions.appendChild( cancel );
@@ -144,7 +144,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 		input?.select();
 	} );
 
-	doAction( 'desktop-mode.files.url-dialog.opened', {} );
+	doAction( 'os.files.url-dialog.opened', {} );
 
 	const readValue = ( field: HTMLElement ): string => {
 		const v = ( field as unknown as { value?: string } ).value;
@@ -159,7 +159,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 		( urlField as unknown as { disabled: boolean } ).disabled = busy;
 		cancel.disabled = busy;
 		submit.disabled = busy;
-		dialog.classList.toggle( 'desktop-mode-create-folder-dialog--busy', busy );
+		dialog.classList.toggle( 'os-create-folder-dialog--busy', busy );
 	};
 
 	const showError = ( msg: string ): void => {

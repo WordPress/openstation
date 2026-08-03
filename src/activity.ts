@@ -15,7 +15,7 @@
  *   1. A documented naming convention (`<plugin>/<event>`,
  *      matching `createSharedStore` keys) so plugins don't bikeshed
  *      every new channel name.
- *   2. A predictable hook prefix (`desktop-mode.activity.<channel>`)
+ *   2. A predictable hook prefix (`os.activity.<channel>`)
  *      so the devtools "what's firing" panel can list activity
  *      events as a discrete group.
  *   3. Type safety: callers can extend `ActivityChannelMap` in
@@ -23,7 +23,7 @@
  *      typechecks the payload shape.
  *
  * **The pattern.** Apps subscribe to OS lifecycle events
- * (`wp.desktop.onWindow`, `desktop-mode-window-*` CustomEvents) AND
+ * (`wp.os.onWindow`, `os-window-*` CustomEvents) AND
  * to peer-app activity channels. They query window state when they
  * need to (`windowManager.isActive(id)`) and decide for themselves
  * what to do. The framework is the bus, not the policy.
@@ -85,7 +85,7 @@ export interface ActivityChannelMap {
 		cancel?: boolean;
 	};
 	/**
-	 * Framework: `wp.desktop.notify()` was called. Filter to cancel
+	 * Framework: `wp.os.notify()` was called. Filter to cancel
 	 * (`cancel: true`), mutate fields, or audit before the
 	 * Notification surface (or its toast fallback) is rendered.
 	 */
@@ -168,7 +168,7 @@ export interface ActivityChannelMap {
 	};
 	/**
 	 * Framework: a user's presence transitioned. Mirrors the
-	 * `desktop-mode-presence-changed` CustomEvent on the activity
+	 * `os-presence-changed` CustomEvent on the activity
 	 * bus so plugins can subscribe through the unified API.
 	 */
 	'desktop-mode/presence-changed': {
@@ -196,7 +196,7 @@ export interface ActivityChannelMap {
 	[ key: `${ string }/${ string }` ]: unknown;
 }
 
-const HOOK_PREFIX = 'desktop-mode.activity.';
+const HOOK_PREFIX = 'os.activity.';
 
 function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
 	return `${ HOOK_PREFIX }${ String( channel ) }`;

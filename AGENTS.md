@@ -1,4 +1,4 @@
-# desktop-mode — agent + contributor guide
+# OpenStation — agent + contributor guide
 
 The imperative rules for working in this repo, plus the contributor-only gotchas that aren't obvious from reading the code. Public APIs and their contracts live in `docs/`; this file is the rulebook and cheatsheet for working *inside* the codebase.
 
@@ -9,9 +9,9 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
   - [Never declare a themeable token on a component's `:host`](#never-declare-a-themeable-token-on-a-components-host)
   - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
-  - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
-  - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
-  - [Use `wpd-*` components, not raw HTML controls](#use-wpd--components-not-raw-html-controls)
+  - [Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wposfetch-or-trackedfetch-never-raw-fetch)
+  - [Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wposconfirm-or-osconfirm-never-windowconfirmalertprompt)
+  - [Use `os-*` components, not raw HTML controls](#use-os--components-not-raw-html-controls)
   - [No version-history annotations in docs or comments](#no-version-history-annotations-in-docs-or-comments)
 - [Workflow](#workflow)
   - [Always run `npm run build` after all the changes](#always-run-npm-run-build-after-all-the-changes)
@@ -23,7 +23,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [Live-refresh on plugin install/activate — how it actually works](#live-refresh-on-plugin-installactivate--how-it-actually-works)
   - [Event-driven framework](#event-driven-framework)
   - [Presence — framework-level](#presence--framework-level)
-  - [Cross-bundle state — `wp.desktop.createSharedStore`](#cross-bundle-state--wpdesktopcreatesharedstore)
+  - [Cross-bundle state — `wp.os.createSharedStore`](#cross-bundle-state--wposcreatesharedstore)
   - [Chromeless admin-bar suppression](#chromeless-admin-bar-suppression)
   - [Running PHPUnit](#running-phpunit)
 - [Developer docs — read before, update after](#developer-docs--read-before-update-after)
@@ -36,7 +36,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 
 **`assets/js/*.js` is build output. Treat it as if it were `dist/`.**
 
-Every built JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `DESKTOP_MODE_TARGET` env var.
+Every built JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `OPEN_STATION_TARGET` env var.
 
 Two hand-written files are the exception and stay tracked in git: `assets/js/admin-bar.js` and `assets/js/media-library-enhanced.js` (see the re-includes in `.gitignore`) — edit those directly; everything else under `assets/js/` is build output.
 
@@ -56,40 +56,40 @@ If you ever find yourself reaching for `assets/js/*.js` directly, stop and write
 
 The shell wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and it wears it as **token declarations in `assets/css/variables.css` and nowhere else**. Void as the base, Obsidian for surfaces, Pulse and Nebula for identity moments, Sirius and Starlight for contrast, the Shade ramp for text hierarchy and lines.
 
-**The palette is scoped to `body.desktop-mode-active`, never `:root`.** `variables.css` is a dependency of `chromeless.css`, so it also loads inside every iframe window — a real `wp-admin` document. On `:root` the palette would repaint WordPress's own UI in there, and `--wp-admin-theme-color` alone would move Core's primary buttons, links and focus rings across every admin screen. Iframe documents carry `desktop-mode-chromeless`, match nothing, and render on the fallback literals. **An admin page in a window looks exactly as it does outside one — that is a promise, and `tests/vitest/brand-palette.test.ts` holds you to it.**
+**The palette is scoped to `body.os-active`, never `:root`.** `variables.css` is a dependency of `chromeless.css`, so it also loads inside every iframe window — a real `wp-admin` document. On `:root` the palette would repaint WordPress's own UI in there, and `--wp-admin-theme-color` alone would move Core's primary buttons, links and focus rings across every admin screen. Iframe documents carry `os-chromeless`, match nothing, and render on the fallback literals. **An admin page in a window looks exactly as it does outside one — that is a promise, and `tests/vitest/brand-palette.test.ts` holds you to it.**
 
 Three rules follow from that, and all have tests:
 
 1. **Restyling means changing a token's value in `variables.css`**, not adding a rule in a feature stylesheet. A colour declared next to the thing it paints is out of reach of the palette *and* of every desktop theme — including Legacy, the way back to the pre-brand look.
 2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what the Legacy snapshot collected. Never "tidy" a fallback away.
 
-**The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<wpd-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
+**The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<os-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
 
 ### Never declare a themeable token on a component's `:host`
 
-**In a `<wpd-*>` component, a default belongs in a `var()` fallback, never in a `--wpd-*` declaration on the bare `:host` block.**
+**In a `<os-*>` component, a default belongs in a `var()` fallback, never in a `--os-ui-*` declaration on the bare `:host` block.**
 
-A custom property declared on `:host` matches the host *element*, and a declaration matching the element always beats a value that element would otherwise *inherit*. The palette declares on `body.desktop-mode-active`; a desktop theme declares on `body.desktop-mode-desktop-theme-<slug>`. Both are ancestors. So this:
+A custom property declared on `:host` matches the host *element*, and a declaration matching the element always beats a value that element would otherwise *inherit*. The palette declares on `body.os-active`; a desktop theme declares on `body.os-desktop-theme-<slug>`. Both are ancestors. So this:
 
 ```css
-:host { --wpd-table-bg: var( --wpd-surface, #fff ); }
+:host { --os-ui-table-bg: var( --os-ui-surface, #fff ); }
 ```
 
-does not read as "default to the surface colour". It reads as *"`--wpd-table-bg` can never be set from outside this element again"* — the theme's declaration of that name is dead, and so is the palette's. `<wpd-table>`, `<wpd-modal>`, `<wpd-progress-bar>` and `<wpd-spinner>` between them pinned 22 names this way; every one is in the Legacy snapshot and none of them reached its component.
+does not read as "default to the surface colour". It reads as *"`--os-ui-table-bg` can never be set from outside this element again"* — the theme's declaration of that name is dead, and so is the palette's. `<os-table>`, `<os-modal>`, `<os-progress-bar>` and `<os-spinner>` between them pinned 22 names this way; every one is in the Legacy snapshot and none of them reached its component.
 
 Read the public token **into a private alias** instead:
 
 ```css
-:host { --_bg: var( --wpd-table-bg, var( --wpd-surface, #fff ) ); }
+:host { --_bg: var( --os-ui-table-bg, var( --os-ui-surface, #fff ) ); }
 /* …then every use site reads var( --_bg ). */
 ```
 
-With no declaration on the host to find, the `var()` resolves the inherited value — theme first, palette next, the pre-brand literal last. `<wpd-rating-summary>` is the reference implementation.
+With no declaration on the host to find, the `var()` resolves the inherited value — theme first, palette next, the pre-brand literal last. `<os-rating-summary>` is the reference implementation.
 
 Two things this does **not** apply to:
 
 - **State modifiers** (`:host( [ compact ] )`, `:host( [ tone='danger' ] )`, `:host( [ preset='inline' ] )`) keep declaring the *public* token. The alias reads it off the host, so the state still overrides the default, and a document-tree rule still outranks the state the way it always did.
-- **A component that deliberately opts out of a palette value** — `<wpd-modal>`'s dialog surface is dark whatever the admin colour scheme says, so following `--wpd-fg` would put near-black text on a near-black dialog. It still re-points `--wpd-fg` on `:host`, but through `--wpd-modal-text`, a name the palette owns. Opting out of the *value* is fine; opting out of *reachability* is not.
+- **A component that deliberately opts out of a palette value** — `<os-modal>`'s dialog surface is dark whatever the admin colour scheme says, so following `--os-ui-fg` would put near-black text on a near-black dialog. It still re-points `--os-ui-fg` on `:host`, but through `--os-ui-modal-text`, a name the palette owns. Opting out of the *value* is fine; opting out of *reachability* is not.
 
 `tests/vitest/component-token-reachability.test.ts` is the guard, with the opt-outs named in one allowlist.
 
@@ -99,14 +99,14 @@ Two things this does **not** apply to:
 
 **Changing a default does NOT mean updating Legacy.** Someone wearing it asked for the old look and is entitled to keep it; a manifest that tracked the code would silently turn the theme back into a no-op every release. Nothing generates it — not the build, not CI, not a script — and nothing should. There is deliberately no tool that can rewrite it.
 
-`Tests_DesktopMode_DesktopThemesLegacy` is the guard: it pins the token count and a set of canonical values, and fails if any value stops satisfying the manifest's value grammar — otherwise a silent drop, since a rejected token just falls back to the built-in look. If you find yourself editing the JSON, that test failing is the question "is this really what Legacy should say forever?" being asked out loud.
+`Tests_OpenStation_DesktopThemesLegacy` is the guard: it pins the token count and a set of canonical values, and fails if any value stops satisfying the manifest's value grammar — otherwise a silent drop, since a rejected token just falls back to the built-in look. If you find yourself editing the JSON, that test failing is the question "is this really what Legacy should say forever?" being asked out loud.
 
-### Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`
+### Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`
 
 **Every HTTP call from the shell must route through the framework helper** so the request feeds the active window's loading spinner + the activity bus. Two equivalent entry points:
 
-- **In-bundle** (any `src/**/*.ts` that ends up in any built bundle): `import { trackedFetch } from '<…>/tracked-fetch'`. The helper finds `wp.desktop.fetch` at runtime.
-- **Plugin-side / external scripts**: `await window.wp.desktop.fetch( url, init, { source: 'my-plugin/foo' } )`.
+- **In-bundle** (any `src/**/*.ts` that ends up in any built bundle): `import { trackedFetch } from '<…>/tracked-fetch'`. The helper finds `wp.os.fetch` at runtime.
+- **Plugin-side / external scripts**: `await window.wp.os.fetch( url, init, { source: 'my-plugin/foo' } )`.
 
 Shape:
 
@@ -122,18 +122,18 @@ Pass `windowId` to attribute the request to a specific native window (so its spi
 
 ESLint enforces this — raw `fetch( … )` and `window.fetch( … )` calls fail lint with the message pointing at this helper. The only legitimate exceptions are documented inline with `// eslint-disable-next-line no-restricted-syntax -- <reason>`:
 
-- The `trackedFetch` wrapper itself (the boot-time fallback before `wp.desktop` exists).
-- The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.desktop` global).
+- The `trackedFetch` wrapper itself (the boot-time fallback before `wp.os` exists).
+- The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.os` global).
 - Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/recycle-bin/badge.ts`).
 
-### Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`
+### Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`
 
-The framework ships a `<wpd-confirm-dialog>` component and a Promise-returning wrapper:
+The framework ships a `<os-confirm-dialog>` component and a Promise-returning wrapper:
 
 ```ts
-import { wpdConfirm } from '<…>/ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from '<…>/ui/components/os-confirm-dialog/os-confirm-dialog';
 
-if ( await wpdConfirm( {
+if ( await osConfirm( {
     title: 'Delete forever?',
     message: 'Cannot be undone.',
     confirmLabel: 'Delete',
@@ -143,19 +143,19 @@ if ( await wpdConfirm( {
 }
 ```
 
-External bundles call `window.wp.desktop.confirm(...)` (same shape). ESLint rejects `window.confirm`, `window.alert`, `window.prompt` — see the rule message for the suggested replacement (a toast, a `<wpd-confirm-dialog>`, or a custom modal built with `<wpd-text-field>`).
+External bundles call `window.wp.os.confirm(...)` (same shape). ESLint rejects `window.confirm`, `window.alert`, `window.prompt` — see the rule message for the suggested replacement (a toast, a `<os-confirm-dialog>`, or a custom modal built with `<os-text-field>`).
 
-### Use `wpd-*` components, not raw HTML controls
+### Use `os-*` components, not raw HTML controls
 
-**Default to the `<wpd-*>` web component for any UI element that has one.** They live in `src/ui/components/<name>/` and are tag-listed in `src/ui/components/index.ts`, that file is the index of what already exists. Pick from there before reaching for raw `<button>`, `<input>`, `<select>`, dialogs, menus, toasts, etc. The components carry the framework's keyboard-nav, focus-management, theming-token, and accessibility plumbing for free; raw HTML doesn't.
+**Default to the `<os-*>` web component for any UI element that has one.** They live in `src/ui/components/<name>/` and are tag-listed in `src/ui/components/index.ts`, that file is the index of what already exists. Pick from there before reaching for raw `<button>`, `<input>`, `<select>`, dialogs, menus, toasts, etc. The components carry the framework's keyboard-nav, focus-management, theming-token, and accessibility plumbing for free; raw HTML doesn't.
 
 Concrete checklist when adding UI:
 
 1. Look at `src/ui/components/index.ts`. If the component you need is there, use it.
-2. If it isn't but the shape is generic (a kind of dialog, picker, menu, status indicator that any future feature could reuse), **build it as a new `<wpd-*>` component**, folder under `src/ui/components/<name>/` with `<name>.ts` (Web Component class), `<name>.styles.ts` (shadow-DOM CSS), and `<name>.test.ts`. Register it in `src/ui/components/index.ts`. Document it via the `static help` block on the class (universal convention across the kit).
+2. If it isn't but the shape is generic (a kind of dialog, picker, menu, status indicator that any future feature could reuse), **build it as a new `<os-*>` component**, folder under `src/ui/components/<name>/` with `<name>.ts` (Web Component class), `<name>.styles.ts` (shadow-DOM CSS), and `<name>.test.ts`. Register it in `src/ui/components/index.ts`. Document it via the `static help` block on the class (universal convention across the kit).
 3. Only fall back to bespoke DOM construction when the surface is feature-specific (a tile renderer that knows about placement metadata, a menu-flyout positioning rig).
 
-The `<wpd-context-menu>` / `<wpd-context-menu-option>` and `<wpd-confirm-dialog>` pair are good examples, they replaced ~200 LOC of duplicated DOM construction across the wallpaper menu, the tile context menu, the create-folder dialog, and the recycle-bin/posts-window confirm prompts.
+The `<os-context-menu>` / `<os-context-menu-option>` and `<os-confirm-dialog>` pair are good examples, they replaced ~200 LOC of duplicated DOM construction across the wallpaper menu, the tile context menu, the create-folder dialog, and the recycle-bin/posts-window confirm prompts.
 
 ### No version-history annotations in docs or comments
 
@@ -203,9 +203,9 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 
 ### Live-refresh on plugin install/activate — how it actually works
 
-When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `desktop-mode-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
+When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `os-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
 
-Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
+Payload shape (`open_station_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
 
 ```
 { dockItems, nativeWindows, serverWidgets, serverWallpapers,
@@ -222,15 +222,15 @@ Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php
 ```
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
-- For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.desktopModeWallpapers[id]` / `window.desktopModeWidgets[id]`). The sync reads the def and registers it.
-- **Commands** use the same pattern via `desktop_mode_register_command_script( $handle )` (primary, minimum-ceremony) or `desktop_mode_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate, graceful backwards-compat.
-- **OS Settings tabs** use the same pattern via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40; help is admin-only and labelled "Components" in the UI, About is pinned last via `order: Number.MAX_SAFE_INTEGER`, and Features hosts the admin-only Extended options section) are interleaved with the registry in `src/settings/panel.ts` `renderOsSettingsPanel()` (lazy-loaded by the `renderPanel()` stub in `src/settings/index.ts`) and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
-- **AI Copilot extensibility** lives on a different axis from the live-refresh payloads, it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus the WordPress Abilities API. Two distinct registration surfaces. **Server-dispatched tools are abilities** (`includes/ai-copilot/abilities.php`): register with `wp_register_ability()` on `wp_abilities_api_init`, under the `desktop-mode` category registered on `wp_abilities_api_categories_init`. The loop offers the model every registered ability whose `meta.annotations.readonly` is set and runs the chosen one through `wp_get_ability()->execute()`, which is where `permission_callback` and input-schema validation happen. There's no Desktop-Mode-specific opt-in: register a read-only ability (yours, Core's, another plugin's) and the assistant can call it. Read-only is a **security boundary, not an oversight**: a search turn can be driven by attacker-controlled content (comment or post text landing in a tool result), so the model is never handed an ability that could change the site. Model-facing tool names are the ability name minus its namespace with dashes as underscores (`desktop-mode/search-posts` → `search_posts`, see `desktop_mode_ai_ability_tool_name()`), which keeps the system prompt, answer schema, and progress labels stable across the migration. The second surface is client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error}`, every call carries a shared `request_id` UUID for trace correlation. `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action were removed in 0.9.4, see `docs/migration-ai-connectors.md`. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side, the server only emits a slug+args intent; the client invokes.
-- **Games** (`desktop_mode_register_game( $id, $args )`) use the metadata + `scriptUrl` pattern with one deliberate deviation: `src/games/server-sync.ts` registers metadata-only **stubs** on sync (no script load — the metadata is enough for the Games launcher grid + scoreboard tabs) and `launchGame()` in `src/games/launch.ts` fetches the script on first play, reading the full def off `window.desktopModeGames[id]`. Games are heavyweight (game bundle + PixiJS + a dictionary asset); eager loading would tax every boot for nothing.
-- **Desktop themes** (`desktop_mode_register_desktop_theme()`, plus admin-uploaded ZIPs) ship metadata + a compiled stylesheet reference and carry **no script at all**, which makes `src/desktop-themes/server-sync.ts` the one synchronous reconciler in the family. Losing the ACTIVE theme from the payload deactivates it locally without saving — the server already treats an orphaned selection as the system default on every request.
-- **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `desktop_mode_register_palette_script( $handle )` + payload key + clone the sync module.
+- For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.openStationWallpapers[id]` / `window.openStationWidgets[id]`). The sync reads the def and registers it.
+- **Commands** use the same pattern via `open_station_register_command_script( $handle )` (primary, minimum-ceremony) or `open_station_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate, graceful backwards-compat.
+- **OS Settings tabs** use the same pattern via `open_station_register_settings_tab_script( $handle )` (primary) or `open_station_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40; help is admin-only and labelled "Components" in the UI, About is pinned last via `order: Number.MAX_SAFE_INTEGER`, and Features hosts the admin-only Extended options section) are interleaved with the registry in `src/settings/panel.ts` `renderOsSettingsPanel()` (lazy-loaded by the `renderPanel()` stub in `src/settings/index.ts`) and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
+- **AI Copilot extensibility** lives on a different axis from the live-refresh payloads, it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus the WordPress Abilities API. Two distinct registration surfaces. **Server-dispatched tools are abilities** (`includes/ai-copilot/abilities.php`): register with `wp_register_ability()` on `wp_abilities_api_init`, under the `openstation` category registered on `wp_abilities_api_categories_init`. The loop offers the model every registered ability whose `meta.annotations.readonly` is set and runs the chosen one through `wp_get_ability()->execute()`, which is where `permission_callback` and input-schema validation happen. There's no Desktop-Mode-specific opt-in: register a read-only ability (yours, Core's, another plugin's) and the assistant can call it. Read-only is a **security boundary, not an oversight**: a search turn can be driven by attacker-controlled content (comment or post text landing in a tool result), so the model is never handed an ability that could change the site. Model-facing tool names are the ability name minus its namespace with dashes as underscores (`desktop-mode/search-posts` → `search_posts`, see `open_station_ai_ability_tool_name()`), which keeps the system prompt, answer schema, and progress labels stable across the migration. The second surface is client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `open_station_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `open_station_ai_{search_started,tool_called,search_completed,search_error}`, every call carries a shared `request_id` UUID for trace correlation. `open_station_register_ai_tool()` and the `open_station_ai_tool_registered` action were removed in 0.9.4, see `docs/migration-ai-connectors.md`. `wp.os.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side, the server only emits a slug+args intent; the client invokes.
+- **Games** (`open_station_register_game( $id, $args )`) use the metadata + `scriptUrl` pattern with one deliberate deviation: `src/games/server-sync.ts` registers metadata-only **stubs** on sync (no script load — the metadata is enough for the Games launcher grid + scoreboard tabs) and `launchGame()` in `src/games/launch.ts` fetches the script on first play, reading the full def off `window.openStationGames[id]`. Games are heavyweight (game bundle + PixiJS + a dictionary asset); eager loading would tax every boot for nothing.
+- **Desktop themes** (`open_station_register_desktop_theme()`, plus admin-uploaded ZIPs) ship metadata + a compiled stylesheet reference and carry **no script at all**, which makes `src/desktop-themes/server-sync.ts` the one synchronous reconciler in the family. Losing the ACTIVE theme from the payload deactivates it locally without saving — the server already treats an orphaned selection as the system default on every request.
+- **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `open_station_register_palette_script( $handle )` + payload key + clone the sync module.
 
-**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `createApplyPayload()` in `src/menu-refresh-apply.ts`. Don't invent a different mechanism.
+**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`open_station_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `createApplyPayload()` in `src/menu-refresh-apply.ts`. Don't invent a different mechanism.
 
 ### Event-driven framework
 
@@ -239,8 +239,8 @@ The framework is a **transport + state provider**, not a UX policy maker. Apps s
 Three layers:
 
 1. **State queries.** `windowManager.getById/isActive`, `presence.getStatus`, `createSharedStore`.
-2. **Window lifecycle events.** Document CustomEvents (`desktop-mode-window-*`) AND hook actions (`HOOKS.WINDOW_*`) for every transition: opened, reopened, focused, blurred, minimized, restored, maximized, unmaximized, fullscreen-entered/exited, closing, closed. Per-window facade: `wp.desktop.onWindow(id, handlers)`.
-3. **Activity channels.** `wp.desktop.activity.publish/subscribe/filter` with channel naming `<plugin>/<event>`, peer-to-peer state-change broadcasts on the hook bus.
+2. **Window lifecycle events.** Document CustomEvents (`os-window-*`) AND hook actions (`HOOKS.WINDOW_*`) for every transition: opened, reopened, focused, blurred, minimized, restored, maximized, unmaximized, fullscreen-entered/exited, closing, closed. Per-window facade: `wp.os.onWindow(id, handlers)`.
+3. **Activity channels.** `wp.os.activity.publish/subscribe/filter` with channel naming `<plugin>/<event>`, peer-to-peer state-change broadcasts on the hook bus.
 
 When you're tempted to add a heuristic inside the framework, "do X automatically when Y", stop and turn it into a hook the app can subscribe to. App owns the policy.
 
@@ -248,15 +248,15 @@ Canonical example in-tree: `src/recycle-bin/badge.ts`. Full doc: `docs/event-dri
 
 ### Presence — framework-level
 
-Presence tracking (`online | inactive | offline`) lives in `includes/presence.php` and `src/presence/index.ts`. Any plugin can read `wp.desktop.presence.*` or `desktop_mode_presence_*()` without depending on a particular feature plugin being installed (chat, collaboration, …).
+Presence tracking (`online | inactive | offline`) lives in `includes/presence.php` and `src/presence/index.ts`. Any plugin can read `wp.os.presence.*` or `open_station_presence_*()` without depending on a particular feature plugin being installed (chat, collaboration, …).
 
-Storage: `_desktop_mode_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `desktop_mode_presence_active: true` + `desktop_mode_user_active: <bool>` on every tick and ingests the snapshot from the response.
+Storage: `_desktop_mode_presence` option (autoload=false). The WordPress Heartbeat handler in `includes/presence.php` records bumps at priority 5; the framework client (`src/presence/index.ts`) sends `open_station_presence_active: true` + `open_station_user_active: <bool>` on every tick and ingests the snapshot from the response.
 
-Public surface, see `docs/javascript-reference.md` (`wp.desktop.presence`), `docs/hooks-reference.md` (filters / actions), and `docs/examples/presence.md` (recipe). Plugins with a faster delivery channel (an SSE stream, a WebSocket) can push updates straight into the framework store via `wp.desktop.presence.applyBatch()`.
+Public surface, see `docs/javascript-reference.md` (`wp.os.presence`), `docs/hooks-reference.md` (filters / actions), and `docs/examples/presence.md` (recipe). Plugins with a faster delivery channel (an SSE stream, a WebSocket) can push updates straight into the framework store via `wp.os.presence.applyBatch()`.
 
-### Cross-bundle state — `wp.desktop.createSharedStore`
+### Cross-bundle state — `wp.os.createSharedStore`
 
-Each Desktop Mode feature compiles to its own Vite IIFE bundle (one per `build:*` script in `package.json`, plus any third-party plugin bundles). Module-level state (a top-level `const state = ...` or `class Foo { …singleton… }`) defined in one bundle is **invisible** to another bundle even when both `import './state'` from the same source, each bundle has its own compiled copy. Mutations don't propagate; subscribers don't fire.
+Each OpenStation feature compiles to its own Vite IIFE bundle (one per `build:*` script in `package.json`, plus any third-party plugin bundles). Module-level state (a top-level `const state = ...` or `class Foo { …singleton… }`) defined in one bundle is **invisible** to another bundle even when both `import './state'` from the same source, each bundle has its own compiled copy. Mutations don't propagate; subscribers don't fire.
 
 **This was the bug that ate days of debugging on a multi-bundle feature.** Symptom: an always-on shell bundle called a setter that mutated module-level state; a lazy window-bundle read the same state, found the initial value, and rendered the placeholder, because the two bundles each had their own copy of the state module. The fix that's now standard:
 
@@ -268,7 +268,7 @@ const store = createSharedStore< MyState >( 'my-plugin/state', () => initial() )
 // createSharedStore with the same key.
 ```
 
-The primitive is also exposed on the public API as `wp.desktop.createSharedStore`. See [`docs/javascript-reference.md`](docs/javascript-reference.md) and [`docs/examples/shared-store.md`](docs/examples/shared-store.md).
+The primitive is also exposed on the public API as `wp.os.createSharedStore`. See [`docs/javascript-reference.md`](docs/javascript-reference.md) and [`docs/examples/shared-store.md`](docs/examples/shared-store.md).
 
 **When you ARE writing module-level state in a feature with multiple bundles, route it through `createSharedStore`.** This is non-negotiable.
 
@@ -285,7 +285,7 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 ```bash
 npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if needed
 npm run test:php          # full suite
-npm run test:php -- --filter='Tests_DesktopMode_Render'   # one class
+npm run test:php -- --filter='Tests_OpenStation_Render'   # one class
 ```
 
 `npm run env:start` is for the manual-QA instance only; it no longer brings up test containers.
@@ -312,15 +312,15 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/architecture.md` | A new rendering path, persistence layer, REST route, or payload shape lands; build tooling shifts. |
 | `docs/api-index.md` | Any public API surface changes (PHP, JS, or events). |
 | `docs/hooks-reference.md` | Any `apply_filters()` / `do_action()` change: add, rename, remove, signature, default, or status. **The PHP hook contract.** |
-| `docs/javascript-reference.md` | Any CustomEvent shape, postMessage bridge message, `wp.desktop.*` method/property, user meta key, or query flag changes. **The JS contract.** |
+| `docs/javascript-reference.md` | Any CustomEvent shape, postMessage bridge message, `wp.os.*` method/property, user meta key, or query flag changes. **The JS contract.** |
 | `docs/bridge-protocol.md` | The postMessage bridge protocol, lifecycle steps, or internal sniff points change. |
 | `docs/native-windows-proposal.md` | The native-window API, tab system, or framework integration story changes. |
 | `docs/event-driven-framework.md` | The event-bus model, activity channels, or window lifecycle events change. |
-| `docs/pwa.md` | Caching policy, manifest emission, SW scope/registration, or `wp.desktop.notify` / `pwa.*` surface changes. |
+| `docs/pwa.md` | Caching policy, manifest emission, SW scope/registration, or `wp.os.notify` / `pwa.*` surface changes. |
 | `docs/plugin-compat-layer.md` | A chromeless-CSS shim, offset neutralizer, or dock-builder adaptation for a third-party plugin shape is added/changed. |
 | `docs/dock-customization.md` | Dock rendering, ordering, or decoration hooks change. |
-| `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`desktop_mode_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
-| `docs/mio.md` | Mio's simulation, appearance/physics config keys, layer stacking, or `wp.desktop.mio` surface changes. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mio/soft-body.ts`.** |
+| `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`open_station_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
+| `docs/mio.md` | Mio's simulation, appearance/physics config keys, layer stacking, or `wp.os.mio` surface changes. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mio/soft-body.ts`.** |
 | `docs/files-on-desktop.md` | Desktop file/folder behavior, tile metadata, or placement changes. |
 | `docs/folder-sharing.md` | Folder-sharing API, ACL model, or REST routes change. |
 | `docs/migration-*.md` | A breaking change ships, write a migration note here in the same PR. |

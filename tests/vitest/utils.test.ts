@@ -38,10 +38,10 @@ describe( 'utils/deriveWindowId', () => {
 		).toBe( 'edit-php-post_type-product' );
 	} );
 
-	test( 'strips transient query args (desktop_mode_chromeless, _wpnonce, paged, message)', () => {
+	test( 'strips transient query args (open_station_chromeless, _wpnonce, paged, message)', () => {
 		const clean = deriveWindowId( `${ ADMIN }edit.php`, ADMIN );
 		const noisy = deriveWindowId(
-			`${ ADMIN }edit.php?desktop_mode_chromeless=1&_wpnonce=abc&paged=3&message=1`,
+			`${ ADMIN }edit.php?open_station_chromeless=1&_wpnonce=abc&paged=3&message=1`,
 			ADMIN,
 		);
 		expect( noisy ).toBe( clean );
@@ -169,10 +169,10 @@ describe( 'utils/sanitizeClassName', () => {
 } );
 
 describe( 'utils/urlMatchKey', () => {
-	test( 'equates admin URLs that differ only in the desktop_mode_chromeless flag', () => {
+	test( 'equates admin URLs that differ only in the open_station_chromeless flag', () => {
 		const plain = urlMatchKey( `${ ADMIN }edit.php?post_type=post` );
 		const chromeless = urlMatchKey(
-			`${ ADMIN }edit.php?post_type=post&desktop_mode_chromeless=1`,
+			`${ ADMIN }edit.php?post_type=post&open_station_chromeless=1`,
 		);
 		expect( plain ).toBe( chromeless );
 	} );

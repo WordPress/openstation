@@ -69,13 +69,13 @@ happens to be placed. That's true in both directions:
   own folders, between their containers). Owner is untouched.
   Recipient keeps write capability if granted; the folder's
   contents stay visible because every read goes through
-  `desktop_mode_folder_share_user_capability( folder_id, viewer )`
+  `open_station_folder_share_user_capability( folder_id, viewer )`
   — never through "what's the placement path."
 - **Recipient's placement starts at desktop root.** Regardless of
   where the owner has the folder placed (root, deep inside a
   parent the recipient cannot see, …), `share_accept` plants the
   recipient's tile at `parent_id = 0`. The
-  `desktop_mode_folder_share_accept_default_parent` filter lets a
+  `open_station_folder_share_accept_default_parent` filter lets a
   future "Shared with me" tray plugin override.
 - **Cascade still works through moves.** Sub-folders inherit
   access via the canonical (owner-side) ancestor chain. Moving a
@@ -99,7 +99,7 @@ the placement rows, the heartbeat's folder upsert reaches every
 client but the placement upsert query skips them — leaving tiles
 showing the old name until F5.
 
-Plugins can react via `do_action( 'desktop_mode_folder_renamed',
+Plugins can react via `do_action( 'open_station_folder_renamed',
 $folder_id, $new_name, $old_name, $user_id )`.
 
 ## Folder delete cascade
@@ -123,17 +123,17 @@ cleaned up in one transaction:
 
 Plugins can subscribe to:
 
-- `apply_filters( 'desktop_mode_files_can_delete_folder', $can,
+- `apply_filters( 'open_station_files_can_delete_folder', $can,
   $folder_id, $user_id, $row )` — return `false` or a
   `WP_Error` to veto the cascade (e.g. for a UX confirmation
   prompt when many recipients are involved).
-- `do_action( 'desktop_mode_files_before_delete_folder',
+- `do_action( 'open_station_files_before_delete_folder',
   $folder_id, $user_id, $row )` — runs once before the walk.
-- `do_action( 'desktop_mode_files_share_revoked', $share_id, $row,
+- `do_action( 'open_station_files_share_revoked', $share_id, $row,
   $user_id )` — fires per share row torn down by the cascade
   (same signature plugin authors already use for explicit
   revokes).
-- `do_action( 'desktop_mode_files_after_delete_folder_cascade',
+- `do_action( 'open_station_files_after_delete_folder_cascade',
   $root_folder_id, $user_id, $summary )` — single summary event
   with lists keyed by `folders_deleted`, `shares_revoked`,
   `placements_pointing`, `placements_inside`.
@@ -181,7 +181,7 @@ CREATE TABLE wp_desktop_mode_share_user_decisions (
 );
 ```
 
-Resolution rule, expressed as `desktop_mode_files_share_user_state()`:
+Resolution rule, expressed as `open_station_files_share_user_state()`:
 
 - `principal_type='user'` → state from the shares row.
 - `principal_type='role'` → state from the decisions row for
@@ -198,11 +198,11 @@ The column ships from day one so a future plugin can register a
 NEW shareable target without a schema migration:
 
 ```php
-add_filter( 'desktop_mode_files_shareable_types', function ( $types ) {
+add_filter( 'open_station_files_shareable_types', function ( $types ) {
     $types[] = 'post';
     return $types;
 } );
-add_filter( 'desktop_mode_files_share_target_owner', function ( $owner, $type, $ref ) {
+add_filter( 'open_station_files_share_target_owner', function ( $owner, $type, $ref ) {
     if ( 'post' === $type ) {
         return (int) get_post_field( 'post_author', (int) $ref );
     }
@@ -217,7 +217,7 @@ functions.
 
 ## Visibility resolution
 
-`desktop_mode_files_compute_visible_folders( $owned, $user_id )`
+`open_station_files_compute_visible_folders( $owned, $user_id )`
 returns the union of:
 
 1. **Owned folders** (`$owned` is the seed — owner-side).
@@ -229,14 +229,14 @@ returns the union of:
 consulted for visibility (a legacy fallback was deliberately
 dropped because it re-granted access to revoked recipients).
 
-Filtered via `desktop_mode_files_visible_folders` (priority 5) and
-`desktop_mode_files_user_can_see_folder` (per-row decision).
+Filtered via `open_station_files_visible_folders` (priority 5) and
+`open_station_files_user_can_see_folder` (per-row decision).
 
 ## Write enforcement
 
-`desktop_mode_files_move()`, `_place()`, and the
-`desktop_mode_files_user_can_trash_placement` gate consult
-`desktop_mode_folder_share_user_capability( $folder_id, $user_id )`:
+`open_station_files_move()`, `_place()`, and the
+`open_station_files_user_can_trash_placement` gate consult
+`open_station_folder_share_user_capability( $folder_id, $user_id )`:
 
 - Owner always returns `'write'`.
 - `share_mode='all'` returns `'read'` by default (filterable).
@@ -248,7 +248,7 @@ A non-write recipient that tries to move an icon into or out of
 the shared folder, or trash an icon inside it, gets a 403:
 
 ```
-WP_Error( 'desktop_mode_files_no_write_in_shared_folder', ... )
+WP_Error( 'open_station_files_no_write_in_shared_folder', ... )
 ```
 
 ## Conflict detection (If-Match)
@@ -260,7 +260,7 @@ the server returns 409 with a structured body:
 
 ```json
 {
-    "code": "desktop_mode_files_conflict",
+    "code": "open_station_files_conflict",
     "message": "...",
     "data": {
         "status": 409,
@@ -287,17 +287,17 @@ The JS client throws `FilesConflictError` and the layer surfaces a
 toast: *"Alice moved this to 'Backlog' just now. [View folder]"*.
 
 Clients that omit the header retain last-write-wins semantics for
-back-compat. The desktop-mode shell always sends the header.
+back-compat. The OpenStation shell always sends the header.
 
 ## Opt-in flow
 
 1. Owner invites — share row written with `state='pending'`.
 2. Recipient's next heartbeat tick carries the invite in
-   `desktop_mode_files.shares.pending[]`.
+   `open_station_files.shares.pending[]`.
 3. The shell shows an Accept / Deny / Later modal on first sight.
 4. Accept → row becomes `state='accepted'`, server places the
    folder at the recipient's desktop root via
-   `desktop_mode_folder_share_accept_default_parent` filter.
+   `open_station_folder_share_accept_default_parent` filter.
 5. Deny → row becomes `state='denied'`; the shell adds the folder
    to a per-session denied set so the prompt does not re-fire.
 6. Later → row stays `pending`; the shell remembers it was
@@ -322,7 +322,7 @@ inside the folder, which belong to the shared namespace, are
 untouched).
 
 Owners cannot leave their own folder (the endpoint returns 400
-with `desktop_mode_files_owner_cannot_leave`).
+with `open_station_files_owner_cannot_leave`).
 
 ## REST routes
 
@@ -340,12 +340,12 @@ GET    /desktop-mode/v1/files/users/search?q=&exclude=
 POST   /desktop-mode/v1/files/folder-sharing-tables/purge   ← `manage_options` only
 ```
 
-All require `desktop_mode_is_enabled` + logged-in. Every share
+All require `open_station_is_enabled` + logged-in. Every share
 route (including `/leave`) additionally requires the viewer's
 folder-sharing OS Setting to be on; when it is off the routes
 answer 404 (indistinguishable from the feature not being
 installed). Share-management mutations (POST/PATCH/DELETE on
-`/shares`) are gated by `desktop_mode_files_share_can_manage`
+`/shares`) are gated by `open_station_files_share_can_manage`
 (owner-only by default). `/leave` is open to any logged-in user
 who is currently a recipient of the folder. `/users/search`
 requires `edit_posts`. The table-purge route is a destructive
@@ -362,7 +362,7 @@ To react to share changes today, subscribe to the shares store —
 a `createSharedStore( 'desktop-files/shares' )` slot updated by
 the heartbeat ingest.
 
-**Planned** — `wp.desktop.activity` channels for the share
+**Planned** — `wp.os.activity` channels for the share
 lifecycle are not yet published:
 
 - `desktop-mode/folder-share-invited`
@@ -397,7 +397,7 @@ openShareSettingsModal( { folderId, folderName } );
 A recipient cannot re-share a folder they've received:
 
 - **Server** — every share mutation calls
-  `desktop_mode_files_share_can_manage`. Default decision is
+  `open_station_files_share_can_manage`. Default decision is
   owner-only. Plugins that ship a "team admin" concept can
   broaden it; non-owners always get a 403 otherwise.
 - **Client** — the title-bar Share button's `match` predicate
@@ -422,20 +422,20 @@ shares:
 - Uploads are additionally **owner-locked** everywhere: even a
   folder write-collaborator cannot move, rename, or trash an
   `upload` placement inside a shared folder — only the stored file's
-  owner can (`desktop_mode_files_upload_owner_locked`). The
+  owner can (`open_station_files_upload_owner_locked`). The
   read/write tiers of THIS page are unchanged for every other type.
 
 Lifecycle mirrors folders: invite → heartbeat delivers the pending
 shape (`targetType: 'file'`, `fileId`, `fileName` riding the same
 `shares.pending` channel) → accept plants an `upload` placement at
-the recipient's desktop root (`desktop_mode_folder_share_accept_default_parent`
+the recipient's desktop root (`open_station_folder_share_accept_default_parent`
 filter applies) → deny / leave / revoke scrub the recipient's tile.
 Routes live under `/desktop-mode/v1/files/uploads/{id}/shares` and
 mirror the folder routes below, including the 404-when-disabled
 masking. Store functions:
-`desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`,
-state resolver `desktop_mode_stored_file_share_state()`, manage gate
-`desktop_mode_stored_files_share_can_manage` (owner-only default,
+`open_station_stored_file_share_{invite,accept,deny,leave,revoke}()`,
+state resolver `open_station_stored_file_share_state()`, manage gate
+`open_station_stored_files_share_can_manage` (owner-only default,
 filterable).
 
 ## Non-goals (v1)

@@ -1,10 +1,10 @@
 /**
- * Focus Timer — a thin, typed accessor over the slice of Desktop Mode's
+ * Focus Timer — a thin, typed accessor over the slice of OpenStation's
  * public runtime API this widget uses: the window manager, to list open
  * windows for the "link a window" picker and to shake the linked one
  * when time is up.
  *
- * A widget bundle talks to the shell through the `window.wp.desktop`
+ * A widget bundle talks to the shell through the `window.wp.os`
  * runtime global rather than importing the shell's singletons directly,
  * so it stays decoupled from build-time internals.
  */
@@ -29,8 +29,8 @@ interface DesktopApi {
 }
 
 function desktopApi(): DesktopApi | undefined {
-	return ( window as unknown as { wp?: { desktop?: DesktopApi } } ).wp
-		?.desktop;
+	return ( window as unknown as { wp?: { os?: DesktopApi } } ).wp
+		?.os;
 }
 
 /** All open windows, in the window manager's own order. */

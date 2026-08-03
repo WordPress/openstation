@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Sharing entry points + visual cues.
+ * OpenStation — Sharing entry points + visual cues.
  *
  * Three wire-ups, all reusing the framework hook surface so a
  * future plugin can override them:
@@ -21,12 +21,12 @@ import { openShareSettingsModal } from './share-settings-modal';
 import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import type { RestPlacementShape } from './rest';
 import type { TileMenuItem } from './tile-menu';
 
 function viewerId(): number {
-	return Number( window.desktopModeConfig?.currentUserId ?? 0 );
+	return Number( window.openStationConfig?.currentUserId ?? 0 );
 }
 
 /**
@@ -41,8 +41,8 @@ function viewerId(): number {
  */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}
@@ -58,7 +58,7 @@ function folderIdFromBaseId( baseId: string | undefined | null ): number | null 
 	if ( typeof baseId !== 'string' ) {
 		return null;
 	}
-	const m = /^desktop-mode-folder-(\d+)$/.exec( baseId );
+	const m = /^os-folder-(\d+)$/.exec( baseId );
 	return m ? Number( m[ 1 ] ) : null;
 }
 
@@ -82,7 +82,7 @@ function placementOwnerId( placement: RestPlacementShape ): number {
  */
 export function installShareMenuItems(): void {
 	addFilter(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		'desktop-mode/folder-share',
 		(
 			items: TileMenuItem[],
@@ -97,7 +97,7 @@ export function installShareMenuItems(): void {
 			}
 			// Resolve ownership through the canonical folder row
 			// in the shared store (the placement.file shape doesn't
-			// always carry ownerId — depends on Desktop_Mode_Folder_File
+			// always carry ownerId — depends on Open_Station_Folder_File
 			// serialize()). Falls back to placement-side hint.
 			const ownerId =
 				folderOwnerId( folderId ) || placementOwnerId( placement );
@@ -128,7 +128,7 @@ export function installShareMenuItems(): void {
 					sort: 80,
 					danger: true,
 					onClick: async () => {
-						const ok = await wpdConfirm( {
+						const ok = await osConfirm( {
 							title: 'Leave this folder?',
 							message:
 								'The folder will be removed from your desktop. The original and its contents are not deleted; the owner keeps them.',
@@ -158,16 +158,16 @@ export function installShareMenuItems(): void {
 							// Also close any open folder window for
 							// this folder — the user just left it,
 							// no point keeping it open.
-							const winId = `desktop-mode-folder-${ folderId }`;
+							const winId = `os-folder-${ folderId }`;
 							const mgr = (
 								window as unknown as {
-									desktopMode?: {
+									openStation?: {
 										windowManager?: {
 											close?: ( id: string ) => void;
 										};
 									};
 								}
-							).desktopMode?.windowManager;
+							).openStation?.windowManager;
 							mgr?.close?.( winId );
 							showToast( { message: 'You left the shared folder.' } );
 						} catch ( err ) {
@@ -224,7 +224,7 @@ export function installShareMenuItems(): void {
 	// Overlay badge on shared folder tiles. The action fires for
 	// every tile render; we early-out when not a shared folder.
 	addAction(
-		'desktop-mode.files.tile-rendered',
+		'os.files.tile-rendered',
 		'desktop-mode/folder-share',
 		( payload: unknown ) => {
 			const { tile, placement } = payload as {
@@ -239,11 +239,11 @@ export function installShareMenuItems(): void {
 			if ( ! summary?.shared ) {
 				return;
 			}
-			if ( tile.querySelector( '.desktop-mode-file-tile__share-badge' ) ) {
+			if ( tile.querySelector( '.os-file-tile__share-badge' ) ) {
 				return;
 			}
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-file-tile__share-badge dashicons dashicons-share';
+			badge.className = 'os-file-tile__share-badge dashicons dashicons-share';
 			badge.setAttribute( 'aria-label', 'Shared folder' );
 			badge.title = 'Shared folder';
 			badge.style.cssText = [

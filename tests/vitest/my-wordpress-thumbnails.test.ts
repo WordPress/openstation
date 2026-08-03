@@ -5,7 +5,7 @@
  *
  * Drives the real render callback with a stubbed REST response so the
  * assertion covers the whole path: `_embed=wp:featuredmedia` payload →
- * `getThumbnail()` → `buildIconTile()` → `<wpd-tile>`.
+ * `getThumbnail()` → `buildIconTile()` → `<os-tile>`.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -14,11 +14,11 @@ const WINDOW_ID = 'desktop-mode-my-wordpress';
 const THUMB = 'http://example.test/uploads/shoe-300x300.jpg';
 
 interface NativeWindowsGlobal {
-	desktopModeNativeWindows?: Record<
+	openStationNativeWindows?: Record<
 		string,
 		( ( body: HTMLElement ) => void | ( () => void ) ) | undefined
 	>;
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationWindowConfig?: Record< string, unknown >;
 }
 
 function entityRow( id: number, withImage: boolean ) {
@@ -47,12 +47,12 @@ function entityRow( id: number, withImage: boolean ) {
 
 function installTemplateMarkup( host: HTMLElement ): void {
 	host.innerHTML = `
-		<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-			<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-			<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-				<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+		<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+			<header data-os-my-wordpress-breadcrumbs></header>
+			<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+				<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 			</div>
-			<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+			<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 		</div>
 	`;
 }
@@ -87,12 +87,12 @@ function config( thumbnails: boolean | undefined ) {
 /** Mount the window and drill into the Products section. */
 async function openSection(): Promise< HTMLElement > {
 	const cb = ( window as unknown as NativeWindowsGlobal )
-		.desktopModeNativeWindows?.[ WINDOW_ID ];
+		.openStationNativeWindows?.[ WINDOW_ID ];
 	if ( typeof cb !== 'function' ) {
 		throw new Error( 'render callback not registered' );
 	}
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-window__body';
+	body.className = 'os-window__body';
 	installTemplateMarkup( body );
 	document.body.appendChild( body );
 	cb( body );
@@ -146,7 +146,7 @@ describe( 'my-wordpress — featured-image tiles', () => {
 	} );
 
 	test( 'an entry with a featured image renders it in place of the icon', async () => {
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig =
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig =
 			config( undefined );
 
 		const body = await openSection();
@@ -154,13 +154,13 @@ describe( 'my-wordpress — featured-image tiles', () => {
 
 		expect( withImage?.getAttribute( 'thumbnail' ) ).toBe( THUMB );
 		const img = withImage?.querySelector< HTMLImageElement >(
-			'.desktop-mode-file-tile__preview',
+			'.os-file-tile__preview',
 		);
 		expect( img?.getAttribute( 'src' ) ).toBe( THUMB );
 	} );
 
 	test( 'an entry without one falls back to the section icon', async () => {
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig =
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig =
 			config( undefined );
 
 		const body = await openSection();
@@ -168,12 +168,12 @@ describe( 'my-wordpress — featured-image tiles', () => {
 
 		expect( withoutImage?.hasAttribute( 'thumbnail' ) ).toBe( false );
 		expect(
-			withoutImage?.querySelector( '.desktop-mode-file-tile__icon' ),
+			withoutImage?.querySelector( '.os-file-tile__icon' ),
 		).not.toBeNull();
 	} );
 
 	test( 'a section can opt out with thumbnails: false', async () => {
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig =
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig =
 			config( false );
 
 		const body = await openSection();
@@ -181,7 +181,7 @@ describe( 'my-wordpress — featured-image tiles', () => {
 
 		expect( withImage?.hasAttribute( 'thumbnail' ) ).toBe( false );
 		expect(
-			withImage?.querySelector( '.desktop-mode-file-tile__icon' ),
+			withImage?.querySelector( '.os-file-tile__icon' ),
 		).not.toBeNull();
 	} );
 } );

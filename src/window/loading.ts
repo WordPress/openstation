@@ -4,7 +4,7 @@
  * lives in {@link markWindowContentLoading} /
  * {@link markWindowContentReady} (`src/window-channels.ts`); this
  * module is only the visual side: toggle the
- * `desktop-mode-window__body--loading` modifier, attach / detach
+ * `os-window__body--loading` modifier, attach / detach
  * the spinner overlay, and swallow strays from windows that have
  * already torn down.
  *
@@ -88,12 +88,12 @@ function _installSubscriptions(): void {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .desktop-mode-window__body',
+				':scope .os-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.add( 'desktop-mode-window__body--loading' );
+			body.classList.add( 'os-window__body--loading' );
 			ensureLoadingOverlay( el );
 			// Re-arm the reveal surface. The FIRST arm happens in
 			// `createWindowElement`, because the construction-time
@@ -114,12 +114,12 @@ function _installSubscriptions(): void {
 				return;
 			}
 			const body = el.querySelector< HTMLElement >(
-				':scope .desktop-mode-window__body',
+				':scope .os-window__body',
 			);
 			if ( ! body ) {
 				return;
 			}
-			body.classList.remove( 'desktop-mode-window__body--loading' );
+			body.classList.remove( 'os-window__body--loading' );
 			// Start the reveal in the SAME tick the loading modifier is
 			// dropped. `playWindowReveal` adds the `--revealing` class,
 			// whose rule pins the content to full opacity with no
@@ -135,7 +135,7 @@ function _installSubscriptions(): void {
 				// Re-check the DOM — the user might have triggered
 				// `markContentLoading()` again in the interim, in
 				// which case the overlay should stay.
-				if ( ! body.classList.contains( 'desktop-mode-window__body--loading' ) ) {
+				if ( ! body.classList.contains( 'os-window__body--loading' ) ) {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
@@ -147,7 +147,7 @@ function _installSubscriptions(): void {
 	// `whenReady()` callbacks have drained. A plugin that registers
 	// the `WINDOW_LOADING_OVERLAY` filter inside `whenReady( … )` is
 	// thus too late to influence the first paint of those restored
-	// windows; their overlays show the default `<wpd-spinner>` even
+	// windows; their overlays show the default `<os-spinner>` even
 	// though every subsequent open works correctly.
 	//
 	// Fix: subscribe to `HOOKS.INIT` and, deferred one microtask so
@@ -167,7 +167,7 @@ function _installSubscriptions(): void {
 			// boot land here). For whenReady callbacks scheduled via
 			// `Promise.resolve().then` (rare — only when the plugin
 			// loads after init) the sweep won't catch them; those
-			// callers can call `wp.desktop.repaintLoadingOverlays()`
+			// callers can call `wp.os.repaintLoadingOverlays()`
 			// directly after they register their filter.
 			queueMicrotask( () => repaintLoadingOverlays() );
 		},
@@ -181,7 +181,7 @@ function _installSubscriptions(): void {
  * import, a plugin loaded post-init, a feature flag flip), so the
  * filter applies to windows that are *still* loading.
  *
- * Idempotent + cheap. Iterates every `.desktop-mode-window__body--loading`
+ * Idempotent + cheap. Iterates every `.os-window__body--loading`
  * in the DOM and re-runs `ensureLoadingOverlay`. Windows whose
  * overlays were already torn down by a `markContentLoaded()` call
  * in the meantime are not affected.
@@ -193,14 +193,14 @@ function _installSubscriptions(): void {
  */
 export function repaintLoadingOverlays(): void {
 	const bodies = document.querySelectorAll< HTMLElement >(
-		'.desktop-mode-window__body--loading',
+		'.os-window__body--loading',
 	);
 	bodies.forEach( ( body ) => {
-		const windowEl = body.closest< HTMLElement >( '.desktop-mode-window' );
+		const windowEl = body.closest< HTMLElement >( '.os-window' );
 		if ( ! windowEl ) {
 			return;
 		}
-		body.querySelector( ':scope .desktop-mode-window__loading' )?.remove();
+		body.querySelector( ':scope .os-window__loading' )?.remove();
 		ensureLoadingOverlay( windowEl );
 	} );
 }

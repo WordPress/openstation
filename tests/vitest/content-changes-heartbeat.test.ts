@@ -47,7 +47,7 @@ function boot(): JQueryHandlers {
 function sentSeenTs( handlers: JQueryHandlers ): unknown {
 	const data: Record< string, unknown > = {};
 	handlers[ 'heartbeat-send' ]?.( {}, data );
-	return data.desktop_mode_content_changes_seen_ts;
+	return data.open_station_content_changes_seen_ts;
 }
 
 function tick(
@@ -55,7 +55,7 @@ function tick(
 	block: unknown,
 ): void {
 	handlers[ 'heartbeat-tick' ]?.( {}, {
-		desktop_mode_content_changes: block,
+		open_station_content_changes: block,
 	} );
 }
 
@@ -91,12 +91,12 @@ describe( 'content-changes heartbeat', () => {
 		off();
 	} );
 
-	test( 'post-handshake entries re-broadcast as desktop-mode.<type>.changed', () => {
+	test( 'post-handshake entries re-broadcast as os.<type>.changed', () => {
 		const handlers = boot();
 		tick( handlers, { ts: 1000, entries: [] } );
 
 		const onOrder = vi.fn();
-		const off = subscribe( 'desktop-mode.shop_order.changed', onOrder );
+		const off = subscribe( 'os.shop_order.changed', onOrder );
 
 		tick( handlers, {
 			ts: 2000,
@@ -119,7 +119,7 @@ describe( 'content-changes heartbeat', () => {
 		tick( handlers, { ts: 1000, entries: [] } );
 
 		const seen = vi.fn();
-		const off = subscribe( 'desktop-mode.post.changed', seen );
+		const off = subscribe( 'os.post.changed', seen );
 
 		const block = {
 			ts: 3000,
@@ -166,7 +166,7 @@ describe( 'content-changes heartbeat', () => {
 			ids: [ 3 ],
 		} );
 		expect( seen.mock.calls[ 0 ][ 1 ] ).toEqual( {
-			topic: 'desktop-mode.page.changed',
+			topic: 'os.page.changed',
 		} );
 		off();
 	} );

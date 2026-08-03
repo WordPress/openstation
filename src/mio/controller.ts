@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio controller (shell side).
+ * OpenStation — Mio controller (shell side).
  *
  * The always-on half of Mio: a few hundred bytes in
  * `desktop[.min].js` that own the layer element, the on/off
@@ -11,7 +11,7 @@
  * downloads a byte of it.
  *
  * Mio is a **first-class shell layer**, not a widget: it owns
- * a sibling of the wallpaper inside `#desktop-mode-shell`, paints
+ * a sibling of the wallpaper inside `#os-shell`, paints
  * above every window, and is not bound by the widget column's
  * placement rules. Widgets are cards on a rail; Mio roams.
  */
@@ -50,7 +50,7 @@ const POSITION_KEY = 'desktop-mode-mio-position';
  */
 
 /** Id of the layer element the controller creates inside the shell. */
-export const MIO_LAYER_ID = 'desktop-mode-mio';
+export const MIO_LAYER_ID = 'os-mio';
 
 /**
  * Id of the dock tile that toggles Mio.
@@ -58,7 +58,7 @@ export const MIO_LAYER_ID = 'desktop-mode-mio';
  * Doubles as the key OS Settings → Apps & Icons writes its visibility
  * override under, so it has to be stable.
  */
-export const MIO_TILE_ID = 'desktop-mode-mio-toggle';
+export const MIO_TILE_ID = 'os-mio-toggle';
 
 /**
  * Mio's dock icon: the ring and the eyes, and nothing else.
@@ -105,7 +105,7 @@ export interface MioControllerOptions {
 	shell: HTMLElement;
 	/** URL of the lazy Mio bundle, from the shell config. */
 	bundleUrl: string;
-	/** Server-side config (`desktop_mode_mio_config` filter output). */
+	/** Server-side config (`open_station_mio_config` filter output). */
 	serverConfig?: unknown;
 	/** Whether the user's saved preference has Mio on. */
 	enabled: boolean;
@@ -128,7 +128,7 @@ export interface MioControllerOptions {
 }
 
 /**
- * Public shape exposed as `wp.desktop.mio`.
+ * Public shape exposed as `wp.os.mio`.
  *
  * @public
  */
@@ -178,7 +178,7 @@ export interface MioApi {
 	commitStyle: () => void;
 	/**
 	 * Forget the saved look and go back to the Mio this site ships —
-	 * server config plus the `desktop-mode.mio.config` filter.
+	 * server config plus the `os.mio.config` filter.
 	 * Persisted immediately: "Restore Mio" should still be restored on
 	 * the next device.
 	 */
@@ -220,7 +220,7 @@ export class MioController {
 	 * The user's own look, as set from "Make it yours".
 	 *
 	 * A personal preference about a decorative thing, so it stays well
-	 * clear of the `desktop_mode_mio_config` filter — it is applied
+	 * clear of the `open_station_mio_config` filter — it is applied
 	 * *after* it, in {@link resolveConfig}, and a site changing its
 	 * shipped Mio never fights a user who has expressed an opinion.
 	 */
@@ -297,7 +297,7 @@ export class MioController {
 		this.enabled = next;
 		this.generation++;
 		this.options.persist( next );
-		doAction( next ? 'desktop-mode.mio.enabled' : 'desktop-mode.mio.disabled', {} );
+		doAction( next ? 'os.mio.enabled' : 'os.mio.disabled', {} );
 		// Repaint the dock tile's active dot. Its `isOpen()` asks
 		// whether the companion is on screen, which is not a question
 		// about windows, so no window event will ever fire for it.
@@ -323,7 +323,7 @@ export class MioController {
 			MIO_DEFAULTS,
 		);
 		const filtered = applyFilters< MioConfig, [] >(
-			'desktop-mode.mio.config',
+			'os.mio.config',
 			fromServer,
 		);
 		// A filter is untrusted input like any other — re-sanitize.
@@ -360,7 +360,7 @@ export class MioController {
 		}
 		const el = document.createElement( 'div' );
 		el.id = MIO_LAYER_ID;
-		el.className = 'desktop-mode-mio';
+		el.className = 'os-mio';
 		// Decorative: Mio conveys no information a screen
 		// reader needs, and its drag handle is not a control.
 		el.setAttribute( 'aria-hidden', 'true' );
@@ -396,10 +396,10 @@ export class MioController {
 		if ( generation !== this.generation || ! this.enabled ) {
 			return;
 		}
-		const mount: MioMountFn | undefined = window.desktopModeMountMio;
+		const mount: MioMountFn | undefined = window.openStationMountMio;
 		if ( typeof mount !== 'function' ) {
 			console.warn(
-				'[desktop-mode/mio] bundle loaded but did not publish window.desktopModeMountMio.',
+				'[desktop-mode/mio] bundle loaded but did not publish window.openStationMountMio.',
 			);
 			return;
 		}
@@ -468,7 +468,7 @@ export class MioController {
 	}
 
 	private loadBundle(): Promise< void > {
-		if ( typeof window.desktopModeMountMio === 'function' ) {
+		if ( typeof window.openStationMountMio === 'function' ) {
 			return Promise.resolve();
 		}
 		if ( ! this.loading ) {

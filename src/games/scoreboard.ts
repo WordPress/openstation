@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — per-game scoreboard section.
+ * OpenStation — per-game scoreboard section.
  *
  * Renders one game's leaderboard (`GET /desktop-mode/v1/games/
- * {game}/scores`) into a `<wpd-table>` whose columns derive from
+ * {game}/scores`) into a `<os-table>` whose columns derive from
  * the game's declared `scoreColumns` — a fixed Player column first,
  * a Date column last. Rows belonging to the current user carry a
  * "Challenge…" action that opens the send-challenge dialog
@@ -12,26 +12,26 @@
  * one instance per selected game, torn down on re-selection.
  */
 
-// Side-effect imports — register the `<wpd-*>` components this module
+// Side-effect imports — register the `<os-*>` components this module
 // constructs. `defineComponent` is idempotent across bundles.
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-relative-time/wpd-relative-time';
-import '../ui/components/wpd-table/wpd-table';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-relative-time/os-relative-time';
+import '../ui/components/os-table/os-table';
 
 import { __ } from '../i18n';
 import { fetchScores } from './rest';
 import { openChallengeDialog } from './challenge-dialog';
-import type { WpdTable, WpdTableColumn } from '../ui/components/wpd-table/wpd-table';
+import type { OsTable, OsTableColumn } from '../ui/components/os-table/os-table';
 import type { GameRegistryEntry, GameScoreRow } from './types';
 
 const PER_PAGE = 25;
 
 function currentUserId(): number {
 	const wpGlobal = window.wp as
-		| { desktop?: { config?: { currentUserId?: number } } }
+		| { os?: { config?: { currentUserId?: number } } }
 		| undefined;
-	return Number( wpGlobal?.desktop?.config?.currentUserId ) || 0;
+	return Number( wpGlobal?.os?.config?.currentUserId ) || 0;
 }
 
 /** Seconds → `m:ss` for `type: 'time'` columns. */
@@ -42,20 +42,20 @@ export function formatTimeValue( value: unknown ): string {
 	return `${ minutes }:${ String( rest ).padStart( 2, '0' ) }`;
 }
 
-function buildColumns( game: GameRegistryEntry ): WpdTableColumn< GameScoreRow >[] {
-	const columns: WpdTableColumn< GameScoreRow >[] = [
+function buildColumns( game: GameRegistryEntry ): OsTableColumn< GameScoreRow >[] {
+	const columns: OsTableColumn< GameScoreRow >[] = [
 		{
 			key: 'userName',
 			label: __( 'Player' ),
 			render: ( _value, row ) => {
 				const cell = document.createElement( 'span' );
-				// The cell lands inside `<wpd-table>`'s shadow DOM,
+				// The cell lands inside `<os-table>`'s shadow DOM,
 				// where light-DOM stylesheets (games.css) can't reach
 				// — style inline, same as the Users window's identity
 				// cell.
 				cell.style.cssText =
 					'display:inline-flex;align-items:center;gap:8px;min-width:0;';
-				const avatar = document.createElement( 'wpd-avatar' );
+				const avatar = document.createElement( 'os-avatar' );
 				avatar.setAttribute( 'src', row.userAvatar );
 				avatar.setAttribute( 'name', row.userName );
 				avatar.setAttribute( 'size', 'xs' );
@@ -89,7 +89,7 @@ function buildColumns( game: GameRegistryEntry ): WpdTableColumn< GameScoreRow >
 		key: 'createdAtMs',
 		label: __( 'When' ),
 		render: ( _value, row ) => {
-			const time = document.createElement( 'wpd-relative-time' );
+			const time = document.createElement( 'os-relative-time' );
 			time.setAttribute(
 				'datetime',
 				new Date( row.createdAtMs ).toISOString(),
@@ -104,7 +104,7 @@ function buildColumns( game: GameRegistryEntry ): WpdTableColumn< GameScoreRow >
 			if ( row.userId !== currentUserId() ) {
 				return '';
 			}
-			const btn = document.createElement( 'wpd-button' );
+			const btn = document.createElement( 'os-button' );
 			btn.setAttribute( 'variant', 'secondary' );
 			btn.setAttribute( 'size', 'sm' );
 			btn.textContent = __( 'Challenge…' );
@@ -133,11 +133,11 @@ export function renderScoreboard(
 	container.innerHTML = '';
 
 	const tableHost = document.createElement( 'div' );
-	tableHost.className = 'desktop-mode-games__scoreboard-table';
+	tableHost.className = 'os-games__scoreboard-table';
 	container.appendChild( tableHost );
 
 	const pager = document.createElement( 'div' );
-	pager.className = 'desktop-mode-games__pager';
+	pager.className = 'os-games__pager';
 	container.appendChild( pager );
 
 	let page = 1;
@@ -145,13 +145,13 @@ export function renderScoreboard(
 	let loadSeq = 0;
 	let disposed = false;
 
-	const table = document.createElement( 'wpd-table' ) as WpdTable< GameScoreRow >;
+	const table = document.createElement( 'os-table' ) as OsTable< GameScoreRow >;
 	table.setAttribute( 'sticky-header', '' );
 	table.setAttribute( 'hover', '' );
 	table.setAttribute( 'striped', '' );
 	const empty = document.createElement( 'div' );
 	empty.setAttribute( 'slot', 'empty' );
-	empty.className = 'desktop-mode-games__scoreboard-empty';
+	empty.className = 'os-games__scoreboard-empty';
 	empty.textContent = __( 'No scores yet — be the first to play!' );
 	table.appendChild( empty );
 	tableHost.appendChild( table );
@@ -164,7 +164,7 @@ export function renderScoreboard(
 		if ( pages <= 1 ) {
 			return;
 		}
-		const prev = document.createElement( 'wpd-button' );
+		const prev = document.createElement( 'os-button' );
 		prev.setAttribute( 'variant', 'ghost' );
 		prev.textContent = __( 'Previous' );
 		if ( page <= 1 ) {
@@ -172,9 +172,9 @@ export function renderScoreboard(
 		}
 		prev.addEventListener( 'click', () => void load( page - 1 ) );
 		const label = document.createElement( 'span' );
-		label.className = 'desktop-mode-games__pager-label';
+		label.className = 'os-games__pager-label';
 		label.textContent = `${ page } / ${ pages }`;
-		const next = document.createElement( 'wpd-button' );
+		const next = document.createElement( 'os-button' );
 		next.setAttribute( 'variant', 'ghost' );
 		next.textContent = __( 'Next' );
 		if ( page >= pages ) {
@@ -201,7 +201,7 @@ export function renderScoreboard(
 			table.data = result.scores;
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] scoreboard load failed:', err );
+				console.error( '[openstation] scoreboard load failed:', err );
 			}
 		} finally {
 			if ( ! disposed && seq === loadSeq ) {

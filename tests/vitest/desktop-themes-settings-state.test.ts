@@ -6,7 +6,7 @@
  * boot, so it is the more honest thing to test.
  *
  * The pattern here MUST mirror the PHP sanitizer
- * (`desktop_mode_sanitize_os_settings`). A value one side accepts and
+ * (`open_station_sanitize_os_settings`). A value one side accepts and
  * the other rewrites makes the setting flip on every reload.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -29,7 +29,7 @@ function seedLedger( appliedThemeRecommendations: unknown ): void {
 
 beforeEach( () => {
 	window.localStorage.clear();
-	delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+	delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 } );
 
 afterEach( () => {
@@ -74,7 +74,7 @@ describe( 'OsSettingsState.desktopTheme', () => {
 
 	test( 'the server snapshot wins over the localStorage cache', () => {
 		seedCache( 'from-cache' );
-		( window as unknown as { desktopModeConfig: unknown } ).desktopModeConfig = {
+		( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
 			osSettings: { ...DEFAULTS, desktopTheme: 'from-server' },
 		};
 		expect( loadState().desktopTheme ).toBe( 'from-server' );

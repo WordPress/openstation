@@ -4,21 +4,21 @@
  * A custom property declared on `:host` matches the host ELEMENT, and
  * a declaration matching the element always beats a value the element
  * would otherwise INHERIT. The palette declares on
- * `body.desktop-mode-active`; a desktop theme declares on
- * `body.desktop-mode-desktop-theme-<slug>`. Both are ancestors. So
+ * `body.os-active`; a desktop theme declares on
+ * `body.os-desktop-theme-<slug>`. Both are ancestors. So
  *
- *     :host { --wpd-table-bg: var( --wpd-surface, #fff ); }
+ *     :host { --os-ui-table-bg: var( --os-ui-surface, #fff ); }
  *
  * does not read as "default to the surface colour" — it reads as
- * "`--wpd-table-bg` can never be set from outside this element again",
- * and the theme's declaration is dead. `<wpd-table>`, `<wpd-modal>`,
- * `<wpd-progress-bar>` and `<wpd-spinner>` between them pinned
+ * "`--os-ui-table-bg` can never be set from outside this element again",
+ * and the theme's declaration is dead. `<os-table>`, `<os-modal>`,
+ * `<os-progress-bar>` and `<os-spinner>` between them pinned
  * eighteen names this way, every one of which the Legacy snapshot
  * carries and none of which reached its component.
  *
  * The fix is to read the public token INTO a private alias:
  *
- *     :host { --_bg: var( --wpd-table-bg, var( --wpd-surface, #fff ) ); }
+ *     :host { --_bg: var( --os-ui-table-bg, var( --os-ui-surface, #fff ) ); }
  *
  * With no declaration on the host to find, the `var()` resolves the
  * inherited value — theme first, palette next, the pre-brand literal
@@ -53,20 +53,20 @@ const THEMED: ReadonlySet< string > = new Set(
 );
 
 /**
- * `<wpd-modal>` is the one deliberate opt-out, and it is an opt-out
+ * `<os-modal>` is the one deliberate opt-out, and it is an opt-out
  * from the VALUE, not from reachability. Its dialog surface is dark
- * whatever the admin colour scheme says, so following `--wpd-fg` would
+ * whatever the admin colour scheme says, so following `--os-ui-fg` would
  * put the light scheme's near-black text on a near-black dialog. It
- * re-points these four — but through `--wpd-modal-*` names the palette
+ * re-points these four — but through `--os-ui-modal-*` names the palette
  * declares, so the station still owns the dialog. Anything added here
  * needs the same: a palette-owned token on the right-hand side.
  */
 const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
-	'wpd-modal': [
-		'--wpd-fg',
-		'--wpd-fg-muted',
-		'--wpd-border',
-		'--desktop-mode-window-bg',
+	'os-modal': [
+		'--os-ui-fg',
+		'--os-ui-fg-muted',
+		'--os-ui-border',
+		'--os-window-bg',
 	],
 };
 

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files grid snapping.
+ * OpenStation — Files grid snapping.
  *
  * Tiles align to a column-major grid (top-to-bottom, then
  * left-to-right) so the desktop reads as one tidy surface

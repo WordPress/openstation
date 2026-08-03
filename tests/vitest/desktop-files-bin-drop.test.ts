@@ -73,9 +73,9 @@ function pointerEvent(
 }
 
 function installManagerOnWindow( manager: DragManager ): void {
-	const wp = ( window as unknown as { wp?: { hooks?: unknown; desktop?: Record< string, unknown > } } ).wp ?? {};
-	wp.desktop = ( wp.desktop as Record< string, unknown > | undefined ) ?? {};
-	( wp.desktop as { dragManager: DragManager } ).dragManager = manager;
+	const wp = ( window as unknown as { wp?: { hooks?: unknown; os?: Record< string, unknown > } } ).wp ?? {};
+	wp.os = ( wp.os as Record< string, unknown > | undefined ) ?? {};
+	( wp.os as { dragManager: DragManager } ).dragManager = manager;
 	( window as unknown as { wp: typeof wp } ).wp = wp;
 }
 
@@ -114,12 +114,12 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		//    initial probe should pick it up.
 		const dockTile = document.createElement( 'div' );
 		dockTile.classList.add(
-			'desktop-mode-dock__item',
-			'desktop-mode-dock__item--system',
+			'os-dock__item',
+			'os-dock__item--system',
 		);
 		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
 		const innerBtn = document.createElement( 'button' );
-		innerBtn.classList.add( 'desktop-mode-dock__item-primary' );
+		innerBtn.classList.add( 'os-dock__item-primary' );
 		dockTile.appendChild( innerBtn );
 		document.body.appendChild( dockTile );
 
@@ -136,7 +136,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// 4. Build a desktop file tile to act as the source.
 		const sourceTile = document.createElement( 'div' );
-		sourceTile.className = 'desktop-mode-file-tile';
+		sourceTile.className = 'os-file-tile';
 		document.body.appendChild( sourceTile );
 
 		// 5. Hit-test stub: returns the bin tile inner element when
@@ -169,7 +169,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
 		// Verify the bin highlight applied via onEnter.
 		expect(
-			dockTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			dockTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( true );
 		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
 
@@ -194,7 +194,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// 12. The bin highlight class should be cleared.
 		expect(
-			dockTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			dockTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( false );
 	} );
 
@@ -222,10 +222,10 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		installManagerOnWindow( manager );
 
 		// Build the bin tile in the same DOM shape the files layer
-		// produces — `.desktop-mode-file-tile[data-file-ref="…"]` is
+		// produces — `.os-file-tile[data-file-ref="…"]` is
 		// the first selector `findBinTile()` checks.
 		const binTile = document.createElement( 'div' );
-		binTile.classList.add( 'desktop-mode-file-tile' );
+		binTile.classList.add( 'os-file-tile' );
 		binTile.dataset.fileRef = 'desktop-mode-recycle-bin';
 		document.body.appendChild( binTile );
 
@@ -283,7 +283,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		// Hover highlight must NOT fire — `accept` returns false up
 		// front so the drop target never lights up.
 		expect(
-			binTile.hasAttribute( 'data-desktop-mode-trash-drop-active' ),
+			binTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( false );
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 300, 300 ) );
@@ -319,7 +319,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		// First dock render.
 		const tile1 = document.createElement( 'div' );
-		tile1.classList.add( 'desktop-mode-dock__item' );
+		tile1.classList.add( 'os-dock__item' );
 		tile1.dataset.systemId = 'desktop-mode-recycle-bin';
 		document.body.appendChild( tile1 );
 
@@ -334,7 +334,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		// Dock re-renders — old tile detached, new one attached.
 		tile1.remove();
 		const tile2 = document.createElement( 'div' );
-		tile2.classList.add( 'desktop-mode-dock__item' );
+		tile2.classList.add( 'os-dock__item' );
 		tile2.dataset.systemId = 'desktop-mode-recycle-bin';
 		document.body.appendChild( tile2 );
 

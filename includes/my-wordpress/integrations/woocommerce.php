@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: WooCommerce integration.
+ * OpenStation — My WordPress: WooCommerce integration.
  *
  * Everything in this file is inert unless WooCommerce is active. It
  * makes the shop folder behave like a shop rather than like a pile of
@@ -25,7 +25,7 @@
  *   GET desktop-mode/v1/woocommerce/summary/<type>/<id>
  *   GET desktop-mode/v1/woocommerce/store
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool
  */
-function desktop_mode_my_wordpress_woo_active() {
+function open_station_my_wordpress_woo_active() {
 	return class_exists( 'WooCommerce' ) && function_exists( 'wc_get_orders' );
 }
 
@@ -50,7 +50,7 @@ function desktop_mode_my_wordpress_woo_active() {
  *
  * @return string Data URI.
  */
-function desktop_mode_my_wordpress_woo_icon() {
+function open_station_my_wordpress_woo_icon() {
 	$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 85.9 47.6">'
 		. '<path fill="currentColor" d="M77.4,0.1c-4.3,0-7.1,1.4-9.6,6.1L56.4,27.7V8.6c0-5.7-2.7-8.5-7.7-8.5'
 		. 's-7.1,1.7-9.6,6.5L28.3,27.7V8.8c0-6.1-2.5-8.7-8.6-8.7H7.3C2.6,0.1,0,2.3,0,6.3s2.5,6.4,7.1,6.4h5.1v24.1'
@@ -67,7 +67,7 @@ function desktop_mode_my_wordpress_woo_icon() {
  * @param string     $post_type Post type slug.
  * @return array|null
  */
-function desktop_mode_my_wordpress_woo_group( $group, $post_type ) {
+function open_station_my_wordpress_woo_group( $group, $post_type ) {
 	unset( $post_type );
 	if ( ! is_array( $group ) || 'plugin:woocommerce' !== ( $group['id'] ?? '' ) ) {
 		return $group;
@@ -75,7 +75,7 @@ function desktop_mode_my_wordpress_woo_group( $group, $post_type ) {
 
 	// "WooCommerce" wraps to two lines in an 88px tile and reads badly.
 	$group['label'] = _x( 'Woo', 'WooCommerce folder name', 'desktop-mode' );
-	$group['icon']  = desktop_mode_my_wordpress_woo_icon();
+	$group['icon']  = open_station_my_wordpress_woo_icon();
 	// Ahead of other plugin folders — for a shop this is the folder
 	// the merchant opens all day.
 	$group['order'] = 15;
@@ -94,8 +94,8 @@ function desktop_mode_my_wordpress_woo_group( $group, $post_type ) {
  * @param array[] $entities Entity descriptors.
  * @return array[]
  */
-function desktop_mode_my_wordpress_woo_entities( $entities ) {
-	if ( ! is_array( $entities ) || ! desktop_mode_my_wordpress_woo_active() ) {
+function open_station_my_wordpress_woo_entities( $entities ) {
+	if ( ! is_array( $entities ) || ! open_station_my_wordpress_woo_active() ) {
 		return $entities;
 	}
 
@@ -107,7 +107,7 @@ function desktop_mode_my_wordpress_woo_entities( $entities ) {
 		return $entities;
 	}
 
-	$group = desktop_mode_my_wordpress_woo_group(
+	$group = open_station_my_wordpress_woo_group(
 		array(
 			'id'    => 'plugin:woocommerce',
 			'label' => 'WooCommerce',
@@ -124,7 +124,7 @@ function desktop_mode_my_wordpress_woo_entities( $entities ) {
 		'restPath'   => 'desktop-mode/v1/woocommerce/orders',
 		'kind'       => 'post',
 		// Claims `shop_order` so the generic post-type pass skips it,
-		// and drives the `desktop-mode.shop_order.changed` broadcast.
+		// and drives the `os.shop_order.changed` broadcast.
 		'post_type'  => 'shop_order',
 		'thumbnails' => false,
 		// Keeps `wcStatus` from being filtered out of the list rows.
@@ -149,7 +149,7 @@ function desktop_mode_my_wordpress_woo_entities( $entities ) {
  * @param WP_Post_Type $post_type Post type object.
  * @return array
  */
-function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
+function open_station_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	$icons = array(
 		'product'      => 'dashicons-products',
 		'shop_coupon'  => 'dashicons-tickets-alt',
@@ -163,7 +163,7 @@ function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	 *
 	 * @param array $icons Post type slug => dashicon class.
 	 */
-	$icons = (array) apply_filters( 'desktop_mode_my_wordpress_woo_section_icons', $icons );
+	$icons = (array) apply_filters( 'open_station_my_wordpress_woo_section_icons', $icons );
 
 	$name = isset( $post_type->name ) ? (string) $post_type->name : '';
 	if ( isset( $icons[ $name ] ) ) {
@@ -174,16 +174,16 @@ function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	// be a grid of fallback icons.
 	if ( 'shop_coupon' === $name ) {
 		$entity['thumbnails'] = false;
-		$entity['listFields'] = array( 'desktop_mode_woo' );
-		$entity['listQuery']  = array( DESKTOP_MODE_WOO_BANDED_PARAM => '1' );
+		$entity['listFields'] = array( 'open_station_woo' );
+		$entity['listQuery']  = array( OPEN_STATION_WOO_BANDED_PARAM => '1' );
 	}
 
 	// Products band by stock and category, both of which ride the
-	// `desktop_mode_woo` REST field — declared here so `_fields`
+	// `open_station_woo` REST field — declared here so `_fields`
 	// doesn't strip it out of the list rows.
 	if ( 'product' === $name ) {
-		$entity['listFields'] = array( 'desktop_mode_woo' );
-		$entity['listQuery']  = array( DESKTOP_MODE_WOO_BANDED_PARAM => '1' );
+		$entity['listFields'] = array( 'open_station_woo' );
+		$entity['listQuery']  = array( OPEN_STATION_WOO_BANDED_PARAM => '1' );
 		// A catalogue is looked at, not read — the product photo is
 		// the thing being scanned, and it earns the bigger tile.
 		$entity['tileSize']   = 'large';
@@ -201,7 +201,7 @@ function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
  *
  * @return array[] Each entry: `id`, `label`, `order`, `statuses`.
  */
-function desktop_mode_my_wordpress_woo_order_bands() {
+function open_station_my_wordpress_woo_order_bands() {
 	$labels = wc_get_order_statuses();
 
 	$label_for = static function ( $status ) use ( $labels ) {
@@ -255,7 +255,7 @@ function desktop_mode_my_wordpress_woo_order_bands() {
 	 *
 	 * @param array[] $bands Default bands.
 	 */
-	return (array) apply_filters( 'desktop_mode_my_wordpress_woo_order_bands', $bands );
+	return (array) apply_filters( 'open_station_my_wordpress_woo_order_bands', $bands );
 }
 
 /**
@@ -270,9 +270,9 @@ function desktop_mode_my_wordpress_woo_order_bands() {
  * @return array[] Each entry: `id`, `label`, `order`, and either
  *                 `stock` (a status slug) or `category` (a term slug).
  */
-function desktop_mode_my_wordpress_woo_product_bands() {
-	return desktop_mode_my_wordpress_woo_count_product_bands(
-		desktop_mode_my_wordpress_woo_product_band_defs()
+function open_station_my_wordpress_woo_product_bands() {
+	return open_station_my_wordpress_woo_count_product_bands(
+		open_station_my_wordpress_woo_product_band_defs()
 	);
 }
 
@@ -285,7 +285,7 @@ function desktop_mode_my_wordpress_woo_product_bands() {
  *
  * @return array[]
  */
-function desktop_mode_my_wordpress_woo_product_band_defs() {
+function open_station_my_wordpress_woo_product_band_defs() {
 	// Category bands only exist when the catalogue is small enough to
 	// be ordered by band server-side. Offering them without that
 	// ordering is worse than not offering them: rows arrive in date
@@ -293,7 +293,7 @@ function desktop_mode_my_wordpress_woo_product_band_defs() {
 	// is reading every time a stray row for it turns up. A capped
 	// store gets stock bands only, which the meta-key fallback orders
 	// correctly.
-	$with_categories = ! desktop_mode_my_wordpress_woo_catalogue_is_capped();
+	$with_categories = ! open_station_my_wordpress_woo_catalogue_is_capped();
 
 	$bands = array(
 		array(
@@ -356,7 +356,7 @@ function desktop_mode_my_wordpress_woo_product_band_defs() {
 	 *
 	 * @param array[] $bands Default bands.
 	 */
-	return (array) apply_filters( 'desktop_mode_my_wordpress_woo_product_bands', $bands );
+	return (array) apply_filters( 'open_station_my_wordpress_woo_product_bands', $bands );
 }
 
 /**
@@ -378,8 +378,8 @@ function desktop_mode_my_wordpress_woo_product_band_defs() {
  * @param array[] $bands Band descriptors.
  * @return array[] Bands with a `count` key.
  */
-function desktop_mode_my_wordpress_woo_count_product_bands( $bands ) {
-	$plan = desktop_mode_my_wordpress_woo_product_plan();
+function open_station_my_wordpress_woo_count_product_bands( $bands ) {
+	$plan = open_station_my_wordpress_woo_product_plan();
 	foreach ( $bands as $i => $band ) {
 		$bands[ $i ]['count'] = (int) ( $plan['counts'][ $band['id'] ] ?? 0 );
 	}
@@ -395,7 +395,7 @@ function desktop_mode_my_wordpress_woo_count_product_bands( $bands ) {
  * ordering falls back to stock-status only and the category bands fill
  * progressively.
  */
-const DESKTOP_MODE_WOO_MAX_ORDERED_PRODUCTS = 20000;
+const OPEN_STATION_WOO_MAX_ORDERED_PRODUCTS = 20000;
 
 /**
  * How many products the catalogue holds. Memoized and cached — both
@@ -404,7 +404,7 @@ const DESKTOP_MODE_WOO_MAX_ORDERED_PRODUCTS = 20000;
  *
  * @return int
  */
-function desktop_mode_my_wordpress_woo_product_total() {
+function open_station_my_wordpress_woo_product_total() {
 	static $total = null;
 	if ( null !== $total ) {
 		return $total;
@@ -435,8 +435,8 @@ function desktop_mode_my_wordpress_woo_product_total() {
  *
  * @return bool
  */
-function desktop_mode_my_wordpress_woo_catalogue_is_capped() {
-	return desktop_mode_my_wordpress_woo_product_total() > DESKTOP_MODE_WOO_MAX_ORDERED_PRODUCTS;
+function open_station_my_wordpress_woo_catalogue_is_capped() {
+	return open_station_my_wordpress_woo_product_total() > OPEN_STATION_WOO_MAX_ORDERED_PRODUCTS;
 }
 
 /**
@@ -455,7 +455,7 @@ function desktop_mode_my_wordpress_woo_catalogue_is_capped() {
  *
  * @return array{ids: int[], counts: array<string,int>, capped: bool}
  */
-function desktop_mode_my_wordpress_woo_product_plan() {
+function open_station_my_wordpress_woo_product_plan() {
 	static $memo = null;
 	if ( null !== $memo ) {
 		return $memo;
@@ -469,9 +469,9 @@ function desktop_mode_my_wordpress_woo_product_plan() {
 	}
 
 	$statuses = array( 'publish', 'private', 'draft', 'pending', 'future' );
-	$total    = desktop_mode_my_wordpress_woo_product_total();
+	$total    = open_station_my_wordpress_woo_product_total();
 
-	if ( desktop_mode_my_wordpress_woo_catalogue_is_capped() ) {
+	if ( open_station_my_wordpress_woo_catalogue_is_capped() ) {
 		$memo = array(
 			'ids'      => array(),
 			'counts'   => array(),
@@ -486,7 +486,7 @@ function desktop_mode_my_wordpress_woo_product_plan() {
 	$counts  = array();
 	$seen    = array();
 
-	foreach ( desktop_mode_my_wordpress_woo_product_band_defs() as $band ) {
+	foreach ( open_station_my_wordpress_woo_product_band_defs() as $band ) {
 		$args = array(
 			'limit'   => -1,
 			'return'  => 'ids',
@@ -559,7 +559,7 @@ function desktop_mode_my_wordpress_woo_product_plan() {
  * ordering filters can scope themselves. Declared on the section
  * descriptor as `listQuery`, sent by `fetchEntityList()`.
  */
-const DESKTOP_MODE_WOO_BANDED_PARAM = 'desktop_mode_bands';
+const OPEN_STATION_WOO_BANDED_PARAM = 'desktop_mode_bands';
 
 /**
  * Whether a REST request asked for band ordering.
@@ -572,11 +572,11 @@ const DESKTOP_MODE_WOO_BANDED_PARAM = 'desktop_mode_bands';
  * @param WP_REST_Request $request Request.
  * @return bool
  */
-function desktop_mode_my_wordpress_woo_is_banded_request( $request ) {
+function open_station_my_wordpress_woo_is_banded_request( $request ) {
 	if ( ! $request instanceof WP_REST_Request ) {
 		return false;
 	}
-	return '1' === (string) $request->get_param( DESKTOP_MODE_WOO_BANDED_PARAM );
+	return '1' === (string) $request->get_param( OPEN_STATION_WOO_BANDED_PARAM );
 }
 
 /**
@@ -585,13 +585,13 @@ function desktop_mode_my_wordpress_woo_is_banded_request( $request ) {
  *
  * @return array{mode: string, products: int, ordered: int, limit: int}
  */
-function desktop_mode_my_wordpress_woo_ordering_state() {
-	$plan = desktop_mode_my_wordpress_woo_product_plan();
+function open_station_my_wordpress_woo_ordering_state() {
+	$plan = open_station_my_wordpress_woo_product_plan();
 	return array(
 		'mode'     => ! empty( $plan['capped'] ) ? 'capped' : 'ordered',
 		'products' => (int) ( $plan['products'] ?? 0 ),
 		'ordered'  => count( (array) ( $plan['ids'] ?? array() ) ),
-		'limit'    => DESKTOP_MODE_WOO_MAX_ORDERED_PRODUCTS,
+		'limit'    => OPEN_STATION_WOO_MAX_ORDERED_PRODUCTS,
 	);
 }
 
@@ -602,8 +602,8 @@ function desktop_mode_my_wordpress_woo_ordering_state() {
  * @param WC_Product $product Product.
  * @return string Band id.
  */
-function desktop_mode_my_wordpress_woo_product_band_id( $product ) {
-	$defs  = desktop_mode_my_wordpress_woo_product_band_defs();
+function open_station_my_wordpress_woo_product_band_id( $product ) {
+	$defs  = open_station_my_wordpress_woo_product_band_defs();
 	$stock = $product->get_stock_status();
 
 	foreach ( $defs as $band ) {
@@ -635,19 +635,19 @@ function desktop_mode_my_wordpress_woo_product_band_id( $product ) {
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_flush_band_counts() {
+function open_station_my_wordpress_woo_flush_band_counts() {
 	delete_transient( 'desktop_mode_woo_product_plan' );
 	delete_transient( 'desktop_mode_woo_product_total' );
 	delete_transient( 'desktop_mode_woo_coupon_plan' );
 }
-add_action( 'woocommerce_update_product', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'woocommerce_new_product', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'woocommerce_product_set_stock_status', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'woocommerce_new_coupon', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'woocommerce_update_coupon', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'created_product_cat', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'edited_product_cat', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
-add_action( 'delete_product_cat', 'desktop_mode_my_wordpress_woo_flush_band_counts' );
+add_action( 'woocommerce_update_product', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'woocommerce_new_product', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'woocommerce_product_set_stock_status', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'woocommerce_new_coupon', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'woocommerce_update_coupon', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'created_product_cat', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'edited_product_cat', 'open_station_my_wordpress_woo_flush_band_counts' );
+add_action( 'delete_product_cat', 'open_station_my_wordpress_woo_flush_band_counts' );
 
 /**
  * Order the Products collection so empty shelves come first.
@@ -661,8 +661,8 @@ add_action( 'delete_product_cat', 'desktop_mode_my_wordpress_woo_flush_band_coun
  * @param array $args Query args.
  * @return array
  */
-function desktop_mode_my_wordpress_woo_order_products( $args, $request ) {
-	if ( ! desktop_mode_my_wordpress_woo_active() ) {
+function open_station_my_wordpress_woo_order_products( $args, $request ) {
+	if ( ! open_station_my_wordpress_woo_active() ) {
 		return $args;
 	}
 	// Only the site window's own requests. `rest_product_query` fires
@@ -670,7 +670,7 @@ function desktop_mode_my_wordpress_woo_order_products( $args, $request ) {
 	// Collection renders through it, so rewriting `orderby`
 	// unconditionally would silently replace a storefront's chosen
 	// sort with our band order.
-	if ( ! desktop_mode_my_wordpress_woo_is_banded_request( $request ) ) {
+	if ( ! open_station_my_wordpress_woo_is_banded_request( $request ) ) {
 		return $args;
 	}
 	// A search is the user asking for relevance, not for the band
@@ -679,7 +679,7 @@ function desktop_mode_my_wordpress_woo_order_products( $args, $request ) {
 		return $args;
 	}
 
-	$plan = desktop_mode_my_wordpress_woo_product_plan();
+	$plan = open_station_my_wordpress_woo_product_plan();
 	if ( empty( $plan['ids'] ) ) {
 		// Catalogue too large to order this way — fall back to stock
 		// status, which at least floats empty shelves to the top.
@@ -704,7 +704,7 @@ function desktop_mode_my_wordpress_woo_order_products( $args, $request ) {
 // which defaults to `date`. At equal priority it runs after us and
 // silently puts `orderby` back, so `post__in` was set but never
 // honoured and the bands arrived in date order.
-add_filter( 'rest_product_query', 'desktop_mode_my_wordpress_woo_order_products', 99, 2 );
+add_filter( 'rest_product_query', 'open_station_my_wordpress_woo_order_products', 99, 2 );
 
 /**
  * Bands for the Coupons section: the ones still worth handing out
@@ -712,7 +712,7 @@ add_filter( 'rest_product_query', 'desktop_mode_my_wordpress_woo_order_products'
  *
  * @return array[]
  */
-function desktop_mode_my_wordpress_woo_coupon_bands() {
+function open_station_my_wordpress_woo_coupon_bands() {
 	$bands = array(
 		array(
 			'id'    => 'coupon:active',
@@ -745,7 +745,7 @@ function desktop_mode_my_wordpress_woo_coupon_bands() {
 	 *
 	 * @param array[] $bands Default bands.
 	 */
-	return (array) apply_filters( 'desktop_mode_my_wordpress_woo_coupon_bands', $bands );
+	return (array) apply_filters( 'open_station_my_wordpress_woo_coupon_bands', $bands );
 }
 
 /**
@@ -757,7 +757,7 @@ function desktop_mode_my_wordpress_woo_coupon_bands() {
  * @param WC_Coupon $coupon Coupon.
  * @return string Band id.
  */
-function desktop_mode_my_wordpress_woo_coupon_band_id( $coupon ) {
+function open_station_my_wordpress_woo_coupon_band_id( $coupon ) {
 	$expiry = $coupon->get_date_expires();
 	$limit  = (int) $coupon->get_usage_limit();
 	$used   = (int) $coupon->get_usage_count();
@@ -784,7 +784,7 @@ function desktop_mode_my_wordpress_woo_coupon_band_id( $coupon ) {
  *
  * @return array{ids: int[], counts: array<string,int>}
  */
-function desktop_mode_my_wordpress_woo_coupon_plan() {
+function open_station_my_wordpress_woo_coupon_plan() {
 	static $memo = null;
 	if ( null !== $memo ) {
 		return $memo;
@@ -809,7 +809,7 @@ function desktop_mode_my_wordpress_woo_coupon_plan() {
 	);
 
 	$buckets = array();
-	foreach ( desktop_mode_my_wordpress_woo_coupon_bands() as $band ) {
+	foreach ( open_station_my_wordpress_woo_coupon_bands() as $band ) {
 		$buckets[ $band['id'] ] = array();
 	}
 
@@ -818,7 +818,7 @@ function desktop_mode_my_wordpress_woo_coupon_plan() {
 		if ( ! $coupon->get_id() ) {
 			continue;
 		}
-		$band = desktop_mode_my_wordpress_woo_coupon_band_id( $coupon );
+		$band = open_station_my_wordpress_woo_coupon_band_id( $coupon );
 		if ( ! isset( $buckets[ $band ] ) ) {
 			$buckets[ $band ] = array();
 		}
@@ -846,9 +846,9 @@ function desktop_mode_my_wordpress_woo_coupon_plan() {
  *
  * @return array[]
  */
-function desktop_mode_my_wordpress_woo_coupon_bands_with_counts() {
-	$plan  = desktop_mode_my_wordpress_woo_coupon_plan();
-	$bands = desktop_mode_my_wordpress_woo_coupon_bands();
+function open_station_my_wordpress_woo_coupon_bands_with_counts() {
+	$plan  = open_station_my_wordpress_woo_coupon_plan();
+	$bands = open_station_my_wordpress_woo_coupon_bands();
 	foreach ( $bands as $i => $band ) {
 		$bands[ $i ]['count'] = (int) ( $plan['counts'][ $band['id'] ] ?? 0 );
 	}
@@ -866,14 +866,14 @@ function desktop_mode_my_wordpress_woo_coupon_bands_with_counts() {
  * @param WP_REST_Request $request Request.
  * @return array
  */
-function desktop_mode_my_wordpress_woo_order_coupons( $args, $request ) {
-	if ( ! desktop_mode_my_wordpress_woo_active() || ! empty( $request['search'] ) ) {
+function open_station_my_wordpress_woo_order_coupons( $args, $request ) {
+	if ( ! open_station_my_wordpress_woo_active() || ! empty( $request['search'] ) ) {
 		return $args;
 	}
-	if ( ! desktop_mode_my_wordpress_woo_is_banded_request( $request ) ) {
+	if ( ! open_station_my_wordpress_woo_is_banded_request( $request ) ) {
 		return $args;
 	}
-	$plan = desktop_mode_my_wordpress_woo_coupon_plan();
+	$plan = open_station_my_wordpress_woo_coupon_plan();
 	if ( empty( $plan['ids'] ) ) {
 		return $args;
 	}
@@ -882,20 +882,20 @@ function desktop_mode_my_wordpress_woo_order_coupons( $args, $request ) {
 	unset( $args['order'] );
 	return $args;
 }
-add_filter( 'rest_shop_coupon_query', 'desktop_mode_my_wordpress_woo_order_coupons', 99, 2 );
+add_filter( 'rest_shop_coupon_query', 'open_station_my_wordpress_woo_order_coupons', 99, 2 );
 
 /**
  * Expose each coupon's band on its REST row.
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_register_coupon_field() {
-	if ( ! desktop_mode_my_wordpress_woo_active() || ! post_type_exists( 'shop_coupon' ) ) {
+function open_station_my_wordpress_woo_register_coupon_field() {
+	if ( ! open_station_my_wordpress_woo_active() || ! post_type_exists( 'shop_coupon' ) ) {
 		return;
 	}
 	register_rest_field(
 		'shop_coupon',
-		'desktop_mode_woo',
+		'open_station_woo',
 		array(
 			'get_callback' => static function ( $post ) {
 				$coupon = new WC_Coupon( isset( $post['id'] ) ? (int) $post['id'] : 0 );
@@ -903,7 +903,7 @@ function desktop_mode_my_wordpress_woo_register_coupon_field() {
 					return null;
 				}
 				return array(
-					'band' => desktop_mode_my_wordpress_woo_coupon_band_id( $coupon ),
+					'band' => open_station_my_wordpress_woo_coupon_band_id( $coupon ),
 				);
 			},
 			'schema'       => array(
@@ -915,7 +915,7 @@ function desktop_mode_my_wordpress_woo_register_coupon_field() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_woo_register_coupon_field' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_woo_register_coupon_field' );
 
 /**
  * Expose the few product facts the site window's tiles need — stock
@@ -929,14 +929,14 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_woo_register_coupon_fiel
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_register_rest_field() {
-	if ( ! desktop_mode_my_wordpress_woo_active() || ! post_type_exists( 'product' ) ) {
+function open_station_my_wordpress_woo_register_rest_field() {
+	if ( ! open_station_my_wordpress_woo_active() || ! post_type_exists( 'product' ) ) {
 		return;
 	}
 
 	register_rest_field(
 		'product',
-		'desktop_mode_woo',
+		'open_station_woo',
 		array(
 			'get_callback' => static function ( $post ) {
 				$product = wc_get_product( isset( $post['id'] ) ? (int) $post['id'] : 0 );
@@ -952,7 +952,7 @@ function desktop_mode_my_wordpress_woo_register_rest_field() {
 					// The band this row belongs to, decided server-side
 					// by the same rules that ordered the collection, so
 					// the two can't disagree.
-					'band'        => desktop_mode_my_wordpress_woo_product_band_id( $product ),
+					'band'        => open_station_my_wordpress_woo_product_band_id( $product ),
 					'stockStatus' => $product->get_stock_status(),
 					'stockLevel'  => $product->managing_stock()
 						? (int) $product->get_stock_quantity()
@@ -970,24 +970,24 @@ function desktop_mode_my_wordpress_woo_register_rest_field() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_woo_register_rest_field' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_woo_register_rest_field' );
 
 /**
  * Boot the integration's hooks. Called from the module bootstrap;
 
 /**
  * Boot the integration's hooks. Called from the module bootstrap;
- * every callback re-checks `desktop_mode_my_wordpress_woo_active()`
+ * every callback re-checks `open_station_my_wordpress_woo_active()`
  * because WooCommerce loads on `plugins_loaded`, after this file.
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_boot() {
-	add_filter( 'desktop_mode_my_wordpress_post_type_group', 'desktop_mode_my_wordpress_woo_group', 10, 2 );
-	add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_my_wordpress_woo_entities', 5 );
-	add_filter( 'desktop_mode_my_wordpress_post_type_entity', 'desktop_mode_my_wordpress_woo_entity_icon', 10, 2 );
+function open_station_my_wordpress_woo_boot() {
+	add_filter( 'open_station_my_wordpress_post_type_group', 'open_station_my_wordpress_woo_group', 10, 2 );
+	add_filter( 'open_station_my_wordpress_entities', 'open_station_my_wordpress_woo_entities', 5 );
+	add_filter( 'open_station_my_wordpress_post_type_entity', 'open_station_my_wordpress_woo_entity_icon', 10, 2 );
 }
-desktop_mode_my_wordpress_woo_boot();
+open_station_my_wordpress_woo_boot();
 
 /* -------------------------------------------------------------------
  * REST
@@ -998,7 +998,7 @@ desktop_mode_my_wordpress_woo_boot();
  *
  * @return true|WP_Error
  */
-function desktop_mode_my_wordpress_woo_orders_permission() {
+function open_station_my_wordpress_woo_orders_permission() {
 	$orders = get_post_type_object( 'shop_order' );
 	$cap    = $orders instanceof WP_Post_Type && ! empty( $orders->cap->edit_posts )
 		? $orders->cap->edit_posts
@@ -1006,7 +1006,7 @@ function desktop_mode_my_wordpress_woo_orders_permission() {
 
 	if ( ! current_user_can( $cap ) ) {
 		return new WP_Error(
-			'desktop_mode_woo_forbidden',
+			'open_station_woo_forbidden',
 			__( 'Sorry, you are not allowed to view orders.', 'desktop-mode' ),
 			array( 'status' => rest_authorization_required_code() )
 		);
@@ -1022,7 +1022,7 @@ function desktop_mode_my_wordpress_woo_orders_permission() {
  * @param bool              $full  Include the `content` field (detail view).
  * @return array
  */
-function desktop_mode_my_wordpress_woo_order_row( $order, $full = false ) {
+function open_station_my_wordpress_woo_order_row( $order, $full = false ) {
 	$total = html_entity_decode(
 		wp_strip_all_tags( wc_price( $order->get_total(), array( 'currency' => $order->get_currency() ) ) ),
 		ENT_QUOTES,
@@ -1082,7 +1082,7 @@ function desktop_mode_my_wordpress_woo_order_row( $order, $full = false ) {
  * @param array $base Shared `wc_get_orders()` args (search, ordering).
  * @return array[]
  */
-function desktop_mode_my_wordpress_woo_order_band_slices( $base ) {
+function open_station_my_wordpress_woo_order_band_slices( $base ) {
 	$all    = array_map(
 		static function ( $status ) {
 			return substr( $status, 3 ); // Strip the `wc-` prefix.
@@ -1092,7 +1092,7 @@ function desktop_mode_my_wordpress_woo_order_band_slices( $base ) {
 	$claimed = array();
 	$slices  = array();
 
-	foreach ( desktop_mode_my_wordpress_woo_order_bands() as $band ) {
+	foreach ( open_station_my_wordpress_woo_order_bands() as $band ) {
 		$statuses = array_values(
 			array_intersect( (array) ( $band['statuses'] ?? array() ), $all )
 		);
@@ -1142,7 +1142,7 @@ function desktop_mode_my_wordpress_woo_order_band_slices( $base ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response
  */
-function desktop_mode_my_wordpress_woo_orders( $request ) {
+function open_station_my_wordpress_woo_orders( $request ) {
 	$per_page = max( 1, min( 100, (int) ( $request['per_page'] ?? 24 ) ) );
 	$page     = max( 1, (int) ( $request['page'] ?? 1 ) );
 	$search   = (string) ( $request['search'] ?? '' );
@@ -1167,7 +1167,7 @@ function desktop_mode_my_wordpress_woo_orders( $request ) {
 	 * @param array           $args    `wc_get_orders()` args.
 	 * @param WP_REST_Request $request The request.
 	 */
-	$base = (array) apply_filters( 'desktop_mode_my_wordpress_woo_order_args', $base, $request );
+	$base = (array) apply_filters( 'open_station_my_wordpress_woo_order_args', $base, $request );
 
 	// Walk the status bands in display order and slice the requested
 	// page out of the concatenation. Without this the client gets a
@@ -1176,7 +1176,7 @@ function desktop_mode_my_wordpress_woo_orders( $request ) {
 	// as the user scrolls. Ordering server-side means each band's rows
 	// arrive together, in band order, and a band never appears above
 	// content the user has already scrolled past.
-	$slices = desktop_mode_my_wordpress_woo_order_band_slices( $base );
+	$slices = open_station_my_wordpress_woo_order_band_slices( $base );
 
 	$total  = 0;
 	foreach ( $slices as $slice ) {
@@ -1260,13 +1260,13 @@ function desktop_mode_my_wordpress_woo_orders( $request ) {
 			continue;
 		}
 		try {
-			$rows[] = desktop_mode_my_wordpress_woo_order_row( $order );
+			$rows[] = open_station_my_wordpress_woo_order_row( $order );
 		} catch ( Throwable $e ) {
 			++$skipped;
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'[desktop-mode] Skipped order %d in the site window: %s',
+					'[openstation] Skipped order %d in the site window: %s',
 					is_object( $order ) ? (int) $order->get_id() : 0,
 					$e->getMessage()
 				)
@@ -1290,16 +1290,16 @@ function desktop_mode_my_wordpress_woo_orders( $request ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_my_wordpress_woo_order( $request ) {
+function open_station_my_wordpress_woo_order( $request ) {
 	$order = wc_get_order( (int) $request['id'] );
 	if ( ! $order instanceof WC_Abstract_Order ) {
 		return new WP_Error(
-			'desktop_mode_woo_no_order',
+			'open_station_woo_no_order',
 			__( 'Order not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
-	return rest_ensure_response( desktop_mode_my_wordpress_woo_order_row( $order, true ) );
+	return rest_ensure_response( open_station_my_wordpress_woo_order_row( $order, true ) );
 }
 
 /**
@@ -1310,7 +1310,7 @@ function desktop_mode_my_wordpress_woo_order( $request ) {
  * @param string|null $currency Currency code.
  * @return string
  */
-function desktop_mode_my_wordpress_woo_price( $amount, $currency = null ) {
+function open_station_my_wordpress_woo_price( $amount, $currency = null ) {
 	$args = $currency ? array( 'currency' => $currency ) : array();
 	return html_entity_decode(
 		wp_strip_all_tags( wc_price( (float) $amount, $args ) ),
@@ -1325,11 +1325,11 @@ function desktop_mode_my_wordpress_woo_price( $amount, $currency = null ) {
  * @param int $id Product id.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_woo_product_summary( $id ) {
+function open_station_my_wordpress_woo_product_summary( $id ) {
 	$product = wc_get_product( $id );
 	if ( ! $product ) {
 		return new WP_Error(
-			'desktop_mode_woo_no_product',
+			'open_station_woo_no_product',
 			__( 'Product not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -1354,8 +1354,8 @@ function desktop_mode_my_wordpress_woo_product_summary( $id ) {
 	return array(
 		'type'       => 'product',
 		'sku'        => $product->get_sku(),
-		'price'      => desktop_mode_my_wordpress_woo_price( $product->get_price() ),
-		'regular'    => $on_sale ? desktop_mode_my_wordpress_woo_price( $product->get_regular_price() ) : '',
+		'price'      => open_station_my_wordpress_woo_price( $product->get_price() ),
+		'regular'    => $on_sale ? open_station_my_wordpress_woo_price( $product->get_regular_price() ) : '',
 		'onSale'     => $on_sale,
 		// Raw slug alongside the label: the bundle tints the stock
 		// pill from the slug, which no translation can break.
@@ -1379,11 +1379,11 @@ function desktop_mode_my_wordpress_woo_product_summary( $id ) {
  * @param int $id Order id.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_woo_order_summary( $id ) {
+function open_station_my_wordpress_woo_order_summary( $id ) {
 	$order = wc_get_order( $id );
 	if ( ! $order instanceof WC_Abstract_Order ) {
 		return new WP_Error(
-			'desktop_mode_woo_no_order',
+			'open_station_woo_no_order',
 			__( 'Order not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -1400,7 +1400,7 @@ function desktop_mode_my_wordpress_woo_order_summary( $id ) {
 		$items[]    = array(
 			'name'     => $item->get_name(),
 			'quantity' => (int) $item->get_quantity(),
-			'total'    => desktop_mode_my_wordpress_woo_price( $item->get_total(), $order->get_currency() ),
+			'total'    => open_station_my_wordpress_woo_price( $item->get_total(), $order->get_currency() ),
 			'id'       => $product_id,
 			// A line item whose product has since been deleted has no
 			// edit screen to link to; the bundle renders plain text.
@@ -1423,13 +1423,13 @@ function desktop_mode_my_wordpress_woo_order_summary( $id ) {
 		'number'        => $order->get_order_number(),
 		'status'        => $order->get_status(),
 		'statusLabel'   => $statuses[ $status ] ?? $order->get_status(),
-		'total'         => desktop_mode_my_wordpress_woo_price( $order->get_total(), $order->get_currency() ),
-		'subtotal'      => desktop_mode_my_wordpress_woo_price( $order->get_subtotal(), $order->get_currency() ),
+		'total'         => open_station_my_wordpress_woo_price( $order->get_total(), $order->get_currency() ),
+		'subtotal'      => open_station_my_wordpress_woo_price( $order->get_subtotal(), $order->get_currency() ),
 		'shipping'      => (float) $order->get_shipping_total() > 0
-			? desktop_mode_my_wordpress_woo_price( $order->get_shipping_total(), $order->get_currency() )
+			? open_station_my_wordpress_woo_price( $order->get_shipping_total(), $order->get_currency() )
 			: '',
 		'discount'      => (float) $order->get_discount_total() > 0
-			? desktop_mode_my_wordpress_woo_price( $order->get_discount_total(), $order->get_currency() )
+			? open_station_my_wordpress_woo_price( $order->get_discount_total(), $order->get_currency() )
 			: '',
 		'coupons'       => array_values(
 			array_map(
@@ -1468,8 +1468,8 @@ function desktop_mode_my_wordpress_woo_order_summary( $id ) {
  * @param WC_Coupon $coupon Coupon.
  * @return float Total discount given.
  */
-function desktop_mode_my_wordpress_woo_coupon_discount_given( $coupon ) {
-	$cache_key = 'desktop_mode_woo_coupon_given_' . $coupon->get_id();
+function open_station_my_wordpress_woo_coupon_discount_given( $coupon ) {
+	$cache_key = 'open_station_woo_coupon_given_' . $coupon->get_id();
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return (float) $cached;
@@ -1507,11 +1507,11 @@ function desktop_mode_my_wordpress_woo_coupon_discount_given( $coupon ) {
  * @param int $id Coupon id.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
+function open_station_my_wordpress_woo_coupon_summary( $id ) {
 	$coupon = new WC_Coupon( $id );
 	if ( ! $coupon->get_id() ) {
 		return new WP_Error(
-			'desktop_mode_woo_no_coupon',
+			'open_station_woo_no_coupon',
 			__( 'Coupon not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -1536,7 +1536,7 @@ function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
 		: sprintf(
 			/* translators: %s: formatted discount amount. */
 			__( '%s off', 'desktop-mode' ),
-			desktop_mode_my_wordpress_woo_price( $coupon->get_amount() )
+			open_station_my_wordpress_woo_price( $coupon->get_amount() )
 		);
 
 	// Resolve product / category restrictions to names with links —
@@ -1570,7 +1570,7 @@ function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
 		return $out;
 	};
 
-	$granted = desktop_mode_my_wordpress_woo_coupon_discount_given( $coupon );
+	$granted = open_station_my_wordpress_woo_coupon_discount_given( $coupon );
 
 	return array(
 		'type'          => 'coupon',
@@ -1585,14 +1585,14 @@ function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
 		'usageLimit'    => $limit,
 		'perUserLimit'  => (int) $coupon->get_usage_limit_per_user(),
 		'limitToItems'  => (int) $coupon->get_limit_usage_to_x_items(),
-		'granted'       => $granted > 0 ? desktop_mode_my_wordpress_woo_price( $granted ) : '',
+		'granted'       => $granted > 0 ? open_station_my_wordpress_woo_price( $granted ) : '',
 		'created'       => $coupon->get_date_created() ? $coupon->get_date_created()->date( 'c' ) : '',
 		'expires'       => $expiry ? $expiry->date( 'c' ) : '',
 		'minSpend'      => $coupon->get_minimum_amount()
-			? desktop_mode_my_wordpress_woo_price( $coupon->get_minimum_amount() )
+			? open_station_my_wordpress_woo_price( $coupon->get_minimum_amount() )
 			: '',
 		'maxSpend'      => $coupon->get_maximum_amount()
-			? desktop_mode_my_wordpress_woo_price( $coupon->get_maximum_amount() )
+			? open_station_my_wordpress_woo_price( $coupon->get_maximum_amount() )
 			: '',
 		'freeShipping'  => (bool) $coupon->get_free_shipping(),
 		'individualUse' => (bool) $coupon->get_individual_use(),
@@ -1611,23 +1611,23 @@ function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_my_wordpress_woo_summary( $request ) {
+function open_station_my_wordpress_woo_summary( $request ) {
 	$type = (string) $request['type'];
 	$id   = (int) $request['id'];
 
 	switch ( $type ) {
 		case 'product':
-			$data = desktop_mode_my_wordpress_woo_product_summary( $id );
+			$data = open_station_my_wordpress_woo_product_summary( $id );
 			break;
 		case 'order':
-			$data = desktop_mode_my_wordpress_woo_order_summary( $id );
+			$data = open_station_my_wordpress_woo_order_summary( $id );
 			break;
 		case 'coupon':
-			$data = desktop_mode_my_wordpress_woo_coupon_summary( $id );
+			$data = open_station_my_wordpress_woo_coupon_summary( $id );
 			break;
 		default:
 			return new WP_Error(
-				'desktop_mode_woo_bad_type',
+				'open_station_woo_bad_type',
 				__( 'Unknown summary type.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			);
@@ -1648,7 +1648,7 @@ function desktop_mode_my_wordpress_woo_summary( $request ) {
 	 * @param int    $id   Object id.
 	 */
 	return rest_ensure_response(
-		(array) apply_filters( 'desktop_mode_my_wordpress_woo_summary', $data, $type, $id )
+		(array) apply_filters( 'open_station_my_wordpress_woo_summary', $data, $type, $id )
 	);
 }
 
@@ -1659,17 +1659,17 @@ function desktop_mode_my_wordpress_woo_summary( $request ) {
  * @param WP_REST_Request $request Request.
  * @return true|WP_Error
  */
-function desktop_mode_my_wordpress_woo_summary_permission( $request ) {
+function open_station_my_wordpress_woo_summary_permission( $request ) {
 	$type = (string) $request['type'];
 	$id   = (int) $request['id'];
 
 	if ( 'order' === $type ) {
-		return desktop_mode_my_wordpress_woo_orders_permission();
+		return open_station_my_wordpress_woo_orders_permission();
 	}
 
 	if ( ! current_user_can( 'edit_post', $id ) ) {
 		return new WP_Error(
-			'desktop_mode_woo_forbidden',
+			'open_station_woo_forbidden',
 			__( 'Sorry, you are not allowed to view this item.', 'desktop-mode' ),
 			array( 'status' => rest_authorization_required_code() )
 		);
@@ -1686,7 +1686,7 @@ function desktop_mode_my_wordpress_woo_summary_permission( $request ) {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_my_wordpress_woo_store() {
+function open_station_my_wordpress_woo_store() {
 	$month_start = gmdate( 'Y-m-01 00:00:00', current_time( 'timestamp' ) );
 
 	$paid = wc_get_orders(
@@ -1712,7 +1712,7 @@ function desktop_mode_my_wordpress_woo_store() {
 	// two, so the folder and the panel disagreed by every pending
 	// order on the store.
 	$attention = array();
-	foreach ( desktop_mode_my_wordpress_woo_order_bands() as $band ) {
+	foreach ( open_station_my_wordpress_woo_order_bands() as $band ) {
 		if ( 'needs-action' === ( $band['id'] ?? '' ) ) {
 			$attention = array_map(
 				static function ( $status ) {
@@ -1745,7 +1745,7 @@ function desktop_mode_my_wordpress_woo_store() {
 	);
 
 	$data = array(
-		'revenue'     => desktop_mode_my_wordpress_woo_price( $revenue ),
+		'revenue'     => open_station_my_wordpress_woo_price( $revenue ),
 		'revenueRaw'  => round( $revenue, 2 ),
 		'processing'  => isset( $processing->total ) ? (int) $processing->total : 0,
 		'outOfStock'  => is_array( $low_stock ) ? count( $low_stock ) : 0,
@@ -1760,7 +1760,7 @@ function desktop_mode_my_wordpress_woo_store() {
 	 * @param array $data Store totals.
 	 */
 	return rest_ensure_response(
-		(array) apply_filters( 'desktop_mode_my_wordpress_woo_store', $data )
+		(array) apply_filters( 'open_station_my_wordpress_woo_store', $data )
 	);
 }
 
@@ -1769,8 +1769,8 @@ function desktop_mode_my_wordpress_woo_store() {
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_register_routes() {
-	if ( ! desktop_mode_my_wordpress_woo_active() ) {
+function open_station_my_wordpress_woo_register_routes() {
+	if ( ! open_station_my_wordpress_woo_active() ) {
 		return;
 	}
 
@@ -1779,8 +1779,8 @@ function desktop_mode_my_wordpress_woo_register_routes() {
 		'/woocommerce/orders',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_woo_orders',
-			'permission_callback' => 'desktop_mode_my_wordpress_woo_orders_permission',
+			'callback'            => 'open_station_my_wordpress_woo_orders',
+			'permission_callback' => 'open_station_my_wordpress_woo_orders_permission',
 			'args'                => array(
 				'page'     => array(
 					'type'    => 'integer',
@@ -1800,8 +1800,8 @@ function desktop_mode_my_wordpress_woo_register_routes() {
 		'/woocommerce/orders/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_woo_order',
-			'permission_callback' => 'desktop_mode_my_wordpress_woo_orders_permission',
+			'callback'            => 'open_station_my_wordpress_woo_order',
+			'permission_callback' => 'open_station_my_wordpress_woo_orders_permission',
 			'args'                => array(
 				'id' => array( 'type' => 'integer' ),
 			),
@@ -1813,8 +1813,8 @@ function desktop_mode_my_wordpress_woo_register_routes() {
 		'/woocommerce/summary/(?P<type>[a-z]+)/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_woo_summary',
-			'permission_callback' => 'desktop_mode_my_wordpress_woo_summary_permission',
+			'callback'            => 'open_station_my_wordpress_woo_summary',
+			'permission_callback' => 'open_station_my_wordpress_woo_summary_permission',
 			'args'                => array(
 				'type' => array( 'type' => 'string' ),
 				'id'   => array( 'type' => 'integer' ),
@@ -1827,12 +1827,12 @@ function desktop_mode_my_wordpress_woo_register_routes() {
 		'/woocommerce/store',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_woo_store',
-			'permission_callback' => 'desktop_mode_my_wordpress_woo_orders_permission',
+			'callback'            => 'open_station_my_wordpress_woo_store',
+			'permission_callback' => 'open_station_my_wordpress_woo_orders_permission',
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_woo_register_routes' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_woo_register_routes' );
 
 /* -------------------------------------------------------------------
  * Assets
@@ -1843,24 +1843,24 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_woo_register_routes' );
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_register_assets() {
+function open_station_my_wordpress_woo_register_assets() {
 	wp_register_script(
-		'desktop-mode-my-wordpress-woocommerce',
-		DESKTOP_MODE_URL . 'assets/js/my-wordpress-woocommerce' . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js',
+		'os-my-wordpress-woocommerce',
+		OPEN_STATION_URL . 'assets/js/my-wordpress-woocommerce' . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min' ) . '.js',
 		array( 'wp-hooks' ),
-		DESKTOP_MODE_VERSION,
+		OPEN_STATION_VERSION,
 		true
 	);
-	wp_set_script_translations( 'desktop-mode-my-wordpress-woocommerce', 'desktop-mode' );
+	wp_set_script_translations( 'os-my-wordpress-woocommerce', 'desktop-mode' );
 
 	wp_register_style(
-		'desktop-mode-my-wordpress-woocommerce',
-		DESKTOP_MODE_URL . 'assets/css/my-wordpress-woocommerce.css',
+		'os-my-wordpress-woocommerce',
+		OPEN_STATION_URL . 'assets/css/my-wordpress-woocommerce.css',
 		array( 'desktop-mode-my-wordpress' ),
-		DESKTOP_MODE_VERSION
+		OPEN_STATION_VERSION
 	);
 }
-add_action( 'init', 'desktop_mode_my_wordpress_woo_register_assets', 5 );
+add_action( 'init', 'open_station_my_wordpress_woo_register_assets', 5 );
 
 /**
  * Enqueue the integration bundle.
@@ -1872,42 +1872,42 @@ add_action( 'init', 'desktop_mode_my_wordpress_woo_register_assets', 5 );
  *
  * @return void
  */
-function desktop_mode_my_wordpress_woo_enqueue() {
-	if ( ! desktop_mode_my_wordpress_woo_active() ) {
+function open_station_my_wordpress_woo_enqueue() {
+	if ( ! open_station_my_wordpress_woo_active() ) {
 		return;
 	}
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+	if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
 		return;
 	}
-	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
+	if ( ! open_station_my_wordpress_user_can_use() ) {
 		return;
 	}
 
-	wp_enqueue_script( 'desktop-mode-my-wordpress-woocommerce' );
-	wp_enqueue_style( 'desktop-mode-my-wordpress-woocommerce' );
+	wp_enqueue_script( 'os-my-wordpress-woocommerce' );
+	wp_enqueue_style( 'os-my-wordpress-woocommerce' );
 	wp_add_inline_script(
-		'desktop-mode-my-wordpress-woocommerce',
+		'os-my-wordpress-woocommerce',
 		sprintf(
-			'window.desktopModeWooConfig=%s;',
+			'window.openStationWooConfig=%s;',
 			wp_json_encode(
 				array(
 					'restRoot'   => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
 					'restNonce'  => wp_create_nonce( 'wp_rest' ),
-					'canOrders'    => true === desktop_mode_my_wordpress_woo_orders_permission(),
-					'orderBands'   => desktop_mode_my_wordpress_woo_order_bands(),
-					'productBands' => desktop_mode_my_wordpress_woo_product_bands(),
-					'couponBands'  => desktop_mode_my_wordpress_woo_coupon_bands_with_counts(),
+					'canOrders'    => true === open_station_my_wordpress_woo_orders_permission(),
+					'orderBands'   => open_station_my_wordpress_woo_order_bands(),
+					'productBands' => open_station_my_wordpress_woo_product_bands(),
+					'couponBands'  => open_station_my_wordpress_woo_coupon_bands_with_counts(),
 					// Whether the catalogue is small enough to be
 					// band-ordered server-side. Read it from the
-					// console (`window.desktopModeWooConfig.ordering`)
+					// console (`window.openStationWooConfig.ordering`)
 					// when the Products bands look wrong: `capped`
 					// means rows arrive stock-ordered only and the
 					// category bands fill progressively.
-					'ordering'     => desktop_mode_my_wordpress_woo_ordering_state(),
+					'ordering'     => open_station_my_wordpress_woo_ordering_state(),
 				)
 			)
 		),
 		'before'
 	);
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_my_wordpress_woo_enqueue', 20 );
+add_action( 'admin_enqueue_scripts', 'open_station_my_wordpress_woo_enqueue', 20 );

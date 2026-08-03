@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-recycle-bin
  */
-class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
+class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -25,13 +25,13 @@ class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		desktop_mode_files_install_schema();
+		open_station_files_install_schema();
 		wp_set_current_user( self::$admin_id );
 	}
 
 	public function tear_down() {
 		global $wpdb;
-		$tables = desktop_mode_files_table_names();
+		$tables = open_station_files_table_names();
 		foreach ( $tables as $t ) {
 			$wpdb->query( "TRUNCATE TABLE $t" );
 		}
@@ -42,13 +42,13 @@ class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
 	 * Issue 1: a trashed link placement reports `type_label = 'URL'` so
 	 * the JS badge reads "URL" instead of the generic "Placement".
 	 *
-	 * @covers ::desktop_mode_files_list_trashed_for_recycle_bin
+	 * @covers ::open_station_files_list_trashed_for_recycle_bin
 	 */
 	public function test_link_placement_carries_url_type_label() {
 		$placement_id = $this->create_placement( 'link', 'https://example.com/' );
-		desktop_mode_files_trash_placement( self::$admin_id, $placement_id );
+		open_station_files_trash_placement( self::$admin_id, $placement_id );
 
-		$items = desktop_mode_files_list_trashed_for_recycle_bin( self::$admin_id );
+		$items = open_station_files_list_trashed_for_recycle_bin( self::$admin_id );
 
 		$item = $this->find_by_id( $items, $placement_id );
 		$this->assertNotNull( $item, 'Trashed link placement should appear in the list.' );
@@ -61,14 +61,14 @@ class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
 	 * Issue 1 — counter-test: non-link placements don't get the URL
 	 * label so they fall back to the JS-side humanized bucket.
 	 *
-	 * @covers ::desktop_mode_files_list_trashed_for_recycle_bin
+	 * @covers ::open_station_files_list_trashed_for_recycle_bin
 	 */
 	public function test_non_link_placement_has_no_url_type_label() {
 		$post_id      = self::factory()->post->create();
 		$placement_id = $this->create_placement( 'post', (string) $post_id );
-		desktop_mode_files_trash_placement( self::$admin_id, $placement_id );
+		open_station_files_trash_placement( self::$admin_id, $placement_id );
 
-		$items = desktop_mode_files_list_trashed_for_recycle_bin( self::$admin_id );
+		$items = open_station_files_list_trashed_for_recycle_bin( self::$admin_id );
 
 		$item = $this->find_by_id( $items, $placement_id );
 		$this->assertNotNull( $item );
@@ -130,7 +130,7 @@ class Tests_DesktopMode_RecycleBinTrashView extends WP_UnitTestCase {
 
 	private function create_placement( string $file_type, string $file_ref ): int {
 		global $wpdb;
-		$tables = desktop_mode_files_table_names();
+		$tables = open_station_files_table_names();
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		$wpdb->insert(
 			$tables['placements'],

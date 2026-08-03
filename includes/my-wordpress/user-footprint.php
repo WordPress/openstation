@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-user activity footprint endpoint.
+ * OpenStation — My WordPress: per-user activity footprint endpoint.
  *
  * `GET /desktop-mode/v1/user-footprint/<id>` returns a deep activity
  * footprint for one user: a year of day-by-day publishing counts
@@ -48,7 +48,7 @@
  * is excluded so the per-day "updates" count doesn't double up with
  * the per-day "posts" count.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -56,13 +56,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function desktop_mode_my_wordpress_register_user_footprint_route() {
+function open_station_my_wordpress_register_user_footprint_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/user-footprint/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_user_footprint_callback',
+			'callback'            => 'open_station_my_wordpress_user_footprint_callback',
 			'permission_callback' => static function () {
 				return is_user_logged_in();
 			},
@@ -76,7 +76,7 @@ function desktop_mode_my_wordpress_register_user_footprint_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_footprint_route' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_register_user_footprint_route' );
 
 /**
  * Aggregator callback. See the file docblock for the payload shape.
@@ -84,14 +84,14 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_footprint_
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
+function open_station_my_wordpress_user_footprint_callback( $request ) {
 	global $wpdb;
 
 	$user_id = (int) $request->get_param( 'id' );
 	$user    = get_userdata( $user_id );
 	if ( ! $user ) {
 		return new WP_Error(
-			'desktop_mode_user_not_found',
+			'open_station_user_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -522,5 +522,5 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	 * @param array $payload Footprint payload.
 	 * @param int   $user_id Subject user id.
 	 */
-	return apply_filters( 'desktop_mode_my_wordpress_user_footprint', $payload, $user_id );
+	return apply_filters( 'open_station_my_wordpress_user_footprint', $payload, $user_id );
 }

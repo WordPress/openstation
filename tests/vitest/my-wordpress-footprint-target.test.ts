@@ -2,7 +2,7 @@
  * Unit tests for the cross-bundle "open this user's activity
  * footprint" hand-off (`src/my-wordpress/footprint-target.ts`) and the
  * parent-shell bridge handler that drives it
- * (`desktop-mode-open-user-footprint` in `src/window/iframe-bridge.ts`).
+ * (`os-open-user-footprint` in `src/window/iframe-bridge.ts`).
  *
  * The footprint launcher's whole reason for existing is robustness:
  * the click originates in the chromeless `users.php` iframe (no shell
@@ -34,7 +34,7 @@ beforeEach( () => {
 	installHooksStub();
 	openWindow = vi.fn( () => true );
 	( window as unknown as { wp?: unknown } ).wp = {
-		desktop: { createSharedStore, openWindow },
+		os: { createSharedStore, openWindow },
 	};
 	_resetAllSharedStoresForTests();
 } );
@@ -135,13 +135,13 @@ function postFrom( source: Window, data: unknown ): MessageEvent {
 	} );
 }
 
-describe( 'iframe-bridge — desktop-mode-open-user-footprint', () => {
+describe( 'iframe-bridge — os-open-user-footprint', () => {
 	test( 'opens the footprint window and leaves the source window open', () => {
 		const { win, fakeContentWindow, close } = buildFakeWindow();
 		handleWindowMessage(
 			win as Parameters< typeof handleWindowMessage >[ 0 ],
 			postFrom( fakeContentWindow, {
-				type: 'desktop-mode-open-user-footprint',
+				type: 'os-open-user-footprint',
 				userId: 42,
 				userName: 'Jane Doe',
 			} ),
@@ -160,7 +160,7 @@ describe( 'iframe-bridge — desktop-mode-open-user-footprint', () => {
 		handleWindowMessage(
 			win as Parameters< typeof handleWindowMessage >[ 0 ],
 			postFrom( fakeContentWindow, {
-				type: 'desktop-mode-open-user-footprint',
+				type: 'os-open-user-footprint',
 				userId: 0,
 				userName: '',
 			} ),
@@ -174,7 +174,7 @@ describe( 'iframe-bridge — desktop-mode-open-user-footprint', () => {
 		handleWindowMessage(
 			win as Parameters< typeof handleWindowMessage >[ 0 ],
 			postFrom( fakeContentWindow, {
-				type: 'desktop-mode-open-user-footprint',
+				type: 'os-open-user-footprint',
 				userId: '42',
 				userName: '',
 			} ),

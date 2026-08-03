@@ -54,16 +54,16 @@ import {
 } from '../agents-dispatch';
 import { getDragManager } from './dom-utils';
 import { attachTileDragOut } from '../desktop-files/tile-spec';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
-import '../ui/components/wpd-badge/wpd-badge';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-notice/wpd-notice';
-import '../ui/components/wpd-select/wpd-select';
-import '../ui/components/wpd-spinner/wpd-spinner';
-import '../ui/components/wpd-text-field/wpd-text-field';
-import '../ui/components/wpd-textarea/wpd-textarea';
+import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
+import '../ui/components/os-badge/os-badge';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-checkbox-label/os-checkbox-label';
+import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-notice/os-notice';
+import '../ui/components/os-select/os-select';
+import '../ui/components/os-spinner/os-spinner';
+import '../ui/components/os-text-field/os-text-field';
+import '../ui/components/os-textarea/os-textarea';
 
 type Pane = 'define' | 'tools' | 'triggers';
 
@@ -132,23 +132,23 @@ function openChatWindow( agent: Agent ): void {
 	const openWindow = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
 				};
 			};
 		}
-	).wp?.desktop?.openWindow;
+	).wp?.os?.openWindow;
 	if ( typeof openWindow === 'function' ) {
 		openWindow( agentsConfig().runWindowId, { source: 'agents' } );
 	} else {
 		// eslint-disable-next-line no-console
 		console.warn(
-			'[desktop-mode/agents] wp.desktop.openWindow is missing — desktop shell may not be ready.',
+			'[desktop-mode/agents] wp.os.openWindow is missing — desktop shell may not be ready.',
 		);
 	}
 }
 
-interface WpDesktopSurface {
+interface OpenStationSurface {
 	openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
 	windowManager?: {
 		open: ( opts: {
@@ -176,9 +176,9 @@ interface WpDesktopSurface {
 	};
 }
 
-function wpDesktop(): WpDesktopSurface | undefined {
-	return ( window as unknown as { wp?: { desktop?: WpDesktopSurface } } ).wp
-		?.desktop;
+function openStation(): OpenStationSurface | undefined {
+	return ( window as unknown as { wp?: { os?: OpenStationSurface } } ).wp
+		?.os;
 }
 
 /**
@@ -201,7 +201,7 @@ function openAgentProfile( agent: Agent ): void {
 	target.state.tabRequested = true;
 	target.notify();
 
-	const desktop = wpDesktop();
+	const desktop = openStation();
 	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
 		source: 'agents/profile',
 	} );
@@ -220,7 +220,7 @@ function openAgentProfile( agent: Agent ): void {
  * thing dragging the agent out of the Users grid produces).
  */
 async function sendAgentToDesktop( agent: Agent ): Promise< string > {
-	const files = wpDesktop()?.files;
+	const files = openStation()?.files;
 	if ( ! files?.rest?.createPlacement ) {
 		return __(
 			'The desktop files API is not available in this context.',
@@ -269,7 +269,7 @@ async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 }
 
 /**
- * `<wpd-option>` list for a role picker. A role the agent already
+ * `<os-option>` list for a role picker. A role the agent already
  * carries but the site no longer registers (a plugin that shipped it
  * was deactivated) is appended so the select shows the truth instead
  * of silently reading as the first registered role.
@@ -279,11 +279,11 @@ function roleOptions( roles: RoleChoice[], current: string ) {
 	return html`
 		${ roles.map(
 			( role ) => html`
-				<wpd-option value=${ role.slug }>${ role.label }</wpd-option>
+				<os-option value=${ role.slug }>${ role.label }</os-option>
 			`,
 		) }
 		${ current && ! known
-			? html`<wpd-option value=${ current }>${ current }</wpd-option>`
+			? html`<os-option value=${ current }>${ current }</os-option>`
 			: html`` }
 	`;
 }
@@ -564,7 +564,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	const onDelete = async ( agent: Agent ): Promise< void > => {
-		const ok = await wpdConfirm( {
+		const ok = await osConfirm( {
 			title: __( 'Delete agent?', 'desktop-mode' ),
 			message: __(
 				'The agent user is deleted permanently. Content it authored is not reassigned.',
@@ -635,9 +635,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 			</a>
 		`;
 		return html`
-			<wpd-notice tone="warning" class="dm-agents__ai-notice">
+			<os-notice tone="warning" class="dm-agents__ai-notice">
 				${ cfg.aiAvailable ? html`${ noProvider } ${ connectorsLink }` : noClient }
-			</wpd-notice>
+			</os-notice>
 		`;
 	};
 
@@ -649,7 +649,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			${ cfg.canManage
 				? html`
 						<div class="dm-agents__list-toolbar">
-							<wpd-button
+							<os-button
 								class="dm-agents__create"
 								variant="primary"
 								?disabled=${ state.saving }
@@ -661,7 +661,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 								} }
 							>
 								${ __( '+ Create agent', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 						</div>
 				  `
 				: html`` }
@@ -691,7 +691,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 								${ agent.description || __( 'No description yet.', 'desktop-mode' ) }
 							</span>
 						</span>
-						<wpd-badge>${ agent.role }</wpd-badge>
+						<os-badge>${ agent.role }</os-badge>
 					</div>
 				`,
 			) }
@@ -739,34 +739,34 @@ export function renderAgents( host: EntityRenderHost ): void {
 			state.draft.role !== agent.role;
 		return html`
 			<div class="dm-agents__pane">
-				<wpd-text-field
+				<os-text-field
 					label=${ __( 'Name', 'desktop-mode' ) }
 					value=${ state.draft.name }
 					?readonly=${ readOnly }
-					@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+					@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 						state.draft.name = e.detail.value;
 						paint();
 					} }
-				></wpd-text-field>
-				<wpd-text-field
+				></os-text-field>
+				<os-text-field
 					label=${ __( 'When to use (description)', 'desktop-mode' ) }
 					value=${ state.draft.description }
 					?readonly=${ readOnly }
-					@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+					@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 						state.draft.description = e.detail.value;
 						paint();
 					} }
-				></wpd-text-field>
-				<wpd-textarea
+				></os-text-field>
+				<os-textarea
 					label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
 					value=${ state.draft.instructions }
 					rows="10"
 					?readonly=${ readOnly }
-					@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+					@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 						state.draft.instructions = e.detail.value;
 						paint();
 					} }
-				></wpd-textarea>
+				></os-textarea>
 				${ readOnly
 					? html`<p class="dm-agents__hint">
 							${ __( 'Role', 'desktop-mode' ) }: ${ agent.role }
@@ -774,28 +774,28 @@ export function renderAgents( host: EntityRenderHost ): void {
 					: html`
 							${ state.roles
 								? html`
-										<wpd-select
+										<os-select
 											label=${ __( 'Role', 'desktop-mode' ) }
 											value=${ state.draft.role }
-											@wpd-pick=${ ( e: CustomEvent< { value: string } > ) => {
+											@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
 												state.draft.role =
 													e.detail?.value ?? state.draft.role;
 												paint();
 											} }
 										>
 											${ roleOptions( state.roles, state.draft.role ) }
-										</wpd-select>
+										</os-select>
 								  `
 								: html`
-										<wpd-select
+										<os-select
 											label=${ __( 'Role', 'desktop-mode' ) }
 											value=${ state.draft.role }
 											disabled
 										>
-											<wpd-option value=${ state.draft.role }>
+											<os-option value=${ state.draft.role }>
 												${ state.draft.role }
-											</wpd-option>
-										</wpd-select>
+											</os-option>
+										</os-select>
 								  ` }
 							<p class="dm-agents__hint">
 								${ __(
@@ -803,7 +803,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 									'desktop-mode',
 								) }
 							</p>
-							<wpd-button
+							<os-button
 								?disabled=${ state.saving || ! dirty }
 								@click=${ () =>
 									void applyPatch(
@@ -818,7 +818,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 									) }
 							>
 								${ __( 'Save', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 					  ` }
 			</div>
 		`;
@@ -827,7 +827,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	const toolsPane = ( agent: Agent ) => {
 		if ( state.abilities === null ) {
 			return html`<div class="dm-agents__pane dm-agents__pane--loading">
-				<wpd-spinner></wpd-spinner>
+				<os-spinner></os-spinner>
 			</div>`;
 		}
 		const byCategory = new Map< string, Ability[] >();
@@ -851,22 +851,22 @@ export function renderAgents( host: EntityRenderHost ): void {
 						${ abilities.map(
 							( ability ) => html`
 								<div class="dm-agents__ability">
-									<wpd-checkbox-label
+									<os-checkbox-label
 										label=${ ability.label }
 										?checked=${ agent.abilities.includes( ability.slug ) }
 										?disabled=${ ! cfg.canManage || state.saving }
-										@wpd-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
+										@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
 											toggleAbility(
 												agent,
 												ability.slug,
 												e.detail?.checked === true,
 											) }
-									></wpd-checkbox-label>
-									<wpd-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
+									></os-checkbox-label>
+									<os-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
 										${ ability.readonly
 											? __( 'read-only', 'desktop-mode' )
 											: __( 'can modify', 'desktop-mode' ) }
-									</wpd-badge>
+									</os-badge>
 									<p class="dm-agents__ability-desc">${ ability.description }</p>
 								</div>
 							`,
@@ -901,18 +901,18 @@ export function renderAgents( host: EntityRenderHost ): void {
 				<div class="dm-agents__trigger-config">
 					${ ENTITY_KIND_CHOICES.map(
 						( kind ) => html`
-							<wpd-checkbox-label
+							<os-checkbox-label
 								label=${ kind }
 								?checked=${ active.includes( kind ) }
 								?disabled=${ ! cfg.canManage || state.saving }
-								@wpd-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
+								@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
 									const on = e.detail?.checked === true;
 									const next = on
 										? Array.from( new Set( [ ...active, kind ] ) )
 										: active.filter( ( k ) => k !== kind );
 									patchConfig( { entityKinds: next } );
 								} }
-							></wpd-checkbox-label>
+							></os-checkbox-label>
 						`,
 					) }
 				</div>
@@ -921,13 +921,13 @@ export function renderAgents( host: EntityRenderHost ): void {
 		if ( trigger.kind === 'hook' ) {
 			return html`
 				<div class="dm-agents__trigger-config">
-					<wpd-text-field
+					<os-text-field
 						label=${ __( 'Hook name', 'desktop-mode' ) }
 						value=${ String( trigger.config.hook ?? '' ) }
 						?readonly=${ ! cfg.canManage }
-						@wpd-input-commit=${ ( e: CustomEvent< { value: string } > ) =>
+						@os-input-commit=${ ( e: CustomEvent< { value: string } > ) =>
 							patchConfig( { hook: e.detail.value } ) }
-					></wpd-text-field>
+					></os-text-field>
 					${ state.hooks && state.hooks.length > 0
 						? html`<p class="dm-agents__hint">
 								${ __( 'Suggestions', 'desktop-mode' ) }:
@@ -940,13 +940,13 @@ export function renderAgents( host: EntityRenderHost ): void {
 		if ( trigger.kind === 'endpoint' ) {
 			return html`
 				<div class="dm-agents__trigger-config">
-					<wpd-text-field
+					<os-text-field
 						label=${ __( 'Required capability', 'desktop-mode' ) }
 						value=${ String( trigger.config.capability ?? '' ) }
 						?readonly=${ ! cfg.canManage }
-						@wpd-input-commit=${ ( e: CustomEvent< { value: string } > ) =>
+						@os-input-commit=${ ( e: CustomEvent< { value: string } > ) =>
 							patchConfig( { capability: e.detail.value } ) }
-					></wpd-text-field>
+					></os-text-field>
 				</div>
 			`;
 		}
@@ -956,7 +956,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	const triggersPane = ( agent: Agent ) => {
 		if ( state.triggerKinds === null ) {
 			return html`<div class="dm-agents__pane dm-agents__pane--loading">
-				<wpd-spinner></wpd-spinner>
+				<os-spinner></os-spinner>
 			</div>`;
 		}
 		const kindLabel = ( slug: string ): string =>
@@ -987,7 +987,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 								</span>
 								${ cfg.canManage
 									? html`
-											<wpd-button
+											<os-button
 												?disabled=${ state.saving }
 												@click=${ () =>
 													setTriggers(
@@ -996,7 +996,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 													) }
 											>
 												${ __( 'Remove', 'desktop-mode' ) }
-											</wpd-button>
+											</os-button>
 									  `
 									: html`` }
 							</div>
@@ -1006,10 +1006,10 @@ export function renderAgents( host: EntityRenderHost ): void {
 				) }
 				${ cfg.canManage && unusedKinds.length > 0
 					? html`
-							<wpd-select
+							<os-select
 								label=${ __( 'Add trigger', 'desktop-mode' ) }
 								value=""
-								@wpd-pick=${ ( e: CustomEvent< { value: string } > ) => {
+								@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
 									const slug = e.detail?.value;
 									const kind = state.triggerKinds?.find(
 										( k ) => k.slug === slug,
@@ -1025,24 +1025,24 @@ export function renderAgents( host: EntityRenderHost ): void {
 									] );
 								} }
 							>
-								<wpd-option value="">
+								<os-option value="">
 									${ __( 'Pick a trigger kind…', 'desktop-mode' ) }
-								</wpd-option>
+								</os-option>
 								${ unusedKinds.map( ( kind ) =>
 									kind.wired === false
 										? html`
-												<wpd-option value=${ kind.slug } disabled>
+												<os-option value=${ kind.slug } disabled>
 													${ kind.label }
 													${ __( '(coming soon)', 'desktop-mode' ) }
-												</wpd-option>
+												</os-option>
 										  `
 										: html`
-												<wpd-option value=${ kind.slug }>
+												<os-option value=${ kind.slug }>
 													${ kind.label }
-												</wpd-option>
+												</os-option>
 										  `,
 								) }
-							</wpd-select>
+							</os-select>
 					  `
 					: html`` }
 			</div>
@@ -1052,46 +1052,46 @@ export function renderAgents( host: EntityRenderHost ): void {
 	const createPane = () => html`
 		<div class="dm-agents__pane dm-agents__pane--create">
 			<h3>${ __( 'Create agent', 'desktop-mode' ) }</h3>
-			<wpd-text-field
+			<os-text-field
 				label=${ __( 'Name', 'desktop-mode' ) }
 				value=${ state.createDraft.name }
-				@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					state.createDraft.name = e.detail.value;
 				} }
-			></wpd-text-field>
+			></os-text-field>
 			${ state.roles
 				? html`
-						<wpd-select
+						<os-select
 							label=${ __( 'Role', 'desktop-mode' ) }
 							value=${ state.createDraft.role }
-							@wpd-pick=${ ( e: CustomEvent< { value: string } > ) => {
+							@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
 								state.createDraft.role = e.detail?.value ?? state.createDraft.role;
 							} }
 						>
 							${ roleOptions( state.roles, state.createDraft.role ) }
-						</wpd-select>
+						</os-select>
 				  `
-				: html`<wpd-spinner></wpd-spinner>` }
-			<wpd-text-field
+				: html`<os-spinner></os-spinner>` }
+			<os-text-field
 				label=${ __( 'When to use (description)', 'desktop-mode' ) }
 				value=${ state.createDraft.description }
-				@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					state.createDraft.description = e.detail.value;
 				} }
-			></wpd-text-field>
-			<wpd-textarea
+			></os-text-field>
+			<os-textarea
 				label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
 				value=${ state.createDraft.instructions }
 				rows="8"
-				@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					state.createDraft.instructions = e.detail.value;
 				} }
-			></wpd-textarea>
+			></os-textarea>
 			<div class="dm-agents__actions">
-				<wpd-button ?disabled=${ state.saving } @click=${ () => void onCreate() }>
+				<os-button ?disabled=${ state.saving } @click=${ () => void onCreate() }>
 					${ __( 'Create', 'desktop-mode' ) }
-				</wpd-button>
-				<wpd-button
+				</os-button>
+				<os-button
 					?disabled=${ state.saving }
 					@click=${ () => {
 						state.creating = false;
@@ -1100,7 +1100,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 					} }
 				>
 					${ __( 'Cancel', 'desktop-mode' ) }
-				</wpd-button>
+				</os-button>
 			</div>
 		</div>
 	`;
@@ -1122,11 +1122,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 				);
 			}
 			return html`
-				<wpd-empty-state
+				<os-empty-state
 					icon="superhero"
 					heading=${ __( 'No agents yet', 'desktop-mode' ) }
 					description=${ emptyDescription }
-				></wpd-empty-state>
+				></os-empty-state>
 			`;
 		}
 		return html`
@@ -1138,12 +1138,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 				</div>
 			</div>
 			<div class="dm-agents__detail-actions">
-				<wpd-button @click=${ () => openAgentProfile( agent ) }>
+				<os-button @click=${ () => openAgentProfile( agent ) }>
 					${ __( 'Open profile', 'desktop-mode' ) }
-				</wpd-button>
+				</os-button>
 				${ hasUsersEntity()
 					? html`
-							<wpd-button
+							<os-button
 								@click=${ () =>
 									host.navigate( {
 										kind: 'user-footprint',
@@ -1153,12 +1153,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 									} ) }
 							>
 								${ __( 'View contributions', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 					  `
 					: html`` }
 				${ cfg.canManage
 					? html`
-							<wpd-button
+							<os-button
 								?disabled=${ state.saving }
 								@click=${ () =>
 									void sendAgentToDesktop( agent ).then(
@@ -1169,28 +1169,28 @@ export function renderAgents( host: EntityRenderHost ): void {
 									) }
 							>
 								${ __( 'Send to Desktop', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 					  `
 					: html`` }
 				${ cfg.canInvoke
 					? html`
-							<wpd-button
+							<os-button
 								variant="primary"
 								?disabled=${ state.aiReady === false }
 								@click=${ () => openChatWindow( agent ) }
 							>
 								${ __( 'Chat', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 					  `
 					: html`` }
 				${ cfg.canManage
 					? html`
-							<wpd-button
+							<os-button
 								?disabled=${ state.saving }
 								@click=${ () => void onDelete( agent ) }
 							>
 								${ __( 'Delete', 'desktop-mode' ) }
-							</wpd-button>
+							</os-button>
 					  `
 					: html`` }
 			</div>
@@ -1207,7 +1207,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		if ( state.loading ) {
 			render(
-				html`<div class="dm-agents__loading"><wpd-spinner></wpd-spinner></div>`,
+				html`<div class="dm-agents__loading"><os-spinner></os-spinner></div>`,
 				root,
 			);
 			syncRowDropTargets();
@@ -1215,7 +1215,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		if ( state.error ) {
 			render(
-				html`<wpd-notice tone="error">${ state.error }</wpd-notice>`,
+				html`<os-notice tone="error">${ state.error }</os-notice>`,
 				root,
 			);
 			syncRowDropTargets();
@@ -1225,7 +1225,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			html`
 				${ aiNotice() }
 				${ state.notice
-					? html`<wpd-notice class="dm-agents__notice">${ state.notice }</wpd-notice>`
+					? html`<os-notice class="dm-agents__notice">${ state.notice }</os-notice>`
 					: html`` }
 				<div class="dm-agents__layout">
 					${ listPane() }

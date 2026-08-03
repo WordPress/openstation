@@ -133,9 +133,9 @@ export function createUserEditClient(
 	const getConfig = (): PostsWindowConfig => {
 		const store = (
 			window as unknown as {
-				desktopModeWindowConfig?: Record< string, PostsWindowConfig >;
+				openStationWindowConfig?: Record< string, PostsWindowConfig >;
 			}
-		).desktopModeWindowConfig;
+		).openStationWindowConfig;
 		const cfg = store?.[ windowId ];
 		if ( ! cfg ) {
 			throw new Error(

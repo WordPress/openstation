@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-user-edit-window
+ * @group openstation
+ * @group os-user-edit-window
  */
-class Tests_DesktopMode_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
+class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $target_id;
@@ -50,18 +50,18 @@ class Tests_DesktopMode_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 	/**
 	 * Site-wide disable must reject creation with a 501.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_rest_app_pw_create
-	 * @covers ::desktop_mode_user_edit_window_app_pw_unavailable
+	 * @covers ::open_station_user_edit_window_rest_app_pw_create
+	 * @covers ::open_station_user_edit_window_app_pw_unavailable
 	 */
 	public function test_create_rejected_when_application_passwords_unavailable_sitewide() {
 		add_filter( 'wp_is_application_passwords_available', '__return_false' );
 
-		$res = desktop_mode_user_edit_window_rest_app_pw_create(
+		$res = open_station_user_edit_window_rest_app_pw_create(
 			$this->build_request( $this->target_id, array( 'name' => 'CLI tool' ) )
 		);
 
 		$this->assertWPError( $res );
-		$this->assertSame( 'desktop_mode_users_app_pw_unavailable', $res->get_error_code() );
+		$this->assertSame( 'open_station_users_app_pw_unavailable', $res->get_error_code() );
 		$data = $res->get_error_data();
 		$this->assertSame( 501, $data['status'] );
 		$this->assertSame(
@@ -74,8 +74,8 @@ class Tests_DesktopMode_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 	/**
 	 * Per-user disable must reject listing with a 501.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_rest_app_pw_list
-	 * @covers ::desktop_mode_user_edit_window_app_pw_unavailable
+	 * @covers ::open_station_user_edit_window_rest_app_pw_list
+	 * @covers ::open_station_user_edit_window_app_pw_unavailable
 	 */
 	public function test_list_rejected_when_unavailable_for_target_user() {
 		add_filter( 'wp_is_application_passwords_available', '__return_true' );
@@ -92,41 +92,41 @@ class Tests_DesktopMode_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 			2
 		);
 
-		$res = desktop_mode_user_edit_window_rest_app_pw_list(
+		$res = open_station_user_edit_window_rest_app_pw_list(
 			$this->build_request( $this->target_id )
 		);
 
 		$this->assertWPError( $res );
-		$this->assertSame( 'desktop_mode_users_app_pw_unavailable', $res->get_error_code() );
+		$this->assertSame( 'open_station_users_app_pw_unavailable', $res->get_error_code() );
 	}
 
 	/**
 	 * Site-wide disable must reject revocation with a 501.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_rest_app_pw_revoke
-	 * @covers ::desktop_mode_user_edit_window_app_pw_unavailable
+	 * @covers ::open_station_user_edit_window_rest_app_pw_revoke
+	 * @covers ::open_station_user_edit_window_app_pw_unavailable
 	 */
 	public function test_revoke_rejected_when_application_passwords_unavailable_sitewide() {
 		add_filter( 'wp_is_application_passwords_available', '__return_false' );
 
 		$req = $this->build_request( $this->target_id );
 		$req->set_param( 'uuid', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' );
-		$res = desktop_mode_user_edit_window_rest_app_pw_revoke( $req );
+		$res = open_station_user_edit_window_rest_app_pw_revoke( $req );
 
 		$this->assertWPError( $res );
-		$this->assertSame( 'desktop_mode_users_app_pw_unavailable', $res->get_error_code() );
+		$this->assertSame( 'open_station_users_app_pw_unavailable', $res->get_error_code() );
 	}
 
 	/**
 	 * When the policy allows the feature, creation still works.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_rest_app_pw_create
+	 * @covers ::open_station_user_edit_window_rest_app_pw_create
 	 */
 	public function test_create_succeeds_when_available() {
 		add_filter( 'wp_is_application_passwords_available', '__return_true' );
 		add_filter( 'wp_is_application_passwords_available_for_user', '__return_true' );
 
-		$res = desktop_mode_user_edit_window_rest_app_pw_create(
+		$res = open_station_user_edit_window_rest_app_pw_create(
 			$this->build_request( $this->target_id, array( 'name' => 'CLI tool' ) )
 		);
 

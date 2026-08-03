@@ -8,20 +8,20 @@
  * case. Each entry is detached in-window and surfaced once in the shell, the
  * same pattern as the core notices.
  *
- * @package DesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * The allowlisted plugin/library notices for the current user, as shell
- * descriptors (same shape as `desktop_mode_get_core_notices()`).
+ * descriptors (same shape as `open_station_get_core_notices()`).
  *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
-function desktop_mode_get_plugin_notices() {
+function open_station_get_plugin_notices() {
 	$builders = array(
-		'desktop_mode_plugin_notice_action_scheduler',
+		'open_station_plugin_notice_action_scheduler',
 	);
 
 	$notices = array();
@@ -39,7 +39,7 @@ function desktop_mode_get_plugin_notices() {
 	 *
 	 * @param array $notices List of notice descriptors.
 	 */
-	return apply_filters( 'desktop_mode_plugin_notices', $notices );
+	return apply_filters( 'open_station_plugin_notices', $notices );
 }
 
 /**
@@ -52,7 +52,7 @@ function desktop_mode_get_plugin_notices() {
  *
  * @return array|null
  */
-function desktop_mode_plugin_notice_action_scheduler() {
+function open_station_plugin_notice_action_scheduler() {
 	if ( ! class_exists( 'ActionScheduler_Store' ) || ! function_exists( 'as_get_datetime_object' ) ) {
 		return null;
 	}
@@ -120,10 +120,10 @@ function desktop_mode_plugin_notice_action_scheduler() {
 /**
  * Detaches the allowlisted plugin/library notices inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces each once (see
- * `desktop_mode_get_plugin_notices()`).
+ * `open_station_get_plugin_notices()`).
  */
-function desktop_mode_chromeless_suppress_plugin_notices() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function open_station_chromeless_suppress_plugin_notices() {
+	if ( ! open_station_is_chromeless_request() ) {
 		return;
 	}
 
@@ -138,4 +138,4 @@ function desktop_mode_chromeless_suppress_plugin_notices() {
 		}
 	}
 }
-add_action( 'admin_init', 'desktop_mode_chromeless_suppress_plugin_notices' );
+add_action( 'admin_init', 'open_station_chromeless_suppress_plugin_notices' );

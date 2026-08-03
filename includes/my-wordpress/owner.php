@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: post-type ownership → folder groups.
+ * OpenStation — My WordPress: post-type ownership → folder groups.
  *
  * Custom post types are grouped in the site window by whoever
  * registered them: a plugin's CPTs share one folder named after the
@@ -9,7 +9,7 @@
  * Pages.
  *
  * Attribution reads the registration-time file path captured by
- * `desktop_mode_record_type_registrant()` (`includes/core/payload.php`),
+ * `open_station_record_type_registrant()` (`includes/core/payload.php`),
  * which hooks `registered_post_type` and walks the backtrace to the
  * first frame inside an extension directory.
  *
@@ -23,10 +23,10 @@
  *
  * Filterable surface:
  *
- *   - `desktop_mode_my_wordpress_post_type_group`
- *   - `desktop_mode_my_wordpress_post_type_groups`
+ *   - `open_station_my_wordpress_post_type_group`
+ *   - `open_station_my_wordpress_post_type_groups`
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -39,13 +39,13 @@ defined( 'ABSPATH' ) || exit;
  *                    `order` keys, or null when the type should sit
  *                    loose at the root.
  */
-function desktop_mode_my_wordpress_post_type_group( $post_type ) {
+function open_station_my_wordpress_post_type_group( $post_type ) {
 	$group = null;
 
-	if ( function_exists( 'desktop_mode_type_registrant_file' ) ) {
-		$file = desktop_mode_type_registrant_file( (string) $post_type, 'post_type' );
+	if ( function_exists( 'open_station_type_registrant_file' ) ) {
+		$file = open_station_type_registrant_file( (string) $post_type, 'post_type' );
 		if ( null !== $file ) {
-			$group = desktop_mode_my_wordpress_group_for_path( $file );
+			$group = open_station_my_wordpress_group_for_path( $file );
 		}
 	}
 
@@ -62,7 +62,7 @@ function desktop_mode_my_wordpress_post_type_group( $post_type ) {
 	 * @param array|null $group     Resolved group descriptor, or null.
 	 * @param string     $post_type Post type slug.
 	 */
-	$group = apply_filters( 'desktop_mode_my_wordpress_post_type_group', $group, $post_type );
+	$group = apply_filters( 'open_station_my_wordpress_post_type_group', $group, $post_type );
 
 	return is_array( $group ) && ! empty( $group['id'] ) ? $group : null;
 }
@@ -73,7 +73,7 @@ function desktop_mode_my_wordpress_post_type_group( $post_type ) {
  * @param string $file Normalized absolute path.
  * @return array|null Group descriptor or null.
  */
-function desktop_mode_my_wordpress_group_for_path( $file ) {
+function open_station_my_wordpress_group_for_path( $file ) {
 	$path = wp_normalize_path( (string) $file );
 	if ( '' === $path ) {
 		return null;
@@ -90,7 +90,7 @@ function desktop_mode_my_wordpress_group_for_path( $file ) {
 			if ( '' === $slug ) {
 				return null;
 			}
-			$name = desktop_mode_my_wordpress_plugin_header_name( $mu_dir . $rel );
+			$name = open_station_my_wordpress_plugin_header_name( $mu_dir . $rel );
 			return array(
 				'id'    => 'mu-plugin:' . $slug,
 				'label' => '' !== $name ? $name : $slug,
@@ -107,7 +107,7 @@ function desktop_mode_my_wordpress_group_for_path( $file ) {
 			$folder = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : '';
 			if ( '' === $folder ) {
 				// Single-file plugin living directly in `plugins/`.
-				$name = desktop_mode_my_wordpress_plugin_header_name( $plugins_dir . $rel );
+				$name = open_station_my_wordpress_plugin_header_name( $plugins_dir . $rel );
 				return array(
 					'id'    => 'plugin:' . $rel,
 					'label' => '' !== $name ? $name : $rel,
@@ -117,7 +117,7 @@ function desktop_mode_my_wordpress_group_for_path( $file ) {
 			}
 			return array(
 				'id'    => 'plugin:' . $folder,
-				'label' => desktop_mode_my_wordpress_plugin_folder_name( $folder ),
+				'label' => open_station_my_wordpress_plugin_folder_name( $folder ),
 				'icon'  => 'dashicons-admin-plugins',
 				'order' => 20,
 			);
@@ -160,7 +160,7 @@ function desktop_mode_my_wordpress_group_for_path( $file ) {
  * @param string $folder Plugin folder name.
  * @return string Display name.
  */
-function desktop_mode_my_wordpress_plugin_folder_name( $folder ) {
+function open_station_my_wordpress_plugin_folder_name( $folder ) {
 	$slug = (string) $folder;
 	if ( '' === $slug ) {
 		return '';
@@ -178,7 +178,7 @@ function desktop_mode_my_wordpress_plugin_folder_name( $folder ) {
 		if ( 0 !== strpos( $rel, $slug . '/' ) ) {
 			continue;
 		}
-		$name = desktop_mode_my_wordpress_plugin_header_name( $norm );
+		$name = open_station_my_wordpress_plugin_header_name( $norm );
 		break;
 	}
 
@@ -192,7 +192,7 @@ function desktop_mode_my_wordpress_plugin_folder_name( $folder ) {
  * @param string $file Absolute path to a PHP file.
  * @return string Plugin name, or an empty string.
  */
-function desktop_mode_my_wordpress_plugin_header_name( $file ) {
+function open_station_my_wordpress_plugin_header_name( $file ) {
 	if ( ! is_string( $file ) || '' === $file || ! is_readable( $file ) ) {
 		return '';
 	}
@@ -211,7 +211,7 @@ function desktop_mode_my_wordpress_plugin_header_name( $file ) {
  * @param array[] $entities Entity descriptors.
  * @return array[] Group descriptors, ordered.
  */
-function desktop_mode_my_wordpress_collect_groups( $entities ) {
+function open_station_my_wordpress_collect_groups( $entities ) {
 	$groups = array();
 
 	foreach ( (array) $entities as $entity ) {
@@ -247,14 +247,14 @@ function desktop_mode_my_wordpress_collect_groups( $entities ) {
 	 * Each entry declares `id`, `label`, `icon`, and `order`. Removing
 	 * an entry does not hide its post types — they fall back to
 	 * rendering loose at the root. To move a type between folders,
-	 * use `desktop_mode_my_wordpress_post_type_group` instead.
+	 * use `open_station_my_wordpress_post_type_group` instead.
 	 *
 	 * **Status: Experimental** — the descriptor may gain fields.
 	 *
 	 * @param array[] $groups   Ordered group descriptors.
 	 * @param array[] $entities The entity descriptors they were derived from.
 	 */
-	$filtered = apply_filters( 'desktop_mode_my_wordpress_post_type_groups', $groups, $entities );
+	$filtered = apply_filters( 'open_station_my_wordpress_post_type_groups', $groups, $entities );
 
 	return is_array( $filtered ) ? array_values( $filtered ) : $groups;
 }

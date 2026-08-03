@@ -2,7 +2,7 @@
  * Desktop-theme types shared across the shell bundle.
  *
  * Deliberately dependency-free so `src/desktop-themes/` can stay a
- * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<wpd-*>`
+ * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<os-*>`
  * imports — the heavy picker UI lives in the lazy OS Settings panel
  * bundle instead.
  */
@@ -20,7 +20,7 @@
  * same theme.
  *
  * Sanitized by PHP against
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()` and
+ * `open_station_desktop_theme_recommended_os_settings_schema()` and
  * re-checked in {@link normalizeEntry} — the payload passes through a
  * filter after sanitization, so the shell never treats it as trusted.
  *

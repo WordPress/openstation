@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Widget persistence.
+ * OpenStation — Widget persistence.
  *
  * Three separate localStorage records:
  *

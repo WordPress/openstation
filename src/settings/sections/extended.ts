@@ -105,55 +105,55 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Extended options' ) }
 					description=${ __(
 						'Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect.',
 					) }
 				>
-					<wpd-checkbox-label
+					<os-checkbox-label
 						label=${ __( 'Enable drag-and-drop in the Media Library' ) }
 						?checked=${ state.media_library_enhanced }
-						@wpd-checkbox-change=${ onMediaToggle }
-					></wpd-checkbox-label>
+						@os-checkbox-change=${ onMediaToggle }
+					></os-checkbox-label>
 
-					<p class="desktop-mode-ext__hint">
+					<p class="os-ext__hint">
 						${ __(
 							'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
 						) }
 					</p>
 
-					<wpd-checkbox-label
+					<os-checkbox-label
 						label=${ __( 'Enable games' ) }
 						?checked=${ state.games }
-						@wpd-checkbox-change=${ onGamesToggle }
-					></wpd-checkbox-label>
+						@os-checkbox-change=${ onGamesToggle }
+					></os-checkbox-label>
 
-					<p class="desktop-mode-ext__hint">
+					<p class="os-ext__hint">
 						${ __(
 							'Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.',
 						) }
 					</p>
 
-					<wpd-checkbox-label
+					<os-checkbox-label
 						label=${ __( 'Enable AI agents' ) }
 						?checked=${ state.agents }
-						@wpd-checkbox-change=${ onAgentsToggle }
-					></wpd-checkbox-label>
+						@os-checkbox-change=${ onAgentsToggle }
+					></os-checkbox-label>
 
-					<p class="desktop-mode-ext__hint">
+					<p class="os-ext__hint">
 						${ __(
 							'Adds an Agents section to My WordPress: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.',
 						) }
 					</p>
 
 					${ state.error
-						? html`<p class="desktop-mode-ext__error">${ state.error }</p>`
+						? html`<p class="os-ext__error">${ state.error }</p>`
 						: html`` }
 					${ state.saving
-						? html`<p class="desktop-mode-ext__saving">${ __( 'Saving…' ) }</p>`
+						? html`<p class="os-ext__saving">${ __( 'Saving…' ) }</p>`
 						: html`` }
-				</wpd-section>
+				</os-section>
 			`,
 			el,
 		);

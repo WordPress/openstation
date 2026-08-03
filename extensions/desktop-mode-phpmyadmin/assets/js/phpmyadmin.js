@@ -1,8 +1,8 @@
 (function() {
   "use strict";
-  const ROOT_SELECTOR = "[data-wpdc-phpmyadmin-root]";
+  const ROOT_SELECTOR = "[data-osc-phpmyadmin-root]";
   function getConfig() {
-    const cfg = window.wpDesktopPhpMyAdminConfig;
+    const cfg = window.openStationPhpMyAdminConfig;
     if (!cfg || typeof cfg.vendorUrl !== "string" || cfg.vendorUrl === "") {
       return null;
     }
@@ -11,7 +11,7 @@
   function renderError(root, message) {
     root.innerHTML = "";
     const wrap = document.createElement("div");
-    wrap.className = "wpdc-phpmyadmin__error";
+    wrap.className = "osc-phpmyadmin__error";
     wrap.textContent = message;
     root.appendChild(wrap);
   }
@@ -36,7 +36,7 @@
     root.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
     root.innerHTML = "";
     const iframe = document.createElement("iframe");
-    iframe.className = "wpdc-phpmyadmin__frame";
+    iframe.className = "osc-phpmyadmin__frame";
     // Inline sizing so the iframe doesn't fall back to its 300×150
     // user-agent default if the stylesheet is missing.
     iframe.style.cssText = "flex:1 1 auto;width:100%;height:100%;border:0;display:block;";
@@ -48,8 +48,8 @@
     );
     root.appendChild(iframe);
   }
-  const registry = window.wpDesktopNativeWindows ?? (window.wpDesktopNativeWindows = {});
-  registry["wpdc-phpmyadmin"] = (body) => {
+  const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
+  registry["osc-phpmyadmin"] = (body) => {
     renderPhpMyAdmin(body);
   };
 
@@ -60,9 +60,9 @@
   // skeleton in place. Find any already-mounted skeleton and render
   // into it — idempotent because renderPhpMyAdmin clears the root
   // before injecting the iframe.
-  const skeletons = document.querySelectorAll("[data-wpdc-phpmyadmin-loading]");
+  const skeletons = document.querySelectorAll("[data-osc-phpmyadmin-loading]");
   skeletons.forEach((skel) => {
-    const body = skel.closest(".wp-desktop-window__body");
+    const body = skel.closest(".os-window__body");
     if (body) {
       renderPhpMyAdmin(body);
     }

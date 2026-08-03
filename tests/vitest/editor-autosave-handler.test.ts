@@ -2,7 +2,7 @@
  * Tests for the iframe-side editor-autosave answerer
  * (`installEditorAutosaveHandler` in
  * `src/iframe-bridge-standalone.ts`) — the handler that answers the
- * shell's `desktop-mode-editor-autosave-request` before the
+ * shell's `os-editor-autosave-request` before the
  * editor-preview companion window opens.
  *
  * Strategy: install the handler in the jsdom top frame (where
@@ -36,7 +36,7 @@ function sendRequest( requestId: string ): void {
 	window.dispatchEvent(
 		new MessageEvent( 'message', {
 			origin: window.location.origin,
-			data: { type: 'desktop-mode-editor-autosave-request', requestId },
+			data: { type: 'os-editor-autosave-request', requestId },
 		} ),
 	);
 }
@@ -46,7 +46,7 @@ function sendWatch( watchId: string, debounceMs = 500 ): void {
 		new MessageEvent( 'message', {
 			origin: window.location.origin,
 			data: {
-				type: 'desktop-mode-editor-live-watch',
+				type: 'os-editor-live-watch',
 				watchId,
 				debounceMs,
 			},
@@ -58,7 +58,7 @@ function sendUnwatch( watchId: string ): void {
 	window.dispatchEvent(
 		new MessageEvent( 'message', {
 			origin: window.location.origin,
-			data: { type: 'desktop-mode-editor-live-unwatch', watchId },
+			data: { type: 'os-editor-live-unwatch', watchId },
 		} ),
 	);
 }
@@ -141,10 +141,10 @@ beforeEach( () => {
 		const data = ev?.data as
 			| ( AutosaveResponse & LiveSavedMessage )
 			| null;
-		if ( data?.type === 'desktop-mode-editor-autosave-response' ) {
+		if ( data?.type === 'os-editor-autosave-response' ) {
 			responses.push( data );
 		}
-		if ( data?.type === 'desktop-mode-editor-live-saved' ) {
+		if ( data?.type === 'os-editor-live-saved' ) {
 			liveSaves.push( data );
 		}
 	};
@@ -311,7 +311,7 @@ describe( 'installEditorAutosaveHandler', () => {
 			new MessageEvent( 'message', {
 				origin: 'https://evil.example',
 				data: {
-					type: 'desktop-mode-editor-autosave-request',
+					type: 'os-editor-autosave-request',
 					requestId: id,
 				},
 			} ),

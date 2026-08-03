@@ -7,19 +7,19 @@
  * through these helpers so identity matching, custom schedules, and
  * REST responses stay consistent.
  *
- * @package DesktopModeCronManager
+ * @package OpenStationCronManager
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const DESKTOP_MODE_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION = 'desktop_mode_cron_custom_schedules';
+const OPEN_STATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION = 'desktop_mode_cron_custom_schedules';
 
 /**
  * Whether the current user may use the Cron Manager.
  *
  * @return bool
  */
-function desktop_mode_cron_manager_user_can_use() {
+function open_station_cron_manager_user_can_use() {
 	// Cron events run arbitrary registered callbacks, so on multisite this
 	// surface is reserved for Super Admins (`manage_network`) — per-site
 	// Administrators hold `manage_options` but are intentionally denied
@@ -31,7 +31,7 @@ function desktop_mode_cron_manager_user_can_use() {
 	 *
 	 * @param bool $can Default: manage_network capability on multisite, manage_options otherwise.
 	 */
-	return (bool) apply_filters( 'desktop_mode_cron_manager_user_can_use', $can );
+	return (bool) apply_filters( 'open_station_cron_manager_user_can_use', $can );
 }
 
 /**
@@ -39,8 +39,8 @@ function desktop_mode_cron_manager_user_can_use() {
  *
  * @return array<string, array{interval:int, display:string}>
  */
-function desktop_mode_cron_manager_get_custom_schedules() {
-	$raw = get_option( DESKTOP_MODE_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION, array() );
+function open_station_cron_manager_get_custom_schedules() {
+	$raw = get_option( OPEN_STATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -79,31 +79,31 @@ function desktop_mode_cron_manager_get_custom_schedules() {
  * @param string $display  Display label.
  * @return string|WP_Error Sanitized slug on success.
  */
-function desktop_mode_cron_manager_save_custom_schedule( $slug, $interval, $display = '' ) {
+function open_station_cron_manager_save_custom_schedule( $slug, $interval, $display = '' ) {
 	$slug     = sanitize_key( (string) $slug );
 	$interval = absint( $interval );
 	$display  = sanitize_text_field( (string) $display );
 
 	if ( '' === $slug ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_schedule_slug',
+			'open_station_cron_invalid_schedule_slug',
 			__( 'Custom schedule slug is required.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( $interval <= 0 ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_interval',
+			'open_station_cron_invalid_interval',
 			__( 'Custom schedule interval must be greater than zero seconds.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 
 	$existing = wp_get_schedules();
-	$custom   = desktop_mode_cron_manager_get_custom_schedules();
+	$custom   = open_station_cron_manager_get_custom_schedules();
 	if ( isset( $existing[ $slug ] ) && ! isset( $custom[ $slug ] ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_schedule_exists',
+			'open_station_cron_schedule_exists',
 			__( 'That schedule slug is already registered by WordPress or another plugin.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 409 )
 		);
@@ -121,7 +121,7 @@ function desktop_mode_cron_manager_save_custom_schedule( $slug, $interval, $disp
 		'interval' => $interval,
 		'display'  => $display,
 	);
-	update_option( DESKTOP_MODE_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION, $custom, false );
+	update_option( OPEN_STATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION, $custom, false );
 
 	return $slug;
 }
@@ -132,12 +132,12 @@ function desktop_mode_cron_manager_save_custom_schedule( $slug, $interval, $disp
  * @param array $schedules Cron schedules.
  * @return array
  */
-function desktop_mode_cron_manager_register_custom_schedules( $schedules ) {
+function open_station_cron_manager_register_custom_schedules( $schedules ) {
 	if ( ! is_array( $schedules ) ) {
 		$schedules = array();
 	}
 
-	foreach ( desktop_mode_cron_manager_get_custom_schedules() as $slug => $entry ) {
+	foreach ( open_station_cron_manager_get_custom_schedules() as $slug => $entry ) {
 		$schedules[ $slug ] = array(
 			'interval' => (int) $entry['interval'],
 			'display'  => (string) $entry['display'],
@@ -146,16 +146,16 @@ function desktop_mode_cron_manager_register_custom_schedules( $schedules ) {
 
 	return $schedules;
 }
-add_filter( 'cron_schedules', 'desktop_mode_cron_manager_register_custom_schedules' );
+add_filter( 'cron_schedules', 'open_station_cron_manager_register_custom_schedules' );
 
 /**
  * Return the cron schedule list in a client-friendly shape.
  *
  * @return array<int, array{slug:string, interval:int, display:string, custom:bool}>
  */
-function desktop_mode_cron_manager_get_schedules_payload() {
+function open_station_cron_manager_get_schedules_payload() {
 	$schedules = wp_get_schedules();
-	$custom    = desktop_mode_cron_manager_get_custom_schedules();
+	$custom    = open_station_cron_manager_get_custom_schedules();
 	$out       = array();
 
 	foreach ( $schedules as $slug => $entry ) {
@@ -189,25 +189,25 @@ function desktop_mode_cron_manager_get_schedules_payload() {
  * @param mixed $hook Raw hook.
  * @return string|WP_Error
  */
-function desktop_mode_cron_manager_normalize_hook( $hook ) {
+function open_station_cron_manager_normalize_hook( $hook ) {
 	$hook = trim( (string) $hook );
 	if ( '' === $hook ) {
 		return new WP_Error(
-			'desktop_mode_cron_missing_hook',
+			'open_station_cron_missing_hook',
 			__( 'Cron hook is required.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( strlen( $hook ) > 191 ) {
 		return new WP_Error(
-			'desktop_mode_cron_hook_too_long',
+			'open_station_cron_hook_too_long',
 			__( 'Cron hook is too long.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( ! preg_match( '/^[A-Za-z0-9_\-\.\/:]+$/', $hook ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_hook',
+			'open_station_cron_invalid_hook',
 			__( 'Cron hook may only contain letters, numbers, underscores, dashes, dots, slashes, and colons.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
@@ -221,7 +221,7 @@ function desktop_mode_cron_manager_normalize_hook( $hook ) {
  * @param mixed $value Value to test.
  * @return bool
  */
-function desktop_mode_cron_manager_is_json_safe( $value ) {
+function open_station_cron_manager_is_json_safe( $value ) {
 	if ( null === $value || is_scalar( $value ) ) {
 		return true;
 	}
@@ -232,7 +232,7 @@ function desktop_mode_cron_manager_is_json_safe( $value ) {
 		if ( ! is_int( $k ) && ! is_string( $k ) ) {
 			return false;
 		}
-		if ( ! desktop_mode_cron_manager_is_json_safe( $v ) ) {
+		if ( ! open_station_cron_manager_is_json_safe( $v ) ) {
 			return false;
 		}
 	}
@@ -245,20 +245,20 @@ function desktop_mode_cron_manager_is_json_safe( $value ) {
  * @param mixed $args Raw decoded JSON args.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_normalize_args( $args ) {
+function open_station_cron_manager_normalize_args( $args ) {
 	if ( null === $args ) {
 		return array();
 	}
 	if ( ! is_array( $args ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_args',
+			'open_station_cron_invalid_args',
 			__( 'Cron args must be a JSON array or object.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
-	if ( ! desktop_mode_cron_manager_is_json_safe( $args ) ) {
+	if ( ! open_station_cron_manager_is_json_safe( $args ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_unsupported_args',
+			'open_station_cron_unsupported_args',
 			__( 'Cron args contain unsupported values.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
@@ -272,7 +272,7 @@ function desktop_mode_cron_manager_normalize_args( $args ) {
  * @param array $args Cron args.
  * @return string
  */
-function desktop_mode_cron_manager_args_hash( $args ) {
+function open_station_cron_manager_args_hash( $args ) {
 	return md5( serialize( is_array( $args ) ? $args : array() ) );
 }
 
@@ -284,7 +284,7 @@ function desktop_mode_cron_manager_args_hash( $args ) {
  * @param string $args_hash Internal args hash.
  * @return string
  */
-function desktop_mode_cron_manager_event_id( $timestamp, $hook, $args_hash ) {
+function open_station_cron_manager_event_id( $timestamp, $hook, $args_hash ) {
 	return (int) $timestamp . ':' . rawurlencode( (string) $hook ) . ':' . (string) $args_hash;
 }
 
@@ -297,7 +297,7 @@ function desktop_mode_cron_manager_event_id( $timestamp, $hook, $args_hash ) {
  * @param array  $event     Raw cron event.
  * @return array
  */
-function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, $event ) {
+function open_station_cron_manager_format_event( $timestamp, $hook, $args_hash, $event ) {
 	$args      = isset( $event['args'] ) && is_array( $event['args'] ) ? $event['args'] : array();
 	$schedule  = isset( $event['schedule'] ) && is_string( $event['schedule'] ) ? $event['schedule'] : '';
 	$schedules = wp_get_schedules();
@@ -305,7 +305,7 @@ function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, 
 	if ( $interval <= 0 && '' !== $schedule && isset( $schedules[ $schedule ]['interval'] ) ) {
 		$interval = (int) $schedules[ $schedule ]['interval'];
 	}
-	$args_editable = desktop_mode_cron_manager_is_json_safe( $args );
+	$args_editable = open_station_cron_manager_is_json_safe( $args );
 	$args_json     = $args_editable ? wp_json_encode( $args, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
 	if ( false === $args_json ) {
 		$args_json     = '';
@@ -314,7 +314,7 @@ function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, 
 	$now = time();
 
 	return array(
-		'id'              => desktop_mode_cron_manager_event_id( $timestamp, $hook, $args_hash ),
+		'id'              => open_station_cron_manager_event_id( $timestamp, $hook, $args_hash ),
 		'identity'        => array(
 			'timestamp' => (int) $timestamp,
 			'hook'      => (string) $hook,
@@ -332,11 +332,11 @@ function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, 
 		'recurring'       => '' !== $schedule,
 		'due'             => (int) $timestamp <= $now,
 		'overdue'         => (int) $timestamp < ( $now - 300 ),
-		'callbackCount'   => desktop_mode_cron_manager_count_hook_callbacks( $hook ),
+		'callbackCount'   => open_station_cron_manager_count_hook_callbacks( $hook ),
 		'args'            => $args,
 		'argsJson'        => $args_json,
 		'argsEditable'    => $args_editable,
-		'argsSummary'     => desktop_mode_cron_manager_args_summary( $args, $args_editable ),
+		'argsSummary'     => open_station_cron_manager_args_summary( $args, $args_editable ),
 	);
 }
 
@@ -346,7 +346,7 @@ function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, 
  * @param string $hook Hook name.
  * @return int
  */
-function desktop_mode_cron_manager_count_hook_callbacks( $hook ) {
+function open_station_cron_manager_count_hook_callbacks( $hook ) {
 	global $wp_filter;
 
 	if ( empty( $wp_filter[ $hook ] ) ) {
@@ -384,7 +384,7 @@ function desktop_mode_cron_manager_count_hook_callbacks( $hook ) {
  * @param bool  $args_editable Whether args are JSON-safe.
  * @return string
  */
-function desktop_mode_cron_manager_args_summary( $args, $args_editable ) {
+function open_station_cron_manager_args_summary( $args, $args_editable ) {
 	if ( empty( $args ) ) {
 		return '[]';
 	}
@@ -403,7 +403,7 @@ function desktop_mode_cron_manager_args_summary( $args, $args_editable ) {
  *
  * @return array<int, array>
  */
-function desktop_mode_cron_manager_list_events() {
+function open_station_cron_manager_list_events() {
 	$crons = _get_cron_array();
 	if ( ! is_array( $crons ) || empty( $crons ) ) {
 		return array();
@@ -422,7 +422,7 @@ function desktop_mode_cron_manager_list_events() {
 				if ( ! is_array( $event ) ) {
 					continue;
 				}
-				$out[] = desktop_mode_cron_manager_format_event(
+				$out[] = open_station_cron_manager_format_event(
 					(int) $timestamp,
 					(string) $hook,
 					(string) $args_hash,
@@ -451,10 +451,10 @@ function desktop_mode_cron_manager_list_events() {
  * @param array $identity Event identity.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_find_event( $identity ) {
+function open_station_cron_manager_find_event( $identity ) {
 	if ( ! is_array( $identity ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_missing_identity',
+			'open_station_cron_missing_identity',
 			__( 'Cron event identity is required.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
@@ -465,7 +465,7 @@ function desktop_mode_cron_manager_find_event( $identity ) {
 	$args_hash = isset( $identity['argsHash'] ) ? (string) $identity['argsHash'] : '';
 	if ( $timestamp <= 0 || '' === $hook || '' === $args_hash ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_identity',
+			'open_station_cron_invalid_identity',
 			__( 'Cron event identity is invalid.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
@@ -479,7 +479,7 @@ function desktop_mode_cron_manager_find_event( $identity ) {
 		|| empty( $crons[ $timestamp ][ $hook ][ $args_hash ] )
 	) {
 		return new WP_Error(
-			'desktop_mode_cron_event_not_found',
+			'open_station_cron_event_not_found',
 			__( 'Cron event was not found.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 404 )
 		);
@@ -504,16 +504,16 @@ function desktop_mode_cron_manager_find_event( $identity ) {
  * @param array|null $fallback_args Args to use when omitted.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_args = null ) {
+function open_station_cron_manager_normalize_event_payload( $payload, $fallback_args = null ) {
 	if ( ! is_array( $payload ) ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_payload',
+			'open_station_cron_invalid_payload',
 			__( 'Cron event payload must be an object.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$hook = desktop_mode_cron_manager_normalize_hook( isset( $payload['hook'] ) ? $payload['hook'] : '' );
+	$hook = open_station_cron_manager_normalize_hook( isset( $payload['hook'] ) ? $payload['hook'] : '' );
 	if ( is_wp_error( $hook ) ) {
 		return $hook;
 	}
@@ -521,14 +521,14 @@ function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_
 	$timestamp = isset( $payload['timestamp'] ) ? (int) $payload['timestamp'] : 0;
 	if ( $timestamp <= 0 ) {
 		return new WP_Error(
-			'desktop_mode_cron_invalid_timestamp',
+			'open_station_cron_invalid_timestamp',
 			__( 'Cron event timestamp must be a positive Unix timestamp.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 400 )
 		);
 	}
 
 	if ( array_key_exists( 'args', $payload ) ) {
-		$args = desktop_mode_cron_manager_normalize_args( $payload['args'] );
+		$args = open_station_cron_manager_normalize_args( $payload['args'] );
 	} elseif ( null !== $fallback_args ) {
 		$args = $fallback_args;
 	} else {
@@ -542,7 +542,7 @@ function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_
 		? $payload['customSchedule']
 		: null;
 	if ( $custom ) {
-		$saved = desktop_mode_cron_manager_save_custom_schedule(
+		$saved = open_station_cron_manager_save_custom_schedule(
 			isset( $custom['slug'] ) ? $custom['slug'] : '',
 			isset( $custom['interval'] ) ? $custom['interval'] : 0,
 			isset( $custom['display'] ) ? $custom['display'] : ''
@@ -562,7 +562,7 @@ function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_
 		$schedules = wp_get_schedules();
 		if ( ! isset( $schedules[ $schedule ] ) ) {
 			return new WP_Error(
-				'desktop_mode_cron_invalid_schedule',
+				'open_station_cron_invalid_schedule',
 				__( 'Cron schedule does not exist.', 'desktop-mode-cron-manager' ),
 				array( 'status' => 400 )
 			);
@@ -583,7 +583,7 @@ function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_
  * @param array $event Normalized event.
  * @return true|WP_Error
  */
-function desktop_mode_cron_manager_schedule_normalized_event( $event ) {
+function open_station_cron_manager_schedule_normalized_event( $event ) {
 	if ( '' === $event['schedule'] ) {
 		$result = wp_schedule_single_event(
 			(int) $event['timestamp'],
@@ -606,7 +606,7 @@ function desktop_mode_cron_manager_schedule_normalized_event( $event ) {
 	}
 	if ( ! $result ) {
 		return new WP_Error(
-			'desktop_mode_cron_schedule_failed',
+			'open_station_cron_schedule_failed',
 			__( 'Cron event could not be scheduled.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 500 )
 		);
@@ -621,20 +621,20 @@ function desktop_mode_cron_manager_schedule_normalized_event( $event ) {
  * @param array $payload Raw event payload.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_create_event( $payload ) {
-	$event = desktop_mode_cron_manager_normalize_event_payload( $payload );
+function open_station_cron_manager_create_event( $payload ) {
+	$event = open_station_cron_manager_normalize_event_payload( $payload );
 	if ( is_wp_error( $event ) ) {
 		return $event;
 	}
 
-	$scheduled = desktop_mode_cron_manager_schedule_normalized_event( $event );
+	$scheduled = open_station_cron_manager_schedule_normalized_event( $event );
 	if ( is_wp_error( $scheduled ) ) {
 		return $scheduled;
 	}
 
 	return array(
 		'ok'     => true,
-		'events' => desktop_mode_cron_manager_list_events(),
+		'events' => open_station_cron_manager_list_events(),
 	);
 }
 
@@ -644,8 +644,8 @@ function desktop_mode_cron_manager_create_event( $payload ) {
  * @param array $identity Event identity.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_delete_event( $identity ) {
-	$found = desktop_mode_cron_manager_find_event( $identity );
+function open_station_cron_manager_delete_event( $identity ) {
+	$found = open_station_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {
 		return $found;
 	}
@@ -661,7 +661,7 @@ function desktop_mode_cron_manager_delete_event( $identity ) {
 	}
 	if ( ! $result ) {
 		return new WP_Error(
-			'desktop_mode_cron_unschedule_failed',
+			'open_station_cron_unschedule_failed',
 			__( 'Cron event could not be deleted.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 500 )
 		);
@@ -669,7 +669,7 @@ function desktop_mode_cron_manager_delete_event( $identity ) {
 
 	return array(
 		'ok'     => true,
-		'events' => desktop_mode_cron_manager_list_events(),
+		'events' => open_station_cron_manager_list_events(),
 	);
 }
 
@@ -680,13 +680,13 @@ function desktop_mode_cron_manager_delete_event( $identity ) {
  * @param array $payload  New event payload.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_update_event( $identity, $payload ) {
-	$found = desktop_mode_cron_manager_find_event( $identity );
+function open_station_cron_manager_update_event( $identity, $payload ) {
+	$found = open_station_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {
 		return $found;
 	}
 
-	$next = desktop_mode_cron_manager_normalize_event_payload( $payload, (array) $found['args'] );
+	$next = open_station_cron_manager_normalize_event_payload( $payload, (array) $found['args'] );
 	if ( is_wp_error( $next ) ) {
 		return $next;
 	}
@@ -711,21 +711,21 @@ function desktop_mode_cron_manager_update_event( $identity, $payload ) {
 	}
 	if ( ! $deleted ) {
 		return new WP_Error(
-			'desktop_mode_cron_unschedule_failed',
+			'open_station_cron_unschedule_failed',
 			__( 'Original cron event could not be deleted.', 'desktop-mode-cron-manager' ),
 			array( 'status' => 500 )
 		);
 	}
 
-	$scheduled = desktop_mode_cron_manager_schedule_normalized_event( $next );
+	$scheduled = open_station_cron_manager_schedule_normalized_event( $next );
 	if ( is_wp_error( $scheduled ) ) {
-		desktop_mode_cron_manager_schedule_normalized_event( $old );
+		open_station_cron_manager_schedule_normalized_event( $old );
 		return $scheduled;
 	}
 
 	return array(
 		'ok'     => true,
-		'events' => desktop_mode_cron_manager_list_events(),
+		'events' => open_station_cron_manager_list_events(),
 	);
 }
 
@@ -735,8 +735,8 @@ function desktop_mode_cron_manager_update_event( $identity, $payload ) {
  * @param array $identity Event identity.
  * @return array|WP_Error
  */
-function desktop_mode_cron_manager_run_event_now( $identity ) {
-	$found = desktop_mode_cron_manager_find_event( $identity );
+function open_station_cron_manager_run_event_now( $identity ) {
+	$found = open_station_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {
 		return $found;
 	}
@@ -745,6 +745,6 @@ function desktop_mode_cron_manager_run_event_now( $identity ) {
 
 	return array(
 		'ok'     => true,
-		'events' => desktop_mode_cron_manager_list_events(),
+		'events' => open_station_cron_manager_list_events(),
 	);
 }

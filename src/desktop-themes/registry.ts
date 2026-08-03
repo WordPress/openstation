@@ -140,9 +140,9 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
  */
 function seed(): DesktopThemeState {
 	const globals = window as unknown as {
-		desktopModeConfig?: { serverDesktopThemes?: unknown };
+		openStationConfig?: { serverDesktopThemes?: unknown };
 	};
-	const raw = globals.desktopModeConfig?.serverDesktopThemes;
+	const raw = globals.openStationConfig?.serverDesktopThemes;
 
 	const themes: DesktopThemeEntry[] = [];
 	if ( Array.isArray( raw ) ) {

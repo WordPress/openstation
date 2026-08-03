@@ -77,7 +77,7 @@ describe( 'sticky notes text helpers', () => {
 			id: 9,
 			title: { raw: 'Sticky A' },
 			content: { raw: 'Remember this' },
-			desktop_mode_modified_ms: 1234,
+			open_station_modified_ms: 1234,
 			wp_guideline_type: [ 3, 5 ],
 		} );
 		expect( note.guidelineId ).toBe( 9 );
@@ -117,7 +117,7 @@ describe( 'sticky notes heartbeat', () => {
 
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]?.( {}, data );
-		expect( data.desktop_mode_sticky_notes_subscribe ).toEqual( {
+		expect( data.open_station_sticky_notes_subscribe ).toEqual( {
 			stickyTermId: 5,
 			knownIds: [ 10, 12 ],
 			version: 1700,
@@ -129,7 +129,7 @@ describe( 'sticky notes heartbeat', () => {
 			serverTimeMs: 1800,
 		};
 		handlers[ 'heartbeat-tick' ]?.( {}, {
-			desktop_mode_sticky_notes: payload,
+			open_station_sticky_notes: payload,
 		} );
 		expect( applyHeartbeatPayload ).toHaveBeenCalledWith( payload );
 	} );
@@ -351,7 +351,7 @@ describe( 'sticky notes layer', () => {
 		document.addEventListener( 'keydown', onDocumentKey );
 
 		note.element
-			.querySelector( 'wpd-textarea' )!
+			.querySelector( 'os-textarea' )!
 			.dispatchEvent(
 				new KeyboardEvent( 'keydown', {
 					key: 'n',

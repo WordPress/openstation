@@ -11,7 +11,7 @@
  * Guard the require with `class_exists()` so a test environment that
  * DOES ship real Jetpack never collides with the stub.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 namespace Automattic\Jetpack\Stats;

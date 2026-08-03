@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Pinned notes Heartbeat glue.
+ * OpenStation — Pinned notes Heartbeat glue.
  *
- * Contributes `desktop_mode_notes_subscribe` on every tick and feeds
- * `desktop_mode_notes` deltas back to the layer. Same shape as the
+ * Contributes `open_station_notes_subscribe` on every tick and feeds
+ * `open_station_notes` deltas back to the layer. Same shape as the
  * sticky-notes heartbeat (`src/sticky-notes/heartbeat.ts`); server
  * side in `includes/notes/heartbeat.php`.
  */
@@ -10,8 +10,8 @@
 import { heartbeat } from '../heartbeat';
 import type { NotesHeartbeatPayload, NotesHeartbeatSubscribe } from './types';
 
-const SUBSCRIBE_FIELD = 'desktop_mode_notes_subscribe';
-const RESPONSE_FIELD = 'desktop_mode_notes';
+const SUBSCRIBE_FIELD = 'open_station_notes_subscribe';
+const RESPONSE_FIELD = 'open_station_notes';
 
 export interface NotesHeartbeatTarget {
 	getHeartbeatSubscription: () => NotesHeartbeatSubscribe | undefined;

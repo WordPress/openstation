@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="Desktop Mode SOL Inbound Monologue">
+<ruleset name="OpenStation SOL Inbound Monologue">
 	<description>Coding standards for the standalone SOL Inbound Monologue extension.</description>
 
 	<file>.</file>

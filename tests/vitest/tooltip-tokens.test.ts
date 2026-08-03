@@ -2,14 +2,14 @@
  * Tooltip theming tokens.
  *
  * Every tooltip in the shell used to borrow its two colours from
- * unrelated token families — `--wpd-scrim` (an overlay BACKDROP) or
- * `--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent` for
+ * unrelated token families — `--os-ui-scrim` (an overlay BACKDROP) or
+ * `--os-ui-surface-elevated` for the surface, `--os-ui-fg-on-accent` for
  * the text. Those pairings hold for the default look and come apart
  * under a custom desktop theme, and a theme author had no name to aim
  * at that would fix the tooltip without also moving the modal
  * backdrop or the text on accent-filled buttons.
  *
- * `--desktop-mode-tooltip-bg` / `--desktop-mode-tooltip-fg` are that
+ * `--os-tooltip-bg` / `--os-tooltip-fg` are that
  * name. Two things have to stay true for them to be worth having:
  *
  *   1. Every tooltip surface reads the dedicated token FIRST, with
@@ -62,23 +62,23 @@ const TOOLTIPS: Array< {
 	{
 		label: 'dock tile tooltip',
 		file: 'dock.css',
-		selector: '.desktop-mode-dock__tooltip',
-		bgFallback: 'var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) )',
-		fgFallback: 'var( --wpd-fg-on-accent, #fff )',
+		selector: '.os-dock__tooltip',
+		bgFallback: 'var( --os-ui-scrim, rgba( 0, 0, 0, 0.85 ) )',
+		fgFallback: 'var( --os-ui-fg-on-accent, #fff )',
 	},
 	{
 		label: 'content-graph satellite tooltip',
 		file: 'content-graph.css',
-		selector: '.desktop-mode-content-graph__tooltip',
-		bgFallback: 'var( --wpd-surface-elevated, #1a1f2b )',
-		fgFallback: 'var( --wpd-fg-on-accent, #fff )',
+		selector: '.os-content-graph__tooltip',
+		bgFallback: 'var( --os-ui-surface-elevated, #1a1f2b )',
+		fgFallback: 'var( --os-ui-fg-on-accent, #fff )',
 	},
 	{
 		label: 'My WordPress entity hover card',
 		file: 'my-wordpress.css',
-		selector: '.desktop-mode-my-wordpress__tooltip',
-		bgFallback: 'var( --desktop-mode-surface, var( --wpd-surface, #fff ) )',
-		fgFallback: 'var( --desktop-mode-fg, #1d2327 )',
+		selector: '.os-my-wordpress__tooltip',
+		bgFallback: 'var( --os-surface, var( --os-ui-surface, #fff ) )',
+		fgFallback: 'var( --os-fg, #1d2327 )',
 	},
 ];
 
@@ -89,10 +89,10 @@ describe( 'tooltip tokens', () => {
 			const body = flat( ruleBody( readCss( file ), selector ) );
 
 			expect( body ).toContain(
-				`background: var( --desktop-mode-tooltip-bg, ${ bgFallback } )`
+				`background: var( --os-tooltip-bg, ${ bgFallback } )`
 			);
 			expect( body ).toContain(
-				`color: var( --desktop-mode-tooltip-fg, ${ fgFallback } )`
+				`color: var( --os-tooltip-fg, ${ fgFallback } )`
 			);
 		}
 	);
@@ -105,20 +105,20 @@ describe( 'tooltip tokens', () => {
 			const css = readCss( file );
 
 			expect(
-				/--desktop-mode-tooltip-(?:bg|fg)\s*:/.test( css ),
+				/--os-tooltip-(?:bg|fg)\s*:/.test( css ),
 				`${ file } declares a tooltip token`
 			).toBe( false );
 		}
 
 		const vars = readCss( 'variables.css' );
-		expect( vars ).toMatch( /--desktop-mode-tooltip-bg:\s*#33303a/ );
-		expect( vars ).toMatch( /--desktop-mode-tooltip-fg:\s*#fffbff/ );
+		expect( vars ).toMatch( /--os-tooltip-bg:\s*#33303a/ );
+		expect( vars ).toMatch( /--os-tooltip-fg:\s*#fffbff/ );
 	} );
 
 	test( 'variables.css documents both tokens', () => {
 		const css = readCss( 'variables.css' );
 
-		expect( css ).toContain( '--desktop-mode-tooltip-bg' );
-		expect( css ).toContain( '--desktop-mode-tooltip-fg' );
+		expect( css ).toContain( '--os-tooltip-bg' );
+		expect( css ).toContain( '--os-tooltip-fg' );
 	} );
 } );

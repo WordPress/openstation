@@ -31,13 +31,13 @@ export interface UserListItem {
 	roles: string[];
 	registered_date?: string;
 	avatar_urls?: Record< string, string >;
-	desktop_mode_user_stats?: UserStats;
+	open_station_user_stats?: UserStats;
 	/** UTC unix timestamp; null when never recorded. */
-	desktop_mode_last_login?: number | null;
-	desktop_mode_presence?: UserPresence;
-	desktop_mode_can_edit?: boolean;
+	open_station_last_login?: number | null;
+	open_station_presence?: UserPresence;
+	open_station_can_edit?: boolean;
 	/** Role slugs the viewer can assign to this row. */
-	desktop_mode_assignable_roles?: string[];
+	open_station_assignable_roles?: string[];
 	[ key: string ]: unknown;
 }
 
@@ -111,7 +111,7 @@ export interface UsersWindowClient {
 	 * Fetch a single user row using the same `_fields` whitelist as
 	 * {@link fetchUsers}. Returns `null` when the row is gone (e.g.
 	 * the user was deleted between events). Used by the
-	 * `desktop-mode.user.changed` live-refresh path to patch one row
+	 * `os.user.changed` live-refresh path to patch one row
 	 * in place instead of re-fetching the whole page.
 	 */
 	fetchOneUser( id: number ): Promise< UserListItem | null >;
@@ -139,9 +139,9 @@ export function createUsersWindowClient(
 	const getConfig = (): PostsWindowConfig => {
 		const store = (
 			window as unknown as {
-				desktopModeWindowConfig?: Record< string, PostsWindowConfig >;
+				openStationWindowConfig?: Record< string, PostsWindowConfig >;
 			}
-		).desktopModeWindowConfig;
+		).openStationWindowConfig;
 		const cfg = store?.[ windowId ];
 		if ( ! cfg ) {
 			throw new Error(

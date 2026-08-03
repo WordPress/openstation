@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — `FilesLayer`.
+ * OpenStation — `FilesLayer`.
  *
- * Mounts on a host element (the `#desktop-mode-area` for the
+ * Mounts on a host element (the `#os-area` for the
  * desktop root, or a folder-window's body for a sub-folder)
  * and renders the placements stored under one `folderId`.
  *
@@ -61,7 +61,7 @@ import type {
  * to deliver into an iframe (anything outside attachment/post/user).
  *
  * The placement's `file` shape carries everything we need because
- * the PHP `Desktop_Mode_*_File::serialize()` methods surface `link`
+ * the PHP `Open_Station_*_File::serialize()` methods surface `link`
  * / `sourceUrl` / `alt` / `mime` / `postType` on every list
  * response.
  */
@@ -114,19 +114,19 @@ function buildBridgePayloadFromPlacement(
 /**
  * Read the runtime DragManager. Boot order guarantees this exists by
  * the time any layer mounts: `desktop.ts` constructs the manager and
- * exposes it on `wp.desktop.dragManager` BEFORE `mountFilesLayer()`
+ * exposes it on `wp.os.dragManager` BEFORE `mountFilesLayer()`
  * is called. We re-read each access rather than caching to make
- * per-test overrides possible (vitest can stub `wp.desktop.dragManager`
+ * per-test overrides possible (vitest can stub `wp.os.dragManager`
  * before the layer mounts).
  */
 function getDragManager(): DragManagerApi | null {
 	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
+		window as { wp?: { os?: { dragManager?: DragManagerApi } } }
+	).wp?.os?.dragManager;
 	return api ?? null;
 }
 
-const LAYER_CLASS = 'desktop-mode-files-layer';
+const LAYER_CLASS = 'os-files-layer';
 
 /**
  * Sort modes accepted by `FilesLayer.sort()`. Same keys the icon-
@@ -200,8 +200,8 @@ function takeBootPlacements( folderId: number ): RestPlacementShape[] | null {
 		return null;
 	}
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { filesBootPlacements?: RestPlacementShape[] };
-	} ).desktopModeConfig;
+		openStationConfig?: { filesBootPlacements?: RestPlacementShape[] };
+	} ).openStationConfig;
 	const list = cfg?.filesBootPlacements;
 	if ( ! cfg || ! Array.isArray( list ) ) {
 		return null;
@@ -232,7 +232,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] files: selection listener threw:',
+					'[openstation] files: selection listener threw:',
 					err,
 				);
 			}
@@ -246,7 +246,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return;
 		}
 		// Selected state lives on the `selected` attribute —
-		// `<wpd-tile>._paint()` derives the `--selected` class from
+		// `<os-tile>._paint()` derives the `--selected` class from
 		// it. Toggling the class directly survives until the next
 		// attribute change repaints the tile and wipes it.
 		container
@@ -509,7 +509,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			notifySelection( null );
 		}
 
-		doAction( 'desktop-mode.files.grid-rendered', {
+		doAction( 'os.files.grid-rendered', {
 			folderId,
 			count: list.length,
 		} );
@@ -602,7 +602,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			);
 			tile?.setAttribute( 'selected', '' );
 		}
-		doAction( 'desktop-mode.files.grid-rendered', {
+		doAction( 'os.files.grid-rendered', {
 			folderId,
 			count: list.length,
 		} );
@@ -658,7 +658,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return;
 		}
 		const previewEl = document.createElement( 'div' );
-		previewEl.className = 'desktop-mode-files-drop-preview';
+		previewEl.className = 'os-files-drop-preview';
 		previewEl.setAttribute( 'aria-hidden', 'true' );
 		container.appendChild( previewEl );
 		dropPreviewEl = previewEl;
@@ -711,7 +711,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 	};
 	const canvasDropTarget: DropTarget = {
-		id: `desktop-mode-files-canvas-${ folderId }`,
+		id: `os-files-canvas-${ folderId }`,
 		element: host,
 		accept: ( payload ) => {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
@@ -798,7 +798,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				// (not by Sort By / Clean Up). The desktop root listens
 				// to drop out of auto-arrange mode so the user's manual
 				// position survives the next desktop resize.
-				doAction( 'desktop-mode.files.tile-manually-placed', {
+				doAction( 'os.files.tile-manually-placed', {
 					folderId,
 					placementId: data.placement.id,
 				} );
@@ -841,7 +841,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 						} else {
 							// eslint-disable-next-line no-console
 							console.error(
-								'[desktop-mode] files: drag persist failed',
+								'[openstation] files: drag persist failed',
 								err,
 							);
 						}
@@ -869,7 +869,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					} )
 					.then( ( placement ) => {
 						filesStoreApi.upsertPlacement( placement );
-						doAction( 'desktop-mode.files.shortcut-dropped', {
+						doAction( 'os.files.shortcut-dropped', {
 							folderId,
 							placement,
 						} );
@@ -877,7 +877,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					.catch( ( err: unknown ) => {
 						// eslint-disable-next-line no-console
 						console.error(
-							'[desktop-mode] shortcut drop failed:',
+							'[openstation] shortcut drop failed:',
 							err,
 						);
 					} );
@@ -961,7 +961,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			} )
 			.catch( ( err ) => {
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] files: failed to hydrate folder', folderId, err );
+				console.error( '[openstation] files: failed to hydrate folder', folderId, err );
 			} )
 			.finally( () => {
 				resolveHydrated();
@@ -1061,7 +1061,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				.catch( ( err: unknown ) => {
 					// eslint-disable-next-line no-console
 					console.error(
-						'[desktop-mode] files: sort persist failed',
+						'[openstation] files: sort persist failed',
 						err,
 					);
 				} );
@@ -1209,7 +1209,7 @@ function fingerprint( list: readonly RestPlacementShape[] ): string {
 /**
  * Whether a placement is pinned (anchored, non-draggable). The flag
  * is carried through the file payload from
- * `desktop_mode_register_icon( …, [ 'pinned' => true ] )`.
+ * `open_station_register_icon( …, [ 'pinned' => true ] )`.
  */
 function isPinned( placement: RestPlacementShape ): boolean {
 	return Boolean( placement.file.pinned );
@@ -1268,14 +1268,14 @@ const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
  * post / page references — gets the rejection.
  *
  * Plugins that need to accept a drop on their own icon do it through
- * `wp.desktop.files.registerTilePayloadHandler( type, handler )` — the
+ * `wp.os.files.registerTilePayloadHandler( type, handler )` — the
  * tile-payload seam this claimant already consults for its accept
  * predicate, hover chip, and drop dispatch.
  *
  * Note for anyone tempted by the other route: registering a competing
  * `DropTarget` on the tile element does NOT work. The registry allows
  * one target per element and this claimant is installed last, so a
- * target installed during `desktop-mode.files.tile-rendered` (which
+ * target installed during `os.files.tile-rendered` (which
  * fires from inside `buildTile`, before this runs) is immediately
  * displaced. Cooperating with the claimant is the supported path;
  * fighting it for the element is not.
@@ -1296,7 +1296,7 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
  *
  * `grid.ts`'s `buildOccupiedSet` only consults each placement's
  * stored `(x, y)`, but the repaint deliberately IGNORES those for
- * pinned tiles (`desktop_mode_register_icon( …, [ 'pinned' => true ] )`),
+ * pinned tiles (`open_station_register_icon( …, [ 'pinned' => true ] )`),
  * anchoring them to column 0, rows 0..N-1 in the order they appear.
  * So a tile pinned at the top of the column has stored coords that
  * could be anywhere — and the plain occupied set would miss it
@@ -1354,7 +1354,7 @@ function buildVisualOccupiedSet(
  * root (`<= 0`) — that case is always safe.
  *
  * Authoritative gate lives server-side in
- * `desktop_mode_files_would_create_folder_cycle()`; this is a
+ * `open_station_files_would_create_folder_cycle()`; this is a
  * client-side preflight so the `accept` callbacks can reject the
  * drop up-front (no REST round-trip, no 409 in the console, visible
  * snap-back at the drop site).
@@ -1434,7 +1434,7 @@ function persistDockPromotedPosition(
 	const api = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					getOsSettings?: () => {
 						dockPromotedPositions?: Record<
 							string,
@@ -1450,7 +1450,7 @@ function persistDockPromotedPosition(
 				};
 			};
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
 		return;
 	}
@@ -1472,7 +1472,7 @@ function persistDockPromotedPosition(
  * The fast path is correct when the ONLY thing that changed is one
  * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs` — or the
  * visible label, which `syncTileLabel()` patches in place (the
- * `<wpd-tile>` component observes its `label` attribute and repaints
+ * `<os-tile>` component observes its `label` attribute and repaints
  * itself, so a rename doesn't need any rewiring). We can detect
  * structural sameness without keeping a previous-snapshot map by
  * reading the fields the renderer already encodes onto tile data
@@ -1591,7 +1591,7 @@ function tryPatchPositions(
 
 /**
  * Sync a reused tile's visible label with the placement's current
- * title. `<wpd-tile>` observes `label`, so writing the attribute
+ * title. `<os-tile>` observes `label`, so writing the attribute
  * repaints the label + aria-label in place while preserving
  * consumer-appended children (share badges). No-op when already
  * current.
@@ -1620,7 +1620,7 @@ function hidePromotedDockItem( dockItemId: string ): void {
 	const api = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					getOsSettings?: () => {
 						itemVisibility: Record< string, string >;
 					};
@@ -1630,7 +1630,7 @@ function hidePromotedDockItem( dockItemId: string ): void {
 				};
 			};
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
 		return;
 	}
@@ -1662,7 +1662,7 @@ function registerTileRejectTarget(
 	// mounted still gets the right chip.
 	let hoveredType: string | null = null;
 	return dragManager.registerDropTarget( {
-		id: `desktop-mode-files-tile-${ placement.id }-reject`,
+		id: `os-files-tile-${ placement.id }-reject`,
 		element: tile,
 		get acceptLabel() {
 			return hoveredType
@@ -1701,7 +1701,7 @@ function registerFolderDropTarget(
 	currentFolderId: number,
 ): () => void {
 	const target: DropTarget = {
-		id: `desktop-mode-files-folder-${ targetFolderId }-tile-${ tile.dataset.placementId ?? '?' }`,
+		id: `os-files-folder-${ targetFolderId }-tile-${ tile.dataset.placementId ?? '?' }`,
 		element: tile,
 		accept: ( payload ) => {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
@@ -1780,7 +1780,7 @@ function registerFolderDropTarget(
 						} else {
 							// eslint-disable-next-line no-console
 							console.error(
-								'[desktop-mode] files: move-into-folder persist failed',
+								'[openstation] files: move-into-folder persist failed',
 								err,
 							);
 						}
@@ -1810,7 +1810,7 @@ function registerFolderDropTarget(
 					} )
 					.then( ( placement ) => {
 						filesStoreApi.upsertPlacement( placement );
-						doAction( 'desktop-mode.files.shortcut-dropped', {
+						doAction( 'os.files.shortcut-dropped', {
 							folderId: targetFolderId,
 							placement,
 						} );
@@ -1818,7 +1818,7 @@ function registerFolderDropTarget(
 					.catch( ( err: unknown ) => {
 						// eslint-disable-next-line no-console
 						console.error(
-							'[desktop-mode] shortcut drop into folder failed:',
+							'[openstation] shortcut drop into folder failed:',
 							err,
 						);
 					} );
@@ -1898,8 +1898,8 @@ function attachTileDrag(
 					// placement's file shape so a wallpaper-placed
 					// shortcut can be dropped into an open Gutenberg
 					// iframe and inserted as the matching block. The
-					// PHP serialize() methods (`Desktop_Mode_Post_File`,
-					// `Desktop_Mode_User_File`, `Desktop_Mode_Attachment_File`)
+					// PHP serialize() methods (`Open_Station_Post_File`,
+					// `Open_Station_User_File`, `Open_Station_Attachment_File`)
 					// surface the URL fields this needs.
 					bridgePayload: buildBridgePayloadFromPlacement( livePlacement ),
 				} satisfies DesktopFileDragData,
@@ -1966,7 +1966,7 @@ function attachContextMenu(
 		// (Author / Comments / Tags / Categories / Attached media /
 		// Revisions). For post-type tiles, route straight to My
 		// WordPress's existing detail view via the public
-		// `wp.desktop.myWordpress.openDetail` API — no duplication
+		// `wp.os.myWordpress.openDetail` API — no duplication
 		// of the dossier code here.
 		if ( placement.file.type === 'post' ) {
 			items.push( {
@@ -1982,7 +1982,7 @@ function attachContextMenu(
 					const api = (
 						window.wp as
 							| {
-									desktop?: {
+									os?: {
 										myWordpress?: {
 											openDetail: ( a: {
 												entityId: string;
@@ -1993,7 +1993,7 @@ function attachContextMenu(
 									};
 							}
 							| undefined
-					)?.desktop?.myWordpress;
+					)?.os?.myWordpress;
 					// Map the post type → the My WordPress entity
 					// id. Pages live under `pages`; everything else
 					// (post + CPTs) defaults to `posts`. The shape
@@ -2077,7 +2077,7 @@ function attachContextMenu(
 							} catch ( err ) {
 								// eslint-disable-next-line no-console
 								console.error(
-									'[desktop-mode] rename folder failed:',
+									'[openstation] rename folder failed:',
 									err,
 								);
 								// Roll back the optimistic title.
@@ -2123,7 +2123,7 @@ function attachContextMenu(
 			//
 			//   2. Plugin-registered icons (file type `'shortcut'`) —
 			//      Content Graph, Recycle Bin, My WordPress, and any
-			//      icon registered via `desktop_mode_register_icon()`.
+			//      icon registered via `open_station_register_icon()`.
 			//      These are framework/plugin shortcuts, not user
 			//      data, and shouldn't be deletable from the wallpaper.
 			//      The user can hide them here and restore via OS

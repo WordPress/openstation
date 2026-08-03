@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window content-relations engine.
+ * OpenStation — Window content-relations engine.
  *
  * Pure state + events, per the event-driven doctrine: the engine
  * tracks which content each window shows, computes relation groups
@@ -8,9 +8,9 @@
  *
  * Identities arrive from three sources: seeded from
  * `WindowConfig.content` when a window opens, announced by the
- * chromeless iframe bridge (`desktop-mode-content-identity`, the
+ * chromeless iframe bridge (`os-content-identity`, the
  * authoritative path for admin pages), or set explicitly via
- * `wp.desktop.relations.set()`.
+ * `wp.os.relations.set()`.
  *
  * Cross-bundle: all state lives in a `createSharedStore` record
  * because identities are written from the window-system bundle (the
@@ -71,7 +71,7 @@ interface EngineManager {
 	) => { config?: { content?: WindowContentRef } } | null | undefined;
 	/**
 	 * Map a `MessageEvent.source` back to the window whose iframe sent
-	 * it — used by the engine's own `desktop-mode-content-identity`
+	 * it — used by the engine's own `os-content-identity`
 	 * listener. Optional so unit-test fakes stay tiny.
 	 */
 	findByIframeSource?: (
@@ -305,10 +305,10 @@ function refSignature( ref: WindowContentRef | null ): string {
 /**
  * Set (or clear, with `null`) a window's content identity.
  *
- * The `desktop-mode.window-links.content` filter runs on every set —
+ * The `os.window-links.content` filter runs on every set —
  * a plugin can rewrite the ref (remap a custom type onto its own root
  * scheme) or return `null` to suppress it. Fires
- * `desktop-mode.window-links.content-changed` (hook + CustomEvent),
+ * `os.window-links.content-changed` (hook + CustomEvent),
  * then recomputes groups.
  *
  * Malformed refs throw for `'api'` callers (audible failure at the
@@ -359,7 +359,7 @@ export function setWindowContent(
 	if ( next !== null && ( ! next || validateRef( next ).length > 0 ) ) {
 		logRegistrationErrors(
 			'WindowContentRef',
-			[ 'filter (desktop-mode.window-links.content returned an invalid ref)' ],
+			[ 'filter (os.window-links.content returned an invalid ref)' ],
 			next,
 		);
 		return;
@@ -388,7 +388,7 @@ export function setWindowContent(
 
 	const changedDetail = { windowId, content: next, previous, source };
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-content-changed', {
+		new CustomEvent( 'os-window-content-changed', {
 			detail: changedDetail,
 		} ),
 	);
@@ -407,7 +407,7 @@ export function getWindowContent(
 
 /**
  * Compute every current relation group, with the
- * `desktop-mode.window-links.groups` filter applied. Groups exist as
+ * `os.window-links.groups` filter applied. Groups exist as
  * soon as one window carries an identity — including root-less groups
  * (children open, parent closed) so callers can offer "open the
  * parent"; renderers simply have nothing to draw for those.
@@ -451,7 +451,7 @@ export function listWindowLinkGroups(): WindowLinkGroup[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.window-links.groups` filter ' +
+				'[openstation] `os.window-links.groups` filter ' +
 					'returned a non-array; falling back to computed groups.',
 			);
 		}
@@ -524,7 +524,7 @@ export function getDirectlyRelatedWindowIds( windowId: string ): string[] {
 
 /**
  * Derive the directed edges between open windows, with the
- * `desktop-mode.window-links.edges` filter applied:
+ * `os.window-links.edges` filter applied:
  *
  *  - one `child-root` edge from every child window to the most
  *    recently focused open window showing its root object;
@@ -634,7 +634,7 @@ export function listWindowLinkEdges(): WindowLinkEdge[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.window-links.edges` filter ' +
+				'[openstation] `os.window-links.edges` filter ' +
 					'returned a non-array; falling back to derived edges.',
 			);
 		}
@@ -661,7 +661,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] window-links listener threw:',
+					'[openstation] window-links listener threw:',
 					err,
 				);
 			}
@@ -692,7 +692,7 @@ function broadcastGroupsIfChanged(): void {
 	const groups = listWindowLinkGroups();
 	const detail = { groups };
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-link-groups-changed', {
+		new CustomEvent( 'os-window-link-groups-changed', {
 			detail,
 		} ),
 	);
@@ -700,7 +700,7 @@ function broadcastGroupsIfChanged(): void {
 }
 
 /**
- * The `wp.desktop.relations` facade — thin bindings over the module
+ * The `wp.os.relations` facade — thin bindings over the module
  * functions so the public surface and the internal one can't drift.
  */
 export const relationsApi: WindowRelationsApi = {
@@ -787,7 +787,7 @@ export function startWindowLinksEngine( {
 			type?: unknown;
 			identity?: WindowContentRef | null;
 		} | null;
-		if ( ! data || data.type !== 'desktop-mode-content-identity' ) {
+		if ( ! data || data.type !== 'os-content-identity' ) {
 			return;
 		}
 		const win = store.state.manager?.findByIframeSource?.(

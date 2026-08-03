@@ -7,4 +7,4 @@
 # Diagnostic log written by config.inc.php / DbiMysqli-sqlite.php
 # during debugging. Lives inside the (gitignored) vendor dir today,
 # but pin the path in case someone wires the marker elsewhere.
-wpdc-debug.log
+osc-debug.log

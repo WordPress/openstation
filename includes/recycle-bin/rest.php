@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Recycle Bin: REST routes.
+ * OpenStation — Recycle Bin: REST routes.
  *
  * Five routes, all under `/desktop-mode/v1/recycle-bin`:
  *
@@ -10,11 +10,11 @@
  *   POST   /empty             — empties the visible bin
  *   GET    /count             — total items in the bin (badge polling)
  *
- * Permission gating delegates to `desktop_mode_recycle_bin_user_can_*` per item;
+ * Permission gating delegates to `open_station_recycle_bin_user_can_*` per item;
  * the route-level callback only checks "are you logged in and in
- * desktop mode at all?" via `desktop_mode_is_enabled()`.
+ * OpenStation at all?" via `open_station_is_enabled()`.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register REST routes.
  */
-function desktop_mode_recycle_bin_register_rest_routes() {
+function open_station_recycle_bin_register_rest_routes() {
 	$namespace = 'desktop-mode/v1';
 
 	register_rest_route(
@@ -30,8 +30,8 @@ function desktop_mode_recycle_bin_register_rest_routes() {
 		'/recycle-bin',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_recycle_bin_rest_permission',
-			'callback'            => 'desktop_mode_recycle_bin_rest_list',
+			'permission_callback' => 'open_station_recycle_bin_rest_permission',
+			'callback'            => 'open_station_recycle_bin_rest_list',
 			'args'                => array(
 				'page'     => array(
 					'type'              => 'integer',
@@ -62,8 +62,8 @@ function desktop_mode_recycle_bin_register_rest_routes() {
 		'/recycle-bin/restore',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_recycle_bin_rest_permission',
-			'callback'            => 'desktop_mode_recycle_bin_rest_restore',
+			'permission_callback' => 'open_station_recycle_bin_rest_permission',
+			'callback'            => 'open_station_recycle_bin_rest_restore',
 			// Accepts either `items: [{id, type}]` (preferred) or
 			// `ids: int[]` (legacy — assumes post-ish entities).
 			// Both registered as optional; the handler validates.
@@ -86,8 +86,8 @@ function desktop_mode_recycle_bin_register_rest_routes() {
 		'/recycle-bin/purge',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_recycle_bin_rest_permission',
-			'callback'            => 'desktop_mode_recycle_bin_rest_purge',
+			'permission_callback' => 'open_station_recycle_bin_rest_permission',
+			'callback'            => 'open_station_recycle_bin_rest_purge',
 			'args'                => array(
 				'items' => array(
 					'type'     => 'array',
@@ -107,8 +107,8 @@ function desktop_mode_recycle_bin_register_rest_routes() {
 		'/recycle-bin/empty',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'desktop_mode_recycle_bin_rest_permission',
-			'callback'            => 'desktop_mode_recycle_bin_rest_empty',
+			'permission_callback' => 'open_station_recycle_bin_rest_permission',
+			'callback'            => 'open_station_recycle_bin_rest_empty',
 		)
 	);
 
@@ -117,27 +117,27 @@ function desktop_mode_recycle_bin_register_rest_routes() {
 		'/recycle-bin/count',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'desktop_mode_recycle_bin_rest_permission',
+			'permission_callback' => 'open_station_recycle_bin_rest_permission',
 			'callback'            => static function () {
 				return rest_ensure_response(
-					array( 'count' => desktop_mode_recycle_bin_count() )
+					array( 'count' => open_station_recycle_bin_count() )
 				);
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_recycle_bin_register_rest_routes' );
+add_action( 'rest_api_init', 'open_station_recycle_bin_register_rest_routes' );
 
 /**
  * Route-level permission gate.
  *
  * Per-item capability checks happen inside the store layer; here we
- * only enforce "logged-in user with desktop mode opted in" — same
+ * only enforce "logged-in user with OpenStation opted in" — same
  * baseline as every other desktop REST surface.
  *
  * @return bool|WP_Error
  */
-function desktop_mode_recycle_bin_rest_permission() {
+function open_station_recycle_bin_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'rest_forbidden',
@@ -145,10 +145,10 @@ function desktop_mode_recycle_bin_rest_permission() {
 			array( 'status' => 401 )
 		);
 	}
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
 		return new WP_Error(
 			'rest_forbidden',
-			__( 'Desktop mode is not enabled for this user.', 'desktop-mode' ),
+			__( 'OpenStation is not enabled for this user.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -161,8 +161,8 @@ function desktop_mode_recycle_bin_rest_permission() {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function desktop_mode_recycle_bin_rest_list( $request ) {
-	$payload = desktop_mode_recycle_bin_get_items(
+function open_station_recycle_bin_rest_list( $request ) {
+	$payload = open_station_recycle_bin_get_items(
 		array(
 			'page'     => (int) $request->get_param( 'page' ),
 			'per_page' => (int) $request->get_param( 'per_page' ),
@@ -180,9 +180,9 @@ function desktop_mode_recycle_bin_rest_list( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function desktop_mode_recycle_bin_rest_restore( $request ) {
-	$items = desktop_mode_recycle_bin_normalize_items( $request );
-	return rest_ensure_response( desktop_mode_recycle_bin_apply_bulk( $items, 'desktop_mode_recycle_bin_restore' ) );
+function open_station_recycle_bin_rest_restore( $request ) {
+	$items = open_station_recycle_bin_normalize_items( $request );
+	return rest_ensure_response( open_station_recycle_bin_apply_bulk( $items, 'open_station_recycle_bin_restore' ) );
 }
 
 /**
@@ -191,9 +191,9 @@ function desktop_mode_recycle_bin_rest_restore( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function desktop_mode_recycle_bin_rest_purge( $request ) {
-	$items = desktop_mode_recycle_bin_normalize_items( $request );
-	return rest_ensure_response( desktop_mode_recycle_bin_apply_bulk( $items, 'desktop_mode_recycle_bin_purge' ) );
+function open_station_recycle_bin_rest_purge( $request ) {
+	$items = open_station_recycle_bin_normalize_items( $request );
+	return rest_ensure_response( open_station_recycle_bin_apply_bulk( $items, 'open_station_recycle_bin_purge' ) );
 }
 
 /**
@@ -204,7 +204,7 @@ function desktop_mode_recycle_bin_rest_purge( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return array<int, array{id:int, type:string}>
  */
-function desktop_mode_recycle_bin_normalize_items( $request ) {
+function open_station_recycle_bin_normalize_items( $request ) {
 	$out = array();
 
 	$items = $request->get_param( 'items' );
@@ -246,8 +246,8 @@ function desktop_mode_recycle_bin_normalize_items( $request ) {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_recycle_bin_rest_empty() {
-	return rest_ensure_response( desktop_mode_recycle_bin_empty() );
+function open_station_recycle_bin_rest_empty() {
+	return rest_ensure_response( open_station_recycle_bin_empty() );
 }
 
 /**
@@ -257,7 +257,7 @@ function desktop_mode_recycle_bin_rest_empty() {
  * @param callable                               $callback `($id, $type) → true|WP_Error`.
  * @return array{ok:int[], errors:array<int, array{id:int, code:string, message:string}>}
  */
-function desktop_mode_recycle_bin_apply_bulk( $items, $callback ) {
+function open_station_recycle_bin_apply_bulk( $items, $callback ) {
 	$ok     = array();
 	$errors = array();
 

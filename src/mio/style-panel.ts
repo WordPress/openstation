@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — "Make it yours": Mio's right-click menu and the
+ * OpenStation — "Make it yours": Mio's right-click menu and the
  * style panel behind it.
  *
  * Right-clicking Mio opens a one-item context menu; the item opens a
- * `<wpd-modal>` of controls bound live to `wp.desktop.mio.setStyle()`.
+ * `<os-modal>` of controls bound live to `wp.os.mio.setStyle()`.
  * Every control writes on input, so the desk companion changes under
  * the dialog while the user drags — there is no Apply button, because
  * the thing being edited is right there and the preview *is* the
@@ -27,8 +27,8 @@
  * The whole module lives in the lazy Mio bundle, so a shell whose user
  * has never switched Mio on never loads a byte of it.
  *
- * **Component sourcing is split on purpose.** `wpd-context-menu` and
- * `wpd-button` already ship in the shell-overlays bundle, which the
+ * **Component sourcing is split on purpose.** `os-context-menu` and
+ * `os-button` already ship in the shell-overlays bundle, which the
  * shell preloads after first paint — importing them here would put a
  * second copy in every Mio download. So both entry points go through
  * `openWithShellOverlays`, and only the components shell-overlays does
@@ -36,11 +36,11 @@
  * module's compiled weight.
  */
 
-import '../ui/components/wpd-modal/wpd-modal';
-import '../ui/components/wpd-section/wpd-section';
-import '../ui/components/wpd-range-field/wpd-range-field';
-import '../ui/components/wpd-color-field/wpd-color-field';
-import '../ui/components/wpd-checkbox/wpd-checkbox';
+import '../ui/components/os-modal/os-modal';
+import '../ui/components/os-section/os-section';
+import '../ui/components/os-range-field/os-range-field';
+import '../ui/components/os-color-field/os-color-field';
+import '../ui/components/os-checkbox/os-checkbox';
 
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { __ } from '../i18n';
@@ -54,7 +54,7 @@ import type {
 	MioShapePreset,
 } from './types';
 
-/** The slice of `wp.desktop.mio` this panel drives. */
+/** The slice of `wp.os.mio` this panel drives. */
 interface MioStyleApi {
 	getConfig: () => MioConfig;
 	setStyle: ( partial: Partial< MioAppearance & MioLookPhysics > ) => void;
@@ -63,8 +63,8 @@ interface MioStyleApi {
 }
 
 function api(): MioStyleApi | null {
-	const mio = ( window as unknown as { wp?: { desktop?: { mio?: MioStyleApi } } } )
-		.wp?.desktop?.mio;
+	const mio = ( window as unknown as { wp?: { os?: { mio?: MioStyleApi } } } )
+		.wp?.os?.mio;
 	return mio &&
 		typeof mio.setStyle === 'function' &&
 		typeof mio.commitStyle === 'function'
@@ -73,15 +73,15 @@ function api(): MioStyleApi | null {
 }
 
 /** Class on the context menu, so the open/close helpers can find it. */
-const MENU_CLASS = 'desktop-mode-mio-menu';
+const MENU_CLASS = 'os-mio-menu';
 /** Class on the modal, so a second right-click doesn't stack them. */
-const PANEL_CLASS = 'desktop-mode-mio-panel';
+const PANEL_CLASS = 'os-mio-panel';
 
 /* -------------------------------------------------------------------
  * Colour conversion.
  *
  * The config carries packed 24-bit ints (what Pixi takes);
- * `<wpd-color-field>` speaks `#rrggbb` (what an `<input type=color>`
+ * `<os-color-field>` speaks `#rrggbb` (what an `<input type=color>`
  * takes). Neither side should have to know about the other.
  * ---------------------------------------------------------------- */
 
@@ -119,7 +119,7 @@ interface SliderSpec {
  *
  * Fixed rather than derived from each slider's own step, so the column
  * of numbers down the right-hand side lines up instead of ragging in
- * and out as the values change. `<wpd-range-field>` sizes the box from
+ * and out as the values change. `<os-range-field>` sizes the box from
  * the range, so nothing shifts while dragging either.
  */
 const READOUT_DECIMALS = '2';
@@ -129,14 +129,14 @@ function slider(
 	values: LookValues,
 	onChange: ( partial: LookPartial ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-range-field' );
+	const el = document.createElement( 'os-range-field' );
 	el.setAttribute( 'label', spec.label );
 	el.setAttribute( 'min', String( spec.min ) );
 	el.setAttribute( 'max', String( spec.max ) );
 	el.setAttribute( 'step', String( spec.step ) );
 	el.setAttribute( 'decimals', READOUT_DECIMALS );
 	el.setAttribute( 'value', String( values[ spec.key ] ) );
-	el.addEventListener( 'wpd-range-change', ( e: Event ) => {
+	el.addEventListener( 'os-range-change', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value?: number } > ).detail?.value;
 		if ( typeof value === 'number' && Number.isFinite( value ) ) {
 			onChange( { [ spec.key ]: value } as LookPartial );
@@ -151,10 +151,10 @@ function colour(
 	appearance: MioAppearance,
 	onChange: ( partial: Partial< MioAppearance > ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-color-field' );
+	const el = document.createElement( 'os-color-field' );
 	el.setAttribute( 'label', label );
 	el.setAttribute( 'value', intToHex( appearance[ key ] ) );
-	el.addEventListener( 'wpd-color-change', ( e: Event ) => {
+	el.addEventListener( 'os-color-change', ( e: Event ) => {
 		const raw = ( e as CustomEvent< { value?: string } > ).detail?.value;
 		const packed = typeof raw === 'string' ? hexToInt( raw ) : null;
 		if ( packed !== null ) {
@@ -169,12 +169,12 @@ function toggle(
 	checked: boolean,
 	onChange: ( next: boolean ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-checkbox' );
+	const el = document.createElement( 'os-checkbox' );
 	el.setAttribute( 'label', label );
 	if ( checked ) {
 		el.setAttribute( 'checked', '' );
 	}
-	el.addEventListener( 'wpd-checkbox-change', ( e: Event ) => {
+	el.addEventListener( 'os-checkbox-change', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { checked?: boolean } > ).detail;
 		onChange( detail?.checked === true );
 	} );
@@ -213,16 +213,16 @@ function shapePicker(
 	current: MioShapePreset,
 	onPick: ( preset: MioShapePreset ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-select' );
+	const el = document.createElement( 'os-select' );
 	el.setAttribute( 'label', __( 'Shape' ) );
 	el.setAttribute( 'value', current );
 	for ( const option of shapeOptions() ) {
-		const item = document.createElement( 'wpd-option' );
+		const item = document.createElement( 'os-option' );
 		item.setAttribute( 'value', option.value );
 		item.textContent = option.label;
 		el.appendChild( item );
 	}
-	el.addEventListener( 'wpd-pick', ( e: Event ) => {
+	el.addEventListener( 'os-pick', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value?: string } > ).detail?.value;
 		if ( value ) {
 			onPick( value as MioShapePreset );
@@ -232,7 +232,7 @@ function shapePicker(
 }
 
 function section( heading: string, children: HTMLElement[] ): HTMLElement {
-	const el = document.createElement( 'wpd-section' );
+	const el = document.createElement( 'os-section' );
 	el.setAttribute( 'heading', heading );
 	for ( const child of children ) {
 		el.appendChild( child );
@@ -292,7 +292,7 @@ function openMioStylePanelImmediate(): void {
 	}
 	closeMioStylePanel();
 
-	const modal = document.createElement( 'wpd-modal' );
+	const modal = document.createElement( 'os-modal' );
 	modal.classList.add( PANEL_CLASS );
 	modal.setAttribute( 'title', __( 'Make it yours' ) );
 	modal.setAttribute( 'size', 'md' );
@@ -489,7 +489,7 @@ function openMioStylePanelImmediate(): void {
 				// unblurred halo is a hard-edged disc of colour behind the
 				// ring, which is not a look anyone was choosing on purpose
 				// — it is what the glow looks like before it is finished.
-				// The key survives for the `desktop_mode_mio_config`
+				// The key survives for the `open_station_mio_config`
 				// filter, which is where a site that needs to drop the
 				// filter pass for performance can still do it.
 			] ),
@@ -599,7 +599,7 @@ function openMioStylePanelImmediate(): void {
 	// "Surprise me" sits next to "Restore Mio" on purpose: they are the
 	// two ends of the same idea, and having the undo in arm's reach is
 	// what makes a randomizer worth pressing twice.
-	const surprise = document.createElement( 'wpd-button' );
+	const surprise = document.createElement( 'os-button' );
 	surprise.setAttribute( 'slot', 'footer' );
 	surprise.setAttribute( 'variant', 'secondary' );
 	surprise.textContent = __( 'Surprise me' );
@@ -609,7 +609,7 @@ function openMioStylePanelImmediate(): void {
 		paint();
 	} );
 
-	const restore = document.createElement( 'wpd-button' );
+	const restore = document.createElement( 'os-button' );
 	restore.setAttribute( 'slot', 'footer' );
 	restore.setAttribute( 'variant', 'secondary' );
 	restore.textContent = __( 'Restore Mio' );
@@ -618,7 +618,7 @@ function openMioStylePanelImmediate(): void {
 		paint();
 	} );
 
-	const done = document.createElement( 'wpd-button' );
+	const done = document.createElement( 'os-button' );
 	done.setAttribute( 'slot', 'footer' );
 	done.setAttribute( 'variant', 'primary' );
 	done.textContent = __( 'Done' );
@@ -627,7 +627,7 @@ function openMioStylePanelImmediate(): void {
 	modal.appendChild( surprise );
 	modal.appendChild( restore );
 	modal.appendChild( done );
-	modal.addEventListener( 'wpd-modal-cancel', () => closeMioStylePanel() );
+	modal.addEventListener( 'os-modal-cancel', () => closeMioStylePanel() );
 
 	document.body.appendChild( modal );
 }
@@ -674,20 +674,20 @@ export function openMioMenu( pos: { x: number; y: number } ): void {
 }
 
 function openMioMenuImmediate( pos: { x: number; y: number } ): void {
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.classList.add( MENU_CLASS );
 	menu.setAttribute( 'open', '' );
 	menu.style.left = `${ pos.x }px`;
 	menu.style.top = `${ pos.y }px`;
 
-	const option = document.createElement( 'wpd-context-menu-option' );
+	const option = document.createElement( 'os-context-menu-option' );
 	option.setAttribute( 'value', 'make-it-yours' );
 	option.setAttribute( 'icon', 'dashicons-art' );
 	option.dataset.menuItemId = 'make-it-yours';
 	option.textContent = __( 'Make it yours' );
 	menu.appendChild( option );
 
-	menu.addEventListener( 'wpd-context-menu-pick', () => {
+	menu.addEventListener( 'os-context-menu-pick', () => {
 		closeMioMenu();
 		openMioStylePanel();
 	} );

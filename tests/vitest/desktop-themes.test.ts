@@ -63,7 +63,7 @@ function rawTheme( overrides: RawTheme = {} ): RawTheme {
 
 function mountShell(): HTMLElement {
 	const shell = document.createElement( 'div' );
-	shell.id = 'desktop-mode-shell';
+	shell.id = 'os-shell';
 	document.body.appendChild( shell );
 	return shell;
 }
@@ -275,13 +275,13 @@ describe( 'applyDesktopTheme', () => {
 
 		applyDesktopTheme( 'acme-neon' );
 
-		expect( shell.getAttribute( 'data-desktop-mode-desktop-theme' ) ).toBe(
+		expect( shell.getAttribute( 'data-os-desktop-theme' ) ).toBe(
 			'acme-neon',
 		);
-		expect( document.body.classList.contains( 'desktop-mode-desktop-theme-acme-neon' ) ).toBe( true );
+		expect( document.body.classList.contains( 'os-desktop-theme-acme-neon' ) ).toBe( true );
 
 		const link = document.getElementById(
-			'desktop-mode-desktop-theme-css',
+			'os-desktop-theme-css',
 		) as HTMLLinkElement | null;
 		expect( link ).not.toBeNull();
 		expect( link!.rel ).toBe( 'stylesheet' );
@@ -296,7 +296,7 @@ describe( 'applyDesktopTheme', () => {
 			rawTheme( {
 				slug: 'code-theme',
 				cssUrl: '',
-				cssText: '.desktop-mode-shell { --x: 1px; }',
+				cssText: '.os-shell { --x: 1px; }',
 				source: 'code',
 			} ),
 		] );
@@ -304,7 +304,7 @@ describe( 'applyDesktopTheme', () => {
 		applyDesktopTheme( 'code-theme' );
 
 		const style = document.querySelector(
-			'style[data-desktop-mode-desktop-theme-css]',
+			'style[data-os-desktop-theme-css]',
 		);
 		expect( style ).not.toBeNull();
 		expect( style!.textContent ).toContain( '--x: 1px;' );
@@ -317,9 +317,9 @@ describe( 'applyDesktopTheme', () => {
 
 		applyDesktopTheme( '' );
 
-		expect( shell.hasAttribute( 'data-desktop-mode-desktop-theme' ) ).toBe( false );
-		expect( document.body.className ).not.toContain( 'desktop-mode-desktop-theme-' );
-		expect( document.getElementById( 'desktop-mode-desktop-theme-css' ) ).toBeNull();
+		expect( shell.hasAttribute( 'data-os-desktop-theme' ) ).toBe( false );
+		expect( document.body.className ).not.toContain( 'os-desktop-theme-' );
+		expect( document.getElementById( 'os-desktop-theme-css' ) ).toBeNull();
 		expect( getActiveDesktopThemeId() ).toBeNull();
 		expect( getStore().state.activeIcons ).toBeNull();
 	} );
@@ -335,10 +335,10 @@ describe( 'applyDesktopTheme', () => {
 		applyDesktopTheme( 'other' );
 
 		expect(
-			document.querySelectorAll( 'link[id="desktop-mode-desktop-theme-css"]' ),
+			document.querySelectorAll( 'link[id="os-desktop-theme-css"]' ),
 		).toHaveLength( 1 );
-		expect( document.body.classList.contains( 'desktop-mode-desktop-theme-other' ) ).toBe( true );
-		expect( document.body.classList.contains( 'desktop-mode-desktop-theme-acme-neon' ) ).toBe( false );
+		expect( document.body.classList.contains( 'os-desktop-theme-other' ) ).toBe( true );
+		expect( document.body.classList.contains( 'os-desktop-theme-acme-neon' ) ).toBe( false );
 	} );
 
 	test( 'an unknown id degrades to the system default', () => {
@@ -348,7 +348,7 @@ describe( 'applyDesktopTheme', () => {
 		applyDesktopTheme( 'was-deleted' );
 
 		expect( getActiveDesktopThemeId() ).toBeNull();
-		expect( shell.hasAttribute( 'data-desktop-mode-desktop-theme' ) ).toBe( false );
+		expect( shell.hasAttribute( 'data-os-desktop-theme' ) ).toBe( false );
 	} );
 
 	test( 'a redundant call is a no-op and fires no event', () => {
@@ -399,9 +399,9 @@ describe( 'applyDesktopTheme', () => {
 		// shell script runs; re-creating them would cause the exact
 		// FOUC the server-side stamp exists to prevent.
 		const shell = mountShell();
-		shell.setAttribute( 'data-desktop-mode-desktop-theme', 'acme-neon' );
+		shell.setAttribute( 'data-os-desktop-theme', 'acme-neon' );
 		const bootLink = document.createElement( 'link' );
-		bootLink.id = 'desktop-mode-desktop-theme-css';
+		bootLink.id = 'os-desktop-theme-css';
 		bootLink.rel = 'stylesheet';
 		bootLink.href = 'https://x.test/themes/acme-neon/theme.css?ver=1';
 		document.head.appendChild( bootLink );
@@ -409,7 +409,7 @@ describe( 'applyDesktopTheme', () => {
 		setDesktopThemes( [ rawTheme() ] );
 		applyDesktopTheme( 'acme-neon' );
 
-		expect( document.getElementById( 'desktop-mode-desktop-theme-css' ) ).toBe(
+		expect( document.getElementById( 'os-desktop-theme-css' ) ).toBe(
 			bootLink,
 		);
 		expect( getActiveDesktopThemeId() ).toBe( 'acme-neon' );
@@ -448,10 +448,10 @@ describe( 'slot maps', () => {
 		expect( slotForTileId( 'desktop-mode-bug-report' ) ).toBe(
 			DESKTOP_THEME_SLOTS.BUG_REPORT,
 		);
-		expect( slotForTileId( 'desktop-mode-exit' ) ).toBe(
-			DESKTOP_THEME_SLOTS.EXIT_DESKTOP_MODE,
+		expect( slotForTileId( 'os-exit' ) ).toBe(
+			DESKTOP_THEME_SLOTS.EXIT_OPEN_STATION,
 		);
-		expect( slotForTileId( 'desktop-mode-pwa-install' ) ).toBe(
+		expect( slotForTileId( 'os-pwa-install' ) ).toBe(
 			DESKTOP_THEME_SLOTS.PWA_INSTALL,
 		);
 	} );

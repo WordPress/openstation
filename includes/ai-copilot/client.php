@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot: WordPress AI Client adapter.
+ * OpenStation — AI Copilot: WordPress AI Client adapter.
  *
  * Thin wrappers around `wp_ai_client_prompt()` that the agentic search loop
  * and the comment-scoring job use to generate. Credentials are injected by
@@ -12,10 +12,10 @@
  *
  * All SDK classes referenced here ship with WordPress 7.0+. The `use`
  * statements are compile-time aliases only; every call site is reached solely
- * through {@see desktop_mode_ai_is_available()}, so this file is inert (and
+ * through {@see open_station_ai_is_available()}, so this file is inert (and
  * never resolves the classes) on older WordPress.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 use WordPress\AiClient\Messages\DTO\Message;
@@ -36,7 +36,7 @@ defined( 'ABSPATH' ) || exit;
  * @param array $tool_defs List of tool definitions.
  * @return FunctionDeclaration[]
  */
-function desktop_mode_ai_build_function_declarations( array $tool_defs ) {
+function open_station_ai_build_function_declarations( array $tool_defs ) {
 	$declarations = array();
 	foreach ( $tool_defs as $def ) {
 		if ( ! is_array( $def ) ) {
@@ -60,7 +60,7 @@ function desktop_mode_ai_build_function_declarations( array $tool_defs ) {
  * @param string $text
  * @return UserMessage
  */
-function desktop_mode_ai_user_text_message( $text ) {
+function open_station_ai_user_text_message( $text ) {
 	return new UserMessage( array( new MessagePart( (string) $text ) ) );
 }
 
@@ -70,7 +70,7 @@ function desktop_mode_ai_user_text_message( $text ) {
  * @param array $tool_outputs List of `{ call_id, name, response }` entries.
  * @return UserMessage
  */
-function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
+function open_station_ai_tool_result_message( array $tool_outputs ) {
 	$parts = array();
 	foreach ( $tool_outputs as $output ) {
 		$parts[] = new MessagePart(
@@ -101,7 +101,7 @@ function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
  * @param Message $message Assistant message as returned by the AI Client.
  * @return Message Message safe to append to the conversation history.
  */
-function desktop_mode_ai_strip_thought_parts( Message $message ) {
+function open_station_ai_strip_thought_parts( Message $message ) {
 	$kept     = array();
 	$stripped = false;
 	foreach ( $message->getParts() as $part ) {
@@ -127,7 +127,7 @@ function desktop_mode_ai_strip_thought_parts( Message $message ) {
  * advertises the tools as function declarations, and constrains the final
  * answer to `$answer_schema` when given. Returns the assistant turn normalized
  * to the shape the loop consumes; `message` has thought-channel parts stripped
- * ({@see desktop_mode_ai_strip_thought_parts()}) so it is safe to replay.
+ * ({@see open_station_ai_strip_thought_parts()}) so it is safe to replay.
  *
  * @param int        $user_id       Requesting user id. Currently unused — the
  *                                  provider comes from Connectors and no
@@ -139,7 +139,7 @@ function desktop_mode_ai_strip_thought_parts( Message $message ) {
  * @param string     $instructions  System instruction.
  * @return array{ text: ?string, function_calls: array, message: mixed, usage: ?array, model: ?array }|WP_Error
  */
-function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions ) {
+function open_station_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions ) {
 	$builder = wp_ai_client_prompt( $messages );
 
 	if ( is_string( $instructions ) && '' !== $instructions ) {
@@ -147,9 +147,9 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 	}
 
 	// Provider + model selection is delegated entirely to the Core AI Client
-	// (Connector-backed); Desktop Mode pins neither.
+	// (Connector-backed); OpenStation pins neither.
 
-	$declarations = desktop_mode_ai_build_function_declarations( $tool_defs );
+	$declarations = open_station_ai_build_function_declarations( $tool_defs );
 	if ( ! empty( $declarations ) ) {
 		$builder = $builder->using_function_declarations( ...$declarations );
 	}
@@ -158,7 +158,7 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 		// Strict structured output: providers reject an object subschema that
 		// doesn't set `additionalProperties: false`, and one such node 400s the
 		// whole turn. Normalize here so no schema author has to know that.
-		$builder = $builder->as_json_response( desktop_mode_ai_normalize_response_schema( $answer_schema ) );
+		$builder = $builder->as_json_response( open_station_ai_normalize_response_schema( $answer_schema ) );
 	}
 
 	$result = $builder->generate_result();
@@ -196,9 +196,9 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 	return array(
 		'text'           => $text,
 		'function_calls' => $function_calls,
-		'message'        => desktop_mode_ai_strip_thought_parts( $message ),
-		'usage'          => desktop_mode_ai_result_token_usage( $result ),
-		'model'          => desktop_mode_ai_result_model_metadata( $result ),
+		'message'        => open_station_ai_strip_thought_parts( $message ),
+		'usage'          => open_station_ai_result_token_usage( $result ),
+		'model'          => open_station_ai_result_model_metadata( $result ),
 	);
 }
 
@@ -208,7 +208,7 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
  * @param mixed $result GenerativeAiResult.
  * @return array{ prompt: int, completion: int, total: int }|null
  */
-function desktop_mode_ai_result_token_usage( $result ) {
+function open_station_ai_result_token_usage( $result ) {
 	try {
 		$usage = $result->getTokenUsage();
 		return array(
@@ -227,7 +227,7 @@ function desktop_mode_ai_result_token_usage( $result ) {
  * @param mixed $result GenerativeAiResult.
  * @return array{ id: string, name: string }|null
  */
-function desktop_mode_ai_result_model_metadata( $result ) {
+function open_station_ai_result_model_metadata( $result ) {
 	try {
 		$model = $result->getModelMetadata();
 		return array(

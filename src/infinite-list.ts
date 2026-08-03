@@ -23,7 +23,7 @@
  *         const url =
  *             '/wp-json/myplugin/v1/feed?cursor=' +
  *             encodeURIComponent( cursor ?? '' );
- *         const res  = await wp.desktop.fetch( url, { signal } );
+ *         const res  = await wp.os.fetch( url, { signal } );
  *         const json = await res.json();
  *         return { items: json.items, nextCursor: json.next };
  *     },
@@ -63,7 +63,7 @@ export interface InfiniteListOptions< TItem > {
 	root: HTMLElement;
 	/**
 	 * Fetch one page. The `signal` aborts on `reset()` /
-	 * `destroy()` — pass it through to `wp.desktop.fetch( url, {
+	 * `destroy()` — pass it through to `wp.os.fetch( url, {
 	 * signal } )`. Throwing `AbortError` is fine; it's swallowed.
 	 */
 	fetchPage: (
@@ -88,7 +88,7 @@ export interface InfiniteListOptions< TItem > {
 	 * Element observed for visibility. When it scrolls into view
 	 * the helper requests the next page. Default: a hidden
 	 * `<div>` appended after the rendered items, marked
-	 * `data-wpd-infinite-list-sentinel`. Override when you need
+	 * `data-os-infinite-list-sentinel`. Override when you need
 	 * a different scroll geometry (custom load-more bar, in-row
 	 * sentinel for grids).
 	 */
@@ -151,7 +151,7 @@ export function createInfiniteList< TItem >(
 		onLoadingChange = () => undefined,
 		onError = ( err: unknown ) => {
 			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] createInfiniteList:', err );
+				console.error( '[openstation] createInfiniteList:', err );
 			}
 		},
 	} = options;
@@ -159,7 +159,7 @@ export function createInfiniteList< TItem >(
 	let sentinel = options.sentinel ?? null;
 	if ( ! sentinel ) {
 		sentinel = document.createElement( 'div' );
-		sentinel.dataset.wpdInfiniteListSentinel = '';
+		sentinel.dataset.osInfiniteListSentinel = '';
 		// Default visual: a 1px tall sentinel placed after the items.
 		// Plugins that want a "Loading more…" affordance pass their
 		// own element via `options.sentinel`.

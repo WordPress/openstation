@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Content Graph module bootstrap.
+ * OpenStation — Content Graph module bootstrap.
  *
  * Native window with id `desktop-mode-content-graph` plus a desktop
  * shortcut icon. The window renders a PixiJS-driven force-directed
@@ -11,7 +11,7 @@
  * that panel re-centres the graph; clicking author/category/media
  * deep-links to the matching native window.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

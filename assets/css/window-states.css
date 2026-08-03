@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window state visuals.
+ * OpenStation — Window state visuals.
  *
  * Every rule that keys off a `--state` modifier class: the resize
  * handle + its overlay shield (drag/resize iframe-interception),
@@ -21,15 +21,15 @@
  * (discoverable by cursor change only) to keep the window chrome
  * clean.
  *
- * Hit-area is `--desktop-mode-resize-size` (20 px by default). The
+ * Hit-area is `--os-resize-size` (20 px by default). The
  * handles extend a few pixels OUTSIDE the window edge so a cursor
  * landing just past the border still activates them — matches how
  * native OS windows forgive edge-grabs.
  */
-.desktop-mode-window__resize-handle {
+.os-window__resize-handle {
 	position: absolute;
-	width: var(--desktop-mode-resize-size);
-	height: var(--desktop-mode-resize-size);
+	width: var(--os-resize-size);
+	height: var(--os-resize-size);
 	z-index: 999;
 }
 
@@ -40,7 +40,7 @@
  * ## Why they are INSET rather than centred on the handle
  *
  * The obvious placement — centre the ornament on the resize handle —
- * is wrong, and looks it. `.desktop-mode-window` sets
+ * is wrong, and looks it. `.os-window` sets
  * `overflow: hidden` (it clips iframe content to the rounded
  * corners), and the handles deliberately sit 3px OUTSIDE the window
  * box so an edge-grab still lands. So a handle-centred ornament gets
@@ -49,8 +49,8 @@
  * artwork were painted behind the window.
  *
  * Escaping the clip is not an option worth its cost: the ornaments
- * would have to leave `.desktop-mode-window` entirely — a wrapper
- * element, or an overlay in `.desktop-mode-area` whose geometry is
+ * would have to leave `.os-window` entirely — a wrapper
+ * element, or an overlay in `.os-area` whose geometry is
  * re-tracked on every drag/resize frame. A theme that genuinely
  * wants artwork OUTSIDE the frame already has the right tool in the
  * `WINDOW_FRAME` slot: `border-image` paints in the border area,
@@ -60,35 +60,35 @@
  * instead. The default inset clears the handle's 3px overhang plus a
  * share of the corner radius, which is what keeps the arc from
  * cutting it at larger radii. Themes that want it tighter or looser
- * override `--desktop-mode-window-corner-inset`.
+ * override `--os-window-corner-inset`.
  *
  * Physical `top`/`left`/`right`/`bottom` rather than logical
  * properties here, deliberately: these track the resize handles,
  * which are physical corners by nature (the NW handle is top-left in
  * both LTR and RTL) and are themselves positioned physically.
  *
- * With no theme active every `--desktop-mode-window-corner-*-image`
+ * With no theme active every `--os-window-corner-*-image`
  * is unset, the shorthand resolves to `none`, and the pseudo-element
  * paints nothing — zero visual change and no image request.
  *
  * NOTE the BEM modifiers are `--ne` / `--nw` / `--se` / `--sw` on
- * `.desktop-mode-window__resize-handle`, not bare `.--ne`.
+ * `.os-window__resize-handle`, not bare `.--ne`.
  */
-.desktop-mode-window__resize-handle--ne::after,
-.desktop-mode-window__resize-handle--nw::after,
-.desktop-mode-window__resize-handle--se::after,
-.desktop-mode-window__resize-handle--sw::after {
+.os-window__resize-handle--ne::after,
+.os-window__resize-handle--nw::after,
+.os-window__resize-handle--se::after,
+.os-window__resize-handle--sw::after {
 	content: "";
 	position: absolute;
 	/* 3px = the handle's overhang past the window edge (see the
 	 * `--nw` / `--ne` / `--sw` / `--se` rules above). The radius
 	 * share keeps the ornament clear of the corner arc. */
 	--_dm-corner-inset: var(
-		--desktop-mode-window-corner-inset,
-		calc( 3px + var( --desktop-mode-window-radius, 8px ) * 0.4 )
+		--os-window-corner-inset,
+		calc( 3px + var( --os-window-radius, 8px ) * 0.4 )
 	);
-	width: var( --desktop-mode-window-corner-size, 16px );
-	height: var( --desktop-mode-window-corner-size, 16px );
+	width: var( --os-window-corner-size, 16px );
+	height: var( --os-window-corner-size, 16px );
 	/* Ornaments are decoration; the handle keeps the drag affordance. */
 	pointer-events: none;
 	background-repeat: no-repeat;
@@ -96,62 +96,62 @@
 	background-size: contain;
 }
 
-.desktop-mode-window__resize-handle--nw::after {
+.os-window__resize-handle--nw::after {
 	top: var( --_dm-corner-inset );
 	left: var( --_dm-corner-inset );
-	background-image: var( --desktop-mode-window-corner-nw-image, none );
+	background-image: var( --os-window-corner-nw-image, none );
 }
 
-.desktop-mode-window__resize-handle--ne::after {
+.os-window__resize-handle--ne::after {
 	top: var( --_dm-corner-inset );
 	right: var( --_dm-corner-inset );
-	background-image: var( --desktop-mode-window-corner-ne-image, none );
+	background-image: var( --os-window-corner-ne-image, none );
 }
 
-.desktop-mode-window__resize-handle--sw::after {
+.os-window__resize-handle--sw::after {
 	bottom: var( --_dm-corner-inset );
 	left: var( --_dm-corner-inset );
-	background-image: var( --desktop-mode-window-corner-sw-image, none );
+	background-image: var( --os-window-corner-sw-image, none );
 }
 
-.desktop-mode-window__resize-handle--se::after {
+.os-window__resize-handle--se::after {
 	bottom: var( --_dm-corner-inset );
 	right: var( --_dm-corner-inset );
-	background-image: var( --desktop-mode-window-corner-se-image, none );
+	background-image: var( --os-window-corner-se-image, none );
 }
 
-.desktop-mode-window__resize-handle--se {
+.os-window__resize-handle--se {
 	right: -3px;
 	bottom: -3px;
 	cursor: nwse-resize;
 	background: linear-gradient(
 		135deg,
 		transparent 30%,
-		var(--desktop-mode-resize-color) 30%,
-		var(--desktop-mode-resize-color) 40%,
+		var(--os-resize-color) 30%,
+		var(--os-resize-color) 40%,
 		transparent 40%,
 		transparent 55%,
-		var(--desktop-mode-resize-color) 55%,
-		var(--desktop-mode-resize-color) 65%,
+		var(--os-resize-color) 55%,
+		var(--os-resize-color) 65%,
 		transparent 65%,
 		transparent 80%,
-		var(--desktop-mode-resize-color) 80%
+		var(--os-resize-color) 80%
 	);
 }
 
-.desktop-mode-window__resize-handle--sw {
+.os-window__resize-handle--sw {
 	left: -3px;
 	bottom: -3px;
 	cursor: nesw-resize;
 }
 
-.desktop-mode-window__resize-handle--ne {
+.os-window__resize-handle--ne {
 	right: -3px;
 	top: -3px;
 	cursor: nesw-resize;
 }
 
-.desktop-mode-window__resize-handle--nw {
+.os-window__resize-handle--nw {
 	left: -3px;
 	top: -3px;
 	cursor: nwse-resize;
@@ -161,8 +161,8 @@
  * During drag/resize, overlay the iframe to prevent it from
  * capturing pointer events and breaking the drag.
  */
-.desktop-mode-window--dragging .desktop-mode-window__body::after,
-.desktop-mode-window--resizing .desktop-mode-window__body::after {
+.os-window--dragging .os-window__body::after,
+.os-window--resizing .os-window__body::after {
 	content: "";
 	position: absolute;
 	inset: 0;
@@ -174,11 +174,11 @@
  * (matching the desktop area) so left/top/width/height can animate.
  * Only cosmetic overrides here.
  */
-.desktop-mode-window--maximized {
+.os-window--maximized {
 	border-radius: 0;
 }
 
-.desktop-mode-window--maximized .desktop-mode-window__resize-handle {
+.os-window--maximized .os-window__resize-handle {
 	display: none;
 }
 
@@ -186,22 +186,22 @@
  * Fullscreen ("focus") state — the window escapes the desktop area and
  * covers the entire viewport, hiding the admin bar and dock behind
  * it. Uses position: fixed so no ancestor overflow clips it, and
- * a z-index above the admin bar (--desktop-mode-z-adminbar). Inline
+ * a z-index above the admin bar (--os-z-adminbar). Inline
  * geometry set by toggleMaximize() is overridden with !important because
  * we never want fullscreen to respect a saved x/y/width/height.
  */
-.desktop-mode-window--fullscreen {
+.os-window--fullscreen {
 	position: fixed !important;
 	left: 0 !important;
 	top: 0 !important;
 	width: 100vw !important;
 	height: 100vh !important;
-	z-index: var(--desktop-mode-z-fullscreen) !important;
+	z-index: var(--os-z-fullscreen) !important;
 	border-radius: 0 !important;
 	border: none;
 }
 
-.desktop-mode-window--fullscreen .desktop-mode-window__resize-handle {
+.os-window--fullscreen .os-window__resize-handle {
 	display: none;
 }
 
@@ -209,7 +209,7 @@
  * Opening animation — subtle scale-up + fade-in.
  * The class is added on creation and removed after the animation ends.
  */
-@keyframes desktop-mode-window-open {
+@keyframes os-window-open {
 	from {
 		opacity: 0;
 		transform: scale(0.92);
@@ -220,8 +220,8 @@
 	}
 }
 
-.desktop-mode-window--opening {
-	animation: desktop-mode-window-open 0.2s ease forwards;
+.os-window--opening {
+	animation: os-window-open 0.2s ease forwards;
 }
 
 /*
@@ -235,7 +235,7 @@
  * duration so users with prefers-reduced-motion still see the
  * affordance without movement.
  */
-@keyframes desktop-mode-window-shake {
+@keyframes os-window-shake {
 	0%, 100% { transform: translateX( 0 ); }
 	8%       { transform: translateX( -10px ); }
 	18%      { transform: translateX( 9px ); }
@@ -247,12 +247,12 @@
 	84%      { transform: translateX( 2px ); }
 }
 
-.desktop-mode-window--shaking {
-	animation: desktop-mode-window-shake 0.6s cubic-bezier( 0.36, 0.07, 0.19, 0.97 ) both;
+.os-window--shaking {
+	animation: os-window-shake 0.6s cubic-bezier( 0.36, 0.07, 0.19, 0.97 ) both;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-window--shaking {
+	.os-window--shaking {
 		animation: none;
 		outline: 3px solid var( --wp-admin-theme-color, #2271b1 );
 		outline-offset: 2px;
@@ -261,10 +261,10 @@
 }
 
 /*
- * Desktop-switch slide — applied to `.desktop-mode-area` (the windows
+ * Desktop-switch slide — applied to `.os-area` (the windows
  * + widgets container) when the user moves between virtual desktops
  * via arrow keys or any other directional caller. The wallpaper lives
- * OUTSIDE this element (sibling under `.desktop-mode-shell`), so the
+ * OUTSIDE this element (sibling under `.os-shell`), so the
  * slide reveals the wallpaper as a backdrop — no black flash, no
  * awkward gap on the leading edge.
  *
@@ -283,7 +283,7 @@
  * `forwards` isn't needed — the JS strips the class on `animationend`
  * so the element returns to its natural transform / opacity state.
  */
-@keyframes desktop-mode-area-slide-from-right {
+@keyframes os-area-slide-from-right {
 	from {
 		transform: translateX(64px);
 		opacity: 0.35;
@@ -294,7 +294,7 @@
 	}
 }
 
-@keyframes desktop-mode-area-slide-from-left {
+@keyframes os-area-slide-from-left {
 	from {
 		transform: translateX(-64px);
 		opacity: 0.35;
@@ -305,17 +305,17 @@
 	}
 }
 
-.desktop-mode-area--sliding-from-right {
-	animation: desktop-mode-area-slide-from-right 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
+.os-area--sliding-from-right {
+	animation: os-area-slide-from-right 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
 }
 
-.desktop-mode-area--sliding-from-left {
-	animation: desktop-mode-area-slide-from-left 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
+.os-area--sliding-from-left {
+	animation: os-area-slide-from-left 0.28s cubic-bezier( 0.2, 0.7, 0.2, 1 );
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-area--sliding-from-right,
-	.desktop-mode-area--sliding-from-left {
+	.os-area--sliding-from-right,
+	.os-area--sliding-from-left {
 		animation: none;
 	}
 }
@@ -326,7 +326,7 @@
  * CSS transition can animate the change. The window is invisible
  * and non-interactive but stays in the DOM for a smooth restore.
  */
-.desktop-mode-window--minimized {
+.os-window--minimized {
 	opacity: 0;
 	transform: scale(0.92) translateY(16px);
 	pointer-events: none;
@@ -335,7 +335,7 @@
 
 /*
  * `pointer-events: none` on the window root above is not enough on
- * its own: a number of descendants (most notably `.desktop-mode-
+ * its own: a number of descendants (most notably `.os-
  * file-tile`, but also other tile renderers) explicitly set
  * `pointer-events: auto` so the wallpaper / folder layer doesn't
  * eat their clicks. That `auto` overrides the parent's `none`, and
@@ -347,8 +347,8 @@
  * it doesn't touch anything else, and `!important` is required to
  * win over the per-tile `pointer-events: auto`.
  */
-.desktop-mode-window--minimized *,
-.desktop-mode-window--closing * {
+.os-window--minimized *,
+.os-window--closing * {
 	pointer-events: none !important;
 }
 
@@ -356,7 +356,7 @@
  * Closing animation — fade out + slight scale down.
  * The JS waits for transitionend then removes the element.
  */
-.desktop-mode-window--closing {
+.os-window--closing {
 	opacity: 0;
 	transform: scale(0.95);
 	pointer-events: none;
@@ -369,10 +369,10 @@
  * (avoids layout jumps from display: none).
  */
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-window {
+	.os-window {
 		transition-duration: 0.01ms !important;
 	}
-	.desktop-mode-window--opening {
+	.os-window--opening {
 		animation-duration: 0.01ms !important;
 	}
 }
@@ -394,7 +394,7 @@
  * translucent accent-colored rectangle covering the target half, with
  * a bright border so the user sees exactly where the window will land.
  * --------------------------------------------------------------- */
-.desktop-mode-snap-preview {
+.os-snap-preview {
 	position: absolute;
 	background: color-mix(
 		in srgb,
@@ -418,7 +418,7 @@
 		height 0.18s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-.desktop-mode-snap-preview--visible {
+.os-snap-preview--visible {
 	opacity: 1;
 }
 
@@ -439,8 +439,8 @@
  * window. Flat edges + no shadow gives the two-up feel of a native
  * split view: windows adjacent, no separator.
  */
-.desktop-mode-window--snapped-left,
-.desktop-mode-window--snapped-right {
+.os-window--snapped-left,
+.os-window--snapped-right {
 	box-shadow: none;
 }
 
@@ -448,18 +448,18 @@
    the focused selector runs at equal specificity, so without this
    rule the focus shadow would re-introduce the seam once the snapped
    window is active. */
-.desktop-mode-window--focused.desktop-mode-window--snapped-left,
-.desktop-mode-window--focused.desktop-mode-window--snapped-right {
+.os-window--focused.os-window--snapped-left,
+.os-window--focused.os-window--snapped-right {
 	box-shadow: none;
 }
 
-.desktop-mode-window--snapped-left {
+.os-window--snapped-left {
 	/* Inner (right) edge flush; outer corners keep the radius. */
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
 
-.desktop-mode-window--snapped-right {
+.os-window--snapped-right {
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
 }
@@ -471,11 +471,11 @@
  * lighter (the anchor window still takes the other half, so we want
  * the picker to feel "peripheral" not "modal").
  */
-.desktop-mode-area--split-overview {
+.os-area--split-overview {
 	background-color: rgba( 0, 0, 0, 0.28 );
 	transition: background-color 0.24s ease;
 }
 
-/* Toast styling moved into `<wpd-toast-container>` and `<wpd-toast>`
- * (src/ui/components/wpd-toast/). The components own their shadow
+/* Toast styling moved into `<os-toast-container>` and `<os-toast>`
+ * (src/ui/components/os-toast/). The components own their shadow
  * DOM styling; nothing at host level needs to reach inside. */

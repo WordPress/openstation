@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window switcher shortcut.
+ * OpenStation — Window switcher shortcut.
  *
  * Cycles focus between open windows on the active desktop via bare
  * `` ` `` (next) and `Shift+` ` ` (previous), on both macOS and
@@ -106,7 +106,7 @@ let installed = false;
  * is fine.
  *
  * Shadow-DOM gotcha: when focus lands on an input INSIDE an open
- * shadow root (every `<wpd-*>` component does this — `Component`
+ * shadow root (every `<os-*>` component does this — `Component`
  * defaults `static shadow = true`), `doc.activeElement` returns the
  * host element, not the inner input. A naïve `instanceof
  * HTMLInputElement` check would miss it and the gate would say "not
@@ -167,7 +167,7 @@ export function isTextEntryFocus( doc: Document ): boolean {
  * is in a text-entry element so typing `` ` `` into fields still works.
  *
  * The iframe forwarder lives in `includes/render.php`: it postMessages
- * `desktop-mode-window-switch` so presses inside a wp-admin iframe reach
+ * `os-window-switch` so presses inside a wp-admin iframe reach
  * this handler even though native keydown events don't cross iframe
  * boundaries. The iframe applies its own text-entry gate before
  * forwarding, so a backtick typed into the block editor or a plain
@@ -205,7 +205,7 @@ export function installWindowSwitcherShortcut( mgr: WindowManager ): void {
 		const data = e.data as
 			| { type?: string; direction?: CycleDirection }
 			| null;
-		if ( ! data || data.type !== 'desktop-mode-window-switch' ) {
+		if ( ! data || data.type !== 'os-window-switch' ) {
 			return;
 		}
 		cycleFocus( mgr, data.direction === 'prev' ? 'prev' : 'next' );

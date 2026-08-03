@@ -3,8 +3,8 @@
  * Server-side opt-in for dock rail renderer scripts.
  *
  * Mirrors `includes/commands.php` exactly — a plugin enqueues a JS
- * bundle that registers a renderer with `wp.desktop.registerDockRailRenderer()`,
- * then calls `desktop_mode_register_dock_rail_renderer_script( $handle )`
+ * bundle that registers a renderer with `wp.os.registerDockRailRenderer()`,
+ * then calls `open_station_register_dock_rail_renderer_script( $handle )`
  * to opt the script into the live-refresh payload. The shell loads
  * the script over the chromeless bridge on activation, the JS calls
  * `registerDockRailRenderer()`, and the OS Settings → Dock style picker
@@ -15,7 +15,7 @@
  * back through the registry's chain (user pick → `default`) and the
  * dispatcher rebuilds the rails with whatever resolves.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,43 +26,43 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * add_action( 'desktop_mode_shell_assets', function () {
+ * add_action( 'open_station_shell_assets', function () {
  *     wp_register_script(
  *         'orbit-rail',
  *         plugin_dir_url( __FILE__ ) . 'orbit-rail.js',
- *         array( 'desktop-mode' ),
+ *         array( 'openstation' ),
  *         '1.0.0',
  *         true
  *     );
  *     wp_enqueue_script( 'orbit-rail' );
  * } );
- * desktop_mode_register_dock_rail_renderer_script( 'orbit-rail' );
+ * open_station_register_dock_rail_renderer_script( 'orbit-rail' );
  * ```
  *
- * The script's JS side calls `wp.desktop.registerDockRailRenderer( { … } )`
+ * The script's JS side calls `wp.os.registerDockRailRenderer( { … } )`
  * with `owner: 'orbit-rail'` (matching the handle) so deactivation
  * cleanly removes the renderer.
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_dock_rail_renderer_script( $handle ) {
+function open_station_register_dock_rail_renderer_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return open_station_registration_error(
+			'open_station_missing_handle',
 			__( 'Dock rail renderer script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_dock_rail_renderer_script_registry( $handle, true );
+	open_station_dock_rail_renderer_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop dock rail renderer script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_dock_rail_renderer_script_registered', $handle );
+	do_action( 'open_station_dock_rail_renderer_script_registered', $handle );
 
 	return true;
 }
@@ -77,7 +77,7 @@ function desktop_mode_register_dock_rail_renderer_script( $handle ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function desktop_mode_dock_rail_renderer_script_registry( $handle = '', $value = null ) {
+function open_station_dock_rail_renderer_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -95,10 +95,10 @@ function desktop_mode_dock_rail_renderer_script_registry( $handle = '', $value =
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see desktop_mode_flush_script_handle_registries()}.
+ * {@see open_station_flush_script_handle_registries()}.
  */
-function desktop_mode_flush_dock_rail_renderer_script_registry() {
-	desktop_mode_dock_rail_renderer_script_registry( '__flush__' );
+function open_station_flush_dock_rail_renderer_script_registry() {
+	open_station_dock_rail_renderer_script_registry( '__flush__' );
 }
 
 /**
@@ -110,8 +110,8 @@ function desktop_mode_flush_dock_rail_renderer_script_registry() {
  *
  * @return array[]
  */
-function desktop_mode_build_dock_rail_renderer_scripts_payload() {
-	$registry = desktop_mode_dock_rail_renderer_script_registry();
+function open_station_build_dock_rail_renderer_scripts_payload() {
+	$registry = open_station_dock_rail_renderer_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -122,10 +122,10 @@ function desktop_mode_build_dock_rail_renderer_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = open_station_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_dock_rail_renderer_script',
+			open_station_warn_unresolvable_script_handle(
+				'open_station_register_dock_rail_renderer_script',
 				'Dock rail renderer',
 				(string) $handle
 			);

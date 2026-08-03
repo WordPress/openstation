@@ -9,14 +9,14 @@
  * The bundle URL is taken from the shell config
  * (`config.aboutSceneBundleUrl`), built server-side so the
  * `SCRIPT_DEBUG` choice between `.js` and `.min.js` and the
- * `?ver=DESKTOP_MODE_VERSION` cache-buster stay in PHP.
+ * `?ver=OPEN_STATION_VERSION` cache-buster stay in PHP.
  */
 
 import type { AboutScene, SceneOptions } from './about-scene';
 
 declare global {
 	interface Window {
-		desktopModeMountAboutScene?: ( opts: SceneOptions ) => Promise< AboutScene >;
+		openStationMountAboutScene?: ( opts: SceneOptions ) => Promise< AboutScene >;
 	}
 }
 
@@ -25,22 +25,22 @@ let loadPromise: Promise< ( opts: SceneOptions ) => Promise< AboutScene > > | nu
 function loadImpl( scriptUrl: string ): Promise<
 	( opts: SceneOptions ) => Promise< AboutScene >
 > {
-	if ( window.desktopModeMountAboutScene ) {
-		return Promise.resolve( window.desktopModeMountAboutScene );
+	if ( window.openStationMountAboutScene ) {
+		return Promise.resolve( window.openStationMountAboutScene );
 	}
 	if ( loadPromise ) {
 		return loadPromise;
 	}
 	loadPromise = new Promise( ( resolve, reject ) => {
 		const existing = document.querySelector< HTMLScriptElement >(
-			'script[data-desktop-mode-about-scene="1"]',
+			'script[data-os-about-scene="1"]',
 		);
 		const finish = (): void => {
-			const fn = window.desktopModeMountAboutScene;
+			const fn = window.openStationMountAboutScene;
 			if ( ! fn ) {
 				reject(
 					new Error(
-						'[desktop-mode] about-scene bundle loaded but did not register desktopModeMountAboutScene',
+						'[openstation] about-scene bundle loaded but did not register openStationMountAboutScene',
 					),
 				);
 				return;
@@ -48,7 +48,7 @@ function loadImpl( scriptUrl: string ): Promise<
 			resolve( fn );
 		};
 		if ( existing ) {
-			if ( window.desktopModeMountAboutScene ) {
+			if ( window.openStationMountAboutScene ) {
 				finish();
 			} else {
 				existing.addEventListener( 'load', finish );
@@ -61,7 +61,7 @@ function loadImpl( scriptUrl: string ): Promise<
 		const s = document.createElement( 'script' );
 		s.src = scriptUrl;
 		s.async = true;
-		s.dataset.desktopModeAboutScene = '1';
+		s.dataset.osAboutScene = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
 			reject( new Error( 'failed to load about-scene bundle' ) ),

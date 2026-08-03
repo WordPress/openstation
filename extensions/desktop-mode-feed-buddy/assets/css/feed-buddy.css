@@ -15,7 +15,7 @@
  */
 .feed-buddy-reader,
 .feed-buddy-widget,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
 	--feed-buddy-blue: #063eb7;
 	--feed-buddy-blue-dark: #001f78;
 	--feed-buddy-system: #c0c0c0;
@@ -34,8 +34,8 @@
 	/*
 	 * Title-bar colours, shared by the widget chrome and the native
 	 * reader window. `applyReaderTheme()` in src/index.ts installs
-	 * the same two values as `--desktop-mode-titlebar-bg-focused` /
-	 * `--desktop-mode-titlebar-color-focused` on the reader window —
+	 * the same two values as `--os-titlebar-bg-focused` /
+	 * `--os-titlebar-color-focused` on the reader window —
 	 * keep the pairs in step so the two surfaces stay consistent.
 	 *
 	 * The FOCUSED colour is the one the widget uses: widget cards
@@ -128,7 +128,7 @@
 	white-space: nowrap;
 }
 
-.feed-buddy-reader__conversation wpd-select {
+.feed-buddy-reader__conversation os-select {
 	flex: 0 1 260px;
 	min-width: 180px;
 }
@@ -223,7 +223,7 @@
 	font-size: 13px;
 }
 
-.feed-buddy-message__meta wpd-relative-time {
+.feed-buddy-message__meta os-relative-time {
 	color: #202226;
 }
 
@@ -264,8 +264,8 @@
 	margin-top: 7px;
 }
 
-.feed-buddy-message__actions wpd-button {
-	--wpd-button-padding: 3px 7px;
+.feed-buddy-message__actions os-button {
+	--os-ui-button-padding: 3px 7px;
 }
 
 .feed-buddy-reader__actionbar {
@@ -412,7 +412,7 @@
 	min-height: 100%;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr);
 	overflow: hidden;
@@ -426,7 +426,7 @@
 	transition: none;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]:hover {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]:hover {
 	transform: none;
 	box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
@@ -437,8 +437,8 @@
  * chrome background transparent by default (the card behind it
  * supplies the surface), so the colour has to be stated here.
  */
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__chrome {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__chrome {
 	min-height: 29px;
 	gap: 6px;
 	padding: 4px 6px;
@@ -447,15 +447,15 @@
 	color: var(--feed-buddy-titlebar-color, #fff);
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__title {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__title {
 	color: var(--feed-buddy-titlebar-color, #fff);
 	font-size: 13px;
 	font-weight: 700;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__grip {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__grip {
 	opacity: 0.8;
 }
 
@@ -471,10 +471,10 @@
  * read as solid Win2k-era controls, and the background swap (not a
  * fade) is what carries the interaction.
  */
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-close,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-redock {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-close,
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-redock {
 	border: 1px solid rgba(255, 255, 255, 0.7);
 	border-radius: 0;
 	background: var(--feed-buddy-titlebar-btn-bg, #002a86);
@@ -482,49 +482,49 @@
 	opacity: 1;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-redock:hover,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-redock:focus-visible {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-redock:hover,
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-redock:focus-visible {
 	background: var(--feed-buddy-titlebar-btn-bg-hover, #1a4fd0);
 	color: var(--feed-buddy-titlebar-color, #fff);
 }
 
 /*
  * Close hovers to the same red wash as the reader window's close
- * control — that one is a `<wpd-window-button danger>`, which paints
- * `--wpd-btn-danger-hover` on hover. Reading the same token here
+ * control — that one is a `<os-window-button danger>`, which paints
+ * `--os-ui-btn-danger-hover` on hover. Reading the same token here
  * keeps the two title bars in step, including under a desktop theme
  * that retints it.
  */
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-close:hover,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-close:focus-visible {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-close:hover,
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-close:focus-visible {
 	border-color: rgba(255, 255, 255, 0.9);
-	background: var(--wpd-btn-danger-hover, var(--wpd-danger, #d63638));
+	background: var(--os-ui-btn-danger-hover, var(--os-ui-danger, #d63638));
 	color: #fff;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-close:active,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-redock:active {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-close:active,
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-redock:active {
 	/* Pressed = inset borders, the period-correct "pushed in" tell. */
 	border-color: var(--feed-buddy-border-dark) var(--feed-buddy-border-light)
 		var(--feed-buddy-border-light) var(--feed-buddy-border-dark);
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-close:focus-visible,
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-redock:focus-visible {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-close:focus-visible,
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-redock:focus-visible {
 	outline: 2px solid var(--feed-buddy-focus, #ffbf47);
 	outline-offset: 1px;
 }
 
-.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
-	.desktop-mode-widgets__card-body {
+.os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.os-widgets__card-body {
 	min-height: 0;
 	padding: 0;
 	overflow: hidden;
@@ -642,9 +642,9 @@
 	z-index: 1;
 	top: 0;
 	width: 100%;
-	--wpd-button-border: 0;
-	--wpd-button-border-radius: 0;
-	--wpd-button-padding: 0;
+	--os-ui-button-border: 0;
+	--os-ui-button-border-radius: 0;
+	--os-ui-button-padding: 0;
 }
 
 .feed-buddy-widget__group::part(button) {
@@ -684,9 +684,9 @@
 .feed-buddy-widget__feed {
 	display: block;
 	width: 100%;
-	--wpd-button-border: 0;
-	--wpd-button-border-radius: 0;
-	--wpd-button-padding: 0;
+	--os-ui-button-border: 0;
+	--os-ui-button-border-radius: 0;
+	--os-ui-button-padding: 0;
 }
 
 .feed-buddy-widget__feed::part(button) {
@@ -762,8 +762,8 @@
 	border-top: 1px solid var(--feed-buddy-border-light);
 }
 
-.feed-buddy-widget__footer wpd-button {
-	--wpd-button-padding: 6px 7px;
+.feed-buddy-widget__footer os-button {
+	--os-ui-button-padding: 6px 7px;
 }
 
 .feed-buddy-widget__footer-state {
@@ -832,8 +832,8 @@
 }
 
 .feed-buddy-about {
-	--wpd-modal-bg: #c0c0c0;
-	--wpd-modal-fg: #111;
+	--os-ui-modal-bg: #c0c0c0;
+	--os-ui-modal-fg: #111;
 	color: #111;
 	font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
 }
@@ -869,50 +869,50 @@
 	font-size: 11px;
 }
 
-.feed-buddy-about wpd-button {
-	--wpd-button-bg: #f2f2f2;
-	--wpd-button-border: 1px solid #444;
-	--wpd-button-border-radius: 0;
-	--wpd-button-fg: #111;
-	--wpd-button-padding: 6px 12px;
+.feed-buddy-about os-button {
+	--os-ui-button-bg: #f2f2f2;
+	--os-ui-button-border: 1px solid #444;
+	--os-ui-button-border-radius: 0;
+	--os-ui-button-fg: #111;
+	--os-ui-button-padding: 6px 12px;
 }
 
-.feed-buddy-reader wpd-button,
-.feed-buddy-widget wpd-button {
-	--wpd-button-border: 1px solid #444;
-	--wpd-button-border-radius: 0;
-	--wpd-button-padding: 6px 10px;
-	--wpd-button-bg: var(--feed-buddy-system-light);
-	--wpd-button-fg: #111;
+.feed-buddy-reader os-button,
+.feed-buddy-widget os-button {
+	--os-ui-button-border: 1px solid #444;
+	--os-ui-button-border-radius: 0;
+	--os-ui-button-padding: 6px 10px;
+	--os-ui-button-bg: var(--feed-buddy-system-light);
+	--os-ui-button-fg: #111;
 }
 
-.feed-buddy-reader wpd-button::part(button),
-.feed-buddy-widget wpd-button::part(button) {
+.feed-buddy-reader os-button::part(button),
+.feed-buddy-widget os-button::part(button) {
 	min-height: 30px;
 	box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #7f7f7f;
 	font: inherit;
 }
 
-.feed-buddy-reader wpd-button:active::part(button),
-.feed-buddy-widget wpd-button:active::part(button) {
+.feed-buddy-reader os-button:active::part(button),
+.feed-buddy-widget os-button:active::part(button) {
 	box-shadow: inset 1px 1px 0 #7f7f7f;
 }
 
-.feed-buddy-reader wpd-button:focus-visible::part(button),
-.feed-buddy-widget wpd-button:focus-visible::part(button) {
+.feed-buddy-reader os-button:focus-visible::part(button),
+.feed-buddy-widget os-button:focus-visible::part(button) {
 	outline: 3px solid var(--feed-buddy-focus);
 	outline-offset: 1px;
 }
 
-.feed-buddy-reader__menubar wpd-button,
-.feed-buddy-widget__menubar wpd-button {
-	--wpd-button-border: 0;
-	--wpd-button-padding: 2px 7px;
-	--wpd-button-bg: transparent;
+.feed-buddy-reader__menubar os-button,
+.feed-buddy-widget__menubar os-button {
+	--os-ui-button-border: 0;
+	--os-ui-button-padding: 2px 7px;
+	--os-ui-button-bg: transparent;
 }
 
-.feed-buddy-reader__menubar wpd-button::part(button),
-.feed-buddy-widget__menubar wpd-button::part(button) {
+.feed-buddy-reader__menubar os-button::part(button),
+.feed-buddy-widget__menubar os-button::part(button) {
 	min-height: 22px;
 	border: 0;
 	background: transparent;
@@ -938,7 +938,7 @@
 }
 
 .feed-buddy-reader[data-compact] .feed-buddy-reader__identity,
-.feed-buddy-reader[data-compact] .feed-buddy-reader__conversation wpd-select {
+.feed-buddy-reader[data-compact] .feed-buddy-reader__conversation os-select {
 	width: 100%;
 	min-width: 0;
 }
@@ -1052,8 +1052,8 @@
 		box-shadow: inset 4px 0 0 Highlight;
 	}
 
-	.feed-buddy-reader wpd-button:focus-visible::part(button),
-	.feed-buddy-widget wpd-button:focus-visible::part(button),
+	.feed-buddy-reader os-button:focus-visible::part(button),
+	.feed-buddy-widget os-button:focus-visible::part(button),
 	.feed-buddy-message__open:focus-visible {
 		outline-color: Highlight;
 	}

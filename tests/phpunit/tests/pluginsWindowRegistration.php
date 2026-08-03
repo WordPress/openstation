@@ -7,15 +7,15 @@
  * (`install_plugins`, `delete_plugins`, `upload_plugins`) are
  * enforced inside the AJAX callbacks themselves; these tests cover
  * the registration gate + the per-row capability surface
- * (`desktop_mode_plugins_window_caps`).
+ * (`open_station_plugins_window_caps`).
  *
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-plugins-window
+ * @group openstation
+ * @group os-plugins-window
  */
-class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
+class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $editor_id;
@@ -31,12 +31,12 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	public function tear_down() {
 		// Make sure no test leaks an opt-in state into the next.
-		remove_all_filters( 'desktop_mode_plugins_window_user_can_register' );
-		remove_all_filters( 'desktop_mode_plugins_window_user_can_use' );
-		remove_all_filters( 'desktop_mode_plugins_window_auto_updates_enabled' );
-		remove_all_filters( 'desktop_mode_plugins_window_refresh_updates' );
-		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
-		remove_all_filters( 'desktop_mode_plugins_window_local_icon_candidates' );
+		remove_all_filters( 'open_station_plugins_window_user_can_register' );
+		remove_all_filters( 'open_station_plugins_window_user_can_use' );
+		remove_all_filters( 'open_station_plugins_window_auto_updates_enabled' );
+		remove_all_filters( 'open_station_plugins_window_refresh_updates' );
+		remove_all_filters( 'open_station_plugins_window_icon_url' );
+		remove_all_filters( 'open_station_plugins_window_local_icon_candidates' );
 		remove_all_filters( 'auto_update_plugin' );
 		parent::tear_down();
 	}
@@ -47,45 +47,45 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_register
+	 * @covers ::open_station_plugins_window_user_can_register
 	 */
 	public function test_register_gate_open_for_admin_without_opt_in() {
 		wp_set_current_user( $this->admin_id );
-		$this->assertTrue( desktop_mode_plugins_window_user_can_register() );
+		$this->assertTrue( open_station_plugins_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_register
+	 * @covers ::open_station_plugins_window_user_can_register
 	 */
 	public function test_register_gate_closed_for_editor() {
 		// Editors don't have `activate_plugins` on a single-site install.
 		wp_set_current_user( $this->editor_id );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_register() );
+		$this->assertFalse( open_station_plugins_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_register
+	 * @covers ::open_station_plugins_window_user_can_register
 	 */
 	public function test_register_gate_closed_for_subscriber() {
 		wp_set_current_user( $this->subscriber_id );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_register() );
+		$this->assertFalse( open_station_plugins_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_register
+	 * @covers ::open_station_plugins_window_user_can_register
 	 */
 	public function test_register_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_register() );
+		$this->assertFalse( open_station_plugins_window_user_can_register() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_register
+	 * @covers ::open_station_plugins_window_user_can_register
 	 */
 	public function test_register_filter_can_block_a_capable_user() {
 		wp_set_current_user( $this->admin_id );
-		add_filter( 'desktop_mode_plugins_window_user_can_register', '__return_false' );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_register() );
+		add_filter( 'open_station_plugins_window_user_can_register', '__return_false' );
+		$this->assertFalse( open_station_plugins_window_user_can_register() );
 	}
 
 	// ----------------------------------------------------------------
@@ -96,58 +96,58 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * Opt-in Beta: an admin who has not turned the native
 	 * Plugins window on gets the classic iframe. Opting in opens the gate.
 	 *
-	 * @covers ::desktop_mode_plugins_window_user_can_use
+	 * @covers ::open_station_plugins_window_user_can_use
 	 */
 	public function test_gate_closed_by_default_until_admin_opts_in() {
 		wp_set_current_user( $this->admin_id );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+		$this->assertFalse( open_station_plugins_window_user_can_use() );
 
-		desktop_mode_save_os_settings(
+		open_station_save_os_settings(
 			$this->admin_id,
 			array( 'nativePluginsEnabled' => true )
 		);
-		$this->assertTrue( desktop_mode_plugins_window_user_can_use() );
+		$this->assertTrue( open_station_plugins_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_use
+	 * @covers ::open_station_plugins_window_user_can_use
 	 */
 	public function test_gate_closes_when_admin_opts_out() {
 		wp_set_current_user( $this->admin_id );
-		desktop_mode_save_os_settings(
+		open_station_save_os_settings(
 			$this->admin_id,
 			array( 'nativePluginsEnabled' => false )
 		);
-		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+		$this->assertFalse( open_station_plugins_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_use
+	 * @covers ::open_station_plugins_window_user_can_use
 	 */
 	public function test_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+		$this->assertFalse( open_station_plugins_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_use
+	 * @covers ::open_station_plugins_window_user_can_use
 	 */
 	public function test_filter_can_force_gate_open() {
 		wp_set_current_user( $this->editor_id );
 		// Editor lacks `activate_plugins` — default would be closed.
-		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+		$this->assertFalse( open_station_plugins_window_user_can_use() );
 
-		add_filter( 'desktop_mode_plugins_window_user_can_use', '__return_true' );
-		$this->assertTrue( desktop_mode_plugins_window_user_can_use() );
+		add_filter( 'open_station_plugins_window_user_can_use', '__return_true' );
+		$this->assertTrue( open_station_plugins_window_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_user_can_use
+	 * @covers ::open_station_plugins_window_user_can_use
 	 */
 	public function test_filter_can_force_gate_closed() {
 		wp_set_current_user( $this->admin_id );
-		add_filter( 'desktop_mode_plugins_window_user_can_use', '__return_false' );
-		$this->assertFalse( desktop_mode_plugins_window_user_can_use() );
+		add_filter( 'open_station_plugins_window_user_can_use', '__return_false' );
+		$this->assertFalse( open_station_plugins_window_user_can_use() );
 	}
 
 	// ----------------------------------------------------------------
@@ -155,11 +155,11 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_caps
+	 * @covers ::open_station_plugins_window_caps
 	 */
 	public function test_caps_admin_has_every_action() {
 		wp_set_current_user( $this->admin_id );
-		$caps = desktop_mode_plugins_window_caps();
+		$caps = open_station_plugins_window_caps();
 		$this->assertTrue( $caps['activate'] );
 		$this->assertTrue( $caps['install'] );
 		$this->assertTrue( $caps['delete'] );
@@ -167,11 +167,11 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_caps
+	 * @covers ::open_station_plugins_window_caps
 	 */
 	public function test_caps_editor_has_no_plugin_actions() {
 		wp_set_current_user( $this->editor_id );
-		$caps = desktop_mode_plugins_window_caps();
+		$caps = open_station_plugins_window_caps();
 		$this->assertFalse( $caps['activate'] );
 		$this->assertFalse( $caps['install'] );
 		$this->assertFalse( $caps['delete'] );
@@ -179,11 +179,11 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_caps
+	 * @covers ::open_station_plugins_window_caps
 	 */
 	public function test_caps_logged_out_user_returns_false_for_every_action() {
 		wp_set_current_user( 0 );
-		$caps = desktop_mode_plugins_window_caps();
+		$caps = open_station_plugins_window_caps();
 		$this->assertFalse( $caps['activate'] );
 		$this->assertFalse( $caps['install'] );
 		$this->assertFalse( $caps['delete'] );
@@ -195,23 +195,23 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * load — a regression that drops the key on save would silently
 	 * unset every user who toggled the setting off.
 	 *
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::open_station_save_os_settings
+	 * @covers ::open_station_get_os_settings
 	 */
 	public function test_native_plugins_enabled_round_trips_through_os_settings() {
-		desktop_mode_save_os_settings(
+		open_station_save_os_settings(
 			$this->admin_id,
 			array( 'nativePluginsEnabled' => false )
 		);
-		$loaded = desktop_mode_get_os_settings( $this->admin_id );
+		$loaded = open_station_get_os_settings( $this->admin_id );
 		$this->assertArrayHasKey( 'nativePluginsEnabled', $loaded );
 		$this->assertFalse( $loaded['nativePluginsEnabled'] );
 
-		desktop_mode_save_os_settings(
+		open_station_save_os_settings(
 			$this->admin_id,
 			array( 'nativePluginsEnabled' => true )
 		);
-		$loaded = desktop_mode_get_os_settings( $this->admin_id );
+		$loaded = open_station_get_os_settings( $this->admin_id );
 		$this->assertTrue( $loaded['nativePluginsEnabled'] );
 	}
 
@@ -219,21 +219,21 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * Default OS Settings payload must include the flag with its
 	 * documented default (false / opt-in Beta).
 	 *
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::open_station_default_os_settings
 	 */
 	public function test_native_plugins_enabled_defaults_off() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = open_station_default_os_settings();
 		$this->assertArrayHasKey( 'nativePluginsEnabled', $defaults );
 		$this->assertFalse( $defaults['nativePluginsEnabled'] );
 	}
 
 	/**
-	 * REST-field decorator output for `desktop_mode_can_manage` must
+	 * REST-field decorator output for `open_station_can_manage` must
 	 * encode the per-row state correctly: an active plugin can be
 	 * deactivated but not deleted; an inactive plugin can be activated
 	 * AND deleted.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_can_manage
+	 * @covers ::open_station_plugins_window_field_can_manage
 	 */
 	public function test_can_manage_field_for_active_plugin_row() {
 		wp_set_current_user( $this->admin_id );
@@ -241,14 +241,14 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			'plugin' => 'fake/fake.php',
 			'status' => 'active',
 		);
-		$flags = desktop_mode_plugins_window_field_can_manage( $row );
+		$flags = open_station_plugins_window_field_can_manage( $row );
 		$this->assertFalse( $flags['activate'] );
 		$this->assertTrue( $flags['deactivate'] );
 		$this->assertFalse( $flags['delete'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_field_can_manage
+	 * @covers ::open_station_plugins_window_field_can_manage
 	 */
 	public function test_can_manage_field_for_inactive_plugin_row() {
 		wp_set_current_user( $this->admin_id );
@@ -256,7 +256,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			'plugin' => 'fake/fake.php',
 			'status' => 'inactive',
 		);
-		$flags = desktop_mode_plugins_window_field_can_manage( $row );
+		$flags = open_station_plugins_window_field_can_manage( $row );
 		$this->assertTrue( $flags['activate'] );
 		$this->assertFalse( $flags['deactivate'] );
 		$this->assertTrue( $flags['delete'] );
@@ -266,7 +266,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * Update-available decorator should report `false` when the
 	 * `update_plugins` transient has no entry for the row.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_update_available
+	 * @covers ::open_station_plugins_window_field_update_available
 	 */
 	public function test_update_available_field_reports_false_when_no_update() {
 		// Force a clean state — the test bootstrap may have populated
@@ -282,7 +282,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			)
 		);
 		$row = array( 'plugin' => 'never/installed.php' );
-		$out = desktop_mode_plugins_window_field_update_available( $row );
+		$out = open_station_plugins_window_field_update_available( $row );
 		$this->assertFalse( $out['available'] );
 		$this->assertNull( $out['new_version'] );
 	}
@@ -293,7 +293,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * the available version — this is what feeds the "Update
 	 * available" filter and the inline Update action.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_update_available
+	 * @covers ::open_station_plugins_window_field_update_available
 	 */
 	public function test_update_available_field_reports_true_when_transient_has_entry() {
 		set_site_transient(
@@ -316,7 +316,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		// Asserting on this shape guards against future regressions of
 		// the "transient lookup misses because of the `.php` strip" bug.
 		$row = array( 'plugin' => 'hello-dolly/hello' );
-		$out = desktop_mode_plugins_window_field_update_available( $row );
+		$out = open_station_plugins_window_field_update_available( $row );
 		$this->assertTrue( $out['available'] );
 		$this->assertSame( '99.0.0', $out['new_version'] );
 		$this->assertSame(
@@ -334,7 +334,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * rather than the "Update now" button — mirrors Core's own
 	 * fallback in `wp_plugin_update_row()`.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_update_available
+	 * @covers ::open_station_plugins_window_field_update_available
 	 */
 	public function test_update_available_field_handles_missing_package() {
 		set_site_transient(
@@ -350,7 +350,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			)
 		);
 		$row = array( 'plugin' => 'premium/premium' );
-		$out = desktop_mode_plugins_window_field_update_available( $row );
+		$out = open_station_plugins_window_field_update_available( $row );
 		$this->assertTrue( $out['available'] );
 		$this->assertSame( '2.0', $out['new_version'] );
 		$this->assertSame( '', $out['package'] );
@@ -362,21 +362,21 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * re-deriving caps client-side. Server still re-validates every
 	 * update through `wp_ajax_update_plugin`.
 	 *
-	 * @covers ::desktop_mode_plugins_window_caps
+	 * @covers ::open_station_plugins_window_caps
 	 */
 	public function test_caps_surface_includes_update_for_admins() {
 		wp_set_current_user( $this->admin_id );
-		$caps = desktop_mode_plugins_window_caps();
+		$caps = open_station_plugins_window_caps();
 		$this->assertArrayHasKey( 'update', $caps );
 		$this->assertTrue( $caps['update'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_caps
+	 * @covers ::open_station_plugins_window_caps
 	 */
 	public function test_caps_surface_denies_update_for_editor() {
 		wp_set_current_user( $this->editor_id );
-		$caps = desktop_mode_plugins_window_caps();
+		$caps = open_station_plugins_window_caps();
 		$this->assertFalse( $caps['update'] );
 	}
 
@@ -386,7 +386,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * the cached snapshot (otherwise every REST hit could chain a
 	 * wp.org HTTPS round-trip).
 	 *
-	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 * @covers ::open_station_plugins_window_maybe_refresh_update_transient
 	 */
 	public function test_maybe_refresh_respects_12h_throttle() {
 		$snapshot = (object) array(
@@ -395,18 +395,18 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 		set_site_transient( 'update_plugins', $snapshot );
 
-		desktop_mode_plugins_window_maybe_refresh_update_transient();
+		open_station_plugins_window_maybe_refresh_update_transient();
 
 		$after = get_site_transient( 'update_plugins' );
 		$this->assertEquals( $snapshot, $after, 'Fresh transient should not be refreshed.' );
 	}
 
 	/**
-	 * The `desktop_mode_plugins_window_refresh_updates` filter must
+	 * The `open_station_plugins_window_refresh_updates` filter must
 	 * be able to opt a site out of the lazy refresh entirely — even
 	 * when the cached snapshot is well over 12h old.
 	 *
-	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 * @covers ::open_station_plugins_window_maybe_refresh_update_transient
 	 */
 	public function test_maybe_refresh_filter_can_opt_out() {
 		$snapshot = (object) array(
@@ -415,9 +415,9 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 		set_site_transient( 'update_plugins', $snapshot );
 
-		add_filter( 'desktop_mode_plugins_window_refresh_updates', '__return_false' );
-		desktop_mode_plugins_window_maybe_refresh_update_transient();
-		remove_filter( 'desktop_mode_plugins_window_refresh_updates', '__return_false' );
+		add_filter( 'open_station_plugins_window_refresh_updates', '__return_false' );
+		open_station_plugins_window_maybe_refresh_update_transient();
+		remove_filter( 'open_station_plugins_window_refresh_updates', '__return_false' );
 
 		$after = get_site_transient( 'update_plugins' );
 		$this->assertEquals(
@@ -428,18 +428,18 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * `desktop_mode_icon_url` should derive a wp.org icon URL from the
+	 * `open_station_icon_url` should derive a wp.org icon URL from the
 	 * plugin's folder name — the wp.org repo slug. Textdomain is a
 	 * fallback only for single-file plugins.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_derives_from_folder_slug() {
 		$row = array(
 			'plugin'     => 'akismet/akismet.php',
 			'textdomain' => 'akismet',
 		);
-		$url = desktop_mode_plugins_window_field_icon_url( $row );
+		$url = open_station_plugins_window_field_icon_url( $row );
 		$this->assertSame(
 			'https://ps.w.org/akismet/assets/icon.svg',
 			$url
@@ -451,14 +451,14 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * folder `woocommerce` but text domain `woo`). The .org repo URL
 	 * is keyed on the folder, so that's what we must use.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_prefers_folder_over_mismatched_textdomain() {
 		$row = array(
 			'plugin'     => 'woocommerce/woocommerce.php',
 			'textdomain' => 'woo',
 		);
-		$url = desktop_mode_plugins_window_field_icon_url( $row );
+		$url = open_station_plugins_window_field_icon_url( $row );
 		$this->assertSame(
 			'https://ps.w.org/woocommerce/assets/icon.svg',
 			$url
@@ -470,13 +470,13 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * name — the dominant cause of the "blank icon" regression that
 	 * the textdomain-only resolver produced.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_works_without_textdomain() {
 		$row = array( 'plugin' => 'something/something.php' );
 		$this->assertSame(
 			'https://ps.w.org/something/assets/icon.svg',
-			desktop_mode_plugins_window_field_icon_url( $row )
+			open_station_plugins_window_field_icon_url( $row )
 		);
 	}
 
@@ -485,7 +485,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * neither folder nor textdomain available, the field is null and
 	 * JS paints the placeholder.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_single_file_uses_textdomain_fallback() {
 		$row = array(
@@ -494,20 +494,20 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 		$this->assertSame(
 			'https://ps.w.org/hello-dolly/assets/icon.svg',
-			desktop_mode_plugins_window_field_icon_url( $row )
+			open_station_plugins_window_field_icon_url( $row )
 		);
 
 		$this->assertNull(
-			desktop_mode_plugins_window_field_icon_url( array( 'plugin' => 'hello.php' ) )
+			open_station_plugins_window_field_icon_url( array( 'plugin' => 'hello.php' ) )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
 	 */
 	public function test_icon_url_filter_can_override() {
 		add_filter(
-			'desktop_mode_plugins_window_icon_url',
+			'open_station_plugins_window_icon_url',
 			static function ( $url, $slug ) {
 				return 'https://cdn.example.com/' . $slug . '.png';
 			},
@@ -518,9 +518,9 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			'plugin'     => 'custom/custom.php',
 			'textdomain' => 'custom',
 		);
-		$url = desktop_mode_plugins_window_field_icon_url( $row );
+		$url = open_station_plugins_window_field_icon_url( $row );
 		$this->assertSame( 'https://cdn.example.com/custom.png', $url );
-		remove_all_filters( 'desktop_mode_plugins_window_icon_url' );
+		remove_all_filters( 'open_station_plugins_window_icon_url' );
 	}
 
 	/**
@@ -529,8 +529,8 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * not on the .org repo) should resolve to the LOCAL URL — not the
 	 * wp.org SVN URL that would 404 through every fallback variant.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
-	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_local_icon_url
 	 */
 	public function test_icon_url_prefers_local_assets_icon_svg() {
 		$folder = 'dm-local-icon-fixture';
@@ -539,7 +539,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		file_put_contents( $root . '/assets/icon.svg', '<svg/>' );
 
 		try {
-			$url = desktop_mode_plugins_window_field_icon_url(
+			$url = open_station_plugins_window_field_icon_url(
 				array( 'plugin' => $folder . '/' . $folder . '.php' )
 			);
 			$this->assertSame(
@@ -559,7 +559,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * resolve locally. The probe walks SVG → 256 PNG → 128 PNG
 	 * (mirroring the wp.org SVN convention) and returns the first hit.
 	 *
-	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 * @covers ::open_station_plugins_window_local_icon_url
 	 */
 	public function test_icon_url_falls_through_to_local_png_variants() {
 		$folder = 'dm-local-icon-png-fixture';
@@ -568,7 +568,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		file_put_contents( $root . '/assets/icon-256x256.png', 'png' );
 
 		try {
-			$url = desktop_mode_plugins_window_field_icon_url(
+			$url = open_station_plugins_window_field_icon_url(
 				array( 'plugin' => $folder . '/' . $folder . '.php' )
 			);
 			$this->assertStringContainsString( '/' . $folder . '/assets/icon-256x256.png', (string) $url );
@@ -586,25 +586,25 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * the .org repo and use the SVN /assets/ layout (not the plugin
 	 * folder's /assets/).
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_icon_url
-	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 * @covers ::open_station_plugins_window_field_icon_url
+	 * @covers ::open_station_plugins_window_local_icon_url
 	 */
 	public function test_icon_url_falls_back_to_wp_org_when_no_local_icon() {
 		// Use a folder name very unlikely to exist on disk.
 		$row = array( 'plugin' => 'this-plugin-folder-does-not-exist-on-disk/main.php' );
 		$this->assertSame(
 			'https://ps.w.org/this-plugin-folder-does-not-exist-on-disk/assets/icon.svg',
-			desktop_mode_plugins_window_field_icon_url( $row )
+			open_station_plugins_window_field_icon_url( $row )
 		);
 	}
 
 	/**
-	 * The `desktop_mode_plugins_window_local_icon_candidates` filter
+	 * The `open_station_plugins_window_local_icon_candidates` filter
 	 * lets a host support a non-standard icon convention without
 	 * forking the resolver. Plugins that ship `branding/logo.svg`
 	 * (or any other shape) can be picked up by appending a candidate.
 	 *
-	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 * @covers ::open_station_plugins_window_local_icon_url
 	 */
 	public function test_icon_url_local_candidates_filter() {
 		$folder = 'dm-local-icon-custom-fixture';
@@ -613,7 +613,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		file_put_contents( $root . '/branding/logo.svg', '<svg/>' );
 
 		add_filter(
-			'desktop_mode_plugins_window_local_icon_candidates',
+			'open_station_plugins_window_local_icon_candidates',
 			static function ( $candidates ) {
 				$candidates[] = 'branding/logo.svg';
 				return $candidates;
@@ -621,12 +621,12 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 
 		try {
-			$url = desktop_mode_plugins_window_field_icon_url(
+			$url = open_station_plugins_window_field_icon_url(
 				array( 'plugin' => $folder . '/' . $folder . '.php' )
 			);
 			$this->assertStringContainsString( '/' . $folder . '/branding/logo.svg', (string) $url );
 		} finally {
-			remove_all_filters( 'desktop_mode_plugins_window_local_icon_candidates' );
+			remove_all_filters( 'open_station_plugins_window_local_icon_candidates' );
 			unlink( $root . '/branding/logo.svg' );
 			rmdir( $root . '/branding' );
 			rmdir( $root );
@@ -638,14 +638,14 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * local probe must short-circuit and never poke the filesystem at
 	 * `WP_PLUGIN_DIR/./assets/icon.svg`.
 	 *
-	 * @covers ::desktop_mode_plugins_window_local_icon_url
+	 * @covers ::open_station_plugins_window_local_icon_url
 	 */
 	public function test_icon_url_single_file_plugin_skips_local_probe() {
 		$this->assertNull(
-			desktop_mode_plugins_window_local_icon_url( 'hello.php' )
+			open_station_plugins_window_local_icon_url( 'hello.php' )
 		);
 		$this->assertNull(
-			desktop_mode_plugins_window_local_icon_url( '' )
+			open_station_plugins_window_local_icon_url( '' )
 		);
 	}
 
@@ -654,51 +654,51 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 * @covers ::open_station_plugins_window_force_refresh_requested
 	 */
 	public function test_force_refresh_detector_returns_false_when_param_absent() {
-		unset( $_GET['desktop_mode_force_refresh'] );
-		$this->assertFalse( desktop_mode_plugins_window_force_refresh_requested() );
+		unset( $_GET['open_station_force_refresh'] );
+		$this->assertFalse( open_station_plugins_window_force_refresh_requested() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 * @covers ::open_station_plugins_window_force_refresh_requested
 	 */
 	public function test_force_refresh_detector_accepts_one() {
-		$_GET['desktop_mode_force_refresh'] = '1';
+		$_GET['open_station_force_refresh'] = '1';
 		try {
-			$this->assertTrue( desktop_mode_plugins_window_force_refresh_requested() );
+			$this->assertTrue( open_station_plugins_window_force_refresh_requested() );
 		} finally {
-			unset( $_GET['desktop_mode_force_refresh'] );
+			unset( $_GET['open_station_force_refresh'] );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 * @covers ::open_station_plugins_window_force_refresh_requested
 	 */
 	public function test_force_refresh_detector_accepts_true() {
-		$_GET['desktop_mode_force_refresh'] = 'true';
+		$_GET['open_station_force_refresh'] = 'true';
 		try {
-			$this->assertTrue( desktop_mode_plugins_window_force_refresh_requested() );
+			$this->assertTrue( open_station_plugins_window_force_refresh_requested() );
 		} finally {
-			unset( $_GET['desktop_mode_force_refresh'] );
+			unset( $_GET['open_station_force_refresh'] );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_force_refresh_requested
+	 * @covers ::open_station_plugins_window_force_refresh_requested
 	 */
 	public function test_force_refresh_detector_rejects_other_values() {
-		$_GET['desktop_mode_force_refresh'] = '0';
+		$_GET['open_station_force_refresh'] = '0';
 		try {
-			$this->assertFalse( desktop_mode_plugins_window_force_refresh_requested() );
+			$this->assertFalse( open_station_plugins_window_force_refresh_requested() );
 		} finally {
-			unset( $_GET['desktop_mode_force_refresh'] );
+			unset( $_GET['open_station_force_refresh'] );
 		}
 	}
 
 	// ----------------------------------------------------------------
-	// `desktop_mode_auto_update` REST field — per-row auto-update state.
+	// `open_station_auto_update` REST field — per-row auto-update state.
 	// ----------------------------------------------------------------
 
 	/**
@@ -707,7 +707,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * `enabled: true, supported: true, forced: null` — the most common
 	 * happy-path shape.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 * @covers ::open_station_plugins_window_field_auto_update
 	 */
 	public function test_auto_update_field_reports_enabled_when_in_option_and_supported() {
 		update_site_option( 'auto_update_plugins', array( 'akismet/akismet.php' ) );
@@ -728,14 +728,14 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			'plugin'     => 'akismet/akismet',
 			'textdomain' => 'akismet',
 		);
-		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$out = open_station_plugins_window_field_auto_update( $row );
 		$this->assertTrue( $out['enabled'] );
 		$this->assertTrue( $out['supported'] );
 		$this->assertNull( $out['forced'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 * @covers ::open_station_plugins_window_field_auto_update
 	 */
 	public function test_auto_update_field_reports_disabled_when_not_in_option() {
 		update_site_option( 'auto_update_plugins', array() );
@@ -753,7 +753,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			'plugin'     => 'akismet/akismet',
 			'textdomain' => 'akismet',
 		);
-		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$out = open_station_plugins_window_field_auto_update( $row );
 		$this->assertFalse( $out['enabled'] );
 		$this->assertTrue( $out['supported'] );
 		$this->assertNull( $out['forced'] );
@@ -765,7 +765,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * entirely in that case so users don't enable an auto-update that
 	 * can never fire (premium / private plugins).
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 * @covers ::open_station_plugins_window_field_auto_update
 	 */
 	public function test_auto_update_field_reports_unsupported_when_not_in_transient() {
 		update_site_option( 'auto_update_plugins', array() );
@@ -778,7 +778,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 			)
 		);
 		$row = array( 'plugin' => 'premium/premium' );
-		$out = desktop_mode_plugins_window_field_auto_update( $row );
+		$out = open_station_plugins_window_field_auto_update( $row );
 		$this->assertFalse( $out['enabled'] );
 		$this->assertFalse( $out['supported'] );
 		$this->assertNull( $out['forced'] );
@@ -789,7 +789,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * the site option. Mirrors Core's rendering where a forced row
 	 * shows a read-only "Auto-updates enabled" label.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 * @covers ::open_station_plugins_window_field_auto_update
 	 */
 	public function test_auto_update_field_respects_filter_forcing_enabled() {
 		update_site_option( 'auto_update_plugins', array() );
@@ -812,7 +812,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		add_filter( 'auto_update_plugin', $callback, 10, 2 );
 		try {
 			$row = array( 'plugin' => 'forced/forced' );
-			$out = desktop_mode_plugins_window_field_auto_update( $row );
+			$out = open_station_plugins_window_field_auto_update( $row );
 			$this->assertTrue( $out['forced'] );
 			$this->assertTrue(
 				$out['enabled'],
@@ -828,7 +828,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * `enabled: false, forced: false` so the JS can render the
 	 * read-only "Auto-updates disabled" label and skip the toggle.
 	 *
-	 * @covers ::desktop_mode_plugins_window_field_auto_update
+	 * @covers ::open_station_plugins_window_field_auto_update
 	 */
 	public function test_auto_update_field_respects_filter_forcing_disabled() {
 		// Plugin IS in the option, but filter says disabled — filter wins.
@@ -852,7 +852,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		add_filter( 'auto_update_plugin', $callback, 10, 2 );
 		try {
 			$row = array( 'plugin' => 'forced/forced' );
-			$out = desktop_mode_plugins_window_field_auto_update( $row );
+			$out = open_station_plugins_window_field_auto_update( $row );
 			$this->assertFalse( $out['forced'] );
 			$this->assertFalse( $out['enabled'] );
 		} finally {
@@ -861,7 +861,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	// ----------------------------------------------------------------
-	// `desktop_mode_plugins_window_auto_updates_enabled` — global gate.
+	// `open_station_plugins_window_auto_updates_enabled` — global gate.
 	// ----------------------------------------------------------------
 
 	/**
@@ -870,15 +870,15 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * externally (managed WordPress, internal mirrors) can suppress
 	 * the in-window toggle and rely on the existing channel instead.
 	 *
-	 * @covers ::desktop_mode_plugins_window_auto_updates_enabled
+	 * @covers ::open_station_plugins_window_auto_updates_enabled
 	 */
 	public function test_auto_updates_enabled_filter_can_force_off() {
 		wp_set_current_user( $this->admin_id );
-		add_filter( 'desktop_mode_plugins_window_auto_updates_enabled', '__return_false' );
+		add_filter( 'open_station_plugins_window_auto_updates_enabled', '__return_false' );
 		try {
-			$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+			$this->assertFalse( open_station_plugins_window_auto_updates_enabled() );
 		} finally {
-			remove_all_filters( 'desktop_mode_plugins_window_auto_updates_enabled' );
+			remove_all_filters( 'open_station_plugins_window_auto_updates_enabled' );
 		}
 	}
 
@@ -887,13 +887,13 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * the column. Multisite admins on a single-site context likewise
 	 * are gated by the `manage_network_plugins` check.
 	 *
-	 * @covers ::desktop_mode_plugins_window_auto_updates_enabled
+	 * @covers ::open_station_plugins_window_auto_updates_enabled
 	 */
 	public function test_auto_updates_enabled_closed_for_users_without_update_cap() {
 		wp_set_current_user( $this->editor_id );
-		$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+		$this->assertFalse( open_station_plugins_window_auto_updates_enabled() );
 		wp_set_current_user( 0 );
-		$this->assertFalse( desktop_mode_plugins_window_auto_updates_enabled() );
+		$this->assertFalse( open_station_plugins_window_auto_updates_enabled() );
 	}
 
 	/**
@@ -902,7 +902,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * force path must always invalidate the transient so the next
 	 * read fans out to api.wordpress.org.
 	 *
-	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 * @covers ::open_station_plugins_window_maybe_refresh_update_transient
 	 */
 	public function test_force_refresh_deletes_the_update_plugins_transient_and_calls_wp_update_plugins() {
 		// Seed a fresh-looking transient — under normal posture the
@@ -930,7 +930,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		};
 		add_filter( 'pre_http_request', $blocker );
 		try {
-			desktop_mode_plugins_window_maybe_refresh_update_transient( true );
+			open_station_plugins_window_maybe_refresh_update_transient( true );
 		} finally {
 			remove_filter( 'pre_http_request', $blocker );
 		}
@@ -961,7 +961,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	 * Hosts that opt out of wp.org checks via the filter must stay
 	 * opted out even on the explicit force path.
 	 *
-	 * @covers ::desktop_mode_plugins_window_maybe_refresh_update_transient
+	 * @covers ::open_station_plugins_window_maybe_refresh_update_transient
 	 */
 	public function test_force_refresh_respects_short_circuit_filter() {
 		$initial = (object) array(
@@ -973,7 +973,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 
 		$saw_force = null;
 		add_filter(
-			'desktop_mode_plugins_window_refresh_updates',
+			'open_station_plugins_window_refresh_updates',
 			static function ( $refresh, $force ) use ( &$saw_force ) {
 				$saw_force = $force;
 				return false;
@@ -983,9 +983,9 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 
 		try {
-			desktop_mode_plugins_window_maybe_refresh_update_transient( true );
+			open_station_plugins_window_maybe_refresh_update_transient( true );
 		} finally {
-			remove_all_filters( 'desktop_mode_plugins_window_refresh_updates' );
+			remove_all_filters( 'open_station_plugins_window_refresh_updates' );
 		}
 
 		$this->assertTrue( $saw_force, 'Filter must receive the force flag.' );

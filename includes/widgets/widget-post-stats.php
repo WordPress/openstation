@@ -1,14 +1,14 @@
 <?php
 /**
- * Desktop Mode — Post Stats Widget.
+ * OpenStation — Post Stats Widget.
  *
  * Bar chart of posts published per month for the last 6 months,
  * broken down by published / draft / pending status.
  *
  * Refresh: every 5 minutes.
- * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
+ * Requires: OpenStation 0.18.0+ (open_station_register_widget).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,20 +22,20 @@ defined( 'ABSPATH' ) || exit;
  * Route: GET /desktop-mode/v1/post-stats
  * Permission: edit_posts.
  */
-function desktop_mode_register_post_stats_rest_route() {
+function open_station_register_post_stats_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/post-stats',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_post_stats_callback',
+			'callback'            => 'open_station_post_stats_callback',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_posts' );
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_post_stats_rest_route' );
+add_action( 'rest_api_init', 'open_station_register_post_stats_rest_route' );
 
 /**
  * Aggregate post counts per month × status for the last 6 months.
@@ -52,7 +52,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_post_stats_rest_route' );
  *
  * @return array{months:array<int,array{ym:string,publish:int,draft:int,pending:int}>}
  */
-function desktop_mode_post_stats_callback() {
+function open_station_post_stats_callback() {
 	global $wpdb;
 
 	$see_others = current_user_can( 'edit_others_posts' );
@@ -141,58 +141,58 @@ function desktop_mode_post_stats_callback() {
 /**
  * Register the JS + CSS assets.
  */
-function desktop_mode_register_post_stats_widget_assets() {
-	$suffix  = desktop_mode_asset_suffix();
-	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
+function open_station_register_post_stats_widget_assets() {
+	$suffix  = open_station_asset_suffix();
+	$version = defined( 'OPEN_STATION_VERSION' ) ? OPEN_STATION_VERSION : '0';
 
-	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.js';
-	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.css';
+	$js_path  = OPEN_STATION_DIR . 'assets/js/widget-post-stats' . $suffix . '.js';
+	$css_path = OPEN_STATION_DIR . 'assets/js/widget-post-stats' . $suffix . '.css';
 
 	wp_register_style(
-		'desktop-mode-post-stats-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-post-stats' . $suffix . '.css',
+		'os-post-stats-widget',
+		OPEN_STATION_URL . 'assets/js/widget-post-stats' . $suffix . '.css',
 		array(),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
-		'desktop-mode-post-stats-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-post-stats' . $suffix . '.js',
+		'os-post-stats-widget',
+		OPEN_STATION_URL . 'assets/js/widget-post-stats' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'desktop_mode_register_post_stats_widget_assets', 5 );
+add_action( 'init', 'open_station_register_post_stats_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages.
  */
-function desktop_mode_enqueue_post_stats_widget_styles() {
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+function open_station_enqueue_post_stats_widget_styles() {
+	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+	if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
 		return;
 	}
-	wp_enqueue_style( 'desktop-mode-post-stats-widget' );
+	wp_enqueue_style( 'os-post-stats-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_post_stats_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'open_station_enqueue_post_stats_widget_styles', 20 );
 
 /**
  * Register the widget definition.
  */
-function desktop_mode_register_post_stats_widget() {
-	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
+function open_station_register_post_stats_widget() {
+	if ( ! function_exists( 'open_station_register_widget' ) ) {
 		return;
 	}
-	desktop_mode_register_widget(
+	open_station_register_widget(
 		'desktop-mode/post-stats',
 		array(
 			'label'          => __( 'Post Stats', 'desktop-mode' ),
 			'description'    => __( 'Bar chart of posts per month over the last 6 months.', 'desktop-mode' ),
 			'icon'           => 'dashicons-chart-bar',
-			'script'         => 'desktop-mode-post-stats-widget',
+			'script'         => 'os-post-stats-widget',
 			'movable'        => true,
 			'resizable'      => true,
 			'min_width'      => 260,
@@ -202,4 +202,4 @@ function desktop_mode_register_post_stats_widget() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_register_post_stats_widget', 6 );
+add_action( 'init', 'open_station_register_post_stats_widget', 6 );

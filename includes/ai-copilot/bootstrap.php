@@ -1,11 +1,11 @@
 <?php
 /**
- * Desktop Mode — AI Copilot bootstrap.
+ * OpenStation — AI Copilot bootstrap.
  *
  * Loads all sub-modules in dependency order: settings helpers first so
- * every other file can call `desktop_mode_ai_get_settings()` immediately.
+ * every other file can call `open_station_ai_get_settings()` immediately.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

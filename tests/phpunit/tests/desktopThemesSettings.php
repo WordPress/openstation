@@ -10,10 +10,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-themes
+ * @group openstation
+ * @group os-themes
  */
-class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 
 	protected static $user_id;
 
@@ -22,24 +22,24 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		delete_user_meta( self::$user_id, DESKTOP_MODE_OS_SETTINGS_META_KEY );
+		delete_user_meta( self::$user_id, OPEN_STATION_OS_SETTINGS_META_KEY );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::open_station_default_os_settings
 	 */
 	public function test_default_is_the_system_theme() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = open_station_default_os_settings();
 		$this->assertArrayHasKey( 'desktopTheme', $defaults );
 		$this->assertSame( '', $defaults['desktopTheme'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_valid_slug_round_trips() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'desktopTheme' => 'acme-neon' ) );
+		$clean = open_station_sanitize_os_settings( array( 'desktopTheme' => 'acme-neon' ) );
 		$this->assertSame( 'acme-neon', $clean['desktopTheme'] );
 	}
 
@@ -48,30 +48,30 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * the JS `_parseRaw` mirror uses `*` rather than `+` for the same
 	 * reason.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_empty_string_is_preserved() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'desktopTheme' => '' ) );
+		$clean = open_station_sanitize_os_settings( array( 'desktopTheme' => '' ) );
 		$this->assertSame( '', $clean['desktopTheme'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_missing_key_falls_back_to_default() {
-		$clean = desktop_mode_sanitize_os_settings( array() );
+		$clean = open_station_sanitize_os_settings( array() );
 		$this->assertSame( '', $clean['desktopTheme'] );
 	}
 
 	/**
 	 * @dataProvider data_dirty_slugs
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 *
 	 * @param mixed  $raw      Raw input.
 	 * @param string $expected Sanitized result.
 	 */
 	public function test_dirty_values_are_sanitized( $raw, $expected ) {
-		$clean = desktop_mode_sanitize_os_settings( array( 'desktopTheme' => $raw ) );
+		$clean = open_station_sanitize_os_settings( array( 'desktopTheme' => $raw ) );
 		$this->assertSame( $expected, $clean['desktopTheme'] );
 	}
 
@@ -91,20 +91,20 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * check is the safety net, which is what lets a deleted theme
 	 * degrade silently instead of requiring a user-meta rewrite.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_unknown_slug_is_kept_not_rejected() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'desktopTheme' => 'not-installed' ) );
+		$clean = open_station_sanitize_os_settings( array( 'desktopTheme' => 'not-installed' ) );
 		$this->assertSame( 'not-installed', $clean['desktopTheme'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::open_station_save_os_settings
+	 * @covers ::open_station_get_os_settings
 	 */
 	public function test_persists_through_user_meta() {
-		desktop_mode_save_os_settings( self::$user_id, array( 'desktopTheme' => 'acme-neon' ) );
-		$loaded = desktop_mode_get_os_settings( self::$user_id );
+		open_station_save_os_settings( self::$user_id, array( 'desktopTheme' => 'acme-neon' ) );
+		$loaded = open_station_get_os_settings( self::$user_id );
 		$this->assertSame( 'acme-neon', $loaded['desktopTheme'] );
 	}
 
@@ -113,10 +113,10 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * the charset — a value one accepts and the other rewrites would
 	 * make the setting flip on every reload.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_php_and_js_patterns_agree() {
-		$state = DESKTOP_MODE_DIR . 'src/settings/state.ts';
+		$state = OPEN_STATION_DIR . 'src/settings/state.ts';
 		$this->assertFileExists( $state );
 		$source = file_get_contents( $state );
 
@@ -133,19 +133,19 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::open_station_default_os_settings
 	 */
 	public function test_recommendation_ledger_defaults_to_empty() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = open_station_default_os_settings();
 		$this->assertArrayHasKey( 'appliedThemeRecommendations', $defaults );
 		$this->assertSame( array(), $defaults['appliedThemeRecommendations'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_recommendation_ledger_round_trips_and_dedupes() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = open_station_sanitize_os_settings(
 			array(
 				'appliedThemeRecommendations' => array(
 					'acme-neon',
@@ -171,7 +171,7 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * "a theme overwrote my settings again" bug the ledger exists to
 	 * prevent.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_recommendation_ledger_cap_keeps_the_newest() {
 		$slugs = array();
@@ -179,7 +179,7 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 			$slugs[] = 'theme-' . $i;
 		}
 
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = open_station_sanitize_os_settings(
 			array( 'appliedThemeRecommendations' => $slugs )
 		);
 
@@ -194,16 +194,16 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * ledger. Forgetting one would let a delete-then-reinstall
 	 * re-seed over settings the user has since chosen.
 	 *
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::open_station_save_os_settings
+	 * @covers ::open_station_get_os_settings
 	 */
 	public function test_recommendation_ledger_persists_unknown_slugs() {
-		desktop_mode_save_os_settings(
+		open_station_save_os_settings(
 			self::$user_id,
 			array( 'appliedThemeRecommendations' => array( 'deleted-theme' ) )
 		);
 
-		$loaded = desktop_mode_get_os_settings( self::$user_id );
+		$loaded = open_station_get_os_settings( self::$user_id );
 		$this->assertSame(
 			array( 'deleted-theme' ),
 			$loaded['appliedThemeRecommendations']
@@ -215,10 +215,10 @@ class Tests_DesktopMode_DesktopThemesSettings extends WP_UnitTestCase {
 	 * older than this feature — leaves the ledger at its default
 	 * rather than erroring.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::open_station_sanitize_os_settings
 	 */
 	public function test_missing_recommendation_ledger_falls_back_to_default() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'dockSize' => 'large' ) );
+		$clean = open_station_sanitize_os_settings( array( 'dockSize' => 'large' ) );
 		$this->assertSame( array(), $clean['appliedThemeRecommendations'] );
 	}
 }

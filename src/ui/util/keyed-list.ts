@@ -31,7 +31,7 @@
  * item) but a one-shot render with `appendChild` is simpler.
  *
  * ```ts
- * import { renderKeyedList } from 'desktop-mode';
+ * import { renderKeyedList } from 'openstation';
  *
  * function repaint(): void {
  *   renderKeyedList( host, items, {
@@ -50,8 +50,8 @@
  * ```
  */
 
-const NODE_KEY_PROP = '__desktop_modeKeyedListKey';
-const NODE_DATA_PROP = '__desktop_modeKeyedListData';
+const NODE_KEY_PROP = '__open_stationKeyedListKey';
+const NODE_DATA_PROP = '__open_stationKeyedListData';
 
 export interface KeyedListOptions< T > {
 	/**
@@ -102,13 +102,13 @@ interface HostState {
  * the same module don't share indices.
  */
 function getHostState( host: HTMLElement ): HostState {
-	const cached = ( host as unknown as { __desktop_modeKeyedList?: HostState } )
-		.__desktop_modeKeyedList;
+	const cached = ( host as unknown as { __open_stationKeyedList?: HostState } )
+		.__open_stationKeyedList;
 	if ( cached ) {
 		return cached;
 	}
 	const fresh: HostState = { byKey: new Map() };
-	( host as unknown as { __desktop_modeKeyedList?: HostState } ).__desktop_modeKeyedList =
+	( host as unknown as { __open_stationKeyedList?: HostState } ).__open_stationKeyedList =
 		fresh;
 	return fresh;
 }
@@ -210,8 +210,8 @@ export function renderKeyedList< T >(
  * @public
  */
 export function clearKeyedList( host: HTMLElement ): void {
-	const cached = ( host as unknown as { __desktop_modeKeyedList?: HostState } )
-		.__desktop_modeKeyedList;
+	const cached = ( host as unknown as { __open_stationKeyedList?: HostState } )
+		.__open_stationKeyedList;
 	if ( ! cached ) {
 		return;
 	}
@@ -219,6 +219,6 @@ export function clearKeyedList( host: HTMLElement ): void {
 		entry.el.remove();
 	}
 	cached.byKey.clear();
-	delete ( host as unknown as { __desktop_modeKeyedList?: HostState } )
-		.__desktop_modeKeyedList;
+	delete ( host as unknown as { __open_stationKeyedList?: HostState } )
+		.__open_stationKeyedList;
 }

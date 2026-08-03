@@ -23,7 +23,7 @@ Any window can carry a **content identity**. A ref *without* `root` IS a root; a
 
 ```javascript
 // At open time, on the window config…
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id: 'acme-order-77',
     title: 'Order #77',
     render: renderOrder,
@@ -31,17 +31,17 @@ wp.desktop.registerWindow( {
 } );
 
 // …or any time later:
-wp.desktop.relations.set( 'acme-customer-12', { type: 'acme/customer', id: 12 } );
+wp.os.relations.set( 'acme-customer-12', { type: 'acme/customer', id: 12 } );
 ```
 
 The moment both windows are open, the tie draws — no further wiring. Query and react:
 
 ```javascript
-wp.desktop.relations.groups();            // → [ { key: 'acme/customer:12', rootWindowIds, children } ]
-wp.desktop.relations.edges();             // → [ { fromWindowId, toWindowId, kind, bidirectional } ]
-wp.desktop.relations.related( windowId ); // → tied window ids (group members + reference endpoints)
+wp.os.relations.groups();            // → [ { key: 'acme/customer:12', rootWindowIds, children } ]
+wp.os.relations.edges();             // → [ { fromWindowId, toWindowId, kind, bidirectional } ]
+wp.os.relations.related( windowId ); // → tied window ids (group members + reference endpoints)
 
-document.addEventListener( 'desktop-mode-window-link-groups-changed', ( e ) => {
+document.addEventListener( 'os-window-link-groups-changed', ( e ) => {
     console.log( 'relations changed:', e.detail.groups );
 } );
 ```
@@ -49,16 +49,16 @@ document.addEventListener( 'desktop-mode-window-link-groups-changed', ( e ) => {
 To tie two windows without a parent/child hierarchy, use `links` — mutual links render as one bidirectional tie (large dots at both ends):
 
 ```javascript
-wp.desktop.relations.set( windowA, { type: 'post', id: 1, links: [ { type: 'post', id: 2 } ] } );
-wp.desktop.relations.set( windowB, { type: 'post', id: 2, links: [ { type: 'post', id: 1 } ] } );
+wp.os.relations.set( windowA, { type: 'post', id: 1, links: [ { type: 'post', id: 2 } ] } );
+wp.os.relations.set( windowB, { type: 'post', id: 2, links: [ { type: 'post', id: 1 } ] } );
 ```
 
 ## 2. Announce identity for your own admin screen (PHP)
 
-Iframe windows get their identity from the chromeless bridge. Add your screen via the `desktop_mode_window_content_identity` filter — it runs in real admin context, so you can resolve parents the URL doesn't carry:
+Iframe windows get their identity from the chromeless bridge. Add your screen via the `open_station_window_content_identity` filter — it runs in real admin context, so you can resolve parents the URL doesn't carry:
 
 ```php
-add_filter( 'desktop_mode_window_content_identity', function ( $identity, $screen ) {
+add_filter( 'open_station_window_content_identity', function ( $identity, $screen ) {
     if ( $screen && 'acme_order_page' === $screen->id && isset( $_GET['order'] ) ) {
         $order = acme_get_order( absint( $_GET['order'] ) );
         if ( $order ) {
@@ -81,7 +81,7 @@ Return `null` to suppress detection for a screen. The bridge re-announces on eve
 The default `svg-splines` renderer registers through the same public API yours will use. One renderer is active at a time; the user picks it in OS Settings.
 
 ```javascript
-wp.desktop.registerWindowLinkRenderer( {
+wp.os.registerWindowLinkRenderer( {
     id: 'acme/dotted-lines',
     label: 'Dotted lines',
     description: 'Straight dotted connectors between related windows.',
@@ -104,7 +104,7 @@ wp.desktop.registerWindowLinkRenderer( {
                 line.setAttribute( 'y1', edge.from.y + edge.from.height / 2 );
                 line.setAttribute( 'x2', edge.to.x + edge.to.width / 2 );
                 line.setAttribute( 'y2', edge.to.y + edge.to.height / 2 );
-                line.setAttribute( 'stroke', 'var(--desktop-mode-window-link-color)' );
+                line.setAttribute( 'stroke', 'var(--os-window-link-color)' );
                 line.setAttribute( 'stroke-dasharray', edge.kind === 'reference' ? '4 4' : '' );
                 // edge.bidirectional / edge.focused are yours to style —
                 // the built-in uses <marker> endpoint dots and an active class.
@@ -127,11 +127,11 @@ wp.desktop.registerWindowLinkRenderer( {
 **Canvas / PixiJS sketch** — pull instead of push: append your `<canvas>` to `ctx.container`, run your own ticker, and read `ctx.getFrame()` per tick.
 
 ```javascript
-wp.desktop.registerWindowLinkRenderer( {
+wp.os.registerWindowLinkRenderer( {
     id: 'acme/pixi-links',
     label: 'Pixi links',
     mount: async ( ctx ) => {
-        await wp.desktop.loadModules( [ 'pixijs' ] ); // shared vendor loader — see content-graph
+        await wp.os.loadModules( [ 'pixijs' ] ); // shared vendor loader — see content-graph
         const app = new window.PIXI.Application();
         await app.init( { backgroundAlpha: 0, resizeTo: ctx.container } );
         ctx.container.appendChild( app.canvas );
@@ -157,23 +157,23 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'acme-link-renderer',
         plugins_url( 'js/link-renderer.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
     wp_enqueue_script( 'acme-link-renderer' );
 } );
-desktop_mode_register_window_link_renderer_script( 'acme-link-renderer' );
+open_station_register_window_link_renderer_script( 'acme-link-renderer' );
 ```
 
 Your renderer appears in the OS Settings selector the moment the plugin activates — no reload. With `owner` set (above), deactivation live-unregisters it; if it was the active pick, the shell falls back to `svg-splines`.
 
 ## Styling knobs
 
-The built-in splines read CSS custom properties — restyle without replacing the renderer: `--desktop-mode-window-link-color`, `--desktop-mode-window-link-color-active` (focused group), `--desktop-mode-window-link-width`, `--desktop-mode-window-link-accent` (the related-window outline stamped as `desktop-mode-window--linked`), and `--desktop-mode-window-link-glow` (the soft halo behind those windows — a literal color-with-alpha, not a `color-mix()`, so a failed resolve can't invalidate the composed box-shadow).
+The built-in splines read CSS custom properties — restyle without replacing the renderer: `--os-window-link-color`, `--os-window-link-color-active` (focused group), `--os-window-link-width`, `--os-window-link-accent` (the related-window outline stamped as `os-window--linked`), and `--os-window-link-glow` (the soft halo behind those windows — a literal color-with-alpha, not a `color-mix()`, so a failed resolve can't invalidate the composed box-shadow).
 
 ## Related
 
-- [`javascript-reference.md`](../javascript-reference.md) — `wp.desktop.relations`, `registerWindowLinkRenderer`, frame shapes, events, JS filters (including `desktop-mode.window-links.content` to rewrite identities and `desktop-mode.window-links.renderer` to force-swap the active renderer).
-- [`hooks-reference.md`](../hooks-reference.md) — `desktop_mode_window_content_identity`, `desktop_mode_register_window_link_renderer_script()`.
-- [`bridge-protocol.md`](../bridge-protocol.md) — the `desktop-mode-content-identity` message.
+- [`javascript-reference.md`](../javascript-reference.md) — `wp.os.relations`, `registerWindowLinkRenderer`, frame shapes, events, JS filters (including `os.window-links.content` to rewrite identities and `os.window-links.renderer` to force-swap the active renderer).
+- [`hooks-reference.md`](../hooks-reference.md) — `open_station_window_content_identity`, `open_station_register_window_link_renderer_script()`.
+- [`bridge-protocol.md`](../bridge-protocol.md) — the `os-content-identity` message.

@@ -1,26 +1,26 @@
 <?php
 /**
- * Desktop Mode — Native windows registry.
+ * OpenStation — Native windows registry.
  *
  * The largest of the five components.php registries — owns:
  *
- *   - `desktop_mode_register_window()` — plugin-author API
- *   - `desktop_mode_native_window_registry()` — internal store
- *   - `desktop_mode_native_window_allowed_html()` — wp_kses
+ *   - `open_station_register_window()` — plugin-author API
+ *   - `open_station_native_window_registry()` — internal store
+ *   - `open_station_native_window_allowed_html()` — wp_kses
  *     allowlist for `<template>` payloads
- *   - `desktop_mode_build_native_window_template_html()` —
+ *   - `open_station_build_native_window_template_html()` —
  *     wraps the registered template callback in tabs markup
  *     when the window has multiple registered tabs
- *   - `desktop_mode_enqueue_native_window_scripts()` — enqueue
+ *   - `open_station_enqueue_native_window_scripts()` — enqueue
  *     hook that ships every registered window's script handle
- *   - `desktop_mode_render_native_window_templates()` — renders
+ *   - `open_station_render_native_window_templates()` — renders
  *     the `<template>` elements the shell clones
  *
  * Extracted from `components.php` during the architecture-0.8.1
  * PHP slicing (phase 6). The window-tabs registry that builds on
  * top of this lives in `includes/registries/window-tabs.php`.
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,25 +32,25 @@ defined( 'ABSPATH' ) || exit;
  *
  *   1. Captures the $args and stores them on a module-level
  *      registry so the relevant admin_footer + enqueue hooks fire
- *      only for the current user's desktop-mode shell.
+ *      only for the current user's openstation shell.
  *   2. On `admin_footer` (shell-side only), emits
- *      `<template id="desktop-mode-native-window-<id>">` wrapping the
+ *      `<template id="os-native-window-<id>">` wrapping the
  *      output of the `template` callback. Each registered window
  *      gets its own template element.
  *   3. On `admin_enqueue_scripts` (shell-side), enqueues the
  *      caller's `script` handle if one was provided. The script
  *      registers a render callback at
- *      `window.desktopModeNativeWindows[<id>]`. On every window open
+ *      `window.openStationNativeWindows[<id>]`. On every window open
  *      the shell clones the registered template into the body and
  *      then invokes the callback — render is enhancement: query
  *      the body for mount points your template declared, light
  *      them up. Without a `script` the cloned template IS the
  *      window; declarative-only plugins need zero JS.
  *   4. Passes a localized config blob to the script
- *      (`desktopModeNativeWindow_<id>`) carrying the window's
+ *      (`openStationNativeWindow_<id>`) carrying the window's
  *      `id`, `title`, `icon`, dimensions, and `placement`. The
- *      script then calls `wp.desktop.registerSystemTile()` +
- *      `wp.desktop.registerWindow()` to wire up the dock tile
+ *      script then calls `wp.os.registerSystemTile()` +
+ *      `wp.os.registerWindow()` to wire up the dock tile
  *      and the open-on-click behaviour.
  *
  * Plugins write the template callback + the render callback on
@@ -61,7 +61,7 @@ defined( 'ABSPATH' ) || exit;
  * Note on scope: the shell doesn't auto-open windows server-side
  * — `registerWindow` declares availability, not presence. Users
  * click the registered tile (or your plugin calls
- * `wp.desktop.windowManager.open()` programmatically) to surface
+ * `wp.os.windowManager.open()` programmatically) to surface
  * the window.
  *
  * @param string $id   Doubles as window id + dock-tile id. Must
@@ -73,7 +73,7 @@ defined( 'ABSPATH' ) || exit;
  *     @type string   $icon         Dashicons class or URL. Required.
  *     @type callable $template     Echoes the window body markup.
  *                                  Wrapped on `admin_footer` in a
- *                                  `<template id="desktop-mode-native-window-
+ *                                  `<template id="os-native-window-
  *                                  <id>">`; cloned into the window
  *                                  body on every open. The render
  *                                  callback runs against the cloned
@@ -94,7 +94,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  opens the window programmatically).
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
- *                                  `WP_Error desktop_mode_capability_denied`.
+ *                                  `WP_Error open_station_capability_denied`.
  *     @type bool|string $autofocus Passed verbatim to
  *                                  `NativeWindowDef.autofocus`.
  *     @type string   $main_tab_label Label for the "main" tab that
@@ -102,7 +102,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  `template` output. Only rendered
  *                                  when at least one additional
  *                                  tab is registered via
- *                                  {@see desktop_mode_register_window_tab()}.
+ *                                  {@see open_station_register_window_tab()}.
  *                                  Defaults to the window's `title`.
  *     @type int      $main_tab_padding Padding (in px) applied to the
  *                                  auto-generated tab-wrap around
@@ -111,13 +111,13 @@ defined( 'ABSPATH' ) || exit;
  *                                  registered. Default 16. Pass 0
  *                                  for edge-to-edge content.
  *                                  Filterable at runtime via
- *                                  `desktop_mode_native_window_tab_wrap_padding`.
+ *                                  `open_station_native_window_tab_wrap_padding`.
  *     @type array    $config       Arbitrary serializable data to ship
  *                                  to the bundle alongside the script
  *                                  tag. Read in JS via
- *                                  `wp.desktop.getWindowConfig( $id )`
+ *                                  `wp.os.getWindowConfig( $id )`
  *                                  (or directly at
- *                                  `window.desktopModeWindowConfig[ $id ]`).
+ *                                  `window.openStationWindowConfig[ $id ]`).
  *                                  Recommended over `wp_localize_script`
  *                                  for native-window scripts because
  *                                  the lazy-load path bypasses
@@ -133,11 +133,11 @@ defined( 'ABSPATH' ) || exit;
  *                       required arg is missing/invalid or a
  *                       declared capability is unmet.
  */
-function desktop_mode_register_window( $id, $args = array() ) {
+function open_station_register_window( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return open_station_registration_error(
+			'open_station_missing_id',
 			__( 'Native window id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
@@ -170,8 +170,8 @@ function desktop_mode_register_window( $id, $args = array() ) {
 	// Capability gate — ALL listed caps must match. Fail closed.
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return open_station_registration_error(
+				'open_station_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
@@ -184,15 +184,15 @@ function desktop_mode_register_window( $id, $args = array() ) {
 
 	// Required fields.
 	if ( '' === (string) $args['title'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_title',
+		return open_station_registration_error(
+			'open_station_missing_title',
 			__( 'Native window registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( ! is_callable( $args['template'] ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_invalid_template',
+		return open_station_registration_error(
+			'open_station_invalid_template',
 			__( 'Native window registration requires a callable `template` that echoes the template body.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -216,16 +216,16 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		'placement'        => $placement,
 		'autofocus'        => $args['autofocus'],
 		'main_tab_label'   => (string) $args['main_tab_label'],
-		// Stored as-is (string or int). `desktop_mode_build_native_window_template_html`
+		// Stored as-is (string or int). `open_station_build_native_window_template_html`
 		// coerces to int and falls back to 16 when absent.
 		'main_tab_padding' => $args['main_tab_padding'],
 		// Bundle-bound config delivered through the same path as
 		// `wp_localize_script` `extra['data']` — see the `config` doc
-		// in this function's `$args` block and `desktop_mode_resolve_script_payload()`
+		// in this function's `$args` block and `open_station_resolve_script_payload()`
 		// for how it lands on the wire.
 		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
-	desktop_mode_native_window_registry( $id, $entry );
+	open_station_native_window_registry( $id, $entry );
 
 	/**
 	 * Fires after a native desktop window is successfully registered.
@@ -233,7 +233,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
 	 * Lets plugins react to registrations made by other plugins —
 	 * e.g. a widget that auto-opens when a given window registers,
 	 * or analytics tracking of which windows the current install
-	 * exposes. Does NOT fire when `desktop_mode_register_window()`
+	 * exposes. Does NOT fire when `open_station_register_window()`
 	 * returns a `WP_Error`.
 	 *
 	 * @param string $id    The window id.
@@ -241,14 +241,14 @@ function desktop_mode_register_window( $id, $args = array() ) {
 	 *                      icon, template callback, script handle,
 	 *                      size defaults, placement, autofocus).
 	 */
-	do_action( 'desktop_mode_native_window_registered', $id, $entry );
+	do_action( 'open_station_native_window_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for native windows registered
- * via {@see desktop_mode_register_window()}. Passing a second
+ * via {@see open_station_register_window()}. Passing a second
  * argument stores the entry; passing only the id returns the
  * stored value (or null). Kept small and side-effect-free so
  * tests can introspect.
@@ -260,7 +260,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
  * @return array|null Either the stored entry or the full registry
  *                    (when id is empty).
  */
-function desktop_mode_native_window_registry( $id = '', $entry = null ) {
+function open_station_native_window_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -281,14 +281,14 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
  * Templates are inert until JS clones them out of the `<template>`
  * tag — but Plugin Check still requires escape-on-output. The list
  * extends `wp_kses_allowed_html( 'post' )` with form controls,
- * `<wpd-*>` web components, and dashicon spans, plus permissive
+ * `<os-*>` web components, and dashicon spans, plus permissive
  * `data-*`, `aria-*`, and component-specific attributes. Plugins
  * registering their own native windows can extend the list via the
- * `desktop_mode_native_window_allowed_html` filter below.
+ * `open_station_native_window_allowed_html` filter below.
  *
  * @return array<string,array<string,bool>>
  */
-function desktop_mode_native_window_allowed_html() {
+function open_station_native_window_allowed_html() {
 	$base = wp_kses_allowed_html( 'post' );
 
 	$global_attrs = array(
@@ -308,7 +308,7 @@ function desktop_mode_native_window_allowed_html() {
 		'data-*'          => true,
 		'aria-*'          => true,
 		// `full-width` is a layout-level flag honoured by
-		// `<wpd-form>` (and any future wpd-* container that opts in
+		// `<os-form>` (and any future os-* container that opts in
 		// to row-spanning slotted children). Lives in the global
 		// allowlist so a plain `<div full-width>` wrapper isn't
 		// stripped by kses on its way through the template.
@@ -387,7 +387,7 @@ function desktop_mode_native_window_allowed_html() {
 			'orientation'   => true,
 			'level'         => true,
 			'collapsed'     => true,
-			// `<wpd-form>` props + the `full-width` row span flag
+			// `<os-form>` props + the `full-width` row span flag
 			// honoured by the form's slotted-child layout rule.
 			'submit-label'  => true,
 			'reset-label'   => true,
@@ -442,27 +442,27 @@ function desktop_mode_native_window_allowed_html() {
 		'use'      => array( 'href' => true, 'class' => true ),
 	);
 
-	// `<wpd-*>` web components — every shipped tag plus a permissive
+	// `<os-*>` web components — every shipped tag plus a permissive
 	// open door for new ones added by plugin templates.
 	$wpd_tags = array(
-		'wpd-stack', 'wpd-cluster', 'wpd-grid', 'wpd-spacer', 'wpd-divider',
-		'wpd-tabs', 'wpd-tab', 'wpd-tabpanel',
-		'wpd-segmented', 'wpd-segment',
-		'wpd-button', 'wpd-icon-button', 'wpd-button-group',
-		'wpd-text-field', 'wpd-textarea', 'wpd-search-field',
-		'wpd-select', 'wpd-option', 'wpd-checkbox', 'wpd-checkbox-label',
-		'wpd-radio', 'wpd-radio-group', 'wpd-form',
-		'wpd-switch', 'wpd-slider',
-		'wpd-table', 'wpd-table-column', 'wpd-table-row', 'wpd-table-cell',
-		'wpd-card', 'wpd-list', 'wpd-list-item',
-		'wpd-badge', 'wpd-pill', 'wpd-tag', 'wpd-chip',
-		'wpd-spinner', 'wpd-skeleton', 'wpd-empty-state',
-		'wpd-tooltip', 'wpd-popover', 'wpd-menu', 'wpd-menu-item',
-		'wpd-modal', 'wpd-drawer', 'wpd-toast',
-		'wpd-icon', 'wpd-avatar', 'wpd-heading', 'wpd-text', 'wpd-link',
-		'wpd-banner', 'wpd-alert', 'wpd-callout',
-		'wpd-form-row', 'wpd-form-section', 'wpd-help-text',
-		'wpd-toolbar', 'wpd-toolbar-group',
+		'os-stack', 'os-cluster', 'os-grid', 'os-spacer', 'os-divider',
+		'os-tabs', 'os-tab', 'os-tabpanel',
+		'os-segmented', 'os-segment',
+		'os-button', 'os-icon-button', 'os-button-group',
+		'os-text-field', 'os-textarea', 'os-search-field',
+		'os-select', 'os-option', 'os-checkbox', 'os-checkbox-label',
+		'os-radio', 'os-radio-group', 'os-form',
+		'os-switch', 'os-slider',
+		'os-table', 'os-table-column', 'os-table-row', 'os-table-cell',
+		'os-card', 'os-list', 'os-list-item',
+		'os-badge', 'os-pill', 'os-tag', 'os-chip',
+		'os-spinner', 'os-skeleton', 'os-empty-state',
+		'os-tooltip', 'os-popover', 'os-menu', 'os-menu-item',
+		'os-modal', 'os-drawer', 'os-toast',
+		'os-icon', 'os-avatar', 'os-heading', 'os-text', 'os-link',
+		'os-banner', 'os-alert', 'os-callout',
+		'os-form-row', 'os-form-section', 'os-help-text',
+		'os-toolbar', 'os-toolbar-group',
 	);
 	foreach ( $wpd_tags as $tag ) {
 		$extra[ $tag ] = $wpd_attrs;
@@ -497,40 +497,40 @@ function desktop_mode_native_window_allowed_html() {
 	 *
 	 * @param array $allowed wp_kses-shaped allowlist.
 	 */
-	return (array) apply_filters( 'desktop_mode_native_window_allowed_html', $allowed );
+	return (array) apply_filters( 'open_station_native_window_allowed_html', $allowed );
 }
 
 /**
  * Run `wp_kses` on a native-window template body with the framework
- * allowlist, **auto-extending the allowlist with every `<wpd-*>` tag
+ * allowlist, **auto-extending the allowlist with every `<os-*>` tag
  * the template actually uses.**
  *
- * The pain this fixes: each shipped `<wpd-*>` component had to be
+ * The pain this fixes: each shipped `<os-*>` component had to be
  * manually added to the `$wpd_tags` list above, and the failure mode
  * of forgetting it was silent — kses would strip the tag, the
  * template would render as a sea of unparented children, and you'd
  * spend an afternoon working out why "the form has no buttons."
  *
  * Plugin authors registering a new component now only need to
- * `defineComponent('wpd-foo', WpdFoo)` on the JS side and use
- * `<wpd-foo>` in their template — this helper finds the tag at
+ * `defineComponent('os-foo', OsFoo)` on the JS side and use
+ * `<os-foo>` in their template — this helper finds the tag at
  * render time, tags it onto the allowlist with the standard
  * permissive attrs, and runs kses with the extended list.
  *
  * Every callsite in the framework that previously did the
- * `wp_kses( $html, desktop_mode_native_window_allowed_html() )`
+ * `wp_kses( $html, open_station_native_window_allowed_html() )`
  * dance can call this instead and get tag-discovery for free.
  *
  * @param string $html Template HTML to sanitize.
  * @return string Sanitized HTML.
  */
-function desktop_mode_kses_native_window_template( $html ) {
-	$allowed = desktop_mode_native_window_allowed_html();
+function open_station_kses_native_window_template( $html ) {
+	$allowed = open_station_native_window_allowed_html();
 
-	if ( preg_match_all( '/<(wpd-[a-z][a-z0-9-]*)\b/i', (string) $html, $matches ) ) {
+	if ( preg_match_all( '/<(os-[a-z][a-z0-9-]*)\b/i', (string) $html, $matches ) ) {
 		$unique = array_unique( array_map( 'strtolower', $matches[1] ) );
-		$wpd_attrs = isset( $allowed['wpd-button'] )
-			? $allowed['wpd-button']
+		$wpd_attrs = isset( $allowed['os-button'] )
+			? $allowed['os-button']
 			: array();
 		foreach ( $unique as $tag ) {
 			if ( ! isset( $allowed[ $tag ] ) ) {
@@ -545,9 +545,9 @@ function desktop_mode_kses_native_window_template( $html ) {
 /**
  * Render a native window's template HTML to a string, wrapping
  * with tabs when the window has at least one additional tab
- * registered. Shared by `desktop_mode_render_native_window_templates()`
+ * registered. Shared by `open_station_render_native_window_templates()`
  * (which emits the live `<template>` element) and
- * `desktop_mode_build_native_windows_payload()` (which captures the same
+ * `open_station_build_native_windows_payload()` (which captures the same
  * string for the shell config so mid-session activation can inject
  * the template without a reload).
  *
@@ -558,12 +558,12 @@ function desktop_mode_kses_native_window_template( $html ) {
  * @param array $entry Window registry entry.
  * @return string Template body HTML (no outer `<template>` tag).
  */
-function desktop_mode_build_native_window_template_html( $entry ) {
+function open_station_build_native_window_template_html( $entry ) {
 	if ( ! is_array( $entry ) || ! is_callable( $entry['template'] ) ) {
 		return '';
 	}
 
-	$tabs = desktop_mode_get_native_window_tabs( $entry['id'] );
+	$tabs = open_station_get_native_window_tabs( $entry['id'] );
 	$has_extras = count( $tabs ) > 1;
 
 	// Fast path — single-pane window, no wrapping.
@@ -573,17 +573,17 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 		return (string) ob_get_clean();
 	}
 
-	// Multi-tab window — wrap in <wpd-stack> + <wpd-tabs> + one
-	// <wpd-tabpanel> per tab. The default active tab is the main
+	// Multi-tab window — wrap in <os-stack> + <os-tabs> + one
+	// <os-tabpanel> per tab. The default active tab is the main
 	// one (the window's own template). Plugin authors still get to
 	// declare their own tab-change side effects via the
-	// `wpd-tab-change` event bubbled by <wpd-tabs>.
+	// `os-tab-change` event bubbled by <os-tabs>.
 	//
 	// The wrap's padding is plugin-controllable two ways:
-	//   1. `main_tab_padding` arg on `desktop_mode_register_window` —
+	//   1. `main_tab_padding` arg on `open_station_register_window` —
 	//      a per-window override. `0` opts into edge-to-edge
 	//      content.
-	//   2. `desktop_mode_native_window_tab_wrap_padding` filter for
+	//   2. `open_station_native_window_tab_wrap_padding` filter for
 	//      late-bound overrides (e.g. a theme that wants every
 	//      tabbed window to adopt a narrower inset).
 	// Default stays 16px so existing plugins don't shift.
@@ -594,7 +594,7 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 	/**
 	 * Filters the padding (in px) applied to the auto-generated
 	 * tab wrap around a native window's template body. The shell
-	 * emits the wrap as `<wpd-stack padding="N">`; the CSS-as-
+	 * emits the wrap as `<os-stack padding="N">`; the CSS-as-
 	 * attribute pipeline at the client translates that to
 	 * `style.padding`.
 	 *
@@ -605,7 +605,7 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 	 * @param string $window_id The native window id.
 	 */
 	$padding = (int) apply_filters(
-		'desktop_mode_native_window_tab_wrap_padding',
+		'open_station_native_window_tab_wrap_padding',
 		$default_padding,
 		(string) $entry['id']
 	);
@@ -614,21 +614,21 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 	}
 
 	$buffer  = sprintf(
-		'<wpd-stack gap="12" padding="%d">',
+		'<os-stack gap="12" padding="%d">',
 		$padding
 	);
-	$buffer .= '<wpd-tabs value="' . esc_attr( DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB ) . '">';
+	$buffer .= '<os-tabs value="' . esc_attr( OPEN_STATION_NATIVE_WINDOW_MAIN_TAB ) . '">';
 	foreach ( $tabs as $tab ) {
 		$buffer .= sprintf(
-			'<wpd-tab value="%s">%s</wpd-tab>',
+			'<os-tab value="%s">%s</os-tab>',
 			esc_attr( $tab['value'] ),
 			esc_html( $tab['label'] )
 		);
 	}
-	$buffer .= '</wpd-tabs>';
+	$buffer .= '</os-tabs>';
 
 	// Stamp `hidden` on every non-active panel directly in the
-	// emitted HTML. The client-side `<wpd-tabs>` syncs panel
+	// emitted HTML. The client-side `<os-tabs>` syncs panel
 	// visibility on `value` changes, but its initial sync runs
 	// inside a microtask — and panel siblings may not have upgraded
 	// in time on first paint. Setting the attribute server-side
@@ -638,19 +638,19 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 		if ( ! is_callable( $tab['template'] ) ) {
 			continue;
 		}
-		$is_active = DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
+		$is_active = OPEN_STATION_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
 		$buffer   .= sprintf(
-			'<wpd-tabpanel for="%s"%s>',
+			'<os-tabpanel for="%s"%s>',
 			esc_attr( $tab['value'] ),
 			$is_active ? '' : ' hidden'
 		);
 		ob_start();
 		call_user_func( $tab['template'] );
 		$buffer .= (string) ob_get_clean();
-		$buffer .= '</wpd-tabpanel>';
+		$buffer .= '</os-tabpanel>';
 	}
 
-	$buffer .= '</wpd-stack>';
+	$buffer .= '</os-stack>';
 	return $buffer;
 }
 
@@ -660,11 +660,11 @@ function desktop_mode_build_native_window_template_html( $entry ) {
  * shell enqueue so ordering (shell → plugin scripts) is
  * deterministic.
  */
-function desktop_mode_enqueue_native_window_scripts() {
-	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+function open_station_enqueue_native_window_scripts() {
+	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
 		return;
 	}
-	$registry = desktop_mode_native_window_registry();
+	$registry = open_station_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -673,7 +673,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 		// its own script handle so a tab's JS module stays scoped to
 		// that tab. Main tab uses the window's own `script`; it's
 		// enqueued below alongside the localize call.
-		$tabs = desktop_mode_get_native_window_tabs( $entry['id'] );
+		$tabs = open_station_get_native_window_tabs( $entry['id'] );
 		foreach ( $tabs as $tab ) {
 			if ( $tab['is_main'] || empty( $tab['script'] ) ) {
 				continue;
@@ -688,7 +688,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 		// Localize the config the JS side reads to register itself.
 		wp_localize_script(
 			$entry['script'],
-			'desktopModeNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
+			'openStationNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
 			array(
 				'id'        => $entry['id'],
 				'title'     => $entry['title'],
@@ -699,7 +699,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 				'minHeight' => $entry['min_height'],
 				'placement' => $entry['placement'],
 				'autofocus' => $entry['autofocus'],
-				'templateId' => 'desktop-mode-native-window-' . $entry['id'],
+				'templateId' => 'os-native-window-' . $entry['id'],
 				'tabs'      => array_map(
 					static function ( $tab ) {
 						return array(
@@ -716,16 +716,16 @@ function desktop_mode_enqueue_native_window_scripts() {
 		// Bundle-bound `config`. Ships through
 		// `wp_add_inline_script` `'before'` so it lands on the eager
 		// path the same way `wp_localize_script` does, AND through
-		// the lazy-load payload (see `desktop_mode_resolve_script_payload`)
+		// the lazy-load payload (see `open_station_resolve_script_payload`)
 		// so the same data is available even when the script is
 		// dynamically injected mid-session. The bundle reads it via
-		// `wp.desktop.getWindowConfig( id )` or directly at
-		// `window.desktopModeWindowConfig[ id ]`.
+		// `wp.os.getWindowConfig( id )` or directly at
+		// `window.openStationWindowConfig[ id ]`.
 		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
 			wp_add_inline_script(
 				$entry['script'],
 				sprintf(
-					'window.desktopModeWindowConfig=window.desktopModeWindowConfig||{};window.desktopModeWindowConfig[%s]=%s;',
+					'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
 					wp_json_encode( $entry['id'] ),
 					wp_json_encode( $entry['config'] )
 				),
@@ -734,19 +734,19 @@ function desktop_mode_enqueue_native_window_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts', 20 );
+add_action( 'admin_enqueue_scripts', 'open_station_enqueue_native_window_scripts', 20 );
 
 /**
  * Emit a `<template>` tag for every registered native window on
  * `admin_footer` when the shell is active. The JS side resolves
- * these via `document.getElementById( `desktop-mode-native-window-${id}` )`
+ * these via `document.getElementById( `os-native-window-${id}` )`
  * and clones them into each opened window's body.
  */
-function desktop_mode_render_native_window_templates() {
-	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+function open_station_render_native_window_templates() {
+	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
 		return;
 	}
-	$registry = desktop_mode_native_window_registry();
+	$registry = open_station_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -754,20 +754,20 @@ function desktop_mode_render_native_window_templates() {
 		if ( ! is_callable( $entry['template'] ) ) {
 			continue;
 		}
-		$html = desktop_mode_build_native_window_template_html( $entry );
+		$html = open_station_build_native_window_template_html( $entry );
 		if ( '' === $html ) {
 			continue;
 		}
 		printf(
-			'<template id="desktop-mode-native-window-%s">',
+			'<template id="os-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
-		// `desktop_mode_kses_native_window_template()` auto-extends
-		// the allowlist with any `<wpd-*>` tag the template carries
+		// `open_station_kses_native_window_template()` auto-extends
+		// the allowlist with any `<os-*>` tag the template carries
 		// — so plugin authors never have to remember to register
 		// their custom component tags in the kses list.
-		echo desktop_mode_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+		echo open_station_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 		echo '</template>';
 	}
 }
-add_action( 'admin_footer', 'desktop_mode_render_native_window_templates', 20 );
+add_action( 'admin_footer', 'open_station_render_native_window_templates', 20 );

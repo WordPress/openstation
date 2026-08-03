@@ -41,7 +41,7 @@ Three details are worth knowing:
 
 - **`show_ui => true` is the gate.** A type registered with
   `show_ui => false` is treated as internal bookkeeping and never
-  appears. This is how Desktop Mode keeps its own private types out.
+  appears. This is how OpenStation keeps its own private types out.
 - **The current user must hold the type's `edit_posts` capability.**
   Users who can't edit recipes never see the folder.
 - **`menu_icon` is reused as the section icon** — a Dashicons class,
@@ -51,7 +51,7 @@ Three details are worth knowing:
 ## Types that aren't on the REST API
 
 A type registered with `show_in_rest => false` has no `wp/v2`
-collection, so Desktop Mode serves it from
+collection, so OpenStation serves it from
 `desktop-mode/v1/post-type/<slug>` instead. That route is **read and
 trash only** — no create, no update — and requires the type's
 `edit_posts` capability in every context, so it is never publicly
@@ -62,7 +62,7 @@ opt out:
 
 ```php
 add_filter(
-	'desktop_mode_my_wordpress_post_type_rest_enabled',
+	'open_station_my_wordpress_post_type_rest_enabled',
 	static function ( $enabled, $post_type ) {
 		return 'acme_licence_key' === $post_type ? false : $enabled;
 	},
@@ -78,7 +78,7 @@ folder that can't open.
 
 ```php
 add_filter(
-	'desktop_mode_my_wordpress_post_types',
+	'open_station_my_wordpress_post_types',
 	static function ( $slugs ) {
 		return array_values( array_diff( $slugs, array( 'acme_import_log' ) ) );
 	}
@@ -96,7 +96,7 @@ at one:
 
 ```php
 add_filter(
-	'desktop_mode_my_wordpress_post_type_group',
+	'open_station_my_wordpress_post_type_group',
 	static function ( $group, $post_type ) {
 		$ours = array( 'acme_recipe', 'acme_menu', 'acme_ingredient' );
 		if ( ! in_array( $post_type, $ours, true ) ) {
@@ -128,7 +128,7 @@ icon grid:
 
 ```php
 add_filter(
-	'desktop_mode_my_wordpress_post_type_entity',
+	'open_station_my_wordpress_post_type_entity',
 	static function ( $entity, $post_type ) {
 		if ( 'acme_import_log' === $post_type->name ) {
 			$entity['thumbnails'] = false;
@@ -144,13 +144,13 @@ add_filter(
 
 If you'd rather define the section yourself — a custom label, a
 different REST collection, your own render kind — add it through
-`desktop_mode_my_wordpress_entities` with a `post_type` that matches.
+`open_station_my_wordpress_entities` with a `post_type` that matches.
 The automatic pass skips any type a section already covers, so there's
 no duplicate folder:
 
 ```php
 add_filter(
-	'desktop_mode_my_wordpress_entities',
+	'open_station_my_wordpress_entities',
 	static function ( $entities ) {
 		$entities[] = array(
 			'id'         => 'acme-recipes',
@@ -172,6 +172,6 @@ add_filter(
 
 ## See also
 
-- [Hooks reference — site folder](../hooks-reference.md#desktop_mode_my_wordpress_entities--experimental)
+- [Hooks reference — site folder](../hooks-reference.md#open_station_my_wordpress_entities--experimental)
 - [JavaScript reference — site folder](../javascript-reference.md#site-folder--extensibility-surface-experimental)
 - [Site folder — add a preview-pane action button](./my-wordpress-media-action.md)

@@ -10,9 +10,9 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
-class Tests_DesktopMode_WidgetPostStats extends WP_UnitTestCase {
+class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $author_id;
@@ -40,10 +40,10 @@ class Tests_DesktopMode_WidgetPostStats extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_post_stats_callback
+	 * @covers ::open_station_post_stats_callback
 	 */
 	public function test_six_zero_filled_buckets_oldest_first() {
-		$result = desktop_mode_post_stats_callback();
+		$result = open_station_post_stats_callback();
 
 		$this->assertCount( 6, $result['months'] );
 		$yms = wp_list_pluck( $result['months'], 'ym' );
@@ -59,14 +59,14 @@ class Tests_DesktopMode_WidgetPostStats extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_post_stats_callback
+	 * @covers ::open_station_post_stats_callback
 	 */
 	public function test_counts_land_in_the_current_month_bucket() {
 		self::factory()->post->create_many( 2, array( 'post_status' => 'publish' ) );
 		self::factory()->post->create( array( 'post_status' => 'draft' ) );
 		self::factory()->post->create( array( 'post_status' => 'pending' ) );
 
-		$result  = desktop_mode_post_stats_callback();
+		$result  = open_station_post_stats_callback();
 		$current = end( $result['months'] );
 
 		$this->assertSame( 2, $current['publish'] );
@@ -75,7 +75,7 @@ class Tests_DesktopMode_WidgetPostStats extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_post_stats_callback
+	 * @covers ::open_station_post_stats_callback
 	 */
 	public function test_drafts_are_own_only_without_edit_others_posts() {
 		self::factory()->post->create( array(
@@ -92,30 +92,30 @@ class Tests_DesktopMode_WidgetPostStats extends WP_UnitTestCase {
 		) );
 
 		// Admin (edit_others_posts) sees every draft.
-		$admin_current = end( desktop_mode_post_stats_callback()['months'] );
+		$admin_current = end( open_station_post_stats_callback()['months'] );
 		$this->assertSame( 2, $admin_current['draft'] );
 
 		// Author sees only their own draft — but all published posts.
 		wp_set_current_user( self::$author_id );
-		$author_current = end( desktop_mode_post_stats_callback()['months'] );
+		$author_current = end( open_station_post_stats_callback()['months'] );
 		$this->assertSame( 1, $author_current['draft'] );
 		$this->assertSame( 1, $author_current['publish'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_post_stats_callback
+	 * @covers ::open_station_post_stats_callback
 	 */
 	public function test_result_is_served_from_the_transient() {
-		$first = desktop_mode_post_stats_callback();
+		$first = open_station_post_stats_callback();
 
 		// New post after the first call — the cached result must win.
 		self::factory()->post->create( array( 'post_status' => 'publish' ) );
-		$second = desktop_mode_post_stats_callback();
+		$second = open_station_post_stats_callback();
 		$this->assertSame( $first, $second, 'second call inside the TTL is a cache hit' );
 
 		// Busting the transient recomputes.
 		delete_transient( 'desktop_mode_post_stats_all' );
-		$third_current = end( desktop_mode_post_stats_callback()['months'] );
+		$third_current = end( open_station_post_stats_callback()['months'] );
 		$this->assertSame( 1, $third_current['publish'] );
 	}
 }

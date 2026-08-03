@@ -1,6 +1,6 @@
 # Example: progress bar
 
-`<wpd-progress-bar>` is a linear progress indicator with two modes
+`<os-progress-bar>` is a linear progress indicator with two modes
 (determinate, indeterminate), four tones, and a built-in label /
 percent header. Used by the OS-file-drop upload HUD and available
 to any feature that needs a value-driven bar.
@@ -10,17 +10,17 @@ to any feature that needs a value-driven bar.
 ## Drop-in
 
 ```html
-<wpd-progress-bar value="42"></wpd-progress-bar>
+<os-progress-bar value="42"></os-progress-bar>
 
-<wpd-progress-bar indeterminate label="Uploading…"></wpd-progress-bar>
+<os-progress-bar indeterminate label="Uploading…"></os-progress-bar>
 
-<wpd-progress-bar
+<os-progress-bar
     value="280"
     max="320"
     tone="success"
     label="hero.jpg"
     show-percent
-></wpd-progress-bar>
+></os-progress-bar>
 ```
 
 ## Modes
@@ -35,23 +35,23 @@ component repaints on every attribute change.
 
 ## Tones
 
-Tints the fill via the shared `--desktop-mode-status-*` palette so
+Tints the fill via the shared `--os-status-*` palette so
 the bar reads the same as toasts, ribbons, and notices.
 
 ```html
-<wpd-progress-bar value="80" tone="success"></wpd-progress-bar>
-<wpd-progress-bar value="80" tone="warning"></wpd-progress-bar>
-<wpd-progress-bar value="80" tone="danger"></wpd-progress-bar>
+<os-progress-bar value="80" tone="success"></os-progress-bar>
+<os-progress-bar value="80" tone="warning"></os-progress-bar>
+<os-progress-bar value="80" tone="danger"></os-progress-bar>
 ```
 
 ## Inline label + percent
 
 ```html
-<wpd-progress-bar
+<os-progress-bar
     value="42"
     label="Uploading hero.jpg"
     show-percent
-></wpd-progress-bar>
+></os-progress-bar>
 ```
 
 Renders the label on the left of a small header row and a
@@ -61,7 +61,7 @@ track's `aria-label`. `show-percent` is a boolean attribute.
 ## Driving it from JS
 
 ```js
-const bar = document.createElement( 'wpd-progress-bar' );
+const bar = document.createElement( 'os-progress-bar' );
 bar.setAttribute( 'indeterminate', '' );
 bar.setAttribute( 'show-percent', '' );
 host.appendChild( bar );
@@ -78,19 +78,19 @@ Every surface is overridable via CSS variables on the host:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `--wpd-progress-track-bg` | `var(--desktop-mode-control-bg, rgba(0,0,0,0.08))` | Track background. |
-| `--wpd-progress-fill` | `var(--wp-admin-theme-color, #2271b1)` | Fill color (overridden by the `tone` attribute). |
-| `--wpd-progress-height` | `6px` | Track height. |
-| `--wpd-progress-radius` | `999px` | Track + fill border-radius. |
-| `--wpd-progress-label-color` | `inherit` | Header text color. |
-| `--wpd-progress-label-size` | `12px` | Header font size. |
-| `--wpd-progress-label-gap` | `4px` | Space between header and track. |
+| `--os-ui-progress-track-bg` | `var(--os-control-bg, rgba(0,0,0,0.08))` | Track background. |
+| `--os-ui-progress-fill` | `var(--wp-admin-theme-color, #2271b1)` | Fill color (overridden by the `tone` attribute). |
+| `--os-ui-progress-height` | `6px` | Track height. |
+| `--os-ui-progress-radius` | `999px` | Track + fill border-radius. |
+| `--os-ui-progress-label-color` | `inherit` | Header text color. |
+| `--os-ui-progress-label-size` | `12px` | Header font size. |
+| `--os-ui-progress-label-gap` | `4px` | Space between header and track. |
 
 ```css
 my-feature {
-    --wpd-progress-height: 10px;
-    --wpd-progress-radius: 4px;
-    --wpd-progress-fill: #5e3aee;
+    --os-ui-progress-height: 10px;
+    --os-ui-progress-radius: 4px;
+    --os-ui-progress-fill: #5e3aee;
 }
 ```
 

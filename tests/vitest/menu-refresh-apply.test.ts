@@ -221,10 +221,10 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 	// THE PRIMARY REGRESSION GUARD.
 	//
-	// `desktopIcons` is in the PHP payload (`desktop_mode_build_menu_payload`)
+	// `desktopIcons` is in the PHP payload (`open_station_build_menu_payload`)
 	// and was rendered at boot, but the live applier never read it —
 	// so a plugin that registered a wallpaper icon via
-	// `desktop_mode_register_icon()` only appeared after F5 and likewise
+	// `open_station_register_icon()` only appeared after F5 and likewise
 	// stayed on the wallpaper after deactivation. This test pins both
 	// halves of the contract.
 	describe( 'desktopIcons live-refresh (regression)', () => {
@@ -278,12 +278,12 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 	} );
 
-	// `desktop-mode-registry-changed` is the public CustomEvent
+	// `os-registry-changed` is the public CustomEvent
 	// plugin authors subscribe to in order to react to peer plugins
 	// being activated/deactivated mid-session. The event name is
-	// project-prefixed (NOT `desktop-mode-*`) per WordPress plugin
+	// project-prefixed (NOT `os-*`) per WordPress plugin
 	// reviewer guidelines that reserve `wp-` for Core.
-	describe( 'desktop-mode-registry-changed CustomEvent', () => {
+	describe( 'os-registry-changed CustomEvent', () => {
 		function captureEvents(): {
 			events: RegistryChangedDetail[];
 			cleanup: () => void;
@@ -465,9 +465,9 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 	} {
 		document.body.innerHTML = '';
 		const desktopArea = document.createElement( 'div' );
-		desktopArea.id = 'desktop-mode-area';
+		desktopArea.id = 'os-area';
 		const dockEl = document.createElement( 'div' );
-		dockEl.id = 'desktop-mode-dock';
+		dockEl.id = 'os-dock';
 		document.body.append( desktopArea, dockEl );
 
 		const manager = {

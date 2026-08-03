@@ -2,7 +2,7 @@
  * Games framework — minimal Pixi type surface.
  *
  * PixiJS is loaded as a vendor script (`window.PIXI`) via
- * `wp.desktop.loadModules(['pixijs'])`, NOT imported. We declare the
+ * `wp.os.loadModules(['pixijs'])`, NOT imported. We declare the
  * narrow set of Pixi types the game bundles use, mirroring
  * `src/content-graph/pixi-types.ts`.
  *
@@ -84,7 +84,7 @@ export interface PixiApp {
 	/**
 	 * Re-measure the `resizeTo` target and resize the renderer NOW.
 	 * Pixi's ResizePlugin only listens to `window` resize events, so
-	 * resizing the desktop-mode window (which never fires them) needs
+	 * resizing the openstation window (which never fires them) needs
 	 * an explicit call from our own ResizeObserver.
 	 */
 	resize(): void;

@@ -1,20 +1,20 @@
 <?php
 /**
- * Tests for `desktop_mode_register_window_tab()` — the API that lets
+ * Tests for `open_station_register_window_tab()` — the API that lets
  * plugins attach extra tabs to a native window, mirroring how
  * submenu registrations auto-become tabs on legacy iframe windows.
  *
  * Covers registration validation, cross-plugin extension,
- * `main_tab_label` defaults, the `desktop_mode_window_tabs` filter,
+ * `main_tab_label` defaults, the `open_station_window_tabs` filter,
  * tab-aware template-HTML generation, and per-tab script enqueue.
  *
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-window-tabs
+ * @group openstation
+ * @group os-window-tabs
  */
-class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
+class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -30,8 +30,8 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_actions( 'desktop_mode_window_tab_registered' );
-		remove_all_filters( 'desktop_mode_window_tabs' );
+		remove_all_actions( 'open_station_window_tab_registered' );
+		remove_all_filters( 'open_station_window_tabs' );
 		parent::tear_down();
 	}
 
@@ -43,7 +43,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 				echo '<p class="main">MAIN</p>';
 			},
 		);
-		$this->assertTrue( desktop_mode_register_window( $id, $args ) );
+		$this->assertTrue( open_station_register_window( $id, $args ) );
 	}
 
 	// --------------------------------------------------------------
@@ -51,12 +51,12 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	// --------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_success_on_well_formed_args() {
 		$this->register_demo_window( 'demo-ok' );
 
-		$result = desktop_mode_register_window_tab( 'demo-ok', array(
+		$result = open_station_register_window_tab( 'demo-ok', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {
@@ -65,98 +65,98 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 		) );
 
 		$this->assertTrue( $result );
-		$entry = desktop_mode_desktop_window_tab_registry( 'demo-ok', 'about' );
+		$entry = open_station_desktop_window_tab_registry( 'demo-ok', 'about' );
 		$this->assertSame( 'About', $entry['label'] );
 		$this->assertIsCallable( $entry['template'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_missing_window_id_returns_wp_error() {
-		$result = desktop_mode_register_window_tab( '', array(
+		$result = open_station_register_window_tab( '', array(
 			'value'    => 'x',
 			'label'    => 'X',
 			'template' => static function () {},
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_missing_window_id', $result->get_error_code() );
+		$this->assertSame( 'open_station_missing_window_id', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_missing_tab_value_returns_wp_error() {
 		$this->register_demo_window( 'demo-missing-value' );
 
-		$result = desktop_mode_register_window_tab( 'demo-missing-value', array(
+		$result = open_station_register_window_tab( 'demo-missing-value', array(
 			'label'    => 'X',
 			'template' => static function () {},
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_missing_tab_value', $result->get_error_code() );
+		$this->assertSame( 'open_station_missing_tab_value', $result->get_error_code() );
 	}
 
 	/**
 	 * The reserved `main` value can't be used as a tab id — that's
 	 * how the shell keys the window's own template tab.
 	 *
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_reserved_value_main_returns_wp_error() {
 		$this->register_demo_window( 'demo-reserved' );
 
-		$result = desktop_mode_register_window_tab( 'demo-reserved', array(
+		$result = open_station_register_window_tab( 'demo-reserved', array(
 			'value'    => 'main',
 			'label'    => 'X',
 			'template' => static function () {},
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_reserved_tab_value', $result->get_error_code() );
+		$this->assertSame( 'open_station_reserved_tab_value', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_missing_label_returns_wp_error() {
 		$this->register_demo_window( 'demo-no-label' );
 
-		$result = desktop_mode_register_window_tab( 'demo-no-label', array(
+		$result = open_station_register_window_tab( 'demo-no-label', array(
 			'value'    => 'about',
 			'template' => static function () {},
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_missing_label', $result->get_error_code() );
+		$this->assertSame( 'open_station_missing_label', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_non_callable_template_returns_wp_error() {
 		$this->register_demo_window( 'demo-bad-template' );
 
-		$result = desktop_mode_register_window_tab( 'demo-bad-template', array(
+		$result = open_station_register_window_tab( 'demo-bad-template', array(
 			'value'    => 'x',
 			'label'    => 'X',
 			'template' => 'not callable',
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_invalid_template', $result->get_error_code() );
+		$this->assertSame( 'open_station_invalid_template', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_capability_gate_denies_subscriber() {
 		$this->register_demo_window( 'demo-cap' );
 		wp_set_current_user( self::$subscriber_id );
 
-		$result = desktop_mode_register_window_tab( 'demo-cap', array(
+		$result = open_station_register_window_tab( 'demo-cap', array(
 			'value'        => 'x',
 			'label'        => 'X',
 			'template'     => static function () {},
@@ -164,7 +164,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_capability_denied', $result->get_error_code() );
+		$this->assertSame( 'open_station_capability_denied', $result->get_error_code() );
 	}
 
 	// --------------------------------------------------------------
@@ -172,27 +172,27 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	// --------------------------------------------------------------
 
 	/**
-	 * `desktop_mode_get_native_window_tabs()` always returns the main tab
+	 * `open_station_get_native_window_tabs()` always returns the main tab
 	 * first, then additional tabs in `position` order.
 	 *
-	 * @covers ::desktop_mode_get_native_window_tabs
+	 * @covers ::open_station_get_native_window_tabs
 	 */
 	public function test_tabs_are_sorted_with_main_first() {
 		$this->register_demo_window( 'demo-order' );
-		desktop_mode_register_window_tab( 'demo-order', array(
+		open_station_register_window_tab( 'demo-order', array(
 			'value'    => 'z',
 			'label'    => 'Z',
 			'template' => static function () {},
 			'position' => 30,
 		) );
-		desktop_mode_register_window_tab( 'demo-order', array(
+		open_station_register_window_tab( 'demo-order', array(
 			'value'    => 'a',
 			'label'    => 'A',
 			'template' => static function () {},
 			'position' => 10,
 		) );
 
-		$tabs = desktop_mode_get_native_window_tabs( 'demo-order' );
+		$tabs = open_station_get_native_window_tabs( 'demo-order' );
 		$values = wp_list_pluck( $tabs, 'value' );
 
 		$this->assertSame( array( 'main', 'a', 'z' ), $values );
@@ -204,56 +204,56 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	 * Main tab label falls back to the window title when
 	 * `main_tab_label` isn't provided.
 	 *
-	 * @covers ::desktop_mode_get_native_window_tabs
+	 * @covers ::open_station_get_native_window_tabs
 	 */
 	public function test_main_tab_label_defaults_to_title() {
-		desktop_mode_register_window( 'demo-default-label', array(
+		open_station_register_window( 'demo-default-label', array(
 			'title'    => 'Shortcuts',
 			'script'   => 'x',
 			'template' => static function () {},
 		) );
 
-		$tabs = desktop_mode_get_native_window_tabs( 'demo-default-label' );
+		$tabs = open_station_get_native_window_tabs( 'demo-default-label' );
 		$this->assertSame( 'Shortcuts', $tabs[0]['label'] );
 	}
 
 	/**
 	 * Explicit `main_tab_label` overrides the title fallback.
 	 *
-	 * @covers ::desktop_mode_get_native_window_tabs
+	 * @covers ::open_station_get_native_window_tabs
 	 */
 	public function test_main_tab_label_honours_window_registration() {
-		desktop_mode_register_window( 'demo-explicit-label', array(
+		open_station_register_window( 'demo-explicit-label', array(
 			'title'          => 'Jorvy',
 			'main_tab_label' => 'Quotes',
 			'script'         => 'x',
 			'template'       => static function () {},
 		) );
 
-		$tabs = desktop_mode_get_native_window_tabs( 'demo-explicit-label' );
+		$tabs = open_station_get_native_window_tabs( 'demo-explicit-label' );
 		$this->assertSame( 'Quotes', $tabs[0]['label'] );
 	}
 
 	/**
-	 * `desktop_mode_window_tabs` filter lets late-loading plugins
+	 * `open_station_window_tabs` filter lets late-loading plugins
 	 * reorder, hide, or relabel tabs the window owner registered.
 	 *
-	 * @covers ::desktop_mode_get_native_window_tabs
+	 * @covers ::open_station_get_native_window_tabs
 	 */
 	public function test_filter_can_reorder_tabs() {
 		$this->register_demo_window( 'demo-filter' );
-		desktop_mode_register_window_tab( 'demo-filter', array(
+		open_station_register_window_tab( 'demo-filter', array(
 			'value'    => 'first',
 			'label'    => 'First',
 			'template' => static function () {},
 		) );
-		desktop_mode_register_window_tab( 'demo-filter', array(
+		open_station_register_window_tab( 'demo-filter', array(
 			'value'    => 'second',
 			'label'    => 'Second',
 			'template' => static function () {},
 		) );
 
-		add_filter( 'desktop_mode_window_tabs', static function ( $tabs ) {
+		add_filter( 'open_station_window_tabs', static function ( $tabs ) {
 			// Reverse the non-main tabs.
 			$main   = array_shift( $tabs );
 			$extras = array_reverse( $tabs );
@@ -261,7 +261,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 		} );
 
 		$values = wp_list_pluck(
-			desktop_mode_get_native_window_tabs( 'demo-filter' ),
+			open_station_get_native_window_tabs( 'demo-filter' ),
 			'value'
 		);
 		$this->assertSame( array( 'main', 'second', 'first' ), $values );
@@ -276,26 +276,26 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	 * should succeed and appear in the tab list alongside the
 	 * original author's tabs.
 	 *
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_cross_plugin_tab_addition() {
 		$this->register_demo_window( 'demo-xplugin' );
 
 		// "Plugin A" registers its own tab.
-		desktop_mode_register_window_tab( 'demo-xplugin', array(
+		open_station_register_window_tab( 'demo-xplugin', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
 		// "Plugin B" attaches to the same window.
-		desktop_mode_register_window_tab( 'demo-xplugin', array(
+		open_station_register_window_tab( 'demo-xplugin', array(
 			'value'    => 'stats',
 			'label'    => 'Stats',
 			'template' => static function () {},
 		) );
 
 		$values = wp_list_pluck(
-			desktop_mode_get_native_window_tabs( 'demo-xplugin' ),
+			open_station_get_native_window_tabs( 'demo-xplugin' ),
 			'value'
 		);
 		$this->assertContains( 'about', $values );
@@ -310,30 +310,30 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	 * Single-pane windows (no additional tabs) render the plugin's
 	 * template markup directly — the backwards-compatible fast path.
 	 *
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_template_html_without_tabs_is_flat() {
 		$this->register_demo_window( 'demo-flat' );
 
-		$entry = desktop_mode_native_window_registry( 'demo-flat' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-flat' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
-		$this->assertStringNotContainsString( '<wpd-tabs', $html );
-		$this->assertStringNotContainsString( '<wpd-tabpanel', $html );
+		$this->assertStringNotContainsString( '<os-tabs', $html );
+		$this->assertStringNotContainsString( '<os-tabpanel', $html );
 	}
 
 	/**
 	 * Once at least one additional tab is registered the shell
-	 * wraps the whole body in `<wpd-stack>` + `<wpd-tabs>` +
-	 * `<wpd-tabpanel>`s. Plugin authors never hand-write this
+	 * wraps the whole body in `<os-stack>` + `<os-tabs>` +
+	 * `<os-tabpanel>`s. Plugin authors never hand-write this
 	 * markup.
 	 *
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_template_html_wraps_with_tabs_when_extras_exist() {
 		$this->register_demo_window( 'demo-wrap' );
-		desktop_mode_register_window_tab( 'demo-wrap', array(
+		open_station_register_window_tab( 'demo-wrap', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {
@@ -341,19 +341,19 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 			},
 		) );
 
-		$entry = desktop_mode_native_window_registry( 'demo-wrap' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-wrap' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
-		$this->assertStringContainsString( '<wpd-tabs value="main">', $html );
-		$this->assertStringContainsString( '<wpd-tab value="main">', $html );
-		$this->assertStringContainsString( '<wpd-tab value="about">About</wpd-tab>', $html );
+		$this->assertStringContainsString( '<os-tabs value="main">', $html );
+		$this->assertStringContainsString( '<os-tab value="main">', $html );
+		$this->assertStringContainsString( '<os-tab value="about">About</os-tab>', $html );
 		// Main panel is the active one — no `hidden` attribute.
-		$this->assertStringContainsString( '<wpd-tabpanel for="main">', $html );
+		$this->assertStringContainsString( '<os-tabpanel for="main">', $html );
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
 		// Non-active panel ships with `hidden` so first paint is
 		// correct regardless of custom-element upgrade order — see
-		// the Phase A DX fix in `desktop_mode_build_native_window_template_html`.
-		$this->assertStringContainsString( '<wpd-tabpanel for="about" hidden>', $html );
+		// the Phase A DX fix in `open_station_build_native_window_template_html`.
+		$this->assertStringContainsString( '<os-tabpanel for="about" hidden>', $html );
 		$this->assertStringContainsString( '<p class="about">ABOUT</p>', $html );
 	}
 
@@ -362,20 +362,20 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	 * 16. Callers opt into edge-to-edge
 	 * content by passing `main_tab_padding => 0` when registering
 	 * the window — CSS-as-attribute applies the value as an inline
-	 * style on the wrap's `<wpd-stack>`.
+	 * style on the wrap's `<os-stack>`.
 	 *
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_tab_wrap_padding_defaults_to_16() {
 		$this->register_demo_window( 'demo-wrap-default' );
-		desktop_mode_register_window_tab( 'demo-wrap-default', array(
+		open_station_register_window_tab( 'demo-wrap-default', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
 
-		$entry = desktop_mode_native_window_registry( 'demo-wrap-default' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-wrap-default' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringContainsString( 'padding="16"', $html );
 		$this->assertStringNotContainsString(
@@ -386,39 +386,39 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_tab_wrap_padding_honours_window_registration() {
-		desktop_mode_register_window( 'demo-wrap-zero', array(
+		open_station_register_window( 'demo-wrap-zero', array(
 			'title'            => 'Zero',
 			'script'           => 'x',
 			'template'         => static function () {},
 			'main_tab_padding' => 0,
 		) );
-		desktop_mode_register_window_tab( 'demo-wrap-zero', array(
+		open_station_register_window_tab( 'demo-wrap-zero', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
 
-		$entry = desktop_mode_native_window_registry( 'demo-wrap-zero' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-wrap-zero' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringContainsString( 'padding="0"', $html );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_tab_wrap_padding_filter_overrides_default() {
 		$this->register_demo_window( 'demo-wrap-filter' );
-		desktop_mode_register_window_tab( 'demo-wrap-filter', array(
+		open_station_register_window_tab( 'demo-wrap-filter', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
 
-		add_filter( 'desktop_mode_native_window_tab_wrap_padding',
+		add_filter( 'open_station_native_window_tab_wrap_padding',
 			static function ( $px, $window_id ) {
 				return 'demo-wrap-filter' === $window_id ? 24 : $px;
 			},
@@ -426,35 +426,35 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 			2
 		);
 
-		$entry = desktop_mode_native_window_registry( 'demo-wrap-filter' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-wrap-filter' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringContainsString( 'padding="24"', $html );
 
-		remove_all_filters( 'desktop_mode_native_window_tab_wrap_padding' );
+		remove_all_filters( 'open_station_native_window_tab_wrap_padding' );
 	}
 
 	/**
 	 * Negative values are clamped to zero to prevent an inline
 	 * `padding="-8"` from reaching the DOM.
 	 *
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_tab_wrap_padding_clamps_negative_values() {
-		desktop_mode_register_window( 'demo-wrap-neg', array(
+		open_station_register_window( 'demo-wrap-neg', array(
 			'title'            => 'Neg',
 			'script'           => 'x',
 			'template'         => static function () {},
 			'main_tab_padding' => -8,
 		) );
-		desktop_mode_register_window_tab( 'demo-wrap-neg', array(
+		open_station_register_window_tab( 'demo-wrap-neg', array(
 			'value'    => 'x',
 			'label'    => 'X',
 			'template' => static function () {},
 		) );
 
-		$entry = desktop_mode_native_window_registry( 'demo-wrap-neg' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-wrap-neg' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringContainsString( 'padding="0"', $html );
 		$this->assertStringNotContainsString( 'padding="-', $html );
@@ -465,18 +465,18 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	 * emits them into HTML attributes and tag bodies, so a plugin
 	 * that passes `<script>` via `label` must not break out.
 	 *
-	 * @covers ::desktop_mode_build_native_window_template_html
+	 * @covers ::open_station_build_native_window_template_html
 	 */
 	public function test_template_html_escapes_tab_labels() {
 		$this->register_demo_window( 'demo-escape' );
-		desktop_mode_register_window_tab( 'demo-escape', array(
+		open_station_register_window_tab( 'demo-escape', array(
 			'value'    => 'x',
 			'label'    => '<script>alert(1)</script>',
 			'template' => static function () {},
 		) );
 
-		$entry = desktop_mode_native_window_registry( 'demo-escape' );
-		$html  = desktop_mode_build_native_window_template_html( $entry );
+		$entry = open_station_native_window_registry( 'demo-escape' );
+		$html  = open_station_build_native_window_template_html( $entry );
 
 		$this->assertStringNotContainsString( '<script>alert(1)</script>', $html );
 		$this->assertStringContainsString( '&lt;script&gt;', $html );
@@ -487,13 +487,13 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	// --------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_registered_action_fires_on_success() {
 		$this->register_demo_window( 'demo-action' );
 		$calls = array();
 		add_action(
-			'desktop_mode_window_tab_registered',
+			'open_station_window_tab_registered',
 			static function ( $window_id, $value, $entry ) use ( &$calls ) {
 				$calls[] = compact( 'window_id', 'value', 'entry' );
 			},
@@ -501,7 +501,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 			3
 		);
 
-		desktop_mode_register_window_tab( 'demo-action', array(
+		open_station_register_window_tab( 'demo-action', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
@@ -513,16 +513,16 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window_tab
+	 * @covers ::open_station_register_window_tab
 	 */
 	public function test_registered_action_does_not_fire_on_error() {
 		$this->register_demo_window( 'demo-no-fire' );
 		$count = 0;
-		add_action( 'desktop_mode_window_tab_registered', static function () use ( &$count ) {
+		add_action( 'open_station_window_tab_registered', static function () use ( &$count ) {
 			$count++;
 		} );
 
-		desktop_mode_register_window_tab( 'demo-no-fire', array(
+		open_station_register_window_tab( 'demo-no-fire', array(
 			// missing label — returns WP_Error.
 			'value'    => 'x',
 			'template' => static function () {},
@@ -537,21 +537,21 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 
 	/**
 	 * The native-windows payload shipped to the shell via
-	 * `desktopModeConfig.nativeWindows` carries a `tabs` descriptor
+	 * `openStationConfig.nativeWindows` carries a `tabs` descriptor
 	 * array so subscribers that want to inspect tabs without
 	 * re-parsing the template HTML can do so.
 	 *
-	 * @covers ::desktop_mode_build_native_windows_payload
+	 * @covers ::open_station_build_native_windows_payload
 	 */
 	public function test_payload_includes_tabs_descriptor() {
 		$this->register_demo_window( 'demo-payload' );
-		desktop_mode_register_window_tab( 'demo-payload', array(
+		open_station_register_window_tab( 'demo-payload', array(
 			'value'    => 'about',
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
 
-		$payload = desktop_mode_build_native_windows_payload();
+		$payload = open_station_build_native_windows_payload();
 		$entry   = null;
 		foreach ( $payload as $row ) {
 			if ( 'demo-payload' === $row['id'] ) {

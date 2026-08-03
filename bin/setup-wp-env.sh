@@ -9,7 +9,7 @@ enable_guidelines_experiment() {
 	if ! "${WP_ENV_BIN}" run "${target}" wp plugin is-installed gutenberg; then
 		"${WP_ENV_BIN}" run "${target}" wp plugin install gutenberg
 	fi
-	"${WP_ENV_BIN}" run "${target}" wp plugin activate desktop-mode gutenberg
+	"${WP_ENV_BIN}" run "${target}" wp plugin activate openstation gutenberg
 	"${WP_ENV_BIN}" run "${target}" wp eval '
 		$experiments = get_option( "gutenberg-experiments", array() );
 		if ( ! is_array( $experiments ) ) {

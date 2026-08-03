@@ -1,10 +1,10 @@
 /**
- * Desktop Mode — Challenges client (main-bundle side).
+ * OpenStation — Challenges client (main-bundle side).
  *
  * Lives in the always-on shell bundle — like the recycle-bin badge —
  * because challenge delivery must work even when the Games window
  * has never been opened this session. Wires the Heartbeat bus
- * (`desktop_mode_games_subscribe` out, `desktop_mode_games` in),
+ * (`open_station_games_subscribe` out, `open_station_games` in),
  * feeds the shared challenges store, and owns the notification
  * policy:
  *
@@ -75,7 +75,7 @@ function promptRecipient( row: GameChallengeRow ): void {
 	notify( {
 		title: __( 'Game challenge' ),
 		body: message,
-		tag: `desktop-mode-game-challenge-${ row.id }`,
+		tag: `os-game-challenge-${ row.id }`,
 	} );
 	showToast( {
 		message,
@@ -115,7 +115,7 @@ function promptChallenger( row: GameChallengeRow ): void {
 	notify( {
 		title: __( 'Challenge finished' ),
 		body: message,
-		tag: `desktop-mode-game-challenge-${ row.id }`,
+		tag: `os-game-challenge-${ row.id }`,
 	} );
 	showToast( { message } );
 }
@@ -130,13 +130,13 @@ export function bootGamesChallenges( deps: GamesChallengesClientDeps ): void {
 		return;
 	}
 
-	heartbeat.contribute( 'desktop_mode_games_subscribe', () => ( {
+	heartbeat.contribute( 'open_station_games_subscribe', () => ( {
 		challengesVersion: challengesState().version,
 	} ) );
 
 	heartbeat.subscribe< {
 		challenges?: GameChallengeRow[];
-	} >( 'desktop_mode_games', ( payload ) => {
+	} >( 'open_station_games', ( payload ) => {
 		if ( Array.isArray( payload?.challenges ) ) {
 			ingestChallenges( payload.challenges );
 		}

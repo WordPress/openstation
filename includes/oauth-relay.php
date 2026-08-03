@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — OAuth relay scaffolding.
+ * OpenStation — OAuth relay scaffolding.
  *
  * Every plugin that integrates with an external service (Tumblr,
  * Mastodon, Bluesky, Spotify, Discord, …) reinvents the same
@@ -18,7 +18,7 @@
  *
  * Public PHP surface:
  *
- *   desktop_mode_register_oauth_relay( $service, [
+ *   open_station_register_oauth_relay( $service, [
  *       'authorize_url' => 'https://www.example.com/oauth2/authorize',
  *       'token_url'     => 'https://api.example.com/oauth2/token',
  *       'client_id'     => 'CLIENT_ID',
@@ -31,7 +31,7 @@
  *
  * Public JS surface:
  *
- *   const { ok, service } = await wp.desktop.startOAuth( 'example' );
+ *   const { ok, service } = await wp.os.startOAuth( 'example' );
  *   // Tokens stay server-side — persisted by your `on_success` callback.
  *
  * REST routes:
@@ -41,13 +41,13 @@
  *   GET  /desktop-mode/v1/oauth/callback ?code&state&error
  *     → HTML page that postMessages the opener and closes
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const DESKTOP_MODE_OAUTH_TRANSIENT_PREFIX = 'desktop_mode_oauth_state_';
-const DESKTOP_MODE_OAUTH_STATE_TTL        = 600; // 10 minutes.
+const OPEN_STATION_OAUTH_TRANSIENT_PREFIX = 'desktop_mode_oauth_state_';
+const OPEN_STATION_OAUTH_STATE_TTL        = 600; // 10 minutes.
 
 /**
  * Register an OAuth relay for `$service`.
@@ -83,11 +83,11 @@ const DESKTOP_MODE_OAUTH_STATE_TTL        = 600; // 10 minutes.
  * }
  * @return true|WP_Error `true` on success, `WP_Error` on validation failure.
  */
-function desktop_mode_register_oauth_relay( $service, $args = array() ) {
+function open_station_register_oauth_relay( $service, $args = array() ) {
 	$service = sanitize_key( (string) $service );
 	if ( '' === $service ) {
 		return new WP_Error(
-			'desktop_mode_oauth_missing_service',
+			'open_station_oauth_missing_service',
 			__( 'OAuth relay registration requires a non-empty service slug.', 'desktop-mode' )
 		);
 	}
@@ -106,7 +106,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 	foreach ( array( 'authorize_url', 'token_url', 'client_id', 'client_secret' ) as $required ) {
 		if ( '' === (string) $args[ $required ] ) {
 			return new WP_Error(
-				'desktop_mode_oauth_missing_' . $required,
+				'open_station_oauth_missing_' . $required,
 				/* translators: %s: missing field name. */
 				sprintf( __( 'OAuth relay registration requires a non-empty `%s`.', 'desktop-mode' ), $required ),
 				array( 'service' => $service )
@@ -116,7 +116,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 
 	if ( ! is_callable( $args['on_success'] ) ) {
 		return new WP_Error(
-			'desktop_mode_oauth_missing_on_success',
+			'open_station_oauth_missing_on_success',
 			__( 'OAuth relay registration requires a callable `on_success` handler.', 'desktop-mode' ),
 			array( 'service' => $service )
 		);
@@ -126,7 +126,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 	$token_url     = esc_url_raw( (string) $args['token_url'], array( 'http', 'https' ) );
 	if ( '' === $authorize_url || '' === $token_url ) {
 		return new WP_Error(
-			'desktop_mode_oauth_invalid_url',
+			'open_station_oauth_invalid_url',
 			__( 'OAuth relay `authorize_url` and `token_url` must be valid http(s) URLs.', 'desktop-mode' ),
 			array( 'service' => $service )
 		);
@@ -142,7 +142,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 		'on_success'    => $args['on_success'],
 		'capabilities'  => array_values( array_filter( array_map( 'strval', (array) $args['capabilities'] ) ) ),
 	);
-	desktop_mode_oauth_relay_registry( $service, $entry );
+	open_station_oauth_relay_registry( $service, $entry );
 
 	/**
 	 * Fires after an OAuth relay is registered. Use this to layer
@@ -153,7 +153,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 	 *                        (`client_secret` is masked).
 	 */
 	do_action(
-		'desktop_mode_oauth_relay_registered',
+		'open_station_oauth_relay_registered',
 		$service,
 		array_merge( $entry, array( 'client_secret' => '[redacted]' ) )
 	);
@@ -167,7 +167,7 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
  *
  * @internal
  */
-function desktop_mode_oauth_relay_registry( $service = '', $entry = null ) {
+function open_station_oauth_relay_registry( $service = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $service ) {
@@ -185,18 +185,18 @@ function desktop_mode_oauth_relay_registry( $service = '', $entry = null ) {
 
 /**
  * Remove a previously registered OAuth relay. Mirror of
- * `desktop_mode_register_oauth_relay()` — handy for plugins that
+ * `open_station_register_oauth_relay()` — handy for plugins that
  * register conditionally and for PHPUnit teardowns.
  *
  * @param string $service Service slug passed to register.
  * @return void
  */
-function desktop_mode_unregister_oauth_relay( $service ) {
+function open_station_unregister_oauth_relay( $service ) {
 	$service = sanitize_key( (string) $service );
 	if ( '' === $service ) {
 		return;
 	}
-	desktop_mode_oauth_relay_registry( $service, '__unset__' );
+	open_station_oauth_relay_registry( $service, '__unset__' );
 }
 
 /**
@@ -206,7 +206,7 @@ function desktop_mode_unregister_oauth_relay( $service ) {
  *
  * @return string
  */
-function desktop_mode_oauth_redirect_uri() {
+function open_station_oauth_redirect_uri() {
 	return rest_url( 'desktop-mode/v1/oauth/callback' );
 }
 
@@ -219,18 +219,18 @@ function desktop_mode_oauth_redirect_uri() {
  * @param string $service The service slug being authorized.
  * @return string The state value to embed in the authorize URL.
  */
-function desktop_mode_oauth_issue_state( $user_id, $service ) {
+function open_station_oauth_issue_state( $user_id, $service ) {
 	// 32 chars of letters+digits — `wp_generate_password` with the
 	// no-special-chars flag is the canonical WP shape.
 	$state = wp_generate_password( 32, false );
 	set_transient(
-		DESKTOP_MODE_OAUTH_TRANSIENT_PREFIX . $state,
+		OPEN_STATION_OAUTH_TRANSIENT_PREFIX . $state,
 		array(
 			'user_id' => (int) $user_id,
 			'service' => (string) $service,
 			'issued'  => time(),
 		),
-		DESKTOP_MODE_OAUTH_STATE_TTL
+		OPEN_STATION_OAUTH_STATE_TTL
 	);
 	return $state;
 }
@@ -245,12 +245,12 @@ function desktop_mode_oauth_issue_state( $user_id, $service ) {
  * @param string $state State value from the callback query.
  * @return array{user_id:int,service:string,issued:int}|null
  */
-function desktop_mode_oauth_consume_state( $state ) {
+function open_station_oauth_consume_state( $state ) {
 	$state = (string) $state;
 	if ( '' === $state ) {
 		return null;
 	}
-	$key   = DESKTOP_MODE_OAUTH_TRANSIENT_PREFIX . $state;
+	$key   = OPEN_STATION_OAUTH_TRANSIENT_PREFIX . $state;
 	$entry = get_transient( $key );
 	if ( ! is_array( $entry ) || empty( $entry['user_id'] ) || empty( $entry['service'] ) ) {
 		return null;
@@ -270,12 +270,12 @@ function desktop_mode_oauth_consume_state( $state ) {
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
+function open_station_rest_oauth_start( WP_REST_Request $request ) {
 	$service = sanitize_key( (string) $request->get_param( 'service' ) );
-	$entry   = desktop_mode_oauth_relay_registry( $service );
+	$entry   = open_station_oauth_relay_registry( $service );
 	if ( ! is_array( $entry ) ) {
 		return new WP_Error(
-			'desktop_mode_oauth_unknown_service',
+			'open_station_oauth_unknown_service',
 			__( 'No OAuth relay is registered for that service.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -284,7 +284,7 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
 	foreach ( $entry['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
 			return new WP_Error(
-				'desktop_mode_oauth_capability_denied',
+				'open_station_oauth_capability_denied',
 				__( 'Current user lacks the capability required to start this OAuth flow.', 'desktop-mode' ),
 				array( 'status' => 403 )
 			);
@@ -292,12 +292,12 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
 	}
 
 	$user_id = get_current_user_id();
-	$state   = desktop_mode_oauth_issue_state( $user_id, $service );
+	$state   = open_station_oauth_issue_state( $user_id, $service );
 
 	$query = array(
 		'response_type' => 'code',
 		'client_id'     => $entry['client_id'],
-		'redirect_uri'  => desktop_mode_oauth_redirect_uri(),
+		'redirect_uri'  => open_station_oauth_redirect_uri(),
 		'state'         => $state,
 	);
 	if ( '' !== $entry['scope'] ) {
@@ -315,7 +315,7 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
 	 * @param array  $entry   Registry entry (with secrets redacted).
 	 */
 	$query = apply_filters(
-		'desktop_mode_oauth_authorize_query',
+		'open_station_oauth_authorize_query',
 		$query,
 		$service,
 		array_merge( $entry, array( 'client_secret' => '[redacted]' ) )
@@ -339,14 +339,14 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
+function open_station_rest_oauth_callback( WP_REST_Request $request ) {
 	$state = (string) $request->get_param( 'state' );
 	$code  = (string) $request->get_param( 'code' );
 	$error = (string) $request->get_param( 'error' );
 
-	$consumed = desktop_mode_oauth_consume_state( $state );
+	$consumed = open_station_oauth_consume_state( $state );
 	if ( null === $consumed ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'reason'  => 'invalid_state',
 			'message' => __( 'OAuth state nonce missing, expired, or already used.', 'desktop-mode' ),
@@ -356,7 +356,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	$user_id = $consumed['user_id'];
 
 	if ( '' !== $error ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'service' => $service,
 			'reason'  => 'authorize_denied',
@@ -364,9 +364,9 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 		) );
 	}
 
-	$entry = desktop_mode_oauth_relay_registry( $service );
+	$entry = open_station_oauth_relay_registry( $service );
 	if ( ! is_array( $entry ) ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'reason'  => 'unknown_service',
 			'message' => __( 'OAuth relay is no longer registered for that service.', 'desktop-mode' ),
@@ -374,7 +374,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	}
 
 	if ( '' === $code ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'service' => $service,
 			'reason'  => 'missing_code',
@@ -391,13 +391,13 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 				'code'          => $code,
 				'client_id'     => $entry['client_id'],
 				'client_secret' => $entry['client_secret'],
-				'redirect_uri'  => desktop_mode_oauth_redirect_uri(),
+				'redirect_uri'  => open_station_oauth_redirect_uri(),
 			),
 			'headers' => array( 'Accept' => 'application/json' ),
 		)
 	);
 	if ( is_wp_error( $response ) ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'service' => $service,
 			'reason'  => 'token_request_failed',
@@ -408,7 +408,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	$body   = wp_remote_retrieve_body( $response );
 	$tokens = json_decode( $body, true );
 	if ( $status < 200 || $status >= 300 || ! is_array( $tokens ) ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'service' => $service,
 			'reason'  => 'token_exchange_failed',
@@ -423,7 +423,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	try {
 		call_user_func( $entry['on_success'], $user_id, $tokens, $service );
 	} catch ( \Throwable $e ) {
-		return desktop_mode_oauth_render_callback_html( array(
+		return open_station_oauth_render_callback_html( array(
 			'ok'      => false,
 			'service' => $service,
 			'reason'  => 'on_success_threw',
@@ -440,9 +440,9 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	 * @param string $service Service slug.
 	 * @param int    $user_id User who connected.
 	 */
-	do_action( 'desktop_mode_oauth_relay_connected', $service, $user_id );
+	do_action( 'open_station_oauth_relay_connected', $service, $user_id );
 
-	return desktop_mode_oauth_render_callback_html( array(
+	return open_station_oauth_render_callback_html( array(
 		'ok'      => true,
 		'service' => $service,
 	) );
@@ -452,7 +452,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * Build the HTML string the OAuth callback popup renders.
  *
  * Pure function — no side effects. Split out from
- * {@see desktop_mode_oauth_render_callback_html()} so unit tests
+ * {@see open_station_oauth_render_callback_html()} so unit tests
  * can exercise the markup directly without going through a REST
  * dispatch + output-buffer dance.
  *
@@ -474,7 +474,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
  * @return string
  */
-function desktop_mode_oauth_build_callback_html( array $payload ) {
+function open_station_oauth_build_callback_html( array $payload ) {
 	// `JSON_HEX_TAG` escapes `<` and `>` as `\u003C` / `\u003E` so a
 	// `</script>` smuggled into any string value can't terminate the
 	// script block early. `JSON_UNESCAPED_SLASHES` keeps URLs
@@ -498,7 +498,7 @@ body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; color: 
     try {
         if ( window.opener ) {
             window.opener.postMessage(
-                { type: 'desktop-mode-oauth-callback', payload: {$payload_literal} },
+                { type: 'os-oauth-callback', payload: {$payload_literal} },
                 {$origin_literal}
             );
         }
@@ -534,8 +534,8 @@ body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; color: 
  * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
  * @return WP_REST_Response
  */
-function desktop_mode_oauth_render_callback_html( array $payload ) {
-	$html = desktop_mode_oauth_build_callback_html( $payload );
+function open_station_oauth_render_callback_html( array $payload ) {
+	$html = open_station_oauth_build_callback_html( $payload );
 
 	$filter_cb = null;
 	$filter_cb = static function ( $served, $result, $request ) use ( $html, &$filter_cb ) {
@@ -556,7 +556,7 @@ function desktop_mode_oauth_render_callback_html( array $payload ) {
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `desktop_mode_oauth_build_callback_html`.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `open_station_oauth_build_callback_html`.
 		echo $html;
 		// `true` tells WP_REST_Server we already served the response,
 		// short-circuiting the json-encode + `echo` path that follows.
@@ -577,7 +577,7 @@ function desktop_mode_oauth_render_callback_html( array $payload ) {
  *
  * @return true|WP_Error
  */
-function desktop_mode_rest_oauth_start_permission() {
+function open_station_rest_oauth_start_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'rest_forbidden',
@@ -593,14 +593,14 @@ function desktop_mode_rest_oauth_start_permission() {
  *
  * @return void
  */
-function desktop_mode_register_oauth_rest_routes() {
+function open_station_register_oauth_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/oauth/start',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'desktop_mode_rest_oauth_start',
-			'permission_callback' => 'desktop_mode_rest_oauth_start_permission',
+			'callback'            => 'open_station_rest_oauth_start',
+			'permission_callback' => 'open_station_rest_oauth_start_permission',
 			'args'                => array(
 				'service' => array(
 					'required' => true,
@@ -615,7 +615,7 @@ function desktop_mode_register_oauth_rest_routes() {
 		'/oauth/callback',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_rest_oauth_callback',
+			'callback'            => 'open_station_rest_oauth_callback',
 			// Public — the route is reached via a redirect from the
 			// remote service. Auth is the state nonce + (later) the
 			// per-service capabilities check on the start side.
@@ -628,4 +628,4 @@ function desktop_mode_register_oauth_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_oauth_rest_routes' );
+add_action( 'rest_api_init', 'open_station_register_oauth_rest_routes' );

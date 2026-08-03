@@ -1,23 +1,23 @@
 /**
- * Desktop Mode — Window effects.
+ * OpenStation — Window effects.
  *
  * Visual treatments applied to windows by the unfocus-effect engine
  * (`src/effects/unfocus-engine.ts`). The engine toggles a per-effect
- * class on the window root (`.desktop-mode-window`) while the window
+ * class on the window root (`.os-window`) while the window
  * is NOT focused; each effect ships the matching rule here (or, for
  * plugin effects, in the plugin's own stylesheet).
  *
  * The fade is driven by the `filter` entry in the shared
- * `.desktop-mode-window` transition (see `window-chrome.css`), so
+ * `.os-window` transition (see `window-chrome.css`), so
  * effects that animate via `filter` get a smooth two-way transition as
  * focus moves between windows — and collapse to instant under
  * `prefers-reduced-motion` along with every other window transition.
  *
- * Registered as its own `desktop-mode-effects` style handle, chained
- * by dependency between `desktop-mode-os-settings` and
- * `desktop-mode-window-links` so its position in the cascade matches
+ * Registered as its own `os-effects` style handle, chained
+ * by dependency between `os-settings` and
+ * `os-window-links` so its position in the cascade matches
  * where it sat when these sheets were `@import`ed. Enqueuing
- * `desktop-mode-windows` still pulls it in via that chain.
+ * `os-windows` still pulls it in via that chain.
  *
  * @since 0.26.0
  */
@@ -27,7 +27,7 @@
  * custom properties so a theme or plugin can re-tune the intensity
  * without overriding the whole rule (and so the values read as a set).
  */
-.desktop-mode-window {
+.os-window {
 	/* How long an effect takes to ramp in/out as focus moves between
 	 * windows. Drives the `filter` entry of the shared window
 	 * transition (see `window-chrome.css`); applies to every
@@ -35,30 +35,30 @@
 	 * directions — losing focus and regaining it. Bump it up for a
 	 * slower, dreamier blur; drop it for a snappier feel. Collapses to
 	 * instant under `prefers-reduced-motion`. */
-	--desktop-mode-fx-transition-duration: 0.5s;
+	--os-fx-transition-duration: 0.5s;
 
 	/* darken — dim + slight desaturate */
-	--desktop-mode-fx-darken-brightness: 0.82;
-	--desktop-mode-fx-darken-saturate: 0.92;
+	--os-fx-darken-brightness: 0.82;
+	--os-fx-darken-saturate: 0.92;
 
 	/* frost — frosted-glass blur, lifted + cooled */
-	--desktop-mode-fx-frost-blur: 3px;
-	--desktop-mode-fx-frost-saturate: 0.7;
-	--desktop-mode-fx-frost-brightness: 1.08;
+	--os-fx-frost-blur: 3px;
+	--os-fx-frost-saturate: 0.7;
+	--os-fx-frost-brightness: 1.08;
 
 	/* grayscale — drain colour, settle brightness */
-	--desktop-mode-fx-grayscale-amount: 1;
-	--desktop-mode-fx-grayscale-brightness: 0.95;
+	--os-fx-grayscale-amount: 1;
+	--os-fx-grayscale-brightness: 0.95;
 }
 
 /*
  * `darken` — dims unfocused windows (title bar and body alike) so the
  * focused window reads as the active surface.
  */
-.desktop-mode-window--fx-darken {
+.os-window--fx-darken {
 	filter:
-		brightness( var( --desktop-mode-fx-darken-brightness, 0.82 ) )
-		saturate( var( --desktop-mode-fx-darken-saturate, 0.92 ) );
+		brightness( var( --os-fx-darken-brightness, 0.82 ) )
+		saturate( var( --os-fx-darken-saturate, 0.92 ) );
 }
 
 /*
@@ -69,11 +69,11 @@
  * window subtree — iframe content included — so the frosting is total,
  * not just chrome-deep.
  */
-.desktop-mode-window--fx-frost {
+.os-window--fx-frost {
 	filter:
-		blur( var( --desktop-mode-fx-frost-blur, 3px ) )
-		saturate( var( --desktop-mode-fx-frost-saturate, 0.7 ) )
-		brightness( var( --desktop-mode-fx-frost-brightness, 1.08 ) );
+		blur( var( --os-fx-frost-blur, 3px ) )
+		saturate( var( --os-fx-frost-saturate, 0.7 ) )
+		brightness( var( --os-fx-frost-brightness, 1.08 ) );
 }
 
 /*
@@ -83,8 +83,8 @@
  * dark. A touch of brightness settling keeps the mono windows from
  * glaring.
  */
-.desktop-mode-window--fx-grayscale {
+.os-window--fx-grayscale {
 	filter:
-		grayscale( var( --desktop-mode-fx-grayscale-amount, 1 ) )
-		brightness( var( --desktop-mode-fx-grayscale-brightness, 0.95 ) );
+		grayscale( var( --os-fx-grayscale-amount, 1 ) )
+		brightness( var( --os-fx-grayscale-brightness, 0.95 ) );
 }

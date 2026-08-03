@@ -79,12 +79,12 @@ describe( 'createPointerTracker', () => {
 		const frame = fakeIframe( { left: 0, top: 0 } );
 		const tracker = createPointerTracker();
 		expect( frame.posted ).toEqual( [
-			{ type: 'desktop-mode-pointer-track', enabled: true },
+			{ type: 'os-pointer-track', enabled: true },
 		] );
 		tracker.destroy();
 		expect( frame.posted ).toEqual( [
-			{ type: 'desktop-mode-pointer-track', enabled: true },
-			{ type: 'desktop-mode-pointer-track', enabled: false },
+			{ type: 'os-pointer-track', enabled: true },
+			{ type: 'os-pointer-track', enabled: false },
 		] );
 	} );
 
@@ -92,9 +92,9 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		const frame = fakeIframe( { left: 0, top: 0 } );
 		expect( frame.posted ).toEqual( [] );
-		post( frame.source, { type: 'desktop-mode-bridge-ready' } );
+		post( frame.source, { type: 'os-bridge-ready' } );
 		expect( frame.posted ).toEqual( [
-			{ type: 'desktop-mode-pointer-track', enabled: true },
+			{ type: 'os-pointer-track', enabled: true },
 		] );
 		tracker.destroy();
 	} );
@@ -102,7 +102,7 @@ describe( 'createPointerTracker', () => {
 	test( 'rebases forwarded iframe coordinates into the viewport', () => {
 		const frame = fakeIframe( { left: 300, top: 120 } );
 		const tracker = createPointerTracker();
-		post( frame.source, { type: 'desktop-mode-pointer-move', x: 40, y: 60 } );
+		post( frame.source, { type: 'os-pointer-move', x: 40, y: 60 } );
 		expect( tracker.get() ).toEqual( { x: 340, y: 180 } );
 		tracker.destroy();
 	} );
@@ -112,7 +112,7 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		post(
 			frame.source,
-			{ type: 'desktop-mode-pointer-move', x: 40, y: 60 },
+			{ type: 'os-pointer-move', x: 40, y: 60 },
 			'https://evil.example',
 		);
 		expect( tracker.get() ).toBeNull();
@@ -123,7 +123,7 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		post(
 			{ postMessage: () => undefined } as unknown as Window,
-			{ type: 'desktop-mode-pointer-move', x: 40, y: 60 },
+			{ type: 'os-pointer-move', x: 40, y: 60 },
 		);
 		expect( tracker.get() ).toBeNull();
 		tracker.destroy();
@@ -132,8 +132,8 @@ describe( 'createPointerTracker', () => {
 	test( 'ignores malformed coordinates', () => {
 		const frame = fakeIframe( { left: 0, top: 0 } );
 		const tracker = createPointerTracker();
-		post( frame.source, { type: 'desktop-mode-pointer-move', x: 'a', y: 1 } );
-		post( frame.source, { type: 'desktop-mode-pointer-move' } );
+		post( frame.source, { type: 'os-pointer-move', x: 'a', y: 1 } );
+		post( frame.source, { type: 'os-pointer-move' } );
 		expect( tracker.get() ).toBeNull();
 		tracker.destroy();
 	} );
@@ -156,7 +156,7 @@ describe( 'createPointerTracker', () => {
 		movePointer( 10, 10 );
 		document.documentElement.dispatchEvent( new MouseEvent( 'mouseleave' ) );
 		vi.advanceTimersByTime( 100 );
-		post( frame.source, { type: 'desktop-mode-pointer-move', x: 5, y: 7 } );
+		post( frame.source, { type: 'os-pointer-move', x: 5, y: 7 } );
 		vi.advanceTimersByTime( 500 );
 		expect( tracker.get() ).toEqual( { x: 505, y: 7 } );
 		tracker.destroy();
@@ -167,7 +167,7 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		tracker.destroy();
 		movePointer( 55, 66 );
-		post( frame.source, { type: 'desktop-mode-pointer-move', x: 1, y: 2 } );
+		post( frame.source, { type: 'os-pointer-move', x: 1, y: 2 } );
 		expect( tracker.get() ).toBeNull();
 	} );
 } );

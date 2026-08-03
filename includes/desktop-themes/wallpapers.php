@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Desktop-theme wallpapers.
+ * OpenStation — Desktop-theme wallpapers.
  *
  * A theme may declare any number of wallpapers in its manifest. Each
  * is published into the ordinary wallpaper registry as a pickable
@@ -26,7 +26,7 @@
  * layers over whatever wallpaper is active and follows the theme;
  * this is a wallpaper in its own right that the user selects.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  * Namespaced so a theme's wallpaper can never collide with a
  * built-in or with a plugin's own registration.
  */
-const DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX = 'desktop-theme/';
+const OPEN_STATION_DESKTOP_THEME_WALLPAPER_PREFIX = 'desktop-theme/';
 
 /**
  * Build the CSS `background` value for a theme's wallpaper.
@@ -54,17 +54,17 @@ const DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX = 'desktop-theme/';
  * @param string $version   Cache-buster for relative paths.
  * @return string CSS value, or `''` when unusable.
  */
-function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $version = '' ) {
+function open_station_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $version = '' ) {
 	if ( ! is_array( $wallpaper ) || empty( $wallpaper['path'] ) ) {
 		return '';
 	}
-	$url = desktop_mode_desktop_theme_asset_url( $wallpaper['path'], $base_url, $version );
+	$url = open_station_desktop_theme_asset_url( $wallpaper['path'], $base_url, $version );
 	if ( '' === $url ) {
 		return '';
 	}
 
 	// `<image> <position> / <size> <repeat>` — a background shorthand,
-	// which is what `--desktop-mode-bg` is assigned to. Defaults cover
+	// which is what `--os-bg` is assigned to. Defaults cover
 	// the overwhelmingly common case (a photo filling the desk); the
 	// manifest can override each part through the same grammar the
 	// texture slots use.
@@ -72,7 +72,7 @@ function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $
 	$size     = ! empty( $wallpaper['size'] ) ? (string) $wallpaper['size'] : 'cover';
 	$repeat   = ! empty( $wallpaper['repeat'] ) ? (string) $wallpaper['repeat'] : 'no-repeat';
 
-	return desktop_mode_desktop_theme_css_url( $url ) . ' ' . $position . ' / ' . $size . ' ' . $repeat;
+	return open_station_desktop_theme_css_url( $url ) . ' ' . $position . ' / ' . $size . ' ' . $repeat;
 }
 
 /**
@@ -80,7 +80,7 @@ function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $
  *
  * The theme `name` reaching this function has already been through
  * `sanitize_text_field()` in the manifest sanitizer, and
- * `desktop_mode_register_wallpaper()` sanitizes the finished label
+ * `open_station_register_wallpaper()` sanitizes the finished label
  * again on the way into the registry. Both are belt-and-braces: the
  * shell paints wallpaper labels through the `html` tagged template,
  * whose text slots are built with `createTextNode()`, so a label is
@@ -91,7 +91,7 @@ function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $
  * @param string $own_label The wallpaper's own label, or `''`.
  * @return string
  */
-function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = '' ) {
+function open_station_desktop_theme_wallpaper_label( $name, $slug, $own_label = '' ) {
 	$own_label = (string) $own_label;
 	if ( '' === $own_label ) {
 		$label = sprintf(
@@ -118,7 +118,7 @@ function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = 
 	 * @param string $own_label The wallpaper's own label, or `''`.
 	 */
 	return (string) apply_filters(
-		'desktop_mode_desktop_theme_wallpaper_label',
+		'open_station_desktop_theme_wallpaper_label',
 		$label,
 		$name,
 		$slug,
@@ -140,19 +140,19 @@ function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = 
  *
  * @return void
  */
-function desktop_mode_register_desktop_theme_wallpapers() {
+function open_station_register_desktop_theme_wallpapers() {
 	$sources = array();
 
-	foreach ( desktop_mode_desktop_theme_registry() as $slug => $entry ) {
+	foreach ( open_station_desktop_theme_registry() as $slug => $entry ) {
 		$sources[ $slug ] = array( $entry, '', '' );
 	}
 	// Uploaded themes win on a slug collision, matching the payload
 	// builder's precedence.
-	foreach ( desktop_mode_desktop_themes_index() as $slug => $entry ) {
+	foreach ( open_station_desktop_themes_index() as $slug => $entry ) {
 		$installed_at = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
 		$sources[ $slug ] = array(
 			$entry,
-			desktop_mode_desktop_themes_url( $slug ),
+			open_station_desktop_themes_url( $slug ),
 			$installed_at > 0 ? (string) $installed_at : '',
 		);
 	}
@@ -169,19 +169,19 @@ function desktop_mode_register_desktop_theme_wallpapers() {
 		$name = isset( $manifest['name'] ) ? (string) $manifest['name'] : $slug;
 
 		foreach ( $manifest['wallpapers'] as $wallpaper ) {
-			$value = desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url, $version );
+			$value = open_station_desktop_theme_wallpaper_css( $wallpaper, $base_url, $version );
 			if ( '' === $value ) {
 				continue;
 			}
 			// `<theme-slug>/<wallpaper-id>` — the wallpaper id is
 			// derived from something stable (see the sanitizer), so a
 			// user's stored selection survives a re-upload.
-			$id = DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/' . $wallpaper['id'];
+			$id = OPEN_STATION_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/' . $wallpaper['id'];
 
-			desktop_mode_register_wallpaper(
+			open_station_register_wallpaper(
 				$id,
 				array(
-					'label' => desktop_mode_desktop_theme_wallpaper_label(
+					'label' => open_station_desktop_theme_wallpaper_label(
 						$name,
 						$slug,
 						isset( $wallpaper['label'] ) ? (string) $wallpaper['label'] : ''
@@ -201,4 +201,4 @@ function desktop_mode_register_desktop_theme_wallpapers() {
 		}
 	}
 }
-add_action( 'init', 'desktop_mode_register_desktop_theme_wallpapers', 20 );
+add_action( 'init', 'open_station_register_desktop_theme_wallpapers', 20 );

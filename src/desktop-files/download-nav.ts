@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — download navigation helper.
+ * OpenStation — download navigation helper.
  *
  * Triggers a browser download of an authenticated URL via a
  * transient same-origin anchor. No `fetch`-to-blob buffering (a

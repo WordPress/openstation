@@ -9,8 +9,8 @@
  *   - Install by slug:        `admin-ajax.php?action=install-plugin`
  *                             (Core's wp.updates handler — we just
  *                             call it from JS, no PHP of our own).
- *   - Upload .zip:            our `wp_ajax_desktop_mode_plugins_upload`.
- *   - Browse / Info / Reviews: our `wp_ajax_desktop_mode_plugins_*`.
+ *   - Upload .zip:            our `wp_ajax_open_station_plugins_upload`.
+ *   - Browse / Info / Reviews: our `wp_ajax_open_station_plugins_*`.
  *
  * Every call goes through `trackedFetch` so the window's title-bar
  * activity indicator picks it up.
@@ -32,12 +32,12 @@ const WINDOW_ID = 'desktop-mode-plugins';
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
 /**
- * Subset of the `desktop_mode_register_window( 'desktop-mode-plugins',
+ * Subset of the `open_station_register_window( 'desktop-mode-plugins',
  * […, 'config' => […] ] )` blob this bundle reads. Re-declared here
  * so the REST module isn't entangled with `index.ts`.
  */
@@ -72,7 +72,7 @@ export interface PluginsWindowConfig {
 	introSeen: boolean;
 	introUrl: string;
 	/**
-	 * Desktop Mode's own plugin file path (e.g.
+	 * OpenStation's own plugin file path (e.g.
 	 * `"desktop-mode/desktop-mode.php"`) — the same value WordPress
 	 * keys mutations by in `/wp/v2/plugins/{plugin}`. Compare
 	 * against the `InstalledPlugin.plugin` field on a deactivate/
@@ -97,14 +97,14 @@ export interface PluginsWindowConfig {
  * default that papers over a registration regression.
  */
 export function getConfig(): PluginsWindowConfig {
-	const store = window.desktopModeWindowConfig;
+	const store = window.openStationWindowConfig;
 	const cfg = store
 		? ( store[ WINDOW_ID ] as PluginsWindowConfig | undefined )
 		: undefined;
 	if ( ! cfg ) {
 		throw new Error(
 			`[${ WINDOW_ID }] config blob is missing — was the window opened ` +
-				'without registration? See the matching `desktop_mode_register_window()` ' +
+				'without registration? See the matching `open_station_register_window()` ' +
 				'call in `includes/plugins-window/window.php`.',
 		);
 	}
@@ -312,7 +312,7 @@ export async function fetchInstalledPlugins( opts: {
 	const cfg = getConfig();
 	const params = new URLSearchParams( { context: 'view', per_page: '100' } );
 	if ( opts.force ) {
-		params.set( 'desktop_mode_force_refresh', '1' );
+		params.set( 'open_station_force_refresh', '1' );
 	}
 	const url = joinRestUrl( cfg.restRoot, `wp/v2/plugins?${ params.toString() }` );
 	return restRequest< InstalledPlugin[] >( url, { method: 'GET' } );
@@ -425,7 +425,7 @@ export async function updateInstalledPlugin(
 	// firing, otherwise `Plugin_Upgrader::bulk_upgrade()` falls through
 	// to the "already at latest version" branch (the transient lookup
 	// misses on the stripped key). Mirrors the same fix we apply
-	// server-side in `desktop_mode_plugins_window_row_plugin_file()`.
+	// server-side in `open_station_plugins_window_row_plugin_file()`.
 	const pluginFile = plugin.plugin.endsWith( '.php' )
 		? plugin.plugin
 		: plugin.plugin + '.php';
@@ -434,7 +434,7 @@ export async function updateInstalledPlugin(
 		{
 			plugin: pluginFile,
 			slug:
-				plugin.desktop_mode_update_available?.slug ||
+				plugin.open_station_update_available?.slug ||
 				plugin.textdomain ||
 				plugin.plugin.split( '/' )[ 0 ],
 		},
@@ -498,7 +498,7 @@ export async function browsePlugins( args: {
 	plugins: WpOrgBrowsePlugin[];
 	info: Record< string, unknown >;
 } > {
-	return ajaxRequest( 'desktop_mode_plugins_browse', {
+	return ajaxRequest( 'open_station_plugins_browse', {
 		browse: args.browse,
 		search: args.search,
 		tag: args.tag,
@@ -509,7 +509,7 @@ export async function browsePlugins( args: {
 
 /** Fetch the full `plugin_information` payload for a slug. */
 export async function fetchPluginInfo( slug: string ): Promise< WpOrgPluginInfo > {
-	return ajaxRequest< WpOrgPluginInfo >( 'desktop_mode_plugins_info', { slug } );
+	return ajaxRequest< WpOrgPluginInfo >( 'open_station_plugins_info', { slug } );
 }
 
 /**
@@ -524,21 +524,21 @@ export interface FeaturedPlugin extends WpOrgBrowsePlugin {
 
 /**
  * Fetch the curated + auto-discovered list of plugins that integrate
- * with Desktop Mode. Backed by a 1h server-side transient — repeat
+ * with OpenStation. Backed by a 1h server-side transient — repeat
  * calls within that window return the same payload.
  */
 export async function fetchFeaturedPlugins(): Promise< {
 	plugins: FeaturedPlugin[];
 	info: { curated?: number; discovered?: number; results?: number };
 } > {
-	return ajaxRequest( 'desktop_mode_plugins_featured' );
+	return ajaxRequest( 'open_station_plugins_featured' );
 }
 
 /** Fetch (cached) recent reviews for a slug — falls back to histogram on parse failure. */
 export async function fetchPluginReviews(
 	slug: string,
 ): Promise< PluginReviewsResponse > {
-	return ajaxRequest< PluginReviewsResponse >( 'desktop_mode_plugins_reviews', { slug } );
+	return ajaxRequest< PluginReviewsResponse >( 'open_station_plugins_reviews', { slug } );
 }
 
 // ─── Install / Upload ─────────────────────────────────────────────────
@@ -571,7 +571,7 @@ export interface UploadPluginResult {
 }
 
 /**
- * Upload + install a .zip via our `wp_ajax_desktop_mode_plugins_upload`
+ * Upload + install a .zip via our `wp_ajax_open_station_plugins_upload`
  * action. Pass `overwrite: true` to instruct the upgrader to replace
  * an existing plugin directory — used by the dialog's confirm flow
  * after the server has returned a `folder_exists` 409.
@@ -585,14 +585,14 @@ export async function uploadPluginZip(
 	if ( options.overwrite ) {
 		data.set( 'overwrite', '1' );
 	}
-	return ajaxUpload( 'desktop_mode_plugins_upload', data );
+	return ajaxUpload( 'open_station_plugins_upload', data );
 }
 
 // ─── Live-refresh helper ──────────────────────────────────────────────
 
 /**
  * Repaint the dock + taskbar after a plugin mutation. Calls
- * `wp.desktop.refreshMenu()` which spawns a 1×1 hidden chromeless
+ * `wp.os.refreshMenu()` which spawns a 1×1 hidden chromeless
  * iframe to capture the real-admin-context menu payload (handles
  * plugins that gate `admin_menu` on `is_admin()`).
  *
@@ -602,7 +602,7 @@ export async function uploadPluginZip(
  * tile changing live.
  */
 export async function refreshFrameworkMenu(): Promise< void > {
-	const refresh = window.wp?.desktop?.refreshMenu;
+	const refresh = window.wp?.os?.refreshMenu;
 	if ( typeof refresh !== 'function' ) {
 		return;
 	}
@@ -616,8 +616,8 @@ export async function refreshFrameworkMenu(): Promise< void > {
 // ─── Self-deactivation guard ──────────────────────────────────────────
 
 /**
- * True if `plugin` is the Desktop Mode plugin file itself. Once
- * Desktop Mode is deactivated/deleted, the shell JS keeps running
+ * True if `plugin` is the OpenStation plugin file itself. Once
+ * OpenStation is deactivated/deleted, the shell JS keeps running
  * in the browser but every shell-routed REST + AJAX call lands on
  * a "plugin gone" stub — the user is stranded in a UI that can't
  * do anything. The callers use this to short-circuit into a hard
@@ -630,7 +630,7 @@ export async function refreshFrameworkMenu(): Promise< void > {
  * shape change can't silently re-introduce the bug where the reload
  * never fires.
  */
-export function isDesktopModeSelf( pluginFile: string ): boolean {
+export function isOpenStationSelf( pluginFile: string ): boolean {
 	let self = '';
 	try {
 		self = getConfig().selfPluginFile;
@@ -644,24 +644,24 @@ export function isDesktopModeSelf( pluginFile: string ): boolean {
 
 /**
  * Navigate the top-level window to the classic wp-admin Dashboard
- * after a brief delay so the user can read the "Desktop Mode
+ * after a brief delay so the user can read the "OpenStation
  * deactivated" toast. Drives navigation against `config.adminUrl`
  * (the server-localized `admin_url()`) instead of `location.reload()`
  * because the current URL may be a deactivated plugin's
  * `admin.php?page=…` route — reloading that lands the user on
  * "Sorry, you are not allowed to access this page." Going to the
  * Dashboard is the WordPress-default landing the user expects when
- * desktop mode is off.
+ * OpenStation is off.
  *
  * The top frame is targeted (not just this window) because every
- * other open desktop-mode window is also iframing into a now-stale
+ * other open openstation window is also iframing into a now-stale
  * shell context.
  *
  * The delay is short enough that the page swap feels like a natural
  * consequence of the click; long enough for the toast text to be
  * legible.
  */
-export function reloadOutOfDesktopMode(): void {
+export function reloadOutOfOpenStation(): void {
 	const target = window.top ?? window;
 	let dest: string;
 	try {

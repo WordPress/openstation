@@ -28,7 +28,7 @@ async function load(): Promise< PanelModule > {
 }
 
 /**
- * A stub `wp.desktop.mio` recording every write.
+ * A stub `wp.os.mio` recording every write.
  *
  * `writes` is the raw flat bag each control sent; `appearanceWrites` /
  * `physicsWrites` are the same calls split the way the real controller
@@ -54,7 +54,7 @@ function stubApi(): {
 		} as MioConfig,
 	};
 	( window as unknown as { wp: Record< string, unknown > } ).wp = {
-		desktop: {
+		os: {
 			mio: {
 				getConfig: () => state.config,
 				setStyle: ( partial: LookPartial ) => {
@@ -91,13 +91,13 @@ function stubApi(): {
 }
 
 function panel(): HTMLElement | null {
-	return document.querySelector( '.desktop-mode-mio-panel' );
+	return document.querySelector( '.os-mio-panel' );
 }
 
 function controls(): HTMLElement[] {
 	return Array.from(
 		panel()?.querySelectorAll(
-			'wpd-range-field, wpd-color-field, wpd-checkbox',
+			'os-range-field, os-color-field, os-checkbox',
 		) ?? [],
 	);
 }
@@ -117,9 +117,9 @@ describe( 'Mio style panel', () => {
 		const { openMioMenu } = await load();
 		openMioMenu( { x: 120, y: 80 } );
 
-		const menu = document.querySelector( '.desktop-mode-mio-menu' );
+		const menu = document.querySelector( '.os-mio-menu' );
 		expect( menu ).not.toBeNull();
-		const options = menu!.querySelectorAll( 'wpd-context-menu-option' );
+		const options = menu!.querySelectorAll( 'os-context-menu-option' );
 		expect( options ).toHaveLength( 1 );
 		expect( options[ 0 ].textContent ).toBe( 'Make it yours' );
 		expect( ( menu as HTMLElement ).style.left ).toBe( '120px' );
@@ -130,15 +130,15 @@ describe( 'Mio style panel', () => {
 		openMioMenu( { x: 0, y: 0 } );
 
 		document
-			.querySelector( 'wpd-context-menu-option' )!
+			.querySelector( 'os-context-menu-option' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-context-menu-pick', {
+				new CustomEvent( 'os-context-menu-pick', {
 					bubbles: true,
 					detail: { id: 'make-it-yours' },
 				} ),
 			);
 
-		expect( document.querySelector( '.desktop-mode-mio-menu' ) ).toBeNull();
+		expect( document.querySelector( '.os-mio-menu' ) ).toBeNull();
 		expect( panel() ).not.toBeNull();
 	} );
 
@@ -146,7 +146,7 @@ describe( 'Mio style panel', () => {
 		const { openMioMenu } = await load();
 		openMioMenu( { x: 0, y: 0 } );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
-		expect( document.querySelector( '.desktop-mode-mio-menu' ) ).toBeNull();
+		expect( document.querySelector( '.os-mio-menu' ) ).toBeNull();
 	} );
 
 	test( 'the panel only ever touches the look, never the springs', async () => {
@@ -159,17 +159,17 @@ describe( 'Mio style panel', () => {
 
 		for ( const el of controls() ) {
 			el.dispatchEvent(
-				new CustomEvent( 'wpd-range-change', {
+				new CustomEvent( 'os-range-change', {
 					detail: { value: 0.5 },
 				} ),
 			);
 			el.dispatchEvent(
-				new CustomEvent( 'wpd-color-change', {
+				new CustomEvent( 'os-color-change', {
 					detail: { value: '#123456' },
 				} ),
 			);
 			el.dispatchEvent(
-				new CustomEvent( 'wpd-checkbox-change', {
+				new CustomEvent( 'os-checkbox-change', {
 					detail: { checked: false },
 				} ),
 			);
@@ -213,7 +213,7 @@ describe( 'Mio style panel', () => {
 		//   - `glowBlur` stays on. The unblurred halo is a hard-edged
 		//     disc of colour behind the ring — not a look anyone chooses
 		//     on purpose. A site that needs the filter pass gone can
-		//     still drop it through `desktop_mode_mio_config`.
+		//     still drop it through `open_station_mio_config`.
 		const OMITTED = [ 'radius', 'glowBlur' ];
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
@@ -221,9 +221,9 @@ describe( 'Mio style panel', () => {
 
 		for ( const el of controls() ) {
 			for ( const [ type, detail ] of [
-				[ 'wpd-range-change', { value: 0.5 } ],
-				[ 'wpd-color-change', { value: '#123456' } ],
-				[ 'wpd-checkbox-change', { checked: false } ],
+				[ 'os-range-change', { value: 0.5 } ],
+				[ 'os-color-change', { value: '#123456' } ],
+				[ 'os-checkbox-change', { checked: false } ],
 			] as const ) {
 				el.dispatchEvent( new CustomEvent( type, { detail } ) );
 			}
@@ -248,8 +248,8 @@ describe( 'Mio style panel', () => {
 		const sweep = (): void => {
 			for ( const el of controls() ) {
 				for ( const [ type, detail ] of [
-					[ 'wpd-range-change', { value: 0.5 } ],
-					[ 'wpd-checkbox-change', { checked: false } ],
+					[ 'os-range-change', { value: 0.5 } ],
+					[ 'os-checkbox-change', { checked: false } ],
 				] as const ) {
 					el.dispatchEvent( new CustomEvent( type, { detail } ) );
 				}
@@ -257,9 +257,9 @@ describe( 'Mio style panel', () => {
 		};
 		sweep();
 		panel()!
-			.querySelector( 'wpd-select' )!
+			.querySelector( 'os-select' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-pick', { detail: { value: 'custom' } } ),
+				new CustomEvent( 'os-pick', { detail: { value: 'custom' } } ),
 			);
 		sweep();
 
@@ -277,15 +277,15 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		const glow = Array.from(
-			panel()!.querySelectorAll( 'wpd-range-field' ),
+			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' );
 		expect( glow ).toBeDefined();
 
 		glow!.dispatchEvent(
-			new CustomEvent( 'wpd-range-change', { detail: { value: 1.25 } } ),
+			new CustomEvent( 'os-range-change', { detail: { value: 1.25 } } ),
 		);
 		glow!.dispatchEvent(
-			new CustomEvent( 'wpd-range-change', { detail: { value: 2.5 } } ),
+			new CustomEvent( 'os-range-change', { detail: { value: 2.5 } } ),
 		);
 
 		expect( state.writes ).toEqual( [ { glow: 1.25 }, { glow: 2.5 } ] );
@@ -296,9 +296,9 @@ describe( 'Mio style panel', () => {
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
-		const field = panel()!.querySelector( 'wpd-color-field' );
+		const field = panel()!.querySelector( 'os-color-field' );
 		field!.dispatchEvent(
-			new CustomEvent( 'wpd-color-change', { detail: { value: '#ff00aa' } } ),
+			new CustomEvent( 'os-color-change', { detail: { value: '#ff00aa' } } ),
 		);
 
 		expect( state.writes[ 0 ] ).toEqual( { bodyColor: 0xff00aa } );
@@ -310,9 +310,9 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		panel()!
-			.querySelector( 'wpd-color-field' )!
+			.querySelector( 'os-color-field' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-color-change', { detail: { value: 'nope' } } ),
+				new CustomEvent( 'os-color-change', { detail: { value: 'nope' } } ),
 			);
 
 		expect( state.writes ).toHaveLength( 0 );
@@ -325,14 +325,14 @@ describe( 'Mio style panel', () => {
 
 		// Move something far from the default first.
 		const glow = Array.from(
-			panel()!.querySelectorAll( 'wpd-range-field' ),
+			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' )!;
 		glow.dispatchEvent(
-			new CustomEvent( 'wpd-range-change', { detail: { value: 0 } } ),
+			new CustomEvent( 'os-range-change', { detail: { value: 0 } } ),
 		);
 
 		const restore = Array.from(
-			panel()!.querySelectorAll( 'wpd-button' ),
+			panel()!.querySelectorAll( 'os-button' ),
 		).find( ( el ) => el.textContent === 'Restore Mio' );
 		expect( restore ).toBeDefined();
 		restore!.dispatchEvent( new MouseEvent( 'click' ) );
@@ -340,7 +340,7 @@ describe( 'Mio style panel', () => {
 		expect( state.resets ).toBe( 1 );
 		// Repainted from the restored config, not left showing 0.
 		const repainted = Array.from(
-			panel()!.querySelectorAll( 'wpd-range-field' ),
+			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' )!;
 		expect( repainted.getAttribute( 'value' ) ).toBe(
 			String( MIO_DEFAULTS.appearance.glow ),
@@ -352,7 +352,7 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 		openMioStylePanel();
 		expect(
-			document.querySelectorAll( '.desktop-mode-mio-panel' ),
+			document.querySelectorAll( '.os-mio-panel' ),
 		).toHaveLength( 1 );
 	} );
 
@@ -361,7 +361,7 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		const options = Array.from(
-			panel()!.querySelectorAll( 'wpd-select > wpd-option' ),
+			panel()!.querySelectorAll( 'os-select > os-option' ),
 		).map( ( el ) => el.getAttribute( 'value' ) );
 
 		// Every preset the sanitizer accepts must be reachable, or a
@@ -389,14 +389,14 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		panel()!
-			.querySelector( 'wpd-select' )!
+			.querySelector( 'os-select' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-pick', { detail: { value: 'star' } } ),
+				new CustomEvent( 'os-pick', { detail: { value: 'star' } } ),
 			);
 
 		expect( state.physicsWrites ).toEqual( [ { shapePreset: 'star' } ] );
 		expect(
-			panel()!.querySelector( 'wpd-select' )!.getAttribute( 'value' ),
+			panel()!.querySelector( 'os-select' )!.getAttribute( 'value' ),
 		).toBe( 'star' );
 	} );
 
@@ -406,7 +406,7 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		const corners = (): Element | undefined =>
-			Array.from( panel()!.querySelectorAll( 'wpd-range-field' ) ).find(
+			Array.from( panel()!.querySelectorAll( 'os-range-field' ) ).find(
 				( el ) => el.getAttribute( 'label' ) === 'Corners',
 			);
 
@@ -414,14 +414,14 @@ describe( 'Mio style panel', () => {
 		expect( corners() ).toBeUndefined();
 
 		panel()!
-			.querySelector( 'wpd-select' )!
+			.querySelector( 'os-select' )!
 			.dispatchEvent(
-				new CustomEvent( 'wpd-pick', { detail: { value: 'custom' } } ),
+				new CustomEvent( 'os-pick', { detail: { value: 'custom' } } ),
 			);
 		expect( corners() ).toBeDefined();
 
 		corners()!.dispatchEvent(
-			new CustomEvent( 'wpd-range-change', { detail: { value: 5 } } ),
+			new CustomEvent( 'os-range-change', { detail: { value: 5 } } ),
 		);
 		expect( state.physicsWrites ).toContainEqual( { shapeLobes: 5 } );
 	} );
@@ -432,7 +432,7 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		const auto = Array.from(
-			panel()!.querySelectorAll( 'wpd-checkbox' ),
+			panel()!.querySelectorAll( 'os-checkbox' ),
 		).find(
 			( el ) => el.getAttribute( 'label' ) === 'Change shape on its own',
 		);
@@ -441,12 +441,12 @@ describe( 'Mio style panel', () => {
 		expect( auto!.hasAttribute( 'checked' ) ).toBe( true );
 
 		auto!.dispatchEvent(
-			new CustomEvent( 'wpd-checkbox-change', { detail: { checked: false } } ),
+			new CustomEvent( 'os-checkbox-change', { detail: { checked: false } } ),
 		);
 		expect( state.physicsWrites ).toContainEqual( { shapeShuffle: 0 } );
 
 		auto!.dispatchEvent(
-			new CustomEvent( 'wpd-checkbox-change', { detail: { checked: true } } ),
+			new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ),
 		);
 		expect( state.physicsWrites ).toContainEqual( {
 			shapeShuffle: MIO_DEFAULTS.physics.shapeShuffle,
@@ -459,7 +459,7 @@ describe( 'Mio style panel', () => {
 		openMioStylePanel();
 
 		const surprise = Array.from(
-			panel()!.querySelectorAll( 'wpd-button' ),
+			panel()!.querySelectorAll( 'os-button' ),
 		).find( ( el ) => el.textContent === 'Surprise me' );
 		expect( surprise ).toBeDefined();
 		surprise!.dispatchEvent( new MouseEvent( 'click' ) );
@@ -474,7 +474,7 @@ describe( 'Mio style panel', () => {
 		expect( state.appearanceWrites[ 0 ].hueLoop ).toBe( true );
 		// Repainted from what was just applied.
 		expect(
-			panel()!.querySelector( 'wpd-select' )!.getAttribute( 'value' ),
+			panel()!.querySelector( 'os-select' )!.getAttribute( 'value' ),
 		).toBe( state.physicsWrites[ 0 ].shapePreset );
 	} );
 
@@ -497,7 +497,7 @@ describe( 'Mio style panel', () => {
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
-		Array.from( panel()!.querySelectorAll( 'wpd-button' ) )
+		Array.from( panel()!.querySelectorAll( 'os-button' ) )
 			.find( ( el ) => el.textContent === 'Done' )!
 			.dispatchEvent( new MouseEvent( 'click' ) );
 

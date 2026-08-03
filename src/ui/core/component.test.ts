@@ -13,17 +13,17 @@ import { describe, expect, it } from 'vitest';
 import { Component, defineComponent } from './component';
 import { html } from './html';
 
-class WpdReflectTest extends Component {
+class OsReflectTest extends Component {
 	static props = [ 'disabled', 'busy', 'variant', 'value' ] as const;
 	static shadow = false;
 	render() {
 		return html``;
 	}
 }
-defineComponent( 'wpd-reflect-test', WpdReflectTest );
+defineComponent( 'os-reflect-test', OsReflectTest );
 
-const tag = ( cb: ( el: WpdReflectTest ) => void ): void => {
-	const el = document.createElement( 'wpd-reflect-test' ) as WpdReflectTest;
+const tag = ( cb: ( el: OsReflectTest ) => void ): void => {
+	const el = document.createElement( 'os-reflect-test' ) as OsReflectTest;
 	document.body.appendChild( el );
 	try {
 		cb( el );

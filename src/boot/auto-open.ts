@@ -14,12 +14,12 @@
  *        → portal redirected here BECAUSE the user followed a link
  *          to a specific admin page (admin-bar "Edit Post", a
  *          bookmark, etc.). The intent flag was added by
- *          `desktop_mode_handle_portal_request` only when the
+ *          `open_station_handle_portal_request` only when the
  *          redirect resolved from `?target=…`. Open the URL — it's
  *          user intent, not a default the portal had to pick.
  *
  *   3. `fromPortal=true` + `fromPortalIntent=false` + session exists
- *        → bare `/desktop-mode/` visit. Portal landed on the
+ *        → bare `/openstation/` visit. Portal landed on the
  *          session's focused window or the default. Session restore
  *          already covers it; don't double-open.
  *

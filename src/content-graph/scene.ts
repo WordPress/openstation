@@ -36,7 +36,7 @@
  */
 
 import { __ } from '../i18n';
-import { resolveDashicon } from '../ui/components/wpd-icon/dashicons-map';
+import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import {
 	getPixi,
 	type DesktopApiLike,
@@ -107,7 +107,7 @@ const ICON_NUDGE: Record< string, { x: number; y: number } > = {
  * Earlier they were Pixi `Graphics + Text`, but Pixi v8's batched
  * renderer would intermittently crash with "Cannot read properties
  * of null (reading 'clear')" when an external event (e.g. opening
- * another desktop-mode window in an iframe) perturbed the canvas's
+ * another openstation window in an iframe) perturbed the canvas's
  * GL context. DOM labels sidestep the Pixi renderer entirely.
  */
 const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
@@ -316,7 +316,7 @@ export class GraphScene {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-			// Dedicated ticker, NOT the shared one. Other desktop-mode
+			// Dedicated ticker, NOT the shared one. Other openstation
 			// bundles (posts-window, recycle-bin, …) also load Pixi via
 			// `loadModules('pixijs')` — sharing `Ticker.shared` across
 			// independent Application instances has bitten us: a render
@@ -329,7 +329,7 @@ export class GraphScene {
 		} );
 		this.app = app;
 		this.host.appendChild( app.canvas );
-		app.canvas.classList.add( 'desktop-mode-content-graph__canvas' );
+		app.canvas.classList.add( 'os-content-graph__canvas' );
 
 		this.world = new pixi.Container();
 		this.world.x = this.host.clientWidth / 2;
@@ -355,11 +355,11 @@ export class GraphScene {
 		// the canvas.
 		this.groupLabelOverlay = document.createElement( 'div' );
 		this.groupLabelOverlay.className =
-			'desktop-mode-content-graph__group-labels';
+			'os-content-graph__group-labels';
 		this.host.appendChild( this.groupLabelOverlay );
 
 		// Pixi v8's WebGL context can be lost when the browser shuffles
-		// canvases around (e.g. when another desktop-mode window opens
+		// canvases around (e.g. when another openstation window opens
 		// in an iframe and forces a reflow). Without this guard the
 		// ticker keeps trying to render against a dead GL context and
 		// floods the console with "Cannot read properties of null"
@@ -1074,9 +1074,9 @@ export class GraphScene {
 			// glance, e.g. "Recipe (15)" / "Untagged (3)".
 			const label = `${ this.labelForGroupKey( key ) } (${ ids.length })`;
 			const el = document.createElement( 'div' );
-			el.className = 'desktop-mode-content-graph__group-label';
+			el.className = 'os-content-graph__group-label';
 			el.textContent = label;
-			el.style.setProperty( '--wpd-cg-cluster-color', tint );
+			el.style.setProperty( '--os-ui-cg-cluster-color', tint );
 			this.groupLabelOverlay.appendChild( el );
 			this.groupViews.set( key, { key, label, el, members: ids } );
 		}

@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $subscriber_id;
@@ -48,13 +48,13 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	public function tear_down() {
 		// Use the shared cache-key helper so a future change to the
 		// key scheme propagates here automatically.
-		foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+		foreach ( open_station_my_wordpress_media_usage_cache_buckets() as $bucket ) {
 			delete_transient(
-				desktop_mode_my_wordpress_media_usage_cache_key( $this->attachment_id, $bucket )
+				open_station_my_wordpress_media_usage_cache_key( $this->attachment_id, $bucket )
 			);
 		}
-		remove_all_filters( 'desktop_mode_my_wordpress_media_usage' );
-		remove_all_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl' );
+		remove_all_filters( 'open_station_my_wordpress_media_usage' );
+		remove_all_filters( 'open_station_my_wordpress_media_usage_cache_ttl' );
 		parent::tear_down();
 	}
 
@@ -64,7 +64,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 * @covers ::open_station_my_wordpress_media_usage_build
 	 */
 	public function test_finds_featured_image_and_content_embeds_with_correct_usedAs() {
 		$featured_post = self::factory()->post->create(
@@ -108,7 +108,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * Subscriber cannot read drafts — so drafts referencing the
 	 * attachment must be filtered out of their result set.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 * @covers ::open_station_my_wordpress_media_usage_build
 	 */
 	public function test_subscriber_does_not_see_drafts() {
 		$draft = self::factory()->post->create(
@@ -141,8 +141,8 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * warmed during the Author's request must NOT serve the Author's
 	 * own draft rows to the Subscriber.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
-	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 * @covers ::open_station_my_wordpress_media_usage_callback
+	 * @covers ::open_station_my_wordpress_media_usage_build
 	 */
 	public function test_cached_scan_does_not_leak_authors_draft_to_subscriber() {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
@@ -177,7 +177,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * dispatch returns the same payload — even after we mutate the
 	 * underlying data, the cache must shield the response.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
+	 * @covers ::open_station_my_wordpress_media_usage_callback
 	 */
 	public function test_transient_caches_result() {
 		$post = self::factory()->post->create( array( 'post_status' => 'publish' ) );
@@ -185,7 +185,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 
 		// Hold the action so the cache is NOT busted between
 		// dispatches when we add the second post.
-		remove_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+		remove_action( 'save_post', 'open_station_my_wordpress_media_usage_bust_for_post' );
 
 		$first = $this->dispatch( $this->attachment_id );
 		$this->assertSame( 200, $first->get_status() );
@@ -195,7 +195,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 		// the writer uses, so the test isn't coupled to the literal
 		// key format.
 		$cached = get_transient(
-			desktop_mode_my_wordpress_media_usage_cache_key( $this->attachment_id, 'edit' )
+			open_station_my_wordpress_media_usage_cache_key( $this->attachment_id, 'edit' )
 		);
 		$this->assertIsArray( $cached );
 
@@ -211,17 +211,17 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertSame( $first->get_data()['usedIn'], $second->get_data()['usedIn'] );
 
 		// Restore the cache-busting hook for the rest of the suite.
-		add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+		add_action( 'save_post', 'open_station_my_wordpress_media_usage_bust_for_post' );
 	}
 
 	/**
 	 * Filter can extend the payload (ACF-style integration).
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
+	 * @covers ::open_station_my_wordpress_media_usage_callback
 	 */
 	public function test_filter_can_extend_usedIn() {
 		add_filter(
-			'desktop_mode_my_wordpress_media_usage',
+			'open_station_my_wordpress_media_usage',
 			static function ( $payload ) {
 				$payload['usedIn'][] = array(
 					'postId'        => 999,
@@ -251,7 +251,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * `wp-image-123`. The PHP-side word-boundary recheck must
 	 * reject the false positive.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_build
+	 * @covers ::open_station_my_wordpress_media_usage_build
 	 */
 	public function test_word_boundary_excludes_numeric_prefix_matches() {
 		// Stand up a post referencing a HIGHER-id attachment whose
@@ -288,7 +288,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * bust the cache for attachment N — otherwise the drill-in
 	 * view shows that post as a reference until the TTL expires.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_bust_for_post
+	 * @covers ::open_station_my_wordpress_media_usage_bust_for_post
 	 */
 	public function test_reference_removal_busts_cache() {
 		$post = self::factory()->post->create(
@@ -327,7 +327,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * gone) so the buster can still read the refs out of the
 	 * about-to-be-deleted post.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_bust_for_post
+	 * @covers ::open_station_my_wordpress_media_usage_bust_for_post
 	 */
 	public function test_post_deletion_busts_attachment_cache() {
 		$post = self::factory()->post->create(
@@ -339,7 +339,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 
 		// Warm the cache.
 		$this->dispatch( $this->attachment_id );
-		$cache_key = desktop_mode_my_wordpress_media_usage_cache_key(
+		$cache_key = open_station_my_wordpress_media_usage_cache_key(
 			$this->attachment_id,
 			'edit'
 		);
@@ -358,7 +358,7 @@ class Tests_DesktopMode_MyWordpressMediaUsage extends WP_UnitTestCase {
 	 * the callback — both outcomes are correct, the difference is
 	 * which gate rejects first.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_media_usage_callback
+	 * @covers ::open_station_my_wordpress_media_usage_callback
 	 */
 	public function test_unknown_attachment_returns_403_via_permission_gate() {
 		$response = $this->dispatch( 999999 );

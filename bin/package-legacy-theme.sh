@@ -6,7 +6,7 @@
 # Legacy is registered from code on every install (see
 # includes/desktop-themes/builtin.php), so the site it ships with
 # never needs this file — it exists so the theme can be handed to
-# someone else, forked, or installed on a site whose Desktop Mode
+# someone else, forked, or installed on a site whose OpenStation
 # registration has been unhooked.
 #
 # Written to dist/ by default, or to a directory passed as $1.

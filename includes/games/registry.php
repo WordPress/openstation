@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games registry.
+ * OpenStation — Games registry.
  *
  * Server-side registration API + payload builder for desktop games.
  * A game's discovery metadata (title, icon, description, score
@@ -9,14 +9,14 @@
  * code; the game's JS bundle — declared via the `script` handle —
  * is loaded lazily on first launch and publishes the full def
  * (including the `render` callback) on
- * `window.desktopModeGames[ <id> ]`.
+ * `window.openStationGames[ <id> ]`.
  *
  * This deliberate laziness is the one way the games registry differs
  * from the wallpaper registry it is otherwise modeled on: wallpaper
  * scripts are enqueued eagerly because the active wallpaper must
  * paint at boot; game code is only needed when someone plays.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,11 +27,11 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * desktop_mode_register_game( 'inkfall', array(
+ * open_station_register_game( 'inkfall', array(
  *     'title'         => __( 'Inkfall', 'desktop-mode' ),
  *     'description'   => __( 'Type the falling words.', 'desktop-mode' ),
  *     'icon_svg'      => '<svg …>…</svg>',
- *     'script'        => 'desktop-mode-game-inkfall',
+ *     'script'        => 'os-game-inkfall',
  *     'score_columns' => array(
  *         array( 'key' => 'score', 'label' => __( 'Score', 'desktop-mode' ), 'type' => 'number' ),
  *         array( 'key' => 'time',  'label' => __( 'Time', 'desktop-mode' ),  'type' => 'time' ),
@@ -41,9 +41,9 @@ defined( 'ABSPATH' ) || exit;
  * ```
  *
  * ```js
- * // Inside desktop-mode-game-inkfall.js
- * window.desktopModeGames = window.desktopModeGames || {};
- * window.desktopModeGames.inkfall = {
+ * // Inside os-game-inkfall.js
+ * window.openStationGames = window.openStationGames || {};
+ * window.openStationGames.inkfall = {
  *     id: 'inkfall',
  *     title: 'Inkfall',
  *     icon: 'data:image/svg+xml;base64,…',
@@ -53,7 +53,7 @@ defined( 'ABSPATH' ) || exit;
  * ```
  *
  * @param string $id   Game id (slug). Must match the
- *                     `window.desktopModeGames[<id>]` key the game's
+ *                     `window.openStationGames[<id>]` key the game's
  *                     JS publishes.
  * @param array  $args {
  *     @type string   $title         Launcher label. Required.
@@ -79,11 +79,11 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function desktop_mode_register_game( $id, $args = array() ) {
+function open_station_register_game( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return open_station_registration_error(
+			'open_station_missing_id',
 			__( 'Game id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
@@ -106,15 +106,15 @@ function desktop_mode_register_game( $id, $args = array() ) {
 		// consumed via `<img src=…>` (which sandboxes SVG scripts),
 		// but reject script tags outright anyway.
 		if ( false !== stripos( $svg, '<script' ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_icon_svg',
+			return open_station_registration_error(
+				'open_station_invalid_icon_svg',
 				__( 'Game `icon_svg` must not contain a <script> tag.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
 		}
 		if ( 0 !== stripos( ltrim( $svg ), '<svg' ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_icon_svg',
+			return open_station_registration_error(
+				'open_station_invalid_icon_svg',
 				__( 'Game `icon_svg` must start with a <svg> root element.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
@@ -124,8 +124,8 @@ function desktop_mode_register_game( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return open_station_registration_error(
+				'open_station_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this game.', 'desktop-mode' ),
@@ -137,15 +137,15 @@ function desktop_mode_register_game( $id, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['title'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_title',
+		return open_station_registration_error(
+			'open_station_missing_title',
 			__( 'Game registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === (string) $args['script'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_script',
+		return open_station_registration_error(
+			'open_station_missing_script',
 			__( 'Game registration requires a `script` handle that publishes the game def.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -155,23 +155,23 @@ function desktop_mode_register_game( $id, $args = array() ) {
 		'id'            => $id,
 		'title'         => (string) $args['title'],
 		'description'   => sanitize_textarea_field( (string) $args['description'] ),
-		'icon'          => desktop_mode_sanitize_dock_icon( (string) $args['icon'] ),
+		'icon'          => open_station_sanitize_dock_icon( (string) $args['icon'] ),
 		'script'        => (string) $args['script'],
-		'score_columns' => desktop_mode_games_sanitize_score_columns( $args['score_columns'] ),
+		'score_columns' => open_station_games_sanitize_score_columns( $args['score_columns'] ),
 		'config'        => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
-	desktop_mode_games_registry( $id, $entry );
+	open_station_games_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop game is successfully registered.
 	 *
-	 * Does NOT fire when `desktop_mode_register_game()` returns a
+	 * Does NOT fire when `open_station_register_game()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The game id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_game_registered', $id, $entry );
+	do_action( 'open_station_game_registered', $id, $entry );
 
 	return true;
 }
@@ -186,7 +186,7 @@ function desktop_mode_register_game( $id, $args = array() ) {
  * @param mixed $columns Raw caller input.
  * @return array[] Sanitized `{ key, label, type }` rows.
  */
-function desktop_mode_games_sanitize_score_columns( $columns ) {
+function open_station_games_sanitize_score_columns( $columns ) {
 	if ( ! is_array( $columns ) ) {
 		return array();
 	}
@@ -215,12 +215,12 @@ function desktop_mode_games_sanitize_score_columns( $columns ) {
 
 /**
  * Internal module-level registry for games registered via
- * {@see desktop_mode_register_game()}. Same static-store pattern as
+ * {@see open_station_register_game()}. Same static-store pattern as
  * the widget + wallpaper + native-window registries.
  *
  * @internal
  */
-function desktop_mode_games_registry( $id = '', $entry = null ) {
+function open_station_games_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -243,34 +243,34 @@ function desktop_mode_games_registry( $id = '', $entry = null ) {
  * @param string $id Game id.
  * @return bool Whether an entry was removed.
  */
-function desktop_mode_unregister_game( $id ) {
+function open_station_unregister_game( $id ) {
 	$id = sanitize_key( (string) $id );
-	if ( '' === $id || null === desktop_mode_games_registry( $id ) ) {
+	if ( '' === $id || null === open_station_games_registry( $id ) ) {
 		return false;
 	}
-	desktop_mode_games_registry( $id, '__unset__' );
+	open_station_games_registry( $id, '__unset__' );
 	return true;
 }
 
 /**
- * The registered game entries with the `desktop_mode_games` filter
+ * The registered game entries with the `open_station_games` filter
  * applied. This is the read path everything else (payload, REST
  * validation) goes through, so filter-registered games validate.
  *
  * @return array[] Entries keyed by game id.
  */
-function desktop_mode_games_get_registered() {
-	$registry = desktop_mode_games_registry();
+function open_station_games_get_registered() {
+	$registry = open_station_games_registry();
 
 	/**
 	 * Filters the server-declared game list. Mirrors the JS-side
-	 * `desktop-mode.games` filter so plugins can add, hide, or
+	 * `os.games` filter so plugins can add, hide, or
 	 * override entries at boot without round-tripping through the
 	 * JS registry.
 	 *
 	 * @param array[] $registry The registered game entries, keyed by id.
 	 */
-	$registry = apply_filters( 'desktop_mode_games', $registry );
+	$registry = apply_filters( 'open_station_games', $registry );
 
 	return is_array( $registry ) ? $registry : array();
 }
@@ -282,12 +282,12 @@ function desktop_mode_games_get_registered() {
  * @param string $id Game id.
  * @return bool
  */
-function desktop_mode_games_is_registered( $id ) {
+function open_station_games_is_registered( $id ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
 		return false;
 	}
-	$registry = desktop_mode_games_get_registered();
+	$registry = open_station_games_get_registered();
 	if ( isset( $registry[ $id ] ) ) {
 		return true;
 	}
@@ -308,13 +308,13 @@ function desktop_mode_games_is_registered( $id ) {
  *
  * @return array[]
  */
-function desktop_mode_build_desktop_games_payload() {
+function open_station_build_desktop_games_payload() {
 	// The module doesn't load when the framework is disabled, so this
 	// only guards a mid-request flip (the admin just saved the toggle).
-	if ( ! desktop_mode_games_enabled() ) {
+	if ( ! open_station_games_enabled() ) {
 		return array();
 	}
-	$registry = desktop_mode_games_get_registered();
+	$registry = open_station_games_get_registered();
 	if ( empty( $registry ) ) {
 		return array();
 	}
@@ -324,7 +324,7 @@ function desktop_mode_build_desktop_games_payload() {
 			continue;
 		}
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = open_station_resolve_script_payload( $handle );
 		$out[]   = array(
 			'id'                 => (string) $entry['id'],
 			'title'              => isset( $entry['title'] ) ? (string) $entry['title'] : '',
@@ -343,7 +343,7 @@ function desktop_mode_build_desktop_games_payload() {
 				)
 				: array(),
 			'config'             => array_merge(
-				desktop_mode_games_framework_config(),
+				open_station_games_framework_config(),
 				isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array()
 			),
 			'scriptUrl'          => $payload['url'],

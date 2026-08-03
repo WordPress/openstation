@@ -1,22 +1,22 @@
 <?php
 /**
- * Desktop Mode — file-type registry.
+ * OpenStation — file-type registry.
  *
  * Maps a file-type slug (`'post'`, `'user'`, `'folder'`, …) to the
- * `Desktop_Mode_File` subclass that adapts the underlying entity.
+ * `Open_Station_File` subclass that adapts the underlying entity.
  * Plugins extend the file system by registering their own subclass
- * via {@see desktop_mode_register_file_type()}; the desktop UI then
+ * via {@see open_station_register_file_type()}; the desktop UI then
  * knows how to render and resolve their entities just like the
  * built-in types.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Internal static-store registry. Mirrors the wallpaper / native-
- * window pattern (see `desktop_mode_desktop_wallpaper_registry()`).
+ * window pattern (see `open_station_desktop_wallpaper_registry()`).
  *
  * @internal
  *
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * @return array|null Full store when `$type` is empty; entry when
  *                    looking one up; `null` when not found.
  */
-function desktop_mode_file_type_registry( $type = '', $entry = null ) {
+function open_station_file_type_registry( $type = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $type ) {
@@ -45,7 +45,7 @@ function desktop_mode_file_type_registry( $type = '', $entry = null ) {
  * @param array  $args {
  *     @type string   $label   Required. Human label for picker UIs.
  *     @type string   $class   Required. Fully-qualified
- *                             `Desktop_Mode_File` subclass name.
+ *                             `Open_Station_File` subclass name.
  *     @type string   $script  Optional. Enqueued script handle for the
  *                             plugin's JS-side definition. The shell
  *                             dynamically loads the URL on activation
@@ -56,11 +56,11 @@ function desktop_mode_file_type_registry( $type = '', $entry = null ) {
  * }
  * @return true|WP_Error `true` on success, `WP_Error` otherwise.
  */
-function desktop_mode_register_file_type( $type, $args = array() ) {
+function open_station_register_file_type( $type, $args = array() ) {
 	$type = (string) $type;
 	if ( '' === $type ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return open_station_registration_error(
+			'open_station_missing_id',
 			__( 'File-type slug is required.', 'desktop-mode' )
 		);
 	}
@@ -76,8 +76,8 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return open_station_registration_error(
+				'open_station_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this file type.', 'desktop-mode' ),
@@ -89,8 +89,8 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return open_station_registration_error(
+			'open_station_missing_label',
 			__( 'File-type registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'type' => $type )
 		);
@@ -98,16 +98,16 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 
 	$class = (string) $args['class'];
 	if ( '' === $class || ! class_exists( $class ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_invalid_class',
+		return open_station_registration_error(
+			'open_station_invalid_class',
 			__( 'File-type registration requires an existing `class`.', 'desktop-mode' ),
 			array( 'type' => $type, 'class' => $class )
 		);
 	}
-	if ( ! is_subclass_of( $class, 'Desktop_Mode_File' ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_invalid_class',
-			__( '`class` must extend `Desktop_Mode_File`.', 'desktop-mode' ),
+	if ( ! is_subclass_of( $class, 'Open_Station_File' ) ) {
+		return open_station_registration_error(
+			'open_station_invalid_class',
+			__( '`class` must extend `Open_Station_File`.', 'desktop-mode' ),
 			array( 'type' => $type, 'class' => $class )
 		);
 	}
@@ -119,7 +119,7 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 		'script' => (string) $args['script'],
 		'sort'   => (int) $args['sort'],
 	);
-	desktop_mode_file_type_registry( $type, $entry );
+	open_station_file_type_registry( $type, $entry );
 
 	/**
 	 * Fires after a desktop file type is successfully registered.
@@ -128,7 +128,7 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 	 * @param string $type  Type slug.
 	 * @param array  $entry Stored registry entry.
 	 */
-	do_action( 'desktop_mode_file_type_registered', $type, $entry );
+	do_action( 'open_station_file_type_registered', $type, $entry );
 
 	return true;
 }
@@ -139,8 +139,8 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
  * @param string $type Type slug.
  * @return array|null Registry entry, or `null` if unknown.
  */
-function desktop_mode_get_file_type( $type ) {
-	$entry = desktop_mode_file_type_registry( (string) $type );
+function open_station_get_file_type( $type ) {
+	$entry = open_station_file_type_registry( (string) $type );
 	return is_array( $entry ) ? $entry : null;
 }
 
@@ -149,8 +149,8 @@ function desktop_mode_get_file_type( $type ) {
  *
  * @return array[]
  */
-function desktop_mode_get_file_types() {
-	$registry = desktop_mode_file_type_registry();
+function open_station_get_file_types() {
+	$registry = open_station_file_type_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -161,7 +161,7 @@ function desktop_mode_get_file_types() {
 	 *
 	 * @param array[] $registry Registered entries keyed by slug.
 	 */
-	$registry = apply_filters( 'desktop_mode_file_types', $registry );
+	$registry = apply_filters( 'open_station_file_types', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -184,15 +184,15 @@ function desktop_mode_get_file_types() {
 }
 
 /**
- * Resolves a `(type, ref)` tuple into a `Desktop_Mode_File` instance,
+ * Resolves a `(type, ref)` tuple into a `Open_Station_File` instance,
  * or `null` if the type is unknown.
  *
  * @param string     $type File-type slug.
  * @param string|int $ref  Entity reference.
- * @return Desktop_Mode_File|null
+ * @return Open_Station_File|null
  */
-function desktop_mode_resolve_file( $type, $ref ) {
-	$entry = desktop_mode_get_file_type( $type );
+function open_station_resolve_file( $type, $ref ) {
+	$entry = open_station_get_file_type( $type );
 	if ( null === $entry ) {
 		return null;
 	}
@@ -210,8 +210,8 @@ function desktop_mode_resolve_file( $type, $ref ) {
  *
  * @return array[]
  */
-function desktop_mode_build_file_types_payload() {
-	$entries = desktop_mode_get_file_types();
+function open_station_build_file_types_payload() {
+	$entries = open_station_get_file_types();
 	if ( empty( $entries ) ) {
 		return array();
 	}
@@ -219,7 +219,7 @@ function desktop_mode_build_file_types_payload() {
 	foreach ( $entries as $entry ) {
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
+			? open_station_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),

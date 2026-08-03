@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — the user's own Mio, as stored.
+ * OpenStation — the user's own Mio, as stored.
  *
  * A {@link MioLook} travels further than most preferences: it is set in
  * the style panel (lazy Mio bundle), held by the controller (shell

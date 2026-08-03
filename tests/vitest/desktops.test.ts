@@ -7,7 +7,7 @@
  *   - window visibility tracks the active desktop
  *   - last-desktop-cannot-be-closed invariant
  *   - migration target picks the left neighbour by default
- *   - the desktop-mode.desktop.* action firings
+ *   - the os.os.* action firings
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
@@ -20,9 +20,9 @@ import {
 } from './helpers/hooks-stub';
 
 const DESKTOP_HOOKS = [
-	'desktop-mode.desktop.created',
-	'desktop-mode.desktop.closed',
-	'desktop-mode.desktop.switched',
+	'os.os.created',
+	'os.os.closed',
+	'os.os.switched',
 ] as const;
 
 function openConfig( id: string ) {
@@ -110,7 +110,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( created.id ).toBe( 'desktop-2' );
 		expect( created.label ).toBe( 'Desktop 2' );
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.created' );
+		const evt = log.find( ( e ) => e.name === 'os.os.created' );
 		expect( evt ).toBeDefined();
 		expect(
 			( evt!.args[ 0 ] as { desktopId: string } ).desktopId,
@@ -150,7 +150,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		manager.switchDesktop( second.id );
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.switched' );
+		const evt = log.find( ( e ) => e.name === 'os.os.switched' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { from: string; to: string };
 		expect( payload.from ).toBe( 'desktop-1' );
@@ -163,7 +163,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		manager.switchDesktop( 'desktop-1' );
 
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.desktop.switched' ),
+			log.some( ( e ) => e.name === 'os.os.switched' ),
 		).toBe( false );
 	} );
 
@@ -173,7 +173,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		manager.switchDesktop( 'nope' );
 
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.desktop.switched' ),
+			log.some( ( e ) => e.name === 'os.os.switched' ),
 		).toBe( false );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
@@ -194,7 +194,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 
-		const evt = log.find( ( e ) => e.name === 'desktop-mode.desktop.closed' );
+		const evt = log.find( ( e ) => e.name === 'os.os.closed' );
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { desktopId: string; migratedTo: string };
 		expect( payload.desktopId ).toBe( second.id );
@@ -219,7 +219,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		expect( manager.getDesktops() ).toHaveLength( 1 );
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.desktop.closed' ),
+			log.some( ( e ) => e.name === 'os.os.closed' ),
 		).toBe( false );
 	} );
 
@@ -250,11 +250,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		manager.enterOverview();
 		const a = manager.getById( 'a' )!;
 		const b = manager.getById( 'b' )!;
-		expect( a.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
-		expect( b.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
+		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe( true );
+		expect( b.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 		// `c` is on the inactive desktop — hidden, no overview class.
 		expect( c.element.style.display ).toBe( 'none' );
-		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( false );
+		expect( c.element.classList.contains( 'os-window--overview' ) ).toBe( false );
 
 		// Close the active desktop. Survivor (desktop-2) absorbs a + b
 		// AND becomes active. Since we're in overview, the grid must
@@ -270,9 +270,9 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 		expect( c.element.style.display ).toBe( '' );
-		expect( a.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
-		expect( b.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
-		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
+		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe( true );
+		expect( b.element.classList.contains( 'os-window--overview' ) ).toBe( true );
+		expect( c.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 	} );
 
 	test( 'enterOverview shows minimized windows in grid without restoring them', async () => {
@@ -295,10 +295,10 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( b.state ).toBe( 'minimized' );
 		// But they now participate in the grid thumbnails.
 		expect(
-			a.element.classList.contains( 'desktop-mode-window--overview' ),
+			a.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
 		expect(
-			b.element.classList.contains( 'desktop-mode-window--overview' ),
+			b.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
 	} );
 
@@ -327,7 +327,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			expect( a.iframe.style.visibility ).toBe( '' );
 		}
 		expect(
-			a.element.classList.contains( 'desktop-mode-window--overview' ),
+			a.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
 	} );
 
@@ -349,7 +349,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			expect( a.iframe.style.visibility ).toBe( '' );
 		}
 		expect(
-			a.element.classList.contains( 'desktop-mode-window--overview' ),
+			a.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
 	} );
 
@@ -367,19 +367,19 @@ describe( 'WindowManager — virtual desktops', async () => {
 		manager.enterOverview();
 		expect( a.state ).toBe( 'minimized' );
 		expect(
-			a.element.classList.contains( 'desktop-mode-window--fullscreen' ),
+			a.element.classList.contains( 'os-window--fullscreen' ),
 		).toBe( false );
 
 		manager.exitOverview( a );
 
 		expect( a.state ).toBe( 'fullscreen' );
 		expect(
-			a.element.classList.contains( 'desktop-mode-window--fullscreen' ),
+			a.element.classList.contains( 'os-window--fullscreen' ),
 		).toBe( true );
 		expect(
-			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
-		expect( a.element.dataset.wpdHadFullscreenBeforeOverview ).toBeUndefined();
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
 	} );
 
 	test( 'Enter key in overview exits without selecting a window', async () => {
@@ -414,7 +414,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// All three windows — minimized and visible — participate in
 		// the grid.
 		const gridTiles = manager._desktop.querySelectorAll< HTMLElement >(
-			'.desktop-mode-window--overview',
+			'.os-window--overview',
 		);
 		expect( gridTiles ).toHaveLength( 3 );
 
@@ -422,7 +422,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// number of grid tiles — the original badge/grid mismatch
 		// regression is fixed.
 		const badge = manager._overviewTopBar!.querySelector(
-			'.desktop-mode-overview-top-bar__tile-count',
+			'.os-overview-top-bar__tile-count',
 		);
 		expect( badge ).not.toBeNull();
 		expect( Number( badge!.textContent ) ).toBe( gridTiles.length );
@@ -617,11 +617,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 				document.body.appendChild( adminBack );
 				toRemove.push( adminBack );
 				const dock = document.createElement( 'div' );
-				dock.id = 'desktop-mode-dock';
+				dock.id = 'os-dock';
 				document.body.appendChild( dock );
 				toRemove.push( dock );
 				const sideDock = document.createElement( 'div' );
-				sideDock.id = 'desktop-mode-side-dock';
+				sideDock.id = 'os-side-dock';
 				document.body.appendChild( sideDock );
 				toRemove.push( sideDock );
 				const widgets = document.createElement( 'div' );
@@ -725,7 +725,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 				manager.enterOverview();
 
 				const wrappers = manager._overviewTopBar!.querySelectorAll(
-					'.desktop-mode-overview-top-bar__tile-wrapper',
+					'.os-overview-top-bar__tile-wrapper',
 				);
 
 				// 3 desktops = 3 wrappers (the "+" tile is a direct child, not wrapped)
@@ -737,13 +737,13 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 					const tile = buttons[ 0 ];
 					expect(
-						tile.classList.contains( 'desktop-mode-overview-top-bar__tile' ),
+						tile.classList.contains( 'os-overview-top-bar__tile' ),
 					).toBe( true );
 
 					const close = buttons[ 1 ];
 					expect(
 						close.classList.contains(
-							'desktop-mode-overview-top-bar__tile-close',
+							'os-overview-top-bar__tile-close',
 						),
 					).toBe( true );
 					expect( close.tagName ).toBe( 'BUTTON' );
@@ -764,7 +764,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			manager.enterOverview();
 
 			const closeBtn = manager._overviewTopBar!.querySelector< HTMLElement >(
-				'.desktop-mode-overview-top-bar__tile-close',
+				'.os-overview-top-bar__tile-close',
 			)!;
 			closeBtn.focus();
 			expect( document.activeElement ).toBe( closeBtn );
@@ -861,7 +861,7 @@ describe( 'WindowManager — destroy()', async () => {
 		manager.destroy();
 
 		expect( manager._overviewActive ).toBe( false );
-		expect( hooks.didAction( 'desktop-mode.overview.exiting' ) ).toBe( 1 );
+		expect( hooks.didAction( 'os.overview.exiting' ) ).toBe( 1 );
 	} );
 
 	test( 'is a no-op when overview was never entered', async () => {

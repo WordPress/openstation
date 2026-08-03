@@ -17,13 +17,13 @@ fi
 
 npm version "$new" --no-git-tag-version --allow-same-version > /dev/null
 
-# The in-tree `@desktop-mode/types` package mirrors the plugin version
+# The in-tree `@openstation/types` package mirrors the plugin version
 # (its README documents this), so keep it in lockstep.
-npm version "$new" --no-git-tag-version --allow-same-version --prefix packages/desktop-mode-types > /dev/null
+npm version "$new" --no-git-tag-version --allow-same-version --prefix packages/openstation-types > /dev/null
 
 # Perl — portable inline edit; BSD and GNU sed differ on the `-i` form.
 perl -i -pe "s/^(\s*\*\s*Version:\s*)\S+/\${1}${new}/" desktop-mode.php
-perl -i -pe "s/(DESKTOP_MODE_VERSION',\s*')[^']+/\${1}${new}/" desktop-mode.php
+perl -i -pe "s/(OPEN_STATION_VERSION',\s*')[^']+/\${1}${new}/" desktop-mode.php
 # wp.org rejects submissions whose readme.txt Stable tag doesn't match
 # the plugin header Version, so keep them in lockstep.
 perl -i -pe "s/^(Stable tag:\s*)\S+/\${1}${new}/" readme.txt

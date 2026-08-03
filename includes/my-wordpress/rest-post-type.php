@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: REST bridge for non-REST post types.
+ * OpenStation — My WordPress: REST bridge for non-REST post types.
  *
  * Post types registered with `show_in_rest => false` have no `wp/v2`
  * collection, so the site window cannot browse them the way it browses
@@ -23,10 +23,10 @@
  *   - Only `GET` collection, `GET` item, and `DELETE` item (trash, for
  *     recycle-bin parity) are registered. No create, no update — a
  *     write schema the type's author never vetted is a footgun.
- *   - `desktop_mode_my_wordpress_post_type_rest_enabled` lets a site or
+ *   - `open_station_my_wordpress_post_type_rest_enabled` lets a site or
  *     the owning plugin veto the bridge per type.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  * Read-and-trash REST controller for a post type that is not exposed
  * on `wp/v2`.
  */
-class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Controller {
+class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Controller {
 
 	/**
 	 * Constructor.
@@ -49,7 +49,7 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	public function __construct( $post_type ) {
 		parent::__construct( $post_type );
 
-		$this->namespace = DESKTOP_MODE_MY_WORDPRESS_POST_TYPE_NAMESPACE;
+		$this->namespace = OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE;
 		$this->rest_base = 'post-type/' . $post_type;
 	}
 
@@ -127,7 +127,7 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function get_items_permissions_check( $request ) {
-		$denied = $this->desktop_mode_require_edit_capability();
+		$denied = $this->open_station_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -141,7 +141,7 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function get_item_permissions_check( $request ) {
-		$denied = $this->desktop_mode_require_edit_capability();
+		$denied = $this->open_station_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -155,7 +155,7 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function delete_item_permissions_check( $request ) {
-		$denied = $this->desktop_mode_require_edit_capability();
+		$denied = $this->open_station_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -220,11 +220,11 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 *
 	 * @return true|WP_Error
 	 */
-	protected function desktop_mode_require_edit_capability() {
+	protected function open_station_require_edit_capability() {
 		$post_type = get_post_type_object( $this->post_type );
 		if ( ! $post_type instanceof WP_Post_Type || empty( $post_type->cap->edit_posts ) ) {
 			return new WP_Error(
-				'desktop_mode_rest_unknown_post_type',
+				'open_station_rest_unknown_post_type',
 				__( 'Sorry, that content type is not available.', 'desktop-mode' ),
 				array( 'status' => 404 )
 			);
@@ -232,7 +232,7 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 
 		if ( ! current_user_can( $post_type->cap->edit_posts ) ) {
 			return new WP_Error(
-				'desktop_mode_rest_forbidden',
+				'open_station_rest_forbidden',
 				__( 'Sorry, you are not allowed to browse this content type.', 'desktop-mode' ),
 				array( 'status' => rest_authorization_required_code() )
 			);
@@ -250,20 +250,20 @@ class Desktop_Mode_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
  *
  * @return void
  */
-function desktop_mode_my_wordpress_register_post_type_routes() {
-	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
+function open_station_my_wordpress_register_post_type_routes() {
+	if ( ! open_station_my_wordpress_user_can_use() ) {
 		return;
 	}
 
-	foreach ( desktop_mode_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( ! empty( $post_type->show_in_rest ) ) {
 			continue;
 		}
-		if ( ! desktop_mode_my_wordpress_post_type_is_bridged( $name ) ) {
+		if ( ! open_station_my_wordpress_post_type_is_bridged( $name ) ) {
 			continue;
 		}
-		$controller = new Desktop_Mode_My_WordPress_Post_Type_Controller( $name );
+		$controller = new Open_Station_My_WordPress_Post_Type_Controller( $name );
 		$controller->register_routes();
 	}
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_post_type_routes' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_register_post_type_routes' );

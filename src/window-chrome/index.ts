@@ -1,7 +1,7 @@
 /**
  * Window-chrome customization framework — public re-exports.
  *
- * Plugin authors typically reach this surface through `wp.desktop.*`
+ * Plugin authors typically reach this surface through `wp.os.*`
  * (the desktop bundle's runtime) rather than importing the modules
  * directly. This barrel keeps the framework's TS API discoverable
  * for in-tree consumers (the desktop bundle, the iframe bridge,

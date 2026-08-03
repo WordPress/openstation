@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<ruleset name="Desktop Mode">
-	<description>Coding standards for the Desktop Mode plugin.</description>
+<ruleset name="OpenStation">
+	<description>Coding standards for the OpenStation plugin.</description>
 
 	<!--
 		Files this ruleset applies to. Extensions live in this monorepo
@@ -24,26 +24,30 @@
 		Custom prefix allowlist.
 
 		The Plugin Check derives the canonical prefix from the plugin
-		slug (`desktop-mode`) — `desktop_mode_*` and `desktop-mode_*`
-		are accepted automatically. We add `wpdc`, `WPDM`, and
-		`WP_DESKTOP` as legacy short forms used by a small set of
-		internal identifiers (constants like `WP_DESKTOP_PRESENCE_OPTION`,
-		window ids like `wpdc-recycle-bin`) — kept for continuity.
+		slug, which stays `desktop-mode` — that is the WordPress.org
+		directory and the plugin's update path, so it cannot change.
+		The code is prefixed for the brand instead, hence the explicit
+		list: `open_station_*` / `OPEN_STATION_*` for the plugin itself,
+		plus the short `osc` / `osm` namespaces the bundled phpMyAdmin
+		and cron-manager extensions use in their prebuilt bundles.
 	-->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="desktop_mode"/>
-				<element value="desktop-mode"/>
-				<element value="wpdc"/>
-				<element value="WPDM"/>
-				<element value="WP_DESKTOP"/>
-				<element value="DESKTOP_MODE"/>
+				<element value="open_station"/>
+				<element value="OPEN_STATION"/>
+				<element value="openstation"/>
+				<element value="osc"/>
+				<element value="osm"/>
 			</property>
 		</properties>
 	</rule>
 
-	<!-- Text domain consistency. -->
+	<!--
+		Text domain consistency. Stays `desktop-mode`: WordPress.org
+		delivers language packs keyed on the directory slug, so the
+		domain has to keep matching it even though the brand changed.
+	-->
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">

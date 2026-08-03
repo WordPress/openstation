@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files-on-the-desktop trash helpers.
+ * OpenStation — Files-on-the-desktop trash helpers.
  *
  * Soft-trash a placement (or folder placement) with optimistic local
  * eviction, an Undo toast, and a cross-window broadcast so other
@@ -39,10 +39,10 @@ function broadcastFilesChange(
 ): void {
 	const api = (
 		window as {
-			wp?: { desktop?: { broadcast?: ( topic: string, payload: unknown ) => void } };
+			wp?: { os?: { broadcast?: ( topic: string, payload: unknown ) => void } };
 		}
-	).wp?.desktop;
-	api?.broadcast?.( `desktop-mode.${ kind }.changed`, {
+	).wp?.os;
+	api?.broadcast?.( `os.${ kind }.changed`, {
 		source: 'desktop-files',
 		action,
 		ids,
@@ -51,8 +51,8 @@ function broadcastFilesChange(
 
 /**
  * Surface a non-blocking error toast when a trash attempt is
- * rejected (typically by the `desktop_mode_files_forbidden` 403 from
- * `desktop_mode_files_user_can_trash_placement`). Defensive: the
+ * rejected (typically by the `open_station_files_forbidden` 403 from
+ * `open_station_files_user_can_trash_placement`). Defensive: the
  * tile-menu entry and the drop target's `accept` are both gated on
  * `placement.canTrash` so the user shouldn't be able to reach this
  * path through the normal UI, but legacy clients and concurrent
@@ -63,20 +63,20 @@ function broadcastFilesChange(
 function showTrashErrorToast( err: unknown ): void {
 	const api = (
 		window as {
-			wp?: { desktop?: { showToast?: ( opts: unknown ) => void } };
+			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( ! api?.showToast ) {
 		return;
 	}
 	const raw = err instanceof Error ? err.message : String( err );
 	// `call()` formats REST failures as
-	// "[desktop-mode] files REST 403: desktop_mode_files_forbidden …".
+	// "[openstation] files REST 403: open_station_files_forbidden …".
 	// Strip the prefix + error code so the user-facing toast keeps
 	// just the human-readable reason.
 	const friendly = raw
-		.replace( /^\[desktop-mode\][^:]*:\s*/, '' )
-		.replace( /^desktop_mode_files_[a-z_]+\s*/, '' );
+		.replace( /^\[openstation\][^:]*:\s*/, '' )
+		.replace( /^open_station_files_[a-z_]+\s*/, '' );
 	api.showToast( {
 		message: friendly || 'Could not move this item to the recycle bin.',
 		duration: 5000,
@@ -86,9 +86,9 @@ function showTrashErrorToast( err: unknown ): void {
 function showTrashedToast( message: string, onUndo: () => void ): void {
 	const api = (
 		window as {
-			wp?: { desktop?: { showToast?: ( opts: unknown ) => void } };
+			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( ! api?.showToast ) {
 		return;
 	}
@@ -127,12 +127,12 @@ export async function trashPlacementWithUndo(
 				broadcastFilesChange( kind, 'untrashed', [ placementId ] );
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] restore failed:', err );
+				console.error( '[openstation] restore failed:', err );
 			}
 		} );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deletePlacement failed:', err );
+		console.error( '[openstation] deletePlacement failed:', err );
 		showTrashErrorToast( err );
 		void rest.listPlacements( parentId ).then( ( res ) => {
 			filesStoreApi.setFolderPlacements( parentId, res.placements );
@@ -168,12 +168,12 @@ export async function trashFolderWithUndo(
 				broadcastFilesChange( 'folder', 'untrashed', [ folderId ] );
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] restore folder failed:', err );
+				console.error( '[openstation] restore folder failed:', err );
 			}
 		} );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deleteFolder failed:', err );
+		console.error( '[openstation] deleteFolder failed:', err );
 		showTrashErrorToast( err );
 		void rest.listPlacements( parentId ).then( ( res ) => {
 			filesStoreApi.setFolderPlacements( parentId, res.placements );

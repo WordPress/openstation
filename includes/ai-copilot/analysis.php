@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot analysis: prompts, schemas, meta storage.
+ * OpenStation — AI Copilot analysis: prompts, schemas, meta storage.
  *
  * This module owns:
  *   - The JSON Schema for comment analysis (filterable).
@@ -14,16 +14,16 @@
  * Meta key: `_desktop_mode_ai_analysis` (prefixed underscore → hidden from
  * the Custom Fields UI by default).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Meta key used to store the per-comment AI analysis. */
-const DESKTOP_MODE_AI_META_KEY = '_desktop_mode_ai_analysis';
+const OPEN_STATION_AI_META_KEY = '_desktop_mode_ai_analysis';
 
 /** Max characters of comment text sent to the provider. */
-const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
+const OPEN_STATION_AI_CONTENT_MAX_CHARS = 3000;
 
 // ---------------------------------------------------------------------------
 // JSON Schemas
@@ -37,7 +37,7 @@ const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
  *
  * @return array
  */
-function desktop_mode_ai_schema_comment() {
+function open_station_ai_schema_comment() {
 	$schema = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -67,7 +67,7 @@ function desktop_mode_ai_schema_comment() {
 	 *
 	 * @param array $schema The JSON Schema array.
 	 */
-	return (array) apply_filters( 'desktop_mode_ai_schema_comment', $schema );
+	return (array) apply_filters( 'open_station_ai_schema_comment', $schema );
 }
 
 // ---------------------------------------------------------------------------
@@ -83,9 +83,9 @@ function desktop_mode_ai_schema_comment() {
  * @param WP_Comment $comment
  * @return array Chat messages array.
  */
-function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
+function open_station_ai_messages_for_comment( WP_Comment $comment ) {
 	$text = wp_strip_all_tags( $comment->comment_content );
-	$text = mb_substr( preg_replace( '/\s+/', ' ', trim( $text ) ), 0, DESKTOP_MODE_AI_CONTENT_MAX_CHARS );
+	$text = mb_substr( preg_replace( '/\s+/', ' ', trim( $text ) ), 0, OPEN_STATION_AI_CONTENT_MAX_CHARS );
 
 	$user_text = "Analyze the following WordPress comment.\n\n";
 	$user_text .= "Comment:\n{$text}\n\n";
@@ -111,7 +111,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 	 * @param string     $user_text The composed user message.
 	 * @param WP_Comment $comment   The comment being analyzed.
 	 */
-	$user_text = (string) apply_filters( 'desktop_mode_ai_comment_prompt', $user_text, $comment );
+	$user_text = (string) apply_filters( 'open_station_ai_comment_prompt', $user_text, $comment );
 
 	return array(
 		array(
@@ -141,7 +141,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
  * @param array  $analysis    The structured output array from the provider.
  * @return bool
  */
-function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
+function open_station_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
 	$entity_id = (int) $entity_id;
 	if ( $entity_id <= 0 || 'comment' !== $entity_type ) {
 		return false;
@@ -150,26 +150,26 @@ function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) 
 	// Stamp when the analysis was performed so consumers can detect staleness.
 	$analysis['analyzed_at'] = time();
 
-	return false !== update_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, $analysis );
+	return false !== update_comment_meta( $entity_id, OPEN_STATION_AI_META_KEY, $analysis );
 }
 
 /**
  * Retrieves a previously saved comment AI analysis, or null if none exists.
  *
- * Only `'comment'` is supported (see {@see desktop_mode_ai_save_meta}); any
+ * Only `'comment'` is supported (see {@see open_station_ai_save_meta}); any
  * other `$entity_type` returns null.
  *
  * @param string $entity_type Only `'comment'` is supported.
  * @param int    $entity_id   Comment ID.
  * @return array|null
  */
-function desktop_mode_ai_get_meta( $entity_type, $entity_id ) {
+function open_station_ai_get_meta( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
 	if ( $entity_id <= 0 || 'comment' !== $entity_type ) {
 		return null;
 	}
 
-	$raw = get_comment_meta( $entity_id, DESKTOP_MODE_AI_META_KEY, true );
+	$raw = get_comment_meta( $entity_id, OPEN_STATION_AI_META_KEY, true );
 
 	return is_array( $raw ) && ! empty( $raw ) ? $raw : null;
 }

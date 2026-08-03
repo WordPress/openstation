@@ -1,7 +1,7 @@
 /**
  * Native Comments window — REST helpers.
  *
- * Thin wrappers over `wp.desktop.fetch` (aka `trackedFetch`) so the
+ * Thin wrappers over `wp.os.fetch` (aka `trackedFetch`) so the
  * window's loading spinner + the activity bus get the request
  * attribution they need.
  *
@@ -174,8 +174,8 @@ export async function fetchComments(
  * Fields the conversation pane actually renders for a thread message.
  *
  * Narrower than the window's default `_fields`: the rail needs
- * `desktop_mode_replies_count` (one `get_comments()` COUNT per row) and
- * `desktop_mode_post_title`, a thread message does not. At up to 100
+ * `open_station_replies_count` (one `get_comments()` COUNT per row) and
+ * `open_station_post_title`, a thread message does not. At up to 100
  * rows per thread that per-row cost is the difference between one
  * cheap query and a hundred.
  */
@@ -189,10 +189,10 @@ const THREAD_FIELDS = [
 	'date_gmt',
 	'content',
 	'status',
-	'desktop_mode_post_title',
-	'desktop_mode_post_link',
-	'desktop_mode_can_edit',
-	'desktop_mode_can_moderate',
+	'open_station_post_title',
+	'open_station_post_link',
+	'open_station_can_edit',
+	'open_station_can_moderate',
 ].join( ',' );
 
 /**

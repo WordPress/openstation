@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — PWA install affordance.
+ * OpenStation — PWA install affordance.
  *
  * Registers a persistent system-tile on the dock so the install
  * action is always within reach of the user. Clicking it dispatches
@@ -43,7 +43,7 @@ import type { ToastOptions } from '../toast';
 import { getSwRegistrationStatus } from './sw-register';
 
 /** Stable id for the tile — exported so tests can assert against it. */
-export const PWA_INSTALL_TILE_ID = 'desktop-mode-pwa-install';
+export const PWA_INSTALL_TILE_ID = 'os-pwa-install';
 
 /**
  * Subset of the spec-shaped `BeforeInstallPromptEvent`. Typed locally
@@ -224,7 +224,7 @@ async function onTileClick(
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] install prompt failed:',
+					'[openstation] install prompt failed:',
 					err,
 				);
 			}
@@ -253,7 +253,7 @@ async function onTileClick(
 	if ( getSwRegistrationStatus() === 'foreign-sw' ) {
 		showToast( {
 			message: __(
-				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.",
+				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the open_station_pwa_force_replace_sw filter to true.",
 			),
 		} );
 		return;

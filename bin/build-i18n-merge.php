@@ -15,7 +15,7 @@
  *                       `wp i18n make-json`.
  *   HANDLE_LOCALE       Locale slug (e.g. es_ES). Used in the output
  *                       header and revision-date passthrough.
- *   HANDLE_DOMAIN       Text domain (e.g. desktop-mode).
+ *   HANDLE_DOMAIN       Text domain (e.g. openstation).
  *
  * Output: writes HANDLE_OUT_FILE if at least one translation matches the
  * prefix, removes a stale file otherwise.

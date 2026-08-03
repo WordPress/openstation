@@ -2,7 +2,7 @@
  * Server-driven window-link renderer sync.
  *
  * Mirrors `src/effects/server-sync.ts`. Plugins opt in server-side
- * with `desktop_mode_register_window_link_renderer_script()`; this
+ * with `open_station_register_window_link_renderer_script()`; this
  * module loads each opted-in script on activation, and on
  * deactivation unregisters every renderer whose `owner` matches the
  * departing handle.

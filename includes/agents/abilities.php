@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents: abilities bridge.
+ * OpenStation — Agents: abilities bridge.
  *
  * Two halves:
  *
@@ -9,7 +9,7 @@
  *    (read-only) plus the mutating trio `desktop-mode/update-post`,
  *    `desktop-mode/update-media` (alt text / title / caption /
  *    description), and `desktop-mode/create-post` (draft-only). The
- *    `desktop-mode` category ships from the AI Copilot module
+ *    `openstation` category ships from the AI Copilot module
  *    (always loaded), so this file only adds abilities to it. The
  *    read abilities carry the `readonly` annotation and therefore
  *    also become available to the AI Copilot assistant; the mutating
@@ -25,7 +25,7 @@
  *    an `edit_users` human, the agent's role, and each ability's own
  *    `permission_callback` evaluated against the agent user.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return void
  */
-function desktop_mode_agents_register_abilities() {
+function open_station_agents_register_abilities() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
@@ -52,7 +52,7 @@ function desktop_mode_agents_register_abilities() {
 			// cautious one will refuse to write rather than risk
 			// flattening blocks.
 			'description'         => 'Return a post — title, content, excerpt, status, author, dates — by its numeric id. `content` is the RAW stored content exactly as saved, with block delimiter comments (`<!-- wp:… -->`) intact; it is never rendered output, so it is safe to edit and write back. Honours the caller\'s read capability.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPEN_STATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -64,7 +64,7 @@ function desktop_mode_agents_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => open_station_ai_ability_output_schema(
 				array(
 					'id'      => array( 'type' => 'integer' ),
 					'title'   => array( 'type' => 'string' ),
@@ -72,8 +72,8 @@ function desktop_mode_agents_register_abilities() {
 					'status'  => array( 'type' => 'string' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_agents_ability_get_post',
-			'permission_callback' => 'desktop_mode_agents_ability_get_post_can',
+			'execute_callback'    => 'open_station_agents_ability_get_post',
+			'permission_callback' => 'open_station_agents_ability_get_post_can',
 			'meta'                => array(
 				'annotations'  => array(
 					'readonly'   => true,
@@ -89,7 +89,7 @@ function desktop_mode_agents_register_abilities() {
 		array(
 			'label'               => __( 'Get media details', 'desktop-mode' ),
 			'description'         => 'Return details for a media library item (attachment) by numeric id: file URL, mime type, dimensions, alt text, caption, and the post it is attached to. Use this to read images or other media referenced by posts.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPEN_STATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -101,15 +101,15 @@ function desktop_mode_agents_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => open_station_ai_ability_output_schema(
 				array(
 					'id'   => array( 'type' => 'integer' ),
 					'url'  => array( 'type' => 'string' ),
 					'mime' => array( 'type' => 'string' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_agents_ability_get_media',
-			'permission_callback' => 'desktop_mode_agents_ability_get_media_can',
+			'execute_callback'    => 'open_station_agents_ability_get_media',
+			'permission_callback' => 'open_station_agents_ability_get_media_can',
 			'meta'                => array(
 				'annotations'  => array(
 					'readonly'   => true,
@@ -125,7 +125,7 @@ function desktop_mode_agents_register_abilities() {
 		array(
 			'label'               => __( 'Update media details', 'desktop-mode' ),
 			'description'         => 'Update metadata on a media library item (attachment): alt text, title, caption, and/or description. The file itself is never touched. Honours the edit capability on the attachment.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPEN_STATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -153,14 +153,14 @@ function desktop_mode_agents_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => open_station_ai_ability_output_schema(
 				array(
 					'id'      => array( 'type' => 'integer' ),
 					'updated' => array( 'type' => 'boolean' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_agents_ability_update_media',
-			'permission_callback' => 'desktop_mode_agents_ability_update_media_can',
+			'execute_callback'    => 'open_station_agents_ability_update_media',
+			'permission_callback' => 'open_station_agents_ability_update_media_can',
 			'meta'                => array(
 				'show_in_rest' => true,
 			),
@@ -172,7 +172,7 @@ function desktop_mode_agents_register_abilities() {
 		array(
 			'label'               => __( 'Create draft post', 'desktop-mode' ),
 			'description'         => 'Create a NEW post or page as a DRAFT, authored by the calling user. The status is always draft: this ability can never publish. Use it to produce reviewable content (translations, variants, generated drafts) without touching any existing post. `content` is stored RAW, exactly as passed, so send block markup with its delimiter comments (`<!-- wp:… -->`) intact.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPEN_STATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -197,14 +197,14 @@ function desktop_mode_agents_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => open_station_ai_ability_output_schema(
 				array(
 					'id'     => array( 'type' => 'integer' ),
 					'status' => array( 'type' => 'string' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_agents_ability_create_post',
-			'permission_callback' => 'desktop_mode_agents_ability_create_post_can',
+			'execute_callback'    => 'open_station_agents_ability_create_post',
+			'permission_callback' => 'open_station_agents_ability_create_post_can',
 			'meta'                => array(
 				'show_in_rest' => true,
 			),
@@ -216,7 +216,7 @@ function desktop_mode_agents_register_abilities() {
 		array(
 			'label'               => __( 'Update post', 'desktop-mode' ),
 			'description'         => 'Update fields on an existing post. Accepts any subset of title / content / excerpt / status. `content` is stored RAW, exactly as passed, so send block markup with its delimiter comments (`<!-- wp:… -->`) intact — passing rendered HTML would flatten the post\'s blocks. Honours the edit_post capability of the calling user.',
-			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'category'            => OPEN_STATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -245,21 +245,21 @@ function desktop_mode_agents_register_abilities() {
 					),
 				),
 			),
-			'output_schema'       => desktop_mode_ai_ability_output_schema(
+			'output_schema'       => open_station_ai_ability_output_schema(
 				array(
 					'id'      => array( 'type' => 'integer' ),
 					'updated' => array( 'type' => 'boolean' ),
 				)
 			),
-			'execute_callback'    => 'desktop_mode_agents_ability_update_post',
-			'permission_callback' => 'desktop_mode_agents_ability_update_post_can',
+			'execute_callback'    => 'open_station_agents_ability_update_post',
+			'permission_callback' => 'open_station_agents_ability_update_post_can',
 			'meta'                => array(
 				'show_in_rest' => true,
 			),
 		)
 	);
 }
-add_action( 'wp_abilities_api_init', 'desktop_mode_agents_register_abilities' );
+add_action( 'wp_abilities_api_init', 'open_station_agents_register_abilities' );
 
 /**
  * `desktop-mode/get-post` execute callback.
@@ -267,12 +267,12 @@ add_action( 'wp_abilities_api_init', 'desktop_mode_agents_register_abilities' );
  * @param array $args Validated input.
  * @return array|WP_Error
  */
-function desktop_mode_agents_ability_get_post( $args ) {
+function open_station_agents_ability_get_post( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
 	$post    = $post_id > 0 ? get_post( $post_id ) : null;
 	if ( ! ( $post instanceof WP_Post ) ) {
-		return new WP_Error( 'desktop_mode_agent_post_not_found', __( 'Post not found.', 'desktop-mode' ) );
+		return new WP_Error( 'open_station_agent_post_not_found', __( 'Post not found.', 'desktop-mode' ) );
 	}
 	return array(
 		'id'       => (int) $post->ID,
@@ -294,7 +294,7 @@ function desktop_mode_agents_ability_get_post( $args ) {
  * @param array $args Input args.
  * @return bool
  */
-function desktop_mode_agents_ability_get_post_can( $args ) {
+function open_station_agents_ability_get_post_can( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
 	if ( $post_id <= 0 ) {
@@ -309,12 +309,12 @@ function desktop_mode_agents_ability_get_post_can( $args ) {
  * @param array $args Validated input.
  * @return array|WP_Error
  */
-function desktop_mode_agents_ability_get_media( $args ) {
+function open_station_agents_ability_get_media( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
 	$post          = $attachment_id > 0 ? get_post( $attachment_id ) : null;
 	if ( ! ( $post instanceof WP_Post ) || 'attachment' !== $post->post_type ) {
-		return new WP_Error( 'desktop_mode_agent_media_not_found', __( 'Attachment not found.', 'desktop-mode' ) );
+		return new WP_Error( 'open_station_agent_media_not_found', __( 'Attachment not found.', 'desktop-mode' ) );
 	}
 
 	$meta = wp_get_attachment_metadata( $attachment_id );
@@ -349,7 +349,7 @@ function desktop_mode_agents_ability_get_media( $args ) {
  * @param array $args Input args.
  * @return bool
  */
-function desktop_mode_agents_ability_get_media_can( $args ) {
+function open_station_agents_ability_get_media_can( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
 	if ( $attachment_id <= 0 ) {
@@ -364,12 +364,12 @@ function desktop_mode_agents_ability_get_media_can( $args ) {
  * @param array $args Validated input.
  * @return array|WP_Error
  */
-function desktop_mode_agents_ability_update_media( $args ) {
+function open_station_agents_ability_update_media( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
 	$post          = $attachment_id > 0 ? get_post( $attachment_id ) : null;
 	if ( ! ( $post instanceof WP_Post ) || 'attachment' !== $post->post_type ) {
-		return new WP_Error( 'desktop_mode_agent_media_not_found', __( 'Attachment not found.', 'desktop-mode' ) );
+		return new WP_Error( 'open_station_agent_media_not_found', __( 'Attachment not found.', 'desktop-mode' ) );
 	}
 
 	if ( isset( $args['alt_text'] ) ) {
@@ -406,7 +406,7 @@ function desktop_mode_agents_ability_update_media( $args ) {
  * @param array $args Input args.
  * @return bool
  */
-function desktop_mode_agents_ability_update_media_can( $args ) {
+function open_station_agents_ability_update_media_can( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
 	if ( $attachment_id <= 0 ) {
@@ -423,7 +423,7 @@ function desktop_mode_agents_ability_update_media_can( $args ) {
  * @param array $args Validated input.
  * @return array|WP_Error
  */
-function desktop_mode_agents_ability_create_post( $args ) {
+function open_station_agents_ability_create_post( $args ) {
 	$args = (array) $args;
 	$type = isset( $args['type'] ) && 'page' === $args['type'] ? 'page' : 'post';
 
@@ -457,7 +457,7 @@ function desktop_mode_agents_ability_create_post( $args ) {
  * @param array $args Input args.
  * @return bool
  */
-function desktop_mode_agents_ability_create_post_can( $args ) {
+function open_station_agents_ability_create_post_can( $args ) {
 	$args = (array) $args;
 	if ( isset( $args['type'] ) && 'page' === $args['type'] ) {
 		return current_user_can( 'edit_pages' );
@@ -471,11 +471,11 @@ function desktop_mode_agents_ability_create_post_can( $args ) {
  * @param array $args Validated input.
  * @return array|WP_Error
  */
-function desktop_mode_agents_ability_update_post( $args ) {
+function open_station_agents_ability_update_post( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
 	if ( $post_id <= 0 || ! get_post( $post_id ) ) {
-		return new WP_Error( 'desktop_mode_agent_post_not_found', __( 'Post not found.', 'desktop-mode' ) );
+		return new WP_Error( 'open_station_agent_post_not_found', __( 'Post not found.', 'desktop-mode' ) );
 	}
 
 	$update = array( 'ID' => $post_id );
@@ -491,7 +491,7 @@ function desktop_mode_agents_ability_update_post( $args ) {
 	if ( isset( $args['status'] ) ) {
 		$status = sanitize_key( (string) $args['status'] );
 		if ( ! in_array( $status, array( 'publish', 'draft', 'pending', 'private' ), true ) ) {
-			return new WP_Error( 'desktop_mode_agent_invalid_status', __( 'Invalid post status.', 'desktop-mode' ) );
+			return new WP_Error( 'open_station_agent_invalid_status', __( 'Invalid post status.', 'desktop-mode' ) );
 		}
 		$update['post_status'] = $status;
 	}
@@ -515,7 +515,7 @@ function desktop_mode_agents_ability_update_post( $args ) {
  * @param array $args Input args.
  * @return bool
  */
-function desktop_mode_agents_ability_update_post_can( $args ) {
+function open_station_agents_ability_update_post_can( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
 	if ( $post_id <= 0 || ! current_user_can( 'edit_post', $post_id ) ) {
@@ -537,7 +537,7 @@ function desktop_mode_agents_ability_update_post_can( $args ) {
  *
  * @return array<int, array{slug:string, label:string, description:string, category:string, readonly:bool}>
  */
-function desktop_mode_agents_abilities_catalogue() {
+function open_station_agents_abilities_catalogue() {
 	$catalogue = array();
 
 	if ( function_exists( 'wp_get_abilities' ) ) {
@@ -568,7 +568,7 @@ function desktop_mode_agents_abilities_catalogue() {
 	 *
 	 * @param array $catalogue Abilities projected from `wp_get_abilities()`.
 	 */
-	$catalogue = apply_filters( 'desktop_mode_agent_abilities_catalogue', $catalogue );
+	$catalogue = apply_filters( 'open_station_agent_abilities_catalogue', $catalogue );
 	if ( ! is_array( $catalogue ) ) {
 		return array();
 	}

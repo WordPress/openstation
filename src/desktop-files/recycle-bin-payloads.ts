@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Extra recycle-bin drop-payload handlers.
+ * OpenStation — Extra recycle-bin drop-payload handlers.
  *
  * Same seam shape as `canvas-payloads.ts`, for the recycle-bin drop
  * surfaces: `recycle-bin-targets.ts` owns the drop targets on the

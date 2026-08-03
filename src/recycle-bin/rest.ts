@@ -11,7 +11,7 @@ import { trackedFetch } from '../tracked-fetch';
 
 declare global {
 	interface Window {
-		desktopModeRecycleBinConfig?: {
+		openStationRecycleBinConfig?: {
 			restNonce: string;
 			listUrl: string;
 			restoreUrl: string;
@@ -66,20 +66,20 @@ export interface EmptyResponse {
 	remaining: number;
 }
 
-function config(): NonNullable< Window[ 'desktopModeRecycleBinConfig' ] > {
-	const cfg = window.desktopModeRecycleBinConfig;
+function config(): NonNullable< Window[ 'openStationRecycleBinConfig' ] > {
+	const cfg = window.openStationRecycleBinConfig;
 	if ( ! cfg ) {
 		// Distinguish "consumer error" (bundle loaded somewhere it
 		// shouldn't be) from "integration contract failure" (bundle
-		// loaded the way desktop-mode wanted, but its config never
+		// loaded the way openstation wanted, but its config never
 		// reached the page). The latter is the historical mid-session-
 		// activation bug fixed by harvesting `extra` data into
 		// the lazy-load payload — if a consumer plugin still hits this
 		// error after upgrading, the integration is the place to look.
 		throw new Error(
-			'desktopModeRecycleBinConfig is missing — config blob did not reach the page. ' +
+			'openStationRecycleBinConfig is missing — config blob did not reach the page. ' +
 				'This typically means the recycle-bin script handle was lazy-loaded by ' +
-				'desktop-mode without its `wp_localize_script` data being included in ' +
+				'openstation without its `wp_localize_script` data being included in ' +
 				'the payload. See docs/examples/window-with-config.md.',
 		);
 	}
@@ -88,10 +88,10 @@ function config(): NonNullable< Window[ 'desktopModeRecycleBinConfig' ] > {
 
 async function request< T >( url: string, init: RequestInit ): Promise< T > {
 	const cfg = config();
-	// Always route through the framework `wp.desktop.fetch` so the
+	// Always route through the framework `wp.os.fetch` so the
 	// request feeds the active window's loading spinner + the
 	// activity bus. The recycle-bin bundle is registered as a
-	// dependency of the main `desktop-mode` script handle, which
+	// dependency of the main `openstation` script handle, which
 	// guarantees the framework helper is on the global before
 	// this code runs — no fallback needed.
 	const response = await trackedFetch(

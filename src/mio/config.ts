@@ -1,13 +1,13 @@
 /**
- * Desktop Mode — Mio configuration defaults + sanitizer.
+ * OpenStation — Mio configuration defaults + sanitizer.
  *
  * Mio's look and physics are configurable from three places,
  * highest priority last:
  *
  *   1. {@link MIO_DEFAULTS} — the reference design.
- *   2. PHP — `desktop_mode_mio_config` filter, shipped in the
- *      shell config as `desktopModeConfig.mio`.
- *   3. JS — the `desktop-mode.mio.config` filter, applied by the
+ *   2. PHP — `open_station_mio_config` filter, shipped in the
+ *      shell config as `openStationConfig.mio`.
+ *   3. JS — the `os.mio.config` filter, applied by the
  *      controller right before mount.
  *
  * Every value that reaches the simulation goes through

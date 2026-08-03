@@ -30,7 +30,7 @@ import { trackedFetch } from '../tracked-fetch';
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
@@ -128,7 +128,7 @@ export interface PostsWindowConfig {
 
 /**
  * Active edit-lock holder for a row, surfaced via the
- * `desktop_mode_lock` REST field registered in
+ * `open_station_lock` REST field registered in
  * `includes/my-wordpress/lock.php`. `null` when the row isn't
  * locked, when the requester lacks edit caps, or when the
  * requester is the lock holder.
@@ -175,14 +175,14 @@ export interface PostListItem {
 	template?: string;
 	/**
 	 * Comments count for this row, surfaced via the
-	 * `desktop_mode_comment_count` REST field registered in
+	 * `open_station_comment_count` REST field registered in
 	 * `includes/pages-window/window.php`. Absent for callers that
 	 * don't include the field in `_fields`.
 	 */
-	desktop_mode_comment_count?: number;
+	open_station_comment_count?: number;
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
-	desktop_mode_lock?: PostListItemLock | null;
+	open_station_lock?: PostListItemLock | null;
 	_embedded?: {
 		author?: Array< {
 			id: number;
@@ -282,11 +282,11 @@ export interface TermRow {
 	/**
 	 * Whether this term is the taxonomy's default fallback (e.g.
 	 * Uncategorized for category; populated server-side via the
-	 * `desktop_mode_is_default` REST field). `false` when the field
+	 * `open_station_is_default` REST field). `false` when the field
 	 * isn't surfaced (older PHP build) or the term isn't the default.
 	 */
 	isDefault: boolean;
-	// Index signature so `<wpd-table>`'s row constraint
+	// Index signature so `<os-table>`'s row constraint
 	// (`Record<string, unknown>`) is satisfied — the table never
 	// reads beyond the declared keys, but the type-level constraint
 	// is structural.
@@ -390,7 +390,7 @@ export interface TermNeighbor {
  * caches the full tree per window-open) clear their caches so they
  * pick up the change without needing F5.
  *
- * Channel: `desktop-mode.term.changed`. Payload:
+ * Channel: `os.term.changed`. Payload:
  * `{ taxonomy: 'category' | 'post_tag', action, id }`.
  *
  * @internal
@@ -403,7 +403,7 @@ function broadcastTermChange(
 	const api = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					broadcast?: (
 						channel: string,
 						payload: unknown,
@@ -411,9 +411,9 @@ function broadcastTermChange(
 				};
 			};
 		}
-	).wp?.desktop;
+	).wp?.os;
 	if ( api && typeof api.broadcast === 'function' ) {
-		api.broadcast( 'desktop-mode.term.changed', {
+		api.broadcast( 'os.term.changed', {
 			source: 'posts-window',
 			taxonomy,
 			action,
@@ -434,14 +434,14 @@ export function createPostsWindowClient(
 	windowId: string,
 ): PostsWindowClient {
 	const getConfig = (): PostsWindowConfig => {
-		const store = window.desktopModeWindowConfig;
+		const store = window.openStationWindowConfig;
 		const cfg = store
 			? ( store[ windowId ] as PostsWindowConfig | undefined )
 			: undefined;
 		if ( ! cfg ) {
 			throw new Error(
 				`[${ windowId }] config blob is missing — was the window opened ` +
-					'without registration? See the matching `desktop_mode_register_window()` ' +
+					'without registration? See the matching `open_station_register_window()` ' +
 					'call in `includes/{posts,pages}-window/window.php`.',
 			);
 		}
@@ -789,7 +789,7 @@ export function createPostsWindowClient(
 		url.searchParams.set( 'page', String( params.page ?? 1 ) );
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,parent,count,description,desktop_mode_count,desktop_mode_is_default',
+			'id,name,slug,parent,count,description,open_station_count,open_station_is_default',
 		);
 		url.searchParams.set( 'orderby', params.orderby ?? 'name' );
 		url.searchParams.set( 'order', params.order ?? 'asc' );
@@ -808,11 +808,11 @@ export function createPostsWindowClient(
 				// Prefer the any-status count (includes drafts + pending)
 				// when the server emits it; fall back to core's `count`
 				// for older PHP builds that predate the custom field.
-				const anyCount = ( t as { desktop_mode_count?: number } )
-					.desktop_mode_count;
+				const anyCount = ( t as { open_station_count?: number } )
+					.open_station_count;
 				const isDefault =
-					( t as { desktop_mode_is_default?: boolean } )
-						.desktop_mode_is_default === true;
+					( t as { open_station_is_default?: boolean } )
+						.open_station_is_default === true;
 				return {
 					id: ( t.id as number ) ?? 0,
 					name: ( t.name as string ) ?? '',

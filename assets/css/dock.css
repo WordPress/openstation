@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Dock.
+ * OpenStation — Dock.
  *
  * A rail that hosts admin menu tiles plus shell-level system tiles.
  * Placement (left / right / bottom) is reflected on each dock element
- * itself as `data-desktop-mode-dock-placement`; this stylesheet keys
+ * itself as `data-os-dock-placement`; this stylesheet keys
  * off that attribute for layout, tooltip anchor, and indicator
  * position. Two instances can coexist (Classic layout: a left side
  * bar with core menus + a bottom dock with plugin menus); each
@@ -17,21 +17,21 @@
  * Shared dock chrome — applies to every placement.
  * ------------------------------------------------------------------ */
 
-.desktop-mode-dock {
+.os-dock {
 	display: flex;
 	align-items: center;
-	z-index: var( --desktop-mode-z-dock );
-	background-color: var( --desktop-mode-dock-bg );
+	z-index: var( --os-z-dock );
+	background-color: var( --os-dock-bg );
 	/*
 	 * Desktop-theme dock texture (DOCK slot). Layered OVER the dock
 	 * background colour, so a theme can ship a semi-transparent
 	 * texture and still get the translucent wash underneath. `none`
 	 * when unset — no theme, no cost.
 	 */
-	background-image: var( --desktop-mode-dock-bg-image, none );
-	background-repeat: var( --desktop-mode-dock-bg-image-repeat, repeat );
-	background-size: var( --desktop-mode-dock-bg-image-size, auto );
-	background-position: var( --desktop-mode-dock-bg-image-position, center );
+	background-image: var( --os-dock-bg-image, none );
+	background-repeat: var( --os-dock-bg-image-repeat, repeat );
+	background-size: var( --os-dock-bg-image-size, auto );
+	background-position: var( --os-dock-bg-image-position, center );
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
@@ -46,7 +46,7 @@
 }
 
 /* A single dock tile — icon button (+ optional instance rail below). */
-.desktop-mode-dock__item {
+.os-dock__item {
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -56,7 +56,7 @@
 }
 
 /* Primary icon button — opens or focuses the page. */
-.desktop-mode-dock__item-primary {
+.os-dock__item-primary {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -75,38 +75,38 @@
 	 * under the icon; the hover wash below is a background-COLOR so
 	 * it composes with the texture rather than erasing it.
 	 */
-	background-image: var( --desktop-mode-dock-item-image, none );
-	background-repeat: var( --desktop-mode-dock-item-image-repeat, no-repeat );
-	background-size: var( --desktop-mode-dock-item-image-size, auto );
-	background-position: var( --desktop-mode-dock-item-image-position, center );
+	background-image: var( --os-dock-item-image, none );
+	background-repeat: var( --os-dock-item-image-repeat, no-repeat );
+	background-size: var( --os-dock-item-image-size, auto );
+	background-position: var( --os-dock-item-image-position, center );
 	/*
 	 * Dock glyph colour. The literal is what this rule always said;
 	 * the token is the name a theme aims at when its dock strip is
 	 * not dark. See the "Dock glyphs" block in variables.css.
 	 */
-	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
+	color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
-.desktop-mode-dock__item-primary:hover {
+.os-dock__item-primary:hover {
 	background-color: var(
-		--desktop-mode-dock-item-bg-hover,
+		--os-dock-item-bg-hover,
 		rgba( 255, 255, 255, 0.15 )
 	);
 	color: var(
-		--desktop-mode-dock-icon-color-hover,
-		var( --wpd-fg-on-accent, #fff )
+		--os-dock-icon-color-hover,
+		var( --os-ui-fg-on-accent, #fff )
 	);
 	transform: scale( 1.1 );
 }
 
-.desktop-mode-dock__item-primary:active {
+.os-dock__item-primary:active {
 	transform: scale( 0.95 );
 }
 
-.desktop-mode-dock__item-primary:focus-visible {
+.os-dock__item-primary:focus-visible {
 	outline: 2px solid var(
-		--desktop-mode-dock-item-outline,
+		--os-dock-item-outline,
 		rgba( 255, 255, 255, 0.7 )
 	);
 	outline-offset: 2px;
@@ -115,8 +115,8 @@
 /* Stacked card hint on hover — a second card peeks from behind the
    icon when the tile has multiple open windows. Only visible on hover so
    it never conflicts with focused tiles. */
-.desktop-mode-dock__item--stacked:hover .desktop-mode-dock__item-primary::before,
-.desktop-mode-dock__item--stacked[data-peek-active] .desktop-mode-dock__item-primary::before {
+.os-dock__item--stacked:hover .os-dock__item-primary::before,
+.os-dock__item--stacked[data-peek-active] .os-dock__item-primary::before {
 	content: "";
 	position: absolute;
 	top: -4px;
@@ -131,10 +131,10 @@
 }
 
 /* Dashicon inside dock item. */
-.desktop-mode-dock__item .dashicons {
-	font-size: var( --desktop-mode-dock-icon-size, 20px );
-	width: var( --desktop-mode-dock-icon-size, 20px );
-	height: var( --desktop-mode-dock-icon-size, 20px );
+.os-dock__item .dashicons {
+	font-size: var( --os-dock-icon-size, 20px );
+	width: var( --os-dock-icon-size, 20px );
+	height: var( --os-dock-icon-size, 20px );
 	line-height: 1;
 }
 
@@ -144,9 +144,9 @@
  * filled with `currentColor` (see `__item-mask` below) and only lands
  * here when the mask refuses the URL — one carrying quotes, spaces or
  * parens. The filter is what that fallback still needs. */
-.desktop-mode-dock__item-svg {
-	width: var( --desktop-mode-dock-icon-size, 20px );
-	height: var( --desktop-mode-dock-icon-size, 20px );
+.os-dock__item-svg {
+	width: var( --os-dock-icon-size, 20px );
+	height: var( --os-dock-icon-size, 20px );
 	display: block;
 	fill: currentColor;
 	opacity: 0.7;
@@ -160,7 +160,7 @@
 	transition: opacity 0.15s ease;
 }
 
-.desktop-mode-dock__item-primary:hover .desktop-mode-dock__item-svg {
+.os-dock__item-primary:hover .os-dock__item-svg {
 	opacity: 1;
 }
 
@@ -173,7 +173,7 @@
  *   - A desktop theme's tinted iconset, filled with the colour the
  *     theme named for that slot.
  *   - Every other plugin / CPT image icon, filled with
- *     `currentColor` — which is `--desktop-mode-dock-icon-color`, the
+ *     `currentColor` — which is `--os-dock-icon-color`, the
  *     same token the dashicons follow.
  *
  * Deliberately NOT `__item-svg`: that class force-whitens its content
@@ -190,9 +190,9 @@
  *
  * @since 0.9.8
  */
-.desktop-mode-dock__item-mask {
-	width: var( --desktop-mode-dock-icon-size, 20px );
-	height: var( --desktop-mode-dock-icon-size, 20px );
+.os-dock__item-mask {
+	width: var( --os-dock-icon-size, 20px );
+	height: var( --os-dock-icon-size, 20px );
 	display: block;
 	flex-shrink: 0;
 }
@@ -202,18 +202,18 @@
  * dashicon / SVG / image URL. Miniature "app placeholder": rounded
  * square tinted with a title-derived hue, first letter centered.
  */
-.desktop-mode-dock__item-letter {
+.os-dock__item-letter {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 28px;
 	height: 28px;
 	border-radius: 8px;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font-size: 15px;
 	font-weight: 700;
 	font-family: var(
-		--desktop-mode-font,
+		--os-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
 	);
 	line-height: 1;
@@ -224,22 +224,22 @@
 		inset 0 -1px 0 rgba( 0, 0, 0, 0.15 );
 }
 
-.desktop-mode-dock__item img.desktop-mode-dock__item-img {
-	width: var( --desktop-mode-dock-icon-size, 20px );
-	height: var( --desktop-mode-dock-icon-size, 20px );
+.os-dock__item img.os-dock__item-img {
+	width: var( --os-dock-icon-size, 20px );
+	height: var( --os-dock-icon-size, 20px );
 	display: block;
 	opacity: 0.7;
 	transition: opacity 0.15s ease;
 }
 
-.desktop-mode-dock__item-primary:hover img.desktop-mode-dock__item-img {
+.os-dock__item-primary:hover img.os-dock__item-img {
 	opacity: 1;
 }
 
 /* "Open another" floating chip — shown on multi-capable tiles that
  * already have ≥1 open instance. Positioned inside each orientation
  * block so the chip hugs the outward edge of the tile. */
-.desktop-mode-dock__item-new {
+.os-dock__item-new {
 	position: absolute;
 	display: flex;
 	align-items: center;
@@ -247,25 +247,25 @@
 	width: 20px;
 	height: 20px;
 	padding: 0;
-	border: 2px solid var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) );
+	border: 2px solid var( --os-dock-bg, rgba( 0, 0, 0, 0.4 ) );
 	border-radius: 50%;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	cursor: pointer;
 	transition: background-color 0.15s ease, transform 0.15s ease;
 	z-index: 1;
 }
 
-.desktop-mode-dock__item-new[hidden] {
+.os-dock__item-new[hidden] {
 	display: none;
 }
 
-.desktop-mode-dock__item-new:hover {
-	background: var( --wpd-surface, #fff );
+.os-dock__item-new:hover {
+	background: var( --os-ui-surface, #fff );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-dock__item-new:focus-visible {
+.os-dock__item-new:focus-visible {
 	outline: 2px solid rgba( 255, 255, 255, 0.85 );
 	outline-offset: 2px;
 }
@@ -273,7 +273,7 @@
 /* Notification badge — iOS/macOS-style pill straddling the tile
  * corner. Ring matches the dock bg so it reads as "punched out."
  * Badge positioning is placement-aware via the blocks below. */
-.desktop-mode-dock__badge {
+.os-dock__badge {
 	/*
 	 * Badge geometry DERIVES from the dock's icon size instead of
 	 * being pinned to 16px.
@@ -285,28 +285,28 @@
 	 * old numbers — 16px box, 10px text, ~5px padding — so nothing
 	 * moves for anyone who hasn't changed the setting.
 	 *
-	 * `--desktop-mode-dock-badge-size` overrides the whole derivation
+	 * `--os-dock-badge-size` overrides the whole derivation
 	 * for themes that want a specific badge; the font size and padding
 	 * then follow it, so one token is usually enough.
 	 */
-	--desktop-mode-dock-badge-computed-size: var(
-		--desktop-mode-dock-badge-size,
-		calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.8 )
+	--os-dock-badge-computed-size: var(
+		--os-dock-badge-size,
+		calc( var( --os-dock-icon-size, 20px ) * 0.8 )
 	);
 	position: absolute;
-	min-width: var( --desktop-mode-dock-badge-computed-size );
-	height: var( --desktop-mode-dock-badge-computed-size );
+	min-width: var( --os-dock-badge-computed-size );
+	height: var( --os-dock-badge-computed-size );
 	padding: 0 var(
-		--desktop-mode-dock-badge-padding,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.3 )
+		--os-dock-badge-padding,
+		calc( var( --os-dock-badge-computed-size ) * 0.3 )
 	);
 	box-sizing: border-box;
 	border-radius: 999px;
 	background: var(
-		--desktop-mode-dock-badge-bg,
-		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+		--os-dock-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --os-ui-danger, #d63638 ) 100% )
 	);
-	color: var( --desktop-mode-dock-badge-fg, var( --wpd-fg-on-accent, #fff ) );
+	color: var( --os-dock-badge-fg, var( --os-ui-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -322,24 +322,24 @@
 	 * as part of the artwork and the number has to carry itself.
 	 */
 	font-size: var(
-		--desktop-mode-dock-badge-font-size,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.625 )
+		--os-dock-badge-font-size,
+		calc( var( --os-dock-badge-computed-size ) * 0.625 )
 	);
-	font-weight: var( --desktop-mode-dock-badge-font-weight, 700 );
+	font-weight: var( --os-dock-badge-font-weight, 700 );
 	line-height: 1;
 	letter-spacing: 0.01em;
 	text-align: center;
 	font-variant-numeric: tabular-nums;
 	box-shadow:
-		0 0 0 1.5px var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) ),
+		0 0 0 1.5px var( --os-dock-bg, rgba( 0, 0, 0, 0.4 ) ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
 	pointer-events: none;
 	transition: transform 0.15s ease;
-	top: var( --desktop-mode-dock-badge-offset, -3px );
-	inset-inline-end: var( --desktop-mode-dock-badge-offset, -3px );
+	top: var( --os-dock-badge-offset, -3px );
+	inset-inline-end: var( --os-dock-badge-offset, -3px );
 }
 
-.desktop-mode-dock__item:hover .desktop-mode-dock__badge {
+.os-dock__item:hover .os-dock__badge {
 	transform: scale( 1.05 );
 	top: -4px;
 }
@@ -349,7 +349,7 @@
  * is ambient state. Keep it inside the bin glyph as a quiet neutral
  * marker instead of a red alert on the tile corner.
  */
-.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .desktop-mode-dock__badge {
+.os-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .os-dock__badge {
 	/*
 	 * Sized off the dock icon like every other badge, so it tracks the
 	 * dock-size setting instead of sitting at a fixed 13px on an icon
@@ -364,32 +364,32 @@
 	 * token → the derivation, so a theme that says "dock badges are
 	 * 20px" reaches the bin without naming it.
 	 */
-	--desktop-mode-dock-recycle-badge-computed-size: var(
-		--desktop-mode-dock-recycle-badge-size,
+	--os-dock-recycle-badge-computed-size: var(
+		--os-dock-recycle-badge-size,
 		var(
-			--desktop-mode-dock-badge-size,
-			calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.75 )
+			--os-dock-badge-size,
+			calc( var( --os-dock-icon-size, 20px ) * 0.75 )
 		)
 	);
-	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
-	inset-inline-end: calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.35 );
-	min-width: var( --desktop-mode-dock-recycle-badge-computed-size );
-	height: var( --desktop-mode-dock-recycle-badge-computed-size );
-	padding: 0 calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.25 );
+	top: calc( var( --os-dock-icon-size, 20px ) * 1 );
+	inset-inline-end: calc( var( --os-dock-icon-size, 20px ) * 0.35 );
+	min-width: var( --os-dock-recycle-badge-computed-size );
+	height: var( --os-dock-recycle-badge-computed-size );
+	padding: 0 calc( var( --os-dock-recycle-badge-computed-size ) * 0.25 );
 	border-radius: 999px;
 	background: var(
-		--desktop-mode-dock-recycle-badge-bg,
+		--os-dock-recycle-badge-bg,
 		rgba( 29, 35, 39, 0.72 )
 	);
 	color: var(
-		--desktop-mode-dock-recycle-badge-fg,
+		--os-dock-recycle-badge-fg,
 		rgba( 255, 255, 255, 0.92 )
 	);
 	font-size: var(
-		--desktop-mode-dock-recycle-badge-font-size,
+		--os-dock-recycle-badge-font-size,
 		var(
-			--desktop-mode-dock-badge-font-size,
-			calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.8 )
+			--os-dock-badge-font-size,
+			calc( var( --os-dock-recycle-badge-computed-size ) * 0.8 )
 		)
 	);
 	font-weight: 700;
@@ -399,12 +399,12 @@
 		0 1px 2px rgba( 0, 0, 0, 0.24 );
 }
 
-.desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .desktop-mode-dock__badge {
+.os-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .os-dock__badge {
 	/* Re-assert the derived offset, not a literal: the base rule above
 	 * is overridden by the generic `__item:hover .__badge` rule, and
 	 * hardcoding 20px here would strand the badge the moment the dock
 	 * icon size changed. */
-	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
+	top: calc( var( --os-dock-icon-size, 20px ) * 1 );
 	transform: scale( 1.03 );
 }
 
@@ -414,8 +414,8 @@
  * the fallback: unthemed, system tiles keep sitting a notch brighter
  * than the rest (0.8 vs 0.7); themed, one colour covers every glyph
  * in the dock rather than leaving these four stranded white. */
-.desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
-	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
+.os-dock__item--system .os-dock__item-primary {
+	color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
 }
 
 /* -----------------------------------------------------------------------------
@@ -429,7 +429,7 @@
  * still works.
  * ------------------------------------------------------------------------- */
 
-@keyframes wpd-dock-attention-pulse {
+@keyframes os-dock-attention-pulse {
 	0%, 100% {
 		transform: scale( 1 );
 		box-shadow: 0 0 0 0 rgba( 255, 90, 90, 0.55 );
@@ -440,7 +440,7 @@
 	}
 }
 
-@keyframes wpd-dock-attention-shake {
+@keyframes os-dock-attention-shake {
 	0%, 100% {
 		transform: translateX( 0 );
 	}
@@ -452,7 +452,7 @@
 	}
 }
 
-@keyframes wpd-dock-attention-bounce {
+@keyframes os-dock-attention-bounce {
 	0%, 100% {
 		transform: translateY( 0 );
 	}
@@ -464,43 +464,43 @@
 	}
 }
 
-.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
-	animation: wpd-dock-attention-pulse 1.4s ease-in-out infinite;
+.os-dock__item--attention-pulse .os-dock__item-primary {
+	animation: os-dock-attention-pulse 1.4s ease-in-out infinite;
 }
-.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
-	animation: wpd-dock-attention-shake 0.8s ease-in-out infinite;
+.os-dock__item--attention-shake .os-dock__item-primary {
+	animation: os-dock-attention-shake 0.8s ease-in-out infinite;
 }
-.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
-	animation: wpd-dock-attention-bounce 1.2s ease-in-out infinite;
+.os-dock__item--attention-bounce .os-dock__item-primary {
+	animation: os-dock-attention-bounce 1.2s ease-in-out infinite;
 }
 
 /* Intensity modulates animation duration — strong = faster, more
    urgent; subtle = slower, calmer. */
-.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-strong.os-dock__item--attention-pulse .os-dock__item-primary {
 	animation-duration: 1s;
 }
-.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-strong.os-dock__item--attention-shake .os-dock__item-primary {
 	animation-duration: 0.6s;
 }
-.desktop-mode-dock__item--intensity-strong.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-strong.os-dock__item--attention-bounce .os-dock__item-primary {
 	animation-duration: 0.9s;
 }
-.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-subtle.os-dock__item--attention-pulse .os-dock__item-primary {
 	animation-duration: 1.8s;
 }
-.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-subtle.os-dock__item--attention-shake .os-dock__item-primary {
 	animation-duration: 1s;
 }
-.desktop-mode-dock__item--intensity-subtle.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
+.os-dock__item--intensity-subtle.os-dock__item--attention-bounce .os-dock__item-primary {
 	animation-duration: 1.6s;
 }
 
 /* Reduced-motion: kill the animation, replace with a static accent ring
    for the same visual prominence without the movement. */
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-dock__item--attention-pulse .desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item--attention-shake .desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item--attention-bounce .desktop-mode-dock__item-primary {
+	.os-dock__item--attention-pulse .os-dock__item-primary,
+	.os-dock__item--attention-shake .os-dock__item-primary,
+	.os-dock__item--attention-bounce .os-dock__item-primary {
 		animation: none;
 		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 		outline-offset: 2px;
@@ -509,16 +509,16 @@
 }
 
 /* Shared tooltip — placement-specific anchor modifiers applied by JS. */
-.desktop-mode-dock__tooltip {
+.os-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
 	background: var(
-		--desktop-mode-tooltip-bg,
-		var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) )
+		--os-tooltip-bg,
+		var( --os-ui-scrim, rgba( 0, 0, 0, 0.85 ) )
 	);
 	color: var(
-		--desktop-mode-tooltip-fg,
-		var( --wpd-fg-on-accent, #fff )
+		--os-tooltip-fg,
+		var( --os-ui-fg-on-accent, #fff )
 	);
 	font-size: 12px;
 	font-weight: 400;
@@ -526,12 +526,12 @@
 	white-space: nowrap;
 	border-radius: 6px;
 	pointer-events: none;
-	z-index: calc( var( --desktop-mode-z-dock ) + 1 );
+	z-index: calc( var( --os-z-dock ) + 1 );
 	opacity: 0;
 	transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.desktop-mode-dock__tooltip--visible {
+.os-dock__tooltip--visible {
 	opacity: 1;
 }
 
@@ -540,9 +540,9 @@
  * height along one edge, with items stacked vertically.
  * ------------------------------------------------------------------ */
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ],
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] {
-	width: var( --desktop-mode-dock-width );
+.os-dock[ data-os-dock-placement="left" ],
+.os-dock[ data-os-dock-placement="right" ] {
+	width: var( --os-dock-width );
 	flex-direction: column;
 	padding: 16px 0 12px;
 	gap: 6px;
@@ -576,8 +576,8 @@
  * rule below — so the rail keeps its clean macOS look. Mouse wheel,
  * touchpad, touch, and keyboard focus-into-view all still work.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ] .desktop-mode-dock__scroll,
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] .desktop-mode-dock__scroll {
+.os-dock[ data-os-dock-placement="left" ] .os-dock__scroll,
+.os-dock[ data-os-dock-placement="right" ] .os-dock__scroll {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -590,8 +590,8 @@
 	scrollbar-width: none;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ] .desktop-mode-dock__scroll::-webkit-scrollbar,
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] .desktop-mode-dock__scroll::-webkit-scrollbar {
+.os-dock[ data-os-dock-placement="left" ] .os-dock__scroll::-webkit-scrollbar,
+.os-dock[ data-os-dock-placement="right" ] .os-dock__scroll::-webkit-scrollbar {
 	display: none;
 }
 
@@ -600,8 +600,8 @@
  * regardless of how the menu list scrolls. `flex-shrink: 0` so it's
  * never compressed; sized to its content's natural height.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ] .desktop-mode-dock__pinned,
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] .desktop-mode-dock__pinned {
+.os-dock[ data-os-dock-placement="left" ] .os-dock__pinned,
+.os-dock[ data-os-dock-placement="right" ] .os-dock__pinned {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -611,20 +611,20 @@
 }
 
 /* Left: dock is the first flex item in __body (row layout). */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ] {
-	border-inline-end: 1px solid var( --desktop-mode-dock-border );
+.os-dock[ data-os-dock-placement="left" ] {
+	border-inline-end: 1px solid var( --os-dock-border );
 	order: -1;
 }
 
 /* Right: push the dock to the end of __body and flip the border edge. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] {
-	border-inline-start: 1px solid var( --desktop-mode-dock-border );
+.os-dock[ data-os-dock-placement="right" ] {
+	border-inline-start: 1px solid var( --os-dock-border );
 	order: 1;
 }
 
 /* Active-indicator dot — left dock: inside-edge vertical pill. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__item--active::before {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-start: -6px;
@@ -633,11 +633,11 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__item--focused::before {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--focused::before {
 	width: 4px;
 	height: 16px;
 	border-radius: 2px;
@@ -653,8 +653,8 @@
  * Sized slightly larger than the solid dot so the ring is legible at
  * dock size — a 4×4 outline reads as a dirty pixel.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__item--all-minimized::before {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item--all-minimized::before {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
@@ -663,8 +663,8 @@
 }
 
 /* Right dock: indicator on the opposite edge (inside-facing). */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__item--active::before {
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-end: -6px;
@@ -673,18 +673,18 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__item--focused::before {
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--focused::before {
 	width: 4px;
 	height: 16px;
 	border-radius: 2px;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__item--all-minimized::before {
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item--all-minimized::before {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
@@ -693,27 +693,27 @@
 }
 
 /* "Open another" chip — left: right of tile; right: left of tile. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__item-new {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item-new {
 	top: 50%;
 	inset-inline-end: -13px;
 	transform: translateY( -50% );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__item-new:hover {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item-new:hover {
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__item-new {
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item-new {
 	top: 50%;
 	inset-inline-start: -13px;
 	transform: translateY( -50% );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__item-new:hover {
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item-new:hover {
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
@@ -724,21 +724,21 @@
  * `--group` variant is used inline between core and plugin menu
  * tiles in `__scroll`; it keeps the hairline styling and sits
  * exactly where it's inserted. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__separator,
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__separator {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__separator,
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__separator {
 	width: 60%;
 	height: 1px;
 	margin: 8px auto 4px;
-	background: var( --desktop-mode-dock-border );
+	background: var( --os-dock-border );
 	flex-shrink: 0;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
-	.desktop-mode-dock__separator--group,
-.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
-	.desktop-mode-dock__separator--group {
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__separator--group,
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__separator--group {
 	margin: 10px auto;
 	background: rgba( 255, 255, 255, 0.22 );
 }
@@ -754,13 +754,13 @@
  *   2. Vertical docks — separator lives inside `__pinned`; hide when
  *      `__scroll` (its sibling above) is empty of menu tiles.
  */
-.desktop-mode-dock > .desktop-mode-dock__separator:first-child {
+.os-dock > .os-dock__separator:first-child {
 	display: none;
 }
 
-.desktop-mode-dock__scroll:not(:has( .desktop-mode-dock__item ))
-	+ .desktop-mode-dock__pinned
-	.desktop-mode-dock__separator {
+.os-dock__scroll:not(:has( .os-dock__item ))
+	+ .os-dock__pinned
+	.os-dock__separator {
 	display: none;
 }
 
@@ -775,18 +775,18 @@
  * tile is added the `:has()` no longer matches and normal flow
  * resumes.
  *
- * The `[data-desktop-mode-dock-placement]` qualifier is load-bearing:
+ * The `[data-os-dock-placement]` qualifier is load-bearing:
  * the per-placement rules that set `display: flex` on `__scroll` are
  * (0,3,0); this selector must out-specify them, so it carries the
  * placement attribute to reach (0,4,0).
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement ]
-	.desktop-mode-dock__scroll:not(:has( .desktop-mode-dock__item )) {
+.os-dock[ data-os-dock-placement ]
+	.os-dock__scroll:not(:has( .os-dock__item )) {
 	display: none;
 }
 
 /* Tooltip — anchor modifiers are applied directly to the tooltip
- * element (NOT via a descendant selector on `.desktop-mode-dock`)
+ * element (NOT via a descendant selector on `.os-dock`)
  * because the tooltip lives in `document.body`. JS writes the
  * absolute `top` / `left` coords; CSS handles the slide-in
  * animation direction per modifier.
@@ -798,22 +798,22 @@
 
 /* Left dock — tooltip slides in from the left by 4px. JS sets
  * `left` to `tile.right + 8px`; the transform animates the entry. */
-.desktop-mode-dock__tooltip--after {
+.os-dock__tooltip--after {
 	transform: translateX( -4px );
 }
 
-.desktop-mode-dock__tooltip--after.desktop-mode-dock__tooltip--visible {
+.os-dock__tooltip--after.os-dock__tooltip--visible {
 	transform: translateX( 0 );
 }
 
-.desktop-mode-dock__tooltip--before {
+.os-dock__tooltip--before {
 	/* Right-placed dock — tooltip sits to the left of the tile. JS
 	 * writes the left coord to the tile's left edge; this translate
 	 * pulls the tooltip further left by its own width. */
 	transform: translate( calc( -100% - 8px ), 0 );
 }
 
-.desktop-mode-dock__tooltip--before.desktop-mode-dock__tooltip--visible {
+.os-dock__tooltip--before.os-dock__tooltip--visible {
 	transform: translate( calc( -100% - 8px ), 0 );
 	opacity: 1;
 }
@@ -824,7 +824,7 @@
  * rather than stealing vertical space from the shell body.
  * ------------------------------------------------------------------ */
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] {
+.os-dock[ data-os-dock-placement="bottom" ] {
 	position: absolute;
 	inset-inline-start: 0;
 	inset-inline-end: 0;
@@ -847,16 +847,16 @@
 	 * the floating pill reads as a distinct piece of chrome rather
 	 * than a section of the sidebar.
 	 *
-	 * background-COLOR, not the shorthand: the base `.desktop-mode-dock`
+	 * background-COLOR, not the shorthand: the base `.os-dock`
 	 * rule declares the DOCK texture slot's background-image, and a
 	 * shorthand here would reset it — a themed dock texture would
 	 * simply never appear in the bottom placement.
 	 *
-	 * The tint is its own token rather than `--desktop-mode-dock-bg`
+	 * The tint is its own token rather than `--os-dock-bg`
 	 * precisely because the two are meant to differ; a theme that
 	 * wants them identical points this at the same value. */
 	background-color: var(
-		--desktop-mode-dock-floating-bg,
+		--os-dock-floating-bg,
 		rgba( 22, 22, 26, 0.42 )
 	);
 	backdrop-filter: blur( 28px ) saturate( 170% );
@@ -869,36 +869,36 @@
 	 * an empty desktop.
 	 *
 	 * The chain matters: the floating-specific token wins, then the
-	 * general `--desktop-mode-dock-border` (so a theme that tokenized
+	 * general `--os-dock-border` (so a theme that tokenized
 	 * its side docks gets the pill for free, which is what anyone
 	 * setting that token expects), then the literal. Set either to
 	 * `transparent` for a borderless pill.
 	 */
 	border: 1px solid var(
-		--desktop-mode-dock-floating-border,
-		var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.12 ) )
+		--os-dock-floating-border,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.12 ) )
 	);
 	border-block-start: 1px solid var(
-		--desktop-mode-dock-floating-border-top,
+		--os-dock-floating-border-top,
 		var(
-			--desktop-mode-dock-floating-border,
-			var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.18 ) )
+			--os-dock-floating-border,
+			var( --os-dock-border, rgba( 255, 255, 255, 0.18 ) )
 		)
 	);
 	box-shadow:
 		inset 0 1px 0 var(
-			--desktop-mode-dock-floating-highlight,
+			--os-dock-floating-highlight,
 			rgba( 255, 255, 255, 0.08 )
 		),
 		0 10px 32px var(
-			--desktop-mode-dock-floating-shadow,
+			--os-dock-floating-shadow,
 			rgba( 0, 0, 0, 0.45 )
 		);
 }
 
 /* Active-indicator dot — below the tile, macOS-style. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__item--active::before {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item--active::before {
 	content: "";
 	position: absolute;
 	inset-inline-start: 50%;
@@ -908,11 +908,11 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__item--focused::before {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item--focused::before {
 	width: 16px;
 	height: 4px;
 	border-radius: 2px;
@@ -923,8 +923,8 @@
  * a hollow ring. Matches the vertical-dock treatment so the cue is
  * consistent across placements.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__item--all-minimized::before {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item--all-minimized::before {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
@@ -941,8 +941,8 @@
  * brings them back; without this the empty wallpaper looks identical
  * to a freshly-loaded desktop with no windows open.
  */
-body.desktop-mode-show-desktop-active
-	.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] {
+body.os-show-desktop-active
+	.os-dock[ data-os-dock-placement="bottom" ] {
 	box-shadow:
 		inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) ),
 		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
@@ -950,24 +950,24 @@ body.desktop-mode-show-desktop-active
 }
 
 /* Vertical docks get the same treatment along their inner edge. */
-body.desktop-mode-show-desktop-active
-	.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ],
-body.desktop-mode-show-desktop-active
-	.desktop-mode-dock[ data-desktop-mode-dock-placement="right" ] {
+body.os-show-desktop-active
+	.os-dock[ data-os-dock-placement="left" ],
+body.os-show-desktop-active
+	.os-dock[ data-os-dock-placement="right" ] {
 	box-shadow: inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) );
 }
 
 /* "Open another" chip — floats above the tile's top-right corner so
  * it doesn't collide with neighbouring tiles in the horizontal row. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__item-new {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item-new {
 	top: -6px;
 	inset-inline-end: -6px;
 	transform: none;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__item-new:hover {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item-new:hover {
 	transform: scale( 1.1 );
 }
 
@@ -983,7 +983,7 @@ body.desktop-mode-show-desktop-active
  * the pill when content fits; when it overflows, scroll engages and
  * items extend past the visible area.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__scroll {
+.os-dock[ data-os-dock-placement="bottom" ] .os-dock__scroll {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -998,11 +998,11 @@ body.desktop-mode-show-desktop-active
 	scrollbar-width: none;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__scroll::-webkit-scrollbar {
+.os-dock[ data-os-dock-placement="bottom" ] .os-dock__scroll::-webkit-scrollbar {
 	display: none;
 }
 
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ] .desktop-mode-dock__pinned {
+.os-dock[ data-os-dock-placement="bottom" ] .os-dock__pinned {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -1020,8 +1020,8 @@ body.desktop-mode-show-desktop-active
  * auto needed. The `--group` variant keeps the hairline styling for
  * the inline core→plugin boundary inside `__scroll` and sits where
  * inserted. */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__separator {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__separator {
 	width: 1px;
 	/* Fixed height — `60%` collapses against the floating pill's
 	   intrinsic height, leaving the hairline effectively invisible.
@@ -1034,7 +1034,7 @@ body.desktop-mode-show-desktop-active
 	 * divider — and the whole menu cluster with it — off the pill's
 	 * center. */
 	margin: auto 6px;
-	background: var( --desktop-mode-dock-border );
+	background: var( --os-dock-border );
 	flex-shrink: 0;
 }
 
@@ -1045,8 +1045,8 @@ body.desktop-mode-show-desktop-active
  * begin"), and flanked by extra gap so the boundary reads at a
  * glance rather than disappearing into the dock tint.
  */
-.desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
-	.desktop-mode-dock__separator--group {
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__separator--group {
 	width: 1px;
 	height: 60%;
 	margin: auto 10px;
@@ -1058,12 +1058,12 @@ body.desktop-mode-show-desktop-active
 /* Tooltip — above the hovered tile. JS writes the horizontal center
  * + a top near the tile's top edge; CSS translates the tooltip up by
  * its own height so it clears the tile. */
-.desktop-mode-dock__tooltip--above {
+.os-dock__tooltip--above {
 	inset-inline-start: auto;
 	transform: translate( -50%, calc( -100% - 4px ) );
 }
 
-.desktop-mode-dock__tooltip--above.desktop-mode-dock__tooltip--visible {
+.os-dock__tooltip--above.os-dock__tooltip--visible {
 	transform: translate( -50%, -100% );
 }
 
@@ -1079,7 +1079,7 @@ body.desktop-mode-show-desktop-active
  * writes inline `transform` + `transition` per leg, so no CSS
  * transition is declared here (it would race with the per-leg
  * inline transition). */
-.desktop-mode-dock__item--dragging {
+.os-dock__item--dragging {
 	pointer-events: none;
 	z-index: 50;
 	opacity: 0.92;
@@ -1090,10 +1090,10 @@ body.desktop-mode-show-desktop-active
 	filter: drop-shadow( 0 6px 12px rgba( 0, 0, 0, 0.35 ) );
 }
 
-.desktop-mode-dock__item:not( .desktop-mode-dock__item--system ) {
+.os-dock__item:not( .os-dock__item--system ) {
 	cursor: grab;
 }
 
-.desktop-mode-dock__item:not( .desktop-mode-dock__item--system ):active {
+.os-dock__item:not( .os-dock__item--system ):active {
 	cursor: grabbing;
 }

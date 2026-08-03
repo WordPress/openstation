@@ -18,12 +18,12 @@ import {
 } from './helpers/hooks-stub';
 
 const WIDGET_HOOKS = [
-	'desktop-mode.widget.mounting',
-	'desktop-mode.widget.mounted',
-	'desktop-mode.widget.unmounting',
-	'desktop-mode.widget.mount-failed',
-	'desktop-mode.widget.added',
-	'desktop-mode.widget.removed',
+	'os.widget.mounting',
+	'os.widget.mounted',
+	'os.widget.unmounting',
+	'os.widget.mount-failed',
+	'os.widget.added',
+	'os.widget.removed',
 ] as const;
 
 describe( 'widgets/registry', () => {
@@ -85,7 +85,7 @@ describe( 'widgets/registry', () => {
 		expect( registry.get( 'x' )?.label ).toBe( 'Second' );
 	} );
 
-	test( 'plugins can filter the registry via desktop-mode.widgets', async () => {
+	test( 'plugins can filter the registry via os.widgets', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		registry.register( {
 			id: 'keep',
@@ -102,7 +102,7 @@ describe( 'widgets/registry', () => {
 			mount: () => () => undefined,
 		} );
 		hooks.addFilter(
-			'desktop-mode.widgets',
+			'os.widgets',
 			'test/filter',
 			( list: unknown ) =>
 				( list as Array<{ id: string }> ).filter(
@@ -158,9 +158,9 @@ describe( 'widgets/layer', () => {
 
 		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'desktop-mode.widget.mounting' );
-		expect( names ).toContain( 'desktop-mode.widget.mounted' );
-		expect( host.querySelector( '.desktop-mode-widgets__card' ) ).not.toBeNull();
+		expect( names ).toContain( 'os.widget.mounting' );
+		expect( names ).toContain( 'os.widget.mounted' );
+		expect( host.querySelector( '.os-widgets__card' ) ).not.toBeNull();
 		expect( host.textContent ).toContain( 'tick' );
 	} );
 
@@ -180,7 +180,7 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 
 		expect( layer.getEnabledIds() ).toEqual( [] );
-		expect( host.querySelector( '.desktop-mode-widgets__card' ) ).toBeNull();
+		expect( host.querySelector( '.os-widgets__card' ) ).toBeNull();
 	} );
 
 	test( 'add mounts + fires added + persists', async () => {
@@ -208,9 +208,9 @@ describe( 'widgets/layer', () => {
 			JSON.parse( window.localStorage.getItem( 'desktop-mode-widgets' )! ),
 		).toContain( 'stats' );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'desktop-mode.widget.added' );
-		expect( names ).toContain( 'desktop-mode.widget.mounting' );
-		expect( names ).toContain( 'desktop-mode.widget.mounted' );
+		expect( names ).toContain( 'os.widget.added' );
+		expect( names ).toContain( 'os.widget.mounting' );
+		expect( names ).toContain( 'os.widget.mounted' );
 	} );
 
 	test( 'add is idempotent — calling twice fires only one added + mounts once', async () => {
@@ -232,10 +232,10 @@ describe( 'widgets/layer', () => {
 		layer.add( 'x' );
 
 		const addedCount = log.filter(
-			( e ) => e.name === 'desktop-mode.widget.added',
+			( e ) => e.name === 'os.widget.added',
 		).length;
 		const mountedCount = log.filter(
-			( e ) => e.name === 'desktop-mode.widget.mounted',
+			( e ) => e.name === 'os.widget.mounted',
 		).length;
 		expect( addedCount ).toBe( 1 );
 		expect( mountedCount ).toBe( 1 );
@@ -265,8 +265,8 @@ describe( 'widgets/layer', () => {
 		expect( teardownFired ).toBe( true );
 		expect( layer.getEnabledIds() ).not.toContain( 'x' );
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'desktop-mode.widget.unmounting' );
-		expect( names ).toContain( 'desktop-mode.widget.removed' );
+		expect( names ).toContain( 'os.widget.unmounting' );
+		expect( names ).toContain( 'os.widget.removed' );
 	} );
 
 	test( 'async mount rejection fires mount-failed (not mounted)', async () => {
@@ -294,8 +294,8 @@ describe( 'widgets/layer', () => {
 		await Promise.resolve();
 
 		const names = log.map( ( e ) => e.name );
-		expect( names ).toContain( 'desktop-mode.widget.mount-failed' );
-		expect( names ).not.toContain( 'desktop-mode.widget.mounted' );
+		expect( names ).toContain( 'os.widget.mount-failed' );
+		expect( names ).not.toContain( 'os.widget.mounted' );
 		errSpy.mockRestore();
 	} );
 
@@ -316,11 +316,11 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 		layer.add( 'mov' );
 
-		const card = host.querySelector( '.desktop-mode-widgets__card' );
+		const card = host.querySelector( '.os-widgets__card' );
 		expect( card ).not.toBeNull();
-		expect( card!.classList.contains( 'desktop-mode-widgets__card--movable' ) ).toBe( true );
-		expect( card!.querySelector( '.desktop-mode-widgets__chrome' ) ).not.toBeNull();
-		expect( card!.querySelector( '.desktop-mode-widgets__grip' ) ).not.toBeNull();
+		expect( card!.classList.contains( 'os-widgets__card--movable' ) ).toBe( true );
+		expect( card!.querySelector( '.os-widgets__chrome' ) ).not.toBeNull();
+		expect( card!.querySelector( '.os-widgets__grip' ) ).not.toBeNull();
 	} );
 
 	test( 'non-movable widget has no chrome; close sits in the corner', async () => {
@@ -339,12 +339,12 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 		layer.add( 'static' );
 
-		const card = host.querySelector( '.desktop-mode-widgets__card' )!;
-		expect( card.classList.contains( 'desktop-mode-widgets__card--movable' ) ).toBe( false );
-		expect( card.querySelector( '.desktop-mode-widgets__chrome' ) ).toBeNull();
+		const card = host.querySelector( '.os-widgets__card' )!;
+		expect( card.classList.contains( 'os-widgets__card--movable' ) ).toBe( false );
+		expect( card.querySelector( '.os-widgets__chrome' ) ).toBeNull();
 		// Corner-close stays in the DOM with the --corner modifier.
 		expect(
-			card.querySelector( '.desktop-mode-widgets__card-close--corner' ),
+			card.querySelector( '.os-widgets__card-close--corner' ),
 		).not.toBeNull();
 	} );
 
@@ -365,9 +365,9 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 		layer.add( 'res' );
 
-		const card = host.querySelector( '.desktop-mode-widgets__card' )!;
-		expect( card.classList.contains( 'desktop-mode-widgets__card--resizable' ) ).toBe( true );
-		expect( card.querySelectorAll( '.desktop-mode-widgets__resize' ).length ).toBe( 8 );
+		const card = host.querySelector( '.os-widgets__card' )!;
+		expect( card.classList.contains( 'os-widgets__card--resizable' ) ).toBe( true );
+		expect( card.querySelectorAll( '.os-widgets__resize' ).length ).toBe( 8 );
 	} );
 
 	test( 'persisted geometry mounts a movable widget floating', async () => {
@@ -393,9 +393,9 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 
 		const card = document.body.querySelector<HTMLElement>(
-			'.desktop-mode-widgets__card',
+			'.os-widgets__card',
 		)!;
-		expect( card.classList.contains( 'desktop-mode-widgets__card--floating' ) ).toBe( true );
+		expect( card.classList.contains( 'os-widgets__card--floating' ) ).toBe( true );
 		expect( card.style.left ).toBe( '50px' );
 		expect( card.style.top ).toBe( '70px' );
 		expect( card.style.width ).toBe( '240px' );
@@ -431,7 +431,7 @@ describe( 'widgets/layer', () => {
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 		const card = host.querySelector< HTMLElement >(
-			'.desktop-mode-widgets__card',
+			'.os-widgets__card',
 		)!;
 		expect( card ).toBeTruthy();
 
@@ -466,7 +466,7 @@ describe( 'widgets/layer', () => {
 			return e;
 		};
 		const chrome = card.querySelector< HTMLElement >(
-			'.desktop-mode-widgets__chrome',
+			'.os-widgets__chrome',
 		)!;
 		// jsdom lacks setPointerCapture / releasePointerCapture; the
 		// frame calls both on the chrome element during a drag. Stub
@@ -480,7 +480,7 @@ describe( 'widgets/layer', () => {
 
 		// After liberation the card's inline height must reflect the
 		// pre-drag on-screen height (88) — NOT the registered 230.
-		expect( card.classList.contains( 'desktop-mode-widgets__card--floating' ) ).toBe( true );
+		expect( card.classList.contains( 'os-widgets__card--floating' ) ).toBe( true );
 		expect( card.style.height ).toBe( '88px' );
 		expect( card.style.width ).toBe( '310px' );
 
@@ -624,13 +624,13 @@ describe( 'widgets/layer', () => {
 		)!;
 		expect( card ).toBeTruthy();
 		expect(
-			card.classList.contains( 'desktop-mode-widgets__card--floating' ),
+			card.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( true );
 
 		// Put it back in the column.
 		layer.redock( 'redock-rs' );
 		expect(
-			card.classList.contains( 'desktop-mode-widgets__card--floating' ),
+			card.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( false );
 		expect( card.style.left ).toBe( '' );
 
@@ -656,7 +656,7 @@ describe( 'widgets/layer', () => {
 			return e;
 		};
 		const handle = card.querySelector< HTMLElement >(
-			'.desktop-mode-widgets__resize--s',
+			'.os-widgets__resize--s',
 		)!;
 		( handle as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
 		( handle as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
@@ -729,7 +729,7 @@ describe( 'widgets/layer', () => {
 			return e;
 		};
 		const handle = card.querySelector< HTMLElement >(
-			'.desktop-mode-widgets__resize--s',
+			'.os-widgets__resize--s',
 		)!;
 		( handle as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
 		( handle as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
@@ -761,7 +761,7 @@ describe( 'widgets/layer', () => {
 		)!;
 		expect( card2.style.height ).toBe( '260px' );
 		expect(
-			card2.classList.contains( 'desktop-mode-widgets__card--floating' ),
+			card2.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( false );
 		layer2.disposeAll();
 	} );
@@ -850,7 +850,7 @@ describe( 'widgets/layer', () => {
 
 		expect( teardownCalled ).toBe( true );
 		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.widget.mounted' ),
+			log.some( ( e ) => e.name === 'os.widget.mounted' ),
 		).toBe( false );
 	} );
 
@@ -874,17 +874,17 @@ describe( 'widgets/layer', () => {
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 		const card = host.parentElement!.querySelector< HTMLElement >(
-			'.desktop-mode-widgets__card',
+			'.os-widgets__card',
 		);
 		expect( card ).toBeTruthy();
 		expect(
-			card!.classList.contains( 'desktop-mode-widgets__card--floating' ),
+			card!.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( true );
 
 		layer.redock( 'roam' );
 
 		expect(
-			card!.classList.contains( 'desktop-mode-widgets__card--floating' ),
+			card!.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( false );
 		expect( card!.style.left ).toBe( '' );
 		expect( card!.style.top ).toBe( '' );
@@ -896,7 +896,7 @@ describe( 'widgets/layer', () => {
 		expect( geom.roam ).toBeUndefined();
 		// Re-parented under the column list, not the floating host.
 		expect(
-			host.querySelector( '.desktop-mode-widgets__list .desktop-mode-widgets__card' ),
+			host.querySelector( '.os-widgets__list .os-widgets__card' ),
 		).toBe( card );
 
 		// Idempotent — docked widget no-ops.

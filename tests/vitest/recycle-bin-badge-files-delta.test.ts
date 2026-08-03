@@ -48,7 +48,7 @@ function makePlacement( id: number, type = 'link' ) {
 describe( 'desktop-files trash — broadcast shape', () => {
 	beforeEach( async () => {
 		installHooksStub();
-		// Mount a thin `wp.desktop.broadcast` shim that forwards to
+		// Mount a thin `wp.os.broadcast` shim that forwards to
 		// the module-level broadcast — production wires this in
 		// `desktop.ts` boot, but our test loads the trash helper in
 		// isolation. Without it the broadcaster silently no-ops and
@@ -57,8 +57,8 @@ describe( 'desktop-files trash — broadcast shape', () => {
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
-			desktop: {
-				...( ( w.wp?.desktop as Record< string, unknown > | undefined ) ?? {} ),
+			os: {
+				...( ( w.wp?.os as Record< string, unknown > | undefined ) ?? {} ),
 				broadcast: bc.broadcast,
 			},
 		};
@@ -71,7 +71,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 		vi.unstubAllGlobals();
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		if ( w.wp ) {
-			delete w.wp.desktop;
+			delete w.wp.os;
 		}
 	} );
 
@@ -89,7 +89,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 		vi.stubGlobal( 'fetch', fetchSpy );
 
 		const placementSub = vi.fn();
-		bc.subscribe( 'desktop-mode.placement.changed', placementSub );
+		bc.subscribe( 'os.placement.changed', placementSub );
 
 		const p = makePlacement( 42, 'link' );
 		store.setFolderPlacements( 0, [ p ] );
@@ -103,7 +103,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 				action: 'trashed',
 				ids: [ 42 ],
 			},
-			expect.objectContaining( { topic: 'desktop-mode.placement.changed' } ),
+			expect.objectContaining( { topic: 'os.placement.changed' } ),
 		);
 	} );
 
@@ -124,8 +124,8 @@ describe( 'desktop-files trash — broadcast shape', () => {
 
 		const shortcutSub = vi.fn();
 		const placementSub = vi.fn();
-		bc.subscribe( 'desktop-mode.shortcut.changed', shortcutSub );
-		bc.subscribe( 'desktop-mode.placement.changed', placementSub );
+		bc.subscribe( 'os.shortcut.changed', shortcutSub );
+		bc.subscribe( 'os.placement.changed', placementSub );
 
 		const p = makePlacement( 17, 'shortcut' );
 		store.setFolderPlacements( 0, [ p ] );
@@ -138,7 +138,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 				action: 'trashed',
 				ids: [ 17 ],
 			},
-			expect.objectContaining( { topic: 'desktop-mode.shortcut.changed' } ),
+			expect.objectContaining( { topic: 'os.shortcut.changed' } ),
 		);
 		expect( placementSub ).not.toHaveBeenCalled();
 	} );
@@ -159,7 +159,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 		);
 
 		const folderSub = vi.fn();
-		bc.subscribe( 'desktop-mode.folder.changed', folderSub );
+		bc.subscribe( 'os.folder.changed', folderSub );
 
 		const folderPlacement = {
 			...makePlacement( 9, 'folder' ),
@@ -180,7 +180,7 @@ describe( 'desktop-files trash — broadcast shape', () => {
 				action: 'trashed',
 				ids: [ 5 ],
 			},
-			expect.objectContaining( { topic: 'desktop-mode.folder.changed' } ),
+			expect.objectContaining( { topic: 'os.folder.changed' } ),
 		);
 	} );
 } );

@@ -2,7 +2,7 @@
  * Unit tests for `src/admin-bar-updates.ts`.
  *
  * The live menu-refresh payload carries `updateCounts` (aggregate
- * pending-update numbers built by `desktop_mode_build_menu_payload()`)
+ * pending-update numbers built by `open_station_build_menu_payload()`)
  * and `applyAdminBarUpdates()` mirrors them onto Core's
  * `#wp-admin-bar-updates` node — the top-left circle-arrows notifier
  * that otherwise shows its boot-time count until a hard refresh
@@ -150,7 +150,7 @@ describe( 'applyAdminBarUpdates', () => {
 	} );
 
 	test( 'is a no-op without an admin bar in the DOM', () => {
-		document.body.innerHTML = '<div id="desktop-mode-area"></div>';
+		document.body.innerHTML = '<div id="os-area"></div>';
 		expect( () => applyAdminBarUpdates( counts( 3 ) ) ).not.toThrow();
 	} );
 

@@ -56,7 +56,7 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 			},
 		);
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -147,7 +147,7 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 		flushRaf();
 
 		const layer = document.getElementById(
-			'desktop-mode-window-links-elevated',
+			'os-window-links-elevated',
 		)!;
 
 		// Focus the post → the elevated layer lifts to the group ceiling.

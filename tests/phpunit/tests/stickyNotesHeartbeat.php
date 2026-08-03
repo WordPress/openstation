@@ -1,11 +1,11 @@
 <?php
 /**
- * Tests for Gutenberg sticky notes over the Desktop Mode Heartbeat bus.
+ * Tests for Gutenberg sticky notes over the OpenStation Heartbeat bus.
  *
- * @group desktop-mode
- * @group desktop-mode-sticky-notes
+ * @group openstation
+ * @group os-sticky-notes
  */
-class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
+class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 
 	protected static $user_id;
 	protected $sticky_term_id;
@@ -28,8 +28,8 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_compute_heartbeat_delta
-	 * @covers ::desktop_mode_sticky_notes_shape_guideline
+	 * @covers ::open_station_sticky_notes_compute_heartbeat_delta
+	 * @covers ::open_station_sticky_notes_shape_guideline
 	 */
 	public function test_delta_returns_changed_private_sticky_guidelines() {
 		$sticky_id = $this->create_guideline(
@@ -46,7 +46,7 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$delta = desktop_mode_sticky_notes_compute_heartbeat_delta(
+		$delta = open_station_sticky_notes_compute_heartbeat_delta(
 			$this->sticky_term_id,
 			array(),
 			0,
@@ -58,13 +58,13 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 		$this->assertSame( 'Remember', $delta['notes'][0]['title']['raw'] );
 		$this->assertSame( 'Do the thing', $delta['notes'][0]['content']['raw'] );
 		$this->assertContains( $this->sticky_term_id, $delta['notes'][0]['wp_guideline_type'] );
-		$this->assertGreaterThan( 0, $delta['notes'][0]['desktop_mode_modified_ms'] );
+		$this->assertGreaterThan( 0, $delta['notes'][0]['open_station_modified_ms'] );
 		$this->assertSame( array(), $delta['removed'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_compute_heartbeat_delta
-	 * @covers ::desktop_mode_sticky_notes_alive_known_ids
+	 * @covers ::open_station_sticky_notes_compute_heartbeat_delta
+	 * @covers ::open_station_sticky_notes_alive_known_ids
 	 */
 	public function test_delta_reports_known_ids_that_are_no_longer_stickies_as_removed() {
 		$sticky_id = $this->create_guideline(
@@ -80,7 +80,7 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$delta = desktop_mode_sticky_notes_compute_heartbeat_delta(
+		$delta = open_station_sticky_notes_compute_heartbeat_delta(
 			$this->sticky_term_id,
 			array( $sticky_id, $plain_id, 999999 ),
 			0,
@@ -93,7 +93,7 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_heartbeat_received
+	 * @covers ::open_station_sticky_notes_heartbeat_received
 	 */
 	public function test_heartbeat_handler_uses_subscription_payload() {
 		$sticky_id = $this->create_guideline(
@@ -103,10 +103,10 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$response = desktop_mode_sticky_notes_heartbeat_received(
+		$response = open_station_sticky_notes_heartbeat_received(
 			array( 'other' => 'untouched' ),
 			array(
-				'desktop_mode_sticky_notes_subscribe' => array(
+				'open_station_sticky_notes_subscribe' => array(
 					'stickyTermId' => $this->sticky_term_id,
 					'knownIds'     => array(),
 					'version'      => 0,
@@ -115,62 +115,62 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'untouched', $response['other'] );
-		$this->assertArrayHasKey( 'desktop_mode_sticky_notes', $response );
-		$this->assertSame( $sticky_id, $response['desktop_mode_sticky_notes']['notes'][0]['id'] );
+		$this->assertArrayHasKey( 'open_station_sticky_notes', $response );
+		$this->assertSame( $sticky_id, $response['open_station_sticky_notes']['notes'][0]['id'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_heartbeat_received
+	 * @covers ::open_station_sticky_notes_heartbeat_received
 	 */
 	public function test_filter_is_registered_on_heartbeat_received() {
 		$this->assertNotFalse(
 			has_filter(
 				'heartbeat_received',
-				'desktop_mode_sticky_notes_heartbeat_received'
+				'open_station_sticky_notes_heartbeat_received'
 			),
 			'Sticky notes should hook the shared Heartbeat response.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_is_available
+	 * @covers ::open_station_sticky_notes_is_available
 	 */
 	public function test_is_available_when_guidelines_surface_is_registered() {
-		$this->assertTrue( desktop_mode_sticky_notes_is_available() );
+		$this->assertTrue( open_station_sticky_notes_is_available() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_is_available
+	 * @covers ::open_station_sticky_notes_is_available
 	 */
 	public function test_is_not_available_without_the_guidelines_taxonomy() {
-		unregister_taxonomy( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+		unregister_taxonomy( OPEN_STATION_STICKY_NOTES_TAXONOMY );
 
-		$this->assertFalse( desktop_mode_sticky_notes_is_available() );
+		$this->assertFalse( open_station_sticky_notes_is_available() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_is_available
+	 * @covers ::open_station_sticky_notes_is_available
 	 */
 	public function test_availability_can_be_forced_off_by_filter() {
-		add_filter( 'desktop_mode_sticky_notes_available', '__return_false' );
+		add_filter( 'open_station_sticky_notes_available', '__return_false' );
 
 		$this->assertFalse(
-			desktop_mode_sticky_notes_is_available(),
-			'The desktop_mode_sticky_notes_available filter should be able to force the surface off.'
+			open_station_sticky_notes_is_available(),
+			'The open_station_sticky_notes_available filter should be able to force the surface off.'
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_sticky_notes_heartbeat_received
-	 * @covers ::desktop_mode_sticky_notes_is_available
+	 * @covers ::open_station_sticky_notes_heartbeat_received
+	 * @covers ::open_station_sticky_notes_is_available
 	 */
 	public function test_heartbeat_skips_delta_when_surface_is_unavailable() {
-		unregister_taxonomy( DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+		unregister_taxonomy( OPEN_STATION_STICKY_NOTES_TAXONOMY );
 
-		$response = desktop_mode_sticky_notes_heartbeat_received(
+		$response = open_station_sticky_notes_heartbeat_received(
 			array( 'other' => 'untouched' ),
 			array(
-				'desktop_mode_sticky_notes_subscribe' => array(
+				'open_station_sticky_notes_subscribe' => array(
 					'stickyTermId' => 123,
 					'knownIds'     => array(),
 					'version'      => 0,
@@ -180,16 +180,16 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 
 		$this->assertSame( 'untouched', $response['other'] );
 		$this->assertArrayNotHasKey(
-			'desktop_mode_sticky_notes',
+			'open_station_sticky_notes',
 			$response,
 			'No sticky delta should be computed when the Guidelines surface is absent.'
 		);
 	}
 
 	protected function register_guidelines_surface() {
-		if ( ! post_type_exists( DESKTOP_MODE_STICKY_NOTES_POST_TYPE ) ) {
+		if ( ! post_type_exists( OPEN_STATION_STICKY_NOTES_POST_TYPE ) ) {
 			register_post_type(
-				DESKTOP_MODE_STICKY_NOTES_POST_TYPE,
+				OPEN_STATION_STICKY_NOTES_POST_TYPE,
 				array(
 					'public'       => false,
 					'show_in_rest' => true,
@@ -197,10 +197,10 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 				)
 			);
 		}
-		if ( ! taxonomy_exists( DESKTOP_MODE_STICKY_NOTES_TAXONOMY ) ) {
+		if ( ! taxonomy_exists( OPEN_STATION_STICKY_NOTES_TAXONOMY ) ) {
 			register_taxonomy(
-				DESKTOP_MODE_STICKY_NOTES_TAXONOMY,
-				DESKTOP_MODE_STICKY_NOTES_POST_TYPE,
+				OPEN_STATION_STICKY_NOTES_TAXONOMY,
+				OPEN_STATION_STICKY_NOTES_POST_TYPE,
 				array(
 					'hierarchical' => true,
 					'show_in_rest' => true,
@@ -210,13 +210,13 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	protected function ensure_term( $slug, $name ) {
-		$existing = get_term_by( 'slug', $slug, DESKTOP_MODE_STICKY_NOTES_TAXONOMY );
+		$existing = get_term_by( 'slug', $slug, OPEN_STATION_STICKY_NOTES_TAXONOMY );
 		if ( $existing ) {
 			return (int) $existing->term_id;
 		}
 		$term = wp_insert_term(
 			$name,
-			DESKTOP_MODE_STICKY_NOTES_TAXONOMY,
+			OPEN_STATION_STICKY_NOTES_TAXONOMY,
 			array( 'slug' => $slug )
 		);
 		return (int) $term['term_id'];
@@ -225,7 +225,7 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 	protected function create_guideline( $args = array() ) {
 		$post_id = self::factory()->post->create(
 			array(
-				'post_type'    => DESKTOP_MODE_STICKY_NOTES_POST_TYPE,
+				'post_type'    => OPEN_STATION_STICKY_NOTES_POST_TYPE,
 				'post_status'  => 'private',
 				'post_title'   => isset( $args['post_title'] ) ? $args['post_title'] : 'Guideline',
 				'post_content' => isset( $args['post_content'] ) ? $args['post_content'] : '',
@@ -235,7 +235,7 @@ class Tests_DesktopMode_StickyNotesHeartbeat extends WP_UnitTestCase {
 			wp_set_object_terms(
 				$post_id,
 				array_map( 'intval', (array) $args['terms'] ),
-				DESKTOP_MODE_STICKY_NOTES_TAXONOMY
+				OPEN_STATION_STICKY_NOTES_TAXONOMY
 			);
 		}
 		return (int) $post_id;

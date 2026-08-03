@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window iframe postMessage bridge.
+ * OpenStation — Window iframe postMessage bridge.
  *
  * Handles the parent → chromeless-iframe → parent message bus. The
  * iframe sends title changes, focus requests, external-link intents,
@@ -100,7 +100,7 @@ interface AdminLinkDispatchDeps {
 // set the main bundle's copy while `handleWindowMessage` reads the
 // window-system bundle's still-null copy, and every cross-page admin-
 // link click would silently no-op. See `AGENTS.md` § "Cross-bundle
-// state — `wp.desktop.createSharedStore`".
+// state — `wp.os.createSharedStore`".
 interface AdminLinkDepsState {
 	deps: AdminLinkDispatchDeps | null;
 }
@@ -141,7 +141,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		return;
 	}
 
-	if ( data.type === 'desktop-mode-title-change' && typeof data.title === 'string' ) {
+	if ( data.type === 'os-title-change' && typeof data.title === 'string' ) {
 		win.setTitle( data.title );
 	}
 
@@ -150,41 +150,41 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// server-side in real admin context. `identity: null` is meaningful
 	// (navigation away from an identified screen clears the stale ref),
 	// so forward it verbatim; the engine validates and no-ops repeats.
-	if ( data.type === 'desktop-mode-content-identity' ) {
+	if ( data.type === 'os-content-identity' ) {
 		setWindowContent( win.id, data.identity ?? null, {
 			source: 'bridge',
 		} );
 	}
 
 	// Unified window-channel publish. Iframe content called
-	// `wp.desktop.send( channel, payload )` (installed by the
+	// `wp.os.send( channel, payload )` (installed by the
 	// iframe-bridge) and we forward to the parent-side subscriber
 	// registry so `Window.on( channel, cb )` callbacks fire — same
 	// shape as native windows reaching for `windowApi.send()`.
 	if (
-		data.type === 'desktop-mode-window-publish' &&
+		data.type === 'os-window-publish' &&
 		typeof data.channel === 'string' &&
 		data.channel !== ''
 	) {
 		dispatchFromWindow( win.id, data.channel, data.payload );
 	}
 
-	// Cross-window connection bridge — route any `desktop-mode-bridge-*`
+	// Cross-window connection bridge — route any `os-bridge-*`
 	// message to the parent-side connection registry. The bridge is
 	// installed on `window` by `desktop.ts` so individual Window
 	// instances don't need to know about it; null-check guards
 	// startup ordering (the listener runs before `init()` in tests).
-	if ( typeof data.type === 'string' && data.type.startsWith( 'desktop-mode-bridge-' ) ) {
+	if ( typeof data.type === 'string' && data.type.startsWith( 'os-bridge-' ) ) {
 		const bridge = (
 			window as unknown as {
-				__desktopModeConnectionBridge?: {
+				__openStationConnectionBridge?: {
 					routeIncomingFromIframe(
 						msg: unknown,
 						fromWindowId?: string,
 					): void;
 				};
 			}
-		).__desktopModeConnectionBridge;
+		).__openStationConnectionBridge;
 		bridge?.routeIncomingFromIframe( data, win.id );
 	}
 
@@ -194,7 +194,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// "safe to talk to this iframe" signal (the browser's native
 	// `load` event fires BEFORE our bridge attaches, which makes
 	// listener-timing a known footgun otherwise).
-	if ( data.type === 'desktop-mode-ready' ) {
+	if ( data.type === 'os-ready' ) {
 		win._iframeBridgeReady = true;
 		// Bridge announced — anything queued via `Window.send()`
 		// before this point flushes now in FIFO order.
@@ -203,7 +203,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	// Response to the parent's pre-close query for unsaved changes.
-	if ( data.type === 'desktop-mode-bridge-beforeunload-response' ) {
+	if ( data.type === 'os-bridge-beforeunload-response' ) {
 		if ( win._isDestroyed ) {
 			return;
 		}
@@ -213,9 +213,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 			win._iframeCloseTimeout = null;
 		}
 		if ( data.prevent ) {
-			import( '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog' )
-				.then( ( { wpdConfirm } ) =>
-					wpdConfirm( {
+			import( '../ui/components/os-confirm-dialog/os-confirm-dialog' )
+				.then( ( { osConfirm } ) =>
+					osConfirm( {
 						title: typeof data.message === 'string' && data.message ? data.message : __( 'Unsaved changes' ),
 						message: __( 'You have unsaved changes. Are you sure you want to close this window?' ),
 						confirmLabel: __( 'Close window' ),
@@ -243,7 +243,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// before we act on it — cross-origin navigations are silently
 	// refused so the iframe can't break itself out of the shell.
 	if (
-		data.type === 'desktop-mode-navigate' &&
+		data.type === 'os-navigate' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -284,7 +284,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// or pre-boot; we bail out without navigating so the user sees a
 	// dropped click instead of a broken iframe state.
 	if (
-		data.type === 'desktop-mode-iframe-admin-link' &&
+		data.type === 'os-iframe-admin-link' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -311,7 +311,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// from under the click would be hostile, so the source window is
 	// left untouched.
 	if (
-		data.type === 'desktop-mode-open-user-footprint' &&
+		data.type === 'os-open-user-footprint' &&
 		typeof data.userId === 'number' &&
 		data.userId > 0
 	) {
@@ -325,7 +325,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// to raise persistent user-visible feedback — a "Settings saved"
 	// toast stays visible even after the iframe closes.
 	if (
-		data.type === 'desktop-mode-notification' &&
+		data.type === 'os-notification' &&
 		typeof data.title === 'string' &&
 		data.title !== ''
 	) {
@@ -335,22 +335,22 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		);
 	}
 
-	if ( data.type === 'desktop-mode-focus-request' ) {
+	if ( data.type === 'os-focus-request' ) {
 		// Sent from the chromeless bridge on every pointerdown inside
 		// the iframe — covers the "click inside iframe should focus
 		// this window" UX that isn't reachable via parent-side
 		// listeners (the click doesn't cross the browsing-context
 		// boundary).
-		if ( ! win.element.classList.contains( 'desktop-mode-window--overview' ) ) {
+		if ( ! win.element.classList.contains( 'os-window--overview' ) ) {
 			win.onFocusRequest?.( win );
 		}
 	}
 
-	if ( data.type === 'desktop-mode-screen-meta' && Array.isArray( data.panels ) ) {
+	if ( data.type === 'os-screen-meta' && Array.isArray( data.panels ) ) {
 		addScreenMetaButtons( win, data.panels as string[] );
 	}
 
-	if ( data.type === 'desktop-mode-screen-meta-state' ) {
+	if ( data.type === 'os-screen-meta-state' ) {
 		setActiveScreenMetaPanel(
 			win,
 			typeof data.open === 'string' ? data.open : null,
@@ -358,7 +358,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	if (
-		data.type === 'desktop-mode-external-link' &&
+		data.type === 'os-external-link' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -369,11 +369,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	// Iframe error relay — the chromeless bridge posts
-	// `desktop-mode-iframe-error` from inside the iframe's error +
+	// `os-iframe-error` from inside the iframe's error +
 	// unhandledrejection handlers. We annotate with the owning
 	// windowId and dispatch the hook, where monitor widgets pick it
 	// up. Shape matches `HOOKS.IFRAME_ERROR`.
-	if ( data.type === 'desktop-mode-iframe-error' ) {
+	if ( data.type === 'os-iframe-error' ) {
 		doAction( HOOKS.IFRAME_ERROR, {
 			windowId: win.id,
 			kind: data.kind === 'unhandledrejection'
@@ -391,7 +391,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
 	// validates inline overrides match the framework's shape.
 	if (
-		data.type === 'desktop-mode-chrome-theme' &&
+		data.type === 'os-chrome-theme' &&
 		data.tokens &&
 		typeof data.tokens === 'object'
 	) {
@@ -411,7 +411,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// Layer-2 controls — iframe can reorder / hide / inject controls
 	// for its own window.
 	if (
-		data.type === 'desktop-mode-chrome-controls' &&
+		data.type === 'os-chrome-controls' &&
 		data.config &&
 		typeof data.config === 'object'
 	) {
@@ -434,7 +434,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// shell). Plugins that need rich slot markup register a parent-
 	// side `WindowSlotDef.render` callback instead.
 	if (
-		data.type === 'desktop-mode-chrome-slot' &&
+		data.type === 'os-chrome-slot' &&
 		typeof data.slot === 'string' &&
 		typeof data.html === 'string'
 	) {
@@ -459,7 +459,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// pre-computed inside the iframe (by the chromeless bridge's
 	// fetch/XHR wrappers) so subscribers don't have to re-derive
 	// the success / 4xx / 5xx / network boundary.
-	if ( data.type === 'desktop-mode-iframe-network' ) {
+	if ( data.type === 'os-iframe-network' ) {
 		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,
 			method: typeof data.method === 'string' ? data.method : 'GET',
@@ -470,7 +470,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		};
 		// `requestHeaders` / `responseHeaders` only ride along when
 		// devtools have asked the iframe to observe (via
-		// `wp.desktop.devtools.onRequest( id, cb, { observe: true } )`).
+		// `wp.os.devtools.onRequest( id, cb, { observe: true } )`).
 		// Default deliveries stay summary-only for privacy.
 		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
 			networkPayload.requestHeaders = data.requestHeaders;
@@ -483,7 +483,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 }
 
 /**
- * Handle a `desktop-mode-navigate` message.
+ * Handle a `os-navigate` message.
  *
  * Validates the URL against the origin snapshot taken at module
  * load, then either opens a new tab (with `noopener,noreferrer`)
@@ -553,7 +553,7 @@ function handleDesktopNavigate(
  * but ARE genuine cross-page navigations the user wants in a window.
  *
  * Extension point: plugins register their own predicates via
- * `wp.desktop.registerDestructiveAdminAction({ id, matches })` —
+ * `wp.os.registerDestructiveAdminAction({ id, matches })` —
  * see `src/destructive-admin-actions.ts`. Built-in Core action
  * names are pinned in this set for zero-config behavior; the
  * plugin registry is consulted AFTER the built-in check.
@@ -666,10 +666,10 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 		// passes the result downstream to logic that builds the
 		// next redirect, and a chromeless-flagged referer would loop
 		// the flag into places it doesn't belong. The post-redirect
-		// preserve filter (`desktop_mode_chromeless_preserve_redirect`)
+		// preserve filter (`open_station_chromeless_preserve_redirect`)
 		// reattaches the flag where needed.
 		const cleaned = new URL( sourceUrl.href );
-		cleaned.searchParams.delete( 'desktop_mode_chromeless' );
+		cleaned.searchParams.delete( 'open_station_chromeless' );
 		out.searchParams.set(
 			'_wp_http_referer',
 			cleaned.pathname + ( cleaned.search ? cleaned.search : '' ),
@@ -834,7 +834,7 @@ function handleCrossPageAdminLink(
 	// The iframe-side bridge does not auto-emit `title-change` after
 	// load, so this single resolution is what the user sees for the
 	// lifetime of the window unless the destination's own JS reaches
-	// for `wp.desktop.send` / `setTitle`.
+	// for `wp.os.send` / `setTitle`.
 	const entry = deps.findDockEntry( absolute );
 	const trimmedLabel = linkLabel.trim();
 	const title =
@@ -858,7 +858,7 @@ function handleCrossPageAdminLink(
 }
 
 /**
- * Handle a `desktop-mode-notification` message.
+ * Handle a `os-notification` message.
  *
  * The payload lives at the parent-shell level (surviving the
  * iframe's lifecycle), which is the whole reason an iframe reaches
@@ -880,7 +880,7 @@ function handleDesktopNotification( title: string, body: string ): void {
  * each navigation, and different pages expose different panels.
  */
 export function addScreenMetaButtons( win: Window, panels: string[] ): void {
-	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
+	const container = win.element.querySelector( '.os-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
@@ -898,7 +898,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		}
 
 		const btn = document.createElement( 'button' );
-		btn.className = 'desktop-mode-window__meta-btn';
+		btn.className = 'os-window__meta-btn';
 		btn.setAttribute( 'type', 'button' );
 		btn.setAttribute( 'aria-label', cfg.label );
 		btn.setAttribute( 'aria-pressed', 'false' );
@@ -911,7 +911,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		btn.addEventListener( 'click', ( e: Event ) => {
 			e.stopPropagation();
 			win.iframe?.contentWindow?.postMessage(
-				{ type: 'desktop-mode-toggle-panel', panel },
+				{ type: 'os-toggle-panel', panel },
 				INITIAL_ORIGIN,
 			);
 		} );
@@ -925,13 +925,13 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
  * title-bar buttons. At most one button is active at a time.
  */
 export function setActiveScreenMetaPanel( win: Window, panel: string | null ): void {
-	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
+	const container = win.element.querySelector( '.os-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
-	container.querySelectorAll<HTMLElement>( '.desktop-mode-window__meta-btn' ).forEach( ( btn ) => {
+	container.querySelectorAll<HTMLElement>( '.os-window__meta-btn' ).forEach( ( btn ) => {
 		const isActive = btn.dataset.panel === panel;
-		btn.classList.toggle( 'desktop-mode-window__meta-btn--active', isActive );
+		btn.classList.toggle( 'os-window__meta-btn--active', isActive );
 		btn.setAttribute( 'aria-pressed', isActive ? 'true' : 'false' );
 	} );
 }

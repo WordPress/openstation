@@ -55,17 +55,17 @@ describe( 'NotesLayer', () => {
 		const layer = makeLayer();
 		const controller = layer.upsertNote( makeNote() );
 		const el = controller.element;
-		expect( el.classList.contains( 'desktop-mode-pinned-note' ) ).toBe( true );
+		expect( el.classList.contains( 'os-pinned-note' ) ).toBe( true );
 		expect( el.dataset.owner ).toBe( 'me' );
 		expect( el.dataset.noteColor ).toBe( 'butter' );
 		// Pin is a real, focusable button.
-		const pin = el.querySelector( 'button.desktop-mode-pinned-note__pin' );
+		const pin = el.querySelector( 'button.os-pinned-note__pin' );
 		expect( pin ).not.toBeNull();
 		expect( pin?.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 		// Owner paper carries the editor, color dot, visibility toggle.
-		expect( el.querySelector( 'wpd-textarea' ) ).not.toBeNull();
-		expect( el.querySelector( '.desktop-mode-pinned-note__color-dot' ) ).not.toBeNull();
-		expect( el.querySelector( '.desktop-mode-pinned-note__visibility' ) ).not.toBeNull();
+		expect( el.querySelector( 'os-textarea' ) ).not.toBeNull();
+		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).not.toBeNull();
+		expect( el.querySelector( '.os-pinned-note__visibility' ) ).not.toBeNull();
 		// The pushpin image points at the plugin asset.
 		const img = el.querySelector( 'img' );
 		expect( img?.getAttribute( 'src' ) ).toBe(
@@ -84,22 +84,22 @@ describe( 'NotesLayer', () => {
 		expect( el.getAttribute( 'role' ) ).toBe( 'note' );
 		expect( el.getAttribute( 'aria-label' ) ).toContain( 'Ana García' );
 		// The pin is scenery: a span, hidden from the a11y tree.
-		expect( el.querySelector( 'button.desktop-mode-pinned-note__pin' ) ).toBeNull();
-		const pin = el.querySelector( 'span.desktop-mode-pinned-note__pin' );
+		expect( el.querySelector( 'button.os-pinned-note__pin' ) ).toBeNull();
+		const pin = el.querySelector( 'span.os-pinned-note__pin' );
 		expect( pin?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 		// No editor, no owner chrome; a body div + attribution instead.
-		expect( el.querySelector( 'wpd-textarea' ) ).toBeNull();
-		expect( el.querySelector( '.desktop-mode-pinned-note__color-dot' ) ).toBeNull();
+		expect( el.querySelector( 'os-textarea' ) ).toBeNull();
+		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).toBeNull();
 		expect(
-			el.querySelector( '.desktop-mode-pinned-note__body' )?.textContent,
+			el.querySelector( '.os-pinned-note__body' )?.textContent,
 		).toBe( 'buy milk' );
-		const chip = el.querySelector( '.desktop-mode-pinned-note__attribution' );
+		const chip = el.querySelector( '.os-pinned-note__attribution' );
 		expect( chip?.textContent ).toContain( 'Ana García' );
-		expect( chip?.querySelector( 'wpd-avatar' ) ).not.toBeNull();
+		expect( chip?.querySelector( 'os-avatar' ) ).not.toBeNull();
 	} );
 
 	test( 'filter-added color slugs survive to the DOM unclamped', () => {
-		// A plugin can extend desktop_mode_notes_colors server-side and
+		// A plugin can extend open_station_notes_colors server-side and
 		// ship its own [data-note-color="seafoam"] CSS — the client
 		// must not rewrite the slug to a built-in.
 		const layer = makeLayer();
@@ -172,7 +172,7 @@ describe( 'NotesLayer', () => {
 		expect(
 			layer
 				.get( 2 )
-				?.element.querySelector( '.desktop-mode-pinned-note__body' )
+				?.element.querySelector( '.os-pinned-note__body' )
 				?.textContent,
 		).toBe( 'updated text' );
 		// High-water advanced → next subscription echoes it.
@@ -189,7 +189,7 @@ describe( 'NotesLayer', () => {
 		expect(
 			layer
 				.get( 2 )
-				?.element.querySelector( '.desktop-mode-pinned-note__body' )
+				?.element.querySelector( '.os-pinned-note__body' )
 				?.textContent,
 		).toBe( 'newer' );
 	} );
@@ -208,8 +208,8 @@ describe( 'NotesLayer', () => {
 		const showToast = vi.fn( ( opts: { action?: { onClick: () => void } } ) => {
 			undoAction = opts.action?.onClick ?? null;
 		} );
-		( window as unknown as { wp: { desktop: { showToast: unknown } } } ).wp = {
-			desktop: { showToast },
+		( window as unknown as { wp: { os: { showToast: unknown } } } ).wp = {
+			os: { showToast },
 		};
 
 		const layer = makeLayer();

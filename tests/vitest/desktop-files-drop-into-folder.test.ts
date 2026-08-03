@@ -69,9 +69,9 @@ function pointerEvent(
 }
 
 function installManagerOnWindow( manager: DragManager ): void {
-	const wp = ( window as unknown as { wp?: { hooks?: unknown; desktop?: Record< string, unknown > } } ).wp ?? {};
-	wp.desktop = ( wp.desktop as Record< string, unknown > | undefined ) ?? {};
-	( wp.desktop as { dragManager: DragManager } ).dragManager = manager;
+	const wp = ( window as unknown as { wp?: { hooks?: unknown; os?: Record< string, unknown > } } ).wp ?? {};
+	wp.os = ( wp.os as Record< string, unknown > | undefined ) ?? {};
+	( wp.os as { dragManager: DragManager } ).dragManager = manager;
 	( window as unknown as { wp: typeof wp } ).wp = wp;
 }
 
@@ -145,7 +145,7 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		store.setFolderPlacements( 0, [ folderPlacement( 1, 0, '5' ) ] );
 
 		const wallpaper = document.createElement( 'div' );
-		wallpaper.id = 'desktop-mode-area';
+		wallpaper.id = 'os-area';
 		Object.defineProperty( wallpaper, 'clientWidth', { value: 1200, configurable: true } );
 		Object.defineProperty( wallpaper, 'clientHeight', { value: 800, configurable: true } );
 		Object.defineProperty( wallpaper, 'getBoundingClientRect', {
@@ -179,7 +179,7 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		// Synthesize a dragstart from a faked My WordPress post tile.
 		const sourceTile = document.createElement( 'div' );
-		sourceTile.className = 'desktop-mode-my-wordpress__tile';
+		sourceTile.className = 'os-my-wordpress__tile';
 		document.body.appendChild( sourceTile );
 
 		manager.start( {
@@ -213,10 +213,10 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		// Now open the folder by mounting a layer for folderId=5.
 		const folderHost = document.createElement( 'div' );
-		folderHost.classList.add( 'desktop-mode-window__body' );
-		// Wrap in a fake `.desktop-mode-window` to mirror production.
+		folderHost.classList.add( 'os-window__body' );
+		// Wrap in a fake `.os-window` to mirror production.
 		const folderWindow = document.createElement( 'div' );
-		folderWindow.classList.add( 'desktop-mode-window' );
+		folderWindow.classList.add( 'os-window' );
 		folderWindow.appendChild( folderHost );
 		document.body.appendChild( folderWindow );
 		Object.defineProperty( folderHost, 'clientWidth', { value: 600, configurable: true } );
@@ -229,7 +229,7 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		// The folder layer's container should now hold a tile for the
 		// dropped shortcut.
-		const folderTiles = folderHost.querySelectorAll( '.desktop-mode-file-tile' );
+		const folderTiles = folderHost.querySelectorAll( '.os-file-tile' );
 		expect( folderTiles.length ).toBe( 1 );
 
 		wallpaperLayer.dispose();
@@ -286,9 +286,9 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		// Mount an open folder window for folder 7 (empty).
 		const folderWindow = document.createElement( 'div' );
-		folderWindow.classList.add( 'desktop-mode-window' );
+		folderWindow.classList.add( 'os-window' );
 		const folderHost = document.createElement( 'div' );
-		folderHost.classList.add( 'desktop-mode-window__body' );
+		folderHost.classList.add( 'os-window__body' );
 		folderWindow.appendChild( folderHost );
 		document.body.appendChild( folderWindow );
 		Object.defineProperty( folderHost, 'clientWidth', { value: 600, configurable: true } );
@@ -317,7 +317,7 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 			return null;
 		};
 
-		const container = folderHost.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = folderHost.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 200, top: 100, right: 800, bottom: 500,
@@ -351,7 +351,7 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		expect( folderBucket?.[ 0 ].file.ref ).toBe( '99' );
 
 		// Verify the layer painted a tile.
-		const tilesAfter = folderHost.querySelectorAll( '.desktop-mode-file-tile' );
+		const tilesAfter = folderHost.querySelectorAll( '.os-file-tile' );
 		expect( tilesAfter.length ).toBe( 1 );
 
 		folderLayer.dispose();

@@ -24,7 +24,7 @@
  *     blue / magenta / violet without ever leaving the brand-adjacent
  *     spectrum.
  *
- * Rendered via PixiJS (loaded via `wp.desktop.loadModules(['pixijs'])`,
+ * Rendered via PixiJS (loaded via `wp.os.loadModules(['pixijs'])`,
  * registered by the shell). Designed to hold 60fps with ~3000
  * particles on mid-range hardware — the hot loop is a single-pass
  * scan over flat `Float32Array`s with allocation-free spatial hashing.
@@ -193,7 +193,7 @@ const BACKDROP_CSS =
  * leaks the WebGL context and the ticker.
  *
  * Assumes `window.PIXI` is defined — the section builder triggers
- * `wp.desktop.loadModules(['pixijs'])` before mounting.
+ * `wp.os.loadModules(['pixijs'])` before mounting.
  */
 export async function mountAboutScene( opts: SceneOptions ): Promise<AboutScene> {
 	const { container, logoUrl, prefersReducedMotion, labels } = opts;

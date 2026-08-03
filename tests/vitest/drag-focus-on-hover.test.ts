@@ -26,16 +26,16 @@ import {
 interface Rect { x: number; y: number; w: number; h: number }
 
 /**
- * Build a window root (`.desktop-mode-window` + `wp-window-<id>`)
+ * Build a window root (`.os-window` + `wp-window-<id>`)
  * with an inner body element — `elementFromPoint` in the real shell
  * returns an inner element, never the root itself.
  */
 function makeWindowRoot( id: string ): { root: HTMLElement; inner: HTMLElement } {
 	const root = document.createElement( 'div' );
-	root.className = 'desktop-mode-window';
+	root.className = 'os-window';
 	root.id = `wp-window-${ id }`;
 	const inner = document.createElement( 'div' );
-	inner.className = 'desktop-mode-window__body';
+	inner.className = 'os-window__body';
 	root.appendChild( inner );
 	document.body.appendChild( root );
 	return { root, inner };
@@ -423,7 +423,7 @@ describe( 'focus-on-drag-hover — iframe message channel', () => {
 	/** Build a window host carrying an iframe, jsdom-style. */
 	function makeIframeWindow( id: string ): HTMLIFrameElement {
 		const hostEl = document.createElement( 'div' );
-		hostEl.className = 'desktop-mode-window';
+		hostEl.className = 'os-window';
 		hostEl.id = `wp-window-${ id }`;
 		hostEl.setAttribute( 'data-window-id', id );
 		const iframe = document.createElement( 'iframe' );
@@ -526,7 +526,7 @@ describe( 'window-at-point', () => {
 
 	test( 'windowIdFromRoot returns null for unstamped roots', () => {
 		const el = document.createElement( 'div' );
-		el.className = 'desktop-mode-window';
+		el.className = 'os-window';
 		expect( windowIdFromRoot( el ) ).toBeNull();
 		el.id = 'wp-window-'; // prefix with no id
 		expect( windowIdFromRoot( el ) ).toBeNull();

@@ -2,7 +2,7 @@
  * Apps & Icons section — per-item placement preferences.
  *
  * Lists every dock item + desktop icon registered in this admin (the
- * dispatcher's view via `getMenuItems()` and `desktopModeConfig.
+ * dispatcher's view via `getMenuItems()` and `openStationConfig.
  * desktopIcons`). For each row the user picks where the item should
  * appear: on the dock, on the wallpaper, on both surfaces, or
  * nowhere. The choice writes to `state.itemVisibility` and the layout
@@ -25,14 +25,14 @@ import type { DockItem } from '../../dock';
 /** Read the live dock item list — prefer the live shell API when present. */
 function readDockItems(): DockItem[] {
 	const api = ( window as unknown as {
-		wp?: { desktop?: { getMenuItems?: () => DockItem[] } };
-	} ).wp?.desktop;
+		wp?: { os?: { getMenuItems?: () => DockItem[] } };
+	} ).wp?.os;
 	if ( api && typeof api.getMenuItems === 'function' ) {
 		return api.getMenuItems();
 	}
 	// Fallback: the server-shipped list from the boot payload.
-	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
-		.desktopModeConfig;
+	const cfg = ( window as unknown as { openStationConfig?: DesktopConfig } )
+		.openStationConfig;
 	const raw = cfg?.dockItems ?? [];
 	return raw.map( ( i ) => ( {
 		id: i.id,
@@ -55,16 +55,16 @@ function readDockItems(): DockItem[] {
  */
 function readSystemTiles(): PlaceableSystemTile[] {
 	const api = ( window as unknown as {
-		wp?: { desktop?: { listSystemTiles?: () => PlaceableSystemTile[] } };
-	} ).wp?.desktop;
+		wp?: { os?: { listSystemTiles?: () => PlaceableSystemTile[] } };
+	} ).wp?.os;
 	return typeof api?.listSystemTiles === 'function'
 		? api.listSystemTiles()
 		: [];
 }
 
 function readDesktopIcons(): import( '../../types' ).DesktopIconServerEntry[] {
-	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
-		.desktopModeConfig;
+	const cfg = ( window as unknown as { openStationConfig?: DesktopConfig } )
+		.openStationConfig;
 	return cfg?.desktopIcons ?? [];
 }
 
@@ -144,31 +144,31 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Apps & Icons' ) }
 					description=${ __(
 						'Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.',
 					) }
 				>
 					${ rows.length === 0
-						? html`<wpd-empty-state
+						? html`<os-empty-state
 								heading=${ __( 'No apps registered yet' ) }
 								description=${ __(
 									'Plugins and the admin menu will appear here once they’re registered.',
 								) }
-							></wpd-empty-state>`
-						: html`<div class="desktop-mode-apps-icons__list">
+							></os-empty-state>`
+						: html`<div class="os-apps-icons__list">
 								${ rows.map(
 									( row ) =>
 										html`<div
-											class="desktop-mode-apps-icons__row"
+											class="os-apps-icons__row"
 											data-item-id=${ row.id }
 										>
-											<div class="desktop-mode-apps-icons__identity">
+											<div class="os-apps-icons__identity">
 												${ renderIcon( row.icon, {
 													title: row.title,
 													className:
-														'desktop-mode-apps-icons__icon',
+														'os-apps-icons__icon',
 													// Preview the themed
 													// icon so this list
 													// matches the dock.
@@ -176,30 +176,30 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 														row.id,
 													),
 												} ) }
-												<div class="desktop-mode-apps-icons__title">
+												<div class="os-apps-icons__title">
 													${ row.title }
 												</div>
 											</div>
-											<wpd-select
+											<os-select
 												label=${ __( 'Show in' ) }
 												value=${ row.placement }
-												@wpd-pick=${ onPlacementChange( row.id ) }
+												@os-pick=${ onPlacementChange( row.id ) }
 											>
 												${ ( row.dockOnly
 													? getDockOnlyOptions()
 													: getPlacementOptions()
 												).map(
 													( o ) =>
-														html`<wpd-option
+														html`<os-option
 															value=${ o.id }
-															>${ o.label }</wpd-option
+															>${ o.label }</os-option
 														>`,
 												) }
-											</wpd-select>
+											</os-select>
 										</div>`,
 								) }
 							</div>` }
-				</wpd-section>
+				</os-section>
 			`,
 			wrapper,
 		);
@@ -209,22 +209,22 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 
 	// Repaint when an EXTERNAL writer (the right-click visibility menu,
 	// or any other OS-settings consumer) mutates itemVisibility, so a
-	// row's <wpd-select> never shows a stale placement while this tab is
+	// row's <os-select> never shows a stale placement while this tab is
 	// open. Self-unsubscribes once the panel is torn down (the wrapper
 	// is no longer in the DOM), mirroring the wallpaper section's
 	// registry.subscribe pattern so listeners don't pile up across
 	// repeated settings-window opens.
-	const wpDesktop = ( window as unknown as {
+	const openStation = ( window as unknown as {
 		wp?: {
-			desktop?: {
+			os?: {
 				subscribeOsSettings?: (
 					cb: ( snapshot: OsSettingsSnapshot ) => void,
 				) => () => void;
 			};
 		};
-	} ).wp?.desktop;
-	if ( wpDesktop?.subscribeOsSettings ) {
-		const unsubscribe = wpDesktop.subscribeOsSettings( ( snapshot ) => {
+	} ).wp?.os;
+	if ( openStation?.subscribeOsSettings ) {
+		const unsubscribe = openStation.subscribeOsSettings( ( snapshot ) => {
 			if ( ! wrapper.isConnected ) {
 				unsubscribe();
 				return;

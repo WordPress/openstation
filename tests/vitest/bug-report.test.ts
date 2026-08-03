@@ -98,15 +98,15 @@ describe( 'renderBugReport', () => {
 		document.body.appendChild( body );
 		renderBugReport( body );
 
-		expect( body.querySelector( '.desktop-mode-bug-report__form' ) ).not.toBeNull();
+		expect( body.querySelector( '.os-bug-report__form' ) ).not.toBeNull();
 		expect(
 			body.querySelectorAll( 'input[ name = "type" ]' ).length,
 		).toBe( 3 );
 		expect( body.querySelector( 'input[ name = "title" ]' ) ).not.toBeNull();
 		expect( body.querySelector( 'textarea[ name = "description" ]' ) ).not.toBeNull();
 		expect( body.querySelector( 'textarea[ name = "steps" ]' ) ).not.toBeNull();
-		expect( body.querySelector( '.desktop-mode-bug-report__submit' ) ).not.toBeNull();
-		expect( body.querySelector( '.desktop-mode-bug-report__metadata' ) ).not.toBeNull();
+		expect( body.querySelector( '.os-bug-report__submit' ) ).not.toBeNull();
+		expect( body.querySelector( '.os-bug-report__metadata' ) ).not.toBeNull();
 	} );
 
 	test( 'shows an inline error when title or description is empty', () => {
@@ -115,12 +115,12 @@ describe( 'renderBugReport', () => {
 		renderBugReport( body );
 
 		const form = body.querySelector< HTMLFormElement >(
-			'.desktop-mode-bug-report__form',
+			'.os-bug-report__form',
 		)!;
 		// jsdom's HTMLFormElement.requestSubmit isn't always
 		// implemented; fire `submit` directly so the handler runs.
 		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
 
-		expect( body.querySelector( '.desktop-mode-bug-report__error' ) ).not.toBeNull();
+		expect( body.querySelector( '.os-bug-report__error' ) ).not.toBeNull();
 	} );
 } );

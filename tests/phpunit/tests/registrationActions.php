@@ -1,9 +1,9 @@
 <?php
 /**
  * Tests for the post-registration action hooks fired by
- * `desktop_mode_register_*()` on success.
+ * `open_station_register_*()` on success.
  *
- * The contract: `desktop_mode_<thing>_registered` fires exactly once,
+ * The contract: `open_station_<thing>_registered` fires exactly once,
  * after the registry write, with `( $id, $entry )` as arguments. It
  * does NOT fire when the underlying registration returns a
  * `WP_Error`.
@@ -11,28 +11,28 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-registration-actions
+ * @group openstation
+ * @group os-registration-actions
  */
-class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
+class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_actions( 'desktop_mode_native_window_registered' );
-		remove_all_actions( 'desktop_mode_widget_registered' );
-		remove_all_actions( 'desktop_mode_wallpaper_registered' );
+		remove_all_actions( 'open_station_native_window_registered' );
+		remove_all_actions( 'open_station_widget_registered' );
+		remove_all_actions( 'open_station_wallpaper_registered' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window
+	 * @covers ::open_station_register_window
 	 */
 	public function test_native_window_registered_action_fires_on_success() {
 		$calls = array();
-		add_action( 'desktop_mode_native_window_registered', static function ( $id, $entry ) use ( &$calls ) {
+		add_action( 'open_station_native_window_registered', static function ( $id, $entry ) use ( &$calls ) {
 			$calls[] = array( 'id' => $id, 'entry' => $entry );
 		}, 10, 2 );
 
-		$result = desktop_mode_register_window( 'act-win', array(
+		$result = open_station_register_window( 'act-win', array(
 			'title'    => 'Act Window',
 			'template' => static function () {
 				echo '<p>t</p>';
@@ -48,16 +48,16 @@ class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_window
+	 * @covers ::open_station_register_window
 	 */
 	public function test_native_window_registered_action_does_not_fire_on_error() {
 		$calls = 0;
-		add_action( 'desktop_mode_native_window_registered', static function () use ( &$calls ) {
+		add_action( 'open_station_native_window_registered', static function () use ( &$calls ) {
 			$calls++;
 		} );
 
 		// Missing title — returns WP_Error.
-		$result = desktop_mode_register_window( 'broken', array(
+		$result = open_station_register_window( 'broken', array(
 			'template' => static function () {},
 			'script'   => 'x',
 		) );
@@ -67,15 +67,15 @@ class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_widget
+	 * @covers ::open_station_register_widget
 	 */
 	public function test_widget_registered_action_fires_on_success() {
 		$calls = array();
-		add_action( 'desktop_mode_widget_registered', static function ( $id, $entry ) use ( &$calls ) {
+		add_action( 'open_station_widget_registered', static function ( $id, $entry ) use ( &$calls ) {
 			$calls[] = array( 'id' => $id, 'entry' => $entry );
 		}, 10, 2 );
 
-		$result = desktop_mode_register_widget( 'act-widget', array(
+		$result = open_station_register_widget( 'act-widget', array(
 			'label' => 'Act Widget',
 		) );
 
@@ -86,30 +86,30 @@ class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_widget
+	 * @covers ::open_station_register_widget
 	 */
 	public function test_widget_registered_action_does_not_fire_on_error() {
 		$calls = 0;
-		add_action( 'desktop_mode_widget_registered', static function () use ( &$calls ) {
+		add_action( 'open_station_widget_registered', static function () use ( &$calls ) {
 			$calls++;
 		} );
 
-		$result = desktop_mode_register_widget( 'broken-widget', array() );
+		$result = open_station_register_widget( 'broken-widget', array() );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 0, $calls );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_wallpaper
+	 * @covers ::open_station_register_wallpaper
 	 */
 	public function test_wallpaper_registered_action_fires_on_success() {
 		$calls = array();
-		add_action( 'desktop_mode_wallpaper_registered', static function ( $id, $entry ) use ( &$calls ) {
+		add_action( 'open_station_wallpaper_registered', static function ( $id, $entry ) use ( &$calls ) {
 			$calls[] = array( 'id' => $id, 'entry' => $entry );
 		}, 10, 2 );
 
-		$result = desktop_mode_register_wallpaper( 'act-wallpaper', array(
+		$result = open_station_register_wallpaper( 'act-wallpaper', array(
 			'label'   => 'Act Wallpaper',
 			'preview' => '#aabbcc',
 			'type'    => 'css',
@@ -122,15 +122,15 @@ class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_wallpaper
+	 * @covers ::open_station_register_wallpaper
 	 */
 	public function test_wallpaper_registered_action_does_not_fire_on_error() {
 		$calls = 0;
-		add_action( 'desktop_mode_wallpaper_registered', static function () use ( &$calls ) {
+		add_action( 'open_station_wallpaper_registered', static function () use ( &$calls ) {
 			$calls++;
 		} );
 
-		$result = desktop_mode_register_wallpaper( 'broken-wp', array() );
+		$result = open_station_register_wallpaper( 'broken-wp', array() );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 0, $calls );
@@ -140,20 +140,20 @@ class Tests_DesktopMode_RegistrationActions extends WP_UnitTestCase {
 	 * Each action fires exactly once per successful call, even when a
 	 * handler mutates state that the registration also touches.
 	 *
-	 * @covers ::desktop_mode_register_window
+	 * @covers ::open_station_register_window
 	 */
 	public function test_native_window_action_fires_once_per_call() {
 		$count = 0;
-		add_action( 'desktop_mode_native_window_registered', static function () use ( &$count ) {
+		add_action( 'open_station_native_window_registered', static function () use ( &$count ) {
 			$count++;
 		} );
 
-		desktop_mode_register_window( 'once-a', array(
+		open_station_register_window( 'once-a', array(
 			'title'    => 'A',
 			'template' => static function () {},
 			'script'   => 'x',
 		) );
-		desktop_mode_register_window( 'once-b', array(
+		open_station_register_window( 'once-b', array(
 			'title'    => 'B',
 			'template' => static function () {},
 			'script'   => 'x',

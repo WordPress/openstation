@@ -5,7 +5,7 @@
  * shell can surface each once. The update nag is handled separately (see
  * update-notice.php); this covers the rest.
  *
- * @package DesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -19,14 +19,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
-function desktop_mode_get_core_notices() {
+function open_station_get_core_notices() {
 	$builders = array(
-		'desktop_mode_core_notice_maintenance',
-		'desktop_mode_core_notice_recovery_mode',
-		'desktop_mode_core_notice_default_password',
-		'desktop_mode_core_notice_deactivated_plugins',
-		'desktop_mode_core_notice_paused_plugins',
-		'desktop_mode_core_notice_paused_themes',
+		'open_station_core_notice_maintenance',
+		'open_station_core_notice_recovery_mode',
+		'open_station_core_notice_default_password',
+		'open_station_core_notice_deactivated_plugins',
+		'open_station_core_notice_paused_plugins',
+		'open_station_core_notice_paused_themes',
 	);
 
 	$notices = array();
@@ -43,7 +43,7 @@ function desktop_mode_get_core_notices() {
 	 *
 	 * @param array $notices List of notice descriptors.
 	 */
-	return apply_filters( 'desktop_mode_core_notices', $notices );
+	return apply_filters( 'open_station_core_notices', $notices );
 }
 
 /**
@@ -52,7 +52,7 @@ function desktop_mode_get_core_notices() {
  * @param array $notice Partial descriptor with at least `id` + `message`.
  * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}
  */
-function desktop_mode_core_notice( array $notice ) {
+function open_station_core_notice( array $notice ) {
 	return array(
 		'id'          => (string) $notice['id'],
 		'title'       => isset( $notice['title'] ) ? (string) $notice['title'] : '',
@@ -67,7 +67,7 @@ function desktop_mode_core_notice( array $notice ) {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_maintenance() {
+function open_station_core_notice_maintenance() {
 	$nag = isset( $GLOBALS['upgrading'] );
 
 	if ( ! $nag ) {
@@ -85,7 +85,7 @@ function desktop_mode_core_notice_maintenance() {
 	}
 
 	$can = current_user_can( 'update_core' );
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'maintenance',
 			'title'       => __( 'WordPress Updates', 'desktop-mode' ),
@@ -103,7 +103,7 @@ function desktop_mode_core_notice_maintenance() {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_recovery_mode() {
+function open_station_core_notice_recovery_mode() {
 	if ( ! function_exists( 'wp_is_recovery_mode' ) || ! wp_is_recovery_mode() ) {
 		return null;
 	}
@@ -112,7 +112,7 @@ function desktop_mode_core_notice_recovery_mode() {
 	$url = add_query_arg( 'action', WP_Recovery_Mode::EXIT_ACTION, $url );
 	$url = wp_nonce_url( $url, WP_Recovery_Mode::EXIT_ACTION );
 
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'recovery-mode',
 			'title'       => __( 'Recovery Mode', 'desktop-mode' ),
@@ -129,12 +129,12 @@ function desktop_mode_core_notice_recovery_mode() {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_default_password() {
+function open_station_core_notice_default_password() {
 	if ( ! get_user_option( 'default_password_nag' ) ) {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'default-password',
 			'title'       => __( 'Profile', 'desktop-mode' ),
@@ -151,7 +151,7 @@ function desktop_mode_core_notice_default_password() {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_deactivated_plugins() {
+function open_station_core_notice_deactivated_plugins() {
 	if ( ! current_user_can( 'activate_plugins' ) ) {
 		return null;
 	}
@@ -171,7 +171,7 @@ function desktop_mode_core_notice_deactivated_plugins() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'deactivated-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
@@ -191,7 +191,7 @@ function desktop_mode_core_notice_deactivated_plugins() {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_paused_plugins() {
+function open_station_core_notice_paused_plugins() {
 	if ( ! current_user_can( 'resume_plugins' ) || ! function_exists( 'wp_paused_plugins' ) ) {
 		return null;
 	}
@@ -200,7 +200,7 @@ function desktop_mode_core_notice_paused_plugins() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'paused-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
@@ -216,7 +216,7 @@ function desktop_mode_core_notice_paused_plugins() {
  *
  * @return array|null
  */
-function desktop_mode_core_notice_paused_themes() {
+function open_station_core_notice_paused_themes() {
 	if ( ! current_user_can( 'resume_themes' ) || ! function_exists( 'wp_paused_themes' ) ) {
 		return null;
 	}
@@ -225,7 +225,7 @@ function desktop_mode_core_notice_paused_themes() {
 		return null;
 	}
 
-	return desktop_mode_core_notice(
+	return open_station_core_notice(
 		array(
 			'id'          => 'paused-themes',
 			'title'       => __( 'Themes', 'desktop-mode' ),

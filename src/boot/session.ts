@@ -94,7 +94,7 @@ function waitForWindow(
 	return new Promise( ( resolve ) => {
 		const done = ( win: Window | null ): void => {
 			window.clearTimeout( timer );
-			document.removeEventListener( 'desktop-mode-window-opened', onOpened );
+			document.removeEventListener( 'os-window-opened', onOpened );
 			resolve( win );
 		};
 		const onOpened = ( e: Event ): void => {
@@ -106,7 +106,7 @@ function waitForWindow(
 			}
 		};
 		const timer = window.setTimeout( () => done( null ), timeoutMs );
-		document.addEventListener( 'desktop-mode-window-opened', onOpened );
+		document.addEventListener( 'os-window-opened', onOpened );
 	} );
 }
 
@@ -122,7 +122,7 @@ function waitForWindow(
  * Two kinds of window come back by two different routes. Plain admin
  * windows are reconstructed from their saved URL. Native windows
  * (`native: true` — OS Settings, Bug Report, anything registered via
- * `desktop_mode_register_window()`) have no URL to iframe: they're
+ * `open_station_register_window()`) have no URL to iframe: they're
  * reopened by asking their owner through `openNative`, with the saved
  * geometry / desktop / state staged via
  * `manager.seedWindowRestoreState()` so the opener's own config

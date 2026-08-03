@@ -1,17 +1,17 @@
 /**
- * Desktop Mode — service worker registration.
+ * OpenStation — service worker registration.
  *
- * Registers the SW served at `/desktop-mode/sw.js` against root scope.
- * The script itself lives at `/desktop-mode/`, so the server response
+ * Registers the SW served at `/openstation/sw.js` against root scope.
+ * The script itself lives at `/openstation/`, so the server response
  * carries `Service-Worker-Allowed: /` to lift the scope ceiling.
  *
  * Why root scope: a service worker has exactly one scope path, and
- * the only common ancestor of `/desktop-mode/` and `/wp-admin/` is
- * `/`. Registering narrowly under `/desktop-mode/` would mean the SW
+ * the only common ancestor of `/openstation/` and `/wp-admin/` is
+ * `/`. Registering narrowly under `/openstation/` would mean the SW
  * never sees admin-page navigations — defeating the purpose for the
  * usual install target (a dashboard URL inside wp-admin). The fetch
  * handler inside the SW itself stays narrow: it only intercepts
- * desktop-mode and wp-admin URLs, passing everything else straight
+ * openstation and wp-admin URLs, passing everything else straight
  * through. Behaviorally this is "narrow scope" from the user's POV
  * without inheriting the technical limitation.
  *
@@ -20,7 +20,7 @@
  * or shadowed by our root-scope `register()`. We detect any foreign
  * registration before registering and bail with a console warning
  * unless the operator explicitly opts in via the
- * `desktop_mode_pwa_force_replace_sw` PHP filter (returning `true`
+ * `open_station_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
  */
 
@@ -34,7 +34,7 @@ import type { PwaConfig } from '../types';
  *   - `'registered'` — our SW is the controller (or activating).
  *   - `'foreign-sw'` — another SW (at any scope) is already registered
  *     on this origin and we bailed rather than usurp it. Operators can
- *     opt in via the `desktop_mode_pwa_force_replace_sw` PHP filter.
+ *     opt in via the `open_station_pwa_force_replace_sw` PHP filter.
  *   - `'unsupported'` — `navigator.serviceWorker` not available, or the
  *     origin isn't secure.
  *   - `'failed'` — `register()` threw.
@@ -114,7 +114,7 @@ function bindControllerChangeReload(): void {
 	} );
 }
 
-const SW_RELOAD_THROTTLE_KEY = 'wpd-sw-reload-ts';
+const SW_RELOAD_THROTTLE_KEY = 'os-sw-reload-ts';
 const SW_RELOAD_THROTTLE_MS = 30_000;
 
 function wasRecentlyReloadedForSwUpdate(): boolean {
@@ -189,9 +189,9 @@ export async function registerServiceWorker(
 			_status = 'foreign-sw';
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] another service worker is already registered (' +
+					'[openstation] another service worker is already registered (' +
 						foreign.scope +
-						'); skipping desktop-mode SW. Set desktop_mode_pwa_force_replace_sw=true to override.',
+						'); skipping openstation SW. Set open_station_pwa_force_replace_sw=true to override.',
 				);
 			}
 			return null;
@@ -213,7 +213,7 @@ export async function registerServiceWorker(
 		_registrationFailed = true;
 		_status = 'failed';
 		if ( typeof console !== 'undefined' ) {
-			console.warn( '[desktop-mode] SW registration failed:', err );
+			console.warn( '[openstation] SW registration failed:', err );
 		}
 		return null;
 	}

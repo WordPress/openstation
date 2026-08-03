@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/ai/ask.ts` — the `wp.desktop.ai.ask()` wrapper.
+ * Unit tests for `src/ai/ask.ts` — the `wp.os.ai.ask()` wrapper.
  *
  * We stub `fetch` (setup test file doesn't, so each test installs its
  * own stub + teardown) and exercise the three branches that matter:
@@ -88,7 +88,7 @@ function mockFetchSequence( responses: Array< unknown | Error > ): FetchMock {
 	return fn;
 }
 
-describe( 'wp.desktop.ai.ask()', () => {
+describe( 'wp.os.ai.ask()', () => {
 	let originalFetch: typeof fetch | undefined;
 
 	beforeEach( () => {

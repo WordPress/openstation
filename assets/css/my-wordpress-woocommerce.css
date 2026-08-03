@@ -11,24 +11,24 @@
  * hard-coded colour beyond the status tints.
  */
 
-.desktop-mode-woo-panel {
+.os-woo-panel {
 	margin-block-end: 16px;
 	padding: 12px 14px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.12 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
 	border-radius: 8px;
-	background: var( --wpd-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+	background: var( --os-ui-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
 }
 
-.desktop-mode-woo-panel__title {
+.os-woo-panel__title {
 	margin: 0 0 10px;
 	font-size: 12px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-woo-panel__rows {
+.os-woo-panel__rows {
 	display: grid;
 	/* `auto` label column so long values keep the space they need,
 	 * with a floor that stops one-word labels collapsing. */
@@ -41,18 +41,18 @@
 /* Each row is its own grid item pair — `display: contents` lets the
  * wrapper carry the semantics (`<div>` grouping a `<dt>`/`<dd>`)
  * while the two children land directly in the parent grid's columns. */
-.desktop-mode-woo-panel__row {
+.os-woo-panel__row {
 	display: contents;
 }
 
-.desktop-mode-woo-panel__label {
+.os-woo-panel__label {
 	margin: 0;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-woo-panel__value {
+.os-woo-panel__value {
 	margin: 0;
-	color: var( --wpd-fg, inherit );
+	color: var( --os-ui-fg, inherit );
 	overflow-wrap: anywhere;
 }
 
@@ -60,27 +60,27 @@
  * frame, so the real data swaps in without shoving the folder tiles
  * or the preview content down. Each placeholder is two grid cells
  * carrying a muted bar. */
-.desktop-mode-woo-panel__row--placeholder > span {
+.os-woo-panel__row--placeholder > span {
 	display: block;
 	height: 1em;
 	border-radius: 3px;
-	background: var( --wpd-border, rgba( 0, 0, 0, 0.09 ) );
+	background: var( --os-ui-border, rgba( 0, 0, 0, 0.09 ) );
 }
 
 /* The value column reads as the "content" bar — narrower than its
  * cell so the shell doesn't look like a solid block. */
-.desktop-mode-woo-panel__row--placeholder > span:last-child {
+.os-woo-panel__row--placeholder > span:last-child {
 	width: 60%;
 }
 
 @media ( prefers-reduced-motion: no-preference ) {
-	.desktop-mode-woo-panel[ aria-busy='true' ]
-		.desktop-mode-woo-panel__row--placeholder > span {
-		animation: desktop-mode-woo-pulse 1.4s ease-in-out infinite;
+	.os-woo-panel[ aria-busy='true' ]
+		.os-woo-panel__row--placeholder > span {
+		animation: os-woo-pulse 1.4s ease-in-out infinite;
 	}
 }
 
-@keyframes desktop-mode-woo-pulse {
+@keyframes os-woo-pulse {
 	0%,
 	100% {
 		opacity: 1;
@@ -91,54 +91,54 @@
 	}
 }
 
-.desktop-mode-woo-panel__error {
+.os-woo-panel__error {
 	grid-column: 1 / -1;
 	margin: 0;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 	font-size: 13px;
 }
 
-.desktop-mode-woo-panel__was {
-	color: var( --wpd-fg-muted, #787c82 );
+.os-woo-panel__was {
+	color: var( --os-ui-fg-muted, #787c82 );
 	margin-inline-end: 4px;
 }
 
 /* ----- Status pills -----
  *
- * `<wpd-badge>` owns the pill shape, the tone-coded dot and the
+ * `<os-badge>` owns the pill shape, the tone-coded dot and the
  * theming tokens. Nothing to style here beyond keeping it on the
  * baseline of its row. */
-.desktop-mode-woo-panel__pill {
+.os-woo-panel__pill {
 	vertical-align: middle;
 }
 
 /* ----- Order line items ----- */
 
-.desktop-mode-woo-panel__items {
+.os-woo-panel__items {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.desktop-mode-woo-panel__item {
+.os-woo-panel__item {
 	display: flex;
 	justify-content: space-between;
 	gap: 12px;
 	padding-block: 2px;
 }
 
-.desktop-mode-woo-panel__item-total {
-	color: var( --wpd-fg-muted, #787c82 );
+.os-woo-panel__item-total {
+	color: var( --os-ui-fg-muted, #787c82 );
 	white-space: nowrap;
 }
 
-.desktop-mode-woo-panel__email,
-.desktop-mode-woo-panel__link {
-	color: var( --wpd-accent, #2271b1 );
+.os-woo-panel__email,
+.os-woo-panel__link {
+	color: var( --os-ui-accent, #2271b1 );
 }
 
-.desktop-mode-woo-panel__item-qty {
-	color: var( --wpd-fg-muted, #787c82 );
+.os-woo-panel__item-qty {
+	color: var( --os-ui-fg-muted, #787c82 );
 	margin-inline-end: 4px;
 }
 
@@ -148,59 +148,59 @@
  * on the tile itself, not just a band heading — a merchant scanning
  * the grid shouldn't have to read headings to spot an empty shelf.
  *
- * `<wpd-ribbon>` owns the 45° slice, the clipping and the tone
+ * `<os-ribbon>` owns the 45° slice, the clipping and the tone
  * colours; all that's needed here is to keep it off the pointer and
  * step the type down to suit an 88px tile. The tile is already
  * `position: absolute`, which is the positioned parent the ribbon
  * anchors to. */
-wpd-ribbon.desktop-mode-woo-ribbon {
+os-ribbon.os-woo-ribbon {
 	/* The component defaults to a 90px corner window with a 140px
 	 * banner — sized for a card, which swallows a tile whole. These
 	 * custom properties are its documented tuning surface. Values
 	 * here suit the large product tile (104px image well); the
 	 * regular-tile fallback below steps them down again. */
-	--wpd-ribbon-size: 64px;
-	--wpd-ribbon-banner-width: 92px;
-	--wpd-ribbon-padding: 3px 0;
-	--wpd-ribbon-font: 700 9px/1.4 var( --desktop-mode-font, system-ui );
-	--wpd-ribbon-tracking: 0.03em;
+	--os-ui-ribbon-size: 64px;
+	--os-ui-ribbon-banner-width: 92px;
+	--os-ui-ribbon-padding: 3px 0;
+	--os-ui-ribbon-font: 700 9px/1.4 var( --os-font, system-ui );
+	--os-ui-ribbon-tracking: 0.03em;
 	pointer-events: none;
 }
 
 /* Regular-sized tiles (a section that didn't opt into `tileSize:
  * 'large'`) get a proportionally smaller ribbon. */
-.desktop-mode-my-wordpress__tiles:not( .desktop-mode-my-wordpress__tiles--large )
-	wpd-ribbon.desktop-mode-woo-ribbon {
-	--wpd-ribbon-size: 52px;
-	--wpd-ribbon-banner-width: 76px;
-	--wpd-ribbon-padding: 2px 0;
-	--wpd-ribbon-font: 700 8px/1.4 var( --desktop-mode-font, system-ui );
+.os-my-wordpress__tiles:not( .os-my-wordpress__tiles--large )
+	os-ribbon.os-woo-ribbon {
+	--os-ui-ribbon-size: 52px;
+	--os-ui-ribbon-banner-width: 76px;
+	--os-ui-ribbon-padding: 2px 0;
+	--os-ui-ribbon-font: 700 8px/1.4 var( --os-font, system-ui );
 }
 
 /* ----- Store panel on the folder view ----- */
 
-.desktop-mode-my-wordpress__group-extras:empty {
+.os-my-wordpress__group-extras:empty {
 	display: none;
 }
 
-.desktop-mode-my-wordpress__group-extras {
+.os-my-wordpress__group-extras {
 	padding: 12px 16px 0;
 }
 
-.desktop-mode-woo-panel--store .desktop-mode-woo-panel__rows {
+.os-woo-panel--store .os-woo-panel__rows {
 	/* Three headline numbers read better side by side than stacked,
 	 * and the folder view has the full window width to spend. */
 	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
 	gap: 4px 24px;
 }
 
-.desktop-mode-woo-panel--store .desktop-mode-woo-panel__row {
+.os-woo-panel--store .os-woo-panel__row {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 }
 
-.desktop-mode-woo-panel--store .desktop-mode-woo-panel__value {
+.os-woo-panel--store .os-woo-panel__value {
 	font-size: 20px;
 	font-weight: 600;
 }

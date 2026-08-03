@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-term stats endpoint.
+ * OpenStation — My WordPress: per-term stats endpoint.
  *
  * `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` returns an
  * aggregated profile for a single category or tag — counts, recent
@@ -14,7 +14,7 @@
  * stats. Author archives are also public so listing top authors is
  * not new disclosure.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,13 +22,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function desktop_mode_my_wordpress_register_term_stats_route() {
+function open_station_my_wordpress_register_term_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/term-stats/(?P<taxonomy>[a-zA-Z0-9_-]+)/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_term_stats_callback',
+			'callback'            => 'open_station_my_wordpress_term_stats_callback',
 			'permission_callback' => static function () {
 				return is_user_logged_in() && current_user_can( 'read' );
 			},
@@ -47,7 +47,7 @@ function desktop_mode_my_wordpress_register_term_stats_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_term_stats_route' );
+add_action( 'rest_api_init', 'open_station_my_wordpress_register_term_stats_route' );
 
 /**
  * Aggregator callback. See file docblock for return shape.
@@ -55,7 +55,7 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_term_stats_rout
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_term_stats_callback( $request ) {
+function open_station_my_wordpress_term_stats_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$term_id  = (int) $request->get_param( 'id' );
@@ -63,7 +63,7 @@ function desktop_mode_my_wordpress_term_stats_callback( $request ) {
 	$tax_obj = get_taxonomy( $taxonomy );
 	if ( ! $tax_obj ) {
 		return new WP_Error(
-			'desktop_mode_invalid_taxonomy',
+			'open_station_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -72,7 +72,7 @@ function desktop_mode_my_wordpress_term_stats_callback( $request ) {
 	$term = get_term( $term_id, $taxonomy );
 	if ( ! $term || is_wp_error( $term ) ) {
 		return new WP_Error(
-			'desktop_mode_term_not_found',
+			'open_station_term_not_found',
 			__( 'Term not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -339,7 +339,7 @@ function desktop_mode_my_wordpress_term_stats_callback( $request ) {
 	 * @param int    $term_id  Term id.
 	 */
 	return apply_filters(
-		'desktop_mode_my_wordpress_term_stats',
+		'open_station_my_wordpress_term_stats',
 		$payload,
 		$taxonomy,
 		$term_id

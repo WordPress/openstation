@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "Convert note to post" drop target.
+ * OpenStation — "Convert note to post" drop target.
  *
  * Registers the Posts surfaces as drop zones that accept a pinned-note
  * pin drag (`'note'` payload) and convert the note into a draft post —
@@ -13,7 +13,7 @@
  *      anyway). The dock is rebuilt on `HOOKS.DOCK_AFTER_RENDER`; we
  *      re-discover + re-register on that signal plus a `MutationObserver`
  *      fallback.
- *   2. The native Posts window body (`[data-desktop-mode-posts-root]`,
+ *   2. The native Posts window body (`[data-os-posts-root]`,
  *      the opt-in `desktop-mode-posts` window). Registered on
  *      `WINDOW_OPENED`, deregistered on `WINDOW_CLOSED`.
  *
@@ -44,22 +44,22 @@ import {
 import { NOTE_PAYLOAD_TYPE, type NoteDragData } from './types';
 import type { NotesLayer } from './layer';
 
-const DROP_ACTIVE_ATTR = 'data-desktop-mode-posts-drop-active';
+const DROP_ACTIVE_ATTR = 'data-os-posts-drop-active';
 const POSTS_WINDOW_ID = 'desktop-mode-posts';
 // The core Posts tile carries `menu-posts`; `editphp` is the fallback
 // when a site's menu row has no id (`$item[5]`) so the dock falls back
 // to `sanitize_key( $item[2] )` = `sanitize_key( 'edit.php' )`.
 const POSTS_DOCK_SELECTOR =
-	'.desktop-mode-dock__item[data-menu-slug="menu-posts"],' +
-	'.desktop-mode-dock__item[data-menu-slug="editphp"]';
-const POSTS_WINDOW_SELECTOR = '[data-desktop-mode-posts-root]';
+	'.os-dock__item[data-menu-slug="menu-posts"],' +
+	'.os-dock__item[data-menu-slug="editphp"]';
+const POSTS_WINDOW_SELECTOR = '[data-os-posts-root]';
 
 function getDragManager(): DragManagerApi | null {
 	return (
 		window as unknown as {
-			wp?: { desktop?: { dragManager?: DragManagerApi } };
+			wp?: { os?: { dragManager?: DragManagerApi } };
 		}
-	).wp?.desktop?.dragManager ?? null;
+	).wp?.os?.dragManager ?? null;
 }
 
 function isNotePayload( payload: DragPayload ): boolean {

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mio pointer tracking.
+ * OpenStation — Mio pointer tracking.
  *
  * Mio looks at the cursor. That is trivially easy right up
  * until the cursor moves over a window, because a window's content
@@ -13,14 +13,14 @@
  *
  *   1. `pointermove` on the shell document (wallpaper, dock,
  *      taskbar, window chrome).
- *   2. `desktop-mode-pointer-move` messages forwarded by the
+ *   2. `os-pointer-move` messages forwarded by the
  *      chromeless bridge inside each window iframe, rebased from the
  *      iframe's own client coordinates into viewport coordinates via
  *      the iframe element's rect.
  *
  * The forwarder inside the iframe is **opt-in and off by default**:
- * the tracker broadcasts `desktop-mode-pointer-track` when it starts
- * and again whenever an iframe announces `desktop-mode-bridge-ready`
+ * the tracker broadcasts `os-pointer-track` when it starts
+ * and again whenever an iframe announces `os-bridge-ready`
  * (which fires on every navigation), and broadcasts the disable on
  * teardown. A shell with no companion pays nothing.
  *
@@ -110,7 +110,7 @@ export function createPointerTracker(): PointerTracker {
 		}
 		try {
 			( target as Window ).postMessage(
-				{ type: 'desktop-mode-pointer-track', enabled: true },
+				{ type: 'os-pointer-track', enabled: true },
 				window.location.origin,
 			);
 		} catch {
@@ -123,7 +123,7 @@ export function createPointerTracker(): PointerTracker {
 		for ( const frame of Array.from( frames ) ) {
 			try {
 				frame.contentWindow?.postMessage(
-					{ type: 'desktop-mode-pointer-track', enabled },
+					{ type: 'os-pointer-track', enabled },
 					window.location.origin,
 				);
 			} catch {
@@ -142,11 +142,11 @@ export function createPointerTracker(): PointerTracker {
 		}
 		// A freshly-loaded (or freshly-navigated) iframe announces
 		// itself; turn its forwarder on.
-		if ( data.type === 'desktop-mode-bridge-ready' ) {
+		if ( data.type === 'os-bridge-ready' ) {
 			enableIn( e.source );
 			return;
 		}
-		if ( data.type !== 'desktop-mode-pointer-move' ) {
+		if ( data.type !== 'os-pointer-move' ) {
 			return;
 		}
 		if ( typeof data.x !== 'number' || typeof data.y !== 'number' ) {

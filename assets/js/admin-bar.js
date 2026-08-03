@@ -1,9 +1,9 @@
 ( function() {
-	var toggle = document.getElementById( 'wp-admin-bar-desktop-mode-toggle' );
+	var toggle = document.getElementById( 'wp-admin-bar-os-toggle' );
 	if ( ! toggle ) {
 		return;
 	}
-	var cfg = window.desktopModeAdminBar || {};
+	var cfg = window.openStationAdminBar || {};
 	toggle.addEventListener( 'click', function( e ) {
 		e.preventDefault();
 		var isActive = !! cfg.active;
@@ -27,7 +27,7 @@
 			}
 		}
 		var body = new URLSearchParams();
-		body.set( 'action', 'save-desktop-mode' );
+		body.set( 'action', 'save-openstation' );
 		body.set( 'nonce', cfg.nonce );
 		body.set( 'enabled', newValue );
 		var xhr = new XMLHttpRequest();
@@ -65,7 +65,7 @@
 
 	function paintSnapCheckbox( enabled ) {
 		var node = document.querySelector(
-			'#wp-admin-bar-desktop-layout-snap .desktop-mode-layout-checkbox'
+			'#wp-admin-bar-desktop-layout-snap .os-layout-checkbox'
 		);
 		if ( ! node ) return;
 		node.textContent = enabled ? '☑' : '☐'; // ☑ / ☐
@@ -77,7 +77,7 @@
 	}
 
 	function getManager() {
-		return window.wp && window.wp.desktop && window.wp.desktop.windowManager;
+		return window.wp && window.wp.os && window.wp.os.windowManager;
 	}
 
 	// Initial paint — wait for the shell to publish the manager,
@@ -98,7 +98,7 @@
 		var t = e.target;
 		if ( ! t || ! t.closest ) return;
 
-		var snapItem = t.closest( '.desktop-mode-layout-snap' );
+		var snapItem = t.closest( '.os-layout-snap' );
 		if ( snapItem ) {
 			// Stop propagation so WP's own "click closes submenu"
 			// chain never fires. preventDefault keeps the `#` href
@@ -113,7 +113,7 @@
 			return;
 		}
 
-		var actionLink = t.closest( '.desktop-mode-layout-action > .ab-item, .desktop-mode-layout-action' );
+		var actionLink = t.closest( '.os-layout-action > .ab-item, .os-layout-action' );
 		if ( ! actionLink ) return;
 		e.preventDefault();
 		var id = actionLink.closest( '[id^="wp-admin-bar-desktop-layout-"]' );
@@ -130,11 +130,11 @@
 			// Plugin-registered custom item. Strip the shared prefix to
 			// recover the `id` the plugin supplied via the PHP filter,
 			// then dispatch the public JS action. Plugins subscribe
-			// via wp.hooks.addAction( 'desktop-mode.arrange.custom-action', ... ).
+			// via wp.hooks.addAction( 'os.arrange.custom-action', ... ).
 			var customId = id.id.replace( 'wp-admin-bar-desktop-layout-custom-', '' );
 			var hooks = window.wp && window.wp.hooks;
 			if ( hooks && typeof hooks.doAction === 'function' ) {
-				hooks.doAction( 'desktop-mode.arrange.custom-action', { id: customId } );
+				hooks.doAction( 'os.arrange.custom-action', { id: customId } );
 			}
 		}
 		// After running an action, dismiss the submenu so the user
@@ -180,7 +180,7 @@
 			// in browser fullscreen — the OS / browser intercept clicks
 			// in those bands. Hiding them shifts the Fullscreen button
 			// further from the right edge so its own click lands.
-			document.body.classList.toggle( 'desktop-mode-browser-fs', !! on );
+			document.body.classList.toggle( 'os-browser-fs', !! on );
 			if ( on ) {
 				fsBtn.classList.add( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.exitFullscreen || 'Exit fullscreen';
@@ -227,13 +227,13 @@
 	}
 
 	// Bug Report button — same decoupling pattern as Ask AI. Dispatches
-	// `desktop-mode-open-bug-report`; the shell answers by opening the
+	// `os-open-bug-report`; the shell answers by opening the
 	// Bug Report native window. Wired in `src/desktop.ts`.
 	var bugBtn = document.getElementById( 'wp-admin-bar-desktop-bug-report' );
 	if ( bugBtn ) {
 		bugBtn.addEventListener( 'click', function( e ) {
 			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-bug-report' ) );
+			document.dispatchEvent( new CustomEvent( 'os-open-bug-report' ) );
 		} );
 	}
 
@@ -331,7 +331,7 @@
 
 	function buildShortcutsPopover( data ) {
 		var root = document.createElement( 'div' );
-		root.className = 'desktop-mode-shortcuts-popover';
+		root.className = 'os-shortcuts-popover';
 		root.setAttribute( 'role', 'dialog' );
 		if ( data.title ) {
 			root.setAttribute( 'aria-label', data.title );
@@ -348,17 +348,17 @@
 
 	function buildShortcutsTable( section ) {
 		var wrap = document.createElement( 'section' );
-		wrap.className = 'desktop-mode-shortcuts-popover__section';
+		wrap.className = 'os-shortcuts-popover__section';
 
 		if ( section.heading ) {
 			var h = document.createElement( 'h3' );
-			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.className = 'os-shortcuts-popover__heading';
 			h.textContent = section.heading;
 			wrap.appendChild( h );
 		}
 
 		var table = document.createElement( 'table' );
-		table.className = 'desktop-mode-shortcuts-popover__table';
+		table.className = 'os-shortcuts-popover__table';
 
 		var thead = document.createElement( 'thead' );
 		var headRow = document.createElement( 'tr' );
@@ -376,11 +376,11 @@
 			var tr = document.createElement( 'tr' );
 
 			var keyCell = document.createElement( 'td' );
-			keyCell.className = 'desktop-mode-shortcuts-popover__key-cell';
+			keyCell.className = 'os-shortcuts-popover__key-cell';
 			keyCell.appendChild( renderKeys( row.keys || [] ) );
 			if ( row.note ) {
 				var note = document.createElement( 'span' );
-				note.className = 'desktop-mode-shortcuts-popover__note';
+				note.className = 'os-shortcuts-popover__note';
 				note.textContent = ' ' + row.note;
 				keyCell.appendChild( note );
 			}
@@ -402,23 +402,23 @@
 
 	function buildShortcutsList( section ) {
 		var wrap = document.createElement( 'section' );
-		wrap.className = 'desktop-mode-shortcuts-popover__section';
+		wrap.className = 'os-shortcuts-popover__section';
 
 		if ( section.heading ) {
 			var h = document.createElement( 'h3' );
-			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.className = 'os-shortcuts-popover__heading';
 			h.textContent = section.heading;
 			wrap.appendChild( h );
 		}
 
 		var list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-shortcuts-popover__list';
+		list.className = 'os-shortcuts-popover__list';
 		( section.items || [] ).forEach( function( item ) {
 			var li = document.createElement( 'li' );
-			li.className = 'desktop-mode-shortcuts-popover__item';
+			li.className = 'os-shortcuts-popover__item';
 			li.appendChild( renderKeys( item.keys || [] ) );
 			var desc = document.createElement( 'span' );
-			desc.className = 'desktop-mode-shortcuts-popover__description';
+			desc.className = 'os-shortcuts-popover__description';
 			desc.textContent = item.description || '';
 			li.appendChild( desc );
 			list.appendChild( li );
@@ -430,17 +430,17 @@
 
 	function renderKeys( keys ) {
 		var span = document.createElement( 'span' );
-		span.className = 'desktop-mode-shortcuts-popover__keys';
+		span.className = 'os-shortcuts-popover__keys';
 		keys.forEach( function( key, idx ) {
 			if ( idx > 0 ) {
 				var plus = document.createElement( 'span' );
-				plus.className = 'desktop-mode-shortcuts-popover__plus';
+				plus.className = 'os-shortcuts-popover__plus';
 				plus.textContent = '+';
 				plus.setAttribute( 'aria-hidden', 'true' );
 				span.appendChild( plus );
 			}
 			var kbd = document.createElement( 'kbd' );
-			kbd.className = 'desktop-mode-shortcuts-popover__kbd';
+			kbd.className = 'os-shortcuts-popover__kbd';
 			kbd.textContent = key;
 			span.appendChild( kbd );
 		} );

@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — File-opener registry (JS side).
+ * OpenStation — File-opener registry (JS side).
  *
- * Mirrors the PHP {@link desktop_mode_register_file_opener}
+ * Mirrors the PHP {@link open_station_register_file_opener}
  * surface with one critical difference: this side carries the
  * executable handlers (URL builders, native-window openers, JS
  * callbacks) that PHP couldn't serialize. Plugins register
@@ -20,7 +20,7 @@
  *
  *   - `url`     — handler returns a URL; the framework opens it in
  *                 a chromeless iframe window via
- *                 `wp.desktop.windowManager.open`.
+ *                 `wp.os.windowManager.open`.
  *   - `window`  — handler points at a registered native-window id
  *                 plus optional per-file `config`; the framework
  *                 opens the window by id (see the `config` caveat
@@ -45,13 +45,13 @@ export interface UrlOpenerHandler {
 
 export interface NativeWindowOpenerHandler {
 	kind: 'window';
-	/** Native-window id registered via `desktop_mode_register_window`. */
+	/** Native-window id registered via `open_station_register_window`. */
 	windowId: string;
 	/**
 	 * Optional per-file config. Caveat: the computed config is
 	 * currently dropped by the shell's opener wiring (it opens the
 	 * window by id without forwarding it), so it never reaches
-	 * `wp.desktop.getWindowConfig` — don't rely on per-file config
+	 * `wp.os.getWindowConfig` — don't rely on per-file config
 	 * delivery yet.
 	 */
 	config?: ( file: DesktopFile ) => unknown;
@@ -131,16 +131,16 @@ export function getUserAssociations(): Record< string, string > {
  */
 export function registerOpener( def: FileOpenerDef ): void {
 	if ( ! def.id ) {
-		throw new Error( '[desktop-mode] registerOpener: `id` is required.' );
+		throw new Error( '[openstation] registerOpener: `id` is required.' );
 	}
 	if ( ! def.label ) {
-		throw new Error( '[desktop-mode] registerOpener: `label` is required.' );
+		throw new Error( '[openstation] registerOpener: `label` is required.' );
 	}
 	if ( ! Array.isArray( def.types ) || def.types.length === 0 ) {
-		throw new Error( '[desktop-mode] registerOpener: `types` must be a non-empty array.' );
+		throw new Error( '[openstation] registerOpener: `types` must be a non-empty array.' );
 	}
 	if ( ! def.handler || typeof def.handler !== 'object' ) {
-		throw new Error( '[desktop-mode] registerOpener: `handler` is required.' );
+		throw new Error( '[openstation] registerOpener: `handler` is required.' );
 	}
 	seed.set( def.id, {
 		id: def.id,
@@ -152,14 +152,14 @@ export function registerOpener( def: FileOpenerDef ): void {
 			typeof def.appliesTo === 'function' ? def.appliesTo : undefined,
 		handler: def.handler,
 	} );
-	doAction( 'desktop-mode.files.opener-registered', def.id, def );
+	doAction( 'os.files.opener-registered', def.id, def );
 	notify();
 }
 
 /** Unregister an opener. */
 export function unregisterOpener( id: string ): void {
 	if ( seed.delete( id ) ) {
-		doAction( 'desktop-mode.files.opener-unregistered', id );
+		doAction( 'os.files.opener-unregistered', id );
 		notify();
 	}
 }
@@ -173,7 +173,7 @@ export function getOpener( id: string ): FileOpenerDef | null {
 export function getOpeners(): FileOpenerDef[] {
 	const list = Array.from( seed.values() ).slice();
 	const filtered = applyFilters< FileOpenerDef[], [] >(
-		'desktop-mode.files.openers',
+		'os.files.openers',
 		list,
 	);
 	const arr = Array.isArray( filtered ) ? filtered : list;
@@ -207,7 +207,7 @@ export function getOpenersForType(
 /**
  * Resolve the opener that should handle `type` for the current
  * user. Plugins can override the result via the
- * `desktop-mode.files.resolve-opener` filter.
+ * `os.files.resolve-opener` filter.
  */
 export function resolveOpener(
 	type: string,
@@ -234,7 +234,7 @@ export function resolveOpener(
 	}
 
 	const filtered = applyFilters< FileOpenerDef | null, [ string ] >(
-		'desktop-mode.files.resolve-opener',
+		'os.files.resolve-opener',
 		resolved,
 		type,
 	);
@@ -253,7 +253,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] openers subscriber threw:', err );
+			console.error( '[openstation] openers subscriber threw:', err );
 		}
 	}
 }

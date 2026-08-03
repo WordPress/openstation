@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the extension REST controller base
- * (Desktop_Mode_Extension_Rest) — specifically the
+ * (Open_Station_Extension_Rest) — specifically the
  * permission-callback auto-fill in register_routes() for both
  * route shapes register_rest_route() accepts, and the
  * check_caps() 401/403 split.
@@ -9,12 +9,12 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  */
 
 require_once dirname( __DIR__, 3 ) . '/extensions/base/includes/ExtensionRest.php';
 
-class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
+class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -47,10 +47,10 @@ class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
 	 * Concrete subclass declaring one route of each shape plus a
 	 * route with an explicit permission_callback.
 	 */
-	private function make_controller(): Desktop_Mode_Extension_Rest {
-		return new class() extends Desktop_Mode_Extension_Rest {
+	private function make_controller(): Open_Station_Extension_Rest {
+		return new class() extends Open_Station_Extension_Rest {
 			protected function namespace(): string {
-				return 'desktop-mode-test/v1';
+				return 'os-test/v1';
 			}
 
 			protected function routes(): array {
@@ -88,31 +88,31 @@ class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::register_routes
+	 * @covers Open_Station_Extension_Rest::register_routes
 	 */
 	public function test_single_endpoint_route_gets_check_caps_permission_callback() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
 
 		$routes = $this->server->get_routes();
-		$this->assertArrayHasKey( '/desktop-mode-test/v1/single', $routes );
+		$this->assertArrayHasKey( '/os-test/v1/single', $routes );
 		$this->assertSame(
 			array( $controller, 'check_caps' ),
-			$routes['/desktop-mode-test/v1/single'][0]['permission_callback']
+			$routes['/os-test/v1/single'][0]['permission_callback']
 		);
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::register_routes
+	 * @covers Open_Station_Extension_Rest::register_routes
 	 */
 	public function test_multi_endpoint_route_gets_check_caps_on_every_endpoint() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
 
 		$routes = $this->server->get_routes();
-		$this->assertArrayHasKey( '/desktop-mode-test/v1/multi', $routes );
+		$this->assertArrayHasKey( '/os-test/v1/multi', $routes );
 
-		$endpoints = $routes['/desktop-mode-test/v1/multi'];
+		$endpoints = $routes['/os-test/v1/multi'];
 		$this->assertCount( 2, $endpoints );
 		foreach ( $endpoints as $endpoint ) {
 			$this->assertSame(
@@ -123,22 +123,22 @@ class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::register_routes
+	 * @covers Open_Station_Extension_Rest::register_routes
 	 */
 	public function test_explicit_permission_callback_is_not_overridden() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
 
 		$routes = $this->server->get_routes();
-		$this->assertArrayHasKey( '/desktop-mode-test/v1/custom', $routes );
+		$this->assertArrayHasKey( '/os-test/v1/custom', $routes );
 		$this->assertSame(
 			'__return_true',
-			$routes['/desktop-mode-test/v1/custom'][0]['permission_callback']
+			$routes['/os-test/v1/custom'][0]['permission_callback']
 		);
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::check_caps
+	 * @covers Open_Station_Extension_Rest::check_caps
 	 */
 	public function test_check_caps_returns_401_for_logged_out_users() {
 		wp_set_current_user( 0 );
@@ -150,7 +150,7 @@ class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::check_caps
+	 * @covers Open_Station_Extension_Rest::check_caps
 	 */
 	public function test_check_caps_returns_403_for_users_missing_required_caps() {
 		wp_set_current_user( self::$subscriber_id );
@@ -162,7 +162,7 @@ class Tests_DesktopMode_ExtensionRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers Desktop_Mode_Extension_Rest::check_caps
+	 * @covers Open_Station_Extension_Rest::check_caps
 	 */
 	public function test_check_caps_returns_true_for_users_with_required_caps() {
 		wp_set_current_user( self::$admin_id );

@@ -33,26 +33,26 @@ export function buildAccentSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Accent color' ) }
 					description=${ __( 'Used in focused window title bars, buttons, and focus rings.' ) }
 				>
-					<wpd-swatch-grid
+					<os-swatch-grid
 						label=${ __( 'Accent color' ) }
 						mode="row"
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
 						${ getAccents().map(
-		( a ) => html`<wpd-swatch
+		( a ) => html`<os-swatch
 								value=${ a.id }
 								label=${ translateAccentLabel( a.id, a.label ) }
 								preview=${ a.value }
 								size="small"
 								?selected=${ ctx.state.accent === a.id }
-							></wpd-swatch>`,
+							></os-swatch>`,
 	) }
-					</wpd-swatch-grid>
-				</wpd-section>
+					</os-swatch-grid>
+				</os-section>
 			`,
 			wrapper,
 		);

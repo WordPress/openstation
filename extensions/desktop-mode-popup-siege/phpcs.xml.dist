@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="Desktop Mode — Popup Siege">
+<ruleset name="OpenStation — Popup Siege">
 	<description>Coding standards for the Popup Siege companion plugin.</description>
 
 	<file>desktop-mode-popup-siege.php</file>

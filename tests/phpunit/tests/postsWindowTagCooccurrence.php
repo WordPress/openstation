@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-posts-window
+ * @group openstation
+ * @group os-posts-window
  */
-class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
+class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $subscriber_id;
@@ -43,7 +43,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_register_tag_cooccurrence_route
+	 * @covers ::open_station_posts_window_register_tag_cooccurrence_route
 	 */
 	public function test_endpoint_requires_edit_posts_cap() {
 		wp_set_current_user( $this->subscriber_id );
@@ -57,7 +57,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_register_tag_cooccurrence_route
+	 * @covers ::open_station_posts_window_register_tag_cooccurrence_route
 	 */
 	public function test_endpoint_allows_administrator() {
 		wp_set_current_user( $this->admin_id );
@@ -71,7 +71,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_unknown_taxonomy_returns_400() {
 		wp_set_current_user( $this->admin_id );
@@ -80,7 +80,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$response = rest_get_server()->dispatch( $request );
 		$this->assertSame( 400, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertSame( 'desktop_mode_invalid_taxonomy', $data['code'] );
+		$this->assertSame( 'open_station_invalid_taxonomy', $data['code'] );
 	}
 
 	// ----------------------------------------------------------------
@@ -88,7 +88,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_returns_empty_pairs_when_no_shared_posts() {
 		wp_set_current_user( $this->admin_id );
@@ -112,7 +112,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_single_post_with_three_tags_yields_three_pairs() {
 		wp_set_current_user( $this->admin_id );
@@ -142,7 +142,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 *
 	 * Two posts share both tags → shared count = 2. A third post
 	 * pairs only the first tag with a third tag → shared(t1,t3) = 1.
@@ -191,7 +191,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_excludes_trash_posts_from_cooccurrence() {
 		wp_set_current_user( $this->admin_id );
@@ -212,7 +212,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_includes_drafts_pending_and_future_statuses() {
 		wp_set_current_user( $this->admin_id );
@@ -239,7 +239,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 */
 	public function test_limit_param_trims_neighbor_list() {
 		wp_set_current_user( $this->admin_id );
@@ -267,7 +267,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 *
 	 * The callback caps `limit` at 24 — a hostile or sloppy caller
 	 * passing limit=9999 must not be able to balloon every tag's
@@ -307,12 +307,12 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_version
+	 * @covers ::open_station_posts_window_terms_cache_version
 	 */
 	public function test_cache_version_starts_at_one_when_unset() {
 		$this->assertSame(
 			1,
-			desktop_mode_posts_window_terms_cache_version()
+			open_station_posts_window_terms_cache_version()
 		);
 		$this->assertSame(
 			1,
@@ -322,17 +322,17 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_invalidate_bumps_the_version() {
-		$before = desktop_mode_posts_window_terms_cache_version();
-		desktop_mode_posts_window_terms_cache_invalidate();
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
+		open_station_posts_window_terms_cache_invalidate();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertSame( $before + 1, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 *
 	 * First call must populate the transient under
 	 * `dmwco_v<version>_<taxonomy>_l<limit>`. We verify by reading
@@ -350,7 +350,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		// `wp_set_object_terms` above already triggered an invalidation,
 		// so the cache version is no longer 1. Read it AFTER the
 		// fixture is set up.
-		$version = desktop_mode_posts_window_terms_cache_version();
+		$version = open_station_posts_window_terms_cache_version();
 
 		$response = rest_get_server()->dispatch(
 			new WP_REST_Request( 'GET', '/desktop-mode/v1/tag-cooccurrence' )
@@ -364,7 +364,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_tag_cooccurrence_callback
+	 * @covers ::open_station_posts_window_tag_cooccurrence_callback
 	 *
 	 * A pre-warmed transient under the active version must be
 	 * returned verbatim — proves the dispatcher short-circuits on
@@ -373,7 +373,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	public function test_second_call_returns_cached_payload_without_recomputing() {
 		wp_set_current_user( $this->admin_id );
 
-		$version   = desktop_mode_posts_window_terms_cache_version();
+		$version   = open_station_posts_window_terms_cache_version();
 		$cache_key = sprintf( 'dmwco_v%d_%s_l%d', $version, 'post_tag', 8 );
 
 		// Stuff a sentinel payload into the cache; if the endpoint
@@ -396,7 +396,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 *
 	 * After invalidation, the previous cached payload must be
 	 * unreachable (different version → different key) and the
@@ -405,7 +405,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	public function test_invalidation_makes_old_cache_unreachable() {
 		wp_set_current_user( $this->admin_id );
 
-		$version_a = desktop_mode_posts_window_terms_cache_version();
+		$version_a = open_station_posts_window_terms_cache_version();
 		$key_a     = sprintf( 'dmwco_v%d_%s_l%d', $version_a, 'post_tag', 8 );
 
 		// Plant a sentinel under the current version's key.
@@ -419,8 +419,8 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		set_transient( $key_a, $sentinel, DAY_IN_SECONDS );
 
 		// Bump the version.
-		desktop_mode_posts_window_terms_cache_invalidate();
-		$version_b = desktop_mode_posts_window_terms_cache_version();
+		open_station_posts_window_terms_cache_invalidate();
+		$version_b = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $version_a, $version_b );
 
 		// Endpoint must miss (different key) and return the live
@@ -432,7 +432,7 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 *
 	 * The hook surface — every action below should bump the
 	 * version. If one of these regresses, users would see stale
@@ -441,77 +441,77 @@ class Tests_DesktopMode_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 	public function test_set_object_terms_invalidates_cache() {
 		$post = self::factory()->post->create();
 		$tag  = self::factory()->tag->create();
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_set_object_terms( $post, array( $tag ), 'post_tag' );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_created_term_invalidates_cache() {
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		self::factory()->tag->create( array( 'name' => 'fresh' ) );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_edited_term_invalidates_cache() {
 		$tag = self::factory()->tag->create( array( 'name' => 'before' ) );
 		// Setup fired created_term + set_object_terms; snapshot the
 		// version AFTER setup so the assertion is about the edit.
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_update_term( $tag, 'post_tag', array( 'name' => 'after' ) );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_delete_term_invalidates_cache() {
 		$tag    = self::factory()->tag->create();
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_delete_term( $tag, 'post_tag' );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_wp_trash_post_invalidates_cache() {
 		$post   = self::factory()->post->create();
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_trash_post( $post );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_untrash_post_invalidates_cache() {
 		$post = self::factory()->post->create();
 		wp_trash_post( $post );
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_untrash_post( $post );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
 	/**
-	 * @covers ::desktop_mode_posts_window_terms_cache_invalidate
+	 * @covers ::open_station_posts_window_terms_cache_invalidate
 	 */
 	public function test_before_delete_post_invalidates_cache() {
 		$post   = self::factory()->post->create();
-		$before = desktop_mode_posts_window_terms_cache_version();
+		$before = open_station_posts_window_terms_cache_version();
 		wp_delete_post( $post, true );
-		$after = desktop_mode_posts_window_terms_cache_version();
+		$after = open_station_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 }

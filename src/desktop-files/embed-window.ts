@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — `embed` file-type opener glue.
+ * OpenStation — `embed` file-type opener glue.
  *
  * Opens a stored URL in an iframe-backed desktop window. Window
  * geometry persists per-placement: every drag-end / resize-end on
@@ -61,8 +61,8 @@ export function openEmbedWindow(
 	// chromeless admin pages anyway, but we don't second-guess the
 	// user; whatever they pasted lands in the iframe src as-is.
 	const wm = ( window.wp as
-		| { desktop?: { windowManager?: WindowManagerLike } }
-		| undefined )?.desktop?.windowManager;
+		| { os?: { windowManager?: WindowManagerLike } }
+		| undefined )?.os?.windowManager;
 	if ( ! wm ) {
 		return;
 	}
@@ -87,7 +87,7 @@ export function openEmbedWindow(
 	};
 
 	const saved = meta?.window;
-	const area = document.getElementById( 'desktop-mode-area' );
+	const area = document.getElementById( 'os-area' );
 	const aw = area?.clientWidth ?? window.innerWidth;
 	const ah = area?.clientHeight ?? window.innerHeight;
 
@@ -140,8 +140,8 @@ export function installEmbedPersistence(): void {
 			return; // anon embed — nowhere to persist
 		}
 		const wm = ( window.wp as
-			| { desktop?: { windowManager?: WindowManagerLike } }
-			| undefined )?.desktop?.windowManager;
+			| { os?: { windowManager?: WindowManagerLike } }
+			| undefined )?.os?.windowManager;
 		const win = wm?.getById?.( id );
 		const el = win?.element;
 		if ( ! el ) {
@@ -167,8 +167,8 @@ export function installEmbedPersistence(): void {
 		void persist( placementId, next );
 	};
 
-	addAction( HOOKS.WINDOW_DRAG_END, 'desktop-mode-embed-persist', onChange );
-	addAction( HOOKS.WINDOW_RESIZE_END, 'desktop-mode-embed-persist', onChange );
+	addAction( HOOKS.WINDOW_DRAG_END, 'os-embed-persist', onChange );
+	addAction( HOOKS.WINDOW_RESIZE_END, 'os-embed-persist', onChange );
 }
 
 /** For tests only — tear down the persistence wiring. */
@@ -176,8 +176,8 @@ export function __uninstallEmbedPersistenceForTests(): void {
 	if ( ! installed ) {
 		return;
 	}
-	removeAction( HOOKS.WINDOW_DRAG_END, 'desktop-mode-embed-persist' );
-	removeAction( HOOKS.WINDOW_RESIZE_END, 'desktop-mode-embed-persist' );
+	removeAction( HOOKS.WINDOW_DRAG_END, 'os-embed-persist' );
+	removeAction( HOOKS.WINDOW_RESIZE_END, 'os-embed-persist' );
 	lastPersisted.clear();
 	installed = false;
 }
@@ -203,7 +203,7 @@ async function persist( placementId: number, geo: SavedGeometry ): Promise< void
 		// Persistence is best-effort; user can still drag/resize
 		// the window in the active session even if the write fails.
 		// eslint-disable-next-line no-console
-		console.warn( '[desktop-mode] embed window persist failed:', err );
+		console.warn( '[openstation] embed window persist failed:', err );
 	}
 }
 

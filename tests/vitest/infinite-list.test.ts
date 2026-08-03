@@ -132,7 +132,7 @@ describe( 'createInfiniteList', () => {
 
 		// Trigger the sentinel.
 		const sentinel = root.querySelector< HTMLElement >(
-			'[data-wpd-infinite-list-sentinel]',
+			'[data-os-infinite-list-sentinel]',
 		);
 		expect( sentinel ).not.toBeNull();
 		FakeObserver.intersect( sentinel! );
@@ -156,7 +156,7 @@ describe( 'createInfiniteList', () => {
 		} );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const sentinel = root.querySelector< HTMLElement >(
-			'[data-wpd-infinite-list-sentinel]',
+			'[data-os-infinite-list-sentinel]',
 		);
 		FakeObserver.intersect( sentinel! );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -228,7 +228,7 @@ describe( 'createInfiniteList', () => {
 		list.destroy();
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( aborted ).toBe( true );
-		expect( root.querySelector( '[data-wpd-infinite-list-sentinel]' ) ).toBeNull();
+		expect( root.querySelector( '[data-os-infinite-list-sentinel]' ) ).toBeNull();
 		// hasMore stays true because we never reached end-of-list, but
 		// loadMore is a no-op after destroy — exercising it should not
 		// throw and not flip the loading state.
@@ -268,7 +268,7 @@ describe( 'createInfiniteList', () => {
 		// Sentinel was removed from the observer when nextCursor was null —
 		// FakeObserver.intersect should be a no-op now.
 		const sentinel = root.querySelector< HTMLElement >(
-			'[data-wpd-infinite-list-sentinel]',
+			'[data-os-infinite-list-sentinel]',
 		);
 		if ( sentinel ) FakeObserver.intersect( sentinel );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
