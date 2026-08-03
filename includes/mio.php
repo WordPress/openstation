@@ -56,14 +56,22 @@ function openstation_mio_config() {
 	$defaults = array(
 		'appearance' => array(
 			'radius'       => 56,
-			'bodyColor'    => '#000000',
+			// Void, the palette's base. The brand's own Mio is
+			// `fill="none"` over the Void page; the shell floats over
+			// whatever wallpaper the user picked, so it fills the body
+			// with the colour that background is. Not '#000000', which
+			// is not in the palette.
+			'bodyColor'    => '#0c0b0f',
 			'bodyAlpha'    => 1,
-			// Read off the official `mio.svg`: a three-stop gradient
-			// from #EF42E8 (hue 302) through #AA67FF to #5E8BFF
-			// (hue 223), on an axis about 23 degrees off horizontal.
-			'hueStart'     => 302,
-			'hueSpan'      => -79,
-			'hueAngle'     => 23,
+			// Read off Miomesh, Mio's own gradient in the OpenStation
+			// brand guidelines: four stops from #F252FC (Pulse, hue
+			// 296.5) through #AA67FF and #A580FF to #4B3EFF (hue 244).
+			// `hueAngle` pins Pulse where `mioGrad` starts, on the
+			// upper-left shoulder — 225 degrees clockwise from 3
+			// o'clock.
+			'hueStart'     => 296.5,
+			'hueSpan'      => -52.5,
+			'hueAngle'     => 225,
 			// The official Mio holds still; hueLoop is what lets it,
 			// by walking the span out and back so the ring meets
 			// itself instead of ending a span away with a visible seam.
@@ -76,7 +84,10 @@ function openstation_mio_config() {
 			'hueSpin'      => 0,
 			'hueLoop'      => true,
 			'saturation'   => 1,
-			'lightness'    => 0.66,
+			// The ring's brightest point, not its average — the
+			// renderer rides a cosine hump from 0.72x to 1x over this.
+			// Miomesh's brightest stop, #A580FF, is 0.751.
+			'lightness'    => 0.75,
 			// The official artwork has no hologram and no interior
 			// sheen — a flat gradient over dead black. One number here
 			// turns both back on for a whole site.
@@ -99,7 +110,9 @@ function openstation_mio_config() {
 			// needs the two filter passes back for performance can drop
 			// them.
 			'glowBlur'     => true,
-			'eyeColor'     => '#ffffff',
+			// Starlight, the palette's white — what the brand's mascot
+			// fills its two eye pills with. Not '#ffffff'.
+			'eyeColor'     => '#fffbff',
 			'eyeScale'     => 0.3,
 		),
 		'physics'    => array(

@@ -25,31 +25,51 @@ import type {
 } from './types';
 
 /**
- * The reference mio: a black blob with a magenta→violet neon ring
- * and two white pill eyes.
+ * The reference Mio, wearing the brand: a Void blob ringed in Miomesh
+ * — Pulse through violet into blue — with two Starlight pill eyes.
+ * Every colour here is derived from the OpenStation brand guidelines
+ * and pinned by `tests/vitest/mio-brand-fidelity.test.ts`; see
+ * "Mio wears the brand" in `docs/mio.md` before retuning any of them.
  */
 export const MIO_DEFAULTS: MioConfig = {
 	appearance: {
 		radius: 56,
-		// The official artwork fills the body with flat black.
-		bodyColor: 0x000000,
+		/*
+		 * Void, the palette's base — not `#000000`.
+		 *
+		 * The brand's own Mio is `fill="none"`: a stroked outline with
+		 * no body at all, drawn over the Void page. The shell cannot
+		 * copy that, because Mio floats over whatever wallpaper the
+		 * user picked and a transparent body would show it through. So
+		 * the body is filled with the colour the artwork's own
+		 * background is. Pure black is not in the palette.
+		 */
+		bodyColor: 0x0c0b0f,
 		bodyAlpha: 1,
 		/*
-		 * Read off the official `mio.svg` rather than guessed from a
-		 * screenshot. Its ring is one linear gradient with three stops:
+		 * Read off Miomesh, Mio's own gradient in the OpenStation brand
+		 * guidelines — `assets/miomesh.svg`, and the `mioGrad` the
+		 * mascot on that page is stroked with. Four stops:
 		 *
-		 *   #EF42E8  hue 302  magenta   at the gradient's start
-		 *   #AA67FF  hue 266  violet    midway
-		 *   #5E8BFF  hue 223  blue      at the end
+		 *   #F252FC  hue 296.5  Pulse    at the gradient's start
+		 *   #AA67FF  hue 266.4  violet   48% along
+		 *   #A580FF  hue 257.5  violet   71% along
+		 *   #4B3EFF  hue 244.0  blue     at the end
 		 *
-		 * so the sweep is 302 → 223, i.e. a span of −79. The gradient
-		 * axis runs from just below 3 o'clock up to the opposite
-		 * shoulder — about 23° — which is what `hueAngle` aims the
-		 * mirror at.
+		 * so the sweep is 296.5 → 244, a span of −52.5. Two numbers
+		 * reproduce four stops here because the brand's own ramp is
+		 * near-linear in hue: the middle pair land within ~5° of where
+		 * this puts them.
+		 *
+		 * **Pulse belongs at the upper left.** `mioGrad` runs
+		 * `(0%,10%) → (90%,100%)`, so its start sits on the upper-left
+		 * shoulder and its end on the lower-right. `hueAngle` is where
+		 * `hueStart` is pinned, in degrees clockwise from 3 o'clock —
+		 * upper-left is 225.
 		 */
-		hueStart: 302,
-		hueSpan: -79,
-		hueAngle: 23,
+		hueStart: 296.5,
+		hueSpan: -52.5,
+		hueAngle: 225,
 		// The official Mio holds still. `hueLoop` is what lets it: a
 		// straight ramp ends a span away from where it started, and
 		// with no rotation to keep that seam moving it just sits there.
@@ -67,13 +87,27 @@ export const MIO_DEFAULTS: MioConfig = {
 		hueDrift: 0,
 		hueSpin: 0,
 		hueLoop: true,
+		// Miomesh's stops run 0.966–1. Pulse is the only one under
+		// full, by three hundredths, which is not a difference anything
+		// downstream could show.
 		saturation: 1,
-		lightness: 0.66,
 		/*
-		 * Off, because the official Mio has no hologram: `mio.svg` is a
-		 * flat three-stop gradient with a dead-black interior, and this
-		 * is the value that reproduces it. Zero also switches off the
-		 * interior sheen, which the artwork likewise doesn't have.
+		 * The *brightest* point of the ring, not its average:
+		 * `chromaRing` rides a cosine hump over this, from `0.72 ×` on
+		 * the shaded side to `1 ×` on the lit one.
+		 *
+		 * So this is Miomesh's brightest stop, `#A580FF` at `0.751`.
+		 * At the old `0.66` the whole ring rendered below the brand —
+		 * `0.475`–`0.661` against Miomesh's `0.622`–`0.751`, every part
+		 * of it darker than the darkest stop of the gradient it was
+		 * supposed to be reproducing.
+		 */
+		lightness: 0.75,
+		/*
+		 * Off, because the brand's Mio has no hologram: Miomesh is a
+		 * flat four-stop gradient, and this is the value that
+		 * reproduces it. Zero also switches off the interior sheen,
+		 * which the artwork likewise doesn't have.
 		 *
 		 * The effect is not gone, just not the default — "Make it
 		 * yours" has a slider, and one number here brings it back for a
@@ -96,7 +130,10 @@ export const MIO_DEFAULTS: MioConfig = {
 		// Must match `openstation_mio_config()` in `includes/mio.php`.
 		glow: 10,
 		glowBlur: true,
-		eyeColor: 0xffffff,
+		// Starlight, the palette's white — what the brand's own mascot
+		// fills its two eye pills with. `#ffffff` is not in the
+		// palette; Starlight is a hair warm of it.
+		eyeColor: 0xfffbff,
 		eyeScale: 0.3,
 	},
 	physics: {

@@ -163,8 +163,14 @@ describe( 'the looping gradient', () => {
 		// the one before the wrap must be within a step of each other.
 		const h = hues( ring );
 		expect( Math.abs( h[ 0 ] - h[ h.length - 1 ] ) ).toBeLessThan( 6 );
-		// And the extremes sit half a turn apart.
-		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeGreaterThan( 70 );
+		// And the extremes sit half a turn apart, a whole span of hue
+		// between them. Derived from the shipped span rather than
+		// written out: a magic number here just re-fails whenever the
+		// palette is retuned, which says nothing about the mirror.
+		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeCloseTo(
+			Math.abs( MIO_DEFAULTS.appearance.hueSpan ),
+			0,
+		);
 	} );
 
 	test( 'the loop turns smoothly — no crease where the sweep reverses', () => {
