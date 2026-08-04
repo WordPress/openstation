@@ -102,7 +102,7 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 		'description'  => '',
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
@@ -113,7 +113,10 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this wallpaper.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
@@ -235,18 +238,18 @@ function openstation_build_desktop_wallpapers_payload() {
 		}
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$payload = openstation_resolve_script_payload( $handle );
-		$out[] = array(
-			'id'                => (string) $entry['id'],
-			'label'             => isset( $entry['label'] ) ? (string) $entry['label'] : '',
-			'preview'           => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
-			'type'              => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
-			'value'             => isset( $entry['value'] ) ? (string) $entry['value'] : '',
-			'description'       => isset( $entry['description'] ) ? (string) $entry['description'] : '',
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => isset( $entry['label'] ) ? (string) $entry['label'] : '',
+			'preview'            => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
+			'type'               => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
+			'value'              => isset( $entry['value'] ) ? (string) $entry['value'] : '',
+			'description'        => isset( $entry['description'] ) ? (string) $entry['description'] : '',
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}
@@ -274,4 +277,3 @@ function openstation_enqueue_desktop_wallpaper_scripts() {
 	}
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_desktop_wallpaper_scripts', 20 );
-

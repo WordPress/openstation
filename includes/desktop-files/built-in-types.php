@@ -88,11 +88,14 @@ function openstation_register_builtin_file_types() {
 	);
 
 	foreach ( $types as $args ) {
-		openstation_register_file_type( $args['type'], array(
-			'label' => $args['label'],
-			'class' => $args['class'],
-			'sort'  => $args['sort'],
-		) );
+		openstation_register_file_type(
+			$args['type'],
+			array(
+				'label' => $args['label'],
+				'class' => $args['class'],
+				'sort'  => $args['sort'],
+			)
+		);
 	}
 }
 add_action( 'init', 'openstation_register_builtin_file_types', 5 );

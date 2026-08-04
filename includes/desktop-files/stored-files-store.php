@@ -632,7 +632,7 @@ function openstation_stored_files_reconcile() {
 		if ( $owner_id <= 0 ) {
 			continue;
 		}
-		$known = $wpdb->get_col(
+		$known     = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT disk_name FROM {$tables['stored_files']} WHERE owner_id = %d",
 				$owner_id

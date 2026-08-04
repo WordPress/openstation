@@ -75,9 +75,18 @@ function openstation_notes_register_rest_routes() {
 						'default'           => 'butter',
 						'sanitize_callback' => 'openstation_notes_sanitize_color',
 					),
-					'x'      => array( 'type' => 'number', 'default' => 0.1 ),
-					'y'      => array( 'type' => 'number', 'default' => 0.1 ),
-					'public' => array( 'type' => 'boolean', 'default' => false ),
+					'x'      => array(
+						'type'    => 'number',
+						'default' => 0.1,
+					),
+					'y'      => array(
+						'type'    => 'number',
+						'default' => 0.1,
+					),
+					'public' => array(
+						'type'    => 'boolean',
+						'default' => false,
+					),
 					'seed'   => array(
 						'type'              => 'integer',
 						'default'           => 0,
@@ -437,7 +446,12 @@ function openstation_notes_rest_delete( $request ) {
 		return new WP_Error( 'openstation_notes_trash_failed', __( 'Could not move the note to the trash.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	return rest_ensure_response( array( 'trashed' => true, 'id' => (int) $post->ID ) );
+	return rest_ensure_response(
+		array(
+			'trashed' => true,
+			'id'      => (int) $post->ID,
+		)
+	);
 }
 
 /**

@@ -272,7 +272,7 @@ function openstation_files_get_folder_shares( $folder_id ) {
 		),
 		ARRAY_A
 	);
-	$out = array();
+	$out    = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_share_row( $row );
 	}
@@ -320,8 +320,8 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 		if ( ! $user ) {
 			return new WP_Error( 'openstation_files_unknown_user', __( 'Unknown user.', 'desktop-mode' ), array( 'status' => 404 ) );
 		}
-		$folder    = openstation_files_get_folder( $folder_id );
-		$owner_id  = $folder ? (int) $folder['owner_id'] : 0;
+		$folder   = openstation_files_get_folder( $folder_id );
+		$owner_id = $folder ? (int) $folder['owner_id'] : 0;
 		if ( $uid === $owner_id ) {
 			return new WP_Error( 'openstation_files_share_owner', __( 'You cannot share with the folder owner.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
@@ -354,16 +354,16 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 		ARRAY_A
 	);
 	if ( $existing ) {
-		$id          = (int) $existing['id'];
-		$next_state  = 'denied' === $existing['state'] ? 'pending' : $existing['state'];
-		$next_cap    = $capability;
-		$set         = array(
+		$id         = (int) $existing['id'];
+		$next_state = 'denied' === $existing['state'] ? 'pending' : $existing['state'];
+		$next_cap   = $capability;
+		$set        = array(
 			'capability'    => $next_cap,
 			'state'         => $next_state,
 			'invited_by'    => $actor_id,
 			'invited_at_ms' => $now,
 		);
-		$fmt         = array( '%s', '%s', '%d', '%d' );
+		$fmt        = array( '%s', '%s', '%d', '%d' );
 		if ( 'denied' === $existing['state'] ) {
 			$set['decided_at_ms'] = null;
 			$fmt[]                = '%s';
@@ -629,7 +629,10 @@ function openstation_folder_share_accept( $share_id, $user_id ) {
 	if ( 'user' === $row['principal_type'] ) {
 		$wpdb->update(
 			$tables['shares'],
-			array( 'state' => 'accepted', 'decided_at_ms' => $now ),
+			array(
+				'state'         => 'accepted',
+				'decided_at_ms' => $now,
+			),
 			array( 'id' => $share_id ),
 			array( '%s', '%d' ),
 			array( '%d' )
@@ -687,7 +690,10 @@ function openstation_folder_share_deny( $share_id, $user_id ) {
 	if ( 'user' === $row['principal_type'] ) {
 		$wpdb->update(
 			$tables['shares'],
-			array( 'state' => 'denied', 'decided_at_ms' => $now ),
+			array(
+				'state'         => 'denied',
+				'decided_at_ms' => $now,
+			),
 			array( 'id' => $share_id ),
 			array( '%s', '%d' ),
 			array( '%d' )
@@ -749,8 +755,8 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 	$user  = get_userdata( $user_id );
 	$roles = $user ? (array) $user->roles : array();
 
-	$tables = openstation_files_table_names();
-	$rows   = $wpdb->get_results(
+	$tables  = openstation_files_table_names();
+	$rows    = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
@@ -766,7 +772,10 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 		if ( 'user' === $row['principal_type'] ) {
 			$wpdb->update(
 				$tables['shares'],
-				array( 'state' => 'denied', 'decided_at_ms' => openstation_files_now_ms() ),
+				array(
+					'state'         => 'denied',
+					'decided_at_ms' => openstation_files_now_ms(),
+				),
 				array( 'id' => $row['id'] ),
 				array( '%s', '%d' ),
 				array( '%d' )
@@ -774,7 +783,7 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 		} else {
 			openstation_files_upsert_user_decision( $row['id'], $user_id, 'denied' );
 		}
-		$touched++;
+		++$touched;
 		/**
 		 * Fires after a recipient leaves a shared folder. Distinct
 		 * from `_denied` (owner-side audit) because this is always
@@ -901,7 +910,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 		),
 		ARRAY_A
 	);
-	$rows = array_merge( (array) $rows, (array) $role_rows );
+	$rows      = array_merge( (array) $rows, (array) $role_rows );
 	foreach ( $rows as $row ) {
 		$matches = false;
 		if ( 'user' === $row['principal_type'] && (int) $row['principal_ref'] === $user_id ) {
@@ -1105,8 +1114,8 @@ function openstation_folder_share_user_capability_direct( $folder_id, $user_id )
 	}
 
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$rows   = $wpdb->get_results(
+	$tables    = openstation_files_table_names();
+	$rows      = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
 			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
@@ -1177,7 +1186,7 @@ function openstation_folder_ancestors( $folder_id, $limit = 16 ) {
 			break;
 		}
 		$visited[ $current ] = true;
-		$folder = openstation_files_get_folder( $current );
+		$folder              = openstation_files_get_folder( $current );
 		if ( ! $folder ) {
 			break;
 		}
@@ -1205,7 +1214,7 @@ function openstation_folder_ancestors( $folder_id, $limit = 16 ) {
 		}
 		$ancestors[] = $parent_id;
 		$current     = $parent_id;
-		$depth++;
+		++$depth;
 	}
 	return $ancestors;
 }
@@ -1326,7 +1335,7 @@ function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 	// The recipient's folder-shortcut placement (parent_id=0,
 	// file_type='folder', file_ref=$folder_id) + every placement
 	// they own INSIDE this folder (parent_id=$folder_id).
-	$rows = $wpdb->get_results(
+	$rows  = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
 			WHERE owner_id = %d
@@ -1367,7 +1376,7 @@ function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 		// disappear from the desktop on every heartbeat tick. See
 		// the user-reported "shared folder vanishes after refresh"
 		// bug.
-		$count++;
+		++$count;
 	}
 	return $count;
 }
@@ -1538,8 +1547,8 @@ function openstation_files_place_at_next_free_slot( $user_id, $parent_id, $type,
 	);
 	$occupied = array();
 	foreach ( (array) $existing as $row ) {
-		$col = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
-		$r   = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
+		$col                   = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
+		$r                     = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
 		$occupied[ "$col,$r" ] = true;
 	}
 

@@ -56,7 +56,7 @@ class OpenStation_User_File extends OpenStation_File {
 		// Author archive URL — surfaced so cross-frame drag handlers
 		// can build a `<a href>` to the author's posts on drop into
 		// Gutenberg without a REST roundtrip.
-		$shape['link']  = $user ? (string) get_author_posts_url( (int) $user->ID ) : '';
+		$shape['link'] = $user ? (string) get_author_posts_url( (int) $user->ID ) : '';
 
 		// OpenStation agent surface. `isAgent` marks the tile; the
 		// drag-trigger entity kinds ship inline so the tile drop

@@ -104,7 +104,7 @@ function openstation_register_icon( $id, $args = array() ) {
 		'pinned'       => false,
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$svg = trim( (string) $args['icon_svg'] );
 	if ( '' !== $svg ) {
@@ -138,7 +138,10 @@ function openstation_register_icon( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this desktop icon.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
@@ -296,17 +299,20 @@ function openstation_build_desktop_icons_payload() {
 	}
 
 	// Pinned icons first; then by position. Ties break on insertion order.
-	usort( $out, static function ( $a, $b ) {
-		$ap = ! empty( $a['pinned'] ) ? 0 : 1;
-		$bp = ! empty( $b['pinned'] ) ? 0 : 1;
-		if ( $ap !== $bp ) {
-			return $ap - $bp;
+	usort(
+		$out,
+		static function ( $a, $b ) {
+			$ap = ! empty( $a['pinned'] ) ? 0 : 1;
+			$bp = ! empty( $b['pinned'] ) ? 0 : 1;
+			if ( $ap !== $bp ) {
+				return $ap - $bp;
+			}
+			if ( $a['position'] === $b['position'] ) {
+				return 0;
+			}
+			return $a['position'] < $b['position'] ? -1 : 1;
 		}
-		if ( $a['position'] === $b['position'] ) {
-			return 0;
-		}
-		return $a['position'] < $b['position'] ? -1 : 1;
-	} );
+	);
 
 	return $out;
 }

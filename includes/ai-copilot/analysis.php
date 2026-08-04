@@ -95,7 +95,7 @@ function openstation_ai_messages_for_comment( WP_Comment $comment ) {
 	$text = wp_strip_all_tags( $comment->comment_content );
 	$text = mb_substr( preg_replace( '/\s+/', ' ', trim( $text ) ), 0, OPENSTATION_AI_CONTENT_MAX_CHARS );
 
-	$user_text = "Analyze the following WordPress comment.\n\n";
+	$user_text  = "Analyze the following WordPress comment.\n\n";
 	$user_text .= "Comment:\n{$text}\n\n";
 
 	// Give the model post context so it can evaluate relevance (spam).
@@ -111,7 +111,7 @@ function openstation_ai_messages_for_comment( WP_Comment $comment ) {
 	$user_text .= "- `harmful = true`: the comment is hostile, insulting, or demeaning — e.g. attacks on the author's competence, aggressive rhetoric, threats, hate speech. Tone matters: an angry rant calling the article \"garbage\" is harmful even without explicit language.\n";
 	$user_text .= "- `spam = true`: the comment is promotional or off-topic — e.g. commercial links, ALL CAPS sales copy, \"CLICK HERE\" / \"BOOK NOW\", generic praise unrelated to the post.\n";
 	$user_text .= "- These are INDEPENDENT flags. A hostile but on-topic comment is harmful=true, spam=false. A promotional but politely worded comment is spam=true, harmful=false. Both can be true simultaneously.\n";
-	$user_text .= "- The `topic` and `ai_summary` fields MUST capture the tone and sentiment so that search queries like \"negative comment\", \"angry reader\", or \"spam\" return the correct results.";
+	$user_text .= '- The `topic` and `ai_summary` fields MUST capture the tone and sentiment so that search queries like "negative comment", "angry reader", or "spam" return the correct results.';
 
 	/**
 	 * Filters the user message sent to the provider for comment analysis.

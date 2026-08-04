@@ -129,7 +129,7 @@ function openstation_my_wordpress_group_for_path( $file ) {
 		if ( 0 !== strpos( $path, $root ) ) {
 			continue;
 		}
-		$rel   = ltrim( substr( $path, strlen( $root ) ), '/' );
+		$rel        = ltrim( substr( $path, strlen( $root ) ), '/' );
 		$stylesheet = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : $rel;
 		if ( '' === $stylesheet ) {
 			continue;

@@ -73,12 +73,15 @@ function openstation_register_builtin_file_openers() {
 	);
 
 	foreach ( $openers as $args ) {
-		openstation_register_file_opener( $args['id'], array(
-			'label'      => $args['label'],
-			'types'      => $args['types'],
-			'is_default' => true,
-			'sort'       => $args['sort'],
-		) );
+		openstation_register_file_opener(
+			$args['id'],
+			array(
+				'label'      => $args['label'],
+				'types'      => $args['types'],
+				'is_default' => true,
+				'sort'       => $args['sort'],
+			)
+		);
 	}
 }
 add_action( 'init', 'openstation_register_builtin_file_openers', 6 );

@@ -149,7 +149,7 @@ function openstation_register_desktop_theme_wallpapers() {
 	// Uploaded themes win on a slug collision, matching the payload
 	// builder's precedence.
 	foreach ( openstation_desktop_themes_index() as $slug => $entry ) {
-		$installed_at = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
+		$installed_at     = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
 		$sources[ $slug ] = array(
 			$entry,
 			openstation_desktop_themes_url( $slug ),
@@ -181,7 +181,7 @@ function openstation_register_desktop_theme_wallpapers() {
 			openstation_register_wallpaper(
 				$id,
 				array(
-					'label' => openstation_desktop_theme_wallpaper_label(
+					'label'       => openstation_desktop_theme_wallpaper_label(
 						$name,
 						$slug,
 						isset( $wallpaper['label'] ) ? (string) $wallpaper['label'] : ''

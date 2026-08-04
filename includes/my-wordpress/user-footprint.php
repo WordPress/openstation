@@ -124,11 +124,11 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	}
 
 	// ---- Range: rolling 365-day window ending today (UTC bookends) -------
-	$days = 365;
-	$now  = current_time( 'timestamp', true ); // UTC
+	$days    = 365;
+	$now     = time(); // UTC
 	$from_ts = strtotime( '-' . ( $days - 1 ) . ' days', $now );
 	$to_ts   = $now;
-	$range = array(
+	$range   = array(
 		'from' => gmdate( 'Y-m-d', $from_ts ),
 		'to'   => gmdate( 'Y-m-d', $to_ts ),
 		'days' => $days,
@@ -139,7 +139,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// `DATE(post_date_gmt)` / `DATE(comment_date_gmt)`. Then we
 	// densify to a full day-by-day array so the heatmap renders
 	// every cell, even empty ones.
-	$post_rows = $wpdb->get_results(
+	$post_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(post_date_gmt) AS d, COUNT(*) AS n
 			FROM {$wpdb->posts}
@@ -159,7 +159,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		$post_by_day[ (string) $row['d'] ] = (int) $row['n'];
 	}
 
-	$comment_rows = $wpdb->get_results(
+	$comment_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(comment_date_gmt) AS d, COUNT(*) AS n
 			FROM {$wpdb->comments}
@@ -185,7 +185,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// updates an editor makes to someone else's post show up on the
 	// editor's footprint — same shape GitHub's contribution graph
 	// uses for commits across repos you don't own.
-	$update_rows = $wpdb->get_results(
+	$update_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(r.post_date_gmt) AS d, COUNT(*) AS n
 			FROM {$wpdb->posts} r
@@ -209,8 +209,8 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 
 	$daily = array();
 	for ( $i = 0; $i < $days; $i += 1 ) {
-		$ts   = strtotime( '+' . $i . ' days', $from_ts );
-		$date = gmdate( 'Y-m-d', $ts );
+		$ts      = strtotime( '+' . $i . ' days', $from_ts );
+		$date    = gmdate( 'Y-m-d', $ts );
 		$daily[] = array(
 			'date'     => $date,
 			'posts'    => isset( $post_by_day[ $date ] ) ? $post_by_day[ $date ] : 0,
@@ -233,7 +233,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$weekday = array( 0, 0, 0, 0, 0, 0, 0 );
+	$weekday      = array( 0, 0, 0, 0, 0, 0, 0 );
 	foreach ( (array) $weekday_rows as $row ) {
 		$dow = (int) $row['dow'];
 		if ( $dow >= 1 && $dow <= 7 ) {
@@ -257,7 +257,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$hour = array_fill( 0, 24, 0 );
+	$hour      = array_fill( 0, 24, 0 );
 	foreach ( (array) $hour_rows as $row ) {
 		$h = (int) $row['h'];
 		if ( $h >= 0 && $h <= 23 ) {
@@ -323,7 +323,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// One query per kind, then merge + sort + slice in PHP. Smaller and
 	// simpler than a SQL `UNION ALL`, and each branch already has the
 	// right index.
-	$timeline_posts = $wpdb->get_results(
+	$timeline_posts    = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT ID, post_title, post_status, post_date_gmt, post_type
 			FROM {$wpdb->posts}
@@ -373,7 +373,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$timeline = array();
+	$timeline         = array();
 	// Per-row gate: rows for non-published posts (draft, pending,
 	// private, future, …) carry titles the viewer may not be allowed
 	// to see. `read_post` resolves to the right meta cap per status,
@@ -436,7 +436,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	$timeline = array_slice( $timeline, 0, 30 );
 
 	// ---- Totals + most-prolific month -----------------------------------
-	$totals_posts = (int) $wpdb->get_var(
+	$totals_posts    = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			WHERE post_author = %d
@@ -445,7 +445,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 			$user_id
 		)
 	);
-	$totals_pages = (int) $wpdb->get_var(
+	$totals_pages    = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			WHERE post_author = %d
@@ -475,7 +475,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 			$user_id
 		)
 	);
-	$month_row = $wpdb->get_row(
+	$month_row      = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT(post_date_gmt, '%%Y-%%m') AS ym, COUNT(*) AS n
 			FROM {$wpdb->posts}
@@ -489,7 +489,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$totals = array(
+	$totals         = array(
 		'posts'    => $totals_posts,
 		'pages'    => $totals_pages,
 		'comments' => $totals_comments,

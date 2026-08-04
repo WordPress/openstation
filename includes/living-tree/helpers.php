@@ -197,7 +197,7 @@ function openstation_living_tree_active_users() {
 	$count = 0;
 	foreach ( openstation_presence_snapshot() as $record ) {
 		if ( isset( $record['status'] ) && 'online' === $record['status'] ) {
-			$count++;
+			++$count;
 		}
 	}
 	return $count;
@@ -344,7 +344,7 @@ function openstation_living_tree_branch_dna() {
 			'girth'  => round( (int) $row['n'] / $max, 3 ),
 			'length' => round( min( 1.0, (int) $row['n'] / $max + 0.2 ), 3 ),
 		);
-		$depth++;
+		++$depth;
 	}
 	return $out;
 }

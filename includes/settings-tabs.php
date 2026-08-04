@@ -284,16 +284,16 @@ function openstation_build_desktop_settings_tabs_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[]  = array(
-			'id'                => (string) $entry['id'],
-			'label'             => (string) $entry['label'],
-			'capability'        => (string) $entry['capability'],
-			'order'             => (int) $entry['order'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => (string) $entry['label'],
+			'capability'         => (string) $entry['capability'],
+			'order'              => (int) $entry['order'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}

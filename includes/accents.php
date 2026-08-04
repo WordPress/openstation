@@ -34,14 +34,46 @@ function openstation_get_accent_colors() {
 	$defaults = array(
 		// The brand accents lead the list: Pulse is the identity
 		// colour and the shipped default, Nebula its softer twin.
-		array( 'id' => 'pulse',   'label' => __( 'Pulse', 'desktop-mode' ),          'value' => '#f252fc' ),
-		array( 'id' => 'nebula',  'label' => __( 'Nebula', 'desktop-mode' ),         'value' => '#ec9bff' ),
-		array( 'id' => 'wp-blue', 'label' => __( 'WordPress Blue', 'desktop-mode' ), 'value' => '#2271b1' ),
-		array( 'id' => 'indigo',  'label' => __( 'Indigo', 'desktop-mode' ),         'value' => '#3858e9' ),
-		array( 'id' => 'teal',    'label' => __( 'Teal', 'desktop-mode' ),           'value' => '#04a4cc' ),
-		array( 'id' => 'emerald', 'label' => __( 'Emerald', 'desktop-mode' ),        'value' => '#059669' ),
-		array( 'id' => 'amber',   'label' => __( 'Amber', 'desktop-mode' ),          'value' => '#d97706' ),
-		array( 'id' => 'rose',    'label' => __( 'Rose', 'desktop-mode' ),           'value' => '#e11d48' ),
+		array(
+			'id'    => 'pulse',
+			'label' => __( 'Pulse', 'desktop-mode' ),
+			'value' => '#f252fc',
+		),
+		array(
+			'id'    => 'nebula',
+			'label' => __( 'Nebula', 'desktop-mode' ),
+			'value' => '#ec9bff',
+		),
+		array(
+			'id'    => 'wp-blue',
+			'label' => __( 'WordPress Blue', 'desktop-mode' ),
+			'value' => '#2271b1',
+		),
+		array(
+			'id'    => 'indigo',
+			'label' => __( 'Indigo', 'desktop-mode' ),
+			'value' => '#3858e9',
+		),
+		array(
+			'id'    => 'teal',
+			'label' => __( 'Teal', 'desktop-mode' ),
+			'value' => '#04a4cc',
+		),
+		array(
+			'id'    => 'emerald',
+			'label' => __( 'Emerald', 'desktop-mode' ),
+			'value' => '#059669',
+		),
+		array(
+			'id'    => 'amber',
+			'label' => __( 'Amber', 'desktop-mode' ),
+			'value' => '#d97706',
+		),
+		array(
+			'id'    => 'rose',
+			'label' => __( 'Rose', 'desktop-mode' ),
+			'value' => '#e11d48',
+		),
 	);
 
 	/**
@@ -85,8 +117,8 @@ function openstation_get_accent_colors() {
 		if ( isset( $seen[ $id ] ) ) {
 			continue;
 		}
-		$seen[ $id ]  = true;
-		$clean[]      = array(
+		$seen[ $id ] = true;
+		$clean[]     = array(
 			'id'    => $id,
 			'label' => $label,
 			'value' => $value,

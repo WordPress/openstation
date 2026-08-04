@@ -50,12 +50,12 @@ const OPENSTATION_PWA_SW_FRAGMENT = 'sw.js';
  *
  * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
  * Future: `pushSubscription` (object) when phase 4 lands.
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_PWA_USER_META = 'desktop_mode_pwa_state';
 
@@ -226,16 +226,16 @@ function openstation_pwa_build_manifest() {
 	// `scope` is `/wp-admin/`, not `/`. The wider `/` scope had two
 	// failure modes that this fixes:
 	//
-	//   - Front-end URLs (e.g. `/2026/05/post-123/`) were considered
-	//     in-scope, so Chrome's "Open in app" link-capturing redirected
-	//     external-link clicks (Comments "In response to" column, etc.)
-	//     into the installed PWA window instead of opening a real
-	//     browser tab. Excluding the front-end from scope makes those
-	//     clicks open in a browser tab as users expect.
-	//   - Every same-origin `<a target="_blank">` from inside the PWA
-	//     opened a NEW standalone PWA window for the same reason. With
-	//     scope narrowed, only `/wp-admin/*` links capture into the
-	//     PWA; everything else escapes to the system browser.
+	// - Front-end URLs (e.g. `/2026/05/post-123/`) were considered
+	// in-scope, so Chrome's "Open in app" link-capturing redirected
+	// external-link clicks (Comments "In response to" column, etc.)
+	// into the installed PWA window instead of opening a real
+	// browser tab. Excluding the front-end from scope makes those
+	// clicks open in a browser tab as users expect.
+	// - Every same-origin `<a target="_blank">` from inside the PWA
+	// opened a NEW standalone PWA window for the same reason. With
+	// scope narrowed, only `/wp-admin/*` links capture into the
+	// PWA; everything else escapes to the system browser.
 	//
 	// `id` is held at the previous `/openstation/` value so existing
 	// installs aren't treated as a different app and reset by Chrome
@@ -249,26 +249,26 @@ function openstation_pwa_build_manifest() {
 	$manifest_url = openstation_pwa_manifest_url();
 
 	return array(
-		'name'                 => $site_name,
-		'short_name'           => $short_name,
-		'description'          => sprintf(
+		'name'                        => $site_name,
+		'short_name'                  => $short_name,
+		'description'                 => sprintf(
 			/* translators: %s: site name */
 			__( '%s — installed as a desktop app.', 'desktop-mode' ),
 			$site_name
 		),
-		'start_url'            => $start_url,
-		'scope'                => $scope,
-		'id'                   => openstation_portal_url(),
-		'display'              => 'standalone',
-		'display_override'     => array( 'standalone', 'minimal-ui' ),
-		'orientation'          => 'any',
+		'start_url'                   => $start_url,
+		'scope'                       => $scope,
+		'id'                          => openstation_portal_url(),
+		'display'                     => 'standalone',
+		'display_override'            => array( 'standalone', 'minimal-ui' ),
+		'orientation'                 => 'any',
 		// Match the shell's default surface colour. Filter to override
 		// per-site without redefining the whole manifest.
-		'theme_color'          => '#1d2327',
-		'background_color'     => '#1d2327',
-		'lang'                 => get_bloginfo( 'language' ),
-		'dir'                  => is_rtl() ? 'rtl' : 'ltr',
-		'icons'                => openstation_pwa_default_icons(),
+		'theme_color'                 => '#1d2327',
+		'background_color'            => '#1d2327',
+		'lang'                        => get_bloginfo( 'language' ),
+		'dir'                         => is_rtl() ? 'rtl' : 'ltr',
+		'icons'                       => openstation_pwa_default_icons(),
 		// Self-reference under `related_applications` so
 		// `navigator.getInstalledRelatedApps()` (Chrome / Edge) returns
 		// a hit when this PWA is installed in the current profile.
@@ -279,7 +279,7 @@ function openstation_pwa_build_manifest() {
 		// `display-mode: standalone` is only true inside the PWA
 		// window. The detection is what powers the dock-tile click
 		// handler's "X is already installed" toast.
-		'related_applications' => array(
+		'related_applications'        => array(
 			array(
 				'platform' => 'webapp',
 				'url'      => $manifest_url,

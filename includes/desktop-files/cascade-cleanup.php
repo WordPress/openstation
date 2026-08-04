@@ -113,7 +113,7 @@ function openstation_files_cascade_trash_placements_for_entity( $file_type, $fil
 				),
 			)
 		);
-		$ok = $wpdb->update(
+		$ok   = $wpdb->update(
 			$tables['placements'],
 			array(
 				'trashed_at_ms' => $now,

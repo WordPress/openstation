@@ -131,8 +131,14 @@ function openstation_migrate_brand_defaults() {
 	$map = (array) apply_filters(
 		'openstation_brand_migration_map',
 		array(
-			'accent'    => array( 'from' => 'wp-blue', 'to' => 'pulse' ),
-			'wallpaper' => array( 'from' => 'dark', 'to' => 'galaxy' ),
+			'accent'    => array(
+				'from' => 'wp-blue',
+				'to'   => 'pulse',
+			),
+			'wallpaper' => array(
+				'from' => 'dark',
+				'to'   => 'galaxy',
+			),
 		)
 	);
 	if ( empty( $map ) ) {
@@ -200,8 +206,8 @@ function openstation_migrate_os_settings_optin() {
 
 	$user_ids = get_users(
 		array(
-			'fields'     => 'ID',
-			'meta_key'   => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+			'fields'       => 'ID',
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);

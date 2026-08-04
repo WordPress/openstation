@@ -200,7 +200,7 @@ function openstation_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids )
 			),
 		)
 	);
-	$ids = array();
+	$ids   = array();
 	foreach ( (array) $query->posts as $post_id ) {
 		$post_id = (int) $post_id;
 		if ( current_user_can( 'edit_post', $post_id ) ) {
@@ -229,22 +229,22 @@ function openstation_sticky_notes_shape_guideline( $post ) {
 	}
 
 	return array(
-		'id'                       => (int) $post->ID,
-		'slug'                     => (string) $post->post_name,
-		'status'                   => (string) get_post_status( $post ),
-		'title'                    => array(
+		'id'                      => (int) $post->ID,
+		'slug'                    => (string) $post->post_name,
+		'status'                  => (string) get_post_status( $post ),
+		'title'                   => array(
 			'raw' => (string) get_post_field( 'post_title', $post, 'raw' ),
 		),
-		'content'                  => array(
+		'content'                 => array(
 			'raw' => (string) get_post_field( 'post_content', $post, 'raw' ),
 		),
-		'excerpt'                  => array(
+		'excerpt'                 => array(
 			'raw' => (string) get_post_field( 'post_excerpt', $post, 'raw' ),
 		),
-		'modified'                 => mysql_to_rfc3339( $post->post_modified ),
+		'modified'                => mysql_to_rfc3339( $post->post_modified ),
 		'openstation_modified_ms' => openstation_sticky_notes_modified_ms( $post ),
-		'link'                     => (string) get_permalink( $post ),
-		'wp_guideline_type'        => array_values( array_map( 'intval', (array) $term_ids ) ),
+		'link'                    => (string) get_permalink( $post ),
+		'wp_guideline_type'       => array_values( array_map( 'intval', (array) $term_ids ) ),
 	);
 }
 

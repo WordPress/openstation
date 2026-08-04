@@ -107,11 +107,11 @@ function openstation_build_dock_items() {
 		// admin UI can render a clickable parent in the sidebar). For
 		// the shell's JS surface we strip this entry so:
 		//
-		//   - `submenu.length === 0` reliably means "no real children"
-		//     (the right-click submenu popover stays suppressed; the
-		//     in-window tab strip stays hidden).
-		//   - `submenu.length > 0` reliably means "has real child links"
-		//     — every entry points at a distinct URL.
+		// - `submenu.length === 0` reliably means "no real children"
+		// (the right-click submenu popover stays suppressed; the
+		// in-window tab strip stays hidden).
+		// - `submenu.length > 0` reliably means "has real child links"
+		// — every entry points at a distinct URL.
 		//
 		// Detection by URL (post-`openstation_menu_item_url()` normalize)
 		// rather than slug equality covers plugins that register a child
@@ -177,12 +177,12 @@ function openstation_build_dock_items() {
 		}
 
 		$dock_item = array(
-			'id'        => sanitize_key( $item[5] ?? $item[2] ),
-			'title'     => $title,
-			'icon'      => $icon,
-			'url'       => $url,
-			'badge'     => $badge,
-			'submenu'   => $sub_items,
+			'id'         => sanitize_key( $item[5] ?? $item[2] ),
+			'title'      => $title,
+			'icon'       => $icon,
+			'url'        => $url,
+			'badge'      => $badge,
+			'submenu'    => $sub_items,
 			'multi'      => openstation_dock_item_is_multi( $item[2] ),
 			'placement'  => openstation_dock_placement( $item[2] ),
 			'isCore'     => openstation_is_core_menu_slug( $item[2] ),
@@ -325,7 +325,7 @@ function openstation_dock_item_is_multi( $menu_slug ) {
 		'edit-comments.php',
 	);
 
-	$base = strtok( (string) $menu_slug, '?' );
+	$base  = strtok( (string) $menu_slug, '?' );
 	$multi = in_array( $base, $multi_files, true );
 
 	/**
@@ -979,7 +979,7 @@ function openstation_record_type_registrant( $type_or_post_type, $kind ) {
 	if ( null === $file ) {
 		return;
 	}
-	$map = &openstation_get_typed_registrant_map();
+	$map                                = &openstation_get_typed_registrant_map();
 	$map[ $kind ][ $type_or_post_type ] = $file;
 }
 
@@ -1088,7 +1088,7 @@ function openstation_callback_source_file( $callback ) {
 	try {
 		if ( is_string( $callback ) && false !== strpos( $callback, '::' ) ) {
 			list( $class, $method ) = explode( '::', $callback, 2 );
-			$ref = new ReflectionMethod( $class, $method );
+			$ref                    = new ReflectionMethod( $class, $method );
 		} elseif ( is_array( $callback ) && isset( $callback[0], $callback[1] ) ) {
 			$ref = new ReflectionMethod( $callback[0], (string) $callback[1] );
 		} elseif ( is_object( $callback ) && ! ( $callback instanceof Closure ) && method_exists( $callback, '__invoke' ) ) {
@@ -1173,7 +1173,7 @@ function openstation_build_menu_payload() {
 	// openstation_is_core_menu_slug actually compares. The outer 'id'
 	// field is a sanitized CSS id (e.g. `toplevel_page_jetpack`) and
 	// would never match.
-	$core = array();
+	$core   = array();
 	$plugin = array();
 	foreach ( $visible as $item ) {
 		if ( ! empty( $item['isCore'] ) ) {
@@ -1536,7 +1536,7 @@ function openstation_resolve_style_payload( $handle ) {
  */
 function openstation_warn_unresolvable_script_handle( $function_name, $kind, $handle ) {
 	static $warned = array();
-	$cache_key = $function_name . '|' . $handle;
+	$cache_key     = $function_name . '|' . $handle;
 	if ( isset( $warned[ $cache_key ] ) ) {
 		return;
 	}
@@ -1671,42 +1671,42 @@ function openstation_build_native_windows_payload() {
 				// for an empty handle — no need to hand-write it here.
 				$tab_payload       = openstation_resolve_script_payload( $tab['script'] );
 				$tab_descriptors[] = array(
-					'value'             => $tab['value'],
-					'label'             => $tab['label'],
-					'isMain'            => $tab['is_main'],
-					'scriptUrl'         => $tab_payload['url'],
-					'scriptHandle'      => $tab['script'],
-					'scriptBefore'      => $tab_payload['before'],
-					'scriptAfter'       => $tab_payload['after'],
-					'scriptL10n'        => $tab_payload['l10n'],
+					'value'              => $tab['value'],
+					'label'              => $tab['label'],
+					'isMain'             => $tab['is_main'],
+					'scriptUrl'          => $tab_payload['url'],
+					'scriptHandle'       => $tab['script'],
+					'scriptBefore'       => $tab_payload['before'],
+					'scriptAfter'        => $tab_payload['after'],
+					'scriptL10n'         => $tab_payload['l10n'],
 					'scriptTranslations' => $tab_payload['translations'],
 				);
 			}
 		}
 
 		$out[] = array(
-			'id'                => $entry['id'],
-			'title'             => $entry['title'],
-			'icon'              => $entry['icon'],
-			'placement'         => $entry['placement'],
-			'width'             => $entry['width'],
-			'height'            => $entry['height'],
-			'minWidth'          => $entry['min_width'],
-			'minHeight'         => $entry['min_height'],
-			'autofocus'         => $entry['autofocus'],
-			'templateId'        => 'os-native-window-' . $entry['id'],
-			'templateHtml'      => $template_html,
-			'scriptUrl'         => $script_payload['url'],
-			'scriptHandle'      => $script_handle,
-			'ownerHandle'       => $script_handle,
-			'scriptBefore'      => $script_payload['before'],
-			'scriptAfter'       => $script_payload['after'],
-			'scriptL10n'        => $script_payload['l10n'],
+			'id'                 => $entry['id'],
+			'title'              => $entry['title'],
+			'icon'               => $entry['icon'],
+			'placement'          => $entry['placement'],
+			'width'              => $entry['width'],
+			'height'             => $entry['height'],
+			'minWidth'           => $entry['min_width'],
+			'minHeight'          => $entry['min_height'],
+			'autofocus'          => $entry['autofocus'],
+			'templateId'         => 'os-native-window-' . $entry['id'],
+			'templateHtml'       => $template_html,
+			'scriptUrl'          => $script_payload['url'],
+			'scriptHandle'       => $script_handle,
+			'ownerHandle'        => $script_handle,
+			'scriptBefore'       => $script_payload['before'],
+			'scriptAfter'        => $script_payload['after'],
+			'scriptL10n'         => $script_payload['l10n'],
 			'scriptTranslations' => $script_payload['translations'],
-			'styleUrl'          => $style_payload['url'],
-			'styleHandle'       => $style_handle,
-			'styleInline'       => $style_payload['inline'],
-			'tabs'              => $tab_descriptors,
+			'styleUrl'           => $style_payload['url'],
+			'styleHandle'        => $style_handle,
+			'styleInline'        => $style_payload['inline'],
+			'tabs'               => $tab_descriptors,
 		);
 	}
 
@@ -1843,14 +1843,14 @@ function openstation_menu_item_url( $slug ) {
 	// `add_query_arg()` and the JS slug compare).
 	//
 	// Resolution rules, identical to core:
-	//   1. Slug registered under a `.php` parent that itself isn't
-	//      a parent (Tools → `tools.php?page=…`, Settings →
-	//      `options-general.php?page=…`).
-	//   2. Slug registered as a top-level menu, OR under a slug-
-	//      based parent (WC: `woocommerce` → `admin.php?page=…`).
-	//   3. Slug not registered at all → fall back to `admin.php`
-	//      so the URL still targets a real dispatcher (matches the
-	//      pre-resolver behavior callers depended on).
+	// 1. Slug registered under a `.php` parent that itself isn't
+	// a parent (Tools → `tools.php?page=…`, Settings →
+	// `options-general.php?page=…`).
+	// 2. Slug registered as a top-level menu, OR under a slug-
+	// based parent (WC: `woocommerce` → `admin.php?page=…`).
+	// 3. Slug not registered at all → fall back to `admin.php`
+	// so the URL still targets a real dispatcher (matches the
+	// pre-resolver behavior callers depended on).
 	$host = 'admin.php?page=' . rawurlencode( $slug );
 	if ( isset( $_parent_pages[ $slug ] ) ) {
 		$parent_slug = $_parent_pages[ $slug ];

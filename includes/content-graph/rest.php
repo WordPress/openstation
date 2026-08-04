@@ -118,8 +118,8 @@ function openstation_content_graph_rest_post_types() {
  * @return WP_REST_Response
  */
 function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
-	$raw   = (string) $request->get_param( 'types' );
-	$types = '' === $raw
+	$raw     = (string) $request->get_param( 'types' );
+	$types   = '' === $raw
 		? wp_list_pluck( openstation_content_graph_post_types(), 'slug' )
 		: array_map( 'trim', explode( ',', $raw ) );
 	$payload = openstation_content_graph_build( (array) $types );
@@ -338,7 +338,7 @@ function openstation_content_graph_collect_comments( WP_Post $post ) {
 			'order'   => 'DESC',
 		)
 	);
-	$out = array();
+	$out      = array();
 	foreach ( $comments as $comment ) {
 		$out[] = array(
 			'id'       => (int) $comment->comment_ID,

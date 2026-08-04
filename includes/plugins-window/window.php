@@ -39,30 +39,42 @@ function openstation_plugins_window_render_template() {
 
 		<os-tabpanel for="installed" class="os-plugins__panel">
 			<div class="os-plugins__installed" data-os-plugins-installed-host>
-				<?php /* JS bundle paints the toolbar + <os-table> here.
-				       Empty host — first-frame shows the table's own
-				       loading skeleton. */ ?>
+				<?php
+				/*
+				JS bundle paints the toolbar + <os-table> here.
+						Empty host — first-frame shows the table's own
+						loading skeleton. */
+				?>
 			</div>
 		</os-tabpanel>
 
 		<?php if ( ! empty( $caps['install'] ) ) : ?>
 			<os-tabpanel for="browse" class="os-plugins__panel">
 				<div class="os-plugins__browse" data-os-plugins-browse-host>
-					<?php /* JS bundle paints the search + segmented filter
-					       + Upload button + <os-grid> of cards here. */ ?>
+					<?php
+					/*
+					JS bundle paints the search + segmented filter
+							+ Upload button + <os-grid> of cards here. */
+					?>
 				</div>
 			</os-tabpanel>
 			<os-tabpanel for="featured" class="os-plugins__panel">
 				<div class="os-plugins__featured" data-os-plugins-featured-host>
-					<?php /* JS bundle paints an intro blurb + gallery of
-					       plugins that integrate with OpenStation here. */ ?>
+					<?php
+					/*
+					JS bundle paints an intro blurb + gallery of
+							plugins that integrate with OpenStation here. */
+					?>
 				</div>
 			</os-tabpanel>
 		<?php endif; ?>
 
-		<?php /* Detail flyout — populated lazily when a card is clicked.
-		       Lives at the root of the template so it can slide over the
-		       full window body, not just one tab panel. */ ?>
+		<?php
+		/*
+		Detail flyout — populated lazily when a card is clicked.
+				Lives at the root of the template so it can slide over the
+				full window body, not just one tab panel. */
+		?>
 		<os-flyout
 			placement="end"
 			data-os-plugins-flyout
@@ -123,21 +135,21 @@ function openstation_plugins_window_register_window() {
 		// entry point.
 		'placement'  => 'none',
 		'config'     => array(
-			'restRoot'        => esc_url_raw( rest_url() ),
-			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'restRoot'           => esc_url_raw( rest_url() ),
+			'restNonce'          => wp_create_nonce( 'wp_rest' ),
 			// Core's REST controller for installed plugins.
-			'pluginsUrl'      => esc_url_raw( rest_url( 'wp/v2/plugins' ) ),
+			'pluginsUrl'         => esc_url_raw( rest_url( 'wp/v2/plugins' ) ),
 			// `admin-ajax.php` is the canonical home for our
 			// install/upload/browse/info/reviews handlers — Plugin Check
 			// rejects calls to admin-only classes from REST callbacks.
-			'ajaxUrl'         => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
-			'ajaxNonce'       => wp_create_nonce( 'desktop-mode-plugins' ),
+			'ajaxUrl'            => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+			'ajaxNonce'          => wp_create_nonce( 'desktop-mode-plugins' ),
 			// Core's `wp_ajax_install_plugin` (and friends) verify
 			// against the `'updates'` nonce action — same string Core's
 			// wp.updates client passes. We reuse it verbatim so we go
 			// through Core's existing handler, no reimplementation.
-			'updatesNonce'    => wp_create_nonce( 'updates' ),
-			'caps'            => $caps,
+			'updatesNonce'       => wp_create_nonce( 'updates' ),
+			'caps'               => $caps,
 			// Global "Automatic Updates" column gate — same shape Core's
 			// `WP_Plugins_List_Table::$show_autoupdates` uses (true only
 			// when the auto-update subsystem is enabled AND the viewer
@@ -145,11 +157,11 @@ function openstation_plugins_window_register_window() {
 			// field `openstation_auto_update` so the JS knows whether
 			// each individual row is enabled / forced / supported.
 			'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
-			'currentUserId'   => (int) get_current_user_id(),
-			'introSeen'       => function_exists( 'openstation_has_seen_intro' )
+			'currentUserId'      => (int) get_current_user_id(),
+			'introSeen'          => function_exists( 'openstation_has_seen_intro' )
 				? openstation_has_seen_intro( get_current_user_id(), 'plugins' )
 				: true,
-			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
+			'introUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// The plugin file path WordPress uses to identify the
 			// OpenStation plugin itself in REST mutations
 			// (`/wp/v2/plugins/{plugin}`). The JS uses this to detect
@@ -164,13 +176,13 @@ function openstation_plugins_window_register_window() {
 			// Comparing the raw `plugin_basename()` against the REST
 			// field always missed by exactly four characters, which
 			// silently skipped the self-deactivate reload.
-			'selfPluginFile'  => substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ),
+			'selfPluginFile'     => substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ),
 			// The wp-admin root URL — the JS navigates here after a
 			// self-deactivate so the user lands on the classic
 			// Dashboard rather than reloading their current URL
 			// (which might be a deactivated plugin's `?page=…` route
 			// that now 403s).
-			'adminUrl'        => esc_url_raw( admin_url() ),
+			'adminUrl'           => esc_url_raw( admin_url() ),
 		),
 	);
 

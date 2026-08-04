@@ -104,7 +104,7 @@ function openstation_register_widget( $id, $args = array() ) {
 		'default_height' => 0,
 		'capabilities'   => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
@@ -115,7 +115,10 @@ function openstation_register_widget( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this widget.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
@@ -201,23 +204,23 @@ function openstation_build_desktop_widgets_payload() {
 		$script_payload = openstation_resolve_script_payload( $entry['script'] );
 
 		$out[] = array(
-			'id'                => $entry['id'],
-			'label'             => $entry['label'],
-			'description'       => $entry['description'],
-			'icon'              => $entry['icon'],
-			'movable'           => $entry['movable'],
-			'resizable'         => $entry['resizable'],
-			'minWidth'          => $entry['min_width'],
-			'minHeight'         => $entry['min_height'],
-			'maxWidth'          => $entry['max_width'],
-			'maxHeight'         => $entry['max_height'],
-			'defaultWidth'      => $entry['default_width'],
-			'defaultHeight'     => $entry['default_height'],
-			'scriptUrl'         => $script_payload['url'],
-			'scriptHandle'      => $entry['script'],
-			'scriptBefore'      => $script_payload['before'],
-			'scriptAfter'       => $script_payload['after'],
-			'scriptL10n'        => $script_payload['l10n'],
+			'id'                 => $entry['id'],
+			'label'              => $entry['label'],
+			'description'        => $entry['description'],
+			'icon'               => $entry['icon'],
+			'movable'            => $entry['movable'],
+			'resizable'          => $entry['resizable'],
+			'minWidth'           => $entry['min_width'],
+			'minHeight'          => $entry['min_height'],
+			'maxWidth'           => $entry['max_width'],
+			'maxHeight'          => $entry['max_height'],
+			'defaultWidth'       => $entry['default_width'],
+			'defaultHeight'      => $entry['default_height'],
+			'scriptUrl'          => $script_payload['url'],
+			'scriptHandle'       => $entry['script'],
+			'scriptBefore'       => $script_payload['before'],
+			'scriptAfter'        => $script_payload['after'],
+			'scriptL10n'         => $script_payload['l10n'],
 			'scriptTranslations' => $script_payload['translations'],
 		);
 	}

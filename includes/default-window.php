@@ -39,9 +39,9 @@ const OPENSTATION_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
  * @return array{enabled: bool, url: string} Always returns both keys.
  */
 function openstation_get_default_window( $user_id = 0 ) {
-	$user_id = $user_id ? (int) $user_id : get_current_user_id();
+	$user_id      = $user_id ? (int) $user_id : get_current_user_id();
 	$fallback_url = admin_url( 'index.php' );
-	$default = array(
+	$default      = array(
 		'enabled' => true,
 		'url'     => $fallback_url,
 	);
@@ -148,11 +148,11 @@ function openstation_validate_default_window_url( $url ) {
 		return '';
 	}
 
-	$home_origin  = wp_parse_url( home_url( '/' ) );
-	$url_host     = isset( $parsed['host'] ) ? strtolower( $parsed['host'] ) : '';
-	$url_scheme   = isset( $parsed['scheme'] ) ? strtolower( $parsed['scheme'] ) : '';
-	$home_host    = is_array( $home_origin ) && isset( $home_origin['host'] ) ? strtolower( $home_origin['host'] ) : '';
-	$home_scheme  = is_array( $home_origin ) && isset( $home_origin['scheme'] ) ? strtolower( $home_origin['scheme'] ) : '';
+	$home_origin = wp_parse_url( home_url( '/' ) );
+	$url_host    = isset( $parsed['host'] ) ? strtolower( $parsed['host'] ) : '';
+	$url_scheme  = isset( $parsed['scheme'] ) ? strtolower( $parsed['scheme'] ) : '';
+	$home_host   = is_array( $home_origin ) && isset( $home_origin['host'] ) ? strtolower( $home_origin['host'] ) : '';
+	$home_scheme = is_array( $home_origin ) && isset( $home_origin['scheme'] ) ? strtolower( $home_origin['scheme'] ) : '';
 
 	if ( '' !== $url_host && $url_host !== $home_host ) {
 		return '';

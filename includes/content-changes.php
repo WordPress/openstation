@@ -216,7 +216,7 @@ function openstation_content_changes_log() {
 function openstation_content_changes_merge( $a, $b ) {
 	foreach ( (array) $b as $type => $by_action ) {
 		foreach ( (array) $by_action as $action => $ids ) {
-			$existing               = isset( $a[ $type ][ $action ] ) ? (array) $a[ $type ][ $action ] : array();
+			$existing              = isset( $a[ $type ][ $action ] ) ? (array) $a[ $type ][ $action ] : array();
 			$a[ $type ][ $action ] = array_values( array_unique( array_merge( $existing, array_map( 'intval', (array) $ids ) ) ) );
 		}
 	}
@@ -318,27 +318,45 @@ function openstation_content_changes_register_wc_hooks() {
 		return false;
 	}
 
-	add_action( 'woocommerce_new_order', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'created' );
-	} );
-	add_action( 'woocommerce_update_order', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
-	} );
+	add_action(
+		'woocommerce_new_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'created' );
+		}
+	);
+	add_action(
+		'woocommerce_update_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
+		}
+	);
 	// Some AJAX status-flip paths reach `woocommerce_order_status_changed`
 	// without `woocommerce_update_order`; the dedupe set absorbs the
 	// overlap when both fire.
-	add_action( 'woocommerce_order_status_changed', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
-	} );
-	add_action( 'woocommerce_trash_order', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'trashed' );
-	} );
-	add_action( 'woocommerce_untrash_order', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'untrashed' );
-	} );
-	add_action( 'woocommerce_delete_order', function ( $order_id ) {
-		openstation_content_changes_record( 'shop_order', (int) $order_id, 'deleted' );
-	} );
+	add_action(
+		'woocommerce_order_status_changed',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
+		}
+	);
+	add_action(
+		'woocommerce_trash_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'trashed' );
+		}
+	);
+	add_action(
+		'woocommerce_untrash_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'untrashed' );
+		}
+	);
+	add_action(
+		'woocommerce_delete_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'deleted' );
+		}
+	);
 
 	return true;
 }
@@ -490,9 +508,14 @@ function openstation_content_changes_on_shutdown() {
 		// Prune: drop entries older than the retention window, cap the
 		// tail. The option stays small no matter how chatty the site.
 		$cutoff  = $now - OPENSTATION_CONTENT_CHANGES_LOG_WINDOW_MS;
-		$entries = array_values( array_filter( $entries, function ( $entry ) use ( $cutoff ) {
-			return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
-		} ) );
+		$entries = array_values(
+			array_filter(
+				$entries,
+				function ( $entry ) use ( $cutoff ) {
+					return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
+				}
+			)
+		);
 		if ( count( $entries ) > OPENSTATION_CONTENT_CHANGES_LOG_MAX ) {
 			$entries = array_slice( $entries, -OPENSTATION_CONTENT_CHANGES_LOG_MAX );
 		}
@@ -594,57 +617,73 @@ function openstation_content_changes_plugin_id( $plugin_file ) {
  * posts/pages use for `os.post.changed`.
  */
 function openstation_content_changes_register_plugin_hooks() {
-	add_action( 'activated_plugin', function ( $plugin_file ) {
-		openstation_content_changes_record(
-			'plugin',
-			openstation_content_changes_plugin_id( $plugin_file ),
-			'activated'
-		);
-	} );
-
-	add_action( 'deactivated_plugin', function ( $plugin_file ) {
-		openstation_content_changes_record(
-			'plugin',
-			openstation_content_changes_plugin_id( $plugin_file ),
-			'deactivated'
-		);
-	} );
-
-	add_action( 'deleted_plugin', function ( $plugin_file, $deleted ) {
-		if ( $deleted ) {
+	add_action(
+		'activated_plugin',
+		function ( $plugin_file ) {
 			openstation_content_changes_record(
 				'plugin',
 				openstation_content_changes_plugin_id( $plugin_file ),
-				'deleted'
+				'activated'
 			);
 		}
-	}, 10, 2 );
+	);
+
+	add_action(
+		'deactivated_plugin',
+		function ( $plugin_file ) {
+			openstation_content_changes_record(
+				'plugin',
+				openstation_content_changes_plugin_id( $plugin_file ),
+				'deactivated'
+			);
+		}
+	);
+
+	add_action(
+		'deleted_plugin',
+		function ( $plugin_file, $deleted ) {
+			if ( $deleted ) {
+				openstation_content_changes_record(
+					'plugin',
+					openstation_content_changes_plugin_id( $plugin_file ),
+					'deleted'
+				);
+			}
+		},
+		10,
+		2
+	);
 
 	// `upgrader_process_complete` covers installs from wp-admin/plugin-install.php
 	// (AJAX path, no page navigation) and bulk installs from update.php.
-	add_action( 'upgrader_process_complete', function ( $upgrader, $options ) {
-		if (
+	add_action(
+		'upgrader_process_complete',
+		function ( $upgrader, $options ) {
+			if (
 			! isset( $options['type'], $options['action'] ) ||
 			'plugin' !== $options['type'] ||
 			'install' !== $options['action']
-		) {
-			return;
-		}
-		$plugins = ! empty( $options['plugins'] ) ? (array) $options['plugins'] : array();
-		if ( empty( $plugins ) && is_callable( array( $upgrader, 'plugin_info' ) ) ) {
-			$info = $upgrader->plugin_info();
-			if ( $info ) {
-				$plugins = array( $info );
+			) {
+				return;
 			}
-		}
-		foreach ( $plugins as $plugin_file ) {
-			openstation_content_changes_record(
-				'plugin',
-				openstation_content_changes_plugin_id( (string) $plugin_file ),
-				'installed'
-			);
-		}
-	}, 10, 2 );
+			$plugins = ! empty( $options['plugins'] ) ? (array) $options['plugins'] : array();
+			if ( empty( $plugins ) && is_callable( array( $upgrader, 'plugin_info' ) ) ) {
+				$info = $upgrader->plugin_info();
+				if ( $info ) {
+					$plugins = array( $info );
+				}
+			}
+			foreach ( $plugins as $plugin_file ) {
+				openstation_content_changes_record(
+					'plugin',
+					openstation_content_changes_plugin_id( (string) $plugin_file ),
+					'installed'
+				);
+			}
+		},
+		10,
+		2
+	);
 }
 
 /**
@@ -656,12 +695,18 @@ function openstation_content_changes_register_plugin_hooks() {
 function openstation_content_changes_register_hooks() {
 	add_action( 'wp_after_insert_post', 'openstation_content_changes_on_after_insert_post', 10, 4 );
 
-	add_action( 'wp_insert_comment', function ( $comment_id ) {
-		openstation_content_changes_record( 'comment', (int) $comment_id, 'created' );
-	} );
-	add_action( 'edit_comment', function ( $comment_id ) {
-		openstation_content_changes_record( 'comment', (int) $comment_id, 'updated' );
-	} );
+	add_action(
+		'wp_insert_comment',
+		function ( $comment_id ) {
+			openstation_content_changes_record( 'comment', (int) $comment_id, 'created' );
+		}
+	);
+	add_action(
+		'edit_comment',
+		function ( $comment_id ) {
+			openstation_content_changes_record( 'comment', (int) $comment_id, 'updated' );
+		}
+	);
 	add_action( 'transition_comment_status', 'openstation_content_changes_on_comment_transition', 10, 3 );
 
 	openstation_content_changes_register_wc_hooks();

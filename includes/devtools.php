@@ -136,16 +136,16 @@ function openstation_debug_publish( $session_id, $channel, $payload ) {
 			'events'  => array(),
 		);
 	}
-	$next_id            = isset( $existing['next_id'] ) ? (int) $existing['next_id'] : 0;
-	$next_id++;
-	$existing['next_id'] = $next_id;
+	$next_id = isset( $existing['next_id'] ) ? (int) $existing['next_id'] : 0;
+	++$next_id;
+	$existing['next_id']  = $next_id;
 	$existing['events'][] = array(
 		'id'      => $next_id,
 		't'       => (int) round( microtime( true ) * 1000 ),
 		'channel' => $channel,
 		'payload' => $payload,
 	);
-	$max = (int) apply_filters( 'openstation_debug_ring_size', OPENSTATION_DEBUG_RING_SIZE );
+	$max                  = (int) apply_filters( 'openstation_debug_ring_size', OPENSTATION_DEBUG_RING_SIZE );
 	if ( $max < 1 ) {
 		$max = OPENSTATION_DEBUG_RING_SIZE;
 	}
@@ -185,7 +185,10 @@ function openstation_debug_publish( $session_id, $channel, $payload ) {
 function openstation_debug_drain( $session_id, $since = 0, $channel = null ) {
 	$session_id = (string) $session_id;
 	if ( '' === $session_id ) {
-		return array( 'events' => array(), 'cursor' => (int) $since );
+		return array(
+			'events' => array(),
+			'cursor' => (int) $since,
+		);
 	}
 
 	$channels = array();
@@ -239,7 +242,10 @@ function openstation_debug_drain( $session_id, $since = 0, $channel = null ) {
 			return ( (int) $a['id'] ) - ( (int) $b['id'] );
 		}
 	);
-	return array( 'events' => $out, 'cursor' => $cursor );
+	return array(
+		'events' => $out,
+		'cursor' => $cursor,
+	);
 }
 
 /**
@@ -261,7 +267,7 @@ function openstation_rest_debug_drain( WP_REST_Request $request ) {
 
 	if ( is_array( $channels ) && count( $channels ) > 0 ) {
 		// Multi-channel drain — concatenate the per-channel results.
-		$cursor    = $since;
+		$cursor     = $since;
 		$all_events = array();
 		foreach ( $channels as $ch ) {
 			$result = openstation_debug_drain( $session_id, $since, (string) $ch );

@@ -80,17 +80,17 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 	// ----- Comment body ------------------------------------------------
 	$content_filtered = apply_filters( 'comment_text', $comment->comment_content, $comment, array() );
 	$body             = array(
-		'id'          => (int) $comment->comment_ID,
-		'parent'      => (int) $comment->comment_parent,
-		'date'        => mysql2date( 'c', $comment->comment_date_gmt, false ),
-		'status'      => $is_approved
+		'id'           => (int) $comment->comment_ID,
+		'parent'       => (int) $comment->comment_parent,
+		'date'         => mysql2date( 'c', $comment->comment_date_gmt, false ),
+		'status'       => $is_approved
 			? 'approved'
 			: ( '0' === (string) $comment->comment_approved
 				? 'pending'
 				: (string) $comment->comment_approved ),
-		'rendered'    => (string) $content_filtered,
+		'rendered'     => (string) $content_filtered,
 		'rendered_raw' => (string) $comment->comment_content,
-		'editLink'    => $can_moderate
+		'editLink'     => $can_moderate
 			? esc_url_raw(
 				admin_url(
 					'comment.php?action=editcomment&c=' . $comment->comment_ID
@@ -121,29 +121,29 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 	if ( $author['userId'] > 0 ) {
 		$user = get_userdata( $author['userId'] );
 		if ( $user ) {
-			$author['displayName']  = $user->display_name;
-			$author['profileLink']  = get_author_posts_url( $user->ID );
+			$author['displayName'] = $user->display_name;
+			$author['profileLink'] = get_author_posts_url( $user->ID );
 		}
 	}
 
 	// ----- Parent post -------------------------------------------------
-	$post = get_post( (int) $comment->comment_post_ID );
+	$post         = get_post( (int) $comment->comment_post_ID );
 	$post_payload = null;
 	if ( $post ) {
-		$post_author = $post->post_author > 0
+		$post_author  = $post->post_author > 0
 			? get_userdata( (int) $post->post_author )
 			: null;
 		$post_payload = array(
-			'id'     => (int) $post->ID,
-			'title'  => get_the_title( $post ),
-			'link'   => (string) get_permalink( $post ),
+			'id'       => (int) $post->ID,
+			'title'    => get_the_title( $post ),
+			'link'     => (string) get_permalink( $post ),
 			'editLink' => current_user_can( 'edit_post', $post->ID )
 				? (string) get_edit_post_link( $post->ID, 'raw' )
 				: '',
-			'status' => (string) $post->post_status,
-			'type'   => (string) $post->post_type,
-			'date'   => mysql2date( 'c', $post->post_date_gmt, false ),
-			'author' => $post_author
+			'status'   => (string) $post->post_status,
+			'type'     => (string) $post->post_type,
+			'date'     => mysql2date( 'c', $post->post_date_gmt, false ),
+			'author'   => $post_author
 				? array(
 					'id'        => (int) $post_author->ID,
 					'name'      => $post_author->display_name,
@@ -162,10 +162,10 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 		$parent_comment = get_comment( (int) $comment->comment_parent );
 		if ( $parent_comment ) {
 			$parent_payload = array(
-				'id'        => (int) $parent_comment->comment_ID,
+				'id'         => (int) $parent_comment->comment_ID,
 				'authorName' => (string) $parent_comment->comment_author,
-				'date'      => mysql2date( 'c', $parent_comment->comment_date_gmt, false ),
-				'excerpt'   => wp_trim_words(
+				'date'       => mysql2date( 'c', $parent_comment->comment_date_gmt, false ),
+				'excerpt'    => wp_trim_words(
 					wp_strip_all_tags( $parent_comment->comment_content ),
 					40
 				),

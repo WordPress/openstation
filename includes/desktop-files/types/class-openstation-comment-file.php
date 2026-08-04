@@ -48,9 +48,9 @@ class OpenStation_Comment_File extends OpenStation_File {
 	}
 
 	public function serialize(): array {
-		$shape          = parent::serialize();
-		$c              = $this->comment();
-		$shape['postId'] = $c ? (int) $c->comment_post_ID : 0;
+		$shape             = parent::serialize();
+		$c                 = $this->comment();
+		$shape['postId']   = $c ? (int) $c->comment_post_ID : 0;
 		$shape['approved'] = $c ? '1' === (string) $c->comment_approved : false;
 		return $shape;
 	}

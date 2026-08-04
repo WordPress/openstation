@@ -98,7 +98,7 @@ function openstation_register_game( $id, $args = array() ) {
 		'config'        => array(),
 		'capabilities'  => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$svg = trim( (string) $args['icon_svg'] );
 	if ( '' !== $svg ) {
@@ -131,7 +131,10 @@ function openstation_register_game( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this game.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}

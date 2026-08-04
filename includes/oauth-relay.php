@@ -108,7 +108,7 @@ function openstation_register_oauth_relay( $service, $args = array() ) {
 		'on_success'    => null,
 		'capabilities'  => array( 'read' ),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( array( 'authorize_url', 'token_url', 'client_id', 'client_secret' ) as $required ) {
 		if ( '' === (string) $args[ $required ] ) {
@@ -353,40 +353,48 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 
 	$consumed = openstation_oauth_consume_state( $state );
 	if ( null === $consumed ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'reason'  => 'invalid_state',
-			'message' => __( 'OAuth state nonce missing, expired, or already used.', 'desktop-mode' ),
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'reason'  => 'invalid_state',
+				'message' => __( 'OAuth state nonce missing, expired, or already used.', 'desktop-mode' ),
+			)
+		);
 	}
 	$service = $consumed['service'];
 	$user_id = $consumed['user_id'];
 
 	if ( '' !== $error ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'service' => $service,
-			'reason'  => 'authorize_denied',
-			'message' => $error,
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'authorize_denied',
+				'message' => $error,
+			)
+		);
 	}
 
 	$entry = openstation_oauth_relay_registry( $service );
 	if ( ! is_array( $entry ) ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'reason'  => 'unknown_service',
-			'message' => __( 'OAuth relay is no longer registered for that service.', 'desktop-mode' ),
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'reason'  => 'unknown_service',
+				'message' => __( 'OAuth relay is no longer registered for that service.', 'desktop-mode' ),
+			)
+		);
 	}
 
 	if ( '' === $code ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'service' => $service,
-			'reason'  => 'missing_code',
-			'message' => __( 'OAuth callback did not return an authorization code.', 'desktop-mode' ),
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'missing_code',
+				'message' => __( 'OAuth callback did not return an authorization code.', 'desktop-mode' ),
+			)
+		);
 	}
 
 	$response = wp_remote_post(
@@ -404,38 +412,44 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 		)
 	);
 	if ( is_wp_error( $response ) ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'service' => $service,
-			'reason'  => 'token_request_failed',
-			'message' => $response->get_error_message(),
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'token_request_failed',
+				'message' => $response->get_error_message(),
+			)
+		);
 	}
 	$status = (int) wp_remote_retrieve_response_code( $response );
 	$body   = wp_remote_retrieve_body( $response );
 	$tokens = json_decode( $body, true );
 	if ( $status < 200 || $status >= 300 || ! is_array( $tokens ) ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'service' => $service,
-			'reason'  => 'token_exchange_failed',
-			'message' => sprintf(
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'token_exchange_failed',
+				'message' => sprintf(
 				/* translators: %d: HTTP status code. */
-				__( 'Token exchange failed with HTTP %d.', 'desktop-mode' ),
-				$status
-			),
-		) );
+					__( 'Token exchange failed with HTTP %d.', 'desktop-mode' ),
+					$status
+				),
+			)
+		);
 	}
 
 	try {
 		call_user_func( $entry['on_success'], $user_id, $tokens, $service );
 	} catch ( \Throwable $e ) {
-		return openstation_oauth_render_callback_html( array(
-			'ok'      => false,
-			'service' => $service,
-			'reason'  => 'on_success_threw',
-			'message' => $e->getMessage(),
-		) );
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'on_success_threw',
+				'message' => $e->getMessage(),
+			)
+		);
 	}
 
 	/**
@@ -449,10 +463,12 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 	 */
 	do_action( 'openstation_oauth_relay_connected', $service, $user_id );
 
-	return openstation_oauth_render_callback_html( array(
-		'ok'      => true,
-		'service' => $service,
-	) );
+	return openstation_oauth_render_callback_html(
+		array(
+			'ok'      => true,
+			'service' => $service,
+		)
+	);
 }
 
 /**
@@ -628,9 +644,18 @@ function openstation_register_oauth_rest_routes() {
 			// per-service capabilities check on the start side.
 			'permission_callback' => '__return_true',
 			'args'                => array(
-				'state' => array( 'required' => true, 'type' => 'string' ),
-				'code'  => array( 'required' => false, 'type' => 'string' ),
-				'error' => array( 'required' => false, 'type' => 'string' ),
+				'state' => array(
+					'required' => true,
+					'type'     => 'string',
+				),
+				'code'  => array(
+					'required' => false,
+					'type'     => 'string',
+				),
+				'error' => array(
+					'required' => false,
+					'type'     => 'string',
+				),
 			),
 		)
 	);

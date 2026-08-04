@@ -159,63 +159,63 @@ function openstation_enqueue_assets() {
 	// is the per-item filter escape hatch for hiding. Shared with the
 	// REST menu endpoint so live refreshes (post plugin-activation)
 	// produce the same ordering as the boot payload.
-	$menu_payload    = openstation_build_menu_payload();
-	$dock_items      = $menu_payload['dockItems'];
-	$native_windows  = isset( $menu_payload['nativeWindows'] )
+	$menu_payload                      = openstation_build_menu_payload();
+	$dock_items                        = $menu_payload['dockItems'];
+	$native_windows                    = isset( $menu_payload['nativeWindows'] )
 		? $menu_payload['nativeWindows']
 		: array();
-	$server_widgets  = isset( $menu_payload['serverWidgets'] )
+	$server_widgets                    = isset( $menu_payload['serverWidgets'] )
 		? $menu_payload['serverWidgets']
 		: array();
-	$server_wallpapers = isset( $menu_payload['serverWallpapers'] )
+	$server_wallpapers                 = isset( $menu_payload['serverWallpapers'] )
 		? $menu_payload['serverWallpapers']
 		: array();
-	$server_command_scripts = isset( $menu_payload['serverCommandScripts'] )
+	$server_command_scripts            = isset( $menu_payload['serverCommandScripts'] )
 		? $menu_payload['serverCommandScripts']
 		: array();
-	$server_commands   = isset( $menu_payload['serverCommands'] )
+	$server_commands                   = isset( $menu_payload['serverCommands'] )
 		? $menu_payload['serverCommands']
 		: array();
-	$server_settings_tab_scripts = isset( $menu_payload['serverSettingsTabScripts'] )
+	$server_settings_tab_scripts       = isset( $menu_payload['serverSettingsTabScripts'] )
 		? $menu_payload['serverSettingsTabScripts']
 		: array();
-	$server_settings_tabs = isset( $menu_payload['serverSettingsTabs'] )
+	$server_settings_tabs              = isset( $menu_payload['serverSettingsTabs'] )
 		? $menu_payload['serverSettingsTabs']
 		: array();
 	$server_dock_rail_renderer_scripts = isset( $menu_payload['serverDockRailRendererScripts'] )
 		? $menu_payload['serverDockRailRendererScripts']
 		: array();
-	$server_titlebar_button_scripts = isset( $menu_payload['serverTitleBarButtonScripts'] )
+	$server_titlebar_button_scripts    = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
 		: array();
-	$server_window_theme_scripts   = isset( $menu_payload['serverWindowThemeScripts'] )
+	$server_window_theme_scripts       = isset( $menu_payload['serverWindowThemeScripts'] )
 		? $menu_payload['serverWindowThemeScripts']
 		: array();
-	$server_window_themes          = isset( $menu_payload['serverWindowThemes'] )
+	$server_window_themes              = isset( $menu_payload['serverWindowThemes'] )
 		? $menu_payload['serverWindowThemes']
 		: array();
-	$server_window_control_scripts = isset( $menu_payload['serverWindowControlScripts'] )
+	$server_window_control_scripts     = isset( $menu_payload['serverWindowControlScripts'] )
 		? $menu_payload['serverWindowControlScripts']
 		: array();
-	$server_window_controls        = isset( $menu_payload['serverWindowControls'] )
+	$server_window_controls            = isset( $menu_payload['serverWindowControls'] )
 		? $menu_payload['serverWindowControls']
 		: array();
-	$server_window_slot_scripts    = isset( $menu_payload['serverWindowSlotScripts'] )
+	$server_window_slot_scripts        = isset( $menu_payload['serverWindowSlotScripts'] )
 		? $menu_payload['serverWindowSlotScripts']
 		: array();
-	$server_window_slots           = isset( $menu_payload['serverWindowSlots'] )
+	$server_window_slots               = isset( $menu_payload['serverWindowSlots'] )
 		? $menu_payload['serverWindowSlots']
 		: array();
-	$server_window_chrome_scripts  = isset( $menu_payload['serverWindowChromeScripts'] )
+	$server_window_chrome_scripts      = isset( $menu_payload['serverWindowChromeScripts'] )
 		? $menu_payload['serverWindowChromeScripts']
 		: array();
-	$server_window_chromes         = isset( $menu_payload['serverWindowChromes'] )
+	$server_window_chromes             = isset( $menu_payload['serverWindowChromes'] )
 		? $menu_payload['serverWindowChromes']
 		: array();
-	$server_window_notices         = isset( $menu_payload['serverWindowNotices'] )
+	$server_window_notices             = isset( $menu_payload['serverWindowNotices'] )
 		? $menu_payload['serverWindowNotices']
 		: array();
-	$server_games                  = isset( $menu_payload['serverGames'] )
+	$server_games                      = isset( $menu_payload['serverGames'] )
 		? $menu_payload['serverGames']
 		: array();
 	// Boot-time copy of the desktop-theme library. Without it the
@@ -226,23 +226,23 @@ function openstation_enqueue_assets() {
 	// active. Themed ICONS never paint, and switching back to the
 	// system default no-ops the first time — `applyDesktopTheme()`
 	// dedupes on an `activeId` that was never set.
-	$server_desktop_themes         = isset( $menu_payload['serverDesktopThemes'] )
+	$server_desktop_themes = isset( $menu_payload['serverDesktopThemes'] )
 		? $menu_payload['serverDesktopThemes']
 		: array();
-	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
+	$desktop_icons         = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
 
 	// Files-on-the-Desktop payload (Phase 0+1). Plugin-registered
 	// file types and openers ship as metadata only; the JS side
 	// holds the executable handlers and resolves on double-click.
-	$server_file_types        = function_exists( 'openstation_build_file_types_payload' )
+	$server_file_types           = function_exists( 'openstation_build_file_types_payload' )
 		? openstation_build_file_types_payload()
 		: array();
-	$server_file_openers      = function_exists( 'openstation_build_file_openers_payload' )
+	$server_file_openers         = function_exists( 'openstation_build_file_openers_payload' )
 		? openstation_build_file_openers_payload()
 		: array();
-	$user_file_associations   = function_exists( 'openstation_get_user_file_associations' )
+	$user_file_associations      = function_exists( 'openstation_get_user_file_associations' )
 		? openstation_get_user_file_associations( get_current_user_id() )
 		: array();
 	$server_wallpaper_menu_items = function_exists( 'openstation_build_wallpaper_menu_items' )
@@ -321,7 +321,7 @@ function openstation_enqueue_assets() {
 	// prefer the on-disk mtime of the actual file, fall back to the
 	// plugin version when the file is missing (dev environments where
 	// the bundle hasn't been built yet).
-	$suffix = openstation_asset_suffix();
+	$suffix          = openstation_asset_suffix();
 	$lazy_bundle_url = static function ( $base ) use ( $suffix ) {
 		$path = OPENSTATION_DIR . 'assets/js/' . $base . $suffix . '.js';
 		$ver  = file_exists( $path )
@@ -387,93 +387,93 @@ function openstation_enqueue_assets() {
 	$config = apply_filters(
 		'openstation_shell_config',
 		array(
-			'currentPage'      => esc_url( $current_page ),
-			'currentTitle'     => wp_strip_all_tags( $title ),
-			'currentIcon'      => sanitize_html_class( $menu_icon ),
-			'adminUrl'         => esc_url( admin_url() ),
-			'colorScheme'      => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
-			'dockItems'        => $dock_items,
+			'currentPage'                   => esc_url( $current_page ),
+			'currentTitle'                  => wp_strip_all_tags( $title ),
+			'currentIcon'                   => sanitize_html_class( $menu_icon ),
+			'adminUrl'                      => esc_url( admin_url() ),
+			'colorScheme'                   => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
+			'dockItems'                     => $dock_items,
 			// Baseline menu fingerprint. The shell seeds its last-known
 			// signature from this so the first off-allowlist menu change
 			// (vs. this boot state) is caught without a wasted probe. GH#325.
-			'menuSig'          => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
-			'nativeWindows'    => $native_windows,
-			'serverWidgets'    => $server_widgets,
-			'serverWallpapers' => $server_wallpapers,
-			'serverCommandScripts' => $server_command_scripts,
-			'serverCommands'   => $server_commands,
-			'serverSettingsTabScripts' => $server_settings_tab_scripts,
-			'serverSettingsTabs' => $server_settings_tabs,
+			'menuSig'                       => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
+			'nativeWindows'                 => $native_windows,
+			'serverWidgets'                 => $server_widgets,
+			'serverWallpapers'              => $server_wallpapers,
+			'serverCommandScripts'          => $server_command_scripts,
+			'serverCommands'                => $server_commands,
+			'serverSettingsTabScripts'      => $server_settings_tab_scripts,
+			'serverSettingsTabs'            => $server_settings_tabs,
 			'serverDockRailRendererScripts' => $server_dock_rail_renderer_scripts,
-			'serverTitleBarButtonScripts' => $server_titlebar_button_scripts,
-			'serverWindowThemeScripts'  => $server_window_theme_scripts,
-			'serverWindowThemes'        => $server_window_themes,
-			'serverWindowControlScripts' => $server_window_control_scripts,
-			'serverWindowControls'      => $server_window_controls,
-			'serverWindowSlotScripts'   => $server_window_slot_scripts,
-			'serverWindowSlots'         => $server_window_slots,
-			'serverWindowChromeScripts' => $server_window_chrome_scripts,
-			'serverWindowChromes'       => $server_window_chromes,
-			'serverWindowNotices'       => $server_window_notices,
+			'serverTitleBarButtonScripts'   => $server_titlebar_button_scripts,
+			'serverWindowThemeScripts'      => $server_window_theme_scripts,
+			'serverWindowThemes'            => $server_window_themes,
+			'serverWindowControlScripts'    => $server_window_control_scripts,
+			'serverWindowControls'          => $server_window_controls,
+			'serverWindowSlotScripts'       => $server_window_slot_scripts,
+			'serverWindowSlots'             => $server_window_slots,
+			'serverWindowChromeScripts'     => $server_window_chrome_scripts,
+			'serverWindowChromes'           => $server_window_chromes,
+			'serverWindowNotices'           => $server_window_notices,
 			// Boot-time copy of the payload's `serverGames` — the same
 			// list the live-refresh path applies. Without it the games
 			// registry only fills after the first chromeless
 			// full-payload refresh and the Games hub boots empty.
-			'serverGames'               => $server_games,
-			'serverDesktopThemes'       => $server_desktop_themes,
-			'desktopIcons'     => $desktop_icons,
-			'serverFileTypes'        => $server_file_types,
-			'serverFileOpeners'      => $server_file_openers,
-			'userFileAssociations'   => $user_file_associations,
-			'filesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
+			'serverGames'                   => $server_games,
+			'serverDesktopThemes'           => $server_desktop_themes,
+			'desktopIcons'                  => $desktop_icons,
+			'serverFileTypes'               => $server_file_types,
+			'serverFileOpeners'             => $server_file_openers,
+			'userFileAssociations'          => $user_file_associations,
+			'filesUrl'                      => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
 			// Pinned-notes REST base (`includes/notes/rest.php`). The
 			// notes layer boots only when this is present.
-			'notesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
+			'notesUrl'                      => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
 			// Gates the "Convert to post" note affordance — the convert
 			// route (and its dock drop target) only make sense for users
 			// who can author posts.
-			'canCreatePosts'         => current_user_can( 'edit_posts' ),
-			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
-			'accentColors'     => openstation_get_accent_colors(),
-			'toastTypes'       => openstation_get_toast_types(),
-			'coreUpdate'       => openstation_get_core_update(),
-			'coreNotices'      => openstation_get_core_notices(),
-			'pluginNotices'    => openstation_get_plugin_notices(),
-			'defaultWallpaper' => openstation_get_default_wallpaper(),
-			'session'          => openstation_get_session( get_current_user_id() ),
-			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
-			'restUrl'          => esc_url_raw( rest_url() ),
-			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),
-			'dropConfig'       => $drop_config,
-			'defaultWindowUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),
-			'defaultWindow'    => openstation_get_default_window( get_current_user_id() ),
-			'canUpload'        => current_user_can( 'upload_files' ),
-			'pluginUrl'        => esc_url_raw( untrailingslashit( OPENSTATION_URL ) ),
-			'pluginVersion'    => OPENSTATION_VERSION,
-			'iframeBridgeUrl'  => $lazy_bundle_url( 'iframe-bridge' ),
+			'canCreatePosts'                => current_user_can( 'edit_posts' ),
+			'serverWallpaperMenuItems'      => $server_wallpaper_menu_items,
+			'accentColors'                  => openstation_get_accent_colors(),
+			'toastTypes'                    => openstation_get_toast_types(),
+			'coreUpdate'                    => openstation_get_core_update(),
+			'coreNotices'                   => openstation_get_core_notices(),
+			'pluginNotices'                 => openstation_get_plugin_notices(),
+			'defaultWallpaper'              => openstation_get_default_wallpaper(),
+			'session'                       => openstation_get_session( get_current_user_id() ),
+			'sessionUrl'                    => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
+			'restUrl'                       => esc_url_raw( rest_url() ),
+			'mediaUrl'                      => esc_url_raw( rest_url( 'wp/v2/media' ) ),
+			'dropConfig'                    => $drop_config,
+			'defaultWindowUrl'              => esc_url_raw( rest_url( 'desktop-mode/v1/default-window' ) ),
+			'defaultWindow'                 => openstation_get_default_window( get_current_user_id() ),
+			'canUpload'                     => current_user_can( 'upload_files' ),
+			'pluginUrl'                     => esc_url_raw( untrailingslashit( OPENSTATION_URL ) ),
+			'pluginVersion'                 => OPENSTATION_VERSION,
+			'iframeBridgeUrl'               => $lazy_bundle_url( 'iframe-bridge' ),
 			// URL of the AI Assistant lazy bundle. The main bundle
 			// ships a stub matching the public `wp.os.ai` API; the
 			// stub `<script>`-injects this URL the first time the user
 			// opens the assistant. Picking `.js` vs `.min.js` here keeps
 			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
-			'aiAssistantBundleUrl' => $lazy_bundle_url( 'ai-assistant' ),
+			'aiAssistantBundleUrl'          => $lazy_bundle_url( 'ai-assistant' ),
 			// URL of the About-scene lazy bundle. The OS Settings →
 			// About tab loads this on first mount; ~25 kB PixiJS
 			// particle scene that would otherwise ship in the main
 			// bundle for every shell load.
-			'aboutSceneBundleUrl' => $lazy_bundle_url( 'about-scene' ),
+			'aboutSceneBundleUrl'           => $lazy_bundle_url( 'about-scene' ),
 			// URL of the OS Settings panel lazy bundle. Injected by
 			// the main bundle's `OsSettings.renderPanel()` stub on
 			// the user's first Settings open. Holds every section
 			// renderer + the `<os-*>` components only the panel
 			// uses, so nothing about Settings ships in
 			// `desktop.min.js` for users who never open it.
-			'osSettingsPanelBundleUrl' => $lazy_bundle_url( 'os-settings-panel' ),
+			'osSettingsPanelBundleUrl'      => $lazy_bundle_url( 'os-settings-panel' ),
 			// URL of the shell-overlays lazy bundle. Pre-loaded by
 			// the main bundle after first paint so action-triggered
 			// overlays (toast, confirm dialog, context menus) feel
 			// instant the first time they fire.
-			'shellOverlaysBundleUrl' => $lazy_bundle_url( 'shell-overlays' ),
+			'shellOverlaysBundleUrl'        => $lazy_bundle_url( 'shell-overlays' ),
 			// Mio — the desk companion. `mio` carries the
 			// appearance + physics (see `openstation_mio_config()`);
 			// `mioBundleUrl` is the lazy PixiJS bundle the shell
@@ -489,8 +489,8 @@ function openstation_enqueue_assets() {
 			// style, no PixiJS. The config has to be here rather than
 			// fetched on first toggle, or the `openstation_mio_config`
 			// filter would silently not apply until the next reload.
-			'mio'                 => openstation_mio_config(),
-			'mioBundleUrl'        => $lazy_bundle_url( 'mio' ),
+			'mio'                           => openstation_mio_config(),
+			'mioBundleUrl'                  => $lazy_bundle_url( 'mio' ),
 			// URL of the lazy window-system bundle (Stage 11).
 			// Holds the `Window` class and its DOM / pointer / tab /
 			// chrome helpers — the single largest module split out of
@@ -498,57 +498,57 @@ function openstation_enqueue_assets() {
 			// / `openNew()` call (both async); pre-loaded
 			// by the shell after first paint when no session is being
 			// restored and no `openCurrentPage` will fire.
-			'windowSystemBundleUrl' => $lazy_bundle_url( 'window-system' ),
+			'windowSystemBundleUrl'         => $lazy_bundle_url( 'window-system' ),
 			// URL of the item-visibility-menu lazy bundle — the
 			// right-click "hide from dock / desktop" menu. Injected by
 			// the main bundle's loader shim on the first right-click.
-			'itemVisibilityMenuBundleUrl' => $lazy_bundle_url( 'item-visibility-menu' ),
+			'itemVisibilityMenuBundleUrl'   => $lazy_bundle_url( 'item-visibility-menu' ),
 			// URL of the release-card lazy bundle — the vinyl core-
 			// update announcement. Injected by `maybeShowUpdate()` only
 			// when a core update is actually pending.
-			'releaseCardBundleUrl' => $lazy_bundle_url( 'release-card' ),
-			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'osSettings'            => openstation_get_os_settings( get_current_user_id() ),
-			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
-			'seenIntros'            => openstation_get_seen_intros( get_current_user_id() ),
-			'seenIntrosUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
+			'releaseCardBundleUrl'          => $lazy_bundle_url( 'release-card' ),
+			'restNonce'                     => wp_create_nonce( 'wp_rest' ),
+			'osSettings'                    => openstation_get_os_settings( get_current_user_id() ),
+			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
+			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),
+			'seenIntrosUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
 			// Sticky notes ride on Gutenberg's Guidelines experiment
 			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
 			// When that experiment isn't active the `wp/v2/guidelines`
 			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
 			// noisy — so the shell skips booting the layer entirely.
-			'stickyNotes'           => array(
+			'stickyNotes'                   => array(
 				'available' => openstation_sticky_notes_is_available(),
 			),
-			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
-			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
+			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
+			'aiSearchStreamUrl'             => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
 			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
-			'aiAssistant'           => function_exists( 'openstation_ai_assistant_config' )
+			'aiAssistant'                   => function_exists( 'openstation_ai_assistant_config' )
 				? openstation_ai_assistant_config()
 				: null,
 			// Lets the Features tab re-check provider availability without a
 			// reload after a connector is configured in Settings → Connectors.
-			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
-			'extendedOptions'       => current_user_can( 'manage_options' ) ? openstation_get_extended_options() : null,
-			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
+			'aiStatusUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
+			'extendedOptions'               => current_user_can( 'manage_options' ) ? openstation_get_extended_options() : null,
+			'extendedOptionsUrl'            => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			// Site-wide games kill switch (Extended options). Exposed to
 			// every user — the shell skips the challenges Heartbeat
 			// channel when the framework is off.
-			'gamesEnabled'          => openstation_games_enabled(),
+			'gamesEnabled'                  => openstation_games_enabled(),
 			// Comments-window AI moderation toggle — surfaced at the
 			// shell level so the OS Settings → Features tab can render
 			// the toggle without depending on the Comments window
 			// being registered for this user. URL is the same
 			// endpoint the comments-window config exposes; state is
 			// `null` for non-admins (the UI hides the row entirely).
-			'commentsAiUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
+			'commentsAiUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
 			// Non-null only for admins on a site where the Core AI stack is
 			// present. Comment scoring routes through the AI Client (WP 7.0+),
 			// so on older WordPress the whole row is hidden — same as the
 			// assistant toggle — rather than shown disabled pointing at a
 			// Settings → Connectors screen that doesn't exist there.
-			'commentsAi'            => (
+			'commentsAi'                    => (
 				current_user_can( 'manage_options' )
 				&& function_exists( 'openstation_ai_is_available' )
 				&& openstation_ai_is_available()
@@ -562,11 +562,11 @@ function openstation_enqueue_assets() {
 						: false,
 				)
 				: null,
-			'currentUserIsAdmin'    => current_user_can( 'manage_options' ),
-			'portalUrl'        => esc_url( openstation_portal_url() ),
-			'fromPortal'       => $from_portal,
-			'fromPortalIntent' => $from_portal_intent,
-			'pwa'              => array(
+			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
+			'portalUrl'                     => esc_url( openstation_portal_url() ),
+			'fromPortal'                    => $from_portal,
+			'fromPortalIntent'              => $from_portal_intent,
+			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
@@ -823,20 +823,20 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 
 	// Two contexts, two escapers for the same `$resolved_media` value:
 	//
-	//   - `%3$s` lands inside a JS string literal inside the HTML
-	//     `onload="…"` attribute (`this.media='%3$s'`). `esc_attr`
-	//     escapes `"` and `&` but NOT single quotes, so a media
-	//     value containing `'` would break out of the JS string.
-	//     `esc_js` is the correct escaper for "string literal inside
-	//     an event-handler attribute" — escapes single quotes, double
-	//     quotes, backslashes, newlines. Today `$resolved_media`
-	//     comes from `wp_enqueue_style()`'s `$media` parameter (always
-	//     a CSS media type / query produced by WordPress core), so
-	//     this is pure defense-in-depth, but the cost is one extra
-	//     function call.
+	// - `%3$s` lands inside a JS string literal inside the HTML
+	// `onload="…"` attribute (`this.media='%3$s'`). `esc_attr`
+	// escapes `"` and `&` but NOT single quotes, so a media
+	// value containing `'` would break out of the JS string.
+	// `esc_js` is the correct escaper for "string literal inside
+	// an event-handler attribute" — escapes single quotes, double
+	// quotes, backslashes, newlines. Today `$resolved_media`
+	// comes from `wp_enqueue_style()`'s `$media` parameter (always
+	// a CSS media type / query produced by WordPress core), so
+	// this is pure defense-in-depth, but the cost is one extra
+	// function call.
 	//
-	//   - `%4$s` lands inside an HTML attribute in the `<noscript>`
-	//     fallback (`media='%4$s'`). That's standard `esc_attr`.
+	// - `%4$s` lands inside an HTML attribute in the `<noscript>`
+	// fallback (`media='%4$s'`). That's standard `esc_attr`.
 	//
 	// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This filter rewrites a tag WordPress is in the process of emitting for an already-registered+enqueued stylesheet handle; the linter doesn't trace the `style_loader_tag` filter context, so the raw <link rel="stylesheet"> output is a false-positive.
 	$markup = sprintf(

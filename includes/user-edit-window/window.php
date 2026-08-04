@@ -29,14 +29,16 @@ function openstation_user_edit_window_render_template() {
 	ob_start();
 	?>
 	<div class="os-user-edit-window" data-os-user-edit-window-root>
-		<?php /*
+		<?php
+		/*
 		 * The `<os-user-profile>` component reads its target
 		 * user id from the `user-id` attribute and mounts the
 		 * full profile surface (sidebar + form + activity) on
 		 * its own. The render callback in `index.ts` sets the
 		 * attribute after reading the shared store; absent that,
 		 * the attribute is empty and the component idles until
-		 * set. */ ?>
+		 * set. */
+		?>
 		<os-user-profile data-os-user-profile-host></os-user-profile>
 	</div>
 	<?php
@@ -141,17 +143,17 @@ function openstation_user_edit_window_register_window() {
 		'min_height' => 520,
 		'placement'  => 'none',
 		'config'     => array(
-			'mode'             => 'user-edit',
-			'restRoot'         => esc_url_raw( rest_url() ),
-			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
-			'currentUserId'    => $viewer_id,
-			'insightsUrlBase'  => esc_url_raw( rest_url( 'desktop-mode/v1/users/' ) ),
-			'editPostUrlBase'  => esc_url_raw( admin_url( 'post.php' ) ),
+			'mode'            => 'user-edit',
+			'restRoot'        => esc_url_raw( rest_url() ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'usersUrl'        => esc_url_raw( rest_url( 'wp/v2/users' ) ),
+			'currentUserId'   => $viewer_id,
+			'insightsUrlBase' => esc_url_raw( rest_url( 'desktop-mode/v1/users/' ) ),
+			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			// Capability flag so the JS can hide the role select for
 			// viewers without `promote_users`. Server-side `update_item`
 			// re-checks regardless; this is UX polish.
-			'canPromote'       => current_user_can( 'promote_users' ),
+			'canPromote'      => current_user_can( 'promote_users' ),
 			// Roles the viewer is allowed to assign — the role select
 			// reads this first and falls back to {@see allRoles} for
 			// older configs. Surfacing only assignable roles in the
@@ -159,17 +161,17 @@ function openstation_user_edit_window_register_window() {
 			// loop for viewers with `promote_users` but a narrowed
 			// `editable_roles` filter (e.g. site managers who can't
 			// promote anyone to administrator).
-			'assignableRoles'  => function_exists( 'openstation_users_window_role_label_map' )
+			'assignableRoles' => function_exists( 'openstation_users_window_role_label_map' )
 				? openstation_users_window_role_label_map( $viewer_id )
 				: array(),
-			'allRoles'         => function_exists( 'openstation_users_window_all_roles_map' )
+			'allRoles'        => function_exists( 'openstation_users_window_all_roles_map' )
 				? openstation_users_window_all_roles_map()
 				: array(),
-			'locales'          => function_exists( 'openstation_users_window_locales_map' )
+			'locales'         => function_exists( 'openstation_users_window_locales_map' )
 				? openstation_users_window_locales_map()
 				: array( '' => __( 'Site default', 'desktop-mode' ) ),
-			'contactMethods'   => (array) apply_filters( 'user_contactmethods', array(), null ),
-			'colorSchemes'     => openstation_user_edit_window_color_schemes(),
+			'contactMethods'  => (array) apply_filters( 'user_contactmethods', array(), null ),
+			'colorSchemes'    => openstation_user_edit_window_color_schemes(),
 		),
 	);
 

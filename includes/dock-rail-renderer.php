@@ -131,7 +131,7 @@ function openstation_build_dock_rail_renderer_scripts_payload() {
 			);
 			continue;
 		}
-		$out[]            = array(
+		$out[]           = array(
 			'handle'             => (string) $handle,
 			'scriptUrl'          => $payload['url'],
 			'scriptBefore'       => $payload['before'],

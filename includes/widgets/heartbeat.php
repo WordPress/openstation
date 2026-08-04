@@ -57,23 +57,26 @@ function openstation_register_heartbeat_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
-	openstation_register_widget( 'desktop-mode/heartbeat', array(
-		'label'          => __( 'Heartbeat', 'desktop-mode' ),
-		'description'    => __(
-			'A gently beating heart that pulses with the WordPress Heartbeat. The bar fills as the next tick approaches.',
-			'desktop-mode'
-		),
-		'icon'           => 'dashicons-heart',
-		'script'         => 'os-heartbeat-widget',
-		'movable'        => true,
-		'resizable'      => false,
-		'min_width'      => 310,
-		'max_width'      => 310,
-		'min_height'     => 230,
-		'max_height'     => 230,
-		'default_width'  => 310,
-		'default_height' => 230,
-	) );
+	openstation_register_widget(
+		'desktop-mode/heartbeat',
+		array(
+			'label'          => __( 'Heartbeat', 'desktop-mode' ),
+			'description'    => __(
+				'A gently beating heart that pulses with the WordPress Heartbeat. The bar fills as the next tick approaches.',
+				'desktop-mode'
+			),
+			'icon'           => 'dashicons-heart',
+			'script'         => 'os-heartbeat-widget',
+			'movable'        => true,
+			'resizable'      => false,
+			'min_width'      => 310,
+			'max_width'      => 310,
+			'min_height'     => 230,
+			'max_height'     => 230,
+			'default_width'  => 310,
+			'default_height' => 230,
+		)
+	);
 }
 add_action( 'init', 'openstation_register_heartbeat_widget', 6 );
 

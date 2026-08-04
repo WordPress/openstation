@@ -53,7 +53,7 @@ function openstation_comments_window_spam_score( $comment ) {
 	// Author's prior spam rate (only when the author has 3+ comments to base it on).
 	$author_email = (string) $comment->comment_author_email;
 	if ( '' !== $author_email ) {
-		$prior_spam = (int) get_comments(
+		$prior_spam  = (int) get_comments(
 			array(
 				'author_email' => $author_email,
 				'status'       => 'spam',

@@ -32,12 +32,12 @@ const OPENSTATION_PORTAL_PATH = 'openstation';
  * canonical: {@see openstation_portal_url()} always emits the current
  * path, and a visit here forwards into wp-admin exactly as the canonical
  * path does, so the address bar self-corrects on the next hop.
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_PORTAL_PATH_LEGACY = 'desktop-mode';
 
@@ -61,12 +61,12 @@ const OPENSTATION_PORTAL_FLAG = 'desktop_mode_portal';
  * The shell uses this to distinguish "user expressed navigation intent
  * toward this URL" (open it) from "portal had to forward somewhere"
  * (don't disturb the restored session).
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
 
@@ -75,12 +75,12 @@ const OPENSTATION_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
  * admin_init redirect to skip portal forwarding for this request so the
  * user can view the page as classic wp-admin in a new tab even when
  * OpenStation is globally enabled for their account.
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_CLASSIC_FLAG = 'desktop_mode_classic';
 
@@ -150,14 +150,14 @@ function openstation_handle_portal_request( $wp ) {
 	}
 
 	// Pick the landing page. Priority:
-	//   1. Explicit `target` query arg, if same-origin wp-admin URL.
-	//      This is how `openstation_redirect_plain_admin_to_portal` preserves
-	//      the user's navigation intent when they follow a link to a
-	//      specific admin page (e.g. profile.php).
-	//   2. Last-focused window from the saved session.
-	//   3. Dashboard fallback.
-	$target      = '';
-	$has_intent  = false;
+	// 1. Explicit `target` query arg, if same-origin wp-admin URL.
+	// This is how `openstation_redirect_plain_admin_to_portal` preserves
+	// the user's navigation intent when they follow a link to a
+	// specific admin page (e.g. profile.php).
+	// 2. Last-focused window from the saved session.
+	// 3. Dashboard fallback.
+	$target     = '';
+	$has_intent = false;
 	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		// `esc_url_raw`, NOT `sanitize_text_field`: the latter strips
 		// every `%XX` percent-encoded sequence from its input as an XSS

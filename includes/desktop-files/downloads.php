@@ -37,16 +37,24 @@ defined( 'ABSPATH' ) || exit;
  */
 function openstation_files_register_download_rest_routes() {
 	$ns = 'desktop-mode/v1';
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/download', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'openstation_files_rest_permission',
-		'callback'            => 'openstation_files_rest_download_file',
-	) );
-	register_rest_route( $ns, '/files/folders/(?P<id>\d+)/download', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'openstation_files_rest_permission',
-		'callback'            => 'openstation_files_rest_download_folder_zip',
-	) );
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/download',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'openstation_files_rest_permission',
+			'callback'            => 'openstation_files_rest_download_file',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/files/folders/(?P<id>\d+)/download',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'openstation_files_rest_permission',
+			'callback'            => 'openstation_files_rest_download_folder_zip',
+		)
+	);
 }
 add_action( 'rest_api_init', 'openstation_files_register_download_rest_routes' );
 
@@ -192,12 +200,12 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
  *
  * @internal
  *
- * @param int   $folder_id Folder to walk.
- * @param int   $user_id   Viewer.
+ * @param int    $folder_id Folder to walk.
+ * @param int    $user_id   Viewer.
  * @param string $prefix   Path prefix inside the zip ('' at root).
- * @param array $manifest  Accumulator (entries / empty_dirs / total_bytes).
- * @param array $visited   Folder ids already on the walk path (cycle guard).
- * @param int   $depth     Current depth.
+ * @param array  $manifest  Accumulator (entries / empty_dirs / total_bytes).
+ * @param array  $visited   Folder ids already on the walk path (cycle guard).
+ * @param int    $depth     Current depth.
  * @return array|WP_Error The updated manifest.
  */
 function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $manifest, $visited, $depth ) {
@@ -233,7 +241,7 @@ function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $
 			if ( ! $sub ) {
 				continue;
 			}
-			$dir_name = openstation_files_zip_unique_name(
+			$dir_name           = openstation_files_zip_unique_name(
 				sanitize_file_name( '' !== (string) $sub['name'] ? (string) $sub['name'] : 'folder' ),
 				$used_names
 			);
@@ -312,7 +320,7 @@ function openstation_files_zip_unique_name( $name, &$used_names ) {
 		$used_names[ $key ] = 1;
 		return $name;
 	}
-	$used_names[ $key ]++;
+	++$used_names[ $key ];
 	$n   = $used_names[ $key ];
 	$dot = strrpos( $name, '.' );
 	if ( false === $dot || 0 === $dot ) {

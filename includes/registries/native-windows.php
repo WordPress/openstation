@@ -165,7 +165,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'main_tab_padding' => '',
 		'config'           => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	// Capability gate — ALL listed caps must match. Fail closed.
 	foreach ( (array) $args['capabilities'] as $cap ) {
@@ -177,7 +177,10 @@ function openstation_register_window( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
@@ -320,149 +323,250 @@ function openstation_native_window_allowed_html() {
 		array(
 			'name'         => true,
 			'value'        => true,
-			'placeholder' => true,
-			'required'    => true,
-			'disabled'    => true,
-			'readonly'    => true,
-			'checked'     => true,
-			'selected'    => true,
-			'min'         => true,
-			'max'         => true,
-			'step'        => true,
-			'minlength'   => true,
-			'maxlength'   => true,
-			'pattern'     => true,
+			'placeholder'  => true,
+			'required'     => true,
+			'disabled'     => true,
+			'readonly'     => true,
+			'checked'      => true,
+			'selected'     => true,
+			'min'          => true,
+			'max'          => true,
+			'step'         => true,
+			'minlength'    => true,
+			'maxlength'    => true,
+			'pattern'      => true,
 			'autocomplete' => true,
-			'autofocus'   => true,
-			'multiple'    => true,
-			'rows'        => true,
-			'cols'        => true,
-			'wrap'        => true,
-			'size'        => true,
-			'for'         => true,
-			'form'        => true,
-			'type'        => true,
-			'accept'      => true,
-			'list'        => true,
-			'src'         => true,
-			'href'        => true,
-			'target'      => true,
-			'rel'         => true,
-			'open'        => true,
-			'variant'     => true,
+			'autofocus'    => true,
+			'multiple'     => true,
+			'rows'         => true,
+			'cols'         => true,
+			'wrap'         => true,
+			'size'         => true,
+			'for'          => true,
+			'form'         => true,
+			'type'         => true,
+			'accept'       => true,
+			'list'         => true,
+			'src'          => true,
+			'href'         => true,
+			'target'       => true,
+			'rel'          => true,
+			'open'         => true,
+			'variant'      => true,
 		)
 	);
 
 	$wpd_attrs = array_merge(
 		$form_attrs,
 		array(
-			'gap'           => true,
-			'padding'       => true,
-			'align'         => true,
-			'justify'       => true,
-			'direction'     => true,
-			'wrap'          => true,
-			'inset'         => true,
-			'icon'          => true,
-			'tone'          => true,
-			'size'          => true,
-			'shape'         => true,
-			'badge'         => true,
-			'selectable'    => true,
-			'sticky-header' => true,
+			'gap'            => true,
+			'padding'        => true,
+			'align'          => true,
+			'justify'        => true,
+			'direction'      => true,
+			'wrap'           => true,
+			'inset'          => true,
+			'icon'           => true,
+			'tone'           => true,
+			'size'           => true,
+			'shape'          => true,
+			'badge'          => true,
+			'selectable'     => true,
+			'sticky-header'  => true,
 			'sticky-columns' => true,
-			'hover'         => true,
-			'striped'       => true,
-			'bordered'      => true,
-			'compact'       => true,
-			'loading'       => true,
-			'loading-rows'  => true,
-			'columns'       => true,
-			'rows'          => true,
-			'sortable'      => true,
-			'expandable'    => true,
-			'preset'        => true,
-			'label'         => true,
-			'description'   => true,
-			'orientation'   => true,
-			'level'         => true,
-			'collapsed'     => true,
+			'hover'          => true,
+			'striped'        => true,
+			'bordered'       => true,
+			'compact'        => true,
+			'loading'        => true,
+			'loading-rows'   => true,
+			'columns'        => true,
+			'rows'           => true,
+			'sortable'       => true,
+			'expandable'     => true,
+			'preset'         => true,
+			'label'          => true,
+			'description'    => true,
+			'orientation'    => true,
+			'level'          => true,
+			'collapsed'      => true,
 			// `<os-form>` props + the `full-width` row span flag
 			// honoured by the form's slotted-child layout rule.
-			'submit-label'  => true,
-			'reset-label'   => true,
-			'busy'          => true,
-			'error'         => true,
-			'min-column'    => true,
-			'show-reset'    => true,
-			'reveal'        => true,
-			'full-width'    => true,
+			'submit-label'   => true,
+			'reset-label'    => true,
+			'busy'           => true,
+			'error'          => true,
+			'min-column'     => true,
+			'show-reset'     => true,
+			'reveal'         => true,
+			'full-width'     => true,
 		)
 	);
 
 	// Built-in HTML elements the templates rely on.
 	$extra = array(
-		'form'     => $form_attrs,
-		'fieldset' => $form_attrs,
-		'legend'   => $global_attrs,
-		'label'    => $form_attrs,
-		'input'    => $form_attrs,
-		'select'   => $form_attrs,
-		'option'   => $form_attrs,
-		'optgroup' => $form_attrs,
-		'textarea' => $form_attrs,
-		'button'   => $form_attrs,
-		'output'   => $form_attrs,
-		'datalist' => $global_attrs,
-		'progress' => $form_attrs,
-		'meter'    => $form_attrs,
-		'details'  => $global_attrs,
-		'summary'  => $global_attrs,
-		'dialog'   => $global_attrs,
-		'header'   => $global_attrs,
-		'footer'   => $global_attrs,
-		'main'     => $global_attrs,
-		'nav'      => $global_attrs,
-		'section'  => $global_attrs,
-		'article'  => $global_attrs,
-		'aside'    => $global_attrs,
-		'figure'   => $global_attrs,
+		'form'       => $form_attrs,
+		'fieldset'   => $form_attrs,
+		'legend'     => $global_attrs,
+		'label'      => $form_attrs,
+		'input'      => $form_attrs,
+		'select'     => $form_attrs,
+		'option'     => $form_attrs,
+		'optgroup'   => $form_attrs,
+		'textarea'   => $form_attrs,
+		'button'     => $form_attrs,
+		'output'     => $form_attrs,
+		'datalist'   => $global_attrs,
+		'progress'   => $form_attrs,
+		'meter'      => $form_attrs,
+		'details'    => $global_attrs,
+		'summary'    => $global_attrs,
+		'dialog'     => $global_attrs,
+		'header'     => $global_attrs,
+		'footer'     => $global_attrs,
+		'main'       => $global_attrs,
+		'nav'        => $global_attrs,
+		'section'    => $global_attrs,
+		'article'    => $global_attrs,
+		'aside'      => $global_attrs,
+		'figure'     => $global_attrs,
 		'figcaption' => $global_attrs,
-		'time'     => array_merge( $global_attrs, array( 'datetime' => true ) ),
-		'mark'     => $global_attrs,
-		'small'    => $global_attrs,
-		'svg'      => array_merge( $global_attrs, array( 'viewbox' => true, 'width' => true, 'height' => true, 'fill' => true, 'stroke' => true, 'xmlns' => true ) ),
-		'path'     => array( 'd' => true, 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true, 'class' => true ),
-		'g'        => array( 'class' => true, 'transform' => true, 'fill' => true ),
-		'circle'   => array( 'cx' => true, 'cy' => true, 'r' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
-		'rect'     => array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
-		'line'     => array( 'x1' => true, 'y1' => true, 'x2' => true, 'y2' => true, 'stroke' => true, 'stroke-width' => true, 'class' => true ),
-		'polyline' => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
-		'polygon'  => array( 'points' => true, 'fill' => true, 'stroke' => true, 'class' => true ),
-		'use'      => array( 'href' => true, 'class' => true ),
+		'time'       => array_merge( $global_attrs, array( 'datetime' => true ) ),
+		'mark'       => $global_attrs,
+		'small'      => $global_attrs,
+		'svg'        => array_merge(
+			$global_attrs,
+			array(
+				'viewbox' => true,
+				'width'   => true,
+				'height'  => true,
+				'fill'    => true,
+				'stroke'  => true,
+				'xmlns'   => true,
+			)
+		),
+		'path'       => array(
+			'd'               => true,
+			'fill'            => true,
+			'stroke'          => true,
+			'stroke-width'    => true,
+			'stroke-linecap'  => true,
+			'stroke-linejoin' => true,
+			'class'           => true,
+		),
+		'g'          => array(
+			'class'     => true,
+			'transform' => true,
+			'fill'      => true,
+		),
+		'circle'     => array(
+			'cx'     => true,
+			'cy'     => true,
+			'r'      => true,
+			'fill'   => true,
+			'stroke' => true,
+			'class'  => true,
+		),
+		'rect'       => array(
+			'x'      => true,
+			'y'      => true,
+			'width'  => true,
+			'height' => true,
+			'rx'     => true,
+			'ry'     => true,
+			'fill'   => true,
+			'stroke' => true,
+			'class'  => true,
+		),
+		'line'       => array(
+			'x1'           => true,
+			'y1'           => true,
+			'x2'           => true,
+			'y2'           => true,
+			'stroke'       => true,
+			'stroke-width' => true,
+			'class'        => true,
+		),
+		'polyline'   => array(
+			'points' => true,
+			'fill'   => true,
+			'stroke' => true,
+			'class'  => true,
+		),
+		'polygon'    => array(
+			'points' => true,
+			'fill'   => true,
+			'stroke' => true,
+			'class'  => true,
+		),
+		'use'        => array(
+			'href'  => true,
+			'class' => true,
+		),
 	);
 
 	// `<os-*>` web components — every shipped tag plus a permissive
 	// open door for new ones added by plugin templates.
 	$wpd_tags = array(
-		'os-stack', 'os-cluster', 'os-grid', 'os-spacer', 'os-divider',
-		'os-tabs', 'os-tab', 'os-tabpanel',
-		'os-segmented', 'os-segment',
-		'os-button', 'os-icon-button', 'os-button-group',
-		'os-text-field', 'os-textarea', 'os-search-field',
-		'os-select', 'os-option', 'os-checkbox', 'os-checkbox-label',
-		'os-radio', 'os-radio-group', 'os-form',
-		'os-switch', 'os-slider',
-		'os-table', 'os-table-column', 'os-table-row', 'os-table-cell',
-		'os-card', 'os-list', 'os-list-item',
-		'os-badge', 'os-pill', 'os-tag', 'os-chip',
-		'os-spinner', 'os-skeleton', 'os-empty-state',
-		'os-tooltip', 'os-popover', 'os-menu', 'os-menu-item',
-		'os-modal', 'os-drawer', 'os-toast',
-		'os-icon', 'os-avatar', 'os-heading', 'os-text', 'os-link',
-		'os-banner', 'os-alert', 'os-callout',
-		'os-form-row', 'os-form-section', 'os-help-text',
-		'os-toolbar', 'os-toolbar-group',
+		'os-stack',
+		'os-cluster',
+		'os-grid',
+		'os-spacer',
+		'os-divider',
+		'os-tabs',
+		'os-tab',
+		'os-tabpanel',
+		'os-segmented',
+		'os-segment',
+		'os-button',
+		'os-icon-button',
+		'os-button-group',
+		'os-text-field',
+		'os-textarea',
+		'os-search-field',
+		'os-select',
+		'os-option',
+		'os-checkbox',
+		'os-checkbox-label',
+		'os-radio',
+		'os-radio-group',
+		'os-form',
+		'os-switch',
+		'os-slider',
+		'os-table',
+		'os-table-column',
+		'os-table-row',
+		'os-table-cell',
+		'os-card',
+		'os-list',
+		'os-list-item',
+		'os-badge',
+		'os-pill',
+		'os-tag',
+		'os-chip',
+		'os-spinner',
+		'os-skeleton',
+		'os-empty-state',
+		'os-tooltip',
+		'os-popover',
+		'os-menu',
+		'os-menu-item',
+		'os-modal',
+		'os-drawer',
+		'os-toast',
+		'os-icon',
+		'os-avatar',
+		'os-heading',
+		'os-text',
+		'os-link',
+		'os-banner',
+		'os-alert',
+		'os-callout',
+		'os-form-row',
+		'os-form-section',
+		'os-help-text',
+		'os-toolbar',
+		'os-toolbar-group',
 	);
 	foreach ( $wpd_tags as $tag ) {
 		$extra[ $tag ] = $wpd_attrs;
@@ -528,7 +632,7 @@ function openstation_kses_native_window_template( $html ) {
 	$allowed = openstation_native_window_allowed_html();
 
 	if ( preg_match_all( '/<(os-[a-z][a-z0-9-]*)\b/i', (string) $html, $matches ) ) {
-		$unique = array_unique( array_map( 'strtolower', $matches[1] ) );
+		$unique    = array_unique( array_map( 'strtolower', $matches[1] ) );
 		$wpd_attrs = isset( $allowed['os-button'] )
 			? $allowed['os-button']
 			: array();
@@ -563,7 +667,7 @@ function openstation_build_native_window_template_html( $entry ) {
 		return '';
 	}
 
-	$tabs = openstation_get_native_window_tabs( $entry['id'] );
+	$tabs       = openstation_get_native_window_tabs( $entry['id'] );
 	$has_extras = count( $tabs ) > 1;
 
 	// Fast path — single-pane window, no wrapping.
@@ -580,12 +684,12 @@ function openstation_build_native_window_template_html( $entry ) {
 	// `os-tab-change` event bubbled by <os-tabs>.
 	//
 	// The wrap's padding is plugin-controllable two ways:
-	//   1. `main_tab_padding` arg on `openstation_register_window` —
-	//      a per-window override. `0` opts into edge-to-edge
-	//      content.
-	//   2. `openstation_native_window_tab_wrap_padding` filter for
-	//      late-bound overrides (e.g. a theme that wants every
-	//      tabbed window to adopt a narrower inset).
+	// 1. `main_tab_padding` arg on `openstation_register_window` —
+	// a per-window override. `0` opts into edge-to-edge
+	// content.
+	// 2. `openstation_native_window_tab_wrap_padding` filter for
+	// late-bound overrides (e.g. a theme that wants every
+	// tabbed window to adopt a narrower inset).
 	// Default stays 16px so existing plugins don't shift.
 	$default_padding = isset( $entry['main_tab_padding'] )
 		&& '' !== (string) $entry['main_tab_padding']
@@ -690,17 +794,17 @@ function openstation_enqueue_native_window_scripts() {
 			$entry['script'],
 			'openStationNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
 			array(
-				'id'        => $entry['id'],
-				'title'     => $entry['title'],
-				'icon'      => $entry['icon'],
-				'width'     => $entry['width'],
-				'height'    => $entry['height'],
-				'minWidth'  => $entry['min_width'],
-				'minHeight' => $entry['min_height'],
-				'placement' => $entry['placement'],
-				'autofocus' => $entry['autofocus'],
+				'id'         => $entry['id'],
+				'title'      => $entry['title'],
+				'icon'       => $entry['icon'],
+				'width'      => $entry['width'],
+				'height'     => $entry['height'],
+				'minWidth'   => $entry['min_width'],
+				'minHeight'  => $entry['min_height'],
+				'placement'  => $entry['placement'],
+				'autofocus'  => $entry['autofocus'],
 				'templateId' => 'os-native-window-' . $entry['id'],
-				'tabs'      => array_map(
+				'tabs'       => array_map(
 					static function ( $tab ) {
 						return array(
 							'value'  => $tab['value'],

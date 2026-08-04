@@ -237,8 +237,8 @@ function openstation_my_wordpress_media_usage_collect( $attachment ) {
 		}
 		$basename_variants = array_values( array_unique( $basename_variants ) );
 
-		$class_pattern   = '%wp-image-' . $attachment_id . '%';
-		$url_patterns    = array();
+		$class_pattern = '%wp-image-' . $attachment_id . '%';
+		$url_patterns  = array();
 		foreach ( $basename_variants as $variant ) {
 			$url_patterns[] = '%' . $wpdb->esc_like( $variant ) . '%';
 		}

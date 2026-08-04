@@ -110,10 +110,10 @@ function openstation_content_graph_build( array $types ) {
 	$cat_ids     = array();
 	$tag_ids     = array();
 	foreach ( $rows as $row ) {
-		$id              = (int) $row->ID;
-		$author_id       = (int) $row->post_author;
-		$year            = 0;
-		$year_month      = '';
+		$id         = (int) $row->ID;
+		$author_id  = (int) $row->post_author;
+		$year       = 0;
+		$year_month = '';
 		if ( ! empty( $row->post_date ) ) {
 			// Use post_date (site-local) rather than post_date_gmt for the
 			// "year published" / "year-month published" buckets — editors
@@ -137,7 +137,7 @@ function openstation_content_graph_build( array $types ) {
 		$post_tags = isset( $terms_by_post[ $id ]['post_tag'] )
 			? $terms_by_post[ $id ]['post_tag']
 			: array();
-		$contribs = isset( $contribs_by_post[ $id ] )
+		$contribs  = isset( $contribs_by_post[ $id ] )
 			? $contribs_by_post[ $id ]
 			: array();
 		// Strip the primary author from the contributor list — the
@@ -155,7 +155,7 @@ function openstation_content_graph_build( array $types ) {
 			);
 		}
 
-		$node = array(
+		$node               = array(
 			'id'              => $id,
 			'type'            => (string) $row->post_type,
 			'title'           => (string) get_the_title( $row ),
@@ -609,7 +609,7 @@ function openstation_content_graph_format_author_catalog( array $author_ids ) {
 			'number'  => count( $author_ids ),
 		)
 	);
-	$out = array();
+	$out   = array();
 	foreach ( (array) $query->get_results() as $user ) {
 		$out[ (int) $user->ID ] = array(
 			'name' => (string) $user->display_name,
@@ -640,7 +640,7 @@ function openstation_content_graph_format_term_catalog( array $term_ids, $taxono
 			'number'     => count( $term_ids ),
 		)
 	);
-	$out = array();
+	$out   = array();
 	if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
 		return $out;
 	}

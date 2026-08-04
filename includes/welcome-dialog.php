@@ -93,11 +93,11 @@ function openstation_render_welcome_dialog() {
 		return;
 	}
 
-	$rest_url    = esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) );
-	$rest_nonce  = wp_create_nonce( 'wp_rest' );
-	$ajax_url    = esc_url_raw( admin_url( 'admin-ajax.php' ) );
-	$ajax_nonce  = wp_create_nonce( 'save-openstation' );
-	$slug        = OPENSTATION_WELCOME_INTRO_SLUG;
+	$rest_url   = esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) );
+	$rest_nonce = wp_create_nonce( 'wp_rest' );
+	$ajax_url   = esc_url_raw( admin_url( 'admin-ajax.php' ) );
+	$ajax_nonce = wp_create_nonce( 'save-openstation' );
+	$slug       = OPENSTATION_WELCOME_INTRO_SLUG;
 
 	// All user-facing strings are passed through translation; the dialog
 	// is keyboard-dismissible (Escape) and moves initial focus to the
@@ -214,7 +214,7 @@ function openstation_render_welcome_dialog() {
 		-webkit-mask: linear-gradient( #000 0 0 ) content-box,
 			linear-gradient( #000 0 0 );
 		-webkit-mask-composite: xor;
-		        mask-composite: exclude;
+				mask-composite: exclude;
 		pointer-events: none;
 	}
 	.os-welcome__hero {

@@ -80,19 +80,19 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 
 	// ----- Profile -----------------------------------------------------
 	$profile = array(
-		'id'             => (int) $term->term_id,
-		'name'           => $term->name,
-		'slug'           => $term->slug,
-		'taxonomy'       => $term->taxonomy,
-		'taxonomyLabel'  => isset( $tax_obj->labels->singular_name )
+		'id'            => (int) $term->term_id,
+		'name'          => $term->name,
+		'slug'          => $term->slug,
+		'taxonomy'      => $term->taxonomy,
+		'taxonomyLabel' => isset( $tax_obj->labels->singular_name )
 			? (string) $tax_obj->labels->singular_name
 			: $taxonomy,
-		'description'    => (string) $term->description,
-		'link'           => get_term_link( $term ) instanceof WP_Error
+		'description'   => (string) $term->description,
+		'link'          => get_term_link( $term ) instanceof WP_Error
 			? ''
 			: (string) get_term_link( $term ),
-		'parent'         => (int) $term->parent,
-		'storedCount'    => (int) $term->count, // core's published-only count
+		'parent'        => (int) $term->parent,
+		'storedCount'   => (int) $term->count, // core's published-only count
 	);
 	if ( $term->parent > 0 ) {
 		$parent = get_term( $term->parent, $taxonomy );
@@ -182,7 +182,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$recent = array();
+	$recent      = array();
 	foreach ( (array) $recent_rows as $row ) {
 		$post_id    = (int) $row['ID'];
 		$author_id  = (int) $row['post_author'];
@@ -194,7 +194,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 				'avatarUrl' => get_avatar_url( $author->ID, array( 'size' => 48 ) ),
 			)
 			: null;
-		$recent[] = array(
+		$recent[]   = array(
 			'id'     => $post_id,
 			'title'  => get_the_title( $post_id ),
 			'date'   => mysql2date( 'c', (string) $row['post_date_gmt'], false ),
@@ -221,7 +221,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$top_authors = array();
+	$top_authors     = array();
 	foreach ( (array) $top_author_rows as $row ) {
 		$user_id = (int) $row['post_author'];
 		$u       = get_userdata( $user_id );
@@ -258,7 +258,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$co_terms = array();
+	$co_terms     = array();
 	foreach ( (array) $co_term_rows as $row ) {
 		$co_terms[] = array(
 			'id'    => (int) $row['term_id'],
@@ -284,7 +284,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$activity = array();
+	$activity      = array();
 	foreach ( (array) $activity_rows as $row ) {
 		$activity[] = array(
 			'ym'    => (string) $row['ym'],
@@ -304,7 +304,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			$tt_id
 		)
 	);
-	$last_post_date = $wpdb->get_var(
+	$last_post_date  = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX( p.post_date_gmt )
 			FROM {$wpdb->posts} p
@@ -315,7 +315,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			$tt_id
 		)
 	);
-	$milestones = array(
+	$milestones      = array(
 		'firstPosted' => $first_post_date ? mysql2date( 'c', $first_post_date, false ) : null,
 		'lastPosted'  => $last_post_date ? mysql2date( 'c', $last_post_date, false ) : null,
 	);

@@ -45,11 +45,14 @@ function openstation_files_create_folder( $owner_id, $args = array() ) {
 		return new WP_Error( 'openstation_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$args = wp_parse_args( $args, array(
-		'name'       => '',
-		'share_mode' => 'private',
-		'share_meta' => null,
-	) );
+	$args = wp_parse_args(
+		$args,
+		array(
+			'name'       => '',
+			'share_mode' => 'private',
+			'share_meta' => null,
+		)
+	);
 
 	$name = sanitize_text_field( (string) $args['name'] );
 	if ( '' === $name ) {
@@ -59,7 +62,14 @@ function openstation_files_create_folder( $owner_id, $args = array() ) {
 	$mode  = (string) $args['share_mode'];
 	$modes = openstation_files_share_modes();
 	if ( ! in_array( $mode, $modes, true ) ) {
-		return new WP_Error( 'openstation_files_invalid_share_mode', __( 'Invalid share mode.', 'desktop-mode' ), array( 'status' => 400, 'mode' => $mode ) );
+		return new WP_Error(
+			'openstation_files_invalid_share_mode',
+			__( 'Invalid share mode.', 'desktop-mode' ),
+			array(
+				'status' => 400,
+				'mode'   => $mode,
+			)
+		);
 	}
 
 	$tables = openstation_files_table_names();
@@ -329,12 +339,12 @@ function openstation_files_delete_folder( $folder_id, $user_id ) {
 
 	$visited = array();
 	$summary = array(
-		'folders_deleted'        => array(),
-		'shares_revoked'         => array(),
-		'placements_pointing'    => array(),
-		'placements_inside'      => array(),
+		'folders_deleted'     => array(),
+		'shares_revoked'      => array(),
+		'placements_pointing' => array(),
+		'placements_inside'   => array(),
 	);
-	$result = openstation_files_delete_folder_recursive( $folder_id, $user_id, $visited, $summary );
+	$result  = openstation_files_delete_folder_recursive( $folder_id, $user_id, $visited, $summary );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -399,7 +409,7 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		return true;
 	}
 	$visited[ $folder_id ] = true;
-	$row = openstation_files_get_folder( $folder_id );
+	$row                   = openstation_files_get_folder( $folder_id );
 	if ( ! $row ) {
 		return true;
 	}
@@ -407,19 +417,19 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	$tables = openstation_files_table_names();
 	if ( null === $summary || ! is_array( $summary ) ) {
 		$summary = array(
-			'folders_deleted'        => array(),
-			'shares_revoked'         => array(),
-			'placements_pointing'    => array(),
-			'placements_inside'      => array(),
+			'folders_deleted'     => array(),
+			'shares_revoked'      => array(),
+			'placements_pointing' => array(),
+			'placements_inside'   => array(),
 		);
 	}
 
 	// 1) Recurse into sub-folders the owner owns. A sub-folder
-	//    owned by SOMEONE ELSE (e.g. a writer recipient who built
-	//    their own folder inside this one) is left intact —
-	//    deleting the parent only severs the containment for the
-	//    owner; the sub-folder's owner can still reach it through
-	//    their own placements.
+	// owned by SOMEONE ELSE (e.g. a writer recipient who built
+	// their own folder inside this one) is left intact —
+	// deleting the parent only severs the containment for the
+	// owner; the sub-folder's owner can still reach it through
+	// their own placements.
 	$sub_folder_refs = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT file_ref FROM {$tables['placements']}
@@ -440,9 +450,9 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 
 	// 2) Revoke every share for this folder: shares table + per-
-	//    user decisions table. The folder is going away, so the
-	//    rows are obsolete; leaving them would let the heartbeat
-	//    keep delivering a `removed` tombstone for ghost rows.
+	// user decisions table. The folder is going away, so the
+	// rows are obsolete; leaving them would let the heartbeat
+	// keep delivering a `removed` tombstone for ghost rows.
 	// `target_type` scoping is load-bearing: `folder_id` carries a
 	// STORED-FILE id on `target_type='file'` rows — without the
 	// predicate this cascade would revoke an unrelated user's file
@@ -454,7 +464,7 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		),
 		ARRAY_A
 	);
-	$share_ids = array();
+	$share_ids  = array();
 	foreach ( $share_rows as $share_row ) {
 		$share_ids[] = (int) $share_row['id'];
 	}
@@ -495,7 +505,7 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 
 	// 3) Placements POINTING AT this folder (every recipient's
-	//    accept-created root placement, plus the owner's own).
+	// accept-created root placement, plus the owner's own).
 	$pointing_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -522,11 +532,11 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 
 	// 4) Placements INSIDE this folder. After step 1 the sub-folder
-	//    placements have been recursively handled for owner-owned
-	//    sub-folders; whatever remains here (loose post / link /
-	//    user / etc. placements, plus orphan folder placements
-	//    whose folder we did NOT recurse into because someone else
-	//    owns it) gets deleted with a tombstone each.
+	// placements have been recursively handled for owner-owned
+	// sub-folders; whatever remains here (loose post / link /
+	// user / etc. placements, plus orphan folder placements
+	// whose folder we did NOT recurse into because someone else
+	// owns it) gets deleted with a tombstone each.
 	$inside_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['placements']} WHERE parent_id = %d",
@@ -534,7 +544,7 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		),
 		ARRAY_A
 	);
-	$inside_ids = array();
+	$inside_ids  = array();
 	foreach ( $inside_rows as $inside_row ) {
 		$inside_ids[] = (int) $inside_row['id'];
 		openstation_files_write_tombstone( 'placement', (int) $inside_row['id'] );
@@ -635,7 +645,7 @@ function openstation_files_get_visible_folders( $user_id ) {
 		),
 		ARRAY_A
 	);
-	$out = array();
+	$out    = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_folder_row( $row );
 	}

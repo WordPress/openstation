@@ -222,4 +222,3 @@ add_action( 'rest_api_init', 'openstation_register_ai_status_rest_route' );
 function openstation_rest_ai_status() {
 	return rest_ensure_response( openstation_ai_assistant_config() );
 }
-

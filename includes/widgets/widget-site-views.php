@@ -71,7 +71,7 @@ function openstation_site_views_meta_callback( $request ) {
 				$meta_key
 			)
 		);
-		$rows[] = array(
+		$rows[]   = array(
 			'date'  => $date,
 			'views' => $total,
 		);

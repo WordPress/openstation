@@ -79,7 +79,7 @@ class OpenStation_Post_File extends OpenStation_File {
 		// drag handlers can build a `<a href>` block on drop without
 		// a synchronous REST roundtrip. Empty string when the post is
 		// gone or has no permalink (drafts of certain post types).
-		$shape['link']     = $post ? (string) get_permalink( $post ) : '';
+		$shape['link'] = $post ? (string) get_permalink( $post ) : '';
 		return $shape;
 	}
 

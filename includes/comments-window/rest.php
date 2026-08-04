@@ -327,8 +327,8 @@ function openstation_comments_window_rest_insights( WP_REST_Request $request ) {
 		)
 	);
 
-	$user           = get_user_by( 'email', $email );
-	$reliability    = 100;
+	$user        = get_user_by( 'email', $email );
+	$reliability = 100;
 	if ( $total > 0 ) {
 		$bad         = $counts_by_status['spam'] + $counts_by_status['trash'];
 		$reliability = (int) round( max( 0, min( 100, 100 - ( $bad / $total ) * 100 ) ) );

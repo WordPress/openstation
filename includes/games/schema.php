@@ -137,8 +137,8 @@ function openstation_games_ensure_table( $table, $sql ) {
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
 			$table
 		)
 	);

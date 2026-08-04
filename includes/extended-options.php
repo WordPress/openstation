@@ -61,7 +61,7 @@ function openstation_get_extended_options() {
 		'games'                  => false,
 		'agents'                 => false,
 	);
-	$raw = get_option( OPENSTATION_EXTENDED_OPTIONS_KEY, array() );
+	$raw      = get_option( OPENSTATION_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}

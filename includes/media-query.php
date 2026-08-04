@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_META_WIDTH  = '_desktop_mode_width';
+const OPENSTATION_META_WIDTH = '_desktop_mode_width';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -97,7 +97,7 @@ add_filter( 'wp_update_attachment_metadata', 'openstation_stamp_media_dimensions
  * @return array
  */
 function openstation_register_media_query_params( $params ) {
-	$params['openstation_min_width'] = array(
+	$params['openstation_min_width']  = array(
 		'description' => __( 'Only return images at least this many pixels wide.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,

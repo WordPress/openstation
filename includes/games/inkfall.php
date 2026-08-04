@@ -41,23 +41,54 @@ function openstation_inkfall_register() {
 		return;
 	}
 
-	openstation_register_game( 'inkfall', array(
-		'title'         => __( 'Inkfall', 'desktop-mode' ),
-		'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
-		'icon_svg'      => openstation_inkfall_icon_svg(),
-		'script'        => 'os-game-inkfall',
-		'score_columns' => array(
-			array( 'key' => 'score',    'label' => __( 'Score', 'desktop-mode' ),      'type' => 'number' ),
-			array( 'key' => 'mode',     'label' => __( 'Difficulty', 'desktop-mode' ), 'type' => 'text' ),
-			array( 'key' => 'words',    'label' => __( 'Words', 'desktop-mode' ),      'type' => 'number' ),
-			array( 'key' => 'wpm',      'label' => __( 'WPM', 'desktop-mode' ),        'type' => 'number' ),
-			array( 'key' => 'accuracy', 'label' => __( 'Accuracy', 'desktop-mode' ),   'type' => 'number' ),
-			array( 'key' => 'time',     'label' => __( 'Time', 'desktop-mode' ),       'type' => 'time' ),
-			array( 'key' => 'level',    'label' => __( 'Level', 'desktop-mode' ),      'type' => 'number' ),
-		),
+	openstation_register_game(
+		'inkfall',
+		array(
+			'title'         => __( 'Inkfall', 'desktop-mode' ),
+			'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
+			'icon_svg'      => openstation_inkfall_icon_svg(),
+			'script'        => 'os-game-inkfall',
+			'score_columns' => array(
+				array(
+					'key'   => 'score',
+					'label' => __( 'Score', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'mode',
+					'label' => __( 'Difficulty', 'desktop-mode' ),
+					'type'  => 'text',
+				),
+				array(
+					'key'   => 'words',
+					'label' => __( 'Words', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'wpm',
+					'label' => __( 'WPM', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'accuracy',
+					'label' => __( 'Accuracy', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'time',
+					'label' => __( 'Time', 'desktop-mode' ),
+					'type'  => 'time',
+				),
+				array(
+					'key'   => 'level',
+					'label' => __( 'Level', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+			),
 		// The dictionary URL arrives via the framework-injected
 		// `wordsUrl` config key (see includes/games/config.php).
-	) );
+		)
+	);
 }
 add_action( 'init', 'openstation_inkfall_register', 20 );
 

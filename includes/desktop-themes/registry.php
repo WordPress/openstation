@@ -290,8 +290,8 @@ function openstation_shape_desktop_theme_payload_entry( $entry, $source ) {
 		$preview_url = openstation_desktop_theme_asset_url( $manifest['preview'], $base_url, $asset_version );
 	}
 
-	$css_url      = '';
-	$css_text     = '';
+	$css_url  = '';
+	$css_text = '';
 	if ( $is_upload ) {
 		$css_url = add_query_arg(
 			'ver',
@@ -385,9 +385,12 @@ function openstation_build_desktop_themes_payload() {
 	}
 
 	// Stable, human-sensible order for the picker grid.
-	usort( $out, static function ( $a, $b ) {
-		return strcasecmp( (string) $a['name'], (string) $b['name'] );
-	} );
+	usort(
+		$out,
+		static function ( $a, $b ) {
+			return strcasecmp( (string) $a['name'], (string) $b['name'] );
+		}
+	);
 
 	return array_slice( $out, 0, openstation_desktop_themes_payload_cap() );
 }

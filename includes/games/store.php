@@ -490,9 +490,9 @@ function openstation_games_get_challenges_for_user( $user_id, $since_ms = 0, $ca
  * @return array
  */
 function openstation_games_shape_challenge( $row ) {
-	$challenger = get_userdata( (int) $row['challenger_id'] );
-	$recipient  = get_userdata( (int) $row['recipient_id'] );
-	$score_meta = json_decode( (string) ( $row['score_meta'] ?? '' ), true );
+	$challenger  = get_userdata( (int) $row['challenger_id'] );
+	$recipient   = get_userdata( (int) $row['recipient_id'] );
+	$score_meta  = json_decode( (string) ( $row['score_meta'] ?? '' ), true );
 	$result_meta = json_decode( (string) ( $row['result_meta'] ?? '' ), true );
 	return array(
 		'id'               => (int) $row['id'],

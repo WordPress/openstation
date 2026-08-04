@@ -111,7 +111,7 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 		'position'     => 100,
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
@@ -122,7 +122,10 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this window tab.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'window_id' => $window_id )
+				array(
+					'capability' => (string) $cap,
+					'window_id'  => $window_id,
+				)
 			);
 		}
 	}
@@ -150,7 +153,10 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'desktop-mode' ),
 				$value_raw
 			),
-			array( 'window_id' => $window_id, 'value' => $value_raw )
+			array(
+				'window_id' => $window_id,
+				'value'     => $value_raw,
+			)
 		);
 	}
 	$value = $value_raw;
@@ -162,7 +168,10 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'desktop-mode' ),
 				OPENSTATION_NATIVE_WINDOW_MAIN_TAB
 			),
-			array( 'window_id' => $window_id, 'value' => $value )
+			array(
+				'window_id' => $window_id,
+				'value'     => $value,
+			)
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
@@ -269,7 +278,7 @@ function openstation_get_native_window_tabs( $window_id ) {
 	$main_label = '' !== (string) $window['main_tab_label']
 		? (string) $window['main_tab_label']
 		: (string) $window['title'];
-	$tabs = array(
+	$tabs       = array(
 		array(
 			'value'    => OPENSTATION_NATIVE_WINDOW_MAIN_TAB,
 			'label'    => $main_label,
@@ -284,12 +293,15 @@ function openstation_get_native_window_tabs( $window_id ) {
 	// were validated against /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ at
 	// registration time (sanitize_key would strip the namespace slash).
 	$sorted = array_values( $extras );
-	usort( $sorted, static function ( $a, $b ) {
-		if ( $a['position'] === $b['position'] ) {
-			return 0;
+	usort(
+		$sorted,
+		static function ( $a, $b ) {
+			if ( $a['position'] === $b['position'] ) {
+				return 0;
+			}
+			return $a['position'] < $b['position'] ? -1 : 1;
 		}
-		return $a['position'] < $b['position'] ? -1 : 1;
-	} );
+	);
 	foreach ( $sorted as $tab ) {
 		$tabs[] = array(
 			'value'    => $tab['value'],

@@ -35,12 +35,14 @@ function openstation_posts_window_render_template() {
 		<os-tabpanel for="posts" class="os-posts__panel">
 				<header class="os-posts__toolbar" data-os-posts-toolbar>
 					<div class="os-posts__toolbar-left">
-						<?php // Status segments are populated by the JS bundle from the
+						<?php
+						// Status segments are populated by the JS bundle from the
 						// (filterable) `openstation.postsWindow.statusSegments` list,
 						// so a plugin can add CPT-specific statuses without forking
 						// this template. The empty-string `value` mirrors the "All"
 						// sentinel so the parent control paints it as selected on
-						// first frame. ?>
+						// first frame.
+						?>
 						<os-segmented data-os-posts-status value=""></os-segmented>
 						<os-text-field
 							data-os-posts-search
@@ -49,17 +51,21 @@ function openstation_posts_window_render_template() {
 					</div>
 					<div class="os-posts__toolbar-right" data-os-posts-bulk hidden>
 						<span class="os-posts__count" data-os-posts-count></span>
-						<?php // Bulk-action buttons rendered from the JS-side
+						<?php
+						// Bulk-action buttons rendered from the JS-side
 						// `openstation.postsWindow.bulkActions` registry — defaults
 						// ship "Move to trash"; plugins extend with Duplicate,
-						// Export, Bulk Publish, etc. ?>
+						// Export, Bulk Publish, etc.
+						?>
 						<span class="os-posts__bulk-actions" data-os-posts-bulk-actions></span>
 					</div>
 					<div class="os-posts__toolbar-trailing">
-						<?php // Plugin-injected trailing buttons — rendered before the
+						<?php
+						// Plugin-injected trailing buttons — rendered before the
 						// built-in Refresh + Add New so plugin actions sit close to
 						// the segmented control, with the framework's own buttons at
-						// the far edge where users expect them. ?>
+						// the far edge where users expect them.
+						?>
 						<span class="os-posts__toolbar-extras" data-os-posts-toolbar-extras></span>
 						<os-button variant="ghost" data-os-posts-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
 							<span class="dashicons dashicons-update" aria-hidden="true"></span>
@@ -183,20 +189,20 @@ function openstation_posts_window_register_window() {
 		// entry point.
 		'placement'  => 'none',
 		'config'     => array(
-			'restRoot'         => esc_url_raw( rest_url() ),
-			'restNonce'        => wp_create_nonce( 'wp_rest' ),
-			'postsUrl'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
-			'editPostUrlBase'  => esc_url_raw( admin_url( 'post.php' ) ),
-			'newPostUrl'       => esc_url_raw( admin_url( 'post-new.php' ) ),
-			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
-			'currentUserId'    => (int) get_current_user_id(),
-			'defaultPerPage'   => 20,
-			'queryArgs'        => openstation_posts_window_default_query_args(),
+			'restRoot'        => esc_url_raw( rest_url() ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'postsUrl'        => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
+			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
+			'newPostUrl'      => esc_url_raw( admin_url( 'post-new.php' ) ),
+			'usersUrl'        => esc_url_raw( rest_url( 'wp/v2/users' ) ),
+			'currentUserId'   => (int) get_current_user_id(),
+			'defaultPerPage'  => 20,
+			'queryArgs'       => openstation_posts_window_default_query_args(),
 			// First-open intro dialog wiring — see `includes/seen-intros.php`.
 			// `introSeen` is the boot-time snapshot; the bundle marks the
 			// intro seen via `introUrl` after the user dismisses the dialog.
-			'introSeen'        => openstation_has_seen_intro( get_current_user_id(), 'posts' ),
-			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
+			'introSeen'       => openstation_has_seen_intro( get_current_user_id(), 'posts' ),
+			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 		),
 	);
 
@@ -230,7 +236,7 @@ function openstation_posts_window_default_query_args() {
 		// `_embed` pulls author + taxonomy + featured-media side-loads
 		// into `_embedded`, so the table can render avatars, term
 		// chips, and thumbnails without N extra round-trips per row.
-		'_embed' => 'author,wp:term,wp:featuredmedia',
+		'_embed'  => 'author,wp:term,wp:featuredmedia',
 		// `openstation_lock` is the REST field registered by My WordPress'
 		// `lock.php` on every public post type — it tells us whether
 		// another user is currently editing the row. Surfacing it on the
@@ -461,7 +467,14 @@ function openstation_posts_window_term_counts_callback( $request ) {
 	}
 	$raw   = (string) $request->get_param( 'ids' );
 	$parts = array_map( 'intval', explode( ',', $raw ) );
-	$ids   = array_values( array_filter( $parts, function ( $id ) { return $id > 0; } ) );
+	$ids   = array_values(
+		array_filter(
+			$parts,
+			function ( $id ) {
+				return $id > 0;
+			}
+		)
+	);
 	if ( count( $ids ) === 0 ) {
 		return array();
 	}
@@ -481,9 +494,9 @@ function openstation_posts_window_term_counts_callback( $request ) {
 		// Mirror WP core's `_update_post_term_count` filtering —
 		// limit to the taxonomy's `object_type` (e.g. `post` for
 		// category) and exclude statuses core treats as non-counting:
-		//   - 'trash' + 'auto-draft' → user-not-published-and-never-will-be
-		//   - 'inherit' → attachment-only status; excluded so attachments
-		//                 aren't double-counted via parent inheritance
+		// - 'trash' + 'auto-draft' → user-not-published-and-never-will-be
+		// - 'inherit' → attachment-only status; excluded so attachments
+		// aren't double-counted via parent inheritance
 		// Everything else (publish, draft, pending, future, private)
 		// is included so the user sees a "real" post count, not
 		// WP's publish-only term_taxonomy.count.
@@ -496,7 +509,7 @@ function openstation_posts_window_term_counts_callback( $request ) {
 			$object_types = array( 'post' );
 		}
 		$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
-		$rows = $wpdb->get_results(
+		$rows              = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT tt.term_id, COUNT(p.ID) AS cnt
 				 FROM {$wpdb->term_taxonomy} tt
@@ -512,7 +525,7 @@ function openstation_posts_window_term_counts_callback( $request ) {
 			),
 			ARRAY_A
 		);
-		$counts = array();
+		$counts            = array();
 		foreach ( (array) $rows as $row ) {
 			$counts[ (string) (int) $row['term_id'] ] = (int) $row['cnt'];
 		}
@@ -608,7 +621,7 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 		$taxonomy,
 		$limit
 	);
-	$cached = get_transient( $cache_key );
+	$cached        = get_transient( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['pairs'] ) ) {
 		return rest_ensure_response( $cached );
 	}
@@ -649,7 +662,7 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	$pairs       = array(); // term_id => array( neighbor_id => shared_count )
 	$current_id  = 0;
 	$current_set = array();
-	$flush = function () use ( &$current_set, &$pairs ) {
+	$flush       = function () use ( &$current_set, &$pairs ) {
 		$ids = array_values( array_unique( $current_set ) );
 		$n   = count( $ids );
 		if ( $n < 2 ) {
@@ -666,8 +679,8 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 				if ( ! isset( $pairs[ $b ][ $a ] ) ) {
 					$pairs[ $b ][ $a ] = 0;
 				}
-				$pairs[ $a ][ $b ]++;
-				$pairs[ $b ][ $a ]++;
+				++$pairs[ $a ][ $b ];
+				++$pairs[ $b ][ $a ];
 			}
 		}
 	};
@@ -757,7 +770,7 @@ function openstation_posts_window_term_count_any( $term ) {
 	// Match WP core's `_update_post_term_count` filtering — limit to
 	// the taxonomy's registered object_type and exclude statuses
 	// core treats as non-counting (trash / auto-draft / inherit).
-	$tax_obj = $taxonomy ? get_taxonomy( $taxonomy ) : null;
+	$tax_obj      = $taxonomy ? get_taxonomy( $taxonomy ) : null;
 	$object_types = $tax_obj
 		? array_filter( (array) $tax_obj->object_type, 'post_type_exists' )
 		: array( 'post' );

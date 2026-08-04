@@ -124,14 +124,14 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 	$wpdb->suppress_errors( $prev_suppress );
 	if ( false === $ok ) {
 		// Disambiguate the two cases hidden behind a generic `false`:
-		//   (a) The `placement_unique` index collided
-		//       with an existing row for this (user, parent, type,
-		//       ref). The collider may be active (the orphan placer
-		//       won a race against this caller, or a stale duplicate
-		//       client request) or soft-trashed (the user removed a
-		//       link tile and is now recreating the same URL).
-		//   (b) Any other DB failure — connection, deadlock, bad
-		//       column. The error must surface to the caller as-is.
+		// (a) The `placement_unique` index collided
+		// with an existing row for this (user, parent, type,
+		// ref). The collider may be active (the orphan placer
+		// won a race against this caller, or a stale duplicate
+		// client request) or soft-trashed (the user removed a
+		// link tile and is now recreating the same URL).
+		// (b) Any other DB failure — connection, deadlock, bad
+		// column. The error must surface to the caller as-is.
 		// We treat (a) idempotently: restore if trashed, then apply
 		// the caller's coords / meta so the new placement lands
 		// where the user clicked. Reported as #167.
@@ -343,8 +343,8 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 	// Track who actually fired this mutation so a future
 	// `If-Match` 409 can name the session that won the race,
 	// not just whoever happens to own the row.
-	$set['updated_by']    = $user_id;
-	$fmt[]                = '%d';
+	$set['updated_by'] = $user_id;
+	$fmt[]             = '%d';
 
 	$ok = $wpdb->update( $tables['placements'], $set, array( 'id' => $placement_id ), $fmt, array( '%d' ) );
 	if ( false === $ok ) {
@@ -392,7 +392,7 @@ function openstation_files_remove( $placement_id, $user_id ) {
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	$allowed      = $is_row_owner;
 	if ( ! $allowed && (int) $row['parent_id'] > 0 ) {
-		$cap = function_exists( 'openstation_folder_share_user_capability' )
+		$cap     = function_exists( 'openstation_folder_share_user_capability' )
 			? openstation_folder_share_user_capability( (int) $row['parent_id'], $user_id )
 			: 'none';
 		$allowed = 'write' === $cap;
@@ -644,11 +644,11 @@ function openstation_files_auto_place_orphans( $user_id ) {
 	);
 
 	// 2) Registered plugin shortcuts the viewer hasn't placed yet.
-	//    Pull the registered ids first, then ask the placements
-	//    table which the viewer already has — set difference
-	//    yields the orphans without a heavy join.
-	$shortcut_ids   = array();
-	$registry       = function_exists( 'openstation_desktop_icon_registry' )
+	// Pull the registered ids first, then ask the placements
+	// table which the viewer already has — set difference
+	// yields the orphans without a heavy join.
+	$shortcut_ids = array();
+	$registry     = function_exists( 'openstation_desktop_icon_registry' )
 		? openstation_desktop_icon_registry()
 		: array();
 	if ( is_array( $registry ) ) {
@@ -671,7 +671,7 @@ function openstation_files_auto_place_orphans( $user_id ) {
 				$args
 			)
 		);
-		$placed_set = array_flip( array_map( 'strval', (array) $placed_ids ) );
+		$placed_set     = array_flip( array_map( 'strval', (array) $placed_ids ) );
 		foreach ( $registered_ids as $id ) {
 			if ( ! isset( $placed_set[ $id ] ) ) {
 				$shortcut_ids[] = $id;
@@ -699,8 +699,8 @@ function openstation_files_auto_place_orphans( $user_id ) {
 	);
 	$occupied = array();
 	foreach ( (array) $existing as $row ) {
-		$col = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
-		$row_idx = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
+		$col                         = max( 0, (int) round( ( (int) $row['x'] - 16 ) / 96 ) );
+		$row_idx                     = max( 0, (int) round( ( (int) $row['y'] - 16 ) / 110 ) );
 		$occupied[ "$col,$row_idx" ] = true;
 	}
 
@@ -717,10 +717,10 @@ function openstation_files_auto_place_orphans( $user_id ) {
 		return array( 0, 0 );
 	};
 
-	$placed = 0;
-	$emit_at = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
+	$placed    = 0;
+	$emit_at   = function ( $type, $ref, $col, $row ) use ( $user_id, &$occupied, &$placed ) {
 		$occupied[ "$col,$row" ] = true;
-		$result = openstation_files_place(
+		$result                  = openstation_files_place(
 			$user_id,
 			0,
 			$type,
@@ -731,7 +731,7 @@ function openstation_files_auto_place_orphans( $user_id ) {
 			)
 		);
 		if ( ! is_wp_error( $result ) ) {
-			$placed++;
+			++$placed;
 		}
 	};
 	$emit_next = function ( $type, $ref ) use ( $find_next, $emit_at ) {
@@ -762,7 +762,7 @@ function openstation_files_auto_place_orphans( $user_id ) {
 		// can compact the column.
 		$occupied[ "0,$pinned_idx" ] = true;
 		$emit_at( 'shortcut', $id, 0, $pinned_idx );
-		$pinned_idx++;
+		++$pinned_idx;
 	}
 
 	foreach ( $folder_rows as $row ) {

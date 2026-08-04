@@ -111,47 +111,47 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= 'var TOPS={};';
 	$js .= 'for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}';
 	$js .= 'function fixOne(el){';
-	$js .=   'if(!el||el.nodeType!==1)return;';
-	$js .=   'var cs;';
-	$js .=   'try{cs=getComputedStyle(el);}catch(_e){return;}';
-	$js .=   "if(cs.position==='static')return;";
-	$js .=   "if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}";
+	$js .= 'if(!el||el.nodeType!==1)return;';
+	$js .= 'var cs;';
+	$js .= 'try{cs=getComputedStyle(el);}catch(_e){return;}';
+	$js .= "if(cs.position==='static')return;";
+	$js .= "if(TOPS[cs.top]){el.style.setProperty('top','0px','important');}";
 	$js .= '}';
 	$js .= 'function walkSubtree(root){';
-	$js .=   'if(!root)return;';
-	$js .=   'if(root.nodeType===1){fixOne(root);}';
-	$js .=   "var els=root.querySelectorAll?root.querySelectorAll('*'):[];";
-	$js .=   'for(var i=0;i<els.length;i++){fixOne(els[i]);}';
+	$js .= 'if(!root)return;';
+	$js .= 'if(root.nodeType===1){fixOne(root);}';
+	$js .= "var els=root.querySelectorAll?root.querySelectorAll('*'):[];";
+	$js .= 'for(var i=0;i<els.length;i++){fixOne(els[i]);}';
 	$js .= '}';
 	$js .= 'var started=false;';
 	$js .= 'function start(){';
-	$js .=   'if(started)return;';
-	$js .=   "if(!document.body||!document.body.classList.contains('os-chromeless'))return;";
-	$js .=   'started=true;';
-	$js .=   'var MO=window.MutationObserver;';
-	$js .=   'if(MO){';
-	$js .=     'var observer=new MO(function(records){';
-	$js .=       'for(var r=0;r<records.length;r++){';
-	$js .=         'var rec=records[r];';
-	$js .=         "if(rec.type!=='childList')continue;";
-	$js .=         'var added=rec.addedNodes;';
-	$js .=         'for(var n=0;n<added.length;n++){walkSubtree(added[n]);}';
-	$js .=       '}';
-	$js .=     '});';
-	$js .=     'observer.observe(document.body,{childList:true,subtree:true});';
-	$js .=   '}';
-	$js .=   'walkSubtree(document.body);';
+	$js .= 'if(started)return;';
+	$js .= "if(!document.body||!document.body.classList.contains('os-chromeless'))return;";
+	$js .= 'started=true;';
+	$js .= 'var MO=window.MutationObserver;';
+	$js .= 'if(MO){';
+	$js .= 'var observer=new MO(function(records){';
+	$js .= 'for(var r=0;r<records.length;r++){';
+	$js .= 'var rec=records[r];';
+	$js .= "if(rec.type!=='childList')continue;";
+	$js .= 'var added=rec.addedNodes;';
+	$js .= 'for(var n=0;n<added.length;n++){walkSubtree(added[n]);}';
+	$js .= '}';
+	$js .= '});';
+	$js .= 'observer.observe(document.body,{childList:true,subtree:true});';
+	$js .= '}';
+	$js .= 'walkSubtree(document.body);';
 	// Defense in depth — pre-MutationObserver browsers fall back to the
 	// original double-walk so React-mounted components added between
 	// DOMContentLoaded and load still get neutralized.
-	$js .=   'if(!MO){';
-	$js .=     "window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});";
-	$js .=   '}';
+	$js .= 'if(!MO){';
+	$js .= "window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});";
+	$js .= '}';
 	$js .= '}';
 	$js .= "if(document.readyState==='loading'){";
-	$js .=   "document.addEventListener('DOMContentLoaded',start,{once:true});";
+	$js .= "document.addEventListener('DOMContentLoaded',start,{once:true});";
 	$js .= '}else{';
-	$js .=   'start();';
+	$js .= 'start();';
 	$js .= '}';
 	$js .= '})(' . $config . ');';
 
@@ -3366,10 +3366,10 @@ JS;
 	// standard `edit.php?post_type=<type>` / `upload.php` /
 	// `edit-comments.php` page (those are matched generically in the
 	// bridge script). Rule shape:
-	//   - `topic`       — the `os.<type>.changed` topic.
-	//   - `path`        — wp-admin filename (`admin.php`).
-	//   - `query`       — required query params (exact match).
-	//   - `queryAbsent` — params that must NOT be present.
+	// - `topic`       — the `os.<type>.changed` topic.
+	// - `path`        — wp-admin filename (`admin.php`).
+	// - `query`       — required query params (exact match).
+	// - `queryAbsent` — params that must NOT be present.
 	//
 	// The default rule covers WooCommerce's HPOS orders list.
 	// `queryAbsent: [ 'action' ]` is load-bearing: with `&action=edit`

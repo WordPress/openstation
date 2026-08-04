@@ -59,36 +59,186 @@ const OPENSTATION_AI_SEARCH_BATCH_SIZE = 10;
  */
 function openstation_ai_get_admin_page_catalog() {
 	$catalog = array(
-		array( 'title' => 'Dashboard',          'url' => admin_url( 'index.php' ),                             'icon' => 'dashicons-dashboard',        'description' => 'The main admin dashboard — activity, drafts, site overview.' ),
-		array( 'title' => 'All Posts',          'url' => admin_url( 'edit.php' ),                              'icon' => 'dashicons-admin-post',       'description' => 'List, edit, bulk-manage blog posts.' ),
-		array( 'title' => 'Add New Post',       'url' => admin_url( 'post-new.php' ),                          'icon' => 'dashicons-plus',             'description' => 'Create a new blog post.' ),
-		array( 'title' => 'Categories',         'url' => admin_url( 'edit-tags.php?taxonomy=category' ),       'icon' => 'dashicons-category',         'description' => 'Manage post categories — add, rename, merge.' ),
-		array( 'title' => 'Tags',               'url' => admin_url( 'edit-tags.php?taxonomy=post_tag' ),       'icon' => 'dashicons-tag',              'description' => 'Manage post tags.' ),
-		array( 'title' => 'All Pages',          'url' => admin_url( 'edit.php?post_type=page' ),               'icon' => 'dashicons-admin-page',       'description' => 'List and edit static pages (About, Contact, etc.).' ),
-		array( 'title' => 'Add New Page',       'url' => admin_url( 'post-new.php?post_type=page' ),           'icon' => 'dashicons-plus',             'description' => 'Create a new page.' ),
-		array( 'title' => 'Media Library',      'url' => admin_url( 'upload.php' ),                            'icon' => 'dashicons-admin-media',      'description' => 'Browse, upload, and manage images, files, videos.' ),
-		array( 'title' => 'Comments',           'url' => admin_url( 'edit-comments.php' ),                     'icon' => 'dashicons-admin-comments',   'description' => 'Moderate and reply to comments on posts and pages.' ),
-		array( 'title' => 'Themes',             'url' => admin_url( 'themes.php' ),                            'icon' => 'dashicons-admin-appearance', 'description' => 'Change, install, or customize the active theme.' ),
-		array( 'title' => 'Customize',          'url' => admin_url( 'customize.php' ),                         'icon' => 'dashicons-admin-customizer', 'description' => 'Live-preview theme customisation — colors, fonts, layout.' ),
-		array( 'title' => 'Widgets',            'url' => admin_url( 'widgets.php' ),                           'icon' => 'dashicons-screenoptions',    'description' => 'Manage sidebar and footer widgets.' ),
-		array( 'title' => 'Menus',              'url' => admin_url( 'nav-menus.php' ),                         'icon' => 'dashicons-menu',             'description' => 'Create and edit navigation menus.' ),
-		array( 'title' => 'Plugins',            'url' => admin_url( 'plugins.php' ),                           'icon' => 'dashicons-admin-plugins',    'description' => 'Activate, deactivate, update or delete plugins.' ),
-		array( 'title' => 'Add New Plugin',     'url' => admin_url( 'plugin-install.php' ),                    'icon' => 'dashicons-plus',             'description' => 'Search and install new plugins from the directory.' ),
-		array( 'title' => 'Users',              'url' => admin_url( 'users.php' ),                             'icon' => 'dashicons-admin-users',      'description' => 'Manage user accounts and roles.' ),
-		array( 'title' => 'Add New User',       'url' => admin_url( 'user-new.php' ),                          'icon' => 'dashicons-plus',             'description' => 'Create a new user account.' ),
-		array( 'title' => 'Your Profile',       'url' => admin_url( 'profile.php' ),                           'icon' => 'dashicons-id',               'description' => 'Edit your own profile, password, admin colour scheme.' ),
-		array( 'title' => 'General Settings',   'url' => admin_url( 'options-general.php' ),                   'icon' => 'dashicons-admin-settings',   'description' => 'Site title, tagline, URL, timezone, language.' ),
-		array( 'title' => 'Writing Settings',   'url' => admin_url( 'options-writing.php' ),                   'icon' => 'dashicons-edit',             'description' => 'Default post category, post format, remote publishing.' ),
-		array( 'title' => 'Reading Settings',   'url' => admin_url( 'options-reading.php' ),                   'icon' => 'dashicons-book',             'description' => 'Homepage, blog posts per page, search-engine visibility.' ),
-		array( 'title' => 'Discussion Settings','url' => admin_url( 'options-discussion.php' ),                'icon' => 'dashicons-format-chat',      'description' => 'Comment moderation, avatars, email notifications.' ),
-		array( 'title' => 'Media Settings',     'url' => admin_url( 'options-media.php' ),                     'icon' => 'dashicons-format-image',     'description' => 'Image size settings for thumbnail / medium / large.' ),
-		array( 'title' => 'Permalinks',         'url' => admin_url( 'options-permalink.php' ),                 'icon' => 'dashicons-admin-links',      'description' => 'URL structure for posts, pages, categories, tags.' ),
-		array( 'title' => 'Privacy',            'url' => admin_url( 'options-privacy.php' ),                   'icon' => 'dashicons-privacy',          'description' => 'Privacy policy page selection and preview.' ),
-		array( 'title' => 'Tools',              'url' => admin_url( 'tools.php' ),                             'icon' => 'dashicons-admin-tools',      'description' => 'Built-in site tools.' ),
-		array( 'title' => 'Import',             'url' => admin_url( 'import.php' ),                            'icon' => 'dashicons-download',         'description' => 'Import content from other platforms (WP, Tumblr, RSS, etc.).' ),
-		array( 'title' => 'Export',             'url' => admin_url( 'export.php' ),                            'icon' => 'dashicons-upload',           'description' => 'Export all site content as XML.' ),
-		array( 'title' => 'Site Health',        'url' => admin_url( 'site-health.php' ),                       'icon' => 'dashicons-heart',            'description' => 'Performance and security recommendations for the site.' ),
-		array( 'title' => 'Updates',            'url' => admin_url( 'update-core.php' ),                       'icon' => 'dashicons-update',           'description' => 'WordPress, theme, and plugin updates.' ),
+		array(
+			'title'       => 'Dashboard',
+			'url'         => admin_url( 'index.php' ),
+			'icon'        => 'dashicons-dashboard',
+			'description' => 'The main admin dashboard — activity, drafts, site overview.',
+		),
+		array(
+			'title'       => 'All Posts',
+			'url'         => admin_url( 'edit.php' ),
+			'icon'        => 'dashicons-admin-post',
+			'description' => 'List, edit, bulk-manage blog posts.',
+		),
+		array(
+			'title'       => 'Add New Post',
+			'url'         => admin_url( 'post-new.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => 'Create a new blog post.',
+		),
+		array(
+			'title'       => 'Categories',
+			'url'         => admin_url( 'edit-tags.php?taxonomy=category' ),
+			'icon'        => 'dashicons-category',
+			'description' => 'Manage post categories — add, rename, merge.',
+		),
+		array(
+			'title'       => 'Tags',
+			'url'         => admin_url( 'edit-tags.php?taxonomy=post_tag' ),
+			'icon'        => 'dashicons-tag',
+			'description' => 'Manage post tags.',
+		),
+		array(
+			'title'       => 'All Pages',
+			'url'         => admin_url( 'edit.php?post_type=page' ),
+			'icon'        => 'dashicons-admin-page',
+			'description' => 'List and edit static pages (About, Contact, etc.).',
+		),
+		array(
+			'title'       => 'Add New Page',
+			'url'         => admin_url( 'post-new.php?post_type=page' ),
+			'icon'        => 'dashicons-plus',
+			'description' => 'Create a new page.',
+		),
+		array(
+			'title'       => 'Media Library',
+			'url'         => admin_url( 'upload.php' ),
+			'icon'        => 'dashicons-admin-media',
+			'description' => 'Browse, upload, and manage images, files, videos.',
+		),
+		array(
+			'title'       => 'Comments',
+			'url'         => admin_url( 'edit-comments.php' ),
+			'icon'        => 'dashicons-admin-comments',
+			'description' => 'Moderate and reply to comments on posts and pages.',
+		),
+		array(
+			'title'       => 'Themes',
+			'url'         => admin_url( 'themes.php' ),
+			'icon'        => 'dashicons-admin-appearance',
+			'description' => 'Change, install, or customize the active theme.',
+		),
+		array(
+			'title'       => 'Customize',
+			'url'         => admin_url( 'customize.php' ),
+			'icon'        => 'dashicons-admin-customizer',
+			'description' => 'Live-preview theme customisation — colors, fonts, layout.',
+		),
+		array(
+			'title'       => 'Widgets',
+			'url'         => admin_url( 'widgets.php' ),
+			'icon'        => 'dashicons-screenoptions',
+			'description' => 'Manage sidebar and footer widgets.',
+		),
+		array(
+			'title'       => 'Menus',
+			'url'         => admin_url( 'nav-menus.php' ),
+			'icon'        => 'dashicons-menu',
+			'description' => 'Create and edit navigation menus.',
+		),
+		array(
+			'title'       => 'Plugins',
+			'url'         => admin_url( 'plugins.php' ),
+			'icon'        => 'dashicons-admin-plugins',
+			'description' => 'Activate, deactivate, update or delete plugins.',
+		),
+		array(
+			'title'       => 'Add New Plugin',
+			'url'         => admin_url( 'plugin-install.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => 'Search and install new plugins from the directory.',
+		),
+		array(
+			'title'       => 'Users',
+			'url'         => admin_url( 'users.php' ),
+			'icon'        => 'dashicons-admin-users',
+			'description' => 'Manage user accounts and roles.',
+		),
+		array(
+			'title'       => 'Add New User',
+			'url'         => admin_url( 'user-new.php' ),
+			'icon'        => 'dashicons-plus',
+			'description' => 'Create a new user account.',
+		),
+		array(
+			'title'       => 'Your Profile',
+			'url'         => admin_url( 'profile.php' ),
+			'icon'        => 'dashicons-id',
+			'description' => 'Edit your own profile, password, admin colour scheme.',
+		),
+		array(
+			'title'       => 'General Settings',
+			'url'         => admin_url( 'options-general.php' ),
+			'icon'        => 'dashicons-admin-settings',
+			'description' => 'Site title, tagline, URL, timezone, language.',
+		),
+		array(
+			'title'       => 'Writing Settings',
+			'url'         => admin_url( 'options-writing.php' ),
+			'icon'        => 'dashicons-edit',
+			'description' => 'Default post category, post format, remote publishing.',
+		),
+		array(
+			'title'       => 'Reading Settings',
+			'url'         => admin_url( 'options-reading.php' ),
+			'icon'        => 'dashicons-book',
+			'description' => 'Homepage, blog posts per page, search-engine visibility.',
+		),
+		array(
+			'title'       => 'Discussion Settings',
+			'url'         => admin_url( 'options-discussion.php' ),
+			'icon'        => 'dashicons-format-chat',
+			'description' => 'Comment moderation, avatars, email notifications.',
+		),
+		array(
+			'title'       => 'Media Settings',
+			'url'         => admin_url( 'options-media.php' ),
+			'icon'        => 'dashicons-format-image',
+			'description' => 'Image size settings for thumbnail / medium / large.',
+		),
+		array(
+			'title'       => 'Permalinks',
+			'url'         => admin_url( 'options-permalink.php' ),
+			'icon'        => 'dashicons-admin-links',
+			'description' => 'URL structure for posts, pages, categories, tags.',
+		),
+		array(
+			'title'       => 'Privacy',
+			'url'         => admin_url( 'options-privacy.php' ),
+			'icon'        => 'dashicons-privacy',
+			'description' => 'Privacy policy page selection and preview.',
+		),
+		array(
+			'title'       => 'Tools',
+			'url'         => admin_url( 'tools.php' ),
+			'icon'        => 'dashicons-admin-tools',
+			'description' => 'Built-in site tools.',
+		),
+		array(
+			'title'       => 'Import',
+			'url'         => admin_url( 'import.php' ),
+			'icon'        => 'dashicons-download',
+			'description' => 'Import content from other platforms (WP, Tumblr, RSS, etc.).',
+		),
+		array(
+			'title'       => 'Export',
+			'url'         => admin_url( 'export.php' ),
+			'icon'        => 'dashicons-upload',
+			'description' => 'Export all site content as XML.',
+		),
+		array(
+			'title'       => 'Site Health',
+			'url'         => admin_url( 'site-health.php' ),
+			'icon'        => 'dashicons-heart',
+			'description' => 'Performance and security recommendations for the site.',
+		),
+		array(
+			'title'       => 'Updates',
+			'url'         => admin_url( 'update-core.php' ),
+			'icon'        => 'dashicons-update',
+			'description' => 'WordPress, theme, and plugin updates.',
+		),
 	);
 
 	/**
@@ -132,7 +282,10 @@ function openstation_ai_search_answer_schema() {
 			),
 			'entity_type' => array(
 				'anyOf'       => array(
-					array( 'type' => 'string', 'enum' => array( 'post', 'page', 'comment' ) ),
+					array(
+						'type' => 'string',
+						'enum' => array( 'post', 'page', 'comment' ),
+					),
 					array( 'type' => 'null' ),
 				),
 				'description' => 'Type of the matching entity. Required when answer_type is "entity"; set to null otherwise.',
@@ -310,22 +463,29 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 		'search' => (string) $query,
 	);
 
-	$comments = get_comments( array_merge( $base_args, array(
-		'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
-		'offset' => $offset,
-		'count'  => false,
-	) ) );
+	$comments = get_comments(
+		array_merge(
+			$base_args,
+			array(
+				'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
+				'offset' => $offset,
+				'count'  => false,
+			)
+		)
+	);
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
 	// Prime the parent posts in a single query so the per-comment
 	// get_post() calls below are cache hits, not N+1 round-trips.
-	$parent_ids = array_unique( array_map(
-		static function ( $c ) {
-			return (int) $c->comment_post_ID;
-		},
-		$comments
-	) );
+	$parent_ids = array_unique(
+		array_map(
+			static function ( $c ) {
+				return (int) $c->comment_post_ID;
+			},
+			$comments
+		)
+	);
 	if ( $parent_ids ) {
 		_prime_post_caches( $parent_ids, false, false );
 	}
@@ -401,11 +561,16 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 		'search'  => (string) $query,
 	);
 
-	$comments = get_comments( array_merge( $base_args, array(
-		'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
-		'offset' => $offset,
-		'count'  => false,
-	) ) );
+	$comments = get_comments(
+		array_merge(
+			$base_args,
+			array(
+				'number' => OPENSTATION_AI_SEARCH_BATCH_SIZE,
+				'offset' => $offset,
+				'count'  => false,
+			)
+		)
+	);
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
@@ -514,13 +679,20 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
  */
 function openstation_ai_progress_message( $tool_name ) {
 	switch ( $tool_name ) {
-		case 'search_posts':            return 'Looking through your posts…';
-		case 'search_pages':            return 'Checking your pages…';
-		case 'search_comments':         return 'Reading through comments…';
-		case 'search_comments_by_post': return 'Scanning comments on that post…';
-		case 'list_admin_pages':        return 'Finding the right admin page…';
-		case 'search_wporg_plugins':    return 'Searching the WordPress.org plugin directory…';
-		case 'get_php_error_log':       return 'Tailing the PHP error log…';
+		case 'search_posts':
+			return 'Looking through your posts…';
+		case 'search_pages':
+			return 'Checking your pages…';
+		case 'search_comments':
+			return 'Reading through comments…';
+		case 'search_comments_by_post':
+			return 'Scanning comments on that post…';
+		case 'list_admin_pages':
+			return 'Finding the right admin page…';
+		case 'search_wporg_plugins':
+			return 'Searching the WordPress.org plugin directory…';
+		case 'get_php_error_log':
+			return 'Tailing the PHP error log…';
 	}
 	return 'Thinking…';
 }
@@ -682,11 +854,11 @@ function openstation_ai_strip_wp_schema_keys( array $schema ) {
  * message primes the agent to resume from the last searched position with
  * the same keywords.
  *
- * @param string      $query        User's natural-language search.
- * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
- * @param int         $start_offset Offset to resume from (0 for fresh).
+ * @param string        $query        User's natural-language search.
+ * @param string|null   $initial_tool Tool name to resume from, or null for fresh search.
+ * @param int           $start_offset Offset to resume from (0 for fresh).
  * @param callable|null $on_progress Optional progress emitter for SSE ticks.
- * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
+ * @param array         $extra        Extensibility context (command tools, prompt overrides, …).
  * @return array|WP_Error
  */
 function openstation_ai_run_search( $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
@@ -695,7 +867,7 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 	 * callable; no-op otherwise. Callers use this to render real-time
 	 * status to the user via SSE.
 	 */
-	$emit = static function ( array $event ) use ( $on_progress ) {
+	$emit         = static function ( array $event ) use ( $on_progress ) {
 		if ( is_callable( $on_progress ) ) {
 			$on_progress( $event );
 		}
@@ -815,7 +987,10 @@ The message field is always a friendly sentence or two shown directly to the use
 	$instructions = openstation_ai_compose_instructions(
 		$instructions,
 		$prompt_context,
-		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
+		array(
+			'text' => $system_prompt_text,
+			'mode' => $system_prompt_mode,
+		)
 	);
 
 	// -----------------------------------------------------------------------
@@ -848,7 +1023,10 @@ The message field is always a friendly sentence or two shown directly to the use
 			'description' => (string) $ability->get_description(),
 			'parameters'  => ! empty( $input_schema )
 				? $input_schema
-				: array( 'type' => 'object', 'properties' => (object) array() ),
+				: array(
+					'type'       => 'object',
+					'properties' => (object) array(),
+				),
 		);
 	}
 
@@ -881,7 +1059,10 @@ The message field is always a friendly sentence or two shown directly to the use
 			'openstation_ai_command_allowed',
 			$cmd,
 			$slug,
-			array( 'user_id' => $user_id, 'request_id' => $request_id )
+			array(
+				'user_id'    => $user_id,
+				'request_id' => $request_id,
+			)
 		);
 		if ( false === $allowed || ! is_array( $allowed ) ) {
 			continue;
@@ -897,8 +1078,8 @@ The message field is always a friendly sentence or two shown directly to the use
 			'name'        => $tool_name,
 			'description' => trim( $label . ( '' !== $description ? ' — ' . $description : '' ) ),
 			'parameters'  => array(
-				'type'       => 'object',
-				'properties' => array(
+				'type'                 => 'object',
+				'properties'           => array(
 					'args' => array(
 						'type'        => 'string',
 						'description' => $hint !== ''
@@ -923,7 +1104,10 @@ The message field is always a friendly sentence or two shown directly to the use
 	$command_defs = (array) apply_filters(
 		'openstation_ai_command_tools',
 		$command_defs,
-		array( 'user_id' => $user_id, 'request_id' => $request_id )
+		array(
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
 	);
 
 	$tools = array_merge( $builtin_tools, $command_defs );
@@ -939,7 +1123,11 @@ The message field is always a friendly sentence or two shown directly to the use
 	$tools = (array) apply_filters(
 		'openstation_ai_tools',
 		$tools,
-		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
+		array(
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+			'query'      => $query,
+		)
 	);
 
 	// Normalize every tool's schema onto the provider-supported subset, AFTER the
@@ -966,7 +1154,12 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	$answer_schema = openstation_ai_search_answer_schema();
 
-	$emit( array( 'phase' => 'start', 'message' => 'Thinking about your question…' ) );
+	$emit(
+		array(
+			'phase'   => 'start',
+			'message' => 'Thinking about your question…',
+		)
+	);
 
 	// -----------------------------------------------------------------------
 	// First call — user query as the sole message, instructions as system
@@ -989,7 +1182,11 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	// Accumulate token usage across every turn and remember the last model the
 	// AI Client resolved, for the `openstation_ai_search_completed` payload.
-	$total_usage  = array( 'prompt' => 0, 'completion' => 0, 'total' => 0 );
+	$total_usage  = array(
+		'prompt'     => 0,
+		'completion' => 0,
+		'total'      => 0,
+	);
 	$last_model   = null;
 	$accrue_usage = static function ( $turn ) use ( &$total_usage, &$last_model ) {
 		if ( ! is_array( $turn ) ) {
@@ -1016,7 +1213,12 @@ The message field is always a friendly sentence or two shown directly to the use
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
-			$emit( array( 'phase' => 'composing', 'message' => 'Putting together your answer…' ) );
+			$emit(
+				array(
+					'phase'   => 'composing',
+					'message' => 'Putting together your answer…',
+				)
+			);
 			$text = $turn['text'] ?? null;
 			if ( ! is_string( $text ) ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -1070,7 +1272,11 @@ The message field is always a friendly sentence or two shown directly to the use
 			$final = (array) apply_filters(
 				'openstation_ai_answer',
 				$final,
-				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'query'      => $query,
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			do_action(
@@ -1102,8 +1308,8 @@ The message field is always a friendly sentence or two shown directly to the use
 		foreach ( $function_calls as $fc ) {
 			$name = (string) ( $fc['name'] ?? '' );
 			if ( isset( $command_tools_by_name[ $name ] ) ) {
-				$raw     = json_decode( $fc['arguments'] ?? '{}', true );
-				$decoded = is_array( $raw ) ? $raw : array();
+				$raw               = json_decode( $fc['arguments'] ?? '{}', true );
+				$decoded           = is_array( $raw ) ? $raw : array();
 				$command_tool_call = array(
 					'slug' => $command_tools_by_name[ $name ]['slug'],
 					'args' => isset( $decoded['args'] ) ? (string) $decoded['args'] : '',
@@ -1137,7 +1343,11 @@ The message field is always a friendly sentence or two shown directly to the use
 			$final = (array) apply_filters(
 				'openstation_ai_answer',
 				$final,
-				array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'query'      => $query,
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			do_action(
@@ -1177,11 +1387,13 @@ The message field is always a friendly sentence or two shown directly to the use
 			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
-			$emit( array(
-				'phase'   => 'tool_call',
-				'tool'    => $tool_name,
-				'message' => openstation_ai_progress_message( $tool_name ),
-			) );
+			$emit(
+				array(
+					'phase'   => 'tool_call',
+					'tool'    => $tool_name,
+					'message' => openstation_ai_progress_message( $tool_name ),
+				)
+			);
 
 			do_action(
 				'openstation_ai_tool_called',
@@ -1247,7 +1459,10 @@ The message field is always a friendly sentence or two shown directly to the use
 				$batch,
 				$tool_name,
 				$args,
-				array( 'user_id' => $user_id, 'request_id' => $request_id )
+				array(
+					'user_id'    => $user_id,
+					'request_id' => $request_id,
+				)
 			);
 
 			$tool_outputs[] = array(
@@ -1257,7 +1472,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			);
 		}
 
-		$iterations++;
+		++$iterations;
 
 		// Next turn — append the assistant's tool-call turn and our tool
 		// results to the conversation, then regenerate with the full history.
@@ -1305,7 +1520,11 @@ The message field is always a friendly sentence or two shown directly to the use
 	$final = (array) apply_filters(
 		'openstation_ai_answer',
 		$final,
-		array( 'query' => $query, 'user_id' => $user_id, 'request_id' => $request_id )
+		array(
+			'query'      => $query,
+			'user_id'    => $user_id,
+			'request_id' => $request_id,
+		)
 	);
 
 	do_action(
@@ -1359,7 +1578,7 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 		? (string) $client['mode']
 		: 'append';
 
-	$ctx_for_filter = $context;
+	$ctx_for_filter                    = $context;
 	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
 
 	/**
@@ -1459,17 +1678,17 @@ function openstation_ai_run_followup( $query, array $tool, array $outcome, array
 	// Mirror the main search's system-prompt layering so voice stays
 	// consistent between the two legs. We build a simpler core-
 	// instructions block — no tool guidance, since this run has none.
-	$instructions = "
+	$instructions = '
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
 Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
 
 Rules:
-- If the outcome looks successful, confirm plainly. Example: \"Done — your office light is on now.\"
+- If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
 - If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
 - Do NOT recommend the user try something else unless the outcome explicitly suggests it.
-- Do NOT describe the tool mechanism (\"I called command_turn_light\") — the user only cares about the real-world effect.
-";
+- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
+';
 
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
 	$system_prompt_mode = isset( $extra['system_prompt_mode'] ) && in_array( $extra['system_prompt_mode'], array( 'append', 'replace' ), true )
@@ -1484,7 +1703,10 @@ Rules:
 			'request_id' => $request_id,
 			'phase'      => 'follow_up',
 		),
-		array( 'text' => $system_prompt_text, 'mode' => $system_prompt_mode )
+		array(
+			'text' => $system_prompt_text,
+			'mode' => $system_prompt_mode,
+		)
 	);
 
 	$slug         = isset( $tool['slug'] ) ? (string) $tool['slug'] : '';
@@ -1512,7 +1734,7 @@ Rules:
 			? mb_strlen( $outcome_json, 'UTF-8' )
 			: strlen( $outcome_json );
 		if ( $current_len > $max_outcome_len ) {
-			$outcome_json = $has_mbstring
+			$outcome_json  = $has_mbstring
 				? mb_substr( $outcome_json, 0, $max_outcome_len, 'UTF-8' )
 				: substr( $outcome_json, 0, $max_outcome_len );
 			$outcome_json .= '…[truncated]';
@@ -1531,7 +1753,10 @@ Rules:
 		'openstation_ai_tool_called',
 		array(
 			'tool_name'  => 'followup_summarise',
-			'args'       => array( 'slug' => $slug, 'tool_args' => $tool_args ),
+			'args'       => array(
+				'slug'      => $slug,
+				'tool_args' => $tool_args,
+			),
 			'user_id'    => $user_id,
 			'request_id' => $request_id,
 		)
@@ -1582,7 +1807,10 @@ Rules:
 		'exhausted'   => false,
 		'continue'    => null,
 		'request_id'  => $request_id,
-		'tool'        => array( 'slug' => $slug, 'args' => $tool_args ),
+		'tool'        => array(
+			'slug' => $slug,
+			'args' => $tool_args,
+		),
 		'fallback'    => $fallback,
 	);
 
@@ -1629,7 +1857,7 @@ function openstation_register_ai_search_rest_route() {
 			'callback'            => 'openstation_rest_ai_search',
 			'permission_callback' => 'openstation_rest_ai_search_permission',
 			'args'                => array(
-				'query'        => array(
+				'query'              => array(
 					'required'          => true,
 					'type'              => 'string',
 					'sanitize_callback' => 'sanitize_text_field',
@@ -1641,16 +1869,16 @@ function openstation_register_ai_search_rest_route() {
 				// client is continuing a previous search from the `continue`
 				// object returned by an exhausted run. Fresh searches leave
 				// both unset — the agent picks tools from query semantics.
-				'resume_tool'  => array(
+				'resume_tool'        => array(
 					'required'          => false,
 					'type'              => array( 'string', 'null' ),
 					'default'           => null,
 					'sanitize_callback' => static function ( $v ) {
 						return in_array( $v, openstation_ai_search_resumable_tools(), true )
 							? $v : null;
-				},
+					},
 				),
-				'start_offset' => array(
+				'start_offset'       => array(
 					'required'          => false,
 					'type'              => 'integer',
 					'default'           => 0,
@@ -1661,7 +1889,7 @@ function openstation_register_ai_search_rest_route() {
 				// The slug is namespaced server-side as `command_<slug>`
 				// and any tool_call the model emits with that name short-
 				// circuits back to the client for local dispatch.
-				'command_tools' => array(
+				'command_tools'      => array(
 					'required' => false,
 					'type'     => 'array',
 					'default'  => array(),
@@ -1676,10 +1904,10 @@ function openstation_register_ai_search_rest_route() {
 					),
 				),
 				// Free-form system-prompt override.
-				//   mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
-				//   mode: 'replace' → replaces the built-in prompt entirely, gated on
-				//                     `openstation_ai_system_prompt_replace_capability`
-				//                     (default `manage_options`).
+				// mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
+				// mode: 'replace' → replaces the built-in prompt entirely, gated on
+				// `openstation_ai_system_prompt_replace_capability`
+				// (default `manage_options`).
 				'system_prompt_text' => array(
 					'required' => false,
 					'type'     => 'string',
@@ -1698,7 +1926,7 @@ function openstation_register_ai_search_rest_route() {
 				// and runs a single-turn "summarise this outcome" call
 				// through the provider instead. The client sends this on the
 				// second leg of `ask( q, { tools: 'aiCallable', followUp: true } )`.
-				'follow_up' => array(
+				'follow_up'          => array(
 					'required' => false,
 					'type'     => array( 'object', 'null' ),
 					'default'  => null,
@@ -1789,7 +2017,7 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
 		$outcome = isset( $follow_up['result'] )
 			? ( is_array( $follow_up['result'] ) ? $follow_up['result'] : array( 'value' => $follow_up['result'] ) )
 			: array();
-		$result = openstation_ai_run_followup( $query, $tool, $outcome, $extra );
+		$result  = openstation_ai_run_followup( $query, $tool, $outcome, $extra );
 	} else {
 		$result = openstation_ai_run_search( $query, $resume_tool, $start_offset, null, $extra );
 	}
@@ -2190,16 +2418,20 @@ function openstation_ai_ajax_search_stream() {
 	);
 
 	if ( is_wp_error( $result ) ) {
-		$emit( array(
-			'event'   => 'error',
-			'message' => $result->get_error_message(),
-			'code'    => $result->get_error_code(),
-		) );
+		$emit(
+			array(
+				'event'   => 'error',
+				'message' => $result->get_error_message(),
+				'code'    => $result->get_error_code(),
+			)
+		);
 	} else {
-		$emit( array(
-			'event'  => 'done',
-			'result' => $result,
-		) );
+		$emit(
+			array(
+				'event'  => 'done',
+				'result' => $result,
+			)
+		);
 	}
 
 	exit;

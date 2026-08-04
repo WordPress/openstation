@@ -27,7 +27,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Capability gates.
  * ================================================================== */
 
@@ -161,7 +162,8 @@ function openstation_files_user_can_purge_folder( $user_id, $row ) {
 	);
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Ancestry snapshot + resurrection.
  *
  *  When a placement is soft-trashed we capture every folder in
@@ -216,7 +218,7 @@ function openstation_files_capture_ancestry( $parent_id ) {
 		// The folder's "where I sit on the desktop tree" lives on
 		// its placement row. Pick any active or trashed placement
 		// of this folder — we just need its parent_id + (x, y).
-		$placement = $wpdb->get_row(
+		$placement      = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT parent_id, x, y FROM {$tables['placements']}
 				WHERE file_type = 'folder' AND file_ref = %s
@@ -227,7 +229,7 @@ function openstation_files_capture_ancestry( $parent_id ) {
 		);
 		$share_meta_raw = isset( $folder['share_meta'] ) ? (string) $folder['share_meta'] : '';
 		$share_meta     = '' !== $share_meta_raw ? json_decode( $share_meta_raw, true ) : null;
-		$entry = array(
+		$entry          = array(
 			'folder_id'           => (int) $folder['id'],
 			'folder_name'         => (string) $folder['name'],
 			'folder_share_mode'   => (string) $folder['share_mode'],
@@ -291,15 +293,18 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 		// when the original owner can't be inferred (shared-
 		// folder edge case Phase 6 will revisit).
 		$owner_id = (int) ( $entry['folder_owner_id'] ?: $user_id );
-		$new_id   = openstation_files_create_folder( $owner_id, array(
-			'name'       => (string) $entry['folder_name'],
-			'share_mode' => (string) $entry['folder_share_mode'],
-			'share_meta' => $entry['folder_share_meta'],
-		) );
+		$new_id   = openstation_files_create_folder(
+			$owner_id,
+			array(
+				'name'       => (string) $entry['folder_name'],
+				'share_mode' => (string) $entry['folder_share_mode'],
+				'share_meta' => $entry['folder_share_meta'],
+			)
+		);
 		if ( is_wp_error( $new_id ) ) {
 			// Fall back to root — restoring at the wrong place is
 			// strictly better than failing the restore outright.
-			$resolved = $resolved_parent;
+			$resolved           = $resolved_parent;
 			$id_map[ $orig_id ] = $resolved;
 			continue;
 		}
@@ -320,7 +325,8 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 	return $resolved;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Placement: trash / restore / purge.
  * ================================================================== */
 
@@ -455,12 +461,12 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 	}
 
 	// Resolve the parent folder. Three branches:
-	//   - parent is alive  → reuse the same id
-	//   - parent is trashed → cascade-restore it (and rest of the
-	//                         chain) before placing the leaf
-	//   - parent is gone    → walk the captured ancestry and
-	//                         recreate every missing folder in
-	//                         the chain
+	// - parent is alive  → reuse the same id
+	// - parent is trashed → cascade-restore it (and rest of the
+	// chain) before placing the leaf
+	// - parent is gone    → walk the captured ancestry and
+	// recreate every missing folder in
+	// the chain
 	$original_parent_id = (int) $row['parent_id'];
 	$resolved_parent_id = $original_parent_id;
 	if ( $original_parent_id > 0 ) {
@@ -479,9 +485,9 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		} else {
 			// Hard-deleted parent — read the ancestry snapshot we
 			// stored at trash time and resurrect the chain.
-			$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
-			$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
-			$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
+			$meta_raw           = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
+			$decoded            = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
+			$ancestry           = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
 				? $decoded['ancestry']
 				: array();
 			$resolved_parent_id = openstation_files_resurrect_ancestry( $user_id, $ancestry );
@@ -588,7 +594,8 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 	return true;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Folder: trash / restore / purge (cascades to child placements).
  * ================================================================== */
 
@@ -655,10 +662,10 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 		),
 		ARRAY_A
 	);
-	$folder_ancestry = $folder_placement
+	$folder_ancestry  = $folder_placement
 		? openstation_files_capture_ancestry( (int) $folder_placement['parent_id'] )
 		: array();
-	$folder_meta = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
+	$folder_meta      = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
 
 	// Trash the folder row.
 	$folder_update = $wpdb->update(
@@ -1035,7 +1042,8 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	return true;
 }
 
-/* ================================================================== *
+/*
+================================================================== *
  *  Recycle-bin list builder.
  * ================================================================== */
 
@@ -1064,7 +1072,7 @@ function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 			$user_id
 		)
 	);
-	$folders = (int) $wpdb->get_var(
+	$folders    = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$tables['folders']}
 			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL",
@@ -1104,18 +1112,18 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		if ( ! empty( $row['trashed_via_folder'] ) ) {
 			continue;
 		}
-		$file = function_exists( 'openstation_resolve_file' )
+		$file  = function_exists( 'openstation_resolve_file' )
 			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
 		$title = $file ? (string) $file->title() : (string) $row['file_type'];
 		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
 		// Two recycle-bin buckets:
-		//   - `shortcut`  → plugin-registered icons (file_type='shortcut')
-		//   - `placement` → every other placement (post / page /
-		//                   attachment / user / term / comment / …)
+		// - `shortcut`  → plugin-registered icons (file_type='shortcut')
+		// - `placement` → every other placement (post / page /
+		// attachment / user / term / comment / …)
 		// Lets the bin's type-filter tabs split "Shortcuts" from
 		// "Files" without overloading either label.
-		$bucket = ( 'shortcut' === (string) $row['file_type'] )
+		$bucket   = ( 'shortcut' === (string) $row['file_type'] )
 			? 'shortcut'
 			: 'placement';
 		$subtitle = ( 'shortcut' === $bucket )
@@ -1170,7 +1178,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 				(int) $row['id']
 			)
 		);
-		$out[] = array(
+		$out[]       = array(
 			'id'            => (int) $row['id'],
 			'type'          => 'folder',
 			'title'         => (string) $row['name'],
@@ -1201,7 +1209,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			continue;
 		}
 		if ( ! isset( $user_cache[ $uid ] ) ) {
-			$u                 = get_userdata( $uid );
+			$u                  = get_userdata( $uid );
 			$user_cache[ $uid ] = $u ? $u->display_name : '';
 		}
 		$item['deleted_by'] = $user_cache[ $uid ];

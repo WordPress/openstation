@@ -121,7 +121,7 @@ function openstation_register_command( $args = array() ) {
 		'hint'        => '',
 		'script'      => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$slug = (string) $args['slug'];
 	if ( '' === $slug ) {
@@ -253,7 +253,7 @@ function openstation_build_desktop_command_scripts_payload() {
 			);
 			continue;
 		}
-		$out[]          = array(
+		$out[]           = array(
 			'handle'             => (string) $handle,
 			'scriptUrl'          => $payload['url'],
 			'scriptBefore'       => $payload['before'],
@@ -293,17 +293,17 @@ function openstation_build_desktop_commands_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[]  = array(
-			'slug'              => (string) $entry['slug'],
-			'label'             => (string) $entry['label'],
-			'description'       => (string) $entry['description'],
-			'icon'              => (string) $entry['icon'],
-			'hint'              => (string) $entry['hint'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+		$out[]   = array(
+			'slug'               => (string) $entry['slug'],
+			'label'              => (string) $entry['label'],
+			'description'        => (string) $entry['description'],
+			'icon'               => (string) $entry['icon'],
+			'hint'               => (string) $entry['hint'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}

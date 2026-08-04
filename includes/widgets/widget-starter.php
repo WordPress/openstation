@@ -84,9 +84,9 @@ function openstation_register_starter_widget_assets() {
 		'os-starter-widget',                              // Handle name — passed as 'script' to openstation_register_widget().
 		OPENSTATION_URL . 'assets/js/widget-starter' . $suffix . '.js',
 		array( 'wp-api-fetch' ),                                    // List WordPress script handles your widget depends on.
-		                                                            // 'wp-api-fetch' is available on every admin page and handles
-		                                                            // REST nonces automatically. Remove it if your widget does
-		                                                            // not make REST API calls.
+		// 'wp-api-fetch' is available on every admin page and handles
+																	// REST nonces automatically. Remove it if your widget does
+																	// not make REST API calls.
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true                                                        // Load in the footer — always true for widget scripts.
 	);

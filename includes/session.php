@@ -87,7 +87,7 @@ function openstation_get_session( $user_id ) {
 	// saved before they existed don't carry either field — fall back
 	// to the single default desktop so older sessions degrade
 	// gracefully rather than booting into a zero-desktop limbo.
-	$desktops      = isset( $raw['desktops'] ) && is_array( $raw['desktops'] )
+	$desktops       = isset( $raw['desktops'] ) && is_array( $raw['desktops'] )
 		? array_values( $raw['desktops'] )
 		: array( openstation_default_desktop() );
 	$active_desktop = isset( $raw['activeDesktop'] ) ? (string) $raw['activeDesktop'] : 'desktop-1';
@@ -215,7 +215,7 @@ function openstation_sanitize_session( $session ) {
 				'id'    => $d_id,
 				'label' => $d_label,
 			);
-			$desktop_ids[] = $d_id;
+			$desktop_ids[]    = $d_id;
 			if ( count( $clean_desktops ) >= OPENSTATION_SESSION_MAX_DESKTOPS ) {
 				break;
 			}
@@ -259,7 +259,7 @@ function openstation_sanitize_session( $session ) {
 	// when the client passed nothing, but guards the case where
 	// activeDesktop named a desktop that didn't survive sanitization.
 	if ( ! in_array( $clean['activeDesktop'], $desktop_ids, true ) ) {
-		$clean['activeDesktop'] = $desktop_ids[ 0 ];
+		$clean['activeDesktop'] = $desktop_ids[0];
 	}
 
 	if ( isset( $session['windows'] ) && is_array( $session['windows'] ) ) {

@@ -178,15 +178,15 @@ function openstation_plugins_window_maybe_refresh_update_transient( $force = fal
 	if ( $force ) {
 		// Explicit user-initiated refresh — bypass the throttle.
 		// Two steps:
-		//   1. Delete the `update_plugins` site transient (and the
-		//      `plugins` cache group) via `wp_clean_plugins_cache()`,
-		//      OR fall back to `delete_site_transient()` directly when
-		//      the admin-side helper isn't loaded.
-		//   2. Call `wp_update_plugins()` to repopulate the transient
-		//      with a fresh wp.org snapshot. Without step 2 the field
-		//      callback reads `false` for the rest of this request and
-		//      every row reports "no updates" — that's the exact
-		//      regression from the first cut of this fix (GH#202).
+		// 1. Delete the `update_plugins` site transient (and the
+		// `plugins` cache group) via `wp_clean_plugins_cache()`,
+		// OR fall back to `delete_site_transient()` directly when
+		// the admin-side helper isn't loaded.
+		// 2. Call `wp_update_plugins()` to repopulate the transient
+		// with a fresh wp.org snapshot. Without step 2 the field
+		// callback reads `false` for the rest of this request and
+		// every row reports "no updates" — that's the exact
+		// regression from the first cut of this fix (GH#202).
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache( true );
 		} else {
@@ -619,7 +619,7 @@ function openstation_plugins_window_compute_dir_size_kb( $dir ) {
 				// list ignores symlink contents for the same reason.
 				continue;
 			}
-			$visited++;
+			++$visited;
 			if ( $visited >= $max_visit ) {
 				break 2;
 			}
@@ -700,7 +700,7 @@ function openstation_plugins_window_field_auto_update( $row ) {
 	// (including Core's own) reads `$item->plugin` expecting the FULL
 	// filename. We layer the normalized `$plugin_file` AFTER the parse
 	// so it always wins.
-	$filter_payload = wp_parse_args(
+	$filter_payload           = wp_parse_args(
 		$row,
 		array(
 			'id'            => $plugin_file,

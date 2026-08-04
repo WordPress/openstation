@@ -192,9 +192,9 @@ function openstation_favicon_extract_link_href( $html, $base_url ) {
 	// usually larger than the 256 KB cap so we only fall back to
 	// them when nothing else exists.
 	$buckets = array(
-		'icon'              => '',
-		'shortcut icon'     => '',
-		'apple-touch-icon'  => '',
+		'icon'             => '',
+		'shortcut icon'    => '',
+		'apple-touch-icon' => '',
 	);
 
 	foreach ( $links as $link ) {
@@ -335,15 +335,15 @@ function openstation_favicon_fetch_as_data_uri( $icon_url ) {
  */
 function openstation_favicon_subtype_from_content_type( $content_type ) {
 	$map = array(
-		'image/png'                  => 'png',
-		'image/jpeg'                 => 'jpeg',
-		'image/jpg'                  => 'jpeg',
-		'image/gif'                  => 'gif',
-		'image/webp'                 => 'webp',
-		'image/x-icon'               => 'x-icon',
-		'image/vnd.microsoft.icon'   => 'x-icon',
-		'image/ico'                  => 'x-icon',
-		'image/svg+xml'              => 'svg+xml',
+		'image/png'                => 'png',
+		'image/jpeg'               => 'jpeg',
+		'image/jpg'                => 'jpeg',
+		'image/gif'                => 'gif',
+		'image/webp'               => 'webp',
+		'image/x-icon'             => 'x-icon',
+		'image/vnd.microsoft.icon' => 'x-icon',
+		'image/ico'                => 'x-icon',
+		'image/svg+xml'            => 'svg+xml',
 	);
 	return isset( $map[ $content_type ] ) ? $map[ $content_type ] : null;
 }

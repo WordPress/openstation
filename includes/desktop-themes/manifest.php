@@ -135,18 +135,18 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 		$key = strtolower( trim( $key ) );
 		// Three namespaces are themable:
 		//
-		//   --os-*  the shell's own tokens (chrome, dock,
-		//                     desktop, window frame).
-		//   --os-ui-*           the `<os-*>` component kit. Window
-		//                     BODIES are built from those components,
-		//                     and `--os-ui-*` is the kit's documented
-		//                     theming contract (see
-		//                     `src/ui/core/tokens.ts`). Without this a
-		//                     theme could restyle the chrome around a
-		//                     window but not a single thing inside it.
-		//   --wp-admin-theme-color
-		//                     the one Core property the shell already
-		//                     writes at runtime (the admin accent).
+		// --os-*  the shell's own tokens (chrome, dock,
+		// desktop, window frame).
+		// --os-ui-*           the `<os-*>` component kit. Window
+		// BODIES are built from those components,
+		// and `--os-ui-*` is the kit's documented
+		// theming contract (see
+		// `src/ui/core/tokens.ts`). Without this a
+		// theme could restyle the chrome around a
+		// window but not a single thing inside it.
+		// --wp-admin-theme-color
+		// the one Core property the shell already
+		// writes at runtime (the admin accent).
 		//
 		// Everything else is dropped: a theme must not be able to
 		// reach properties the shell never meant to expose.
@@ -556,7 +556,7 @@ function openstation_desktop_theme_font_format( $ref ) {
 		'ttf'   => 'truetype',
 		'otf'   => 'opentype',
 	);
-	$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+	$ext     = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
 	return isset( $formats[ $ext ] ) ? $formats[ $ext ] : '';
 }
 

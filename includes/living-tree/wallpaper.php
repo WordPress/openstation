@@ -20,15 +20,18 @@ defined( 'ABSPATH' ) || exit;
  * Register the Living Tree canvas wallpaper.
  */
 function openstation_living_tree_register_wallpaper() {
-	openstation_register_wallpaper( 'wp-living-tree', array(
-		'label'       => __( 'Living Tree', 'desktop-mode' ),
-		'preview'     => 'linear-gradient(180deg, #24304a 0%, #6b4a63 70%, #b5744f 100%)',
-		'type'        => 'canvas',
-		'script'      => 'os-living-tree-wallpaper',
-		'description' => __(
-			'Your site as a living tree: every post a leaf, every page ivy on the trunk, comments in blossom, categories as wildflowers in the meadow, tags as butterflies among them, visitors as wind, and readers as fireflies after dark. It grows a little every day and never repeats itself. A tribute to open source and to Matt Mullenweg — “working on open source is like planting a tree whose shade you will never sit in: you plant it for the generations that come after you.” Keep publishing; the shade is for everyone.',
-			'desktop-mode'
-		),
-	) );
+	openstation_register_wallpaper(
+		'wp-living-tree',
+		array(
+			'label'       => __( 'Living Tree', 'desktop-mode' ),
+			'preview'     => 'linear-gradient(180deg, #24304a 0%, #6b4a63 70%, #b5744f 100%)',
+			'type'        => 'canvas',
+			'script'      => 'os-living-tree-wallpaper',
+			'description' => __(
+				'Your site as a living tree: every post a leaf, every page ivy on the trunk, comments in blossom, categories as wildflowers in the meadow, tags as butterflies among them, visitors as wind, and readers as fireflies after dark. It grows a little every day and never repeats itself. A tribute to open source and to Matt Mullenweg — “working on open source is like planting a tree whose shade you will never sit in: you plant it for the generations that come after you.” Keep publishing; the shade is for everyone.',
+				'desktop-mode'
+			),
+		)
+	);
 }
 add_action( 'init', 'openstation_living_tree_register_wallpaper', 6 );

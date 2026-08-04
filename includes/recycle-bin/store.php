@@ -187,9 +187,12 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 	// shape always carries a sortable string in `deleted_at`, so a
 	// straight string compare is enough (`Y-m-d H:i:s` is sortable
 	// lexicographically).
-	usort( $items, static function ( $a, $b ) {
-		return strcmp( (string) $b['deleted_at'], (string) $a['deleted_at'] );
-	} );
+	usort(
+		$items,
+		static function ( $a, $b ) {
+			return strcmp( (string) $b['deleted_at'], (string) $a['deleted_at'] );
+		}
+	);
 
 	// `total` reports the GLOBAL trash count (every type, every
 	// row, ignoring the current filter / search). The dock-tile
@@ -929,7 +932,12 @@ function openstation_recycle_bin_empty() {
 	// hammering it on a 10k-item bin without yielding back to PHP can
 	// still time out. The client re-invokes us until `remaining` hits
 	// zero (or stalls at `skipped`).
-	$batch = openstation_recycle_bin_get_items( array( 'per_page' => $chunk_size, 'page' => 1 ) );
+	$batch = openstation_recycle_bin_get_items(
+		array(
+			'per_page' => $chunk_size,
+			'page'     => 1,
+		)
+	);
 	foreach ( $batch['items'] as $item ) {
 		$result = openstation_recycle_bin_purge(
 			(int) $item['id'],

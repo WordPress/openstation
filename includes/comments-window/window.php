@@ -107,41 +107,41 @@ function openstation_comments_window_register_window() {
 		'min_height' => 480,
 		'placement'  => 'none',
 		'config'     => array(
-			'mode'              => 'comments',
-			'introSlug'         => 'comments',
-			'restRoot'          => esc_url_raw( rest_url() ),
-			'restNonce'         => wp_create_nonce( 'wp_rest' ),
-			'commentsUrl'       => esc_url_raw( rest_url( 'wp/v2/comments' ) ),
-			'currentUserId'     => $viewer_id,
-			'defaultPerPage'    => 20,
-			'queryArgs'         => openstation_comments_window_default_query_args(),
-			'introSeen'         => openstation_has_seen_intro( $viewer_id, 'comments' ),
-			'introUrl'          => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
+			'mode'            => 'comments',
+			'introSlug'       => 'comments',
+			'restRoot'        => esc_url_raw( rest_url() ),
+			'restNonce'       => wp_create_nonce( 'wp_rest' ),
+			'commentsUrl'     => esc_url_raw( rest_url( 'wp/v2/comments' ) ),
+			'currentUserId'   => $viewer_id,
+			'defaultPerPage'  => 20,
+			'queryArgs'       => openstation_comments_window_default_query_args(),
+			'introSeen'       => openstation_has_seen_intro( $viewer_id, 'comments' ),
+			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
 			// the viewer can't perform. Server still re-checks every
 			// mutation, so a tampered flag here changes nothing
 			// security-wise.
-			'canModerate'       => current_user_can( 'moderate_comments' ),
-			'canEditComments'   => current_user_can( 'edit_posts' ),
+			'canModerate'     => current_user_can( 'moderate_comments' ),
+			'canEditComments' => current_user_can( 'edit_posts' ),
 
 			// Bulk + helper REST routes — the JS bundle reads these so
 			// a rename or namespace move stays in one place.
-			'bulkUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/comments/bulk' ) ),
-			'replyUrl'          => esc_url_raw( rest_url( 'desktop-mode/v1/comments/reply' ) ),
-			'insightsUrlBase'   => esc_url_raw( rest_url( 'desktop-mode/v1/comments/insights/' ) ),
-			'countsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/counts' ) ),
-			'aiSettingsUrl'     => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
+			'bulkUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/bulk' ) ),
+			'replyUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/comments/reply' ) ),
+			'insightsUrlBase' => esc_url_raw( rest_url( 'desktop-mode/v1/comments/insights/' ) ),
+			'countsUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/comments/counts' ) ),
+			'aiSettingsUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
 			// Surface the current state so the OS Settings UI + the
 			// intro dialog can branch on it without a separate fetch.
 			// Cap-gated mirror of what the REST endpoint would return.
-			'aiModeration'      => array(
+			'aiModeration'    => array(
 				'enabled'            => openstation_comments_ai_is_enabled(),
 				'providerConfigured' => openstation_comments_ai_provider_configured(),
 				'canManage'          => current_user_can( 'manage_options' ),
 			),
 
-			'replyEditor'       => (string) apply_filters(
+			'replyEditor'     => (string) apply_filters(
 				/**
 				 * Filter the reply editor implementation the bundle should mount.
 				 *
@@ -187,7 +187,7 @@ function openstation_comments_window_default_query_args() {
 	// opens the inline-edit affordance on a row they're allowed to
 	// edit.
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
-	$args = array(
+	$args    = array(
 		/*
 		 * Exactly the fields the conversation view renders — no more.
 		 * Every `openstation_*` field is a computed REST field, and

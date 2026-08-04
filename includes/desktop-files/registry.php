@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @internal
  *
- * @param string $type  File-type slug ('' to fetch the full store).
+ * @param string     $type  File-type slug ('' to fetch the full store).
  * @param array|null $entry Entry to write, or null to read.
  * @return array|null Full store when `$type` is empty; entry when
  *                    looking one up; `null` when not found.
@@ -72,7 +72,7 @@ function openstation_register_file_type( $type, $args = array() ) {
 		'sort'         => 100,
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
@@ -83,7 +83,10 @@ function openstation_register_file_type( $type, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this file type.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'type' => $type )
+				array(
+					'capability' => (string) $cap,
+					'type'       => $type,
+				)
 			);
 		}
 	}
@@ -101,14 +104,20 @@ function openstation_register_file_type( $type, $args = array() ) {
 		return openstation_registration_error(
 			'openstation_invalid_class',
 			__( 'File-type registration requires an existing `class`.', 'desktop-mode' ),
-			array( 'type' => $type, 'class' => $class )
+			array(
+				'type'  => $type,
+				'class' => $class,
+			)
 		);
 	}
 	if ( ! is_subclass_of( $class, 'OpenStation_File' ) ) {
 		return openstation_registration_error(
 			'openstation_invalid_class',
 			__( '`class` must extend `OpenStation_File`.', 'desktop-mode' ),
-			array( 'type' => $type, 'class' => $class )
+			array(
+				'type'  => $type,
+				'class' => $class,
+			)
 		);
 	}
 
@@ -227,7 +236,7 @@ function openstation_build_file_types_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[] = array(
+		$out[]   = array(
 			'id'                 => (string) $entry['type'],
 			'label'              => (string) $entry['label'],
 			'sort'               => (int) $entry['sort'],

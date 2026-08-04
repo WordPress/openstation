@@ -287,15 +287,24 @@ function openstation_recycle_bin_heartbeat_received( $response, $data ) {
  * — `grep openstation_recycle_bin_signal_change` finds every emitter.
  */
 function openstation_recycle_bin_register_realtime_hooks() {
-	add_action( 'wp_trash_post', function ( $post_id ) {
-		openstation_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
-	} );
-	add_action( 'untrash_post', function ( $post_id ) {
-		openstation_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
-	} );
-	add_action( 'before_delete_post', function ( $post_id ) {
-		openstation_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
-	} );
+	add_action(
+		'wp_trash_post',
+		function ( $post_id ) {
+			openstation_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
+		}
+	);
+	add_action(
+		'untrash_post',
+		function ( $post_id ) {
+			openstation_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
+		}
+	);
+	add_action(
+		'before_delete_post',
+		function ( $post_id ) {
+			openstation_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
+		}
+	);
 
 	// Comments use a different verb space — `trashed_comment` /
 	// `untrashed_comment` / `deleted_comment` fire from
@@ -304,18 +313,27 @@ function openstation_recycle_bin_register_realtime_hooks() {
 	// to the Comments-list iframe; the bin captures and lists trashed
 	// comments too, and third-party plugins can subscribe to the same
 	// topic by hooking the changelog.
-	add_action( 'trashed_comment', function ( $comment_id ) {
-		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
-		openstation_recycle_bin_signal_change();
-	} );
-	add_action( 'untrashed_comment', function ( $comment_id ) {
-		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
-		openstation_recycle_bin_signal_change();
-	} );
-	add_action( 'deleted_comment', function ( $comment_id ) {
-		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
-		openstation_recycle_bin_signal_change();
-	} );
+	add_action(
+		'trashed_comment',
+		function ( $comment_id ) {
+			openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
+			openstation_recycle_bin_signal_change();
+		}
+	);
+	add_action(
+		'untrashed_comment',
+		function ( $comment_id ) {
+			openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
+			openstation_recycle_bin_signal_change();
+		}
+	);
+	add_action(
+		'deleted_comment',
+		function ( $comment_id ) {
+			openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
+			openstation_recycle_bin_signal_change();
+		}
+	);
 
 	add_action( 'openstation_recycle_bin_item_captured', 'openstation_recycle_bin_signal_change' );
 	add_action( 'openstation_recycle_bin_after_restore', 'openstation_recycle_bin_signal_change' );

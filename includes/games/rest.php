@@ -64,99 +64,196 @@ function openstation_games_rest_permission() {
 function openstation_games_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
-	register_rest_route( $ns, '/games/(?P<game>[a-z0-9_\-]+)/scores', array(
+	register_rest_route(
+		$ns,
+		'/games/(?P<game>[a-z0-9_\-]+)/scores',
 		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'openstation_games_rest_permission',
-			'callback'            => 'openstation_games_rest_list_scores',
-			'args'                => array(
-				'page'     => array( 'type' => 'integer', 'default' => 1, 'minimum' => 1 ),
-				'per_page' => array( 'type' => 'integer', 'default' => 25, 'minimum' => 1, 'maximum' => 100 ),
-				'orderby'  => array( 'type' => 'string', 'default' => 'score', 'enum' => array( 'score', 'created' ) ),
-				'order'    => array( 'type' => 'string', 'default' => 'desc', 'enum' => array( 'asc', 'desc' ) ),
-				'user_id'  => array( 'type' => 'integer', 'default' => 0 ),
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_games_rest_permission',
+				'callback'            => 'openstation_games_rest_list_scores',
+				'args'                => array(
+					'page'     => array(
+						'type'    => 'integer',
+						'default' => 1,
+						'minimum' => 1,
+					),
+					'per_page' => array(
+						'type'    => 'integer',
+						'default' => 25,
+						'minimum' => 1,
+						'maximum' => 100,
+					),
+					'orderby'  => array(
+						'type'    => 'string',
+						'default' => 'score',
+						'enum'    => array( 'score', 'created' ),
+					),
+					'order'    => array(
+						'type'    => 'string',
+						'default' => 'desc',
+						'enum'    => array( 'asc', 'desc' ),
+					),
+					'user_id'  => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+				),
 			),
-		),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_games_rest_permission',
+				'callback'            => 'openstation_games_rest_submit_score',
+				'args'                => array(
+					'score' => array(
+						'type'     => 'integer',
+						'required' => true,
+						'minimum'  => 0,
+					),
+					'meta'  => array(
+						'type'    => 'object',
+						'default' => array(),
+					),
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/games/challenges',
+		array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_games_rest_permission',
+				'callback'            => 'openstation_games_rest_list_challenges',
+				'args'                => array(
+					'box'   => array(
+						'type'    => 'string',
+						'default' => 'all',
+						'enum'    => array( 'incoming', 'outgoing', 'all' ),
+					),
+					'state' => array(
+						'type'    => 'string',
+						'default' => '',
+						'enum'    => array( '', 'pending', 'accepted', 'declined', 'completed' ),
+					),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_games_rest_permission',
+				'callback'            => 'openstation_games_rest_create_challenge',
+				'args'                => array(
+					'game'         => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'recipient_id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'score'        => array(
+						'type'     => 'integer',
+						'required' => true,
+						'minimum'  => 0,
+					),
+					'meta'         => array(
+						'type'    => 'object',
+						'default' => array(),
+					),
+				),
+			),
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/games/challenges/(?P<id>\d+)/accept',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_games_rest_permission',
-			'callback'            => 'openstation_games_rest_submit_score',
-			'args'                => array(
-				'score' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ),
-				'meta'  => array( 'type' => 'object', 'default' => array() ),
-			),
-		),
-	) );
+			'callback'            => 'openstation_games_rest_accept_challenge',
+		)
+	);
 
-	register_rest_route( $ns, '/games/challenges', array(
-		array(
-			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'openstation_games_rest_permission',
-			'callback'            => 'openstation_games_rest_list_challenges',
-			'args'                => array(
-				'box'   => array( 'type' => 'string', 'default' => 'all', 'enum' => array( 'incoming', 'outgoing', 'all' ) ),
-				'state' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'pending', 'accepted', 'declined', 'completed' ) ),
-			),
-		),
+	register_rest_route(
+		$ns,
+		'/games/challenges/(?P<id>\d+)/decline',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_games_rest_permission',
-			'callback'            => 'openstation_games_rest_create_challenge',
+			'callback'            => 'openstation_games_rest_decline_challenge',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/games/challenges/(?P<id>\d+)/complete',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_games_rest_permission',
+			'callback'            => 'openstation_games_rest_complete_challenge',
 			'args'                => array(
-				'game'         => array( 'type' => 'string', 'required' => true ),
-				'recipient_id' => array( 'type' => 'integer', 'required' => true ),
-				'score'        => array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ),
-				'meta'         => array( 'type' => 'object', 'default' => array() ),
+				'score' => array(
+					'type'     => 'integer',
+					'required' => true,
+					'minimum'  => 0,
+				),
+				'meta'  => array(
+					'type'    => 'object',
+					'default' => array(),
+				),
 			),
-		),
-	) );
+		)
+	);
 
-	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/accept', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_accept_challenge',
-	) );
+	register_rest_route(
+		$ns,
+		'/games/playtime',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'openstation_games_rest_permission',
+			'callback'            => 'openstation_games_rest_get_playtime',
+		)
+	);
 
-	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/decline', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_decline_challenge',
-	) );
+	register_rest_route(
+		$ns,
+		'/games/(?P<game>[a-z0-9_\-]+)/playtime',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_games_rest_permission',
+			'callback'            => 'openstation_games_rest_record_playtime',
+			'args'                => array(
+				'seconds' => array(
+					'type'     => 'integer',
+					'required' => true,
+					'minimum'  => 1,
+				),
+			),
+		)
+	);
 
-	register_rest_route( $ns, '/games/challenges/(?P<id>\d+)/complete', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_complete_challenge',
-		'args'                => array(
-			'score' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ),
-			'meta'  => array( 'type' => 'object', 'default' => array() ),
-		),
-	) );
-
-	register_rest_route( $ns, '/games/playtime', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_get_playtime',
-	) );
-
-	register_rest_route( $ns, '/games/(?P<game>[a-z0-9_\-]+)/playtime', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_record_playtime',
-		'args'                => array(
-			'seconds' => array( 'type' => 'integer', 'required' => true, 'minimum' => 1 ),
-		),
-	) );
-
-	register_rest_route( $ns, '/games/users/search', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'openstation_games_rest_permission',
-		'callback'            => 'openstation_games_rest_search_users',
-		'args'                => array(
-			'q'       => array( 'type' => 'string', 'default' => '' ),
-			'exclude' => array( 'type' => 'string', 'default' => '' ),
-		),
-	) );
+	register_rest_route(
+		$ns,
+		'/games/users/search',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'permission_callback' => 'openstation_games_rest_permission',
+			'callback'            => 'openstation_games_rest_search_users',
+			'args'                => array(
+				'q'       => array(
+					'type'    => 'string',
+					'default' => '',
+				),
+				'exclude' => array(
+					'type'    => 'string',
+					'default' => '',
+				),
+			),
+		)
+	);
 }
 add_action( 'rest_api_init', 'openstation_games_register_rest_routes' );
 
@@ -189,17 +286,22 @@ function openstation_games_rest_list_scores( WP_REST_Request $req ) {
 	if ( is_wp_error( $game ) ) {
 		return $game;
 	}
-	$result = openstation_games_get_scores( $game, array(
-		'page'     => (int) $req->get_param( 'page' ),
-		'per_page' => (int) $req->get_param( 'per_page' ),
-		'orderby'  => (string) $req->get_param( 'orderby' ),
-		'order'    => (string) $req->get_param( 'order' ),
-		'user_id'  => (int) $req->get_param( 'user_id' ),
-	) );
-	return rest_ensure_response( array(
-		'scores' => $result['rows'],
-		'total'  => $result['total'],
-	) );
+	$result = openstation_games_get_scores(
+		$game,
+		array(
+			'page'     => (int) $req->get_param( 'page' ),
+			'per_page' => (int) $req->get_param( 'per_page' ),
+			'orderby'  => (string) $req->get_param( 'orderby' ),
+			'order'    => (string) $req->get_param( 'order' ),
+			'user_id'  => (int) $req->get_param( 'user_id' ),
+		)
+	);
+	return rest_ensure_response(
+		array(
+			'scores' => $result['rows'],
+			'total'  => $result['total'],
+		)
+	);
 }
 
 /**
@@ -233,11 +335,13 @@ function openstation_games_rest_get_playtime() {
 	foreach ( openstation_games_get_playtime_daily( $user_id ) as $game => $days ) {
 		$daily[ $game ] = (object) $days;
 	}
-	return rest_ensure_response( array(
-		'playtime' => (object) openstation_games_get_playtime( $user_id ),
-		'daily'    => (object) $daily,
-		'today'    => openstation_games_playtime_today_key(),
-	) );
+	return rest_ensure_response(
+		array(
+			'playtime' => (object) openstation_games_get_playtime( $user_id ),
+			'daily'    => (object) $daily,
+			'today'    => openstation_games_playtime_today_key(),
+		)
+	);
 }
 
 /**

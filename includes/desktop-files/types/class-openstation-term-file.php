@@ -57,10 +57,10 @@ class OpenStation_Term_File extends OpenStation_File {
 	}
 
 	public function serialize(): array {
-		$shape            = parent::serialize();
-		$term             = $this->term();
+		$shape             = parent::serialize();
+		$term              = $this->term();
 		$shape['taxonomy'] = $term ? (string) $term->taxonomy : '';
-		$shape['count']   = $term ? (int) $term->count : 0;
+		$shape['count']    = $term ? (int) $term->count : 0;
 		return $shape;
 	}
 

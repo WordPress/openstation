@@ -46,7 +46,7 @@ require_once OPENSTATION_DIR . 'includes/agents/guard.php';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_DESCRIPTION_META  = '_desktop_mode_agent_description';
+const OPENSTATION_AGENT_DESCRIPTION_META = '_desktop_mode_agent_description';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -62,7 +62,7 @@ const OPENSTATION_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_ABILITIES_META    = '_desktop_mode_agent_abilities';
+const OPENSTATION_AGENT_ABILITIES_META = '_desktop_mode_agent_abilities';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -70,7 +70,7 @@ const OPENSTATION_AGENT_ABILITIES_META    = '_desktop_mode_agent_abilities';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_TRIGGERS_META     = '_desktop_mode_agent_triggers';
+const OPENSTATION_AGENT_TRIGGERS_META = '_desktop_mode_agent_triggers';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -78,7 +78,7 @@ const OPENSTATION_AGENT_TRIGGERS_META     = '_desktop_mode_agent_triggers';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_MODEL_META        = '_desktop_mode_agent_model';
+const OPENSTATION_AGENT_MODEL_META = '_desktop_mode_agent_model';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -86,7 +86,7 @@ const OPENSTATION_AGENT_MODEL_META        = '_desktop_mode_agent_model';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_RATE_LIMIT_META   = '_desktop_mode_agent_rate_limit';
+const OPENSTATION_AGENT_RATE_LIMIT_META = '_desktop_mode_agent_rate_limit';
 /**
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -94,7 +94,7 @@ const OPENSTATION_AGENT_RATE_LIMIT_META   = '_desktop_mode_agent_rate_limit';
  * URL). The mismatch between this constant's name and its value is
  * deliberate — it is NOT a half-finished rename.
  */
-const OPENSTATION_AGENT_CREATED_BY_META   = '_desktop_mode_agent_created_by';
+const OPENSTATION_AGENT_CREATED_BY_META = '_desktop_mode_agent_created_by';
 
 /**
  * Every meta key the store writes — the privacy eraser and any future

@@ -40,8 +40,8 @@ class OpenStation_Bookmark_File extends OpenStation_File {
 	}
 
 	public function serialize(): array {
-		$shape         = parent::serialize();
-		$shape['url']  = $this->url();
+		$shape        = parent::serialize();
+		$shape['url'] = $this->url();
 		return $shape;
 	}
 

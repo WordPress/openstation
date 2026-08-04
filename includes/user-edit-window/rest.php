@@ -73,10 +73,10 @@ add_action( 'rest_api_init', 'openstation_user_edit_window_register_rest_routes'
  */
 function openstation_user_edit_window_register_meta() {
 	$keys = array(
-		'rich_editing'        => 'string',
-		'syntax_highlighting' => 'string',
-		'admin_color'         => 'string',
-		'comment_shortcuts'   => 'string',
+		'rich_editing'         => 'string',
+		'syntax_highlighting'  => 'string',
+		'admin_color'          => 'string',
+		'comment_shortcuts'    => 'string',
 		'show_admin_bar_front' => 'string',
 	);
 	foreach ( $keys as $meta_key => $type ) {
@@ -123,8 +123,14 @@ function openstation_user_edit_window_destroy_sessions_route() {
 				);
 			},
 			'args'                => array(
-				'id'    => array( 'required' => true, 'type' => 'integer' ),
-				'scope' => array( 'type' => 'string', 'default' => 'others' ),
+				'id'    => array(
+					'required' => true,
+					'type'     => 'integer',
+				),
+				'scope' => array(
+					'type'    => 'string',
+					'default' => 'others',
+				),
 			),
 		)
 	);
@@ -132,7 +138,7 @@ function openstation_user_edit_window_destroy_sessions_route() {
 add_action( 'rest_api_init', 'openstation_user_edit_window_destroy_sessions_route' );
 
 function openstation_user_edit_window_rest_destroy_sessions( $req ) {
-	$id   = (int) $req->get_param( 'id' );
+	$id    = (int) $req->get_param( 'id' );
 	$scope = (string) $req->get_param( 'scope' );
 	if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		return new WP_Error(
@@ -187,8 +193,11 @@ function openstation_user_edit_window_app_passwords_routes() {
 						(int) $req->get_param( 'id' )
 					);
 				},
-				'args' => array(
-					'name' => array( 'required' => true, 'type' => 'string' ),
+				'args'                => array(
+					'name' => array(
+						'required' => true,
+						'type'     => 'string',
+					),
 				),
 			),
 		)
@@ -241,7 +250,7 @@ function openstation_user_edit_window_rest_app_pw_list( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return rest_ensure_response( array( 'items' => array() ) );
 	}
-	$id = (int) $req->get_param( 'id' );
+	$id          = (int) $req->get_param( 'id' );
 	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
@@ -258,7 +267,7 @@ function openstation_user_edit_window_rest_app_pw_create( $req ) {
 			array( 'status' => 501 )
 		);
 	}
-	$id   = (int) $req->get_param( 'id' );
+	$id          = (int) $req->get_param( 'id' );
 	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
@@ -294,13 +303,13 @@ function openstation_user_edit_window_rest_app_pw_revoke( $req ) {
 			array( 'status' => 501 )
 		);
 	}
-	$id   = (int) $req->get_param( 'id' );
+	$id          = (int) $req->get_param( 'id' );
 	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
 	$uuid = (string) $req->get_param( 'uuid' );
-	$ok = WP_Application_Passwords::delete_application_password( $id, $uuid );
+	$ok   = WP_Application_Passwords::delete_application_password( $id, $uuid );
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
@@ -325,9 +334,9 @@ function openstation_user_edit_window_rest_insights( $req ) {
 		);
 	}
 
-	$fresh = (bool) $req->get_param( 'fresh' );
+	$fresh     = (bool) $req->get_param( 'fresh' );
 	$cache_key = 'dm_user_insights_' . $id;
-	$payload = null;
+	$payload   = null;
 	if ( ! $fresh ) {
 		$cached = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
@@ -350,7 +359,7 @@ function openstation_user_edit_window_rest_insights( $req ) {
 	// fresh computes.
 	$viewer_id = (int) get_current_user_id();
 	if ( $id === $viewer_id ) {
-		$now = time();
+		$now    = time();
 		$stored = (int) get_user_meta(
 			$id,
 			defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
@@ -375,7 +384,7 @@ function openstation_user_edit_window_rest_insights( $req ) {
 			$payload['stats'] = array();
 		}
 		if ( empty( $payload['stats']['lastLoginAt'] ) ) {
-			$payload['stats']['lastLoginAt'] = $stored;
+			$payload['stats']['lastLoginAt']        = $stored;
 			$payload['stats']['daysSinceLastLogin'] = max(
 				0,
 				(int) floor( ( $now - $stored ) / DAY_IN_SECONDS )
@@ -422,18 +431,18 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 		'user_url'    => (string) $user->user_url,
 		'user_email'  => (string) $user->user_email,
 	);
-	$filled = 0;
+	$filled              = 0;
 	foreach ( $completeness_fields as $value ) {
 		if ( '' !== trim( $value ) ) {
-			$filled++;
+			++$filled;
 		}
 	}
-	$total  = count( $completeness_fields );
+	$total   = count( $completeness_fields );
 	$percent = $total > 0 ? (int) round( ( $filled / $total ) * 100 ) : 0;
 
 	// ── Per-CPT post counts. `count_user_posts` does the cheap thing.
-	$post_count    = (int) count_user_posts( $id, 'post', true );
-	$page_count    = post_type_exists( 'page' )
+	$post_count       = (int) count_user_posts( $id, 'post', true );
+	$page_count       = post_type_exists( 'page' )
 		? (int) count_user_posts( $id, 'page', true )
 		: 0;
 	$attachment_count = (int) count_user_posts( $id, 'attachment', true );
@@ -465,10 +474,10 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	// ── Months for the activity sparkline. Bucket published posts
 	// by year-month for the last 12 months. SQL bucket → align in PHP.
 	$month_buckets = array();
-	$now = time();
+	$now           = time();
 	for ( $i = 11; $i >= 0; $i-- ) {
-		$ts  = strtotime( "-{$i} months", $now );
-		$key = gmdate( 'Y-m', $ts );
+		$ts                    = strtotime( "-{$i} months", $now );
+		$key                   = gmdate( 'Y-m', $ts );
 		$month_buckets[ $key ] = 0;
 	}
 	$rows = (array) $wpdb->get_results(
@@ -502,7 +511,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 
 	// ── Recent posts (any status). Limit 5.
 	$recent_posts = array();
-	$recent = get_posts(
+	$recent       = get_posts(
 		array(
 			'author'         => $id,
 			'post_type'      => 'any',
@@ -530,22 +539,22 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 			$gmt = (string) get_gmt_from_date( (string) $post->post_date );
 		}
 		$recent_posts[] = array(
-			'id'             => (int) $post->ID,
-			'title'          => $post->post_title !== ''
+			'id'           => (int) $post->ID,
+			'title'        => $post->post_title !== ''
 				? $post->post_title
 				: __( '(no title)', 'desktop-mode' ),
-			'status'         => (string) $post->post_status,
-			'type'           => (string) $post->post_type,
-			'dateGmt'        => $gmt,
-			'commentCount'   => (int) $post->comment_count,
-			'permalink'      => (string) get_permalink( $post ),
-			'editUrl'        => (string) get_edit_post_link( $post->ID, 'raw' ),
+			'status'       => (string) $post->post_status,
+			'type'         => (string) $post->post_type,
+			'dateGmt'      => $gmt,
+			'commentCount' => (int) $post->comment_count,
+			'permalink'    => (string) get_permalink( $post ),
+			'editUrl'      => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
 	}
 
 	// ── Recent comments authored by this user. Limit 5.
 	$recent_comments = array();
-	$comments = get_comments(
+	$comments        = get_comments(
 		array(
 			'user_id' => $id,
 			'number'  => 5,
@@ -588,7 +597,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	// surface a per-session row plus a current-session flag.
 	$sessions = array();
 	if ( class_exists( 'WP_Session_Tokens' ) ) {
-		$manager = WP_Session_Tokens::get_instance( $id );
+		$manager       = WP_Session_Tokens::get_instance( $id );
 		$current_token = wp_get_session_token();
 		// The meta blob's keys are *verifiers* — hashes of the raw
 		// cookie token (`WP_Session_Tokens::hash_token()`), so hash
@@ -628,16 +637,16 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 
 	// ── Application passwords (WordPress 5.6+). Stored as user meta.
 	$app_passwords_summary = array(
-		'total'         => 0,
-		'lastUsedAt'    => null,
-		'lastUsedName'  => null,
+		'total'        => 0,
+		'lastUsedAt'   => null,
+		'lastUsedName' => null,
 	);
 	if ( class_exists( 'WP_Application_Passwords' ) ) {
-		$apps = WP_Application_Passwords::get_user_application_passwords( $id );
-		$apps = is_array( $apps ) ? $apps : array();
+		$apps                           = WP_Application_Passwords::get_user_application_passwords( $id );
+		$apps                           = is_array( $apps ) ? $apps : array();
 		$app_passwords_summary['total'] = count( $apps );
-		$best_used_ts   = 0;
-		$best_used_name = null;
+		$best_used_ts                   = 0;
+		$best_used_name                 = null;
 		foreach ( $apps as $app ) {
 			$used = isset( $app['last_used'] ) ? (int) $app['last_used'] : 0;
 			if ( $used > $best_used_ts ) {
@@ -652,57 +661,60 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	}
 
 	// ── Misc / temporal stats.
-	$registered_ts = strtotime( (string) $user->user_registered . ' UTC' );
+	$registered_ts           = strtotime( (string) $user->user_registered . ' UTC' );
 	$days_since_registration = $registered_ts
 		? max( 0, (int) floor( ( time() - $registered_ts ) / DAY_IN_SECONDS ) )
 		: null;
-	$last_login_ts = (int) get_user_meta(
+	$last_login_ts           = (int) get_user_meta(
 		$id,
 		defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
 			? OPENSTATION_LAST_LOGIN_META_KEY
 			: '_desktop_mode_last_login_at',
 		true
 	);
-	$last_login_ts = $last_login_ts > 0 ? $last_login_ts : null;
-	$days_since_last_login = $last_login_ts
+	$last_login_ts           = $last_login_ts > 0 ? $last_login_ts : null;
+	$days_since_last_login   = $last_login_ts
 		? max( 0, (int) floor( ( time() - $last_login_ts ) / DAY_IN_SECONDS ) )
 		: null;
 
 	// ── Roles + capabilities count for the profile chip strip.
-	$roles = array_values( (array) $user->roles );
+	$roles      = array_values( (array) $user->roles );
 	$caps_count = is_array( $user->allcaps ) ? count(
-		array_filter( $user->allcaps, static function ( $v ) {
-			return (bool) $v;
-		} )
+		array_filter(
+			$user->allcaps,
+			static function ( $v ) {
+				return (bool) $v;
+			}
+		)
 	) : 0;
 
 	return array(
-		'userId'              => $id,
-		'displayName'         => (string) $user->display_name,
-		'avatarUrl'           => (string) get_avatar_url( $id, array( 'size' => 96 ) ),
-		'profileUrl'          => (string) get_author_posts_url( $id ),
-		'roles'               => $roles,
-		'capabilitiesCount'   => $caps_count,
-		'profileCompleteness' => array(
+		'userId'               => $id,
+		'displayName'          => (string) $user->display_name,
+		'avatarUrl'            => (string) get_avatar_url( $id, array( 'size' => 96 ) ),
+		'profileUrl'           => (string) get_author_posts_url( $id ),
+		'roles'                => $roles,
+		'capabilitiesCount'    => $caps_count,
+		'profileCompleteness'  => array(
 			'filled'  => $filled,
 			'total'   => $total,
 			'percent' => $percent,
 		),
-		'stats'               => array(
-			'posts'                  => $post_count,
-			'pages'                  => $page_count,
-			'attachments'            => $attachment_count,
-			'commentsAuthored'       => $comment_count,
-			'commentsReceived'       => $received_comments,
-			'daysSinceRegistration'  => $days_since_registration,
-			'lastLoginAt'            => $last_login_ts,
-			'daysSinceLastLogin'     => $days_since_last_login,
-			'registeredAt'           => $registered_ts ?: null,
+		'stats'                => array(
+			'posts'                 => $post_count,
+			'pages'                 => $page_count,
+			'attachments'           => $attachment_count,
+			'commentsAuthored'      => $comment_count,
+			'commentsReceived'      => $received_comments,
+			'daysSinceRegistration' => $days_since_registration,
+			'lastLoginAt'           => $last_login_ts,
+			'daysSinceLastLogin'    => $days_since_last_login,
+			'registeredAt'          => $registered_ts ?: null,
 		),
-		'contentByMonth'      => $content_by_month,
-		'recentPosts'         => $recent_posts,
-		'recentComments'      => $recent_comments,
-		'sessions'            => $sessions,
+		'contentByMonth'       => $content_by_month,
+		'recentPosts'          => $recent_posts,
+		'recentComments'       => $recent_comments,
+		'sessions'             => $sessions,
 		'applicationPasswords' => $app_passwords_summary,
 	);
 }

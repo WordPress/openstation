@@ -109,7 +109,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$post_counts = array(
+	$post_counts      = array(
 		'publish' => 0,
 		'draft'   => 0,
 		'pending' => 0,
@@ -118,9 +118,9 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		'total'   => 0,
 	);
 	foreach ( (array) $post_status_rows as $row ) {
-		$status                 = (string) $row['post_status'];
-		$n                      = (int) $row['n'];
-		$post_counts['total']  += $n;
+		$status                = (string) $row['post_status'];
+		$n                     = (int) $row['n'];
+		$post_counts['total'] += $n;
 		if ( isset( $post_counts[ $status ] ) ) {
 			$post_counts[ $status ] = $n;
 		}
@@ -139,15 +139,15 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$page_counts = array(
+	$page_counts      = array(
 		'publish' => 0,
 		'draft'   => 0,
 		'total'   => 0,
 	);
 	foreach ( (array) $page_status_rows as $row ) {
-		$status                 = (string) $row['post_status'];
-		$n                      = (int) $row['n'];
-		$page_counts['total']  += $n;
+		$status                = (string) $row['post_status'];
+		$n                     = (int) $row['n'];
+		$page_counts['total'] += $n;
 		if ( isset( $page_counts[ $status ] ) ) {
 			$page_counts[ $status ] = $n;
 		}
@@ -237,7 +237,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			'suppress_filters' => false,
 		)
 	);
-	$recent = array();
+	$recent       = array();
 	foreach ( (array) $recent_posts as $p ) {
 		if ( ! ( $p instanceof WP_Post ) ) {
 			continue;
@@ -271,7 +271,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$top_terms = array();
+	$top_terms     = array();
 	foreach ( (array) $top_term_rows as $row ) {
 		$top_terms[] = array(
 			'id'       => (int) $row['term_id'],
@@ -299,7 +299,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$activity = array();
+	$activity      = array();
 	foreach ( (array) $activity_rows as $row ) {
 		$activity[] = array(
 			'ym'    => (string) $row['ym'],
@@ -316,7 +316,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			$user_id
 		)
 	);
-	$last_post = $wpdb->get_var(
+	$last_post  = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX(post_date_gmt) FROM {$wpdb->posts}
 			WHERE post_author = %d AND post_type IN ( 'post', 'page' ) AND post_status = 'publish'",

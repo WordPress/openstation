@@ -192,7 +192,7 @@ function openstation_users_window_rest_bulk_role( $req ) {
 	// `wp_update_user` calls in one request.
 	$ids = array_slice( $ids, 0, 100 );
 
-	$viewer_id = (int) get_current_user_id();
+	$viewer_id  = (int) get_current_user_id();
 	$assignable = openstation_users_window_assignable_roles( $viewer_id );
 	if ( ! in_array( $role, $assignable, true ) ) {
 		return new WP_Error(
@@ -434,7 +434,7 @@ function openstation_users_window_rest_bulk_delete( $req ) {
 				);
 				continue;
 			}
-			$ok = remove_user_from_blog( $id, get_current_blog_id(), $reassign > 0 ? $reassign : null );
+			$ok                      = remove_user_from_blog( $id, get_current_blog_id(), $reassign > 0 ? $reassign : null );
 			$results[ (string) $id ] = $ok && ! is_wp_error( $ok )
 				? array( 'ok' => true )
 				: array(
@@ -452,7 +452,7 @@ function openstation_users_window_rest_bulk_delete( $req ) {
 			);
 			continue;
 		}
-		$ok = wp_delete_user( $id, $reassign > 0 ? $reassign : null );
+		$ok                      = wp_delete_user( $id, $reassign > 0 ? $reassign : null );
 		$results[ (string) $id ] = $ok
 			? array( 'ok' => true )
 			: array(

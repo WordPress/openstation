@@ -164,23 +164,44 @@ function openstation_ai_register_abilities() {
 
 	$search_output = openstation_ai_ability_output_schema(
 		array(
-			'items'    => array( 'type' => 'array', 'description' => 'Matching entities with identity, excerpt, and URLs.' ),
-			'count'    => array( 'type' => 'integer', 'description' => 'Number of items in this batch.' ),
-			'total'    => array( 'type' => 'integer', 'description' => 'Total matches across all batches.' ),
-			'has_more' => array( 'type' => 'boolean', 'description' => 'Whether another batch is available at the next offset.' ),
+			'items'    => array(
+				'type'        => 'array',
+				'description' => 'Matching entities with identity, excerpt, and URLs.',
+			),
+			'count'    => array(
+				'type'        => 'integer',
+				'description' => 'Number of items in this batch.',
+			),
+			'total'    => array(
+				'type'        => 'integer',
+				'description' => 'Total matches across all batches.',
+			),
+			'has_more' => array(
+				'type'        => 'boolean',
+				'description' => 'Whether another batch is available at the next offset.',
+			),
 		)
 	);
 
 	$readonly_meta = array(
-		'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+		'annotations'  => array(
+			'readonly'   => true,
+			'idempotent' => true,
+		),
 		'show_in_rest' => true,
-		'mcp'          => array( 'public' => true, 'type' => 'tool' ),
+		'mcp'          => array(
+			'public' => true,
+			'type'   => 'tool',
+		),
 	);
 
 	// Admin-only abilities are still read-only, but must not be exposed to
 	// external agents over MCP.
 	$readonly_private_meta = array(
-		'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+		'annotations'  => array(
+			'readonly'   => true,
+			'idempotent' => true,
+		),
 		'show_in_rest' => true,
 	);
 
@@ -285,7 +306,12 @@ function openstation_ai_register_abilities() {
 				'properties'           => (object) array(),
 			),
 			'output_schema'       => openstation_ai_ability_output_schema(
-				array( 'pages' => array( 'type' => 'array', 'description' => 'Admin destinations with title/url/icon/description.' ) )
+				array(
+					'pages' => array(
+						'type'        => 'array',
+						'description' => 'Admin destinations with title/url/icon/description.',
+					),
+				)
 			),
 			'execute_callback'    => static function ( $input ) {
 				return openstation_ai_search_dispatch_tool( 'list_admin_pages', (array) $input );
@@ -314,7 +340,10 @@ function openstation_ai_register_abilities() {
 			),
 			'output_schema'       => openstation_ai_ability_output_schema(
 				array(
-					'results' => array( 'type' => 'array', 'description' => 'Matching plugins with name, description, rating, installs, and admin URL.' ),
+					'results' => array(
+						'type'        => 'array',
+						'description' => 'Matching plugins with name, description, rating, installs, and admin URL.',
+					),
 					'count'   => array( 'type' => 'integer' ),
 				)
 			),
@@ -346,7 +375,10 @@ function openstation_ai_register_abilities() {
 			'output_schema'       => openstation_ai_ability_output_schema(
 				array(
 					'log_available' => array( 'type' => 'boolean' ),
-					'entries'       => array( 'type' => 'array', 'description' => 'Parsed log lines: { timestamp, level, message }.' ),
+					'entries'       => array(
+						'type'        => 'array',
+						'description' => 'Parsed log lines: { timestamp, level, message }.',
+					),
 				)
 			),
 			'execute_callback'    => static function ( $input ) {
@@ -405,7 +437,10 @@ function openstation_ai_register_comment_analysis_ability() {
 				return current_user_can( 'moderate_comments' );
 			},
 			'meta'                => array(
-				'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+				'annotations'  => array(
+					'readonly'   => true,
+					'idempotent' => true,
+				),
 				'show_in_rest' => true,
 			),
 		)

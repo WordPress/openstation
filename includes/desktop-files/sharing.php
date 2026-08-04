@@ -126,7 +126,7 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 			continue;
 		}
 		if ( openstation_files_user_can_see_folder( $row, $user_id, $roles ) ) {
-			$visible[] = $row;
+			$visible[]       = $row;
 			$seen_ids[ $id ] = true;
 		}
 	}

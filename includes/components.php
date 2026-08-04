@@ -73,14 +73,14 @@ defined( 'ABSPATH' ) || exit;
  * ), $children );
  * ```
  *
- * @param string                $tag     Tag name, e.g. `os-button`.
- *                                       Whitelisted to the `os-*` prefix
- *                                       to prevent the helper being
- *                                       misused as a generic HTML emitter.
- * @param array<string,mixed>   $attrs   Attribute key/value pairs.
- *                                       `style` may be a string or an
- *                                       associative array (see above).
- * @param string                $content Inner HTML. Pass pre-escaped.
+ * @param string              $tag     Tag name, e.g. `os-button`.
+ *                                     Whitelisted to the `os-*` prefix
+ *                                     to prevent the helper being
+ *                                     misused as a generic HTML emitter.
+ * @param array<string,mixed> $attrs   Attribute key/value pairs.
+ *                                     `style` may be a string or an
+ *                                     associative array (see above).
+ * @param string              $content Inner HTML. Pass pre-escaped.
  */
 function openstation_component( $tag, $attrs = array(), $content = '' ) {
 	$tag = strtolower( (string) $tag );
@@ -178,26 +178,62 @@ function openstation_component( $tag, $attrs = array(), $content = '' ) {
  * the same visual decision.
  */
 const OPENSTATION_LENGTH_CSS_PROPERTIES = array(
-	'width', 'height',
-	'min-width', 'min-height', 'max-width', 'max-height',
-	'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-	'padding-inline', 'padding-inline-start', 'padding-inline-end',
-	'padding-block', 'padding-block-start', 'padding-block-end',
-	'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
-	'margin-inline', 'margin-inline-start', 'margin-inline-end',
-	'margin-block', 'margin-block-start', 'margin-block-end',
-	'gap', 'row-gap', 'column-gap',
-	'border-width', 'border-top-width', 'border-right-width',
-	'border-bottom-width', 'border-left-width',
+	'width',
+	'height',
+	'min-width',
+	'min-height',
+	'max-width',
+	'max-height',
+	'padding',
+	'padding-top',
+	'padding-right',
+	'padding-bottom',
+	'padding-left',
+	'padding-inline',
+	'padding-inline-start',
+	'padding-inline-end',
+	'padding-block',
+	'padding-block-start',
+	'padding-block-end',
+	'margin',
+	'margin-top',
+	'margin-right',
+	'margin-bottom',
+	'margin-left',
+	'margin-inline',
+	'margin-inline-start',
+	'margin-inline-end',
+	'margin-block',
+	'margin-block-start',
+	'margin-block-end',
+	'gap',
+	'row-gap',
+	'column-gap',
+	'border-width',
+	'border-top-width',
+	'border-right-width',
+	'border-bottom-width',
+	'border-left-width',
 	'border-radius',
-	'border-top-left-radius', 'border-top-right-radius',
-	'border-bottom-left-radius', 'border-bottom-right-radius',
-	'top', 'right', 'bottom', 'left',
+	'border-top-left-radius',
+	'border-top-right-radius',
+	'border-bottom-left-radius',
+	'border-bottom-right-radius',
+	'top',
+	'right',
+	'bottom',
+	'left',
 	'inset',
-	'inset-inline-start', 'inset-inline-end',
-	'inset-block-start', 'inset-block-end',
-	'font-size', 'letter-spacing', 'word-spacing', 'text-indent',
-	'outline-width', 'outline-offset',
+	'inset-inline-start',
+	'inset-inline-end',
+	'inset-block-start',
+	'inset-block-end',
+	'font-size',
+	'letter-spacing',
+	'word-spacing',
+	'text-indent',
+	'outline-width',
+	'outline-offset',
 );
 
 /**
@@ -340,16 +376,16 @@ function openstation_format_css_value( $property, $value ) {
  * } );
  * ```
  *
- * @param string          $handle    Script handle.
- * @param string          $src       Full URL of the script, or path relative
- *                                   to the WordPress root directory.
- * @param string[]        $extra_deps Additional dependency handles. `openstation`
- *                                   and `wp-hooks` are always prepended.
+ * @param string           $handle    Script handle.
+ * @param string           $src       Full URL of the script, or path relative
+ *                                    to the WordPress root directory.
+ * @param string[]         $extra_deps Additional dependency handles. `openstation`
+ *                                    and `wp-hooks` are always prepended.
  * @param string|bool|null $version  Version string, or `false` for none.
  *                                   Defaults to `OPENSTATION_VERSION` so plugin authors
  *                                   don't have to busy-track cache busting.
- * @param bool            $in_footer Whether to enqueue in the footer. Defaults
- *                                   to `true` — the shell is always in head.
+ * @param bool             $in_footer Whether to enqueue in the footer. Defaults
+ *                                    to `true` — the shell is always in head.
  * @return void
  */
 function openstation_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {

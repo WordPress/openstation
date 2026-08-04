@@ -108,7 +108,7 @@ function openstation_register_window_notice( $args = array() ) {
 		'match'       => array(),
 		'order'       => 100,
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {

@@ -557,7 +557,7 @@ function openstation_is_admin_redirect_target( $location ) {
 		}
 		// Absolute path NOT into wp-admin (e.g. `/`, `/wp-login.php`,
 		// `/wp-json/...`). Frontend or login flow — leave alone.
-		if ( '/' === $path[ 0 ] ) {
+		if ( '/' === $path[0] ) {
 			return false;
 		}
 	}

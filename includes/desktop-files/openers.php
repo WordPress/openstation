@@ -99,7 +99,7 @@ function openstation_register_file_opener( $id, $args = array() ) {
 		'script'       => '',
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
@@ -110,7 +110,10 @@ function openstation_register_file_opener( $id, $args = array() ) {
 					__( 'Current user lacks the %s capability required to register this opener.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
@@ -299,7 +302,7 @@ function openstation_build_file_openers_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[] = array(
+		$out[]   = array(
 			'id'                 => (string) $entry['id'],
 			'label'              => (string) $entry['label'],
 			'types'              => array_values( (array) $entry['types'] ),

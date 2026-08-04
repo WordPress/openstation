@@ -47,25 +47,64 @@ function openstation_alphabet_soup_register() {
 		return;
 	}
 
-	openstation_register_game( 'alphabet-soup', array(
-		'title'         => __( 'Alphabet Soup', 'desktop-mode' ),
-		'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
-		'icon_svg'      => openstation_alphabet_soup_icon_svg(),
-		'script'        => 'os-game-alphabet-soup',
-		'score_columns' => array(
-			array( 'key' => 'score',    'label' => __( 'Score', 'desktop-mode' ),    'type' => 'number' ),
-			array( 'key' => 'mode',     'label' => __( 'Mode', 'desktop-mode' ),     'type' => 'text' ),
-			array( 'key' => 'size',     'label' => __( 'Size', 'desktop-mode' ),     'type' => 'text' ),
-			array( 'key' => 'words',    'label' => __( 'Words', 'desktop-mode' ),    'type' => 'number' ),
-			array( 'key' => 'wpm',      'label' => __( 'WPM', 'desktop-mode' ),      'type' => 'number' ),
-			array( 'key' => 'accuracy', 'label' => __( 'Accuracy', 'desktop-mode' ), 'type' => 'number' ),
-			array( 'key' => 'streak',   'label' => __( 'Streak', 'desktop-mode' ),   'type' => 'number' ),
-			array( 'key' => 'wave',     'label' => __( 'Wave', 'desktop-mode' ),     'type' => 'number' ),
-			array( 'key' => 'time',     'label' => __( 'Time', 'desktop-mode' ),     'type' => 'time' ),
-		),
+	openstation_register_game(
+		'alphabet-soup',
+		array(
+			'title'         => __( 'Alphabet Soup', 'desktop-mode' ),
+			'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
+			'icon_svg'      => openstation_alphabet_soup_icon_svg(),
+			'script'        => 'os-game-alphabet-soup',
+			'score_columns' => array(
+				array(
+					'key'   => 'score',
+					'label' => __( 'Score', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'mode',
+					'label' => __( 'Mode', 'desktop-mode' ),
+					'type'  => 'text',
+				),
+				array(
+					'key'   => 'size',
+					'label' => __( 'Size', 'desktop-mode' ),
+					'type'  => 'text',
+				),
+				array(
+					'key'   => 'words',
+					'label' => __( 'Words', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'wpm',
+					'label' => __( 'WPM', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'accuracy',
+					'label' => __( 'Accuracy', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'streak',
+					'label' => __( 'Streak', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'wave',
+					'label' => __( 'Wave', 'desktop-mode' ),
+					'type'  => 'number',
+				),
+				array(
+					'key'   => 'time',
+					'label' => __( 'Time', 'desktop-mode' ),
+					'type'  => 'time',
+				),
+			),
 		// The dictionary URL arrives via the framework-injected
 		// `wordsUrl` config key (see includes/games/config.php).
-	) );
+		)
+	);
 }
 add_action( 'init', 'openstation_alphabet_soup_register', 20 );
 

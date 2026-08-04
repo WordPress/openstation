@@ -63,7 +63,7 @@ function openstation_stored_files_get_file_shares( $file_id ) {
 		),
 		ARRAY_A
 	);
-	$out = array();
+	$out    = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_share_row( $row );
 	}
@@ -409,7 +409,7 @@ function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 		),
 		ARRAY_A
 	);
-	$count = 0;
+	$count  = 0;
 	foreach ( (array) $rows as $row ) {
 		$wpdb->update(
 			$tables['placements'],
@@ -421,7 +421,7 @@ function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 			array( '%d', '%d' ),
 			array( '%d' )
 		);
-		$count++;
+		++$count;
 	}
 	return $count;
 }
@@ -456,7 +456,7 @@ function openstation_files_get_pending_file_shares_for_user( $user_id, $since_ms
 		),
 		ARRAY_A
 	);
-	$out = array();
+	$out    = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_share_row( $row );
 	}
@@ -484,14 +484,14 @@ function openstation_files_shape_file_share( $row ) {
 		'decidedAtMs'   => isset( $row['decided_at_ms'] ) ? $row['decided_at_ms'] : null,
 	);
 	if ( $file ) {
-		$shape['fileName'] = (string) $file['display_name'];
-		$shape['ownerId']  = (int) $file['owner_id'];
-		$owner             = get_userdata( (int) $file['owner_id'] );
+		$shape['fileName']    = (string) $file['display_name'];
+		$shape['ownerId']     = (int) $file['owner_id'];
+		$owner                = get_userdata( (int) $file['owner_id'] );
 		$shape['ownerName']   = $owner ? $owner->display_name : '';
 		$shape['ownerAvatar'] = $owner ? get_avatar_url( $owner->ID, array( 'size' => 48 ) ) : '';
 	}
 	// Principal enrichment for the owner-side share list.
-	$principal = get_userdata( (int) $row['principal_ref'] );
+	$principal            = get_userdata( (int) $row['principal_ref'] );
 	$shape['displayName'] = $principal ? $principal->display_name : '';
 	$shape['avatarUrl']   = $principal ? get_avatar_url( $principal->ID, array( 'size' => 48 ) ) : '';
 	return $shape;
@@ -508,41 +508,64 @@ function openstation_files_shape_file_share( $row ) {
 function openstation_files_register_file_share_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/shares', array(
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/shares',
 		array(
-			'methods'             => WP_REST_Server::READABLE,
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_list_file_shares',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => 'openstation_files_rest_share_permission',
+				'callback'            => 'openstation_files_rest_create_file_share',
+				'args'                => array(
+					'userId' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			),
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)',
+		array(
+			'methods'             => WP_REST_Server::DELETABLE,
 			'permission_callback' => 'openstation_files_rest_share_permission',
-			'callback'            => 'openstation_files_rest_list_file_shares',
-		),
+			'callback'            => 'openstation_files_rest_delete_file_share',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_files_rest_share_permission',
-			'callback'            => 'openstation_files_rest_create_file_share',
-			'args'                => array(
-				'userId' => array( 'type' => 'integer', 'required' => true ),
-			),
-		),
-	) );
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)', array(
-		'methods'             => WP_REST_Server::DELETABLE,
-		'permission_callback' => 'openstation_files_rest_share_permission',
-		'callback'            => 'openstation_files_rest_delete_file_share',
-	) );
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_files_rest_share_permission',
-		'callback'            => 'openstation_files_rest_accept_file_share',
-	) );
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_files_rest_share_permission',
-		'callback'            => 'openstation_files_rest_deny_file_share',
-	) );
-	register_rest_route( $ns, '/files/uploads/(?P<id>\d+)/leave', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_files_rest_share_permission',
-		'callback'            => 'openstation_files_rest_leave_file_share',
-	) );
+			'callback'            => 'openstation_files_rest_accept_file_share',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_share_permission',
+			'callback'            => 'openstation_files_rest_deny_file_share',
+		)
+	);
+	register_rest_route(
+		$ns,
+		'/files/uploads/(?P<id>\d+)/leave',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_share_permission',
+			'callback'            => 'openstation_files_rest_leave_file_share',
+		)
+	);
 }
 add_action( 'rest_api_init', 'openstation_files_register_file_share_rest_routes' );
 

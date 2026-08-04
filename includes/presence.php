@@ -130,9 +130,9 @@ function openstation_presence_record( $user_id, $active = true ) {
 		return false;
 	}
 
-	$now_ms = (int) round( microtime( true ) * 1000 );
-	$all    = openstation_presence_get_all();
-	$prev   = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
+	$now_ms      = (int) round( microtime( true ) * 1000 );
+	$all         = openstation_presence_get_all();
+	$prev        = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
 		'last_seen_ms'   => 0,
 		'last_active_ms' => 0,
 	);
@@ -309,7 +309,7 @@ function openstation_presence_snapshot( $user_ids = null ) {
 	}
 
 	foreach ( $ids as $uid ) {
-		$record = isset( $all[ $uid ] ) ? $all[ $uid ] : array();
+		$record               = isset( $all[ $uid ] ) ? $all[ $uid ] : array();
 		$out[ (string) $uid ] = array(
 			'status'       => openstation_presence_status_from_record( $record ),
 			'lastSeenMs'   => isset( $record['last_seen_ms'] ) ? (int) $record['last_seen_ms'] : 0,
@@ -386,7 +386,8 @@ function openstation_presence_schedule_cron() {
 }
 add_action( 'init', 'openstation_presence_schedule_cron', 50 );
 
-/* -------------------------------------------------------------------------
+/*
+-------------------------------------------------------------------------
  * Heartbeat integration
  * ----------------------------------------------------------------------- */
 
@@ -434,7 +435,8 @@ function openstation_presence_heartbeat_received( $response, $data ) {
 }
 add_filter( 'heartbeat_received', 'openstation_presence_heartbeat_received', 5, 2 );
 
-/* -------------------------------------------------------------------------
+/*
+-------------------------------------------------------------------------
  * REST endpoints
  * ----------------------------------------------------------------------- */
 
@@ -505,20 +507,20 @@ function openstation_presence_rest_get() {
  * the simplest "I'm here" call.
  */
 function openstation_presence_rest_post( WP_REST_Request $request ) {
-	$user_id = (int) get_current_user_id();
-	$active  = $request->get_param( 'active' );
+	$user_id  = (int) get_current_user_id();
+	$active   = $request->get_param( 'active' );
 	$inactive = (bool) $request->get_param( 'inactive' );
 
 	if ( $inactive ) {
 		// Set the user immediately to `inactive`: bump last_seen
 		// (still alive) but force last_active to zero (no recent
 		// interaction).
-		$all = openstation_presence_get_all();
-		$rec = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
+		$all                   = openstation_presence_get_all();
+		$rec                   = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
 			'last_seen_ms'   => 0,
 			'last_active_ms' => 0,
 		);
-		$prev_status     = openstation_presence_status_from_record( $rec );
+		$prev_status           = openstation_presence_status_from_record( $rec );
 		$rec['last_seen_ms']   = (int) round( microtime( true ) * 1000 );
 		$rec['last_active_ms'] = 0;
 		$all[ $user_id ]       = $rec;

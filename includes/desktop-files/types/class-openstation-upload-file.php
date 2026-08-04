@@ -61,8 +61,8 @@ class OpenStation_Upload_File extends OpenStation_File {
 	}
 
 	public function serialize(): array {
-		$shape = parent::serialize();
-		$row   = $this->row();
+		$shape              = parent::serialize();
+		$row                = $this->row();
 		$shape['ownerId']   = $row ? (int) $row['owner_id'] : 0;
 		$shape['sizeBytes'] = $row ? (int) $row['size_bytes'] : 0;
 		$shape['mime']      = $row ? (string) $row['mime'] : '';

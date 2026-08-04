@@ -151,9 +151,9 @@ function openstation_my_wordpress_woo_entities( $entities ) {
  */
 function openstation_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	$icons = array(
-		'product'      => 'dashicons-products',
-		'shop_coupon'  => 'dashicons-tickets-alt',
-		'shop_order'   => 'dashicons-cart',
+		'product'     => 'dashicons-products',
+		'shop_coupon' => 'dashicons-tickets-alt',
+		'shop_order'  => 'dashicons-cart',
 	);
 
 	/**
@@ -186,7 +186,7 @@ function openstation_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 		$entity['listQuery']  = array( OPENSTATION_WOO_BANDED_PARAM => '1' );
 		// A catalogue is looked at, not read — the product photo is
 		// the thing being scanned, and it earns the bigger tile.
-		$entity['tileSize']   = 'large';
+		$entity['tileSize'] = 'large';
 	}
 
 	return $entity;
@@ -330,7 +330,7 @@ function openstation_my_wordpress_woo_product_band_defs() {
 				'order'    => $order,
 				'category' => $term->slug,
 			);
-			$order += 10;
+			$order  += 10;
 		}
 	}
 
@@ -995,7 +995,8 @@ function openstation_my_wordpress_woo_boot() {
 }
 openstation_my_wordpress_woo_boot();
 
-/* -------------------------------------------------------------------
+/*
+-------------------------------------------------------------------
  * REST
  * ---------------------------------------------------------------- */
 
@@ -1089,7 +1090,7 @@ function openstation_my_wordpress_woo_order_row( $order, $full = false ) {
  * @return array[]
  */
 function openstation_my_wordpress_woo_order_band_slices( $base ) {
-	$all    = array_map(
+	$all     = array_map(
 		static function ( $status ) {
 			return substr( $status, 3 ); // Strip the `wc-` prefix.
 		},
@@ -1184,7 +1185,7 @@ function openstation_my_wordpress_woo_orders( $request ) {
 	// content the user has already scrolled past.
 	$slices = openstation_my_wordpress_woo_order_band_slices( $base );
 
-	$total  = 0;
+	$total = 0;
 	foreach ( $slices as $slice ) {
 		$total += $slice['count'];
 	}
@@ -1224,7 +1225,7 @@ function openstation_my_wordpress_woo_orders( $request ) {
 			? (array) $batch->orders
 			: (array) $batch;
 
-		$orders    = array_merge( $orders, $batch );
+		$orders     = array_merge( $orders, $batch );
 		$remaining -= count( $batch );
 		$cursor    += $count;
 		$offset     = $cursor;
@@ -1341,7 +1342,7 @@ function openstation_my_wordpress_woo_product_summary( $id ) {
 		);
 	}
 
-	$on_sale     = $product->is_on_sale();
+	$on_sale      = $product->is_on_sale();
 	$stock_status = $product->get_stock_status();
 	$stock_labels = array(
 		'instock'     => __( 'In stock', 'desktop-mode' ),
@@ -1358,24 +1359,24 @@ function openstation_my_wordpress_woo_product_summary( $id ) {
 	$type_label = isset( $types[ $type ] ) ? (string) $types[ $type ] : ucfirst( (string) $type );
 
 	return array(
-		'type'       => 'product',
-		'sku'        => $product->get_sku(),
-		'price'      => openstation_my_wordpress_woo_price( $product->get_price() ),
-		'regular'    => $on_sale ? openstation_my_wordpress_woo_price( $product->get_regular_price() ) : '',
-		'onSale'     => $on_sale,
+		'type'        => 'product',
+		'sku'         => $product->get_sku(),
+		'price'       => openstation_my_wordpress_woo_price( $product->get_price() ),
+		'regular'     => $on_sale ? openstation_my_wordpress_woo_price( $product->get_regular_price() ) : '',
+		'onSale'      => $on_sale,
 		// Raw slug alongside the label: the bundle tints the stock
 		// pill from the slug, which no translation can break.
 		'stockStatus' => $stock_status,
-		'stockLabel' => $stock_labels[ $stock_status ] ?? $stock_status,
-		'stockLevel' => $product->managing_stock() ? (int) $product->get_stock_quantity() : null,
-		'sold'       => (int) $product->get_total_sales(),
-		'rating'     => (float) $product->get_average_rating(),
-		'reviews'    => (int) $product->get_review_count(),
+		'stockLabel'  => $stock_labels[ $stock_status ] ?? $stock_status,
+		'stockLevel'  => $product->managing_stock() ? (int) $product->get_stock_quantity() : null,
+		'sold'        => (int) $product->get_total_sales(),
+		'rating'      => (float) $product->get_average_rating(),
+		'reviews'     => (int) $product->get_review_count(),
 		'productType' => $type_label,
-		'variations' => $product->is_type( 'variable' ) ? count( $product->get_children() ) : 0,
-		'categories' => is_wp_error( $categories ) ? array() : array_values( $categories ),
-		'permalink'  => (string) $product->get_permalink(),
-		'editUrl'    => (string) get_edit_post_link( $product->get_id(), 'raw' ),
+		'variations'  => $product->is_type( 'variable' ) ? count( $product->get_children() ) : 0,
+		'categories'  => is_wp_error( $categories ) ? array() : array_values( $categories ),
+		'permalink'   => (string) $product->get_permalink(),
+		'editUrl'     => (string) get_edit_post_link( $product->get_id(), 'raw' ),
 	);
 }
 
@@ -1402,8 +1403,8 @@ function openstation_my_wordpress_woo_order_summary( $id ) {
 	foreach ( $order->get_items() as $item ) {
 		$product_id = method_exists( $item, 'get_product_id' ) ? (int) $item->get_product_id() : 0;
 		// Variations edit through their parent product's screen.
-		$edit_id    = $product_id;
-		$items[]    = array(
+		$edit_id = $product_id;
+		$items[] = array(
 			'name'     => $item->get_name(),
 			'quantity' => (int) $item->get_quantity(),
 			'total'    => openstation_my_wordpress_woo_price( $item->get_total(), $order->get_currency() ),
@@ -1425,19 +1426,19 @@ function openstation_my_wordpress_woo_order_summary( $id ) {
 		: 0;
 
 	return array(
-		'type'          => 'order',
-		'number'        => $order->get_order_number(),
-		'status'        => $order->get_status(),
-		'statusLabel'   => $statuses[ $status ] ?? $order->get_status(),
-		'total'         => openstation_my_wordpress_woo_price( $order->get_total(), $order->get_currency() ),
-		'subtotal'      => openstation_my_wordpress_woo_price( $order->get_subtotal(), $order->get_currency() ),
-		'shipping'      => (float) $order->get_shipping_total() > 0
+		'type'        => 'order',
+		'number'      => $order->get_order_number(),
+		'status'      => $order->get_status(),
+		'statusLabel' => $statuses[ $status ] ?? $order->get_status(),
+		'total'       => openstation_my_wordpress_woo_price( $order->get_total(), $order->get_currency() ),
+		'subtotal'    => openstation_my_wordpress_woo_price( $order->get_subtotal(), $order->get_currency() ),
+		'shipping'    => (float) $order->get_shipping_total() > 0
 			? openstation_my_wordpress_woo_price( $order->get_shipping_total(), $order->get_currency() )
 			: '',
-		'discount'      => (float) $order->get_discount_total() > 0
+		'discount'    => (float) $order->get_discount_total() > 0
 			? openstation_my_wordpress_woo_price( $order->get_discount_total(), $order->get_currency() )
 			: '',
-		'coupons'       => array_values(
+		'coupons'     => array_values(
 			array_map(
 				static function ( $coupon ) {
 					return $coupon->get_code();
@@ -1445,17 +1446,17 @@ function openstation_my_wordpress_woo_order_summary( $id ) {
 				$order->get_items( 'coupon' )
 			)
 		),
-		'paymentVia'    => $order->get_payment_method_title(),
-		'datePaid'      => $order->get_date_paid() ? $order->get_date_paid()->date( 'c' ) : '',
-		'placed'        => $order->get_date_created() ? $order->get_date_created()->date( 'c' ) : '',
-		'customer'      => '' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
-		'customerUrl'   => $customer_id && current_user_can( 'edit_user', $customer_id )
+		'paymentVia'  => $order->get_payment_method_title(),
+		'datePaid'    => $order->get_date_paid() ? $order->get_date_paid()->date( 'c' ) : '',
+		'placed'      => $order->get_date_created() ? $order->get_date_created()->date( 'c' ) : '',
+		'customer'    => '' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
+		'customerUrl' => $customer_id && current_user_can( 'edit_user', $customer_id )
 			? (string) get_edit_user_link( $customer_id )
 			: '',
-		'email'         => $order->get_billing_email(),
-		'itemCount'     => $order->get_item_count(),
-		'items'         => $items,
-		'editUrl'       => method_exists( $order, 'get_edit_order_url' )
+		'email'       => $order->get_billing_email(),
+		'itemCount'   => $order->get_item_count(),
+		'items'       => $items,
+		'editUrl'     => method_exists( $order, 'get_edit_order_url' )
 			? $order->get_edit_order_url()
 			: '',
 	);
@@ -1751,11 +1752,11 @@ function openstation_my_wordpress_woo_store() {
 	);
 
 	$data = array(
-		'revenue'     => openstation_my_wordpress_woo_price( $revenue ),
-		'revenueRaw'  => round( $revenue, 2 ),
-		'processing'  => isset( $processing->total ) ? (int) $processing->total : 0,
-		'outOfStock'  => is_array( $low_stock ) ? count( $low_stock ) : 0,
-		'ordersUrl'   => admin_url( 'admin.php?page=wc-orders' ),
+		'revenue'    => openstation_my_wordpress_woo_price( $revenue ),
+		'revenueRaw' => round( $revenue, 2 ),
+		'processing' => isset( $processing->total ) ? (int) $processing->total : 0,
+		'outOfStock' => is_array( $low_stock ) ? count( $low_stock ) : 0,
+		'ordersUrl'  => admin_url( 'admin.php?page=wc-orders' ),
 	);
 
 	/**
@@ -1840,7 +1841,8 @@ function openstation_my_wordpress_woo_register_routes() {
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_woo_register_routes' );
 
-/* -------------------------------------------------------------------
+/*
+-------------------------------------------------------------------
  * Assets
  * ---------------------------------------------------------------- */
 
@@ -1897,8 +1899,8 @@ function openstation_my_wordpress_woo_enqueue() {
 			'window.openStationWooConfig=%s;',
 			wp_json_encode(
 				array(
-					'restRoot'   => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
-					'restNonce'  => wp_create_nonce( 'wp_rest' ),
+					'restRoot'     => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
+					'restNonce'    => wp_create_nonce( 'wp_rest' ),
 					'canOrders'    => true === openstation_my_wordpress_woo_orders_permission(),
 					'orderBands'   => openstation_my_wordpress_woo_order_bands(),
 					'productBands' => openstation_my_wordpress_woo_product_bands(),

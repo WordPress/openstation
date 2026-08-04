@@ -64,7 +64,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Safety cap — refuse to loop more than this many generate turns so a
  * runaway agent can't burn through the site's API budget.
- *
  */
 const OPENSTATION_AGENT_RUNNER_MAX_TURNS = 8;
 
@@ -90,7 +89,6 @@ const OPENSTATION_AGENT_HTTP_TIMEOUT = 180;
  * User-meta key holding the invocation log for an agent, capped at
  * `OPENSTATION_AGENT_RUNNER_LOG_CAP` rows — older entries roll off
  * the front as new ones are appended.
- *
  *
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -500,7 +498,7 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			'text' => $turn['text'],
 		);
 	}
-	$history[] = array(
+	$history[]  = array(
 		'type' => 'user_text',
 		'text' => (string) $message,
 	);
@@ -986,7 +984,7 @@ function openstation_agent_with_http_timeout( callable $callback ) {
 		return $callback();
 	}
 
-	$raise = static function ( $current ) use ( $timeout ) {
+	$raise       = static function ( $current ) use ( $timeout ) {
 		return max( (int) $current, $timeout );
 	};
 	$raise_float = static function ( $current ) use ( $timeout ) {
@@ -1215,7 +1213,7 @@ function openstation_agent_runner_log_invocation( $agent_user_id, $message, arra
 		}
 	}
 
-	$entry = array(
+	$entry  = array(
 		'time'           => time(),
 		'userId'         => (int) get_current_user_id(),
 		'userName'       => '',

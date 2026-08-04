@@ -90,7 +90,7 @@ function openstation_my_wordpress_user_summary_payload( $user_id ) {
 			$user_id
 		)
 	);
-	$last_active = $last_active_raw ? mysql2date( 'c', $last_active_raw, false ) : '';
+	$last_active     = $last_active_raw ? mysql2date( 'c', $last_active_raw, false ) : '';
 
 	return array(
 		'postCount'  => $post_count,

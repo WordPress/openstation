@@ -14,6 +14,7 @@
  *         <slug>/
  *             theme.json       <- the author's raw manifest
  *             theme.css        <- compiled by us: custom props +
+ *
  *                                 @font-face rules we generated
  *             icons/…  textures/…  fonts/…  preview.png
  *
@@ -605,12 +606,17 @@ function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 		$kind
 	);
 
-	return array_values( array_filter( array_map(
-		static function ( $ext ) {
-			return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
-		},
-		$extensions
-	), 'strlen' ) );
+	return array_values(
+		array_filter(
+			array_map(
+				static function ( $ext ) {
+					return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
+				},
+				$extensions
+			),
+			'strlen'
+		)
+	);
 }
 
 /**
@@ -684,12 +690,17 @@ function openstation_desktop_theme_zip_caps() {
 		'max_entries'      => max( 1, (int) ( $caps['max_entries'] ?? 256 ) ),
 		'max_uncompressed' => max( 1, (int) ( $caps['max_uncompressed'] ?? 33554432 ) ),
 		'max_file'         => max( 1, (int) ( $caps['max_file'] ?? 8388608 ) ),
-		'extensions'       => array_values( array_filter( array_map(
-			static function ( $ext ) {
-				return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
-			},
-			(array) ( $caps['extensions'] ?? array() )
-		), 'strlen' ) ),
+		'extensions'       => array_values(
+			array_filter(
+				array_map(
+					static function ( $ext ) {
+						return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
+					},
+					(array) ( $caps['extensions'] ?? array() )
+				),
+				'strlen'
+			)
+		),
 	);
 }
 

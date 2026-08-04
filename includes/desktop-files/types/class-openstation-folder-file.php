@@ -61,8 +61,8 @@ class OpenStation_Folder_File extends OpenStation_File {
 	}
 
 	public function serialize(): array {
-		$shape = parent::serialize();
-		$row   = $this->folder();
+		$shape              = parent::serialize();
+		$row                = $this->folder();
 		$shape['ownerId']   = $row ? (int) $row['owner_id'] : 0;
 		$shape['shareMode'] = $row ? (string) $row['share_mode'] : 'private';
 		return $shape;

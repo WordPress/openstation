@@ -125,7 +125,7 @@ function openstation_my_wordpress_post_attached_media( $post_id ) {
 					continue;
 				}
 				$seen_urls[ $url ] = true;
-				$resolved = openstation_my_wordpress_resolve_attachment_url( $url );
+				$resolved          = openstation_my_wordpress_resolve_attachment_url( $url );
 				if ( $resolved > 0 ) {
 					$ids[ $resolved ] = true;
 				}
@@ -172,7 +172,7 @@ function openstation_my_wordpress_post_attached_media( $post_id ) {
  */
 function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	static $cache = array();
-	$url = (string) $url;
+	$url          = (string) $url;
 	if ( '' === $url ) {
 		return 0;
 	}
@@ -182,14 +182,14 @@ function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	// `attachment_url_to_postid()` does a literal `_wp_attached_file`
 	// meta lookup — it doesn't account for WP-generated variants:
 	//
-	//   - Sized intermediates  `image-300x200.jpg` — strip `-WxH`.
-	//   - `-scaled.jpg`        WP autogenerates this for uploads
-	//                          past the big-image threshold and
-	//                          stores it as `_wp_attached_file`,
-	//                          while editors emit the original
-	//                          URL in `<img src>`. Try BOTH the
-	//                          scaled→original strip AND the
-	//                          original→scaled append.
+	// - Sized intermediates  `image-300x200.jpg` — strip `-WxH`.
+	// - `-scaled.jpg`        WP autogenerates this for uploads
+	// past the big-image threshold and
+	// stores it as `_wp_attached_file`,
+	// while editors emit the original
+	// URL in `<img src>`. Try BOTH the
+	// scaled→original strip AND the
+	// original→scaled append.
 	//
 	// Strip query strings from every candidate so cache-buster URLs
 	// (`?ver=…`) still resolve.
@@ -198,7 +198,7 @@ function openstation_my_wordpress_resolve_attachment_url( $url ) {
 		return false === $pos ? $u : substr( $u, 0, $pos );
 	};
 
-	$clean = $strip_query( $url );
+	$clean      = $strip_query( $url );
 	$candidates = array( $clean );
 
 	// `image-300x200.jpg` → `image.jpg`

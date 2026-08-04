@@ -113,10 +113,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	$truncated = false;
 
 	// 1) Visible folders the viewer should know about. We send
-	//    the FULL row when its `updated_at_ms` exceeds whatever
-	//    the client last saw (or the client doesn't know about
-	//    it at all).
-	$visible = openstation_files_get_visible_folders( $user_id );
+	// the FULL row when its `updated_at_ms` exceeds whatever
+	// the client last saw (or the client doesn't know about
+	// it at all).
+	$visible        = openstation_files_get_visible_folders( $user_id );
 	$folder_upserts = array();
 	foreach ( $visible as $row ) {
 		$id        = (int) $row['id'];
@@ -133,12 +133,15 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	}
 
 	// 2) Placement upserts the viewer can see. We pull anything
-	//    written since `placements_version` whose owner is the
-	//    viewer (their own desktop) OR which lives in a folder
-	//    the viewer can see (shared content).
-	$visible_folder_ids = array_map( static function ( $f ) {
-		return (int) $f['id'];
-	}, $visible );
+	// written since `placements_version` whose owner is the
+	// viewer (their own desktop) OR which lives in a folder
+	// the viewer can see (shared content).
+	$visible_folder_ids = array_map(
+		static function ( $f ) {
+			return (int) $f['id'];
+		},
+		$visible
+	);
 	// Always include the desktop root (parent_id=0) for the viewer.
 	$placement_upserts = array();
 	if ( ! $truncated ) {
@@ -209,7 +212,7 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	}
 
 	// 3) Tombstones since the last placements_version — gives the
-	//    client the "this row is gone" signal.
+	// client the "this row is gone" signal.
 	$tomb_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT kind, ref_id FROM {$tables['tombstones']} WHERE removed_at_ms > %d ORDER BY removed_at_ms ASC LIMIT %d",
@@ -218,7 +221,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 		),
 		ARRAY_A
 	);
-	$removed = array( 'placements' => array(), 'folders' => array() );
+	$removed   = array(
+		'placements' => array(),
+		'folders'    => array(),
+	);
 	foreach ( (array) $tomb_rows as $row ) {
 		if ( 'folder' === $row['kind'] ) {
 			$removed['folders'][] = (int) $row['ref_id'];
@@ -228,12 +234,12 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	}
 
 	// 4) Soft-trash events. Tombstones only fire on hard delete, so
-	//    a trashed placement / folder would otherwise stay in the
-	//    client store between F5s. Surface every row whose
-	//    `trashed_at_ms` is fresher than the client's high-water
-	//    mark as a `removed.*` entry. Restoring (clearing
-	//    `trashed_at_ms`) bumps `updated_at_ms` and the row will
-	//    flow back through `placements` / `folders` upserts above.
+	// a trashed placement / folder would otherwise stay in the
+	// client store between F5s. Surface every row whose
+	// `trashed_at_ms` is fresher than the client's high-water
+	// mark as a `removed.*` entry. Restoring (clearing
+	// `trashed_at_ms`) bumps `updated_at_ms` and the row will
+	// flow back through `placements` / `folders` upserts above.
 	$trashed_placements = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -264,9 +270,9 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	}
 
 	// 5) Pending share invites for this viewer (across every folder
-	//    they're invited to). Owner-side share-status changes flow
-	//    through the folder upserts above; this channel is for the
-	//    recipient's "you've been invited" placeholder UI.
+	// they're invited to). Owner-side share-status changes flow
+	// through the folder upserts above; this channel is for the
+	// recipient's "you've been invited" placeholder UI.
 	$shares          = array();
 	$sharing_enabled = function_exists( 'openstation_files_sharing_enabled_for' )
 		? openstation_files_sharing_enabled_for( $user_id )
@@ -274,14 +280,14 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	if ( $sharing_enabled && function_exists( 'openstation_files_get_pending_shares_for_user' ) ) {
 		$pending = openstation_files_get_pending_shares_for_user( $user_id, $shares_version );
 		foreach ( $pending as $row ) {
-			$shape = openstation_files_shape_share( $row );
+			$shape  = openstation_files_shape_share( $row );
 			$folder = openstation_files_get_folder( $row['folder_id'] );
 			if ( $folder ) {
-				$shape['folderName']    = (string) $folder['name'];
-				$shape['ownerId']       = (int) $folder['owner_id'];
-				$owner_user             = get_userdata( (int) $folder['owner_id'] );
-				$shape['ownerName']     = $owner_user ? $owner_user->display_name : '';
-				$shape['ownerAvatar']   = $owner_user ? get_avatar_url( $owner_user->ID, array( 'size' => 48 ) ) : '';
+				$shape['folderName']  = (string) $folder['name'];
+				$shape['ownerId']     = (int) $folder['owner_id'];
+				$owner_user           = get_userdata( (int) $folder['owner_id'] );
+				$shape['ownerName']   = $owner_user ? $owner_user->display_name : '';
+				$shape['ownerAvatar'] = $owner_user ? get_avatar_url( $owner_user->ID, array( 'size' => 48 ) ) : '';
 			}
 			$shares[] = $shape;
 			if ( count( $shares ) >= $cap ) {
@@ -317,15 +323,17 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	// path stay in the table). Cleaning them up server-side prevents
 	// the same client-side glitch on every subsequent tick.
 	$upsert_placement_ids = array_map(
-		static function ( $p ) { return (int) $p['id']; },
+		static function ( $p ) {
+			return (int) $p['id']; },
 		$placement_upserts
 	);
-	$upsert_folder_ids = array_map(
-		static function ( $f ) { return (int) $f['id']; },
+	$upsert_folder_ids    = array_map(
+		static function ( $f ) {
+			return (int) $f['id']; },
 		$folder_upserts
 	);
 	if ( ! empty( $upsert_placement_ids ) ) {
-		$alive_placements = array_flip( $upsert_placement_ids );
+		$alive_placements      = array_flip( $upsert_placement_ids );
 		$removed['placements'] = array_values(
 			array_filter(
 				$removed['placements'],
@@ -340,7 +348,7 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 		openstation_files_purge_stale_tombstones( 'placement', $upsert_placement_ids );
 	}
 	if ( ! empty( $upsert_folder_ids ) ) {
-		$alive_folders = array_flip( $upsert_folder_ids );
+		$alive_folders      = array_flip( $upsert_folder_ids );
 		$removed['folders'] = array_values(
 			array_filter(
 				$removed['folders'],

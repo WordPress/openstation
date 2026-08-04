@@ -43,12 +43,12 @@ defined( 'ABSPATH' ) || exit;
  * Heartbeat field name. Public — `src/nonce-refresh.ts` subscribes
  * to this string. Keep the value stable across versions or update
  * both ends.
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_NONCE_REFRESH_FIELD = 'desktop_mode_nonces';
 
@@ -58,12 +58,12 @@ const OPENSTATION_NONCE_REFRESH_FIELD = 'desktop_mode_nonces';
  * boot-time viewer and hard-reloads when a *different* user logged
  * in through the session-expired prompt — in-place nonce refresh
  * would otherwise leave user A's desktop issuing user B's requests.
-  *
-  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
-  * persisted or externally-visible identifier, so renaming it would
-  * orphan data already written by live installs (or break a live
-  * URL). The mismatch between this constant's name and its value is
-  * deliberate — it is NOT a half-finished rename.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_AUTH_FIELD = 'desktop_mode_auth';
 

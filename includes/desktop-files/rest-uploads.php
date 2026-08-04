@@ -37,9 +37,22 @@ defined( 'ABSPATH' ) || exit;
  */
 function openstation_stored_files_denied_extensions() {
 	$denied = array(
-		'php', 'php3', 'php4', 'php5', 'php7', 'php8',
-		'phtml', 'phar', 'pht', 'phps',
-		'cgi', 'pl', 'asp', 'aspx', 'jsp', 'shtml',
+		'php',
+		'php3',
+		'php4',
+		'php5',
+		'php7',
+		'php8',
+		'phtml',
+		'phar',
+		'pht',
+		'phps',
+		'cgi',
+		'pl',
+		'asp',
+		'aspx',
+		'jsp',
+		'shtml',
 	);
 	/**
 	 * Filters the hard-denied extension list. Narrowing this below
@@ -113,40 +126,75 @@ function openstation_files_rest_uploads_permission() {
  * Register the upload route.
  */
 function openstation_files_register_upload_rest_routes() {
-	register_rest_route( 'desktop-mode/v1', '/files/uploads', array(
-		// POST only — PHP parses multipart into $_FILES for real
-		// POST requests exclusively.
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_files_rest_uploads_permission',
-		'callback'            => 'openstation_files_rest_upload',
-		'args'                => array(
-			'parentId'     => array( 'type' => 'integer', 'default' => 0, 'sanitize_callback' => 'absint' ),
-			'relativePath' => array( 'type' => 'string', 'default' => '' ),
-			// No defaults on x/y on purpose: absent coords mean
-			// "server picks the next free grid slot".
-			'x'            => array( 'type' => 'integer', 'required' => false ),
-			'y'            => array( 'type' => 'integer', 'required' => false ),
-		),
-	) );
+	register_rest_route(
+		'desktop-mode/v1',
+		'/files/uploads',
+		array(
+			// POST only — PHP parses multipart into $_FILES for real
+			// POST requests exclusively.
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_uploads_permission',
+			'callback'            => 'openstation_files_rest_upload',
+			'args'                => array(
+				'parentId'     => array(
+					'type'              => 'integer',
+					'default'           => 0,
+					'sanitize_callback' => 'absint',
+				),
+				'relativePath' => array(
+					'type'    => 'string',
+					'default' => '',
+				),
+				// No defaults on x/y on purpose: absent coords mean
+				// "server picks the next free grid slot".
+				'x'            => array(
+					'type'     => 'integer',
+					'required' => false,
+				),
+				'y'            => array(
+					'type'     => 'integer',
+					'required' => false,
+				),
+			),
+		)
+	);
 
-	register_rest_route( 'desktop-mode/v1', '/files/uploads/paths', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'openstation_files_rest_uploads_permission',
-		'callback'            => 'openstation_files_rest_ensure_upload_path',
-		'args'                => array(
-			'parentId'     => array( 'type' => 'integer', 'default' => 0, 'sanitize_callback' => 'absint' ),
-			'relativePath' => array( 'type' => 'string', 'required' => true ),
-		),
-	) );
+	register_rest_route(
+		'desktop-mode/v1',
+		'/files/uploads/paths',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'openstation_files_rest_uploads_permission',
+			'callback'            => 'openstation_files_rest_ensure_upload_path',
+			'args'                => array(
+				'parentId'     => array(
+					'type'              => 'integer',
+					'default'           => 0,
+					'sanitize_callback' => 'absint',
+				),
+				'relativePath' => array(
+					'type'     => 'string',
+					'required' => true,
+				),
+			),
+		)
+	);
 
-	register_rest_route( 'desktop-mode/v1', '/files/uploads/(?P<id>\d+)', array(
-		'methods'             => WP_REST_Server::EDITABLE,
-		'permission_callback' => 'openstation_files_rest_permission',
-		'callback'            => 'openstation_files_rest_rename_upload',
-		'args'                => array(
-			'name' => array( 'type' => 'string', 'required' => true ),
-		),
-	) );
+	register_rest_route(
+		'desktop-mode/v1',
+		'/files/uploads/(?P<id>\d+)',
+		array(
+			'methods'             => WP_REST_Server::EDITABLE,
+			'permission_callback' => 'openstation_files_rest_permission',
+			'callback'            => 'openstation_files_rest_rename_upload',
+			'args'                => array(
+				'name' => array(
+					'type'     => 'string',
+					'required' => true,
+				),
+			),
+		)
+	);
 }
 
 /**
@@ -597,7 +645,7 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
  * @return array
  */
 function openstation_stored_files_inject_shell_config( $config ) {
-	$user_id = get_current_user_id();
+	$user_id                  = get_current_user_id();
 	$config['desktopStorage'] = array(
 		'canUpload'    => $user_id > 0 && current_user_can( openstation_stored_files_upload_capability() ),
 		'maxBytes'     => openstation_stored_files_max_upload_bytes( $user_id ),

@@ -82,8 +82,8 @@ function openstation_files_install_schema() {
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables           = openstation_files_table_names();
-	$charset_collate  = $wpdb->get_charset_collate();
+	$tables          = openstation_files_table_names();
+	$charset_collate = $wpdb->get_charset_collate();
 
 	// Schema v2: adds trash columns to both placements
 	// and folders so deleted shortcuts and folders land in the
@@ -275,10 +275,10 @@ function openstation_files_ensure_trash_columns() {
 		$col_exists = static function () use ( $wpdb, $table, $column ) {
 			return (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 					WHERE TABLE_SCHEMA = DATABASE()
 						AND TABLE_NAME = %s
-						AND COLUMN_NAME = %s",
+						AND COLUMN_NAME = %s',
 					$table,
 					$column
 				)
@@ -300,16 +300,16 @@ function openstation_files_ensure_trash_columns() {
 		}
 	};
 
-	$ensure( $tables['placements'], 'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['placements'], 'trashed_by',         'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
 	// v6: ancestry snapshot — JSON capturing every folder in the
 	// parent chain at trash time so a restore can resurrect the
 	// chain even when a folder was hard-deleted in the meantime.
-	$ensure( $tables['placements'], 'trashed_meta',       'LONGTEXT NULL' );
-	$ensure( $tables['folders'],    'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'],    'trashed_by',         'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'],    'trashed_meta',       'LONGTEXT NULL' );
+	$ensure( $tables['placements'], 'trashed_meta', 'LONGTEXT NULL' );
+	$ensure( $tables['folders'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'], 'trashed_meta', 'LONGTEXT NULL' );
 }
 
 /**
@@ -339,10 +339,10 @@ function openstation_files_dedupe_placements() {
 	// during the v4 → v5 migration.
 	$has_unique = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
-				AND INDEX_NAME   = %s",
+				AND INDEX_NAME   = %s',
 			$tbl,
 			'placement_unique'
 		)
@@ -387,10 +387,10 @@ function openstation_files_ensure_unique_placement_index() {
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
-				AND INDEX_NAME   = %s",
+				AND INDEX_NAME   = %s',
 			$tbl,
 			'placement_unique'
 		)
@@ -432,10 +432,10 @@ function openstation_files_ensure_updated_by_column() {
 	$tbl    = $tables['placements'];
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME = %s
-				AND COLUMN_NAME = %s",
+				AND COLUMN_NAME = %s',
 			$tbl,
 			'updated_by'
 		)
@@ -488,8 +488,8 @@ function openstation_files_rename_user_id_to_owner_id() {
 	// it with `owner_id` directly. Nothing to migrate.
 	$table_exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
 			$tbl
 		)
 	);
@@ -560,9 +560,9 @@ function openstation_files_ensure_shares_table() {
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
-				AND TABLE_NAME   = %s",
+				AND TABLE_NAME   = %s',
 			$tbl
 		)
 	);
@@ -591,10 +591,10 @@ function openstation_files_ensure_shares_table() {
 		// installs that ran a pre-target_type build of v8.
 		$has_col = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 				WHERE TABLE_SCHEMA = DATABASE()
 					AND TABLE_NAME = %s
-					AND COLUMN_NAME = %s",
+					AND COLUMN_NAME = %s',
 				$tbl,
 				'target_type'
 			)
@@ -624,9 +624,9 @@ function openstation_files_ensure_decisions_table() {
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
-				AND TABLE_NAME   = %s",
+				AND TABLE_NAME   = %s',
 			$tbl
 		)
 	);

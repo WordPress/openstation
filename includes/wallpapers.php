@@ -68,16 +68,19 @@ function openstation_register_builtin_wallpapers() {
 
 	foreach ( $brand as $wallpaper ) {
 		$css = 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat fixed';
-		openstation_register_wallpaper( $wallpaper['id'], array(
-			'label'       => $wallpaper['label'],
-			'type'        => 'css',
-			// The swatch is the same artwork, sized to the chip rather
-			// than the desk: `cover` on a 40px square would crop to a
-			// meaningless corner of the composition.
-			'preview'     => 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
-			'value'       => $css,
-			'description' => $wallpaper['description'],
-		) );
+		openstation_register_wallpaper(
+			$wallpaper['id'],
+			array(
+				'label'       => $wallpaper['label'],
+				'type'        => 'css',
+				// The swatch is the same artwork, sized to the chip rather
+				// than the desk: `cover` on a 40px square would crop to a
+				// meaningless corner of the composition.
+				'preview'     => 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
+				'value'       => $css,
+				'description' => $wallpaper['description'],
+			)
+		);
 	}
 
 	$presets = array(
@@ -114,13 +117,16 @@ function openstation_register_builtin_wallpapers() {
 	);
 
 	foreach ( $presets as $preset ) {
-		openstation_register_wallpaper( $preset['id'], array(
-			'label'       => $preset['label'],
-			'preview'     => $preset['value'],
-			'value'       => $preset['value'],
-			'type'        => 'css',
-			'description' => $preset['description'],
-		) );
+		openstation_register_wallpaper(
+			$preset['id'],
+			array(
+				'label'       => $preset['label'],
+				'preview'     => $preset['value'],
+				'value'       => $preset['value'],
+				'type'        => 'css',
+				'description' => $preset['description'],
+			)
+		);
 	}
 
 	// Animated WordPress Logo — built-in PixiJS canvas wallpaper.
@@ -129,13 +135,16 @@ function openstation_register_builtin_wallpapers() {
 	// enqueued handle (registered in `includes/assets.php`); the
 	// shell's wallpaper sync injects its URL when the wallpaper
 	// def is needed (selected, or shown in the OS Settings picker).
-	openstation_register_wallpaper( 'wp-animated-logo', array(
-		'label'       => __( 'Animated WordPress Logo', 'desktop-mode' ),
-		'preview'     => 'radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0b0f25 100%)',
-		'type'        => 'canvas',
-		'script'      => 'os-animated-logo-wallpaper',
-		'description' => __( 'Thousands of luminous particles holding the shape of the WordPress W. Sweep your cursor through and they scatter like sand, then drift home again.', 'desktop-mode' ),
-	) );
+	openstation_register_wallpaper(
+		'wp-animated-logo',
+		array(
+			'label'       => __( 'Animated WordPress Logo', 'desktop-mode' ),
+			'preview'     => 'radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0b0f25 100%)',
+			'type'        => 'canvas',
+			'script'      => 'os-animated-logo-wallpaper',
+			'description' => __( 'Thousands of luminous particles holding the shape of the WordPress W. Sweep your cursor through and they scatter like sand, then drift home again.', 'desktop-mode' ),
+		)
+	);
 
 	// Snow — built-in PixiJS canvas wallpaper. The preview gradient
 	// must match the default backdrop the JS side paints behind the
@@ -145,12 +154,15 @@ function openstation_register_builtin_wallpapers() {
 	// different one once selected. First built-in wallpaper with a
 	// `renderConfig` settings dialog (wind, snowflake count, flake
 	// size, background colour).
-	openstation_register_wallpaper( 'wp-snow', array(
-		'label'       => __( 'Snow', 'desktop-mode' ),
-		'preview'     => 'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
-		'type'        => 'canvas',
-		'script'      => 'os-snow-wallpaper',
-		'description' => __( 'Snow falling over a midnight sky. Flakes settle on the top edge of every window, pile into little drifts, then quietly melt away. Open the wallpaper settings to tune the wind, the snowfall, the flake size, and the colour of the night.', 'desktop-mode' ),
-	) );
+	openstation_register_wallpaper(
+		'wp-snow',
+		array(
+			'label'       => __( 'Snow', 'desktop-mode' ),
+			'preview'     => 'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
+			'type'        => 'canvas',
+			'script'      => 'os-snow-wallpaper',
+			'description' => __( 'Snow falling over a midnight sky. Flakes settle on the top edge of every window, pile into little drifts, then quietly melt away. Open the wallpaper settings to tune the wind, the snowfall, the flake size, and the colour of the night.', 'desktop-mode' ),
+		)
+	);
 }
 add_action( 'init', 'openstation_register_builtin_wallpapers', 5 );
