@@ -5701,6 +5701,27 @@ key your endpoint returns is stripped before the bundle sees it unless
 the section declares it in `listFields` (see
 [`openstation_my_wordpress_entities`](./hooks-reference.md#openstation_my_wordpress_entities--experimental)).
 
+**`editUrl` — rows that don't live in `wp_posts`.** Opening a row for
+editing normally means `post.php?post=<id>`, derived from the row's
+id. A section whose records are stored somewhere else has no such URL:
+a WooCommerce order under High-Performance Order Storage is the
+in-tree case, and `post.php` on its id opens a different post or
+nothing at all.
+
+Return an `editUrl` on the row and the window uses it verbatim
+wherever it would have built one:
+
+```php
+add_filter( 'rest_prepare_my_thing', function ( $response, $thing ) {
+    $response->data['editUrl'] = admin_url( 'admin.php?page=my-thing&id=' . $thing->id );
+    return $response;
+}, 10, 2 );
+```
+
+Declare it in the section's `listFields` — otherwise `_fields` strips
+it off the list rows and only the single-row fetch carries it, which
+reads as "edit works from the preview pane but not from a tile".
+
 ### Action — `os.my-wordpress.list-tile`
 
 Decorate a list tile. Fires once per tile, after the built-in chrome
@@ -5846,7 +5867,11 @@ interface MyWordPressEntity {
     groupLabel?: string | null;
     groupIcon?: string | null;
     groupOrder?: number | null;
-    /** Extra REST fields to keep on this section's list rows. */
+    /**
+     * Extra REST fields to keep on this section's list rows —
+     * anything outside the built-in `_fields` set, `editUrl`
+     * included.
+     */
     listFields?: string[];
     /** Extra query params sent with this section's list requests. */
     listQuery?: Record< string, string >;

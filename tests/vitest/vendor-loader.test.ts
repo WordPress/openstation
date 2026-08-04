@@ -73,6 +73,37 @@ describe( 'loadVendorScript — no double injection', () => {
 		expect( scriptCount( '/b.min.js' ) ).toBe( 1 );
 	} );
 
+	test( 'the same path on a different origin is a different bundle', () => {
+		// `loadVendorScript` is public API and vendor bundles have
+		// generic paths — two CDNs both serving `/dist/index.js` is
+		// not a hypothetical. Matching on pathname alone would adopt
+		// the first as the second and never load it.
+		const first = document.createElement( 'script' );
+		first.src = 'http://cdn-one.test/dist/index.js?ver=1';
+		document.head.appendChild( first );
+
+		void loadVendorScript( 'http://cdn-two.test/dist/index.js' );
+
+		expect( scriptCount( '/dist/index.js' ) ).toBe( 2 );
+		// The pre-existing tag belongs to the other origin and must
+		// not have been adopted as ours.
+		expect( first.dataset.osVendor ).toBeUndefined();
+	} );
+
+	test( 'a protocol-relative URL resolves against the document', () => {
+		// `//example.test/…` is same-origin here, so it IS the same
+		// bundle — origin matching must resolve, not string-compare.
+		const url =
+			'http://example.test/wp-content/plugins/x/assets/js/d.min.js';
+		const enqueued = document.createElement( 'script' );
+		enqueued.src = '//example.test/wp-content/plugins/x/assets/js/d.min.js';
+		document.head.appendChild( enqueued );
+
+		void loadVendorScript( url );
+
+		expect( scriptCount( '/d.min.js' ) ).toBe( 1 );
+	} );
+
 	test( 'the adopted tag is marked so re-entry short-circuits', async () => {
 		// Its own URL: the loader memoizes resolved loads by URL for
 		// the life of the module, so reusing another test's URL would

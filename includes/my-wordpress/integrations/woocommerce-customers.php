@@ -617,6 +617,10 @@ add_action( 'woocommerce_update_order', 'openstation_my_wordpress_woo_flush_cust
 add_action( 'woocommerce_order_status_changed', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_delete_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_trash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
+// Untrash is its own event, not an update: restoring a paid order has
+// to move the buyer's spend and band back where they were, and nothing
+// else fires when it happens.
+add_action( 'woocommerce_untrash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 
 /*
 -------------------------------------------------------------------
@@ -846,11 +850,31 @@ function openstation_my_wordpress_woo_customers( $request ) {
 	$total = (int) $query->get_total();
 	$pages = $per_page > 0 ? (int) ceil( $total / $per_page ) : 1;
 
-	$rows = array();
+	$users = array();
 	foreach ( (array) $query->get_results() as $user ) {
 		if ( $user instanceof WP_User ) {
-			$rows[] = openstation_my_wordpress_woo_customer_row( $user );
+			$users[] = $user;
 		}
+	}
+
+	// The customer *facts* come from one cached aggregate, but the
+	// generic user summary on each row is two indexed queries a piece
+	// — 200 of them on a full page. Prefetch the page in two grouped
+	// queries and every row below answers from memory.
+	if ( function_exists( 'openstation_my_wordpress_user_summary_prime' ) ) {
+		openstation_my_wordpress_user_summary_prime(
+			array_map(
+				static function ( $user ) {
+					return (int) $user->ID;
+				},
+				$users
+			)
+		);
+	}
+
+	$rows = array();
+	foreach ( $users as $user ) {
+		$rows[] = openstation_my_wordpress_woo_customer_row( $user );
 	}
 
 	$response = rest_ensure_response( $rows );
@@ -946,12 +970,19 @@ function openstation_my_wordpress_woo_customer_favourite( $user_id ) {
 	$product_id = (int) array_key_first( $tally );
 	$top        = $tally[ $product_id ];
 
+	// The link is gated, the fact isn't: someone who may read customer
+	// money but not edit products should still be told what that
+	// person buys — the name just stops being clickable.
+	// `get_edit_post_link()` returns null without `edit_post`, and the
+	// cast turns that into the empty string the client reads as "no
+	// link"; the explicit check states the intent rather than leaving
+	// it resting on a core side-effect.
+	$can_edit = get_post( $product_id ) && current_user_can( 'edit_post', $product_id );
+
 	return array(
 		'label'    => (string) $top['label'],
 		'quantity' => (int) $top['quantity'],
-		'editUrl'  => get_post( $product_id )
-			? (string) get_edit_post_link( $product_id, 'raw' )
-			: '',
+		'editUrl'  => $can_edit ? (string) get_edit_post_link( $product_id, 'raw' ) : '',
 	);
 }
 
@@ -1319,9 +1350,18 @@ function openstation_my_wordpress_woo_customer_store_totals( $data ) {
 	$guest = $map[0] ?? null;
 	$plan  = openstation_my_wordpress_woo_customer_plan();
 
-	$data['customers']   = (int) ( $plan['customers'] ?? 0 );
-	$data['vips']        = (int) ( ( $plan['counts'] ?? array() )['vip'] ?? 0 );
-	$data['lapsed']      = (int) ( ( $plan['counts'] ?? array() )['lapsed'] ?? 0 );
+	$data['customers'] = (int) ( $plan['customers'] ?? 0 );
+
+	// Past the ordering cap the plan holds no bands, so the band
+	// counts are not zero — they are unknown. Saying so is the whole
+	// point: a store with 40,000 customers reporting "0 VIPs" is a
+	// wrong answer stated confidently, which is worse than no answer.
+	$data['bandsCapped'] = ! empty( $plan['capped'] );
+	if ( empty( $data['bandsCapped'] ) ) {
+		$data['vips']   = (int) ( ( $plan['counts'] ?? array() )['vip'] ?? 0 );
+		$data['lapsed'] = (int) ( ( $plan['counts'] ?? array() )['lapsed'] ?? 0 );
+	}
+
 	$data['guestSpend']  = $guest && (float) $guest['spend'] > 0
 		? openstation_my_wordpress_woo_price( (float) $guest['spend'] )
 		: '';

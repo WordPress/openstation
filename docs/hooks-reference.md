@@ -3355,6 +3355,46 @@ exactly like the catalogue does past its own cap. Read
 `X-Desktop-Mode-Woo-Customers-Mode` off the response to tell which
 mode you got.
 
+Past the cap the folder's Store panel reports the band counts as
+**not counted** rather than as zero — the payload carries
+`bandsCapped: true` and omits `vips` / `lapsed` entirely, because a
+large store being told it has "0 VIPs" is a wrong answer stated
+confidently.
+
+#### The Customer window
+
+A native window on one person, opened with a `customerId` param from a
+customer tile, an order's Related menu, or a session restore. It is a
+retargetable singleton: opening it on a second customer repaints the
+open window rather than stacking a new one.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_customer_window_template_html', string $html ): string
+```
+
+The window's static template body before it is emitted into the
+native-window template element. The default is a bare mount point —
+the whole surface is data-driven, so a markup skeleton would only be a
+second place for the layout to live and drift.
+
+Keep the `data-os-woo-customer-root` attribute intact: the render
+callback mounts into it, and a template without it paints into the
+window body instead. The result is passed through
+`openstation_kses_native_window_template()`.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_customer_window_args', array $args ): array
+```
+
+The `openstation_register_window()` args for the Customer window —
+title, icon, size and minimums, the `desktop-mode-woo-customer` id's
+script and style handles, and `placement => 'none'` (it is never
+opened from a dock tile, because "the customer window" with no
+customer means nothing).
+
+Both filters only run when WooCommerce is active and the viewer passes
+the customers permission gate — order access **and** `list_users`.
+
 ### `openstation_my_wordpress_template_html` — Experimental (filter)
 
 The static template body before it's emitted into the native-window template element. Keep the `data-os-my-wordpress-*` data hooks intact so the JS bundle can find its mount points.

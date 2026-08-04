@@ -21,7 +21,7 @@ import {
 import { Dock, type DockItem, type SystemDockItem } from './dock';
 import {
 	bindNativeUrlRemap,
-	OS_PERSON_VIEW_PARAM,
+	isPersonViewClaimed,
 	registerNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
@@ -2320,7 +2320,7 @@ function init(): void {
 			// window — claims the same person without having to win a
 			// registration-order race with this entry, and without
 			// this one having to know what claimed it.
-			if ( parsed.searchParams.has( OS_PERSON_VIEW_PARAM ) ) {
+			if ( isPersonViewClaimed( parsed ) ) {
 				return false;
 			}
 			const path = parsed.pathname;

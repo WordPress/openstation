@@ -1725,6 +1725,15 @@ export class WindowManager {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
 			const native = !! w.config.native;
+			// Read once into a local rather than narrowing
+			// `w.config.params` and re-reading it inside a nested
+			// closure: property narrowing that has to survive a
+			// function boundary is a compile that works by accident.
+			const openParams = w.config.params;
+			const params =
+				native && openParams
+					? this.sanitizeParams( openParams )
+					: null;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
@@ -1735,12 +1744,7 @@ export class WindowManager {
 				// restores by id alone and comes back showing its default
 				// (the profile editor on whoever is logged in), which
 				// reads as the window silently changing subject.
-				...( native && w.config.params
-					? ( () => {
-						const params = this.sanitizeParams( w.config.params );
-						return params ? { params } : {};
-					} )()
-					: {} ),
+				...( params ? { params } : {} ),
 				// Native windows have no navigable URL — `config.url` is
 				// the `#slug` marker they were opened with, and
 				// `getCurrentUrl()` reads an iframe they don't have.

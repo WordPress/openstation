@@ -425,6 +425,60 @@ class Tests_OpenStation_MyWordpressWoocommerceCustomers extends WP_UnitTestCase 
 	}
 
 	// ────────────────────────────────────────────────────────────────
+	// Cache invalidation. The aggregate is a five-minute transient,
+	// so a lifecycle event nobody wired up doesn't fail — it just
+	// leaves a customer's spend and band wrong for five minutes,
+	// which reads as "the numbers are made up".
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * Every order lifecycle event that can move money must flush.
+	 * Untrash is the one that hides: it is not an update, nothing else
+	 * fires when it happens, and restoring a paid order has to put the
+	 * buyer's spend and band back.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_flush_customer_caches
+	 *
+	 * @dataProvider data_order_lifecycle_hooks
+	 *
+	 * @param string $hook Hook name.
+	 */
+	public function test_every_order_lifecycle_event_flushes_the_caches( $hook ) {
+		$this->assertSame(
+			10,
+			has_action( $hook, 'openstation_my_wordpress_woo_flush_customer_caches' ),
+			"{$hook} does not flush the customer caches"
+		);
+	}
+
+	/**
+	 * @return array[]
+	 */
+	public function data_order_lifecycle_hooks() {
+		return array(
+			array( 'woocommerce_new_order' ),
+			array( 'woocommerce_update_order' ),
+			array( 'woocommerce_order_status_changed' ),
+			array( 'woocommerce_delete_order' ),
+			array( 'woocommerce_trash_order' ),
+			array( 'woocommerce_untrash_order' ),
+		);
+	}
+
+	/**
+	 * @covers ::openstation_my_wordpress_woo_flush_customer_caches
+	 */
+	public function test_the_flush_drops_both_transients() {
+		set_transient( 'desktop_mode_woo_customer_spend', array( 'x' ), HOUR_IN_SECONDS );
+		set_transient( 'desktop_mode_woo_customer_plan', array( 'y' ), HOUR_IN_SECONDS );
+
+		openstation_my_wordpress_woo_flush_customer_caches();
+
+		$this->assertFalse( get_transient( 'desktop_mode_woo_customer_spend' ) );
+		$this->assertFalse( get_transient( 'desktop_mode_woo_customer_plan' ) );
+	}
+
+	// ────────────────────────────────────────────────────────────────
 	// Permissions. These rows are money AND people, so both gates
 	// have to hold independently.
 	// ────────────────────────────────────────────────────────────────

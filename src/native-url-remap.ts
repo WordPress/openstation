@@ -50,6 +50,26 @@ import { createSharedStore } from './shared-store';
 export const OS_PERSON_VIEW_PARAM = 'os_person_view';
 
 /**
+ * Whether a person-URL has already been claimed by a specific view.
+ *
+ * The stand-down half of {@link OS_PERSON_VIEW_PARAM}: a remap whose
+ * subject is "this person, generally" — the built-in profile editor —
+ * calls this first and returns `false` when it is true, leaving the
+ * URL to whichever view marked it.
+ *
+ * Exported so both halves of the hand-off read the same predicate.
+ * Two matchers each spelling out their own version of it is how a
+ * claim quietly stops being honoured.
+ *
+ * @public
+ * @param parsed Resolved URL.
+ * @return True when some other view has claimed this person-URL.
+ */
+export function isPersonViewClaimed( parsed: URL ): boolean {
+	return parsed.searchParams.has( OS_PERSON_VIEW_PARAM );
+}
+
+/**
  * A single URL → native-window remap.
  */
 export interface NativeUrlRemap {

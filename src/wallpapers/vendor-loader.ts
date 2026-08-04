@@ -29,13 +29,22 @@ const pending = new Map<string, Promise<void>>();
  * time evaluates it a second time — which duplicates every hook
  * subscription the bundle registers.
  *
+ * Origin is part of the identity, though the query string isn't:
+ * `loadVendorScript` is public API and vendor bundles have generic
+ * paths, so two CDNs both serving `/dist/index.js` are two different
+ * bundles. Matching on pathname alone would silently swallow the
+ * second one.
+ *
  * @param url Candidate URL.
  * @return The existing tag, or `null`.
  */
 function findScriptByPath( url: string ): HTMLScriptElement | null {
+	let origin: string;
 	let path: string;
 	try {
-		path = new URL( url, document.baseURI ).pathname;
+		const parsed = new URL( url, document.baseURI );
+		origin = parsed.origin;
+		path = parsed.pathname;
 	} catch {
 		return null;
 	}
@@ -47,7 +56,11 @@ function findScriptByPath( url: string ): HTMLScriptElement | null {
 	);
 	for ( const tag of Array.from( tags ) ) {
 		try {
-			if ( new URL( tag.src, document.baseURI ).pathname === path ) {
+			const candidate = new URL( tag.src, document.baseURI );
+			if (
+				candidate.origin === origin &&
+				candidate.pathname === path
+			) {
 				return tag;
 			}
 		} catch {

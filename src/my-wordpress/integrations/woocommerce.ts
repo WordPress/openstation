@@ -257,6 +257,11 @@ interface StoreSummary {
 	customers?: number;
 	vips?: number;
 	lapsed?: number;
+	/**
+	 * True when the store is past the band-ordering cap, so `vips` and
+	 * `lapsed` were never computed. Not the same as both being zero.
+	 */
+	bandsCapped?: boolean;
 	guestSpend?: string;
 	guestOrders?: number;
 }
@@ -1615,6 +1620,25 @@ addAction(
 				const lapsed = Number( data.lapsed ) || 0;
 				const guestOrders = Number( data.guestOrders ) || 0;
 
+				// Past the ordering cap the server never computed the
+				// bands, so they are unknown rather than zero. Saying
+				// so is the point: printing "0 · 0" would claim a
+				// large store has no VIPs at all.
+				let bands: string | null = null;
+				if ( data.bandsCapped ) {
+					bands = __(
+						'Not counted on a store this large',
+						'desktop-mode',
+					);
+				} else if ( vips > 0 || lapsed > 0 ) {
+					bands = sprintf(
+						/* translators: 1: VIP customer count, 2: lapsed customer count. */
+						__( '%1$d · %2$d', 'desktop-mode' ),
+						vips,
+						lapsed,
+					);
+				}
+
 				return {
 					rows: [
 						row(
@@ -1649,17 +1673,7 @@ addAction(
 								)
 								: null,
 						),
-						row(
-							__( 'VIP · lapsed', 'desktop-mode' ),
-							vips > 0 || lapsed > 0
-								? sprintf(
-									/* translators: 1: VIP customer count, 2: lapsed customer count. */
-									__( '%1$d · %2$d', 'desktop-mode' ),
-									vips,
-									lapsed,
-								)
-								: null,
-						),
+						row( __( 'VIP · lapsed', 'desktop-mode' ), bands ),
 						// Guests can't appear in the Customers list —
 						// there is no account to render — so their
 						// money is reported here or nowhere.
@@ -2199,6 +2213,17 @@ function customerActions( data: CustomerSummary ): HTMLElement {
 }
 
 /**
+ * Monotonic ticket for Customer-window paints.
+ *
+ * The window is a retargetable singleton: clicking a second customer
+ * repaints the same root while the first customer's summary may still
+ * be in flight. `root.isConnected` can't see that — the node is the
+ * same one and stays connected — so each paint claims a ticket and
+ * drops its response if a later paint has since claimed one.
+ */
+let customerPaintTicket = 0;
+
+/**
  * Paint the whole window for one customer.
  *
  * @param root       The window's mount point.
@@ -2210,6 +2235,10 @@ async function renderCustomerWindow(
 	customerId: number,
 	fallback: string,
 ): Promise< void > {
+	const ticket = ++customerPaintTicket;
+	const stale = (): boolean =>
+		! root.isConnected || ticket !== customerPaintTicket;
+
 	const loading = document.createElement( 'div' );
 	loading.className = `${ CW }__loading`;
 	loading.appendChild( document.createElement( 'os-spinner' ) );
@@ -2231,8 +2260,9 @@ async function renderCustomerWindow(
 	);
 
 	// The window may have been retargeted (or closed) while the
-	// request was in flight.
-	if ( ! root.isConnected ) {
+	// request was in flight. Landing here late would overwrite the
+	// customer the user is now looking at with the one they left.
+	if ( stale() ) {
 		return;
 	}
 	if ( 'error' in result ) {

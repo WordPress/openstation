@@ -21,7 +21,11 @@ import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { applyFilters, doAction } from '../../src/hooks';
 import {
 	bindNativeUrlRemap,
+	isPersonViewClaimed,
+	listNativeUrlRemaps,
+	registerNativeUrlRemap,
 	tryNativeUrlRemap,
+	unregisterNativeUrlRemap,
 } from '../../src/native-url-remap';
 import type { OsSettingsSnapshot } from '../../src/settings/registry';
 
@@ -681,6 +685,79 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			);
 		} );
 
+		test( 'both halves of the hand-off registered: the claim wins, the profile stands down', () => {
+			// The two entries are tested apart everywhere else, which
+			// can't catch the failure that matters: both registered,
+			// and the built-in profile remap claiming the marked URL
+			// because it comes first in the walk. So the profile entry
+			// is put in FRONT of the Customer claim here — the least
+			// favourable order, and the only one that proves the
+			// stand-down is doing the work rather than luck.
+			const openById = vi.fn().mockReturnValue( true );
+			const profileMatches = vi.fn( ( _url: string, parsed: URL ) => {
+				if ( isPersonViewClaimed( parsed ) ) {
+					return false;
+				}
+				return (
+					parsed.pathname.endsWith( '/profile.php' ) ||
+					( parsed.pathname.endsWith( '/user-edit.php' ) &&
+						parsed.searchParams.has( 'user_id' ) )
+				);
+			} );
+
+			const claim = listNativeUrlRemaps().find(
+				( r ) => r.id === 'desktop-mode/woo-customer',
+			);
+			expect( claim ).toBeDefined();
+			// Re-registering appends, so dropping and re-adding the
+			// claim is how it ends up behind the profile entry.
+			unregisterNativeUrlRemap( 'desktop-mode/woo-customer' );
+			registerNativeUrlRemap( {
+				id: 'desktop-mode-user-edit',
+				nativeWindowId: 'desktop-mode-user-edit',
+				matches: profileMatches,
+			} );
+			registerNativeUrlRemap( claim! );
+
+			try {
+				bindNativeUrlRemap( {
+					getSnapshot: () => ( {} as OsSettingsSnapshot ),
+					openById,
+					adminUrl: 'http://example.test/wp-admin/',
+				} );
+
+				// Marked: the profile remap is consulted first and
+				// must decline, leaving the Customer window to claim.
+				expect(
+					tryNativeUrlRemap(
+						'http://example.test/wp-admin/user-edit.php?user_id=11&os_person_view=wc-customer',
+					),
+				).toBe( true );
+				expect( profileMatches ).toHaveBeenCalled();
+				expect( openById ).toHaveBeenCalledWith(
+					'desktop-mode-woo-customer',
+					{ params: { customerId: 11 } },
+				);
+
+				// Unmarked: the same URL without the marker is still
+				// the profile editor's. A stand-down that swallowed
+				// every person-URL would be the opposite bug.
+				openById.mockClear();
+				expect(
+					tryNativeUrlRemap(
+						'http://example.test/wp-admin/user-edit.php?user_id=11',
+					),
+				).toBe( true );
+				// One argument: the opener is called without a trailing
+				// `undefined` when a remap declares no params.
+				expect( openById ).toHaveBeenCalledWith(
+					'desktop-mode-user-edit',
+				);
+			} finally {
+				unregisterNativeUrlRemap( 'desktop-mode-user-edit' );
+			}
+		} );
+
 		test( 'an unmarked person-URL is left to the profile editor', () => {
 			const openById = vi.fn().mockReturnValue( true );
 			bindNativeUrlRemap( {
@@ -747,6 +824,186 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				'desktop-mode-woo-customer',
 				expect.objectContaining( { type: 'user', id: 11 } ),
 			);
+		} );
+
+		test( 'a retarget beats a slow response for the customer it replaced', async () => {
+			// The window is a retargetable singleton: clicking a
+			// second customer repaints the same root while the first
+			// summary may still be in flight. `root.isConnected` can't
+			// see that — same node, still connected — so a slow first
+			// response would land last and quietly put the window back
+			// on the person the user just navigated away from.
+			const bodies: Record< string, () => void > = {};
+			vi.stubGlobal(
+				'fetch',
+				vi.fn( ( url: string ) =>
+					new Promise< Response >( ( resolve ) => {
+						const id = url.includes( '/11' ) ? '11' : '22';
+						bodies[ id ] = () =>
+							resolve(
+								new Response(
+									JSON.stringify( {
+										name:
+											'11' === id
+												? 'Ada'
+												: 'Grace',
+										email: '',
+										spend: '£1.00',
+										orders: 1,
+										band: 'new',
+										bandLabel: 'New',
+										firstOrder: '',
+										lastOrder: '',
+										daysSince: null,
+										lastOrderNo: '',
+										lastOrderUrl: '',
+										lastOrderTotal: '',
+										favourite: null,
+										location: '',
+										registered: '',
+										ordersUrl: '',
+										profileUrl: '',
+										recent: [],
+										billing: '',
+										shipping: '',
+									} ),
+									{
+										status: 200,
+										headers: {
+											'Content-Type':
+												'application/json',
+										},
+									},
+								),
+							);
+					} ),
+				),
+			);
+
+			const root = document.createElement( 'div' );
+			root.id = 'wp-window-desktop-mode-woo-customer';
+			const body = document.createElement( 'div' );
+			const mount = document.createElement( 'div' );
+			mount.setAttribute( 'data-os-woo-customer-root', '' );
+			body.appendChild( mount );
+			root.appendChild( body );
+			document.body.appendChild( root );
+
+			const render = (
+				window as unknown as {
+					openStationNativeWindows: Record<
+						string,
+						(
+							body: HTMLElement,
+							ctx?: {
+								params?: Record<
+									string,
+									string | number | boolean
+								>;
+							},
+						) => unknown
+					>;
+				}
+			 ).openStationNativeWindows[ 'desktop-mode-woo-customer' ];
+
+			render( body, {
+				params: { customerId: 11, customerName: 'Ada' },
+			} );
+			// Retarget before the first request answers.
+			document.dispatchEvent(
+				new CustomEvent( 'os-window-reopened', {
+					detail: {
+						windowId: 'desktop-mode-woo-customer',
+						params: { customerId: 22, customerName: 'Grace' },
+					},
+				} ),
+			);
+
+			await vi.waitFor( () => {
+				if ( ! bodies[ '11' ] || ! bodies[ '22' ] ) {
+					throw new Error( 'requests not issued yet' );
+				}
+			} );
+
+			// Second customer answers first, then the abandoned one.
+			bodies[ '22' ]();
+			await vi.waitFor( () => {
+				if ( mount.dataset.customerId !== '22' ) {
+					throw new Error( 'second paint not applied' );
+				}
+			} );
+			// Let the abandoned response run all the way through
+			// `fetch` → `json()` → paint. If it is going to overwrite
+			// the window, it has had every chance to.
+			bodies[ '11' ]();
+			for ( let i = 0; i < 5; i++ ) {
+				await new Promise( ( r ) => setTimeout( r, 0 ) );
+			}
+
+			expect( mount.dataset.customerId ).toBe( '22' );
+			expect( mount.textContent ).toContain( 'Grace' );
+			expect( mount.textContent ).not.toContain( 'Ada' );
+		} );
+
+		test( 'a capped store says the bands were not counted, not zero', async () => {
+			stubSummary( {
+				revenue: '£10.00',
+				processing: 0,
+				outOfStock: 0,
+				customers: 40000,
+				bandsCapped: true,
+			} );
+
+			const container = document.createElement( 'div' );
+			document.body.appendChild( container );
+			doAction( 'os.my-wordpress.group-extras', {
+				container,
+				groupId: 'plugin:woocommerce',
+				entityIds: [ CUSTOMERS ],
+			} );
+
+			await vi.waitFor( () => {
+				const panel = container.querySelector( '.os-woo-panel' );
+				if ( ! panel || panel.hasAttribute( 'aria-busy' ) ) {
+					throw new Error( 'panel still loading' );
+				}
+			} );
+
+			// Past the cap the server never computed the bands. "0 · 0"
+			// would be a wrong answer stated confidently.
+			expect( container.textContent ).toContain( 'Not counted' );
+			expect( container.textContent ).not.toContain( '0 · 0' );
+		} );
+
+		test( 'an uncapped store with no VIPs omits the row entirely', async () => {
+			stubSummary( {
+				revenue: '£10.00',
+				processing: 0,
+				outOfStock: 0,
+				customers: 3,
+				vips: 0,
+				lapsed: 0,
+			} );
+
+			const container = document.createElement( 'div' );
+			document.body.appendChild( container );
+			doAction( 'os.my-wordpress.group-extras', {
+				container,
+				groupId: 'plugin:woocommerce',
+				entityIds: [ CUSTOMERS ],
+			} );
+
+			await vi.waitFor( () => {
+				const panel = container.querySelector( '.os-woo-panel' );
+				if ( ! panel || panel.hasAttribute( 'aria-busy' ) ) {
+					throw new Error( 'panel still loading' );
+				}
+			} );
+
+			// Genuinely none is a different statement from unknown,
+			// and neither is worth a row.
+			expect( container.textContent ).not.toContain( 'VIP · lapsed' );
+			expect( container.textContent ).not.toContain( 'Not counted' );
 		} );
 
 		test( 'the customers dossier drops the author sections', () => {
