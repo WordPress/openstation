@@ -1211,6 +1211,42 @@ function openstation_chromeless_bridge_script() {
 		return 'external';
 	}
 
+	/*
+	 * Rewrite a link's href to carry `_wp_http_referer=<this page>`.
+	 *
+	 * The iframe-side twin of `stampSourceReferer()` in
+	 * `src/window/iframe-bridge.ts`, for links the interceptor yields
+	 * on: the parent never sees the click, so it can't stamp them.
+	 * `wp_get_referer()` reads `$_REQUEST['_wp_http_referer']` ahead
+	 * of the raw header, so the param survives any `Referrer-Policy`.
+	 *
+	 * Same three guards as the parent, for the same reasons: never
+	 * overwrite a referer the markup already supplied, stay
+	 * same-origin (a mis-attributed referer is worse than none), and
+	 * strip the chromeless flag from the hint so it doesn't loop into
+	 * whatever redirect WP builds out of it.
+	 */
+	function stampSourceRefererOnLink( link ) {
+		try {
+			var target = new URL( link.getAttribute( 'href' ), window.location.href );
+			if ( target.origin !== window.location.origin ) {
+				return;
+			}
+			if ( target.searchParams.has( '_wp_http_referer' ) ) {
+				return;
+			}
+			var source = new URL( window.location.href );
+			source.searchParams.delete( 'openstation_chromeless' );
+			target.searchParams.set(
+				'_wp_http_referer',
+				source.pathname + ( source.search ? source.search : '' )
+			);
+			link.setAttribute( 'href', target.toString() );
+		} catch ( err ) {
+			/* Unparseable href, so leave the link exactly as it was. */
+		}
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1270,7 +1306,7 @@ function openstation_chromeless_bridge_script() {
 		 * (`wp-admin/js/common.js`), and the owning script binds a
 		 * bubble-phase handler that calls preventDefault: media-grid.js
 		 * for the Media Library's uploader toggle, wp-lists for the
-		 * comment row actions, edit-tags.js for term Delete, updates.js
+		 * comment row actions, tags.js for term Delete, updates.js
 		 * for the auto-update toggles.
 		 *
 		 * Our capture-phase handler runs first, so hijacking these
@@ -1282,16 +1318,30 @@ function openstation_chromeless_bridge_script() {
 		 * Media window behind it, and closing the window left the drop
 		 * zone stranded above the grid.
 		 *
-		 * The few links where core stamps the class but binds no handler
-		 * (the Media list table's Trash / Delete / Restore row actions)
-		 * navigate this iframe in place instead, which is what they
-		 * should do. They keep rendering chromeless without the href
-		 * rewrite below: `openstation_is_chromeless_request()` falls
-		 * back to `Sec-Fetch-Dest: iframe` when the query flag is
-		 * missing, and core redirects them back to the referring
-		 * `upload.php`, which still carries the flag.
+		 * The class does NOT promise a handler, though. The Media list
+		 * table stamps it on Trash / Restore / Delete Permanently
+		 * (`.submitdelete`, `class-wp-media-list-table.php`) and binds
+		 * nothing: the href really is the navigation. Yielding is still
+		 * right for those (the inline `onclick` confirm runs, and
+		 * cancelling actually cancels, which it did not when we
+		 * preventDefaulted in capture ahead of it), but the parent's
+		 * destructive-action path used to stamp `_wp_http_referer` on
+		 * them, and a raw navigation loses that. See `stampSourceReferer`
+		 * in `src/window/iframe-bridge.ts` for the full rationale; the
+		 * short version is that a `Referrer-Policy` of `strict-origin` or
+		 * tighter downgrades the `Referer` header to the bare origin,
+		 * which `post.php` matches against neither `post.php` nor
+		 * `post-new.php`, so `$sendback` stays the origin and the window
+		 * lands on the site front page instead of back on the list.
+		 *
+		 * So stamp the hint ourselves before yielding. In here the
+		 * source page IS `window.location`, which makes this the same
+		 * value the parent would have computed, minus the round trip.
 		 */
 		if ( link.classList.contains( 'aria-button-if-js' ) ) {
+			if ( link.classList.contains( 'submitdelete' ) ) {
+				stampSourceRefererOnLink( link );
+			}
 			return;
 		}
 		/*

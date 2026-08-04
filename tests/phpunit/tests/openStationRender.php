@@ -586,6 +586,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
 			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
 		}
+		// `$wp_scripts` is global and `localize()` appends, so clear
+		// any payload a sibling test left behind.
+		wp_scripts()->add_data( 'media-grid', 'data', '' );
 
 		wp_localize_script(
 			'media-grid',
@@ -628,11 +631,38 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 */
 	public function test_media_grid_cleanup_skips_other_screens() {
 		set_current_screen( 'edit-post' );
+
+		// Same payload the upload-screen test uses, so the only thing
+		// standing between the flag and removal is the screen guard.
+		// Seeded through the registered handle rather than a bare
+		// `add_data()` so this can't pass by accident on a handle that
+		// was never registered.
+		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
+			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
+		}
 		wp_scripts()->add_data( 'media-grid', 'data', '' );
+		wp_localize_script(
+			'media-grid',
+			'_wpMediaGridSettings',
+			array(
+				'adminUrl'  => '/wp-admin/',
+				'queryVars' => (object) array( 'openstation_chromeless' => '1' ),
+			)
+		);
+
+		$before = wp_scripts()->get_data( 'media-grid', 'data' );
 
 		openstation_strip_chromeless_flag_from_media_grid();
 
-		$this->assertEmpty( wp_scripts()->get_data( 'media-grid', 'data' ) );
+		// Byte-identical, not just "still mentions the flag":
+		// `wp_localize_script()` APPENDS, so a cleanup that ran here
+		// would leave the original assignment in place and only the
+		// last one would differ.
+		$this->assertSame(
+			$before,
+			wp_scripts()->get_data( 'media-grid', 'data' ),
+			'The cleanup must only run on the Media Library screen.'
+		);
 	}
 
 	/**

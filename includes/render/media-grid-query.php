@@ -68,22 +68,26 @@ function openstation_strip_chromeless_flag_from_media_grid() {
 		return;
 	}
 
-	$settings = json_decode( end( $matches[1] ), true );
-	if ( ! is_array( $settings ) || ! isset( $settings['queryVars'] ) || ! is_array( $settings['queryVars'] ) ) {
+	// Decoded as objects, not associative arrays. An empty JSON object
+	// round-tripped through an array comes back out as `[]`, and the
+	// grid reads `queryVars` by key. Decoding to stdClass keeps every
+	// nested object an object, however many core grows.
+	//
+	// `queryVars` is core's key, so the snake_case property sniff has
+	// nothing to say about it that we can act on.
+	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+	$settings = json_decode( end( $matches[1] ) );
+	if ( ! $settings instanceof stdClass || ! isset( $settings->queryVars ) || ! $settings->queryVars instanceof stdClass ) {
 		return;
 	}
 
-	if ( ! isset( $settings['queryVars']['openstation_chromeless'] ) ) {
+	if ( ! isset( $settings->queryVars->openstation_chromeless ) ) {
 		return;
 	}
 
-	unset( $settings['queryVars']['openstation_chromeless'] );
+	unset( $settings->queryVars->openstation_chromeless );
+	// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 
-	// Core localizes `queryVars` as an object. Re-encoding an empty
-	// PHP array would emit `[]`, and the grid reads it with `_.each`
-	// over keys, so keep the object cast.
-	$settings['queryVars'] = (object) $settings['queryVars'];
-
-	wp_localize_script( 'media-grid', '_wpMediaGridSettings', $settings );
+	wp_localize_script( 'media-grid', '_wpMediaGridSettings', (array) $settings );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_strip_chromeless_flag_from_media_grid', 999 );
