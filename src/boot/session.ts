@@ -170,6 +170,12 @@ export async function restoreSession(
 			y: clamped.y,
 			width: clamped.width,
 			height: clamped.height,
+			// What the window was showing, not just which window it
+			// was. A native window is addressed by id, so without this
+			// a singleton that retargets (the profile editor, the
+			// customer window) reopens on its default and reads as
+			// having silently changed subject.
+			...( win.params ? { params: win.params } : {} ),
 		};
 	}
 	if ( Object.keys( nativeSeeds ).length > 0 ) {

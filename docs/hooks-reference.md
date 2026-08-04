@@ -549,7 +549,7 @@ apply_filters(
 
 `$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
 
-Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), `term.php` (`term/{taxonomy}` → root, which assigned posts reference), and `user-edit.php` / `profile.php` (`user` → root, gated on `edit_user` — a person is what a post's author and an order's customer both point at). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
 
 ```php
 add_filter( 'openstation_window_content_identity', function ( $identity, $screen ) {
@@ -3210,16 +3210,41 @@ apply_filters( 'openstation_my_wordpress_woo_summary', array $data, string $type
 ```
 
 The merchant summary rendered in the right pane. `$type` is one of
-`product`, `order`, `coupon`. Add keys and the bundle ignores them —
-paint them yourself by also subscribing to
+`product`, `order`, `coupon`, `customer`. Add keys and the bundle
+ignores them — paint them yourself by also subscribing to
 [`os.my-wordpress.preview-extras`](./javascript-reference.md#action--openstationmy-wordpresspreview-extras).
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_summary_type', array|null $data, string $type, int $id ): array|null
+apply_filters( 'openstation_my_wordpress_woo_summary_capability', true|WP_Error|null $allowed, string $type, int $id ): true|WP_Error|null
+```
+
+Add a whole new summary type to `GET
+desktop-mode/v1/woocommerce/summary/<type>/<id>` — a subscription, a
+booking, a membership. The route is the one place the site window asks
+"tell me about this shop object", so joining here means a new object
+type needs neither its own endpoint nor its own client transport.
+
+Return `null` from the first filter (the default) to leave the type
+unknown, which answers 400. Whatever you return then passes through
+`openstation_my_wordpress_woo_summary` like the built-in types do.
+
+**Answer the capability filter too.** Without it your type inherits a
+`current_user_can( 'edit_post', $id )` check, which is meaningless for
+an id that isn't a post — and, where post and user ids collide, wrong.
+Return `true` to allow or a `WP_Error` to deny; `null` falls through
+to the post check.
+
+The built-in `customer` type is the first consumer of both.
 
 ```php
 apply_filters( 'openstation_my_wordpress_woo_store', array $data ): array
 ```
 
 The store headline numbers shown on the Woo folder — revenue this
-month, orders awaiting action, out-of-stock count.
+month, orders awaiting action, out-of-stock count, and (for a viewer
+with customer access) the customer count, the VIP / lapsed split, and
+guest-checkout revenue.
 
 ```php
 apply_filters( 'openstation_my_wordpress_woo_order_bands', array[] $bands ): array[]
@@ -3250,6 +3275,85 @@ Post type slug → dashicon class for the WooCommerce sections. These
 types are submenu entries under the WooCommerce menu, so they carry no
 `menu_icon` of their own and would otherwise fall back to the generic
 post pin.
+
+#### Customers
+
+The **Customers** section renders through the built-in `user` entity
+kind — avatar tiles, the dossier preview, the footprint route, the
+drag-out seam — with a `openstation_woo_customer` payload on every row
+carrying lifetime spend, order count, average order value, first and
+last order, days since the last one, and the band that summarises all
+of it. The same field is registered on the core `user` REST resource,
+so the built-in Users section (and any plugin reading `/wp/v2/users`)
+gets it for free.
+
+Who appears: every user who has placed a paid order, plus every user
+holding the `customer` role. Guests have no account to render — their
+revenue is reported on the folder's Store panel instead of being
+dropped.
+
+Access needs **both** order access and `list_users`. An editor has
+neither.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_customer_spend_map', array $map ): array
+```
+
+The per-customer order aggregate the whole section is built from —
+band definitions, band ordering, per-row facts and folder counts all
+read this one map, gathered in a single grouped query over the order
+store (HPOS or legacy) and cached for five minutes.
+
+Keyed by user id; `0` is the guest aggregate. Each value is
+`array( 'orders' => int, 'spend' => float, 'first' => gmt datetime,
+'last' => gmt datetime )`. A store that keeps order money somewhere
+else — a subscriptions plugin, a marketplace split — can rewrite the
+whole map here and every band, tile and panel follows.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_customer_bands', array[] $bands ): array[]
+apply_filters( 'openstation_my_wordpress_woo_customer_band', string $band, array $stats ): string
+```
+
+The bands the Customers section groups by, and which one a given
+aggregate lands in. Defaults, in render order: `vip`, `lapsed`,
+`repeat`, `new`, `none` — the two a merchant can act on first.
+
+The definitions filter only names and orders the bands; changing a
+membership rule means filtering `..._customer_band` as well. A band id
+the definitions don't declare is parked under `none` rather than
+dropped, because a customer missing from the list is worse than one in
+an unexpected group.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_vip_threshold', float $threshold, float $aov ): float
+apply_filters( 'openstation_my_wordpress_woo_customer_lapse_days', int $days ): int
+```
+
+The two numbers the default banding turns on. The VIP threshold is
+derived rather than fixed — three times the store's average order
+value — because "spent over 500" means nothing without knowing whether
+the store sells postcards or pianos. A store with no paid orders has an
+average of zero, and a zero threshold promotes nobody.
+
+The lapse window defaults to 180 days and is floored at 1.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_customer_ids', array $ids ): array
+apply_filters( 'openstation_my_wordpress_woo_customer_query_args', array $args, WP_REST_Request $request ): array
+apply_filters( 'openstation_my_wordpress_woo_customer_facts', array $facts, int $user_id ): array
+```
+
+The candidate set, the `WP_User_Query` args behind
+`GET desktop-mode/v1/woocommerce/customers`, and the compact fact
+payload carried on every row. `number` and `paged` are set by the
+paginator and will be overwritten.
+
+Past `OPENSTATION_WOO_MAX_ORDERED_CUSTOMERS` (5000) candidates the
+section stops band-ordering and falls back to newest-registered-first,
+exactly like the catalogue does past its own cap. Read
+`X-Desktop-Mode-Woo-Customers-Mode` off the response to tell which
+mode you got.
 
 ### `openstation_my_wordpress_template_html` — Experimental (filter)
 

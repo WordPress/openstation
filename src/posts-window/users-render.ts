@@ -120,7 +120,13 @@ function openUserEditWindow( userId: number ): void {
 	const w = window as unknown as {
 		wp?: {
 			os?: {
-				openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
+				openWindow?: (
+					id: string,
+					opts?: {
+						source?: string;
+						params?: Record< string, string | number | boolean >;
+					},
+				) => boolean;
 			};
 		};
 	};
@@ -147,6 +153,10 @@ function openUserEditWindow( userId: number ): void {
 	}
 	const opened = fn( 'desktop-mode-user-edit', {
 		source: 'users-window/row-click',
+		// Persisted with the session, so the window comes back on this
+		// person after a reload. The shared store above only carries
+		// the target for this page life.
+		...( userId > 0 ? { params: { userId } } : {} ),
 	} );
 	if ( ! opened ) {
 		// eslint-disable-next-line no-console

@@ -204,3 +204,308 @@ os-ribbon.os-woo-ribbon {
 	font-size: 20px;
 	font-weight: 600;
 }
+
+/* ----- Customer tiles ----- */
+
+/*
+ * The band badge, for VIP and lapsed only.
+ *
+ * It lives INSIDE the 48px avatar box, straddling its bottom edge —
+ * the way a status dot sits on a contact photo. That costs the tile
+ * no vertical space, so the icon stays an icon: a face, a name, and
+ * at most one mark. Everything else about a customer (spend, orders,
+ * last purchase) is one click away in the pane, which has room to say
+ * it properly.
+ *
+ * Two rejected alternatives, both tried: `<os-ribbon>`, the 45°
+ * corner banner the Products grid uses — right across a product
+ * photo, vandalism across a face, covering a third of the avatar at
+ * this size. And a line of text under the name — spend and order
+ * count stacked above a 48px avatar crowd the tile past reading, and
+ * they push the name down the grid.
+ */
+.os-woo-customer-avatar {
+	position: relative;
+	/* The badge is wider than 48px and must not be clipped. */
+	overflow: visible;
+}
+
+.os-woo-customer-band {
+	position: absolute;
+	inset-block-end: -4px;
+	inset-inline-start: 50%;
+	transform: translateX( -50% );
+	z-index: 1;
+	padding: 0 5px;
+	border-radius: 999px;
+	font-size: 8px;
+	font-weight: 700;
+	line-height: 14px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+/*
+ * A solid surface under the tone, because this sits ON a photograph:
+ * the 12%-alpha wash `<os-badge>` uses would take whatever colour the
+ * avatar happens to be. The tone survives as the text and the ring,
+ * read from the same tokens (and the same fallback literals) the
+ * panel's band pill uses — so tile and pane can never disagree, and a
+ * desktop theme moves both at once.
+ */
+.os-woo-customer-band--vip,
+.os-woo-customer-band--lapsed {
+	background: var( --os-ui-surface, #fff );
+	box-shadow:
+		inset 0 0 0 1px currentColor,
+		0 1px 3px rgba( 0, 0, 0, 0.35 );
+}
+
+.os-woo-customer-band--vip {
+	color: var( --os-ui-badge-success, var( --os-ui-success-fg, #1a7f37 ) );
+}
+
+.os-woo-customer-band--lapsed {
+	color: var( --os-ui-badge-warning, var( --os-ui-warning-fg, #9a6700 ) );
+}
+
+/*
+ * RTL: `translateX(-50%)` is a physical transform, so the logical
+ * `inset-inline-start` above would place the badge correctly and the
+ * transform would then drag it the wrong way.
+ */
+[ dir='rtl' ] .os-woo-customer-band {
+	transform: translateX( 50% );
+}
+
+/* ----- Customer panel ----- */
+
+/*
+ * The band pill sits inline after the lifetime-spend figure, so it
+ * needs to sit on the text baseline rather than on the line box —
+ * otherwise it rides high next to the larger spend number.
+ */
+.os-woo-panel--customer .os-woo-panel__pill {
+	vertical-align: baseline;
+}
+
+/* ----- The Customer window ----- */
+
+/*
+ * A native window on one person. The layout is a single column with
+ * generous vertical rhythm rather than a dashboard grid: this is a
+ * thing you READ — who they are, what they're worth, what they
+ * bought — not a control panel you operate.
+ */
+.os-woo-customer-window {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: 20px 24px 24px;
+	box-sizing: border-box;
+	min-height: 100%;
+	color: var( --os-ui-fg, #1e1e1e );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.os-woo-customer-window__loading,
+.os-woo-customer-window__empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-height: 160px;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+}
+
+/* ----- Identity strip ----- */
+
+.os-woo-customer-window__header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.os-woo-customer-window__avatar {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: none;
+}
+
+.os-woo-customer-window__identity {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.os-woo-customer-window__name {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+.os-woo-customer-window__contact {
+	margin: 0;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+	overflow-wrap: anywhere;
+}
+
+.os-woo-customer-window__band {
+	align-self: flex-start;
+}
+
+/* ----- The four numbers ----- */
+
+/*
+ * `auto-fit` rather than a fixed four-up: the window is resizable and
+ * a merchant may well park it narrow beside an order. Four cards
+ * become two rows, then one, without a media query.
+ */
+.os-woo-customer-window__stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) );
+	gap: 12px;
+}
+
+.os-woo-customer-window__stat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var( --os-ui-surface-2, rgba( 0, 0, 0, 0.04 ) );
+}
+
+.os-woo-customer-window__stat-value {
+	font-size: 19px;
+	font-weight: 600;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+}
+
+.os-woo-customer-window__stat-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+}
+
+.os-woo-customer-window__stat-hint {
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+}
+
+/* ----- Sections ----- */
+
+.os-woo-customer-window__section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.os-woo-customer-window__section-title {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+}
+
+.os-woo-customer-window__favourite {
+	margin: 0;
+}
+
+/* ----- Order history ----- */
+
+/*
+ * Three columns per row — identity, context, money — with the total
+ * pinned to the end so a column of prices lines up and can be
+ * scanned vertically. A table would give the same alignment and cost
+ * a header row saying "Order / Date / Total", which the rows already
+ * say for themselves.
+ */
+.os-woo-customer-window__orders {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+}
+
+.os-woo-customer-window__order {
+	display: grid;
+	grid-template-columns: minmax( 0, auto ) 1fr auto;
+	align-items: center;
+	gap: 4px 12px;
+	padding: 8px 0;
+	border-block-end: 1px solid
+		var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-woo-customer-window__order:last-child {
+	border-block-end: 0;
+}
+
+.os-woo-customer-window__order-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.os-woo-customer-window__order-meta {
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+	font-size: 12px;
+	min-width: 0;
+}
+
+.os-woo-customer-window__order-total {
+	font-weight: 600;
+	text-align: end;
+	white-space: nowrap;
+}
+
+/* ----- Addresses ----- */
+
+.os-woo-customer-window__addresses {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 200px, 1fr ) );
+	gap: 12px;
+}
+
+.os-woo-customer-window__address-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.6 ) );
+	margin-block-end: 2px;
+}
+
+.os-woo-customer-window__address-value {
+	overflow-wrap: anywhere;
+}
+
+/* ----- Actions ----- */
+
+/*
+ * `margin-block-start: auto` pins the row to the bottom of a window
+ * taller than its content, so the buttons are where the hand expects
+ * them regardless of how much order history a customer has.
+ */
+.os-woo-customer-window__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-block-start: auto;
+	padding-block-start: 4px;
+}

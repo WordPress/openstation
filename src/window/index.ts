@@ -694,7 +694,10 @@ export class Window {
 		// down + aborts the controller; we capture it on the
 		// instance so `close()` can fire it before the user-returned
 		// teardown runs.
-		const { ctx, dispose } = _buildNativeRenderContext( this.id );
+		const { ctx, dispose } = _buildNativeRenderContext(
+			this.id,
+			this.config.params ?? {},
+		);
 		this._nativeRenderCtxDispose = dispose;
 
 		// Capture the optional teardown returned by the render callback

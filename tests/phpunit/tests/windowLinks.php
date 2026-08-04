@@ -29,7 +29,7 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $GLOBALS['pagenow'], $GLOBALS['post'] );
+		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $_GET['user_id'], $GLOBALS['pagenow'], $GLOBALS['post'] );
 		remove_all_filters( 'openstation_window_content_identity' );
 		remove_all_filters( 'openstation_window_preview_url' );
 		parent::tear_down();
@@ -454,6 +454,70 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'root', $identity );
 
 		unset( $_GET['tag_ID'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Profile screens. A person is a root identity: an order's
+	// customer, a post's author and a comment's writer all point AT
+	// them from their own `links`, so an open profile window ties to
+	// whatever else on the desktop is about that person.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_user_edit_screen_yields_a_user_identity() {
+		$user_id = self::factory()->user->create(
+			array(
+				'role'         => 'subscriber',
+				'display_name' => 'Ada Lovelace',
+			)
+		);
+
+		$GLOBALS['pagenow'] = 'user-edit.php';
+		$_GET['user_id']    = (string) $user_id;
+		set_current_screen( 'user-edit' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'user', $identity['type'] );
+		$this->assertSame( $user_id, $identity['id'] );
+		$this->assertSame( 'Ada Lovelace', $identity['label'] );
+		$this->assertArrayNotHasKey( 'root', $identity );
+	}
+
+	/**
+	 * `profile.php` carries no `user_id` — it is always your own.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_profile_screen_identifies_the_current_user() {
+		$GLOBALS['pagenow'] = 'profile.php';
+		set_current_screen( 'profile' );
+
+		$identity = openstation_build_content_identity();
+
+		$this->assertSame( 'user', $identity['type'] );
+		$this->assertSame( self::$admin_id, $identity['id'] );
+	}
+
+	/**
+	 * No identity for a person the viewer may not edit — announcing
+	 * one would leak the display name of every account on the site to
+	 * anyone who can guess a URL.
+	 *
+	 * @covers ::openstation_build_content_identity
+	 */
+	public function test_user_edit_screen_respects_the_capability() {
+		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$other_id  = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $editor_id );
+
+		$GLOBALS['pagenow'] = 'user-edit.php';
+		$_GET['user_id']    = (string) $other_id;
+		set_current_screen( 'user-edit' );
+
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	// ────────────────────────────────────────────────────────────────

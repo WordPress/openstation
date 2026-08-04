@@ -251,8 +251,20 @@ export interface BuildPublicApiDeps {
 	saveSession: () => void;
 	widgetLayer: WidgetLayer | null;
 	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
-	openWindowById: ( id: string, opts?: { source?: string } ) => boolean;
-	openNewWindowById: ( id: string, opts?: { source?: string } ) => boolean;
+	openWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
+	openNewWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;

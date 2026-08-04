@@ -1874,7 +1874,7 @@ function buildEntityTile(
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		hideTooltip();
-		openEditor( entity, item.id, titleText );
+		openEditor( entity, item.id, titleText, item.editUrl );
 	} );
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
@@ -2123,7 +2123,12 @@ function appendPostArticle(
 	editBtn.setAttribute( 'variant', 'primary' );
 	editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
 	editBtn.addEventListener( 'click', () => {
-		openEditor( entity, detail.id, stripTags( detail.title?.rendered ?? '' ) );
+		openEditor(
+			entity,
+			detail.id,
+			stripTags( detail.title?.rendered ?? '' ),
+			detail.editUrl,
+		);
 	} );
 	footer.appendChild( editBtn );
 
@@ -3186,12 +3191,96 @@ function contributorToView( c: ContributorRef ): SubItemView {
  * top categories + activity sparkline. On permission errors we
  * fall through to the compact `/wp/v2/users/<id>` view.
  */
+/**
+ * The optional blocks a user dossier is made of, in render order.
+ * The identity header is not in the list — a dossier without a name
+ * and a face is not a dossier.
+ *
+ * @public
+ */
+export type UserDossierSection =
+	| 'bio'
+	| 'stats'
+	| 'activity'
+	| 'milestones'
+	| 'recent'
+	| 'terms';
+
+const USER_DOSSIER_SECTIONS: UserDossierSection[] = [
+	'bio',
+	'stats',
+	'activity',
+	'milestones',
+	'recent',
+	'terms',
+];
+
+/**
+ * Which blocks a dossier renders, for the section showing it.
+ *
+ * The built-in dossier answers "what has this person written" —
+ * post and page counts, a publishing sparkline, recent posts. That is
+ * the right answer in the Users folder and the wrong one in a shop's
+ * Customers folder, where the person has never written anything and
+ * the counts are four zeroes above the number you actually came for.
+ *
+ * Plugins drop what doesn't apply by returning a shorter list.
+ *
+ * @param entityId Section the dossier is being rendered in.
+ * @param kind     The section's entity kind.
+ * @param userId   The person.
+ * @return Sections to render, in order.
+ */
+function resolveDossierSections(
+	entityId: string,
+	kind: string,
+	userId: number,
+): UserDossierSection[] {
+	const resolved = applyFilters<
+		UserDossierSection[],
+		[ { entityId: string; kind: string; userId: number } ]
+	>( 'os.my-wordpress.user-dossier-sections', USER_DOSSIER_SECTIONS, {
+		entityId,
+		kind,
+		userId,
+	} );
+	return Array.isArray( resolved ) ? resolved : USER_DOSSIER_SECTIONS;
+}
+
 async function renderUserDossier( opts: {
 	userId: number;
 	fallbackName: string;
 	fallbackAvatar: string;
 	fallbackDescription: string;
+	/**
+	 * The section this dossier is being rendered in, when it has one.
+	 * Drives `os.my-wordpress.user-dossier-sections`; omitted (the
+	 * author / contributor sub-folders) means every section renders,
+	 * which is the historical behaviour.
+	 */
+	context?: { entityId: string; kind: string };
 } ): Promise< HTMLElement > {
+	const sections = resolveDossierSections(
+		opts.context?.entityId ?? '',
+		opts.context?.kind ?? 'user',
+		opts.userId,
+	);
+	const shows = ( section: UserDossierSection ): boolean =>
+		sections.includes( section );
+
+	/**
+	 * The `meta` slot anchor — sits directly under the identity
+	 * header and the bio, so a plugin's facts about this person read
+	 * where a reader is already looking, rather than above their name.
+	 */
+	const metaSlot = (): HTMLElement => {
+		const host = document.createElement( 'div' );
+		host.className =
+			'os-my-wordpress__article-slot os-my-wordpress__article-slot--meta';
+		host.dataset.slot = 'meta';
+		host.dataset.userSlot = 'meta';
+		return host;
+	};
 	let stats: UserStats | null = null;
 	try {
 		stats = await fetchUserStats( opts.userId );
@@ -3221,12 +3310,13 @@ async function renderUserDossier( opts: {
 			link: basic?.link ?? '',
 		} );
 		const desc = basic?.description ?? opts.fallbackDescription;
-		if ( desc ) {
+		if ( desc && shows( 'bio' ) ) {
 			const bio = document.createElement( 'div' );
 			bio.className = 'os-my-wordpress__user-bio';
 			bio.textContent = desc;
 			wrap.appendChild( bio );
 		}
+		wrap.appendChild( metaSlot() );
 		return wrap;
 	}
 
@@ -3240,12 +3330,14 @@ async function renderUserDossier( opts: {
 		link: profile.link,
 	} );
 
-	if ( profile.description ) {
+	if ( profile.description && shows( 'bio' ) ) {
 		const bio = document.createElement( 'div' );
 		bio.className = 'os-my-wordpress__user-bio';
 		bio.textContent = profile.description;
 		wrap.appendChild( bio );
 	}
+
+	wrap.appendChild( metaSlot() );
 
 	// Stat cards row.
 	const cards = document.createElement( 'div' );
@@ -3290,22 +3382,26 @@ async function renderUserDossier( opts: {
 			'',
 		),
 	);
-	wrap.appendChild( cards );
+	if ( shows( 'stats' ) ) {
+		wrap.appendChild( cards );
+	}
 
 	// Activity sparkline (12-month publishing rhythm).
-	const spark = buildActivitySparkline( activity );
+	const spark = shows( 'activity' ) ? buildActivitySparkline( activity ) : null;
 	if ( spark ) {
 		wrap.appendChild( spark );
 	}
 
 	// Milestones row.
-	const milestoneRow = buildMilestonesRow( profile, milestones );
+	const milestoneRow = shows( 'milestones' )
+		? buildMilestonesRow( profile, milestones )
+		: null;
 	if ( milestoneRow ) {
 		wrap.appendChild( milestoneRow );
 	}
 
 	// Recent activity list.
-	if ( recent.length > 0 ) {
+	if ( recent.length > 0 && shows( 'recent' ) ) {
 		const section = document.createElement( 'section' );
 		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
@@ -3332,7 +3428,7 @@ async function renderUserDossier( opts: {
 	}
 
 	// Top categories / tags as chips.
-	if ( topTerms.length > 0 ) {
+	if ( topTerms.length > 0 && shows( 'terms' ) ) {
 		const section = document.createElement( 'section' );
 		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
@@ -4031,12 +4127,32 @@ function formatDate( iso: string ): string {
 	}
 }
 
+/**
+ * Open a row's editor as its own window.
+ *
+ * `editUrl` on the row wins when present. `buildEditUrl()` assumes
+ * `post.php?post=<id>` — true for anything stored in `wp_posts`, and
+ * wrong for a section whose rows live somewhere else: a WooCommerce
+ * order under High-Performance Order Storage edits at
+ * `admin.php?page=wc-orders&action=edit&id=N`, and the guessed URL
+ * lands on a 404. A section serving rows from its own route declares
+ * `editUrl` in `listFields` and puts the real one there.
+ *
+ * @param entity  The section the row belongs to.
+ * @param id      Row id.
+ * @param title   Window title.
+ * @param editUrl Explicit editor URL from the row, when it has one.
+ */
 function openEditor(
 	entity: MyWordPressEntity,
 	id: number,
 	title: string,
+	editUrl?: unknown,
 ): void {
-	const url = buildEditUrl( id );
+	const url =
+		typeof editUrl === 'string' && editUrl !== ''
+			? editUrl
+			: buildEditUrl( id );
 	openIframeWindow( {
 		id: `${ entity.id }-edit-${ id }`,
 		url,
@@ -4144,7 +4260,7 @@ function openTileMenu(
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
 		closeAnyTileMenu();
 		if ( detail.id === 'open' ) {
-			openEditor( entity, item.id, title );
+			openEditor( entity, item.id, title, item.editUrl );
 			return;
 		}
 		if ( detail.id === 'navigate-into' ) {
@@ -4855,12 +4971,15 @@ function buildUserTile(
 	} );
 
 	tile.addEventListener( 'click', () => {
-		selectUserTile( state, ctx, tile, item );
+		selectUserTile( state, ctx, entity, tile, item );
 	} );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		hideTooltip();
+		if ( activateUserTile( entity, item ) ) {
+			return;
+		}
 		// Double-click on a user opens the activity footprint — the
 		// at-a-glance surface we want users to land on first. The
 		// classic profile editor is one click away from the preview
@@ -4880,6 +4999,18 @@ function buildUserTile(
 			x: e.clientX,
 			y: e.clientY,
 		} );
+	} );
+
+	// Same per-tile decoration seam the post and media grids fire, so
+	// a subscriber written for one kind of tile works on all three.
+	// A user tile's stock sub-line is "role · N posts", which is the
+	// wrong sentence about a customer — a subscriber can say
+	// something truer here.
+	doAction( 'os.my-wordpress.list-tile', {
+		tile,
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
 	} );
 
 	return tile;
@@ -4942,9 +5073,42 @@ function buildUserTooltip(
 	return tip;
 }
 
+/**
+ * Give a plugin the chance to claim "the user opened this person".
+ *
+ * The built-in answer is the activity footprint — right for the Users
+ * folder, where a person is someone who writes, and wrong for any
+ * section where they aren't. A shop's Customers folder wants the
+ * customer window; a CRM's contacts folder wants its own.
+ *
+ * A subscriber returns `true` to say it handled the activation; the
+ * built-in navigation is then skipped. Anything else falls through,
+ * so a filter that returns nothing can't accidentally make
+ * double-click do nothing at all.
+ *
+ * @param entity The section the tile belongs to.
+ * @param item   The user row.
+ * @return true when a plugin handled it.
+ */
+function activateUserTile(
+	entity: MyWordPressEntity,
+	item: UserListItem,
+): boolean {
+	const handled = applyFilters<
+		boolean,
+		[ { entityId: string; kind: string; item: Record< string, unknown > } ]
+	>( 'os.my-wordpress.user-activate', false, {
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
+	} );
+	return handled === true;
+}
+
 function selectUserTile(
 	state: RenderState,
 	ctx: UserListContext,
+	entity: MyWordPressEntity,
 	tile: HTMLElement,
 	item: UserListItem,
 ): void {
@@ -4956,12 +5120,65 @@ function selectUserTile(
 	tile.classList.add( 'os-file-tile--selected' );
 	ctx.selectedTile = tile;
 	ctx.selectedId = item.id;
-	void renderUserPreviewPane( state, ctx, item );
+	void renderUserPreviewPane( state, ctx, entity, item );
+}
+
+/**
+ * Build a slot container and fire
+ * `os.my-wordpress.preview-extras` against it, so plugins can append
+ * arbitrary DOM to a user-kind preview pane.
+ *
+ * Same action, same payload shape as the post and media panes — one
+ * contract covers every section, and `kind: 'user'` is what a
+ * subscriber checks. Without this the user pane was the only preview
+ * a plugin could not reach, which is exactly where a store's
+ * lifetime-spend panel belongs.
+ *
+ * @param slot   Slot identifier.
+ * @param item   The user being previewed.
+ * @param entity The section they belong to.
+ * @return The slot container.
+ */
+function userArticleSlot(
+	slot: MediaPreviewSlot,
+	item: UserListItem,
+	entity: MyWordPressEntity,
+): HTMLElement {
+	const host = document.createElement( 'div' );
+	host.className = `os-my-wordpress__article-slot os-my-wordpress__article-slot--${ slot }`;
+	host.dataset.slot = slot;
+	doAction( 'os.my-wordpress.preview-extras', {
+		slot,
+		container: host,
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
+	} );
+	return host;
+}
+
+/**
+ * One button in the user preview pane's action row.
+ *
+ * The built-ins are "View activity footprint" and "Show profile" —
+ * both about a person who writes. A section serving people who buy
+ * drops the first and adds its own; the filter is
+ * `os.my-wordpress.user-preview-actions`.
+ *
+ * @public
+ */
+export interface UserPreviewAction {
+	id: string;
+	label: string;
+	title?: string;
+	variant?: 'primary' | 'secondary';
+	onSelect: () => void;
 }
 
 async function renderUserPreviewPane(
 	state: RenderState,
 	ctx: UserListContext,
+	entity: MyWordPressEntity,
 	item: UserListItem,
 ): Promise< void > {
 	const fallbackName = item.name || item.slug || `#${ item.id }`;
@@ -4977,6 +5194,7 @@ async function renderUserPreviewPane(
 			fallbackName,
 			fallbackAvatar,
 			fallbackDescription: item.description ?? '',
+			context: { entityId: entity.id, kind: entity.kind ?? 'user' },
 		} );
 	} catch ( err ) {
 		if ( ctx.selectedId !== userId ) {
@@ -4990,46 +5208,98 @@ async function renderUserPreviewPane(
 		return;
 	}
 
-	// Append "open profile" / "view footprint" actions so the
-	// preview pane doubles as the launch point for both deep
-	// actions. The dossier itself doesn't carry these because it's
-	// also reused inside post-detail sub-folders (author / contrib).
+	// `header` slot — above everything, for a subscriber that wants to
+	// speak before the identity header does. Rare: a person's name and
+	// face are what a reader looks for first, so the interesting slot
+	// for facts ABOUT them is `meta`, below.
+	node.prepend( userArticleSlot( 'header', item, entity ) );
+
+	// `meta` slot — the anchor the dossier left directly under the
+	// identity header and bio. This is where a plugin's summary of the
+	// person belongs: you read who they are, then what they are worth.
+	const metaAnchor = node.querySelector< HTMLElement >(
+		'[data-user-slot="meta"]',
+	);
+	if ( metaAnchor ) {
+		doAction( 'os.my-wordpress.preview-extras', {
+			slot: 'meta',
+			container: metaAnchor,
+			entityId: entity.id,
+			kind: entity.kind ?? 'user',
+			item: item as unknown as Record< string, unknown >,
+		} );
+	}
+
+	// Action row, so the preview pane doubles as the launch point for
+	// the deep surfaces. The dossier itself doesn't carry these
+	// because it's also reused inside post-detail sub-folders (author
+	// / contrib).
 	const footer = document.createElement( 'footer' );
 	footer.className = 'os-my-wordpress__article-footer';
 
 	// Primary action matches the double-click affordance — activity
 	// footprint first, the classic profile editor demoted to a
 	// secondary button.
-	const footprintBtn = document.createElement( 'os-button' );
-	footprintBtn.setAttribute( 'variant', 'primary' );
-	footprintBtn.textContent = __( 'View activity footprint', 'desktop-mode' );
-	footprintBtn.title = __(
-		'Open the full activity footprint surface for this user.',
-		'desktop-mode',
-	);
-	footprintBtn.addEventListener( 'click', () => {
-		navigate( state, {
-			kind: 'user-footprint',
-			entityId: 'users',
-			userId,
-			userName: fallbackName,
-		} );
-	} );
-	footer.appendChild( footprintBtn );
+	const actions: UserPreviewAction[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint', 'desktop-mode' ),
+			title: __(
+				'Open the full activity footprint surface for this user.',
+				'desktop-mode',
+			),
+			variant: 'primary',
+			onSelect: () =>
+				navigate( state, {
+					kind: 'user-footprint',
+					entityId: 'users',
+					userId,
+					userName: fallbackName,
+				} ),
+		},
+		{
+			id: 'open-profile',
+			label: __( 'Show profile', 'desktop-mode' ),
+			title: __(
+				'Open this user’s profile editor in a new window.',
+				'desktop-mode',
+			),
+			variant: 'secondary',
+			onSelect: () => openUserEditWindow( userId ),
+		},
+	];
 
-	const editBtn = document.createElement( 'os-button' );
-	editBtn.setAttribute( 'variant', 'secondary' );
-	editBtn.textContent = __( 'Show profile', 'desktop-mode' );
-	editBtn.title = __(
-		'Open this user’s profile editor in a new window.',
-		'desktop-mode',
-	);
-	editBtn.addEventListener( 'click', () => {
-		openUserEditWindow( userId );
+	const finalActions = applyFilters<
+		UserPreviewAction[],
+		[ { entityId: string; kind: string; item: Record< string, unknown > } ]
+	>( 'os.my-wordpress.user-preview-actions', actions, {
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
 	} );
-	footer.appendChild( editBtn );
 
-	node.appendChild( footer );
+	for ( const action of Array.isArray( finalActions )
+		? finalActions
+		: actions ) {
+		if ( ! action || typeof action.onSelect !== 'function' ) {
+			continue;
+		}
+		const btn = document.createElement( 'os-button' );
+		btn.setAttribute( 'variant', action.variant ?? 'secondary' );
+		btn.textContent = action.label;
+		if ( action.title ) {
+			btn.title = action.title;
+		}
+		btn.addEventListener( 'click', () => action.onSelect() );
+		footer.appendChild( btn );
+	}
+
+	if ( footer.childElementCount > 0 ) {
+		node.appendChild( footer );
+	}
+
+	// `footer` slot — below the action row.
+	node.appendChild( userArticleSlot( 'footer', item, entity ) );
 
 	ctx.preview.replaceChildren( node );
 }
@@ -5213,8 +5483,17 @@ function openUserEditWindow( userId: number ): void {
 		) => SharedStoreApi< T >;
 		openWindow?: (
 			id: string,
-			opts?: { source?: string },
+			opts?: {
+				source?: string;
+				params?: Record< string, string | number | boolean >;
+			},
 		) => boolean | undefined;
+		relations?: {
+			set?: (
+				windowId: string,
+				ref: { type: string; id: number | string; label?: string } | null,
+			) => void;
+		};
 	}
 	interface UserEditTarget {
 		userId: number | null;
@@ -5240,9 +5519,26 @@ function openUserEditWindow( userId: number ): void {
 
 	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
 		source: 'my-wordpress/user-tile',
+		// Persisted with the session, so a reload brings the window
+		// back on this person. The shared store above only lives as
+		// long as the page does.
+		params: { userId },
 	} );
 
-	if ( ! opened ) {
+	if ( opened ) {
+		// Announce who the window is now showing. The profile window
+		// is a singleton that retargets through the shared store, so
+		// nothing else can tell the relations engine its identity
+		// changed — and without this a window opened onto a customer
+		// draws no tie to the order that sent you there.
+		//
+		// Matches the `user` identity the chromeless bridge announces
+		// for `user-edit.php`, so both paths join the same group.
+		desktop?.relations?.set?.( 'desktop-mode-user-edit', {
+			type: 'user',
+			id: userId,
+		} );
+	} else {
 		// Native window not registered — open the classic admin
 		// user-edit page in an iframe window. Same shape as the
 		// post fallback in `openEditor()`.

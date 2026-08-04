@@ -178,6 +178,10 @@ REST surface:
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
 
+Each entry in `windows[]` carries the window's id, geometry, state, desktop assignment — and, for **native** windows, an optional `params` bag: the open-time arguments saying *what* the window was showing (`{ userId: 12 }`, `{ customerId: 7 }`). A native window is addressed by id, and its id is its identity, so a singleton that retargets has nowhere else to record its subject; without `params` such a window restored onto its default and read as having silently changed subject. Values are limited to strings, finite numbers and booleans — anything else is dropped on save rather than taking the whole write down. Iframe windows carry none: their URL already says what they show. See [`wp.os.openWindow`](./javascript-reference.md#wposopenwindow-id-opts---stable).
+
+Param **keys** are filtered to `[A-Za-z0-9_-]` and capped, deliberately *not* passed through `sanitize_key()` — that lowercases, and every param name in the shell is camelCase, so `customerId` would be stored as `customerid` and the client's read would come back `undefined`. A window that restores blank with the data sitting right there under a name nobody looks up is worse than one that doesn't restore at all.
+
 `updated` is the write-ordering key, in **epoch milliseconds** (`Date.now()`). The server rejects a POST whose `updated` is lower than the stored one, so a slow request that was snapshotted earlier cannot clobber newer state — the case that matters is a `keepalive` fetch still in flight when the `pagehide` beacon fires. Equal values tie and the first processed wins. Omit the field and the server stamps it for you; sessions written before the field moved to milliseconds carry a seconds value, which any current write outranks.
 
 ### What comes back, and how

@@ -287,10 +287,203 @@ count on the Woo folder itself. Data comes from
 for products and coupons, the `shop_order` edit capability for orders
 and store totals).
 
+**Customers were a report, not a place.** WooCommerce ships two views
+of the people who buy from a store and neither is somewhere you can
+work: `users.php` is a role list that knows nothing about money, and
+Analytics → Customers is a report you read and then leave. Neither one
+opens next to the order it explains.
+
+`includes/my-wordpress/integrations/woocommerce-customers.php` adds a
+**Customers** section rendering through the built-in `user` entity kind
+— avatar tiles, the dossier pane, the footprint route, the drag-out
+seam — so a customer is a first-class desktop object. Rows carry an
+`openstation_woo_customer` payload (lifetime spend, order count,
+average order, first and last order, days since) that the bundle turns
+into a money sub-line on the tile, a VIP / Lapsed corner ribbon, and a
+Customer panel in the preview pane.
+
+The whole section costs **one grouped query** over the order store,
+cached for five minutes and flushed on any order change. Band
+ordering, per-row facts and folder counts all read that one map, so a
+page of customers fires no per-row order queries. See the
+[Customers hooks](./hooks-reference.md#woocommerce-integration--experimental-filters)
+for the bands and the thresholds behind them.
+
+Because the field is registered on the core `user` REST resource
+rather than only on our collection, the built-in **Users** section
+gets the same decoration for free. That is the point: on a store,
+"who is this person" and "what have they spent" are the same question.
+
+Two seams had to exist for the pane to read right, and both are
+generic. The built-in user dossier answers *"what has this person
+written"* — post and page counts, a publishing sparkline, recent
+posts — which for someone who came to buy a hat is four zeroes above
+the figure you actually wanted;
+[`os.my-wordpress.user-dossier-sections`](./javascript-reference.md#filter--osmy-wordpressuser-dossier-sections)
+drops them. And "View activity footprint" opens a publishing-history
+surface that for a customer is an empty screen;
+[`os.my-wordpress.user-preview-actions`](./javascript-reference.md#filter--osmy-wordpressuser-preview-actions)
+swaps it for **View their orders**, which opens the filtered orders
+screen as its own window — beside the customer, not instead of them.
+
+The panel paints into the `meta` slot rather than `header`: money
+above an avatar reads as a label on the person, and you cannot tell
+whose figure it is until you have scrolled past it to the name. Name
+and face first, then the summary.
+
+The tile marker is a small badge on the bottom edge of the avatar, the
+way a status dot sits on a contact photo — not the `<os-ribbon>`
+corner banner the Products grid uses, and not a line of text under the
+name. A 45° banner across the artwork works on a product photo and is
+vandalism on a face; a line of text crowds an 88px icon and pushes the
+name down the grid. An icon is a face, a name, and at most one mark.
+Everything else is one click away, where there is room to say it
+properly.
+
+**Double-clicking a customer opens the Customer window**
+(`desktop-mode-woo-customer`, registered in
+`woocommerce-customer-window.php`, rendered from the same integration
+bundle): identity, the four numbers a merchant reads first, what they
+buy most, their recent orders, and their addresses — each order
+opening in its own window. It exists because both screens WordPress
+offers instead are the wrong one: the activity footprint answers "what
+has this person published", which for someone who came to buy a hat is
+an empty page, and `user-edit.php` is a settings form.
+
+The window is a retargeting singleton — its id is "the customer
+window", and *which* customer is an open-time
+[`params`](./javascript-reference.md#wposopenwindow-id-opts---stable)
+value. Sections claim the double-click through
+[`os.my-wordpress.user-activate`](./javascript-reference.md#filter--osmy-wordpressuser-activate);
+only the Customers section does, so a person in the Users folder still
+opens their footprint.
+
+One trap worth naming, because it cost a real bug report: the panel's
+links used to carry `target="_blank"`. In a browser tab that threw the
+admin screen out of the shell entirely — and once OpenStation is
+installed as a PWA, a `_blank` navigation to a same-origin admin URL
+is inside the app's scope, so **clicking a product name relaunched the
+whole app**. Panel links now keep a real `href` (middle-click and
+"copy link" still work) and claim the plain click to open a desktop
+window instead.
+
+**An order was the most connected object in WordPress and the least
+connected screen.** It names a customer, some products, maybe a coupon
+— and every one of those is text. To go from an order to the product
+it sold you go back to the catalogue and search for it.
+
+`includes/my-wordpress/integrations/woocommerce-relations.php` wires
+WooCommerce into the two relation surfaces the shell already has.
+[`openstation_window_content_identity`](./hooks-reference.md#openstation_window_content_identity--experimental)
+gives an order window an identity plus `links` refs to its customer
+(`user`), its products (`product`) and its coupons (`shop_coupon`), so
+opening any of those beside it draws a tie on the desktop.
+[`openstation_window_related_entities`](./hooks-reference.md#openstation_window_related_entities--experimental)
+fills the title bar's Related menu: the customer's profile, all their
+orders, every line item, every coupon — each opening as its own window
+rather than navigating away from what you were reading.
+
+The menu runs **both directions**, which is the half WooCommerce never
+had. An order names its products, so order → product was always
+possible; the reverse — *is this selling, and to whom?* — is the
+question a merchant actually asks, and the catalogue screen has no
+answer at all. A **product** now lists its categories, tags, reviews,
+variations, the recent orders containing it, the customers on those
+orders, and the coupons that discount it. A **coupon** lists what it
+is restricted to plus the orders that redeemed it and who redeemed
+them — its usage count was a bare number with nothing behind it.
+
+Those reverse lookups read `{$prefix}woocommerce_order_items` +
+`woocommerce_order_itemmeta` directly, because no WooCommerce API
+answers "orders containing product X" and walking orders to find one
+would mean loading every order on the store. Those two tables are the
+right index and are populated under **both** storages — HPOS moves
+the order rows, not the line items. Coupon restrictions are a
+comma-joined id string in postmeta, which no meta query can search
+safely (`LIKE '%12%'` matches 112 and 121), so those rows are read and
+split in PHP under a bounded scan.
+
+Every group carries an explicit budget. The relations engine hard-caps
+a window's `related` list at 64 items, and an unbudgeted group pushes
+the trailing ones silently over — you'd lose the orders because a
+product happened to carry thirty tags. Product worst case is 48,
+coupon 58.
+
+The **Reviews** item needed its own identity, and the reason is worth
+remembering because it generalises: a tie needs **both** windows to
+have one. Every other item in a product's Related menu drew a line
+because its target already announces an identity (a term screen, a
+post editor, a profile, an order). WooCommerce moved reviews off
+`edit-comments.php` onto its own admin page
+(`edit.php?post_type=product&page=product-reviews&product_id=N`), which
+the built-in detection has no reason to know about — so the window
+opened and sat there unconnected. It now announces
+`{ type: 'reviews', id, root: { type: 'product', id } }`, rooted at
+the product exactly as core's comments identity is rooted at its post.
+The unfiltered all-reviews list stays identity-less, for the same
+reason core leaves the unfiltered comments list alone: a window
+showing everything belongs to nothing in particular.
+
+**If you add a Related item and it opens but draws no line, that is
+the thing to check first** — not the menu, the destination.
+
+The Customer window hit the same wall from the other side, and it is
+worth stating plainly because it catches every native window: **an
+iframe window announces its identity for free, a native window never
+does.** The chromeless bridge builds one from the real admin screen
+and posts it up; a native window has no such screen, so nothing speaks
+on its behalf and the engine simply doesn't know it exists. It calls
+[`wp.os.relations.set()`](./javascript-reference.md#wposrelations) in
+its render callback — before the summary fetch, since the identity is
+already in the window's `params` and waiting a round trip would leave
+it unconnected exactly while the user is looking at it next to the
+order they came from.
+
+It announces `type: 'user'` rather than a private `wc-customer` type,
+which is the whole trick: that is what `user-edit.php` announces too,
+so the Customer window and a profile window on the same person join
+one group — and an order, whose identity links `user:<id>`, ties to
+either.
+
+**Following "Customer" from an order** used to land on the profile
+editor, which is the wrong answer to the question being asked: from an
+order, *customer* means "this is who bought it", not "change their
+role". The Related menu can only express a destination as a URL, and
+the only URL WordPress has for a person is `user-edit.php?user_id=N`
+— so the item and the profile editor were competing for one address.
+The `os_person_view=wc-customer` flag settles it: the shell's built-in
+profile remap stands down on any person-URL carrying the marker, and
+the WooCommerce remap claims it and opens the Customer window with
+`params: { customerId }`. No registration-order race, and the profile
+editor is still one item away in the same menu, unmarked. Buyer
+entries on a product or a coupon carry the marker too. With the
+integration bundle absent the marker is just an unused query arg and
+the profile opens, which is the right fallback.
+
+HPOS matters here twice over. It moves the order editor to
+`admin.php?page=wc-orders&action=edit&id=N`, where the built-in
+`post.php` detection can never see it — so under HPOS this file is the
+only source of an order identity at all. Under legacy storage the
+built-in detection does fire, but the identity arrives with no links:
+an order has no `post_content`, so the hyperlink / media / term
+extractor finds nothing.
+
+The `user` half of that needed one built-in: `user-edit.php` and
+`profile.php` now announce a `user` identity (see
+`includes/window-links.php`), gated on `edit_user`. It is generic —
+a post's author and a comment's writer point at the same root — and it
+is what lets an order tie to a profile window opened from anywhere.
+
 The integration talks to the site window only through the public
 action contract — nothing in `src/my-wordpress/index.ts` knows
 WooCommerce exists. A third-party plugin would write exactly the same
 code.
+
+**Known gap:** the Customers grid is band-*ordered* (VIP first, then
+lapsed, repeat, new, no-orders) but not band-*headed*. Banding chrome
+lives in the post-kind list renderer; the user-kind renderer doesn't
+have it yet. The order is right, the headings aren't there — the band
+shows on the tile as a ribbon instead.
 
 ## Adding a new fix
 

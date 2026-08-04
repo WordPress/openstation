@@ -21,6 +21,7 @@ import {
 import { Dock, type DockItem, type SystemDockItem } from './dock';
 import {
 	bindNativeUrlRemap,
+	OS_PERSON_VIEW_PARAM,
 	registerNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
@@ -2190,7 +2191,7 @@ function init(): void {
 	// dispatcher changes needed.
 	bindNativeUrlRemap( {
 		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
-		openById: ( id ) => nativeWindows.openById( id ),
+		openById: ( id, opts ) => nativeWindows.openById( id, opts ),
 		adminUrl: config.adminUrl,
 	} );
 
@@ -2313,6 +2314,15 @@ function init(): void {
 		id: 'desktop-mode-user-edit',
 		nativeWindowId: 'desktop-mode-user-edit',
 		matches: ( _url, parsed ) => {
+			// A URL that explicitly marks itself as a different kind
+			// of view onto this person is not a profile-edit request.
+			// The marker is how another remap — WooCommerce's Customer
+			// window — claims the same person without having to win a
+			// registration-order race with this entry, and without
+			// this one having to know what claimed it.
+			if ( parsed.searchParams.has( OS_PERSON_VIEW_PARAM ) ) {
+				return false;
+			}
 			const path = parsed.pathname;
 			if ( path.endsWith( '/profile.php' ) ) {
 				return true;

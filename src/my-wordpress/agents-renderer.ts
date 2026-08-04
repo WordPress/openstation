@@ -149,7 +149,13 @@ function openChatWindow( agent: Agent ): void {
 }
 
 interface OpenStationSurface {
-	openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
+	openWindow?: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 	windowManager?: {
 		open: ( opts: {
 			id: string;
@@ -204,6 +210,8 @@ function openAgentProfile( agent: Agent ): void {
 	const desktop = openStation();
 	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
 		source: 'agents/profile',
+		// Survives a reload; the shared store above does not.
+		params: { userId: agent.id },
 	} );
 	if ( ! opened ) {
 		desktop?.windowManager?.open( {

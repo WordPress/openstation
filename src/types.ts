@@ -239,6 +239,32 @@ export interface WindowConfig {
 	 */
 	ephemeral?: boolean;
 	/**
+	 * Open-time arguments for a **native** window — what it is showing
+	 * this time, as opposed to what it is.
+	 *
+	 * A native window is addressed by id, and its id is its identity:
+	 * `desktop-mode-user-edit` is "the profile editor", not "the
+	 * profile editor for user 12". Anything that varies per open has
+	 * nowhere else to live, and a module-level variable or a shared
+	 * store does not survive a reload — which is exactly how the
+	 * profile window used to come back showing whoever was logged in
+	 * rather than the person you had open.
+	 *
+	 * Params are part of the window's identity for persistence: they
+	 * are written into the session snapshot and staged back onto the
+	 * window when it is restored, so a native window reopens showing
+	 * the same thing.
+	 *
+	 * Keep them small and serializable — ids and slugs, not objects
+	 * and not functions. They go through `JSON.stringify` on the way
+	 * to the server. Values that aren't strings, finite numbers or
+	 * booleans are dropped on save rather than crashing it.
+	 *
+	 * Iframe windows don't need this: their URL already says what they
+	 * are showing, and it round-trips through the session on its own.
+	 */
+	params?: Record< string, string | number | boolean >;
+	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
 	 * slots (named title-bar regions), and chrome (full title-bar
@@ -645,6 +671,28 @@ export interface NativeRenderContext {
 	 * that were paused while hidden.
 	 */
 	onShow( cb: () => void ): () => void;
+
+	/**
+	 * The window's open-time arguments — what it is showing this
+	 * time. Empty object when the window was opened without any.
+	 *
+	 * A native window is addressed by id, so a singleton that
+	 * retargets (a profile editor, a customer window) has nowhere
+	 * else to put "which one". Read it here rather than from a
+	 * module-level variable: params are written into the session and
+	 * staged back on restore, so a window reopened after a reload
+	 * still knows what it was showing. A module variable does not
+	 * survive the reload, and the window silently changes subject.
+	 *
+	 * ```ts
+	 * render: ( body, { params } ) => {
+	 *     paint( body, Number( params.userId ) || 0 );
+	 * }
+	 * ```
+	 *
+	 * @see WindowConfig.params
+	 */
+	params: Record< string, string | number | boolean >;
 }
 
 /**
@@ -1460,6 +1508,15 @@ export interface SessionWindow {
 	 * Absent on plain admin-page windows.
 	 */
 	native?: boolean;
+	/**
+	 * A native window's open-time arguments — which user the profile
+	 * editor was showing, which customer the customer window was on.
+	 * Absent for iframe windows, whose URL already carries that, and
+	 * for native windows that take no arguments.
+	 *
+	 * See {@link WindowConfig.params}.
+	 */
+	params?: Record< string, string | number | boolean >;
 	url: string;
 	title: string;
 	icon: string;

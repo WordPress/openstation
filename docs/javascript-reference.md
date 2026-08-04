@@ -86,7 +86,16 @@ document.addEventListener( 'os-window-reopened', ( e ) => {
 **`detail` shape:**
 
 ```typescript
-{ windowId: string, baseId: string, wasMinimized: boolean, navigated: boolean }
+{
+    windowId: string,
+    baseId: string,
+    wasMinimized: boolean,
+    navigated: boolean,
+    // The window's open-time params AFTER the reopen — the framework
+    // applies any the caller passed before firing this. `{}` when the
+    // window takes none. See `opts.params` on `wp.os.openWindow`.
+    params: Record< string, string | number | boolean >,
+}
 ```
 
 `wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
@@ -916,7 +925,10 @@ Open (or focus) a server-registered native window by id. Symmetric with `opensta
 ```typescript
 wp.os.openWindow(
     id:    string,
-    opts?: { source?: string },
+    opts?: {
+        source?: string;
+        params?: Record< string, string | number | boolean >;
+    },
 ): boolean;
 ```
 
@@ -937,6 +949,32 @@ wp.os.activity.subscribe( 'desktop-mode/open-requested', ( { windowId, source } 
 ```
 
 Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'palette'`, `'api'` (default when omitted). Custom strings are fine — pick one that matches the surface the user clicked.
+
+**`opts.params`** — open-time arguments: *what* the window is showing this time, as opposed to *what it is*.
+
+A native window is addressed by id, and its id is its identity: `desktop-mode-user-edit` is "the profile editor", not "the profile editor for user 12". Anything that varies per open has nowhere else to live — and a module-level variable or a shared store **does not survive a page reload**, so a restored window comes back on its default. That is exactly how the profile window used to reopen showing whoever was logged in rather than the person the user had open.
+
+```javascript
+wp.os.openWindow( 'my-plugin/contact', {
+    source: 'contacts-list',
+    params: { contactId: 42 },
+} );
+```
+
+Read them in the render callback:
+
+```javascript
+window.openStationNativeWindows[ 'my-plugin/contact' ] = ( body, { params } ) => {
+    paint( body, Number( params.contactId ) || 0 );
+};
+```
+
+Rules worth knowing:
+
+- **Params are persisted.** They are written into the session snapshot and staged back onto the window on restore, so the window reopens showing the same thing. Keep them small and serializable — ids and slugs, not objects. Values that aren't strings, finite numbers, or booleans are dropped on save rather than crashing it (one plugin's careless value must not cost every window its geometry).
+- **Reopening with params retargets a live window.** `open()` focuses an existing window rather than rebuilding it, so the render callback does not re-run. The framework updates the window's params first and puts them on the [`os-window-reopened`](#os-window-reopened--stable) detail — subscribe there to repaint.
+- **An argument-less reopen leaves them alone.** A dock click on an already-open profile window must not wipe whose profile it is.
+- **Iframe windows ignore this.** Their URL already says what they're showing, and it round-trips through the session on its own.
 
 ```javascript
 // Open the Code editor (requires the desktop-mode-code-editor extension).
@@ -5308,6 +5346,10 @@ The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` a
 
 Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
 
+**Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
+
+**Two views of the same object.** Some URLs are the only address WordPress has for a thing, and more than one window may legitimately want them. `user-edit.php?user_id=12` is the only URL for a person, but a shop asks a different question about that person than "edit their role". The `os_person_view` query flag resolves it: the built-in profile remap stands down on any person-URL carrying it, so a specific view can claim the URL without having to win a registration-order race. The value is the claiming view's id (`wc-customer`), so a third view can join without either existing one changing. Exported as `OS_PERSON_VIEW_PARAM`; the PHP side that builds such URLs must use the same literal.
+
 ### Drag bridge integration
 
 Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-down. The payload is:
@@ -5460,9 +5502,10 @@ raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
 ### Action — `os.my-wordpress.preview-extras`
 
 Inject DOM into named slots on the right pane (`'header' | 'meta'
-| 'footer'`). Fires once per slot per preview render, for **both**
-media previews and post-kind previews (posts, pages, and every CPT
-section) — one contract covers every section.
+| 'footer'`). Fires once per slot per preview render, for media
+previews, post-kind previews (posts, pages, and every CPT section),
+and user-kind previews (the Users section and any section serving
+people) — one contract covers every section.
 
 ```ts
 wp.hooks.addAction(
@@ -5489,16 +5532,124 @@ interface PreviewExtras {
     entityId: string;
     /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
     kind: string;
-    /** The row being previewed (post or attachment). */
+    /** The row being previewed (post, attachment, or user). */
     item: Record< string, unknown >;
 }
 ```
 
 Slot order in a post-kind pane is `header` (above the featured image
 and the rendered content), `meta` (below the content, above the action
-row), then `footer`. Subscribers that fetch data should re-check
+row), then `footer`.
+
+A user-kind pane fires all three, and the useful one is `meta`:
+`header` sits above the identity header, `meta` sits directly under
+the name, face and biography, and `footer` sits below the action row.
+**A summary of a person belongs in `meta`** — money or metrics placed
+above someone's avatar read as a label on them, and a reader cannot
+tell whose figure it is until they have scrolled past it to the name.
+The WooCommerce customer panel paints into `meta` for exactly that
+reason.
+
+Subscribers that fetch data should re-check
 `container.isConnected` before painting — the pane repaints on every
 selection change, and a slow request can outlive its pane.
+
+### Filter — `os.my-wordpress.user-dossier-sections`
+
+Choose which blocks a user preview renders. The identity header (name,
+face, roles) is not in the list — a dossier without it is not a
+dossier.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-dossier-sections',
+    'my-plugin/customers',
+    ( sections, ctx ) =>
+        ctx.entityId === 'wc-customers'
+            ? sections.filter( ( id ) => id === 'bio' )
+            : sections,
+);
+```
+
+Sections, in render order: `'bio' | 'stats' | 'activity' |
+'milestones' | 'recent' | 'terms'`. Context:
+`{ entityId: string; kind: string; userId: number }`.
+
+The built-in dossier answers *"what has this person written"* — post
+and page counts, a publishing sparkline, recent posts, top categories.
+That is right in the Users folder and wrong in a section whose people
+have never written anything: four zeroes above the figure you came for
+read as the answer. Drop what doesn't apply.
+
+The filter does not fire for the author / contributor sub-folders
+inside a post's detail view — those have no section context and always
+render every block.
+
+### Filter — `os.my-wordpress.user-activate`
+
+Claim "the user opened this person" — the double-click on a user tile.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-activate',
+    'my-plugin/contacts',
+    ( handled, ctx ) => {
+        if ( handled || ctx.entityId !== 'my-contacts' ) {
+            return handled;
+        }
+        return wp.os.openWindow( 'my-plugin/contact', {
+            params: { contactId: Number( ctx.item.id ) },
+        } );
+    },
+);
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Return `true` to say you handled it — the built-in navigation is then skipped. Anything else falls through, so a filter that forgets to return can't leave double-click doing nothing.
+
+The built-in answer is the activity footprint, which is right in the Users folder (a person there is someone who writes) and wrong anywhere they aren't. The WooCommerce Customers section claims it for the Customer window.
+
+### Filter — `os.my-wordpress.user-preview-actions`
+
+The buttons in a user preview's action row. Built-ins are
+`'footprint'` ("View activity footprint", primary) and
+`'open-profile'` ("Show profile", secondary).
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-preview-actions',
+    'my-plugin/orders',
+    ( actions, ctx ) => {
+        if ( ctx.entityId !== 'wc-customers' ) {
+            return actions;
+        }
+        return [
+            {
+                id: 'wc-orders',
+                label: 'View their orders',
+                variant: 'primary',
+                onSelect: () => openOrders( ctx.item.id ),
+            },
+            ...actions.filter( ( a ) => a.id !== 'footprint' ),
+        ];
+    },
+);
+```
+
+```ts
+interface UserPreviewAction {
+    id: string;
+    label: string;
+    /** Native tooltip. */
+    title?: string;
+    variant?: 'primary' | 'secondary';
+    onSelect: () => void;
+}
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Entries without a callable `onSelect` are dropped; returning an empty
+array removes the action row entirely rather than leaving an empty bar.
 
 ### Filter — `os.my-wordpress.list-bands`
 
@@ -5574,6 +5725,18 @@ wp.hooks.addAction(
 Payload: `{ tile: HTMLElement; entityId: string; kind: string; item: EntityListItem }`.
 The tile is positioned, so a badge should be absolutely positioned
 within it.
+
+Fires for post-kind and user-kind tiles alike. Check `kind` rather
+than `entityId` when your decoration is about the *thing* rather than
+about the section — a user who has spent money is a customer whether
+you are looking at the Users list or a shop's Customers list, and the
+WooCommerce integration keys its tile decoration off `kind === 'user'`
+for exactly that reason.
+
+A user tile carries a `.os-my-wordpress__user-tile-sub` sub-line
+("role · N posts" by default). Rewriting its `textContent` is the
+supported way to say something truer about the person for your
+section.
 
 ### Action — `os.my-wordpress.group-extras`
 

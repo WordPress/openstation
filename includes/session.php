@@ -28,6 +28,14 @@ const OPENSTATION_SESSION_META_KEY = 'desktop_mode_session';
 /** Hard cap on persisted windows — guards against runaway meta size. */
 const OPENSTATION_SESSION_MAX_WINDOWS = 32;
 
+/**
+ * Hard cap on a native window's persisted open-time params. These are
+ * "which user / which customer / which tab" — a handful of scalars,
+ * never a payload. The cap is what stops a careless (or hostile)
+ * client turning the session blob into a data store.
+ */
+const OPENSTATION_SESSION_MAX_PARAMS = 12;
+
 /** Hard cap on persisted desktops ("Spaces"). Generous — power-users
  * with 8+ desktops are vanishingly rare, and we'd rather drop tail
  * desktops than balloon user meta. */
@@ -380,6 +388,25 @@ function openstation_sanitize_session( $session ) {
 			// sessions of plain admin windows keep their existing shape.
 			if ( $is_native ) {
 				$entry['native'] = true;
+
+				// A native window's open-time arguments: WHAT it is
+				// showing, as opposed to what it is. A native window
+				// is addressed by id, and its id is its identity
+				// (`desktop-mode-user-edit` is "the profile editor",
+				// not "the profile editor for user 12"), so a
+				// singleton that retargets has nowhere else to record
+				// its subject. Drop these and the window restores onto
+				// its default — the profile window comes back showing
+				// whoever is logged in, the customer window comes back
+				// empty.
+				//
+				// Only for native entries: an iframe window's URL
+				// already says what it shows, and it round-trips on
+				// its own.
+				$params = openstation_sanitize_session_params( $win['params'] ?? null );
+				if ( ! empty( $params ) ) {
+					$entry['params'] = $params;
+				}
 			}
 
 			// Sanitize external sub-tabs. Each entry carries a URL
@@ -471,6 +498,66 @@ function openstation_sanitize_session_dimension( $value, $min, $max ) {
 		return (int) $max;
 	}
 	return $value;
+}
+
+/**
+ * Sanitize a native window's open-time params.
+ *
+ * These say WHAT a native window is showing (`{ userId: 12 }`,
+ * `{ customerId: 7 }`) as opposed to what it is — see
+ * `WindowConfig.params` on the JS side. They come from the client, so
+ * they are untrusted, unbounded, and arbitrarily nested unless this
+ * says otherwise.
+ *
+ * The rules mirror the client's own sanitizer so both ends agree on
+ * what survives: scalar values only (string, finite number, bool),
+ * and hard caps on both the number of keys and the length of a string
+ * value. Anything else is dropped rather than rejected — one careless
+ * value from a plugin must not cost the user every window's geometry.
+ *
+ * Keys are filtered to `[A-Za-z0-9_-]` rather than passed through
+ * `sanitize_key()`, which **lowercases**. Every param name in the
+ * shell is camelCase (`customerId`, `userId`), so lowercasing would
+ * store `customerid` and the client's `params.customerId` would read
+ * `undefined` — a window that restores blank, with the data sitting
+ * right there under a name nobody looks up.
+ *
+ * @param mixed $params Raw params from the payload.
+ * @return array Sanitized params, possibly empty.
+ */
+function openstation_sanitize_session_params( $params ) {
+	if ( ! is_array( $params ) ) {
+		return array();
+	}
+
+	$clean = array();
+	foreach ( $params as $key => $value ) {
+		if ( count( $clean ) >= OPENSTATION_SESSION_MAX_PARAMS ) {
+			break;
+		}
+		$key = substr( preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $key ), 0, 64 );
+		if ( '' === $key ) {
+			continue;
+		}
+		if ( is_bool( $value ) ) {
+			$clean[ $key ] = $value;
+			continue;
+		}
+		if ( is_int( $value ) || is_float( $value ) ) {
+			if ( is_finite( (float) $value ) ) {
+				$clean[ $key ] = $value + 0;
+			}
+			continue;
+		}
+		if ( is_string( $value ) ) {
+			// A window param is an id, a slug or a short label. The
+			// cap keeps a runaway client from pushing megabytes into
+			// user meta, the same way the external-tab URL cap does.
+			$clean[ $key ] = substr( sanitize_text_field( $value ), 0, 256 );
+		}
+	}
+
+	return $clean;
 }
 
 /**

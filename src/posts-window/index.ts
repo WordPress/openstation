@@ -3054,7 +3054,10 @@ registry[ 'desktop-mode-users' ] = ( body: HTMLElement ) => {
 // viewer's own id) and sets the `user-id` attribute on the
 // component. Subsequent target changes flip the same attribute,
 // triggering an in-place re-mount.
-registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
+registry[ 'desktop-mode-user-edit' ] = (
+	body: HTMLElement,
+	ctx?: { params?: Record< string, string | number | boolean > },
+) => {
 	const profile = body.querySelector(
 		'os-user-profile[data-os-user-profile-host]',
 	) as HTMLElement | null;
@@ -3064,6 +3067,17 @@ registry[ 'desktop-mode-user-edit' ] = ( body: HTMLElement ) => {
 	void import( './user-edit-target' ).then( ( target ) => {
 		const pending = target.readUserEditTarget();
 		let userId = pending.userId && pending.userId > 0 ? pending.userId : 0;
+		// The window's open-time params, which survive a reload — the
+		// shared store does not. Without this a session restored after
+		// F5 fell straight through to the `currentUserId` fallback and
+		// the window came back showing whoever was logged in rather
+		// than the person the user had open.
+		if ( userId <= 0 ) {
+			const fromParams = Number( ctx?.params?.userId ?? 0 );
+			if ( Number.isFinite( fromParams ) && fromParams > 0 ) {
+				userId = fromParams;
+			}
+		}
 		if ( userId <= 0 ) {
 			try {
 				userId =

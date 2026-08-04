@@ -32,3 +32,6 @@ require_once __DIR__ . '/preview-actions.php';
 // Third-party integrations. Each file is inert unless its plugin is
 // active, so requiring them unconditionally costs one include.
 require_once __DIR__ . '/integrations/woocommerce.php';
+require_once __DIR__ . '/integrations/woocommerce-customers.php';
+require_once __DIR__ . '/integrations/woocommerce-customer-window.php';
+require_once __DIR__ . '/integrations/woocommerce-relations.php';

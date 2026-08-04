@@ -18,7 +18,11 @@
  * — the same one any third-party plugin would use.
  */
 import { addAction, addFilter } from '../../hooks';
-import { __, sprintf } from '../../i18n';
+import {
+	OS_PERSON_VIEW_PARAM,
+	registerNativeUrlRemap,
+} from '../../native-url-remap';
+import { __, _n, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 // Registers the `<os-ribbon>` tag this bundle stamps onto tiles. The
 // main desktop bundle defines it too, but this bundle can load into a
@@ -59,9 +63,12 @@ interface WooConfig {
 	restRoot: string;
 	restNonce: string;
 	canOrders: boolean;
+	/** Whether the viewer may see customer money at all. */
+	canCustomers?: boolean;
 	orderBands?: OrderBand[];
 	productBands?: WooBand[];
 	couponBands?: WooBand[];
+	customerBands?: WooBand[];
 }
 
 /** A name paired with the screen that edits it. */
@@ -94,6 +101,15 @@ interface ListTilePayload {
 interface ListBanding {
 	bands: Array< { id: string; label: string; order?: number } >;
 	assign: ( item: Record< string, unknown > ) => string | null;
+}
+
+/** One button in the user preview pane's action row. */
+interface UserPreviewAction {
+	id: string;
+	label: string;
+	title?: string;
+	variant?: 'primary' | 'secondary';
+	onSelect: () => void;
 }
 
 /** The `openstation_woo` REST field on a product row. */
@@ -175,13 +191,81 @@ interface CouponSummary {
 	editUrl: string;
 }
 
+/**
+ * The `openstation_woo_customer` field carried on every row of the
+ * Customers section — and on `/wp/v2/users` rows, so the built-in
+ * Users section knows about money too.
+ */
+interface CustomerFacts {
+	band: string;
+	orders: number;
+	spend: string;
+	spendRaw: number;
+	aov: string;
+	firstOrder: string;
+	lastOrder: string;
+	daysSince: number | null;
+	ordersUrl: string;
+}
+
+/** One row of a customer's order history. */
+interface CustomerOrderRow {
+	id: number;
+	number: string;
+	status: string;
+	statusLabel: string;
+	date: string;
+	total: string;
+	items: number;
+	editUrl: string;
+}
+
+interface CustomerSummary {
+	type: 'customer';
+	id: number;
+	name: string;
+	username: string;
+	avatar: string;
+	email: string;
+	phone: string;
+	billing: string;
+	shipping: string;
+	recentOrders: CustomerOrderRow[];
+	spendRaw: number;
+	band: string;
+	bandLabel: string;
+	orders: number;
+	spend: string;
+	aov: string;
+	firstOrder: string;
+	lastOrder: string;
+	daysSince: number | null;
+	lastOrderNo: string;
+	lastOrderUrl: string;
+	lastOrderTotal: string;
+	favourite: { label: string; quantity: number; editUrl: string } | null;
+	location: string;
+	registered: string;
+	ordersUrl: string;
+	profileUrl: string;
+}
+
 interface StoreSummary {
 	revenue: string;
 	processing: number;
 	outOfStock: number;
+	customers?: number;
+	vips?: number;
+	lapsed?: number;
+	guestSpend?: string;
+	guestOrders?: number;
 }
 
-type Summary = ProductSummary | OrderSummary | CouponSummary;
+type Summary =
+	| ProductSummary
+	| OrderSummary
+	| CouponSummary
+	| CustomerSummary;
 
 const PANEL_CLASS = 'os-woo-panel';
 
@@ -197,6 +281,7 @@ const LOW_STOCK_THRESHOLD = 5;
 const SECTION_ORDERS = 'wc-orders';
 const SECTION_PRODUCTS = 'cpt-product';
 const SECTION_COUPONS = 'cpt-shop_coupon';
+const SECTION_CUSTOMERS = 'wc-customers';
 
 function getConfig(): WooConfig | null {
 	const cfg = ( window as unknown as { openStationWooConfig?: WooConfig } )
@@ -325,10 +410,36 @@ function link( label: string, href: string ): Node {
 	a.className = `${ PANEL_CLASS }__link`;
 	a.href = href;
 	a.textContent = label;
-	// Admin screens open as their own desktop window rather than
-	// navigating the shell out from under the user.
-	a.target = '_blank';
 	a.rel = 'noopener noreferrer';
+
+	// Open as a desktop window, which is the whole point: the product
+	// opens BESIDE the order that sold it.
+	//
+	// This used to be `target="_blank"` and it was wrong twice over.
+	// In a browser tab it threw the admin screen outside the shell
+	// entirely; and once OpenStation is installed as a PWA, a
+	// `_blank` navigation to a same-origin admin URL is handled by
+	// the app's scope — so clicking a product name in the preview
+	// pane LAUNCHED THE INSTALLED APP. Nothing about "open this in a
+	// window" implies "start the operating system again".
+	//
+	// The `href` stays real so middle-click, ⌘-click and "copy link"
+	// still behave; only the plain click is claimed.
+	a.addEventListener( 'click', ( event ) => {
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+		event.preventDefault();
+		openAdminWindow( href, label );
+	} );
+
 	return a;
 }
 
@@ -542,6 +653,20 @@ function orderToneFor( status: string ): BadgeTone {
 		status === 'refunded'
 	) {
 		return 'danger';
+	}
+	return 'neutral';
+}
+
+/**
+ * Customer-band tint. VIP reads as good news, lapsed as something to
+ * do; everything between them is context and stays neutral.
+ */
+function customerToneFor( band: string ): BadgeTone {
+	if ( band === 'vip' ) {
+		return 'success';
+	}
+	if ( band === 'lapsed' ) {
+		return 'warning';
 	}
 	return 'neutral';
 }
@@ -788,6 +913,145 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 	];
 }
 
+/**
+ * "3 months ago", "today" — the sentence a merchant actually thinks
+ * in. An ISO date alone makes you do the arithmetic.
+ */
+function sinceLabel( days: number | null ): string {
+	if ( days === null || ! Number.isFinite( days ) ) {
+		return '';
+	}
+	if ( days <= 0 ) {
+		return __( 'Today', 'desktop-mode' );
+	}
+	if ( days < 60 ) {
+		return sprintf(
+			/* translators: %d: number of days. */
+			_n( '%d day ago', '%d days ago', days ),
+			days,
+		);
+	}
+	const months = Math.round( days / 30 );
+	if ( months < 24 ) {
+		return sprintf(
+			/* translators: %d: number of months. */
+			_n( '%d month ago', '%d months ago', months ),
+			months,
+		);
+	}
+	const years = Math.round( days / 365 );
+	return sprintf(
+		/* translators: %d: number of years. */
+		_n( '%d year ago', '%d years ago', years ),
+		years,
+	);
+}
+
+function renderCustomer( data: CustomerSummary ): Array< HTMLElement | null > {
+	const orders = Number( data.orders ) || 0;
+	const since = sinceLabel( data.daysSince ?? null );
+
+	// Lifetime spend leads. It is the one number that ranks two
+	// customers against each other, and every other row on this panel
+	// is an explanation of it.
+	return [
+		row(
+			__( 'Lifetime spend', 'desktop-mode' ),
+			data.spend
+				? ( () => {
+					const wrap = document.createElement( 'span' );
+					const strong = document.createElement( 'strong' );
+					strong.textContent = data.spend;
+					wrap.appendChild( strong );
+					if ( data.bandLabel ) {
+						wrap.appendChild( document.createTextNode( ' ' ) );
+						wrap.appendChild(
+							pill(
+								data.bandLabel,
+								customerToneFor( data.band ),
+							),
+						);
+					}
+					return wrap;
+				} )()
+				: null,
+		),
+		row(
+			__( 'Orders', 'desktop-mode' ),
+			orders > 0
+				? sprintf(
+					/* translators: %d: number of orders. */
+					_n( '%d order', '%d orders', orders ),
+					orders,
+				)
+				: __( 'None yet', 'desktop-mode' ),
+		),
+		row( __( 'Average order', 'desktop-mode' ), data.aov ),
+		row(
+			__( 'Last order', 'desktop-mode' ),
+			data.lastOrderNo
+				? ( () => {
+					const wrap = document.createElement( 'span' );
+					wrap.appendChild(
+						link(
+							sprintf(
+								/* translators: %s: order number. */
+								__( '#%s', 'desktop-mode' ),
+								data.lastOrderNo,
+							),
+							data.lastOrderUrl,
+						),
+					);
+					const tail = [ data.lastOrderTotal, since ].filter(
+						Boolean,
+					);
+					if ( tail.length ) {
+						wrap.appendChild(
+							document.createTextNode(
+								` · ${ tail.join( ' · ' ) }`,
+							),
+						);
+					}
+					return wrap;
+				} )()
+				: null,
+		),
+		row( __( 'First order', 'desktop-mode' ), shortDate( data.firstOrder ) ),
+		row(
+			__( 'Buys most', 'desktop-mode' ),
+			data.favourite
+				? ( () => {
+					const wrap = document.createElement( 'span' );
+					wrap.appendChild(
+						link( data.favourite.label, data.favourite.editUrl ),
+					);
+					if ( data.favourite.quantity > 1 ) {
+						wrap.appendChild(
+							document.createTextNode(
+								` · ${ sprintf(
+									/* translators: %d: units bought. */
+									__( '×%d', 'desktop-mode' ),
+									data.favourite.quantity,
+								) }`,
+							),
+						);
+					}
+					return wrap;
+				} )()
+				: null,
+		),
+		row( __( 'Location', 'desktop-mode' ), data.location ),
+		row( __( 'Email', 'desktop-mode' ), data.email ),
+		row( __( 'Customer since', 'desktop-mode' ), shortDate( data.registered ) ),
+		row(
+			__( 'Open', 'desktop-mode' ),
+			orders > 0 && data.ordersUrl
+				? link( __( 'All their orders', 'desktop-mode' ), data.ordersUrl )
+				: null,
+		),
+	];
+}
+
 /* -------------------------------------------------------------------
  * Wiring
  * ---------------------------------------------------------------- */
@@ -802,12 +1066,14 @@ const PANEL_TITLES: Record< Summary[ 'type' ], string > = {
 	product: __( 'Product', 'desktop-mode' ),
 	order: __( 'Order', 'desktop-mode' ),
 	coupon: __( 'Coupon', 'desktop-mode' ),
+	customer: __( 'Customer', 'desktop-mode' ),
 };
 
 const PANEL_ROW_COUNTS: Record< Summary[ 'type' ], number > = {
 	product: 8,
 	order: 10,
 	coupon: 12,
+	customer: 9,
 };
 
 /** Which summary type — if any — a section maps to. */
@@ -824,6 +1090,25 @@ function summaryTypeFor( entityId: string ): Summary[ 'type' ] | null {
 	return null;
 }
 
+/**
+ * Which summary a preview pane should show.
+ *
+ * Section id decides it for post-shaped sections, but a *person* is
+ * decided by kind rather than by section: the same customer panel
+ * belongs on the Customers list and on the built-in Users list, and
+ * on any section a plugin adds that renders people. Gated on
+ * `canCustomers` so a viewer without order access never fires a
+ * request that would 403.
+ */
+function previewSummaryTypeFor(
+	payload: PreviewExtrasPayload,
+): Summary[ 'type' ] | null {
+	if ( payload.kind === 'user' || payload.entityId === SECTION_CUSTOMERS ) {
+		return getConfig()?.canCustomers ? 'customer' : null;
+	}
+	return summaryTypeFor( payload.entityId );
+}
+
 /** Read the `openstation_woo` REST field off a product list row. */
 function productFacts( item: Record< string, unknown > ): ProductRowFacts | null {
 	const facts = item.openstation_woo as ProductRowFacts | null | undefined;
@@ -834,6 +1119,30 @@ function productFacts( item: Record< string, unknown > ): ProductRowFacts | null
 function wooBand( item: Record< string, unknown > ): string | null {
 	const facts = item.openstation_woo as { band?: string } | null | undefined;
 	return facts && typeof facts.band === 'string' ? facts.band : null;
+}
+
+/**
+ * Read the `openstation_woo_customer` REST field off a user row.
+ *
+ * Present on the Customers section AND on `/wp/v2/users`, so the
+ * built-in Users section gets the same decoration for free — which is
+ * the point: on a store, "who is this person" and "what have they
+ * spent" are the same question.
+ */
+function customerFacts(
+	item: Record< string, unknown >,
+): CustomerFacts | null {
+	const facts = item.openstation_woo_customer as
+		| CustomerFacts
+		| null
+		| undefined;
+	return facts && typeof facts.band === 'string' ? facts : null;
+}
+
+/** The translated label for a customer band, from the server's list. */
+function customerBandLabel( band: string ): string {
+	const found = getConfig()?.customerBands?.find( ( b ) => b.id === band );
+	return found?.label ?? '';
 }
 
 addFilter(
@@ -886,10 +1195,128 @@ addFilter(
 	},
 );
 
+/**
+ * Turn a user tile into a customer tile.
+ *
+ * An icon is an icon: a face, a name, and at most one mark. Anything
+ * else belongs one click away in the pane, where there is room to say
+ * it properly. So this does exactly two things — it takes the stock
+ * "Customer · 0 posts" sub-line off the Customers grid (in a folder
+ * where every row is a customer, the word says nothing), and it puts
+ * a small badge on the bottom edge of the avatar for the two bands a
+ * merchant scans the grid to find.
+ *
+ * Deliberately NOT the corner ribbon the Products grid uses. A ribbon
+ * is a 45° banner across the artwork: right on a product photo, wrong
+ * on a face — at 88px it covers a third of the avatar and turns a
+ * roster of people into a wall of diagonal shouting. And deliberately
+ * NOT a line of text under the name: spend and order counts stacked
+ * above a 48px avatar crowd the tile into unreadability, and they are
+ * in the pane already.
+ *
+ * Runs for the Customers section AND the built-in Users section: the
+ * facts ride `/wp/v2/users` too, and a user who has spent money is a
+ * customer wherever you happen to be looking at them. The sub-line is
+ * only stripped in the Customers section — in the Users folder
+ * "Editor · 12 posts" is still the truest thing about someone.
+ *
+ * @param payload The `os.my-wordpress.list-tile` payload.
+ * @return true when the tile was a customer tile and was handled.
+ */
+function decorateCustomerTile( payload: ListTilePayload ): boolean {
+	if ( payload.kind !== 'user' ) {
+		return false;
+	}
+	const facts = customerFacts( payload.item );
+	if ( ! facts ) {
+		return false;
+	}
+
+	if ( payload.entityId === SECTION_CUSTOMERS ) {
+		payload.tile
+			.querySelector( '.os-my-wordpress__user-tile-sub' )
+			?.remove();
+	}
+
+	// Only the two actionable bands get a badge. Marking every band
+	// would put one on every tile, which is the same as putting one
+	// on none.
+	if ( facts.band === 'vip' || facts.band === 'lapsed' ) {
+		payload.tile.dataset.wooCustomerBand = facts.band;
+		stampCustomerBand( payload.tile );
+	}
+
+	return true;
+}
+
+/**
+ * Put the band badge back on a tile that remembers it.
+ *
+ * `<os-tile>._paint()` rebuilds its children on every paint, and
+ * selection triggers a paint — same reason the product ribbon is
+ * re-stamped from `os.tile.rendered` rather than added once.
+ *
+ * The badge goes INSIDE `.os-file-tile__visual`, straddling the
+ * avatar's bottom edge, rather than into the tile's text column. Two
+ * reasons: it costs the tile no vertical space at all, and it sits
+ * where the eye already is — on the face — instead of adding a line
+ * the reader has to scan past to reach the name.
+ *
+ * @param tile The tile element.
+ */
+function stampCustomerBand( tile: HTMLElement ): void {
+	const band = tile.dataset.wooCustomerBand;
+	if ( ! band ) {
+		return;
+	}
+
+	// One badge per tile, wherever it currently sits. Scoped to the
+	// tile rather than to the avatar because the avatar is not stable:
+	// `<os-tile>._paint()` destroys and recreates
+	// `.os-file-tile__visual`, so a check scoped to the new visual
+	// says "no badge here" while the old one is still on screen.
+	if ( tile.querySelector( '.os-woo-customer-band' ) ) {
+		return;
+	}
+
+	// No visual yet — nothing to pin a badge to.
+	//
+	// This is the normal state on the first call: the decoration
+	// action fires from the tile builder while the element is still
+	// detached and `<os-tile>` has not painted, so there is no avatar
+	// box to reach. Falling back to the tile itself (which this used
+	// to do) put a second badge under the name that the later,
+	// correct stamp never noticed. Doing nothing is right — the
+	// `os.tile.rendered` pass runs at the end of every paint and
+	// stamps it then.
+	const host = tile.querySelector< HTMLElement >( '.os-file-tile__visual' );
+	if ( ! host ) {
+		return;
+	}
+	host.classList.add( 'os-woo-customer-avatar' );
+
+	const label =
+		customerBandLabel( band ) ||
+		( band === 'vip'
+			? __( 'VIP', 'desktop-mode' )
+			: __( 'Lapsed', 'desktop-mode' ) );
+
+	const chip = document.createElement( 'span' );
+	chip.className = `os-woo-customer-band os-woo-customer-band--${ band }`;
+	chip.textContent = label;
+	// The badge is decoration over a face; the name is the accessible
+	// label, and the band is stated in full in the preview pane.
+	chip.setAttribute( 'aria-hidden', 'true' );
+	host.appendChild( chip );
+}
+
 addAction(
 	'os.my-wordpress.list-tile',
 	'desktop-mode/woocommerce',
 	( payload: ListTilePayload ) => {
+		if ( decorateCustomerTile( payload ) ) {
+			return;
+		}
 		if ( payload.entityId !== SECTION_PRODUCTS ) {
 			return;
 		}
@@ -977,6 +1404,7 @@ addAction(
 	'desktop-mode/woocommerce',
 	( payload: { tile: HTMLElement } ) => {
 		stampRibbon( payload.tile );
+		stampCustomerBand( payload.tile );
 	},
 );
 
@@ -984,12 +1412,16 @@ addAction(
 	'os.my-wordpress.preview-extras',
 	'desktop-mode/woocommerce',
 	( payload: PreviewExtrasPayload ) => {
-		// One panel per preview, above the content.
-		if ( payload.slot !== 'header' ) {
+		const type = previewSummaryTypeFor( payload );
+		if ( ! type ) {
 			return;
 		}
-		const type = summaryTypeFor( payload.entityId );
-		if ( ! type ) {
+		// One panel per preview. A thing goes above its content
+		// (`header`); a *person* goes below their name and face
+		// (`meta`) — putting money above someone's avatar reads as a
+		// price tag on them, and you can't tell whose figure it is
+		// until you've scrolled past it to the name.
+		if ( payload.slot !== ( type === 'customer' ? 'meta' : 'header' ) ) {
 			return;
 		}
 		const id = Number( payload.item?.id );
@@ -1019,11 +1451,141 @@ addAction(
 				if ( data.type === 'coupon' ) {
 					return { rows: renderCoupon( data ) };
 				}
+				if ( data.type === 'customer' ) {
+					return { rows: renderCustomer( data ) };
+				}
 				return { rows: [] };
 			},
 		);
 	},
 );
+
+/**
+ * A customer's dossier is not an author's.
+ *
+ * The built-in dossier answers "what has this person written" — post
+ * and page counts, a publishing sparkline, recent posts, top
+ * categories. For someone who came to the site to buy a hat, every
+ * one of those is a zero, and four zeroes above the lifetime-spend
+ * figure is worse than nothing: it reads as the answer.
+ *
+ * Only in the Customers section. In the built-in Users folder an
+ * author is still an author, and their spend is an extra fact rather
+ * than a replacement for the rest of them.
+ */
+addFilter(
+	'os.my-wordpress.user-dossier-sections',
+	'desktop-mode/woocommerce',
+	( sections: string[], ctx: { entityId: string } ): string[] => {
+		if ( ctx.entityId !== SECTION_CUSTOMERS ) {
+			return sections;
+		}
+		return Array.isArray( sections )
+			? sections.filter( ( id ) => id === 'bio' )
+			: sections;
+	},
+);
+
+/**
+ * Swap the preview pane's action row for one a merchant can use.
+ *
+ * "View activity footprint" opens a publishing-history surface, which
+ * for a customer is an empty screen. Their order history is the
+ * equivalent question, and it is one window away.
+ */
+addFilter(
+	'os.my-wordpress.user-preview-actions',
+	'desktop-mode/woocommerce',
+	(
+		actions: UserPreviewAction[],
+		ctx: { entityId: string; item: Record< string, unknown > },
+	): UserPreviewAction[] => {
+		if ( ctx.entityId !== SECTION_CUSTOMERS || ! Array.isArray( actions ) ) {
+			return actions;
+		}
+
+		const kept = actions.filter( ( a ) => a?.id !== 'footprint' );
+		const facts = customerFacts( ctx.item );
+		if ( ! facts?.ordersUrl ) {
+			// No orders, no list to open — and a button onto an empty
+			// filtered screen is a dead end.
+			return kept.map( ( a ) =>
+				a.id === 'open-profile' ? { ...a, variant: 'primary' } : a,
+			);
+		}
+
+		return [
+			{
+				id: 'wc-orders',
+				label: __( 'View their orders', 'desktop-mode' ),
+				title: __(
+					'Open the orders screen filtered to this customer, in its own window.',
+					'desktop-mode',
+				),
+				variant: 'primary',
+				onSelect: () => openAdminWindow( facts.ordersUrl, __( 'Orders', 'desktop-mode' ) ),
+			},
+			...kept,
+		];
+	},
+);
+
+/**
+ * Open an admin URL as its own desktop window.
+ *
+ * The whole point of the section: the orders screen opens *beside*
+ * the customer rather than replacing them, so you can read one while
+ * looking at the other.
+ *
+ * The fallback is `window.open`, and it is a genuine last resort —
+ * with the shell missing there is nowhere to put a window. Note it
+ * behaves badly inside an installed PWA (a same-origin admin URL is
+ * in scope, so the app relaunches), which is exactly why the panel's
+ * links route here instead of carrying `target="_blank"`.
+ *
+ * @param url   Admin URL.
+ * @param title Window title.
+ */
+function openAdminWindow( url: string, title: string ): void {
+	const os = (
+		window.wp as
+			| {
+					os?: {
+						deriveWindowId?: ( target: string ) => string;
+						windowManager?: {
+							open: ( args: {
+								id: string;
+								url: string;
+								title: string;
+								icon?: string;
+							} ) => unknown;
+						};
+					};
+			}
+			| undefined
+	)?.os;
+	const manager = os?.windowManager;
+	if ( ! manager || typeof manager.open !== 'function' ) {
+		window.open( url, '_blank', 'noopener,noreferrer' );
+		return;
+	}
+
+	// `manager.open()` REQUIRES a non-empty id and throws a TypeError
+	// without one — a deliberately loud boundary, since a window
+	// without an id can never be focused, deduped or restored.
+	//
+	// `wp.os.deriveWindowId` is the shell's own slug derivation, the
+	// same one the dock and the admin-link dispatcher use, so a
+	// product opened from here lands on the SAME window the dock
+	// would open rather than a private duplicate. The fallback slug
+	// only matters if the API is missing.
+	const id =
+		typeof os?.deriveWindowId === 'function'
+			? os.deriveWindowId( url )
+			: `os-woo-${ url.replace( /[^a-z0-9]+/gi, '-' ).slice( -60 ) }`;
+
+	manager.open( { id, url, title, icon: 'dashicons-cart' } );
+}
 
 addAction(
 	'os.my-wordpress.group-extras',
@@ -1041,13 +1603,18 @@ addAction(
 			payload.container,
 			__( 'Store', 'desktop-mode' ),
 			'store',
-			3,
+			cfg.canCustomers ? 6 : 3,
 			async () => {
 				const result = await fetchJson< StoreSummary >( 'store' );
 				if ( 'error' in result ) {
 					return result;
 				}
 				const { data } = result;
+				const customers = Number( data.customers ) || 0;
+				const vips = Number( data.vips ) || 0;
+				const lapsed = Number( data.lapsed ) || 0;
+				const guestOrders = Number( data.guestOrders ) || 0;
+
 				return {
 					rows: [
 						row(
@@ -1072,9 +1639,712 @@ addAction(
 								)
 								: __( 'None', 'desktop-mode' ),
 						),
+						row(
+							__( 'Customers', 'desktop-mode' ),
+							customers > 0
+								? sprintf(
+									/* translators: %d: number of customers. */
+									_n( '%d person', '%d people', customers ),
+									customers,
+								)
+								: null,
+						),
+						row(
+							__( 'VIP · lapsed', 'desktop-mode' ),
+							vips > 0 || lapsed > 0
+								? sprintf(
+									/* translators: 1: VIP customer count, 2: lapsed customer count. */
+									__( '%1$d · %2$d', 'desktop-mode' ),
+									vips,
+									lapsed,
+								)
+								: null,
+						),
+						// Guests can't appear in the Customers list —
+						// there is no account to render — so their
+						// money is reported here or nowhere.
+						row(
+							__( 'Guest checkout', 'desktop-mode' ),
+							data.guestSpend
+								? sprintf(
+									/* translators: 1: formatted revenue, 2: number of orders. */
+									__( '%1$s over %2$d orders', 'desktop-mode' ),
+									data.guestSpend,
+									guestOrders,
+								)
+								: null,
+						),
 					],
 				};
 			},
 		);
 	},
 );
+
+/* -------------------------------------------------------------------
+ * The Customer window
+ *
+ * A native window on one person: who they are, what they are worth,
+ * what they bought, where it ships. Double-clicking a customer tile
+ * lands here.
+ *
+ * It exists because the two screens WordPress offers instead are both
+ * the wrong one. The activity footprint answers "what has this person
+ * published", which for someone who came to buy a hat is an empty
+ * page. `user-edit.php` is a settings form — where you go to change
+ * someone's role, not to understand them.
+ *
+ * Singleton and retargeting: the window id is "the customer window",
+ * and WHICH customer is an open-time param. Params ride the session,
+ * so a reload brings it back on the same person.
+ * ---------------------------------------------------------------- */
+
+const CUSTOMER_WINDOW_ID = 'desktop-mode-woo-customer';
+
+/**
+ * Announce what the Customer window is showing, so the relations
+ * layer can tie it to everything else about that person.
+ *
+ * An iframe window gets this for free: the chromeless bridge builds
+ * an identity from the real admin screen and posts it up. A NATIVE
+ * window has no such screen — nothing announces on its behalf, and
+ * without this call it is invisible to the engine. That is why the
+ * window opened beside the order it came from and drew no line while
+ * every iframe window in the same desktop did.
+ *
+ * The type is `user`, matching what `user-edit.php` announces, so the
+ * Customer window and a profile window on the same person join one
+ * group — and an order, whose identity links `user:<id>`, ties to
+ * either.
+ *
+ * @param body       The window body, for resolving the window id.
+ * @param customerId The person.
+ * @param name       Their name, for tooltips.
+ */
+function announceCustomerIdentity(
+	body: HTMLElement,
+	customerId: number,
+	name: string,
+): void {
+	// `wp-window-<id>` is the id-of-record for anything holding a DOM
+	// node but not a `Window` reference — the same walk the file-drop
+	// manager and the drag targets use.
+	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
+	const windowId = root?.id.slice( 'wp-window-'.length );
+	if ( ! windowId ) {
+		return;
+	}
+
+	const set = (
+		window.wp as
+			| {
+					os?: {
+						relations?: {
+							set?: (
+								id: string,
+								ref: {
+									type: string;
+									id: number | string;
+									label?: string;
+								} | null,
+							) => void;
+						};
+					};
+			}
+			| undefined
+	)?.os?.relations?.set;
+	if ( typeof set !== 'function' ) {
+		return;
+	}
+
+	set(
+		windowId,
+		customerId > 0
+			? { type: 'user', id: customerId, label: name || undefined }
+			: null,
+	);
+}
+
+/**
+ * Open (or retarget) the Customer window.
+ *
+ * @param customerId The person.
+ * @param name       Their name, for the window title.
+ * @return true when the shell took it.
+ */
+function openCustomerWindow( customerId: number, name: string ): boolean {
+	if ( ! Number.isFinite( customerId ) || customerId <= 0 ) {
+		return false;
+	}
+	const open = (
+		window.wp as
+			| {
+					os?: {
+						openWindow?: (
+							id: string,
+							opts?: {
+								source?: string;
+								params?: Record<
+									string,
+									string | number | boolean
+								>;
+							},
+						) => boolean;
+					};
+			}
+			| undefined
+	)?.os?.openWindow;
+	if ( typeof open !== 'function' ) {
+		return false;
+	}
+	return (
+		open( CUSTOMER_WINDOW_ID, {
+			source: 'woocommerce/customer-tile',
+			// `name` travels too so a restored window can title itself
+			// before its first request comes back — otherwise every
+			// reload flashes a generic "Customer" title bar.
+			params: { customerId, customerName: name },
+		} ) === true
+	);
+}
+
+/**
+ * Claim the "Customer" entry in an order's Related menu.
+ *
+ * The menu can only express a destination as a URL, and the only URL
+ * WordPress has for a person is their profile editor — so following
+ * the customer from an order landed on a settings form. Which is the
+ * wrong answer to the question being asked: from an order, "customer"
+ * means *this is who bought it*, not *change their role*.
+ *
+ * The server marks that item's URL with `os_person_view=wc-customer`;
+ * the built-in profile remap stands down on any URL carrying the
+ * marker, so this claim doesn't depend on winning a registration-
+ * order race with it. The profile editor is still one item away in
+ * the same menu, unmarked.
+ */
+registerNativeUrlRemap( {
+	id: 'desktop-mode/woo-customer',
+	nativeWindowId: CUSTOMER_WINDOW_ID,
+	matches: ( _url, parsed ) =>
+		parsed.searchParams.get( OS_PERSON_VIEW_PARAM ) === 'wc-customer' &&
+		Number( parsed.searchParams.get( 'user_id' ) ) > 0,
+	// Params rather than a shared store: they ride the session, so
+	// the window reopens on the same person after a reload.
+	params: ( _url, parsed ) => ( {
+		customerId: Number( parsed.searchParams.get( 'user_id' ) ) || 0,
+	} ),
+} );
+
+/**
+ * Claim the double-click on a customer tile.
+ *
+ * Only in the Customers section. In the Users folder a person is
+ * someone who writes, and the activity footprint is the right answer
+ * there — the point of the seam is that each section gets to say what
+ * "open this person" means.
+ */
+addFilter(
+	'os.my-wordpress.user-activate',
+	'desktop-mode/woocommerce',
+	(
+		handled: boolean,
+		ctx: { entityId: string; item: Record< string, unknown > },
+	): boolean => {
+		if ( handled || ctx.entityId !== SECTION_CUSTOMERS ) {
+			return handled;
+		}
+		const id = Number( ctx.item?.id );
+		const name = String( ctx.item?.name ?? '' );
+		return openCustomerWindow( id, name );
+	},
+);
+
+/**
+ * Fix up the customer tile's context menu.
+ *
+ * "View activity footprint" is the publishing-history screen and
+ * "View author archive" is a front-end blog page for someone who has
+ * never written a post — both are dead ends for a customer. They are
+ * replaced by the two things a merchant actually wants from a
+ * right-click: the customer window and their orders.
+ */
+addFilter(
+	'os.my-wordpress.tile-context-menu',
+	'desktop-mode/woocommerce',
+	(
+		options: Array< {
+			id: string;
+			label: string;
+			icon: string;
+			onSelect?: ( () => void ) | null;
+		} >,
+		ctx: { entityId: string; kind: string; item: Record< string, unknown > },
+	) => {
+		if (
+			ctx.kind !== 'user' ||
+			ctx.entityId !== SECTION_CUSTOMERS ||
+			! Array.isArray( options )
+		) {
+			return options;
+		}
+
+		const id = Number( ctx.item?.id );
+		const name = String( ctx.item?.name ?? '' );
+		const facts = customerFacts( ctx.item );
+
+		const kept = options.filter(
+			( o ) => o?.id !== 'footprint' && o?.id !== 'author-archive',
+		);
+
+		const added: typeof options = [
+			{
+				id: 'wc-customer-window',
+				label: __( 'Open customer', 'desktop-mode' ),
+				icon: 'dashicons-businessperson',
+				onSelect: () => {
+					openCustomerWindow( id, name );
+				},
+			},
+		];
+		if ( facts?.ordersUrl ) {
+			added.push( {
+				id: 'wc-customer-orders',
+				label: __( 'View their orders', 'desktop-mode' ),
+				icon: 'dashicons-cart',
+				onSelect: () => {
+					openAdminWindow(
+						facts.ordersUrl,
+						__( 'Orders', 'desktop-mode' ),
+					);
+				},
+			} );
+		}
+
+		return [ ...added, ...kept ];
+	},
+);
+
+/* ----- Window rendering primitives ----- */
+
+const CW = 'os-woo-customer-window';
+
+/** A big number with a caption under it. */
+function statCard( value: string, label: string, hint = '' ): HTMLElement {
+	const card = document.createElement( 'div' );
+	card.className = `${ CW }__stat`;
+
+	const v = document.createElement( 'div' );
+	v.className = `${ CW }__stat-value`;
+	v.textContent = value;
+	card.appendChild( v );
+
+	const l = document.createElement( 'div' );
+	l.className = `${ CW }__stat-label`;
+	l.textContent = label;
+	card.appendChild( l );
+
+	if ( hint ) {
+		const h = document.createElement( 'div' );
+		h.className = `${ CW }__stat-hint`;
+		h.textContent = hint;
+		card.appendChild( h );
+	}
+
+	return card;
+}
+
+/** A titled block. Returns null when it would be empty. */
+function section( title: string, body: Node | null ): HTMLElement | null {
+	if ( ! body ) {
+		return null;
+	}
+	const host = document.createElement( 'section' );
+	host.className = `${ CW }__section`;
+
+	const h = document.createElement( 'h3' );
+	h.className = `${ CW }__section-title`;
+	h.textContent = title;
+	host.append( h, body );
+
+	return host;
+}
+
+/** The identity strip: avatar, name, contact, band. */
+function customerHeader( data: CustomerSummary ): HTMLElement {
+	const header = document.createElement( 'header' );
+	header.className = `${ CW }__header`;
+
+	if ( data.avatar ) {
+		const img = document.createElement( 'img' );
+		img.className = `${ CW }__avatar`;
+		img.src = data.avatar;
+		img.alt = '';
+		img.width = 64;
+		img.height = 64;
+		header.appendChild( img );
+	}
+
+	const meta = document.createElement( 'div' );
+	meta.className = `${ CW }__identity`;
+
+	const name = document.createElement( 'h2' );
+	name.className = `${ CW }__name`;
+	name.textContent = data.name || data.username || `#${ data.id }`;
+	meta.appendChild( name );
+
+	const contact = [ data.email, data.phone ].filter( Boolean ).join( ' · ' );
+	if ( contact ) {
+		const line = document.createElement( 'p' );
+		line.className = `${ CW }__contact`;
+		line.textContent = contact;
+		meta.appendChild( line );
+	}
+
+	if ( data.bandLabel ) {
+		const badge = document.createElement( 'os-badge' );
+		badge.setAttribute( 'tone', customerToneFor( data.band ) );
+		badge.className = `${ CW }__band`;
+		badge.textContent = data.bandLabel;
+		meta.appendChild( badge );
+	}
+
+	header.appendChild( meta );
+	return header;
+}
+
+/** The four numbers a merchant reads first. */
+function customerStats( data: CustomerSummary ): HTMLElement {
+	const grid = document.createElement( 'div' );
+	grid.className = `${ CW }__stats`;
+
+	const orders = Number( data.orders ) || 0;
+	grid.append(
+		statCard(
+			data.spend || '—',
+			__( 'Lifetime spend', 'desktop-mode' ),
+			data.aov
+				? sprintf(
+					/* translators: %s: formatted average order value. */
+					__( '%s average', 'desktop-mode' ),
+					data.aov,
+				)
+				: '',
+		),
+		statCard(
+			String( orders ),
+			_n( 'Order', 'Orders', orders ),
+			data.firstOrder
+				? sprintf(
+					/* translators: %s: date of the first order. */
+					__( 'since %s', 'desktop-mode' ),
+					shortDate( data.firstOrder ),
+				)
+				: '',
+		),
+		statCard(
+			sinceLabel( data.daysSince ?? null ) || '—',
+			__( 'Last order', 'desktop-mode' ),
+			data.lastOrderTotal,
+		),
+		statCard(
+			data.location || '—',
+			__( 'Location', 'desktop-mode' ),
+			data.registered
+				? sprintf(
+					/* translators: %s: registration date. */
+					__( 'joined %s', 'desktop-mode' ),
+					shortDate( data.registered ),
+				)
+				: '',
+		),
+	);
+
+	return grid;
+}
+
+/** The order history, as rows that open the order in a window. */
+function customerOrders( data: CustomerSummary ): Node | null {
+	const rows = Array.isArray( data.recentOrders ) ? data.recentOrders : [];
+	if ( rows.length === 0 ) {
+		return null;
+	}
+
+	const list = document.createElement( 'ul' );
+	list.className = `${ CW }__orders`;
+
+	for ( const order of rows ) {
+		const li = document.createElement( 'li' );
+		li.className = `${ CW }__order`;
+
+		const head = document.createElement( 'div' );
+		head.className = `${ CW }__order-head`;
+		head.appendChild(
+			link(
+				sprintf(
+					/* translators: %s: order number. */
+					__( '#%s', 'desktop-mode' ),
+					order.number,
+				),
+				order.editUrl,
+			),
+		);
+		const badge = document.createElement( 'os-badge' );
+		badge.setAttribute( 'tone', orderToneFor( order.status ) );
+		badge.textContent = order.statusLabel;
+		head.appendChild( badge );
+		li.appendChild( head );
+
+		const meta = document.createElement( 'div' );
+		meta.className = `${ CW }__order-meta`;
+		meta.textContent = [
+			shortDate( order.date ),
+			sprintf(
+				/* translators: %d: number of line items. */
+				_n( '%d item', '%d items', order.items ),
+				order.items,
+			),
+		]
+			.filter( Boolean )
+			.join( ' · ' );
+		li.appendChild( meta );
+
+		const total = document.createElement( 'div' );
+		total.className = `${ CW }__order-total`;
+		total.textContent = order.total;
+		li.appendChild( total );
+
+		list.appendChild( li );
+	}
+
+	return list;
+}
+
+/** Billing / shipping, side by side when they differ. */
+function customerAddresses( data: CustomerSummary ): Node | null {
+	const entries: Array< [ string, string ] > = [];
+	if ( data.billing ) {
+		entries.push( [ __( 'Billing', 'desktop-mode' ), data.billing ] );
+	}
+	// Only when it says something the billing address doesn't — two
+	// identical blocks are a waste of the reader's attention.
+	if ( data.shipping && data.shipping !== data.billing ) {
+		entries.push( [ __( 'Shipping', 'desktop-mode' ), data.shipping ] );
+	}
+	if ( entries.length === 0 ) {
+		return null;
+	}
+
+	const grid = document.createElement( 'div' );
+	grid.className = `${ CW }__addresses`;
+	for ( const [ label, value ] of entries ) {
+		const block = document.createElement( 'div' );
+		block.className = `${ CW }__address`;
+
+		const l = document.createElement( 'div' );
+		l.className = `${ CW }__address-label`;
+		l.textContent = label;
+
+		const v = document.createElement( 'div' );
+		v.className = `${ CW }__address-value`;
+		v.textContent = value;
+
+		block.append( l, v );
+		grid.appendChild( block );
+	}
+
+	return grid;
+}
+
+/** The action row — every one of these opens its own window. */
+function customerActions( data: CustomerSummary ): HTMLElement {
+	const footer = document.createElement( 'footer' );
+	footer.className = `${ CW }__actions`;
+
+	const button = (
+		label: string,
+		variant: 'primary' | 'secondary',
+		onClick: () => void,
+	): void => {
+		const btn = document.createElement( 'os-button' );
+		btn.setAttribute( 'variant', variant );
+		btn.textContent = label;
+		btn.addEventListener( 'click', onClick );
+		footer.appendChild( btn );
+	};
+
+	if ( data.ordersUrl && Number( data.orders ) > 0 ) {
+		button( __( 'All orders', 'desktop-mode' ), 'primary', () =>
+			openAdminWindow( data.ordersUrl, __( 'Orders', 'desktop-mode' ) ),
+		);
+	}
+	if ( data.profileUrl ) {
+		button( __( 'Edit profile', 'desktop-mode' ), 'secondary', () =>
+			openAdminWindow( data.profileUrl, data.name ),
+		);
+	}
+	if ( data.email ) {
+		button( __( 'Send email', 'desktop-mode' ), 'secondary', () => {
+			// `location.href` rather than `window.open`: a `mailto:`
+			// is handed to the OS handler, and opening it in a new
+			// browsing context leaves a blank tab behind — or, in the
+			// installed PWA, relaunches the app.
+			window.location.href = `mailto:${ encodeURIComponent(
+				data.email,
+			) }`;
+		} );
+	}
+
+	return footer;
+}
+
+/**
+ * Paint the whole window for one customer.
+ *
+ * @param root       The window's mount point.
+ * @param customerId Who to show.
+ * @param fallback   Name to title the window with before data lands.
+ */
+async function renderCustomerWindow(
+	root: HTMLElement,
+	customerId: number,
+	fallback: string,
+): Promise< void > {
+	const loading = document.createElement( 'div' );
+	loading.className = `${ CW }__loading`;
+	loading.appendChild( document.createElement( 'os-spinner' ) );
+	root.replaceChildren( loading );
+
+	if ( ! Number.isFinite( customerId ) || customerId <= 0 ) {
+		const empty = document.createElement( 'p' );
+		empty.className = `${ CW }__empty`;
+		empty.textContent = __(
+			'No customer selected. Open one from the Customers folder.',
+			'desktop-mode',
+		);
+		root.replaceChildren( empty );
+		return;
+	}
+
+	const result = await fetchJson< CustomerSummary >(
+		`summary/customer/${ customerId }`,
+	);
+
+	// The window may have been retargeted (or closed) while the
+	// request was in flight.
+	if ( ! root.isConnected ) {
+		return;
+	}
+	if ( 'error' in result ) {
+		const err = document.createElement( 'p' );
+		err.className = `${ CW }__empty`;
+		err.textContent = result.error;
+		root.replaceChildren( err );
+		return;
+	}
+
+	const data = result.data;
+	const frag = document.createDocumentFragment();
+	frag.append( customerHeader( data ), customerStats( data ) );
+
+	const favourite = data.favourite
+		? ( () => {
+			const wrap = document.createElement( 'p' );
+			wrap.className = `${ CW }__favourite`;
+			wrap.appendChild(
+				link( data.favourite.label, data.favourite.editUrl ),
+			);
+			if ( data.favourite.quantity > 1 ) {
+				wrap.appendChild(
+					document.createTextNode(
+						` · ${ sprintf(
+							/* translators: %d: units bought. */
+							__( '×%d bought', 'desktop-mode' ),
+							data.favourite.quantity,
+						) }`,
+					),
+				);
+			}
+			return wrap;
+		} )()
+		: null;
+
+	for ( const block of [
+		section( __( 'Buys most', 'desktop-mode' ), favourite ),
+		section( __( 'Recent orders', 'desktop-mode' ), customerOrders( data ) ),
+		section( __( 'Addresses', 'desktop-mode' ), customerAddresses( data ) ),
+	] ) {
+		if ( block ) {
+			frag.appendChild( block );
+		}
+	}
+
+	frag.appendChild( customerActions( data ) );
+
+	root.replaceChildren( frag );
+	// Not used for display — the fallback title is only the pre-paint
+	// placeholder — but a stable marker makes "which customer is this
+	// window on" answerable from the DOM.
+	root.dataset.customerId = String( customerId );
+	root.dataset.customerName = data.name || fallback;
+}
+
+/**
+ * The native-window render callback. Registered on the global the
+ * shell reads rather than through an import, because the shell owns
+ * the window lifecycle and calls in.
+ */
+type NativeWindowRenderer = (
+	body: HTMLElement,
+	ctx?: { params?: Record< string, string | number | boolean > },
+) => unknown;
+
+const nativeWindowRegistry = window as unknown as {
+	openStationNativeWindows?: Record< string, NativeWindowRenderer >;
+};
+nativeWindowRegistry.openStationNativeWindows =
+	nativeWindowRegistry.openStationNativeWindows ?? {};
+
+nativeWindowRegistry.openStationNativeWindows[ CUSTOMER_WINDOW_ID ] = (
+	body,
+	ctx,
+) => {
+	const root =
+		body.querySelector< HTMLElement >( '[data-os-woo-customer-root]' ) ??
+		body;
+
+	const paint = ( params: Record< string, string | number | boolean > ) => {
+		const customerId = Number( params.customerId ?? 0 );
+		const name = String( params.customerName ?? '' );
+		// Announced before the fetch, not after: the identity is
+		// already known from the params, and waiting for the summary
+		// would leave the window unconnected for a round trip —
+		// exactly when the user is looking at it next to the order
+		// they came from.
+		announceCustomerIdentity( body, customerId, name );
+		void renderCustomerWindow( root, customerId, name );
+	};
+
+	paint( ctx?.params ?? {} );
+
+	// Retarget while open: reopening the window with a different
+	// customer fires `os-window-reopened` carrying the live params,
+	// which the manager has already updated. Without this the window
+	// would focus and keep showing the previous person — the failure
+	// mode that reads as "clicking a second customer does nothing".
+	const onReopen = ( event: Event ): void => {
+		const detail = ( event as CustomEvent ).detail as {
+			windowId?: string;
+			params?: Record< string, string | number | boolean >;
+		};
+		if ( detail?.windowId !== CUSTOMER_WINDOW_ID || ! root.isConnected ) {
+			return;
+		}
+		paint( detail.params ?? {} );
+	};
+	document.addEventListener( 'os-window-reopened', onReopen );
+
+	return () => {
+		document.removeEventListener( 'os-window-reopened', onReopen );
+	};
+};

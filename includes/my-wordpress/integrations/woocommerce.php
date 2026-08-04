@@ -1634,11 +1634,37 @@ function openstation_my_wordpress_woo_summary( $request ) {
 			$data = openstation_my_wordpress_woo_coupon_summary( $id );
 			break;
 		default:
-			return new WP_Error(
-				'openstation_woo_bad_type',
-				__( 'Unknown summary type.', 'desktop-mode' ),
-				array( 'status' => 400 )
-			);
+			/**
+			 * Filter in a summary payload for a type this route
+			 * doesn't handle itself.
+			 *
+			 * The route is the one place the site window asks "tell
+			 * me about this shop object", so a new object type — a
+			 * customer, a subscription, a booking — joins here rather
+			 * than needing its own endpoint and its own client
+			 * transport. Return `null` (the default) to leave the
+			 * type unknown, which answers 400.
+			 *
+			 * A subscriber MUST also gate its type in
+			 * `openstation_my_wordpress_woo_summary_capability`,
+			 * which decides who may ask.
+			 *
+			 * **Status: Experimental**
+			 *
+			 * @param array|null $data Summary payload, or `null`.
+			 * @param string     $type The requested type.
+			 * @param int        $id   Object id.
+			 */
+			$data = apply_filters( 'openstation_my_wordpress_woo_summary_type', null, $type, $id );
+
+			if ( ! is_array( $data ) && ! is_wp_error( $data ) ) {
+				return new WP_Error(
+					'openstation_woo_bad_type',
+					__( 'Unknown summary type.', 'desktop-mode' ),
+					array( 'status' => 400 )
+				);
+			}
+			break;
 	}
 
 	if ( is_wp_error( $data ) ) {
@@ -1673,6 +1699,29 @@ function openstation_my_wordpress_woo_summary_permission( $request ) {
 
 	if ( 'order' === $type ) {
 		return openstation_my_wordpress_woo_orders_permission();
+	}
+
+	/**
+	 * Filter the permission check for a summary type this route
+	 * doesn't handle itself.
+	 *
+	 * Return `true` to allow, a `WP_Error` to deny, or `null` (the
+	 * default) to fall through to the post-capability check below —
+	 * which is only meaningful for types whose id IS a post id. Any
+	 * type added through
+	 * `openstation_my_wordpress_woo_summary_type` must answer here
+	 * too, or it inherits a capability check that means nothing for
+	 * it.
+	 *
+	 * **Status: Experimental**
+	 *
+	 * @param true|WP_Error|null $allowed Permission verdict.
+	 * @param string             $type    The requested type.
+	 * @param int                $id      Object id.
+	 */
+	$allowed = apply_filters( 'openstation_my_wordpress_woo_summary_capability', null, $type, $id );
+	if ( true === $allowed || is_wp_error( $allowed ) ) {
+		return $allowed;
 	}
 
 	if ( ! current_user_can( 'edit_post', $id ) ) {
@@ -1901,19 +1950,26 @@ function openstation_my_wordpress_woo_enqueue() {
 			'window.openStationWooConfig=%s;',
 			wp_json_encode(
 				array(
-					'restRoot'     => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
-					'restNonce'    => wp_create_nonce( 'wp_rest' ),
-					'canOrders'    => true === openstation_my_wordpress_woo_orders_permission(),
-					'orderBands'   => openstation_my_wordpress_woo_order_bands(),
-					'productBands' => openstation_my_wordpress_woo_product_bands(),
-					'couponBands'  => openstation_my_wordpress_woo_coupon_bands_with_counts(),
+					'restRoot'      => esc_url_raw( rest_url( 'desktop-mode/v1/woocommerce/' ) ),
+					'restNonce'     => wp_create_nonce( 'wp_rest' ),
+					'canOrders'     => true === openstation_my_wordpress_woo_orders_permission(),
+					'canCustomers'  => true === openstation_my_wordpress_woo_customers_permission(),
+					'orderBands'    => openstation_my_wordpress_woo_order_bands(),
+					'productBands'  => openstation_my_wordpress_woo_product_bands(),
+					'couponBands'   => openstation_my_wordpress_woo_coupon_bands_with_counts(),
+					// Only built for a viewer who may see them — the
+					// band counts are money, and the plan behind them
+					// is a full pass over the user base.
+					'customerBands' => true === openstation_my_wordpress_woo_customers_permission()
+						? openstation_my_wordpress_woo_customer_bands_with_counts()
+						: array(),
 					// Whether the catalogue is small enough to be
 					// band-ordered server-side. Read it from the
 					// console (`window.openStationWooConfig.ordering`)
 					// when the Products bands look wrong: `capped`
 					// means rows arrive stock-ordered only and the
 					// category bands fill progressively.
-					'ordering'     => openstation_my_wordpress_woo_ordering_state(),
+					'ordering'      => openstation_my_wordpress_woo_ordering_state(),
 				)
 			)
 		),
