@@ -17,6 +17,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [No version-history annotations in docs or comments](#no-version-history-annotations-in-docs-or-comments)
 - [Workflow](#workflow)
   - [Always run `npm run build` after all the changes](#always-run-npm-run-build-after-all-the-changes)
+  - [Run `npm run lint:php` after touching PHP](#run-npm-run-lintphp-after-touching-php)
   - [Always branch + PR, never commit to trunk](#always-branch--pr-never-commit-to-trunk)
   - [Use `bin/sync-to-wp-develop.sh` for local sync, not raw rsync](#use-binsync-to-wp-developsh-for-local-sync-not-raw-rsync)
   - [Don't regenerate POT/PO/JSON in feature PRs](#dont-regenerate-potpojson-in-feature-prs)
@@ -223,6 +224,14 @@ If a change is big enough that "when did this change?" matters to plugin authors
 ### Always run `npm run build` after all the changes
 
 Uniform workflow across the repo. Once you're done with a batch of edits (don't bother running it between individual changes), run `npm run build` even if the batch was PHP-only, the build is a cheap correctness gate (it touches Vite + the vendor copy step) and keeps `assets/js/` in sync with `src/`. If you don't, the next person to run `npm run build` will see spurious diffs.
+
+### Run `npm run lint:php` after touching PHP
+
+`phpcs -n` (errors only) is a CI gate and is currently clean. The JS pipeline does not cover PHP, so nothing else catches a regression here. `npm run lint:php:fix` handles the formatting rules; `npm run lint:php:all` adds the ~800 advisory warnings, which are deliberate and are not something to drive to zero.
+
+**Before silencing a finding, read `phpcs.xml.dist`** — the downgraded sniffs already carry their reasoning, and a new `phpcs:ignore` needs the same treatment: the reason on the same line, and a scoped `disable`/`enable` pair rather than a file-wide `disable`, so the next function that gets it wrong still trips. Full rationale in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#coding-standards-phpcs).
+
+Two traps: the `<arg name="extensions" value="php"/>` in the ruleset is load-bearing — without it PHPCS walks the built bundles in `assets/js/` and OOMs. And PHPCBF's `Squiz.PHP.EmbeddedPhp` fix mangles multi-line inline comments inside templates, so skim the diff for comments after a fix run.
 
 ### Always branch + PR, never commit to trunk
 

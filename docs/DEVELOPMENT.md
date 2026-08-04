@@ -12,10 +12,13 @@ npm run test:js            # Vitest — the full JS suite (jsdom)
 npm run test:js:watch      # Vitest in watch mode
 npm run build              # produces both assets/js/desktop{,.min}.js
 
-# PHPUnit runs inside a dedicated wp-env instance (requires Docker):
+# PHPUnit and PHPCS run inside a dedicated wp-env instance (requires Docker):
 npm run env:start:tests    # first run pulls WP + MariaDB images
 npm run test:php:install   # composer install inside the tests instance (once)
 npm run test:php           # the PHPUnit run itself
+npm run lint:php           # PHPCS, errors only — this is what CI gates on
+npm run lint:php:all       # PHPCS including advisory warnings
+npm run lint:php:fix       # PHPCBF — applies every auto-fixable rule
 npm run env:stop:tests     # when you're done
 ```
 
@@ -51,6 +54,24 @@ Notes:
 - **Run wp-env commands from the worktree's directory.** `env:start`, `env:stop`, `env:destroy`, their `:tests` variants, and `test:php` all resolve the instance from the current directory.
 - **Cost.** Each instance is three containers (WordPress, CLI, database). `npm run env:stop` / `env:stop:tests` parks an instance and keeps its data; `npm run env:destroy` / `env:destroy:tests` deletes it.
 - `npm run test:php` in a worktree runs inside that worktree's own tests instance, so PHPUnit is isolated per worktree too.
+
+## Coding standards (PHPCS)
+
+`phpcs.xml.dist` inherits the full `WordPress` standard. It scans **PHP only** — the `extensions` arg is load-bearing, because without it PHPCS applies its CSS and JS sniffs to `assets/`, walks ~70 minified bundles and exhausts a 1GB memory limit on any checkout where `npm run build` has run.
+
+The ruleset separates two things that the standard reports identically:
+
+- **Errors gate CI.** `npm run lint:php` runs `phpcs -n` and must exit clean. Anything that fails here is a defect or a deviation nobody has argued for yet.
+- **Warnings are advisory.** `npm run lint:php:all` reports them and they show up in review, but they never fail a build. Each downgrade has its reasoning inline in `phpcs.xml.dist` — the short version:
+  - **`WordPress.DB.DirectDatabaseQuery`.** The plugin owns eight custom tables (see the frozen-values section of `AGENTS.md`); `$wpdb` is the only way to reach them. The caching advice still matters for the aggregate stats under `includes/my-wordpress/`, which do read core tables, so the sniff reports rather than being excluded.
+  - **`WordPress.DB.PreparedSQL.InterpolatedNotPrepared`.** Table names cannot be placeholders below WordPress 6.2, which introduced `%i`. The plugin supports 6.0, so custom-table queries interpolate `{$tables['…']}` and pass values through `prepare()`. Revisit if the minimum ever moves to 6.2.
+  - **Docblock coverage.** 1186 of the 1248 functions under `includes/` carry one, so the standard matches the house style — the gap is a tail to close, not a convention to abandon. Holding CI red until it is closed would only teach everyone to ignore the job.
+
+Before reaching for a `phpcs:ignore`, check that the finding is genuinely not a defect, and put the reason on the same line. Prefer a scoped `disable`/`enable` pair over a file-wide `disable`: the AJAX handlers in `includes/plugins-window/ajax.php` verify their nonce inside a shared guard function, which the sniff cannot follow, but the exemption is scoped to the `$_POST` reads so a handler that forgets the guard still trips.
+
+`npm run lint:php:fix` runs PHPCBF. It is safe on formatting but it has one known rough edge: its `Squiz.PHP.EmbeddedPhp` fix splits multi-line inline comments inside templates and leaves the continuation lines misaligned. Skim the diff for comments before committing.
+
+Extensions under `extensions/` are excluded here and scanned against their own rulesets — they ship as separate plugins with their own prefixes and text domains.
 
 ## Module layout
 
