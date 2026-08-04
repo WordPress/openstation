@@ -24,11 +24,28 @@
  * not to copy edits between them.
  * ---------------------------------------------------------------
  *
- * Every colour here is a literal, not a token. The card is Starlight
- * whatever the desk is wearing: it is the product introducing itself,
- * and a desktop theme recolouring that would be the theme speaking in
- * the product's voice. This is the same call `<os-modal>` makes for its
- * own surface.
+ * ---------------------------------------------------------------
+ * THIS FILE OPTS OUT OF THE PALETTE, AND THAT IS A DEPARTURE.
+ *
+ * Every colour below is a literal. Not one reads a `--os-*` token, so
+ * nothing here answers to `variables.css` or to a desktop theme, which
+ * is exactly what AGENTS.md's "one declaration, one owner" rule tells
+ * you not to do. Read this as a one-off, NOT as the house pattern: a
+ * feature stylesheet that hardcodes its colours is a bug.
+ *
+ * The trade, deliberately made: the card is the product introducing
+ * itself by name, and a theme recolouring that would be the theme
+ * speaking in the product's voice. `<os-modal>` makes the same call for
+ * its own surface. The difference is that `<os-modal>` still routes
+ * through `--os-ui-modal-*` names, so a theme that really wants the
+ * surface can reach it; this file gives a theme nothing, and it is only
+ * defensible because the dialog exists for one release cycle and then
+ * stops firing forever.
+ *
+ * If it outlives that, tokenize it. Note that nothing will tell you to:
+ * `brand-palette.test.ts` only scans `variables.css`, so no test fails
+ * while this drifts from the palette beside it.
+ * ---------------------------------------------------------------
  */
 
 .os-announce,

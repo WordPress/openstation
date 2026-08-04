@@ -38,10 +38,11 @@ defined( 'ABSPATH' ) || exit;
  *   the stored snapshot is authoritative over the shipped default, so an
  *   existing desk keeps a blue accent on every focus ring, tab underline
  *   and sort arrow.
- * - 5: records that this install predates the rebrand, so the shell can
- *   explain the new name once to the people it happened to. Sets a flag
- *   and nothing else — see {@see openstation_migrate_flag_rebrand_notice}
- *   for why that is a separate migration from 4.
+ * - 5: flags the users who were using Desktop Mode before the rename, so
+ *   the shell can explain the new name once to the people it happened
+ *   to and to nobody else. Sets user meta and nothing else — see
+ *   {@see openstation_migrate_flag_rebrand_notice} for why that is a
+ *   separate migration from 4.
  */
 const OPENSTATION_MIGRATION_VERSION = 5;
 
@@ -107,17 +108,18 @@ function openstation_run_pending_migrations( $from ) {
 }
 
 /**
- * Option marking this install as one that predates the rebrand.
+ * User meta marking someone as a Desktop Mode user from before the rebrand.
  *
- * Present and truthy => the shell offers each user the one-off
- * rebrand announcement. Absent => this install has only ever known
- * the name OpenStation and there is nothing to announce. autoload=yes:
- * every shell boot reads it.
+ * Present and truthy => the shell offers this user the one-off rebrand
+ * announcement, once. Absent => they never used the plugin under its old
+ * name, so there is no rename to explain to them. Written only by
+ * migration 5, and only for users who were actually using Desktop Mode
+ * at the moment it ran.
  *
  * The VALUE keeps the pre-rebrand spelling for the reason every other
  * stored key does — see {@see OPENSTATION_MIGRATION_OPTION}.
  */
-const OPENSTATION_REBRAND_NOTICE_OPTION = 'desktop_mode_rebrand_notice';
+const OPENSTATION_REBRAND_NOTICE_META_KEY = 'desktop_mode_rebrand_notice';
 
 /**
  * Slug the rebrand announcement records in `desktop_mode_seen_intros`.
@@ -129,35 +131,67 @@ const OPENSTATION_REBRAND_NOTICE_OPTION = 'desktop_mode_rebrand_notice';
 const OPENSTATION_REBRAND_INTRO_SLUG = 'openstation-rebrand';
 
 /**
- * Migration 5 — remember that this install was here before the rebrand.
+ * Migration 5 — remember who was using Desktop Mode before the rebrand.
  *
  * Migration 4 moved the pre-brand *defaults* onto the brand ones. This
  * one answers a different question: not "what should this desk look
- * like" but "does this person need to be told why it changed". A user
+ * like" but "does this person need to be told why it changed". Someone
  * who has been running Desktop Mode for months opens wp-admin one
  * morning to a differently-named, differently-coloured shell; without a
  * word of explanation that reads as a compromised site, not a release.
  *
- * The signal is the stored migration version as it was BEFORE this run:
+ * Two gates. The install gate is a bare "has the rebrand already
+ * happened here", and the user gate does the actual work.
  *
- *   - `1`–`3` — the install has run migrations under the old name, so
- *     it predates the rebrand. Flag it.
- *   - `0` — no migration has ever run here. That is a fresh install,
- *     which has only ever seen OpenStation. Nothing to explain.
- *   - `4` — the rebrand migration already ran, which today means a
- *     checkout tracking trunk between the two release tags. Not a
- *     surprised user.
+ * **The install** must not already be past the rebrand: `$from < 4`. A
+ * `4` means migration 4 has run, which today means a checkout tracking
+ * trunk between the two release tags. Not a surprised user.
+ *
+ * Note what is deliberately NOT tested: whether `$from` is zero. It is
+ * tempting to read `0` as "fresh install, nothing to explain", and that
+ * reading is wrong in the one direction that matters. The migration
+ * runner itself only shipped in 0.9.1, so an install still on 0.9.0 or
+ * earlier that updates straight to the rebrand release has no stored
+ * version at all and arrives here with `$from === 0`, indistinguishable
+ * from a brand new site. Those are the installs that update rarely,
+ * which makes them the ones most likely to be blindsided by a rename,
+ * and gating on `$from > 0` would have silenced precisely them.
+ *
+ * **The user** has to have actually used it, and that is what separates
+ * a long-dormant install from a genuinely new one without needing to
+ * date the install at all. A fresh site runs its first `admin_init` on
+ * the activation redirect, before any human has had the chance to open
+ * the shell, so neither key below can exist yet and nobody is flagged.
+ * On a 0.9.0 install both keys are all over the user table.
+ *
+ * The same gate answers a second question: it keeps the announcement
+ * away from an editor who joined an old site last week and enabled
+ * OpenStation for the first time this morning. A dialog about a name
+ * they never saw, on a shell that has only ever had one. So the flag
+ * lands on individual users, and only on those who carry proof of
+ * prior use:
+ *
+ *   - `desktop_mode_mode` — the per-user opt-in. Set when someone
+ *     switches to the shell, so it is the direct answer to "was this
+ *     person using Desktop Mode".
+ *   - `desktop_mode_os_settings` — a saved preference. Catches the user
+ *     who used it, customized it, and has since switched back to
+ *     classic; they are still owed the explanation the next time they
+ *     come in.
+ *
+ * The scan is bounded by how many people ever turned the plugin on,
+ * which is far smaller than the user table: OpenStation is opt-in per
+ * user, so most accounts on a large site carry neither key.
  *
  * Deliberately NOT folded into migration 4, even though the two ship
  * together: 4 has already run on trunk checkouts, and a migration that
  * has run does not run again. Extending it would have silently skipped
  * the flag exactly where it was easiest to believe it had been set.
  *
- * Note this flags the INSTALL, not each user. Dismissal is per-user and
- * lives in the seen-intros registry, so one admin dismissing the
- * announcement does not silence it for their editors. The flag is
- * never cleared: "Reset what's-new dialogs" in OpenStation Settings →
- * Features brings the announcement back with every other intro.
+ * Flags are never cleared. Dismissal lives in the seen-intros registry,
+ * so one admin dismissing the announcement does not silence it for
+ * their editors, and "Reset what's-new dialogs" in OpenStation Settings
+ * → Features brings it back with every other intro.
  *
  * @param int $from The highest migration version already applied.
  * @return void
@@ -178,7 +212,7 @@ function openstation_migrate_flag_rebrand_notice( $from ) {
 	 */
 	$predates = (bool) apply_filters(
 		'openstation_install_predates_rebrand',
-		$from > 0 && $from < 4,
+		$from < 4,
 		$from
 	);
 
@@ -186,27 +220,60 @@ function openstation_migrate_flag_rebrand_notice( $from ) {
 		return;
 	}
 
-	update_option( OPENSTATION_REBRAND_NOTICE_OPTION, 1 );
+	// Two separate EXISTS scans rather than a meta_query with an OR
+	// relation: both keys are indexed in usermeta, and two indexed
+	// lookups beat one query the planner has to resolve as a union of
+	// self-joins. This runs once, but "once" on a site with a large
+	// user table is still worth not making quadratic.
+	$user_ids = array_unique(
+		array_merge(
+			get_users(
+				array(
+					'fields'       => 'ID',
+					'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+					'meta_value'   => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- see above.
+					'meta_compare' => '=',
+				)
+			),
+			get_users(
+				array(
+					'fields'       => 'ID',
+					'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- see above.
+					'meta_compare' => 'EXISTS',
+				)
+			)
+		)
+	);
+
+	foreach ( $user_ids as $user_id ) {
+		update_user_meta( (int) $user_id, OPENSTATION_REBRAND_NOTICE_META_KEY, 1 );
+	}
 }
 
 /**
  * Whether the current user should be offered the rebrand announcement.
  *
- * Two gates: the install predates the rebrand (migration 5's flag), and
- * this user has not already dismissed it. The seen-intros registry owns
- * the second one, which is what makes the announcement behave like
- * every other one-time dialog — including being brought back by "Reset
- * what's-new dialogs".
+ * Two gates: migration 5 flagged this user as one who was using Desktop
+ * Mode before the rename, and they have not already dismissed it. The
+ * seen-intros registry owns the second one, which is what makes the
+ * announcement behave like every other one-time dialog — including
+ * being brought back by "Reset what's-new dialogs".
+ *
+ * Only ever consulted while building the shell config, which is itself
+ * behind the `openstation_is_enabled()` / not-classic guard in
+ * `includes/render/assets.php`. So the announcement cannot reach the
+ * classic admin or a chromeless iframe: the bundle that would show it
+ * is not loaded there.
  *
  * @return bool
  */
 function openstation_should_show_rebrand_notice() {
-	if ( ! get_option( OPENSTATION_REBRAND_NOTICE_OPTION ) ) {
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
 		return false;
 	}
 
-	$user_id = get_current_user_id();
-	if ( ! $user_id ) {
+	if ( ! get_user_meta( $user_id, OPENSTATION_REBRAND_NOTICE_META_KEY, true ) ) {
 		return false;
 	}
 

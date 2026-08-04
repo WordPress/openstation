@@ -3688,11 +3688,11 @@ function init(): void {
 		openUrl: openNoticeUrl,
 		keyPrefix: 'plugin-notice',
 	} );
-	// Tell each user, once, that Desktop Mode is now OpenStation.
-	// No-op unless the server says this install ran under the old name
-	// and this user hasn't dismissed the announcement. Fire-and-forget:
-	// it waits for the overlays bundle and then for the desk to settle,
-	// neither of which boot should block on.
+	// Tell each user, once, that Desktop Mode is now OpenStation. No-op
+	// unless the server flagged this user as one who was using the
+	// plugin under its old name and they haven't dismissed the
+	// announcement. Fire-and-forget: it sleeps until the desk has
+	// settled before mounting, which boot should not block on.
 	void maybeShowRebrandNotice( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {

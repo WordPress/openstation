@@ -555,7 +555,10 @@ const OVERFLOW_EPSILON = 1;
  * absolute value in both, and which *physical* edge that leaves
  * covered is what flips.
  */
-export function updateTabOverflow( strip: HTMLElement ): void {
+export function updateTabOverflow(
+	strip: HTMLElement,
+	knownRtl?: boolean,
+): void {
 	const max = Math.max( 0, strip.scrollWidth - strip.clientWidth );
 	if ( max <= OVERFLOW_EPSILON ) {
 		delete strip.dataset.overflow;
@@ -566,11 +569,14 @@ export function updateTabOverflow( strip: HTMLElement ): void {
 	const atStart = travelled <= OVERFLOW_EPSILON;
 	const atEnd = travelled >= max - OVERFLOW_EPSILON;
 
-	// `direction` is read from the computed style rather than assumed
-	// so an RTL admin gets the fades on the correct sides. Called only
-	// from the measure path, which already forces layout by reading
-	// scroll geometry.
-	const rtl = window.getComputedStyle( strip ).direction === 'rtl';
+	// `direction` decides which PHYSICAL edge a given scroll position
+	// leaves covered, so it has to be read rather than assumed for an
+	// RTL admin to get the fades on the correct sides. Callers that
+	// measure repeatedly pass it in: a strip does not change direction
+	// between two scroll frames, and `getComputedStyle` forces a style
+	// recalc every time it is asked.
+	const rtl =
+		knownRtl ?? window.getComputedStyle( strip ).direction === 'rtl';
 	const hiddenLeft = rtl ? ! atEnd : ! atStart;
 	const hiddenRight = rtl ? ! atStart : ! atEnd;
 
@@ -601,6 +607,13 @@ export function updateTabOverflow( strip: HTMLElement ): void {
  * run, when every scroll dimension reads 0.
  */
 export function observeTabOverflow( strip: HTMLElement ): () => void {
+	// Cached across scroll frames and re-read only when the strip is
+	// resized or its children change, which are the moments a direction
+	// flip could plausibly ride along with. Scrolling cannot change it,
+	// and `getComputedStyle` on every frame of a flick is a style
+	// recalc for an answer that is already known.
+	let rtl: boolean | null = null;
+
 	let frame: number | null = null;
 	const schedule = (): void => {
 		if ( frame !== null ) {
@@ -608,8 +621,17 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 		}
 		frame = window.requestAnimationFrame( () => {
 			frame = null;
-			updateTabOverflow( strip );
+			if ( rtl === null ) {
+				rtl = window.getComputedStyle( strip ).direction === 'rtl';
+			}
+			updateTabOverflow( strip, rtl );
 		} );
+	};
+
+	/** Re-measure, and re-read the direction while we are at it. */
+	const scheduleWithDirection = (): void => {
+		rtl = null;
+		schedule();
 	};
 
 	strip.addEventListener( 'scroll', schedule, { passive: true } );
@@ -619,13 +641,13 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 	const resizeObserver =
 		typeof ResizeObserver === 'undefined'
 			? null
-			: new ResizeObserver( schedule );
+			: new ResizeObserver( scheduleWithDirection );
 	resizeObserver?.observe( strip );
 
 	const mutationObserver =
 		typeof MutationObserver === 'undefined'
 			? null
-			: new MutationObserver( schedule );
+			: new MutationObserver( scheduleWithDirection );
 	mutationObserver?.observe( strip, { childList: true, subtree: true } );
 
 	schedule();

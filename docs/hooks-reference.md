@@ -1044,9 +1044,13 @@ apply_filters( 'openstation_install_predates_rebrand', bool $predates, int $from
 
 Fires once, from the one-time migration runner (`includes/migrations.php`, migration 5). `$from` is the highest migration version that had already been applied before this run, which is the signal the default answer is derived from: `1`–`3` means the install ran under the old name, `0` means a fresh install that has only ever known OpenStation, and `4` means the rebrand migration had already landed here.
 
-Because the filter runs inside a migration, it is consulted exactly once per install and the result is stored in the `desktop_mode_rebrand_notice` option. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete that option.
+Passing that gate is necessary but not sufficient. The migration then flags **individual users** who carry proof of having used the plugin before the rename — either `desktop_mode_mode` (the per-user opt-in) or a saved `desktop_mode_os_settings` blob — by writing `desktop_mode_rebrand_notice` user meta. Someone who joins an old site after the rename and enables OpenStation for the first time is never flagged, and never sees the announcement.
+
+Because the filter runs inside a migration, it is consulted exactly once per install. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete the `desktop_mode_rebrand_notice` user meta.
 
 Return `false` to suppress the announcement for every user on the site — useful for a host rolling OpenStation out to fleet sites that never saw the old name, or an agency that would rather brief its clients itself.
+
+The announcement itself only exists inside the shell: it is drawn by the desktop bundle, which is not enqueued in the classic admin or inside a chromeless iframe.
 
 Dismissal is per-user, through the `openstation-rebrand` slug in the shared seen-intros registry (`desktop_mode_seen_intros` user meta). One admin dismissing the announcement does not silence it for their editors, and "Reset what's-new dialogs" in OpenStation Settings → Features brings it back alongside every other intro.
 
