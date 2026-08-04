@@ -534,6 +534,44 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * `aria-button-if-js` is core's marker for an anchor that JS turns
+	 * into an in-page button, with the href kept only as a no-JS
+	 * fallback. The capture-phase handler runs before the script that
+	 * owns the button, so intercepting these swaps the in-page action
+	 * for the fallback URL: on the Media Library grid the shell opened a
+	 * window for `media-new.php` while media-grid.js expanded the inline
+	 * uploader behind it. Pin the skip so it doesn't get refactored away.
+	 *
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
+	public function test_bridge_script_skips_core_js_button_links() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['openstation_chromeless'] = '1';
+
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString(
+			"link.classList.contains( 'aria-button-if-js' )",
+			$output,
+			'Bridge must skip clicks on core .aria-button-if-js anchors so their owning script can run.'
+		);
+
+		// Must bail before the branch that preventDefaults and hands
+		// the URL to the shell.
+		$skip_pos  = strpos( $output, "link.classList.contains( 'aria-button-if-js' )" );
+		$admin_pos = strpos( $output, "kind === 'admin'" );
+		$this->assertNotFalse( $skip_pos );
+		$this->assertNotFalse( $admin_pos );
+		$this->assertLessThan(
+			$admin_pos,
+			$skip_pos,
+			'JS-button skip must run before the admin-link prevent-default block.'
+		);
+	}
+
+	/**
 	 * @covers ::openstation_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {

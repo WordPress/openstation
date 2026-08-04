@@ -1264,6 +1264,37 @@ function openstation_chromeless_bridge_script() {
 			}
 		}
 		/*
+		 * `aria-button-if-js` is WP core's own marker for "this anchor
+		 * is really an in-page button; the href is only the no-JS
+		 * fallback". Core stamps `role="button"` on every one of them
+		 * (`wp-admin/js/common.js`), and the owning script binds a
+		 * bubble-phase handler that calls preventDefault: media-grid.js
+		 * for the Media Library's uploader toggle, wp-lists for the
+		 * comment row actions, edit-tags.js for term Delete, updates.js
+		 * for the auto-update toggles.
+		 *
+		 * Our capture-phase handler runs first, so hijacking these
+		 * substitutes the fallback URL for the in-page action the user
+		 * actually asked for. On the Media Library grid that showed up as
+		 * two uploaders at once: the shell opened a window for
+		 * `media-new.php` (the fallback) while media-grid.js's
+		 * `addNewClickHandler` still expanded the inline drop zone in the
+		 * Media window behind it, and closing the window left the drop
+		 * zone stranded above the grid.
+		 *
+		 * The few links where core stamps the class but binds no handler
+		 * (the Media list table's Trash / Delete / Restore row actions)
+		 * navigate this iframe in place instead, which is what they
+		 * should do. They keep rendering chromeless without the href
+		 * rewrite below: `openstation_is_chromeless_request()` falls
+		 * back to `Sec-Fetch-Dest: iframe` when the query flag is
+		 * missing, and core redirects them back to the referring
+		 * `upload.php`, which still carries the flag.
+		 */
+		if ( link.classList.contains( 'aria-button-if-js' ) ) {
+			return;
+		}
+		/*
 		 * WordPress core's wp-admin/js/updates.js owns the click on these
 		 * AJAX-driven plugin/theme management buttons — it binds in bubble
 		 * phase and calls preventDefault to take over with an in-place
