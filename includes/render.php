@@ -15,6 +15,8 @@
  *   - chromeless-bridge.php      — chromeless iframe bridge +
  *                                  the offset-neutralizer script
  *   - classic-link-interceptor.php — detached-tab link rewriter
+ *   - media-grid-query.php       : keeps the chromeless flag out of
+ *                                  the Media Library grid's query
  *
  * @package OpenStation
  */
@@ -26,3 +28,4 @@ require_once __DIR__ . '/render/assets.php';
 require_once __DIR__ . '/render/shell.php';
 require_once __DIR__ . '/render/chromeless-bridge.php';
 require_once __DIR__ . '/render/classic-link-interceptor.php';
+require_once __DIR__ . '/render/media-grid-query.php';

@@ -78,7 +78,7 @@ Key server-side entry points:
 | `includes/ajax.php` | `openstation_ajax_save()` — the `wp_ajax_save-openstation` endpoint. |
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
 | `includes/assets.php` | Registers CSS/JS handles on `init`. |
-| `includes/render.php` | Umbrella loader for `includes/render/` — body classes, asset enqueueing, shell markup, chromeless bridge, classic link interceptor. |
+| `includes/render.php` | Umbrella loader for `includes/render/` — body classes, asset enqueueing, shell markup, chromeless bridge, classic link interceptor, Media Library grid query cleanup. |
 | `includes/portal.php` | Portal URL (`/openstation/`, with the pre-rebrand `/desktop-mode/` still accepted) and redirect rules. |
 | `includes/session.php` | REST endpoints for saving/restoring the per-user window session. |
 

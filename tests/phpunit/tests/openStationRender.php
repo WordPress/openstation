@@ -572,6 +572,70 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * `upload.php` copies unknown `$_GET` keys into
+	 * `_wpMediaGridSettings.queryVars`, and `wp.media.model.Query` only
+	 * watches `wp.Uploader.queue` when every query arg is one it knows
+	 * how to filter on. Our chromeless flag riding along was enough to
+	 * stop the grid from ever showing a finished upload.
+	 *
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
+	public function test_media_grid_query_vars_drop_the_chromeless_flag() {
+		set_current_screen( 'upload' );
+
+		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
+			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
+		}
+
+		wp_localize_script(
+			'media-grid',
+			'_wpMediaGridSettings',
+			array(
+				'adminUrl'  => '/wp-admin/',
+				'queryVars' => (object) array(
+					'openstation_chromeless' => '1',
+					'orderby'                => 'date',
+				),
+			)
+		);
+
+		openstation_strip_chromeless_flag_from_media_grid();
+
+		$data = wp_scripts()->get_data( 'media-grid', 'data' );
+		$this->assertIsString( $data );
+
+		preg_match_all( '/^var _wpMediaGridSettings = (.+);$/m', $data, $matches );
+		$settings = json_decode( end( $matches[1] ), true );
+
+		$this->assertArrayNotHasKey(
+			'openstation_chromeless',
+			$settings['queryVars'],
+			"The grid's query args must not carry the chromeless flag, or uploads stop refreshing the grid."
+		);
+		$this->assertSame( 'date', $settings['queryVars']['orderby'], 'Core query vars must survive untouched.' );
+		$this->assertSame( '/wp-admin/', $settings['adminUrl'] );
+
+		// An object, not `[]`, since the grid iterates the value's keys.
+		$this->assertStringContainsString( '"queryVars":{', end( $matches[1] ) );
+	}
+
+	/**
+	 * Leave every other admin screen alone: the hook is global, and
+	 * re-localizing on a screen that never localized in the first place
+	 * would invent a `_wpMediaGridSettings` that core didn't ask for.
+	 *
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
+	public function test_media_grid_cleanup_skips_other_screens() {
+		set_current_screen( 'edit-post' );
+		wp_scripts()->add_data( 'media-grid', 'data', '' );
+
+		openstation_strip_chromeless_flag_from_media_grid();
+
+		$this->assertEmpty( wp_scripts()->get_data( 'media-grid', 'data' ) );
+	}
+
+	/**
 	 * @covers ::openstation_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {
