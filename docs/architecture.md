@@ -73,7 +73,7 @@ Key server-side entry points:
 |---|---|
 | `desktop-mode.php` | Plugin bootstrap — loads the `includes/` files. |
 | `includes/helpers.php` | `openstation_is_enabled()`, the `openstation_rest_require_enabled()` REST gate, misc shared helpers (default wallpaper, registration errors). |
-| `includes/core/routing.php` | Chromeless / classic request detection (`openstation_is_chromeless_request()`), admin-target allowlist, chromeless admin-bar suppression, redirect preservation. |
+| `includes/core/routing.php` | Chromeless / classic request detection (`openstation_is_chromeless_request()`), the Network / User Admin gate (`openstation_is_unsupported_admin_request()`), admin-target allowlist, chromeless admin-bar suppression, redirect preservation. |
 | `includes/core/payload.php` | Dock builder (`openstation_build_dock_items()`) plus menu / native-window payload assembly. |
 | `includes/ajax.php` | `openstation_ajax_save()` — the `wp_ajax_save-openstation` endpoint. |
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
@@ -81,6 +81,42 @@ Key server-side entry points:
 | `includes/render.php` | Umbrella loader for `includes/render/` — body classes, asset enqueueing, shell markup, chromeless bridge, classic link interceptor. |
 | `includes/portal.php` | Portal URL (`/openstation/`, with the pre-rebrand `/desktop-mode/` still accepted) and redirect rules. |
 | `includes/session.php` | REST endpoints for saving/restoring the per-user window session. |
+
+## Multisite
+
+The shell covers **site admin only**. Network Admin (`/wp-admin/network/`) and User Admin
+(`/wp-admin/user/`) render classic, always, for everyone.
+
+That is a deliberate gate, not an accident of the hooks. Both areas fire the same
+`admin_init` / `admin_body_class` / `admin_enqueue_scripts` / `in_admin_header` sequence as a
+site screen, so every render-path check would otherwise claim them — and two things break when
+it does. The dock is built from the `$menu` global, which in Network Admin holds the *network*
+menu, while `openstation_menu_item_url()` resolves every slug through `admin_url()`: `sites.php`
+and `settings.php` only exist under `/wp-admin/network/`, so half the dock 404s and the rest
+silently points at the main site. Worse, the portal's target allowlist only accepts bare
+wp-admin filenames, so `network/sites.php` can never survive `openstation_sanitize_portal_target()`
+— the `admin_init` redirect would land the user on the main site's desktop with no error,
+making every Network Admin screen unreachable.
+
+`openstation_is_unsupported_admin_request()` (`includes/core/routing.php`) is the single
+predicate all of those gates consult. Treat it as the seam: when the shell grows real Network
+Admin support, that is the one function that has to change.
+
+Everything else is scoped **per site**, which is what you want on a network:
+
+| Surface | Scope |
+|---|---|
+| Custom tables (`{$prefix}desktop_mode_*`) | Per site. Created lazily on `init` priority 1 when the stored schema version doesn't match, so a subsite added after activation self-heals on its first request. |
+| Stored files, uploaded desktop themes | Per site — `wp_get_upload_dir()`, so `uploads/sites/N/`. |
+| Options (extended options, desktop-theme library, presence) | Per site. There is no network-level configuration layer yet: a super admin configures each site individually. |
+| Window session | Per site — `desktop_mode_session` on the main site, `desktop_mode_session_<blog_id>` elsewhere. |
+| OS Settings, seen-intros, the `desktop_mode_mode` opt-in | **Network-global** user meta. One account, one desktop identity across the network. Note that a desktop theme picked on one site references that site's uploads; on another site the selection is orphaned and falls back to the system default. |
+| Presence | Per site. A user active on one site reads as offline to viewers on another. |
+
+Capability gating needs no special-casing for site administrators — Core's own mapping does the
+work. `activate_plugins` maps to `manage_network_plugins` when the network's `menu_items[plugins]`
+option is off, so the Plugins dock item and the `desktop-mode-plugins` native window disappear
+for a site admin exactly as the classic Plugins menu does.
 
 ## Browser flow
 
@@ -177,6 +213,8 @@ REST surface:
 - `GET  /wp-json/desktop-mode/v1/session` — current user's saved session.
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
+
+The session is stored in the `desktop_mode_session` user meta. User meta is network-global, so on multisite the key carries the blog id on every site but the main one (`desktop_mode_session_2`, …) — see [Multisite](#multisite). Windows whose URL is not a same-origin admin URL for the *current* site are dropped on read as well as on write, so a session written before a domain remap can never be restored into an iframe.
 
 `updated` is the write-ordering key, in **epoch milliseconds** (`Date.now()`). The server rejects a POST whose `updated` is lower than the stored one, so a slow request that was snapshotted earlier cannot clobber newer state — the case that matters is a `keepalive` fetch still in flight when the `pagehide` beacon fires. Equal values tie and the first processed wins. Omit the field and the server stamps it for you; sessions written before the field moved to milliseconds carry a seconds value, which any current write outranks.
 

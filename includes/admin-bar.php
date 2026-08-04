@@ -33,7 +33,16 @@ function openstation_admin_bar_toggle( $wp_admin_bar ) {
 	// click would disable OpenStation entirely (redirecting to
 	// classic admin) instead of taking them back into the shell.
 	// The second click would then re-enable it — a two-click trap.
-	$is_active = openstation_is_enabled() && ! openstation_is_classic_request();
+	//
+	// Network / User Admin count as "not active" for the same reason:
+	// the shell doesn't render there, so the shell-only controls added
+	// below (fullscreen, overview, shortcuts, Mio) would be dead
+	// buttons, and the toggle would offer to leave a shell that isn't
+	// on screen. Reading "Switch to OpenStation" there is honest — the
+	// click takes the user back to a site desktop.
+	$is_active = openstation_is_enabled()
+		&& ! openstation_is_classic_request()
+		&& ! openstation_is_unsupported_admin_request();
 	$label     = $is_active
 		? __( 'Switch to Classic Admin', 'desktop-mode' )
 		: __( 'Switch to OpenStation', 'desktop-mode' );
@@ -681,7 +690,9 @@ function openstation_enqueue_toggle_assets() {
 		'var openStationAdminBar = ' . wp_json_encode(
 			array(
 				'nonce'      => wp_create_nonce( 'save-openstation' ),
-				'active'     => openstation_is_enabled() && ! openstation_is_classic_request(),
+				'active'     => openstation_is_enabled()
+					&& ! openstation_is_classic_request()
+					&& ! openstation_is_unsupported_admin_request(),
 				'classicUrl' => esc_url_raw( admin_url() ),
 				'portalUrl'  => esc_url_raw( openstation_portal_url() ),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),

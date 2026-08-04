@@ -440,7 +440,11 @@ function openstation_pwa_render_head_tags() {
 	if ( openstation_is_chromeless_request() ) {
 		return;
 	}
-	if ( ! openstation_is_enabled() || openstation_is_classic_request() ) {
+	if (
+		! openstation_is_enabled()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 

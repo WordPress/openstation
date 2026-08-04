@@ -297,6 +297,14 @@ function openstation_redirect_plain_admin_to_portal() {
 	if ( openstation_is_chromeless_request() ) {
 		return;
 	}
+	// Network Admin / User Admin fire `admin_init` too, but the portal
+	// can't forward there: the target allowlist only accepts bare
+	// wp-admin filenames, so `network/sites.php` is rejected and the
+	// user silently lands on the main site's desktop instead of the
+	// screen they asked for. Leave those areas classic.
+	if ( openstation_is_unsupported_admin_request() ) {
+		return;
+	}
 	if ( wp_doing_ajax() || wp_doing_cron() ) {
 		return;
 	}

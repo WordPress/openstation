@@ -29,7 +29,7 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
+		delete_user_meta( self::$admin_id, openstation_session_meta_key() );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
@@ -323,7 +323,7 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	 */
 	public function test_get_session_normalizes_corrupt_meta() {
 		// Scalar instead of array — must degrade gracefully.
-		update_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, 'not-an-array' );
+		update_user_meta( self::$admin_id, openstation_session_meta_key(), 'not-an-array' );
 
 		$session = openstation_get_session( self::$admin_id );
 		$this->assertSame( array(), $session['windows'] );
@@ -495,10 +495,10 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	 * @covers ::openstation_clear_session
 	 */
 	public function test_clear_session_removes_meta() {
-		update_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, array( 'windows' => array() ) );
+		update_user_meta( self::$admin_id, openstation_session_meta_key(), array( 'windows' => array() ) );
 
 		$this->assertTrue( openstation_clear_session( self::$admin_id ) );
-		$this->assertSame( '', get_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, true ) );
+		$this->assertSame( '', get_user_meta( self::$admin_id, openstation_session_meta_key(), true ) );
 	}
 
 	/**
@@ -869,5 +869,127 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 
 		$response = rest_do_request( $request );
 		$this->assertSame( 401, $response->get_status() );
+	}
+
+	// -----------------------------------------------------------------
+	// Per-site scoping — the session must not be shared across the
+	// sites of a multisite network. See openstation_session_meta_key().
+	// -----------------------------------------------------------------
+
+	/**
+	 * Single-site installs (and the main site of a network) keep the
+	 * bare historical key, so no live install is orphaned by the split.
+	 *
+	 * @covers ::openstation_session_meta_key
+	 */
+	public function test_session_meta_key_is_bare_on_main_site() {
+		$this->assertSame( OPENSTATION_SESSION_META_KEY, openstation_session_meta_key() );
+	}
+
+	/**
+	 * A secondary site gets its own key, so saving there cannot clobber
+	 * the main site's windows and restoring there cannot surface them.
+	 *
+	 * @covers ::openstation_session_meta_key
+	 * @covers ::openstation_save_session
+	 * @covers ::openstation_get_session
+	 *
+	 * @group ms-required
+	 */
+	public function test_session_is_isolated_per_site() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite-only behaviour.' );
+		}
+
+		$main_url = admin_url( 'edit.php' );
+		openstation_save_session(
+			self::$admin_id,
+			array( 'windows' => array( $this->make_window( array( 'url' => $main_url ) ) ) )
+		);
+
+		$blog_id = self::factory()->blog->create();
+		switch_to_blog( $blog_id );
+
+		// The other site starts empty rather than inheriting site 1.
+		$this->assertNotSame( OPENSTATION_SESSION_META_KEY, openstation_session_meta_key() );
+		$this->assertSame( array(), openstation_get_session( self::$admin_id )['windows'] );
+
+		$sub_url = admin_url( 'upload.php' );
+		openstation_save_session(
+			self::$admin_id,
+			array( 'windows' => array( $this->make_window( array( 'url' => $sub_url ) ) ) )
+		);
+		$sub_windows = openstation_get_session( self::$admin_id )['windows'];
+		$this->assertCount( 1, $sub_windows );
+		$this->assertSame( $sub_url, $sub_windows[0]['url'] );
+
+		delete_user_meta( self::$admin_id, openstation_session_meta_key() );
+		restore_current_blog();
+
+		// Saving on the subsite left the main site's session intact.
+		$main_windows = openstation_get_session( self::$admin_id )['windows'];
+		$this->assertCount( 1, $main_windows );
+		$this->assertSame( $main_url, $main_windows[0]['url'] );
+	}
+
+	/**
+	 * A session written against a different admin URL — the pre-split
+	 * shared blob, or a site whose domain was remapped — must not be
+	 * handed back for the shell to iframe.
+	 *
+	 * @covers ::openstation_session_filter_foreign_windows
+	 * @covers ::openstation_get_session
+	 */
+	public function test_get_session_drops_windows_from_another_site() {
+		update_user_meta(
+			self::$admin_id,
+			openstation_session_meta_key(),
+			array(
+				'windows' => array(
+					$this->make_window( array( 'url' => 'http://elsewhere.example/wp-admin/edit.php' ) ),
+					$this->make_window(
+						array(
+							'id'  => 'wp-window-upload-php',
+							'url' => admin_url( 'upload.php' ),
+						)
+					),
+				),
+				'updated' => 123,
+			)
+		);
+
+		$windows = openstation_get_session( self::$admin_id )['windows'];
+
+		$this->assertCount( 1, $windows );
+		$this->assertSame( admin_url( 'upload.php' ), $windows[0]['url'] );
+	}
+
+	/**
+	 * Native windows carry a synthetic `#<id>` marker rather than a URL
+	 * and must survive the foreign-window filter.
+	 *
+	 * @covers ::openstation_session_filter_foreign_windows
+	 */
+	public function test_get_session_keeps_native_window_markers() {
+		update_user_meta(
+			self::$admin_id,
+			openstation_session_meta_key(),
+			array(
+				'windows' => array(
+					$this->make_window(
+						array(
+							'id'  => 'desktop-mode-recycle-bin',
+							'url' => '#desktop-mode-recycle-bin',
+						)
+					),
+				),
+				'updated' => 123,
+			)
+		);
+
+		$windows = openstation_get_session( self::$admin_id )['windows'];
+
+		$this->assertCount( 1, $windows );
+		$this->assertSame( '#desktop-mode-recycle-bin', $windows[0]['url'] );
 	}
 }

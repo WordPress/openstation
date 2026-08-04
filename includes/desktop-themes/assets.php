@@ -63,7 +63,8 @@ function openstation_active_desktop_theme_slug( $user_id = 0 ) {
 function openstation_desktop_theme_request_is_themable() {
 	return openstation_is_enabled()
 		&& ! openstation_is_chromeless_request()
-		&& ! openstation_is_classic_request();
+		&& ! openstation_is_classic_request()
+		&& ! openstation_is_unsupported_admin_request();
 }
 
 /**

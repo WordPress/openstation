@@ -765,7 +765,12 @@ function openstation_build_native_window_template_html( $entry ) {
  * deterministic.
  */
 function openstation_enqueue_native_window_scripts() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if (
+		! openstation_is_enabled()
+		|| openstation_is_chromeless_request()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 	$registry = openstation_native_window_registry();
@@ -847,7 +852,12 @@ add_action( 'admin_enqueue_scripts', 'openstation_enqueue_native_window_scripts'
  * and clones them into each opened window's body.
  */
 function openstation_render_native_window_templates() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if (
+		! openstation_is_enabled()
+		|| openstation_is_chromeless_request()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 	$registry = openstation_native_window_registry();

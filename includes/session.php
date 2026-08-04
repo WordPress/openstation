@@ -25,6 +25,41 @@ defined( 'ABSPATH' ) || exit;
  */
 const OPENSTATION_SESSION_META_KEY = 'desktop_mode_session';
 
+/**
+ * The user-meta key holding the desktop session **for the current site**.
+ *
+ * User meta is network-global, so a single key makes every site on a
+ * multisite install share one session blob, and the two halves of that
+ * break in opposite directions:
+ *
+ *   - Restoring on site B hands the shell site A's window URLs. They
+ *     are same-origin, so the shell happily iframes another site's
+ *     admin screens into this site's desktop (or, for a user who is
+ *     not a member there, a row of 403s).
+ *   - Saving on site B drops every site-A window, because they fail
+ *     the same-origin admin check in
+ *     {@see openstation_sanitize_session()} — which compares against
+ *     the *current* site's `admin_url()`. Every hop between sites
+ *     wipes the session of the one before it.
+ *
+ * So the key is per site. The main site — and every single-site
+ * install, which is the only shape that has existed until now — keeps
+ * the bare historical key, so no live install is orphaned by this;
+ * other sites get a `_<blog_id>` suffix. That mirrors how Core scopes
+ * its own per-site user meta (`wp_capabilities` on the main site,
+ * `wp_2_capabilities` on site 2) and keeps the frozen
+ * `desktop_mode_session` value exactly where it was already written.
+ *
+ * @return string Meta key for the current site.
+ */
+function openstation_session_meta_key() {
+	if ( ! is_multisite() || is_main_site() ) {
+		return OPENSTATION_SESSION_META_KEY;
+	}
+
+	return OPENSTATION_SESSION_META_KEY . '_' . get_current_blog_id();
+}
+
 /** Hard cap on persisted windows — guards against runaway meta size. */
 const OPENSTATION_SESSION_MAX_WINDOWS = 32;
 
@@ -92,7 +127,7 @@ function openstation_get_session( $user_id ) {
 		return openstation_empty_session();
 	}
 
-	$raw = get_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, true );
+	$raw = get_user_meta( $user_id, openstation_session_meta_key(), true );
 	if ( ! is_array( $raw ) ) {
 		return openstation_empty_session();
 	}
@@ -106,13 +141,61 @@ function openstation_get_session( $user_id ) {
 		: array( openstation_default_desktop() );
 	$active_desktop = isset( $raw['activeDesktop'] ) ? (string) $raw['activeDesktop'] : 'desktop-1';
 
+	$windows = isset( $raw['windows'] ) && is_array( $raw['windows'] )
+		? array_values( $raw['windows'] )
+		: array();
+
 	return array(
-		'windows'       => isset( $raw['windows'] ) && is_array( $raw['windows'] ) ? array_values( $raw['windows'] ) : array(),
+		'windows'       => openstation_session_filter_foreign_windows( $windows ),
 		'desktops'      => $desktops,
 		'activeDesktop' => $active_desktop,
 		'focused'       => isset( $raw['focused'] ) ? (string) $raw['focused'] : '',
 		'updated'       => isset( $raw['updated'] ) ? (int) $raw['updated'] : 0,
 	);
+}
+
+/**
+ * Drops persisted windows whose URL no longer belongs to this site.
+ *
+ * {@see openstation_sanitize_session()} applies the same same-origin
+ * admin test on the way in, so on a healthy session this is a no-op.
+ * It matters when what is on file was written against a *different*
+ * admin URL than the one in force now:
+ *
+ *   - A multisite install upgrading past the per-site key split
+ *     ({@see openstation_session_meta_key()}). The main site inherits
+ *     the old shared blob, which may hold whichever subsite saved
+ *     last. Without this, those users get exactly one restore full of
+ *     another site's screens before the next save cleans up.
+ *   - A site whose admin URL moved — the native multisite domain
+ *     mapping (editing `wp_blogs.domain` from Network Admin > Sites >
+ *     Edit) is a supported operation and rewrites `admin_url()` under
+ *     a session that is still on file.
+ *
+ * Native windows are kept unconditionally: their `url` is a synthetic
+ * `#<id>` marker the shell resolves against the registry, never
+ * something it navigates to.
+ *
+ * @param array $windows Persisted window entries.
+ * @return array Windows whose URL is still reachable from this site.
+ */
+function openstation_session_filter_foreign_windows( $windows ) {
+	$kept = array();
+
+	foreach ( $windows as $win ) {
+		if ( ! is_array( $win ) ) {
+			continue;
+		}
+
+		$url = isset( $win['url'] ) ? (string) $win['url'] : '';
+		if ( '' !== $url && '#' !== $url[0] && ! openstation_url_is_same_admin( $url ) ) {
+			continue;
+		}
+
+		$kept[] = $win;
+	}
+
+	return $kept;
 }
 
 /**
@@ -167,7 +250,7 @@ function openstation_save_session( $user_id, $session ) {
 
 	$clean = openstation_sanitize_session( $session );
 
-	return false !== update_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, $clean );
+	return false !== update_user_meta( $user_id, openstation_session_meta_key(), $clean );
 }
 
 /**
@@ -181,7 +264,7 @@ function openstation_clear_session( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return (bool) delete_user_meta( $user_id, OPENSTATION_SESSION_META_KEY );
+	return (bool) delete_user_meta( $user_id, openstation_session_meta_key() );
 }
 
 /**

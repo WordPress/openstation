@@ -263,7 +263,12 @@ function openstation_build_desktop_wallpapers_payload() {
  * without any dynamic-load roundtrip.
  */
 function openstation_enqueue_desktop_wallpaper_scripts() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if (
+		! openstation_is_enabled()
+		|| openstation_is_chromeless_request()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 	$registry = openstation_desktop_wallpaper_registry();

@@ -33,8 +33,11 @@ function openstation_admin_body_classes( $classes ) {
 	}
 
 	// Per-request classic override: don't tag the body as desktop-active so
-	// the classic chrome isn't hidden by CSS for this one tab.
-	if ( openstation_is_classic_request() ) {
+	// the classic chrome isn't hidden by CSS for this one tab. Network /
+	// User Admin get the same treatment for the whole area — `os-active`
+	// there would hide the classic sidebar, content and footer with no
+	// shell rendered to replace them.
+	if ( openstation_is_classic_request() || openstation_is_unsupported_admin_request() ) {
 		return $classes;
 	}
 

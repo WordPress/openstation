@@ -1285,6 +1285,8 @@ add_filter( 'openstation_portal_auto_enable', '__return_false' );
 
 Governs the `admin_init` redirect from classic `/wp-admin/` URLs to `/openstation/` for users with OpenStation on. Return `false` to keep the user on the classic URL even when they have the mode enabled (useful for support sessions).
 
+The filter is not consulted at all in **Network Admin** (`/wp-admin/network/`) or **User Admin** (`/wp-admin/user/`) — the shell does not cover those areas, so they always render classic. See [Multisite](architecture.md#multisite) for what that means on a network install.
+
 ```php
 apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user_id );
 ```

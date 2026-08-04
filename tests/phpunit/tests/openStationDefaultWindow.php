@@ -32,7 +32,7 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, OPENSTATION_DEFAULT_WINDOW_META );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
+		delete_user_meta( self::$admin_id, openstation_session_meta_key() );
 		parent::tear_down();
 	}
 

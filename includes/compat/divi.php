@@ -419,7 +419,11 @@ function openstation_compat_divi_eject_parent_listener() {
 	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if (
+		openstation_is_chromeless_request()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 	if ( ! openstation_compat_divi_is_active() ) {

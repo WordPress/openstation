@@ -20,6 +20,7 @@
  *   - {@see openstation_admin_target_allowlist()} — wp-admin filename allowlist
  *   - {@see openstation_is_chromeless_request()}  — chromeless request detection
  *   - {@see openstation_is_classic_request()}     — classic-override request detection
+ *   - {@see openstation_is_unsupported_admin_request()} — Network / User Admin detection
  *   - {@see openstation_chromeless_hide_admin_bar()} — `show_admin_bar` filter
  *   - {@see openstation_chromeless_suppress_admin_bar()} — `admin_init` action
  *   - {@see openstation_chromeless_preserve_redirect()} — `wp_redirect` filter
@@ -329,6 +330,49 @@ function openstation_is_classic_request() {
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
 	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
+}
+
+/**
+ * Checks whether the current request targets an admin area the
+ * desktop shell does not cover — Network Admin or User Admin.
+ *
+ * Both areas run through `admin_init` / `in_admin_header` /
+ * `admin_enqueue_scripts` exactly like a site admin screen, so every
+ * render-path gate would otherwise treat them as shell territory. They
+ * are not:
+ *
+ *   - The dock is built from the `$menu` global, which in Network
+ *     Admin holds the *network* menu, while
+ *     {@see openstation_menu_item_url()} resolves every slug through
+ *     `admin_url()`. `sites.php` and `settings.php` only exist under
+ *     `/wp-admin/network/`, so half the dock 404s and the other half
+ *     silently points at the main site.
+ *   - The portal target allowlist
+ *     ({@see openstation_admin_target_allowlist()}) only accepts bare
+ *     wp-admin filenames, so `network/sites.php` can never survive
+ *     {@see openstation_sanitize_portal_target()} — the redirect in
+ *     {@see openstation_redirect_plain_admin_to_portal()} would land
+ *     the user on the main site's desktop with no error, making every
+ *     Network Admin screen unreachable.
+ *
+ * Treated like the per-request classic override: the account
+ * preference is untouched (`openstation_is_enabled()` still returns
+ * true), the request just renders classic admin. When the shell grows
+ * real Network Admin support this predicate is the one place that has
+ * to change.
+ *
+ * `is_network_admin()` / `is_user_admin()` are only defined once
+ * `wp-includes/load.php` has run, which is always true by the time any
+ * OpenStation hook fires — but the guards keep this callable from a
+ * bootstrap that loads the plugin file directly.
+ *
+ * @return bool True on a Network Admin or User Admin request.
+ */
+function openstation_is_unsupported_admin_request() {
+	if ( function_exists( 'is_network_admin' ) && is_network_admin() ) {
+		return true;
+	}
+	return function_exists( 'is_user_admin' ) && is_user_admin();
 }
 
 /**

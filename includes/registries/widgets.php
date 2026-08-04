@@ -233,7 +233,12 @@ function openstation_build_desktop_widgets_payload() {
  * available without any dynamic-load roundtrip.
  */
 function openstation_enqueue_desktop_widget_scripts() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
+	if (
+		! openstation_is_enabled()
+		|| openstation_is_chromeless_request()
+		|| openstation_is_classic_request()
+		|| openstation_is_unsupported_admin_request()
+	) {
 		return;
 	}
 	$registry = openstation_desktop_widget_registry();

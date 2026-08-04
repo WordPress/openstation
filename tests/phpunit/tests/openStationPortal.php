@@ -36,10 +36,13 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			$_GET['openstation_chromeless']
 		);
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
+		delete_user_meta( self::$admin_id, openstation_session_meta_key() );
 		delete_user_meta( self::$subscriber_id, 'desktop_mode_mode' );
 		remove_all_filters( 'openstation_portal_auto_enable' );
 		remove_all_filters( 'openstation_admin_redirect_to_portal' );
+		// Several tests set a Network / User Admin screen; leaving it in
+		// place would make `is_network_admin()` true for the next test.
+		unset( $GLOBALS['current_screen'] );
 		parent::tear_down();
 	}
 
@@ -406,6 +409,36 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	public function test_admin_redirect_noop_when_openstation_off() {
 		wp_set_current_user( self::$admin_id );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * Network Admin fires `admin_init` like any other admin screen, but
+	 * the portal can't forward there — `network/sites.php` never
+	 * survives the target allowlist, so the redirect would silently
+	 * dump the user on the main site's desktop and make every Network
+	 * Admin screen unreachable.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_noop_in_network_admin() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		set_current_screen( 'sites-network' );
+
+		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_admin_redirect_noop_in_user_admin() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		set_current_screen( 'profile-user' );
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
