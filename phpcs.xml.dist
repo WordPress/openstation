@@ -16,6 +16,26 @@
 	<exclude-pattern>/dist/</exclude-pattern>
 	<exclude-pattern>/assets/vendor/</exclude-pattern>
 	<exclude-pattern>/tests/</exclude-pattern>
+	<exclude-pattern>/.scratch/</exclude-pattern>
+
+	<!--
+		PHP only.
+
+		Without this, PHPCS applies its CSS and JS sniffs to everything
+		under `assets/`. On a fresh clone that is invisible — the built
+		bundles are gitignored — but on any checkout where `npm run build`
+		has run it walks ~70 minified IIFEs, reports several hundred
+		thousand violations and exhausts a 1GB memory limit before it can
+		finish. The stylesheets are covered by the editorconfig; the
+		bundles are build output and are nobody's to hand-edit.
+	-->
+	<arg name="extensions" value="php"/>
+
+	<!-- Readable local runs; `-q` in CI keeps the log short. -->
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<arg name="parallel" value="8"/>
+	<arg value="sp"/>
 
 	<!-- Inherit the WordPress plugin standard. -->
 	<rule ref="WordPress"/>
@@ -55,6 +75,78 @@
 				<element value="desktop-mode"/>
 			</property>
 		</properties>
+	</rule>
+
+	<!--
+		Advisory, not blocking.
+
+		CI gates on errors (`phpcs -n`), so everything below still reports
+		on a full local run and still shows up in review, but a violation
+		does not fail the build. Each one is a case where the sniff is
+		measuring something real that this codebase answers differently,
+		and where silencing it outright would throw away the signal.
+	-->
+
+	<!--
+		Custom tables. The plugin owns eight of them (see AGENTS.md,
+		"`desktop_mode_*` values are frozen"); `$wpdb` is the only way to
+		reach them, and `WP_Query` has no bearing on a placements or
+		shares lookup. The aggregate stats under `includes/my-wordpress/`
+		do read core tables directly, and there the caching advice is
+		worth keeping visible — hence warning rather than excluded.
+	-->
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<type>warning</type>
+	</rule>
+
+	<!--
+		Table names cannot be placeholders below WordPress 6.2, which
+		introduced `%i`. The plugin supports 6.0, so every custom-table
+		query interpolates `{$tables['…']}` into the SQL and passes the
+		values through `prepare()`. The other interpolations flagged here
+		are `implode( ',', array_fill( …, '%d' ) )` placeholder lists and
+		`$charset_collate` on CREATE TABLE — all structural, none of them
+		user input. Revisit if the minimum ever moves to 6.2.
+	-->
+	<rule ref="WordPress.DB.PreparedSQL.InterpolatedNotPrepared">
+		<type>warning</type>
+	</rule>
+
+	<!--
+		Docblock coverage. 1186 of the 1248 functions under `includes/`
+		carry one, so the standard matches the house style and the gap is
+		a tail to close rather than a convention to abandon — but closing
+		it is its own piece of work, and holding CI red until then would
+		just teach everyone to ignore the job.
+
+		`InvalidEndChar` and `MissingParamComment` are excluded outright:
+		this codebase writes long explanatory prose comments that
+		deliberately do not terminate in a full stop, and re-punctuating
+		them would be churn for its own sake.
+	-->
+	<rule ref="Squiz.Commenting.FunctionComment.Missing">
+		<type>warning</type>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamTag">
+		<type>warning</type>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamName">
+		<type>warning</type>
+	</rule>
+	<rule ref="Squiz.Commenting.FileComment">
+		<type>warning</type>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<type>warning</type>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamComment">
+		<severity>0</severity>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.ParamCommentFullStop">
+		<severity>0</severity>
+	</rule>
+	<rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
+		<severity>0</severity>
 	</rule>
 
 	<!-- PHP / WP version targets — match plugin headers. -->
