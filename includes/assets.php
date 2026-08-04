@@ -96,6 +96,7 @@ function openstation_register_assets() {
 		array( 'os-variables' ),
 		$built_version( 'assets/css/desktop.css' )
 	);
+
 	/*
 	 * Window styles — one handle per sheet, chained by dependency.
 	 *

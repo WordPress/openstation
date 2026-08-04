@@ -208,7 +208,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	}
 
 	$daily = array();
-	for ( $i = 0; $i < $days; $i += 1 ) {
+	for ( $i = 0; $i < $days; ++$i ) {
 		$ts      = strtotime( '+' . $i . ' days', $from_ts );
 		$date    = gmdate( 'Y-m-d', $ts );
 		$daily[] = array(
@@ -290,7 +290,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 			if ( ! $prev_day_active ) {
 				$run_start = $entry['date'];
 			}
-			$longest_run += 1;
+			++$longest_run;
 			if ( $longest_run > $longest ) {
 				$longest      = $longest_run;
 				$longest_from = $run_start;
@@ -303,9 +303,9 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		}
 	}
 	// Current streak — walk backward from today.
-	for ( $i = count( $daily ) - 1; $i >= 0; $i -= 1 ) {
+	for ( $i = count( $daily ) - 1; $i >= 0; --$i ) {
 		if ( $is_active( $daily[ $i ] ) ) {
-			$current += 1;
+			++$current;
 		} else {
 			break;
 		}

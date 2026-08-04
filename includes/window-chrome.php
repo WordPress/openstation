@@ -36,7 +36,8 @@ defined( 'ABSPATH' ) || exit;
 /*
 ============================================================
  * Layer 1 — Themes
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-theme provider.
@@ -291,7 +292,8 @@ function openstation_build_window_themes_payload() {
 /*
 ============================================================
  * Layer 2 — Controls
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-control provider.
@@ -518,7 +520,8 @@ function openstation_build_window_controls_payload() {
 /*
 ============================================================
  * Layer 3 — Slots
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Canonical slot names. Mirrors the `WindowSlotName` TypeScript
@@ -745,7 +748,8 @@ function openstation_build_window_slots_payload() {
 /*
 ============================================================
  * Layer 4 — Custom chrome (Experimental)
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-chrome provider.

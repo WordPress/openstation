@@ -590,6 +590,8 @@ add_action( 'openstation_file_unplaced', 'openstation_stored_files_handle_unplac
 /**
  * Daily reconciliation sweep, both directions:
  *
+ * Two classes of orphan get collected:
+ *
  *   a) Rows with no placement at all (crashed uploads, interrupted
  *      purges) older than the grace period → delete row + bytes.
  *   b) Bytes on disk with no matching row (interrupted deletes)

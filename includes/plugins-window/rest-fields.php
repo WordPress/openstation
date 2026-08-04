@@ -721,7 +721,7 @@ function openstation_plugins_window_field_auto_update( $row ) {
 	$filter_payload['id']     = $plugin_file;
 	$filter_payload           = (object) $filter_payload;
 	/** This filter is documented in wp-admin/includes/class-wp-automatic-updater.php */
-	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload );
+	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the effective auto-update state has to come from the same source Core reads.
 	if ( null !== $forced ) {
 		$forced = (bool) $forced;
 		// When a filter forces the state, that's the effective state

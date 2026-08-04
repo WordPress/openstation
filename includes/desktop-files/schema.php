@@ -654,7 +654,7 @@ function openstation_files_ensure_decisions_table() {
  */
 function openstation_files_maybe_install_schema() {
 	$installed = get_option( OPENSTATION_FILES_SCHEMA_OPTION, '' );
-	if ( $installed === OPENSTATION_FILES_SCHEMA_VERSION ) {
+	if ( OPENSTATION_FILES_SCHEMA_VERSION === $installed ) {
 		return;
 	}
 	openstation_files_install_schema();

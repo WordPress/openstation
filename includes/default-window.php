@@ -172,7 +172,7 @@ function openstation_validate_default_window_url( $url ) {
 	// Reassemble as a clean same-origin URL so downstream consumers
 	// always get a fully-qualified string.
 	$query = isset( $parsed['query'] ) ? '?' . $parsed['query'] : '';
-	return esc_url_raw( home_url( $parsed['path'] . $query ), array( $home_scheme ?: 'https', 'http', 'https' ) );
+	return esc_url_raw( home_url( $parsed['path'] . $query ), array( $home_scheme ? $home_scheme : 'https', 'http', 'https' ) );
 }
 
 /**

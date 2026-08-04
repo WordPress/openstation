@@ -148,7 +148,7 @@ function openstation_user_edit_window_rest_destroy_sessions( $req ) {
 		);
 	}
 	$manager = WP_Session_Tokens::get_instance( $id );
-	if ( $scope === 'all' || $id !== (int) get_current_user_id() ) {
+	if ( 'all' === $scope || (int) get_current_user_id() !== $id ) {
 		// Editing another user — destroy ALL of their sessions.
 		// Editing self with scope='all' — destroy all (including
 		// the current). Note the latter logs the requester out.
@@ -540,7 +540,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 		}
 		$recent_posts[] = array(
 			'id'           => (int) $post->ID,
-			'title'        => $post->post_title !== ''
+			'title'        => '' !== $post->post_title
 				? $post->post_title
 				: __( '(no title)', 'desktop-mode' ),
 			'status'       => (string) $post->post_status,
@@ -567,7 +567,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 		if ( $comment->comment_post_ID ) {
 			$post = get_post( (int) $comment->comment_post_ID );
 			if ( $post instanceof WP_Post ) {
-				$post_title = $post->post_title !== ''
+				$post_title = '' !== $post->post_title
 					? $post->post_title
 					: __( '(no title)', 'desktop-mode' );
 			}
@@ -709,7 +709,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 			'daysSinceRegistration' => $days_since_registration,
 			'lastLoginAt'           => $last_login_ts,
 			'daysSinceLastLogin'    => $days_since_last_login,
-			'registeredAt'          => $registered_ts ?: null,
+			'registeredAt'          => $registered_ts ? $registered_ts : null,
 		),
 		'contentByMonth'       => $content_by_month,
 		'recentPosts'          => $recent_posts,

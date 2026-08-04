@@ -460,7 +460,7 @@ function openstation_games_rest_resolve_recipient_challenge( WP_REST_Request $re
 			array( 'status' => 404 )
 		);
 	}
-	if ( (int) $row['recipient_id'] !== get_current_user_id() ) {
+	if ( get_current_user_id() !== (int) $row['recipient_id'] ) {
 		return new WP_Error(
 			'openstation_challenge_forbidden',
 			__( 'Only the challenged user can act on this challenge.', 'desktop-mode' ),

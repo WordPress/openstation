@@ -562,7 +562,8 @@ function openstation_recycle_bin_shape_item( $post ) {
 		$subtitle = $mime;
 	} elseif ( 'post' === $type ) {
 		$icon     = 'dashicons-admin-post';
-		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$excerpt  = (string) $post->post_excerpt;
+		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
 	} elseif ( 'page' === $type ) {
 		$icon     = 'dashicons-admin-page';
 		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
@@ -580,7 +581,8 @@ function openstation_recycle_bin_shape_item( $post ) {
 		) {
 			$icon = $post_type_obj->menu_icon;
 		}
-		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$excerpt  = (string) $post->post_excerpt;
+		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
 	}
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;

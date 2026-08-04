@@ -549,7 +549,8 @@ function openstation_resolve_menu_plugin_file( $menu_slug ) {
  */
 function openstation_plugin_display_name( $plugin_file ) {
 	if ( ! function_exists( 'get_plugins' ) ) {
-		return strtok( $plugin_file, '/' ) ?: $plugin_file;
+		$dir = strtok( $plugin_file, '/' );
+		return $dir ? $dir : $plugin_file;
 	}
 	$installed = get_plugins();
 	if ( isset( $installed[ $plugin_file ]['Name'] ) && '' !== $installed[ $plugin_file ]['Name'] ) {

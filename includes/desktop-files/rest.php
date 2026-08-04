@@ -480,7 +480,8 @@ function openstation_files_rest_create_placement( WP_REST_Request $req ) {
  */
 function openstation_files_rest_update_placement( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
-	$body    = $req->get_json_params() ?: $req->get_params();
+	$json    = $req->get_json_params();
+	$body    = $json ? $json : $req->get_params();
 	$current = openstation_files_get_placement( $id );
 	if ( ! $current ) {
 		return new WP_Error( 'openstation_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
@@ -569,7 +570,8 @@ function openstation_files_rest_create_folder( WP_REST_Request $req ) {
  */
 function openstation_files_rest_update_folder( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
-	$body    = $req->get_json_params() ?: $req->get_params();
+	$json    = $req->get_json_params();
+	$body    = $json ? $json : $req->get_params();
 	$current = openstation_files_get_folder( $id );
 	if ( ! $current ) {
 		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );

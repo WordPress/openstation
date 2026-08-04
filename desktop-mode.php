@@ -56,7 +56,7 @@ function openstation_request_needs_admin_modules() {
 		// code (safe direction); plain-permalink REST is covered by
 		// the `rest_route` query var.
 		$rest_prefix = function_exists( 'rest_get_url_prefix' ) ? rest_get_url_prefix() : 'wp-json';
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- request-shape sniff only, no data is read.
 		if ( ( '' !== $rest_prefix && false !== strpos( $request_uri, '/' . $rest_prefix ) ) || isset( $_GET['rest_route'] ) ) {
 			$needs = true;

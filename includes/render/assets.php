@@ -114,12 +114,14 @@ function openstation_enqueue_assets() {
 		// admin requests where the menu wasn't built yet) blows up
 		// with a TypeError. Initialize defensively before calling.
 		global $menu, $submenu;
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- initializing an unset global to its documented empty shape, not replacing a built menu.
 		if ( ! isset( $submenu ) || ! is_array( $submenu ) ) {
 			$submenu = array();
 		}
 		if ( ! isset( $menu ) || ! is_array( $menu ) ) {
 			$menu = array();
 		}
+		// phpcs:enable WordPress.WP.GlobalVariablesOverride.Prohibited
 		wp_enqueue_command_palette_assets();
 
 		// Expose the same menu-commands array WP serializes into

@@ -574,7 +574,7 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 			if ( $file && ! $file->can_read( $user_id ) ) {
 				continue;
 			}
-		} else {
+		} elseif ( $file && ! $file->can_read( $user_id ) ) {
 			// Shared folder view — every placement the OWNER chose
 			// to include is surfaced to the recipient. When the
 			// recipient lacks read on the underlying entity, we
@@ -583,9 +583,7 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 			// open. Entity-level access enforcement still happens
 			// at open time in each opener — this flag is just the
 			// pre-emptive visual cue.
-			if ( $file && ! $file->can_read( $user_id ) ) {
-				$normalized['access_gated'] = true;
-			}
+			$normalized['access_gated'] = true;
 		}
 		$out[] = $normalized;
 	}

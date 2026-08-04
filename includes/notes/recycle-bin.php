@@ -54,7 +54,7 @@ add_filter( 'openstation_recycle_bin_capture_post_types', 'openstation_notes_rec
  * @return bool
  */
 function openstation_notes_recycle_bin_owns( $post ) {
-	return (int) $post->post_author === get_current_user_id();
+	return get_current_user_id() === (int) $post->post_author;
 }
 
 /**

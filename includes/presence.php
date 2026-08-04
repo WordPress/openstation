@@ -331,8 +331,11 @@ function openstation_presence_snapshot( $user_ids = null ) {
  * @return int[]
  */
 function openstation_presence_visible_users( $candidate_user_ids, $viewer_id = 0 ) {
-	$viewer_id = (int) $viewer_id ?: get_current_user_id();
-	$ids       = array();
+	$viewer_id = (int) $viewer_id;
+	if ( ! $viewer_id ) {
+		$viewer_id = get_current_user_id();
+	}
+	$ids = array();
 	foreach ( (array) $candidate_user_ids as $uid ) {
 		$uid = (int) $uid;
 		if ( $uid > 0 ) {
@@ -389,7 +392,8 @@ add_action( 'init', 'openstation_presence_schedule_cron', 50 );
 /*
 -------------------------------------------------------------------------
  * Heartbeat integration
- * ----------------------------------------------------------------------- */
+ * -----------------------------------------------------------------------
+ */
 
 /**
  * Heartbeat handler — bumps presence on every tick a openstation
@@ -438,7 +442,8 @@ add_filter( 'heartbeat_received', 'openstation_presence_heartbeat_received', 5, 
 /*
 -------------------------------------------------------------------------
  * REST endpoints
- * ----------------------------------------------------------------------- */
+ * -----------------------------------------------------------------------
+ */
 
 /**
  * Permission gate for presence endpoints — login required +

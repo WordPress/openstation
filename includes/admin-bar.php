@@ -691,6 +691,7 @@ function openstation_enqueue_toggle_assets() {
 					'enterTitle'      => __( 'Enter fullscreen', 'desktop-mode' ),
 					'exitTitle'       => __( 'Exit fullscreen', 'desktop-mode' ),
 				),
+
 				/*
 				 * Keyboard-shortcuts popover content. Translated once on
 				 * the server and shipped to admin-bar.js, which renders

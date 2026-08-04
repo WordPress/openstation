@@ -115,7 +115,10 @@ function openstation_pwa_force_replace_sw() {
  *                of `'manifest'` | `'sw'`.
  */
 function openstation_pwa_endpoint_kind() {
-	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	// `esc_url_raw` rather than `sanitize_text_field`: the value is a URL
+	// and the latter strips percent-encoded octets, which would corrupt
+	// the path before it can be compared against the endpoint constants.
+	$uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	if ( ! is_string( $uri ) || '' === $uri ) {
 		return '';
 	}

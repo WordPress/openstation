@@ -36,7 +36,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * wp_options key for the extended options bundle.
+ * The `wp_options` key for the extended options bundle.
  *
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would

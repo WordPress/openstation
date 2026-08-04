@@ -885,7 +885,7 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 	// per-call request_id for observability fanout.
 	// -----------------------------------------------------------------------
 	$user_id            = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
-	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
 		? (string) $extra['request_id']
 		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'openstation_ai_', true ) );
 	$command_tools_raw  = isset( $extra['command_tools'] ) && is_array( $extra['command_tools'] ) ? $extra['command_tools'] : array();
@@ -915,7 +915,7 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 		)
 	);
 
-	if ( $initial_tool !== null && ! in_array( $initial_tool, openstation_ai_search_resumable_tools(), true ) ) {
+	if ( null !== $initial_tool && ! in_array( $initial_tool, openstation_ai_search_resumable_tools(), true ) ) {
 		$initial_tool = null;
 	}
 
@@ -923,7 +923,7 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 	// starting position so it doesn't waste iterations on already-searched
 	// content.
 	$continuation_note = '';
-	if ( $initial_tool !== null && ( $start_offset > 0 || $initial_tool !== 'search_posts' ) ) {
+	if ( null !== $initial_tool && ( $start_offset > 0 || 'search_posts' !== $initial_tool ) ) {
 		$continuation_note = sprintf(
 			"\n\nNote: This is a continuation of a previous search. Begin with %s using the same search keywords at offset=%d and work forward.",
 			$initial_tool,
@@ -1042,7 +1042,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			continue;
 		}
 		$slug = isset( $cmd['slug'] ) ? (string) $cmd['slug'] : '';
-		if ( $slug === '' || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
+		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
 			continue;
 		}
 		/**
@@ -1082,7 +1082,7 @@ The message field is always a friendly sentence or two shown directly to the use
 				'properties'           => array(
 					'args' => array(
 						'type'        => 'string',
-						'description' => $hint !== ''
+						'description' => '' !== $hint
 							? sprintf( 'Arguments for this command. Hint: %s', $hint )
 							: 'Arguments for this command. Leave empty when the command takes none.',
 					),
@@ -1317,7 +1317,7 @@ The message field is always a friendly sentence or two shown directly to the use
 				break;
 			}
 		}
-		if ( $command_tool_call !== null ) {
+		if ( null !== $command_tool_call ) {
 			do_action(
 				'openstation_ai_tool_called',
 				array(
@@ -1661,7 +1661,7 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
  */
 function openstation_ai_run_followup( $query, array $tool, array $outcome, array $extra = array() ) {
 	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
-	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
+	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
 		? (string) $extra['request_id']
 		: ( function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'openstation_ai_', true ) );
 
@@ -2054,7 +2054,7 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
  */
 function openstation_ai_fetch_wporg_plugins( $query ) {
 	$query = trim( (string) $query );
-	if ( $query === '' ) {
+	if ( '' === $query ) {
 		return array(
 			'tool'    => 'search_wporg_plugins',
 			'query'   => '',
@@ -2125,7 +2125,7 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 		$p = (array) $p;
 
 		$slug = isset( $p['slug'] ) ? (string) $p['slug'] : '';
-		if ( $slug === '' ) {
+		if ( '' === $slug ) {
 			continue;
 		}
 
@@ -2202,7 +2202,7 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 		$candidates[] = WP_CONTENT_DIR . '/debug.log';
 	}
 	$ini_log = (string) ini_get( 'error_log' );
-	if ( $ini_log !== '' && 'syslog' !== $ini_log ) {
+	if ( '' !== $ini_log && 'syslog' !== $ini_log ) {
 		$candidates[] = $ini_log;
 	}
 
@@ -2222,7 +2222,7 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 		}
 	}
 
-	if ( $log_path === '' ) {
+	if ( '' === $log_path ) {
 		return array(
 			'tool'          => 'get_php_error_log',
 			'log_available' => false,
@@ -2238,7 +2238,7 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 	$entries = array();
 	foreach ( $tail as $line ) {
 		$line = trim( $line );
-		if ( $line === '' ) {
+		if ( '' === $line ) {
 			continue;
 		}
 		$entries[] = openstation_ai_parse_log_line( $line );
@@ -2332,7 +2332,7 @@ function openstation_ai_tail_file( $path, $lines ) {
 // ---------------------------------------------------------------------------
 
 /**
- * admin-ajax handler for the streaming search endpoint.
+ * Admin-ajax handler for the streaming search endpoint.
  *
  * URL: /wp-admin/admin-ajax.php?action=openstation_ai_search_stream
  *   &nonce=<rest_nonce>
@@ -2373,7 +2373,7 @@ function openstation_ai_ajax_search_stream() {
 
 	$resume_tool  = isset( $_GET['resume_tool'] ) ? sanitize_key( wp_unslash( $_GET['resume_tool'] ) ) : null; // phpcs:ignore WordPress.Security
 	$start_offset = isset( $_GET['start_offset'] ) ? absint( $_GET['start_offset'] ) : 0; // phpcs:ignore WordPress.Security
-	if ( $resume_tool !== null && ! in_array( $resume_tool, openstation_ai_search_resumable_tools(), true ) ) {
+	if ( null !== $resume_tool && ! in_array( $resume_tool, openstation_ai_search_resumable_tools(), true ) ) {
 		$resume_tool = null;
 	}
 

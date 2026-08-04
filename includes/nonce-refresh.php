@@ -95,7 +95,7 @@ function openstation_nonce_refresh_build_payload() {
 
 	$payload = array();
 	foreach ( $actions as $action ) {
-		if ( ! is_string( $action ) || $action === '' ) {
+		if ( ! is_string( $action ) || '' === $action ) {
 			continue;
 		}
 		$payload[ $action ] = wp_create_nonce( $action );

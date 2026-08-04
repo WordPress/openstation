@@ -37,7 +37,8 @@ function openstation_user_edit_window_render_template() {
 		 * its own. The render callback in `index.ts` sets the
 		 * attribute after reading the shared store; absent that,
 		 * the attribute is empty and the component idles until
-		 * set. */
+		 * set.
+		 */
 		?>
 		<os-user-profile data-os-user-profile-host></os-user-profile>
 	</div>
@@ -170,7 +171,8 @@ function openstation_user_edit_window_register_window() {
 			'locales'         => function_exists( 'openstation_users_window_locales_map' )
 				? openstation_users_window_locales_map()
 				: array( '' => __( 'Site default', 'desktop-mode' ) ),
-			'contactMethods'  => (array) apply_filters( 'user_contactmethods', array(), null ),
+			/** This filter is documented in wp-includes/user.php */
+			'contactMethods'  => (array) apply_filters( 'user_contactmethods', array(), null ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the window must offer the same contact fields profile.php does.
 			'colorSchemes'    => openstation_user_edit_window_color_schemes(),
 		),
 	);

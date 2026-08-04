@@ -41,9 +41,10 @@ function openstation_plugins_window_render_template() {
 			<div class="os-plugins__installed" data-os-plugins-installed-host>
 				<?php
 				/*
-				JS bundle paints the toolbar + <os-table> here.
-						Empty host — first-frame shows the table's own
-						loading skeleton. */
+				 * JS bundle paints the toolbar + <os-table> here.
+				 * Empty host — first-frame shows the table's own
+				 * loading skeleton.
+				 */
 				?>
 			</div>
 		</os-tabpanel>
@@ -53,8 +54,9 @@ function openstation_plugins_window_render_template() {
 				<div class="os-plugins__browse" data-os-plugins-browse-host>
 					<?php
 					/*
-					JS bundle paints the search + segmented filter
-							+ Upload button + <os-grid> of cards here. */
+					 * JS bundle paints the search + segmented filter
+					 * + Upload button + <os-grid> of cards here.
+					 */
 					?>
 				</div>
 			</os-tabpanel>
@@ -62,8 +64,9 @@ function openstation_plugins_window_render_template() {
 				<div class="os-plugins__featured" data-os-plugins-featured-host>
 					<?php
 					/*
-					JS bundle paints an intro blurb + gallery of
-							plugins that integrate with OpenStation here. */
+					 * JS bundle paints an intro blurb + gallery of
+					 * plugins that integrate with OpenStation here.
+					 */
 					?>
 				</div>
 			</os-tabpanel>
@@ -71,9 +74,10 @@ function openstation_plugins_window_render_template() {
 
 		<?php
 		/*
-		Detail flyout — populated lazily when a card is clicked.
-				Lives at the root of the template so it can slide over the
-				full window body, not just one tab panel. */
+		 * Detail flyout — populated lazily when a card is clicked.
+		 * Lives at the root of the template so it can slide over the
+		 * full window body, not just one tab panel.
+		 */
 		?>
 		<os-flyout
 			placement="end"

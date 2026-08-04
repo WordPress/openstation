@@ -188,6 +188,7 @@ function openstation_comments_window_default_query_args() {
 	// edit.
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
 	$args    = array(
+
 		/*
 		 * Exactly the fields the conversation view renders — no more.
 		 * Every `openstation_*` field is a computed REST field, and

@@ -53,6 +53,11 @@ function openstation_get_plugin_notices() {
  * @return array|null
  */
 function openstation_plugin_notice_action_scheduler() {
+	// Every filter applied below is Action Scheduler's own. Mirroring its
+	// check means honouring the same extension points a site has already
+	// hooked; prefixing them would consult filters nobody implements and
+	// silently diverge from the count Action Scheduler itself shows.
+	// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 	if ( ! class_exists( 'ActionScheduler_Store' ) || ! function_exists( 'as_get_datetime_object' ) ) {
 		return null;
 	}
@@ -89,6 +94,7 @@ function openstation_plugin_notice_action_scheduler() {
 	if ( ! $check ) {
 		return null;
 	}
+	// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 	$url = add_query_arg(
 		array(

@@ -262,7 +262,7 @@ function openstation_agent_conversation_get_own( $id ) {
 	if ( ! $post || OPENSTATION_AGENT_CHAT_POST_TYPE !== $post->post_type ) {
 		return null;
 	}
-	if ( (int) $post->post_author !== get_current_user_id() ) {
+	if ( get_current_user_id() !== (int) $post->post_author ) {
 		return null;
 	}
 	return $post;

@@ -65,6 +65,40 @@
 	</rule>
 
 	<!--
+		`bin/` holds standalone CLI scripts run as `php bin/<script>.php`,
+		not plugin runtime. PHPCS reads their top-level variables as
+		globals, so every local in a procedural script trips the prefix
+		rule and `$locale` / `$domain` read as clobbering WordPress's own
+		globals. Neither is true — nothing there is ever loaded into a
+		WordPress request. The rest of the standard still applies.
+	-->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound">
+		<exclude-pattern>/bin/</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>/bin/</exclude-pattern>
+	</rule>
+
+	<!--
+		Properties on PHP's own classes. `ZipArchive::$numFiles` and the
+		DOM node interface are camelCase because PHP declares them that
+		way; we only read them.
+	-->
+	<rule ref="WordPress.NamingConventions.ValidVariableName">
+		<properties>
+			<property name="allowed_custom_properties" type="array">
+				<element value="numFiles"/>
+				<element value="documentElement"/>
+				<element value="childNodes"/>
+				<element value="nodeType"/>
+				<element value="nodeName"/>
+				<element value="nodeValue"/>
+				<element value="localName"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
 		Text domain consistency. Stays `desktop-mode`: WordPress.org
 		delivers language packs keyed on the directory slug, so the
 		domain has to keep matching it even though the brand changed.

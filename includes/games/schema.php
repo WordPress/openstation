@@ -159,7 +159,7 @@ function openstation_games_ensure_table( $table, $sql ) {
  */
 function openstation_games_maybe_install_schema() {
 	$installed = get_option( OPENSTATION_GAMES_SCHEMA_OPTION, '' );
-	if ( $installed === OPENSTATION_GAMES_SCHEMA_VERSION ) {
+	if ( OPENSTATION_GAMES_SCHEMA_VERSION === $installed ) {
 		return;
 	}
 	openstation_games_install_schema();

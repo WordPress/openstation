@@ -43,7 +43,7 @@ add_action( 'init', 'openstation_register_jazz_quote_widget_assets', 5 );
 /**
  * Inline the WordPress version on the MAIN desktop shell script.
  *
- * wp_add_inline_script() only outputs when the attached handle is
+ * Note that wp_add_inline_script() only outputs when the attached handle is
  * actually enqueued. The widget JS loads lazily via the shell's
  * server-sync, so attaching the inline script to the widget handle
  * would mean it never appears. Instead we attach it to the main

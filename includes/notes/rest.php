@@ -166,7 +166,7 @@ function openstation_notes_get_note( $id, $allow_trash = false ) {
  * @return true|WP_Error
  */
 function openstation_notes_require_owner( $post ) {
-	if ( (int) $post->post_author !== get_current_user_id() ) {
+	if ( get_current_user_id() !== (int) $post->post_author ) {
 		return new WP_Error( 'openstation_notes_forbidden', __( 'Only the note owner can change it.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
@@ -379,7 +379,7 @@ function openstation_notes_rest_update( $request ) {
 	// Optimistic concurrency — a stale token means another session
 	// (or device) changed the note since this client last saw it.
 	$client_ms = $request['updatedAtMs'];
-	if ( null !== $client_ms && (int) $client_ms !== openstation_notes_modified_ms( $post ) ) {
+	if ( null !== $client_ms && openstation_notes_modified_ms( $post ) !== (int) $client_ms ) {
 		return new WP_Error(
 			'openstation_notes_conflict',
 			__( 'The note was changed by another session.', 'desktop-mode' ),

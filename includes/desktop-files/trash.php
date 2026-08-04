@@ -30,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
 /*
 ================================================================== *
  *  Capability gates.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Default ownership check shared by every trash / restore / purge
@@ -173,7 +174,8 @@ function openstation_files_user_can_purge_folder( $user_id, $row ) {
  *  hard-deleted folders are recreated (with new ids; the chain is
  *  rewritten as it walks). The placement comes back at the same
  *  visual position inside the (possibly resurrected) parent.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Walk up `$parent_id` through the folders + placements tables and
@@ -292,7 +294,7 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 		// resolved parent. Owner falls back to the acting user
 		// when the original owner can't be inferred (shared-
 		// folder edge case Phase 6 will revisit).
-		$owner_id = (int) ( $entry['folder_owner_id'] ?: $user_id );
+		$owner_id = (int) ( $entry['folder_owner_id'] ? $entry['folder_owner_id'] : $user_id );
 		$new_id   = openstation_files_create_folder(
 			$owner_id,
 			array(
@@ -328,7 +330,8 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 /*
 ================================================================== *
  *  Placement: trash / restore / purge.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Soft-trash a placement. Sets `trashed_at_ms`, `trashed_by`. Returns
@@ -597,7 +600,8 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 /*
 ================================================================== *
  *  Folder: trash / restore / purge (cascades to child placements).
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Soft-trash a folder. Cascades to every child placement (any
@@ -1045,7 +1049,8 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 /*
 ================================================================== *
  *  Recycle-bin list builder.
- * ================================================================== */
+ * ==================================================================
+ */
 
 /**
  * Count of trashed placements + folders surfaced to the recycle bin

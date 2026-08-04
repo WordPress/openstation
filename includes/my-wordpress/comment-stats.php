@@ -78,7 +78,8 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 	}
 
 	// ----- Comment body ------------------------------------------------
-	$content_filtered = apply_filters( 'comment_text', $comment->comment_content, $comment, array() );
+	/** This filter is documented in wp-includes/comment-template.php */
+	$content_filtered = apply_filters( 'comment_text', $comment->comment_content, $comment, array() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, applied so comment bodies render as they do everywhere else.
 	$body             = array(
 		'id'           => (int) $comment->comment_ID,
 		'parent'       => (int) $comment->comment_parent,
