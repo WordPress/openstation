@@ -6,7 +6,7 @@ Mio is OpenStation's desk companion: a soft-body blob wrapped in a continuous, h
 
 It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#os-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
-Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OS Settings → Apps & Icons.
+Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OpenStation Settings → Apps & Icons.
 
 ---
 
@@ -57,7 +57,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
 |---|---|
 | Show / hide | Click the **Mio** tile on the bottom dock. The tile's dot lights while the companion is on screen. |
 | Restyle it | Right-click Mio → **Make it yours**. See [Make it yours](#make-it-yours). |
-| Get rid of the tile | OS Settings → **Apps & Icons** → Mio → **Hidden** |
+| Get rid of the tile | OpenStation Settings → **Apps & Icons** → Mio → **Hidden** |
 | Move it | Drag it anywhere. It trails your cursor. |
 | Throw it | Let go mid-flick and it keeps going, gliding to a stop. |
 | Where it rests | Persisted per browser (`localStorage`); the on/off preference is per user (server-side). |
@@ -329,7 +329,7 @@ No spring constants. Those belong to the site, they interact in ways a flat list
 
 ### Where it is saved
 
-**In the user's account, not the browser.** The look rides the OS Settings blob as `mioStyle` — the same route `mioEnabled` already takes — into the `desktop_mode_os_settings` user meta row. A Mio someone spends ten minutes building on their laptop is waiting for them on their phone, and in a private window, and after they clear site data.
+**In the user's account, not the browser.** The look rides the OpenStation Settings blob as `mioStyle` — the same route `mioEnabled` already takes — into the `desktop_mode_os_settings` user meta row. A Mio someone spends ten minutes building on their laptop is waiting for them on their phone, and in a private window, and after they clear site data.
 
 The resting *position* stays in `localStorage`, and the contrast is the rule: the look is a fact about the person, where Mio sits is a fact about one screen.
 
@@ -824,7 +824,7 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - Surfaces are re-measured at 20 Hz, not per frame — and interpolated between measurements so the collision set still moves at frame rate. A still desk skips the interpolation entirely.
 - Per frame at the shipped `glow: 10`: six `Graphics.clear()` calls and roughly 400 curved cells — 72 for the core and 216 across the bloom's three shells, both at full ribbon resolution because they carry the gradient; 72 across the halo's six, and forty across the sheen's five, all of them coarse because a blur is about to dissolve anything finer. Then a blur pass over each of the halo, the bloom and the sheen. The body is a single filled path of `points` curve segments. At the top of the `glow` slider the two glow passes reach 480 cells between them.
 - Ribbon resolution is fixed at 144 samples rather than scaled off `points`, so raising the rim resolution costs simulation time but not render time.
-- The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).
+- The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OpenStation Settings previews).
 
 ### Switching off parks, it does not destroy
 

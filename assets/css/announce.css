@@ -1,0 +1,395 @@
+/*
+ * Announcement dialog — the shell's full-stop moment.
+ *
+ * The look is the first-run welcome dialog's: a blurred Void scrim with
+ * Nebula and mint glows, a near-white card with a holographic hairline,
+ * and a dark shimmering hero at the top of it. That dialog is the one
+ * piece of UI in the product that gets to be loud, and an announcement
+ * that has to explain a rename is the only other thing that earns it.
+ *
+ * Built as plain classed DOM rather than out of `<os-*>` components, on
+ * purpose and for the same reason the welcome dialog is: this is a
+ * poster, not a control panel. `<os-modal>` gives a dialog chrome and a
+ * focus trap, and would then have to be fought for every one of the
+ * gradients below.
+ *
+ * ---------------------------------------------------------------
+ * KNOWN DUPLICATION. `includes/welcome-dialog.php` inlines its own copy
+ * of this design. It has to be self-contained — it renders in *classic*
+ * wp-admin, on `admin_footer`, where none of the shell's stylesheets
+ * are enqueued — so the two cannot share a file without that dialog
+ * taking on a dependency it was deliberately built without. Restyle one
+ * and the other will drift. If they should converge, the move is to
+ * enqueue THIS file in classic admin too and delete the inline block,
+ * not to copy edits between them.
+ * ---------------------------------------------------------------
+ *
+ * Every colour here is a literal, not a token. The card is Starlight
+ * whatever the desk is wearing: it is the product introducing itself,
+ * and a desktop theme recolouring that would be the theme speaking in
+ * the product's voice. This is the same call `<os-modal>` makes for its
+ * own surface.
+ */
+
+.os-announce,
+.os-announce * {
+	box-sizing: border-box;
+}
+
+.os-announce {
+	position: fixed;
+	inset: 0;
+	/*
+	 * Above every window (z 100+), the dock, and the Mio layer (190).
+	 * Matches the welcome dialog's own z-index so the two can never
+	 * argue if a site somehow shows both.
+	 */
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: radial-gradient(
+			ellipse at 30% 20%,
+			rgba(236, 155, 255, 0.32),
+			transparent 60%
+		),
+		radial-gradient(
+			ellipse at 70% 80%,
+			rgba(147, 240, 198, 0.26),
+			transparent 55%
+		),
+		rgba(12, 11, 15, 0.62);
+	backdrop-filter: blur(14px) saturate(140%);
+	-webkit-backdrop-filter: blur(14px) saturate(140%);
+	animation: os-announce-fade 360ms cubic-bezier(0.22, 1, 0.36, 1);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+		"Helvetica Neue", Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes os-announce-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes os-announce-pop {
+	0% {
+		opacity: 0;
+		transform: translateY(14px) scale(0.96);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes os-announce-shimmer {
+	0% {
+		background-position: 0% 50%;
+	}
+	100% {
+		background-position: 200% 50%;
+	}
+}
+
+.os-announce__card {
+	position: relative;
+	width: 100%;
+	max-width: 620px;
+	border-radius: 22px;
+	overflow: hidden;
+	background: linear-gradient(
+		145deg,
+		rgba(255, 255, 255, 0.98) 0%,
+		rgba(255, 251, 255, 0.98) 100%
+	);
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset,
+		0 30px 60px -20px rgba(26, 23, 33, 0.55),
+		0 18px 36px -18px rgba(242, 82, 252, 0.45);
+	animation: os-announce-pop 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: 60ms;
+}
+
+/*
+ * Holographic hairline. A padded pseudo-element masked with `xor` so
+ * only the 1px ring paints — a plain border cannot carry a gradient.
+ */
+.os-announce__card::before {
+	content: "";
+	position: absolute;
+	inset: -1px;
+	border-radius: inherit;
+	padding: 1px;
+	background: linear-gradient(
+		135deg,
+		rgba(242, 82, 252, 0.65),
+		rgba(236, 155, 255, 0.55),
+		rgba(147, 240, 198, 0.55)
+	);
+	-webkit-mask: linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	pointer-events: none;
+}
+
+.os-announce__hero {
+	position: relative;
+	padding: 32px 36px 26px;
+	background: linear-gradient(135deg, #0c0b0f 0%, #2a2533 45%, #ec9bff 100%);
+	background-size: 200% 200%;
+	animation: os-announce-shimmer 14s ease infinite alternate;
+	color: #fff;
+	overflow: hidden;
+}
+
+/* Station grid + glows, faded out at the edges so it reads as depth. */
+.os-announce__hero::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+			circle at 85% 15%,
+			rgba(236, 155, 255, 0.35),
+			transparent 45%
+		),
+		radial-gradient(
+			circle at 15% 90%,
+			rgba(147, 240, 198, 0.22),
+			transparent 50%
+		),
+		linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 /
+			28px 28px,
+		linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0
+			0 / 28px 28px;
+	pointer-events: none;
+	mask-image: radial-gradient(ellipse at 50% 40%, #000 35%, transparent 80%);
+	-webkit-mask-image: radial-gradient(
+		ellipse at 50% 40%,
+		#000 35%,
+		transparent 80%
+	);
+}
+
+/* The logomark, sitting above the hero's own overlay. */
+.os-announce__mark {
+	position: relative;
+	z-index: 1;
+	width: 44px;
+	height: 44px;
+	margin: 0 0 16px;
+	filter: drop-shadow(0 4px 14px rgba(242, 82, 252, 0.55));
+}
+
+.os-announce__mark svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.os-announce__title {
+	position: relative;
+	z-index: 1;
+	margin: 14px 0 6px;
+	font-size: 26px;
+	line-height: 1.2;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: #fff;
+}
+
+.os-announce__subtitle {
+	position: relative;
+	z-index: 1;
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: rgba(255, 255, 255, 0.85);
+}
+
+.os-announce__body {
+	padding: 24px 36px 4px;
+	font-size: 14.5px;
+	line-height: 1.6;
+	color: #33303a;
+}
+
+.os-announce__body p {
+	margin: 0 0 12px;
+}
+
+.os-announce__body p:last-child {
+	margin-bottom: 0;
+}
+
+/*
+ * The sign-off. Carries a little more weight than the explanation it
+ * follows, which is the whole reason it is its own paragraph.
+ */
+.os-announce__welcome {
+	font-weight: 600;
+	color: #0c0b0f;
+}
+
+/*
+ * The reassurance line — quieter than the copy above it. It answers
+ * "did my install change?" for the people who think to ask, without
+ * competing with the explanation.
+ */
+.os-announce__fine {
+	padding: 14px 16px;
+	background: linear-gradient(
+		135deg,
+		rgba(242, 82, 252, 0.08),
+		rgba(147, 240, 198, 0.08)
+	);
+	border: 1px solid rgba(242, 82, 252, 0.22);
+	border-radius: 12px;
+	font-size: 13px;
+	color: #2a2533;
+}
+
+.os-announce__actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	padding: 22px 36px 28px;
+}
+
+.os-announce__btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 38px;
+	padding: 8px 18px;
+	font-size: 14px;
+	font-weight: 600;
+	font-family: inherit;
+	line-height: 1;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	text-decoration: none;
+	transition: transform 120ms ease, box-shadow 120ms ease,
+		background 120ms ease, color 120ms ease;
+}
+
+.os-announce__btn:focus-visible {
+	outline: 2px solid #f252fc;
+	outline-offset: 2px;
+}
+
+.os-announce__btn--primary,
+.os-announce__btn--primary:hover,
+.os-announce__btn--primary:focus {
+	color: #fffbff;
+}
+
+.os-announce__btn--primary {
+	/*
+	 * Ends on Pulse, not Nebula. `background-position` slides this on
+	 * hover, so every stop carries the label at some point, and Nebula
+	 * is light enough that Starlight text on it falls to ~1.6:1.
+	 */
+	background: linear-gradient(135deg, #2a2533, #a12bb0 45%, #f252fc);
+	background-size: 180% 180%;
+	box-shadow: 0 10px 24px -10px rgba(242, 82, 252, 0.75),
+		0 4px 10px -4px rgba(236, 155, 255, 0.55);
+}
+
+.os-announce__btn--primary:hover {
+	transform: translateY(-1px);
+	background-position: 100% 50%;
+	box-shadow: 0 14px 30px -12px rgba(242, 82, 252, 0.85),
+		0 6px 14px -4px rgba(236, 155, 255, 0.65);
+}
+
+.os-announce__btn--primary:active {
+	transform: translateY(0);
+}
+
+.os-announce__close {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	z-index: 2;
+	width: 32px;
+	height: 32px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.18);
+	color: #fff;
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	border-radius: 50%;
+	cursor: pointer;
+	font-size: 18px;
+	line-height: 1;
+	transition: background 120ms ease, transform 120ms ease;
+}
+
+.os-announce__close:hover {
+	background: rgba(255, 255, 255, 0.32);
+	transform: rotate(90deg);
+}
+
+.os-announce__close:focus-visible {
+	outline: 2px solid #fff;
+	outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+	.os-announce__hero {
+		padding: 26px 24px 20px;
+	}
+
+	.os-announce__body,
+	.os-announce__actions {
+		padding-left: 24px;
+		padding-right: 24px;
+	}
+
+	.os-announce__title {
+		font-size: 22px;
+	}
+
+	.os-announce__actions {
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+
+	.os-announce__btn {
+		width: 100%;
+	}
+}
+
+/*
+ * Reduced motion stops the movement, never the paint. The shimmer, the
+ * pop and the scrim fade are decoration; the gradients they animate are
+ * the dialog's identity and stay put at their first frame.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.os-announce,
+	.os-announce__card,
+	.os-announce__hero {
+		animation: none;
+	}
+
+	.os-announce__btn,
+	.os-announce__close {
+		transition: none;
+	}
+
+	.os-announce__close:hover {
+		transform: none;
+	}
+}

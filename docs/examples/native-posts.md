@@ -1,6 +1,6 @@
 # Example: native Posts window
 
-A `<os-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-in Beta** — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
+A `<os-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-in Beta** — fresh installs use the classic iframe; users turn it on via **OpenStation Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
 
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 

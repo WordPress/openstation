@@ -85,6 +85,7 @@ import {
 	externalTabCount,
 	externalTabsSnapshot,
 	handleTabStripClick,
+	observeTabOverflow,
 	syncActiveTab,
 } from './tabs';
 import {
@@ -488,6 +489,14 @@ export class Window {
 	 * @internal
 	 */
 	public _bodyResizeObserver: ResizeObserver | null = null;
+
+	/**
+	 * Teardown for the tab strip's overflow watcher — the thing that
+	 * decides whether either edge fade is painted. Null on native
+	 * windows (no strip) and once the window has closed.
+	 * @internal
+	 */
+	public _tabOverflowTeardown: ( () => void ) | null = null;
 
 	constructor( config: WindowConfig ) {
 		this.id = config.id;
@@ -1090,11 +1099,16 @@ export class Window {
 		if ( this.iframe ) {
 			const iframe = this.iframe;
 
-			const tabs = this.element.querySelector( '.os-window__tabs' );
+			const tabs = this.element.querySelector< HTMLElement >(
+				'.os-window__tabs',
+			);
 			if ( tabs ) {
 				tabs.addEventListener( 'click', ( e: Event ) =>
 					handleTabStripClick( this, e ),
 				);
+				// Paint the edge fades only where scrolling would
+				// actually reveal another tab.
+				this._tabOverflowTeardown = observeTabOverflow( tabs );
 			}
 
 			// Sync the active tab whenever the iframe finishes a
@@ -3151,6 +3165,12 @@ export class Window {
 		// `body-resized` fire as the window animates out.
 		this._bodyResizeObserver?.disconnect();
 		this._bodyResizeObserver = null;
+
+		// Same rationale for the tab strip's overflow watcher: its
+		// observers would otherwise keep measuring a strip that is
+		// animating out of the document.
+		this._tabOverflowTeardown?.();
+		this._tabOverflowTeardown = null;
 
 		// Drop every channel-bus subscriber bound to this window so
 		// stale callbacks don't fire if the same id is reopened.

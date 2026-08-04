@@ -6,7 +6,7 @@
  * another entry's page.
  */
 import { describe, expect, test } from 'vitest';
-import { syncActiveTab } from './tabs';
+import { syncActiveTab, updateTabOverflow } from './tabs';
 import type { Window } from './index';
 
 const ADMIN = window.location.origin + '/wp-admin/';
@@ -183,5 +183,125 @@ describe( 'syncActiveTab', () => {
 			win.element.querySelectorAll( '[aria-selected="true"]' ),
 		).map( ( el ) => el.textContent );
 		expect( selected ).toEqual( [ 'Menus' ] );
+	} );
+} );
+
+/**
+ * Build a bare strip with fixed scroll geometry. jsdom reports 0 for
+ * every layout dimension, so the three properties `updateTabOverflow`
+ * reads are defined outright — the function under test is the
+ * arithmetic that turns them into an edge, not the layout engine.
+ */
+function mockStrip( {
+	scrollWidth,
+	clientWidth,
+	scrollLeft,
+	direction = 'ltr',
+}: {
+	scrollWidth: number;
+	clientWidth: number;
+	scrollLeft: number;
+	direction?: 'ltr' | 'rtl';
+} ): HTMLElement {
+	const strip = document.createElement( 'nav' );
+	strip.className = 'os-window__tabs';
+	strip.style.direction = direction;
+	Object.defineProperty( strip, 'scrollWidth', { value: scrollWidth } );
+	Object.defineProperty( strip, 'clientWidth', { value: clientWidth } );
+	Object.defineProperty( strip, 'scrollLeft', {
+		value: scrollLeft,
+		writable: true,
+	} );
+	document.body.appendChild( strip );
+	return strip;
+}
+
+describe( 'updateTabOverflow', () => {
+	test( 'a strip that fits carries no fade', () => {
+		const strip = mockStrip( {
+			scrollWidth: 400,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBeUndefined();
+	} );
+
+	test( 'scrolled hard left fades only the right edge', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'right' );
+	} );
+
+	test( 'scrolled hard right fades only the left edge', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 400,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'scrolled mid-strip fades both edges', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 200,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'both' );
+	} );
+
+	test( 'sub-pixel shortfall at the end still counts as the end', () => {
+		// A fractional clientWidth leaves scrollLeft a hair under its
+		// maximum at the true end of the strip; without the epsilon
+		// this paints a permanent "more this way" fade on the last tab.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 399.4,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'RTL at the inline start hides content on the left', () => {
+		// RTL scrollLeft runs [ -max, 0 ]; at 0 the strip sits against
+		// its right edge and everything hidden is to the left.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+			direction: 'rtl',
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'RTL at the inline end hides content on the right', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: -400,
+			direction: 'rtl',
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'right' );
+	} );
+
+	test( 'a stale fade is cleared when the strip stops overflowing', () => {
+		const strip = mockStrip( {
+			scrollWidth: 400,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		strip.dataset.overflow = 'both';
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBeUndefined();
 	} );
 } );

@@ -1583,3 +1583,38 @@ body.os-has-fullscreen-window .os-shell {
 .commands-command-menu__overlay {
 	display: none !important;
 }
+
+/*
+ * ---- Links slotted into <os-notice> ---------------------------
+ *
+ * `<os-notice>` styles its slotted links from inside its shadow root,
+ * through `::slotted( a )` and the `--os-ui-notice-link` tokens. That
+ * rule cannot win here, and no amount of specificity on it would help.
+ *
+ * A slotted element lives in the DOCUMENT tree; the shadow root only
+ * borrows it for rendering. When declarations from two trees collide,
+ * CSS Scoping resolves normal (non-`!important`) ones in favour of the
+ * OUTER tree regardless of specificity — so `wp-admin/css/common.css`,
+ * which sets `a { color: #2271b1 }` and `a:hover { color: #135e96 }` on
+ * every anchor in the admin, beats `::slotted( a )` every time. The
+ * shell renders inside wp-admin, so it always loses: the link painted
+ * WordPress Blue at rest and a darker blue on hover, the second of
+ * which is close to illegible on a notice's dark wash.
+ *
+ * Hence a document-tree rule. It reads the same tokens the component
+ * documents, so a theme still restyles the link by setting them; this
+ * only moves the declaration into a tree that can win. `a:hover` is
+ * (0,1,1), so the hover selector has to carry its own pseudo-class to
+ * outrank it — matching `os-notice a` alone would lose the hover state
+ * while winning the base one, which is exactly the inert-looking link
+ * the component's own styles already went out of their way to avoid.
+ */
+os-notice a {
+	color: var(--os-ui-notice-link, #ec9bff);
+}
+
+os-notice a:hover,
+os-notice a:focus,
+os-notice a:active {
+	color: var(--os-ui-notice-link-hover, #fffbff);
+}

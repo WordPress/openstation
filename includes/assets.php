@@ -306,6 +306,17 @@ function openstation_register_assets() {
 		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
 	);
 
+	// Announcement-dialog styles (scrim, hero card, buttons). Loaded
+	// with the shell rather than lazily: the dialog it paints is opened
+	// from the main bundle at boot, on the one visit where it fires.
+	$announce_css = OPENSTATION_DIR . 'assets/css/announce.css';
+	wp_register_style(
+		'os-announce',
+		OPENSTATION_URL . 'assets/css/announce.css',
+		array( 'os-variables' ),
+		file_exists( $announce_css ) ? (string) filemtime( $announce_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action

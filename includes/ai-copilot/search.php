@@ -1960,7 +1960,7 @@ function openstation_rest_ai_search_permission() {
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error(
 			'openstation_ai_disabled',
-			'The AI assistant is turned off. Enable it in OS Settings → Features.',
+			'The AI assistant is turned off. Enable it in OpenStation Settings → Features.',
 			array( 'status' => 403 )
 		);
 	}

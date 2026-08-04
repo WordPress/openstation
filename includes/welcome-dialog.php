@@ -7,7 +7,7 @@
  * the user where the "Switch to OpenStation" button lives in the admin
  * bar. Dismissal is persisted via the existing seen-intros registry
  * (`desktop_mode_seen_intros` user meta, slug `activation-welcome`),
- * which means the "Reset what's-new dialogs" button in OS Settings →
+ * which means the "Reset what's-new dialogs" button in OpenStation Settings →
  * Features brings it back exactly like every other intro dialog.
  *
  * The dialog is intentionally self-contained — all HTML, CSS and JS are
@@ -124,7 +124,7 @@ function openstation_render_welcome_dialog() {
 		array(
 			'icon'  => '🎨',
 			'title' => __( 'Wallpapers, dock & themes', 'desktop-mode' ),
-			'desc'  => __( 'Make it yours. Choose a wallpaper, pin your favorite screens to the dock, and switch accent colors — all from OS Settings.', 'desktop-mode' ),
+			'desc'  => __( 'Make it yours. Choose a wallpaper, pin your favorite screens to the dock, and switch accent colors — all from OpenStation Settings.', 'desktop-mode' ),
 		),
 		array(
 			'icon'  => '🤖',
