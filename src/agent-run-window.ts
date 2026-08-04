@@ -343,13 +343,22 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			? agentsChatStore.state.conversationIds?.[ agent.id ] ?? null
 			: null;
 
-		if ( conversationsLoaded && conversations.length === 0 ) {
+		// Per-agent scope: with an agent active, the sidebar is THAT
+		// agent's history only — conversations never mix across agents.
+		// With no agent seeded yet (a cold-open or session-restored
+		// window) the full list acts as the picker, since a row click
+		// re-targets the chat to its agent anyway.
+		const visible = agent
+			? conversations.filter( ( row ) => row.agentId === agent.id )
+			: conversations;
+
+		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
 			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
 			list.appendChild( none );
 		}
-		for ( const row of conversations ) {
+		for ( const row of visible ) {
 			const item = document.createElement( 'div' );
 			item.className = 'dm-agent-chat__conv';
 			if ( row.id === activeId ) {
