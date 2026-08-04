@@ -133,7 +133,7 @@ beforeEach( () => {
 	document.body.innerHTML =
 		'<div id="os-shell">' +
 		'<div id="os-area">' +
-		'<aside id="desktop-mode-widgets"></aside>' +
+		'<aside id="os-widgets"></aside>' +
 		'</div></div>';
 } );
 afterEach( () => {
@@ -186,9 +186,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		expect( layer ).not.toBeNull();
 		// Behind the windows, inside the desktop area, after widgets.
 		expect( layer!.parentElement!.id ).toBe( 'os-area' );
-		expect( layer!.previousElementSibling!.id ).toBe(
-			'desktop-mode-widgets',
-		);
+		expect( layer!.previousElementSibling!.id ).toBe( 'os-widgets' );
 
 		// The edge touches the FOCUSED comment window → it draws on the
 		// elevated sibling layer.

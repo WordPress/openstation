@@ -1837,7 +1837,7 @@ function init(): void {
 	// built-ins synchronously so the `os.widgets` filter
 	// already carries them when plugins hook in, then hydrate the
 	// layer which mounts whichever widgets the user last had on.
-	const widgetsEl = document.getElementById( 'desktop-mode-widgets' );
+	const widgetsEl = document.getElementById( 'os-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
 	// Dock rail renderer registry — install the built-in `'default'`

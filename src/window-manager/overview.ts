@@ -39,7 +39,7 @@ const OVERVIEW_INERT_ELEMENTS = [
 	'adminmenuback',
 	'os-dock',
 	'os-side-dock',
-	'desktop-mode-widgets',
+	'os-widgets',
 ];
 
 const OVERVIEW_FULLSCREEN_DATA_KEY = 'osHadFullscreenBeforeOverview';

@@ -2,8 +2,8 @@
  * Boot-time session saver.
  *
  * Owns the debounced + immediate session persistence pipeline:
- * normal mutations schedule a debounced REST POST through
- * `trackedFetch`; unload-time saves use `navigator.sendBeacon`
+ * normal mutations schedule a debounced, rate-limited REST POST
+ * through `trackedFetch`; unload-time saves use `navigator.sendBeacon`
  * with the nonce on the URL because WP REST's cookie-auth
  * middleware reads the nonce from `$_REQUEST` (URL query string +
  * form-encoded body), NOT from JSON bodies.
@@ -21,6 +21,21 @@ import type { DesktopConfig } from '../types';
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 
 /**
+ * Floor (ms) between the starts of two consecutive network writes.
+ *
+ * The debounce alone only collapses changes that arrive closer
+ * together than its own window. Closing three windows a beat apart
+ * clears it every time and posts three times; so does a settling
+ * in-flight save handing straight over to its queued successor. This
+ * is the rate limit underneath the debounce — never more than one
+ * write per interval, however the changes are spaced.
+ *
+ * Nothing is dropped to honour it: a save that arrives too soon is
+ * delayed to the floor, and unload still flushes immediately.
+ */
+const SESSION_SAVE_MIN_INTERVAL_MS = 1500;
+
+/**
  * Creates the debounced+immediate session saver. Returns a single
  * function that schedules a debounced REST write on each call.
  * Also exposed on `wp.os.saveSession()` for plugins that want
@@ -32,13 +47,31 @@ export function createSessionSaver(
 ): () => void {
 	let debounceTimer: number | null = null;
 	let inFlight = false;
+	let dirty = false;
+	/** When the last network write started. 0 = none yet. */
+	let lastSaveStartedAt = 0;
 
 	const doSave = async (): Promise< void > => {
 		if ( inFlight ) {
+			// A save is already on the wire, and this call was
+			// triggered by state the in-flight payload predates.
+			// Dropping it here loses that mutation for good — the
+			// debounce timer has already fired and cleared itself, so
+			// nothing retries. Mark the session dirty instead and
+			// re-run once the current request settles.
+			//
+			// Symptom of getting this wrong: close two windows in
+			// quick succession on a slow connection, reload, and the
+			// second one is back.
+			dirty = true;
 			return;
 		}
-		const payload = manager.snapshot();
 		inFlight = true;
+		lastSaveStartedAt = Date.now();
+		// Snapshot as late as possible — after the in-flight guard —
+		// so the payload reflects the state at send time, not at the
+		// moment the save was queued.
+		const payload = manager.snapshot();
 		try {
 			// Session save is a debounced background ping — silent
 			// so the user doesn't see a spinner every time they
@@ -67,6 +100,14 @@ export function createSessionSaver(
 			doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
 		} finally {
 			inFlight = false;
+			if ( dirty ) {
+				dirty = false;
+				// Back through `schedule()`, not straight into another
+				// `doSave()`. Handing over directly would let a slow
+				// request chain into an immediate second write and
+				// sidestep both the debounce and the rate limit.
+				schedule();
+			}
 		}
 	};
 
@@ -75,6 +116,10 @@ export function createSessionSaver(
 			clearTimeout( debounceTimer );
 			debounceTimer = null;
 		}
+		// The beacon below carries a snapshot taken right now, so it
+		// supersedes any queued re-run. Clearing the flag keeps a
+		// settling in-flight save from firing a redundant duplicate.
+		dirty = false;
 		// Use sendBeacon for unload-time saves where fetch may not
 		// complete. WP REST's cookie-auth middleware reads the nonce
 		// from `$_REQUEST` (URL query string + form-encoded body),
@@ -106,10 +151,24 @@ export function createSessionSaver(
 		if ( debounceTimer !== null ) {
 			clearTimeout( debounceTimer );
 		}
+		// Trailing-edge debounce, then held back to the rate limit if
+		// the previous write started too recently. Whichever wait is
+		// longer governs — so a burst collapses to one write, and a
+		// steady drip of changes still can't exceed one write per
+		// interval. The delay only postpones; the last snapshot always
+		// lands, and `pagehide` flushes past all of it.
+		let wait = SESSION_SAVE_DEBOUNCE_MS;
+		if ( lastSaveStartedAt !== 0 ) {
+			const sinceLastSave = Date.now() - lastSaveStartedAt;
+			wait = Math.max(
+				wait,
+				SESSION_SAVE_MIN_INTERVAL_MS - sinceLastSave,
+			);
+		}
 		debounceTimer = window.setTimeout( () => {
 			debounceTimer = null;
 			void doSave();
-		}, SESSION_SAVE_DEBOUNCE_MS ) as unknown as number;
+		}, wait ) as unknown as number;
 	};
 
 	// pagehide is the reliable unload signal across browsers

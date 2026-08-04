@@ -359,7 +359,7 @@ describe( 'SHELL_ERROR action fires alongside mount failures', () => {
 		] );
 
 		const host = document.createElement( 'div' );
-		host.id = 'desktop-mode-widgets';
+		host.id = 'os-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 		layer.ensureMounted( 'boom' );
@@ -618,7 +618,7 @@ describe( 'WidgetLayer.ensureMounted', () => {
 	test( 'returns false for an unregistered id', async () => {
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		const host = document.createElement( 'div' );
-		host.id = 'desktop-mode-widgets';
+		host.id = 'os-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 		expect( layer.ensureMounted( 'really-not-a-widget-id-xyz' ) ).toBe( false );
@@ -638,7 +638,7 @@ describe( 'WidgetLayer.ensureMounted', () => {
 		} );
 
 		const host = document.createElement( 'div' );
-		host.id = 'desktop-mode-widgets';
+		host.id = 'os-widgets';
 		document.body.appendChild( host );
 		const layer = new WidgetLayer( host, '' );
 

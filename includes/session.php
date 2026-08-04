@@ -36,6 +36,20 @@ const OPENSTATION_SESSION_MAX_DESKTOPS = 16;
 /** Allowed values for a window's state field. */
 const OPENSTATION_SESSION_STATES = array( 'normal', 'minimized', 'maximized', 'fullscreen' );
 
+/**
+ * Current time as epoch milliseconds.
+ *
+ * The session's `updated` field is the ordering key for the
+ * stale-write guard and the client stamps it with `Date.now()`.
+ * Server-side fallbacks have to speak the same unit — see
+ * {@see openstation_save_session()} for why the resolution matters.
+ *
+ * @return int Epoch milliseconds.
+ */
+function openstation_session_now_ms() {
+	return (int) round( microtime( true ) * 1000 );
+}
+
 /** Default desktop entry seeded into empty / corrupt sessions. */
 function openstation_default_desktop() {
 	return array(
@@ -107,12 +121,25 @@ function openstation_get_session( $user_id ) {
  * Rejects writes whose `updated` timestamp is older than what's
  * already on file — a simple last-write-wins guard that prevents two
  * tabs open on the same user from clobbering each other. The client
- * stamps `updated` with `Math.floor(Date.now() / 1000)` at snapshot
- * time (see `WindowManager.snapshot`), so this comparison lines up
- * with real wall-clock ordering on same-machine multi-tab setups.
+ * stamps `updated` with `Date.now()` — epoch MILLISECONDS — at
+ * snapshot time (see `WindowManager.snapshot`), so this comparison
+ * lines up with real wall-clock ordering on same-machine multi-tab
+ * setups.
  *
- * Equal timestamps (two writes in the same second) are accepted —
- * that's a tie and whichever the server processes first wins.
+ * Millisecond resolution is load-bearing, not cosmetic. The two
+ * writes that race hardest are a `keepalive` fetch still in flight
+ * and the `pagehide` beacon that supersedes it; at second resolution
+ * they tie, and the tie rule below hands the win to whichever the
+ * server processes last — which can be the stale one, reinstating a
+ * window the user just closed.
+ *
+ * Sessions written before the switch carry a seconds value. Those are
+ * ~1000x smaller than any millisecond stamp, so the first write after
+ * an upgrade always wins — which is the correct outcome for a stamp
+ * that is genuinely older.
+ *
+ * Equal timestamps are still accepted — that's a tie and whichever the
+ * server processes first wins.
  *
  * @param int   $user_id The user ID.
  * @param array $session Raw session payload (will be sanitized).
@@ -171,15 +198,18 @@ function openstation_sanitize_session( $session ) {
 	$clean = openstation_empty_session();
 
 	if ( ! is_array( $session ) ) {
-		$clean['updated'] = time();
+		$clean['updated'] = openstation_session_now_ms();
 		return $clean;
 	}
 
 	// Preserve the client's `updated` timestamp so the stale-write guard
 	// in openstation_save_session compares client-to-client (not client-to-server
-	// wallclock) — two saves landing in the same second must tie, not lose.
+	// wallclock) — two saves landing in the same millisecond must tie, not lose.
+	// The fallback matches the client's unit (epoch milliseconds); mixing
+	// units here would store a seconds value that every later comparison
+	// treats as ancient, quietly disabling the guard.
 	$incoming_updated = isset( $session['updated'] ) ? (int) $session['updated'] : 0;
-	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : time();
+	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : openstation_session_now_ms();
 
 	if ( isset( $session['focused'] ) && is_string( $session['focused'] ) ) {
 		$clean['focused'] = sanitize_key( $session['focused'] );

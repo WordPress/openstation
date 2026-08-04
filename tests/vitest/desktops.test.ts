@@ -471,6 +471,20 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( snap.focused ).toBe( '' );
 	} );
 
+	test( 'snapshot stamps `updated` in epoch milliseconds', async () => {
+		await manager.open( openConfig( 'a' ) );
+
+		const before = Date.now();
+		const snap = manager.snapshot();
+		const after = Date.now();
+
+		// `updated` is the server's stale-write ordering key. At second
+		// resolution the `keepalive` fetch and the `pagehide` beacon
+		// tie, and a stale payload can reinstate a closed window.
+		expect( snap.updated ).toBeGreaterThanOrEqual( before );
+		expect( snap.updated ).toBeLessThanOrEqual( after );
+	} );
+
 	// -----------------------------------------------------------------
 	// Active-desktop scoping for isActive / isActiveByBaseId /
 	// getAllByBaseIdOnActiveDesktop / minimizeAll / restoreFrom /
@@ -625,7 +639,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 				document.body.appendChild( sideDock );
 				toRemove.push( sideDock );
 				const widgets = document.createElement( 'div' );
-				widgets.id = 'desktop-mode-widgets';
+				widgets.id = 'os-widgets';
 				document.body.appendChild( widgets );
 				toRemove.push( widgets );
 

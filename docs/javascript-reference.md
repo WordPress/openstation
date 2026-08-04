@@ -1289,6 +1289,8 @@ window.wp.os.windowManager.focus( someWindow );
 window.wp.os.saveSession();
 ```
 
+Calling it is cheap and safe to do liberally — it schedules, it does not send. Writes are trailing-edge debounced and then rate limited to at most one network request per interval, so a burst of changes collapses into a single POST. Nothing is dropped to achieve that: a call that arrives too soon is delayed rather than discarded, a call made while a request is in flight is re-sent after it settles, and `pagehide` flushes the current snapshot past both the debounce and the rate limit via `navigator.sendBeacon`. The last state always reaches the server.
+
 ---
 
 ### `presence` — Stable

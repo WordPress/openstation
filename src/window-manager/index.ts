@@ -1711,7 +1711,15 @@ export class WindowManager {
 			desktops: this.getDesktops(),
 			activeDesktop: this._activeDesktopId,
 			focused: focusedId,
-			updated: Math.floor( Date.now() / 1000 ),
+			// Epoch MILLISECONDS, not seconds. This is the ordering key
+			// the server's stale-write guard compares, and at second
+			// resolution the two writes that race hardest — a
+			// `keepalive` fetch still on the wire and the `pagehide`
+			// beacon that supersedes it — almost always tie. A tie is
+			// accepted, so the loser is whichever the server happens to
+			// process last, and a stale payload can reinstate a window
+			// the user just closed. Milliseconds separate them.
+			updated: Date.now(),
 		};
 	}
 

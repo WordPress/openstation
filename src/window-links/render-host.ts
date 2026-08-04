@@ -327,7 +327,7 @@ export function startWindowLinkRenderHost( {
 		elevatedLayer.setAttribute( 'aria-hidden', 'true' );
 		// After the widget layer so DOM order mirrors the z-order
 		// (widgets z 1 → links z 50 → windows z 100+).
-		const widgets = document.getElementById( 'desktop-mode-widgets' );
+		const widgets = document.getElementById( 'os-widgets' );
 		if ( widgets && widgets.parentElement === area ) {
 			widgets.insertAdjacentElement( 'afterend', elevatedLayer );
 			widgets.insertAdjacentElement( 'afterend', layer );

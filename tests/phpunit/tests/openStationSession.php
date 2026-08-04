@@ -413,6 +413,69 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The two writes that race hardest are a `keepalive` fetch still
+	 * in flight and the `pagehide` beacon that supersedes it. They can
+	 * land milliseconds apart, so the ordering key has to resolve
+	 * milliseconds — at second granularity they tie, the tie rule
+	 * hands the win to whichever the server processes last, and a
+	 * stale payload reinstates a window the user just closed.
+	 *
+	 * @covers ::openstation_save_session
+	 */
+	public function test_save_session_orders_writes_within_the_same_second() {
+		$base = 1_700_000_000_000; // Epoch ms.
+
+		// Beacon: the user closed the window, snapshot has none.
+		$beacon = array(
+			'windows' => array(),
+			'focused' => '',
+			'updated' => $base + 500,
+		);
+		$this->assertTrue( openstation_save_session( self::$admin_id, $beacon ) );
+
+		// The slower `keepalive` fetch, snapshotted 300ms EARLIER,
+		// arrives second and still carries the window.
+		$stale = array(
+			'windows' => array( $this->make_window() ),
+			'focused' => 'wp-window-edit-php',
+			'updated' => $base + 200,
+		);
+		$this->assertFalse(
+			openstation_save_session( self::$admin_id, $stale ),
+			'A late-arriving older snapshot must not reopen a closed window.'
+		);
+
+		$stored = openstation_get_session( self::$admin_id );
+		$this->assertCount(
+			0,
+			$stored['windows'],
+			'The closed window must stay closed after a reload.'
+		);
+	}
+
+	/**
+	 * The server-side fallback stamp has to speak the same unit as the
+	 * client's `Date.now()`. Mixing units would store a seconds value
+	 * that every later millisecond comparison treats as ancient,
+	 * quietly disabling the stale-write guard.
+	 *
+	 * @covers ::openstation_sanitize_session
+	 * @covers ::openstation_session_now_ms
+	 */
+	public function test_sanitize_session_fallback_timestamp_is_milliseconds() {
+		$clean = openstation_sanitize_session(
+			array(
+				'windows' => array( $this->make_window() ),
+				// no `updated` — server must stamp it.
+			)
+		);
+
+		// Epoch ms is ~1000x epoch seconds. Anchor on a date well in
+		// the past so the assertion never goes stale.
+		$this->assertGreaterThan( 1_600_000_000_000, $clean['updated'] );
+	}
+
+	/**
 	 * Missing `updated` on the incoming payload should not block the
 	 * save — first-write-ever and edge cases where the client couldn't
 	 * compute a timestamp stay functional.
