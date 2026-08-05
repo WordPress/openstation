@@ -2272,6 +2272,15 @@ export class Window {
 				current.remove();
 				this.iframe = buffer;
 
+				// The swap may have replaced a frame whose FIRST load
+				// never finished (a companion refreshed right after
+				// opening) — its pending load event died with it, and
+				// the boot overlay it armed would never clear. The
+				// buffer's load HAS completed, so the window provably
+				// has ready content: mark it so. A no-op in the common
+				// case where the overlay already cleared.
+				markWindowContentReady( this.id );
+
 				// Keep the overlay contract alive for FUTURE classic
 				// reloads: the original frame got this wiring in
 				// `dom.ts` at build time; the twin needs it too or a

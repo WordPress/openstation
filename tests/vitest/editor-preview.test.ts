@@ -116,10 +116,16 @@ afterEach( () => {
 	document.body.innerHTML = '';
 } );
 
-/** Boot the module against a fresh fake manager + stubbed transport. */
+/**
+ * Boot the module against a fresh fake manager + stubbed transport.
+ * The default transport answers `not-dirty` — nothing saved, so the
+ * click flow schedules no post-open refresh and lifecycle tests stay
+ * free of stray debounce timers. Tests exercising the refresh pass
+ * an explicit `saved` result.
+ */
 async function boot(
 	transportResult: import( '../../src/editor-preview/autosave' ).AutosaveResult = {
-		status: 'saved',
+		status: 'not-dirty',
 	},
 ) {
 	const api = await load();
@@ -256,7 +262,7 @@ describe( 'eye click', () => {
 		expect( config.ephemeral ).toBe( true );
 	} );
 
-	test( 'prefers the fresh autosave previewUrl over the identity one', async () => {
+	test( 'a saved autosave silently refreshes the companion at the fresh link', async () => {
 		const fresh = '/?p=1&preview=true&preview_nonce=fresh';
 		const { def, manager, setWindowContent } = await boot( {
 			status: 'saved',
@@ -270,12 +276,22 @@ describe( 'eye click', () => {
 			previewUrl: PREVIEW_URL,
 		} );
 
+		vi.useFakeTimers();
 		await clickEye( def, editor );
 
-		expect( manager.open.mock.calls[ 0 ][ 0 ].url ).toBe( fresh );
+		// The companion opens immediately at the identity link — it
+		// never waits for the autosave round-trip…
+		expect( manager.open.mock.calls[ 0 ][ 0 ].url ).toBe( PREVIEW_URL );
+
+		// …and the landed save refreshes it at the fresher one,
+		// debounced and silent.
+		const preview = manager.getById( 'editor-preview-post-1' )!;
+		expect( preview.swapReload ).not.toHaveBeenCalled();
+		vi.advanceTimersByTime( 500 );
+		expect( preview.swapReload ).toHaveBeenCalledWith( fresh );
 	} );
 
-	test( 'falls back to the identity previewUrl on timeout', async () => {
+	test( 'a timeout leaves the companion on the identity previewUrl', async () => {
 		const { def, manager, setWindowContent } = await boot( {
 			status: 'timeout',
 		} );
@@ -287,9 +303,58 @@ describe( 'eye click', () => {
 			previewUrl: PREVIEW_URL,
 		} );
 
+		vi.useFakeTimers();
 		await clickEye( def, editor );
 
 		expect( manager.open.mock.calls[ 0 ][ 0 ].url ).toBe( PREVIEW_URL );
+
+		// Nothing was saved — no refresh gets scheduled.
+		const preview = manager.getById( 'editor-preview-post-1' )!;
+		vi.advanceTimersByTime( 5000 );
+		expect( preview.swapReload ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the companion opens before the autosave settles', async () => {
+		const api = await boot();
+		let release: (
+			r: import( '../../src/editor-preview/autosave' ).AutosaveResult,
+		) => void = () => undefined;
+		api._setAutosaveTransportForTests(
+			() =>
+				new Promise( ( resolve ) => {
+					release = resolve;
+				} ),
+		);
+		const editor = fakeWin( 'w1' );
+		api.manager.add( editor );
+		api.setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			previewUrl: PREVIEW_URL,
+		} );
+
+		await clickEye( api.def, editor );
+
+		// The save round-trip is still in flight — the companion is
+		// already open and the pairing recorded (a slow save used to
+		// read as a hang: nothing on screen reacted until it landed).
+		expect( api.manager.open ).toHaveBeenCalledTimes( 1 );
+		expect( api.manager.getById( 'editor-preview-post-1' ) ).toBeTruthy();
+
+		// The eye pulses while the save settles…
+		const host = document.createElement( 'os-window-button' );
+		api.def.render!( host, editor as never );
+		expect( host.getAttribute( 'aria-busy' ) ).toBe( 'true' );
+		expect( host.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+
+		// …and stops once it lands.
+		release( { status: 'saved' } );
+		for ( let i = 0; i < 6; i++ ) {
+			await Promise.resolve();
+		}
+		const settled = document.createElement( 'os-window-button' );
+		api.def.render!( settled, editor as never );
+		expect( settled.getAttribute( 'aria-busy' ) ).toBeNull();
 	} );
 
 	test( 'fires EDITOR_PREVIEW_OPENED with the pairing payload', async () => {
@@ -432,8 +497,8 @@ describe( 'eye click', () => {
 		expect( log ).toHaveLength( 0 );
 	} );
 
-	test( 'does not open when the editor closed mid-autosave', async () => {
-		const { def, manager, setWindowContent } = await boot();
+	test( 'does not open when the editor window is already gone', async () => {
+		const { def, manager, transport, setWindowContent } = await boot();
 		const editor = fakeWin( 'w1' );
 		manager.add( editor );
 		setWindowContent( 'w1', {
@@ -444,7 +509,7 @@ describe( 'eye click', () => {
 
 		const host = document.createElement( 'os-window-button' );
 		def.render!( host, editor as never );
-		// Close the editor before the transport resolves.
+		// The editor vanished between render and click (stale button).
 		manager.remove( 'w1' );
 		host.dispatchEvent( new MouseEvent( 'click' ) );
 		for ( let i = 0; i < 6; i++ ) {
@@ -452,6 +517,45 @@ describe( 'eye click', () => {
 		}
 
 		expect( manager.open ).not.toHaveBeenCalled();
+		expect( transport ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a save landing after teardown schedules no reload', async () => {
+		const api = await boot();
+		let release: (
+			r: import( '../../src/editor-preview/autosave' ).AutosaveResult,
+		) => void = () => undefined;
+		api._setAutosaveTransportForTests(
+			() =>
+				new Promise( ( resolve ) => {
+					release = resolve;
+				} ),
+		);
+		const editor = fakeWin( 'w1' );
+		api.manager.add( editor );
+		api.setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			previewUrl: PREVIEW_URL,
+		} );
+
+		await clickEye( api.def, editor );
+		const preview = api.manager.getById( 'editor-preview-post-1' )!;
+
+		// The editor closes while the save is still on the wire — the
+		// normal lifecycle takes the companion down with it.
+		api.manager.remove( 'w1' );
+		hooks.doAction( HOOKS.WINDOW_CLOSED, { windowId: 'w1' } );
+		expect( preview.destroy ).toHaveBeenCalledTimes( 1 );
+
+		// The late save must not resurrect a reload on the dead pairing.
+		vi.useFakeTimers();
+		release( { status: 'saved' } );
+		for ( let i = 0; i < 6; i++ ) {
+			await Promise.resolve();
+		}
+		vi.advanceTimersByTime( 5000 );
+		expect( preview.swapReload ).not.toHaveBeenCalled();
 	} );
 } );
 
@@ -701,6 +805,58 @@ describe( 'save-driven reload', () => {
 			( c ) => ( c[ 0 ] as { type?: string } ).type,
 		);
 		expect( types ).toContain( 'os-editor-live-unwatch' );
+	} );
+
+	test( 'IFRAME_READY re-arms the live watch with a fresh id', async () => {
+		const api = await boot();
+		const editor = fakeWin( 'w1' );
+		const frame = fakeIframe();
+		editor.iframe = frame.iframe;
+		api.manager.add( editor );
+		api.setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			previewUrl: PREVIEW_URL,
+		} );
+		await clickEye( api.def, editor );
+
+		const watchMsgs = () =>
+			frame.postMessage.mock.calls
+				.map( ( c ) => c[ 0 ] as { type?: string; watchId?: string } )
+				.filter( ( m ) => m.type === 'os-editor-live-watch' );
+		expect( watchMsgs() ).toHaveLength( 1 );
+		const firstId = watchMsgs()[ 0 ].watchId;
+
+		// The editor page reloaded (the classic editor does on every
+		// manual save) — readiness re-announces, and the watch, which
+		// died with the old page, must be re-armed under a fresh id.
+		hooks.doAction( HOOKS.IFRAME_READY, { windowId: 'w1' } );
+
+		expect( watchMsgs() ).toHaveLength( 2 );
+		const secondId = watchMsgs()[ 1 ].watchId;
+		expect( secondId ).not.toBe( firstId );
+
+		// The previous id was unwatched first, so a page that never
+		// reloaded doesn't end up autosaving twice per pause.
+		const unwatch = frame.postMessage.mock.calls
+			.map( ( c ) => c[ 0 ] as { type?: string; watchId?: string } )
+			.find( ( m ) => m.type === 'os-editor-live-unwatch' );
+		expect( unwatch?.watchId ).toBe( firstId );
+
+		// A live-saved under the new id still reloads the companion.
+		const preview = api.manager.getById( 'editor-preview-post-1' )!;
+		vi.useFakeTimers();
+		window.dispatchEvent(
+			new MessageEvent( 'message', {
+				origin: window.location.origin,
+				data: {
+					type: 'os-editor-live-saved',
+					watchId: secondId,
+				},
+			} ),
+		);
+		vi.advanceTimersByTime( 500 );
+		expect( preview.swapReload ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'the live filter can disable typing-driven updates', async () => {

@@ -145,6 +145,31 @@ describe( 'Window.swapReload', () => {
 		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
 	} );
 
+	test( 'a swap completing before the FIRST load clears the boot overlay', async () => {
+		const win = await manager.open( openConfig( 'sw-early' ) );
+		const body = win.element.querySelector( '.os-window__body' )!;
+		// The initial load never fired — the boot overlay is armed.
+		expect(
+			body.classList.contains( 'os-window__body--loading' ),
+		).toBe( true );
+
+		// Refresh before the initial load lands (an editor-preview
+		// companion whose background autosave settles fast does
+		// exactly this). The original frame is removed with its
+		// pending load event — without the completion-side
+		// markWindowContentReady, nothing would ever clear the
+		// overlay.
+		win.swapReload();
+		const buffer = body.querySelector< HTMLIFrameElement >(
+			BUFFER_SELECTOR,
+		)!;
+		buffer.dispatchEvent( new Event( 'load' ) );
+
+		expect(
+			body.classList.contains( 'os-window__body--loading' ),
+		).toBe( false );
+	} );
+
 	test( 'a newer swap supersedes an in-flight buffer; its late load is inert', async () => {
 		const win = await manager.open( openConfig( 'sw3' ) );
 		const body = win.element.querySelector( '.os-window__body' )!;

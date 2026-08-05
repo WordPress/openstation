@@ -374,6 +374,29 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The soft-reload topic matcher and the save-watcher's broadcast
+	 * emitter live in the same script but were once renamed out of
+	 * sync — the matcher expected a prefix nothing emits, silently
+	 * killing every list-page soft reload. Pin both sides to the
+	 * `os.` prefix so they can only move together.
+	 *
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
+	public function test_bridge_script_soft_reload_matcher_matches_emitted_topic_prefix() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['openstation_chromeless'] = '1';
+
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The matcher.
+		$this->assertStringContainsString( '/^os\.(.+)\.changed$/', $output );
+		// The emitter it must keep matching.
+		$this->assertStringContainsString( "'os.' +", $output );
+	}
+
+	/**
 	 * Link interceptor must be inside the bridge script so stray clicks on
 	 * `<a href="/wp-admin/...">` don't kick the iframe out of chromeless mode.
 	 *
