@@ -915,15 +915,37 @@ button.os-folder-status-bar__segment:hover {
 }
 
 /*
- * "New folder" inline dialog. Centered modal with a focused
- * input — replaces the placeholder window.prompt. Plain HTML
- * controls so it works as a building block before richer
- * dialog primitives land.
+ * The shell's two built-in modals — "New folder" / "Rename", and the
+ * web-link dialog, which reuses this class set for its surface. Both
+ * are light-DOM overlays that slot `<os-text-field>` +
+ * `<os-button>` for their controls.
+ *
+ * The surface reads the same `--os-ui-modal-*` family that
+ * `<os-modal>` and `<os-confirm-dialog>` do, so the three look like
+ * one dialog system and answer to a desktop theme together. Two
+ * things it must NOT do, both of which it used to:
+ *
+ *   - Paint from `--os-bg`. That is the WALLPAPER token: the desk
+ *     default is a gradient and the wallpaper layer overwrites it
+ *     with whatever artwork is active. A dialog is a surface, not a
+ *     desk. Same note as `os-modal.styles.ts`.
+ *   - Style raw form controls. Core's `forms.css` reaches every
+ *     `<input>` in the parent shell through `input[type="text"]` —
+ *     (0,1,1), which outranks a single class of ours — so a plain
+ *     input rendered as a white core-chrome box on this dark
+ *     surface no matter what we declared. The controls live in
+ *     shadow DOM now, where that sheet cannot follow.
  */
 .os-create-folder-dialog__overlay {
 	position: fixed;
 	inset: 0;
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	/* Desktop-theme texture slot: unset resolves to none. Mirrors
+	   the scrim treatment in os-modal. */
+	background-image: var( --os-ui-scrim-image, none );
+	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
+	background-size: var( --os-ui-scrim-image-size, auto );
+	background-position: var( --os-ui-scrim-image-position, center );
 	backdrop-filter: blur( 2px );
 	display: flex;
 	align-items: center;
@@ -932,10 +954,39 @@ button.os-folder-status-bar__segment:hover {
 }
 
 .os-create-folder-dialog {
+	/*
+	 * Re-point the shared control tokens for a dark dialog surface,
+	 * exactly as `<os-modal>` does on its host. The slotted
+	 * `<os-text-field>` / `<os-button>` inherit these across the
+	 * shadow boundary, so the field resolves a dark input with light
+	 * ink instead of the light-admin defaults (`--os-window-bg` is
+	 * `#fff` in an unthemed shell, which under a light `--os-ui-fg`
+	 * is the invisible-value trap the modal styles call out).
+	 *
+	 * Each reads a palette-owned `--os-ui-modal-*` name first, so a
+	 * desktop theme can still reach every one of them; the literals
+	 * are only the floor for a shell whose stylesheet never loaded.
+	 */
+	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
+	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
+	--os-ui-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
+	--os-window-bg: var( --os-ui-modal-field-bg, #2c3338 );
+	--os-ui-button-bg-hover: var(
+		--os-ui-modal-button-bg-hover,
+		rgba( 255, 255, 255, 0.08 )
+	);
+
 	width: min( 420px, 92vw );
-	background: var( --os-bg, #1d2327 );
-	color: var( --os-fg, #fff );
-	border: 1px solid rgba( 255, 255, 255, 0.08 );
+	/* Longhand, and a literal fallback: the shorthand would reset the
+	   texture slot below, and a gradient is invalid as a
+	   background-color — it would leave the dialog transparent. */
+	background-color: var( --os-ui-modal-bg, #1d2327 );
+	background-image: var( --os-ui-dialog-bg-image, none );
+	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
+	background-size: var( --os-ui-dialog-bg-image-size, auto );
+	background-position: var( --os-ui-dialog-bg-image-position, center );
+	color: var( --os-ui-modal-fg, var( --os-fg, #fff ) );
+	border: 1px solid var( --os-ui-border, rgba( 255, 255, 255, 0.08 ) );
 	border-radius: 10px;
 	box-shadow: 0 20px 50px rgba( 0, 0, 0, 0.6 );
 	padding: 20px 22px 18px;
@@ -948,33 +999,19 @@ button.os-folder-status-bar__segment:hover {
 	margin: 0 0 4px;
 	font-size: 16px;
 	font-weight: 600;
+	color: var( --os-ui-fg, #f0f0f1 );
 }
 
-.os-create-folder-dialog__label {
+.os-url-dialog__description {
+	margin: 0 0 4px;
 	font-size: 12px;
-	color: var( --os-fg-muted, rgba( 255, 255, 255, 0.7 ) );
-}
-
-.os-create-folder-dialog__input {
-	width: 100%;
-	padding: 8px 10px;
-	background: rgba( 255, 255, 255, 0.06 );
-	color: inherit;
-	border: 1px solid rgba( 255, 255, 255, 0.16 );
-	border-radius: 6px;
-	font-size: 14px;
-	outline: none;
-	box-sizing: border-box;
-}
-
-.os-create-folder-dialog__input:focus {
-	border-color: var( --wp-admin-theme-color, #2271b1 );
-	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.4 );
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #a7aaad );
 }
 
 .os-create-folder-dialog__error {
 	margin: 0;
-	color: #ff8a8a;
+	color: var( --os-ui-danger-hover, #ff8a8a );
 	font-size: 12px;
 }
 
@@ -985,39 +1022,10 @@ button.os-folder-status-bar__segment:hover {
 	margin-top: 6px;
 }
 
-.os-create-folder-dialog__btn {
-	border: 0;
-	border-radius: 6px;
-	padding: 8px 14px;
-	font-size: 13px;
-	cursor: pointer;
-	font-weight: 500;
-}
-
-.os-create-folder-dialog__btn--secondary {
-	background: rgba( 255, 255, 255, 0.08 );
-	color: inherit;
-}
-
-.os-create-folder-dialog__btn--secondary:hover {
-	background: rgba( 255, 255, 255, 0.14 );
-}
-
-.os-create-folder-dialog__btn--primary {
-	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --os-ui-fg-on-accent, #fff );
-}
-
-.os-create-folder-dialog__btn--primary:hover {
-	filter: brightness( 1.08 );
-}
-
-.os-create-folder-dialog__btn:disabled {
-	opacity: 0.55;
-	cursor: not-allowed;
-}
-
-.os-create-folder-dialog--busy .os-create-folder-dialog__input {
+/* The busy state dims the whole form area rather than the input
+   alone — the buttons carry their own disabled treatment from
+   os-button, and dimming one control of three read as a glitch. */
+.os-create-folder-dialog--busy .os-create-folder-dialog__field {
 	opacity: 0.7;
 }
 

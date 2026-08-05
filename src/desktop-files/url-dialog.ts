@@ -15,6 +15,7 @@
 
 import { applyFilters, doAction } from '../hooks';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-url-dialog';
 
@@ -93,6 +94,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	}
 
 	const nameField = document.createElement( 'os-text-field' );
+	nameField.className = 'os-create-folder-dialog__field';
 	nameField.setAttribute( 'label', options.nameLabel ?? 'Name' );
 	nameField.setAttribute( 'value', options.initialName ?? '' );
 	nameField.setAttribute( 'placeholder', 'My web app' );
@@ -100,6 +102,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	dialog.appendChild( nameField );
 
 	const urlField = document.createElement( 'os-text-field' );
+	urlField.className = 'os-create-folder-dialog__field';
 	urlField.setAttribute( 'label', options.urlLabel ?? 'URL' );
 	urlField.setAttribute( 'value', options.initialUrl ?? 'https://' );
 	urlField.setAttribute( 'placeholder', 'https://example.com' );
@@ -116,16 +119,16 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	const actions = document.createElement( 'div' );
 	actions.className = 'os-create-folder-dialog__actions';
 
-	const cancel = document.createElement( 'button' );
-	cancel.type = 'button';
+	const cancel = document.createElement( 'os-button' );
 	cancel.className =
 		'os-create-folder-dialog__btn os-create-folder-dialog__btn--secondary';
+	cancel.setAttribute( 'variant', 'ghost' );
 	cancel.textContent = 'Cancel';
 
-	const submit = document.createElement( 'button' );
-	submit.type = 'button';
+	const submit = document.createElement( 'os-button' );
 	submit.className =
 		'os-create-folder-dialog__btn os-create-folder-dialog__btn--primary';
+	submit.setAttribute( 'variant', 'primary' );
 	submit.textContent = options.submitLabel ?? 'Create';
 
 	actions.appendChild( cancel );
@@ -137,28 +140,16 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	active = overlay;
 
 	// Focus the name field on open. Web components upgrade async,
-	// so we wait a tick before reaching for the inner native input.
-	queueMicrotask( () => {
-		const input = nameField.shadowRoot?.querySelector< HTMLInputElement >( 'input' );
-		input?.focus();
-		input?.select();
-	} );
+	// so the helper retries on the next microtask.
+	focusField( nameField );
 
 	doAction( 'os.files.url-dialog.opened', {} );
 
-	const readValue = ( field: HTMLElement ): string => {
-		const v = ( field as unknown as { value?: string } ).value;
-		if ( typeof v === 'string' ) {
-			return v;
-		}
-		return field.shadowRoot?.querySelector< HTMLInputElement >( 'input' )?.value ?? '';
-	};
-
 	const setBusy = ( busy: boolean ): void => {
-		( nameField as unknown as { disabled: boolean } ).disabled = busy;
-		( urlField as unknown as { disabled: boolean } ).disabled = busy;
-		cancel.disabled = busy;
-		submit.disabled = busy;
+		setControlDisabled( nameField, busy );
+		setControlDisabled( urlField, busy );
+		setControlDisabled( cancel, busy );
+		setControlDisabled( submit, busy );
 		dialog.classList.toggle( 'os-create-folder-dialog--busy', busy );
 	};
 
@@ -173,7 +164,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	};
 
 	const doSubmit = async (): Promise< void > => {
-		const url = readValue( urlField ).trim();
+		const url = readFieldValue( urlField ).trim();
 		if ( ! url ) {
 			showError( 'Please enter a URL.' );
 			return;
@@ -188,7 +179,7 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 			showError( 'That doesn\'t look like a valid URL.' );
 			return;
 		}
-		const name = readValue( nameField ).trim();
+		const name = readFieldValue( nameField ).trim();
 		error.hidden = true;
 		setBusy( true );
 		try {
