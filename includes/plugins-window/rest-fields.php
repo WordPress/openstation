@@ -7,6 +7,7 @@
  *
  *   - openstation_update_available — `{ available, new_version }`
  *   - openstation_can_manage       — `{ activate, deactivate, delete }`
+ *   - openstation_wporg_slug       — .org directory slug, or null when not listed
  *   - openstation_icon_url         — local-folder icon, falling back to wp.org
  *   - openstation_size_kb          — disk size of plugin folder
  *   - openstation_auto_update      — `{ enabled, forced, supported }`
@@ -23,7 +24,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the five enrichment fields on the `plugin` REST resource.
+ * Register the six enrichment fields on the `plugin` REST resource.
  */
 function openstation_plugins_window_register_rest_fields() {
 	register_rest_field(
@@ -48,6 +49,20 @@ function openstation_plugins_window_register_rest_fields() {
 			'schema'       => array(
 				'description' => __( 'Per-plugin capability flags for the requester (activate / deactivate / delete).', 'desktop-mode' ),
 				'type'        => 'object',
+				'context'     => array( 'view', 'edit' ),
+				'readonly'    => true,
+			),
+		)
+	);
+
+	register_rest_field(
+		'plugin',
+		'openstation_wporg_slug',
+		array(
+			'get_callback' => 'openstation_plugins_window_field_wporg_slug',
+			'schema'       => array(
+				'description' => __( 'The plugin\'s slug on the WordPress.org directory, or null when the plugin is not listed there.', 'desktop-mode' ),
+				'type'        => array( 'string', 'null' ),
 				'context'     => array( 'view', 'edit' ),
 				'readonly'    => true,
 			),
@@ -235,6 +250,20 @@ function openstation_plugins_window_force_refresh_requested() {
 }
 
 /**
+ * Prime the `update_plugins` transient at most once per request.
+ */
+function openstation_plugins_window_prime_updates_once() {
+	static $primed = false;
+	if ( $primed ) {
+		return;
+	}
+	$primed = true;
+	openstation_plugins_window_maybe_refresh_update_transient(
+		openstation_plugins_window_force_refresh_requested()
+	);
+}
+
+/**
  * `openstation_update_available` callback.
  *
  * @param array $row Core REST plugin row.
@@ -253,19 +282,12 @@ function openstation_plugins_window_field_update_available( $row ) {
 
 	// Prime the transient once per request before reading it —
 	// otherwise REST callers see a stale/empty snapshot relative to
-	// the classic Plugins screen and the dock update badge. Static
-	// guard keeps the transient read off the hot per-row path. When
-	// the request carries `?openstation_force_refresh=1` we always
-	// take the slow path so the in-window Refresh button can actually
+	// the classic Plugins screen and the dock update badge. When the
+	// request carries `?openstation_force_refresh=1` the helper always
+	// takes the slow path so the in-window Refresh button can actually
 	// pull a fresh wp.org snapshot (the original throttle made it a
 	// no-op within 12h of the last check — see GH#202).
-	static $primed = false;
-	if ( ! $primed ) {
-		$primed = true;
-		openstation_plugins_window_maybe_refresh_update_transient(
-			openstation_plugins_window_force_refresh_requested()
-		);
-	}
+	openstation_plugins_window_prime_updates_once();
 
 	// `update_plugins` is the canonical site-wide cache of pending
 	// updates, refreshed by `wp_update_plugins()` on the standard
@@ -389,6 +411,41 @@ function openstation_plugins_window_field_can_manage( $row ) {
 		'deactivate' => $can_activate && 'active' === $status,
 		'delete'     => $can_delete_now,
 	);
+}
+
+/**
+ * `openstation_wporg_slug` callback.
+ *
+ * Is this plugin listed on the WordPress.org directory, and under
+ * which slug?
+ *
+ * This mirrors Core (see `WP_Plugins_List_Table::prepare_items()`).
+ *
+ * @param array $row Core REST plugin row.
+ * @return string|null Directory slug, or null when the plugin isn't listed.
+ */
+function openstation_plugins_window_field_wporg_slug( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+
+	openstation_plugins_window_prime_updates_once();
+
+	$slug = '';
+	if ( '' !== $plugin_file ) {
+		$updates = get_site_transient( 'update_plugins' );
+		if ( is_object( $updates ) ) {
+			$entry = null;
+			if ( isset( $updates->response[ $plugin_file ] ) ) {
+				$entry = (array) $updates->response[ $plugin_file ];
+			} elseif ( isset( $updates->no_update[ $plugin_file ] ) ) {
+				$entry = (array) $updates->no_update[ $plugin_file ];
+			}
+			if ( null !== $entry && ! empty( $entry['slug'] ) ) {
+				$slug = sanitize_key( (string) $entry['slug'] );
+			}
+		}
+	}
+
+	return '' !== $slug ? $slug : null;
 }
 
 /**

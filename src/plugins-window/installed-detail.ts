@@ -1198,31 +1198,13 @@ function sanitizeLinks( wrap: HTMLElement ): void {
 	} );
 }
 
-function deriveSlug( row: InstalledPlugin ): string {
-	if ( ! row.openstation_icon_url ) {
-		return '';
-	}
-	// `update_plugins` transient carries the canonical wp.org slug
-	// when the plugin has a pending update — prefer it.
-	const fromUpdate = row.openstation_update_available?.slug;
-	if ( fromUpdate ) {
-		return fromUpdate;
-	}
-	// Folder name is the wp.org repo slug for nearly every installed
-	// plugin on the directory. Textdomain only matches for a minority,
-	// so it's the last-resort fallback (single-file plugins where the
-	// folder is `.`).
-	const file = typeof row.plugin === 'string' ? row.plugin : '';
-	if ( file ) {
-		const slash = file.indexOf( '/' );
-		if ( slash > 0 ) {
-			return file.slice( 0, slash );
-		}
-	}
-	if ( row.textdomain ) {
-		return String( row.textdomain );
-	}
-	return '';
+/**
+ * The plugin's wp.org directory slug, or `''` when it isn't listed
+ * there.
+ */
+export function deriveSlug( row: InstalledPlugin ): string {
+	const slug = row.openstation_wporg_slug;
+	return typeof slug === 'string' ? slug : '';
 }
 
 function readDescription( row: InstalledPlugin ): string {
