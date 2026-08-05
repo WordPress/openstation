@@ -1473,7 +1473,27 @@ Four fields control the multi-selection behaviour of any menu entry, on both the
 | `multi` | `true` to allow the action into a multi-selection menu. Default `false`. |
 | `multiId` | Identity to intersect on, when the same *deed* carries different single-item labels. The folder tile's `delete-folder` and the file tile's `remove` both declare `multiId: 'trash'`, so a mixed selection can still be thrown away. Defaults to `id`. |
 | `bulkLabel( n )` | Label for a set. Falls back to `"<label> (N items)"`. |
-| `bulk( items )` | Batched runner, called ONCE with the whole set. Without it the framework fans out, running each item's own `onClick` in turn. |
+| `bulk( items )` | Batched runner. Called once with **the items that declared it** — see below. Without it, that item's own `onClick` runs instead. |
+
+**Every item goes to the runner its own contributor declared.** When
+actions merge under a shared `multiId` there is no rule that they
+share an implementation — the folder tile and the file tile could
+trash things differently, and a plugin can merge a third of its own.
+So the framework groups the selection by `bulk` *function identity*
+and calls each runner once with its own subset; contributors that
+ship no `bulk` fan out through `onClick`.
+
+Two things follow:
+
+- If your action merges with a built-in and you want one batched
+  call for the whole set, **share the same function reference** —
+  `bulk: theSameFn`, not a fresh `bulk: ( items ) => theSameFn( items )`
+  arrow at each site, which is a different identity and therefore a
+  second batch. The built-in Trash entries share one reference for
+  exactly this reason, so a mixed folder + file selection is one
+  toast with one Undo.
+- If your runner only understands your own items, you don't have to
+  do anything: it will only ever be handed those.
 
 ```javascript
 wp.os.hooks.addFilter(

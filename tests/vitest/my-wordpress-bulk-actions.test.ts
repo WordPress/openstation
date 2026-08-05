@@ -160,7 +160,10 @@ describe( 'my-wordpress bulk actions', () => {
 			'%d entry updated',
 			'%d entries updated',
 		);
-		expect( toasts[ 0 ] ).toBe( '2 entries updated · 1 failed' );
+		// The reason rides along — a partial failure is exactly the
+		// case where the user can see something worked and otherwise
+		// has no way to find out why the rest didn't.
+		expect( toasts[ 0 ] ).toBe( '2 entries updated · 1 failed — nope' );
 	} );
 
 	test( 'reportBulk surfaces the server error when nothing succeeded', async () => {
@@ -316,6 +319,73 @@ describe( 'my-wordpress bulk actions', () => {
 			expect( labels ).not.toContain( 'Sticky' );
 		}, 'Cancel' );
 		await run2;
+	} );
+
+	test( 'the additive merge re-reads terms after the modal closes', async () => {
+		// The pre-modal snapshot is taken before a dialog that stays
+		// open for as long as the user takes. The merge is additive, so
+		// a stale `existing` silently deletes any term somebody else
+		// added while they were thinking.
+		const mod = await load();
+		let reads = 0;
+		stubFetch( {
+			'wp/v2/posts?': () => {
+				reads += 1;
+				// A collaborator adds term 9 while the modal is open.
+				return json( [
+					{ id: 11, categories: reads === 1 ? [ 4 ] : [ 4, 9 ] },
+				] );
+			},
+			'wp/v2/users': () => json( [] ),
+			'wp/v2/categories': () =>
+				json( [ { id: 7, name: 'News', parent: 0 } ] ),
+		} );
+
+		const run = mod.bulkEditEntities( ENTITY, [ { id: 11 } ] as never );
+		await withModal( ( modal ) => {
+			const picker = modal.querySelector( 'os-category-picker' ) as
+				HTMLElement & { value: number[] };
+			picker.value = [ 7 ];
+		} );
+		await run;
+
+		expect( reads ).toBe( 2 );
+		const writes = calls.filter( ( c ) => c.method === 'POST' );
+		// 9 survives because the merge used the post-modal read.
+		expect( writes[ 0 ].body?.categories ).toEqual( [ 4, 9, 7 ] );
+	} );
+
+	test( 'no taxonomy change means no second read', async () => {
+		const mod = await load();
+		let reads = 0;
+		stubFetch( {
+			'wp/v2/posts?': () => {
+				reads += 1;
+				return json( [ { id: 11, categories: [ 4 ] } ] );
+			},
+			'wp/v2/users': () => json( [] ),
+			'wp/v2/categories': () => json( [] ),
+		} );
+		const run = mod.bulkEditEntities( ENTITY, [ { id: 11 } ] as never );
+		await withModal( ( modal ) => setSelect( modal, 'Status', 'draft' ) );
+		await run;
+		expect( reads ).toBe( 1 );
+	} );
+
+	test( 'a partial failure says WHY, not just how many', async () => {
+		const mod = await load();
+		mod.reportBulk(
+			{
+				succeeded: [ 1 ],
+				failed: 1,
+				firstError: 'Sorry, you are not allowed to edit this post.',
+			},
+			'%d entry updated',
+			'%d entries updated',
+		);
+		expect( toasts[ 0 ] ).toBe(
+			'1 entry updated · 1 failed — Sorry, you are not allowed to edit this post.',
+		);
 	} );
 
 	test( 'a viewer refused the edit context still gets a bulk edit', async () => {

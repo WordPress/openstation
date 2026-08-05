@@ -62,8 +62,6 @@ import '../ui/components/os-button/os-button';
 import '../ui/components/os-category-picker/os-category-picker';
 import '../ui/components/os-tag-input/os-tag-input';
 import '../ui/components/os-notice/os-notice';
-import '../ui/components/os-role-picker/os-role-picker';
-import '../ui/components/os-spinner/os-spinner';
 import type { OsTagItem } from '../ui/components/os-tag-input/os-tag-input';
 
 /** Sentinel for every "— No change —" control in the bulk-edit modal. */
@@ -145,10 +143,16 @@ export function reportBulk(
 		message:
 			result.failed > 0
 				? sprintf(
-					/* translators: 1: what succeeded, e.g. "3 items updated". 2: number that failed. */
-					__( '%1$s · %2$d failed', 'desktop-mode' ),
+					/* translators: 1: what succeeded, e.g. "3 items updated". 2: number that failed. 3: the server's reason for the first failure. */
+					__( '%1$s · %2$d failed — %3$s', 'desktop-mode' ),
 					done,
 					result.failed,
+					// The reason matters most in exactly the case we
+					// used to drop it: a partial failure, where the
+					// user can see something worked and has no way to
+					// find out why the rest didn't.
+					result.firstError ||
+						__( 'no reason given', 'desktop-mode' ),
 				)
 				: done,
 		duration: result.failed > 0 ? 6000 : 4000,
@@ -451,7 +455,30 @@ export async function bulkEditEntities(
 		return [];
 	}
 
-	const byId = new Map( current.map( ( row ) => [ row.id, row ] ) );
+	/*
+	 * Re-read the taxonomy state now the modal has closed, but only
+	 * when the patch actually merges terms.
+	 *
+	 * The snapshot above was taken BEFORE a dialog that sits open for
+	 * as long as the user takes to fill it in. The merge is additive —
+	 * `body.categories = existing ∪ picked` — so a stale `existing`
+	 * silently deletes any term somebody else added in the meantime.
+	 * The window is narrow but it is exactly as long as the user is
+	 * thinking, which is not short.
+	 *
+	 * A failed re-read falls back to the snapshot: the merge is still
+	 * better than not applying the edit at all.
+	 */
+	let merged = current;
+	if ( patch.addCategories || patch.addTags ) {
+		try {
+			merged = await fetchEntityBulkFields( entity, ids );
+		} catch {
+			merged = current;
+		}
+	}
+
+	const byId = new Map( merged.map( ( row ) => [ row.id, row ] ) );
 	const result = await runBulk( ids, async ( id ) => {
 		const body: Record< string, unknown > = {};
 		if ( patch.status !== undefined ) {

@@ -312,19 +312,48 @@ export async function trashManyWithUndo(
 			: `${ deleted.length } ${ noun } moved to Trash`;
 
 	showTrashedToast( message, async () => {
-		await Promise.allSettled(
+		const restores = await Promise.allSettled(
 			deleted.map( ( d ) =>
 				rest.restoreTrashedItem( d.restoreId, d.restoreKind ),
 			),
 		);
 		await rehydrate();
+
+		// Announce only what actually came back. Broadcasting the
+		// whole batch would tell the Recycle Bin's badge and every
+		// other listener that an item was restored while it is still
+		// sitting in the trash — a lie that survives until the next
+		// full refresh, and one the single-item undo paths don't tell
+		// because they only broadcast inside their success branch.
+		const restored = deleted.filter(
+			( _d, index ) => restores[ index ].status === 'fulfilled',
+		);
+		const stillTrashed = deleted.length - restored.length;
+		for ( const result of restores ) {
+			if ( result.status === 'rejected' ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					'[openstation] restore (bulk) failed for one item:',
+					result.reason,
+				);
+			}
+		}
 		for ( const kind of [ 'placement', 'shortcut', 'folder' ] as const ) {
-			const ids = deleted
+			const ids = restored
 				.filter( ( d ) => d.kind === kind )
 				.map( ( d ) => d.id );
 			if ( ids.length > 0 ) {
 				broadcastFilesChange( kind, 'untrashed', ids );
 			}
+		}
+		if ( stillTrashed > 0 ) {
+			// The user pressed Undo and part of it didn't take. Saying
+			// nothing would leave them believing it did.
+			showTrashErrorToast(
+				new Error(
+					`${ stillTrashed } of ${ deleted.length } items could not be restored.`,
+				),
+			);
 		}
 	} );
 }

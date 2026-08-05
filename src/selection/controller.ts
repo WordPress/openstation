@@ -50,6 +50,32 @@ const MARQUEE_SCROLL_PX = 12;
 const MARQUEE_ACTIVE_ATTR = 'data-os-marquee';
 
 /**
+ * Whether `el` is a scroller the USER could scroll themselves.
+ *
+ * Overflowing content is not the question — the desktop area is
+ * `overflow: hidden` and its icons plus its 80px bottom padding
+ * overflow it constantly, so `scrollHeight > clientHeight` is true
+ * there and answering that question alone made a marquee dragged to
+ * the bottom of the screen scroll the WALLPAPER: a surface with no
+ * scrollbar, that nothing else can scroll, sliding under the user's
+ * band. The question is whether the box is a scroll container at
+ * all.
+ */
+function isUserScrollable( el: HTMLElement ): boolean {
+	if ( el.scrollHeight <= el.clientHeight ) {
+		return false;
+	}
+	const overflowY = el.ownerDocument?.defaultView
+		?.getComputedStyle( el )
+		?.overflowY;
+	return (
+		overflowY === 'auto' ||
+		overflowY === 'scroll' ||
+		overflowY === 'overlay'
+	);
+}
+
+/**
  * Stop the browser from running its OWN selection under ours.
  *
  * A tile can't start a native text selection — tiles are
@@ -234,6 +260,17 @@ export function attachSelection(
 		},
 	} );
 
+	/**
+	 * This controller's identity, for deciding whether the shared
+	 * `lastActive` snapshot is ours to clear on destroy.
+	 *
+	 * Not `surface` + `scope`: two folder windows open on the SAME
+	 * folder share both, and closing one would blank the snapshot the
+	 * other just wrote. An object reference is the only thing that
+	 * distinguishes two live controllers with identical descriptions.
+	 */
+	const identity = {};
+
 	const emitChanged = ( keys: string[] ): void => {
 		if ( typeof document === 'undefined' ) {
 			return;
@@ -244,6 +281,7 @@ export function attachSelection(
 			keys: keys.slice(),
 			count: keys.length,
 		};
+		lastActiveOwner = identity;
 		document.dispatchEvent(
 			new CustomEvent( 'os-selection-changed', { detail: lastActive } ),
 		);
@@ -533,8 +571,7 @@ export function attachSelection(
 				return;
 			}
 			const host = background.getBoundingClientRect();
-			const canScroll =
-				background.scrollHeight > background.clientHeight;
+			const canScroll = isUserScrollable( background );
 			if ( canScroll ) {
 				let delta = 0;
 				if ( lastPointer.y < host.top + MARQUEE_EDGE_PX ) {
@@ -698,8 +735,12 @@ export function attachSelection(
 				onBackgroundPointerDown,
 			);
 			root.removeEventListener( 'keydown', onKeyDown );
-			if ( lastActive && lastActive.surface === ( options.surface ?? '' ) ) {
+			// Only if the snapshot is still OURS. A controller that
+			// closes after another one has taken over must not blank
+			// the live window's selection out from under it.
+			if ( lastActiveOwner === identity ) {
 				lastActive = null;
+				lastActiveOwner = null;
 			}
 		},
 	};
@@ -736,6 +777,9 @@ let lastActive: {
 	keys: string[];
 	count: number;
 } | null = null;
+
+/** Which controller wrote {@link lastActive}. See `identity` above. */
+let lastActiveOwner: object | null = null;
 
 /** @public */
 export function activeSelection(): {

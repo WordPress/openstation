@@ -208,6 +208,122 @@ describe( 'resolveCommonActions', () => {
 		expect( perItem ).not.toHaveBeenCalled();
 	} );
 
+	test( 'merged contributors each get their OWN bulk, with their own items', async () => {
+		// `multiId` merges actions that are the same deed under
+		// different labels — and nothing says they share an
+		// implementation. Handing the whole heterogeneous set to
+		// `contributors[0].bulk` pushed folders through the file
+		// runner (or dropped them), and which one "won" depended on
+		// the order the user happened to select in.
+		const { resolveCommonActions } = await load();
+		const fileBulk = vi.fn();
+		const folderBulk = vi.fn();
+		const build = ( item: Item ): SelectionAction< Item >[] => [
+			item.type === 'folder'
+				? {
+						id: 'delete-folder',
+						multiId: 'trash',
+						label: 'Move folder to Trash',
+						multi: true,
+						bulk: folderBulk,
+						onClick: vi.fn(),
+					}
+				: {
+						id: 'remove',
+						multiId: 'trash',
+						label: 'Move to Trash',
+						multi: true,
+						bulk: fileBulk,
+						onClick: vi.fn(),
+					},
+		];
+
+		const [ action ] = resolveCommonActions(
+			[ post, folder, attachment ],
+			build,
+		);
+		await action.onClick( new MouseEvent( 'click' ) );
+
+		expect( fileBulk ).toHaveBeenCalledTimes( 1 );
+		expect( fileBulk.mock.calls[ 0 ][ 0 ] ).toEqual( [ post, attachment ] );
+		expect( folderBulk ).toHaveBeenCalledTimes( 1 );
+		expect( folderBulk.mock.calls[ 0 ][ 0 ] ).toEqual( [ folder ] );
+	} );
+
+	test( 'contributors sharing one runner still make a single call', async () => {
+		// What the built-ins do: the folder entry and the file entry
+		// point at the SAME function, so a mixed selection is one
+		// batch — one toast, one Undo — not two.
+		const { resolveCommonActions } = await load();
+		const shared = vi.fn();
+		const build = ( item: Item ): SelectionAction< Item >[] => [
+			{
+				id: item.type === 'folder' ? 'delete-folder' : 'remove',
+				multiId: 'trash',
+				label: 'Trash',
+				multi: true,
+				bulk: shared,
+				onClick: vi.fn(),
+			},
+		];
+		const [ action ] = resolveCommonActions( [ post, folder ], build );
+		await action.onClick( new MouseEvent( 'click' ) );
+		expect( shared ).toHaveBeenCalledTimes( 1 );
+		expect( shared.mock.calls[ 0 ][ 0 ] ).toEqual( [ post, folder ] );
+	} );
+
+	test( 'items whose contributor has no bulk still fan out', async () => {
+		const { resolveCommonActions } = await load();
+		const batched = vi.fn();
+		const single = vi.fn();
+		const build = ( item: Item ): SelectionAction< Item >[] => [
+			item.type === 'folder'
+				? {
+						id: 'act',
+						label: 'Act',
+						multi: true,
+						onClick: single,
+					}
+				: {
+						id: 'act',
+						label: 'Act',
+						multi: true,
+						bulk: batched,
+						onClick: vi.fn(),
+					},
+		];
+		const [ action ] = resolveCommonActions( [ post, folder ], build );
+		await action.onClick( new MouseEvent( 'click' ) );
+		expect( batched.mock.calls[ 0 ][ 0 ] ).toEqual( [ post ] );
+		expect( single ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a throwing batch does not stop the other batches', async () => {
+		const spy = vi
+			.spyOn( console, 'error' )
+			.mockImplementation( () => undefined );
+		const { resolveCommonActions } = await load();
+		const ok = vi.fn();
+		const build = ( item: Item ): SelectionAction< Item >[] => [
+			{
+				id: 'act',
+				label: 'Act',
+				multi: true,
+				bulk:
+					item.type === 'folder'
+						? () => {
+								throw new Error( 'boom' );
+							}
+						: ok,
+				onClick: vi.fn(),
+			},
+		];
+		const [ action ] = resolveCommonActions( [ folder, post ], build );
+		await action.onClick( new MouseEvent( 'click' ) );
+		expect( ok ).toHaveBeenCalledTimes( 1 );
+		spy.mockRestore();
+	} );
+
 	test( 'without a bulk runner it fans out to each item’s own handler', async () => {
 		const { resolveCommonActions } = await load();
 		const calls: number[] = [];

@@ -50,6 +50,21 @@ import type { RestPlacementShape } from './rest';
  */
 const OPEN_CONFIRM_THRESHOLD = 5;
 
+/**
+ * The batched Trash runner, as ONE function reference shared by the
+ * folder entry and the file entry.
+ *
+ * They merge on `multiId: 'trash'`, and the resolver batches by
+ * runner IDENTITY — each distinct `bulk` function is called once with
+ * the items that declared it. Written inline at each site these would
+ * be two different closures over the same helper, so a mixed
+ * selection would produce two calls and therefore two toasts with two
+ * Undos, for what the user did as one gesture. Sharing the reference
+ * keeps it one of each.
+ */
+const trashMany = ( placements: RestPlacementShape[] ): Promise< void > =>
+	trashManyWithUndo( placements );
+
 /** Open every placement in a set, checking first if the set is large. */
 async function openMany( placements: readonly RestPlacementShape[] ): Promise< void > {
 	if ( placements.length > OPEN_CONFIRM_THRESHOLD ) {
@@ -224,7 +239,7 @@ export function buildPlacementActions(
 				danger: true,
 				multi: true,
 				bulkLabel: ( n ) => `Move ${ n } items to Trash`,
-				bulk: ( placements ) => trashManyWithUndo( placements ),
+				bulk: trashMany,
 				onClick: () => trashFolderWithUndo( placement ),
 			} );
 		}
@@ -287,7 +302,7 @@ export function buildPlacementActions(
 				danger: true,
 				multi: true,
 				bulkLabel: ( n ) => `Move ${ n } items to Trash`,
-				bulk: ( placements ) => trashManyWithUndo( placements ),
+				bulk: trashMany,
 				onClick: () => trashPlacementWithUndo( placement ),
 			} );
 		}

@@ -95,6 +95,16 @@ Then it runs `bulk( items )` once. Had you omitted `bulk`, the framework would h
 
 **`multiId` merges actions that are the same deed under different labels.** A folder tile offers `delete-folder` ("Move folder to Trash") and a file tile offers `remove` ("Move to Trash"). Selecting one of each is ordinary, and intersecting on the raw ids would leave that selection with nothing to do. Both declare `multiId: 'trash'` and merge into one entry. If your plugin adds a differently-labelled variant of an existing action, give it the same `multiId`.
 
+Merging does **not** hand one runner the whole set. The framework groups the selection by `bulk` function identity and calls each runner once with the items whose own contributor declared it — so a folder is never pushed through a file's implementation just because the user happened to select it first. If you want your merged action to batch as a single call alongside a built-in, share the same function reference:
+
+```js
+// Shared once, at module scope — not a fresh arrow at each site,
+// which is a different identity and therefore a second batch.
+const archiveAll = ( placements ) => archive( placements );
+
+// …then `bulk: archiveAll` everywhere the action is offered.
+```
+
 **Don't opt in what can't take it.** An action that opens a modal, prompts for a name, or navigates the window is about one thing. Left as-is it simply won't appear for a set, which is the honest outcome — better than twelve stacked dialogs.
 
 ## Acting on a set from outside the menu

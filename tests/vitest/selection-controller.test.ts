@@ -3,7 +3,10 @@
  * and the `selected` attribute / ARIA roles on the way out.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { attachSelection } from '../../src/selection/controller';
+import {
+	activeSelection,
+	attachSelection,
+} from '../../src/selection/controller';
 
 let root: HTMLElement;
 let background: HTMLElement;
@@ -78,6 +81,7 @@ describe( 'selection controller', () => {
 	} );
 	afterEach( () => {
 		document.body.innerHTML = '';
+		vi.unstubAllGlobals();
 	} );
 
 	test( 'marks the container as a multi-selectable listbox', () => {
@@ -515,6 +519,110 @@ describe( 'selection controller', () => {
 		window.dispatchEvent( new Event( 'blur' ) );
 		expect( document.querySelector( '.os-selection-marquee' ) ).toBeNull();
 		expect( document.body.hasAttribute( 'data-os-marquee' ) ).toBe( false );
+	} );
+
+	/**
+	 * Drive the auto-scroll loop by hand — capture the rAF callbacks
+	 * and run a bounded number of frames.
+	 */
+	function withFrames(): { run: ( n: number ) => void } {
+		const queue: FrameRequestCallback[] = [];
+		vi.stubGlobal( 'requestAnimationFrame', ( cb: FrameRequestCallback ) => {
+			queue.push( cb );
+			return queue.length;
+		} );
+		vi.stubGlobal( 'cancelAnimationFrame', () => undefined );
+		return {
+			run: ( n: number ) => {
+				for ( let i = 0; i < n; i += 1 ) {
+					queue.shift()?.( 0 );
+				}
+			},
+		};
+	}
+
+	function makeScrollable( overflowY: string ): void {
+		Object.defineProperty( background, 'scrollHeight', {
+			value: 900,
+			configurable: true,
+		} );
+		Object.defineProperty( background, 'clientHeight', {
+			value: 200,
+			configurable: true,
+		} );
+		background.style.overflowY = overflowY;
+	}
+
+	test( 'a canvas the user cannot scroll is never auto-scrolled', () => {
+		// The desktop area is `overflow: hidden` and its icons plus its
+		// bottom padding overflow it constantly, so "content is taller
+		// than the box" is true there. Auto-scrolling on that alone
+		// slid the WALLPAPER under the user's band — a surface with no
+		// scrollbar that nothing else can scroll.
+		const frames = withFrames();
+		tile( 'a' );
+		withRect( background, { left: 0, top: 0, width: 400, height: 200 } );
+		makeScrollable( 'hidden' );
+		attach();
+
+		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
+		// Pointer parked hard against the bottom edge.
+		document.dispatchEvent( pointerEvent( 'pointermove', 200, 199 ) );
+		frames.run( 5 );
+		expect( background.scrollTop ).toBe( 0 );
+		document.dispatchEvent( pointerEvent( 'pointerup', 200, 199 ) );
+	} );
+
+	test( 'a real scroller IS auto-scrolled at the edge', () => {
+		const frames = withFrames();
+		tile( 'a' );
+		withRect( background, { left: 0, top: 0, width: 400, height: 200 } );
+		makeScrollable( 'auto' );
+		attach();
+
+		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 200, 199 ) );
+		frames.run( 3 );
+		expect( background.scrollTop ).toBeGreaterThan( 0 );
+		document.dispatchEvent( pointerEvent( 'pointerup', 200, 199 ) );
+	} );
+
+	test( 'closing one controller does not blank another’s snapshot', () => {
+		// Two folder windows open on the SAME folder share both
+		// `surface` and `scope`, so neither identifies a controller.
+		const second = document.createElement( 'div' );
+		const secondRoot = document.createElement( 'div' );
+		second.appendChild( secondRoot );
+		document.body.appendChild( second );
+		const mk = ( parent: HTMLElement, key: string ) => {
+			const el = document.createElement( 'div' );
+			el.className = 'os-file-tile';
+			el.dataset.key = key;
+			parent.appendChild( el );
+			return el;
+		};
+		const a = tile( 'a' );
+		const b = mk( secondRoot, 'b' );
+
+		const first = attach( { surface: 'files', scope: '7' } );
+		const other = attachSelection( secondRoot, {
+			keyOf: ( el ) => el.dataset.key ?? null,
+			background: second,
+			surface: 'files',
+			scope: '7',
+		} );
+
+		click( a );
+		click( b );
+		expect( activeSelection()?.keys ).toEqual( [ 'b' ] );
+
+		// Close the window the user is NOT in.
+		first.destroy();
+		expect( activeSelection()?.keys ).toEqual( [ 'b' ] );
+
+		// Closing the one that owns the snapshot does clear it.
+		other.destroy();
+		expect( activeSelection() ).toBeNull();
 	} );
 
 	test( 'marquee can be disabled', () => {

@@ -173,21 +173,67 @@ export function resolveCommonActions< T >(
 			sort: Math.min( ...contributors.map( sortValue ) ),
 			multi: true,
 			onClick: async ( e: MouseEvent ) => {
-				if ( typeof primary.bulk === 'function' ) {
-					await primary.bulk( items.slice() );
-					return;
+				/*
+				 * Every item goes to the runner ITS OWN contributor
+				 * declared — never to whichever contributor happened
+				 * to be first.
+				 *
+				 * `multiId` merges actions that are the same deed
+				 * under different labels, and there is no rule that
+				 * they share an implementation: the folder tile's
+				 * "Move folder to Trash" and the file tile's "Move to
+				 * Trash" merge, and a plugin could merge a third with
+				 * a runner of its own. Handing the whole heterogeneous
+				 * set to `contributors[0].bulk` would push folders
+				 * through the file implementation — or silently drop
+				 * them — and which one "won" would depend on the
+				 * visual order the user happened to select in.
+				 *
+				 * So: group by runner identity, call each once with
+				 * the items it was declared for. Contributors that
+				 * ship no `bulk` fan out through their own `onClick`.
+				 * When every contributor points at the same function
+				 * — which is what the built-ins do — this is exactly
+				 * one call with the whole set, as before.
+				 */
+				const batches = new Map< NonNullable< SelectionAction< T >[ 'bulk' ] >, T[] >();
+				const singles: Array< SelectionAction< T > > = [];
+				contributors.forEach( ( contributor, index ) => {
+					const runner = contributor.bulk;
+					if ( typeof runner !== 'function' ) {
+						singles.push( contributor );
+						return;
+					}
+					const batch = batches.get( runner );
+					if ( batch ) {
+						batch.push( items[ index ] );
+					} else {
+						batches.set( runner, [ items[ index ] ] );
+					}
+				} );
+
+				for ( const [ runner, batch ] of batches ) {
+					try {
+						await runner( batch );
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							`[openstation] selection action '${ key }' failed for a batch:`,
+							err,
+						);
+					}
 				}
 				// Fan-out. Sequential, not parallel: these are the
 				// surface's own single-item handlers, and several of
 				// them open windows or write settings where ordering
 				// is visible to the user.
-				for ( const contributor of contributors ) {
+				for ( const contributor of singles ) {
 					try {
 						await contributor.onClick( e );
 					} catch ( err ) {
 						// eslint-disable-next-line no-console
 						console.error(
-							`[openstation] selection action '${ primary.id }' failed for one item:`,
+							`[openstation] selection action '${ key }' failed for one item:`,
 							err,
 						);
 					}
