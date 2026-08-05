@@ -1129,24 +1129,7 @@ export class Window {
 		this._notifyChromeStateChanged();
 	}
 
-	/**
-	 * Update the window title.
-	 *
-	 * Re-resolves the title node instead of trusting the reference the
-	 * constructor took. Layer 3's slot painter snapshots each slot's
-	 * construction-time DOM and repaints it from `cloneNode` copies,
-	 * so the span captured at construction is detached before anyone
-	 * can call this — and writing to an orphan is invisible. That is
-	 * how a window could report the new `config.title` while its title
-	 * bar still showed the old one, which silently broke every caller:
-	 * `wp.os` / plugin `setTitle`, the iframe's `os-title-change`, and
-	 * the shell's own page-title adoption.
-	 *
-	 * A `title` slot override (`appearance.slots.title`) can leave no
-	 * span at all. That is the plugin's business, so the title still
-	 * lands in `config` and on the hook; only the default rendering is
-	 * skipped.
-	 */
+	/** Update the window title. */
 	public setTitle( title: string ): void {
 		const titleEl = this.element.querySelector< HTMLElement >(
 			'.os-window__title',

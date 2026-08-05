@@ -1252,19 +1252,10 @@ function openstation_chromeless_bridge_script() {
 	 *
 	 * `textContent` is the wrong source on its own. WP Core routinely
 	 * pairs a terse visible label with a longer screen-reader one
-	 * inside the same anchor, and reads back as both at once — the
-	 * classic post editor's revisions link
-	 *
-	 *     <a href="revision.php?revision=N">
-	 *         <span aria-hidden="true">Browse</span>
-	 *         <span class="screen-reader-text">Browse revisions</span>
-	 *     </a>
-	 *
-	 * titled its window "Browse Browse revisions". Drop the
-	 * screen-reader half (`.screen-reader-text` is Core's own class
-	 * for it, `.hidden` covers the markup that toggles) and collapse
-	 * the indentation whitespace the templates leave behind, which is
-	 * what turned the seam into a visible gap.
+	 * inside the same anchor, and reads back as both at once. Drop the
+	 * screen-reader half (`.screen-reader-text` is Core's own class for
+	 * it, `.hidden` covers the markup that toggles) and collapse the
+	 * indentation whitespace the templates leave behind.
 	 *
 	 * The parent treats a label harvested this way as provisional and
 	 * upgrades it to the destination page's own title once the iframe
@@ -1309,45 +1300,21 @@ function openstation_chromeless_bridge_script() {
 		/*
 		 * A link that names another browsing context.
 		 *
-		 * `_blank` on a same-origin /wp-admin/ URL means "open this
-		 * admin screen without losing the one I am on". Inside the
-		 * shell the answer to that is another OpenStation window, not
-		 * a bare browser tab that drops the user out of the desktop
-		 * entirely — so those fall through to the admin branch below,
-		 * where the parent opens a window for the destination and
-		 * leaves this iframe exactly where it is. That IS what the
-		 * `_blank` asked for, just spelled in windows.
+		 * `_blank` on a /wp-admin/ URL means "open this admin screen
+		 * without losing the one I am on", and inside the shell that
+		 * is another window rather than a browser tab that drops the
+		 * user out of the desktop. Claimed only when the destination
+		 * is a DIFFERENT wp-admin file: whether two URLs on one file
+		 * are the same "page" depends on the shell's window-slug
+		 * rules, which the iframe can't see, and guessing wrong makes
+		 * the parent navigate the window the link was clicked in.
 		 *
-		 * Core hands us one directly: the block editor's revisions
-		 * sidebar renders "Open classic revisions screen" through
-		 * `<ExternalLink>`, which hard-codes `target="_blank"`, so
-		 * `revision.php?revision=N` used to eject the user into a
-		 * chrome-free wp-admin tab. Same failure mode the WooCommerce
-		 * panel links hit — see the `target="_blank"` note in
-		 * `docs/plugin-compat-layer.md` — with the extra sting that
-		 * under the PWA the tab is inside the app's own scope, so the
-		 * click relaunches the whole app.
-		 *
-		 * ONLY when the destination is a different wp-admin file,
-		 * though. Whether two URLs on the SAME file are the same
-		 * "page" is a question about the shell's window-slug rules
-		 * (which query params are identity-bearing), and the iframe
-		 * has no access to those. Guess wrong and the parent routes
-		 * the click as in-page navigation, which moves the window the
-		 * link was clicked in — destroying the exact context the
-		 * `_blank` asked to keep. So a `_blank` to
-		 * `admin.php?page=x&tab=b` from `admin.php?page=x` keeps
-		 * opening a browser tab, same as before. Fewer of these get
-		 * to be windows than could be, and none of them can eat the
-		 * page underneath.
-		 *
-		 * Every other target still yields. `_top` / `_parent` are a
-		 * deliberate "replace the whole shell" and hijacking them
-		 * would break the one escape hatch a page has; a named target
-		 * (`wp-preview-4`) is an author reusing one specific tab
-		 * across clicks, which a window cannot honour; and any target
-		 * on a non-admin URL is a real new tab we have no better
-		 * answer for.
+		 * Every other target yields. `_top` / `_parent` are a
+		 * deliberate "replace the whole shell" and a page's only
+		 * escape hatch; a named target (`wp-preview-4`) reuses one
+		 * specific tab across clicks, which a window cannot honour;
+		 * and any target on a non-admin URL has no window to open
+		 * into.
 		 */
 		var newContext = false;
 		var linkTarget = link.target || '';

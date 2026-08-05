@@ -914,16 +914,7 @@ function adminFileName( url: string ): string {
 
 /**
  * Admin screens that exist to run one action and then send the user
- * back to the page they came from. `revision.php` is Core's only
- * one: restoring a revision is a `document.location` assignment in
- * `wp-admin/js/revisions.js`, and WP answers it with a redirect to
- * the post editor.
- *
- * That redirect lands in whatever frame issued it, so the Revisions
- * window turned into a second copy of the editor — beside the editor
- * window the user opened it from, which still showed the pre-restore
- * post. Two windows on one post, one of them stale, and the window
- * that was doing the restoring outlived its only job.
+ * back to the page they came from.
  */
 const HANDOFF_SCREENS: ReadonlySet< string > = new Set( [ 'revision.php' ] );
 

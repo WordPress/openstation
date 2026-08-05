@@ -134,18 +134,6 @@ Core does not register `theme-install.php` as a submenu of `themes.php` — clas
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
 
-### Revisions screen — back link and the clipped revision card
-
-`revision.php` opens in its own window, which changes what two of its parts mean.
-
-The **"← Go to editor"** link is a back button for a screen the user navigated *into*. Here they didn't: the editor is still open in its own window behind this one, and closing this window is the way back. Following the link instead turns the Revisions window into a second editor.
-
-The **revision tooltip** — the author + timestamp card that follows the pointer along the slider — is positioned upward from the bottom of `.revisions-control-frame`, and in classic admin it clears the top of the viewport only because the screen's `<h1>` above it takes up room. Chromeless hides every screen `<h1>` (the window title bar says it instead), so the card lost that room and rendered with its top cut off by the window's edge. An iframe can't overflow its own box, so there is no scrolling to it.
-
-**Fix**: two per-page rules in `assets/css/chromeless.css` (`.os-chromeless.revision-php`) — hide the back link, and give `.revisions` a `48px` top padding. The padding goes on the wrapper rather than on `.revisions-control-frame`, because the frame is the positioned ancestor for the things pinned to its top corners (the compare-mode checkbox and the tooltip itself); padding the frame moves the controls down and leaves those behind at the old top edge.
-
-The restore itself is handled shell-side — see [Screens that hand off when they're done](./bridge-protocol.md#screens-that-hand-off-when-theyre-done).
-
 ## The script side: dependency repairs
 
 Some plugins / themes register block-editor scripts with incomplete `wp_enqueue_script()` dep arrays. When script load order accidentally resolves in their favor in classic admin, nobody notices; when our chromeless render shifts timing, the underlying bug surfaces and the plugin's React integration crashes before it can mount any UI.
