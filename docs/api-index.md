@@ -80,6 +80,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable |
 | — topic family | `os.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
 | `presence` | `PresenceApi` | Stable |
+| `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
 
 ### Commands, palettes, AI, settings
 
@@ -190,7 +191,7 @@ shared-store + registries. Index:
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
 | `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` site-folder entity kind | `registerEntityKind()` seam | Experimental |
+| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
 
 ## CustomEvents on `document`
 
@@ -211,6 +212,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-window-content-changed` | Experimental |
 | `os-window-link-groups-changed` | Experimental |
 | `os-presence-changed` | Stable |
+| `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
 | `os-registry-changed` | Stable |
 | `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |

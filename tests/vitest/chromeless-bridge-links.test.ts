@@ -136,6 +136,113 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 	} );
 } );
 
+describe( 'chromeless bridge: the label a link ships to the shell', () => {
+	/** The `label` on the last admin-link message. */
+	function label(): unknown {
+		return adminLinkMessages()[ 0 ]?.label;
+	}
+
+	test( 'screen-reader text is not part of the visible label', () => {
+		// The classic editor's revisions link pairs a terse visible
+		// word with a fuller screen-reader one, and `textContent` reads
+		// back as both — the window came out titled "Browse Browse
+		// revisions".
+		clickLink(
+			'<a href="/wp-admin/revision.php?revision=24"><span aria-hidden="true">Browse</span> <span class="screen-reader-text">Browse revisions</span></a>'
+		);
+
+		expect( label() ).toBe( 'Browse' );
+	} );
+
+	test( 'the markup’s indentation whitespace is collapsed', () => {
+		clickLink(
+			'<a href="/wp-admin/edit.php">\n\t\t\tAll\n\t\t\tPosts\n\t\t</a>'
+		);
+
+		expect( label() ).toBe( 'All Posts' );
+	} );
+
+	test( 'a link with nothing but screen-reader text falls back to its title', () => {
+		clickLink(
+			'<a href="/wp-admin/edit.php" title="Posts"><span class="screen-reader-text">Go to posts</span></a>'
+		);
+
+		expect( label() ).toBe( 'Posts' );
+	} );
+} );
+
+describe( 'chromeless bridge: links that name another browsing context', () => {
+	// The block editor's revisions sidebar renders "Open classic
+	// revisions screen" through `<ExternalLink>`, which hard-codes
+	// `target="_blank"`. Yielding on it threw the user out of the
+	// shell into a chrome-free wp-admin tab — and under the PWA that
+	// tab is inside the app's own scope, so the click relaunched the
+	// whole app. A `_blank` on an admin URL means "without losing the
+	// page I am on", which the shell answers with another window.
+	test( 'a _blank admin link is claimed for a desktop window', () => {
+		clickLink(
+			'<a href="/wp-admin/revision.php?revision=24" target="_blank" rel="external noopener">Open classic revisions screen</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/revision.php'
+		);
+		expect( adminLinkMessages()[ 0 ].url ).toContain( 'revision=24' );
+		// Tells the parent it may not drive THIS window with it.
+		expect( adminLinkMessages()[ 0 ].newContext ).toBe( true );
+	} );
+
+	test( 'a _blank to another view of the same admin file is left to the browser', () => {
+		// This page is `upload.php`. Whether two URLs on one file are
+		// the same "page" is a question about the shell's slug rules,
+		// which the iframe can't see — and guessing wrong makes the
+		// parent navigate the window the link was clicked in, eating
+		// the context the `_blank` asked to keep.
+		clickLink(
+			'<a href="/wp-admin/upload.php?mode=grid" target="_blank">Grid view</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
+	test( 'a plain click carries no new-context flag', () => {
+		clickLink( '<a href="/wp-admin/edit.php">Posts</a>' );
+
+		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
+	} );
+
+	test( 'a _blank non-admin link still opens a real browser tab', () => {
+		// Front-end and off-site URLs have no window to open into; the
+		// external-tab escalation is for plain clicks only.
+		clickLink(
+			'<a href="https://wordpress.org/documentation/" target="_blank">Documentation</a>'
+		);
+
+		expect( posted ).toHaveLength( 0 );
+	} );
+
+	test( 'a _top admin link keeps its escape from the shell', () => {
+		// `_top` is a deliberate "replace the whole shell". Hijacking
+		// it into a window would remove the only exit a page has.
+		clickLink(
+			'<a href="/wp-admin/options-general.php" target="_top">Settings</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
+	test( 'a named target is left to the tab it reuses', () => {
+		// `post.php`'s Preview reuses one tab per post across clicks —
+		// a window cannot honour that contract.
+		clickLink(
+			'<a href="/wp-admin/edit.php" target="wp-preview-4">Preview</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+} );
+
 describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 	// The Media list table stamps `aria-button-if-js` on its row
 	// actions but binds no handler, so these navigate for real. The

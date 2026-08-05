@@ -470,6 +470,11 @@ export interface MediaListItem {
 	caption?: { rendered: string };
 	description?: { rendered: string };
 	author?: number;
+	/**
+	 * Parent post id — 0 when the file is unattached. Drives the
+	 * Detach action, which is meaningless for a file with no parent.
+	 */
+	post?: number;
 	media_details?: {
 		width?: number;
 		height?: number;

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
 import { __resetRecoveryForTests } from '../../src/drag/recovery';
+import { GRID_CELL_H, GRID_PADDING } from '../../src/desktop-files/grid';
 
 type LayerModule = typeof import( '../../src/desktop-files/layer' );
 type StoreModule = typeof import( '../../src/desktop-files/store' );
@@ -491,9 +492,11 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 			( patch![ 1 ] as RequestInit ).body as string,
 		) as { x: number; y: number; parentId: number };
 		// Critical assertion: the snapped cell is (0, 1) — NOT (0, 0)
-		// which is My WordPress's pinned slot.
-		expect( body.x ).toBe( 16 );
-		expect( body.y ).toBe( 126 );
+		// which is My WordPress's pinned slot. Derived from the grid
+		// constants rather than spelled out, so retuning the gap
+		// doesn't read as this test failing.
+		expect( body.x ).toBe( GRID_PADDING );
+		expect( body.y ).toBe( GRID_PADDING + GRID_CELL_H );
 
 		handle.dispose();
 	} );

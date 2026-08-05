@@ -9,6 +9,7 @@ async function load() {
 	return {
 		bar: await import( '../../src/desktop-files/folder-status-bar' ),
 		store: await import( '../../src/desktop-files/store' ),
+		hooks: await import( '../../src/hooks' ),
 	};
 }
 
@@ -128,6 +129,67 @@ describe( 'folder status bar', () => {
 			'[data-segment-id="count"] .os-folder-status-bar__label',
 		);
 		expect( seg?.textContent ).toBe( '1 file' );
+	} );
+
+	test( 'shows the selection size, and only while there is one', async () => {
+		const { bar, store } = await load();
+		store.__resetFilesStoreForTests();
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		let count = 0;
+		let notify: () => void = () => undefined;
+		bar.mountFolderStatusBar( host, 0, {
+			selection: {
+				count: () => count,
+				subscribe: ( cb ) => {
+					notify = cb;
+					return () => undefined;
+				},
+			},
+		} );
+		// Nothing selected — no segment at all. A permanent
+		// "0 selected" would be noise on a glanceable bar.
+		expect(
+			host.querySelector( '[data-segment-id="selection"]' ),
+		).toBeNull();
+
+		count = 3;
+		notify();
+		const seg = host.querySelector< HTMLElement >(
+			'[data-segment-id="selection"] .os-folder-status-bar__label',
+		);
+		expect( seg?.textContent ).toBe( '3 selected' );
+
+		count = 0;
+		notify();
+		expect(
+			host.querySelector( '[data-segment-id="selection"]' ),
+		).toBeNull();
+	} );
+
+	test( 'the status-bar filter sees the selection size', async () => {
+		const { bar, store, hooks } = await load();
+		store.__resetFilesStoreForTests();
+		hooks.addFilter(
+			'os.files.folder-window.status-bar',
+			'test/selection',
+			(
+				segs: unknown,
+				ctx: { selectedCount: number },
+			) => [
+				...( segs as Array< Record< string, unknown > > ),
+				{ id: 'echo', label: `saw ${ ctx.selectedCount }` },
+			],
+		);
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		bar.mountFolderStatusBar( host, 0, {
+			selection: { count: () => 2, subscribe: () => () => undefined },
+		} );
+		const seg = host.querySelector< HTMLElement >(
+			'[data-segment-id="echo"] .os-folder-status-bar__label',
+		);
+		expect( seg?.textContent ).toBe( 'saw 2' );
 	} );
 
 	test( 'dispose unmounts and stops repainting', async () => {

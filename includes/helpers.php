@@ -180,9 +180,12 @@ function openstation_get_default_wallpaper() {
  * The site's own name, ready to use as a window / icon title.
  *
  * The desktop shows objects, not the software running it — so the
- * folder that holds a site's content is titled after the site itself
- * ("Izzi's Gym"), not after WordPress. This is the single source for
- * that string.
+ * *root folder* of a site's content is named after the site itself
+ * ("Izzi's Gym"), not after WordPress. That is the breadcrumb root and
+ * the Content Graph's site label; the app that browses it is called WP
+ * Explorer, which is a different string (see
+ * `openstation_my_wordpress_app_title()`). This is the single source
+ * for the site one.
  *
  * `get_bloginfo( 'name' )` returns the display-filtered option, which
  * carries HTML entities (`&amp;`, `&#039;`). Titles land in
@@ -203,8 +206,8 @@ function openstation_site_title() {
 
 	/**
 	 * Filters the site title used for openstation window and icon
-	 * titles — the pinned site folder, its breadcrumb root, and any
-	 * "Open in <site>" action.
+	 * titles — WP Explorer's breadcrumb root, the Content Graph's site
+	 * label, and any "Open in <site>" action.
 	 *
 	 * Return a different string to label the desktop objects after
 	 * something other than `blogname` (a brand, a network name, a

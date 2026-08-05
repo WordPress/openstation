@@ -178,7 +178,7 @@ function logDemoBanner(): void {
 	console.log(
 		'%c⚠ wp.os — INTENTIONAL DEMO%c\n' +
 			'The next three console.error entries are fired ON PURPOSE by the\n' +
-			'OpenStation Settings → Components tab to demonstrate the <os-*> missing-\n' +
+			'OpenStation Preferences → Components tab to demonstrate the <os-*> missing-\n' +
 			'import warner. They are not real bugs.\n\n' +
 			'  1. <os-example-console-fail-due-to-unregistered-component>\n' +
 			'  2. <os-buton>   (typo of <os-button>)\n' +
@@ -361,7 +361,7 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 	paint();
 
 	// Repaint when developer mode flips in another tab of the SAME
-	// already-open OpenStation Settings window — `renderPanel()` only builds
+	// already-open OpenStation Preferences window — `renderPanel()` only builds
 	// this section once per window open, so without this the demo
 	// section would stay stale until the window is closed and
 	// reopened. Self-unsubscribes once the panel is torn down,

@@ -177,6 +177,7 @@ import {
 	bootPresenceProbe,
 	type PresenceApi,
 } from './presence';
+import { recentlyMarqueed, type SelectionApi } from './selection';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
@@ -221,7 +222,7 @@ import {
 	MIO_TILE_ID,
 	type MioApi,
 } from './mio/controller';
-import { OPENSTATION_MARK_ICON } from './ui/brand-mark';
+import { OS_GEAR_ICON } from './ui/gear-icon';
 import { maybeShowRebrandNotice } from './rebrand-notice';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
@@ -1557,6 +1558,22 @@ export interface OpenStationPublicApi {
 	 */
 	presence: PresenceApi;
 	/**
+	 * Multi-selection framework. `active()` returns a snapshot of the
+	 * most recent selection change anywhere in the shell;
+	 * `resolveCommonActions()` is the rule that decides what a mixed
+	 * selection may offer (intersect by action id, keep only what
+	 * every item declares `multi: true` for); `createModel()` builds
+	 * a selection model for a tile canvas of your own.
+	 *
+	 * @example
+	 * ```js
+	 * document.addEventListener( 'os-selection-changed', ( e ) => {
+	 *     console.log( e.detail.count, 'selected in', e.detail.surface );
+	 * } );
+	 * ```
+	 */
+	selection: SelectionApi;
+	/**
 	 * Cross-plugin activity channels — a thin, named-channel layer
 	 * over `wp.hooks` for plugin-internal events that other
 	 * plugins might care about. Apps publish state changes; peers
@@ -2438,25 +2455,25 @@ function init(): void {
 			config.dockItems,
 			config.desktopIcons,
 		);
-		// OpenStation Settings tile — `'core'` affinity so it lands on
+		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
 		// expect a shell-owned affordance) and on the primary rail in
 		// Unified and Spatial (where there is no side dock to host it).
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild.
 		//
-		// The tile wears the logomark rather than a dashicon: this is
-		// the one panel that IS the product, so it is the one tile that
-		// should carry the mark. Drawn as a `currentColor` silhouette so
-		// the dock's mask paints it in the rail's own icon colour beside
-		// the dashicons — see `src/ui/brand-mark.ts` for why the app
-		// chip cannot be used here. Themes can still replace it through
-		// the `OS_SETTINGS` icon slot.
+		// The tile wears a gear, not the logomark. The mark said "this
+		// panel IS the product", which is true and unhelpful: sitting in
+		// a rail of dashicons it read as a brand stamp rather than as
+		// somewhere to go, and it collided with the admin menu's own
+		// Settings gear in the user's head. A gear is the one glyph that
+		// needs no label. Themes can still replace it through the
+		// `OS_SETTINGS` icon slot.
 		layoutDispatcher.appendSystemTile(
 			{
 				id: OS_SETTINGS_WINDOW_ID,
-				title: 'OpenStation Settings',
-				icon: OPENSTATION_MARK_ICON,
+				title: 'OpenStation Preferences',
+				icon: OS_GEAR_ICON,
 				// "Open" for the dock dot means "open on the currently
 				// active desktop." OS Settings on another desktop
 				// shouldn't paint the dot on the active view.
@@ -2562,8 +2579,8 @@ function init(): void {
 			id: OS_SETTINGS_WINDOW_ID,
 			baseId: OS_SETTINGS_WINDOW_ID,
 			url: '#os-settings',
-			title: 'OpenStation Settings',
-			icon: OPENSTATION_MARK_ICON,
+			title: 'OpenStation Preferences',
+			icon: OS_GEAR_ICON,
 			native: true,
 			render: ( body ) => osSettings.renderPanel( body ),
 			width: 820,
@@ -4115,6 +4132,12 @@ function init(): void {
 		if ( dragManager.recentlyEndedDrag() ) {
 			return;
 		}
+		// Same story for a marquee: rubber-band-selecting icons ends
+		// with a synthesized click on the wallpaper, and minimizing
+		// every window is not what the user just asked for.
+		if ( recentlyMarqueed() ) {
+			return;
+		}
 		manager.toggleShowDesktop();
 	} );
 
@@ -4219,7 +4242,7 @@ function init(): void {
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',
-					osSettings: 'OpenStation Settings',
+					osSettings: 'OpenStation Preferences',
 					sortHeading: 'Sort by',
 					sortNameAsc: 'Name (A → Z)',
 					sortNameDesc: 'Name (Z → A)',

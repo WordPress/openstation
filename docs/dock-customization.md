@@ -112,7 +112,7 @@ wp.os.ready( () => {
 } );
 ```
 
-The user picks `Aurora Arc` in OpenStation Settings → Appearance → Dock
+The user picks `Aurora Arc` in OpenStation Preferences → Appearance → Dock
 style. The glow decoration applies regardless. If the plugin is
 deactivated, the rail renderer sweeps away (matching `owner:
 'aurora-dock'`) and the user falls back to the shipped baseline
@@ -124,7 +124,7 @@ hook bus until the next full page load.
 ## Live registration on plugin activation
 
 Both layers support live registration without an F5. Same pattern
-WordPress plugins already know from commands and OpenStation Settings tabs:
+WordPress plugins already know from commands and OpenStation Preferences tabs:
 
 | Registry | PHP helper |
 |---|---|
@@ -191,8 +191,8 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 | API | Returns | Use it for |
 |---|---|---|
-| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Settings window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Settings tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
-| `wp.os.listSystemTiles()` | `Array<{ id, title, icon, affinity, placeable }>` | Enumerate every JS-registered system tile (OpenStation Settings, Mio toggle, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
+| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
+| `wp.os.listSystemTiles()` | `Array<{ id, title, icon, affinity, placeable }>` | Enumerate every JS-registered system tile (OpenStation Preferences, Mio toggle, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
 | `wp.os.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
 | `wp.os.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
 | `wp.os.deriveWindowId( url )` | `string` | The same id the default renderer uses to open a tile. Custom renderers that build their own window configs use this so switching renderer mid-session preserves open windows. |
@@ -201,7 +201,7 @@ to a specific layer reaches for these instead of DOM scraping. All
 // Open a known system tile from anywhere — no DOM scraping.
 wp.os.getSystemTile( 'os-settings' )?.onOpen();
 
-// Or the dedicated entry point for OpenStation Settings:
+// Or the dedicated entry point for OpenStation Preferences:
 wp.os.openOsSettings();
 
 // Deep-link straight to a specific settings tab:

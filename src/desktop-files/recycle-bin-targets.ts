@@ -34,13 +34,19 @@
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
 import type { DragManagerApi, DragSession } from '../drag';
-import { trashByFileType } from './trash';
+import { trashManyWithUndo } from './trash';
+import { showToast } from '../toast';
 import {
 	recycleBinPayloadAccepts,
 	recycleBinPayloadDrop,
 } from './recycle-bin-payloads';
 import type { RestPlacementShape } from './rest';
-import type { ShortcutDragData } from './drag-payloads';
+import {
+	dragPlacements,
+	dragShortcutItems,
+	type DesktopFileDragData,
+	type ShortcutDragData,
+} from './drag-payloads';
 
 /**
  * My WordPress entity kinds the recycle bin knows how to trash via
@@ -173,6 +179,20 @@ function registerOn(
 				if ( ! placement ) {
 					return false;
 				}
+				// A multi-drag is accepted only when EVERY item can be
+				// trashed. Half-trashing a set the user dropped as one
+				// gesture is the kind of partial success that reads as
+				// total success.
+				const set = dragPlacements(
+					data as unknown as DesktopFileDragData,
+				);
+				if ( set.length > 1 ) {
+					return set.every(
+						( p ) =>
+							p.file?.ref !== RECYCLE_BIN_WINDOW_ID &&
+							p.canTrash !== false,
+					);
+				}
 				// Never trash the recycle bin into itself. Both drop
 				// surfaces (the bin's wallpaper tile + the bin window
 				// body) share this `accept`, so dragging the bin onto
@@ -200,7 +220,10 @@ function registerOn(
 			// Trash" CMO so both gestures end at the same REST call.
 			if ( payload.type === 'shortcut' ) {
 				const data = payload.data as Partial< ShortcutDragData >;
-				return isTrashableShortcut( data );
+				const set = dragShortcutItems( data as ShortcutDragData );
+				return (
+					set.length > 0 && set.every( ( i ) => isTrashableShortcut( i ) )
+				);
 			}
 			// Payload types this module doesn't own (the pinned-notes
 			// `'note'` drag today) can be claimed by a registered bin
@@ -218,8 +241,15 @@ function registerOn(
 		onDrop: ( session, ev ) => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 			if ( isDesktopFilePayload( session ) ) {
-				const placement = session.payload.data.placement;
-				void trashByFileType( placement );
+				// One gesture, one trash operation: `trashManyWithUndo`
+				// collapses a set into a single toast whose Undo brings
+				// all of them back. It routes a single item straight to
+				// the per-item helper, so this covers both.
+				void trashManyWithUndo(
+					dragPlacements(
+						session.payload.data as unknown as DesktopFileDragData,
+					),
+				);
 				return;
 			}
 			if (
@@ -229,24 +259,50 @@ function registerOn(
 				return;
 			}
 			if ( isShortcutPayload( session ) ) {
-				const data = session.payload.data;
 				const api = getMyWordpressTrashApi();
-				if ( ! api?.trashEntity || ! data.entityId ) {
+				if ( ! api?.trashEntity ) {
 					return;
 				}
-				const numericRef = Number.parseInt( data.ref, 10 );
-				if ( ! Number.isFinite( numericRef ) || numericRef <= 0 ) {
+				const trashEntity = api.trashEntity;
+				const set = dragShortcutItems( session.payload.data );
+				const trashing = set
+					.map( ( item ) => ( {
+						entityId: item.entityId,
+						ref: Number.parseInt( item.ref, 10 ),
+					} ) )
+					.filter(
+						( t ): t is { entityId: string; ref: number } =>
+							!! t.entityId &&
+							Number.isFinite( t.ref ) &&
+							t.ref > 0,
+					);
+				if ( trashing.length === 0 ) {
 					return;
 				}
-				void api.trashEntity( data.entityId, numericRef ).catch(
-					( err: unknown ) => {
+				void Promise.allSettled(
+					trashing.map( ( t ) => trashEntity( t.entityId, t.ref ) ),
+				).then( ( results ) => {
+					const failed = results.filter(
+						( r ) => r.status === 'rejected',
+					);
+					for ( const failure of failed ) {
 						// eslint-disable-next-line no-console
 						console.error(
 							'[openstation] recycle-bin: shortcut trash failed:',
-							err,
+							( failure as PromiseRejectedResult ).reason,
 						);
-					},
-				);
+					}
+					const moved = trashing.length - failed.length;
+					if ( moved > 1 || failed.length > 0 ) {
+						showToast( {
+							message:
+								failed.length > 0
+									? `${ moved } moved to Trash · ${ failed.length } could not be moved`
+									: `${ moved } items moved to Trash`,
+							duration: failed.length > 0 ? 6000 : 4000,
+						} );
+					}
+				} );
 			}
 		},
 	} );

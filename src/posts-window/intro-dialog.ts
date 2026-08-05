@@ -90,10 +90,10 @@ interface PixiNamespace {
  *
  * - `'confirm'`  — user clicked "Got it" → caller should mark seen.
  * - `'settings'` — user clicked "Take me to settings" → caller marks
- *                  seen and routes to OpenStation Settings.
+ *                  seen and routes to OpenStation Preferences.
  * - `'cancel'`   — Escape / backdrop click → caller MUST NOT mark
  *                  seen. Lets us test the intro repeatedly without
- *                  having to wipe meta from OpenStation Settings.
+ *                  having to wipe meta from OpenStation Preferences.
  */
 export type IntroResult = 'confirm' | 'settings' | 'cancel';
 
@@ -525,7 +525,7 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 		const escape = document.createElement( 'p' );
 		escape.className = 'os-intro__escape';
 		escape.textContent = __(
-			'Prefer the classic Posts list? You can switch back any time from OpenStation Settings → Features.',
+			'Prefer the classic Posts list? You can switch back any time from OpenStation Preferences → Features.',
 		);
 		dialog.appendChild( escape );
 

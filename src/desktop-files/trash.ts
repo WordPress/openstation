@@ -182,6 +182,183 @@ export async function trashFolderWithUndo(
 }
 
 /**
+ * Soft-trash a whole selection in one gesture.
+ *
+ * Not a loop over `trashPlacementWithUndo` — that would stack N
+ * toasts, each with an Undo that restores exactly one item, and the
+ * user who selected twelve screenshots would have to press Undo
+ * twelve times to get back to where they were. The set is one
+ * action to the user, so it gets one optimistic eviction pass, one
+ * toast, one Undo, and one broadcast carrying every id.
+ *
+ * Failures are per-item (a shared folder the viewer may read but not
+ * write can 403 while its neighbours succeed), so the REST calls run
+ * through `allSettled` and the survivors still get their Undo. Any
+ * failure re-hydrates every touched folder — the server's version of
+ * the truth wins over the optimistic eviction.
+ */
+export async function trashManyWithUndo(
+	placements: readonly RestPlacementShape[],
+): Promise< void > {
+	if ( placements.length === 0 ) {
+		return;
+	}
+	if ( placements.length === 1 ) {
+		return trashByFileType( placements[ 0 ] );
+	}
+
+	const parentIds = new Set< number >();
+	for ( const placement of placements ) {
+		parentIds.add( placement.parentId );
+		// Optimistic eviction first, so the tiles disappear together
+		// rather than popping out one REST round-trip at a time.
+		filesStoreApi.removePlacement( placement.id );
+		if ( placement.file?.type === 'folder' ) {
+			const folderId = parseInt( placement.file.ref, 10 );
+			if ( folderId ) {
+				filesStoreApi.removeFolder( folderId );
+			}
+		}
+	}
+
+	const rehydrate = async (): Promise< void > => {
+		for ( const parentId of parentIds ) {
+			try {
+				const res = await rest.listPlacements( parentId );
+				filesStoreApi.setFolderPlacements( parentId, res.placements );
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] files: re-hydrate failed:', err );
+			}
+		}
+	};
+
+	/** Per-item descriptor of what was deleted and how to bring it back. */
+	interface Deleted {
+		id: number;
+		kind: 'placement' | 'shortcut' | 'folder';
+		restoreId: number;
+		restoreKind: 'placement' | 'folder';
+	}
+
+	const results = await Promise.allSettled(
+		placements.map( async ( placement ): Promise< Deleted > => {
+			if ( placement.file?.type === 'folder' ) {
+				const folderId = parseInt( placement.file.ref, 10 );
+				if ( ! folderId ) {
+					throw new Error( 'folder placement without a folder id' );
+				}
+				await rest.deleteFolder( folderId );
+				return {
+					id: folderId,
+					kind: 'folder',
+					restoreId: folderId,
+					restoreKind: 'folder',
+				};
+			}
+			await rest.deletePlacement( placement.id );
+			return {
+				id: placement.id,
+				kind:
+					placement.file?.type === 'shortcut' ? 'shortcut' : 'placement',
+				restoreId: placement.id,
+				restoreKind: 'placement',
+			};
+		} ),
+	);
+
+	const deleted: Deleted[] = [];
+	let failed = 0;
+	for ( const result of results ) {
+		if ( result.status === 'fulfilled' ) {
+			deleted.push( result.value );
+		} else {
+			failed += 1;
+			// eslint-disable-next-line no-console
+			console.error(
+				'[openstation] trash (bulk) failed for one item:',
+				result.reason,
+			);
+		}
+	}
+
+	if ( failed > 0 ) {
+		void rehydrate();
+	}
+	if ( deleted.length === 0 ) {
+		showTrashErrorToast(
+			results.find( ( r ) => r.status === 'rejected' )?.reason,
+		);
+		return;
+	}
+
+	// One broadcast per kind — subscribers delta by `ids.length`, so a
+	// mixed set has to be split rather than flattened into one event.
+	for ( const kind of [ 'placement', 'shortcut', 'folder' ] as const ) {
+		const ids = deleted.filter( ( d ) => d.kind === kind ).map( ( d ) => d.id );
+		if ( ids.length > 0 ) {
+			broadcastFilesChange( kind, 'trashed', ids );
+		}
+	}
+
+	// A partial failure is normal enough to name rather than hide: a
+	// shared folder the viewer may read but not write 403s while its
+	// neighbours succeed, and "3 items moved" when only 2 moved is a
+	// lie the user finds out about later.
+	const noun = deleted.length === 1 ? 'item' : 'items';
+	const message =
+		failed > 0
+			? `${ deleted.length } ${ noun } moved to Trash · ${ failed } could not be moved`
+			: `${ deleted.length } ${ noun } moved to Trash`;
+
+	showTrashedToast( message, async () => {
+		const restores = await Promise.allSettled(
+			deleted.map( ( d ) =>
+				rest.restoreTrashedItem( d.restoreId, d.restoreKind ),
+			),
+		);
+		await rehydrate();
+
+		// Announce only what actually came back. Broadcasting the
+		// whole batch would tell the Recycle Bin's badge and every
+		// other listener that an item was restored while it is still
+		// sitting in the trash — a lie that survives until the next
+		// full refresh, and one the single-item undo paths don't tell
+		// because they only broadcast inside their success branch.
+		const restored = deleted.filter(
+			( _d, index ) => restores[ index ].status === 'fulfilled',
+		);
+		const stillTrashed = deleted.length - restored.length;
+		for ( const result of restores ) {
+			if ( result.status === 'rejected' ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					'[openstation] restore (bulk) failed for one item:',
+					result.reason,
+				);
+			}
+		}
+		for ( const kind of [ 'placement', 'shortcut', 'folder' ] as const ) {
+			const ids = restored
+				.filter( ( d ) => d.kind === kind )
+				.map( ( d ) => d.id );
+			if ( ids.length > 0 ) {
+				broadcastFilesChange( kind, 'untrashed', ids );
+			}
+		}
+		if ( stillTrashed > 0 ) {
+			// The user pressed Undo and part of it didn't take. Saying
+			// nothing would leave them believing it did.
+			showTrashErrorToast(
+				new Error(
+					`${ stillTrashed } of ${ deleted.length } items could not be restored.`,
+				),
+			);
+		}
+	} );
+}
+
+/**
  * Trash an item by routing to the placement / folder helper based on
  * the file type. Convenience for drop targets that don't want to
  * branch on type.

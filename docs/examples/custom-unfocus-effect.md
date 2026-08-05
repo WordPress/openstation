@@ -2,7 +2,7 @@
 
 An **unfocus effect** is a visual treatment applied to every window
 that isn't the focused one — the family of effects surfaced in
-**OpenStation Settings → Effects → "Unfocused windows"**. The plugin ships three
+**OpenStation Preferences → Effects → "Unfocused windows"**. The plugin ships three
 built-ins — `darken` (dims), `frost` (frosted-glass blur), and
 `grayscale` (drains colour) — each registered through the exact same
 public hook a plugin would use. This page shows a plugin adding its own.
@@ -19,7 +19,7 @@ CSS class to toggle (the cheap path) or `apply`/`clear` callbacks for
 anything a static class can't express.
 
 The user picks among registered effects (plus a "None" option) in
-OpenStation Settings; the choice persists per-user as the `unfocusEffect`
+OpenStation Preferences; the choice persists per-user as the `unfocusEffect`
 setting.
 
 ## The declarative path — a CSS class

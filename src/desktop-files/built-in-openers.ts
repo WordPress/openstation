@@ -33,7 +33,11 @@ import {
 	GRID_PADDING,
 	snapToEmptyCell,
 } from './grid';
-import { renderPlacementPreview, renderPreviewEmpty } from './preview';
+import {
+	renderPlacementPreview,
+	renderPreviewEmpty,
+	renderSelectionSummary,
+} from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
 import { findMenuEntryForUrl } from './menu-entry';
@@ -336,16 +340,26 @@ export function registerBuiltInFileOpeners(): void {
 								layerHost,
 								route.folderId,
 							);
-							const offSelection = layer.onSelectionChange(
-								( placement ) => {
-									if ( ! placement ) {
+							// One subscription for the whole selection —
+							// the pane has three states, not two: empty,
+							// one item (preview it), several (say so and
+							// how they break down by type).
+							const offSelection = layer.onSelectionChanged(
+								( placements ) => {
+									if ( placements.length === 0 ) {
 										previewPane.replaceChildren(
 											renderPreviewEmpty(),
 										);
 										return;
 									}
+									if ( placements.length > 1 ) {
+										previewPane.replaceChildren(
+											renderSelectionSummary( placements ),
+										);
+										return;
+									}
 									renderPlacementPreview(
-										placement,
+										placements[ 0 ],
 										previewPane,
 									);
 								},
@@ -459,6 +473,16 @@ export function registerBuiltInFileOpeners(): void {
 							const status = mountFolderStatusBar(
 								bodyHost,
 								route.folderId,
+								{
+									selection: {
+										count: () =>
+											layer.getSelection().length,
+										subscribe: ( cb ) =>
+											layer.onSelectionChanged( () =>
+												cb(),
+											),
+									},
+								},
 							);
 
 							currentDispose = (): void => {

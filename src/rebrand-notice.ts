@@ -18,7 +18,7 @@
  * Dismissal goes to the shared seen-intros registry rather than to
  * localStorage, which buys two things a local flag could not: it
  * follows the user to their other browsers, and "Reset what's-new
- * dialogs" in OpenStation Settings → Features brings the announcement
+ * dialogs" in OpenStation Preferences → Features brings the announcement
  * back with every other intro.
  *
  * ## Why this is hand-built DOM and not `<os-modal>`

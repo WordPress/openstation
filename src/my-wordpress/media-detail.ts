@@ -21,6 +21,13 @@ import { __, _n, sprintf } from '../i18n';
 import { applyFilters } from '../hooks';
 import { renderStatusBarSegments, type StatusBarSegment } from '../desktop-files/folder-status-bar';
 import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import {
+	attachSelection,
+	closeActionMenu,
+	openActionMenu,
+	resolveCommonActions,
+	type SelectionAction,
+} from '../selection';
 import type { EntityRenderHost } from './kind-registry';
 import type { MediaListItem, MediaUsage } from './types';
 import { fetchMediaUsage } from './media-rest';
@@ -125,114 +132,94 @@ function buildUsageTile(
 	return tile;
 }
 
-let openContextMenu: HTMLElement | null = null;
-
 function closeContextMenu(): void {
-	if ( openContextMenu && openContextMenu.isConnected ) {
-		openContextMenu.remove();
+	closeActionMenu();
+}
+
+type UsageRow = MediaUsage[ 'usedIn' ][ number ];
+
+/**
+ * Actions for ONE usage row. All three open something per row, so
+ * all three are multi-safe: asking for three referencing posts in
+ * the editor and getting three editor windows is the expected
+ * outcome, and the shared resolver caps nothing here because the set
+ * is bounded by how many rows reference one file.
+ */
+function buildUsageActions(
+	row: UsageRow,
+): SelectionAction< UsageRow >[] {
+	const actions: SelectionAction< UsageRow >[] = [
+		{
+			id: 'navigate-into',
+			label: sprintf(
+				// translators: %s is the site title.
+				__( 'Open in %s', 'desktop-mode' ),
+				getSiteName(),
+			),
+			icon: 'dashicons-category',
+			sort: 10,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: 1: number of selected rows, 2: site title.
+					__( 'Open %1$d items in %2$s', 'desktop-mode' ),
+					n,
+					getSiteName(),
+				),
+			onClick: () => {
+				openDetailInWindow( {
+					entityId: entityIdForPostType( row.postType ),
+					postId: row.postId,
+					postTitle: row.title,
+				} );
+			},
+		},
+	];
+	if ( row.editLink ) {
+		actions.push( {
+			id: 'open-editor',
+			label: __( 'Open in editor', 'desktop-mode' ),
+			icon: 'dashicons-edit',
+			sort: 20,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected rows.
+					__( 'Open %d items in the editor', 'desktop-mode' ),
+					n,
+				),
+			onClick: () => {
+				window.open( row.editLink, '_blank', 'noopener,noreferrer' );
+			},
+		} );
 	}
-	openContextMenu = null;
+	if ( row.link ) {
+		actions.push( {
+			id: 'open-front',
+			label: __( 'View on site', 'desktop-mode' ),
+			icon: 'dashicons-external',
+			sort: 30,
+			onClick: () => {
+				window.open( row.link, '_blank', 'noopener,noreferrer' );
+			},
+		} );
+	}
+	return actions;
 }
 
 /**
- * Minimal right-click context menu for a usage tile. Mirrors the
- * options the regular post-tile menu offers (open in editor,
- * navigate into) plus an "Open original URL" option that goes to
- * the post on the front-end.
+ * Right-click menu for the usage grid, acting on the current
+ * selection (one row, or several).
  */
 function openUsageTileMenu(
-	row: MediaUsage[ 'usedIn' ][ number ],
+	rows: readonly UsageRow[],
 	pos: { x: number; y: number },
 ): void {
-	closeContextMenu();
-	const menu = document.createElement( 'os-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'os-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
-
-	const addOption = ( id: string, label: string, icon: string ) => {
-		const opt = document.createElement( 'os-context-menu-option' );
-		( opt as HTMLElement ).dataset.menuItemId = id;
-		opt.setAttribute( 'value', id );
-		opt.setAttribute( 'icon', icon );
-		opt.textContent = label;
-		menu.appendChild( opt );
-	};
-
-	addOption(
-		'navigate-into',
-		sprintf(
-			// translators: %s is the site title.
-			__( 'Open in %s', 'desktop-mode' ),
-			getSiteName(),
-		),
-		'dashicons-category',
-	);
-	if ( row.editLink ) {
-		addOption( 'open-editor', __( 'Open in editor', 'desktop-mode' ), 'dashicons-edit' );
-	}
-	if ( row.link ) {
-		addOption( 'open-front', __( 'View on site', 'desktop-mode' ), 'dashicons-external' );
-	}
-
-	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeContextMenu();
-		if ( detail.id === 'navigate-into' ) {
-			openDetailInWindow( {
-				entityId: entityIdForPostType( row.postType ),
-				postId: row.postId,
-				postTitle: row.title,
-			} );
-			return;
-		}
-		if ( detail.id === 'open-editor' && row.editLink ) {
-			window.open( row.editLink, '_blank', 'noopener,noreferrer' );
-			return;
-		}
-		if ( detail.id === 'open-front' && row.link ) {
-			window.open( row.link, '_blank', 'noopener,noreferrer' );
-		}
-	} );
-
-	document.body.appendChild( menu );
-	openContextMenu = menu;
-
-	// Reposition if menu overflows the viewport.
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
-
-	queueMicrotask( () => {
-		const onDoc = ( ev: PointerEvent ) => {
-			const target = ev.target;
-			if ( target instanceof Node && menu.contains( target ) ) {
-				return;
-			}
-			closeContextMenu();
-			document.removeEventListener( 'pointerdown', onDoc, true );
-			document.removeEventListener( 'keydown', onKey );
-		};
-		const onKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeContextMenu();
-				document.removeEventListener( 'pointerdown', onDoc, true );
-				document.removeEventListener( 'keydown', onKey );
-			}
-		};
-		document.addEventListener( 'pointerdown', onDoc, true );
-		document.addEventListener( 'keydown', onKey );
+	const actions = resolveCommonActions( rows, buildUsageActions );
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.usage-tile',
 	} );
 }
 
@@ -240,6 +227,7 @@ function paintStatus(
 	statusBar: HTMLElement,
 	count: number,
 	entityId: string,
+	selectedCount = 0,
 ): void {
 	const segments: StatusBarSegment[] = [
 		{
@@ -253,6 +241,18 @@ function paintStatus(
 			sort: 10,
 		},
 	];
+	if ( selectedCount > 0 ) {
+		segments.push( {
+			id: 'selection',
+			label: sprintf(
+				// translators: %d: number of selected rows.
+				__( '%d selected', 'desktop-mode' ),
+				selectedCount,
+			),
+			align: 'end',
+			sort: 5,
+		} );
+	}
 	const filtered = applyFilters<
 		StatusBarSegment[],
 		[ { view: 'media-detail'; entityId: string } ]
@@ -406,8 +406,25 @@ export async function renderMediaDetail(
 	const grid = document.createElement( 'div' );
 	grid.className = 'os-my-wordpress__media-grid os-my-wordpress__usage-grid';
 	grid.setAttribute( 'role', 'list' );
+	const rowsById = new Map< string, UsageRow >();
+	const selection = attachSelection( grid, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: `media-usage:${ entityId }`,
+		keyOf: ( el ) => el.dataset.postId ?? null,
+		onChange: () =>
+			paintStatus(
+				statusBar,
+				usage.usedIn.length,
+				entityId,
+				selection.keys().length,
+			),
+	} );
+	host.addTeardown( () => selection.destroy() );
+
 	for ( const row of usage.usedIn ) {
 		const tile = buildUsageTile( row );
+		rowsById.set( String( row.postId ), row );
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
 			openDetailInWindow( {
@@ -418,7 +435,18 @@ export async function renderMediaDetail(
 		} );
 		tile.addEventListener( 'contextmenu', ( e ) => {
 			e.preventDefault();
-			openUsageTileMenu( row, { x: e.clientX, y: e.clientY } );
+			e.stopPropagation();
+			if ( ! selection.model.has( String( row.postId ) ) ) {
+				selection.model.set( [ String( row.postId ) ] );
+			}
+			const rows = selection
+				.keys()
+				.map( ( key ) => rowsById.get( key ) )
+				.filter( ( r ): r is UsageRow => !! r );
+			openUsageTileMenu( rows.length > 0 ? rows : [ row ], {
+				x: e.clientX,
+				y: e.clientY,
+			} );
 		} );
 		grid.appendChild( tile );
 	}
