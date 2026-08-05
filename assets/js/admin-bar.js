@@ -84,10 +84,26 @@
 	// then mirror the persisted snap preference. Polled rather than
 	// hooked because the inline script ships with the admin bar
 	// (loads early) and the shell's WindowManager arrives later.
+	//
+	// Bounded, because a poll with no exit is a timer that runs for
+	// the life of the page. The manager lands within a frame or two of
+	// the shell bundle executing; if it has not arrived in ten seconds
+	// it is not coming — the shell failed to boot, or a plugin
+	// surfaced this admin bar somewhere the shell never loads — and
+	// repainting one checkbox does not justify waking the event loop
+	// sixteen times a second until the tab closes. Giving up leaves
+	// the server-rendered box exactly as it is, which is what polling
+	// forever achieves anyway.
+	var SNAP_POLL_INTERVAL_MS = 60;
+	var SNAP_POLL_TIMEOUT_MS = 10000;
+	var snapPollWaited = 0;
 	function initFromManager() {
 		var wm = getManager();
 		if ( ! wm || typeof wm.isSnapEnabled !== 'function' ) {
-			window.setTimeout( initFromManager, 60 );
+			snapPollWaited += SNAP_POLL_INTERVAL_MS;
+			if ( snapPollWaited < SNAP_POLL_TIMEOUT_MS ) {
+				window.setTimeout( initFromManager, SNAP_POLL_INTERVAL_MS );
+			}
 			return;
 		}
 		paintSnapCheckbox( wm.isSnapEnabled() );
