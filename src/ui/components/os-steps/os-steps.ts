@@ -104,7 +104,7 @@ export class OsStep extends Component {
 		],
 		example: html`
 			<os-steps>
-				<os-step title="Configure">Open OpenStation Settings → AI.</os-step>
+				<os-step title="Configure">Open OpenStation Preferences → AI.</os-step>
 				<os-step title="Connect" done>Key confirmed.</os-step>
 			</os-steps>
 		`,

@@ -1,7 +1,7 @@
 <?php
 /**
- * Tests for the pinned virtual site folder (module slug
- * `my-wordpress`; the window is titled after the site itself).
+ * Tests for the pinned WP Explorer window (module slug `my-wordpress`;
+ * the display name is the only thing the rename moved).
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -66,14 +66,14 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The folder is named after the site, not after the software
-	 * running it — the window title, the pinned icon, and the
-	 * `siteName` config the bundle uses for its breadcrumb root all
-	 * come from `openstation_site_title()`.
+	 * The app is named after what it does; the site name labels the
+	 * root folder it opens on. The window title and the pinned icon
+	 * carry "WP Explorer" and do NOT move with `blogname` — only the
+	 * `siteName` config, which is the bundle's breadcrumb root, does.
 	 *
 	 * @covers ::openstation_my_wordpress_register_window
 	 */
-	public function test_window_and_icon_are_titled_after_the_site() {
+	public function test_window_and_icon_are_titled_after_the_app() {
 		$original = get_option( 'blogname' );
 		update_option( 'blogname', "Izzi's Gym" );
 
@@ -84,18 +84,18 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 
 		update_option( 'blogname', $original );
 
-		$this->assertSame( "Izzi's Gym", $entry['title'] );
+		$this->assertSame( 'WP Explorer', $entry['title'] );
+		$this->assertSame( 'WP Explorer', $icon['title'] );
 		$this->assertSame( "Izzi's Gym", $entry['config']['siteName'] );
-		$this->assertSame( "Izzi's Gym", $icon['title'] );
 	}
 
 	/**
-	 * Retitling via `openstation_site_title` reaches the window, the
-	 * icon, and the bundle config in one hook.
+	 * Retitling via `openstation_site_title` reaches the breadcrumb
+	 * root the bundle paints, and leaves the app's own name alone.
 	 *
 	 * @covers ::openstation_my_wordpress_register_window
 	 */
-	public function test_site_title_filter_retitles_the_folder() {
+	public function test_site_title_filter_retitles_the_root_folder_only() {
 		add_filter(
 			'openstation_site_title',
 			static function () {
@@ -108,9 +108,35 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
 		$icon  = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 
-		$this->assertSame( 'Workspace', $entry['title'] );
 		$this->assertSame( 'Workspace', $entry['config']['siteName'] );
-		$this->assertSame( 'Workspace', $icon['title'] );
+		$this->assertSame( 'WP Explorer', $entry['title'] );
+		$this->assertSame( 'WP Explorer', $icon['title'] );
+	}
+
+	/**
+	 * The window and the pinned icon wear the same folder-with-mark
+	 * art, drawn in `currentColor` so both painters mask it rather
+	 * than pasting it as a background image.
+	 *
+	 * @covers ::openstation_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_icon_svg
+	 */
+	public function test_window_and_icon_wear_the_folder_mark() {
+		openstation_my_wordpress_register_window();
+
+		$entry    = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon     = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$expected = 'data:image/svg+xml;base64,' . base64_encode( openstation_my_wordpress_icon_svg() );
+
+		$this->assertSame( $expected, $entry['icon'] );
+		$this->assertSame( $expected, $icon['icon'] );
+		$this->assertStringContainsString( 'currentColor', openstation_my_wordpress_icon_svg() );
+		$this->assertStringNotContainsString( 'fill="#', openstation_my_wordpress_icon_svg() );
+
+		// The dock-icon sanitizer is the gate that would silently drop
+		// the art — a rejected icon falls back to a letter badge, which
+		// looks like a styling bug rather than a validation failure.
+		$this->assertSame( $expected, openstation_sanitize_dock_icon( $expected ) );
 	}
 
 	/**

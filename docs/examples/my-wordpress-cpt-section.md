@@ -1,4 +1,4 @@
-# Site folder — custom post types and their folder
+# WP Explorer — custom post types and their folder
 
 Every custom post type your plugin registers shows up in the site
 window automatically, grouped into a folder named after your plugin.
@@ -172,6 +172,6 @@ add_filter(
 
 ## See also
 
-- [Hooks reference — site folder](../hooks-reference.md#openstation_my_wordpress_entities--experimental)
-- [JavaScript reference — site folder](../javascript-reference.md#site-folder--extensibility-surface-experimental)
-- [Site folder — add a preview-pane action button](./my-wordpress-media-action.md)
+- [Hooks reference — WP Explorer](../hooks-reference.md#openstation_my_wordpress_entities--experimental)
+- [JavaScript reference — WP Explorer](../javascript-reference.md#wp-explorer--extensibility-surface-experimental)
+- [WP Explorer — add a preview-pane action button](./my-wordpress-media-action.md)

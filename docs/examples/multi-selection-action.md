@@ -1,6 +1,6 @@
 # Add an action that works on a whole selection
 
-Every tile canvas in OpenStation is multi-select: the wallpaper, folder windows, and each list inside the site folder. A menu entry you add through `os.files.tile-menu` or `os.my-wordpress.tile-context-menu` keeps working exactly as before — and appears only when **one** item is selected — until you tell the framework it is safe for a set.
+Every tile canvas in OpenStation is multi-select: the wallpaper, folder windows, and each list inside WP Explorer. A menu entry you add through `os.files.tile-menu` or `os.my-wordpress.tile-context-menu` keeps working exactly as before — and appears only when **one** item is selected — until you tell the framework it is safe for a set.
 
 This recipe adds an "Archive" action that appears for a single tile *and* for a selection of many, and that hits the server once for the whole set rather than once per item.
 

@@ -247,7 +247,7 @@ export function buildPlacementActions(
 		// Two cases get "Hide from desktop" instead of "Move to Trash":
 		//
 		//   1. Synthetic shortcuts the user promoted from a dock item
-		//      via OpenStation Settings → Apps & Icons. They aren't real
+		//      via OpenStation Preferences → Apps & Icons. They aren't real
 		//      placements — they're derived from the visibility map and
 		//      live only in the in-memory store, so trashing them would
 		//      404 on the REST endpoint.
@@ -257,7 +257,7 @@ export function buildPlacementActions(
 		//      via `openstation_register_icon()`. These are framework /
 		//      plugin shortcuts, not user data, and shouldn't be
 		//      deletable from the wallpaper. The user can hide them here
-		//      and restore via OpenStation Settings → Apps & Icons.
+		//      and restore via OpenStation Preferences → Apps & Icons.
 		//
 		// Both write `itemVisibility[ id ] = 'dock'` — the layout
 		// dispatcher's settings subscription drops the desktop tile on

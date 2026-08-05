@@ -1,5 +1,5 @@
 /**
- * Site folder — Agents: type contracts.
+ * WP Explorer — Agents: type contracts.
  *
  * Mirrors the REST shapes served by `includes/agents/rest.php`.
  *
@@ -92,7 +92,7 @@ export interface AgentInvokeResult {
 }
 
 /**
- * Agents block injected into the site folder window config by
+ * Agents block injected into the WP Explorer window config by
  * `openstation_agents_my_wordpress_window_args()`.
  */
 export interface AgentsSectionConfig {

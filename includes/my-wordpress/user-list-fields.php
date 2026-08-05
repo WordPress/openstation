@@ -248,7 +248,7 @@ function openstation_my_wordpress_register_user_summary_field() {
 				return openstation_my_wordpress_user_summary_payload( $id );
 			},
 			'schema'       => array(
-				'description' => __( 'Compact user summary for the site folder window.', 'desktop-mode' ),
+				'description' => __( 'Compact user summary for the WP Explorer window.', 'desktop-mode' ),
 				'type'        => 'object',
 				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,

@@ -170,7 +170,7 @@ function linkAvatarToAgentEditor( avatar: HTMLElement, agentId: number ): void {
 	avatar.setAttribute( 'clickable', '' );
 	avatar.setAttribute(
 		'title',
-		__( 'Open the agent in My WordPress', 'desktop-mode' ),
+		__( 'Open the agent in WP Explorer', 'desktop-mode' ),
 	);
 	avatar.addEventListener( 'click', ( e: Event ) => {
 		e.stopPropagation();
@@ -467,7 +467,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			empty.setAttribute(
 				'description',
 				__(
-					'Open an agent from the Agents section of the site folder, or pick a past conversation.',
+					'Open an agent from the Agents section of WP Explorer, or pick a past conversation.',
 					'desktop-mode',
 				),
 			);

@@ -138,7 +138,7 @@ The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `dat
 
 ### Pinning a system icon
 
-Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree pinned **site folder**.
+Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree pinned **WP Explorer**.
 
 ```php
 openstation_register_icon( 'my-wordpress', array(
