@@ -112,6 +112,59 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	/**
 	 * @covers ::openstation_notes_rest_create
 	 * @covers ::openstation_notes_rest_update
+	 * @covers ::openstation_notes_prepare
+	 */
+	public function test_desktop_binding_round_trips_and_defaults_to_unbound() {
+		// No `desktop` param → '' , i.e. every desktop. That's what
+		// notes created before the field existed report too.
+		$this->assertSame( '', $this->create_note()['desktop'] );
+
+		$note = $this->create_note( array( 'desktop' => 'desktop-3' ) );
+		$this->assertSame( 'desktop-3', $note['desktop'] );
+
+		// PATCH re-homes it, and '' puts it back on every desktop.
+		$moved = openstation_notes_rest_update(
+			$this->update_request(
+				$note['id'],
+				array(
+					'desktop'     => 'desktop-7',
+					'updatedAtMs' => $note['updatedAtMs'],
+				)
+			)
+		);
+		$this->assertSame( 'desktop-7', $moved->get_data()['desktop'] );
+
+		$unbound = openstation_notes_rest_update(
+			$this->update_request(
+				$note['id'],
+				array(
+					'desktop'     => '',
+					'updatedAtMs' => $moved->get_data()['updatedAtMs'],
+				)
+			)
+		);
+		$this->assertSame( '', $unbound->get_data()['desktop'] );
+	}
+
+	/**
+	 * The sanitizer reduces a binding to a key. It deliberately does
+	 * NOT try to decide whether the id names a real desktop — that is
+	 * a per-viewer question the shell answers (an id matching nothing
+	 * renders on every wall; see `src/notes/layer.ts`).
+	 *
+	 * @covers ::openstation_notes_sanitize_desktop
+	 */
+	public function test_desktop_sanitizer_reduces_to_a_key() {
+		$this->assertSame( 'desktop-12', openstation_notes_sanitize_desktop( 'desktop-12' ) );
+		$this->assertSame( 'desktop-1', openstation_notes_sanitize_desktop( 'DESKTOP-1' ) );
+		$this->assertSame( 'script', openstation_notes_sanitize_desktop( '<script>' ) );
+		$this->assertSame( '', openstation_notes_sanitize_desktop( array( 'desktop-1' ) ) );
+		$this->assertSame( '', $this->create_note( array( 'desktop' => '  ' ) )['desktop'] );
+	}
+
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_rest_update
 	 */
 	public function test_seed_is_stamped_at_creation_and_never_updated() {
 		// Client-provided seed is persisted verbatim.

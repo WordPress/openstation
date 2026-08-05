@@ -2,17 +2,24 @@
  * OpenStation — Pinned notes layer.
  *
  * Renders `wpd_note` posts as paper notes pinned to the wallpaper.
- * Modeled on the sticky-notes layer (`src/sticky-notes/layer.ts`) but
- * with a different physics: each note hangs from a pushpin, the pin
- * is the ONLY drag handle, drags route through the shell DragManager
- * (payload type `'note'`), and the recycle bin accepts the payload as
- * a trash gesture via `recycle-bin-payloads.ts`.
+ * Each note hangs from a pushpin, the pin is the ONLY drag handle,
+ * drags route through the shell DragManager (payload type `'note'`),
+ * and the recycle bin accepts the payload as a trash gesture via
+ * `recycle-bin-payloads.ts`.
  *
  * Read-only public notes (other users') render with a steel pin
  * that is *scenery, not a handle* — no drag, no edit, an always-
  * visible author chip.
+ *
+ * Virtual desktops: a note carries a `desktop` id, or `''` meaning
+ * every desktop. The binding is honored ONLY for notes the viewer
+ * owns and that are private. A public note is on every wall by
+ * definition — its desktop id was minted on the author's shell and
+ * matches nothing on anyone else's — so scoping it would hide it from
+ * the very people it was shared with.
  */
 
+import { addAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-save-status/os-save-status';
@@ -21,8 +28,9 @@ import '../ui/components/os-window-button/os-window-button';
 import { osConfirm } from '../os-confirm';
 import { DRAG_EVENTS } from '../drag';
 import type { DragManagerApi } from '../drag';
-import { nextNoteColor, sanitizeNoteColorSlug } from './colors';
+import { NOTE_COLORS, nextNoteColor, sanitizeNoteColorSlug } from './colors';
 import {
+	hashNoteSeed,
 	noteJitter,
 	playCrumpleIntoBin,
 	playPinInsertion,
@@ -33,6 +41,7 @@ import {
 } from './motion';
 import { buildPinImage, PIN_TIP_X, PIN_TIP_Y } from './pin';
 import {
+	createNote,
 	isNotesConflict,
 	listNotes,
 	updateNote,
@@ -91,6 +100,20 @@ export interface NotesLayerOptions {
 	 * affordance on owned notes (inline button + Posts dock drop target).
 	 */
 	canCreatePosts?: boolean;
+	/**
+	 * Active virtual-desktop id. Defaults to `'desktop-1'` so a layer
+	 * booted without the shell (tests) behaves like a single-desktop
+	 * session rather than hiding every bound note.
+	 */
+	getActiveDesktopId?: () => string;
+	/**
+	 * Every virtual-desktop id in the session. Drives two things: the
+	 * per-note "this desktop / all desktops" toggle only appears when
+	 * there is more than one desktop, and a binding that names no
+	 * existing desktop is treated as unbound (see
+	 * {@link NotesLayer.isNoteOnActiveDesktop}).
+	 */
+	getDesktopIds?: () => string[];
 	onError?: ( message: string ) => void;
 }
 
@@ -99,22 +122,32 @@ export class NotesLayer {
 	readonly pluginUrl: string;
 	readonly canCreatePosts: boolean;
 	private onError?: ( message: string ) => void;
+	private getActiveDesktopIdFn?: () => string;
+	private getDesktopIdsFn?: () => string[];
 	private root: HTMLElement | null = null;
 	private liveRegion: HTMLElement | null = null;
 	private controllers = new Map< number, NoteController >();
 	private zCounter = 1;
 	private highWaterMs = 0;
 	private tempIdCounter = 0;
+	private desktopHooksInstalled = false;
 
 	constructor( options: NotesLayerOptions ) {
 		this.host = options.host;
 		this.pluginUrl = options.pluginUrl;
 		this.canCreatePosts = options.canCreatePosts ?? false;
+		this.getActiveDesktopIdFn = options.getActiveDesktopId;
+		this.getDesktopIdsFn = options.getDesktopIds;
 		this.onError = options.onError;
 	}
 
 	async boot(): Promise< void > {
 		try {
+			// Before the hydration await, so a desktop switch mid-boot
+			// still lands — but inside the try, so a shell without the
+			// hook bus degrades to an unscoped wall instead of taking
+			// the whole layer down.
+			this.installDesktopHooks();
 			const { notes } = await listNotes();
 			notes.forEach( ( note ) => {
 				this.bumpHighWater( note.updatedAtMs );
@@ -149,6 +182,7 @@ export class NotesLayer {
 		const controller = new NoteController( { layer: this, note } );
 		this.controllers.set( note.id, controller );
 		this.root?.appendChild( controller.element );
+		this.applyDesktopVisibility( controller );
 		if ( options.animate !== 'none' ) {
 			void controller.playInsertion( options.animate === 'thunk' ? 1 : 0.7 );
 		}
@@ -213,6 +247,101 @@ export class NotesLayer {
 		};
 	}
 
+	/** Normalized 0–1 top-left for a viewport point. */
+	normalizedFromClient( clientX: number, clientY: number ): { x: number; y: number } {
+		const rect = this.host.getBoundingClientRect();
+		const { width, height } = this.hostSize();
+		return this.clampPosition(
+			( clientX - rect.left ) / width,
+			( clientY - rect.top ) / height,
+		);
+	}
+
+	/**
+	 * Pin a new note at a normalized position: paper on the wall
+	 * immediately (the thunk plays now, against a negative temp id),
+	 * server copy adopted when the POST lands.
+	 *
+	 * Shared by the wallpaper context menu and the Note Pad's
+	 * tear-off drop — both want the same optimistic dance, and the
+	 * drop path additionally has to flush edits typed while the POST
+	 * was still in flight.
+	 */
+	createNoteAt( options: {
+		x: number;
+		y: number;
+		text?: string;
+		color?: string;
+		isPublic?: boolean;
+		/** Focus the editor once the paper lands. */
+		focus?: boolean;
+	} ): NoteController {
+		const text = options.text ?? '';
+		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
+		const isPublic = options.isPublic === true;
+		const { x, y } = this.clampPosition( options.x, options.y );
+		// A note is born on the desktop it was pinned to — but only
+		// once there is a choice to make. Binding on a single-desktop
+		// session would be invisible until the user added a second
+		// desktop and then found it bare; leaving those notes unbound
+		// puts them on both, which is also how every note predating
+		// the binding behaves. Public notes never bind at all.
+		const desktop =
+			isPublic || ! this.hasMultipleDesktops() ? '' : this.activeDesktopId();
+		// Jitter seed: hashed from the text HERE, at creation — the
+		// server persists it verbatim so the optimistic paper and every
+		// future render share the exact same tilt.
+		const seed = hashNoteSeed( text );
+
+		const tempId = this.nextTempId();
+		const controller = this.upsertNote(
+			{
+				id: tempId,
+				text,
+				color,
+				x,
+				y,
+				z: 1,
+				public: isPublic,
+				desktop,
+				seed,
+				ownerId: 0,
+				ownerName: '',
+				ownerAvatar: '',
+				canEdit: true,
+				updatedAtMs: 0,
+			},
+			{ animate: 'thunk' },
+		);
+		this.bringToFront( controller );
+		if ( options.focus ) {
+			controller.focusEditor();
+		}
+
+		void createNote( { text, color, x, y, public: isPublic, seed, desktop } )
+			.then( ( note ) => {
+				this.bumpHighWater( note.updatedAtMs );
+				// Keep the optimistic position — the server echoes what we
+				// sent; the id + token are what we're after.
+				controller.replace( note );
+				this.rekeyNote( tempId, controller );
+				// Anything typed while the POST was in flight debounced
+				// against the temp id and couldn't save — flush it now
+				// that a real id exists.
+				controller.flushPendingEdits();
+			} )
+			.catch( ( err: unknown ) => {
+				this.removeNote( tempId );
+				this.notifyError(
+					__( 'Could not pin the note. Please try again.', 'desktop-mode' ),
+				);
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] notes: create failed:', err );
+			} );
+
+		return controller;
+	}
+
 	announce( message: string ): void {
 		this.ensureRoot();
 		if ( this.liveRegion ) {
@@ -249,6 +378,105 @@ export class NotesLayer {
 				this.upsertNote( restored, { animate: 'move' } );
 			},
 		} );
+	}
+
+	// ------------------------------------------------------------------
+	// Virtual desktops
+	// ------------------------------------------------------------------
+
+	/** The active desktop id, or `'desktop-1'` outside the shell. */
+	activeDesktopId(): string {
+		try {
+			const id = this.getActiveDesktopIdFn?.();
+			return typeof id === 'string' && id ? id : 'desktop-1';
+		} catch {
+			return 'desktop-1';
+		}
+	}
+
+	/** Every virtual-desktop id, or `[]` outside the shell. */
+	private desktopIds(): string[] {
+		try {
+			const ids = this.getDesktopIdsFn?.();
+			return Array.isArray( ids ) ? ids : [];
+		} catch {
+			return [];
+		}
+	}
+
+	/** Whether this session has more than one virtual desktop. */
+	hasMultipleDesktops(): boolean {
+		return this.desktopIds().length > 1;
+	}
+
+	/**
+	 * Whether a note belongs on the wall right now. Unbound notes
+	 * (`desktop: ''`) and public notes are always on; a bound private
+	 * note only shows on its own desktop.
+	 *
+	 * A binding naming a desktop that no longer exists reads as
+	 * unbound. `closeDesktop` re-homes the notes of the session that
+	 * saw it happen, but a session that was closed at the time never
+	 * got the hook — and "on every wall" is the recoverable failure,
+	 * where "on no wall" strands the note with no way to reach it.
+	 */
+	isNoteOnActiveDesktop( note: Note ): boolean {
+		if ( note.public || ! note.desktop ) {
+			return true;
+		}
+		const known = this.desktopIds();
+		if ( known.length > 0 && ! known.includes( note.desktop ) ) {
+			return true;
+		}
+		return note.desktop === this.activeDesktopId();
+	}
+
+	applyDesktopVisibility( controller: NoteController ): void {
+		controller.setOnActiveDesktop( this.isNoteOnActiveDesktop( controller.note ) );
+	}
+
+	private refreshDesktopVisibility(): void {
+		for ( const controller of this.controllers.values() ) {
+			this.applyDesktopVisibility( controller );
+		}
+	}
+
+	/**
+	 * Re-home notes whose desktop just went away. `closeDesktop` names
+	 * the survivor it migrated the windows to; paper follows the same
+	 * route, otherwise a note bound to the closed desktop would be
+	 * stored but unreachable on every wall.
+	 */
+	private migrateDesktopAssignments(
+		desktopId: string | undefined,
+		migratedTo: string | undefined,
+	): void {
+		if ( ! desktopId || ! migratedTo || desktopId === migratedTo ) {
+			return;
+		}
+		for ( const controller of this.controllers.values() ) {
+			if ( controller.note.desktop === desktopId && controller.note.canEdit ) {
+				controller.setDesktop( migratedTo );
+			}
+		}
+	}
+
+	private installDesktopHooks(): void {
+		if ( this.desktopHooksInstalled ) {
+			return;
+		}
+		this.desktopHooksInstalled = true;
+		addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/notes', () =>
+			this.refreshDesktopVisibility(),
+		);
+		addAction< [ { desktopId?: string; migratedTo?: string } ] >(
+			HOOKS.DESKTOP_CLOSED,
+			'desktop-mode/notes',
+			( detail ) => {
+				this.migrateDesktopAssignments( detail?.desktopId, detail?.migratedTo );
+				this.refreshDesktopVisibility();
+			},
+		);
 	}
 
 	// ------------------------------------------------------------------
@@ -354,6 +582,7 @@ export class NoteController {
 	private statusEl: HTMLElement | null = null;
 	private colorDot: HTMLButtonElement | null = null;
 	private visibilityBtn: HTMLElement | null = null;
+	private desktopBtn: HTMLElement | null = null;
 	private jitter: { rotation: number; pinOffsetX: number; pinRotation: number };
 	private saveTimer: number | null = null;
 	private zTimer: number | null = null;
@@ -478,6 +707,20 @@ export class NoteController {
 
 		meta.append( colorDot, visibility );
 
+		// "This desktop / all desktops". Only worth a control when the
+		// session actually has more than one desktop; `refreshDesktop
+		// Button` additionally pulls it back out while the note is
+		// public, since a public note is on every wall by definition.
+		if ( this.layer.hasMultipleDesktops() ) {
+			const desktop = document.createElement( 'os-window-button' );
+			desktop.className = 'os-pinned-note__desktop';
+			desktop.addEventListener( 'os-button-activate', () =>
+				this.toggleDesktopBinding(),
+			);
+			this.desktopBtn = desktop;
+			this.refreshDesktopButton();
+		}
+
 		// "Convert to post" — only for users who can author posts. Drops
 		// the note into a fresh draft (the note itself is trashed) and
 		// opens the block editor. The pin can also be dragged onto the
@@ -595,6 +838,75 @@ export class NoteController {
 		this.visibilityBtn.classList.toggle( 'is-public', isPublic );
 	}
 
+	private refreshDesktopButton(): void {
+		if ( ! this.desktopBtn || ! this.visibilityBtn ) {
+			return;
+		}
+		// A public note is on every wall regardless, so the binding has
+		// nothing to say. Take the control out rather than render a
+		// dead one — `<os-window-button>` has no disabled state, so a
+		// greyed-out button would still be keyboard-reachable and do
+		// nothing when activated.
+		if ( this.note.public ) {
+			this.desktopBtn.remove();
+			return;
+		}
+		// `parentNode`, not `isConnected` — the first paint runs while
+		// the meta row is still detached from the document.
+		if ( ! this.desktopBtn.parentNode ) {
+			this.visibilityBtn.after( this.desktopBtn );
+		}
+		const bound = Boolean( this.note.desktop );
+		this.desktopBtn.innerHTML = '';
+		const icon = document.createElement( 'span' );
+		icon.className = `dashicons ${
+			bound ? 'dashicons-desktop' : 'dashicons-images-alt2'
+		}`;
+		icon.setAttribute( 'aria-hidden', 'true' );
+		this.desktopBtn.appendChild( icon );
+		const label = bound
+			? __( 'Pinned to this desktop. Click to show on all desktops.', 'desktop-mode' )
+			: __( 'Shown on all desktops. Click to pin to this desktop.', 'desktop-mode' );
+		this.desktopBtn.setAttribute( 'title', label );
+		this.desktopBtn.setAttribute( 'aria-label', label );
+		this.desktopBtn.classList.toggle( 'is-bound', bound );
+	}
+
+	/**
+	 * Visibility for the active desktop. `hidden` rather than a class
+	 * so a note off-desktop is out of the a11y tree and out of tab
+	 * order, not merely transparent.
+	 */
+	setOnActiveDesktop( onActive: boolean ): void {
+		this.element.toggleAttribute( 'hidden', ! onActive );
+	}
+
+	/** Re-home the note onto `desktopId` (`''` = every desktop). */
+	setDesktop( desktopId: string ): void {
+		if ( ! this.note.canEdit || this.note.desktop === desktopId ) {
+			return;
+		}
+		this.note = { ...this.note, desktop: desktopId };
+		this.refreshDesktopButton();
+		this.layer.applyDesktopVisibility( this );
+		if ( this.note.id > 0 ) {
+			this.queuePatch( { desktop: desktopId } );
+		}
+	}
+
+	private toggleDesktopBinding(): void {
+		if ( this.note.public ) {
+			return;
+		}
+		const next = this.note.desktop ? '' : this.layer.activeDesktopId();
+		this.setDesktop( next );
+		this.layer.announce(
+			next
+				? __( 'Note pinned to this desktop.', 'desktop-mode' )
+				: __( 'Note shown on all desktops.', 'desktop-mode' ),
+		);
+	}
+
 	// ------------------------------------------------------------------
 	// State
 	// ------------------------------------------------------------------
@@ -605,7 +917,13 @@ export class NoteController {
 		const colorChanged = note.color !== this.note.color;
 		const positionChanged = note.x !== this.note.x || note.y !== this.note.y;
 		const zChanged = note.z !== this.note.z;
+		const scopeChanged =
+			note.desktop !== this.note.desktop || note.public !== this.note.public;
 		this.note = note;
+		if ( scopeChanged ) {
+			this.refreshDesktopButton();
+			this.layer.applyDesktopVisibility( this );
+		}
 		if ( zChanged ) {
 			// Remote stacking change (another session's bringToFront)
 			// — apply to the DOM directly; setZ() would loop it back
@@ -777,6 +1095,12 @@ export class NoteController {
 		const isPublic = ! this.note.public;
 		this.note = { ...this.note, public: isPublic };
 		this.refreshVisibility();
+		// Going public makes the desktop binding meaningless (the id is
+		// ours, the audience isn't) — the stored value is left alone,
+		// so going private again returns the note to the desktop it
+		// was pinned to rather than dumping it on all of them.
+		this.refreshDesktopButton();
+		this.layer.applyDesktopVisibility( this );
 		if ( isPublic && ! prefersReducedMotion() && this.visibilityBtn ) {
 			// The "stamp" pulse — the note just went up on the shared wall.
 			this.visibilityBtn.animate?.(
@@ -818,11 +1142,20 @@ export class NoteController {
 				}
 				// Adopt the server's token (and any fields we didn't
 				// touch) without clobbering in-flight local edits.
+				const scopeChanged =
+					saved.public !== this.note.public ||
+					saved.desktop !== this.note.desktop;
 				this.note = {
 					...this.note,
 					updatedAtMs: saved.updatedAtMs,
 					public: saved.public,
+					desktop: saved.desktop,
 				};
+				if ( scopeChanged ) {
+					this.refreshVisibility();
+					this.refreshDesktopButton();
+					this.layer.applyDesktopVisibility( this );
+				}
 				this.setPhase( 'saved' );
 			} catch ( err ) {
 				if ( this.disposed ) {

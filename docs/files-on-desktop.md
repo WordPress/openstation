@@ -506,6 +506,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 |---|---|---|
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
 | `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
+| `new-note` | New note | Pins an empty paper note where the click landed and focuses its editor. Contributed by the pinned-notes layer via the filter below, not by the files layer. |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OS Settings | Opens the OS Settings window. |
@@ -521,11 +522,33 @@ wp.os.hooks.addFilter(
     ( items ) => [
         ...items,
         {
-            id: 'my-plugin/sticky-note',
-            label: 'New sticky note',
+            id: 'my-plugin/reminder',
+            label: 'New reminder',
             icon: 'dashicons-format-aside',
             sort: 50,
-            onClick: () => myPlugin.createNote(),
+            onClick: () => myPlugin.createReminder(),
+        },
+    ],
+);
+```
+
+The filter's **second argument** is `{ x, y }`: where the user
+right-clicked, in viewport coordinates. Items that place something on
+the wallpaper need it — `onClick` is invoked with a synthetic
+`MouseEvent`, so reading coordinates off the event there yields
+`(0, 0)`. Capture the value in the filter and close over it:
+
+```js
+wp.os.hooks.addFilter(
+    'os.wallpaper-context-menu',
+    'my-plugin/menu',
+    ( items, { x, y } ) => [
+        ...items,
+        {
+            id: 'my-plugin/drop-here',
+            label: 'Drop here',
+            sort: 50,
+            onClick: () => myPlugin.placeAt( x, y ),
         },
     ],
 );

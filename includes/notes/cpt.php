@@ -3,10 +3,8 @@
  * OpenStation — Pinned notes CPT.
  *
  * Registers the `wpd_note` post type backing the pinned-notes feature:
- * paper notes the user writes in the Note Pad widget and pins to the
- * desktop wallpaper. Distinct from the Guidelines-backed sticky-notes
- * layer (`includes/sticky-notes/heartbeat.php`) — that one rides
- * Gutenberg's `wp_guideline` CPT; this one is plugin-owned.
+ * paper notes the user writes in the Note Pad widget (or straight on
+ * the wallpaper, via its right-click menu) and pins to the desktop.
  *
  * Visibility model: the "public" checkbox maps to `post_status`.
  *
@@ -134,6 +132,22 @@ function openstation_notes_register_cpt() {
 			'sanitize_callback' => 'absint',
 		)
 	);
+
+	// Virtual-desktop binding. An empty string means "every desktop",
+	// which is both the pre-existing behavior for notes created before
+	// this meta landed and the deliberate default for public notes —
+	// a desktop id only means something on the wall that created it,
+	// and the viewer of a public note may have no such desktop.
+	register_post_meta(
+		OPENSTATION_NOTES_POST_TYPE,
+		'_wpd_note_desktop',
+		array(
+			'type'              => 'string',
+			'single'            => true,
+			'default'           => '',
+			'sanitize_callback' => 'openstation_notes_sanitize_desktop',
+		)
+	);
 }
 add_action( 'init', 'openstation_notes_register_cpt' );
 
@@ -160,6 +174,21 @@ function openstation_notes_sanitize_color( $color ) {
  */
 function openstation_notes_sanitize_fraction( $value ) {
 	return (float) min( 1, max( 0, (float) $value ) );
+}
+
+/**
+ * Sanitize a virtual-desktop id.
+ *
+ * The shell mints ids as `desktop-<n>`, so `sanitize_key()` is lossless
+ * here. Anything that doesn't survive it becomes the empty string,
+ * which reads as "every desktop" — the safe direction to fail, since
+ * an unrecognized id would hide the note on every wall instead.
+ *
+ * @param mixed $value Raw value.
+ * @return string
+ */
+function openstation_notes_sanitize_desktop( $value ) {
+	return is_scalar( $value ) ? sanitize_key( (string) $value ) : '';
 }
 
 /**

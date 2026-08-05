@@ -19,6 +19,14 @@ export interface Note {
 	z: number;
 	public: boolean;
 	/**
+	 * Virtual desktop the note is pinned to, or `''` for every desktop.
+	 * Only meaningful on the owner's own wall — public notes ignore it,
+	 * since the id is minted on the author's shell and means nothing on
+	 * a viewer's. Absent on notes created before the field landed,
+	 * which read as `''` (the prior every-desktop behavior).
+	 */
+	desktop: string;
+	/**
 	 * Jitter seed: hashed from the note's text ONCE at creation and
 	 * persisted — edits never re-tilt a note. Drives the subtle
 	 * per-note paper rotation + pin offset/twist.

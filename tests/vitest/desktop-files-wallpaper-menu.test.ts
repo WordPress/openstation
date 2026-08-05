@@ -113,6 +113,28 @@ describe( 'wallpaper context menu', () => {
 		expect( items.map( ( i ) => i.id ) ).not.toContain( 'os-settings' );
 	} );
 
+	test( 'the filter receives the right-click position', async () => {
+		// Items that place something on the wallpaper need the click
+		// coordinates; onClick runs against a synthetic MouseEvent, so
+		// this argument is the only place they can come from.
+		const { buildMenuItems } = await load();
+		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
+		const seen: unknown[] = [];
+		stub.addFilter(
+			'os.wallpaper-context-menu',
+			'test/position',
+			( list, context ) => {
+				seen.push( context );
+				return list;
+			},
+		);
+		buildMenuItems( stubDeps( { position: { x: 320, y: 180 } } ) );
+		expect( seen[ 0 ] ).toEqual( { x: 320, y: 180 } );
+		// Callers with nothing to place may omit it.
+		buildMenuItems( stubDeps() );
+		expect( seen[ 1 ] ).toEqual( { x: 0, y: 0 } );
+	} );
+
 	test( 'openWallpaperMenu mounts the menu and invokes onClick', async () => {
 		const { openWallpaperMenu, buildMenuItems } = await load();
 		const deps = stubDeps();

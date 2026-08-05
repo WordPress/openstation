@@ -195,7 +195,6 @@ import {
 	installShortcutsSync,
 	syncShortcutsWithVisibility,
 } from './settings/desktop-shortcuts-sync';
-import { bootStickyNotes } from './sticky-notes';
 import { bootNotes } from './notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
@@ -3567,37 +3566,16 @@ function init(): void {
 		} ),
 	);
 
-	bootStickyNotes( {
-		host: desktopArea,
-		config,
-		// Only boot when the Gutenberg Guidelines experiment is live
-		// server-side; otherwise the layer's REST probes would 404. The
-		// flag is `undefined` on shells older than the one that added it
-		// → the layer treats that as available (boot and swallow).
-		available: config.stickyNotes?.available,
-		getActiveDesktopId: () => manager.getActiveDesktopId(),
-		openArtifact: ( url, title ) => {
-			const id = deriveWindowId( url, config.adminUrl );
-			void manager.open( {
-				id,
-				baseId: id,
-				url,
-				title,
-				icon: 'dashicons-edit-page',
-			} );
-		},
-		onError: ( message ) => {
-			showToast( { message } );
-		},
-	} );
-
 	// Pinned notes — CPT-backed paper notes pinned to the wallpaper
-	// with a pushpin. Composes its REST client, the wall layer, and
-	// the drop routes (wallpaper create/reposition via the canvas
-	// payload seam, recycle-bin trash via the bin payload seam).
+	// with a pushpin. Composes its REST client, the wall layer, the
+	// drop routes (wallpaper create/reposition via the canvas payload
+	// seam, recycle-bin trash via the bin payload seam), and the
+	// wallpaper context-menu entry.
 	bootNotes( {
 		host: desktopArea,
 		config,
+		getActiveDesktopId: () => manager.getActiveDesktopId(),
+		getDesktopIds: () => manager.getDesktops().map( ( d ) => d.id ),
 		onError: ( message ) => {
 			showToast( { message } );
 		},
@@ -4223,6 +4201,7 @@ function init(): void {
 				currentSortMode: rootSortMode,
 				includeShowDesktop:
 					! osSettings.state.showDesktopOnWallpaperClick,
+				position: { x: clientX, y: clientY },
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',

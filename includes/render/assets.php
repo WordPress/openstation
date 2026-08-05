@@ -383,7 +383,6 @@ function openstation_enqueue_assets() {
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
-	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `openstation_sticky_notes_is_available()`.
 	 * }
 	 */
 	$config = apply_filters(
@@ -514,14 +513,6 @@ function openstation_enqueue_assets() {
 			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),
 			'seenIntrosUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
-			// Sticky notes ride on Gutenberg's Guidelines experiment
-			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
-			// When that experiment isn't active the `wp/v2/guidelines`
-			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
-			// noisy — so the shell skips booting the layer entirely.
-			'stickyNotes'                   => array(
-				'available' => openstation_sticky_notes_is_available(),
-			),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'             => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the

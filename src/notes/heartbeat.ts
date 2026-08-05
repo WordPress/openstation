@@ -2,9 +2,8 @@
  * OpenStation — Pinned notes Heartbeat glue.
  *
  * Contributes `openstation_notes_subscribe` on every tick and feeds
- * `openstation_notes` deltas back to the layer. Same shape as the
- * sticky-notes heartbeat (`src/sticky-notes/heartbeat.ts`); server
- * side in `includes/notes/heartbeat.php`.
+ * `openstation_notes` deltas back to the layer. Server side in
+ * `includes/notes/heartbeat.php`.
  */
 
 import { heartbeat } from '../heartbeat';

@@ -20,6 +20,13 @@
  * notes are a read-only broadcast surface; "manage other users'
  * notes" is not a supported operation through this controller.
  *
+ * Desktop binding: `desktop` carries a virtual-desktop id, or '' for
+ * "every desktop". The server stores it verbatim and never filters on
+ * it — a note's visibility is a per-viewer question (the id is minted
+ * on the owner's wall and means nothing on anyone else's), so the
+ * shell decides what to render. Public notes ignore the binding
+ * entirely; see `src/notes/layer.ts`.
+ *
  * Optimistic concurrency: PATCH accepts an `updatedAtMs` field
  * carrying the client's last-seen modified timestamp; a mismatch
  * returns 409 `openstation_notes_conflict` with the server copy in
@@ -65,32 +72,37 @@ function openstation_notes_register_rest_routes() {
 				'permission_callback' => 'openstation_notes_rest_permission',
 				'callback'            => 'openstation_notes_rest_create',
 				'args'                => array(
-					'text'   => array(
+					'text'    => array(
 						'type'              => 'string',
 						'default'           => '',
 						'sanitize_callback' => 'sanitize_textarea_field',
 					),
-					'color'  => array(
+					'color'   => array(
 						'type'              => 'string',
 						'default'           => 'butter',
 						'sanitize_callback' => 'openstation_notes_sanitize_color',
 					),
-					'x'      => array(
+					'x'       => array(
 						'type'    => 'number',
 						'default' => 0.1,
 					),
-					'y'      => array(
+					'y'       => array(
 						'type'    => 'number',
 						'default' => 0.1,
 					),
-					'public' => array(
+					'public'  => array(
 						'type'    => 'boolean',
 						'default' => false,
 					),
-					'seed'   => array(
+					'seed'    => array(
 						'type'              => 'integer',
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
+					),
+					'desktop' => array(
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'openstation_notes_sanitize_desktop',
 					),
 				),
 			),
@@ -203,6 +215,8 @@ function openstation_notes_prepare( $post ) {
 		'y'           => openstation_notes_sanitize_fraction( get_post_meta( $post->ID, '_wpd_note_y', true ) ),
 		'z'           => (int) get_post_meta( $post->ID, '_wpd_note_z', true ),
 		'public'      => 'publish' === $post->post_status,
+		// Virtual desktop the note is pinned to; '' = every desktop.
+		'desktop'     => openstation_notes_sanitize_desktop( get_post_meta( $post->ID, '_wpd_note_desktop', true ) ),
 		'seed'        => (int) get_post_meta( $post->ID, '_wpd_note_seed', true ),
 		'ownerId'     => $owner_id,
 		'ownerName'   => $owner instanceof WP_User ? (string) $owner->display_name : '',
@@ -321,6 +335,7 @@ function openstation_notes_rest_create( $request ) {
 	update_post_meta( $post_id, '_wpd_note_x', openstation_notes_sanitize_fraction( $request['x'] ) );
 	update_post_meta( $post_id, '_wpd_note_y', openstation_notes_sanitize_fraction( $request['y'] ) );
 	update_post_meta( $post_id, '_wpd_note_z', openstation_notes_next_z() );
+	update_post_meta( $post_id, '_wpd_note_desktop', openstation_notes_sanitize_desktop( $request['desktop'] ) );
 	// The jitter seed is written ONCE, here — PATCH never touches it,
 	// so editing a note's text never re-tilts its paper. The client
 	// sends its own text hash (keeps the optimistic render identical);
@@ -412,6 +427,9 @@ function openstation_notes_rest_update( $request ) {
 	}
 	if ( null !== $request['z'] ) {
 		update_post_meta( $post->ID, '_wpd_note_z', absint( $request['z'] ) );
+	}
+	if ( null !== $request['desktop'] ) {
+		update_post_meta( $post->ID, '_wpd_note_desktop', openstation_notes_sanitize_desktop( $request['desktop'] ) );
 	}
 
 	// Always run the post update — even a meta-only PATCH must bump

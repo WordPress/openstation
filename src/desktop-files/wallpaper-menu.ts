@@ -18,6 +18,19 @@ import { applyFilters, doAction } from '../hooks';
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { attachDismissable } from './dismissable';
 
+/**
+ * Second argument handed to the `os.wallpaper-context-menu` filter:
+ * where the user right-clicked, in viewport coordinates.
+ *
+ * Items whose action places something on the wallpaper (a note, a
+ * tile) need this — the menu synthesizes a bare `MouseEvent` for
+ * `onClick`, so the original coordinates are gone by then.
+ */
+export interface WallpaperMenuContext {
+	x: number;
+	y: number;
+}
+
 /** Public shape of a menu item. Plugins build these via the filter. */
 export interface WallpaperMenuItem {
 	/** Stable id; useful for tests + telemetry. */
@@ -386,10 +399,13 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 	);
 
 	const merged = [ ...builtIn, ...serverItems ];
-	const filtered = applyFilters< WallpaperMenuItem[], [] >(
-		'os.wallpaper-context-menu',
-		merged,
-	);
+	const filtered = applyFilters<
+		WallpaperMenuItem[],
+		[ WallpaperMenuContext ]
+	>( 'os.wallpaper-context-menu', merged, {
+		x: deps.position?.x ?? 0,
+		y: deps.position?.y ?? 0,
+	} );
 	return Array.isArray( filtered ) ? filtered : merged;
 }
 
@@ -442,6 +458,13 @@ export interface WallpaperMenuDeps {
 	 * Default `true`.
 	 */
 	includeShowDesktop?: boolean;
+	/**
+	 * Viewport coordinates of the right-click that opened the menu,
+	 * forwarded to the `os.wallpaper-context-menu` filter so items can
+	 * place things where the user clicked. Omitted in tests and by
+	 * callers with nothing to place; the filter then sees `{0, 0}`.
+	 */
+	position?: { x: number; y: number };
 	labels: {
 		createFolder: string;
 		showDesktop: string;

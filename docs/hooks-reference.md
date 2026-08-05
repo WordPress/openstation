@@ -3900,51 +3900,23 @@ uses to detect a user switch (see
 
 ---
 
-## Sticky notes
-
-Sticky notes are backed by **Gutenberg's Guidelines experiment** — the
-`wp_guideline` CPT and `wp_guideline_type` taxonomy (exposed at
-`wp/v2/guidelines` and `wp/v2/wp_guideline_type`). That experiment is
-opt-in (Gutenberg plugin 22.7+, under Gutenberg → Experiments). When it
-isn't active those REST routes 404, so both the Heartbeat delta handler
-and the client-side layer gate on availability.
-
-### `openstation_sticky_notes_available` — Stable *(filter)*
-
-Filters whether the sticky-notes surface is treated as available. The
-default is `post_type_exists( 'wp_guideline' ) && taxonomy_exists(
-'wp_guideline_type' )`. The result is read by
-`openstation_sticky_notes_is_available()`, which gates both the
-`heartbeat_received` delta handler and the `stickyNotes.available` flag
-in the shell config (so the client skips booting the layer — and its
-404-prone REST probes — when `false`).
-
-```php
-apply_filters( 'openstation_sticky_notes_available', bool $available );
-```
-
-**Example — force sticky notes off site-wide even when Guidelines is enabled:**
-
-```php
-add_filter( 'openstation_sticky_notes_available', '__return_false' );
-```
-
-- **Param** `bool $available` — whether the guideline CPT + taxonomy are registered.
-- **Return** `bool` — coerced with `(bool)`.
-
----
-
 ## Pinned notes
 
-Pinned notes are the plugin-owned paper notes composed in the **Note
-Pad** widget and pinned to the wallpaper with a pushpin. They are
-backed by the `wpd_note` CPT (non-public, custom REST controller at
-`/desktop-mode/v1/notes`) — a separate feature from the
-Guidelines-backed sticky notes above. Visibility maps to post status:
-`private` (default, owner-only) or `publish` ("public" — read-only on
-every other OpenStation user's wallpaper). Only the owner can edit,
-move, recolor, or delete a note; administrators do not bypass
-ownership through this controller.
+Pinned notes are the paper notes composed in the **Note Pad** widget
+(or straight on the wallpaper, via its right-click **New note** entry)
+and pinned to the desktop with a pushpin. They are backed by the
+`wpd_note` CPT (non-public, custom REST controller at
+`/desktop-mode/v1/notes`). Visibility maps to post status: `private`
+(default, owner-only) or `publish` ("public" — read-only on every other
+OpenStation user's wallpaper). Only the owner can edit, move, recolor,
+or delete a note; administrators do not bypass ownership through this
+controller.
+
+A note also carries a `desktop` binding — a virtual-desktop id, or the
+empty string for "every desktop". The server stores it and never
+filters on it: whether a note belongs on the wall is a per-viewer
+question, so the shell decides. Public notes ignore the binding, and a
+binding naming no existing desktop reads as unbound.
 
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
