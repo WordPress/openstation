@@ -447,6 +447,46 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow.mock.calls[ 0 ][ 0 ].title ).toBe( 'Posts' );
 	} );
 
+	test( 'a new-context link never drives the window it was clicked in', () => {
+		// `target="_blank"` asks for one thing: that the page it was
+		// clicked on survives. The same-slug branch would move that
+		// window instead, which is worse than the browser tab it used
+		// to get.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/edit.php?post_type=page&paged=2',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a new-context link skips the destructive in-place branch too', () => {
+		// That branch fires on a slug MISMATCH, which is exactly the
+		// shape a `_blank` reaches the parent with.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'cross-origin URL is silently refused', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( {

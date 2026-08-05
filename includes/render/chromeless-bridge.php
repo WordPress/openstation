@@ -1270,6 +1270,20 @@ function openstation_chromeless_bridge_script() {
 	 * upgrades it to the destination page's own title once the iframe
 	 * loads — see `titleFromPage` in `src/types.ts`.
 	 */
+	/*
+	 * The wp-admin filename a URL points at (`revision.php`), or an
+	 * empty string when it can't be read. Used to tell "a different
+	 * admin screen" from "another view of this one" without needing
+	 * the shell's window-slug rules.
+	 */
+	function adminFileOf( url ) {
+		try {
+			return new URL( url, window.location.href ).pathname.split( '/' ).pop();
+		} catch ( err ) {
+			return '';
+		}
+	}
+
 	function visibleLinkText( link ) {
 		var clone = link.cloneNode( true );
 		var muted = clone.querySelectorAll( '.screen-reader-text, .hidden' );
@@ -1314,6 +1328,19 @@ function openstation_chromeless_bridge_script() {
 		 * under the PWA the tab is inside the app's own scope, so the
 		 * click relaunches the whole app.
 		 *
+		 * ONLY when the destination is a different wp-admin file,
+		 * though. Whether two URLs on the SAME file are the same
+		 * "page" is a question about the shell's window-slug rules
+		 * (which query params are identity-bearing), and the iframe
+		 * has no access to those. Guess wrong and the parent routes
+		 * the click as in-page navigation, which moves the window the
+		 * link was clicked in — destroying the exact context the
+		 * `_blank` asked to keep. So a `_blank` to
+		 * `admin.php?page=x&tab=b` from `admin.php?page=x` keeps
+		 * opening a browser tab, same as before. Fewer of these get
+		 * to be windows than could be, and none of them can eat the
+		 * page underneath.
+		 *
 		 * Every other target still yields. `_top` / `_parent` are a
 		 * deliberate "replace the whole shell" and hijacking them
 		 * would break the one escape hatch a page has; a named target
@@ -1322,14 +1349,18 @@ function openstation_chromeless_bridge_script() {
 		 * on a non-admin URL is a real new tab we have no better
 		 * answer for.
 		 */
+		var newContext = false;
 		var linkTarget = link.target || '';
 		if ( linkTarget !== '' && linkTarget !== '_self' ) {
-			if (
-				linkTarget !== '_blank' ||
-				classifyLink( link.getAttribute( 'href' ), window.location.href ) !== 'admin'
-			) {
+			var claimable =
+				linkTarget === '_blank' &&
+				classifyLink( link.getAttribute( 'href' ), window.location.href ) === 'admin' &&
+				adminFileOf( link.getAttribute( 'href' ) ) !== '' &&
+				adminFileOf( link.getAttribute( 'href' ) ) !== adminFileOf( window.location.href );
+			if ( ! claimable ) {
 				return;
 			}
+			newContext = true;
 		}
 		if ( link.hasAttribute( 'download' ) ) {
 			return;
@@ -1511,7 +1542,17 @@ function openstation_chromeless_bridge_script() {
 					{
 						type: 'os-iframe-admin-link',
 						url: absolute,
-						label: adminLabel.slice( 0, 80 )
+						label: adminLabel.slice( 0, 80 ),
+						/*
+						 * The link asked for a new browsing context, so
+						 * the parent must give the destination its own
+						 * window rather than driving this one. Without
+						 * the flag it would still be free to pick an
+						 * in-place branch — the destructive-action one
+						 * fires on slug mismatch, which is exactly the
+						 * shape a `_blank` reaches us with.
+						 */
+						newContext: newContext
 					},
 					window.location.origin
 				);

@@ -295,7 +295,13 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		} else if ( deps ) {
 			const linkLabel =
 				typeof data.label === 'string' ? data.label : '';
-			handleCrossPageAdminLink( win, data.url, linkLabel, deps );
+			handleCrossPageAdminLink(
+				win,
+				data.url,
+				linkLabel,
+				deps,
+				data.newContext === true,
+			);
 		}
 	}
 
@@ -750,6 +756,7 @@ function handleCrossPageAdminLink(
 	rawUrl: string,
 	linkLabel: string,
 	deps: AdminLinkDispatchDeps,
+	newContext = false,
 ): void {
 	let url: URL;
 	try {
@@ -760,8 +767,18 @@ function handleCrossPageAdminLink(
 	if ( url.origin !== INITIAL_ORIGIN ) {
 		return;
 	}
-	const absolute = url.toString();
+	// The link named another browsing context (`target="_blank"`), so
+	// the one thing it asked for is that the page it was clicked on
+	// survives. Neither in-place branch below can honour that, and the
+	// destructive one fires on a slug MISMATCH — the same shape a
+	// `_blank` reaches us with — so both are skipped rather than
+	// guarded individually.
+	if ( newContext ) {
+		openAdminUrlInOwnWindow( win, url, linkLabel, deps );
+		return;
+	}
 
+	const absolute = url.toString();
 	const targetSlug = deps.deriveSlug( absolute );
 	const samePage = isSamePageSlug( win, targetSlug, deps );
 

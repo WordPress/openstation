@@ -189,6 +189,27 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 			'/wp-admin/revision.php'
 		);
 		expect( adminLinkMessages()[ 0 ].url ).toContain( 'revision=24' );
+		// Tells the parent it may not drive THIS window with it.
+		expect( adminLinkMessages()[ 0 ].newContext ).toBe( true );
+	} );
+
+	test( 'a _blank to another view of the same admin file is left to the browser', () => {
+		// This page is `upload.php`. Whether two URLs on one file are
+		// the same "page" is a question about the shell's slug rules,
+		// which the iframe can't see — and guessing wrong makes the
+		// parent navigate the window the link was clicked in, eating
+		// the context the `_blank` asked to keep.
+		clickLink(
+			'<a href="/wp-admin/upload.php?mode=grid" target="_blank">Grid view</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
+	test( 'a plain click carries no new-context flag', () => {
+		clickLink( '<a href="/wp-admin/edit.php">Posts</a>' );
+
+		expect( adminLinkMessages()[ 0 ].newContext ).toBe( false );
 	} );
 
 	test( 'a _blank non-admin link still opens a real browser tab', () => {
