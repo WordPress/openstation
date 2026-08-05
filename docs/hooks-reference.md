@@ -3935,12 +3935,6 @@ OpenStation user's wallpaper). Only the owner can edit, move, recolor,
 or delete a note; administrators do not bypass ownership through this
 controller.
 
-A note also carries a `desktop` binding — a virtual-desktop id, or the
-empty string for "every desktop". The server stores it and never
-filters on it: whether a note belongs on the wall is a per-viewer
-question, so the shell decides. Public notes ignore the binding, and a
-binding naming no existing desktop reads as unbound.
-
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
 Filters whether the current user may create a note. Defaults to

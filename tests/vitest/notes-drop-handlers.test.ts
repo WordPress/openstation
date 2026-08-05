@@ -33,7 +33,6 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 		y: 0.1,
 		z: 1,
 		public: false,
-		desktop: '',
 		seed: 123,
 		ownerId: 5,
 		ownerName: 'Me',

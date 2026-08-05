@@ -400,32 +400,27 @@
 	opacity: 0.6;
 }
 
-/* "This desktop / all desktops" — same treatment as the visibility
-   toggle, but in the FOOTER rather than the meta row. The pushpin is
+/* "Move to Trash" — the pointer/keyboard equivalent of dragging the
+   pin onto the bin. In the FOOTER, not the meta row: the pushpin is
    56px wide, centred, jittered ±10px and painted above the paper's
-   chrome, so it covers note-relative x 62–138; the right-aligned meta
-   row already carries three trailing controls, and a fourth pushed the
-   visibility toggle under the pin where a pointer could not reach it.
-   Down here there is no overlap at any jitter value.
-
-   Rendered only when the session has more than one virtual desktop,
-   and pulled out entirely on public notes (which are on every wall by
-   definition, so the binding has nothing to say). */
-.os-pinned-note__desktop {
+   chrome, so it covers note-relative x 62–138, and a fourth control
+   in the right-aligned meta row lands underneath it where a pointer
+   can't reach. The status chip is pushed to the trailing edge. */
+.os-pinned-note__trash {
 	--os-ui-btn-color: var(--dm-note-ink-soft);
 	margin-inline-end: auto;
 	opacity: 0.75;
 }
 
-.os-pinned-note__desktop:hover {
+.os-pinned-note__trash:hover {
+	--os-ui-btn-color: #b32d2e;
 	opacity: 1;
 }
 
-.os-pinned-note__desktop .dashicons {
-	font-size: 20px;
+.os-pinned-note__trash svg {
 	width: 20px;
 	height: 20px;
-	color: var(--dm-note-ink, #4d4419);
+	fill: currentColor;
 }
 
 /* Author sticker on read-only public notes — always visible. */

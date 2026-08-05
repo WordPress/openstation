@@ -25,7 +25,6 @@ const NOTE: Note = {
 	y: 0.3,
 	z: 4,
 	public: false,
-	desktop: '',
 	seed: 77,
 	ownerId: 1,
 	ownerName: 'Ana',

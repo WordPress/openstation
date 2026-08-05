@@ -23,10 +23,6 @@ export type { Note } from './types';
 export interface BootNotesOptions {
 	host: HTMLElement;
 	config: DesktopConfig;
-	/** Active virtual-desktop id (see `NotesLayerOptions`). */
-	getActiveDesktopId?: () => string;
-	/** Every virtual-desktop id (see `NotesLayerOptions`). */
-	getDesktopIds?: () => string[];
 	onError?: ( message: string ) => void;
 }
 
@@ -44,8 +40,6 @@ export function bootNotes( options: BootNotesOptions ): NotesLayer | null {
 		host: options.host,
 		pluginUrl: options.config.pluginUrl ?? '',
 		canCreatePosts: options.config.canCreatePosts ?? false,
-		getActiveDesktopId: options.getActiveDesktopId,
-		getDesktopIds: options.getDesktopIds,
 		onError: options.onError,
 	} );
 	installNoteDropHandlers( layer );

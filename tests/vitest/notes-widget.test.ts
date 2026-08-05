@@ -84,7 +84,6 @@ describe( 'note pad widget', () => {
 					y: 0.2,
 					z: 2,
 					public: false,
-					desktop: '',
 					ownerId: 1,
 					ownerName: 'Me',
 					ownerAvatar: '',

@@ -25,7 +25,6 @@ const NOTE: Note = {
 	y: 0.3,
 	z: 4,
 	public: false,
-	desktop: '',
 	seed: 77,
 	ownerId: 1,
 	ownerName: 'Ana',
@@ -76,7 +75,6 @@ describe( 'notes REST client', () => {
 			x: 0.2,
 			y: 0.3,
 			public: false,
-			desktop: 'desktop-2',
 		} );
 		expect( note.id ).toBe( 12 );
 		const init = fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit;
@@ -87,7 +85,6 @@ describe( 'notes REST client', () => {
 			x: 0.2,
 			y: 0.3,
 			public: false,
-			desktop: 'desktop-2',
 		} );
 	} );
 

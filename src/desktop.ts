@@ -3584,8 +3584,6 @@ function init(): void {
 	bootNotes( {
 		host: desktopArea,
 		config,
-		getActiveDesktopId: () => manager.getActiveDesktopId(),
-		getDesktopIds: () => manager.getDesktops().map( ( d ) => d.id ),
 		onError: ( message ) => {
 			showToast( { message } );
 		},

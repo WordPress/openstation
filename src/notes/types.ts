@@ -8,6 +8,13 @@
  * that boundary — the widget imports nothing but types from here.
  */
 
+/**
+ * The CPT slug, mirrored from `OPENSTATION_NOTES_POST_TYPE` in
+ * `includes/notes/cpt.php`. Used for the `os.<type>.changed`
+ * broadcast topic the Recycle Bin badge subscribes to.
+ */
+export const NOTES_POST_TYPE = 'wpd_note';
+
 /** Wire shape of one note. */
 export interface Note {
 	id: number;
@@ -18,14 +25,6 @@ export interface Note {
 	y: number;
 	z: number;
 	public: boolean;
-	/**
-	 * Virtual desktop the note is pinned to, or `''` for every desktop.
-	 * Only meaningful on the owner's own wall — public notes ignore it,
-	 * since the id is minted on the author's shell and means nothing on
-	 * a viewer's. Absent on notes created before the field landed,
-	 * which read as `''` (the prior every-desktop behavior).
-	 */
-	desktop: string;
 	/**
 	 * Jitter seed: hashed from the note's text ONCE at creation and
 	 * persisted — edits never re-tilt a note. Drives the subtle

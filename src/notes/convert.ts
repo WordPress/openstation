@@ -11,6 +11,7 @@
  */
 
 import { __ } from '../i18n';
+import { broadcastNotesChange } from './broadcast';
 import { convertNote, restoreNote } from './rest';
 import type { Note } from './types';
 
@@ -79,6 +80,9 @@ export async function convertNoteToPost(
 	callbacks.onEvict( note.id );
 	try {
 		const result = await convertNote( note.id );
+		// Convert trashes the source note, so the bin gained an item
+		// just as it does on a plain trash.
+		broadcastNotesChange( 'trashed', [ note.id ] );
 		const editorWindowId = openDraftEditor( result.editUrl );
 		getDesktopApi()?.showToast?.( {
 			message: __( 'Note converted to a draft post', 'desktop-mode' ),
@@ -95,7 +99,10 @@ export async function convertNoteToPost(
 							?.close?.();
 					}
 					void restoreNote( note.id )
-						.then( ( restored ) => callbacks.onRestore( restored ) )
+						.then( ( restored ) => {
+							broadcastNotesChange( 'untrashed', [ note.id ] );
+							callbacks.onRestore( restored );
+						} )
 						.catch( ( err: unknown ) => {
 							// eslint-disable-next-line no-console
 							console.error(

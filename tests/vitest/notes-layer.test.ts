@@ -1,7 +1,7 @@
 /**
  * Pinned-notes layer: owner vs read-only rendering, z-order,
- * heartbeat deltas, virtual-desktop scoping, the wallpaper-menu
- * create path, and the trash/restore round trip.
+ * heartbeat deltas, the wallpaper-menu create path, and the
+ * trash/restore round trip.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { NotesLayer } from '../../src/notes/layer';
@@ -19,7 +19,6 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 		y: 0.2,
 		z: 3,
 		public: false,
-		desktop: '',
 		seed: 123,
 		ownerId: 5,
 		ownerName: 'Me',
@@ -30,12 +29,7 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 	};
 }
 
-function makeLayer(
-	options: {
-		activeDesktopId?: string;
-		desktopIds?: string[];
-	} = {},
-): NotesLayer {
+function makeLayer(): NotesLayer {
 	const host = document.createElement( 'div' );
 	// jsdom has no layout — pin down the geometry the position math reads.
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
@@ -53,12 +47,7 @@ function makeLayer(
 			toJSON: () => ( {} ),
 		} ) as DOMRect;
 	document.body.appendChild( host );
-	return new NotesLayer( {
-		host,
-		pluginUrl: 'https://example.test/plugin',
-		getActiveDesktopId: () => options.activeDesktopId ?? 'desktop-1',
-		getDesktopIds: () => options.desktopIds ?? [ 'desktop-1' ],
-	} );
+	return new NotesLayer( { host, pluginUrl: 'https://example.test/plugin' } );
 }
 
 describe( 'NotesLayer', () => {
@@ -224,198 +213,31 @@ describe( 'NotesLayer', () => {
 		).toBe( 'newer' );
 	} );
 
-	test( 'a note bound to another desktop is hidden from the wall', () => {
-		const layer = makeLayer( {
-			activeDesktopId: 'desktop-1',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
-		const here = layer.upsertNote( makeNote( { id: 1, desktop: 'desktop-1' } ) );
-		const elsewhere = layer.upsertNote( makeNote( { id: 2, desktop: 'desktop-2' } ) );
-		const everywhere = layer.upsertNote( makeNote( { id: 3, desktop: '' } ) );
-		expect( here.element.hasAttribute( 'hidden' ) ).toBe( false );
-		expect( elsewhere.element.hasAttribute( 'hidden' ) ).toBe( true );
-		expect( everywhere.element.hasAttribute( 'hidden' ) ).toBe( false );
-	} );
 
-	test( 'a binding naming no existing desktop shows everywhere', () => {
-		// Another session closed desktop-4 while this one was shut; the
-		// migration hook never reached us. Stranding the note on no
-		// wall at all would leave no way to get it back.
-		const layer = makeLayer( {
-			activeDesktopId: 'desktop-1',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
-		const orphan = layer.upsertNote( makeNote( { id: 1, desktop: 'desktop-4' } ) );
-		expect( orphan.element.hasAttribute( 'hidden' ) ).toBe( false );
-	} );
 
-	test( 'a public note ignores its desktop binding', () => {
-		// The id was minted on the author's shell; scoping a shared note
-		// by it would hide it from the people it was shared with.
-		const layer = makeLayer( { activeDesktopId: 'desktop-1' } );
-		const controller = layer.upsertNote(
-			makeNote( { id: 1, public: true, desktop: 'desktop-9', canEdit: false } ),
-		);
-		expect( controller.element.hasAttribute( 'hidden' ) ).toBe( false );
-	} );
 
-	test( 'the desktop toggle only renders with more than one desktop', () => {
-		const single = makeLayer( { desktopIds: [ 'desktop-1' ] } );
-		expect(
-			single.upsertNote( makeNote() ).element.querySelector(
-				'.os-pinned-note__desktop',
-			),
-		).toBeNull();
 
-		const multi = makeLayer( {
-			desktopIds: [ 'desktop-1', 'desktop-2', 'desktop-3' ],
-		} );
-		const button = multi
-			.upsertNote( makeNote() )
-			.element.querySelector( '.os-pinned-note__desktop' );
-		expect( button ).not.toBeNull();
-		// Unbound note → the control offers to pin it here.
-		expect( button?.getAttribute( 'title' ) ).toContain( 'pin to this desktop' );
-		// It lives in the footer, clear of the pushpin's 56px band.
-		expect( button?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
-	} );
 
-	test( 'adding a desktop mid-session grows the toggle in', async () => {
-		// The control is built once, at paint. If its presence were
-		// decided there too, a note pinned while the session had one
-		// desktop would be stranded: hidden on the new desktop, with no
-		// control on the old one to unbind it, until a reload.
-		let desktops = [ 'desktop-1' ];
-		const host = document.createElement( 'div' );
-		document.body.appendChild( host );
-		const layer = new NotesLayer( {
-			host,
-			pluginUrl: 'https://example.test/plugin',
-			getActiveDesktopId: () => 'desktop-1',
-			getDesktopIds: () => desktops,
-		} );
-		await layer.boot();
 
-		const controller = layer.upsertNote( makeNote( { desktop: 'desktop-1' } ) );
-		expect(
-			controller.element.querySelector( '.os-pinned-note__desktop' ),
-		).toBeNull();
 
-		const { doAction, HOOKS } = await import( '../../src/hooks' );
-		desktops = [ 'desktop-1', 'desktop-2' ];
-		doAction( HOOKS.DESKTOP_CREATED, { desktopId: 'desktop-2' } );
 
-		const button = controller.element.querySelector( '.os-pinned-note__desktop' );
-		expect( button ).not.toBeNull();
-		expect( button?.getAttribute( 'title' ) ).toContain( 'show on all desktops' );
-
-		// And closing back down to one desktop takes it away again.
-		desktops = [ 'desktop-1' ];
-		doAction( HOOKS.DESKTOP_CLOSED, {
-			desktopId: 'desktop-2',
-			migratedTo: 'desktop-1',
-		} );
-		expect(
-			controller.element.querySelector( '.os-pinned-note__desktop' ),
-		).toBeNull();
-	} );
-
-	test( 'a public note carries no desktop toggle at all', () => {
-		// Not a disabled one: <os-window-button> has no disabled state,
-		// so a greyed-out button would still be keyboard-reachable and
-		// do nothing.
-		const layer = makeLayer( { desktopIds: [ 'desktop-1', 'desktop-2' ] } );
-		const controller = layer.upsertNote( makeNote( { public: true } ) );
-		expect(
-			controller.element.querySelector( '.os-pinned-note__desktop' ),
-		).toBeNull();
-
-		// Made private again, the control comes back in the footer.
-		controller.replace( makeNote( { public: false, updatedAtMs: 2000 } ) );
-		const button = controller.element.querySelector( '.os-pinned-note__desktop' );
-		expect( button ).not.toBeNull();
-		expect( button?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
-	} );
-
-	test( 'setDesktop re-scopes the note and PATCHes the binding', async () => {
-		const fetchSpy = vi.fn( async () =>
-			new Response( JSON.stringify( makeNote( { desktop: 'desktop-2', updatedAtMs: 2000 } ) ), {
-				status: 200,
-			} ),
-		);
-		vi.stubGlobal( 'fetch', fetchSpy );
-
-		const layer = makeLayer( {
-			activeDesktopId: 'desktop-1',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
-		const controller = layer.upsertNote( makeNote( { id: 1 } ) );
-		controller.setDesktop( 'desktop-2' );
-
-		// Bound elsewhere → off this wall immediately.
-		expect( controller.element.hasAttribute( 'hidden' ) ).toBe( true );
-		await new Promise( ( r ) => setTimeout( r, 10 ) );
-		const patch = fetchSpy.mock.calls.find(
-			( call ) => ( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
-		);
-		expect( patch ).toBeDefined();
-		expect(
-			JSON.parse( String( ( patch?.[ 1 ] as RequestInit ).body ) ).desktop,
-		).toBe( 'desktop-2' );
-	} );
-
-	test( 'closing a desktop re-homes its notes onto the survivor', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn( async () =>
-				new Response( JSON.stringify( makeNote( { desktop: 'desktop-1' } ) ), {
-					status: 200,
-				} ),
-			),
-		);
-		const layer = makeLayer( {
-			activeDesktopId: 'desktop-1',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
-		await layer.boot();
-		const mine = layer.upsertNote( makeNote( { id: 1, desktop: 'desktop-2' } ) );
-		const theirs = layer.upsertNote(
-			makeNote( { id: 2, desktop: 'desktop-2', canEdit: false } ),
-		);
-
-		const { doAction, HOOKS } = await import( '../../src/hooks' );
-		doAction( HOOKS.DESKTOP_CLOSED, {
-			desktopId: 'desktop-2',
-			migratedTo: 'desktop-1',
-		} );
-
-		expect( mine.note.desktop ).toBe( 'desktop-1' );
-		expect( mine.element.hasAttribute( 'hidden' ) ).toBe( false );
-		// Someone else's note isn't ours to re-home.
-		expect( theirs.note.desktop ).toBe( 'desktop-2' );
-	} );
-
-	test( 'createNoteAt pins optimistically, binds the desktop, and POSTs', async () => {
+	test( 'createNoteAt pins optimistically and POSTs', async () => {
 		const fetchSpy = vi.fn( async () =>
 			new Response(
 				JSON.stringify(
-					makeNote( { id: 77, text: '', desktop: 'desktop-2', updatedAtMs: 3000 } ),
+					makeNote( { id: 77, text: '', updatedAtMs: 3000 } ),
 				),
 				{ status: 200 },
 			),
 		);
 		vi.stubGlobal( 'fetch', fetchSpy );
 
-		const layer = makeLayer( {
-			activeDesktopId: 'desktop-2',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
+		const layer = makeLayer();
 		const controller = layer.createNoteAt( { x: 0.4, y: 0.6, focus: true } );
 
 		// Paper is on the wall before the network answers.
 		expect( controller.element.isConnected ).toBe( true );
 		expect( controller.note.id ).toBeLessThan( 0 );
-		expect( controller.note.desktop ).toBe( 'desktop-2' );
 
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
 		const post = fetchSpy.mock.calls.find(
@@ -423,7 +245,6 @@ describe( 'NotesLayer', () => {
 		);
 		expect( post ).toBeDefined();
 		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
-		expect( body.desktop ).toBe( 'desktop-2' );
 		expect( body.x ).toBeCloseTo( 0.4 );
 		// The temp id gave way to the server's.
 		expect( layer.has( 77 ) ).toBe( true );
@@ -448,22 +269,24 @@ describe( 'NotesLayer', () => {
 		expect( c.note.seed ).not.toBe( a.note.seed );
 	} );
 
-	test( 'notes created public, or on a single-desktop session, stay unbound', () => {
-		const multi = makeLayer( {
-			activeDesktopId: 'desktop-2',
-			desktopIds: [ 'desktop-1', 'desktop-2' ],
-		} );
-		expect(
-			multi.createNoteAt( { x: 0.1, y: 0.1, text: 'shared', isPublic: true } )
-				.note.desktop,
-		).toBe( '' );
 
-		// One desktop means no choice to record — and binding here
-		// would leave a later second desktop mysteriously bare.
-		const single = makeLayer( { desktopIds: [ 'desktop-1' ] } );
+	test( 'the footer carries a Move to Trash button that confirms first', async () => {
+		const layer = makeLayer();
+		const controller = layer.upsertNote( makeNote() );
+		const trash = controller.element.querySelector( '.os-pinned-note__trash' );
+		expect( trash ).not.toBeNull();
+		expect( trash?.getAttribute( 'aria-label' ) ).toBe( 'Move to Trash' );
+		// In the footer, clear of the pushpin's 56px band — the meta
+		// row can't take a fourth control without one landing under it.
+		expect( trash?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
+
+		// Viewers get no trash button; they can't mutate the note.
+		const theirs = layer.upsertNote(
+			makeNote( { id: 2, canEdit: false, public: true } ),
+		);
 		expect(
-			single.createNoteAt( { x: 0.1, y: 0.1, text: 'solo' } ).note.desktop,
-		).toBe( '' );
+			theirs.element.querySelector( '.os-pinned-note__trash' ),
+		).toBeNull();
 	} );
 
 	test( 'trashNote evicts optimistically, DELETEs, and Undo restores', async () => {

@@ -129,8 +129,6 @@ export interface CreateNoteBody {
 	 * Persisted once — the server never rewrites it on PATCH.
 	 */
 	seed?: number;
-	/** Virtual desktop to pin to, or `''` for every desktop. */
-	desktop?: string;
 }
 
 export function createNote( body: CreateNoteBody ): Promise< Note > {
@@ -147,8 +145,6 @@ export interface UpdateNoteBody {
 	y?: number;
 	z?: number;
 	public?: boolean;
-	/** Virtual desktop to pin to, or `''` for every desktop. */
-	desktop?: string;
 	/** Concurrency token from the last-seen server copy. */
 	updatedAtMs?: number;
 }

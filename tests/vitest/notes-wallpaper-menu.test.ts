@@ -49,8 +49,6 @@ function makeLayer(): NotesLayer {
 	return new NotesLayer( {
 		host,
 		pluginUrl: 'https://example.test/plugin',
-		getActiveDesktopId: () => 'desktop-1',
-		getDesktopIds: () => [ 'desktop-1', 'desktop-2' ],
 	} );
 }
 
@@ -71,7 +69,6 @@ describe( 'notes wallpaper menu', () => {
 					y: 0.5,
 					z: 1,
 					public: false,
-					desktop: 'desktop-1',
 					seed: 1,
 					ownerId: 1,
 					ownerName: 'Me',
@@ -126,6 +123,5 @@ describe( 'notes wallpaper menu', () => {
 		);
 		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
 		expect( body.text ).toBe( '' );
-		expect( body.desktop ).toBe( 'desktop-1' );
 	} );
 } );
