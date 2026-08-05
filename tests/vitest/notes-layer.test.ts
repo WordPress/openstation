@@ -276,10 +276,48 @@ describe( 'NotesLayer', () => {
 		expect( button ).not.toBeNull();
 		// Unbound note → the control offers to pin it here.
 		expect( button?.getAttribute( 'title' ) ).toContain( 'pin to this desktop' );
-		// It sits between the visibility toggle and "Convert to post".
-		expect( button?.previousElementSibling?.className ).toBe(
-			'os-pinned-note__visibility',
-		);
+		// It lives in the footer, clear of the pushpin's 56px band.
+		expect( button?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
+	} );
+
+	test( 'adding a desktop mid-session grows the toggle in', async () => {
+		// The control is built once, at paint. If its presence were
+		// decided there too, a note pinned while the session had one
+		// desktop would be stranded: hidden on the new desktop, with no
+		// control on the old one to unbind it, until a reload.
+		let desktops = [ 'desktop-1' ];
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const layer = new NotesLayer( {
+			host,
+			pluginUrl: 'https://example.test/plugin',
+			getActiveDesktopId: () => 'desktop-1',
+			getDesktopIds: () => desktops,
+		} );
+		await layer.boot();
+
+		const controller = layer.upsertNote( makeNote( { desktop: 'desktop-1' } ) );
+		expect(
+			controller.element.querySelector( '.os-pinned-note__desktop' ),
+		).toBeNull();
+
+		const { doAction, HOOKS } = await import( '../../src/hooks' );
+		desktops = [ 'desktop-1', 'desktop-2' ];
+		doAction( HOOKS.DESKTOP_CREATED, { desktopId: 'desktop-2' } );
+
+		const button = controller.element.querySelector( '.os-pinned-note__desktop' );
+		expect( button ).not.toBeNull();
+		expect( button?.getAttribute( 'title' ) ).toContain( 'show on all desktops' );
+
+		// And closing back down to one desktop takes it away again.
+		desktops = [ 'desktop-1' ];
+		doAction( HOOKS.DESKTOP_CLOSED, {
+			desktopId: 'desktop-2',
+			migratedTo: 'desktop-1',
+		} );
+		expect(
+			controller.element.querySelector( '.os-pinned-note__desktop' ),
+		).toBeNull();
 	} );
 
 	test( 'a public note carries no desktop toggle at all', () => {
@@ -292,13 +330,11 @@ describe( 'NotesLayer', () => {
 			controller.element.querySelector( '.os-pinned-note__desktop' ),
 		).toBeNull();
 
-		// Made private again, the control comes back in its old slot.
+		// Made private again, the control comes back in the footer.
 		controller.replace( makeNote( { public: false, updatedAtMs: 2000 } ) );
 		const button = controller.element.querySelector( '.os-pinned-note__desktop' );
 		expect( button ).not.toBeNull();
-		expect( button?.previousElementSibling?.className ).toBe(
-			'os-pinned-note__visibility',
-		);
+		expect( button?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
 	} );
 
 	test( 'setDesktop re-scopes the note and PATCHes the binding', async () => {
@@ -391,6 +427,25 @@ describe( 'NotesLayer', () => {
 		expect( body.x ).toBeCloseTo( 0.4 );
 		// The temp id gave way to the server's.
 		expect( layer.has( 77 ) ).toBe( true );
+	} );
+
+	test( 'empty notes still get distinct tilts', () => {
+		// The wallpaper-menu path always starts with empty text, and
+		// hashNoteSeed('') is a constant, so seeding from text alone
+		// would give every note from the primary creation path the same
+		// tilt and pin offset. A wall of parallel paper is exactly what
+		// the seed exists to prevent.
+		const layer = makeLayer();
+		const a = layer.createNoteAt( { x: 0.2, y: 0.3 } );
+		const b = layer.createNoteAt( { x: 0.6, y: 0.7 } );
+		expect( a.note.seed ).not.toBe( b.note.seed );
+		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe(
+			b.element.style.getPropertyValue( '--dm-note-rot' ),
+		);
+		// Notes WITH text keep hashing from the text — the documented
+		// invariant the drop path relies on.
+		const c = layer.createNoteAt( { x: 0.2, y: 0.3, text: 'buy milk' } );
+		expect( c.note.seed ).not.toBe( a.note.seed );
 	} );
 
 	test( 'notes created public, or on a single-desktop session, stay unbound', () => {
