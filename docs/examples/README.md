@@ -20,6 +20,7 @@ defined( 'ABSPATH' ) || exit;
 - [Site folder — add a preview-pane action button](./my-wordpress-media-action.md)
 - [Site folder — custom post types and their folder](./my-wordpress-cpt-section.md)
 - [Accept drops on your desktop icon](./tile-drop-handler.md)
+- [Add an action that works on a whole selection](./multi-selection-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)

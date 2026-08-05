@@ -143,6 +143,52 @@ body.os-active {
 	--os-backstop: #0c0b0f;
 	--os-area-inset: 0;
 
+	/*
+	 * ── The icon grid ────────────────────────────────────────────
+	 *
+	 * ONE grid, everywhere placements are laid out: the wallpaper,
+	 * folder windows, and every canvas in the site folder. Before
+	 * these tokens each surface carried its own pitch and its own
+	 * tile width, and the two drifted apart — the desktop ended up
+	 * with an 88px tile in a 96px cell whose 8px of air the tile's
+	 * own padding ate, so icons touched edge to edge while the site
+	 * folder had 20px between them.
+	 *
+	 * The cell is derived, never declared: `cell = tile + gap`. A
+	 * gap you can see is the whole point, so it is the number that
+	 * gets tuned; the pitch follows.
+	 *
+	 * The TypeScript side mirrors these in `src/desktop-files/grid.ts`
+	 * (layout maths can't read CSS), and
+	 * `tests/vitest/grid-metrics.test.ts` parses this file to prove
+	 * the two agree. Change a number here and that test tells you
+	 * exactly which constant to move with it.
+	 */
+	--os-tile-w: 88px;
+	/*
+	 * A FIXED height, and it has to fit the tallest a tile can get:
+	 * 8px padding + 48px icon well + 6px gap + two clamped label
+	 * lines (2 × 12px × 1.2 = 28.8px) + 8px padding = 98.8px, so
+	 * 104px with a little slack for font metrics.
+	 *
+	 * Fixed rather than minimum because the selection ring is drawn
+	 * around the tile box: let the box follow its label and a row of
+	 * selected icons is a ragged run of different-height rectangles,
+	 * one per label that happened to wrap.
+	 */
+	--os-tile-h: 104px;
+	--os-grid-gap-x: 20px;
+	--os-grid-gap-y: 16px;
+	/* Gutter from the top / inline-start edge of any icon canvas. */
+	--os-grid-padding: 16px;
+	/*
+	 * Image-led sections opt into a bigger tile (`tileSize: 'large'`)
+	 * — a shop's products read as a catalogue, not a file list. Same
+	 * gaps, bigger tile.
+	 */
+	--os-tile-w-large: 132px;
+	--os-tile-h-large: 160px;
+
 	/* Window chrome — Obsidian body inside a Starlight hairline. */
 	--os-window-bg: #1a1721;
 	--os-window-border: rgba(255, 251, 255, 0.12);

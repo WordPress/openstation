@@ -152,7 +152,25 @@
 	align-items: center;
 	justify-content: flex-start;
 	gap: 6px;
-	width: 88px;
+	/*
+	 * `box-sizing` is load-bearing, not housekeeping. Without it the
+	 * horizontal padding is ADDED to the declared width, so an 88px
+	 * tile occupies 96px — which was exactly the desktop's old cell
+	 * pitch, and why icons sat edge to edge with no gap at all while
+	 * the maths insisted there were 8px between them.
+	 *
+	 * The tile is the size the grid says it is. Padding lives inside.
+	 */
+	box-sizing: border-box;
+	width: var( --os-tile-w, 88px );
+	/*
+	 * Fixed, not minimum. The tile box IS the selection ring, and a
+	 * box that grows with its label gives a row of selected icons a
+	 * ragged top edge — one height per label that happened to wrap
+	 * to two lines. Every tile occupies its cell; short labels leave
+	 * the slack inside the ring, where it reads as padding.
+	 */
+	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
@@ -754,6 +772,58 @@
 	--os-tile-selected-bg: rgba( 34, 113, 177, 0.12 );
 }
 
+/* Type breakdown under a multi-selection's count in a folder
+ * window's preview pane. The count is the headline; this is the
+ * detail that tells you which actions the menu will offer. */
+.os-files-preview__selection-breakdown {
+	font-size: 12px;
+	opacity: 0.75;
+}
+
+/* While a rubber band is live, nothing in the shell is selectable.
+ *
+ * The band starts on bare canvas, which — unlike a tile — IS
+ * selectable, so the browser begins its own text selection on the
+ * same press and keeps extending it as the pointer travels. Inside
+ * the canvas that stays invisible; drag out over another window and
+ * it starts highlighting that window's text in blue, mid-gesture.
+ *
+ * The controller also refuses `selectstart` outright while the band
+ * is up. This rule is the second half: it covers anything already
+ * selectable that the event route misses. */
+body[ data-os-marquee ] {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* Marquee (rubber-band) selection box. Painted by the shared
+ * selection controller on any canvas that opts into it — the
+ * wallpaper, folder windows, every My WordPress list — so this one
+ * declaration dresses all of them.
+ *
+ * `pointer-events: none` is load-bearing: the box tracks under the
+ * cursor for the whole gesture, and without it every hit-test
+ * (drop targets, the controller's own tile lookup) would land on
+ * the box instead of what's beneath it. */
+.os-selection-marquee {
+	position: absolute;
+	z-index: 5;
+	pointer-events: none;
+	border: 1px solid
+		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+	border-radius: 2px;
+	/* A WASH, not a fill — the whole point of a rubber band is that
+	 * you can see what it is about to catch. `--os-ui-accent-dim` is a
+	 * solid hex (Pulse, one step back), so reaching for it directly
+	 * paints an opaque rectangle over the icons; `--os-ui-accent-soft`
+	 * is that same colour already taken down to a 14% wash, which is
+	 * what every other ambient accent surface in the shell uses. */
+	background: var(
+		--os-selection-marquee-bg,
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) )
+	);
+}
+
 .os-folder-status-bar {
 	display: flex;
 	justify-content: space-between;
@@ -961,7 +1031,10 @@ button.os-folder-status-bar__segment:hover {
 .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.2;
-	max-width: 84px;
+	/* Follows the tile rather than restating its width, so a section
+	 * that re-points `--os-tile-w` (image-led sections do) gets a
+	 * label that grows with the tile instead of staying narrow. */
+	max-width: calc( var( --os-tile-w, 88px ) - 4px );
 	text-align: center;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1001,6 +1074,65 @@ button.os-folder-status-bar__segment:hover {
 
 .os-drag-ghost--reject {
 	cursor: no-drop;
+}
+
+/* Multi-item drag ghost: the grabbed tile, with the rest of the set
+ * implied by two offset cards behind it and stated by a count badge.
+ * The stack is drawn with pseudo-elements rather than real clones —
+ * three cloned tiles cost three subtree copies per lift, and only
+ * the top one is ever legible. */
+.os-drag-stack {
+	/* The drag manager overwrites this with `position: fixed` when it
+	 * mounts the ghost. It stays declared so the stack still composes
+	 * correctly if the helper is used outside a live drag — both
+	 * values establish the containing block the cards and the badge
+	 * are placed against. */
+	position: relative;
+}
+
+.os-drag-stack::before,
+.os-drag-stack::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: 6px;
+	background: var( --os-ui-surface, rgba( 30, 30, 40, 0.9 ) );
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.35 );
+}
+
+.os-drag-stack::before {
+	transform: translate( 6px, 6px );
+	opacity: 0.7;
+}
+
+.os-drag-stack::after {
+	transform: translate( 12px, 12px );
+	opacity: 0.45;
+}
+
+.os-drag-stack__count {
+	position: absolute;
+	inset-block-start: -8px;
+	inset-inline-end: -8px;
+	z-index: 1;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 6px;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 10px;
+	background: var(
+		--os-ui-accent,
+		var( --wp-admin-theme-color, #2271b1 )
+	);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1;
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.4 );
 }
 
 /* ============================================================ *

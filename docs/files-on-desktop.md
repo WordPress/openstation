@@ -350,6 +350,46 @@ Every store mutation also dispatches a `os-files-changed` CustomEvent on `docume
 
 A `FilesLayer` is the renderer that mounts on a host element (the `#os-area` for the root) and paints one tile per placement. The shell automatically mounts a root layer at boot when the desktop area DOM is present.
 
+### The grid
+
+There is **one** icon grid, and every surface that lays out
+placements uses it — the wallpaper, folder windows, and each canvas
+in the site folder. It is declared once, as design tokens in
+`assets/css/variables.css`:
+
+| Token | Default | What it is |
+|---|---|---|
+| `--os-tile-w` / `--os-tile-h` | `88px` / `104px` | The tile's box. Height is **fixed**, not a minimum — see below. |
+| `--os-grid-gap-x` / `--os-grid-gap-y` | `20px` / `16px` | Air between neighbours. |
+| `--os-grid-padding` | `16px` | Gutter from the canvas edge. |
+| `--os-tile-w-large` / `--os-tile-h-large` | `132px` / `160px` | Image-led sections (`tileSize: 'large'`). |
+
+**The cell pitch is derived, never declared** — `cell = tile + gap`.
+A gap you can see is the thing worth tuning; the pitch just follows.
+`src/desktop-files/grid.ts` mirrors these numbers for the layout
+maths (which can't read CSS) and exports `GRID_METRICS` /
+`GRID_METRICS_LARGE` so no surface has to restate them.
+`tests/vitest/grid-metrics.test.ts` parses the stylesheet and fails
+if the two ever drift.
+
+Two consequences worth knowing, both learned the hard way:
+
+- The tile is `box-sizing: border-box`, so its declared width **is**
+  its real width. Without that the horizontal padding lands outside
+  the declared box, fills the cell, and neighbouring icons touch
+  while the arithmetic insists there is a gap between them.
+- The height is **fixed**, not a minimum. The tile box is what the
+  selection ring is drawn around, so a box that grows with its label
+  gives a row of selected icons a ragged top edge — one height per
+  label that happened to wrap to two lines. `--os-tile-h` has to fit
+  the tallest a tile can be (icon well + two clamped label lines +
+  padding); a test asserts it does, and tells you so if you change
+  the icon size or the label clamp.
+
+Surfaces that lay tiles out in CSS flow rather than on the canvas —
+the media grid — opt out with `height: auto`, because a square
+thumbnail is sized by its grid column, not by the icon cell.
+
 ### Tile DOM contract
 
 ```html
@@ -390,6 +430,52 @@ Lifecycle:
      (the FilesLayer's canvas / a folder tile / the Trash);
      non-accepting hover ends with `os.drag.cancel`
      (`reason: 'rejected'` or `'no-target'`).
+
+### Dragging a selection
+
+A drag that starts on a **selected** tile carries the whole selection;
+starting on an unselected one makes that tile the selection first and
+drags it alone — Finder's rule, and the reason a drag never moves
+something the user can't see is highlighted.
+
+The payload grew one field per type, and nothing else changed:
+
+```ts
+// 'desktop-file'
+{ placement: RestPlacementShape,       // the tile the user grabbed
+  placements?: RestPlacementShape[],   // the whole set — absent when 1
+  sourceFolderId: number, … }
+
+// 'shortcut'
+{ kind, ref, title?, icon?, entityId?, // the entity the user grabbed
+  items?: ShortcutDragItem[], …  }     // the whole set — absent when 1
+```
+
+**A drop target written before multi-drag is not broken.** It reads
+`data.placement` and acts on the grabbed tile, which is the one the
+user pointed at. To handle sets, read them through the helper:
+
+```ts
+import { dragPlacements, dragShortcutItems } from 'openstation/desktop-files';
+
+onDrop: ( session ) => {
+    for ( const placement of dragPlacements( session.payload.data ) ) {
+        // Runs once for a single drag, N times for a set.
+    }
+},
+```
+
+Two rules the built-in targets follow, and yours should:
+
+- **Accept all or refuse all.** Every per-item gate (folder cycles,
+  synthetic placements, `canTrash`) is applied to every member of the
+  set, and one failure refuses the drop. Accepting a set and moving
+  four of five reports success for an operation that half-happened.
+- **One gesture, one outcome.** Dropping a set on the Trash produces
+  one toast with one Undo that restores all of it, not N of each.
+
+The ghost shows the grabbed tile over a stack with a count badge, and
+the hover chip says the count too ("Move 3 items here").
 
 Drop target contract (`wp.os.dragManager.registerDropTarget`):
 
@@ -487,14 +573,61 @@ doAction( 'os.tile.rendered', { tile: HTMLElement } );
 
 Use the generic `os.tile.*` pair when you want to decorate tiles **everywhere** (site-folder sections, drill-in usage grids, any future surface using `<os-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
 
+### Selection
+
+The layer runs the framework selection controller (see
+[`wp.os.selection`](./javascript-reference.md#selection--experimental)), so
+the wallpaper and every folder window behave like a file manager:
+click replaces, `Ctrl`/`Cmd`+click toggles, `Shift`+click extends,
+a drag on empty wallpaper draws a marquee, `Ctrl`/`Cmd`+A selects
+all, `Escape` clears. Selection survives every repaint path — a
+heartbeat delta or a peer's edit doesn't drop what the user is
+holding — and a placement that disappears drops out of the set.
+
+Right-clicking a tile that is **not** selected replaces the selection
+with it before opening the menu (Finder / Explorer behaviour); one
+that **is** selected leaves the set alone, so the menu acts on all of
+it. What a mixed set may do is decided by `resolveCommonActions`:
+actions common to every selected placement, and only those declaring
+`multi: true`. `os.files.tile-menu` entries are unchanged and stay
+single-item until they opt in — see the field table in the JS
+reference.
+
+The built-ins that opted in: **Open** (fan-out, with a confirm past
+five windows), **Move to Trash** (one batched runner — one toast, one
+Undo, one broadcast; folder and file entries share
+`multiId: 'trash'` so a mixed set is still throwable-away), and
+**Hide from desktop** (one settings write for the whole set).
+*Rename…*, *Navigate into* and *Download* are inherently single-item.
+
+The folder window's status bar gains a `selection` segment
+(`"3 selected"`) while a selection exists, and its preview pane shows
+a count-and-type summary instead of previewing one arbitrary member.
+The `os.files.folder-window.status-bar` filter context carries
+`selectedCount`.
+
 ### Public API
 
 ```ts
 import { mountFilesLayer } from 'openstation/desktop-files';
 const handle = mountFilesLayer( hostElement, folderId );
+
+// Selection.
+handle.getSelection();                    // RestPlacementShape[], visual order
+handle.onSelectionChanged( ( ps ) => …);  // the whole set, every change
+handle.onSelectionChange( ( p ) => … );   // the ONE selected placement, else null
+handle.selectAll();
+handle.clearSelection();
+
 // later
 handle.dispose();
 ```
+
+`onSelectionChange` predates multi-selection and keeps its contract:
+it reports the placement when exactly one is selected and `null`
+otherwise — an empty selection and a multi-selection are the same
+news to a consumer that shows one thing at a time. Use
+`onSelectionChanged` to see the set.
 
 ## Wallpaper context menu *(Phase 4)*
 

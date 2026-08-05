@@ -206,6 +206,269 @@ export async function trashEntity(
 	}
 }
 
+/**
+ * Fields a bulk edit needs to read before it can write.
+ *
+ * Categories and tags are ADDITIVE in WordPress's own bulk edit — the
+ * terms you pick are added to whatever each post already has, never
+ * replacing them. The REST API only takes the full array, so we have
+ * to know the current one per post. `sticky` and `comment_status`
+ * come along because the modal pre-reads nothing else about them.
+ */
+export interface EntityBulkFields {
+	id: number;
+	categories?: number[];
+	tags?: number[];
+	sticky?: boolean;
+	comment_status?: string;
+	author?: number;
+}
+
+/**
+ * Read the taxonomy + flag state for a set of entries in ONE request.
+ *
+ * A post type that has no categories or tags simply omits those keys
+ * from the response, which is how the bulk-edit modal decides whether
+ * to render those controls at all — no separate capability probe.
+ */
+export async function fetchEntityBulkFields(
+	entity: MyWordPressEntity,
+	ids: readonly number[],
+): Promise< EntityBulkFields[] > {
+	if ( ids.length === 0 ) {
+		return [];
+	}
+	const cfg = getConfig();
+	const read = async ( context: 'edit' | 'view' ): Promise< Response > => {
+		const url = new URL( buildUrl( entity.restPath ) );
+		url.searchParams.set( 'include', ids.join( ',' ) );
+		url.searchParams.set(
+			'per_page',
+			String( Math.min( ids.length, 100 ) ),
+		);
+		url.searchParams.set( 'context', context );
+		url.searchParams.set(
+			'_fields',
+			'id,categories,tags,sticky,comment_status,author',
+		);
+		url.searchParams.set(
+			'status',
+			'publish,future,draft,pending,private',
+		);
+		return shellFetch( url.toString(), {
+			method: 'GET',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+			},
+		} );
+	};
+
+	// `context=edit` carries `sticky` and `comment_status`, but the
+	// collection endpoint refuses it outright for a viewer who may not
+	// edit the post type at all. Fall back to the view context rather
+	// than failing the whole bulk edit: the taxonomy merge only needs
+	// `categories` / `tags`, which come back either way, and any field
+	// the viewer may not write is rejected per-row at write time
+	// anyway.
+	let response = await read( 'edit' );
+	if ( response.status === 401 || response.status === 403 ) {
+		response = await read( 'view' );
+	}
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to read entries' ),
+		);
+	}
+	return ( await response.json() ) as EntityBulkFields[];
+}
+
+/**
+ * Patch one entry. WordPress's REST API takes POST for updates (not
+ * PATCH), which is what core's own editor sends.
+ */
+export async function updateEntity(
+	entity: MyWordPressEntity,
+	id: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch(
+		buildUrl( `${ entity.restPath }/${ id }` ),
+		{
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'X-WP-Nonce': cfg.restNonce,
+				Accept: 'application/json',
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( body ),
+		},
+	);
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update entry' ),
+		);
+	}
+}
+
+/** One term as the bulk-edit pickers need it. */
+export interface TermOption {
+	id: number;
+	name: string;
+	parent: number;
+}
+
+/**
+ * Load a taxonomy's terms for the bulk-edit pickers. Capped at 100 —
+ * the pickers are for choosing, not for browsing a folksonomy, and
+ * the tag input has its own search-as-you-type path for the tail.
+ */
+export async function fetchTaxonomyTerms(
+	taxonomy: 'categories' | 'tags',
+	search = '',
+): Promise< TermOption[] > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/${ taxonomy }` ) );
+	url.searchParams.set( 'per_page', '100' );
+	url.searchParams.set( '_fields', 'id,name,parent' );
+	url.searchParams.set( 'orderby', 'name' );
+	url.searchParams.set( 'order', 'asc' );
+	if ( search ) {
+		url.searchParams.set( 'search', search );
+	}
+	const response = await shellFetch( url.toString(), {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		return [];
+	}
+	const rows = ( await response.json() ) as Array< {
+		id: number;
+		name: string;
+		parent?: number;
+	} >;
+	return rows.map( ( r ) => ( {
+		id: r.id,
+		name: r.name,
+		parent: r.parent ?? 0,
+	} ) );
+}
+
+/** Create a tag by name, returning its id. Used by the tag input. */
+export async function createTag( name: string ): Promise< TermOption | null > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( 'wp/v2/tags' ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( { name } ),
+	} );
+	if ( ! response.ok ) {
+		return null;
+	}
+	const row = ( await response.json() ) as { id: number; name: string };
+	return { id: row.id, name: row.name, parent: 0 };
+}
+
+/** Users who can be assigned as an author. */
+export async function fetchAuthors(): Promise<
+	Array< { id: number; name: string } >
+	> {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( 'wp/v2/users' ) );
+	url.searchParams.set( 'per_page', '100' );
+	url.searchParams.set( '_fields', 'id,name' );
+	url.searchParams.set( 'orderby', 'name' );
+	url.searchParams.set( 'order', 'asc' );
+	// `who=authors` is deprecated in favour of a capability query;
+	// asking for the edit context keeps the list to users the viewer
+	// may actually assign.
+	url.searchParams.set( 'context', 'view' );
+	const response = await shellFetch( url.toString(), {
+		method: 'GET',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		return [];
+	}
+	return ( await response.json() ) as Array< { id: number; name: string } >;
+}
+
+/** Patch a user (role changes). */
+export async function updateUser(
+	id: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( `wp/v2/users/${ id }` ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( body ),
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update user' ),
+		);
+	}
+}
+
+/**
+ * Delete a user.
+ *
+ * WordPress has no trash for users, so the REST endpoint requires
+ * `force=true` — and it requires an answer to "what happens to their
+ * content": omit `reassign` and every post they wrote is deleted with
+ * them; pass a user id and it is attributed to that user instead.
+ * Core's own delete screen asks exactly this question, and so does
+ * ours.
+ */
+export async function deleteUser(
+	id: number,
+	reassign: number | null,
+): Promise< void > {
+	const cfg = getConfig();
+	const url = new URL( buildUrl( `wp/v2/users/${ id }` ) );
+	url.searchParams.set( 'force', 'true' );
+	url.searchParams.set(
+		'reassign',
+		reassign === null ? 'false' : String( reassign ),
+	);
+	const response = await shellFetch( url.toString(), {
+		method: 'DELETE',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+		},
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to delete user' ),
+		);
+	}
+}
+
 async function readErrorMessage(
 	response: Response,
 	fallback: string,

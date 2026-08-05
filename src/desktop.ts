@@ -177,6 +177,7 @@ import {
 	bootPresenceProbe,
 	type PresenceApi,
 } from './presence';
+import { recentlyMarqueed, type SelectionApi } from './selection';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
@@ -1557,6 +1558,22 @@ export interface OpenStationPublicApi {
 	 * ```
 	 */
 	presence: PresenceApi;
+	/**
+	 * Multi-selection framework. `active()` returns a snapshot of the
+	 * most recent selection change anywhere in the shell;
+	 * `resolveCommonActions()` is the rule that decides what a mixed
+	 * selection may offer (intersect by action id, keep only what
+	 * every item declares `multi: true` for); `createModel()` builds
+	 * a selection model for a tile canvas of your own.
+	 *
+	 * @example
+	 * ```js
+	 * document.addEventListener( 'os-selection-changed', ( e ) => {
+	 *     console.log( e.detail.count, 'selected in', e.detail.surface );
+	 * } );
+	 * ```
+	 */
+	selection: SelectionApi;
 	/**
 	 * Cross-plugin activity channels — a thin, named-channel layer
 	 * over `wp.hooks` for plugin-internal events that other
@@ -4137,6 +4154,12 @@ function init(): void {
 		// 500 ms covers the browser's pointerup→click gap with
 		// margin.
 		if ( dragManager.recentlyEndedDrag() ) {
+			return;
+		}
+		// Same story for a marquee: rubber-band-selecting icons ends
+		// with a synthesized click on the wallpaper, and minimizing
+		// every window is not what the user just asked for.
+		if ( recentlyMarqueed() ) {
 			return;
 		}
 		manager.toggleShowDesktop();

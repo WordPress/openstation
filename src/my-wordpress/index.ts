@@ -24,7 +24,24 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import {
+	attachTileDragOut,
+	buildTileFromSpec,
+	type TileDragOutPayload,
+} from '../desktop-files/tile-spec';
+import {
+	attachSelection,
+	closeActionMenu,
+	openActionMenu,
+	resolveCommonActions,
+	type SelectionAction,
+	type SelectionHandle,
+} from '../selection';
+import {
+	copyLinksAction,
+	entityBulkActions,
+	userBulkActions,
+} from './bulk-actions';
 import { getDragManager, stripTags } from './dom-utils';
 import {
 	getEntityRenderer,
@@ -50,6 +67,11 @@ import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
 } from '../desktop-files/breadcrumbs';
+import {
+	GRID_METRICS,
+	GRID_METRICS_LARGE,
+	type GridMetrics,
+} from '../desktop-files/grid';
 import {
 	buildEditUrl,
 	buildEditUserUrl,
@@ -690,7 +712,17 @@ function renderFolderGrid(
 	grid.setAttribute( 'role', 'list' );
 
 	const layout = createTileLayout( grid, scope );
-	const select = createTileSelector();
+	// Folder tiles are navigation, not data — a multi-selection of
+	// them has nothing to act on, so the controller runs in
+	// single-select mode (no marquee) purely for the highlight.
+	const selection = attachSelection( grid, {
+		background: grid,
+		marquee: false,
+		surface: 'my-wordpress',
+		scope,
+		keyOf: ( el ) => el.dataset.tileKey ?? null,
+	} );
+	state.teardown.push( () => selection.destroy() );
 
 	const tilesByKey = new Map< string, HTMLElement >();
 
@@ -708,6 +740,7 @@ function renderFolderGrid(
 		if ( spec.groupId ) {
 			tile.dataset.groupId = spec.groupId;
 		}
+		tile.dataset.tileKey = spec.key;
 		tilesByKey.set( spec.key, tile );
 		// Folders have no real "date" — synthesize one from registry
 		// order so date-sort still produces a deterministic outcome.
@@ -719,9 +752,9 @@ function renderFolderGrid(
 		// Folder tiles use Finder-style semantics: single click
 		// selects (visual highlight only — no navigation, so a fast
 		// double-click can't race the tile out of the DOM), double
-		// click navigates. No drag-out: folder tiles aren't filed as
-		// shortcuts — only entity tiles are.
-		tile.addEventListener( 'click', () => select( tile ) );
+		// click navigates. Selection is the controller's job now. No
+		// drag-out: folder tiles aren't filed as shortcuts — only
+		// entity tiles are.
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
 			navigate( state, spec.route );
@@ -959,8 +992,22 @@ interface ListContext {
 	tiles: HTMLElement;
 	sentinel: HTMLElement;
 	preview: HTMLElement;
+	/**
+	 * Id of the ONE selected entry, or null for none / several. The
+	 * async preview guards compare against it to drop a response whose
+	 * selection has moved on, so it has to mean "what the preview pane
+	 * is about" — which a set isn't.
+	 */
 	selectedId: number | null;
 	selectedTile: HTMLElement | null;
+	/** Multi-selection controller for this section's canvas(es). */
+	selection: SelectionHandle | null;
+	/**
+	 * Every rendered list item, by id. A context menu opened on a
+	 * multi-selection needs the item shapes for tiles it never had a
+	 * closure over.
+	 */
+	itemsById: Map< number, EntityListItem >;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
 	/**
@@ -1290,11 +1337,45 @@ function renderEntityList(
 		preview: right,
 		selectedId: null,
 		selectedTile: null,
+		selection: null,
+		itemsById: new Map(),
 		observer: null,
 		layout: tileLayout,
 		query: initialQuery,
 		abort: null,
 	};
+
+	// One controller for the whole section — `tiles` is the root even
+	// when banding splits it into several canvases, so a Shift+click
+	// range can run across bands.
+	ctx.selection = attachSelection( tiles, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: entity.id,
+		keyOf: ( el ) =>
+			el.dataset.entryId ? el.dataset.entryId : null,
+		onChange: ( keys ) => {
+			const ids = keys
+				.map( ( k ) => parseInt( k, 10 ) )
+				.filter( ( n ) => Number.isFinite( n ) );
+			ctx.selectedId = ids.length === 1 ? ids[ 0 ] : null;
+			ctx.selectedTile =
+				ids.length === 1
+					? ctx.selection?.elementFor( String( ids[ 0 ] ) ) ?? null
+					: null;
+			if ( ids.length === 0 ) {
+				renderPreviewPlaceholder( ctx );
+			} else if ( ids.length > 1 ) {
+				ctx.preview.replaceChildren(
+					renderEntitySelectionSummary( ctx, ids ),
+				);
+			} else {
+				void renderPreview( state, ctx, entity, ids[ 0 ] );
+			}
+			repaintListStatus();
+		},
+	} );
+	state.teardown.push( () => ctx.selection?.destroy() );
 	state.teardown.push( () => tileLayout.dispose() );
 	// Cancel any in-flight page fetch on teardown — keeps the
 	// activity bus / loading spinner from showing a never-resolving
@@ -1326,6 +1407,21 @@ function renderEntityList(
 		const segments: StatusBarSegment[] = [
 			{ id: 'count', label: itemLabel, align: 'start', sort: 10 },
 		];
+		// Only while there IS a selection — a permanent "0 selected"
+		// is noise on a bar whose whole job is to be glanceable.
+		const selectedCount = ctx.selection?.keys().length ?? 0;
+		if ( selectedCount > 0 ) {
+			segments.push( {
+				id: 'selection',
+				label: sprintf(
+					// translators: %d: number of selected entries.
+					__( '%d selected', 'desktop-mode' ),
+					selectedCount,
+				),
+				align: 'end',
+				sort: 5,
+			} );
+		}
 		if ( ctx.totalPages > 1 ) {
 			segments.push( {
 				id: 'page',
@@ -1621,6 +1717,79 @@ function isAbortError( err: unknown ): boolean {
 	return err instanceof DOMException && err.name === 'AbortError';
 }
 
+/**
+ * Drag payloads for the current selection, or an empty array when
+ * fewer than two things are selected.
+ *
+ * The empty array is the signal `attachTileDragOut` reads as "this is
+ * an ordinary one-tile drag" — so a surface only ever opts into a
+ * multi-drag when there is genuinely a set to carry.
+ */
+function selectedDragPayloads< T extends { id: number } >(
+	ctx: { selection: SelectionHandle | null; itemsById: Map< number, T > },
+	toPayload: ( item: T ) => TileDragOutPayload,
+): TileDragOutPayload[] {
+	const keys = ctx.selection?.keys() ?? [];
+	if ( keys.length < 2 ) {
+		return [];
+	}
+	return keys
+		.map( ( key ) => ctx.itemsById.get( Number( key ) ) )
+		.filter( ( item ): item is T => !! item )
+		.map( toPayload );
+}
+
+/** The right pane's "nothing selected" state. */
+function renderPreviewPlaceholder( ctx: ListContext ): void {
+	ctx.preview.replaceChildren();
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent = __(
+		'Select an entry to preview it here.',
+		'desktop-mode',
+	);
+	ctx.preview.appendChild( empty );
+}
+
+/**
+ * The right pane's multi-selection state. Previewing one arbitrary
+ * member of a set reads as "this is what you picked" when it isn't,
+ * so the pane says what the set IS instead — count, and the status
+ * breakdown, which is what decides whether a bulk action applies.
+ */
+function renderEntitySelectionSummary(
+	ctx: ListContext,
+	ids: number[],
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-my-wordpress__preview-empty';
+
+	const heading = document.createElement( 'strong' );
+	heading.textContent = sprintf(
+		// translators: %d: number of selected entries.
+		__( '%d items selected', 'desktop-mode' ),
+		ids.length,
+	);
+	wrap.appendChild( heading );
+
+	const counts = new Map< string, number >();
+	for ( const id of ids ) {
+		const status = ctx.itemsById.get( id )?.status || 'publish';
+		counts.set( status, ( counts.get( status ) ?? 0 ) + 1 );
+	}
+	const breakdown = Array.from( counts.entries() )
+		.sort( ( a, b ) => b[ 1 ] - a[ 1 ] || a[ 0 ].localeCompare( b[ 0 ] ) )
+		.map( ( [ status, n ] ) => `${ n } × ${ status }` )
+		.join( ' · ' );
+	if ( breakdown ) {
+		const detail = document.createElement( 'div' );
+		detail.className = 'os-my-wordpress__preview-selection-breakdown';
+		detail.textContent = breakdown;
+		wrap.appendChild( detail );
+	}
+	return wrap;
+}
+
 function renderListEmpty(
 	host: HTMLElement,
 	entity: MyWordPressEntity,
@@ -1807,6 +1976,30 @@ function buildEntityTile(
 			},
 		},
 		() => hideTooltip(),
+		{
+			// Multi-drag: when this tile is part of the selection, the
+			// gesture carries the whole set — drop three posts on a
+			// folder and three shortcuts are filed.
+			resolveSet: () =>
+				selectedDragPayloads( ctx, ( selected ) => ( {
+					kind: 'post',
+					ref: String( selected.id ),
+					title:
+						stripTags( selected.title?.rendered ?? '' ) ||
+						__( '(no title)', 'desktop-mode' ),
+					icon: entity.icon,
+					entityId: entity.id,
+					bridgePayload: {
+						kind: 'post',
+						id: selected.id,
+						postType: entity.id,
+						url: selected.link ?? '',
+						title:
+							stripTags( selected.title?.rendered ?? '' ) ||
+							__( '(no title)', 'desktop-mode' ),
+					},
+				} ) ),
+		},
 	);
 
 	// If another user is editing right now, surface that on the
@@ -1861,15 +2054,11 @@ function buildEntityTile(
 		name: titleText,
 		date: item.date || new Date( 0 ).toISOString(),
 	} );
-	// Click-to-select. The pointerdown handler above already routes
-	// drags through the DragManager, so a sub-threshold gesture
-	// (pointer-down, no movement, pointer-up) flows naturally:
-	// pointerdown fires manager.start(); manager treats it as a
-	// click on pointerup; the browser dispatches `click`; this
-	// listener selects.
-	tile.addEventListener( 'click', () => {
-		selectTile( state, ctx, tile, entity, item.id );
-	} );
+	// Selection (plain click, Ctrl/Cmd, Shift, marquee) is owned by
+	// the section's selection controller, which listens on the tile
+	// container — no per-tile click handler here. The preview pane
+	// repaints from that controller's `onChange`.
+	ctx.itemsById.set( item.id, item );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
@@ -1879,8 +2068,16 @@ function buildEntityTile(
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
 		e.preventDefault();
+		e.stopPropagation();
 		hideTooltip();
-		openTileMenu( state, ctx, entity, item, titleText, {
+		// Right-clicking a tile that isn't selected replaces the
+		// selection with it, the way Finder and Explorer do; one that
+		// IS selected leaves the set alone so the menu acts on all of
+		// it.
+		if ( ! ctx.selection?.model.has( String( item.id ) ) ) {
+			ctx.selection?.model.set( [ String( item.id ) ] );
+		}
+		openTileMenu( state, ctx, entity, item, {
 			x: e.clientX,
 			y: e.clientY,
 		} );
@@ -1951,24 +2148,6 @@ function positionTooltip( tip: HTMLElement, ev: MouseEvent ): void {
 	}
 	tip.style.left = `${ x }px`;
 	tip.style.top = `${ y }px`;
-}
-
-function selectTile(
-	state: RenderState,
-	ctx: ListContext,
-	tile: HTMLElement,
-	entity: MyWordPressEntity,
-	id: number,
-): void {
-	if ( ctx.selectedTile ) {
-		ctx.selectedTile.classList.remove(
-			'os-file-tile--selected',
-		);
-	}
-	tile.classList.add( 'os-file-tile--selected' );
-	ctx.selectedTile = tile;
-	ctx.selectedId = id;
-	void renderPreview( state, ctx, entity, id );
 }
 
 async function renderPreview(
@@ -2626,8 +2805,56 @@ function renderSubList(
 			return;
 		}
 
-		let selectedKey: string | null = null;
-		let selectedTile: HTMLElement | null = null;
+		const itemsById = new Map< string, SubItemView >();
+
+		// Selection lives on the controller here too, so a drill-in
+		// list behaves like every other canvas — Ctrl/Cmd, Shift, and
+		// marquee all work. There are no bulk actions on a dossier
+		// list (these rows are relations, not records you can act on),
+		// so a multi-selection is highlight-only and the preview says
+		// how many are held.
+		const selection = attachSelection( tiles, {
+			background: left,
+			surface: 'my-wordpress',
+			scope: `sub-list:${ entity.id }:${ postId }:${ relation }`,
+			keyOf: ( el ) =>
+				el.dataset.subItemId ? `sub:${ el.dataset.subItemId }` : null,
+			onChange: ( keys ) => {
+				if ( keys.length === 0 ) {
+					right.replaceChildren( renderSubListPreviewEmpty( 0 ) );
+					return;
+				}
+				if ( keys.length > 1 ) {
+					right.replaceChildren(
+						renderSubListPreviewEmpty( keys.length ),
+					);
+					return;
+				}
+				const key = keys[ 0 ];
+				const item = itemsById.get( key );
+				if ( ! item ) {
+					return;
+				}
+				showPreviewLoading( right );
+				Promise.resolve( item.preview() )
+					.then( ( node ) => {
+						// Selection may have moved on while the preview
+						// was resolving — compare against the live set,
+						// not the key we started with.
+						if ( selection.keys()[ 0 ] !== key ) {
+							return;
+						}
+						right.replaceChildren( node );
+					} )
+					.catch( ( err ) => {
+						if ( selection.keys()[ 0 ] !== key ) {
+							return;
+						}
+						showPreviewError( right, err );
+					} );
+			},
+		} );
+		state.teardown.push( () => selection.destroy() );
 
 		for ( const item of items ) {
 			const tile = buildIconTile( {
@@ -2637,36 +2864,10 @@ function renderSubList(
 			} );
 			tile.dataset.subItemId = item.id;
 			const tileKey = `sub:${ item.id }`;
+			itemsById.set( tileKey, item );
 			layout.place( tile, tileKey, {
 				name: item.label,
 				date: item.date,
-			} );
-			tile.addEventListener( 'click', () => {
-				if ( selectedTile ) {
-					selectedTile.classList.remove(
-						'os-file-tile--selected',
-					);
-				}
-				tile.classList.add(
-					'os-file-tile--selected',
-				);
-				selectedTile = tile;
-				selectedKey = tileKey;
-
-				showPreviewLoading( right );
-				Promise.resolve( item.preview() )
-					.then( ( node ) => {
-						if ( selectedKey !== tileKey ) {
-							return; // Selection moved on.
-						}
-						right.replaceChildren( node );
-					} )
-					.catch( ( err ) => {
-						if ( selectedKey !== tileKey ) {
-							return;
-						}
-						showPreviewError( right, err );
-					} );
 			} );
 			tiles.appendChild( tile );
 		}
@@ -2676,6 +2877,25 @@ function renderSubList(
 	// view doesn't need it inline today but the signature mirrors the
 	// other render functions for consistency.
 	void postTitle;
+}
+
+/**
+ * Right pane of a drill-in list with nothing — or several things —
+ * selected. These rows are relations rather than records, so a set
+ * has no useful preview beyond its size.
+ */
+function renderSubListPreviewEmpty( selectedCount: number ): HTMLElement {
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent =
+		selectedCount > 1
+			? sprintf(
+				// translators: %d: number of selected items.
+				__( '%d items selected', 'desktop-mode' ),
+				selectedCount,
+			)
+			: __( 'Select an item to preview it here.', 'desktop-mode' );
+	return empty;
 }
 
 function renderListEmptyMessage(
@@ -4161,190 +4381,332 @@ function openEditor(
 	} );
 }
 
-function openTileMenu(
+/**
+ * One entry in an entity tile's context menu.
+ *
+ * Plugin-added entries must supply `onSelect`; the built-ins carry
+ * their own `onClick`. The multi-selection fields (`multi`,
+ * `bulkLabel`, `bulk`) are opt-in, so an entry written for one item
+ * keeps appearing only when one item is selected.
+ */
+interface TileMenuOption {
+	id: string;
+	label: string;
+	icon: string;
+	danger?: boolean;
+	/**
+	 * Lower sorts first. Only consulted for a multi-selection — a
+	 * single-item menu renders in the order the builder (and the
+	 * filter after it) left them, which is the order plugin authors
+	 * have been arranging for. The built-ins use the same 10/20/90
+	 * scale as the file-tile menu so destructive entries stay at the
+	 * bottom of both.
+	 */
+	sort?: number;
+	multi?: boolean;
+	bulkLabel?: ( count: number ) => string;
+	onSelect?: ( () => void ) | null;
+}
+
+/**
+ * Actions for ONE entry, with the `os.my-wordpress.tile-context-menu`
+ * filter applied. `resolveCommonActions` calls this once per selected
+ * tile and intersects the results.
+ *
+ * The filter's argument shape is unchanged — plugins have been adding
+ * entries to it since it shipped.
+ */
+function buildEntityActions(
 	state: RenderState,
 	ctx: ListContext,
 	entity: MyWordPressEntity,
 	item: EntityListItem,
 	title: string,
-	pos: { x: number; y: number },
-): void {
-	closeAnyTileMenu();
-
-	const menu = document.createElement( 'os-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'os-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
-
-	const addOption = (
-		id: string,
-		label: string,
-		icon: string,
-		danger = false,
-	) => {
-		const opt = document.createElement( 'os-context-menu-option' );
-		// `os-context-menu-option` emits the pick event with
-		// `detail.id = dataset.menuItemId ?? this.id ?? ''`. We MUST
-		// set `dataset.menuItemId` (the `value` attribute alone shows
-		// up under `detail.value`, which the handler below doesn't
-		// inspect). Forgetting this gave us the silent "Navigate
-		// into doesn't work" bug.
-		( opt as HTMLElement ).dataset.menuItemId = id;
-		opt.setAttribute( 'value', id );
-		opt.setAttribute( 'icon', sanitizeClass( icon ) );
-		if ( danger ) {
-			opt.setAttribute( 'danger', '' );
-		}
-		opt.textContent = label;
-		menu.appendChild( opt );
-	};
-
-	interface TileMenuOption {
-		id: string;
-		label: string;
-		icon: string;
-		danger?: boolean;
-		/**
-		 * Plugin-supplied click handler. Built-ins set this to null
-		 * so the static `os-context-menu-pick` switch below routes
-		 * them — keeps the existing semantics.
-		 */
-		onSelect?: ( () => void ) | null;
-	}
-
+): SelectionAction< EntityListItem >[] {
 	const baseOptions: TileMenuOption[] = [
 		{
 			id: 'open',
 			label: __( 'Open in editor', 'desktop-mode' ),
 			icon: 'dashicons-edit',
+			sort: 10,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected entries.
+					__( 'Open %d items in the editor', 'desktop-mode' ),
+					n,
+				),
 		},
 		{
 			id: 'navigate-into',
 			label: __( 'Navigate into', 'desktop-mode' ),
 			icon: 'dashicons-category',
+			sort: 20,
 		},
 		{
 			id: 'trash',
 			label: __( 'Move to Trash', 'desktop-mode' ),
 			icon: 'dashicons-trash',
+			sort: 90,
 			danger: true,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected entries.
+					__( 'Move %d items to Trash', 'desktop-mode' ),
+					n,
+				),
 		},
 	];
 
-	/**
-	 * Let plugins add / remove / reorder context-menu entries
-	 * uniformly across every section. Plugin-added entries must
-	 * supply an `onSelect` handler (built-ins are dispatched by
-	 * the static switch below).
-	 */
 	const ctxFilter = {
 		entityId: entity.id,
 		kind: entity.kind ?? 'post',
 		item: item as unknown as Record< string, unknown >,
 	};
-	const options = applyFilters<
-		TileMenuOption[],
-		[ typeof ctxFilter ]
-	>(
+	const options = applyFilters< TileMenuOption[], [ typeof ctxFilter ] >(
 		'os.my-wordpress.tile-context-menu',
 		baseOptions,
 		ctxFilter,
 	);
 	const finalOptions = Array.isArray( options ) ? options : baseOptions;
-	for ( const o of finalOptions ) {
-		addOption( o.id, o.label, o.icon, o.danger );
-	}
 
-	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeAnyTileMenu();
-		if ( detail.id === 'open' ) {
-			openEditor( entity, item.id, title, item.editUrl );
-			return;
+	// wp-admin's own bulk actions and row actions — Edit… (the bulk
+	// edit modal), Publish, Switch to Draft, Copy link. They're built
+	// separately from `finalOptions` because they carry closures and
+	// batched runners rather than the flat descriptor shape the
+	// `tile-context-menu` filter passes around.
+	const extras: SelectionAction< EntityListItem >[] = [
+		...entityBulkActions(
+			{
+				entity,
+				onChanged: ( ids ) => {
+					if ( ids.length > 0 ) {
+						refreshAfterBulk( state, entity, ids );
+					}
+				},
+			},
+			item,
+		),
+		copyLinksAction( item, ( i ) => i.link ?? '' ),
+	];
+
+	const mapped = finalOptions.map( ( option ) => {
+		const action: SelectionAction< EntityListItem > = {
+			id: option.id,
+			label: option.label,
+			icon: option.icon,
+			sort: option.sort,
+			danger: option.danger,
+			multi: option.multi,
+			bulkLabel: option.bulkLabel,
+			onClick: () => {
+				if ( option.id === 'open' ) {
+					openEditor( entity, item.id, title, item.editUrl );
+					return;
+				}
+				if ( option.id === 'navigate-into' ) {
+					navigate( state, {
+						kind: 'detail',
+						entityId: entity.id,
+						postId: item.id,
+						postTitle: title,
+					} );
+					return;
+				}
+				if ( option.id === 'trash' ) {
+					void confirmTrash( state, ctx, entity, item.id, title );
+					return;
+				}
+				if ( typeof option.onSelect === 'function' ) {
+					try {
+						option.onSelect();
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							`[my-wordpress] tile-context-menu '${ option.id }' onSelect threw:`,
+							err,
+						);
+					}
+				}
+			},
+		};
+		// Trash gets a batched runner: one confirm for the set, one
+		// broadcast, one repaint. Fanning the single-item handler out
+		// would ask the user N times and emit N cross-window events.
+		if ( option.id === 'trash' ) {
+			action.bulk = ( items ) => trashManyEntities( ctx, entity, items );
 		}
-		if ( detail.id === 'navigate-into' ) {
-			navigate( state, {
-				kind: 'detail',
-				entityId: entity.id,
-				postId: item.id,
-				postTitle: title,
-			} );
-			return;
-		}
-		if ( detail.id === 'trash' ) {
-			void confirmTrash( state, ctx, entity, item.id, title );
-			return;
-		}
-		// Plugin-supplied entry — dispatch its `onSelect`.
-		const match = finalOptions.find( ( o ) => o.id === detail.id );
-		if ( match && typeof match.onSelect === 'function' ) {
-			try {
-				match.onSelect();
-			} catch ( err ) {
-				// eslint-disable-next-line no-console
-				console.error(
-					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
-					err,
-				);
-			}
-		}
+		return action;
 	} );
 
-	document.body.appendChild( menu );
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
+	// Slot the extras in by `sort` — "Edit…" lands after "Open in
+	// editor", the status actions after that, Trash stays last.
+	return [ ...mapped, ...extras ].sort( ( a, b ) => {
+		const sa = typeof a.sort === 'number' ? a.sort : 100;
+		const sb = typeof b.sort === 'number' ? b.sort : 100;
+		return sa - sb;
+	} );
+}
 
-	// Outside-click + Escape dismissers. Until now the only thing
-	// that closed the tile menu was a pick or another right-click —
-	// so a left-click on a *different* tile (which selects + previews)
-	// left the menu hovering. The dismissers run on the next
-	// microtask so the click that opened the menu doesn't immediately
-	// close it when the event bubbles up to document.
-	queueMicrotask( () => {
-		const onDocPointerDown = ( ev: PointerEvent ) => {
-			const target = ev.target;
-			if ( target instanceof Node && menu.contains( target ) ) {
-				return;
-			}
-			closeAnyTileMenu();
-		};
-		const onDocKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeAnyTileMenu();
-			}
-		};
-		document.addEventListener( 'pointerdown', onDocPointerDown, true );
-		document.addEventListener( 'keydown', onDocKey );
-		menu.addEventListener( 'tile-menu-closed', () => {
-			document.removeEventListener(
-				'pointerdown',
-				onDocPointerDown,
-				true,
-			);
-			document.removeEventListener( 'keydown', onDocKey );
+/**
+ * Re-read the current page after a bulk write so tiles show the new
+ * truth (a changed status flips the ribbon; a changed author changes
+ * nothing visible but the preview pane) — and tell the rest of the
+ * shell, so the Recycle Bin badge and any other window listening on
+ * the entity's topic catch up too.
+ */
+function refreshAfterBulk(
+	state: RenderState,
+	entity: MyWordPressEntity,
+	changedIds: readonly number[],
+): void {
+	const topic = getBroadcastTopicForEntity( entity );
+	if ( topic && changedIds.length > 0 ) {
+		// Only what actually changed. Subscribers delta by `ids`, so
+		// announcing the whole page would have every other window
+		// re-reading rows nothing touched.
+		window.wp?.os?.broadcast( topic, {
+			source: 'my-wordpress',
+			action: 'updated',
+			ids: changedIds.slice(),
 		} );
+	}
+	// Re-render the section from scratch. Cheaper options exist
+	// (patch each tile in place), but a bulk edit can change status,
+	// author, terms and stickiness at once, and half of that is
+	// invisible until the row is re-read.
+	navigate( state, { kind: 'list', entityId: entity.id } );
+}
+
+function openTileMenu(
+	state: RenderState,
+	ctx: ListContext,
+	entity: MyWordPressEntity,
+	item: EntityListItem,
+	pos: { x: number; y: number },
+): void {
+	closeAnyTileMenu();
+
+	const selectedIds = ( ctx.selection?.keys() ?? [] )
+		.map( ( k ) => parseInt( k, 10 ) )
+		.filter( ( n ) => Number.isFinite( n ) );
+	const targets = selectedIds
+		.map( ( id ) => ctx.itemsById.get( id ) )
+		.filter( ( i ): i is EntityListItem => !! i );
+	const items = targets.length > 0 ? targets : [ item ];
+
+	const actions = resolveCommonActions( items, ( listItem ) =>
+		buildEntityActions(
+			state,
+			ctx,
+			entity,
+			listItem,
+			stripTags( listItem.title?.rendered ?? '' ) ||
+				__( '(no title)', 'desktop-mode' ),
+		),
+	);
+
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.tile',
+		dataset: { entryIds: items.map( ( i ) => i.id ).join( ',' ) },
 	} );
 }
 
 function closeAnyTileMenu(): void {
+	closeActionMenu();
+	// Belt and braces for menus this module didn't open (a plugin
+	// building its own with the shared class), which the shared
+	// closer doesn't track.
 	document
 		.querySelectorAll( 'os-context-menu.os-my-wordpress__menu' )
 		.forEach( ( n ) => {
 			n.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
 			n.remove();
 		} );
+}
+
+/**
+ * Move several entries to Trash as one action: one confirm, parallel
+ * REST, one toast, one broadcast. Looping the single-item path would
+ * ask the user N times and emit N cross-window events for what they
+ * experienced as a single decision.
+ */
+async function trashManyEntities(
+	ctx: ListContext,
+	entity: MyWordPressEntity,
+	items: readonly EntityListItem[],
+): Promise< void > {
+	const ok = await osConfirmGlobal( {
+		title: __( 'Move to Trash', 'desktop-mode' ),
+		message: sprintf(
+			// translators: %d: number of selected entries.
+			__( 'Move %d items to Trash?', 'desktop-mode' ),
+			items.length,
+		),
+		confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
+		cancelLabel: __( 'Cancel', 'desktop-mode' ),
+		danger: true,
+	} );
+	if ( ! ok ) {
+		return;
+	}
+
+	const results = await Promise.allSettled(
+		items.map( ( item ) => trashEntity( entity, item.id ) ),
+	);
+	const trashed: number[] = [];
+	let failed = 0;
+	results.forEach( ( result, index ) => {
+		if ( result.status === 'fulfilled' ) {
+			trashed.push( items[ index ].id );
+		} else {
+			failed += 1;
+		}
+	} );
+
+	for ( const id of trashed ) {
+		ctx.tiles
+			.querySelector< HTMLElement >( `[data-entry-id="${ id }"]` )
+			?.remove();
+		ctx.itemsById.delete( id );
+	}
+	ctx.selection?.refresh();
+	if ( ctx.selection?.keys().length === 0 ) {
+		renderPreviewPlaceholder( ctx );
+	}
+
+	if ( trashed.length > 0 ) {
+		const topic = getBroadcastTopicForEntity( entity );
+		if ( topic ) {
+			window.wp?.os?.broadcast( topic, {
+				source: 'my-wordpress',
+				action: 'trashed',
+				ids: trashed,
+			} );
+		}
+		showToast(
+			failed > 0
+				? sprintf(
+					// translators: 1: number moved to trash, 2: number that failed.
+					__(
+						'%1$d items moved to Trash · %2$d could not be moved',
+						'desktop-mode',
+					),
+					trashed.length,
+					failed,
+				)
+				: sprintf(
+					// translators: %d: number of entries moved to trash.
+					__( '%d items moved to Trash', 'desktop-mode' ),
+					trashed.length,
+				),
+		);
+	} else {
+		showToast( __( 'Nothing could be moved to Trash.', 'desktop-mode' ) );
+	}
 }
 
 /**
@@ -4506,8 +4868,13 @@ interface UserListContext {
 	tiles: HTMLElement;
 	sentinel: HTMLElement;
 	preview: HTMLElement;
+	/** Id of the ONE selected user, or null for none / several. */
 	selectedId: number | null;
 	selectedTile: HTMLElement | null;
+	/** Multi-selection controller for the users canvas. */
+	selection: SelectionHandle | null;
+	/** Every rendered user, by id — the menu builds actions from these. */
+	itemsById: Map< number, UserListItem >;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
 	query: string;
@@ -4582,11 +4949,40 @@ function renderUserEntityList(
 		preview: right,
 		selectedId: null,
 		selectedTile: null,
+		selection: null,
+		itemsById: new Map(),
 		observer: null,
 		layout: tileLayout,
 		query: initialQuery,
 		abort: null,
 	};
+
+	ctx.selection = attachSelection( tiles, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: entity.id,
+		keyOf: ( el ) => ( el.dataset.entryId ? el.dataset.entryId : null ),
+		onChange: ( keys ) => {
+			const ids = keys
+				.map( ( k ) => parseInt( k, 10 ) )
+				.filter( ( n ) => Number.isFinite( n ) );
+			ctx.selectedId = ids.length === 1 ? ids[ 0 ] : null;
+			ctx.selectedTile =
+				ids.length === 1
+					? ctx.selection?.elementFor( String( ids[ 0 ] ) ) ?? null
+					: null;
+			if ( ids.length === 1 ) {
+				const item = ctx.itemsById.get( ids[ 0 ] );
+				if ( item ) {
+					void renderUserPreviewPane( state, ctx, entity, item );
+				}
+			} else {
+				ctx.preview.replaceChildren( renderUserPreviewEmpty( ids.length ) );
+			}
+			repaintListStatus();
+		},
+	} );
+	state.teardown.push( () => ctx.selection?.destroy() );
 	state.teardown.push( () => tileLayout.dispose() );
 	state.teardown.push( () => ctx.abort?.abort() );
 
@@ -4611,6 +5007,21 @@ function renderUserEntityList(
 		const segments: StatusBarSegment[] = [
 			{ id: 'count', label: itemLabel, align: 'start', sort: 10 },
 		];
+		// Only while there IS a selection — a permanent "0 selected"
+		// is noise on a bar whose whole job is to be glanceable.
+		const selectedCount = ctx.selection?.keys().length ?? 0;
+		if ( selectedCount > 0 ) {
+			segments.push( {
+				id: 'selection',
+				label: sprintf(
+					// translators: %d: number of selected entries.
+					__( '%d selected', 'desktop-mode' ),
+					selectedCount,
+				),
+				align: 'end',
+				sort: 5,
+			} );
+		}
 		if ( ctx.totalPages > 1 ) {
 			segments.push( {
 				id: 'page',
@@ -4842,13 +5253,18 @@ function renderUserEntityList(
  * The class list keeps `os-file-tile` so the existing
  * selection + canvas pointer plumbing applies unchanged.
  */
+/** Label for a user tile / menu — the same rule everywhere. */
+function userDisplayName( item: UserListItem ): string {
+	return item.name || item.slug || `#${ item.id }`;
+}
+
 function buildUserTile(
 	state: RenderState,
 	ctx: UserListContext,
 	entity: MyWordPressEntity,
 	item: UserListItem,
 ): HTMLElement {
-	const displayName = item.name || item.slug || `#${ item.id }`;
+	const displayName = userDisplayName( item );
 
 	const avatarUrl = pickAvatar( item.avatar_urls ) ?? '';
 	const tile = buildTileFromSpec( {
@@ -4956,6 +5372,22 @@ function buildUserTile(
 			},
 		},
 		() => hideTooltip(),
+		{
+			resolveSet: () =>
+				selectedDragPayloads( ctx, ( selected ) => ( {
+					kind: 'user',
+					ref: String( selected.id ),
+					title: userDisplayName( selected ),
+					icon: 'dashicons-admin-users',
+					entityId: entity.id,
+					bridgePayload: {
+						kind: 'user',
+						id: selected.id,
+						url: selected.link ?? '',
+						title: userDisplayName( selected ),
+					},
+				} ) ),
+		},
 	);
 
 	const tileKey = `entry:${ item.id }`;
@@ -4970,9 +5402,10 @@ function buildUserTile(
 			: new Date( 0 ).toISOString(),
 	} );
 
-	tile.addEventListener( 'click', () => {
-		selectUserTile( state, ctx, entity, tile, item );
-	} );
+	// Selection is owned by the list's selection controller; the tile
+	// only needs to be findable by id and to register its item shape
+	// so a multi-selection menu can build actions for it.
+	ctx.itemsById.set( item.id, item );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
@@ -4994,8 +5427,12 @@ function buildUserTile(
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
 		e.preventDefault();
+		e.stopPropagation();
 		hideTooltip();
-		openUserTileMenu( state, entity, item, displayName, {
+		if ( ! ctx.selection?.model.has( String( item.id ) ) ) {
+			ctx.selection?.model.set( [ String( item.id ) ] );
+		}
+		openUserTileMenu( state, ctx, entity, item, {
 			x: e.clientX,
 			y: e.clientY,
 		} );
@@ -5105,22 +5542,23 @@ function activateUserTile(
 	return handled === true;
 }
 
-function selectUserTile(
-	state: RenderState,
-	ctx: UserListContext,
-	entity: MyWordPressEntity,
-	tile: HTMLElement,
-	item: UserListItem,
-): void {
-	if ( ctx.selectedTile ) {
-		ctx.selectedTile.classList.remove(
-			'os-file-tile--selected',
-		);
-	}
-	tile.classList.add( 'os-file-tile--selected' );
-	ctx.selectedTile = tile;
-	ctx.selectedId = item.id;
-	void renderUserPreviewPane( state, ctx, entity, item );
+/**
+ * Right pane when the users list has nothing — or several things —
+ * selected. A profile dossier is about one person, so a set gets a
+ * count instead of one arbitrary member's face.
+ */
+function renderUserPreviewEmpty( selectedCount: number ): HTMLElement {
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent =
+		selectedCount > 1
+			? sprintf(
+				// translators: %d: number of selected users.
+				__( '%d users selected', 'desktop-mode' ),
+				selectedCount,
+			)
+			: __( 'Select a user to see their profile here.', 'desktop-mode' );
+	return empty;
 }
 
 /**
@@ -5304,42 +5742,24 @@ async function renderUserPreviewPane(
 	ctx.preview.replaceChildren( node );
 }
 
-function openUserTileMenu(
+/**
+ * Actions for ONE user, with the shared
+ * `os.my-wordpress.tile-context-menu` filter applied (kind `'user'`).
+ *
+ * "Show profile" and "View author archive" are marked multi-safe —
+ * both open one window per user, which is what someone selecting
+ * three authors and asking for their profiles wants. "View activity
+ * footprint" is not: the footprint view replaces the window body, so
+ * three of them would be three fights over the same surface.
+ */
+function buildUserActions(
 	state: RenderState,
 	entity: MyWordPressEntity,
 	item: UserListItem,
 	name: string,
-	pos: { x: number; y: number },
-): void {
-	closeAnyTileMenu();
-
-	const menu = document.createElement( 'os-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'os-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
-
-	const addOption = (
-		id: string,
-		label: string,
-		icon: string,
-	) => {
-		const opt = document.createElement( 'os-context-menu-option' );
-		( opt as HTMLElement ).dataset.menuItemId = id;
-		opt.setAttribute( 'value', id );
-		opt.setAttribute( 'icon', sanitizeClass( icon ) );
-		opt.textContent = label;
-		menu.appendChild( opt );
-	};
-
-	interface TileMenuOption {
-		id: string;
-		label: string;
-		icon: string;
-		danger?: boolean;
-		onSelect?: ( () => void ) | null;
-	}
-
+): SelectionAction< UserListItem >[] {
+	// Same option shape the post/media grids use — one contract for
+	// the `os.my-wordpress.tile-context-menu` filter across kinds.
 	// Footprint is the primary (double-click) action; profile is the
 	// classic editor, demoted to "Show profile" to mirror the preview
 	// pane's button labels.
@@ -5348,11 +5768,20 @@ function openUserTileMenu(
 			id: 'footprint',
 			label: __( 'View activity footprint', 'desktop-mode' ),
 			icon: 'dashicons-chart-area',
+			sort: 10,
 		},
 		{
 			id: 'open-profile',
 			label: __( 'Show profile', 'desktop-mode' ),
 			icon: 'dashicons-id-alt',
+			sort: 20,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected users.
+					__( 'Show %d profiles', 'desktop-mode' ),
+					n,
+				),
 		},
 	];
 	if ( item.link ) {
@@ -5360,6 +5789,14 @@ function openUserTileMenu(
 			id: 'author-archive',
 			label: __( 'View author archive', 'desktop-mode' ),
 			icon: 'dashicons-external',
+			sort: 30,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected users.
+					__( 'View %d author archives', 'desktop-mode' ),
+					n,
+				),
 		} );
 	}
 
@@ -5375,83 +5812,101 @@ function openUserTileMenu(
 		ctxFilter,
 	);
 	const finalOptions = Array.isArray( options ) ? options : baseOptions;
-	for ( const o of finalOptions ) {
-		addOption( o.id, o.label, o.icon );
-	}
 
-	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeAnyTileMenu();
-		if ( detail.id === 'footprint' ) {
-			navigate( state, {
-				kind: 'user-footprint',
-				entityId: entity.id,
-				userId: item.id,
-				userName: name,
-			} );
-			return;
-		}
-		if ( detail.id === 'open-profile' ) {
-			openUserEditWindow( item.id );
-			return;
-		}
-		if ( detail.id === 'author-archive' && item.link ) {
-			window.open( item.link, '_blank', 'noopener,noreferrer' );
-			return;
-		}
-		// Plugin-supplied entry — dispatch its `onSelect`.
-		const match = finalOptions.find( ( o ) => o.id === detail.id );
-		if ( match && typeof match.onSelect === 'function' ) {
-			try {
-				match.onSelect();
-			} catch ( err ) {
-				// eslint-disable-next-line no-console
-				console.error(
-					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
-					err,
-				);
-			}
-		}
-	} );
-
-	document.body.appendChild( menu );
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
-
-	queueMicrotask( () => {
-		const onDocPointerDown = ( ev: PointerEvent ) => {
-			const target = ev.target;
-			if ( target instanceof Node && menu.contains( target ) ) {
+	return finalOptions.map( ( option ) => ( {
+		id: option.id,
+		label: option.label,
+		icon: option.icon,
+		sort: option.sort,
+		danger: option.danger,
+		multi: option.multi,
+		bulkLabel: option.bulkLabel,
+		onClick: () => {
+			if ( option.id === 'footprint' ) {
+				navigate( state, {
+					kind: 'user-footprint',
+					entityId: entity.id,
+					userId: item.id,
+					userName: name,
+				} );
 				return;
 			}
-			closeAnyTileMenu();
-		};
-		const onDocKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeAnyTileMenu();
+			if ( option.id === 'open-profile' ) {
+				openUserEditWindow( item.id );
+				return;
 			}
-		};
-		document.addEventListener( 'pointerdown', onDocPointerDown, true );
-		document.addEventListener( 'keydown', onDocKey );
-		menu.addEventListener( 'tile-menu-closed', () => {
-			document.removeEventListener(
-				'pointerdown',
-				onDocPointerDown,
-				true,
-			);
-			document.removeEventListener( 'keydown', onDocKey );
-		} );
+			if ( option.id === 'author-archive' && item.link ) {
+				window.open( item.link, '_blank', 'noopener,noreferrer' );
+				return;
+			}
+			if ( typeof option.onSelect === 'function' ) {
+				try {
+					option.onSelect();
+				} catch ( err ) {
+					// eslint-disable-next-line no-console
+					console.error(
+						`[my-wordpress] tile-context-menu '${ option.id }' onSelect threw:`,
+						err,
+					);
+				}
+			}
+		},
+	} ) );
+}
+
+function openUserTileMenu(
+	state: RenderState,
+	ctx: UserListContext,
+	entity: MyWordPressEntity,
+	item: UserListItem,
+	pos: { x: number; y: number },
+): void {
+	closeAnyTileMenu();
+
+	const ids = ( ctx.selection?.keys() ?? [] )
+		.map( ( k ) => parseInt( k, 10 ) )
+		.filter( ( n ) => Number.isFinite( n ) );
+	const targets = ids
+		.map( ( id ) => ctx.itemsById.get( id ) )
+		.filter( ( u ): u is UserListItem => !! u );
+	const items = targets.length > 0 ? targets : [ item ];
+
+	const actions = resolveCommonActions( items, ( user ) => [
+		...buildUserActions( state, entity, user, userDisplayName( user ) ),
+		// wp-admin's Users bulk actions: change role, delete (with the
+		// same "what happens to their content" question core asks).
+		...userBulkActions(
+			{
+				onChanged: () =>
+					navigate( state, { kind: 'list', entityId: entity.id } ),
+				onRemoved: ( removedIds ) => {
+					for ( const id of removedIds ) {
+						ctx.tiles
+							.querySelector< HTMLElement >(
+								`[data-entry-id="${ id }"]`,
+							)
+							?.remove();
+						ctx.itemsById.delete( id );
+					}
+					ctx.selection?.refresh();
+					ctx.loaded = Math.max( 0, ctx.loaded - removedIds.length );
+					ctx.total = Math.max( 0, ctx.total - removedIds.length );
+				},
+			},
+			user,
+		),
+		copyLinksAction(
+			user,
+			( u ) => u.link ?? '',
+			__( 'Copy author archive link', 'desktop-mode' ),
+		),
+	] );
+
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.user-tile',
+		dataset: { entryIds: items.map( ( u ) => u.id ).join( ',' ) },
 	} );
 }
 
@@ -6440,44 +6895,25 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
  *  click-vs-drag threshold, `--dragging` class).
  * ------------------------------------------------------------------ */
 
-// Cell pitch for the in-window absolute-positioned tile canvas used
-// by Posts / Pages / users / plugin sections. Tile visual is 88px
-// wide; the previous 96×92 cell pitch left only ~4px per side
-// between neighbours, so the selected tile's background ring abutted
-// adjacent corner ribbons and read as "spillover" (regression
-// surfaced once `<os-ribbon>` started rendering DRAFT/PENDING
-// banners). Widen the cell so the selection ring has
-// breathing room — and so wrapped 2-line labels don't push the next
-// row's tile into the cell above. Tile label is clamped to 2 lines
-// via CSS in `my-wordpress.css`; if you change that clamp, raise
-// `TILE_H` to match.
-/**
- * Grid cell pitch for a tile canvas. The tile visual itself is sized
- * in CSS; these are the cell dimensions the layout walks, and the two
- * have to move together — a wider tile in a cell that didn't grow
- * overlaps its neighbour.
- */
-interface TileMetrics {
-	w: number;
-	h: number;
-	pad: number;
-}
-
-/** Icon-led sections: posts, pages, users, plugin-defined kinds. */
-const TILE_METRICS: TileMetrics = { w: 108, h: 112, pad: 16 };
-
-/**
- * Image-led sections. A section whose rows carry a photograph — a
- * shop's products, most obviously — reads as a catalogue, not a file
- * list: the picture is the thing being scanned, and at 48px it's a
- * thumbnail of a thumbnail. Opted into per section with
- * `tileSize: 'large'`.
+/*
+ * Cell pitch for the in-window absolute-positioned tile canvas used
+ * by Posts / Pages / Users / plugin sections.
  *
- * Sized so a corner ribbon reads as a corner flash rather than
- * covering the subject. Cell pitch mirrors the regular metrics'
- * ~20px horizontal and ~24px vertical breathing room around the tile.
+ * These are NOT this module's numbers. There is one icon grid in the
+ * shell and it is declared in `assets/css/variables.css` and mirrored
+ * in `src/desktop-files/grid.ts`; a canvas here lays out on the same
+ * pitch as one in a folder window, because to the user they are the
+ * same grid seen through two windows.
+ *
+ * Image-led sections opt into the large metrics with
+ * `tileSize: 'large'` — a shop's products read as a catalogue rather
+ * than a file list, and at 48px the picture is a thumbnail of a
+ * thumbnail. Same gaps, bigger tile.
  */
-const TILE_METRICS_LARGE: TileMetrics = { w: 152, h: 176, pad: 16 };
+type TileMetrics = GridMetrics;
+
+const TILE_METRICS: TileMetrics = GRID_METRICS;
+const TILE_METRICS_LARGE: TileMetrics = GRID_METRICS_LARGE;
 
 export interface TileSortable {
 	/** Used by `name-asc` / `name-desc`. Compared with `localeCompare`. */

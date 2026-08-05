@@ -217,8 +217,17 @@
  * The cell pitch lives in `TILE_METRICS_LARGE` (src/my-wordpress/
  * index.ts) and the two MUST move together — a wider tile in a cell
  * that didn't grow overlaps its neighbour. */
-.os-my-wordpress__tiles--large .os-file-tile {
-	width: 132px;
+/*
+ * Image-led sections re-point the tile tokens for their whole
+ * subtree rather than overriding the tile's width directly. The base
+ * `.os-file-tile` rule then sizes itself from them, and so does
+ * everything derived from them (the label's max-width, the loading
+ * skeletons) — one declaration instead of a chain of overrides that
+ * have to be kept in step.
+ */
+.os-my-wordpress__tiles--large {
+	--os-tile-w: var( --os-tile-w-large, 132px );
+	--os-tile-h: var( --os-tile-h-large, 160px );
 }
 
 .os-my-wordpress__tiles--large .os-file-tile__visual,
@@ -504,7 +513,10 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 6px;
-	width: 88px;
+	/* Same box as the real tile it stands in for — a skeleton that
+	 * doesn't match the grid makes the list jump when rows land. */
+	width: var( --os-tile-w, 88px );
+	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
 	box-sizing: border-box;
 	pointer-events: none;
@@ -561,6 +573,8 @@
 
 .os-my-wordpress__preview-empty {
 	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	align-items: center;
 	justify-content: center;
 	height: 100%;
@@ -568,6 +582,29 @@
 	font-size: 13px;
 	padding: 24px;
 	text-align: center;
+}
+
+/* Type / status breakdown under a multi-selection's count. */
+.os-my-wordpress__preview-selection-breakdown {
+	font-size: 12px;
+	opacity: 0.75;
+}
+
+/* One labelled control in the bulk-edit modal. Label above field,
+ * because the fields are wide (a category tree, a tag row) and a
+ * two-column grid would put a one-word label beside a control four
+ * times its height. */
+.os-my-wordpress__bulk-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block-end: 16px;
+}
+
+.os-my-wordpress__bulk-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 .os-my-wordpress__preview-loading {
@@ -1820,8 +1857,12 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .os-my-wordpress__media-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 120px, 1fr ) );
-	gap: 12px;
-	padding: 16px;
+	/* A flow grid rather than the absolute canvas, but the air
+	 * between two icons should not depend on which window you are
+	 * looking at — so the gaps and the gutter come from the same
+	 * tokens the canvas pitch is built from. */
+	gap: var( --os-grid-gap-y, 16px ) var( --os-grid-gap-x, 20px );
+	padding: var( --os-grid-padding, 16px );
 	overflow-y: auto;
 	align-content: start;
 }
@@ -1840,6 +1881,10 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	 * the tile. */
 	position: relative;
 	width: auto;
+	/* …and out of the fixed tile height for the same reason: a media
+	 * tile is a square thumbnail plus a caption, sized by the grid
+	 * column it lands in, not by the icon-canvas cell. */
+	height: auto;
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
@@ -2008,8 +2053,8 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .os-my-wordpress__usage-grid {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 12px 8px;
-	padding: 16px;
+	gap: var( --os-grid-gap-y, 16px ) var( --os-grid-gap-x, 20px );
+	padding: var( --os-grid-padding, 16px );
 	align-content: flex-start;
 }
 
@@ -2018,7 +2063,7 @@ os-tile[ status='future' ] .os-file-tile__icon {
  * canvas-positioned post tiles use — except for `position: static`
  * so they participate in the flex layout. */
 .os-my-wordpress__tile--usage {
-	width: 88px;
+	width: var( --os-tile-w, 88px );
 	align-items: center;
 	padding: 8px 4px;
 	gap: 6px;

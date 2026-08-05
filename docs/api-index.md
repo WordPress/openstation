@@ -80,6 +80,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable |
 | — topic family | `os.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
 | `presence` | `PresenceApi` | Stable |
+| `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
 
 ### Commands, palettes, AI, settings
 
@@ -211,6 +212,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-window-content-changed` | Experimental |
 | `os-window-link-groups-changed` | Experimental |
 | `os-presence-changed` | Stable |
+| `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
 | `os-registry-changed` | Stable |
 | `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |

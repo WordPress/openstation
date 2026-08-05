@@ -483,6 +483,23 @@ Read `assets/css/variables.css` for the full set.
 > defaults to the dark `#1d2327`, which would read as a dark blink on a
 > light theme.
 
+> **The icon grid is a token set, and it is one grid.**
+> `--os-tile-w` / `--os-tile-h`, `--os-grid-gap-x` / `--os-grid-gap-y`
+> and `--os-grid-padding` describe every surface that lays out
+> placements: the wallpaper, folder windows, and each canvas in the
+> site folder. Widen a gap and all of them widen together — that is
+> the point of them being one declaration.
+>
+> The **cell pitch is derived, never declared**: `cell = tile + gap`.
+> The layout maths can't read CSS, so `src/desktop-files/grid.ts`
+> mirrors these numbers and `tests/vitest/grid-metrics.test.ts` parses
+> the stylesheet to prove the mirror is faithful. A theme retuning
+> them shifts the *visual* spacing; stored icon coordinates snap to
+> the new pitch the next time a tile is dragged or the canvas is
+> sorted, so expect a one-time reshuffle rather than an instant
+> re-layout. `--os-tile-w-large` / `--os-tile-h-large` do the same job
+> for image-led sections (`tileSize: 'large'`).
+
 > **`--os-window-radius` is not one of them in practice.**
 > The Window-corners preset in OpenStation Settings writes that property as an
 > inline style on the shell root, which outranks any stylesheet rule,

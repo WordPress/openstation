@@ -51,8 +51,22 @@ export interface StatusBarSegment {
 	onClick?: ( e: MouseEvent ) => void;
 }
 
+/**
+ * How the status bar learns about the window's selection. Deliberately
+ * structural rather than a `FilesLayer` — the My WordPress surfaces
+ * paint this same bar from a different renderer, and a bar that only
+ * understood file placements couldn't say "3 selected" for them.
+ */
+export interface StatusBarSelectionSource {
+	count: () => number;
+	/** Subscribe to selection changes. Returns an unsubscribe. */
+	subscribe: ( cb: () => void ) => () => void;
+}
+
 export interface StatusBarContext {
 	folderId: number;
+	/** How many items the user currently has selected. */
+	selectedCount: number;
 	totals: {
 		files: number;
 		folders: number;
@@ -69,7 +83,11 @@ export interface StatusBarContext {
 }
 
 /** Mount the status bar at the bottom of `host`. */
-export function mountFolderStatusBar( host: HTMLElement, folderId: number ): {
+export function mountFolderStatusBar(
+	host: HTMLElement,
+	folderId: number,
+	opts: { selection?: StatusBarSelectionSource } = {},
+): {
 	dispose: () => void;
 } {
 	const bar = document.createElement( 'div' );
@@ -95,6 +113,7 @@ export function mountFolderStatusBar( host: HTMLElement, folderId: number ): {
 		}
 		const ctx: StatusBarContext = {
 			folderId,
+			selectedCount: opts.selection?.count() ?? 0,
 			totals: { files, folders, total: list.length, bytes },
 		};
 		const segments = computeSegments( ctx );
@@ -103,9 +122,11 @@ export function mountFolderStatusBar( host: HTMLElement, folderId: number ): {
 
 	repaint();
 	const off = subscribeFilesStore( () => repaint() );
+	const offSelection = opts.selection?.subscribe( () => repaint() );
 	return {
 		dispose() {
 			off();
+			offSelection?.();
 			bar.remove();
 		},
 	};
@@ -126,6 +147,17 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
 			sort: 10,
 		},
 	];
+	// Selection count sits on the trailing edge, and only while there
+	// IS one — a permanent "0 selected" would be noise on a bar whose
+	// whole job is to be glanceable.
+	if ( ctx.selectedCount > 0 ) {
+		builtIns.push( {
+			id: 'selection',
+			label: `${ ctx.selectedCount } selected`,
+			align: 'end',
+			sort: 10,
+		} );
+	}
 	const filtered = applyFilters< StatusBarSegment[], [ StatusBarContext ] >(
 		'os.files.folder-window.status-bar',
 		builtIns,

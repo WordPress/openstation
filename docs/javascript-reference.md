@@ -276,6 +276,34 @@ document.addEventListener( 'os-presence-changed', ( e ) => {
 
 ---
 
+### `os-selection-changed` — Experimental
+
+Fires whenever the selection changes on any tile canvas in the shell — the wallpaper, a folder window, or a list inside My WordPress. Every surface routes through the same controller, so one listener covers all of them.
+
+```javascript
+document.addEventListener( 'os-selection-changed', ( e ) => {
+    const { surface, scope, keys, count } = e.detail;
+    if ( surface === 'files' && count > 1 ) {
+        showBulkHint( count );
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    surface: string,   // 'files' | 'my-wordpress' | a plugin's own slug
+    scope:   string,   // folder id, entity id — narrows the surface
+    keys:    string[], // the surface's item keys, in visual order
+    count:   number,
+}
+```
+
+An empty selection fires too, with `keys: []` and `count: 0`. See [`wp.os.selection`](#selection--experimental) for the synchronous reader and the action-resolution rules.
+
+---
+
 ### `os-layout-changed` — Stable
 Fires when the user picks a new top-level desktop layout in OpenStation Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the new value in `data-os-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
 
@@ -336,6 +364,29 @@ document.addEventListener( 'os.drag.end', ( e ) => {
     // e.detail.{ payload, reason }
 } );
 ```
+
+**Multi-item drags** — *Experimental.* A drag that starts on a tile
+belonging to the current selection carries the whole selection. Two
+optional payload fields express it, and a target that ignores them
+still behaves correctly:
+
+| Payload type | Grabbed item | The whole set |
+|---|---|---|
+| `'desktop-file'` | `data.placement` | `data.placements?` |
+| `'shortcut'` | `data.{ kind, ref, … }` | `data.items?` |
+
+Both are **absent for a single-item drag**, so payloads for the
+ordinary gesture are unchanged. Read them through
+`dragPlacements( data )` / `dragShortcutItems( data )`, which fall
+back to the grabbed item — one code path for "one" and "many". A
+target that keeps reading `data.placement` acts on the tile the user
+pointed at, which is a defensible outcome rather than a broken one.
+
+If your target supports sets, apply its accept-gates to every member
+and refuse the whole drop when any one fails: accepting a set and
+handling part of it reports success for an operation that
+half-happened. See [files on the desktop](./files-on-desktop.md#dragging-a-selection)
+for the full contract.
 
 The cross-iframe `os-drag-*` / `os-drop`
 postMessages and the `os-cross-frame-drag-start` /
@@ -1384,6 +1435,86 @@ The server-side `openstation_presence_visible_users` filter gates which users su
 **Companion CustomEvent:** [`os-presence-changed`](#os-presence-changed--stable) fires once per status transition per user, with a `null` oldStatus on first sighting.
 
 **See also:** [`docs/examples/presence.md`](./examples/presence.md) for an end-to-end recipe.
+
+---
+
+### `selection` — Experimental
+
+Multi-selection is framework-level. Every tile canvas in the shell — the wallpaper, folder windows, and each list inside My WordPress — runs the same selection controller, so the gestures are identical everywhere: click replaces, `Ctrl`/`Cmd`+click toggles, `Shift`+click extends from the anchor, a drag on empty space draws a marquee, `Ctrl`/`Cmd`+A selects all, `Escape` clears.
+
+```javascript
+// Snapshot of the most recent selection change anywhere in the shell.
+wp.os.selection.active();
+// → { surface: 'files', scope: '0', keys: [ '12', '19' ], count: 2 } | null
+
+// React to selection anywhere.
+document.addEventListener( 'os-selection-changed', ( e ) => {
+    console.log( e.detail.count, 'selected in', e.detail.surface );
+} );
+```
+
+`surface` is `'files'` for a FilesLayer canvas and `'my-wordpress'` for a My WordPress list; `scope` narrows it (folder id, entity id). `keys` are the surface's own item keys — placement ids on the desktop, entry ids in My WordPress — as strings.
+
+#### What a mixed selection may do
+
+The hard part of multi-selection isn't the highlight, it's deciding what a set of unlike things can be asked to do. The rule lives in one place, `wp.os.selection.resolveCommonActions( items, actionsFor )`:
+
+- **One item selected** → that item's own action list, untouched. Single-item menus are exactly what they were before multi-selection existed.
+- **Several** → intersect by action `id`, and keep an id only when **every** contributing action declares `multi: true`.
+
+So selecting a post and an image leaves *Move to Trash* (both offer it, both marked multi-safe) and drops *Navigate into* (post-only) and *Download* (image-only).
+
+`multi` is opt-in on purpose. An action written against one item — "Rename…", "Share folder…", anything that opens a modal — would misbehave run twelve times over, and its author never agreed to that. Your menu entries keep working unchanged and simply don't appear in a multi-selection until you opt in.
+
+Four fields control the multi-selection behaviour of any menu entry, on both the `os.files.tile-menu` and `os.my-wordpress.tile-context-menu` filters:
+
+| Field | Meaning |
+|---|---|
+| `multi` | `true` to allow the action into a multi-selection menu. Default `false`. |
+| `multiId` | Identity to intersect on, when the same *deed* carries different single-item labels. The folder tile's `delete-folder` and the file tile's `remove` both declare `multiId: 'trash'`, so a mixed selection can still be thrown away. Defaults to `id`. |
+| `bulkLabel( n )` | Label for a set. Falls back to `"<label> (N items)"`. |
+| `bulk( items )` | Batched runner, called ONCE with the whole set. Without it the framework fans out, running each item's own `onClick` in turn. |
+
+```javascript
+wp.os.hooks.addFilter(
+    'os.files.tile-menu',
+    'my-plugin/archive',
+    ( items, placement ) => [
+        ...items,
+        {
+            id: 'my-plugin/archive',
+            label: 'Archive',
+            icon: 'dashicons-archive',
+            sort: 50,
+            multi: true,
+            bulkLabel: ( n ) => `Archive ${ n } items`,
+            bulk: ( placements ) => archiveAll( placements ),
+            onClick: () => archiveAll( [ placement ] ),
+        },
+    ],
+);
+```
+
+Prefer a `bulk` runner over fan-out whenever the action talks to the server or the user: it is what turns twelve REST calls, twelve toasts and twelve Undo buttons into one of each. The built-in "Move to Trash" does exactly this.
+
+#### `os.selection.actions` — JS filter
+
+Fires on the **resolved** action list for a multi-selection (never for a single item, whose menu is the surface's own). Receives the merged actions plus `{ items, count }`, so you can add an entry that only makes sense for a set.
+
+```javascript
+wp.os.hooks.addFilter(
+    'os.selection.actions',
+    'my-plugin/compare',
+    ( actions, { items, count } ) =>
+        count === 2
+            ? [ ...actions, { id: 'compare', label: 'Compare these two', onClick: () => compare( items ) } ]
+            : actions,
+);
+```
+
+#### Building your own selectable canvas
+
+`wp.os.selection.createModel( { order } )` returns the set + anchor primitive (`set` / `add` / `remove` / `toggle` / `selectRange` / `selectAll` / `clear` / `prune` / `subscribe`) if you are wiring a surface the shell doesn't own. `order()` must return the item keys in the order the user *sees* them — that is what a `Shift`+click range walks.
 
 ---
 
@@ -5817,11 +5948,56 @@ wp.hooks.addFilter(
 );
 ```
 
-Context: `{ entityId, kind, item }`. Currently wired on the post /
-page tile menu (`kind` from the entity, default `'post'`) and the
-media tile menu (`kind: 'attachment'`); the user tile menu will
-subscribe to the same hook in a follow-up — write the filter as if
-the hook fires for every section.
+Context: `{ entityId, kind, item }`. Wired on the post / page tile
+menu (`kind` from the entity, default `'post'`), the media tile menu
+(`kind: 'attachment'`), and the user tile menu (`kind: 'user'`) —
+write the filter as if the hook fires for every section.
+
+**Multi-selection.** These lists are multi-select, and an entry you
+add here appears only while ONE tile is selected until it opts in.
+Add `multi: true` (plus optionally `sort`, `bulkLabel( n )`, and a
+`bulk( items )` runner) to let it act on a set — the fields and the
+intersection rules are the same ones the file-tile menu uses, and
+they're documented under
+[`wp.os.selection`](#selection--experimental).
+
+#### Built-in bulk actions
+
+The lists carry wp-admin's own bulk actions, as multi-safe entries
+on the same menu. Your filter sees them in `options` and can reorder
+or remove them by id.
+
+| Section | Id | Equivalent in wp-admin |
+|---|---|---|
+| Posts / Pages / CPTs | `open` | Row action → Edit |
+| | `navigate-into` | *(no equivalent — the dossier view)* |
+| | `bulk-edit` | **Bulk actions → Edit** — status, author, comments, sticky, add categories, add tags |
+| | `publish` | Row action → Publish *(hidden for already-published entries)* |
+| | `to-draft` | Row action → Switch to Draft *(hidden for entries already drafts)* |
+| | `copy-links` | *(no equivalent)* |
+| | `trash` | **Bulk actions → Move to Trash** |
+| Media | `navigate-into`, `open-source` | Row actions |
+| | `detach` | Row action → Detach *(hidden for unattached files)* |
+| | `copy-links` | *(copies `source_url`)* |
+| | `delete` | **Bulk actions → Delete permanently** |
+| Users | `footprint`, `open-profile`, `author-archive` | Row actions |
+| | `change-role` | **Bulk actions → Change role to…** |
+| | `delete-user` | **Bulk actions → Delete** — asks core's "delete their content or reassign it" question |
+
+Two behaviours of the bulk-edit modal are worth knowing because they
+are core's, not ours: every control starts on **— No change —** and a
+field left alone is absent from the request (so a bulk edit can never
+overwrite eleven entries with the twelfth's values), and **categories
+and tags are additive** — the terms you pick are added to what each
+entry already has. Controls appear only where the post type supports
+them: no `categories` key in the REST response means no category
+picker, and sticky is offered for the built-in `post` type only.
+
+The status actions are a good illustration of the intersection rule
+in the wild: `publish` is offered only for an entry that isn't
+published and `to-draft` only for one that isn't a draft, so a
+selection holding one of each has neither in common and the menu
+shows only what applies to all of them.
 
 ### Filter — `os.my-wordpress.status-bar` (existing)
 
