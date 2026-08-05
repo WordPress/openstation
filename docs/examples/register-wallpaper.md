@@ -1,6 +1,6 @@
 # Register a wallpaper
 
-The OS Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.os.registerWallpaper()` from inside a `os.init` action so the public API is guaranteed available.
+The OpenStation Settings wallpaper picker is registry-driven: every entry in the registry becomes a swatch users can select. Register your own via `wp.os.registerWallpaper()` from inside a `os.init` action so the public API is guaranteed available.
 
 Two types today: **CSS** (a static `background` value) and **canvas** (a plugin-managed DOM subtree, typically a WebGL/2D canvas).
 
@@ -43,7 +43,7 @@ wp.os.ready( () => {
 } );
 ```
 
-The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--os-bg` and persists the user's selection to `localStorage`.
+The swatch appears in OpenStation Settings next time the panel opens. Clicking it writes the value to `--os-bg` and persists the user's selection to `localStorage`.
 
 `description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `openstation_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
 
@@ -100,7 +100,7 @@ wp.os.ready( () => {
 } );
 ```
 
-> **Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OS Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
+> **Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OpenStation Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
 
 ### Shipping your own module
 
@@ -128,7 +128,7 @@ wp.os.registerWallpaper( {
 
 ## Recipe 3 — A wallpaper with in-panel settings
 
-Any wallpaper can ship `renderEditor`. When that wallpaper is the selected swatch in OS Settings, a collapsible panel opens below the grid and your editor is rendered into it — same animation as the built-in custom-gradient editor.
+Any wallpaper can ship `renderEditor`. When that wallpaper is the selected swatch in OpenStation Settings, a collapsible panel opens below the grid and your editor is rendered into it — same animation as the built-in custom-gradient editor.
 
 ```javascript
 const state = { tint: '#6366f1' };
@@ -168,7 +168,7 @@ wp.os.ready( () => {
 
 ## Recipe 4 — A live preview in the picker tile
 
-A canvas wallpaper's `preview` string is a static stand-in. Ship `renderPreview` and the OS Settings picker mounts the real thing (or a cheap facsimile) inside the swatch tile — lazily, only while the tile is visible, capped at 4 concurrent previews page-wide, with the CSS `preview` as the fallback for every failure mode.
+A canvas wallpaper's `preview` string is a static stand-in. Ship `renderPreview` and the OpenStation Settings picker mounts the real thing (or a cheap facsimile) inside the swatch tile — lazily, only while the tile is visible, capped at 4 concurrent previews page-wide, with the CSS `preview` as the fallback for every failure mode.
 
 `ctx.params` parametrizes what the preview depicts: it's your def's `previewParams` after the `os.wallpaper.preview-params` filter. Use it when the honest render would look wrong in a thumbnail — the built-in Living Tree previews a 540-day-old showcase site so a day-old install doesn't advertise the wallpaper as a bare sprout.
 
@@ -214,7 +214,7 @@ wp.hooks.addFilter(
 
 ## Recipe 5 — A settings dialog with persisted values
 
-`renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OS Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<os-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OS Settings (localStorage + user meta — values follow the user across devices).
+`renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OpenStation Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<os-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OpenStation Settings (localStorage + user meta — values follow the user across devices).
 
 Every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) reads the persisted bag back as `ctx.settings`. Each `setSettings` call also fires the `os.wallpaper.settings-changed` action with the full post-merge bag, so a mounted wallpaper applies edits live — the dialog doubles as a tuning panel.
 

@@ -266,6 +266,14 @@ export interface EntityDetail {
 	 * older API responses that don't carry this.
 	 */
 	openstation_attached_media?: number[];
+	/**
+	 * Explicit editor URL, for a section whose rows don't live in
+	 * `wp_posts` and so can't be edited at `post.php?post=<id>` — a
+	 * WooCommerce order under High-Performance Order Storage is the
+	 * in-tree case. Declare it in the section's `listFields` so
+	 * `_fields` doesn't strip it off the list rows.
+	 */
+	editUrl?: string;
 	_links?: Record< string, Array< { href: string; count?: number } > >;
 	_embedded?: EntityListItem[ '_embedded' ] & {
 		author?: Array< {

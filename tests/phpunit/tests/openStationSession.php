@@ -210,6 +210,121 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A native window is addressed by id, and its id is its identity:
+	 * `desktop-mode-user-edit` is "the profile editor", not "the
+	 * profile editor for user 12". Params are the only record of WHAT
+	 * it was showing — drop them here and the window restores onto its
+	 * default: the profile window comes back on whoever is logged in,
+	 * the customer window comes back empty.
+	 *
+	 * @covers ::openstation_sanitize_session
+	 */
+	public function test_sanitize_keeps_native_window_params() {
+		$clean = openstation_sanitize_session(
+			array(
+				'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+				'activeDesktop' => 'desktop-1',
+				'windows'       => array(
+					array(
+						'id'     => 'desktop-mode-woo-customer',
+						'native' => true,
+						'url'    => '#desktop-mode-woo-customer',
+						'title'  => 'Customer',
+						'icon'   => 'dashicons-businessperson',
+						'state'  => 'normal',
+						'params' => array(
+							'customerId'   => 7,
+							'customerName' => 'Ada Lovelace',
+							'compact'      => true,
+						),
+					),
+				),
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'customerId'   => 7,
+				'customerName' => 'Ada Lovelace',
+				'compact'      => true,
+			),
+			$clean['windows'][0]['params']
+		);
+	}
+
+	/**
+	 * An iframe window's URL already says what it is showing and
+	 * round-trips on its own, so params on one are noise.
+	 *
+	 * @covers ::openstation_sanitize_session
+	 */
+	public function test_sanitize_drops_params_from_iframe_windows() {
+		$clean = openstation_sanitize_session(
+			array(
+				'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+				'activeDesktop' => 'desktop-1',
+				'windows'       => array(
+					$this->make_window(
+						array( 'params' => array( 'customerId' => 7 ) )
+					),
+				),
+			)
+		);
+
+		$this->assertArrayNotHasKey( 'params', $clean['windows'][0] );
+	}
+
+	/**
+	 * Params come from the client, so they are untrusted and
+	 * unbounded. Scalars only, capped in count and in string length —
+	 * the session blob is not a data store.
+	 *
+	 * @covers ::openstation_sanitize_session_params
+	 */
+	public function test_sanitize_params_keeps_only_bounded_scalars() {
+		$clean = openstation_sanitize_session_params(
+			array(
+				'customerId' => 7,
+				'ratio'      => 1.5,
+				'flag'       => false,
+				'nested'     => array( 'no' => 'thanks' ),
+				'null'       => null,
+				'long'       => str_repeat( 'x', 400 ),
+			)
+		);
+
+		$this->assertSame( 7, $clean['customerId'] );
+		$this->assertSame( 1.5, $clean['ratio'] );
+		$this->assertFalse( $clean['flag'] );
+		$this->assertArrayNotHasKey( 'nested', $clean );
+		$this->assertArrayNotHasKey( 'null', $clean );
+		$this->assertSame( 256, strlen( $clean['long'] ) );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_session_params
+	 */
+	public function test_sanitize_params_caps_the_key_count() {
+		$many = array();
+		for ( $i = 0; $i < 40; $i++ ) {
+			$many[ 'k' . $i ] = $i;
+		}
+
+		$this->assertCount(
+			OPENSTATION_SESSION_MAX_PARAMS,
+			openstation_sanitize_session_params( $many )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_session_params
+	 */
+	public function test_sanitize_params_tolerates_a_non_array() {
+		$this->assertSame( array(), openstation_sanitize_session_params( null ) );
+		$this->assertSame( array(), openstation_sanitize_session_params( 'nope' ) );
+	}
+
+	/**
 	 * The stored marker is built from the sanitized id, never from
 	 * the client's `url`. Nothing navigates to it, so there's no
 	 * reason to round-trip a client-controlled string through user

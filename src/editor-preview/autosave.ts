@@ -57,7 +57,8 @@ export function sameOriginUrl( value: unknown ): string | undefined {
 
 /**
  * Ask an editor window's iframe to autosave, so the front-end preview
- * about to open reflects on-screen content.
+ * companion — which opens in parallel — ends up reflecting on-screen
+ * content.
  *
  * Never rejects — every failure mode resolves with a status the
  * caller can degrade on (`timeout` when the iframe stays silent,

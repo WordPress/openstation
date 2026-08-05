@@ -20,6 +20,57 @@
 const pending = new Map<string, Promise<void>>();
 
 /**
+ * Find a `<script src>` already in the document serving the same
+ * file, ignoring the query string.
+ *
+ * `wp_enqueue_script()` prints `…/desktop.min.js?ver=0.9.8` while a
+ * registry entry may hold the bare path or a different `ver`. Within
+ * one document those are the same bundle, and injecting it a second
+ * time evaluates it a second time — which duplicates every hook
+ * subscription the bundle registers.
+ *
+ * Origin is part of the identity, though the query string isn't:
+ * `loadVendorScript` is public API and vendor bundles have generic
+ * paths, so two CDNs both serving `/dist/index.js` are two different
+ * bundles. Matching on pathname alone would silently swallow the
+ * second one.
+ *
+ * @param url Candidate URL.
+ * @return The existing tag, or `null`.
+ */
+function findScriptByPath( url: string ): HTMLScriptElement | null {
+	let origin: string;
+	let path: string;
+	try {
+		const parsed = new URL( url, document.baseURI );
+		origin = parsed.origin;
+		path = parsed.pathname;
+	} catch {
+		return null;
+	}
+	if ( ! path ) {
+		return null;
+	}
+	const tags = document.querySelectorAll< HTMLScriptElement >(
+		'script[src]',
+	);
+	for ( const tag of Array.from( tags ) ) {
+		try {
+			const candidate = new URL( tag.src, document.baseURI );
+			if (
+				candidate.origin === origin &&
+				candidate.pathname === path
+			) {
+				return tag;
+			}
+		} catch {
+			/* A malformed src can't match anything — skip it. */
+		}
+	}
+	return null;
+}
+
+/**
  * Inline `extra` data harvested from a registered WP script handle by
  * {@link openstation_resolve_script_payload} on the server. Without
  * this, the lazy-load path would silently drop everything attached
@@ -98,6 +149,39 @@ export function loadVendorScript(
 				() => reject( new Error( `Failed to load ${ url }` ) ),
 				{ once: true },
 			);
+			return;
+		}
+
+		// The page may already carry this file from
+		// `wp_enqueue_script()` — which is normal and expected the
+		// moment a plugin names an ALREADY-ENQUEUED handle as its
+		// native window's `script`. Those tags have no
+		// `data-os-vendor` marker, so the check above misses them and
+		// we would inject a second copy of the same bundle.
+		//
+		// A bundle evaluated twice registers every `addAction` /
+		// `addFilter` twice, and `@wordpress/hooks` appends rather
+		// than replaces on a repeated namespace — so every subscriber
+		// runs twice. It shows up as duplicated UI: two identical
+		// panels stacked in a folder, two badges on one tile. Nothing
+		// in the symptom points at script loading, which is what made
+		// it expensive to find.
+		//
+		// Matched on pathname rather than href: WordPress appends
+		// `?ver=…` and a caller may hold the same file with a
+		// different (or no) query. Within one document the path IS
+		// the identity of the bundle.
+		const alreadyInDocument = findScriptByPath( url );
+		if ( alreadyInDocument ) {
+			// Resolved rather than awaited. A tag the document
+			// printed for itself is the document's own ordering
+			// problem; ours is only to not print it twice. Waiting on
+			// a `load` that already fired would hang the sync
+			// forever, and the caller tolerates an absent render
+			// callback.
+			alreadyInDocument.dataset.osVendor = url;
+			alreadyInDocument.dataset.loaded = '1';
+			resolve();
 			return;
 		}
 

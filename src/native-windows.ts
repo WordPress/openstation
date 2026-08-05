@@ -140,7 +140,10 @@ let _ctxInstance = 0;
  *
  * @internal
  */
-function buildNativeRenderContext( windowId: string ): {
+function buildNativeRenderContext(
+	windowId: string,
+	params: Record< string, string | number | boolean > = {},
+): {
 	ctx: NativeRenderContext;
 	dispose: () => void;
 } {
@@ -284,6 +287,7 @@ function buildNativeRenderContext( windowId: string ): {
 				},
 			);
 		},
+		params,
 	};
 
 	const dispose = (): void => {
@@ -917,7 +921,13 @@ export interface NativeWindowSync {
 	 * so the body always has the cloned template before the render
 	 * callback fires. **Do not duplicate this elsewhere.**
 	 */
-	openById: ( id: string ) => boolean;
+	openById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 
 	/**
 	 * Spawn a BRAND-NEW instance of a registered native window — even
@@ -932,7 +942,13 @@ export interface NativeWindowSync {
 	 *
 	 * Returns `false` when the id isn't registered.
 	 */
-	openNewById: ( id: string ) => boolean;
+	openNewById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 }
 
 export function createNativeWindowSync(
@@ -1075,7 +1091,10 @@ export function createNativeWindowSync(
 		loadedScripts.add( entry.scriptUrl );
 	};
 
-	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
+	const openFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
 		const render = readGlobalRegistry()[ entry.id ];
 
 		// Pre-populate the window body with the cloned template, then
@@ -1121,6 +1140,13 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			// What this open is showing. Persisted with the session,
+			// so a singleton that retargets comes back on the same
+			// subject after a reload instead of on its default.
+			// Omitted rather than set empty: `manager.open()` focuses
+			// an existing window rather than rebuilding it, and an
+			// argument-less reopen must not wipe what it was showing.
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1130,7 +1156,10 @@ export function createNativeWindowSync(
 	 * render callback is built fresh per call — every duplicate gets
 	 * its own template clone and its own teardown.
 	 */
-	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
+	const openNewFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
 		const render = readGlobalRegistry()[ entry.id ];
 
 		const finalRender: RenderCallback = ( body, ctx ) => {
@@ -1161,6 +1190,7 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1241,7 +1271,10 @@ export function createNativeWindowSync(
 
 	const openById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
@@ -1257,13 +1290,16 @@ export function createNativeWindowSync(
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openFromEntry( entry );
+		openFromEntry( entry, opts.params );
 		return true;
 	};
 
 	const openNewById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
@@ -1273,7 +1309,7 @@ export function createNativeWindowSync(
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openNewFromEntry( entry );
+		openNewFromEntry( entry, opts.params );
 		return true;
 	};
 

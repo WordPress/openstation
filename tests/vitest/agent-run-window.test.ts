@@ -552,6 +552,77 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'the sidebar shows only the active agent\'s conversations', async () => {
+		const mine = {
+			id: 71,
+			agentId: 5,
+			agentName: 'TLDR Editor',
+			agentDescription: '',
+			agentAvatarUrl: 'https://example.test/bot.svg',
+			title: 'Summarize post 12',
+			preview: 'Done.',
+			lastRole: 'agent',
+			messageCount: 2,
+			createdAt: '2026-07-30T10:00:00Z',
+			updatedAt: '2026-07-30T10:05:00Z',
+		};
+		const theirs = {
+			...mine,
+			id: 72,
+			agentId: 9,
+			agentName: 'Historian',
+			title: 'Something else entirely',
+			preview: 'Elsewhere.',
+		};
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown ) => {
+			const url = String( input );
+			if ( url.endsWith( '/agents/conversations' ) ) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => [ mine, theirs ],
+				} as unknown as Response;
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ( {} ),
+			} as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		await flush();
+
+		// No active agent: the full list is the picker.
+		expect(
+			body.querySelectorAll( '.dm-agent-chat__conv' ),
+		).toHaveLength( 2 );
+
+		openAgentChat( {
+			id: 5,
+			name: 'TLDR Editor',
+			description: '',
+			avatarUrl: 'https://example.test/bot.svg',
+		} );
+		await flush();
+
+		// Active agent: only its own history — never another agent's.
+		const rows = body.querySelectorAll< HTMLElement >(
+			'.dm-agent-chat__conv',
+		);
+		expect( rows ).toHaveLength( 1 );
+		expect(
+			rows[ 0 ].querySelector( '.dm-agent-chat__conv-name' )!.textContent,
+		).toBe( 'TLDR Editor' );
+		expect( body.textContent ).not.toContain( 'Something else entirely' );
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
+		}
+	} );
+
 	test( 'clicking a conversation avatar opens the agent editor, not the conversation', async () => {
 		const summary = {
 			id: 77,

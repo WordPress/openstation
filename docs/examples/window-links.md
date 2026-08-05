@@ -1,6 +1,6 @@
 # Window links — relate windows and restyle the ties *(Experimental)*
 
-Open a post and two of its comments in three windows and the desktop draws **splines terminated by circular dots** from each comment window to the post window — the **larger dot** sits on the window the content *belongs to* (dots are rotation-invariant, so a tie meeting a border at any angle looks right — arrowheads read wrong on skewed approaches). Two open posts whose contents hyperlink each other get a **single spline with large dots on both ends**. Focusing a window **raises the windows directly tied to it** (they surface just below the focused one, without stealing focus): the root pulls up all of its children; a child pulls up its parent, not its siblings. The splines lift along with them so no unrelated window covers them, and every relative is marked with an accent outline plus a soft glow. The user tunes all of this in two places: **OS Settings → Features → Window links** (master on/off, bring-related-to-front, highlight-related) and **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
+Open a post and two of its comments in three windows and the desktop draws **splines terminated by circular dots** from each comment window to the post window — the **larger dot** sits on the window the content *belongs to* (dots are rotation-invariant, so a tie meeting a border at any angle looks right — arrowheads read wrong on skewed approaches). Two open posts whose contents hyperlink each other get a **single spline with large dots on both ends**. Focusing a window **raises the windows directly tied to it** (they surface just below the focused one, without stealing focus): the root pulls up all of its children; a child pulls up its parent, not its siblings. The splines lift along with them so no unrelated window covers them, and every relative is marked with an accent outline plus a soft glow. The user tunes all of this in two places: **OpenStation Settings → Features → Window links** (master on/off, bring-related-to-front, highlight-related) and **OpenStation Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
 
 Core content relates automatically: post/page/CPT editors announce themselves as roots — plus, as outbound references, the posts their content hyperlinks, the media embedded in their content (`wp-image-{id}`, which catches inserted-but-never-attached images), their featured image, and their assigned categories/tags (`term/{taxonomy}`). Comment-edit screens, attached-media screens (both the classic editor and the `upload.php?item=N` grid detail), arrive pre-rooted at their parent post, and term edit screens (`term.php`) are roots that assigned posts point at — all resolved server-side by the chromeless bridge, since the URL alone can't answer "which post does comment 45 belong to".
 
@@ -78,7 +78,7 @@ Return `null` to suppress detection for a screen. The bridge re-announces on eve
 
 ## 3. Replace the renderer — draw the ties your way
 
-The default `svg-splines` renderer registers through the same public API yours will use. One renderer is active at a time; the user picks it in OS Settings.
+The default `svg-splines` renderer registers through the same public API yours will use. One renderer is active at a time; the user picks it in OpenStation Settings.
 
 ```javascript
 wp.os.registerWindowLinkRenderer( {
@@ -166,7 +166,7 @@ add_action( 'admin_enqueue_scripts', function () {
 openstation_register_window_link_renderer_script( 'acme-link-renderer' );
 ```
 
-Your renderer appears in the OS Settings selector the moment the plugin activates — no reload. With `owner` set (above), deactivation live-unregisters it; if it was the active pick, the shell falls back to `svg-splines`.
+Your renderer appears in the OpenStation Settings selector the moment the plugin activates — no reload. With `owner` set (above), deactivation live-unregisters it; if it was the active pick, the shell falls back to `svg-splines`.
 
 ## Styling knobs
 

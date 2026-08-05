@@ -21,6 +21,7 @@ import {
 import { Dock, type DockItem, type SystemDockItem } from './dock';
 import {
 	bindNativeUrlRemap,
+	isPersonViewClaimed,
 	registerNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
@@ -221,6 +222,8 @@ import {
 	MIO_TILE_ID,
 	type MioApi,
 } from './mio/controller';
+import { OPENSTATION_MARK_ICON } from './ui/brand-mark';
+import { maybeShowRebrandNotice } from './rebrand-notice';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { preloadWindowSystem } from './window-system/loader';
@@ -2190,7 +2193,7 @@ function init(): void {
 	// dispatcher changes needed.
 	bindNativeUrlRemap( {
 		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
-		openById: ( id ) => nativeWindows.openById( id ),
+		openById: ( id, opts ) => nativeWindows.openById( id, opts ),
 		adminUrl: config.adminUrl,
 	} );
 
@@ -2313,6 +2316,15 @@ function init(): void {
 		id: 'desktop-mode-user-edit',
 		nativeWindowId: 'desktop-mode-user-edit',
 		matches: ( _url, parsed ) => {
+			// A URL that explicitly marks itself as a different kind
+			// of view onto this person is not a profile-edit request.
+			// The marker is how another remap — WooCommerce's Customer
+			// window — claims the same person without having to win a
+			// registration-order race with this entry, and without
+			// this one having to know what claimed it.
+			if ( isPersonViewClaimed( parsed ) ) {
+				return false;
+			}
 			const path = parsed.pathname;
 			if ( path.endsWith( '/profile.php' ) ) {
 				return true;
@@ -2427,17 +2439,25 @@ function init(): void {
 			config.dockItems,
 			config.desktopIcons,
 		);
-		// OS Settings tile — `'core'` affinity so it lands on the side
-		// dock in Classic (with core admin menus, where users expect a
-		// shell-owned affordance) and on the primary rail in Unified
-		// and Spatial (where there is no side dock to host it).
+		// OpenStation Settings tile — `'core'` affinity so it lands on
+		// the side dock in Classic (with core admin menus, where users
+		// expect a shell-owned affordance) and on the primary rail in
+		// Unified and Spatial (where there is no side dock to host it).
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild.
+		//
+		// The tile wears the logomark rather than a dashicon: this is
+		// the one panel that IS the product, so it is the one tile that
+		// should carry the mark. Drawn as a `currentColor` silhouette so
+		// the dock's mask paints it in the rail's own icon colour beside
+		// the dashicons — see `src/ui/brand-mark.ts` for why the app
+		// chip cannot be used here. Themes can still replace it through
+		// the `OS_SETTINGS` icon slot.
 		layoutDispatcher.appendSystemTile(
 			{
 				id: OS_SETTINGS_WINDOW_ID,
-				title: 'OS Settings',
-				icon: 'dashicons-desktop',
+				title: 'OpenStation Settings',
+				icon: OPENSTATION_MARK_ICON,
 				// "Open" for the dock dot means "open on the currently
 				// active desktop." OS Settings on another desktop
 				// shouldn't paint the dot on the active view.
@@ -2543,8 +2563,8 @@ function init(): void {
 			id: OS_SETTINGS_WINDOW_ID,
 			baseId: OS_SETTINGS_WINDOW_ID,
 			url: '#os-settings',
-			title: 'OS Settings',
-			icon: 'dashicons-desktop',
+			title: 'OpenStation Settings',
+			icon: OPENSTATION_MARK_ICON,
 			native: true,
 			render: ( body ) => osSettings.renderPanel( body ),
 			width: 820,
@@ -3678,6 +3698,12 @@ function init(): void {
 		openUrl: openNoticeUrl,
 		keyPrefix: 'plugin-notice',
 	} );
+	// Tell each user, once, that Desktop Mode is now OpenStation. No-op
+	// unless the server flagged this user as one who was using the
+	// plugin under its old name and they haven't dismissed the
+	// announcement. Fire-and-forget: it sleeps until the desk has
+	// settled before mounting, which boot should not block on.
+	void maybeShowRebrandNotice( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,
@@ -4216,7 +4242,7 @@ function init(): void {
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',
-					osSettings: 'OS Settings',
+					osSettings: 'OpenStation Settings',
 					sortHeading: 'Sort by',
 					sortNameAsc: 'Name (A → Z)',
 					sortNameDesc: 'Name (Z → A)',

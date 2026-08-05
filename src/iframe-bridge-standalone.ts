@@ -162,11 +162,11 @@ interface IframeWp {
  * (`os-editor-live-watch` / `-unwatch`): while a preview
  * companion is open, the shell asks this page to watch its own editor
  * for content changes — block-list / title reference changes in
- * Gutenberg, the `after-autosave` event in classic — and, debounced
- * after the typing pause, autosave and announce
- * `os-editor-live-saved` so the shell reloads the preview.
- * Typing detection has to live iframe-side: keystrokes never cross
- * the frame boundary.
+ * Gutenberg; `input` on the title/content/excerpt fields plus TinyMCE
+ * edit events in classic — and, debounced after the typing pause,
+ * autosave and announce `os-editor-live-saved` so the shell
+ * reloads the preview. Typing detection has to live iframe-side:
+ * keystrokes never cross the frame boundary.
  *
  * Exported for tests (entry exports land on the
  * `openStationIframeBridge` IIFE global — no runtime consumers).
@@ -384,9 +384,17 @@ export function installEditorAutosaveHandler(): void {
 			};
 		}
 
-		// Classic editor: no reactive store to watch — ride the
-		// heartbeat-driven autosave core already runs (~60 s) and
-		// announce after each round-trip.
+		// Classic editor: no reactive store to watch. Typing is
+		// detected on the raw fields instead — the title input, the
+		// text-mode content textarea, the excerpt (the three fields
+		// classic autosave snapshots) and every TinyMCE editor — and
+		// each debounced settle forces the server autosave core would
+		// otherwise only run on its ~60 s heartbeat. `triggerSave()`
+		// resets the interval and connects immediately, and core's
+		// own `save()` still bails when nothing changed, so a settle
+		// with nothing new stays silent (no request, no reload).
+		// `after-autosave` announces every completed round-trip —
+		// ours and core's own — as `os-editor-live-saved`.
 		if ( editorWp?.autosave?.server ) {
 			const jqWindow = window as unknown as {
 				jQuery?: ( el: Document ) => {
@@ -398,15 +406,115 @@ export function installEditorAutosaveHandler(): void {
 			if ( ! jq ) {
 				return null;
 			}
-			const eventName = `after-autosave.os-live-${ watchId }`;
-			jq( document ).on( eventName, () => {
+
+			let timer: number | null = null;
+			let stopped = false;
+			// Core drops a `triggerSave()` silently while an autosave
+			// round-trip is on the wire (`_blockSave`) — track
+			// in-flight state via the before/after events and retry a
+			// settle that landed mid-save instead of losing it.
+			let inFlight = false;
+
+			const save = (): void => {
+				timer = null;
+				if ( stopped ) {
+					return;
+				}
+				if ( inFlight ) {
+					timer = window.setTimeout( save, 1000 );
+					return;
+				}
+				try {
+					editorWp.autosave?.server?.triggerSave?.();
+				} catch {
+					/* Autosave unavailable — the next edit retries. */
+				}
+			};
+
+			const schedule = (): void => {
+				if ( stopped ) {
+					return;
+				}
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+				}
+				timer = window.setTimeout( save, debounceMs );
+			};
+
+			const ns = `.os-live-${ watchId }`;
+			jq( document ).on( `before-autosave${ ns }`, () => {
+				inFlight = true;
+			} );
+			jq( document ).on( `after-autosave${ ns }`, () => {
+				inFlight = false;
 				postToParent( {
 					type: 'os-editor-live-saved',
 					watchId,
 				} );
 			} );
+
+			const fields: HTMLElement[] = [];
+			for ( const fieldId of [ 'title', 'content', 'excerpt' ] ) {
+				const el = document.getElementById( fieldId );
+				if ( el ) {
+					el.addEventListener( 'input', schedule );
+					fields.push( el );
+				}
+			}
+
+			// Visual mode: typing happens inside TinyMCE's own iframe
+			// and never reaches the #content textarea until a save —
+			// bind every current editor, and late arrivals too (a
+			// text↔visual mode switch re-initializes the editor).
+			interface TinyEditor {
+				on?: ( events: string, cb: () => void ) => void;
+				off?: ( events: string, cb: () => void ) => void;
+			}
+			interface Tiny {
+				editors?: TinyEditor[];
+				on?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+				off?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+			}
+			const tiny = ( window as unknown as { tinymce?: Tiny } )
+				.tinymce;
+			const tinyEvents = 'keyup input change undo redo SetContent';
+			const bound: TinyEditor[] = [];
+			const bindEditor = ( ed: TinyEditor | undefined ): void => {
+				if ( ed?.on ) {
+					ed.on( tinyEvents, schedule );
+					bound.push( ed );
+				}
+			};
+			( tiny?.editors ?? [] ).forEach( bindEditor );
+			const onAddEditor = ( e: { editor?: TinyEditor } ): void =>
+				bindEditor( e?.editor );
+			tiny?.on?.( 'AddEditor', onAddEditor );
+
 			return () => {
-				jq( document ).off( eventName );
+				stopped = true;
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+					timer = null;
+				}
+				jq( document ).off( `before-autosave${ ns }` );
+				jq( document ).off( `after-autosave${ ns }` );
+				for ( const el of fields ) {
+					el.removeEventListener( 'input', schedule );
+				}
+				for ( const ed of bound ) {
+					try {
+						ed.off?.( tinyEvents, schedule );
+					} catch {
+						/* Editor already destroyed. */
+					}
+				}
+				tiny?.off?.( 'AddEditor', onAddEditor );
 			};
 		}
 

@@ -1,5 +1,5 @@
 /**
- * OpenStation — OS Settings.
+ * OpenStation — OpenStation Settings.
  *
  * Shell-level preferences that live outside WordPress: wallpaper, accent
  * color, dock size. Persisted to localStorage so they survive reloads
@@ -16,7 +16,7 @@
  *   - managing user preference state (current wallpaper id, accent,
  *     dock size, custom-gradient colors/angle, custom-image reference)
  *   - delegating wallpaper application to the WallpaperLayer
- *   - rendering the OS Settings panel UI, iterating the registry to
+ *   - rendering the OpenStation Settings panel UI, iterating the registry to
  *     produce swatches and hosting each selected wallpaper's optional
  *     in-panel editor (`renderEditor`).
  *
@@ -130,7 +130,7 @@ function loadOsSettingsPanelBundle(
 }
 
 /**
- * OS Settings controller.
+ * OpenStation Settings controller.
  *
  * Single instance per shell. Owns the persisted state, delegates
  * wallpaper painting to the {@link WallpaperLayer}, and renders the
@@ -146,7 +146,7 @@ export class OsSettings implements SettingsCtx {
 
 	/**
 	 * Teardown for whichever wallpaper's `renderEditor` is currently
-	 * mounted in the OS Settings panel. Null when no editor is active.
+	 * mounted in the OpenStation Settings panel. Null when no editor is active.
 	 */
 	public activeEditorTeardown: WallpaperTeardown | null = null;
 
@@ -172,7 +172,7 @@ export class OsSettings implements SettingsCtx {
 	public activeTabId: string | null = null;
 
 	/**
-	 * Subscribers to OS Settings state changes — third-party tabs that
+	 * Subscribers to OpenStation Settings state changes — third-party tabs that
 	 * need to react when the user edits AI key / accent / etc. in an
 	 * adjacent built-in tab. Fired from {@link save}.
 	 */
@@ -457,7 +457,7 @@ export class OsSettings implements SettingsCtx {
 	 * Switch the active settings tab. Records the choice on
 	 * {@link activeTabId} (so the next render mounts on it) and, when
 	 * the panel is currently mounted, flips the live `<os-tabs>` value
-	 * in place so an already-open OS Settings window jumps to the tab
+	 * in place so an already-open OpenStation Settings window jumps to the tab
 	 * without a full re-render. Deep-linking entry points
 	 * (`openOsSettings({ tabId })`) call this after opening the window.
 	 *
@@ -500,7 +500,7 @@ export class OsSettings implements SettingsCtx {
 			.catch( ( err ) => {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[openstation] OS Settings panel failed to load:',
+						'[openstation] OpenStation Settings panel failed to load:',
 						err,
 					);
 				}

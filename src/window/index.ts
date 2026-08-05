@@ -85,6 +85,7 @@ import {
 	externalTabCount,
 	externalTabsSnapshot,
 	handleTabStripClick,
+	observeTabOverflow,
 	syncActiveTab,
 } from './tabs';
 import {
@@ -489,6 +490,14 @@ export class Window {
 	 */
 	public _bodyResizeObserver: ResizeObserver | null = null;
 
+	/**
+	 * Teardown for the tab strip's overflow watcher — the thing that
+	 * decides whether either edge fade is painted. Null on native
+	 * windows (no strip) and once the window has closed.
+	 * @internal
+	 */
+	public _tabOverflowTeardown: ( () => void ) | null = null;
+
 	constructor( config: WindowConfig ) {
 		this.id = config.id;
 		this.config = config;
@@ -694,7 +703,10 @@ export class Window {
 		// down + aborts the controller; we capture it on the
 		// instance so `close()` can fire it before the user-returned
 		// teardown runs.
-		const { ctx, dispose } = _buildNativeRenderContext( this.id );
+		const { ctx, dispose } = _buildNativeRenderContext(
+			this.id,
+			this.config.params ?? {},
+		);
 		this._nativeRenderCtxDispose = dispose;
 
 		// Capture the optional teardown returned by the render callback
@@ -1090,11 +1102,16 @@ export class Window {
 		if ( this.iframe ) {
 			const iframe = this.iframe;
 
-			const tabs = this.element.querySelector( '.os-window__tabs' );
+			const tabs = this.element.querySelector< HTMLElement >(
+				'.os-window__tabs',
+			);
 			if ( tabs ) {
 				tabs.addEventListener( 'click', ( e: Event ) =>
 					handleTabStripClick( this, e ),
 				);
+				// Paint the edge fades only where scrolling would
+				// actually reveal another tab.
+				this._tabOverflowTeardown = observeTabOverflow( tabs );
 			}
 
 			// Sync the active tab whenever the iframe finishes a
@@ -2269,6 +2286,15 @@ export class Window {
 				current.remove();
 				this.iframe = buffer;
 
+				// The swap may have replaced a frame whose FIRST load
+				// never finished (a companion refreshed right after
+				// opening) — its pending load event died with it, and
+				// the boot overlay it armed would never clear. The
+				// buffer's load HAS completed, so the window provably
+				// has ready content: mark it so. A no-op in the common
+				// case where the overlay already cleared.
+				markWindowContentReady( this.id );
+
 				// Keep the overlay contract alive for FUTURE classic
 				// reloads: the original frame got this wiring in
 				// `dom.ts` at build time; the twin needs it too or a
@@ -3151,6 +3177,12 @@ export class Window {
 		// `body-resized` fire as the window animates out.
 		this._bodyResizeObserver?.disconnect();
 		this._bodyResizeObserver = null;
+
+		// Same rationale for the tab strip's overflow watcher: its
+		// observers would otherwise keep measuring a strip that is
+		// animating out of the document.
+		this._tabOverflowTeardown?.();
+		this._tabOverflowTeardown = null;
 
 		// Drop every channel-bus subscriber bound to this window so
 		// stale callbacks don't fire if the same id is reopened.

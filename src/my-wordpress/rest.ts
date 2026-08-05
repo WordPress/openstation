@@ -324,12 +324,31 @@ export async function fetchUserList(
 		const url = new URL( buildUrl( entity.restPath ) );
 		url.searchParams.set( 'page', String( params.page ) );
 		url.searchParams.set( 'per_page', String( params.perPage ) );
+		// Same `listFields` contract the post-shaped fetcher honours:
+		// a section serving user-shaped rows from its own route (the
+		// WooCommerce Customers list) carries extra payloads, and
+		// `rest_filter_response_fields()` strips anything not named
+		// here before the bundle ever sees it.
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,description,link,avatar_urls,openstation_summary',
+			[
+				'id',
+				'name',
+				'slug',
+				'description',
+				'link',
+				'avatar_urls',
+				'openstation_summary',
+				...( entity.listFields ?? [] ),
+			].join( ',' ),
 		);
 		url.searchParams.set( 'orderby', 'name' );
 		url.searchParams.set( 'order', 'asc' );
+		// Section-declared markers, so a server-side query filter can
+		// tell a site-window request from any other REST caller's.
+		for ( const [ key, value ] of Object.entries( entity.listQuery ?? {} ) ) {
+			url.searchParams.set( key, value );
+		}
 		if ( mode === 'edit' ) {
 			url.searchParams.set( 'context', 'edit' );
 		} else {

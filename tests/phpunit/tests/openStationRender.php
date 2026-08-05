@@ -374,6 +374,29 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The soft-reload topic matcher and the save-watcher's broadcast
+	 * emitter live in the same script but were once renamed out of
+	 * sync — the matcher expected a prefix nothing emits, silently
+	 * killing every list-page soft reload. Pin both sides to the
+	 * `os.` prefix so they can only move together.
+	 *
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
+	public function test_bridge_script_soft_reload_matcher_matches_emitted_topic_prefix() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['openstation_chromeless'] = '1';
+
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The matcher.
+		$this->assertStringContainsString( '/^os\.(.+)\.changed$/', $output );
+		// The emitter it must keep matching.
+		$this->assertStringContainsString( "'os.' +", $output );
+	}
+
+	/**
 	 * Link interceptor must be inside the bridge script so stray clicks on
 	 * `<a href="/wp-admin/...">` don't kick the iframe out of chromeless mode.
 	 *
@@ -530,6 +553,138 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 			$admin_pos,
 			$skip_pos,
 			'AJAX-class skip must run before the admin-link prevent-default block.'
+		);
+	}
+
+	/**
+	 * `aria-button-if-js` is core's marker for an anchor that JS turns
+	 * into an in-page button, with the href kept only as a no-JS
+	 * fallback. The capture-phase handler runs before the script that
+	 * owns the button, so intercepting these swaps the in-page action
+	 * for the fallback URL: on the Media Library grid the shell opened a
+	 * window for `media-new.php` while media-grid.js expanded the inline
+	 * uploader behind it. Pin the skip so it doesn't get refactored away.
+	 *
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
+	public function test_bridge_script_skips_core_js_button_links() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['openstation_chromeless'] = '1';
+
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString(
+			"link.classList.contains( 'aria-button-if-js' )",
+			$output,
+			'Bridge must skip clicks on core .aria-button-if-js anchors so their owning script can run.'
+		);
+
+		// Must bail before the branch that preventDefaults and hands
+		// the URL to the shell.
+		$skip_pos  = strpos( $output, "link.classList.contains( 'aria-button-if-js' )" );
+		$admin_pos = strpos( $output, "kind === 'admin'" );
+		$this->assertNotFalse( $skip_pos );
+		$this->assertNotFalse( $admin_pos );
+		$this->assertLessThan(
+			$admin_pos,
+			$skip_pos,
+			'JS-button skip must run before the admin-link prevent-default block.'
+		);
+	}
+
+	/**
+	 * `upload.php` copies unknown `$_GET` keys into
+	 * `_wpMediaGridSettings.queryVars`, and `wp.media.model.Query` only
+	 * watches `wp.Uploader.queue` when every query arg is one it knows
+	 * how to filter on. Our chromeless flag riding along was enough to
+	 * stop the grid from ever showing a finished upload.
+	 *
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
+	public function test_media_grid_query_vars_drop_the_chromeless_flag() {
+		set_current_screen( 'upload' );
+
+		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
+			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
+		}
+		// `$wp_scripts` is global and `localize()` appends, so clear
+		// any payload a sibling test left behind.
+		wp_scripts()->add_data( 'media-grid', 'data', '' );
+
+		wp_localize_script(
+			'media-grid',
+			'_wpMediaGridSettings',
+			array(
+				'adminUrl'  => '/wp-admin/',
+				'queryVars' => (object) array(
+					'openstation_chromeless' => '1',
+					'orderby'                => 'date',
+				),
+			)
+		);
+
+		openstation_strip_chromeless_flag_from_media_grid();
+
+		$data = wp_scripts()->get_data( 'media-grid', 'data' );
+		$this->assertIsString( $data );
+
+		preg_match_all( '/^var _wpMediaGridSettings = (.+);$/m', $data, $matches );
+		$settings = json_decode( end( $matches[1] ), true );
+
+		$this->assertArrayNotHasKey(
+			'openstation_chromeless',
+			$settings['queryVars'],
+			"The grid's query args must not carry the chromeless flag, or uploads stop refreshing the grid."
+		);
+		$this->assertSame( 'date', $settings['queryVars']['orderby'], 'Core query vars must survive untouched.' );
+		$this->assertSame( '/wp-admin/', $settings['adminUrl'] );
+
+		// An object, not `[]`, since the grid iterates the value's keys.
+		$this->assertStringContainsString( '"queryVars":{', end( $matches[1] ) );
+	}
+
+	/**
+	 * Leave every other admin screen alone: the hook is global, and
+	 * re-localizing on a screen that never localized in the first place
+	 * would invent a `_wpMediaGridSettings` that core didn't ask for.
+	 *
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
+	public function test_media_grid_cleanup_skips_other_screens() {
+		set_current_screen( 'edit-post' );
+
+		// Same payload the upload-screen test uses, so the only thing
+		// standing between the flag and removal is the screen guard.
+		// Seeded through the registered handle rather than a bare
+		// `add_data()` so this can't pass by accident on a handle that
+		// was never registered.
+		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
+			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
+		}
+		wp_scripts()->add_data( 'media-grid', 'data', '' );
+		wp_localize_script(
+			'media-grid',
+			'_wpMediaGridSettings',
+			array(
+				'adminUrl'  => '/wp-admin/',
+				'queryVars' => (object) array( 'openstation_chromeless' => '1' ),
+			)
+		);
+
+		$before = wp_scripts()->get_data( 'media-grid', 'data' );
+
+		openstation_strip_chromeless_flag_from_media_grid();
+
+		// Byte-identical, not just "still mentions the flag":
+		// `wp_localize_script()` APPENDS, so a cleanup that ran here
+		// would leave the original assignment in place and only the
+		// last one would differ.
+		$this->assertSame(
+			$before,
+			wp_scripts()->get_data( 'media-grid', 'data' ),
+			'The cleanup must only run on the Media Library screen.'
 		);
 	}
 

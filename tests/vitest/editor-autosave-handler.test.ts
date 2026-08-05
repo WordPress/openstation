@@ -2,8 +2,8 @@
  * Tests for the iframe-side editor-autosave answerer
  * (`installEditorAutosaveHandler` in
  * `src/iframe-bridge-standalone.ts`) — the handler that answers the
- * shell's `os-editor-autosave-request` before the
- * editor-preview companion window opens.
+ * shell's `os-editor-autosave-request` while the
+ * editor-preview companion window opens in parallel.
  *
  * Strategy: install the handler in the jsdom top frame (where
  * `window.parent === window`, so responses post back onto the same
@@ -479,6 +479,44 @@ describe( 'live-preview watch', () => {
 		sendUnwatch( watchId );
 	} );
 
+	test( 'a second edit after a completed save fires a second live save', async () => {
+		const gutenberg = fakeGutenberg();
+		vi.useFakeTimers();
+		const watchId = `watch-${ counter }-i2`;
+		sendWatch( watchId, 500 );
+
+		// Edit #1 → settle → save #1.
+		gutenberg.editBlocks();
+		gutenberg.notify();
+		vi.advanceTimersByTime( 500 );
+		await flush();
+		expect( liveSaves ).toHaveLength( 1 );
+
+		// Save round-trip churn: refs churn while saving, once more
+		// on the settle tick. (Published post: dirty stays true.)
+		gutenberg.state.saving = true;
+		gutenberg.editBlocks();
+		gutenberg.notify();
+		gutenberg.state.saving = false;
+		gutenberg.editBlocks();
+		gutenberg.notify();
+		vi.advanceTimersByTime( 5000 );
+		await flush();
+		expect( gutenberg.saveForPreview ).toHaveBeenCalledTimes( 1 );
+
+		// Edit #2 → settle → save #2. This is the user-visible
+		// contract: the preview keeps tracking the typing for the
+		// whole life of the pairing, not just the first pause.
+		gutenberg.editBlocks();
+		gutenberg.notify();
+		vi.advanceTimersByTime( 500 );
+		await flush();
+		expect( gutenberg.saveForPreview ).toHaveBeenCalledTimes( 2 );
+		expect( liveSaves ).toHaveLength( 2 );
+
+		sendUnwatch( watchId );
+	} );
+
 	test( 'a real edit still saves exactly once after the loop guards', async () => {
 		const gutenberg = fakeGutenberg();
 		vi.useFakeTimers();
@@ -507,5 +545,207 @@ describe( 'live-preview watch', () => {
 		expect( gutenberg.saveForPreview ).toHaveBeenCalledTimes( 1 );
 		expect( liveSaves ).toHaveLength( 1 );
 		sendUnwatch( watchId );
+	} );
+} );
+
+describe( 'live-preview watch — classic editor', () => {
+	interface TinyStubEditor {
+		on: ReturnType< typeof vi.fn >;
+		off: ReturnType< typeof vi.fn >;
+		fireEdit: () => void;
+	}
+
+	function tinyStubEditor(): TinyStubEditor {
+		let cb: ( () => void ) | null = null;
+		return {
+			on: vi.fn( ( _evts: string, handler: () => void ) => {
+				cb = handler;
+			} ),
+			off: vi.fn(),
+			fireEdit: () => cb?.(),
+		};
+	}
+
+	/**
+	 * A fake classic-editor page: `wp.autosave.server.triggerSave`
+	 * spy, a namespace-aware-enough jQuery stub for the
+	 * before/after-autosave events, the #title and #content fields,
+	 * and an optional TinyMCE rig.
+	 */
+	function fakeClassic( { tinymce }: { tinymce?: boolean } = {} ) {
+		const triggerSave = vi.fn();
+		const handlers = new Map< string, Array< () => void > >();
+		( window as unknown as { wp: unknown } ).wp = {
+			autosave: { server: { triggerSave } },
+		};
+		( window as unknown as { jQuery: unknown } ).jQuery = () => ( {
+			on: ( evt: string, cb: () => void ) => {
+				handlers.set( evt, [ ...( handlers.get( evt ) ?? [] ), cb ] );
+			},
+			off: ( evt: string ) => {
+				handlers.delete( evt );
+			},
+		} );
+
+		const title = document.createElement( 'input' );
+		title.id = 'title';
+		const content = document.createElement( 'textarea' );
+		content.id = 'content';
+		document.body.append( title, content );
+
+		let tiny: {
+			editors: TinyStubEditor[];
+			on: ReturnType< typeof vi.fn >;
+			off: ReturnType< typeof vi.fn >;
+		} | null = null;
+		let editor: TinyStubEditor | null = null;
+		if ( tinymce ) {
+			editor = tinyStubEditor();
+			tiny = { editors: [ editor ], on: vi.fn(), off: vi.fn() };
+			( window as unknown as { tinymce: unknown } ).tinymce = tiny;
+		}
+
+		return {
+			triggerSave,
+			handlers,
+			title,
+			content,
+			editor,
+			tiny,
+			/** Fire a jQuery event by base name across namespaces. */
+			fire( evt: string ) {
+				for ( const [ name, cbs ] of handlers ) {
+					if ( name === evt || name.startsWith( `${ evt }.` ) ) {
+						cbs.forEach( ( cb ) => cb() );
+					}
+				}
+			},
+			cleanup() {
+				title.remove();
+				content.remove();
+				delete ( window as unknown as { jQuery?: unknown } ).jQuery;
+				delete ( window as unknown as { tinymce?: unknown } )
+					.tinymce;
+			},
+		};
+	}
+
+	async function flush() {
+		for ( let i = 0; i < 4; i++ ) {
+			await Promise.resolve();
+		}
+		vi.advanceTimersByTime( 0 );
+		for ( let i = 0; i < 2; i++ ) {
+			await Promise.resolve();
+		}
+	}
+
+	test( 'typing in a field debounces into a forced autosave + live-saved', async () => {
+		const classic = fakeClassic();
+		vi.useFakeTimers();
+		const watchId = `watch-${ counter }-c1`;
+		sendWatch( watchId, 500 );
+		await flush();
+
+		classic.title.dispatchEvent(
+			new Event( 'input', { bubbles: true } ),
+		);
+		expect( classic.triggerSave ).not.toHaveBeenCalled();
+		vi.advanceTimersByTime( 500 );
+		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
+
+		// The autosave round-trip lands — the watch announces it.
+		classic.fire( 'after-autosave' );
+		await flush();
+		expect( liveSaves ).toHaveLength( 1 );
+		expect( liveSaves[ 0 ].watchId ).toBe( watchId );
+
+		sendUnwatch( watchId );
+		classic.cleanup();
+	} );
+
+	test( 'a settle during an in-flight autosave retries instead of dropping', async () => {
+		const classic = fakeClassic();
+		vi.useFakeTimers();
+		const watchId = `watch-${ counter }-c2`;
+		sendWatch( watchId, 500 );
+		await flush();
+
+		// Core starts its own autosave; typing settles mid-flight —
+		// core would silently drop a triggerSave here (_blockSave).
+		classic.fire( 'before-autosave' );
+		classic.content.dispatchEvent(
+			new Event( 'input', { bubbles: true } ),
+		);
+		vi.advanceTimersByTime( 500 );
+		expect( classic.triggerSave ).not.toHaveBeenCalled();
+
+		// Still in flight after the retry window — keeps waiting.
+		vi.advanceTimersByTime( 1000 );
+		expect( classic.triggerSave ).not.toHaveBeenCalled();
+
+		// The in-flight save lands, then the retry forces ours.
+		classic.fire( 'after-autosave' );
+		vi.advanceTimersByTime( 1000 );
+		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
+
+		sendUnwatch( watchId );
+		classic.cleanup();
+	} );
+
+	test( 'TinyMCE edits schedule, including editors added later', async () => {
+		const classic = fakeClassic( { tinymce: true } );
+		vi.useFakeTimers();
+		const watchId = `watch-${ counter }-c3`;
+		sendWatch( watchId, 500 );
+		await flush();
+
+		classic.editor!.fireEdit();
+		vi.advanceTimersByTime( 500 );
+		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
+
+		// A visual↔text switch re-initializes the editor — the
+		// AddEditor hook binds the newcomer.
+		const addEditor = classic.tiny!.on.mock.calls.find(
+			( c ) => c[ 0 ] === 'AddEditor',
+		)![ 1 ] as ( e: { editor?: TinyStubEditor } ) => void;
+		const late = tinyStubEditor();
+		addEditor( { editor: late } );
+		late.fireEdit();
+		vi.advanceTimersByTime( 500 );
+		expect( classic.triggerSave ).toHaveBeenCalledTimes( 2 );
+
+		sendUnwatch( watchId );
+		classic.cleanup();
+	} );
+
+	test( 'unwatch cancels the settle and detaches every listener', async () => {
+		const classic = fakeClassic( { tinymce: true } );
+		vi.useFakeTimers();
+		const watchId = `watch-${ counter }-c4`;
+		sendWatch( watchId, 500 );
+		await flush();
+
+		classic.title.dispatchEvent(
+			new Event( 'input', { bubbles: true } ),
+		);
+		sendUnwatch( watchId );
+		vi.advanceTimersByTime( 5000 );
+		expect( classic.triggerSave ).not.toHaveBeenCalled();
+
+		// jQuery handlers gone; typing after unwatch never schedules.
+		expect( classic.handlers.size ).toBe( 0 );
+		classic.title.dispatchEvent(
+			new Event( 'input', { bubbles: true } ),
+		);
+		vi.advanceTimersByTime( 5000 );
+		expect( classic.triggerSave ).not.toHaveBeenCalled();
+		expect( classic.editor!.off ).toHaveBeenCalled();
+		expect( classic.tiny!.off ).toHaveBeenCalledWith(
+			'AddEditor',
+			expect.any( Function ),
+		);
+
+		classic.cleanup();
 	} );
 } );

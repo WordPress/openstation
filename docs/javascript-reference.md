@@ -86,7 +86,16 @@ document.addEventListener( 'os-window-reopened', ( e ) => {
 **`detail` shape:**
 
 ```typescript
-{ windowId: string, baseId: string, wasMinimized: boolean, navigated: boolean }
+{
+    windowId: string,
+    baseId: string,
+    wasMinimized: boolean,
+    navigated: boolean,
+    // The window's open-time params AFTER the reopen — the framework
+    // applies any the caller passed before firing this. `{}` when the
+    // window takes none. See `opts.params` on `wp.os.openWindow`.
+    params: Record< string, string | number | boolean >,
+}
 ```
 
 `wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
@@ -268,7 +277,7 @@ document.addEventListener( 'os-presence-changed', ( e ) => {
 ---
 
 ### `os-layout-changed` — Stable
-Fires when the user picks a new top-level desktop layout in OS Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the new value in `data-os-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
+Fires when the user picks a new top-level desktop layout in OpenStation Settings → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the new value in `data-os-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
 
 ```javascript
 document.addEventListener( 'os-layout-changed', ( e ) => {
@@ -541,7 +550,7 @@ The `server*` registries (commands, settings tabs, widgets, wallpapers, …) alr
 
 ### `os-settings-save-lifecycle` — Stable
 
-Fires on every phase transition of an OS Settings save — both the built-in panel's edits and programmatic patches via [`wp.os.updateOsSettings()`](#updateossettings-patch-opts---stable).
+Fires on every phase transition of an OpenStation Settings save — both the built-in panel's edits and programmatic patches via [`wp.os.updateOsSettings()`](#updateossettings-patch-opts---stable).
 
 **`detail` shape:**
 
@@ -591,7 +600,7 @@ document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 
 ### `os-intros-reset` — Experimental
 
-Fires after the user resets the first-run intro flags in **OS Settings → Features** and the REST delete succeeds. The shell has already mirrored the reset into every in-memory `window.openStationWindowConfig` blob (`introSeen: false`), so the next window-open re-fires its intro; already-loaded bundles that cache their own intro-state should listen here and invalidate it so their intro replays without an F5. No detail payload.
+Fires after the user resets the first-run intro flags in **OpenStation Settings → Features** and the REST delete succeeds. The shell has already mirrored the reset into every in-memory `window.openStationWindowConfig` blob (`introSeen: false`), so the next window-open re-fires its intro; already-loaded bundles that cache their own intro-state should listen here and invalidate it so their intro replays without an F5. No detail payload.
 
 ---
 
@@ -916,7 +925,10 @@ Open (or focus) a server-registered native window by id. Symmetric with `opensta
 ```typescript
 wp.os.openWindow(
     id:    string,
-    opts?: { source?: string },
+    opts?: {
+        source?: string;
+        params?: Record< string, string | number | boolean >;
+    },
 ): boolean;
 ```
 
@@ -937,6 +949,32 @@ wp.os.activity.subscribe( 'desktop-mode/open-requested', ( { windowId, source } 
 ```
 
 Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'palette'`, `'api'` (default when omitted). Custom strings are fine — pick one that matches the surface the user clicked.
+
+**`opts.params`** — open-time arguments: *what* the window is showing this time, as opposed to *what it is*.
+
+A native window is addressed by id, and its id is its identity: `desktop-mode-user-edit` is "the profile editor", not "the profile editor for user 12". Anything that varies per open has nowhere else to live — and a module-level variable or a shared store **does not survive a page reload**, so a restored window comes back on its default. That is exactly how the profile window used to reopen showing whoever was logged in rather than the person the user had open.
+
+```javascript
+wp.os.openWindow( 'my-plugin/contact', {
+    source: 'contacts-list',
+    params: { contactId: 42 },
+} );
+```
+
+Read them in the render callback:
+
+```javascript
+window.openStationNativeWindows[ 'my-plugin/contact' ] = ( body, { params } ) => {
+    paint( body, Number( params.contactId ) || 0 );
+};
+```
+
+Rules worth knowing:
+
+- **Params are persisted.** They are written into the session snapshot and staged back onto the window on restore, so the window reopens showing the same thing. Keep them small and serializable — ids and slugs, not objects. Values that aren't strings, finite numbers, or booleans are dropped on save rather than crashing it (one plugin's careless value must not cost every window its geometry).
+- **Reopening with params retargets a live window.** `open()` focuses an existing window rather than rebuilding it, so the render callback does not re-run. The framework updates the window's params first and puts them on the [`os-window-reopened`](#os-window-reopened--stable) detail — subscribe there to repaint.
+- **An argument-less reopen leaves them alone.** A dock click on an already-open profile window must not wipe whose profile it is.
+- **Iframe windows ignore this.** Their URL already says what they're showing, and it round-trips through the session on its own.
 
 ```javascript
 // Open the Code editor (requires the desktop-mode-code-editor extension).
@@ -1196,7 +1234,7 @@ The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't i
 
 `setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `desktop-mode/badge-changed` on the activity bus with the rail discriminator — `rail: 'taskbar'` for this bottom primary rail, `rail: 'dock'` for the Classic-layout side rail (`sideDock`). `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
-> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OS Settings → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
+> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OpenStation Settings → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
 
 ---
 
@@ -1214,7 +1252,7 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OS Settings → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OpenStation Settings → Appearance pick and the `data-os-layout` attribute on the shell root.
 
 ```js
 if ( wp.os.desktopLayout === 'spatial' ) {
@@ -1616,7 +1654,7 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 ### `wp.os.mio` — Experimental
 
-Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OS Settings → Apps & Icons.
+Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Settings → Apps & Icons.
 
 Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
 
@@ -1642,7 +1680,7 @@ interface MioLook {
 }
 ```
 
-`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. **The user's look is per-user too** — it rides the same OS Settings blob as `mioStyle`, so a Mio built on a laptop is waiting on the phone. Only the resting position is browser-local (`localStorage`, `os-mio-position`): where Mio sits is a fact about one screen, how it looks is a fact about the person.
+`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. **The user's look is per-user too** — it rides the same OpenStation Settings blob as `mioStyle`, so a Mio built on a laptop is waiting on the phone. Only the resting position is browser-local (`localStorage`, `os-mio-position`): where Mio sits is a fact about one screen, how it looks is a fact about the person.
 
 `setStyle()` takes a **flat bag** of appearance keys and the look-physics keys — `shapePreset`, `shapeLobes`, `shapeAmount`, `shapeAngle`, `shapeShuffle`, `idleWobble`, `idleWobbleSpeed` — and splits them itself. Anything else is dropped: `radius` is a size rather than a look, and the spring constants are the site's. Every call applies live *and* records the change; `commitStyle()` flushes it immediately (the style panel calls it on close). Reach for `setConfig()` when a plugin wants to adjust Mio programmatically without that adjustment becoming the user's saved look.
 
@@ -1672,7 +1710,7 @@ Server-side defaults come from the `openstation_mio_config` PHP filter; the `os.
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
 
-The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `openstation_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`**: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.os.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.openStationConfig?.gamesEnabled` before wiring games UI of your own.
+The framework is **off by default** — an admin opts in site-wide (OpenStation Settings → Features → Extended options; PHP filter `openstation_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`**: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.os.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.openStationConfig?.gamesEnabled` before wiring games UI of your own.
 
 ```typescript
 interface GamesApi {
@@ -2278,7 +2316,7 @@ Remove a title-bar button by id, or read a snapshot of every registered button d
 
 ### `registerUnfocusEffect( def )` — Experimental
 
-Register a visual treatment applied to every window that **isn't** focused — surfaced in **OS Settings → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
+Register a visual treatment applied to every window that **isn't** focused — surfaced in **OpenStation Settings → Effects → "Unfocused windows"**. The built-in effects (`darken` dims, `frost` blurs to frosted glass, `grayscale` drains colour) are registered through this same hook; plugins add their own the identical way. The framework owns *when* the effect runs (focus changes, the user's selection, minimized-window exclusion); your def owns *what* it does.
 
 **Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, or neither `className` nor `apply` provided).
 
@@ -2325,7 +2363,7 @@ Remove an effect by id, or read the current list (post-filter). `listUnfocusEffe
 
 ### `registerWindowReveal( def )` — Experimental
 
-Register a **window reveal** — the transition that uncovers a window's content once it has finished loading, surfaced in **OS Settings → Effects → "Window reveal"**. The shell paints an opaque surface over the window body for the whole load (the same span the `<os-spinner>` overlay covers), then animates that surface's `clip-path` away. The twelve built-ins (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`) are registered through this same hook.
+Register a **window reveal** — the transition that uncovers a window's content once it has finished loading, surfaced in **OpenStation Settings → Effects → "Window reveal"**. The shell paints an opaque surface over the window body for the whole load (the same span the `<os-spinner>` overlay covers), then animates that surface's `clip-path` away. The twelve built-ins (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`) are registered through this same hook.
 
 The surface is a **sibling of the `<iframe>`** inside `.os-window__body`, never a wrapper and never inside the framed document. Nothing is injected into the page being revealed, the content keeps its own compositing layer and hit-testing, and native windows are treated identically to iframe windows. A reveal cannot interfere with what it reveals.
 
@@ -2556,14 +2594,14 @@ Any window whose content identity carries a `previewUrl` shows a **Preview** but
 Clicking the eye:
 
 1. **Snaps the editor to the left half** (skipped below 768px, where windows maximize anyway) and puts the button in a busy state.
-2. **Asks the editor iframe to autosave** over the bridge (see [bridge-protocol](./bridge-protocol.md), "Editor-autosave query") — the same thing Gutenberg's own Preview button does, so the preview reflects what's on screen, not just the last save. Classic editor and no-editor pages degrade gracefully (the preview then shows the last saved revision).
-3. **Opens the official front-end preview** (`get_preview_post_link()` output) as a companion window snapped to the right half — id `editor-preview-{type}-{id}`, singleton per post, `ephemeral: true` (never session-restored: the URL embeds a nonce scoped to an autosave revision).
+2. **Opens the official front-end preview immediately** (`get_preview_post_link()` output) as a companion window snapped to the right half, wearing the standard window loading overlay while it boots — id `editor-preview-{type}-{id}`, singleton per post, `ephemeral: true` (never session-restored: the URL embeds a nonce scoped to an autosave revision). The click never waits on the network: a slow save used to read as a hang.
+3. **In parallel, asks the editor iframe to autosave** over the bridge (see [bridge-protocol](./bridge-protocol.md), "Editor-autosave query") — the same thing Gutenberg's own Preview button does. When the round-trip reports an actual save, the companion is silently `swapReload`ed (at the fresher preview link when one was returned), so the preview reflects what's on screen even when its first load raced the save. The eye's busy pulse clears when the save settles; `not-dirty` / no-editor settles change nothing server-side and schedule no refresh.
 
 Front-end documents carry no chromeless bridge, so the shell wires click-to-focus for them directly: a pointerdown anywhere inside a same-origin non-admin iframe document (the preview companion, the home-page default window) focuses its window, exactly like clicking inside an admin iframe does — re-wired across navigations and silent refreshes.
 
 The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `os.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
 
-**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the companion refreshes after each of core's own autosave ticks instead. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat (core still skips the request when nothing changed, so an idle settle never reloads anything). The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
 
 **Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )`: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `os.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
 
@@ -2589,14 +2627,14 @@ The PHP-side control point is the `openstation_window_preview_url` filter (rewri
 
 ### `registerWindowLinkRenderer( def )` — Experimental
 
-Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OS Settings → Effects → Window links**; only one renderer is mounted at a time.
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Settings → Effects → Window links**; only one renderer is mounted at a time.
 
 **`WindowLinkRendererDef`:**
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` | Unique, `/^[a-z0-9_/-]+$/`; namespace yours `vendor/sub-id`. `none` is reserved. |
-| `label` | `string` | Shown in the OS Settings selector. |
+| `label` | `string` | Shown in the OpenStation Settings selector. |
 | `description` | `string` | Optional, shown under the selector. |
 | `mount` | `( ctx ) => teardown` | Mount into the link layer; return (or resolve to) a teardown. |
 | `owner` | `string` | Optional script handle for live unregistration on plugin deactivation. |
@@ -2876,7 +2914,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ### `registerSettingsTab( def )` — Stable
 
-Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OpenStation Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -2894,8 +2932,8 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
-| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Settings → Components tab's missing-import-warner demo — set from OpenStation Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
 // Use `wp.os.ready()` (not `addAction( 'os.init', … )`) —
@@ -2949,7 +2987,7 @@ wp.os.ready( () => {
 } );
 ```
 
-Tabs registered after the OS Settings window is already open repaint live — the panel subscribes to the registry.
+Tabs registered after the OpenStation Settings window is already open repaint live — the panel subscribes to the registry.
 
 **Layout tip — `<os-section stack>`**
 
@@ -3021,7 +3059,7 @@ Snapshot of every currently registered third-party settings tab, sorted by `orde
 
 ### `registerDockRailRenderer( def )` — Stable
 
-Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OS Settings → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
+Register a renderer that **replaces the dock rail entirely**. The default `'default'` renderer is the shipped icon-strip backed by the `Dock` class; plugin authors can ship anything from a circular ring to a Stage-Manager-style stack to a floating cluster. The user picks among registered renderers in OpenStation Settings → Appearance → Dock style (persisted to user meta as `dockRailRenderer`).
 
 The active renderer is mounted into the dock container by the layout dispatcher; the controller it returns drives every subsequent live update (live menu refresh, system tile add/remove, badge updates, attention animations). A renderer that throws from `mount()` is caught — the failure is logged via `HOOKS.SHELL_ERROR` and the dispatcher falls back to the built-in `'default'` so the user never sees an empty dock.
 
@@ -3030,7 +3068,7 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. `'default'` is reserved for the shipped icon-strip renderer; a plugin that registers `id: 'default'` replaces the baseline. |
-| `label` | `string` | yes | Shown in the OS Settings picker. |
+| `label` | `string` | yes | Shown in the OpenStation Settings picker. |
 | `description` | `string` | no | One-line preview text for the picker. |
 | `icon` | `string` | no | Dashicon class for the picker icon. |
 | `apiVersion` | `1` | no | Reserved for forward-compat. Omit to match the current contract. |
@@ -3044,11 +3082,11 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
 | `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OS Settings, plugin-owned launchers, recycle bin, …). Tiles the user hid via OS Settings → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Settings, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Settings → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
 | `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-os-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
-| `openSystemItem( item )` | `function` | System-tile click (OS Settings, plugin-owned native windows). Mirrors `openItem` for the non-menu cohort. |
+| `openSystemItem( item )` | `function` | System-tile click (OpenStation Settings, plugin-owned native windows). Mirrors `openItem` for the non-menu cohort. |
 | `windowManager` | `WindowManager` | Full instance. Use sparingly; prefer the routing callbacks. |
 | `adminUrl` | `string` | Admin URL prefix for window-id derivation. |
 
@@ -3089,19 +3127,19 @@ Remove a rail renderer by id. Idempotent — unknown ids are silent no-ops.
 
 ### `listDockRailRenderers()` — Stable
 
-Snapshot of every currently registered rail renderer in registration order. Used by the OS Settings picker; plugin authors rarely need it directly.
+Snapshot of every currently registered rail renderer in registration order. Used by the OpenStation Settings picker; plugin authors rarely need it directly.
 
 ---
 
 ### `openOsSettings( opts? )` — Stable
 
-Open (or focus, if already open) the shell's OS Settings window. Routes through the same `windowManager.open()` call the dock's OS Settings tile uses, so a window opened via `wp.os.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
+Open (or focus, if already open) the shell's OpenStation Settings window. Routes through the same `windowManager.open()` call the dock's OpenStation Settings tile uses, so a window opened via `wp.os.openOsSettings()` is indistinguishable from one opened by clicking the dock tile — same id, same render callback, same dimensions, same focus / minimize behaviour.
 
 ```js
 wp.os.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab.) The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab.) The tab is selected before the window opens, and if OpenStation Settings is already open the live tab strip switches in place:
 
 ```js
 // Deep-link straight to the AI Settings tab.
@@ -3110,15 +3148,15 @@ wp.os.openOsSettings( { tabId: 'ai' } );
 
 | Param | Type | Notes |
 |---|---|---|
-| `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OS Settings is already open deselects every tab in the live strip — validate the id first. |
+| `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OpenStation Settings is already open deselects every tab in the live strip — validate the id first. |
 
-The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OS Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OS Settings from inside the renderer used to require DOM-scraping `[data-system-id="os-settings"]` and clicking it; this method is the documented portable path.
+The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OpenStation Settings tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OpenStation Settings from inside the renderer used to require DOM-scraping `[data-system-id="os-settings"]` and clicking it; this method is the documented portable path.
 
 ---
 
 ### `updateOsSettings( patch, opts? )` — Stable
 
-Patch the OS Settings state and persist it — the programmatic equivalent of the user flipping a control in the OS Settings panel.
+Patch the OpenStation Settings state and persist it — the programmatic equivalent of the user flipping a control in the OpenStation Settings panel.
 
 ```typescript
 wp.os.updateOsSettings(
@@ -3132,7 +3170,7 @@ wp.os.updateOsSettings(
 - **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
-- **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OS Settings window).
+- **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OpenStation Settings window).
 
 The read-side companions are also top-level members: `wp.os.getOsSettings()` returns a defensive copy of the current snapshot and `wp.os.subscribeOsSettings( cb )` returns an unsubscribe function — both mirror the settings-tab `ctx.getOsSettings` / `ctx.subscribeOsSettings` API documented under [`registerSettingsTab`](#registersettingstab-def---stable), usable from any feature plugin without registering a tab.
 
@@ -3169,21 +3207,21 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         title:     string,
         icon:      string,
         affinity:  'core' | 'plugin',  // 'core' tiles route to side rail in Classic
-        placeable: boolean,            // opted into OS Settings → Apps & Icons
+        placeable: boolean,            // opted into OpenStation Settings → Apps & Icons
     },
     …
 ]
 ```
 
-`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OS Settings is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the visibility override is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
+`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Settings is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the visibility override is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
 
 ```js
 const tiles = wp.os.listSystemTiles();
 const settings = tiles.find( ( t ) => t.id === 'os-settings' );
-// settings → { id, title: 'OS Settings', icon: 'dashicons-desktop', affinity: 'core' }
+// settings → { id, title: 'OpenStation Settings', icon: 'dashicons-desktop', affinity: 'core' }
 ```
 
-A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OS Settings tile in one place — uses this to enumerate.
+A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OpenStation Settings tile in one place — uses this to enumerate.
 
 ---
 
@@ -4040,7 +4078,7 @@ interface DockItem {
 
 A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
 
-**Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OS Settings, plugin native-window launchers).
+**Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OpenStation Settings, plugin native-window launchers).
 
 A custom rail renderer's controller MUST persist its system-tile DOM across `replaceItems` calls — the shell does NOT re-emit `appendSystemItem` for previously-added tiles after a menu refresh. Practical pattern: track system tiles in a closure-scoped `Map`, re-paint them in `replaceItems()` after rebuilding the menu cohort.
 
@@ -4153,7 +4191,7 @@ In practice most plugins use the `wp.os.registerWallpaper()` convenience — int
 
 ## 5. Wallpaper registration API
 
-The shell ships a registry-driven wallpaper picker: every entry in the registry becomes a swatch in the OS Settings panel, and the WallpaperLayer resolves whichever is currently selected onto the desktop. Plugins register their own via `wp.os.registerWallpaper()` (or the `os.wallpapers` filter).
+The shell ships a registry-driven wallpaper picker: every entry in the registry becomes a swatch in the OpenStation Settings panel, and the WallpaperLayer resolves whichever is currently selected onto the desktop. Plugins register their own via `wp.os.registerWallpaper()` (or the `os.wallpapers` filter).
 
 Two shapes ship today: `css` (a static CSS background value) and `canvas` (a plugin-managed DOM subtree, typically a WebGL/2D canvas).
 
@@ -4166,7 +4204,7 @@ type WallpaperDef =
           id: string;
           label: string;
           preview: string;            // CSS `background` value for the swatch
-          description?: string;       // Plain text, shown in OS Settings when selected
+          description?: string;       // Plain text, shown in OpenStation Settings when selected
           value?: string;             // Applied to --os-bg
           resolveValue?: ( ctx: WallpaperContext ) => string;  // Dynamic alternative
           renderEditor?: WallpaperEditor;
@@ -4179,7 +4217,7 @@ type WallpaperDef =
           id: string;
           label: string;
           preview: string;            // CSS `background` for the swatch (pre-mount)
-          description?: string;       // Plain text, shown in OS Settings when selected
+          description?: string;       // Plain text, shown in OpenStation Settings when selected
           mount: ( container: HTMLElement, ctx: WallpaperContext ) =>
                   ( () => void ) | Promise<() => void>;
           renderEditor?: WallpaperEditor;
@@ -4215,7 +4253,7 @@ type WallpaperConfig = ( container: HTMLElement, ctx: WallpaperConfigContext ) =
         ( () => void ) | Promise<() => void>;
 ```
 
-**`description`** — *Experimental.* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `openstation_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
+**`description`** — *Experimental.* A sentence or two shown in a styled card under the OpenStation Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `openstation_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
 
 ### Minimal CSS wallpaper
 
@@ -4263,7 +4301,7 @@ wp.os.ready( () => {
 
 Unknown module ids fail loudly via `os.wallpaper.mount-failed` — no silent non-activations.
 
-**Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OS Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
+**Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OpenStation Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
 
 ### Registering your own module
 
@@ -4286,7 +4324,7 @@ Canvas wallpapers receive `ctx.prefersReducedMotion` and should render a single 
 
 ### `renderEditor` — in-panel controls
 
-Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OS Settings, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
+Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OpenStation Settings, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
 
 Every mount receives a brand-new `container` element — the shell never recycles the previous mount's DOM, so editors built on renderers that cache state per container (lit-html and friends) work across select-away-and-back cycles without any special handling. Treat the container as yours until your returned teardown runs; don't keep references to it afterwards.
 
@@ -4313,7 +4351,7 @@ wp.os.registerWallpaper( {
 
 ### `renderPreview` — live tile previews *(Experimental)*
 
-Without `renderPreview`, a canvas wallpaper's swatch in the OS Settings picker is just its static CSS `preview` string — a flat gradient standing in for a living scene. With it, the picker mounts a live preview directly inside the tile.
+Without `renderPreview`, a canvas wallpaper's swatch in the OpenStation Settings picker is just its static CSS `preview` string — a flat gradient standing in for a living scene. With it, the picker mounts a live preview directly inside the tile.
 
 The shell owns the lifecycle so previews stay cheap:
 
@@ -4365,14 +4403,14 @@ The same fields work on `type: 'css'` defs too (rarely needed — a CSS wallpape
 
 ### `renderConfig` — the wallpaper settings dialog *(Experimental)*
 
-Wallpapers with real tunables (particle counts, palettes, physics) can ship a `renderConfig` callback. When the wallpaper is the active selection in OS Settings, a **"Wallpaper settings"** button appears below the picker grid; clicking it opens a `<os-modal>` whose body is handed to your callback. Wallpapers without `renderConfig` show no button — the surface is invisible unless you opt in.
+Wallpapers with real tunables (particle counts, palettes, physics) can ship a `renderConfig` callback. When the wallpaper is the active selection in OpenStation Settings, a **"Wallpaper settings"** button appears below the picker grid; clicking it opens a `<os-modal>` whose body is handed to your callback. Wallpapers without `renderConfig` show no button — the surface is invisible unless you opt in.
 
 Contrast with `renderEditor`: the editor is an always-visible inline panel below the grid (right for one or two controls the user plays with constantly, like the custom gradient's colours); `renderConfig` is a modal for a fuller settings form that would crowd the panel.
 
 The shell owns everything except the form:
 
 - **Chrome** — title (`<label> settings`), focus trap, ESC / click-outside, a Done button. Your callback renders only the controls, and returns a teardown (sync or via Promise) that runs when the dialog closes.
-- **Persistence** — `ctx.setSettings( partial )` merges into the wallpaper's settings bag and saves through the normal OS Settings pipeline (localStorage + debounced user-meta sync, so values follow the user across devices). Scalar values only (`string | number | boolean`) — anything else is dropped by the server-side sanitizer. The bag round-trips through PHP capped at 64 wallpapers × 32 keys, strings at 256 chars.
+- **Persistence** — `ctx.setSettings( partial )` merges into the wallpaper's settings bag and saves through the normal OpenStation Settings pipeline (localStorage + debounced user-meta sync, so values follow the user across devices). Scalar values only (`string | number | boolean`) — anything else is dropped by the server-side sanitizer. The bag round-trips through PHP capped at 64 wallpapers × 32 keys, strings at 256 chars.
 - **Read-back** — every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) carries `ctx.settings`: the persisted bag, empty object when never configured. Treat the values as untrusted; clamp to your own defaults.
 - **Live apply** — each `setSettings` fires the `os.wallpaper.settings-changed` action with `{ id, settings }` (the full post-merge bag). A mounted wallpaper subscribes and applies the change in place — no remount, so the dialog behaves as a live tuning panel.
 
@@ -4451,10 +4489,10 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `openstation_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |
 | `createInfiniteList( options )` | Stable | Infinite-scroll renderer: sentinel-driven `IntersectionObserver`, abortable in-flight pages, dedup-by-id, cursor pagination. Full recipe: [`docs/examples/infinite-list.md`](./examples/infinite-list.md). |
 | `startOAuth( service, options? )` | Stable | Start the OAuth relay flow for a service declared via PHP `openstation_register_oauth_relay()`. Resolves with the success payload, rejects with a tagged Error on failure. Full recipe: [`docs/examples/oauth-relay.md`](./examples/oauth-relay.md). |
-| `getOsSettings()` | Stable | Defensive copy of the persisted OS Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
-| `subscribeOsSettings( cb )` | Stable | Subscribe to OS Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
-| `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OS Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
+| `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
+| `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
+| `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Settings → About; useful for version-gated features); `stickyNotes.available` (boolean — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 
@@ -5308,6 +5346,10 @@ The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` a
 
 Both `plugins.php` and `plugin-install.php` are claimed by `registerNativeUrlRemap`. The latter stashes a `tab: 'browse'` hint in the shared store `'desktop-mode/plugins-window/tab-target'` so the bundle's first paint activates the Browse tab. When `nativePluginsEnabled` is `false`, the click falls through to the classic iframe path.
 
+**Threading state into the window a remap opens.** A remap entry may declare a `params( url, parsed )` hook returning open-time [`params`](#wposopenwindow-id-opts---stable) for its native window. **Prefer it over a shared store**: params are persisted with the session and staged back on restore, so the window reopens on the same subject after a reload — a shared store does not survive the reload and the window comes back on its default. A throwing hook is logged and the window still opens, the same tolerance `onMatch` has. Remaps that declare no hook call the opener with one argument exactly as before.
+
+**Two views of the same object.** Some URLs are the only address WordPress has for a thing, and more than one window may legitimately want them. `user-edit.php?user_id=12` is the only URL for a person, but a shop asks a different question about that person than "edit their role". The `os_person_view` query flag resolves it: the built-in profile remap stands down on any person-URL carrying it, so a specific view can claim the URL without having to win a registration-order race. The value is the claiming view's id (`wc-customer`), so a third view can join without either existing one changing. Exported as `OS_PERSON_VIEW_PARAM`; the PHP side that builds such URLs must use the same literal.
+
 ### Drag bridge integration
 
 Cards in the Browse gallery call `wp.os.dragManager.start({ … })` on pointer-down. The payload is:
@@ -5460,9 +5502,10 @@ raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
 ### Action — `os.my-wordpress.preview-extras`
 
 Inject DOM into named slots on the right pane (`'header' | 'meta'
-| 'footer'`). Fires once per slot per preview render, for **both**
-media previews and post-kind previews (posts, pages, and every CPT
-section) — one contract covers every section.
+| 'footer'`). Fires once per slot per preview render, for media
+previews, post-kind previews (posts, pages, and every CPT section),
+and user-kind previews (the Users section and any section serving
+people) — one contract covers every section.
 
 ```ts
 wp.hooks.addAction(
@@ -5489,16 +5532,124 @@ interface PreviewExtras {
     entityId: string;
     /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
     kind: string;
-    /** The row being previewed (post or attachment). */
+    /** The row being previewed (post, attachment, or user). */
     item: Record< string, unknown >;
 }
 ```
 
 Slot order in a post-kind pane is `header` (above the featured image
 and the rendered content), `meta` (below the content, above the action
-row), then `footer`. Subscribers that fetch data should re-check
+row), then `footer`.
+
+A user-kind pane fires all three, and the useful one is `meta`:
+`header` sits above the identity header, `meta` sits directly under
+the name, face and biography, and `footer` sits below the action row.
+**A summary of a person belongs in `meta`** — money or metrics placed
+above someone's avatar read as a label on them, and a reader cannot
+tell whose figure it is until they have scrolled past it to the name.
+The WooCommerce customer panel paints into `meta` for exactly that
+reason.
+
+Subscribers that fetch data should re-check
 `container.isConnected` before painting — the pane repaints on every
 selection change, and a slow request can outlive its pane.
+
+### Filter — `os.my-wordpress.user-dossier-sections`
+
+Choose which blocks a user preview renders. The identity header (name,
+face, roles) is not in the list — a dossier without it is not a
+dossier.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-dossier-sections',
+    'my-plugin/customers',
+    ( sections, ctx ) =>
+        ctx.entityId === 'wc-customers'
+            ? sections.filter( ( id ) => id === 'bio' )
+            : sections,
+);
+```
+
+Sections, in render order: `'bio' | 'stats' | 'activity' |
+'milestones' | 'recent' | 'terms'`. Context:
+`{ entityId: string; kind: string; userId: number }`.
+
+The built-in dossier answers *"what has this person written"* — post
+and page counts, a publishing sparkline, recent posts, top categories.
+That is right in the Users folder and wrong in a section whose people
+have never written anything: four zeroes above the figure you came for
+read as the answer. Drop what doesn't apply.
+
+The filter does not fire for the author / contributor sub-folders
+inside a post's detail view — those have no section context and always
+render every block.
+
+### Filter — `os.my-wordpress.user-activate`
+
+Claim "the user opened this person" — the double-click on a user tile.
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-activate',
+    'my-plugin/contacts',
+    ( handled, ctx ) => {
+        if ( handled || ctx.entityId !== 'my-contacts' ) {
+            return handled;
+        }
+        return wp.os.openWindow( 'my-plugin/contact', {
+            params: { contactId: Number( ctx.item.id ) },
+        } );
+    },
+);
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Return `true` to say you handled it — the built-in navigation is then skipped. Anything else falls through, so a filter that forgets to return can't leave double-click doing nothing.
+
+The built-in answer is the activity footprint, which is right in the Users folder (a person there is someone who writes) and wrong anywhere they aren't. The WooCommerce Customers section claims it for the Customer window.
+
+### Filter — `os.my-wordpress.user-preview-actions`
+
+The buttons in a user preview's action row. Built-ins are
+`'footprint'` ("View activity footprint", primary) and
+`'open-profile'` ("Show profile", secondary).
+
+```ts
+wp.hooks.addFilter(
+    'os.my-wordpress.user-preview-actions',
+    'my-plugin/orders',
+    ( actions, ctx ) => {
+        if ( ctx.entityId !== 'wc-customers' ) {
+            return actions;
+        }
+        return [
+            {
+                id: 'wc-orders',
+                label: 'View their orders',
+                variant: 'primary',
+                onSelect: () => openOrders( ctx.item.id ),
+            },
+            ...actions.filter( ( a ) => a.id !== 'footprint' ),
+        ];
+    },
+);
+```
+
+```ts
+interface UserPreviewAction {
+    id: string;
+    label: string;
+    /** Native tooltip. */
+    title?: string;
+    variant?: 'primary' | 'secondary';
+    onSelect: () => void;
+}
+```
+
+Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
+Entries without a callable `onSelect` are dropped; returning an empty
+array removes the action row entirely rather than leaving an empty bar.
 
 ### Filter — `os.my-wordpress.list-bands`
 
@@ -5550,6 +5701,27 @@ key your endpoint returns is stripped before the bundle sees it unless
 the section declares it in `listFields` (see
 [`openstation_my_wordpress_entities`](./hooks-reference.md#openstation_my_wordpress_entities--experimental)).
 
+**`editUrl` — rows that don't live in `wp_posts`.** Opening a row for
+editing normally means `post.php?post=<id>`, derived from the row's
+id. A section whose records are stored somewhere else has no such URL:
+a WooCommerce order under High-Performance Order Storage is the
+in-tree case, and `post.php` on its id opens a different post or
+nothing at all.
+
+Return an `editUrl` on the row and the window uses it verbatim
+wherever it would have built one:
+
+```php
+add_filter( 'rest_prepare_my_thing', function ( $response, $thing ) {
+    $response->data['editUrl'] = admin_url( 'admin.php?page=my-thing&id=' . $thing->id );
+    return $response;
+}, 10, 2 );
+```
+
+Declare it in the section's `listFields` — otherwise `_fields` strips
+it off the list rows and only the single-row fetch carries it, which
+reads as "edit works from the preview pane but not from a tile".
+
 ### Action — `os.my-wordpress.list-tile`
 
 Decorate a list tile. Fires once per tile, after the built-in chrome
@@ -5574,6 +5746,18 @@ wp.hooks.addAction(
 Payload: `{ tile: HTMLElement; entityId: string; kind: string; item: EntityListItem }`.
 The tile is positioned, so a badge should be absolutely positioned
 within it.
+
+Fires for post-kind and user-kind tiles alike. Check `kind` rather
+than `entityId` when your decoration is about the *thing* rather than
+about the section — a user who has spent money is a customer whether
+you are looking at the Users list or a shop's Customers list, and the
+WooCommerce integration keys its tile decoration off `kind === 'user'`
+for exactly that reason.
+
+A user tile carries a `.os-my-wordpress__user-tile-sub` sub-line
+("role · N posts" by default). Rewriting its `textContent` is the
+supported way to say something truer about the person for your
+section.
 
 ### Action — `os.my-wordpress.group-extras`
 
@@ -5683,7 +5867,11 @@ interface MyWordPressEntity {
     groupLabel?: string | null;
     groupIcon?: string | null;
     groupOrder?: number | null;
-    /** Extra REST fields to keep on this section's list rows. */
+    /**
+     * Extra REST fields to keep on this section's list rows —
+     * anything outside the built-in `_fields` set, `editUrl`
+     * included.
+     */
     listFields?: string[];
     /** Extra query params sent with this section's list requests. */
     listQuery?: Record< string, string >;
@@ -5968,7 +6156,7 @@ manifest.
 theme that ships recommendations; that is the entire automatic path,
 and it never runs again for the same user and theme. This method is
 the deliberate re-apply — the "restore the author's intended
-presentation" action, which is also what the button in **OS Settings →
+presentation" action, which is also what the button in **OpenStation Settings →
 Themes** calls. It writes only keys that already exist on the settings
 object and already hold a string, so it can never introduce a setting
 or flip a feature toggle. See

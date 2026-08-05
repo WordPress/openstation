@@ -28,6 +28,48 @@ import type { OsSettingsSnapshot } from './settings/registry';
 import { createSharedStore } from './shared-store';
 
 /**
+ * Query flag marking a person-URL as a request for a *particular*
+ * view of that person rather than for the profile editor.
+ *
+ * `user-edit.php?user_id=12` means "edit user 12". A shop wants a
+ * different answer to the same person — the Customer window — and the
+ * Related menu can only express a destination as a URL. Rather than
+ * make two remaps race for the same URL in registration order, the
+ * marker lets the specific one claim it and the built-in profile
+ * remap stand down.
+ *
+ * The value is the claiming view's id (`'wc-customer'`), so a third
+ * one can join without either of the existing two changing.
+ *
+ * The VALUE keeps its `os_` spelling on purpose: it appears in URLs
+ * that are built server-side and consumed client-side, so the two
+ * ends must agree on the literal.
+ *
+ * @public
+ */
+export const OS_PERSON_VIEW_PARAM = 'os_person_view';
+
+/**
+ * Whether a person-URL has already been claimed by a specific view.
+ *
+ * The stand-down half of {@link OS_PERSON_VIEW_PARAM}: a remap whose
+ * subject is "this person, generally" — the built-in profile editor —
+ * calls this first and returns `false` when it is true, leaving the
+ * URL to whichever view marked it.
+ *
+ * Exported so both halves of the hand-off read the same predicate.
+ * Two matchers each spelling out their own version of it is how a
+ * claim quietly stops being honoured.
+ *
+ * @public
+ * @param parsed Resolved URL.
+ * @return True when some other view has claimed this person-URL.
+ */
+export function isPersonViewClaimed( parsed: URL ): boolean {
+	return parsed.searchParams.has( OS_PERSON_VIEW_PARAM );
+}
+
+/**
  * A single URL → native-window remap.
  */
 export interface NativeUrlRemap {
@@ -63,11 +105,33 @@ export interface NativeUrlRemap {
 	 * native open and falls back if it fails.
 	 */
 	onMatch?( url: string, parsed: URL ): void;
+	/**
+	 * Optional open-time params for the native window — what it is
+	 * showing this time (`{ customerId: 7 }`).
+	 *
+	 * Prefer this over threading state through `onMatch` into a
+	 * shared store: params are persisted with the session and staged
+	 * back on restore, so the window reopens on the same subject
+	 * after a reload. A shared store does not survive the reload, and
+	 * the window silently comes back on its default.
+	 *
+	 * See `WindowConfig.params`.
+	 */
+	params?(
+		url: string,
+		parsed: URL,
+	): Record< string, string | number | boolean > | undefined;
 }
 
 interface RemapDeps {
 	getSnapshot(): OsSettingsSnapshot;
-	openById( id: string ): boolean;
+	openById(
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	): boolean;
 	adminUrl: string;
 }
 
@@ -231,7 +295,32 @@ export function tryNativeUrlRemap( url: string ): boolean {
 				);
 			}
 		}
-		if ( deps.openById( entry.nativeWindowId ) ) {
+		let params:
+			| Record< string, string | number | boolean >
+			| undefined;
+		if ( entry.params ) {
+			try {
+				params = entry.params( url, parsed ) ?? undefined;
+			} catch ( err ) {
+				// Same tolerance as `onMatch`: a throwing hook must
+				// not block the open. The window still opens, just
+				// without whatever the hook meant to tell it.
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[openstation] URL remap params hook threw for "${ entry.id }":`,
+					err,
+				);
+			}
+		}
+		// Called with ONE argument when there are no params, rather
+		// than with an explicit `undefined`. The opener's signature is
+		// older than this hook and most remaps will never use it;
+		// passing a trailing `undefined` would change what every
+		// existing caller observes for no benefit.
+		const opened = params
+			? deps.openById( entry.nativeWindowId, { params } )
+			: deps.openById( entry.nativeWindowId );
+		if ( opened ) {
 			return true;
 		}
 	}

@@ -570,11 +570,24 @@ export class WindowManager {
 			// event is the unambiguous "open requested while already
 			// open" signal — fires exactly once per `open()` call on
 			// an existing instance.
+			// Retarget: a native singleton reopened with new params is
+			// being asked to show something else. Write them onto the
+			// live config BEFORE the reopen event so a subscriber can
+			// read `params` and repaint, and so the next session save
+			// records what the window is showing NOW rather than what
+			// it opened on. An argument-less reopen leaves the params
+			// alone — a dock click on an already-open profile window
+			// must not wipe whose profile it is.
+			if ( config.params ) {
+				existing.config.params = { ...config.params };
+			}
+
 			const reopenedDetail = {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
 				navigated,
+				params: existing.config.params ?? {},
 			};
 			document.dispatchEvent(
 				new CustomEvent( 'os-window-reopened', { detail: reopenedDetail } ),
@@ -1660,6 +1673,33 @@ export class WindowManager {
 	}
 
 	/**
+	 * Keep only what survives a round-trip through the session store.
+	 *
+	 * The snapshot is `JSON.stringify`d and POSTed, so a param holding
+	 * a DOM node, a function or a cyclic object would take the whole
+	 * save down with it — losing every window's geometry to one
+	 * plugin's careless value. Drop the offender, keep the session.
+	 *
+	 * @param params Raw params off the window config.
+	 * @return Serializable subset; `undefined` when nothing survives.
+	 */
+	private sanitizeParams(
+		params: Record< string, unknown >,
+	): Record< string, string | number | boolean > | undefined {
+		const out: Record< string, string | number | boolean > = {};
+		for ( const [ key, value ] of Object.entries( params ) ) {
+			if (
+				typeof value === 'string' ||
+				typeof value === 'boolean' ||
+				( typeof value === 'number' && Number.isFinite( value ) )
+			) {
+				out[ key ] = value;
+			}
+		}
+		return Object.keys( out ).length > 0 ? out : undefined;
+	}
+
+	/**
 	 * Serialize the current window stack for session persistence.
 	 *
 	 * Order in the returned `windows` array mirrors z-order (earliest
@@ -1685,11 +1725,26 @@ export class WindowManager {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
 			const native = !! w.config.native;
+			// Read once into a local rather than narrowing
+			// `w.config.params` and re-reading it inside a nested
+			// closure: property narrowing that has to survive a
+			// function boundary is a compile that works by accident.
+			const openParams = w.config.params;
+			const params =
+				native && openParams
+					? this.sanitizeParams( openParams )
+					: null;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
 				...( native ? { native: true } : {} ),
+				// Open-time arguments — what a native window is showing
+				// this time. Without these a singleton native window
+				// restores by id alone and comes back showing its default
+				// (the profile editor on whoever is logged in), which
+				// reads as the window silently changing subject.
+				...( params ? { params } : {} ),
 				// Native windows have no navigable URL — `config.url` is
 				// the `#slug` marker they were opened with, and
 				// `getCurrentUrl()` reads an iframe they don't have.

@@ -146,6 +146,6 @@ app via the "Share → Add to Home Screen" gesture, which picks up our
   helper, SW `push` payload renderer wired to the existing `notify()`
   intent shape. The v1 `wp.os.notify` API is the same call site —
   only the transport changes.
-- **Per-site icon override hint.** A small OS Settings tab entry that
+- **Per-site icon override hint.** A small OpenStation Settings tab entry that
   lets administrators upload a custom PWA icon without writing a
   filter.

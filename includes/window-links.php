@@ -41,6 +41,9 @@ defined( 'ABSPATH' ) || exit;
  *  - `comment.php` (comment edit / moderation) — `comment`, rooted at
  *    the parent post. The URL alone can't answer this one; only real
  *    admin context can.
+ *  - `user-edit.php` / `profile.php` — `user`, a root identity. What
+ *    points at a person (a post's author, an order's customer) does so
+ *    from its own `links`.
  *
  * @return array|null Identity array, or `null` when none applies.
  */
@@ -176,6 +179,22 @@ function openstation_build_content_identity() {
 				'type'  => 'term/' . sanitize_key( $term->taxonomy ),
 				'id'    => (int) $term->term_id,
 				'label' => $term->name,
+			);
+		}
+	} elseif ( 'user-edit.php' === $pagenow || 'profile.php' === $pagenow ) {
+		// Profile editor — `user-edit.php?user_id=N`, or `profile.php`
+		// for your own. A person is its own root: everything that
+		// points AT them (an order's customer, a post's author) does
+		// so through its identity's `links`, so an open profile window
+		// ties to whatever else on the desktop is about them.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id();
+		$user    = $user_id ? get_userdata( $user_id ) : null;
+		if ( $user instanceof WP_User && current_user_can( 'edit_user', $user->ID ) ) {
+			$identity = array(
+				'type'  => 'user',
+				'id'    => (int) $user->ID,
+				'label' => $user->display_name ? $user->display_name : $user->user_login,
 			);
 		}
 	}

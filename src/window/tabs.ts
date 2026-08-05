@@ -522,3 +522,143 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		switchToTab( win, 'primary' );
 	}
 }
+
+/* ---------------------------------------------------------------
+ * Tab-strip overflow affordance
+ * --------------------------------------------------------------- */
+
+/**
+ * Slack, in pixels, when comparing scroll offsets against their
+ * bounds. Sub-pixel layout (fractional `clientWidth` under a zoomed
+ * page or a fractional device pixel ratio) leaves `scrollLeft` a
+ * hair short of its maximum at the true end of the strip, which
+ * without a tolerance paints an "there is more this way" fade over
+ * the last tab forever.
+ */
+const OVERFLOW_EPSILON = 1;
+
+/**
+ * Stamp `data-overflow` on a tab strip to describe which of its
+ * physical edges is currently hiding content.
+ *
+ * Values: `left`, `right`, `both`, or the attribute removed when the
+ * strip fits. The edge fades in `window-chrome.css` key off this, so
+ * a fade only ever appears where scrolling would actually reveal
+ * another tab — the whole point of the affordance. Previously the
+ * mask was unconditional, which on the pre-brand light strip was
+ * invisible (it faded empty area past the last tab) and on the
+ * station's dark one reads as two grey smudges bracketing every
+ * window's submenu.
+ *
+ * Direction-aware: `scrollLeft` runs `[0, max]` in LTR and `[-max, 0]`
+ * in RTL, so the distance travelled from the inline start is the
+ * absolute value in both, and which *physical* edge that leaves
+ * covered is what flips.
+ */
+export function updateTabOverflow(
+	strip: HTMLElement,
+	knownRtl?: boolean,
+): void {
+	const max = Math.max( 0, strip.scrollWidth - strip.clientWidth );
+	if ( max <= OVERFLOW_EPSILON ) {
+		delete strip.dataset.overflow;
+		return;
+	}
+
+	const travelled = Math.abs( strip.scrollLeft );
+	const atStart = travelled <= OVERFLOW_EPSILON;
+	const atEnd = travelled >= max - OVERFLOW_EPSILON;
+
+	// `direction` decides which PHYSICAL edge a given scroll position
+	// leaves covered, so it has to be read rather than assumed for an
+	// RTL admin to get the fades on the correct sides. Callers that
+	// measure repeatedly pass it in: a strip does not change direction
+	// between two scroll frames, and `getComputedStyle` forces a style
+	// recalc every time it is asked.
+	const rtl =
+		knownRtl ?? window.getComputedStyle( strip ).direction === 'rtl';
+	const hiddenLeft = rtl ? ! atEnd : ! atStart;
+	const hiddenRight = rtl ? ! atStart : ! atEnd;
+
+	if ( hiddenLeft && hiddenRight ) {
+		strip.dataset.overflow = 'both';
+	} else if ( hiddenLeft ) {
+		strip.dataset.overflow = 'left';
+	} else if ( hiddenRight ) {
+		strip.dataset.overflow = 'right';
+	} else {
+		delete strip.dataset.overflow;
+	}
+}
+
+/**
+ * Keep {@link updateTabOverflow} in step with everything that can
+ * change the answer, and hand back a teardown.
+ *
+ * Three sources, because a strip can start overflowing without the
+ * user touching it: scrolling (the obvious one), the strip being
+ * resized (the window narrows, or the shell reflows), and tabs being
+ * added or removed (`addExternalTab`, `removeExternalTab`). Missing
+ * any of the three leaves a stale fade — the failure mode being
+ * fixed here, so it is worth covering all of them.
+ *
+ * Measurement is deferred to an animation frame: the first call
+ * lands while the window is still being assembled, before layout has
+ * run, when every scroll dimension reads 0.
+ */
+export function observeTabOverflow( strip: HTMLElement ): () => void {
+	// Cached across scroll frames and re-read only when the strip is
+	// resized or its children change, which are the moments a direction
+	// flip could plausibly ride along with. Scrolling cannot change it,
+	// and `getComputedStyle` on every frame of a flick is a style
+	// recalc for an answer that is already known.
+	let rtl: boolean | null = null;
+
+	let frame: number | null = null;
+	const schedule = (): void => {
+		if ( frame !== null ) {
+			return;
+		}
+		frame = window.requestAnimationFrame( () => {
+			frame = null;
+			if ( rtl === null ) {
+				rtl = window.getComputedStyle( strip ).direction === 'rtl';
+			}
+			updateTabOverflow( strip, rtl );
+		} );
+	};
+
+	/** Re-measure, and re-read the direction while we are at it. */
+	const scheduleWithDirection = (): void => {
+		rtl = null;
+		schedule();
+	};
+
+	strip.addEventListener( 'scroll', schedule, { passive: true } );
+
+	// jsdom without a shim has neither observer; the strip simply
+	// keeps whatever the initial measure decided.
+	const resizeObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver( scheduleWithDirection );
+	resizeObserver?.observe( strip );
+
+	const mutationObserver =
+		typeof MutationObserver === 'undefined'
+			? null
+			: new MutationObserver( scheduleWithDirection );
+	mutationObserver?.observe( strip, { childList: true, subtree: true } );
+
+	schedule();
+
+	return () => {
+		strip.removeEventListener( 'scroll', schedule );
+		resizeObserver?.disconnect();
+		mutationObserver?.disconnect();
+		if ( frame !== null ) {
+			window.cancelAnimationFrame( frame );
+			frame = null;
+		}
+	};
+}

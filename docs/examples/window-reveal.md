@@ -5,7 +5,7 @@
 A **window reveal** is the transition that uncovers a window's content
 once it has finished loading. OpenStation paints an opaque surface
 over the window body for the duration of the load, then animates that
-surface's `clip-path` away. The user picks one in **OS Settings →
+surface's `clip-path` away. The user picks one in **OpenStation Settings →
 Effects → "Window reveal"**, and sets a global speed next to it. The
 twelve built-ins — `sweep`, `rise`, `diagonal`, `iris`, `diamond`,
 `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`,

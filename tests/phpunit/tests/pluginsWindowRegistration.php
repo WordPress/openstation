@@ -427,6 +427,137 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	// ----------------------------------------------------------------
+	// `openstation_wporg_slug` — the "is this plugin on the directory?"
+	// signal that gates every .org-facing affordance in the window.
+	// ----------------------------------------------------------------
+
+	/**
+	 * A plugin with a pending update is on the directory by definition
+	 * — the slug comes off the `response` bucket.
+	 *
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
+	public function test_wporg_slug_reads_the_response_bucket() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(
+					'hello.php' => (object) array(
+						'new_version' => '99.0.0',
+						'slug'        => 'hello-dolly',
+					),
+				),
+			)
+		);
+		// Core's REST controller strips the `.php`; the row mirrors that.
+		$this->assertSame(
+			'hello-dolly',
+			openstation_plugins_window_field_wporg_slug( array( 'plugin' => 'hello' ) )
+		);
+	}
+
+	/**
+	 * An up-to-date directory plugin lands in `no_update`, not
+	 * `response` — that bucket is just as affirmative, and it's the
+	 * one nearly every row falls in. Core reads both.
+	 *
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
+	public function test_wporg_slug_reads_the_no_update_bucket() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'akismet/akismet.php' => (object) array( 'slug' => 'akismet' ),
+				),
+			)
+		);
+		$this->assertSame(
+			'akismet',
+			openstation_plugins_window_field_wporg_slug(
+				array( 'plugin' => 'akismet/akismet' )
+			)
+		);
+	}
+
+	/**
+	 * The regression from GH#492: a private / premium / self-hosted
+	 * plugin is in neither bucket, so there is no slug — and no
+	 * "View on WordPress.org" button pointing at a 404. The folder
+	 * name is NOT evidence of a directory listing.
+	 *
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
+	public function test_wporg_slug_is_null_for_a_plugin_not_on_the_directory() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'akismet/akismet.php' => (object) array( 'slug' => 'akismet' ),
+				),
+			)
+		);
+		$this->assertNull(
+			openstation_plugins_window_field_wporg_slug(
+				array(
+					'plugin'     => 'acme-private-widgets/acme-private-widgets',
+					'textdomain' => 'acme-private-widgets',
+				)
+			)
+		);
+	}
+
+	/**
+	 * Directory slug and folder name part ways often enough that
+	 * deriving one from the other is wrong even when the plugin IS
+	 * listed — the transient's slug wins.
+	 *
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
+	public function test_wporg_slug_prefers_the_api_slug_over_the_folder_name() {
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'last_checked' => time(),
+				'response'     => array(),
+				'no_update'    => array(
+					'wp-seo/wp-seo.php' => (object) array( 'slug' => 'wordpress-seo' ),
+				),
+			)
+		);
+		$this->assertSame(
+			'wordpress-seo',
+			openstation_plugins_window_field_wporg_slug(
+				array( 'plugin' => 'wp-seo/wp-seo' )
+			)
+		);
+	}
+
+	/**
+	 * An empty transient (a fresh install, or a host that blocks
+	 * api.wordpress.org) means we don't know — and not knowing degrades
+	 * to "no directory affordances", never to a guess.
+	 *
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
+	public function test_wporg_slug_is_null_when_the_transient_is_empty() {
+		set_site_transient(
+			'update_plugins',
+			(object) array( 'last_checked' => time() )
+		);
+		$this->assertNull(
+			openstation_plugins_window_field_wporg_slug(
+				array( 'plugin' => 'akismet/akismet' )
+			)
+		);
+	}
+
 	/**
 	 * `openstation_icon_url` should derive a wp.org icon URL from the
 	 * plugin's folder name — the wp.org repo slug. Textdomain is a

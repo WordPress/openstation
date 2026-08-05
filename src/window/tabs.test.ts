@@ -5,8 +5,12 @@
  * `edit.php?paged=2` — without ever letting one submenu entry claim
  * another entry's page.
  */
-import { describe, expect, test } from 'vitest';
-import { syncActiveTab } from './tabs';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import {
+	observeTabOverflow,
+	syncActiveTab,
+	updateTabOverflow,
+} from './tabs';
 import type { Window } from './index';
 
 const ADMIN = window.location.origin + '/wp-admin/';
@@ -183,5 +187,296 @@ describe( 'syncActiveTab', () => {
 			win.element.querySelectorAll( '[aria-selected="true"]' ),
 		).map( ( el ) => el.textContent );
 		expect( selected ).toEqual( [ 'Menus' ] );
+	} );
+} );
+
+/**
+ * Build a bare strip with fixed scroll geometry. jsdom reports 0 for
+ * every layout dimension, so the three properties `updateTabOverflow`
+ * reads are defined outright — the function under test is the
+ * arithmetic that turns them into an edge, not the layout engine.
+ */
+function mockStrip( {
+	scrollWidth,
+	clientWidth,
+	scrollLeft,
+	direction = 'ltr',
+}: {
+	scrollWidth: number;
+	clientWidth: number;
+	scrollLeft: number;
+	direction?: 'ltr' | 'rtl';
+} ): HTMLElement {
+	const strip = document.createElement( 'nav' );
+	strip.className = 'os-window__tabs';
+	strip.style.direction = direction;
+	Object.defineProperty( strip, 'scrollWidth', { value: scrollWidth } );
+	Object.defineProperty( strip, 'clientWidth', { value: clientWidth } );
+	Object.defineProperty( strip, 'scrollLeft', {
+		value: scrollLeft,
+		writable: true,
+	} );
+	document.body.appendChild( strip );
+	return strip;
+}
+
+describe( 'updateTabOverflow', () => {
+	test( 'a strip that fits carries no fade', () => {
+		const strip = mockStrip( {
+			scrollWidth: 400,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBeUndefined();
+	} );
+
+	test( 'scrolled hard left fades only the right edge', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'right' );
+	} );
+
+	test( 'scrolled hard right fades only the left edge', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 400,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'scrolled mid-strip fades both edges', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 200,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'both' );
+	} );
+
+	test( 'sub-pixel shortfall at the end still counts as the end', () => {
+		// A fractional clientWidth leaves scrollLeft a hair under its
+		// maximum at the true end of the strip; without the epsilon
+		// this paints a permanent "more this way" fade on the last tab.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 399.4,
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'RTL at the inline start hides content on the left', () => {
+		// RTL scrollLeft runs [ -max, 0 ]; at 0 the strip sits against
+		// its right edge and everything hidden is to the left.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+			direction: 'rtl',
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'left' );
+	} );
+
+	test( 'RTL at the inline end hides content on the right', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: -400,
+			direction: 'rtl',
+		} );
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBe( 'right' );
+	} );
+
+	test( 'a stale fade is cleared when the strip stops overflowing', () => {
+		const strip = mockStrip( {
+			scrollWidth: 400,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		strip.dataset.overflow = 'both';
+		updateTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBeUndefined();
+	} );
+} );
+
+/**
+ * The wiring, as opposed to the arithmetic above.
+ *
+ * `updateTabOverflow` is pure and easy to cover; `observeTabOverflow`
+ * is where a regression hides, because it fails silently. A dropped
+ * listener leaves a stale fade, and a teardown that misses an observer
+ * keeps measuring a strip that is animating out of the document. Both
+ * look fine in a screenshot.
+ */
+describe( 'observeTabOverflow', () => {
+	let frames: Array< () => void >;
+	let raf: typeof window.requestAnimationFrame;
+	let caf: typeof window.cancelAnimationFrame;
+
+	beforeEach( () => {
+		frames = [];
+		raf = window.requestAnimationFrame;
+		caf = window.cancelAnimationFrame;
+		// Hand-pumped frames — the real rAF never fires in jsdom, so the
+		// scheduled measure would never run.
+		window.requestAnimationFrame = ( ( cb: FrameRequestCallback ) => {
+			frames.push( () => cb( 0 ) );
+			return frames.length;
+		} ) as typeof window.requestAnimationFrame;
+		window.cancelAnimationFrame = ( () => {} ) as typeof window.cancelAnimationFrame;
+	} );
+
+	afterEach( () => {
+		window.requestAnimationFrame = raf;
+		window.cancelAnimationFrame = caf;
+	} );
+
+	/** Run every frame queued so far. */
+	function flush(): void {
+		const queued = frames;
+		frames = [];
+		for ( const run of queued ) {
+			run();
+		}
+	}
+
+	test( 'measures once on attach', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+
+		const stop = observeTabOverflow( strip );
+		expect( strip.dataset.overflow ).toBeUndefined();
+
+		flush();
+		expect( strip.dataset.overflow ).toBe( 'right' );
+		stop();
+	} );
+
+	test( 're-measures on scroll', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		const stop = observeTabOverflow( strip );
+		flush();
+
+		( strip as unknown as { scrollLeft: number } ).scrollLeft = 400;
+		strip.dispatchEvent( new Event( 'scroll' ) );
+		flush();
+
+		expect( strip.dataset.overflow ).toBe( 'left' );
+		stop();
+	} );
+
+	test( 'coalesces a burst of scroll events into one measure', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		const stop = observeTabOverflow( strip );
+		flush();
+
+		for ( let i = 0; i < 5; i++ ) {
+			strip.dispatchEvent( new Event( 'scroll' ) );
+		}
+
+		expect( frames ).toHaveLength( 1 );
+		stop();
+	} );
+
+	test( 'the teardown stops the scroll listener', () => {
+		// `Window.close()` depends on this: the observers would
+		// otherwise keep measuring a strip that has left the document.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		const stop = observeTabOverflow( strip );
+		flush();
+
+		stop();
+		( strip as unknown as { scrollLeft: number } ).scrollLeft = 400;
+		strip.dispatchEvent( new Event( 'scroll' ) );
+
+		expect( frames ).toHaveLength( 0 );
+		expect( strip.dataset.overflow ).toBe( 'right' );
+	} );
+
+	test( 'the teardown disconnects both observers', () => {
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		const disconnects: string[] = [];
+		const realRO = globalThis.ResizeObserver;
+		const realMO = globalThis.MutationObserver;
+		globalThis.ResizeObserver = class {
+			observe() {}
+			unobserve() {}
+			disconnect() {
+				disconnects.push( 'resize' );
+			}
+		} as unknown as typeof ResizeObserver;
+		globalThis.MutationObserver = class {
+			observe() {}
+			takeRecords() {
+				return [];
+			}
+			disconnect() {
+				disconnects.push( 'mutation' );
+			}
+		} as unknown as typeof MutationObserver;
+
+		try {
+			observeTabOverflow( strip )();
+			expect( disconnects.sort() ).toEqual( [ 'mutation', 'resize' ] );
+		} finally {
+			globalThis.ResizeObserver = realRO;
+			globalThis.MutationObserver = realMO;
+		}
+	} );
+
+	test( 'survives an environment with no observers', () => {
+		// jsdom without a shim, and older browsers. The strip keeps
+		// whatever the initial measure decided rather than throwing.
+		const strip = mockStrip( {
+			scrollWidth: 800,
+			clientWidth: 400,
+			scrollLeft: 0,
+		} );
+		const realRO = globalThis.ResizeObserver;
+		const realMO = globalThis.MutationObserver;
+		// @ts-expect-error deliberately removing the globals
+		delete globalThis.ResizeObserver;
+		// @ts-expect-error deliberately removing the globals
+		delete globalThis.MutationObserver;
+
+		try {
+			const stop = observeTabOverflow( strip );
+			flush();
+			expect( strip.dataset.overflow ).toBe( 'right' );
+			expect( stop ).not.toThrow();
+		} finally {
+			globalThis.ResizeObserver = realRO;
+			globalThis.MutationObserver = realMO;
+		}
 	} );
 } );
