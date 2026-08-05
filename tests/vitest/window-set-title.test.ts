@@ -15,6 +15,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
+import { paintWindowSlots } from '../../src/window-chrome/slots/render';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
@@ -73,6 +74,22 @@ describe( 'Window.setTitle', () => {
 
 		expect( paintedTitle( mounted.win ) ).toBe( 'Revisions' );
 		expect( mounted.win.config.title ).toBe( 'Revisions' );
+	} );
+
+	test( 'the name survives a window-slot repaint', () => {
+		// The slot painter restores each slot from a snapshot cloned at
+		// construction. Restoring the title's verbatim put the window's
+		// ORIGINAL name back and left `config.title` reporting the new
+		// one — and a repaint fires whenever the slot registry mutates,
+		// so activating a plugin that registers a slot renamed every
+		// open window back to whatever it started as.
+		const mounted = mountWindow( baseConfig() );
+		cleanup = mounted.cleanup;
+
+		mounted.win.setTitle( 'Revisions' );
+		paintWindowSlots( mounted.win );
+
+		expect( paintedTitle( mounted.win ) ).toBe( 'Revisions' );
 	} );
 
 	test( 'a title slot override that removed the span is not a crash', () => {
