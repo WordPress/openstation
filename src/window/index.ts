@@ -43,7 +43,11 @@ import {
 	updateFullscreenBodyClass,
 	withChromelessParam,
 } from './dom';
-import { handleWindowMessage } from './iframe-bridge';
+import {
+	adoptPageTitle,
+	handleFinishedScreenHandoff,
+	handleWindowMessage,
+} from './iframe-bridge';
 import {
 	buttonsForWindow,
 	subscribeTitleBarButtons,
@@ -1125,9 +1129,32 @@ export class Window {
 		this._notifyChromeStateChanged();
 	}
 
-	/** Update the window title. */
+	/**
+	 * Update the window title.
+	 *
+	 * Re-resolves the title node instead of trusting the reference the
+	 * constructor took. Layer 3's slot painter snapshots each slot's
+	 * construction-time DOM and repaints it from `cloneNode` copies,
+	 * so the span captured at construction is detached before anyone
+	 * can call this — and writing to an orphan is invisible. That is
+	 * how a window could report the new `config.title` while its title
+	 * bar still showed the old one, which silently broke every caller:
+	 * `wp.os` / plugin `setTitle`, the iframe's `os-title-change`, and
+	 * the shell's own page-title adoption.
+	 *
+	 * A `title` slot override (`appearance.slots.title`) can leave no
+	 * span at all. That is the plugin's business, so the title still
+	 * lands in `config` and on the hook; only the default rendering is
+	 * skipped.
+	 */
 	public setTitle( title: string ): void {
-		this._titleEl.textContent = title;
+		const titleEl = this.element.querySelector< HTMLElement >(
+			'.os-window__title',
+		);
+		if ( titleEl ) {
+			this._titleEl = titleEl;
+			titleEl.textContent = title;
+		}
 		this.config.title = title;
 		doAction( HOOKS.WINDOW_TITLE_CHANGED, { windowId: this.id, title } );
 		this._notifyChromeStateChanged();
@@ -2091,12 +2118,15 @@ export class Window {
 	}
 
 	/**
-	 * Keep the submenu tab strip highlighting in sync with the
-	 * frame's navigations. Reading `contentWindow.location` is safe
-	 * because only same-origin URLs are allowed; cross-origin would
-	 * have thrown earlier. Wired to the primary iframe at
-	 * construction and re-wired to the twin {@link swapReload}
-	 * promotes — listeners don't travel between elements.
+	 * Per-navigation upkeep for the frame: hand off if this window's
+	 * screen has finished, otherwise adopt the new page's title (when
+	 * ours was only a guess) and keep the submenu tab strip lit.
+	 *
+	 * Reading `contentWindow.location` is safe because only
+	 * same-origin URLs are allowed; cross-origin would have thrown
+	 * earlier. Wired to the primary iframe at construction and
+	 * re-wired to the twin {@link swapReload} promotes — listeners
+	 * don't travel between elements.
 	 *
 	 * @internal
 	 */
@@ -2104,9 +2134,16 @@ export class Window {
 		iframe.addEventListener( 'load', () => {
 			try {
 				const href = iframe.contentWindow?.location.href;
-				if ( href ) {
-					syncActiveTab( this, href );
+				if ( ! href ) {
+					return;
 				}
+				// A handoff closes this window, so nothing below it
+				// has anything left to act on.
+				if ( handleFinishedScreenHandoff( this, href ) ) {
+					return;
+				}
+				adoptPageTitle( this );
+				syncActiveTab( this, href );
 			} catch {
 				/* Cross-origin or detached frame — ignore. */
 			}

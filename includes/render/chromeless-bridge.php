@@ -1247,6 +1247,40 @@ function openstation_chromeless_bridge_script() {
 		}
 	}
 
+	/*
+	 * The text a link actually SHOWS, for use as a window title.
+	 *
+	 * `textContent` is the wrong source on its own. WP Core routinely
+	 * pairs a terse visible label with a longer screen-reader one
+	 * inside the same anchor, and reads back as both at once — the
+	 * classic post editor's revisions link
+	 *
+	 *     <a href="revision.php?revision=N">
+	 *         <span aria-hidden="true">Browse</span>
+	 *         <span class="screen-reader-text">Browse revisions</span>
+	 *     </a>
+	 *
+	 * titled its window "Browse Browse revisions". Drop the
+	 * screen-reader half (`.screen-reader-text` is Core's own class
+	 * for it, `.hidden` covers the markup that toggles) and collapse
+	 * the indentation whitespace the templates leave behind, which is
+	 * what turned the seam into a visible gap.
+	 *
+	 * The parent treats a label harvested this way as provisional and
+	 * upgrades it to the destination page's own title once the iframe
+	 * loads — see `titleFromPage` in `src/types.ts`.
+	 */
+	function visibleLinkText( link ) {
+		var clone = link.cloneNode( true );
+		var muted = clone.querySelectorAll( '.screen-reader-text, .hidden' );
+		for ( var i = 0; i < muted.length; i++ ) {
+			if ( muted[ i ].parentNode ) {
+				muted[ i ].parentNode.removeChild( muted[ i ] );
+			}
+		}
+		return ( clone.textContent || '' ).replace( /\s+/g, ' ' ).trim();
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1258,8 +1292,44 @@ function openstation_chromeless_bridge_script() {
 		if ( ! link ) {
 			return;
 		}
-		if ( link.target && link.target !== '' && link.target !== '_self' ) {
-			return;
+		/*
+		 * A link that names another browsing context.
+		 *
+		 * `_blank` on a same-origin /wp-admin/ URL means "open this
+		 * admin screen without losing the one I am on". Inside the
+		 * shell the answer to that is another OpenStation window, not
+		 * a bare browser tab that drops the user out of the desktop
+		 * entirely — so those fall through to the admin branch below,
+		 * where the parent opens a window for the destination and
+		 * leaves this iframe exactly where it is. That IS what the
+		 * `_blank` asked for, just spelled in windows.
+		 *
+		 * Core hands us one directly: the block editor's revisions
+		 * sidebar renders "Open classic revisions screen" through
+		 * `<ExternalLink>`, which hard-codes `target="_blank"`, so
+		 * `revision.php?revision=N` used to eject the user into a
+		 * chrome-free wp-admin tab. Same failure mode the WooCommerce
+		 * panel links hit — see the `target="_blank"` note in
+		 * `docs/plugin-compat-layer.md` — with the extra sting that
+		 * under the PWA the tab is inside the app's own scope, so the
+		 * click relaunches the whole app.
+		 *
+		 * Every other target still yields. `_top` / `_parent` are a
+		 * deliberate "replace the whole shell" and hijacking them
+		 * would break the one escape hatch a page has; a named target
+		 * (`wp-preview-4`) is an author reusing one specific tab
+		 * across clicks, which a window cannot honour; and any target
+		 * on a non-admin URL is a real new tab we have no better
+		 * answer for.
+		 */
+		var linkTarget = link.target || '';
+		if ( linkTarget !== '' && linkTarget !== '_self' ) {
+			if (
+				linkTarget !== '_blank' ||
+				classifyLink( link.getAttribute( 'href' ), window.location.href ) !== 'admin'
+			) {
+				return;
+			}
 		}
 		if ( link.hasAttribute( 'download' ) ) {
 			return;
@@ -1433,7 +1503,7 @@ function openstation_chromeless_bridge_script() {
 				 * title fallback would persist for the lifetime of
 				 * the new window.
 				 */
-				var adminLabel = ( link.textContent || '' ).trim() ||
+				var adminLabel = visibleLinkText( link ) ||
 					link.getAttribute( 'title' ) ||
 					link.getAttribute( 'aria-label' ) ||
 					'';
@@ -1471,7 +1541,7 @@ function openstation_chromeless_bridge_script() {
 			} catch ( err ) {
 				return;
 			}
-			var label = ( link.textContent || '' ).trim() ||
+			var label = visibleLinkText( link ) ||
 				link.getAttribute( 'title' ) ||
 				absolute;
 			window.parent.postMessage(

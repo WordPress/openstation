@@ -254,6 +254,48 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /* ---------------------------------------------------------------
+ * Revisions screen — page-scoped.
+ *
+ * Two things follow from `revision.php` living in its own window.
+ *
+ * The "← Go to editor" link (the bare anchor Core prints straight
+ * after the `.long-header` H1) is a back button for a screen the
+ * user navigated INTO. Here they didn't: the editor is still open in
+ * its own window behind this one, and closing this window is the way
+ * back. Following the link instead turns the Revisions window into a
+ * second editor. Hidden rather than rewritten so the markup Core
+ * ships stays untouched — the same reasoning as the Block Editor's
+ * fullscreen close button further down.
+ *
+ * And the revision tooltip — the author + timestamp card that
+ * follows the pointer along the slider — is positioned upward from
+ * the bottom of `.revisions-control-frame`, which in classic admin
+ * clears the top of the viewport only because the H1 above it takes
+ * up room. Chromeless hides every screen H1 (the window title bar
+ * says it instead), so the card lost that room and rendered with its
+ * top ~15px cut off by the window's edge; hiding the link above
+ * costs it another ~24px. An iframe cannot overflow its own box, so
+ * there is no scrolling to it — the space has to be given back.
+ * 48px covers the single-revision mode (the tighter of the two;
+ * "Compare any two revisions" moves the card up 40px but its
+ * controls grow 18px, so it nets out with more clearance).
+ *
+ * The offset goes on `.revisions`, NOT on `.revisions-control-frame`
+ * — the frame is the positioned ancestor for the two things pinned
+ * to its top corners (the compare-mode checkbox, and the tooltip
+ * itself), so padding it moves the controls down while leaving those
+ * behind at the old top edge. Padding the wrapper moves the whole
+ * coordinate system.
+ * --------------------------------------------------------------- */
+.os-chromeless.revision-php .wrap > h1.long-header + a {
+	display: none;
+}
+
+.os-chromeless.revision-php .revisions {
+	padding-top: 48px;
+}
+
+/* ---------------------------------------------------------------
  * Dashboard welcome panel
  * The default 16px top margin pushes the panel down and creates a
  * visible gap at the top of the iframe. Collapse it in chromeless

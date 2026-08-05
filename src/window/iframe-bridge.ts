@@ -79,6 +79,7 @@ interface AdminLinkDispatchDeps {
 		url: string;
 		parentUrl?: string;
 		title: string;
+		titleFromPage?: boolean;
 		icon: string;
 		submenu?: { title: string; url: string }[];
 		multi?: boolean;
@@ -819,22 +820,39 @@ function handleCrossPageAdminLink(
 
 	// Different slug — the user clicked into a different admin page.
 	// Open a fresh window for the destination and leave the source
-	// iframe where it is.
-	//
-	// Title resolution (best → worst):
-	//   1. Dock entry's `title` — recognises canonical pages.
-	//   2. `linkLabel` — the visible text of the link the user just
-	//      clicked. Catches in-app sub-pages (e.g. an Action Scheduler
-	//      tab whose URL has no dock tile but whose link text is
-	//      meaningful: "Scheduler", "Logs", "Settings").
-	//   3. The slug itself — last-resort fallback so a missing label
-	//      surfaces an ugly-but-stable id rather than an empty title
-	//      bar.
-	//
-	// The iframe-side bridge does not auto-emit `title-change` after
-	// load, so this single resolution is what the user sees for the
-	// lifetime of the window unless the destination's own JS reaches
-	// for `wp.os.send` / `setTitle`.
+	// iframe where it is, so the user keeps both contexts.
+	openAdminUrlInOwnWindow( win, url, linkLabel, deps );
+}
+
+/**
+ * Give an admin URL its own window: the destination's slug decides
+ * which window owns it, so an already-open window for that slug is
+ * focused and navigated rather than duplicated.
+ *
+ * Title resolution (best → worst):
+ *   1. Dock entry's `title` — recognises canonical pages.
+ *   2. `linkLabel` — the visible text of the link the user just
+ *      clicked. Catches in-app sub-pages (e.g. an Action Scheduler
+ *      tab whose URL has no dock tile but whose link text is
+ *      meaningful: "Scheduler", "Logs", "Settings").
+ *   3. The slug itself — last-resort fallback so a missing label
+ *      surfaces an ugly-but-stable id rather than an empty title bar.
+ *
+ * Only the dock entry is a name the shell *knows*; 2 and 3 are
+ * guesses, so they ship with `titleFromPage` and the window swaps
+ * them for the destination page's own screen name once its iframe
+ * loads. Link text is written for someone already on the page it
+ * sits on and reads badly as a window name — the classic editor's
+ * revisions link says "Browse".
+ */
+function openAdminUrlInOwnWindow(
+	win: Window,
+	url: URL,
+	linkLabel: string,
+	deps: AdminLinkDispatchDeps,
+): void {
+	const absolute = url.toString();
+	const targetSlug = deps.deriveSlug( absolute );
 	const entry = deps.findDockEntry( absolute );
 	const trimmedLabel = linkLabel.trim();
 	const title =
@@ -851,10 +869,171 @@ function handleCrossPageAdminLink(
 		url: urlWithReferer.toString(),
 		parentUrl: entry?.url ?? absolute,
 		title,
+		titleFromPage: ! entry,
 		icon: entry?.icon ?? 'dashicons-admin-generic',
 		submenu: entry?.submenu,
 		multi: entry?.multi,
 	} );
+}
+
+/**
+ * The wp-admin filename a URL points at (`revision.php`), or an empty
+ * string when it isn't an admin URL we can read.
+ */
+function adminFileName( url: string ): string {
+	if ( ! url || url.startsWith( '#' ) ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( url, INITIAL_ORIGIN );
+		if ( parsed.origin !== INITIAL_ORIGIN ) {
+			return '';
+		}
+		return parsed.pathname.split( '/' ).pop() ?? '';
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * Admin screens that exist to run one action and then send the user
+ * back to the page they came from. `revision.php` is Core's only
+ * one: restoring a revision is a `document.location` assignment in
+ * `wp-admin/js/revisions.js`, and WP answers it with a redirect to
+ * the post editor.
+ *
+ * That redirect lands in whatever frame issued it, so the Revisions
+ * window turned into a second copy of the editor — beside the editor
+ * window the user opened it from, which still showed the pre-restore
+ * post. Two windows on one post, one of them stale, and the window
+ * that was doing the restoring outlived its only job.
+ */
+const HANDOFF_SCREENS: ReadonlySet< string > = new Set( [ 'revision.php' ] );
+
+/**
+ * The URL a frame actually navigated to, which by the time a `load`
+ * listener runs is no longer what `location` says.
+ *
+ * `wp-admin/js/common.js` strips WP's "removable" query args —
+ * `message`, `settings-updated`, `trashed`, `revision`, … — with
+ * `replaceState` on DOM ready, and DOM ready is before load. Those
+ * args are precisely the ones that carry what just happened, so
+ * forwarding `location.href` hands the destination on without its
+ * outcome: a restored revision arriving in the editor window with no
+ * "Post restored to revision from …" notice, which in classic
+ * wp-admin is the only confirmation the restore worked.
+ *
+ * Navigation timing records the URL as fetched — after redirects,
+ * before any history rewriting — so it still has them. Falls back to
+ * `href`, and ignores an entry pointing at a different admin file
+ * than the one that just loaded (a stale entry must never be able to
+ * redirect the handoff somewhere else).
+ */
+function navigatedUrl( win: Window, href: string ): string {
+	try {
+		const timing = win.iframe?.contentWindow?.performance
+			?.getEntriesByType?.( 'navigation' );
+		const name = timing?.[ 0 ]?.name ?? '';
+		if ( name && adminFileName( name ) === adminFileName( href ) ) {
+			return name;
+		}
+	} catch {
+		// No navigation-timing support, or a torn-down frame.
+	}
+	return href;
+}
+
+/**
+ * Close a {@link HANDOFF_SCREENS} window that has navigated itself
+ * off its own screen, and route where it landed through the normal
+ * window-owns-a-slug rules — which focuses the editor window the user
+ * already had open and points it at the restored post.
+ *
+ * Returns true when it claimed the navigation, so the caller skips
+ * the per-load work that only makes sense for a window that is
+ * staying open.
+ *
+ * Deliberately NOT a general "any window that crosses slugs hands
+ * off" rule: the submenu tab strip re-points a window across slugs on
+ * purpose (Appearance → Menus), and closing the window out from under
+ * that click would be hostile. A screen is on this list only when
+ * leaving it means the screen is finished.
+ */
+export function handleFinishedScreenHandoff(
+	win: Window,
+	href: string,
+): boolean {
+	const opened = adminFileName( win.config.url ?? '' );
+	if ( ! opened || ! HANDOFF_SCREENS.has( opened ) ) {
+		return false;
+	}
+	const landed = adminFileName( href );
+	if ( ! landed || landed === opened ) {
+		return false;
+	}
+	if ( tryNativeUrlRemap( href ) ) {
+		win.close();
+		return true;
+	}
+	const deps = adminLinkDepsStore.state.deps;
+	if ( ! deps ) {
+		// Unbound deps should only happen in tests or pre-boot. Leave
+		// the window alone rather than closing it onto nothing.
+		return false;
+	}
+	let url: URL;
+	try {
+		url = new URL( navigatedUrl( win, href ), deps.adminUrl );
+	} catch {
+		return false;
+	}
+	if ( url.origin !== INITIAL_ORIGIN ) {
+		return false;
+	}
+	// The label is empty on purpose: nothing was clicked, so there is
+	// no link text to name the destination with. A dock entry names
+	// it, and failing that `titleFromPage` picks the name up off the
+	// page itself.
+	openAdminUrlInOwnWindow( win, url, '', deps );
+	win.close();
+	return true;
+}
+
+/**
+ * Replace a guessed window title with the screen name the destination
+ * page gives itself. No-op unless the window was opened with
+ * {@link WindowConfig.titleFromPage}.
+ */
+export function adoptPageTitle( win: Window ): void {
+	if ( ! win.config.titleFromPage ) {
+		return;
+	}
+	let documentTitle = '';
+	try {
+		documentTitle = win.iframe?.contentDocument?.title ?? '';
+	} catch {
+		// Cross-origin or torn-down frame — keep what we have.
+		return;
+	}
+	const name = adminScreenName( documentTitle );
+	if ( name !== '' && name !== win.config.title ) {
+		win.setTitle( name );
+	}
+}
+
+/**
+ * The screen name out of a wp-admin document title.
+ *
+ * `wp-admin/admin-header.php` prints `%1$s &lsaquo; %2$s &#8212;
+ * WordPress`, so "Revisions ‹ My Site — WordPress" is the shape.
+ * Both the format and its separator are translatable, so a locale
+ * that re-punctuates it falls through to the whole string — a long
+ * title beats a title cut in the wrong place.
+ */
+function adminScreenName( documentTitle: string ): string {
+	const trimmed = documentTitle.trim();
+	const cut = trimmed.indexOf( ' ‹ ' );
+	return ( cut > 0 ? trimmed.slice( 0, cut ) : trimmed ).trim();
 }
 
 /**

@@ -3490,7 +3490,7 @@ The unified channel-API outbound primitive. Posted internally by `wp.os.send( ch
 ```
 
 #### `os-title-change` — Stable
-Update the window's title bar.
+Update the window's title bar. Overrides whatever the shell resolved at open time, including a title it derived from the destination page itself (see [Window titles the shell had to guess](#window-titles-the-shell-had-to-guess)).
 
 ```typescript
 { type: 'os-title-change'; title: string }
