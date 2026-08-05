@@ -1,0 +1,4 @@
+# The bundle treemap is a diagnostic you regenerate on demand
+# (`BUNDLE_REPORT=1 npm run build`), not a deliverable. `dist/mio.js`
+# and `dist/mio.min.js` ARE deliverables and stay tracked.
+dist/*.report.html
