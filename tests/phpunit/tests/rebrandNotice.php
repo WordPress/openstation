@@ -51,6 +51,27 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A user who tried the shell and switched back is flagged too, even
+	 * with nothing customized.
+	 *
+	 * Switching back empties `desktop_mode_mode` but leaves the row, so
+	 * the migration tests for existence. Matching on `'1'` would drop
+	 * exactly the person who is owed the explanation next time they
+	 * come back.
+	 *
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
+	public function test_user_who_switched_back_to_classic_is_flagged() {
+		$user_id = self::factory()->user->create();
+		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
+		update_user_meta( $user_id, 'desktop_mode_mode', '' );
+
+		openstation_migrate_flag_rebrand_notice( 3 );
+
+		$this->assertTrue( $this->is_flagged( $user_id ) );
+	}
+
+	/**
 	 * A user who customized the shell and has since switched back to
 	 * classic is flagged too.
 	 *

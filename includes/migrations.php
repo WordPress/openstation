@@ -171,9 +171,14 @@ const OPENSTATION_REBRAND_INTRO_SLUG = 'openstation-rebrand';
  * lands on individual users, and only on those who carry proof of
  * prior use:
  *
- *   - `desktop_mode_mode` — the per-user opt-in. Set when someone
- *     switches to the shell, so it is the direct answer to "was this
- *     person using Desktop Mode".
+ *   - `desktop_mode_mode` — the per-user opt-in, tested for EXISTENCE
+ *     rather than for being `'1'`. Switching back to classic empties
+ *     the value but leaves the row (`includes/ajax.php`), and the only
+ *     two writers of this key are that toggle and the portal's
+ *     auto-enable, so a row of any value means "this person has been
+ *     through the switch at least once". Matching on `'1'` instead
+ *     would have missed someone who tried the shell, went back, and is
+ *     owed the explanation the next time they return.
  *   - `desktop_mode_os_settings` — a saved preference. Catches the user
  *     who used it, customized it, and has since switched back to
  *     classic; they are still owed the explanation the next time they
@@ -231,8 +236,7 @@ function openstation_migrate_flag_rebrand_notice( $from ) {
 				array(
 					'fields'       => 'ID',
 					'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
-					'meta_value'   => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- see above.
-					'meta_compare' => '=',
+					'meta_compare' => 'EXISTS',
 				)
 			),
 			get_users(
