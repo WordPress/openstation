@@ -30,7 +30,7 @@ class Tests_OpenStation_UnsupportedAdmin extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		unset( $GLOBALS['current_screen'] );
+		unset( $GLOBALS['current_screen'], $_GET['openstation_chromeless'], $_SERVER['REQUEST_METHOD'] );
 		parent::tear_down();
 	}
 
@@ -137,6 +137,57 @@ class Tests_OpenStation_UnsupportedAdmin extends WP_UnitTestCase {
 			'os-active',
 			openstation_admin_body_classes( 'wp-admin' )
 		);
+	}
+
+	/**
+	 * Network Admin opened *inside* a desktop window is a chromeless
+	 * request, and that route works: the shell's link interceptor puts
+	 * `/wp-admin/network/*` in an iframe and the page renders. Only
+	 * top-level navigation is gated. Every render-path check evaluates
+	 * chromeless first, so the gate must not reach into that path.
+	 *
+	 * @covers ::openstation_admin_body_classes
+	 */
+	public function test_chromeless_network_admin_still_renders_chromeless() {
+		set_current_screen( 'sites-network' );
+		$_GET['openstation_chromeless'] = '1';
+
+		$classes = openstation_admin_body_classes( 'wp-admin' );
+
+		$this->assertStringContainsString( 'os-chromeless', $classes );
+		$this->assertStringNotContainsString( 'os-active', $classes );
+	}
+
+	/**
+	 * The portal redirect must stay off a chromeless Network Admin load
+	 * too, or the iframe would bounce to the portal and render the whole
+	 * desktop inside a window.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
+	public function test_chromeless_network_admin_is_not_redirected() {
+		set_current_screen( 'sites-network' );
+		$_GET['openstation_chromeless'] = '1';
+		$_SERVER['REQUEST_METHOD']      = 'GET';
+
+		$captured = null;
+		$filter   = static function ( $location ) use ( &$captured ) {
+			$captured = $location;
+			throw new RuntimeException( 'openstation_test_redirect_intercepted' );
+		};
+		add_filter( 'wp_redirect', $filter );
+
+		try {
+			openstation_redirect_plain_admin_to_portal();
+		} catch ( RuntimeException $e ) {
+			if ( 'openstation_test_redirect_intercepted' !== $e->getMessage() ) {
+				throw $e;
+			}
+		} finally {
+			remove_filter( 'wp_redirect', $filter );
+		}
+
+		$this->assertNull( $captured );
 	}
 
 	/**
