@@ -4,7 +4,7 @@ The **Games** window on the wallpaper (gamepad icon) is registry-driven: every r
 
 Only server-registered games can persist scores and challenges — the REST routes 404 unknown game ids.
 
-The games framework is **opt-in and off by default** — an admin enables it site-wide in OpenStation Settings → Features → Extended options (or via the `openstation_games_enabled` filter). While it's off, none of the games module loads — `openstation_register_game()` is undefined, exactly as if OpenStation weren't active. The `function_exists()` guard in the recipe below covers both cases; saved scores and play time survive a disable/re-enable round trip untouched.
+The games framework is **opt-in and off by default** — an admin enables it site-wide in OpenStation Preferences → Features → Extended options (or via the `openstation_games_enabled` filter). While it's off, none of the games module loads — `openstation_register_game()` is undefined, exactly as if OpenStation weren't active. The `function_exists()` guard in the recipe below covers both cases; saved scores and play time survive a disable/re-enable round trip untouched.
 
 ---
 

@@ -442,7 +442,7 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   `new Date()` is read only at the scene boundary. Debug override:
   `window.openStationLivingTreeHourOverride = <0..24>` forces a specific
   hour.
-- **Hidden DNA tuner (developer mode only).** With *OpenStation Settings →
+- **Hidden DNA tuner (developer mode only).** With *OpenStation Preferences →
   Features → Enable developer mode* ON, clicking the trunk **20 times**
   (gaps under 2.5 s) opens a slider panel over every snapshot metric —
   age, posts, pages, terms, comments, presence, traffic, health,

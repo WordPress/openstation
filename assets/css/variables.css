@@ -750,7 +750,7 @@ body.os-active {
 	 * gives every other shell link — NOT the accent.
 	 *
 	 * Undeclared, the base fell through to `--wp-admin-theme-color`,
-	 * which OpenStation Settings → Appearance writes inline on `<html>`
+	 * which OpenStation Preferences → Appearance writes inline on `<html>`
 	 * from the accent picker. That made the one piece of text a notice
 	 * most needs the user to read take whichever hue they chose for
 	 * focus rings. An accent is an identity colour; legibility on a dark

@@ -34,13 +34,13 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/openstation/` portal URL auto-enables OpenStation for first-time visitors (gated by `openstation_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`openstation_admin_redirect_to_portal`).
 
 - **Desktop shell**
-  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OpenStation Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `openstation_mode_init`, `openstation_shell_before` / `_after`, and the `openstation_shell_config` filter are the main extension points.
+  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OpenStation Preferences — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `openstation_mode_init`, `openstation_shell_before` / `_after`, and the `openstation_shell_config` filter are the main extension points.
 
 - **Window system — iframe + native**
   Iframe windows load admin pages with `?openstation_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `openstation_register_window()` / `wp.os.registerWindow()` — multi-tab native windows are supported through `openstation_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
-  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OpenStation Settings preference. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
+  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
 
 - **Virtual desktops (“Spaces”)**
   Multiple desktops per user, each with its own window set. Overview grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
@@ -69,7 +69,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 - **Toast notifications**
   Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `openstation_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
 
-- **OpenStation Settings**
+- **OpenStation Preferences**
   Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/desktop-mode/v1/os-settings`.
 
 - **Session persistence**
@@ -138,7 +138,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── window-manager/  # stack, desktops, arrange, snap, overview
 │   ├── wallpapers/      # registry, layer, surfaces, server sync, vendor loader
 │   ├── widgets/         # registry, layer, frame, picker, storage
-│   ├── settings/        # OpenStation Settings panel sections
+│   ├── settings/        # OpenStation Preferences panel sections
 │   ├── ui/              # <os-*> web components
 │   ├── modules/         # vendor-script lazy-loader
 │   └── plugins/         # built-in demos (animated-logo-wallpaper)
@@ -202,7 +202,7 @@ Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.os.iframe.*`.
 - `assets/js/recycle-bin.js` / `.min.js` — Recycle Bin native window.
-- `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Settings → Features).
+- `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Preferences → Features).
 
 **Development watch** — auto-recompiles the unminified bundle on save:
 

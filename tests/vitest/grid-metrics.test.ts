@@ -71,7 +71,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'every canvas lays out on the same pitch', () => {
-		// The site folder used to declare its own `TILE_METRICS`; it
+		// WP Explorer used to declare its own `TILE_METRICS`; it
 		// now consumes these. If a surface reintroduces a private
 		// pitch, the grid stops being one grid.
 		expect( GRID_METRICS ).toEqual( {

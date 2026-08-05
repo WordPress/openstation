@@ -1,7 +1,7 @@
 # AI Agents — extend and invoke from a plugin
 
 **Status: Experimental.** The whole module sits behind the
-`agents` extended option (OpenStation Settings → Features → Extended options,
+`agents` extended option (OpenStation Preferences → Features → Extended options,
 admin-only). While the flag is off none of these hooks or routes
 exist.
 

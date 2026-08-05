@@ -7,7 +7,7 @@
  *
  * **This module is the one place the grid's shape is expressed in
  * TypeScript, for every surface that lays out placements** — the
- * wallpaper, folder windows, and each canvas in the site folder.
+ * wallpaper, folder windows, and each canvas in WP Explorer.
  * They used to disagree: the desktop ran a 96×110 pitch and the site
  * folder a 108×112 one, so the same three icons had 8px between them
  * in one window and 20px in another. Worse, the desktop's 8px was a
@@ -52,7 +52,7 @@ export const GRID_CELL_W_LARGE = TILE_W_LARGE + GRID_GAP_X;
 export const GRID_CELL_H_LARGE = TILE_H_LARGE + GRID_GAP_Y;
 
 /**
- * Cell pitch for an icon canvas, in the shape the site folder's
+ * Cell pitch for an icon canvas, in the shape WP Explorer's
  * layout engine consumes. Exported so that surface reads the same
  * numbers rather than declaring its own.
  *

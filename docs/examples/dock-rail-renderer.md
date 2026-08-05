@@ -14,7 +14,7 @@ The radical end of dock customization: a plugin can take over the
 entire rail and paint it however they want — a circular ring, a
 Stage-Manager-style stack, a floating cluster, anything that fits
 the controller contract. The user picks among registered renderers
-in OpenStation Settings → Appearance → Dock style.
+in OpenStation Preferences → Appearance → Dock style.
 
 For lighter touches (animations, classNames, wrappers, custom
 tooltips), use the [decoration hooks](./dock-decoration-hooks.md)
@@ -29,7 +29,7 @@ registration.
 ```ts
 interface DockRailRenderer {
     id: string;                // 'default' | 'ring' | 'stage-manager' | …
-    label: string;             // shown in OpenStation Settings picker
+    label: string;             // shown in OpenStation Preferences picker
     description?: string;
     icon?: string;             // dashicon for the picker
     apiVersion?: 1;            // forward-compat gate
@@ -45,7 +45,7 @@ interface DockRailMountDeps {
     orientation:      'left' | 'right' | 'bottom';
     openItem(         item ): void;                   // primary tile click — routes through window manager
     openSubmenuPick(  item, sub: SubmenuItem ): void; // submenu link click
-    openSystemItem(   item ): void;                   // OpenStation Settings / plugin native-window tiles
+    openSystemItem(   item ): void;                   // OpenStation Preferences / plugin native-window tiles
     windowManager:    WindowManager;
     adminUrl:         string;
 }
@@ -80,7 +80,7 @@ Dock items split into views the renderer can read at mount time:
 |---|---|---|
 | `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
 | `fullMenu` | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
-| `fullSystemTiles` | Every **JS-registered system tile** — OpenStation Settings, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
+| `fullSystemTiles` | Every **JS-registered system tile** — OpenStation Preferences, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
 
 A renderer that doesn't care about the layout split (it draws every
 menu on screen no matter which rail it's mounted on) reads
@@ -338,7 +338,7 @@ Same lifecycle as commands and settings tabs. Register the script
 handle server-side via
 `openstation_register_dock_rail_renderer_script()`; the shell
 loads the script over the chromeless bridge on activation, the JS
-calls `registerDockRailRenderer()`, and OpenStation Settings → Dock style
+calls `registerDockRailRenderer()`, and OpenStation Preferences → Dock style
 surfaces the new option immediately — no F5.
 
 ```php

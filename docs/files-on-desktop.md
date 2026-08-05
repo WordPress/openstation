@@ -12,7 +12,7 @@ This is an evolving feature. Phase 0 (this document's current scope) establishes
 | 2 | Custom-table schema + REST + store *(landed)* |
 | 3 | Desktop UI: tile rendering, in-desktop drag *(landed)* |
 | 4 | Wallpaper context menu (replaces "minimize all" click) *(landed)* |
-| 5 | OpenStation Settings → File Associations tab *(landed)* |
+| 5 | OpenStation Preferences → File Associations tab *(landed)* |
 | 6 | Folder sharing (private / users / roles / all) + Heartbeat sync *(landed)* |
 | 7 | Drag from the Trash onto the desktop *(landed as "Pin to desktop"; HTML5 drag UX is a follow-up)* |
 
@@ -177,7 +177,7 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 
 ## Openers — the file-association layer *(Phase 1)*
 
-A **file opener** answers the question "what should happen when the user double-clicks a `post`?" It's the desktop-OS equivalent of an `.app` association. Multiple openers can register for the same file type; the user picks their preferred one (in OpenStation Settings → File Associations, Phase 5), and the JS side resolves on every double-click.
+A **file opener** answers the question "what should happen when the user double-clicks a `post`?" It's the desktop-OS equivalent of an `.app` association. Multiple openers can register for the same file type; the user picks their preferred one (in OpenStation Preferences → File Associations, Phase 5), and the JS side resolves on every double-click.
 
 ### Resolution chain
 
@@ -188,13 +188,13 @@ A **file opener** answers the question "what should happen when the user double-
 
 ### Registering an opener
 
-PHP-side metadata (the entry the OpenStation Settings tab will show, and the entry the user-meta override is validated against):
+PHP-side metadata (the entry the OpenStation Preferences tab will show, and the entry the user-meta override is validated against):
 
 ```php
 openstation_register_file_opener( 'classic-editor', array(
     'label'      => __( 'Classic Editor', 'classic-editor' ),
     'types'      => array( 'post' ),
-    'is_default' => false,        // user must opt in via OpenStation Settings
+    'is_default' => false,        // user must opt in via OpenStation Preferences
     'sort'       => 20,
 ) );
 ```
@@ -249,7 +249,7 @@ The dispatcher fires `os.files.opening` before invoking the handler and `os.file
 
 ### User associations
 
-The current user's `{ type → openerId }` choices live in user meta `desktop_mode_file_associations`. Phase 5's OpenStation Settings tab is the canonical writer; reading happens automatically — the shell config seeds `wp.os.files.getUserAssociations()` on boot, and `setUserAssociations()` is called once during init.
+The current user's `{ type → openerId }` choices live in user meta `desktop_mode_file_associations`. Phase 5's OpenStation Preferences tab is the canonical writer; reading happens automatically — the shell config seeds `wp.os.files.getUserAssociations()` on boot, and `setUserAssociations()` is called once during init.
 
 Plugins that ship a "force-this-opener-for-role-X" feature should hook the resolution filter rather than touching user meta:
 
@@ -354,7 +354,7 @@ A `FilesLayer` is the renderer that mounts on a host element (the `#os-area` for
 
 There is **one** icon grid, and every surface that lays out
 placements uses it — the wallpaper, folder windows, and each canvas
-in the site folder. It is declared once, as design tokens in
+in WP Explorer. It is declared once, as design tokens in
 `assets/css/variables.css`:
 
 | Token | Default | What it is |
@@ -416,7 +416,7 @@ Drag is owned end-to-end by the centralized `DragManager`
 own document-level pointermove / pointerup / pointercancel listeners
 and drives the gesture from there. Tiles do NOT call `setPointerCapture`
 — pointer capture is incompatible with HTML5 `dragstart` detection on
-draggable elements (the site-folder entity-tile drag-out bug).
+draggable elements (the WP Explorer entity-tile drag-out bug).
 
 Lifecycle:
 
@@ -564,14 +564,14 @@ doAction( 'os.files.tile-rendered', { tile: HTMLElement, placement: RestPlacemen
 doAction( 'os.files.grid-rendered', { folderId: number, count: number } );
 
 // Generic tile surface — fires on every `<os-tile>` paint anywhere
-// in the shell (desktop, folders, the site folder, plugin windows).
+// in the shell (desktop, folders, WP Explorer, plugin windows).
 applyFilters( 'os.tile.class', className: string, spec: TileSpec ): string;
 doAction( 'os.tile.rendered', { tile: HTMLElement } );
 ```
 
 `tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles) on the **desktop-files** surface. The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
 
-Use the generic `os.tile.*` pair when you want to decorate tiles **everywhere** (site-folder sections, drill-in usage grids, any future surface using `<os-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
+Use the generic `os.tile.*` pair when you want to decorate tiles **everywhere** (WP Explorer sections, drill-in usage grids, any future surface using `<os-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
 
 ### Selection
 
@@ -641,7 +641,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
-| `os-settings` | OpenStation Settings | Opens the OpenStation Settings window. |
+| `os-settings` | OpenStation Preferences | Opens the OpenStation Preferences window. |
 
 ### Plugin extension
 

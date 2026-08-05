@@ -191,7 +191,7 @@ shared-store + registries. Index:
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
 | `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` site-folder entity kind | `registerEntityKind()` seam | Experimental |
+| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
 
 ## CustomEvents on `document`
 

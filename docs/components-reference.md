@@ -12,11 +12,11 @@ Components are **side-effect registered** at import time, per bundle, into the p
 2. Add the class export to `src/ui/components/index.ts`.
 3. Add the tag to `src/ui/components/tags.ts` (the single source of `OS_COMPONENT_TAGS`, re-exported by `index.ts`).
 4. Add a row to this table.
-5. Document via the `static help = { … }` block on the class — surfaced in OpenStation Settings → Components live.
+5. Document via the `static help = { … }` block on the class — surfaced in OpenStation Preferences → Components live.
 
 ## Browsing the kit at runtime
 
-**OpenStation Settings → Components** (admin-only) renders this table live: every tag in `OS_COMPONENT_TAGS`, with its props, slots, events, parts, CSS custom properties, and a working example rendered from the `static help.example` template.
+**OpenStation Preferences → Components** (admin-only) renders this table live: every tag in `OS_COMPONENT_TAGS`, with its props, slots, events, parts, CSS custom properties, and a working example rendered from the `static help.example` template.
 
 The tab side-effect-imports the whole component barrel so the list is the full kit rather than "whatever other bundles happen to have loaded" — the per-bundle registration model described above means an unimported component reaches no custom-element registry, and a tab that only enumerated registered tags silently under-reported itself.
 
@@ -148,7 +148,7 @@ from a desktop theme — the same trap described in
 | --- | --- | --- | --- |
 | `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. |
 | `<os-log>` | `OsLog` | `os-log/os-log.ts` | Virtualized streaming log container. |
-| `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and the site folder). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
+| `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and WP Explorer). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
 
 ## Tabs & navigation
 
@@ -265,4 +265,4 @@ The remaining classes are internal-only for now — subpath / source-path import
 
 ## Per-component help
 
-Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OpenStation Settings → Components tab iterates `OS_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.
+Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OpenStation Preferences → Components tab iterates `OS_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.

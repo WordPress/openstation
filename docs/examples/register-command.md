@@ -232,7 +232,7 @@ wp.os.ready( function () {
     } );
 } );
 
-// Optional protect-list — keep the OpenStation Settings window alive.
+// Optional protect-list — keep the OpenStation Preferences window alive.
 wp.hooks.addFilter(
     'os.windows.close-all',
     'my-plugin/keep-os-settings',

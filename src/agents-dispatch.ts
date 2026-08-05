@@ -1,7 +1,7 @@
 /**
  * Agents — drop dispatch: drag payload → entity → invocation.
  *
- * Shared by every drag intake surface (agent rows in the site folder's
+ * Shared by every drag intake surface (agent rows in WP Explorer's
  * Agents section, agent user tiles on the wallpaper, the open Agent
  * chat window). A drop is a chat whose message carries the dropped
  * entity: the dispatcher composes the message, seeds the cross-bundle
@@ -62,7 +62,7 @@ function toId( raw: unknown ): number {
 /**
  * Normalize a drag payload into the entity it references, or null when
  * the payload doesn't reference a single entity agents understand.
- * Handles the two in-tree entity carriers: `'shortcut'` (site folder
+ * Handles the two in-tree entity carriers: `'shortcut'` (WP Explorer
  * tiles, os-tile drag-out) and `'desktop-file'` (wallpaper tiles).
  *
  * @public

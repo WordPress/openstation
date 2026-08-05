@@ -67,7 +67,7 @@ No other external services are contacted by this plugin.
 = Optional: enable the AI Assistant =
 
 1. In **Settings → Connectors**, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+.
-2. In OpenStation, open **OpenStation Settings → Features** and turn on **AI assistant** (it's off by default).
+2. In OpenStation, open **OpenStation Preferences → Features** and turn on **AI assistant** (it's off by default).
 3. Press **Cmd+K** (or **Ctrl+K**) anywhere in OpenStation to open the AI assistant.
 
 == Frequently Asked Questions ==
@@ -98,7 +98,7 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/opens
 2. Your admin, your desktop — custom wallpapers and live widgets registered by plugins.
 3. The AI Assistant (Cmd+K) answers questions about your own posts, pages, and comments.
 4. Corkboard — an interactive map of how your content links together.
-5. OpenStation Settings — pick a wallpaper preset, an animated scene, or upload your own image.
+5. OpenStation Preferences — pick a wallpaper preset, an animated scene, or upload your own image.
 6. Files on the desktop — drag posts, media, and links onto the wallpaper and into folders.
 7. The Trash collects trashed posts, media, folders, and shortcuts in one window.
 
@@ -110,7 +110,7 @@ OpenStation is brought to you by [Automattic](https://automattic.com). The plugi
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OpenStation Settings → About** scene, the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OpenStation Preferences → About** scene, the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 = Data files =
 
@@ -144,11 +144,11 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Give tooltips their own two theming tokens
 * Add an AI writing assistant to the Drafts widget
 * Fix active tab underline highlight in Appearance Add Theme view
-* Show the whole component kit in OpenStation Settings, and make it searchable
+* Show the whole component kit in OpenStation Preferences, and make it searchable
 * Expose dock glyph and focused window control colours as tokens
 * Overview: show minimized windows in grid to fix badge count mismatch
 * Decode html entities in recycle bin
-* Add an admin-bar presentation mode to OpenStation Settings and the theme system
+* Add an admin-bar presentation mode to OpenStation Preferences and the theme system
 * AI Agents framework: agents as WordPress users, abilities runner, chat with persisted conversations, drag & drop and Send to triggers
 * Close privilege-escalation and session-bypass paths
 * Enforce strict structured-output schemas at the provider boundary
@@ -206,7 +206,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 = 0.9.5 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
 * AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`openstation_register_ai_tool()` was removed)
-* Removed the OpenStation Settings → AI tab; the per-user "AI assistant" toggle now lives in OpenStation Settings → Features next to "Score new comments with AI"
+* Removed the OpenStation Preferences → AI tab; the per-user "AI assistant" toggle now lives in OpenStation Preferences → Features next to "Score new comments with AI"
 * Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of OpenStation is unaffected
 * Stored AI keys are deleted from the database on upgrade
 * Five new built-in widgets: Recent Comments, Post Stats, Site Views, Jazz Quote, and Starter
@@ -214,10 +214,10 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Two new wallpapers, Living Tree and Snow, plus per-wallpaper settings dialogs
 * Window links: windows showing related content are visually connected, with pluggable link renderers for plugin authors
 * Spring-loading: hovering a window while dragging anything brings it to the front
-* New developer mode setting (OpenStation Settings → Features) unlocks developer-facing surfaces
+* New developer mode setting (OpenStation Preferences → Features) unlocks developer-facing surfaces
 * WordPress update notices now surface once in the desktop shell instead of repeating in every window
 * Desktop shortcuts stay in sync and core icons follow the spatial layout
-* Extended options merged into the OpenStation Settings → Features tab
+* Extended options merged into the OpenStation Preferences → Features tab
 * Fixed selection bugs that could point destructive actions at the wrong files
 * Closing a window with unsaved changes now warns instead of silently losing work
 * Fixed windows and dock state leaking across virtual desktops
@@ -369,12 +369,12 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Code editor and framework improvements.
 * Enhanced AI provider integration: third-party providers may register through `openstation_register_ai_provider()`.
 * Title-bar button registry with icon painting for plugin authors.
-* OpenStation Settings tabs are now extensible via `openstation_register_settings_tab_script()` / `openstation_register_settings_tab()`.
+* OpenStation Preferences tabs are now extensible via `openstation_register_settings_tab_script()` / `openstation_register_settings_tab()`.
 * AI Copilot extensibility: server-side tool registry (`openstation_register_ai_tool()`) and client-side `wp.os.ai.ask()` programmatic entry point.
 * UI component kit expansion (~25 `<os-*>` web components).
 * Backtick hotkey to cycle window focus.
 * Unified command palettes via the palette registry.
-* OpenStation Settings Help tab.
+* OpenStation Preferences Help tab.
 
 = 0.5.0 =
 * Command registration APIs (`openstation_register_command_script()` / `openstation_register_command()`) with live install/activate refresh.

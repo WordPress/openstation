@@ -61,7 +61,7 @@ export const styles = css`
 	 *
 	 * The palette declares both names (Nebula, lifting to Starlight),
 	 * and neither routes through --wp-admin-theme-color any more:
-	 * OpenStation Settings → Appearance writes that property inline on
+	 * OpenStation Preferences → Appearance writes that property inline on
 	 * the html element from the user's accent picker, and a notice's
 	 * link is the last text on the surface that should be legible only
 	 * for some accents. The fallbacks below stay at the pre-brand admin

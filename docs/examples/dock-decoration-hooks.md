@@ -34,7 +34,7 @@ element id — `'os-dock'` for the bottom rail,
 `'os-side-dock'` for the Classic side rail.
 
 `DockTileContext` adds `{ item, isSystem }`. When `isSystem` is true the
-item is a `SystemDockItem` (OpenStation Settings, plugin-owned native-window
+item is a `SystemDockItem` (OpenStation Preferences, plugin-owned native-window
 launchers); otherwise it's a `DockItem` from the admin menu.
 
 ## Add a className per tile

@@ -195,7 +195,7 @@ const OPENSTATION_REBRAND_INTRO_SLUG = 'openstation-rebrand';
  *
  * Flags are never cleared. Dismissal lives in the seen-intros registry,
  * so one admin dismissing the announcement does not silence it for
- * their editors, and "Reset what's-new dialogs" in OpenStation Settings
+ * their editors, and "Reset what's-new dialogs" in OpenStation Preferences
  * → Features brings it back with every other intro.
  *
  * @param int $from The highest migration version already applied.
