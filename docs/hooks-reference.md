@@ -2517,11 +2517,12 @@ emitters identifying themselves for echo suppression).
 **Iframe-side default behaviour: soft reload.** The chromeless
 bridge installs a built-in subscriber that, when the topic
 matches the iframe's current page, *fetches the URL it's already
-on* and replaces `#wpbody-content` in place. The user sees the
-list update — restored post appears, trashed media disappears —
-without the WP loading spinner that `location.reload()` would
-show. Matching is generic: the page's list type is
-derived from the URL and compared to the `<type>` in the topic —
+on* and replaces the contents of `#wpbody-content` in place. The
+user sees the list update — restored post appears, trashed media
+disappears — without the WP loading spinner that
+`location.reload()` would show. Matching is generic: the page's
+list type is derived from the URL and compared to the `<type>` in
+the topic —
 
 | List page | Reacts to |
 |---|---|
@@ -2542,10 +2543,26 @@ destroy unsaved editor state. Plugins wanting specific behaviour
 for those pages subscribe to the same topic themselves and decide
 how to react.
 
-After every successful soft-reload the bridge dispatches
-`os-soft-reloaded` on the iframe's `document` so plugins
-that need to re-bind state (e.g. their own custom widgets in the
-list table) have a single signal to listen for.
+**What survives the swap, and what the bridge re-binds.** The
+`#wpbody-content` element itself is kept and only its children are
+replaced, so anything delegated on `document`, `body` or
+`#wpbody-content` keeps working untouched — that covers wp-lists,
+`updates.js`, and Core's select-all checkboxes and row-actions
+focus reveal. Handlers bound to elements *inside* it do not
+survive, and Core's inline editors are bound that way
+(`$( '#the-list' ).on( 'click', '.editinline', … )` and friends).
+The bridge therefore re-runs Core's own init entry points after
+each swap — `inlineEditPost.init()`, `inlineEditTax.init()`,
+`setCommentsList()`, `commentReply.init()` — which restores Quick
+Edit, Bulk Edit, comment Quick Edit / Reply and the comment row
+actions. Custom list tables that enqueue `inline-edit-post` get
+this for free.
+
+If your own code binds to an element inside the list table, bind
+it on `document` (best), or re-bind on `os-soft-reloaded`, which
+the bridge dispatches on the iframe's `document` after every
+successful soft-reload — and after the Core re-init above, so a
+listener always sees a working list table.
 
 **Plugin extension.** Subscribers from anywhere (parent shell,
 native windows, iframes) can use the bus directly:
