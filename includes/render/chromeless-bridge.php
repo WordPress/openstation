@@ -2664,7 +2664,7 @@ function openstation_chromeless_bridge_script() {
 	}
 
 	function _openstationSoftReloadTopicMatches( topic ) {
-		var m = /^openstation\.(.+)\.changed$/.exec( topic );
+		var m = /^os\.(.+)\.changed$/.exec( topic );
 		if ( m && m[ 1 ] === _openstationListType() ) {
 			return true;
 		}

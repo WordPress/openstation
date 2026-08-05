@@ -1308,10 +1308,11 @@ export const HOOKS = {
 
 	// ------------------------------------------------------------------
 	// Editor preview. The title bar's "Preview" (eye)
-	// button on post/page/CPT editor windows — autosaves the editor,
-	// snaps it to the left half, and opens the front-end preview as a
-	// companion window snapped to the right half. Module:
-	// `src/editor-preview/index.ts`.
+	// button on post/page/CPT editor windows — snaps the editor to
+	// the left half and opens the front-end preview as a companion
+	// window snapped to the right half, autosaving the editor in
+	// parallel (a landed save silently refreshes the companion).
+	// Module: `src/editor-preview/index.ts`.
 	// ------------------------------------------------------------------
 	/**
 	 * Filter — applied to the preview companion's `WindowConfig` right

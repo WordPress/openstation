@@ -2008,6 +2008,23 @@ export interface DesktopConfig {
 		actionUrl?: string;
 	} >;
 	/**
+	 * Whether to offer this user the one-off announcement explaining
+	 * that Desktop Mode is now OpenStation.
+	 *
+	 * True only when the install was already running before the rebrand
+	 * AND this user hasn't dismissed the `openstation-rebrand` intro —
+	 * both decided server-side, so the shell just obeys. See
+	 * `src/rebrand-notice.ts`.
+	 */
+	rebrandNotice?: boolean;
+	/**
+	 * Slugs of one-time intro dialogs this user has dismissed. Shared
+	 * with the native windows' first-open intros.
+	 */
+	seenIntros?: string[];
+	/** REST base for the seen-intros surface (`…/v1/intros`). */
+	seenIntrosUrl?: string;
+	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `openstation_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.

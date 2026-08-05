@@ -173,7 +173,7 @@ there. Legacy picks one value per name, which is what naming a palette
 reproducing each of them. Nothing moves and nothing changes contrast.
 
 **It does not take back your accent.** The accent colour is a user
-setting (OS Settings → Appearance), written as an inline style that
+setting (OpenStation Settings → Appearance), written as an inline style that
 outranks every stylesheet, so it is yours rather than any theme's.
 Legacy leaves it alone deliberately — pick `WordPress Blue` there if
 you want the old accent back with the old palette.
@@ -293,7 +293,7 @@ Optional, and **individually droppable** — see
 |---|---|
 | `version`, `author` | Plain text, ≤32 / ≤120 chars. |
 | `description` | Plain text, ≤500 chars. |
-| `preview` | Path to an image shown on the theme card in OS Settings. |
+| `preview` | Path to an image shown on the theme card in OpenStation Settings. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
 | `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
 | `recommendedOsSettings` | Layout preferences to seed on first activation — see [Recommended OS settings](#recommended-os-settings). |
@@ -484,7 +484,7 @@ Read `assets/css/variables.css` for the full set.
 > light theme.
 
 > **`--os-window-radius` is not one of them in practice.**
-> The Window-corners preset in OS Settings writes that property as an
+> The Window-corners preset in OpenStation Settings writes that property as an
 > inline style on the shell root, which outranks any stylesheet rule,
 > so a theme declaring it in `tokens` has no effect on windows. The
 > user's corner preference stays the user's. If your frame artwork
@@ -508,7 +508,7 @@ Read `assets/css/variables.css` for the full set.
 #### Window reveal
 
 One token owns the surface a window's content is uncovered from once it
-finishes loading (OS Settings → Effects → "Window reveal"):
+finishes loading (OpenStation Settings → Effects → "Window reveal"):
 
 | Token | Role |
 |---|---|
@@ -563,7 +563,7 @@ colour in place.
 
 **Duration** is **undeclared by default** and accepts `620ms`, `0.62s`,
 or a bare `620` (read as ms). It sets the house pace for every reveal
-the user might pick — but a user who has chosen a speed in OS Settings
+the user might pick — but a user who has chosen a speed in OpenStation Settings
 → Effects out-ranks it, the same way the window-corner preset out-ranks
 a theme's `--os-window-radius`. Their choice stays theirs.
 
@@ -638,7 +638,7 @@ matters if your iconset uses
 with the glyph colour, so this single token drives dashicons, your own
 artwork, and the hover transition together.
 
-System tiles — OS Settings, the recycle bin, and their neighbours —
+System tiles — OpenStation Settings, the recycle bin, and their neighbours —
 read the same `--os-dock-icon-color`. Unthemed they sit one
 notch brighter than menu tiles; once you name a colour they join the
 rest rather than staying stranded white.
@@ -799,7 +799,7 @@ archive. Both face caps are filterable
 ## Wallpapers
 
 ** A theme may ship wallpapers. Each one appears in
-**OS Settings → Wallpaper** as an ordinary pick, labelled
+**OpenStation Settings → Wallpaper** as an ordinary pick, labelled
 `<theme name> - (theme)` — or `<theme name>: <label> - (theme)` when
 the theme ships more than one.
 
@@ -852,7 +852,7 @@ become the wallpaper ids.
 | `path` | **Required.** Image inside your ZIP (absolute URL for a code theme). |
 | `label` | Shown in the picker after the theme name. Recommended once you ship more than one. |
 | `id` | Explicit id. See the stability note below. |
-| `description` | Shown in OS Settings when this wallpaper is selected. Falls back to the theme's description. |
+| `description` | Shown in OpenStation Settings when this wallpaper is selected. Falls back to the theme's description. |
 | `size` | `cover` (default), `contain`, `auto`, or lengths. |
 | `repeat` | `no-repeat` (default) or any `background-repeat` keyword. |
 | `position` | `center center` (default), keywords, lengths, or percentages. |
@@ -906,7 +906,7 @@ activates it — and never again.**
 - **A later change by the user always wins.** Pick the theme, put the
   dock back to compact, re-pick the theme — it stays compact.
 
-The way back is the user's to take: **OS Settings → Themes** shows an
+The way back is the user's to take: **OpenStation Settings → Themes** shows an
 **Apply &lt;theme&gt;'s recommended layout and effects** button for the
 active theme when it recommends something, and that is the only path
 that applies a recommendation a second time. It sets the settings and
@@ -932,7 +932,7 @@ still apply.
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
-| `accent` | A registered accent-swatch id (OS Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
+| `accent` | A registered accent-swatch id (OpenStation Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
 
 **`accent` is the one recommendation a theme cannot express any other
 way, and most themes want it.** The accent is a user setting written as
@@ -1402,7 +1402,7 @@ saying.** Concretely:
 
 ## Installing and activating
 
-**Install:** OS Settings → Themes → drop a `.zip` on the upload tile.
+**Install:** OpenStation Settings → Themes → drop a `.zip` on the upload tile.
 Requires `manage_options` by default (filterable via
 `openstation_desktop_theme_upload_capability`).
 

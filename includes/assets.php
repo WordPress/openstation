@@ -306,6 +306,20 @@ function openstation_register_assets() {
 		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
 	);
 
+	// Announcement-dialog styles (scrim, hero card, buttons). Registered
+	// always, enqueued only for a user who is actually owed the
+	// announcement — see the gate in `openstation_enqueue_assets()`. It
+	// is not lazy-loaded on top of that: on the one boot where it does
+	// go out, the dialog opens from the main bundle a second later, and
+	// a fetch racing that would show an unstyled card.
+	$announce_css = OPENSTATION_DIR . 'assets/css/announce.css';
+	wp_register_style(
+		'os-announce',
+		OPENSTATION_URL . 'assets/css/announce.css',
+		array( 'os-variables' ),
+		file_exists( $announce_css ) ? (string) filemtime( $announce_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action

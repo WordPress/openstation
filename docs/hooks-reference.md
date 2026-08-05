@@ -297,7 +297,7 @@ apply_filters( 'openstation_folder_share_user_capability', string $cap, int $fol
 apply_filters( 'openstation_files_share_all_default_capability', string $cap, int $folder_id, int $user_id ); // default 'read' for share_mode='all'
 apply_filters( 'openstation_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search
 apply_filters( 'openstation_folder_share_accept_default_parent', int $parent_id, int $folder_id, int $user_id, array $share_row ); // where the recipient's placement lands
-apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OS Settings
+apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OpenStation Settings
 apply_filters( 'openstation_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
 apply_filters( 'openstation_files_sharing_tables_for_purge', string[] $tables ); // tables dropped by "Delete folder sharing data"; default shares + decisions
 
@@ -513,7 +513,7 @@ do_action( 'openstation_unfocus_effect_script_registered', string $handle );
 
 ### `openstation_register_unfocus_effect_script( $handle )` — Experimental (PHP function)
 
-Declares a WP-registered script handle as an unfocused-window-effect provider. The shell injects the resolved URL on plugin activation so `wp.os.registerUnfocusEffect()` calls made by the plugin's JS surface in **OS Settings → Effects** (and apply to unfocused windows) **without a page reload**.
+Declares a WP-registered script handle as an unfocused-window-effect provider. The shell injects the resolved URL on plugin activation so `wp.os.registerUnfocusEffect()` calls made by the plugin's JS surface in **OpenStation Settings → Effects** (and apply to unfocused windows) **without a page reload**.
 
 ```php
 add_action( 'admin_enqueue_scripts', function () {
@@ -664,7 +664,7 @@ do_action( 'openstation_window_link_renderer_script_registered', string $handle 
 
 ### `openstation_register_window_link_renderer_script( $handle )` — Experimental (PHP function)
 
-Declares a WP-registered script handle as a window-link renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerWindowLinkRenderer()` calls made by the plugin's JS surface in **OS Settings → Effects → Window links** **without a page reload**.
+Declares a WP-registered script handle as a window-link renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerWindowLinkRenderer()` calls made by the plugin's JS surface in **OpenStation Settings → Effects → Window links** **without a page reload**.
 
 ```php
 add_action( 'admin_enqueue_scripts', function () {
@@ -688,7 +688,7 @@ The built-in `svg-splines` renderer is registered through the same JS hook — t
 
 ### `openstation_settings_tab_script_registered` — Stable
 
-Fires after `openstation_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `openstation_register_settings_tab()` implicitly registers its `script` argument (it routes through `openstation_register_settings_tab_script()`).
+Fires after `openstation_register_settings_tab_script()` stores an OpenStation Settings tab script handle. Also fires when `openstation_register_settings_tab()` implicitly registers its `script` argument (it routes through `openstation_register_settings_tab_script()`).
 
 ```php
 do_action( 'openstation_settings_tab_script_registered', string $handle );
@@ -704,7 +704,7 @@ do_action( 'openstation_settings_tab_registered', string $id, array $entry );
 
 ### `openstation_register_settings_tab_script( $handle )` — Stable *(PHP function)*
 
-Declares a WP-registered script handle as an OS Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.os.registerSettingsTab()` calls made by the plugin's JS appear in the OS Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
+Declares a WP-registered script handle as an OpenStation Settings tab provider. The shell injects the resolved URL on plugin activation so `wp.os.registerSettingsTab()` calls made by the plugin's JS appear in the OpenStation Settings window **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep tab definitions in TypeScript and only touch PHP to declare the handle.
 
 ```php
 add_action( 'admin_enqueue_scripts', function () {
@@ -765,7 +765,7 @@ do_action( 'openstation_dock_rail_renderer_script_registered', string $handle );
 
 ### `openstation_register_dock_rail_renderer_script( $handle )` — Stable *(PHP function)*
 
-Declare a WP-registered script handle as a dock rail renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerDockRailRenderer()` calls made by the plugin's JS surface in OS Settings → Dock style **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep renderer definitions in TypeScript and only touch PHP to declare the handle.
+Declare a WP-registered script handle as a dock rail renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerDockRailRenderer()` calls made by the plugin's JS surface in OpenStation Settings → Dock style **without a page reload**. Primary (minimum-ceremony) opt-in — plugin authors keep renderer definitions in TypeScript and only touch PHP to declare the handle.
 
 ```php
 add_action( 'admin_enqueue_scripts', function () {
@@ -1025,12 +1025,34 @@ The filter only fires after OpenStation has already verified that:
 1. The request is an admin page (`is_admin()`).
 2. The user is logged in and can `read`.
 3. The request is NOT chromeless.
-4. The user has not yet dismissed the `activation-welcome` intro (stored in the `desktop_mode_seen_intros` user meta — the same storage every other native-app intro uses, and the same surface the "Reset what's-new dialogs" button in OS Settings → Features wipes).
+4. The user has not yet dismissed the `activation-welcome` intro (stored in the `desktop_mode_seen_intros` user meta — the same storage every other native-app intro uses, and the same surface the "Reset what's-new dialogs" button in OpenStation Settings → Features wipes).
 5. OpenStation is not already enabled for the user — this is a "switch to OpenStation" promo, so it has nothing to say once the user is in the shell.
 
 Dismissal persists through the same `POST /desktop-mode/v1/intros/seen` route the in-shell intros use, with one wrinkle: because the dialog only appears while OpenStation is **disabled**, that route makes a scoped exception for the `activation-welcome` slug and accepts it from any logged-in `read`-capable account (every other slug still requires OpenStation enabled). Without it the dismissal would `403` and the dialog would re-appear on every classic-admin page load.
 
 Return `false` to suppress the dialog — useful for managed-host onboarding flows that ship their own welcome UX.
+
+---
+
+### `openstation_install_predates_rebrand` — Stable
+
+Decides whether this install is treated as one that was already running when the plugin was called Desktop Mode. When it is, the shell shows each user a one-off announcement explaining the rename to OpenStation.
+
+```php
+apply_filters( 'openstation_install_predates_rebrand', bool $predates, int $from );
+```
+
+Fires once, from the one-time migration runner (`includes/migrations.php`, migration 5). `$from` is the highest migration version that had already been applied before this run, which is the signal the default answer is derived from: `1`–`3` means the install ran under the old name, `0` means a fresh install that has only ever known OpenStation, and `4` means the rebrand migration had already landed here.
+
+Passing that gate is necessary but not sufficient. The migration then flags **individual users** who carry proof of having used the plugin before the rename — either `desktop_mode_mode` (the per-user opt-in) or a saved `desktop_mode_os_settings` blob — by writing `desktop_mode_rebrand_notice` user meta. Someone who joins an old site after the rename and enables OpenStation for the first time is never flagged, and never sees the announcement.
+
+Because the filter runs inside a migration, it is consulted exactly once per install. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete the `desktop_mode_rebrand_notice` user meta.
+
+Return `false` to suppress the announcement for every user on the site — useful for a host rolling OpenStation out to fleet sites that never saw the old name, or an agency that would rather brief its clients itself.
+
+The announcement itself only exists inside the shell: it is drawn by the desktop bundle, which is not enqueued in the classic admin or inside a chromeless iframe.
+
+Dismissal is per-user, through the `openstation-rebrand` slug in the shared seen-intros registry (`desktop_mode_seen_intros` user meta). One admin dismissing the announcement does not silence it for their editors, and "Reset what's-new dialogs" in OpenStation Settings → Features brings it back alongside every other intro.
 
 ---
 
@@ -1293,7 +1315,7 @@ apply_filters( 'openstation_admin_redirect_to_portal', bool $redirect, int $user
 
 ### `openstation_accent_colors` — Stable
 
-Extends or restricts the accent-color swatches shown in OS Settings. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the built-in six swatches.
+Extends or restricts the accent-color swatches shown in OpenStation Settings. Applied to `--wp-admin-theme-color` on the shell's `<html>`. Each entry is `{ id: string, label: string, value: string }` — `id` is a stable slug persisted to `localStorage`, `label` is the picker tooltip, `value` is a hex color validated server-side via `sanitize_hex_color()`. Invalid entries are dropped; a filter that leaves the list empty falls back to the built-in six swatches.
 
 ```php
 apply_filters( 'openstation_accent_colors', array $colors );
@@ -1326,7 +1348,7 @@ add_filter( 'openstation_accent_colors', function () {
 
 ### `openstation_admin_bar_mode` — Stable
 
-Overrides how the WordPress admin bar presents above the shell for the current request, regardless of the user's own **OS Settings → Appearance → Admin bar** pick. The resolved value is emitted as a `os-admin-bar-<mode>` body class on `admin_body_class`, which is what `assets/css/desktop.css` keys off.
+Overrides how the WordPress admin bar presents above the shell for the current request, regardless of the user's own **OpenStation Settings → Appearance → Admin bar** pick. The resolved value is emitted as a `os-admin-bar-<mode>` body class on `admin_body_class`, which is what `assets/css/desktop.css` keys off.
 
 ```php
 apply_filters( 'openstation_admin_bar_mode', string $mode );
@@ -1404,7 +1426,7 @@ add_filter( 'openstation_default_wallpaper', fn () => 'aurora' );
 
 Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `openstation_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
 
-`description` — *Experimental.* Optional plain-text copy shown in OS Settings when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
+`description` — *Experimental.* Optional plain-text copy shown in OpenStation Settings when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
 
 Mirrors the client-side `os.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 
@@ -1416,7 +1438,7 @@ apply_filters( 'openstation_wallpapers', array $registry );
 
 ### `openstation_games_enabled` — Experimental
 
-Whether the games framework is enabled site-wide. The default comes from the `games` extended option (OS Settings → Features → Extended options, admins only) — **off by default**: games are opt-in. When the resolved value is `false`, `includes/games/bootstrap.php` loads **none** of the games module — no Games window/icon, no `openstation_register_game()`, no REST routes, no Heartbeat challenge channel, no schema check — and the shell config ships `gamesEnabled: false` so the client skips the challenges channel too. For third-party plugins the disabled state looks exactly like OpenStation being inactive: guard `openstation_register_game()` calls with `function_exists()` (as [the recipe](./examples/register-game.md) already does).
+Whether the games framework is enabled site-wide. The default comes from the `games` extended option (OpenStation Settings → Features → Extended options, admins only) — **off by default**: games are opt-in. When the resolved value is `false`, `includes/games/bootstrap.php` loads **none** of the games module — no Games window/icon, no `openstation_register_game()`, no REST routes, no Heartbeat challenge channel, no schema check — and the shell config ships `gamesEnabled: false` so the client skips the challenges channel too. For third-party plugins the disabled state looks exactly like OpenStation being inactive: guard `openstation_register_game()` calls with `function_exists()` (as [the recipe](./examples/register-game.md) already does).
 
 The load decision is made on `plugins_loaded` (priority 5), so hook the filter from any plugin's main file — just not later than that.
 
@@ -2024,7 +2046,7 @@ apply_filters( 'openstation_window_excluded_pages', array $excluded );
 apply_filters( 'openstation_dock_style', array $style );      // icon size, gap, blur
 ```
 
-> Dock placement (left / right / bottom) ships as a user preference in OS Settings, persisted via the standard settings REST endpoint. No server-side filter is wired today — a plugin that wants to force a placement can set the user meta directly or post to `/desktop-mode/v1/os-settings`.
+> Dock placement (left / right / bottom) ships as a user preference in OpenStation Settings, persisted via the standard settings REST endpoint. No server-side filter is wired today — a plugin that wants to force a placement can set the user meta directly or post to `/desktop-mode/v1/os-settings`.
 
 ### Desktop area — Phase 4+
 ```php
@@ -2570,7 +2592,7 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Settings → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `openstation_posts_window_user_can_register` — Stable *(filter)*
 
@@ -2682,7 +2704,7 @@ Returning `false` from `enabled` (or `matches`) lets the click fall through. An 
 
 ## Native Pages window
 
-Reuses the Posts window bundle (the registration passes `mode: 'pages'` on the config blob as the JS-side discriminator) to replace the chromeless `edit.php?post_type=page` iframe — parent column, menu-order default sort, Template column, "Front page" / "Posts page" badges. Per-user opt-in Beta (default `false`) via OS Settings → Features → Beta features → `nativePagesEnabled`.
+Reuses the Posts window bundle (the registration passes `mode: 'pages'` on the config blob as the JS-side discriminator) to replace the chromeless `edit.php?post_type=page` iframe — parent column, menu-order default sort, Template column, "Front page" / "Posts page" badges. Per-user opt-in Beta (default `false`) via OpenStation Settings → Features → Beta features → `nativePagesEnabled`.
 
 ### `openstation_pages_window_user_can_register` — Stable *(filter)*
 
@@ -2736,7 +2758,7 @@ The `{ slug: label }` map for the active theme's registered page templates, used
 
 ## Native Plugins window
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Settings → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.os.refreshMenu()` so the dock repaints live.
 
@@ -2859,7 +2881,8 @@ Server-injected enrichment fields. The JS reads them on every list paint:
 |---|---|---|
 | `openstation_update_available` | `{ available: bool, new_version: string\|null, package: string, slug: string }` | Pending wp.org update for this row, derived from `get_site_transient( 'update_plugins' )`. The transient is lazily refreshed at REST-time (subject to Core's 12h throttle, and the `openstation_plugins_window_refresh_updates` filter) so the window stays in sync with the dock update badge. The in-window Refresh button can bypass the 12h throttle by adding `?openstation_force_refresh=1` to the REST request — Core's `wp_clean_plugins_cache( true )` then deletes the transient and fans out to api.wordpress.org, mirroring what classic `plugins.php` does on load. `package` carries the download URL (empty for plugins without a wp.org zip — the JS surfaces the same "Auto-update unavailable" fallback Core renders); `slug` is what `wp_ajax_update_plugin` echoes back in its event payload. |
 | `openstation_can_manage` | `{ activate, deactivate, delete: bool }` | Per-row capability flags so the JS doesn't re-derive caps. Server still re-validates every mutation. |
-| `openstation_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`openstation_plugins_window_local_icon_candidates`](#openstation_plugins_window_local_icon_candidates--experimental-filter)) and falls back to `https://ps.w.org/<slug>/assets/icon.svg`. Filterable via `openstation_plugins_window_icon_url`. |
+| `openstation_wporg_slug` | `string\|null` | The plugin's slug on the WordPress.org directory or `null` if hosted elsewhere. |
+| `openstation_icon_url` | `string\|null` | Best-effort card icon URL. Prefers a local file under the plugin's folder (`assets/icon.svg` and a handful of variants — see [`openstation_plugins_window_local_icon_candidates`](#openstation_plugins_window_local_icon_candidates--experimental-filter)) and falls back to `https://ps.w.org/<slug>/assets/icon.svg`. That fallback is a guess keyed on the folder name: it 404s to a placeholder for plugins that aren't on the directory, so it is not a "listed on wp.org" signal — `openstation_wporg_slug` is. Filterable via `openstation_plugins_window_icon_url`. |
 | `openstation_size_kb` | `int\|null` | Disk footprint of the plugin folder in kilobytes. Cached 6h. |
 | `openstation_auto_update` | `{ enabled: bool, forced: bool\|null, supported: bool }` | Per-row auto-update state, mirroring Core's "Automatic Updates" column on `plugins.php`. `enabled` reflects the `auto_update_plugins` site option (overridden by `forced` when a filter pins it). `forced` is `null` for user-toggleable rows, `true`/`false` when the `auto_update_plugin` filter has pinned the state. `supported` is true when the `update_plugins` transient has an entry for the plugin (either `response` or `no_update`); when false the JS hides the toggle — premium / private plugins that never check in with wp.org. The toggle itself routes through Core's `wp_ajax_toggle_auto_updates` handler (action `toggle-auto-updates`, `'updates'` nonce). |
 
@@ -2906,7 +2929,7 @@ apply_filters( 'openstation_plugins_featured_response', array $payload, array $c
 
 Replaces the chromeless `edit-comments.php` iframe with a moderation queue native window: Pending / All / Spam / Trash / Mine tabs, bulk approve / spam / trash with an 8-second undo, inline reply editor, keyboard moderation (`j/k/a/s/d/r/e/u/?`), spam-confidence chip per row, author-insights drawer.
 
-Per-user opt-in Beta (default `false`) via OS Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
+Per-user opt-in Beta (default `false`) via OpenStation Settings → Features → Beta features → `nativeCommentsEnabled`. URL remap claims `edit-comments.php`; `comment.php?action=editcomment&c=…` still falls through to the chromeless iframe path.
 
 ### `openstation_comments_window_user_can_register` — Stable *(filter)*
 
@@ -2992,7 +3015,7 @@ Fires after the Comments AI moderation toggle is changed via `POST /desktop-mode
 
 ## Native Users window
 
-Reuses the Posts window bundle (`mode: 'users'` config discriminator) to replace the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. Per-user opt-in Beta (default `false`) via OS Settings → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — the REST routes re-validate every capability and per-target permission before mutating anything.
+Reuses the Posts window bundle (`mode: 'users'` config discriminator) to replace the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. Per-user opt-in Beta (default `false`) via OpenStation Settings → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — the REST routes re-validate every capability and per-target permission before mutating anything.
 
 ### `openstation_users_window_user_can_register` — Stable *(filter)*
 
@@ -4406,7 +4429,7 @@ How many themes are announced to the shell. Default 24.
 
 ## AI Agents
 
-Opt-in module behind the `agents` extended option (OS Settings →
+Opt-in module behind the `agents` extended option (OpenStation Settings →
 Features → Extended options, admin-only, default off). While the flag
 is off none of these hooks exist — `includes/agents/bootstrap.php`
 skips every module file.

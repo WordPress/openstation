@@ -12,7 +12,7 @@ This is an evolving feature. Phase 0 (this document's current scope) establishes
 | 2 | Custom-table schema + REST + store *(landed)* |
 | 3 | Desktop UI: tile rendering, in-desktop drag *(landed)* |
 | 4 | Wallpaper context menu (replaces "minimize all" click) *(landed)* |
-| 5 | OS Settings → File Associations tab *(landed)* |
+| 5 | OpenStation Settings → File Associations tab *(landed)* |
 | 6 | Folder sharing (private / users / roles / all) + Heartbeat sync *(landed)* |
 | 7 | Drag from the Trash onto the desktop *(landed as "Pin to desktop"; HTML5 drag UX is a follow-up)* |
 
@@ -177,7 +177,7 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 
 ## Openers — the file-association layer *(Phase 1)*
 
-A **file opener** answers the question "what should happen when the user double-clicks a `post`?" It's the desktop-OS equivalent of an `.app` association. Multiple openers can register for the same file type; the user picks their preferred one (in OS Settings → File Associations, Phase 5), and the JS side resolves on every double-click.
+A **file opener** answers the question "what should happen when the user double-clicks a `post`?" It's the desktop-OS equivalent of an `.app` association. Multiple openers can register for the same file type; the user picks their preferred one (in OpenStation Settings → File Associations, Phase 5), and the JS side resolves on every double-click.
 
 ### Resolution chain
 
@@ -188,13 +188,13 @@ A **file opener** answers the question "what should happen when the user double-
 
 ### Registering an opener
 
-PHP-side metadata (the entry the OS Settings tab will show, and the entry the user-meta override is validated against):
+PHP-side metadata (the entry the OpenStation Settings tab will show, and the entry the user-meta override is validated against):
 
 ```php
 openstation_register_file_opener( 'classic-editor', array(
     'label'      => __( 'Classic Editor', 'classic-editor' ),
     'types'      => array( 'post' ),
-    'is_default' => false,        // user must opt in via OS Settings
+    'is_default' => false,        // user must opt in via OpenStation Settings
     'sort'       => 20,
 ) );
 ```
@@ -249,7 +249,7 @@ The dispatcher fires `os.files.opening` before invoking the handler and `os.file
 
 ### User associations
 
-The current user's `{ type → openerId }` choices live in user meta `desktop_mode_file_associations`. Phase 5's OS Settings tab is the canonical writer; reading happens automatically — the shell config seeds `wp.os.files.getUserAssociations()` on boot, and `setUserAssociations()` is called once during init.
+The current user's `{ type → openerId }` choices live in user meta `desktop_mode_file_associations`. Phase 5's OpenStation Settings tab is the canonical writer; reading happens automatically — the shell config seeds `wp.os.files.getUserAssociations()` on boot, and `setUserAssociations()` is called once during init.
 
 Plugins that ship a "force-this-opener-for-role-X" feature should hook the resolution filter rather than touching user meta:
 
@@ -509,7 +509,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | `new-note` | New note | Pins an empty paper note where the click landed and focuses its editor. Contributed by the pinned-notes layer via the filter below, not by the files layer. |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
-| `os-settings` | OS Settings | Opens the OS Settings window. |
+| `os-settings` | OpenStation Settings | Opens the OpenStation Settings window. |
 
 ### Plugin extension
 

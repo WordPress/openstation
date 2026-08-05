@@ -74,7 +74,15 @@ export interface InstalledPlugin {
 		deactivate: boolean;
 		delete: boolean;
 	};
-	/** wp.org icon URL derived from the slug; null when the plugin isn't on the .org repo. */
+	/**
+	 * The plugin's slug on the WordPress.org directory, or `null` when
+	 * it isn't listed there.
+	 */
+	openstation_wporg_slug?: string | null;
+	/**
+	 * Icon URL: A local file from the plugin's own folder when it
+	 * ships one, otherwise the `ps.w.org` SVN URL for the folder slug.
+	 */
 	openstation_icon_url?: string | null;
 	/** Disk size of the plugin folder in kilobytes (null when unreadable). */
 	openstation_size_kb?: number | null;

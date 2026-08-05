@@ -514,8 +514,7 @@ export class NotesLayer {
 		if ( payload.truncated ) {
 			// The server capped the delta — anything beyond the cap
 			// would be skipped forever now that the high-water mark
-			// advanced. Re-hydrate from the full list instead (same
-			// recovery the sticky-notes layer uses).
+			// advanced. Re-hydrate from the full list instead.
 			void this.reloadFromServer();
 		}
 	}

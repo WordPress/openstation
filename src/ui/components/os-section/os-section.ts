@@ -1,5 +1,5 @@
 /**
- * `<os-section>` — titled panel used throughout OS Settings.
+ * `<os-section>` — titled panel used throughout OpenStation Settings.
  *
  * Usage:
  *
@@ -22,7 +22,7 @@ export class OsSection extends Component {
 	static help = {
 		title: 'Section',
 		summary:
-			'Titled panel with heading + description + a body slot. The canonical OS Settings section wrapper.',
+			'Titled panel with heading + description + a body slot. The canonical OpenStation Settings section wrapper.',
 		status: 'stable',
 		props: [
 			{

@@ -699,6 +699,25 @@ body.os-active {
 	--os-ui-notice-info-border: rgba(194, 241, 241, 0.28);
 	--os-ui-notice-neutral-bg: rgba(255, 251, 255, 0.06);
 	--os-ui-notice-neutral-border: rgba(255, 251, 255, 0.14);
+	/*
+	 * A link inside a notice reads Nebula, the same value `--os-link`
+	 * gives every other shell link — NOT the accent.
+	 *
+	 * Undeclared, the base fell through to `--wp-admin-theme-color`,
+	 * which OpenStation Settings → Appearance writes inline on `<html>`
+	 * from the accent picker. That made the one piece of text a notice
+	 * most needs the user to read take whichever hue they chose for
+	 * focus rings. An accent is an identity colour; legibility on a dark
+	 * surface is not something it can promise, so the link stops asking
+	 * it to. Hover lifts to Starlight, and both ends stay in the palette.
+	 *
+	 * These are consumed from a DOCUMENT-tree rule in `desktop.css`, not
+	 * only from the component's own `::slotted( a )`. See the comment
+	 * there: a slotted link is a document-tree element, so wp-admin's
+	 * bare `a` rule outranks anything the shadow root says about it.
+	 */
+	--os-ui-notice-link: #ec9bff;
+	--os-ui-notice-link-hover: #fffbff;
 	--os-ui-badge-danger-bg: rgba(255, 90, 90, 0.16);
 	--os-ui-badge-success-bg: rgba(147, 240, 198, 0.16);
 	--os-ui-badge-warning-bg: rgba(248, 242, 182, 0.16);

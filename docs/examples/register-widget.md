@@ -336,4 +336,4 @@ and edge handles; column-docked widgets get a bottom-edge handle only.
 
 - [Hooks reference — `openstation_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
 - [JavaScript reference — `wp.os.registerWidget()`](../javascript-reference.md) — the client-side equivalent.
-- [Starter widget source](../../src/plugins/starter-widget/index.ts) — a heavily commented skeleton covering every pattern above in a single working widget. It only appears in the add-widget picker when the current user has "Enable developer mode" turned on (OS Settings → Features) — regular users don't see it.
+- [Starter widget source](../../src/plugins/starter-widget/index.ts) — a heavily commented skeleton covering every pattern above in a single working widget. It only appears in the add-widget picker when the current user has "Enable developer mode" turned on (OpenStation Settings → Features) — regular users don't see it.

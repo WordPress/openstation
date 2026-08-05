@@ -117,7 +117,7 @@ src/
 │                            #   script loader.
 ├── widgets/                 # Registry, layer, picker, frame
 │                            #   (movable/resizable chrome), state.
-├── settings/                # OS Settings panel: state, sections,
+├── settings/                # OpenStation Settings panel: state, sections,
 │                            #   media REST client.
 ├── ui/
 │   ├── core/                # The tagged-template renderer + base
@@ -156,7 +156,7 @@ the file itself is tracked. In particular:
 - `src/window-manager/desktops.ts`, `arrange.ts`, `overview.ts`,
   `snap.ts`, `geometry.ts` — package-private helpers of the
   `WindowManager` class.
-- `src/settings/sections/*` — OS Settings internals.
+- `src/settings/sections/*` — OpenStation Settings internals.
 - `src/widgets/frame.ts`, `state.ts` — widget-layer internals.
 
 Class fields prefixed with `_` (e.g. `_externalTabs`, `_activeDesktopId`)

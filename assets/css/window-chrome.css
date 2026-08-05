@@ -366,7 +366,7 @@
  * theme could not reach them: these declarations land on the WINDOW
  * element, so a `--os-ui-btn-color` set at the shell root loses to
  * them, and the same names also drive buttons outside the title bar
- * (sticky notes, the desk chrome) that a theme usually does not want
+ * (pinned notes, the desk chrome) that a theme usually does not want
  * to move in the same stroke.
  *
  * `--os-titlebar-btn-focused-*` mirrors the unfocused set
@@ -647,14 +647,51 @@
 	overflow-y: hidden;
 	scrollbar-width: thin;
 	/*
-	 * Soft edge fades so overflowing tabs tell the user "scroll for
-	 * more." The mask is always applied — when the strip doesn't
-	 * overflow, the faded ends are empty area beyond the last tab so
-	 * the cosmetic is invisible. When it DOES overflow, the last-
-	 * visible tab fades under the mask, creating the affordance.
 	 * `overscroll-behavior-x: contain` keeps horizontal trackpad
 	 * swipes inside the strip instead of triggering browser back.
 	 */
+	overscroll-behavior-x: contain;
+}
+
+/*
+ * Soft edge fades so overflowing tabs tell the user "scroll for more."
+ *
+ * Each fade is painted ONLY on an edge that is actually hiding a tab.
+ * `observeTabOverflow()` in `src/window/tabs.ts` stamps `data-overflow`
+ * with the physical edges currently covered — `left`, `right`, `both`,
+ * or the attribute dropped when the strip fits — and re-measures on
+ * scroll, on resize, and when tabs are added or removed.
+ *
+ * This used to be one unconditional mask on both ends. The reasoning
+ * was that on a strip that fits, the faded ends land past the last tab
+ * and so fade nothing. That held on the pre-brand light strip, where
+ * the tab bar and the title bar above it were near enough the same
+ * near-white that a mask over empty area was invisible. It stopped
+ * holding on the station: the strip is Obsidian over a darker window
+ * edge, so masking its ends to transparent punches two grey smudges
+ * into every window's submenu, whether or not there is anything to
+ * scroll to. A permanent affordance for a state that is usually false
+ * is not an affordance — it is decoration that lies.
+ */
+.os-window__tabs[ data-overflow='left' ] {
+	mask-image: linear-gradient( to right, transparent 0, #000 16px );
+	-webkit-mask-image: linear-gradient( to right, transparent 0, #000 16px );
+}
+
+.os-window__tabs[ data-overflow='right' ] {
+	mask-image: linear-gradient(
+		to right,
+		#000 calc(100% - 16px),
+		transparent 100%
+	);
+	-webkit-mask-image: linear-gradient(
+		to right,
+		#000 calc(100% - 16px),
+		transparent 100%
+	);
+}
+
+.os-window__tabs[ data-overflow='both' ] {
 	mask-image: linear-gradient(
 		to right,
 		transparent 0,
@@ -669,15 +706,7 @@
 		#000 calc(100% - 16px),
 		transparent 100%
 	);
-	overscroll-behavior-x: contain;
 }
-
-/*
- * When JS assigns the --has-overflow marker (future enhancement), the
- * mask is stronger. For now the CSS-only mask is subtle enough to be
- * invisible on non-overflowing strips — mask cut-offs land outside the
- * flex content.
- */
 
 .os-window__tab {
 	flex-shrink: 0;
