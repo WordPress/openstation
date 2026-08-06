@@ -205,7 +205,7 @@ function openstation_content_graph_register_window() {
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
 			// Labels the "Open in <site>" action on the detail panel,
-			// which hands off to the site folder window.
+			// which hands off to the WP Explorer window.
 			'siteName'       => openstation_site_title(),
 			'postTypes'      => openstation_content_graph_post_types(),
 		),

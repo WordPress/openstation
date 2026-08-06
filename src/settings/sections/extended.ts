@@ -143,7 +143,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 					<p class="os-ext__hint">
 						${ __(
-							'Adds an Agents section to My WordPress: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.',
+							'Adds an Agents section to WP Explorer: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.',
 						) }
 					</p>
 

@@ -35,6 +35,10 @@ if ( typeof window !== 'undefined' && ! window.localStorage ) {
 import '../../src/ui/components/os-toast/os-toast';
 import '../../src/ui/components/os-confirm-dialog/os-confirm-dialog';
 import '../../src/ui/components/os-context-menu/os-context-menu';
+// The shell's built-in modals (create-folder / rename, web link)
+// slot these two for their controls.
+import '../../src/ui/components/os-button/os-button';
+import '../../src/ui/components/os-text-field/os-text-field';
 
 /**
  * Pre-register the lazy `window-system[.min].js` factory.

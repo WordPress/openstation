@@ -230,7 +230,7 @@ The chromeless bridge intercepts every same-origin `<a href="/wp-admin/…">` cl
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `os-iframe-admin-link` | iframe → parent | `{ url, label }` | Posted from the chromeless bridge's link interceptor for every admin-internal click that survived the modifier-key / target / download filters. `label` is the clicked link's visible text (falling back to its `title` / `aria-label`, truncated to 80 chars). The bridge `preventDefault`s the click first; the parent owns the navigation. |
+| `os-iframe-admin-link` | iframe → parent | `{ url, label, newContext }` | Posted from the chromeless bridge's link interceptor for every admin-internal click that survived the modifier-key / target / download filters. `label` is the clicked link's visible text (falling back to its `title` / `aria-label`, truncated to 80 chars). `newContext` is true when the link named another browsing context, and bars the parent from driving the source window with it. The bridge `preventDefault`s the click first; the parent owns the navigation. |
 
 Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispatch` in `desktop.ts`):
 
@@ -240,7 +240,13 @@ Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispat
    Both slugs count because they diverge as soon as the iframe navigates in place: clicking the Menus tab in the Appearance window points the iframe at `nav-menus.php` while the window keeps `baseId: themes-php`. Matching only `baseId` would classify the Menus screen's own tab links as cross-page and spawn a fresh window per click. The live slug only ever *widens* the same-page set — it never turns an in-place navigation into a new window, so a window that has navigated away still treats a link back to its landing page as in-page.
 3. **Cross-slug click** — slug matches neither the source window's `baseId` nor its live URL. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
 
-Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
+Modifier-key clicks (cmd / ctrl / shift / alt, middle-click) and links carrying a `download` attribute short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab / save path runs unchanged.
+
+A `target` is read the same way, with one exception. `target="_blank"` on a same-origin `/wp-admin/` URL means "open this admin screen without losing the one I'm on", and inside the shell that is another OpenStation window rather than a bare browser tab — so those links are claimed like any other admin link and reach the parent as `os-iframe-admin-link`, carrying `newContext: true`. That flag bars both in-place branches above: the one thing a `_blank` asks for is that the page it was clicked on survives, and moving that window is worse than the browser tab it used to get. The case that forced this: the block editor's revisions sidebar renders **Open classic revisions screen** (`revision.php?revision=N`) through `<ExternalLink>`, which hard-codes `target="_blank"`, so the click ejected the user into a chrome-free wp-admin tab — and under the PWA that tab is inside the app's own scope, so it relaunched the whole app.
+
+Only when the destination is a **different wp-admin file**, though. Whether two URLs on the same file are the same "page" is a question about the slug rules above, and the iframe has no access to those, so a `_blank` to `admin.php?page=x&tab=b` from `admin.php?page=x` keeps opening a browser tab. Fewer of these become windows than could, and none of them can eat the page underneath.
+
+Every other target still yields to the browser: `_top` / `_parent` are a deliberate "replace the whole shell" and are a page's only escape hatch, a named target (`wp-preview-4`) is an author reusing one specific tab across clicks which a window can't honour, and any target on a non-admin URL is a real new tab with no window to open into.
 
 Anchors carrying core's `aria-button-if-js` class are left alone. That class is core's marker for "this anchor is really an in-page button, the href is only the no-JS fallback", and the script that owns the button (media-grid.js, wp-lists, tags.js, updates.js) `preventDefault`s it in bubble phase. Since the bridge's interceptor is capture-phase it would otherwise win the race and hand the user the fallback URL: on the Media Library grid, clicking **Add Media File** opened a window for `media-new.php` while media-grid.js expanded the inline uploader in the Media window behind it.
 
@@ -250,9 +256,23 @@ Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-sty
 
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `openstation_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `os-iframe-admin-form-submit` message.
 
+### Window titles the shell had to guess
+
+`label` is the link's **visible** text: `.screen-reader-text` / `.hidden` descendants are dropped and whitespace is collapsed before it ships. Core routinely pairs a terse visible label with a longer screen-reader one inside a single anchor — the classic post editor's revisions link is `<span aria-hidden="true">Browse</span><span class="screen-reader-text">Browse revisions</span>` — and reading the whole `textContent` titled its window "Browse Browse revisions".
+
+A label is still only a guess. When no dock tile owns the destination, the parent opens the window with `titleFromPage`, and the window replaces the guess with the destination page's own screen name (`document.title` up to WP's ` ‹ ` separator) on every iframe load. Link text is written for someone already looking at the page it sits on, so it reads badly as a window name: "Browse" says nothing about revisions, while the page calls itself "Revisions". A locale that re-punctuates admin-header's title format falls through to the whole document title rather than being cut in the wrong place, and an `os-title-change` from the iframe still wins over both.
+
+### Screens that hand off when they're done
+
+A window opened on `revision.php` closes itself when its iframe leaves that screen, and its destination goes through the routing above — so the editor window the user opened Revisions *from* is focused and pointed at the restored post, rather than the Revisions window quietly becoming a second, and the original staying stale.
+
+Restoring a revision is a `document.location` assignment in `wp-admin/js/revisions.js`, so no click ever reaches the bridge; WP's redirect just lands wherever the frame happens to be. The URL forwarded is the one navigation timing recorded, not `location.href` — `wp-admin/js/common.js` strips WP's removable query args (`message`, `settings-updated`, …) via `replaceState` on DOM ready, which is *before* the parent's `load` listener runs, and `message=5` is what renders the "Post restored to revision from …" notice.
+
+This is deliberately a short list (`HANDOFF_SCREENS` in `src/window/iframe-bridge.ts`) and not a general "any window that crosses slugs hands off" rule: the submenu tab strip re-points windows across slugs on purpose (Appearance → Menus), and closing a window out from under that click would be hostile. A screen belongs here only when leaving it means the screen is finished.
+
 ## Activity-footprint launcher inside chromeless iframes — Stable
 
-The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `openstation_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the pinned **site folder** native window, *without* closing the Users list.
+The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `openstation_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the pinned **WP Explorer** native window, *without* closing the Users list.
 
 This deliberately does NOT reuse the admin-link path above: that path closes the source iframe on a native-window remap hit (it models a navigation *away*). A row action is an auxiliary *peek*, so it gets its own message.
 
@@ -266,9 +286,9 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `os-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-os-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the site folder window on that user's footprint route and leaves the source window open. |
+| `os-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-os-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the WP Explorer window on that user's footprint route and leaves the source window open. |
 
-**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.os.openWindow`. Cold-start safe: the site-folder bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.os.myWordpress.openUserFootprint`.
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.os.openWindow`. Cold-start safe: the WP Explorer bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.os.myWordpress.openUserFootprint`.
 
 ## Public hooks
 
@@ -331,7 +351,7 @@ A separate channel from the connection bridge. Where the connection bridge carri
 
 The drag bridge stores a single `DragBridgePayload` at any given time. Two ways the payload gets in:
 
-- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from site-folder media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
+- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from WP Explorer media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
 - **Iframe-side drag source** — an iframe postMessages `{ type: 'os-drag-start', payload }` to the parent. The bridge stores the payload and broadcasts `DRAG_BRIDGE_EVENTS.START` as a `CustomEvent` on `document` so other shell modules can react.
 
 ### Receiver protocol

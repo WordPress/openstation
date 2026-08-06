@@ -4,10 +4,11 @@
  *
  * A desktop holds objects, not a mention of the OS you're already
  * standing in, and not the name of the data structure behind a view.
- * So: the site's folder is titled after the site, deleted things go to
- * the Trash (WordPress's own vocabulary), and the link map is a
- * Corkboard. Module slugs, window ids, and hook names keep their
- * original spelling — those are the plugin API and must not move.
+ * So: the file explorer is WP Explorer, its root folder is named after
+ * the site, deleted things go to the Trash (WordPress's own
+ * vocabulary), and the link map is a Corkboard. Module slugs, window
+ * ids, and hook names keep their original spelling — those are the
+ * plugin API and must not move.
  *
  * @package WordPress
  * @subpackage UnitTests

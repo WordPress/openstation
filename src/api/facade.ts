@@ -40,6 +40,7 @@ import { showToast } from '../toast';
 import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
+import { selectionApi } from '../selection';
 import { createSharedStore } from '../shared-store';
 import { osConfirm } from '../os-confirm';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
@@ -229,7 +230,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'connect', 'getConnection',
 	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
+	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
+	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
 	'getWindowConfig', 'debug',
@@ -728,6 +730,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		devtools,
 		createSharedStore,
 		presence: presenceApi,
+		selection: selectionApi,
 		activity,
 		heartbeat,
 		showToast,

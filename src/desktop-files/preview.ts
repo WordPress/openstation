@@ -879,3 +879,46 @@ export function renderPreviewEmpty(): HTMLElement {
 	);
 	return wrap;
 }
+
+/**
+ * Summary node for a multi-selection — what the right pane shows
+ * instead of a preview when the user holds several items. Previewing
+ * one arbitrary member of the set would be worse than saying nothing:
+ * it reads as "this is the thing you selected" when it isn't.
+ *
+ * Lists the type breakdown because that is exactly what determines
+ * which actions the context menu will offer.
+ *
+ * @public
+ */
+export function renderSelectionSummary(
+	items: ReadonlyArray< { file: { type: string } } >,
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-my-wordpress__preview-empty';
+
+	const heading = document.createElement( 'strong' );
+	heading.textContent = sprintf(
+		/* translators: %d: number of selected items. */
+		__( '%d items selected', 'desktop-mode' ),
+		items.length,
+	);
+	wrap.appendChild( heading );
+
+	const counts = new Map< string, number >();
+	for ( const item of items ) {
+		const type = item.file?.type || 'item';
+		counts.set( type, ( counts.get( type ) ?? 0 ) + 1 );
+	}
+	const breakdown = Array.from( counts.entries() )
+		.sort( ( a, b ) => b[ 1 ] - a[ 1 ] || a[ 0 ].localeCompare( b[ 0 ] ) )
+		.map( ( [ type, n ] ) => `${ n } × ${ type }` )
+		.join( ' · ' );
+	if ( breakdown ) {
+		const detail = document.createElement( 'div' );
+		detail.className = 'os-files-preview__selection-breakdown';
+		detail.textContent = breakdown;
+		wrap.appendChild( detail );
+	}
+	return wrap;
+}

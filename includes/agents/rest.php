@@ -19,7 +19,7 @@
  *   GET    /desktop-mode/v1/agents/roles            assignable roles (writers only)
  *
  * Permissions: reads and invokes default to `edit_posts` (the same
- * audience as the site folder window hosting the UI); writes require
+ * audience as the WP Explorer window hosting the UI); writes require
  * `edit_users` (agents are real users — managing them is user
  * management). All three are filterable.
  *
@@ -296,7 +296,7 @@ function openstation_agents_rest_list() {
 		}
 	}
 	$response = rest_ensure_response( $out );
-	// Standard collection headers — the site folder's root grid derives
+	// Standard collection headers — WP Explorer's root grid derives
 	// its folder counts from `X-WP-Total`.
 	$response->header( 'X-WP-Total', (string) count( $out ) );
 	$response->header( 'X-WP-TotalPages', '1' );

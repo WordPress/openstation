@@ -354,7 +354,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		}
 	};
 
-	// Re-probe provider status whenever OpenStation Settings regains focus, so the
+	// Re-probe provider status whenever OpenStation Preferences regains focus, so the
 	// toggle gates/un-gates without a reload after the user connects OR
 	// disconnects a provider in Settings → Connectors (or any other path).
 	// Guarded by an in-flight flag and torn down when the section leaves the DOM.
@@ -480,7 +480,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				<os-section
 					heading=${ __( 'Features' ) }
 					description=${ __(
-						'Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Settings title bar to see when a change has been saved.',
+						'Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.',
 					) }
 				>
 					${ shellCfg?.aiAssistant?.available
@@ -619,7 +619,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.',
+								'Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on WP Explorer tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.',
 							) }
 						</p>
 					</div>
@@ -631,7 +631,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OpenStation Settings → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.',
+								'Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OpenStation Preferences → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.',
 							) }
 						</p>
 					</div>

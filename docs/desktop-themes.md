@@ -173,7 +173,7 @@ there. Legacy picks one value per name, which is what naming a palette
 reproducing each of them. Nothing moves and nothing changes contrast.
 
 **It does not take back your accent.** The accent colour is a user
-setting (OpenStation Settings → Appearance), written as an inline style that
+setting (OpenStation Preferences → Appearance), written as an inline style that
 outranks every stylesheet, so it is yours rather than any theme's.
 Legacy leaves it alone deliberately — pick `WordPress Blue` there if
 you want the old accent back with the old palette.
@@ -293,7 +293,7 @@ Optional, and **individually droppable** — see
 |---|---|
 | `version`, `author` | Plain text, ≤32 / ≤120 chars. |
 | `description` | Plain text, ≤500 chars. |
-| `preview` | Path to an image shown on the theme card in OpenStation Settings. |
+| `preview` | Path to an image shown on the theme card in OpenStation Preferences. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
 | `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
 | `recommendedOsSettings` | Layout preferences to seed on first activation — see [Recommended OS settings](#recommended-os-settings). |
@@ -483,8 +483,25 @@ Read `assets/css/variables.css` for the full set.
 > defaults to the dark `#1d2327`, which would read as a dark blink on a
 > light theme.
 
+> **The icon grid is a token set, and it is one grid.**
+> `--os-tile-w` / `--os-tile-h`, `--os-grid-gap-x` / `--os-grid-gap-y`
+> and `--os-grid-padding` describe every surface that lays out
+> placements: the wallpaper, folder windows, and each canvas in the
+> WP Explorer. Widen a gap and all of them widen together — that is
+> the point of them being one declaration.
+>
+> The **cell pitch is derived, never declared**: `cell = tile + gap`.
+> The layout maths can't read CSS, so `src/desktop-files/grid.ts`
+> mirrors these numbers and `tests/vitest/grid-metrics.test.ts` parses
+> the stylesheet to prove the mirror is faithful. A theme retuning
+> them shifts the *visual* spacing; stored icon coordinates snap to
+> the new pitch the next time a tile is dragged or the canvas is
+> sorted, so expect a one-time reshuffle rather than an instant
+> re-layout. `--os-tile-w-large` / `--os-tile-h-large` do the same job
+> for image-led sections (`tileSize: 'large'`).
+
 > **`--os-window-radius` is not one of them in practice.**
-> The Window-corners preset in OpenStation Settings writes that property as an
+> The Window-corners preset in OpenStation Preferences writes that property as an
 > inline style on the shell root, which outranks any stylesheet rule,
 > so a theme declaring it in `tokens` has no effect on windows. The
 > user's corner preference stays the user's. If your frame artwork
@@ -508,7 +525,7 @@ Read `assets/css/variables.css` for the full set.
 #### Window reveal
 
 One token owns the surface a window's content is uncovered from once it
-finishes loading (OpenStation Settings → Effects → "Window reveal"):
+finishes loading (OpenStation Preferences → Effects → "Window reveal"):
 
 | Token | Role |
 |---|---|
@@ -563,14 +580,14 @@ colour in place.
 
 **Duration** is **undeclared by default** and accepts `620ms`, `0.62s`,
 or a bare `620` (read as ms). It sets the house pace for every reveal
-the user might pick — but a user who has chosen a speed in OpenStation Settings
+the user might pick — but a user who has chosen a speed in OpenStation Preferences
 → Effects out-ranks it, the same way the window-corner preset out-ranks
 a theme's `--os-window-radius`. Their choice stays theirs.
 
 #### Tooltips
 
 Two shell tokens own every tooltip in the shell — the dock tile
-tooltip, the content-graph satellite tooltip, and the My WordPress
+tooltip, the content-graph satellite tooltip, and WP Explorer
 entity hover card:
 
 | Token | Role |
@@ -638,7 +655,7 @@ matters if your iconset uses
 with the glyph colour, so this single token drives dashicons, your own
 artwork, and the hover transition together.
 
-System tiles — OpenStation Settings, the recycle bin, and their neighbours —
+System tiles — OpenStation Preferences, the recycle bin, and their neighbours —
 read the same `--os-dock-icon-color`. Unthemed they sit one
 notch brighter than menu tiles; once you name a colour they join the
 rest rather than staying stranded white.
@@ -799,7 +816,7 @@ archive. Both face caps are filterable
 ## Wallpapers
 
 ** A theme may ship wallpapers. Each one appears in
-**OpenStation Settings → Wallpaper** as an ordinary pick, labelled
+**OpenStation Preferences → Wallpaper** as an ordinary pick, labelled
 `<theme name> - (theme)` — or `<theme name>: <label> - (theme)` when
 the theme ships more than one.
 
@@ -852,7 +869,7 @@ become the wallpaper ids.
 | `path` | **Required.** Image inside your ZIP (absolute URL for a code theme). |
 | `label` | Shown in the picker after the theme name. Recommended once you ship more than one. |
 | `id` | Explicit id. See the stability note below. |
-| `description` | Shown in OpenStation Settings when this wallpaper is selected. Falls back to the theme's description. |
+| `description` | Shown in OpenStation Preferences when this wallpaper is selected. Falls back to the theme's description. |
 | `size` | `cover` (default), `contain`, `auto`, or lengths. |
 | `repeat` | `no-repeat` (default) or any `background-repeat` keyword. |
 | `position` | `center center` (default), keywords, lengths, or percentages. |
@@ -906,7 +923,7 @@ activates it — and never again.**
 - **A later change by the user always wins.** Pick the theme, put the
   dock back to compact, re-pick the theme — it stays compact.
 
-The way back is the user's to take: **OpenStation Settings → Themes** shows an
+The way back is the user's to take: **OpenStation Preferences → Themes** shows an
 **Apply &lt;theme&gt;'s recommended layout and effects** button for the
 active theme when it recommends something, and that is the only path
 that applies a recommendation a second time. It sets the settings and
@@ -932,7 +949,7 @@ still apply.
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
-| `accent` | A registered accent-swatch id (OpenStation Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
+| `accent` | A registered accent-swatch id (OpenStation Preferences → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
 
 **`accent` is the one recommendation a theme cannot express any other
 way, and most themes want it.** The accent is a user setting written as
@@ -1402,7 +1419,7 @@ saying.** Concretely:
 
 ## Installing and activating
 
-**Install:** OpenStation Settings → Themes → drop a `.zip` on the upload tile.
+**Install:** OpenStation Preferences → Themes → drop a `.zip` on the upload tile.
 Requires `manage_options` by default (filterable via
 `openstation_desktop_theme_upload_capability`).
 

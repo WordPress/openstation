@@ -3,7 +3,7 @@
 **Status:** Experimental · **Since:** 0.9.7
 
 A [desktop theme](../desktop-themes.md) reskins the whole shell. Site
-admins normally install one by uploading a ZIP in OpenStation Settings →
+admins normally install one by uploading a ZIP in OpenStation Preferences →
 Themes, but a plugin can ship one directly — same sanitizer, same
 compiler, same constraints. The only difference is that your assets
 are absolute URLs you already serve instead of files inside an archive.
@@ -82,7 +82,7 @@ add_action( 'init', function () {
             ),
         ),
 
-        // Wallpapers a user can pick in OpenStation Settings → Wallpaper.
+        // Wallpapers a user can pick in OpenStation Preferences → Wallpaper.
         // Activating the theme does NOT switch to them — see the
         // "It is a pick, not an act" note in the theme docs.
         'wallpapers'  => array(
@@ -160,7 +160,7 @@ add_action( 'init', function () {
 ```
 
 Drop your images under `theme/` next to the plugin file and you're
-done. The theme appears in OpenStation Settings → Themes for every user on the
+done. The theme appears in OpenStation Preferences → Themes for every user on the
 site the moment the plugin activates — no reload, because the
 `serverDesktopThemes` payload rides the existing live-refresh channel.
 
@@ -233,7 +233,7 @@ wp.hooks.addFilter(
   seeded on a user's first activation of your theme and never
   re-asserted. If you're testing it and nothing happens, you have
   already been seeded — use the **Apply &lt;theme&gt;'s recommended
-  layout** button in OpenStation Settings → Themes, or
+  layout** button in OpenStation Preferences → Themes, or
   `wp.os.desktopThemes.applyRecommendedOsSettings()`.
 - **Licensing is yours.** A bundled font is redistributed to every
   visitor of every site that installs the theme. Ship one whose licence

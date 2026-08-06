@@ -254,6 +254,31 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /* ---------------------------------------------------------------
+ * Revisions screen — page-scoped.
+ *
+ * "← Go to editor" is a back button for a screen the user navigated
+ * into. Here they didn't: the editor is open in its own window
+ * behind this one, and closing this window is the way back.
+ *
+ * The revision tooltip is positioned upward from the bottom of
+ * `.revisions-control-frame` and clears the top of the viewport only
+ * thanks to the screen H1, which chromeless hides. An iframe can't
+ * overflow its box, so the space has to be given back: 48px covers
+ * both slider modes.
+ *
+ * The padding goes on `.revisions`, not on the frame — the frame is
+ * the positioned ancestor for the compare-mode checkbox and the
+ * tooltip, so padding it would leave both behind at the old top edge.
+ * --------------------------------------------------------------- */
+.os-chromeless.revision-php .wrap > h1.long-header + a {
+	display: none;
+}
+
+.os-chromeless.revision-php .revisions {
+	padding-top: 48px;
+}
+
+/* ---------------------------------------------------------------
  * Dashboard welcome panel
  * The default 16px top margin pushes the panel down and creates a
  * visible gap at the top of the iframe. Collapse it in chromeless

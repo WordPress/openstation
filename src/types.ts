@@ -87,6 +87,21 @@ export interface WindowConfig {
 	parentUrl?: string;
 	/** Window title displayed in the title bar. */
 	title: string;
+	/**
+	 * True when {@link WindowConfig.title} is a guess rather than a
+	 * name the shell knows: no dock tile owned the destination, so the
+	 * opener fell back to the clicked link's text (or, failing that,
+	 * the derived slug). Windows opened from the dock, the menu, the
+	 * session, or a plugin's `registerWindow` never carry it.
+	 *
+	 * A guessed title is replaced with the destination page's own
+	 * screen name on every iframe load. Link text is written for
+	 * someone already looking at the page it sits on, so it reads
+	 * badly once it's a window name — the classic editor's revisions
+	 * link says "Browse", which as a window title says nothing about
+	 * revisions.
+	 */
+	titleFromPage?: boolean;
 	/** Dashicon class for the window icon (e.g., 'dashicons-admin-post'). */
 	icon: string;
 	/** Initial x position in pixels. */

@@ -3,12 +3,15 @@
  *
  * One transcription of the mark, in one place, for every surface that
  * needs to *be* OpenStation rather than merely sit inside it — the
- * OpenStation Settings tile today, the rebrand announcement beside it.
- * The path is copied stop-for-stop from the brand's `logomark.svg`
- * (the refined upright circle-with-a-blob-cut), so retracing it means
- * editing this constant and nothing else.
+ * rebrand announcement today. The path is copied stop-for-stop from the
+ * brand's `logomark.svg` (the refined upright circle-with-a-blob-cut),
+ * so retracing it means editing this constant and nothing else.
  *
- * ## Why the icon is a bare silhouette and not the app chip
+ * ## Why shell art is a bare silhouette and not the app chip
+ *
+ * No tile wears the mark now — OpenStation Preferences wears a gear —
+ * but the rule below is what every piece of shell art is drawn against,
+ * so it is written down here where the mark is.
  *
  * The brand's chip rule says that when referring to OpenStation as a
  * product, the mark sits on its Void app tile and never bare. A dock
@@ -51,24 +54,6 @@ const LOGOMARK_PATH =
 
 /** Starlight — the mark's flat fill where a surface cannot supply one. */
 const STARLIGHT = '#fffbff';
-
-/**
- * The mark as standalone SVG source, drawn in `currentColor`.
- *
- * The `currentColor` is load-bearing, not a default: it is the
- * declaration that routes this art down the mask path in both painters.
- * Replacing it with a literal silently turns the icon back into a
- * background-image in the title bar and into a solid blob in the dock.
- */
-export const OPENSTATION_MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><path d="${ LOGOMARK_PATH }" fill="currentColor"/></svg>`;
-
-/**
- * The same art as a base64 data URI, ready for `renderIcon()` and for
- * any `icon:` field in the dock / desktop-icon / window APIs.
- */
-export const OPENSTATION_MARK_ICON = `data:image/svg+xml;base64,${ btoa(
-	OPENSTATION_MARK_SVG,
-) }`;
 
 /**
  * The mark with the brand's flat Starlight fill, sized by CSS.

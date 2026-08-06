@@ -12,11 +12,11 @@ Components are **side-effect registered** at import time, per bundle, into the p
 2. Add the class export to `src/ui/components/index.ts`.
 3. Add the tag to `src/ui/components/tags.ts` (the single source of `OS_COMPONENT_TAGS`, re-exported by `index.ts`).
 4. Add a row to this table.
-5. Document via the `static help = { … }` block on the class — surfaced in OpenStation Settings → Components live.
+5. Document via the `static help = { … }` block on the class — surfaced in OpenStation Preferences → Components live.
 
 ## Browsing the kit at runtime
 
-**OpenStation Settings → Components** (admin-only) renders this table live: every tag in `OS_COMPONENT_TAGS`, with its props, slots, events, parts, CSS custom properties, and a working example rendered from the `static help.example` template.
+**OpenStation Preferences → Components** (admin-only) renders this table live: every tag in `OS_COMPONENT_TAGS`, with its props, slots, events, parts, CSS custom properties, and a working example rendered from the `static help.example` template.
 
 The tab side-effect-imports the whole component barrel so the list is the full kit rather than "whatever other bundles happen to have loaded" — the per-bundle registration model described above means an unimported component reaches no custom-element registry, and a tab that only enumerated registered tags silently under-reported itself.
 
@@ -56,6 +56,54 @@ The search box above the list filters on the flattened descriptor, not just the 
 | `<os-category-picker>` | `OsCategoryPicker` | `os-category-picker/os-category-picker.ts` | Category tree picker. |
 | `<os-role-picker>` | `OsRolePicker` | `os-role-picker/os-role-picker.ts` | WP role select. |
 | `<os-user-search>` | `OsUserSearch` | `os-user-search/os-user-search.ts` | Live user autocomplete (`/desktop-mode/v1/files/users/search` REST). |
+
+### A raw `<input>` in the shell is not a styling choice
+
+The desktop shell is a real `wp-admin` document, so WordPress's own
+`forms.css` is loaded and reaches every raw control you put in it:
+
+```css
+input[ type="text" ], … , select, textarea {
+    background-color: #fff;
+    color: #1e1e1e;
+    border: 1px solid #949494;
+}
+```
+
+That selector weighs **(0,1,1)** — one type plus one attribute — which
+outranks any single class of your own. A field you had already
+tokenized still renders as a white core-chrome box, and on a dark
+surface (a dialog, an overlay, a themed panel) the result is a bright
+rectangle whose contents are painted by whichever rule *did* win. If
+the control also pre-selects its text, the shell's `::selection` —
+tuned for dark surfaces — lands light ink on a pale wash over that
+white, and the value is effectively unreadable.
+
+The form components above live in shadow DOM, where `forms.css` cannot
+follow, and they resolve the palette and the active desktop theme
+instead. **Use them.** Raising specificity works too and is what
+`.os-window__body :is( input[ type ], … )` in `window-chrome.css` does
+for admin markup we don't control — but for markup you *are* writing,
+the component is the fix that stays fixed.
+
+Slotting a component into a dark light-DOM surface, re-point the token
+family the way `<os-modal>` does on its host, so the field resolves
+dark-surface colours:
+
+```css
+.my-plugin-dialog {
+    --os-ui-fg:              var( --os-ui-modal-text, #f0f0f1 );
+    --os-ui-fg-muted:        var( --os-ui-modal-text-muted, #a7aaad );
+    --os-ui-border:          var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
+    --os-window-bg:          var( --os-ui-modal-field-bg, #2c3338 );
+    --os-ui-button-bg-hover: var( --os-ui-modal-button-bg-hover, rgba( 255, 255, 255, 0.08 ) );
+}
+```
+
+Read a palette-owned `--os-ui-modal-*` name first in every one of
+them. Declaring the literal directly would make the name unreachable
+from a desktop theme — the same trap described in
+[`desktop-themes.md`](desktop-themes.md).
 
 ## Buttons & actions
 
@@ -100,7 +148,7 @@ The search box above the list filters on the flattened descriptor, not just the 
 | --- | --- | --- | --- |
 | `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. |
 | `<os-log>` | `OsLog` | `os-log/os-log.ts` | Virtualized streaming log container. |
-| `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and the site folder). |
+| `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and WP Explorer). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
 
 ## Tabs & navigation
 
@@ -217,4 +265,4 @@ The remaining classes are internal-only for now — subpath / source-path import
 
 ## Per-component help
 
-Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OpenStation Settings → Components tab iterates `OS_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.
+Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OpenStation Preferences → Components tab iterates `OS_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.

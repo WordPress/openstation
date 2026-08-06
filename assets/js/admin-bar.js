@@ -84,10 +84,26 @@
 	// then mirror the persisted snap preference. Polled rather than
 	// hooked because the inline script ships with the admin bar
 	// (loads early) and the shell's WindowManager arrives later.
+	//
+	// Bounded, because a poll with no exit is a timer that runs for
+	// the life of the page. The manager lands within a frame or two of
+	// the shell bundle executing; if it has not arrived in ten seconds
+	// it is not coming — the shell failed to boot, or a plugin
+	// surfaced this admin bar somewhere the shell never loads — and
+	// repainting one checkbox does not justify waking the event loop
+	// sixteen times a second until the tab closes. Giving up leaves
+	// the server-rendered box exactly as it is, which is what polling
+	// forever achieves anyway.
+	var SNAP_POLL_INTERVAL_MS = 60;
+	var SNAP_POLL_TIMEOUT_MS = 10000;
+	var snapPollWaited = 0;
 	function initFromManager() {
 		var wm = getManager();
 		if ( ! wm || typeof wm.isSnapEnabled !== 'function' ) {
-			window.setTimeout( initFromManager, 60 );
+			snapPollWaited += SNAP_POLL_INTERVAL_MS;
+			if ( snapPollWaited < SNAP_POLL_TIMEOUT_MS ) {
+				window.setTimeout( initFromManager, SNAP_POLL_INTERVAL_MS );
+			}
 			return;
 		}
 		paintSnapCheckbox( wm.isSnapEnabled() );
@@ -184,11 +200,11 @@
 			if ( on ) {
 				fsBtn.classList.add( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.exitFullscreen || 'Exit fullscreen';
-				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.exitTitle || 'Exit fullscreen' );
+				repaintLabel( fsLink, fsI18n.exitTitle || 'Exit fullscreen' );
 			} else {
 				fsBtn.classList.remove( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.enterFullscreen || 'Fullscreen';
-				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.enterTitle || 'Enter fullscreen' );
+				repaintLabel( fsLink, fsI18n.enterTitle || 'Enter fullscreen' );
 			}
 		}
 		fsBtn.addEventListener( 'click', function( e ) {
@@ -258,8 +274,8 @@
 	 * Re-anchors a native `title` attribute to a `data-desktop-tooltip`
 	 * data attribute on the same node, plus mirrors it to `aria-label`
 	 * so assistive tech keeps the description. Pure-CSS tooltip then
-	 * renders from the data attribute via the `[data-desktop-tooltip]
-	 * .ab-item::after` rule in admin-bar.php.
+	 * renders from the data attribute via the
+	 * `.ab-item[ data-desktop-tooltip ]::after` rule in admin-bar.php.
 	 */
 	function wireTooltipsFor( ids ) {
 		for ( var i = 0; i < ids.length; i++ ) {
@@ -275,6 +291,30 @@
 				link.setAttribute( 'aria-label', label );
 			}
 		}
+	}
+
+	/**
+	 * Relabels a button whose action changed under it (today: Fullscreen,
+	 * which flips between enter and exit). Writing only `title` is wrong
+	 * once `wireTooltipsFor()` has run: the visible tooltip renders from
+	 * `data-desktop-tooltip` and the accessible name comes from
+	 * `aria-label`, so a stale pair describes the opposite action while
+	 * the freshly re-added `title` brings the native OS tooltip back on
+	 * top of ours (GH#493).
+	 *
+	 * `title` is only touched when the node is still wearing one, which
+	 * makes this safe to call before wiring as well — the label lands on
+	 * `title` and `wireTooltipsFor()` re-anchors it from there.
+	 */
+	function repaintLabel( link, label ) {
+		if ( ! link ) return;
+		if ( link.hasAttribute( 'title' ) ) {
+			link.setAttribute( 'title', label );
+		}
+		if ( link.hasAttribute( 'data-desktop-tooltip' ) ) {
+			link.setAttribute( 'data-desktop-tooltip', label );
+		}
+		link.setAttribute( 'aria-label', label );
 	}
 
 	function wireShortcutsPopover( btn, data ) {

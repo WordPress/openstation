@@ -1,5 +1,5 @@
 /**
- * Site folder — Agents entity-kind renderer.
+ * WP Explorer — Agents entity-kind renderer.
  *
  * Master-detail over `/desktop-mode/v1/agents`: agent list on the
  * left; Define / Tools / Triggers panes on the right; create flow;
@@ -111,7 +111,7 @@ function agentsConfig(): AgentsSectionConfig {
 }
 
 /**
- * Whether the site folder still exposes a Users section. The
+ * Whether WP Explorer still exposes a Users section. The
  * GitHub-style contributions view is a route under it, so the
  * "View contributions" button hides when a filter dropped the entity.
  */

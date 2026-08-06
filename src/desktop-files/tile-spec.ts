@@ -197,6 +197,45 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 }
 
 /**
+ * Ghost for a multi-item drag: the grabbed tile, with the rest of the
+ * set implied by a stack behind it and stated by a count badge.
+ *
+ * A ghost showing only the grabbed tile would say "you are moving one
+ * thing" while five move — and the count is the part users check
+ * before releasing over the Trash.
+ *
+ * @public
+ */
+export function buildDragStackGhost(
+	tile: HTMLElement,
+	count: number,
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-drag-stack';
+	const rect = tile.getBoundingClientRect();
+	wrap.style.width = `${ rect.width }px`;
+	wrap.style.height = `${ rect.height }px`;
+
+	const clone = tile.cloneNode( true ) as HTMLElement;
+	clone.removeAttribute( 'id' );
+	// The clone is decoration — strip the state that would make it
+	// read as selected or interactive inside the ghost.
+	clone.removeAttribute( 'selected' );
+	clone.removeAttribute( 'aria-selected' );
+	clone.classList.remove( `${ TILE_CLASS }--selected` );
+	clone.style.left = '0px';
+	clone.style.top = '0px';
+	clone.style.position = 'relative';
+	wrap.appendChild( clone );
+
+	const badge = document.createElement( 'span' );
+	badge.className = 'os-drag-stack__count';
+	badge.textContent = String( count );
+	wrap.appendChild( badge );
+	return wrap;
+}
+
+/**
  * Drag-out payload — what the drag manager carries when the user
  * lifts a tile and drops it on a desktop-files surface (wallpaper,
  * folder window). The receiving drop target creates a placement
@@ -238,19 +277,31 @@ export interface TileDragOutPayload {
  *
  * @public
  *
- * @param tile    Tile element from `buildTileFromSpec`.
- * @param payload What the drop target receives.
- * @param onClick Optional hook fired on a sub-threshold gesture
- *                (pointerdown without a drag). Most My WordPress
- *                builders use it to hide the hover tooltip.
+ * @param tile            Tile element from `buildTileFromSpec`.
+ * @param payload         What the drop target receives.
+ * @param onClick         Optional hook fired on a sub-threshold gesture
+ *                        (pointerdown without a drag). Most My WordPress
+ *                        builders use it to hide the hover tooltip.
+ * @param opts            Multi-drag options.
+ * @param opts.resolveSet Asked, at lift time, for every entity the
+ *                        gesture should carry — the surface's current
+ *                        selection when this tile is part of it. Return an
+ *                        empty array (or omit it) for a single-item drag.
  */
 export function attachTileDragOut(
 	tile: HTMLElement,
 	payload: TileDragOutPayload,
 	onClick?: () => void,
+	opts: { resolveSet?: () => TileDragOutPayload[] } = {},
 ): void {
 	tile.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
 		if ( e.button !== 0 ) {
+			return;
+		}
+		// A modifier means the user is composing a selection, not
+		// picking the tile up — see the same guard in the desktop
+		// layer's `attachTileDrag`.
+		if ( e.shiftKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
 		const dragManager = getDragManager();
@@ -258,6 +309,10 @@ export function attachTileDragOut(
 			return;
 		}
 		const rect = tile.getBoundingClientRect();
+		// The surface answers "is this tile part of a selection, and
+		// if so what's in it?" — the tile itself has no idea.
+		const set = opts.resolveSet?.() ?? [];
+		const many = set.length > 1 ? set : [];
 		dragManager.start( {
 			payload: {
 				type: 'shortcut',
@@ -269,10 +324,26 @@ export function attachTileDragOut(
 					icon: payload.icon,
 					entityId: payload.entityId,
 					bridgePayload: payload.bridgePayload,
+					// Only present for a real multi-drag, so single-item
+					// payloads stay byte-identical to what every
+					// existing drop target was written against.
+					...( many.length > 0 ? { items: many } : {} ),
 				} satisfies ShortcutDragData,
 				ghost: {
 					offsetX: e.clientX - rect.left,
 					offsetY: e.clientY - rect.top,
+					element:
+						many.length > 0
+							? buildDragStackGhost( tile, many.length )
+							: undefined,
+					hint:
+						many.length > 0
+							? {
+								accept: `Add ${ many.length } items here`,
+								reject: `Can’t drop ${ many.length } items here`,
+								neutral: `Dragging ${ many.length } items`,
+							}
+							: undefined,
 				},
 			},
 			origin: e,

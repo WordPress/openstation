@@ -173,7 +173,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _adminUrl: string;
 	private _currentStream: EventSource | null = null;
 	/**
-	 * Reads the user's preferred live-progress transport from OpenStation Settings.
+	 * Reads the user's preferred live-progress transport from OpenStation Preferences.
 	 * Defaults to `'off'` when the shell hasn't wired one in — the
 	 * conservative choice for hosts that may block SSE.
 	 */
@@ -931,7 +931,7 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.disabled = true;
 		this._showThinking( 'Thinking…' );
 
-		// Two transports, picked by the user in OpenStation Settings → AI Settings:
+		// Two transports, picked by the user in OpenStation Preferences → AI Settings:
 		//   - 'sse' — real-time progress ticks via EventSource. Preferred
 		//     UX, but some hosts (locked-down shared environments,
 		//     buffering proxies) drop the stream and surface as "Lost
@@ -1167,7 +1167,7 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Open OpenStation Settings on the Features tab so the user can turn the
+	 * Open OpenStation Preferences on the Features tab so the user can turn the
 	 * assistant on in one click from the "assistant is off" error state.
 	 * Closes the assistant first so the settings window isn't hidden behind
 	 * it, and drops the stored focus target so closing doesn't bounce
@@ -1575,8 +1575,8 @@ export class AiAssistant implements AiAssistantApi {
 		this._resultsEl.hidden = false;
 
 		// The "assistant is off" case is recoverable in one click, so we
-		// turn the "OpenStation Settings → Features" mention in the message into an
-		// inline link that opens OpenStation Settings on the Features tab. Keyed on
+		// turn the "OpenStation Preferences → Features" mention in the message into an
+		// inline link that opens OpenStation Preferences on the Features tab. Keyed on
 		// the server error code, not the wording, so the affordance survives
 		// copy tweaks; the regex spans whatever sits between the two anchors
 		// (arrow, spacing) and falls back to a trailing link if absent.
@@ -1584,7 +1584,7 @@ export class AiAssistant implements AiAssistantApi {
 			const escaped = this._esc( message );
 			const linkify = ( text: string ) =>
 				`<button type="button" class="os-ai__settings-link">${ text }</button>`;
-			const phrase = /OpenStation Settings.*?Features/;
+			const phrase = /OpenStation Preferences.*?Features/;
 			const withLink = phrase.test( escaped )
 				? escaped.replace( phrase, ( match ) => linkify( match ) )
 				: `${ escaped } ${ linkify( 'Features' ) }`;

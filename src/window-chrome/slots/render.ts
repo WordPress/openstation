@@ -110,6 +110,26 @@ function restoreDefault(
 }
 
 /**
+ * Re-sync the restored title span with the window's current title.
+ *
+ * The snapshot this slot restores from was cloned at construction, so
+ * it carries the title the window OPENED with. Every other slot's
+ * default is fixed markup and restoring it verbatim is right; the
+ * title's is derived state, and putting the construction-time copy
+ * back silently undid every `setTitle` since. A repaint fires
+ * whenever the window-slot registry mutates, so activating a plugin
+ * that registers a slot was enough to rename every open window back
+ * to whatever it started as — with `config.title` still reporting the
+ * new one.
+ */
+function syncRestoredTitle( host: HTMLElement, title: string ): void {
+	const titleEl = host.querySelector< HTMLElement >( '.os-window__title' );
+	if ( titleEl ) {
+		titleEl.textContent = title;
+	}
+}
+
+/**
  * Paint every slot on a window. Returns a teardown function the
  * Window class invokes on re-paint and on close.
  *
@@ -171,6 +191,9 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		} else {
 			restoreDefault( host, slotDefaults );
+			if ( name === 'title' ) {
+				syncRestoredTitle( host, win.config.title );
+			}
 		}
 
 		// Step 2 — registry entries (skipped when override === null,

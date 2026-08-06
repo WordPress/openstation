@@ -16,7 +16,7 @@ The goal is to make one decision up front: **the shell's extension contract is t
 
 ## Non-goals
 
-- Migrating the shell itself (drag, resize, z-order, dock, pointer capture) to Web Components or any framework. The shell is imperative by nature; a reconciler or shadow-DOM lifecycle would add overhead and actively fight the global CSS-variable theming the OpenStation Settings panel depends on.
+- Migrating the shell itself (drag, resize, z-order, dock, pointer capture) to Web Components or any framework. The shell is imperative by nature; a reconciler or shadow-DOM lifecycle would add overhead and actively fight the global CSS-variable theming the OpenStation Preferences panel depends on.
 - Bundling React, Vue, or Lit. WordPress Core already ships React; plugins that want it already use it. Anything else the plugin brings itself.
 - Replacing iframe windows. Every existing admin page continues to render through the iframe path — native windows are additive, not a migration.
 
@@ -127,7 +127,7 @@ For diagnostics, `wp.os.debug.window( id )` (read-only) reports the load path, w
 
 ### JS: `wp.os.registerWindow()`
 
-For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OpenStation Settings):
+For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OpenStation Preferences):
 
 ```js
 // Shipped shape: a single def object (including `id`); returns a
@@ -243,7 +243,7 @@ The `ctx` object also exposes the window-scoped channel pair (`ctx.window.send` 
 
 ## Why not just…
 
-**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OpenStation Settings flips `--wp-admin-theme-color` on `#os-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
+**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OpenStation Preferences flips `--wp-admin-theme-color` on `#os-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
 
 **…ship a React-first API?** React is already available everywhere in WP, so plugins that want React can use it — inside a Web Component, inside a render callback, inside a dynamic module. Making the shell itself React-first would force every non-React plugin to ship a reconciler they don't need. The DOM is the common denominator; standardize on it.
 
@@ -338,11 +338,11 @@ export default function mount( container ) {
 }
 ```
 
-Same window, same dock icon, same OpenStation Settings theming — different authoring style. The shell never learns the difference.
+Same window, same dock icon, same OpenStation Preferences theming — different authoring style. The shell never learns the difference.
 
 ## Migration plan for what already exists
 
-*(Proposal-era section.)* When this was written, the only native-window content was the **OpenStation Settings** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Trash, site folder, Corkboard, and user-edit windows — all registered via `openstation_register_window()`. The original plan for OpenStation Settings:
+*(Proposal-era section.)* When this was written, the only native-window content was the **OpenStation Preferences** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Trash, WP Explorer, Corkboard, and user-edit windows — all registered via `openstation_register_window()`. The original plan for OpenStation Preferences:
 
 1. Stay a render callback (it's shell-internal, no reason to register it through the public registry).
 2. Gain the same `ctx` lifecycle wiring other plugins get — currently it does nothing on focus / blur / resize; with `ctx` it can, e.g., re-check `matchMedia` on resize if we ever add a "follow system dark mode" toggle.

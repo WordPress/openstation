@@ -20,6 +20,15 @@ import { addAction, applyFilters, removeAction } from '../hooks';
 import { FILE_DROP_HOOKS } from '../os-file-drop/hooks';
 import type { DropUploadResult } from '../os-file-drop/types';
 import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import {
+	attachSelection,
+	closeActionMenu,
+	openActionMenu,
+	resolveCommonActions,
+	type SelectionAction,
+	type SelectionHandle,
+} from '../selection';
+import { copyLinksAction, mediaBulkActions } from './bulk-actions';
 import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../toast';
 import type { EntityRenderHost } from './kind-registry';
@@ -49,8 +58,13 @@ interface MediaListContext {
 	tiles: HTMLElement;
 	sentinel: HTMLElement;
 	preview: HTMLElement;
+	/** Id of the ONE selected item, or null for none / several. */
 	selectedId: number | null;
 	selectedTile: HTMLElement | null;
+	/** Multi-selection controller for the media grid. */
+	selection: SelectionHandle | null;
+	/** Every rendered item, by id — the menu builds actions from these. */
+	itemsById: Map< number, MediaListItem >;
 	statusBar: HTMLElement;
 	entity: MyWordPressEntity;
 	host: EntityRenderHost;
@@ -79,7 +93,26 @@ function describeCount( ctx: MediaListContext ): string {
 	);
 }
 
+/**
+ * Right pane with nothing — or several things — selected. A media
+ * preview is about one file; a set gets a count instead.
+ */
+function renderMediaPreviewEmpty( selectedCount: number ): HTMLElement {
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent =
+		selectedCount > 1
+			? sprintf(
+				// translators: %d: number of selected media items.
+				__( '%d files selected', 'desktop-mode' ),
+				selectedCount,
+			)
+			: __( 'Select a media item to preview it here.', 'desktop-mode' );
+	return empty;
+}
+
 function paintStatus( ctx: MediaListContext ): void {
+	const selectedCount = ctx.selection?.keys().length ?? 0;
 	const segments: StatusBarSegment[] = [
 		{
 			id: 'count',
@@ -88,6 +121,18 @@ function paintStatus( ctx: MediaListContext ): void {
 			sort: 10,
 		},
 	];
+	if ( selectedCount > 0 ) {
+		segments.push( {
+			id: 'selection',
+			label: sprintf(
+				// translators: %d: number of selected media items.
+				__( '%d selected', 'desktop-mode' ),
+				selectedCount,
+			),
+			align: 'end',
+			sort: 5,
+		} );
+	}
 	if ( ctx.totalPages > 1 ) {
 		segments.push( {
 			id: 'page',
@@ -144,30 +189,70 @@ function buildMediaTile(
 		],
 	} );
 
-	attachTileDragOut( tile, {
-		kind: 'attachment',
-		ref: String( media.id ),
-		title: titleText,
-		icon: dashiconForMime( media.mime_type ),
-		// Cross-frame bridge payload — lets the Gutenberg drop-
-		// receiver build a `core/image` / `core/video` / `core/audio`
-		// / `core/file` block when this tile is dropped on an open
-		// editor iframe. The full-size source URL is the right block
-		// attribute regardless of mime; the receiver picks the
-		// concrete block from the MIME prefix.
-		bridgePayload: {
+	attachTileDragOut(
+		tile,
+		{
 			kind: 'attachment',
-			id: media.id,
-			url: media.source_url,
+			ref: String( media.id ),
 			title: titleText,
-			alt: stripTags( media.alt_text ?? '' ),
-			mime: media.mime_type,
-			thumbnailUrl: thumbUrl || undefined,
-			sizes: media.media_details?.sizes,
+			icon: dashiconForMime( media.mime_type ),
+			// Cross-frame bridge payload — lets the Gutenberg drop-
+			// receiver build a `core/image` / `core/video` / `core/audio`
+			// / `core/file` block when this tile is dropped on an open
+			// editor iframe. The full-size source URL is the right block
+			// attribute regardless of mime; the receiver picks the
+			// concrete block from the MIME prefix.
+			bridgePayload: {
+				kind: 'attachment',
+				id: media.id,
+				url: media.source_url,
+				title: titleText,
+				alt: stripTags( media.alt_text ?? '' ),
+				mime: media.mime_type,
+				thumbnailUrl: thumbUrl || undefined,
+				sizes: media.media_details?.sizes,
+			},
 		},
-	} );
+		undefined,
+		{
+			// Multi-drag: drop a selection of files on a folder and
+			// every one of them is filed.
+			resolveSet: () => {
+				const keys = ctx.selection?.keys() ?? [];
+				if ( keys.length < 2 ) {
+					return [];
+				}
+				return keys
+					.map( ( key ) => ctx.itemsById.get( Number( key ) ) )
+					.filter( ( m ): m is MediaListItem => !! m )
+					.map( ( m ) => ( {
+						kind: 'attachment',
+						ref: String( m.id ),
+						title:
+							stripTags( m.title.rendered ) ||
+							__( '(no title)', 'desktop-mode' ),
+						icon: dashiconForMime( m.mime_type ),
+						entityId: ctx.entity.id,
+						bridgePayload: {
+							kind: 'attachment' as const,
+							id: m.id,
+							url: m.source_url,
+							title:
+								stripTags( m.title.rendered ) ||
+								__( '(no title)', 'desktop-mode' ),
+							alt: stripTags( m.alt_text ?? '' ),
+							mime: m.mime_type,
+							sizes: m.media_details?.sizes,
+						},
+					} ) );
+			},
+		},
+	);
 
-	tile.addEventListener( 'click', () => selectTile( ctx, tile, media ) );
+	// Selection is the controller's job; the tile only registers its
+	// shape so a multi-selection menu can build actions for it.
+	ctx.itemsById.set( media.id, media );
+	tile.dataset.mediaId = String( media.id );
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		ctx.host.navigate( {
@@ -180,7 +265,13 @@ function buildMediaTile(
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
 		e.preventDefault();
-		openMediaTileMenu( ctx, tile, media, titleText, {
+		e.stopPropagation();
+		// Finder rule: right-clicking outside the selection replaces
+		// it; inside it, the set stands and the menu acts on all of it.
+		if ( ! ctx.selection?.model.has( String( media.id ) ) ) {
+			ctx.selection?.model.set( [ String( media.id ) ] );
+		}
+		openMediaTileMenu( ctx, media, {
 			x: ( e as MouseEvent ).clientX,
 			y: ( e as MouseEvent ).clientY,
 		} );
@@ -194,47 +285,54 @@ interface MediaTileMenuOption {
 	label: string;
 	icon: string;
 	danger?: boolean;
+	/** Lower sorts first. Only consulted for a multi-selection. */
+	sort?: number;
+	multi?: boolean;
+	bulkLabel?: ( count: number ) => string;
 	onSelect?: ( () => void ) | null;
 }
 
 /**
- * Build + position the right-click menu for a media tile. Mirrors
- * `openTileMenu()` in `my-wordpress/index.ts` — same `<os-context-menu>`
- * shape, same dismiss handling — so plugin authors only have to learn
- * one pattern.
+ * Actions for ONE media item, with the shared
+ * `os.my-wordpress.tile-context-menu` filter applied (kind
+ * `'attachment'`). `resolveCommonActions` calls this once per
+ * selected tile and intersects the results.
+ *
+ * "Open file in new tab" is deliberately single-item: browsers block
+ * a burst of `window.open` calls as a popup storm, so a multi-item
+ * version would silently open one file and drop the rest.
  */
-function openMediaTileMenu(
+function buildMediaActions(
 	ctx: MediaListContext,
-	tile: HTMLElement,
 	media: MediaListItem,
 	titleText: string,
-	pos: { x: number; y: number },
-): void {
-	closeAnyMediaTileMenu();
-	selectTile( ctx, tile, media );
-
-	const menu = document.createElement( 'os-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'os-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
-
+): SelectionAction< MediaListItem >[] {
 	const base: MediaTileMenuOption[] = [
 		{
 			id: 'navigate-into',
 			label: __( 'Navigate into', 'desktop-mode' ),
 			icon: 'dashicons-category',
+			sort: 10,
 		},
 		{
 			id: 'open-source',
 			label: __( 'Open file in new tab', 'desktop-mode' ),
 			icon: 'dashicons-external',
+			sort: 20,
 		},
 		{
 			id: 'delete',
 			label: __( 'Delete permanently', 'desktop-mode' ),
 			icon: 'dashicons-trash',
+			sort: 90,
 			danger: true,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected media items.
+					__( 'Delete %d files permanently', 'desktop-mode' ),
+					n,
+				),
 		},
 	];
 
@@ -253,93 +351,133 @@ function openMediaTileMenu(
 	);
 	const finalOptions = Array.isArray( options ) ? options : base;
 
-	for ( const o of finalOptions ) {
-		const opt = document.createElement( 'os-context-menu-option' );
-		( opt as HTMLElement ).dataset.menuItemId = o.id;
-		opt.setAttribute( 'value', o.id );
-		opt.setAttribute( 'icon', o.icon );
-		if ( o.danger ) {
-			opt.setAttribute( 'danger', '' );
-		}
-		opt.textContent = o.label;
-		menu.appendChild( opt );
-	}
+	// Core's own media row actions that survive a set — Detach, plus
+	// the shared "Copy link". Built apart from `finalOptions` because
+	// they carry closures and batched runners.
+	const extras: SelectionAction< MediaListItem >[] = [
+		...mediaBulkActions(
+			{
+				onChanged: ( ids ) => {
+					// Detach doesn't remove the tile, but it changes
+					// what the preview says about the file.
+					for ( const id of ids ) {
+						const item = ctx.itemsById.get( id );
+						if ( item ) {
+							item.post = 0;
+						}
+					}
+					const selected = ctx.selection?.keys() ?? [];
+					if ( selected.length === 1 ) {
+						const item = ctx.itemsById.get(
+							Number( selected[ 0 ] ),
+						);
+						if ( item ) {
+							previewSelectedMedia( ctx, item );
+						}
+					}
+				},
+			},
+			media,
+		),
+		copyLinksAction(
+			media,
+			( m ) => m.source_url,
+			__( 'Copy file URL', 'desktop-mode' ),
+		),
+	];
 
-	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeAnyMediaTileMenu();
-		if ( detail.id === 'navigate-into' ) {
-			ctx.host.navigate( {
-				kind: 'media-detail',
-				entityId: ctx.entity.id,
-				mediaId: media.id,
-				mediaTitle: titleText,
-			} );
-			return;
+	const mapped = finalOptions.map( ( option ) => {
+		const action: SelectionAction< MediaListItem > = {
+			id: option.id,
+			label: option.label,
+			icon: option.icon,
+			sort: option.sort,
+			danger: option.danger,
+			multi: option.multi,
+			bulkLabel: option.bulkLabel,
+			onClick: () => {
+				if ( option.id === 'navigate-into' ) {
+					ctx.host.navigate( {
+						kind: 'media-detail',
+						entityId: ctx.entity.id,
+						mediaId: media.id,
+						mediaTitle: titleText,
+					} );
+					return;
+				}
+				if ( option.id === 'open-source' ) {
+					window.open(
+						media.source_url,
+						'_blank',
+						'noopener,noreferrer',
+					);
+					return;
+				}
+				if ( option.id === 'delete' ) {
+					void confirmDeleteMedia( ctx, media, titleText );
+					return;
+				}
+				if ( typeof option.onSelect === 'function' ) {
+					try {
+						option.onSelect();
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							`[my-wordpress/media] tile-context-menu '${ option.id }' onSelect threw:`,
+							err,
+						);
+					}
+				}
+			},
+		};
+		if ( option.id === 'delete' ) {
+			action.bulk = ( items ) => deleteManyMedia( ctx, items );
 		}
-		if ( detail.id === 'open-source' ) {
-			window.open( media.source_url, '_blank', 'noopener,noreferrer' );
-			return;
-		}
-		if ( detail.id === 'delete' ) {
-			void confirmDeleteMedia( ctx, tile, media, titleText );
-			return;
-		}
-		const match = finalOptions.find( ( o ) => o.id === detail.id );
-		if ( match && typeof match.onSelect === 'function' ) {
-			try {
-				match.onSelect();
-			} catch ( err ) {
-				// eslint-disable-next-line no-console
-				console.error(
-					`[my-wordpress/media] tile-context-menu '${ detail.id }' onSelect threw:`,
-					err,
-				);
-			}
-		}
+		return action;
 	} );
 
-	document.body.appendChild( menu );
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
+	return [ ...mapped, ...extras ].sort( ( a, b ) => {
+		const sa = typeof a.sort === 'number' ? a.sort : 100;
+		const sb = typeof b.sort === 'number' ? b.sort : 100;
+		return sa - sb;
+	} );
+}
 
-	queueMicrotask( () => {
-		const onDocPointerDown = ( ev: PointerEvent ) => {
-			if ( ev.target instanceof Node && menu.contains( ev.target ) ) {
-				return;
-			}
-			closeAnyMediaTileMenu();
-		};
-		const onDocKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeAnyMediaTileMenu();
-			}
-		};
-		document.addEventListener( 'pointerdown', onDocPointerDown, true );
-		document.addEventListener( 'keydown', onDocKey );
-		menu.addEventListener( 'tile-menu-closed', () => {
-			document.removeEventListener(
-				'pointerdown',
-				onDocPointerDown,
-				true,
-			);
-			document.removeEventListener( 'keydown', onDocKey );
-		} );
+/** Open the media context menu for the current selection. */
+function openMediaTileMenu(
+	ctx: MediaListContext,
+	media: MediaListItem,
+	pos: { x: number; y: number },
+): void {
+	closeAnyMediaTileMenu();
+
+	const ids = ( ctx.selection?.keys() ?? [] )
+		.map( ( k ) => parseInt( k, 10 ) )
+		.filter( ( n ) => Number.isFinite( n ) );
+	const targets = ids
+		.map( ( id ) => ctx.itemsById.get( id ) )
+		.filter( ( m ): m is MediaListItem => !! m );
+	const items = targets.length > 0 ? targets : [ media ];
+
+	const actions = resolveCommonActions( items, ( item ) =>
+		buildMediaActions(
+			ctx,
+			item,
+			stripTags( item.title.rendered ) ||
+				__( '(no title)', 'desktop-mode' ),
+		),
+	);
+
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.media-tile',
+		dataset: { mediaIds: items.map( ( m ) => m.id ).join( ',' ) },
 	} );
 }
 
 function closeAnyMediaTileMenu(): void {
+	closeActionMenu();
 	document
 		.querySelectorAll( 'os-context-menu.os-my-wordpress__menu' )
 		.forEach( ( n ) => {
@@ -348,9 +486,76 @@ function closeAnyMediaTileMenu(): void {
 		} );
 }
 
+/**
+ * Delete several media items as one action: one confirm, parallel
+ * REST, one toast. Permanent deletion has no Undo, which is exactly
+ * why it must not ask N times — a user clicking through N dialogs
+ * stops reading them by the third.
+ */
+async function deleteManyMedia(
+	ctx: MediaListContext,
+	items: readonly MediaListItem[],
+): Promise< void > {
+	const ok = await osConfirm( {
+		title: __( 'Delete media?', 'desktop-mode' ),
+		message: sprintf(
+			// translators: %d: number of selected media items.
+			__(
+				'%d files will be permanently deleted. This cannot be undone.',
+				'desktop-mode',
+			),
+			items.length,
+		),
+		confirmLabel: __( 'Delete', 'desktop-mode' ),
+		cancelLabel: __( 'Cancel', 'desktop-mode' ),
+		danger: true,
+	} );
+	if ( ! ok ) {
+		return;
+	}
+
+	const results = await Promise.allSettled(
+		items.map( ( item ) => deleteMediaItem( item.id ) ),
+	);
+	let deleted = 0;
+	let failed = 0;
+	results.forEach( ( result, index ) => {
+		if ( result.status === 'fulfilled' ) {
+			deleted += 1;
+			const tile = ctx.tiles.querySelector< HTMLElement >(
+				`[data-media-id="${ items[ index ].id }"]`,
+			);
+			if ( tile ) {
+				removeMediaFromList( ctx, tile, items[ index ].id );
+			}
+		} else {
+			failed += 1;
+		}
+	} );
+	ctx.selection?.refresh();
+
+	showToast( {
+		message:
+			failed > 0
+				? sprintf(
+					// translators: 1: number deleted, 2: number that failed.
+					__(
+						'%1$d files deleted · %2$d could not be deleted',
+						'desktop-mode',
+					),
+					deleted,
+					failed,
+				)
+				: sprintf(
+					// translators: %d: number of files deleted.
+					__( '%d files deleted.', 'desktop-mode' ),
+					deleted,
+				),
+	} );
+}
+
 async function confirmDeleteMedia(
 	ctx: MediaListContext,
-	tile: HTMLElement,
 	media: MediaListItem,
 	titleText: string,
 ): Promise< void > {
@@ -370,7 +575,13 @@ async function confirmDeleteMedia(
 	}
 	try {
 		await deleteMediaItem( media.id );
-		removeMediaFromList( ctx, tile, media.id );
+		const tile = ctx.tiles.querySelector< HTMLElement >(
+			`[data-media-id="${ media.id }"]`,
+		);
+		if ( tile ) {
+			removeMediaFromList( ctx, tile, media.id );
+		}
+		ctx.selection?.refresh();
 		showToast( { message: __( 'Media deleted.', 'desktop-mode' ) } );
 	} catch ( err ) {
 		const message =
@@ -405,22 +616,15 @@ function removeMediaFromList(
 	paintStatus( ctx );
 }
 
-function selectTile(
+/**
+ * Paint the right pane for the ONE selected media item. Selection
+ * itself (and the `selected` attribute on tiles) belongs to the
+ * controller; this is only the preview half.
+ */
+function previewSelectedMedia(
 	ctx: MediaListContext,
-	tile: HTMLElement,
 	media: MediaListItem,
 ): void {
-	// Selected state lives on the `selected` attribute — `<os-tile>`
-	// derives the `--selected` class from it on every `_paint()`.
-	// Toggling the class directly would be wiped out by the next
-	// repaint (label edit, thumbnail swap, hover-title toggle…).
-	if ( ctx.selectedTile ) {
-		ctx.selectedTile.removeAttribute( 'selected' );
-	}
-	tile.setAttribute( 'selected', '' );
-	ctx.selectedTile = tile;
-	ctx.selectedId = media.id;
-
 	const titleText =
 		stripTags( media.title.rendered ) || __( '(no title)', 'desktop-mode' );
 	renderMediaPreview( ctx.preview, media, {
@@ -522,6 +726,8 @@ export function renderMediaList(
 		preview: right,
 		selectedId: null,
 		selectedTile: null,
+		selection: null,
+		itemsById: new Map(),
 		statusBar,
 		entity,
 		host,
@@ -529,6 +735,35 @@ export function renderMediaList(
 		query: initialQuery,
 		abort: null,
 	};
+
+	ctx.selection = attachSelection( tiles, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: entity.id,
+		keyOf: ( el ) => el.dataset.mediaId ?? null,
+		onChange: ( keys ) => {
+			const ids = keys
+				.map( ( k ) => parseInt( k, 10 ) )
+				.filter( ( n ) => Number.isFinite( n ) );
+			ctx.selectedId = ids.length === 1 ? ids[ 0 ] : null;
+			ctx.selectedTile =
+				ids.length === 1
+					? ctx.selection?.elementFor( String( ids[ 0 ] ) ) ?? null
+					: null;
+			if ( ids.length === 1 ) {
+				const media = ctx.itemsById.get( ids[ 0 ] );
+				if ( media ) {
+					previewSelectedMedia( ctx, media );
+				}
+			} else {
+				ctx.preview.replaceChildren(
+					renderMediaPreviewEmpty( ids.length ),
+				);
+			}
+			paintStatus( ctx );
+		},
+	} );
+	host.addTeardown( () => ctx.selection?.destroy() );
 	host.addTeardown( () => ctx.abort?.abort() );
 
 	const sentinelIsVisible = (): boolean => {

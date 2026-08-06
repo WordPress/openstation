@@ -1,8 +1,8 @@
 <?php
 /**
- * OpenStation — Agents: site folder integration.
+ * OpenStation — Agents: WP Explorer integration.
  *
- * Adds the "Agents" entity to the site folder window (via the
+ * Adds the "Agents" entity to the WP Explorer window (via the
  * `openstation_my_wordpress_entities` filter) and ships the agents
  * section config on the window's `config` payload (via
  * `openstation_my_wordpress_window_args`). The bundle side registers
@@ -14,7 +14,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Append the Agents entity to the site folder's entity list.
+ * Append the Agents entity to WP Explorer's entity list.
  *
  * @param array $entities Existing entity descriptors.
  * @return array
@@ -37,7 +37,7 @@ function openstation_agents_my_wordpress_entity( $entities ) {
 add_filter( 'openstation_my_wordpress_entities', 'openstation_agents_my_wordpress_entity' );
 
 /**
- * Ship the agents section config on the site folder window config.
+ * Ship the agents section config on the WP Explorer window config.
  *
  * `aiAvailable` is the cheap structural check (WP 7.0 AI Client +
  * Abilities API present); whether a connector is actually configured

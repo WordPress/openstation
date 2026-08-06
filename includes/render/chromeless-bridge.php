@@ -1247,6 +1247,45 @@ function openstation_chromeless_bridge_script() {
 		}
 	}
 
+	/*
+	 * The text a link actually SHOWS, for use as a window title.
+	 *
+	 * `textContent` is the wrong source on its own. WP Core routinely
+	 * pairs a terse visible label with a longer screen-reader one
+	 * inside the same anchor, and reads back as both at once. Drop the
+	 * screen-reader half (`.screen-reader-text` is Core's own class for
+	 * it, `.hidden` covers the markup that toggles) and collapse the
+	 * indentation whitespace the templates leave behind.
+	 *
+	 * The parent treats a label harvested this way as provisional and
+	 * upgrades it to the destination page's own title once the iframe
+	 * loads — see `titleFromPage` in `src/types.ts`.
+	 */
+	/*
+	 * The wp-admin filename a URL points at (`revision.php`), or an
+	 * empty string when it can't be read. Used to tell "a different
+	 * admin screen" from "another view of this one" without needing
+	 * the shell's window-slug rules.
+	 */
+	function adminFileOf( url ) {
+		try {
+			return new URL( url, window.location.href ).pathname.split( '/' ).pop();
+		} catch ( err ) {
+			return '';
+		}
+	}
+
+	function visibleLinkText( link ) {
+		var clone = link.cloneNode( true );
+		var muted = clone.querySelectorAll( '.screen-reader-text, .hidden' );
+		for ( var i = 0; i < muted.length; i++ ) {
+			if ( muted[ i ].parentNode ) {
+				muted[ i ].parentNode.removeChild( muted[ i ] );
+			}
+		}
+		return ( clone.textContent || '' ).replace( /\s+/g, ' ' ).trim();
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1258,8 +1297,37 @@ function openstation_chromeless_bridge_script() {
 		if ( ! link ) {
 			return;
 		}
-		if ( link.target && link.target !== '' && link.target !== '_self' ) {
-			return;
+		/*
+		 * A link that names another browsing context.
+		 *
+		 * `_blank` on a /wp-admin/ URL means "open this admin screen
+		 * without losing the one I am on", and inside the shell that
+		 * is another window rather than a browser tab that drops the
+		 * user out of the desktop. Claimed only when the destination
+		 * is a DIFFERENT wp-admin file: whether two URLs on one file
+		 * are the same "page" depends on the shell's window-slug
+		 * rules, which the iframe can't see, and guessing wrong makes
+		 * the parent navigate the window the link was clicked in.
+		 *
+		 * Every other target yields. `_top` / `_parent` are a
+		 * deliberate "replace the whole shell" and a page's only
+		 * escape hatch; a named target (`wp-preview-4`) reuses one
+		 * specific tab across clicks, which a window cannot honour;
+		 * and any target on a non-admin URL has no window to open
+		 * into.
+		 */
+		var newContext = false;
+		var linkTarget = link.target || '';
+		if ( linkTarget !== '' && linkTarget !== '_self' ) {
+			var claimable =
+				linkTarget === '_blank' &&
+				classifyLink( link.getAttribute( 'href' ), window.location.href ) === 'admin' &&
+				adminFileOf( link.getAttribute( 'href' ) ) !== '' &&
+				adminFileOf( link.getAttribute( 'href' ) ) !== adminFileOf( window.location.href );
+			if ( ! claimable ) {
+				return;
+			}
+			newContext = true;
 		}
 		if ( link.hasAttribute( 'download' ) ) {
 			return;
@@ -1433,7 +1501,7 @@ function openstation_chromeless_bridge_script() {
 				 * title fallback would persist for the lifetime of
 				 * the new window.
 				 */
-				var adminLabel = ( link.textContent || '' ).trim() ||
+				var adminLabel = visibleLinkText( link ) ||
 					link.getAttribute( 'title' ) ||
 					link.getAttribute( 'aria-label' ) ||
 					'';
@@ -1441,7 +1509,17 @@ function openstation_chromeless_bridge_script() {
 					{
 						type: 'os-iframe-admin-link',
 						url: absolute,
-						label: adminLabel.slice( 0, 80 )
+						label: adminLabel.slice( 0, 80 ),
+						/*
+						 * The link asked for a new browsing context, so
+						 * the parent must give the destination its own
+						 * window rather than driving this one. Without
+						 * the flag it would still be free to pick an
+						 * in-place branch — the destructive-action one
+						 * fires on slug mismatch, which is exactly the
+						 * shape a `_blank` reaches us with.
+						 */
+						newContext: newContext
 					},
 					window.location.origin
 				);
@@ -1471,7 +1549,7 @@ function openstation_chromeless_bridge_script() {
 			} catch ( err ) {
 				return;
 			}
-			var label = ( link.textContent || '' ).trim() ||
+			var label = visibleLinkText( link ) ||
 				link.getAttribute( 'title' ) ||
 				absolute;
 			window.parent.postMessage(

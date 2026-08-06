@@ -88,6 +88,7 @@ const REACTIVE_PROPS = [
 	'kind',
 	'status',
 	'selected',
+	'selectable',
 	'missing',
 	'access-gated',
 	'drag-kind',
@@ -114,6 +115,7 @@ export class OsTile extends Component {
 			{ name: 'kind', type: '`entry` | `folder`' },
 			{ name: 'status', type: '`draft` | `pending` | `private` | `future` | `publish`' },
 			{ name: 'selected', type: 'boolean' },
+			{ name: 'selectable', type: 'boolean', description: 'Set by the selection controller on a multi-select canvas. Switches the tile from `listitem` to `option` so it can carry `aria-selected`.' },
 			{ name: 'missing', type: 'boolean' },
 			{ name: 'access-gated', type: 'boolean' },
 			{ name: 'drag-kind', type: 'string', description: 'When set, the component wires pointerdown → DragManager.' },
@@ -230,6 +232,62 @@ export class OsTile extends Component {
 		this._paint();
 	}
 
+	/**
+	 * Selection state is repainted WITHOUT touching the tile's
+	 * children.
+	 *
+	 * `_paint()` replaces the visual, the label and the ribbon on
+	 * every call. That is fine for a content change and catastrophic
+	 * for a selection change, because selection changes land in the
+	 * middle of pointer gestures: destroy the node a `mousedown`
+	 * landed on and the browser will not synthesize the `click` when
+	 * the `mouseup` arrives on its replacement — so no `click`, no
+	 * `dblclick`, and a tile that can no longer be opened. (The same
+	 * hazard is documented for keyed lists in
+	 * `docs/javascript-reference.md`.)
+	 *
+	 * So the three selection attributes take a cheap path: classes
+	 * and ARIA only, children untouched. It is also what makes
+	 * Ctrl+A over a folder of two hundred icons cost two hundred
+	 * class toggles instead of two hundred subtree rebuilds.
+	 */
+	attributeChangedCallback(
+		name: string,
+		oldValue: string | null,
+		newValue: string | null,
+	): void {
+		if ( oldValue === newValue ) {
+			return;
+		}
+		if (
+			name === 'selected' ||
+			name === 'selectable' ||
+			name === 'aria-selected'
+		) {
+			this._paintSelection();
+			return;
+		}
+		super.attributeChangedCallback( name, oldValue, newValue );
+	}
+
+	/** Class + ARIA half of `_paint()`. Never touches children. */
+	private _paintSelection(): void {
+		const selected = this.hasAttribute( 'selected' );
+		const selectable = this.hasAttribute( 'selectable' );
+		this.classList.toggle( `${ TILE_CLASS }--selected`, selected );
+		this.setAttribute( 'role', selectable ? 'option' : 'listitem' );
+		if ( selectable ) {
+			// Guarded: writing `aria-selected` re-enters this callback,
+			// and an unguarded write would recurse once per paint.
+			const next = selected ? 'true' : 'false';
+			if ( this.getAttribute( 'aria-selected' ) !== next ) {
+				this.setAttribute( 'aria-selected', next );
+			}
+		} else {
+			this.removeAttribute( 'aria-selected' );
+		}
+	}
+
 	protected render() {
 		// Unreachable — `requestUpdate` is the only caller and we
 		// overrode it above. The Component base contract requires a
@@ -246,6 +304,7 @@ export class OsTile extends Component {
 		const kind = this.getAttribute( 'kind' ) ?? 'entry';
 		const status = this.getAttribute( 'status' ) ?? '';
 		const selected = this.hasAttribute( 'selected' );
+		const selectable = this.hasAttribute( 'selectable' );
 		const missing = this.hasAttribute( 'missing' );
 		const accessGated = this.hasAttribute( 'access-gated' );
 
@@ -286,8 +345,18 @@ export class OsTile extends Component {
 			this.dataset.role = kind;
 		}
 
-		// Accessibility — the host acts as a button.
-		this.setAttribute( 'role', 'listitem' );
+		// Accessibility — the host acts as a button. On a canvas that
+		// supports selection the tile becomes an `option` instead: a
+		// `listitem` may not carry `aria-selected`, so a multi-select
+		// grid of listitems announces nothing about what is picked.
+		// The selection controller sets `selectable` when it registers
+		// the tile, which is why this can't just key off `selected`.
+		this.setAttribute( 'role', selectable ? 'option' : 'listitem' );
+		if ( selectable ) {
+			this.setAttribute( 'aria-selected', selected ? 'true' : 'false' );
+		} else {
+			this.removeAttribute( 'aria-selected' );
+		}
 		this.setAttribute( 'aria-label', label );
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '0' );

@@ -6,7 +6,12 @@
  * observability tests under `tests/vitest/`.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { bindAdminLinkDispatch, handleWindowMessage } from './iframe-bridge';
+import {
+	adoptPageTitle,
+	bindAdminLinkDispatch,
+	handleFinishedScreenHandoff,
+	handleWindowMessage,
+} from './iframe-bridge';
 import {
 	_resetDestructiveAdminActionsForTests,
 	registerDestructiveAdminAction,
@@ -442,6 +447,46 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow.mock.calls[ 0 ][ 0 ].title ).toBe( 'Posts' );
 	} );
 
+	test( 'a new-context link never drives the window it was clicked in', () => {
+		// `target="_blank"` asks for one thing: that the page it was
+		// clicked on survives. The same-slug branch would move that
+		// window instead, which is worse than the browser tab it used
+		// to get.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'edit-php-post-type-page',
+		} );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/edit.php?post_type=page&paged=2',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a new-context link skips the destructive in-place branch too', () => {
+		// That branch fires on a slug MISMATCH, which is exactly the
+		// shape a `_blank` reaches the parent with.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url:
+				window.location.origin +
+				'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc',
+			newContext: true,
+		} );
+
+		expect( assignSpy ).not.toHaveBeenCalled();
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'cross-origin URL is silently refused', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( {
@@ -839,5 +884,200 @@ describe( 'iframe-bridge: os-bridge-beforeunload-response', () => {
 		expect( clearSpy ).toHaveBeenCalledWith( timeoutId );
 		expect( win._iframeCloseTimeout ).toBeNull();
 		vi.useRealTimers();
+	} );
+} );
+
+describe( 'iframe-bridge: finished-screen handoff', () => {
+	type DispatchDeps = Parameters< typeof bindAdminLinkDispatch >[ 0 ];
+
+	const adminUrl = window.location.origin + '/wp-admin/';
+
+	function bindFakeDispatcher() {
+		const openWindow = vi.fn();
+		const findDockEntry = vi.fn().mockReturnValue( null );
+		const deps: NonNullable< DispatchDeps > = {
+			adminUrl,
+			deriveSlug: ( url ) => {
+				const parsed = new URL( url, adminUrl );
+				const file = parsed.pathname
+					.replace( /.*\/wp-admin\//, '' )
+					.replace( /\.php$/, '-php' );
+				const post = parsed.searchParams.get( 'post' );
+				return post ? `${ file }-post-${ post }` : file;
+			},
+			openWindow,
+			findDockEntry,
+		};
+		bindAdminLinkDispatch( deps );
+		return { openWindow, findDockEntry };
+	}
+
+	/** A window whose iframe reports no navigation-timing entry. */
+	function mockScreenWindow( openedUrl: string ): Window {
+		const iframe = document.createElement( 'iframe' );
+		document.body.appendChild( iframe );
+		Object.defineProperty( iframe, 'contentWindow', {
+			value: { location: { href: '', assign: vi.fn() } },
+			configurable: true,
+		} );
+		return {
+			id: 'revision-php',
+			element: document.createElement( 'div' ),
+			iframe,
+			config: { baseId: 'revision-php', url: openedUrl, title: 'Revisions' },
+			close: vi.fn(),
+			setTitle: vi.fn(),
+			getCurrentUrl: () => openedUrl,
+		} as unknown as Window;
+	}
+
+	beforeEach( () => {
+		installHooksStub();
+	} );
+	afterEach( () => {
+		bindAdminLinkDispatch( null );
+		document.querySelectorAll( 'iframe' ).forEach( ( el ) => el.remove() );
+		clearHooksStub();
+	} );
+
+	test( 'a revisions window that lands on the editor hands off and closes', () => {
+		// The restore is a `document.location` assignment in Core's
+		// revisions.js, so the shell never sees a click — WP's redirect
+		// just turns the Revisions window into a second editor next to
+		// the one it was opened from.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		const landed =
+			window.location.origin +
+			'/wp-admin/post.php?post=4&action=edit&message=5&revision=31';
+		expect( handleFinishedScreenHandoff( win, landed ) ).toBe( true );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		const arg = openWindow.mock.calls[ 0 ][ 0 ];
+		expect( arg.id ).toBe( 'post-php-post-4' );
+		// `message=5` is what renders "Post restored to revision from …"
+		// in the editor — the only confirmation the restore happened.
+		expect( arg.url ).toContain( 'message=5' );
+		expect( win.close ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'staying on the revisions screen is not a handoff', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/revision.php?revision=30',
+			),
+		).toBe( false );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a window on any other screen is left alone', () => {
+		// The submenu tab strip re-points windows across slugs on
+		// purpose (Appearance → Menus); closing one out from under that
+		// click would be hostile.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/themes.php',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/nav-menus.php',
+			),
+		).toBe( false );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an unbound dispatcher leaves the window open rather than closing it onto nothing', () => {
+		bindAdminLinkDispatch( null );
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+
+		expect(
+			handleFinishedScreenHandoff(
+				win,
+				window.location.origin + '/wp-admin/post.php?post=4&action=edit',
+			),
+		).toBe( false );
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: adoptPageTitle', () => {
+	/** A window whose iframe document reports `documentTitle`. */
+	function mockTitledWindow(
+		config: Record< string, unknown >,
+		documentTitle: string,
+	): Window {
+		const iframe = document.createElement( 'iframe' );
+		Object.defineProperty( iframe, 'contentDocument', {
+			value: { title: documentTitle },
+			configurable: true,
+		} );
+		return {
+			id: 'revision-php',
+			element: document.createElement( 'div' ),
+			iframe,
+			config,
+			setTitle: vi.fn(),
+		} as unknown as Window;
+	}
+
+	test( 'a guessed title is replaced by the page’s own screen name', () => {
+		// The classic editor's revisions link reads "Browse", which
+		// says nothing about revisions once it is a window name.
+		const win = mockTitledWindow(
+			{ title: 'Browse', titleFromPage: true },
+			'Revisions ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Revisions' );
+	} );
+
+	test( 'a title the shell knows is never overwritten', () => {
+		const win = mockTitledWindow(
+			{ title: 'Posts' },
+			'Posts ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an unrecognised title format is kept whole rather than cut wrong', () => {
+		const win = mockTitledWindow(
+			{ title: 'Browse', titleFromPage: true },
+			'Revisions | My Site',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Revisions | My Site' );
+	} );
+
+	test( 'an unchanged name does not churn the title bar', () => {
+		const win = mockTitledWindow(
+			{ title: 'Revisions', titleFromPage: true },
+			'Revisions ‹ My Site — WordPress',
+		);
+
+		adoptPageTitle( win );
+
+		expect( win.setTitle ).not.toHaveBeenCalled();
 	} );
 } );
