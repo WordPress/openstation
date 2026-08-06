@@ -216,6 +216,23 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		press( 'Tab', true );
 		expect( focused() ).toBe( items[ 0 ] );
 	} );
+
+	test( 'Tab pulls focus back in when it is on neither end', async () => {
+		// Selecting text inside the card leaves `activeElement` on
+		// `<body>`, which the backdrop handler deliberately allows. A
+		// forward Tab from there matches neither end of the trap, so
+		// without the containment check the browser walks focus into the
+		// desk behind the scrim.
+		const behind = document.createElement( 'button' );
+		document.body.appendChild( behind );
+
+		await show( config() );
+		( focused() as HTMLElement | null )?.blur();
+		expect( focused() ).toBe( document.body );
+
+		press( 'Tab' );
+		expect( focused() ).toBe( primary() );
+	} );
 } );
 
 describe( 'the announcement copy', () => {

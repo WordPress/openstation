@@ -207,10 +207,10 @@ export async function maybeShowRebrandNotice(
 	const returnFocusTo = doc.activeElement as HTMLElement | null;
 
 	// One close path for every route out (button, ESC, backdrop) so the
-	// announcement is recorded as seen however the user leaves it. Dismissing IS reading it; there is no second
-	// chance being withheld, and a dialog that came back because you
-	// pressed Escape instead of the button would be the more annoying
-	// bug.
+	// announcement is recorded as seen however the user leaves it.
+	// Dismissing IS reading it; there is no second chance being
+	// withheld, and a dialog that came back because you pressed Escape
+	// instead of the button would be the more annoying bug.
 	let closed = false;
 	const close = (): void => {
 		if ( closed ) {
@@ -245,9 +245,16 @@ export async function maybeShowRebrandNotice(
 		if ( e.key !== 'Tab' ) {
 			return;
 		}
-		// Focus trap. Only two or three controls in here, so the
-		// cheap version is the honest one: find the ends, wrap at
-		// them, and let the browser do everything in between.
+		// Focus trap. Only a control or two in here, so the cheap
+		// version is the honest one: find the ends, wrap at them, and
+		// let the browser do everything in between.
+		//
+		// Both branches test containment, not just the Shift one.
+		// Selecting text inside the card leaves `activeElement` on
+		// `<body>` — the backdrop handler allows that on purpose — and
+		// from there neither end matches, so an unguarded forward Tab
+		// hands focus to the first control on the desk behind the
+		// scrim.
 		const items = Array.from(
 			scrim.querySelectorAll< HTMLElement >( FOCUSABLE ),
 		);
@@ -260,7 +267,10 @@ export async function maybeShowRebrandNotice(
 		if ( e.shiftKey && ( active === first || ! scrim.contains( active ) ) ) {
 			e.preventDefault();
 			last.focus();
-		} else if ( ! e.shiftKey && active === last ) {
+		} else if (
+			! e.shiftKey &&
+			( active === last || ! scrim.contains( active ) )
+		) {
 			e.preventDefault();
 			first.focus();
 		}
