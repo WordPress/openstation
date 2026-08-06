@@ -9,6 +9,11 @@
  * pending migrations exactly once. Guarded so it is a cheap no-op after
  * the first successful pass.
  *
+ * A fresh install skips the runner entirely: activation stamps the
+ * shipped version straight away, so nothing here ever has to infer the
+ * past of a site that does not have one. See
+ * {@see openstation_stamp_migrations_on_fresh_install}.
+ *
  * @package OpenStation
  */
 
@@ -20,6 +25,11 @@ defined( 'ABSPATH' ) || exit;
  * Bump this (and add a matching branch in
  * {@see openstation_run_pending_migrations}) whenever a new one-time
  * migration is needed.
+ *
+ * Only for migrations that are a no-op on a fresh install. Activation
+ * stamps this value outright ({@see openstation_stamp_migrations_on_fresh_install}),
+ * so a migration that has real work to do on a brand-new site will never
+ * run on one.
  *
  * - 1: native list windows flipped from opt-out (default ON) to opt-in
  *   Beta (default OFF). Clears the five `native*Enabled` flags from every
@@ -78,6 +88,26 @@ function openstation_maybe_run_migrations() {
 add_action( 'admin_init', 'openstation_maybe_run_migrations' );
 
 /**
+ * Records the shipped version at activation so a fresh install never
+ * runs a migration.
+ *
+ * @return void
+ */
+function openstation_stamp_migrations_on_fresh_install() {
+	if ( false !== get_option( OPENSTATION_MIGRATION_OPTION, false ) ) {
+		return;
+	}
+
+	$prior_users = openstation_users_with_prior_desktop_use();
+	if ( ! empty( $prior_users ) ) {
+		return;
+	}
+
+	update_option( OPENSTATION_MIGRATION_OPTION, OPENSTATION_MIGRATION_VERSION, false );
+}
+register_activation_hook( OPENSTATION_FILE, 'openstation_stamp_migrations_on_fresh_install' );
+
+/**
  * Dispatches each migration whose version is newer than what has run.
  *
  * @param int $from The highest migration version already applied.
@@ -131,6 +161,38 @@ const OPENSTATION_REBRAND_NOTICE_META_KEY = 'desktop_mode_rebrand_notice';
 const OPENSTATION_REBRAND_INTRO_SLUG = 'openstation-rebrand';
 
 /**
+ * Every user who carries proof of having used the shell on this site:
+ * `desktop_mode_mode` (the per-user opt-in, tested for EXISTENCE rather
+ * than for being `'1'`, since switching back to classic empties the
+ * value but leaves the row) or a saved `desktop_mode_os_settings`.
+ *
+ * @return int[] User IDs, unsorted and deduplicated.
+ */
+function openstation_users_with_prior_desktop_use() {
+	return array_map(
+		'intval',
+		array_unique(
+			array_merge(
+				get_users(
+					array(
+						'fields'       => 'ID',
+						'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- runs once per install; the key is indexed in usermeta and both callers are guarded to a single pass.
+						'meta_compare' => 'EXISTS',
+					)
+				),
+				get_users(
+					array(
+						'fields'       => 'ID',
+						'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- see above.
+						'meta_compare' => 'EXISTS',
+					)
+				)
+			)
+		)
+	);
+}
+
+/**
  * Migration 5 — remember who was using Desktop Mode before the rebrand.
  *
  * Migration 4 moved the pre-brand *defaults* onto the brand ones. This
@@ -157,36 +219,19 @@ const OPENSTATION_REBRAND_INTRO_SLUG = 'openstation-rebrand';
  * which makes them the ones most likely to be blindsided by a rename,
  * and gating on `$from > 0` would have silenced precisely them.
  *
- * **The user** has to have actually used it, and that is what separates
- * a long-dormant install from a genuinely new one without needing to
- * date the install at all. A fresh site runs its first `admin_init` on
- * the activation redirect, before any human has had the chance to open
- * the shell, so neither key below can exist yet and nobody is flagged.
- * On a 0.9.0 install both keys are all over the user table.
+ * **The user** has to have actually used it — see
+ * {@see openstation_users_with_prior_desktop_use} for what counts as
+ * proof. That separates a long-dormant install from a genuinely new one
+ * without needing to date the install at all, and it keeps the
+ * announcement away from an editor who joined an old site last week and
+ * enabled OpenStation this morning.
  *
- * The same gate answers a second question: it keeps the announcement
- * away from an editor who joined an old site last week and enabled
- * OpenStation for the first time this morning. A dialog about a name
- * they never saw, on a shell that has only ever had one. So the flag
- * lands on individual users, and only on those who carry proof of
- * prior use:
- *
- *   - `desktop_mode_mode` — the per-user opt-in, tested for EXISTENCE
- *     rather than for being `'1'`. Switching back to classic empties
- *     the value but leaves the row (`includes/ajax.php`), and the only
- *     two writers of this key are that toggle and the portal's
- *     auto-enable, so a row of any value means "this person has been
- *     through the switch at least once". Matching on `'1'` instead
- *     would have missed someone who tried the shell, went back, and is
- *     owed the explanation the next time they return.
- *   - `desktop_mode_os_settings` — a saved preference. Catches the user
- *     who used it, customized it, and has since switched back to
- *     classic; they are still owed the explanation the next time they
- *     come in.
- *
- * The scan is bounded by how many people ever turned the plugin on,
- * which is far smaller than the user table: OpenStation is opt-in per
- * user, so most accounts on a large site carry neither key.
+ * What that gate does NOT do on its own is prove the evidence is old.
+ * On a fresh install it can be written between activation and the first
+ * `admin_init`, and then read back here as history. That window is
+ * closed by {@see openstation_stamp_migrations_on_fresh_install}, which
+ * retires the whole runner at activation; this migration is only ever
+ * reached on a site that already existed.
  *
  * Deliberately NOT folded into migration 4, even though the two ship
  * together: 4 has already run on trunk checkouts, and a migration that
@@ -225,32 +270,8 @@ function openstation_migrate_flag_rebrand_notice( $from ) {
 		return;
 	}
 
-	// Two separate EXISTS scans rather than a meta_query with an OR
-	// relation: both keys are indexed in usermeta, and two indexed
-	// lookups beat one query the planner has to resolve as a union of
-	// self-joins. This runs once, but "once" on a site with a large
-	// user table is still worth not making quadratic.
-	$user_ids = array_unique(
-		array_merge(
-			get_users(
-				array(
-					'fields'       => 'ID',
-					'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
-					'meta_compare' => 'EXISTS',
-				)
-			),
-			get_users(
-				array(
-					'fields'       => 'ID',
-					'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- see above.
-					'meta_compare' => 'EXISTS',
-				)
-			)
-		)
-	);
-
-	foreach ( $user_ids as $user_id ) {
-		update_user_meta( (int) $user_id, OPENSTATION_REBRAND_NOTICE_META_KEY, 1 );
+	foreach ( openstation_users_with_prior_desktop_use() as $user_id ) {
+		update_user_meta( $user_id, OPENSTATION_REBRAND_NOTICE_META_KEY, 1 );
 	}
 }
 
