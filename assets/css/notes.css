@@ -405,14 +405,32 @@
    56px wide, centred, jittered ±10px and painted above the paper's
    chrome, so it covers note-relative x 62–138, and a fourth control
    in the right-aligned meta row lands underneath it where a pointer
-   can't reach. The status chip is pushed to the trailing edge. */
+   can't reach. The status chip is pushed to the trailing edge.
+
+   Hover/focus-revealed like the meta row's controls, and on the same
+   curve. It can't live inside `.os-pinned-note__meta` and inherit
+   that reveal, so it is repeated here. The resting opacity matches
+   what a meta-row button resolves to: the row fades to 1 and each
+   button sits at 0.75 inside it. `opacity` doesn't affect layout, so
+   the status chip stays put whether or not this shows. */
 .os-pinned-note__trash {
 	--os-ui-btn-color: var(--dm-note-ink-soft);
 	margin-inline-end: auto;
+	opacity: 0;
+	transition: opacity 150ms ease-out;
+}
+
+.os-pinned-note:hover .os-pinned-note__trash,
+.os-pinned-note:focus-within .os-pinned-note__trash {
 	opacity: 0.75;
 }
 
-.os-pinned-note__trash:hover {
+/* Scoped through the note, not bare `.os-pinned-note__trash:hover`:
+   the reveal rule above is (0,3,0) and a bare button-hover would be
+   (0,2,0), so the button could never reach full opacity — you are
+   always hovering the note when you hover its button. */
+.os-pinned-note:hover .os-pinned-note__trash:hover,
+.os-pinned-note:focus-within .os-pinned-note__trash:hover {
 	--os-ui-btn-color: #b32d2e;
 	opacity: 1;
 }
