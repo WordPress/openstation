@@ -3443,7 +3443,7 @@ A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentCo
 Two rules follow:
 
 - **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
-- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before. Full-colour app icons (the Games gamepad) are unchanged.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. Note that every icon the shell itself ships is now a silhouette, so there is no in-tree example of this path left to copy from.
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 

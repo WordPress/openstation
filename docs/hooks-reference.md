@@ -2434,7 +2434,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 ### `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args` — Experimental (filter)
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the dashicon, or move the window from the taskbar to the dock.
+Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the icon, or move the window from the taskbar to the dock. The bin ships its own silhouette (`openstation_recycle_bin_icon_svg()`), so the icon args carry `icon_svg` rather than a dashicon class; replace that key, not `icon`, when substituting your own art.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 

@@ -18,6 +18,48 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * The shared bin SVG used by the window icon and the desktop icon.
+ *
+ * The bin used to be `dashicons-trash`, which worked but wore the
+ * wrong clothes. Dashicons are WP core's icon set: solid fills on a
+ * 20-unit grid, tuned for admin-menu sizes. The shell's own icons are
+ * outlined vessels on a 64-unit grid at stroke 3. Sitting next to
+ * WP Explorer, Corkboard and Games in the dock, the Dashicon was
+ * visibly a guest from another system: heavier, tighter, and drawn to
+ * a different rhythm.
+ *
+ * So this is the same object, redrawn to the house rule the other
+ * three follow: an outlined vessel with solid content, three elements
+ * because it renders as small as 20px in the dock. The lid is the
+ * solid one, which gives the mark a single dense horizontal to be
+ * recognised by when the tapered body below it thins out.
+ *
+ * Drawn in `currentColor`, so `renderIcon()` paints it as a CSS mask
+ * and it takes the surface's own text colour. Dashicons already
+ * inherited colour, being font glyphs; the point of the change is the
+ * drawing, not the theming.
+ *
+ * Note that the row actions inside the bin window, and the "Move to
+ * trash" entries in context menus, stay on `dashicons-trash`. Those
+ * are menu glyphs sitting among other menu glyphs, and they should
+ * match their neighbours rather than this icon.
+ *
+ * @return string Raw `<svg>` markup.
+ */
+function openstation_recycle_bin_icon_svg() {
+	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+		// The handle, outlined so it reads as a loop rather than a tab.
+		. '<path d="M25 19v-2.5a3.5 3.5 0 0 1 3.5-3.5h7a3.5 3.5 0 0 1 3.5 3.5V19" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+		// The lid: the one solid element, and the widest, so it anchors
+		// the mark at small sizes.
+		. '<rect x="10" y="19" width="44" height="5" rx="2.5" fill="currentColor"/>'
+		// The body, tapered towards the base the way a real bin is, which
+		// is also what separates it from a plain bucket.
+		. '<path d="M15.5 28.5h33l-2.7 20.6a4 4 0 0 1-4 3.4H22.2a4 4 0 0 1-4-3.4z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+		. '</svg>';
+}
+
+/**
  * Echoes the recycle bin window's template body.
  *
  * The shell wraps this in `<template id="os-native-window-desktop-mode-recycle-bin">`
@@ -149,9 +191,11 @@ function openstation_recycle_bin_register_window() {
 		return;
 	}
 
+	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( openstation_recycle_bin_icon_svg() );
+
 	$window_args = array(
 		'title'      => __( 'Trash', 'desktop-mode' ),
-		'icon'       => 'dashicons-trash',
+		'icon'       => $icon_uri,
 		'template'   => 'openstation_recycle_bin_render_template',
 		'script'     => 'desktop-mode-recycle-bin',
 		'width'      => 880,
@@ -177,7 +221,7 @@ function openstation_recycle_bin_register_window() {
 
 	$icon_args = array(
 		'title'    => __( 'Trash', 'desktop-mode' ),
-		'icon'     => 'dashicons-trash',
+		'icon_svg' => openstation_recycle_bin_icon_svg(),
 		'window'   => 'desktop-mode-recycle-bin',
 		'position' => 80,
 	);
