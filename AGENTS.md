@@ -2,37 +2,6 @@
 
 The imperative rules for working in this repo, plus the contributor-only gotchas that aren't obvious from reading the code. Public APIs and their contracts live in `docs/`; this file is the rulebook and cheatsheet for working *inside* the codebase.
 
-## Contents
-
-- [Hard rules](#hard-rules)
-  - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
-  - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
-  - [The holographic layer lives in `src/ui/holo.ts`](#the-holographic-layer-lives-in-srcuiholots)
-  - [Never declare a themeable token on a component's `:host`](#never-declare-a-themeable-token-on-a-components-host)
-  - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
-  - [`desktop_mode_*` values are frozen](#desktop_mode_-values-are-frozen--the-namevalue-mismatch-is-deliberate)
-  - [Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wposfetch-or-trackedfetch-never-raw-fetch)
-  - [Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wposconfirm-or-osconfirm-never-windowconfirmalertprompt)
-  - [Use `os-*` components, not raw HTML controls](#use-os--components-not-raw-html-controls)
-  - [No version-history annotations in docs or comments](#no-version-history-annotations-in-docs-or-comments)
-- [Workflow](#workflow)
-  - [Always run `npm run build` after all the changes](#always-run-npm-run-build-after-all-the-changes)
-  - [Run `npm run lint:php` after touching PHP](#run-npm-run-lintphp-after-touching-php)
-  - [Always branch + PR, never commit to trunk](#always-branch--pr-never-commit-to-trunk)
-  - [Use `bin/sync-to-wp-develop.sh` for local sync, not raw rsync](#use-binsync-to-wp-developsh-for-local-sync-not-raw-rsync)
-  - [Don't regenerate POT/PO/JSON in feature PRs](#dont-regenerate-potpojson-in-feature-prs)
-- [Process reminders](#process-reminders)
-- [Contributor gotchas](#contributor-gotchas)
-  - [Live-refresh on plugin install/activate — how it actually works](#live-refresh-on-plugin-installactivate--how-it-actually-works)
-  - [Event-driven framework](#event-driven-framework)
-  - [Presence — framework-level](#presence--framework-level)
-  - [Cross-bundle state — `wp.os.createSharedStore`](#cross-bundle-state--wposcreatesharedstore)
-  - [Chromeless admin-bar suppression](#chromeless-admin-bar-suppression)
-  - [Running PHPUnit](#running-phpunit)
-- [Developer docs — read before, update after](#developer-docs--read-before-update-after)
-
----
-
 ## Hard rules
 
 ### Never hand-edit JS in `assets/js/`
