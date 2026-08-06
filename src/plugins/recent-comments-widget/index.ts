@@ -112,10 +112,11 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 	for ( const c of comments ) {
 		const row = document.createElement( 'div' );
 		row.className = 'dm-comments__row';
+		const authorName = decodeHTML( c.author_name || '' );
 
 		const avatar = document.createElement( 'div' );
 		avatar.className = 'dm-comments__avatar';
-		avatar.textContent = ( c.author_name || '?' ).trim().charAt( 0 ).toUpperCase();
+		avatar.textContent = ( authorName || '?' ).trim().charAt( 0 ).toUpperCase();
 
 		const body = document.createElement( 'div' );
 		body.className = 'dm-comments__body';
@@ -125,7 +126,7 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 		const author = document.createElement( 'span' );
 		author.className = 'dm-comments__author';
-		author.textContent = c.author_name || 'Anonymous';
+		author.textContent = authorName || 'Anonymous';
 
 		const sm = STATUS_META[ c.status ] ?? STATUS_META.hold;
 		const statusEl = document.createElement( 'span' );
