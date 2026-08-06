@@ -22,34 +22,16 @@ hook the app can subscribe to?**
 
 ## The three layers
 
-```
-                        ┌──────────────────────────────────────┐
-                        │  Layer 3 — Activity channels         │
-                        │  wp.os.activity.{publish,sub}   │
-                        │  wp.os.heartbeat.{contribute,…} │
-                        │  wp.os.broadcast / subscribe    │
-                        │  (peer-to-peer, named, type-safe)    │
-                        └──────────────┬───────────────────────┘
-                                       │
-                        ┌──────────────┴───────────────────────┐
-                        │  Layer 2 — Window lifecycle           │
-                        │  os-window-* CustomEvents    │
-                        │  wp.hooks WINDOW_* actions           │
-                        │  wp.os.onWindow( id, handlers ) │
-                        ├──────────────────────────────────────┤
-                        │  Layer 2a — Window-self channel      │
-                        │  Window.send / Window.on  (parent)   │
-                        │  wp.os.send / .on (window-side) │
-                        │  (iframe + native, same shape)       │
-                        └──────────────┬───────────────────────┘
-                                       │
-                        ┌──────────────┴───────────────────────┐
-                        │  Layer 1 — Synchronous state queries │
-                        │  windowManager.getById( id )         │
-                        │  windowManager.isActive( id )        │
-                        │  presence.getStatus( userId )        │
-                        │  shared stores via createSharedStore │
-                        └──────────────────────────────────────┘
+```mermaid
+%%{init: {'flowchart': {'wrappingWidth': 420}}}%%
+flowchart TB
+    L3["<b>Layer 3 — Activity channels</b><br>peer-to-peer, named, type-safe<br>wp.os.activity.publish / subscribe / filter<br>wp.os.heartbeat.contribute / subscribe<br>wp.os.broadcast / subscribe"]
+    L2["<b>Layer 2 — Window lifecycle</b><br>os-window-* CustomEvents<br>wp.hooks WINDOW_* actions<br>wp.os.onWindow( id, handlers )"]
+    L2a["<b>Layer 2a — Window-self channel</b><br>iframe + native, same shape<br>Window.send / Window.on — parent side<br>wp.os.send / wp.os.on — window side"]
+    L1["<b>Layer 1 — Synchronous state queries</b><br>windowManager.getById( id )<br>windowManager.isActive( id )<br>presence.getStatus( userId )<br>shared stores via createSharedStore"]
+    L3 --> L2
+    L2 --- L2a
+    L2a --> L1
 ```
 
 ### Layer 1 — synchronous state
@@ -87,16 +69,30 @@ Every native window emits this state machine on the action bus
 (`wp.hooks`) AND as document CustomEvents. Apps pick whichever
 flavour fits.
 
-```
-   opened ──► focused ◄────► blurred
-                ▲   │
-                │   ▼
-            restored ◄────► minimized
-                │
-   reopened ◄───┤      (every wp.os.openWindow on already-open id)
-                │
-                ▼
-            closing ──► closed
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> opened
+    opened --> focused
+    focused --> blurred
+    blurred --> focused
+    focused --> minimized
+    minimized --> restored
+    restored --> focused
+    focused --> reopened
+    blurred --> reopened
+    minimized --> reopened
+    reopened --> focused
+    focused --> closing
+    closing --> closed
+    closed --> [*]
+    note right of reopened
+        Every wp.os.openWindow call against an id
+        already open on the active desktop — from any
+        live state, focused included. The manager
+        focuses (and un-minimizes) before it fires,
+        so the window always lands back on focused.
+    end note
 ```
 
 **Custom events** (filter by `e.detail.windowId === MY_ID`):
@@ -247,13 +243,15 @@ bus, so devtools can list activity traffic as a discrete group.
 Hook names can't contain a slash (`@wordpress/hooks` rejects the
 registration), so the channel separator becomes a period there:
 `my-plugin/thing-happened` lands on
-`desktop-mode.activity.my-plugin.thing-happened`. Only relevant if
+`os.activity.my-plugin.thing-happened`. Only relevant if
 you register through raw `wp.hooks` instead of the API below.
 Type the payload by augmenting `ActivityChannelMap` in your own
 `.d.ts`:
 
 ```ts
-declare module 'desktop-mode/activity' {
+import type {} from 'openstation/activity';
+
+declare module 'openstation/activity' {
     interface ActivityChannelMap {
         'my-plugin/something-happened': { id: number; reason: string };
     }
@@ -261,20 +259,23 @@ declare module 'desktop-mode/activity' {
 ```
 
 **Built-in channels.** Every framework primitive that publishes
-mirrors here so plugins can subscribe through one unified API:
+mirrors here so plugins can subscribe through one unified API. The
+`os/` namespace is the shell's own — subscribe and filter freely,
+but publish your events under your plugin's slug:
 
 | Channel | Filterable? | When it fires |
 |---|---|---|
-| `desktop-mode/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
-| `desktop-mode/toast-shown` | No (post-render) | After the toast lands in the DOM. |
-| `desktop-mode/notification-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-render on every `wp.os.notify()`. |
-| `desktop-mode/notification-shown` | No (post-render) | After the notification (or its toast fallback) renders — payload carries `fallback: 'toast' \| null`. |
-| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` (which then routes the filtered result to the rails' `setAttention()`). Direct `dock.setAttention()` calls bypass the filter. |
-| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` so a single subscriber can compose across surfaces. |
-| `desktop-mode/open-requested` | No | Every `wp.os.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
-| `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `os-presence-changed` CustomEvent). |
-| `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
-| `desktop-mode/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
+| `os/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
+| `os/toast-shown` | No (post-render) | After the toast lands in the DOM. |
+| `os/notification-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-render on every `wp.os.notify()`. |
+| `os/notification-shown` | No (post-render) | After the notification (or its toast fallback) renders — payload carries `fallback: 'toast' \| null`. |
+| `os/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` (which then routes the filtered result to the rails' `setAttention()`). Direct `dock.setAttention()` calls bypass the filter. |
+| `os/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` so a single subscriber can compose across surfaces. |
+| `os/open-requested` | No | Every `wp.os.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
+| `os/presence-changed` | No | Every presence transition (mirror of the `os-presence-changed` CustomEvent). |
+| `os/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
+| `os/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
+| `os/upload-hud-complete` | No | After a file dropped on the shell finishes uploading — `{ filename, attachmentId }`. Published by the progress HUD, not the uploader: the upload runs on XHR (the only transport that reports determinate progress) and so never routes through `wp.os.fetch`, which makes this the bus's only view of a completed drop. |
 
 **Activity ↔ broadcast mirror.** `wp.os.broadcast(topic, payload)`
 publishes both onto the broadcast bus (cross-iframe, cross-tab)
@@ -283,6 +284,15 @@ Use `broadcast` when peers might be in another iframe / tab
 (the recycle bin's `os.data-changed` topic is the
 canonical example); use `activity.publish` when you only need
 in-tab fan-out.
+
+Because the mirror is verbatim and `hookName()` collapses `/` to
+`.`, a channel and a topic that differ only in that separator
+land on the same hook: `os/badge-changed` and a topic
+`os.badge-changed` both resolve to
+`os.activity.os.badge-changed`. The two namespaces have always
+shared one hook space — pre-rebrand it was `desktop-mode` on both
+sides — and nothing in-tree collides. Just don't name a broadcast
+topic after a built-in channel.
 
 ### Layer 3+ — the heartbeat bus
 
@@ -393,7 +403,7 @@ rails are `wp.os.dock` (the primary bottom rail),
 Unified / Spatial), and `wp.os.icons` (wallpaper shortcuts).
 The `rail` discriminator on emitted events is a separate axis:
 the bottom-anchored primary dock stamps `rail: 'taskbar'` onto
-the events it emits (e.g. `desktop-mode/badge-changed`), while
+the events it emits (e.g. `os/badge-changed`), while
 `sideDock` stamps `rail: 'dock'` and the icon rail `rail: 'icon'`.
 
 ## What NOT to do (anti-patterns)

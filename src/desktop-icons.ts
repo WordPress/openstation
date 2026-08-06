@@ -10,7 +10,7 @@
  * **Badge surface.** The icon rail mirrors the
  * dock + taskbar API exactly: `setBadge( id, count )` is
  * idempotent, `0` clears, `>99` renders `99+`. Every change emits
- * `desktop-mode/badge-changed` with `rail: 'icon'` on the activity
+ * `os/badge-changed` with `rail: 'icon'` on the activity
  * bus and {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus, so a
  * plugin author writing one badge wrapper for all three rails
  * sees one consistent shape across every surface.
@@ -120,9 +120,9 @@ function _safeBadge( count: number ): number {
  *
  * On every applied change this fires:
  *
- *   - `desktop-mode/badge-changed` on the activity bus with
+ *   - `os/badge-changed` on the activity bus with
  *     `{ itemId, count, rail: 'icon' }`. Subscribe via
- *     `wp.os.activity.subscribe( 'desktop-mode/badge-changed', cb )`
+ *     `wp.os.activity.subscribe( 'os/badge-changed', cb )`
  *     for global notification-center widgets that aggregate
  *     across rails.
  *   - {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -159,7 +159,7 @@ export function setIconBadge( iconId: string, count: number ): void {
 		_badges.set( iconId, safe );
 	}
 	_paintBadgeNode( tile, safe );
-	activity.publish( 'desktop-mode/badge-changed', {
+	activity.publish( 'os/badge-changed', {
 		itemId: iconId,
 		count: safe,
 		rail: 'icon',

@@ -21,7 +21,7 @@
  * based fetch upload-progress proposal isn't yet broadly supported,
  * and our floating HUD needs determinate bars). Activity-bus
  * visibility comes from the progress HUD (`progress-hud.ts`
- * publishes `desktop-mode/upload-hud-complete` on completion) —
+ * publishes `os/upload-hud-complete` on completion) —
  * XHR doesn't route through `wp.os.fetch` by design.
  */
 

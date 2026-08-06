@@ -65,7 +65,7 @@ wp.os.icons?.clearBadge?.(    'my-plugin-inbox' );
 
 Fan to all three rails — the rail that owns the id paints, the
 others silently no-op. Every applied change publishes
-`desktop-mode/badge-changed` on the activity bus with `rail`
+`os/badge-changed` on the activity bus with `rail`
 identifying the surface.
 
 ## Mute (Do Not Disturb) — JS hook

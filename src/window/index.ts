@@ -2882,13 +2882,13 @@ export class Window {
 		opts: WindowAttentionOptions = {},
 	): void {
 		// Primary policy hook: plugins filter
-		// `desktop-mode/window-attention-requested` to cancel
+		// `os/window-attention-requested` to cancel
 		// (`cancel: true`) for DND modes / reduced-motion, scale
 		// `durationMs`/`intensity`, or audit. The pre-0.5.5
 		// `os.window.attention` filter still runs below
 		// for back-compat.
 		const intent = activity.filter(
-			'desktop-mode/window-attention-requested',
+			'os/window-attention-requested',
 			{
 				windowId: this.id,
 				mode,

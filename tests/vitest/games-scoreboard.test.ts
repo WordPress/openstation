@@ -89,7 +89,7 @@ describe( 'games/scoreboard.ts', () => {
 			expect( fetchScoresSpy ).toHaveBeenCalledTimes( 1 ),
 		);
 
-		activity.activity.publish( 'desktop-mode/game-score-recorded', {
+		activity.activity.publish( 'os/game-score-recorded', {
 			game: 'inkfall',
 			score: 42,
 			meta: {},
@@ -109,7 +109,7 @@ describe( 'games/scoreboard.ts', () => {
 			expect( fetchScoresSpy ).toHaveBeenCalledTimes( 1 ),
 		);
 
-		activity.activity.publish( 'desktop-mode/game-score-recorded', {
+		activity.activity.publish( 'os/game-score-recorded', {
 			game: 'alphabet-soup',
 			score: 42,
 			meta: {},
@@ -142,7 +142,7 @@ describe( 'games/scoreboard.ts', () => {
 			),
 		);
 
-		activity.activity.publish( 'desktop-mode/game-score-recorded', {
+		activity.activity.publish( 'os/game-score-recorded', {
 			game: 'inkfall',
 			score: 42,
 			meta: {},
@@ -167,7 +167,7 @@ describe( 'games/scoreboard.ts', () => {
 		);
 
 		teardown();
-		activity.activity.publish( 'desktop-mode/game-score-recorded', {
+		activity.activity.publish( 'os/game-score-recorded', {
 			game: 'inkfall',
 			score: 42,
 			meta: {},

@@ -12,6 +12,11 @@
 			"import": "./src/public-api.ts",
 			"default": "./src/public-api.ts"
 		},
+		"./activity": {
+			"types": "./src/activity.ts",
+			"import": "./src/activity.ts",
+			"default": "./src/activity.ts"
+		},
 		"./global": {
 			"types": "./src/global.d.ts"
 		}

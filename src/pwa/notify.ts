@@ -19,7 +19,7 @@
  *     dismiss function (same shape as `showToast`) means callers
  *     never have to branch on permission state in their own code.
  *   - **Activity bus parity with toast.** Mirrors
- *     `desktop-mode/toast-requested` / `desktop-mode/toast-shown` —
+ *     `os/toast-requested` / `os/toast-shown` —
  *     plugins that want to mute, amplify, or audit notifications
  *     register a filter and get the same lifecycle they already
  *     know from the toast surface.
@@ -55,7 +55,7 @@ export interface NotifyOptions {
 }
 
 /**
- * Activity-bus payload routed through `desktop-mode/notification-requested`.
+ * Activity-bus payload routed through `os/notification-requested`.
  * Plugins filter on this to mute/amplify/cancel.
  */
 export interface NotifyIntent extends NotifyOptions {
@@ -88,7 +88,7 @@ export interface NotifyIntent extends NotifyOptions {
  */
 export function notify( options: NotifyOptions ): () => void {
 	const intent: NotifyIntent = activity.filter(
-		'desktop-mode/notification-requested',
+		'os/notification-requested',
 		{ ...options },
 	) as NotifyIntent;
 
@@ -119,7 +119,7 @@ export function notify( options: NotifyOptions ): () => void {
 				? intent.title + ' — ' + intent.body
 				: intent.title,
 		} );
-		activity.publish( 'desktop-mode/notification-shown', {
+		activity.publish( 'os/notification-shown', {
 			...intent,
 			fallback: 'toast',
 		} );
@@ -197,7 +197,7 @@ function renderNative( intent: NotifyIntent ): ( () => void ) | null {
 		};
 	}
 
-	activity.publish( 'desktop-mode/notification-shown', {
+	activity.publish( 'os/notification-shown', {
 		...intent,
 		fallback: null,
 	} );
