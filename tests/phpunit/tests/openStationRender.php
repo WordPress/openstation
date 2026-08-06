@@ -423,8 +423,20 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( '_openstationReinitListTables();', $output );
 		$this->assertStringContainsString( 'window.inlineEditPost.init()', $output );
 		$this->assertStringContainsString( 'window.inlineEditTax.init()', $output );
-		$this->assertStringContainsString( 'window.setCommentsList()', $output );
 		$this->assertStringContainsString( 'window.commentReply.init()', $output );
+
+		/*
+		 * `setCommentsList()` must stay out. It re-runs `wpList`,
+		 * which binds on `document` — a node the swap does not
+		 * replace — so every call stacks another set of comment
+		 * row-action handlers and one Approve click fires N
+		 * moderation requests. Those handlers survive the swap on
+		 * their own and never needed re-running.
+		 *
+		 * Matched on the call form, not the bare name: the comment
+		 * above the re-init names it too, and should keep saying why.
+		 */
+		$this->assertStringNotContainsString( 'window.setCommentsList(', $output );
 		$this->assertLessThan(
 			strpos( $output, "new CustomEvent( 'os-soft-reloaded' )" ),
 			strpos( $output, '_openstationReinitListTables();' ),

@@ -2553,10 +2553,14 @@ survive, and Core's inline editors are bound that way
 (`$( '#the-list' ).on( 'click', '.editinline', … )` and friends).
 The bridge therefore re-runs Core's own init entry points after
 each swap — `inlineEditPost.init()`, `inlineEditTax.init()`,
-`setCommentsList()`, `commentReply.init()` — which restores Quick
-Edit, Bulk Edit, comment Quick Edit / Reply and the comment row
-actions. Custom list tables that enqueue `inline-edit-post` get
-this for free.
+`commentReply.init()` — which restores Quick Edit, Bulk Edit and
+comment Quick Edit / Reply. Custom list tables that enqueue
+`inline-edit-post` get this for free.
+
+Only an init whose every binding lands inside the replaced subtree
+is safe to re-run. `setCommentsList()` is not, and is deliberately
+left out: it re-runs `wpList`, which binds on `document`, so each
+call would stack another set of comment row-action handlers.
 
 If your own code binds to an element inside the list table, bind
 it on `document` (best), or re-bind on `os-soft-reloaded`, which

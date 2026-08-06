@@ -2606,13 +2606,10 @@ function openstation_chromeless_bridge_script() {
 	 * returns the full admin page and we just pluck the body.
 	 *
 	 * Most WP list-table JS delegates on `document`/`body` and
-	 * survives `replaceWith`. The inline editors do NOT — they
-	 * delegate on `#the-list` / `#the-comment-list`, which live
-	 * inside the swapped subtree — so `_openstationReinitListTables()`
-	 * below re-runs Core's own init entry points after the swap. A
-	 * page that needs anything beyond that should listen for
-	 * `os-soft-reloaded` and rebind; the event fires after the
-	 * Core re-init, so a listener sees a sane list table.
+	 * survives the swap. The inline editors don't, so
+	 * `_openstationReinitListTables()` below re-runs Core's init
+	 * entry points afterwards. A page needing more than that should
+	 * listen for `os-soft-reloaded`, which fires after that re-init.
 	 * ----------------------------------------------------------------- */
 	var OPENSTATION_SOFT_RELOAD_EXTRAS = /*__OPENSTATION_SOFT_RELOAD_EXTRAS__*/;
 
@@ -2687,49 +2684,28 @@ function openstation_chromeless_bridge_script() {
 	/*
 	 * Re-init Core's list-table editors after a soft reload.
 	 *
-	 * The swap above replaces everything inside `#wpbody-content`,
-	 * and Core's inline editors bind to elements in there rather
-	 * than delegating on `document`:
+	 * Core's inline editors bind to elements inside `#wpbody-content`
+	 * instead of delegating on `document`: `#the-list` for Quick Edit
+	 * (inline-edit-post.js, inline-edit-tax.js), `#doaction` for Bulk
+	 * Edit, `#the-comment-list` for the comment inline editors. The
+	 * swap above throws those elements away, so the buttons keep
+	 * rendering and stop working.
 	 *
-	 *   inline-edit-post.js  $( '#the-list' ).on( 'click', '.editinline', … )
-	 *                        $( '#doaction' ).on( 'click', … )   ← Bulk Edit
-	 *   inline-edit-tax.js   $( '#the-list' ).on( 'click', '.editinline', … )
-	 *   edit-comments.js     $( '#the-comment-list' ).on( 'click', '.comment-inline', … )
-	 *                        plus the `wpList` wiring for row actions
+	 * Only re-run an init whose every binding lands inside the
+	 * replaced subtree — then the fresh DOM gets it exactly once and
+	 * nothing accumulates. `setCommentsList()` fails that test and is
+	 * NOT called here: it re-runs `wpList`, whose `process()` binds on
+	 * `document` (which survives), so each call stacks another set of
+	 * comment row-action handlers and one Approve click ends up firing
+	 * N moderation requests. Those handlers were never broken by the
+	 * swap; only the closure state behind them goes stale, which costs
+	 * a stale total count until the next reload.
 	 *
-	 * The swap throws away the elements those handlers were bound
-	 * to, so without this the buttons still render, still take
-	 * focus, and do nothing. That is what "Quick Edit doesn't work"
-	 * looks like from the outside: it works on a freshly opened
-	 * window and dies the first time anything on the site records a
-	 * content change.
-	 *
-	 * Every element these init functions touch (`#the-list`,
-	 * `#inline-edit`, `#bulk-edit`, `#doaction`, `#replyrow`,
-	 * `#the-comment-list`) lives inside the subtree we just
-	 * replaced, so on the fresh DOM they bind exactly once — no
-	 * double-binding, and no need to unbind first. Anything Core
-	 * delegates on `document`, `body` or `#wpbody-content` itself
-	 * (wp-lists, updates.js, the select-all checkboxes and the
-	 * row-actions focus reveal in common.js) is untouched by the
-	 * swap and deliberately not re-run here.
-	 *
-	 * Guarded per-global rather than per-screen: the globals only
-	 * exist where their script is enqueued, which is a better
-	 * screen test than anything we could derive from the URL, and
-	 * it keeps custom list tables that enqueue `inline-edit-post`
-	 * working for free.
-	 *
-	 * Not restored, deliberately, because each would mean copying
-	 * dozens of lines of `common.js` in here to buy back a
-	 * degraded-but-working affordance rather than a dead one:
-	 * the empty-bulk-action guard (`$( '.bulkactions' ).parents(
-	 * 'form' ).on( 'submit', … )` — an unselected bulk action
-	 * submits and the page simply comes back instead of showing
-	 * "Please select at least one item"), and the search-box
-	 * mousedown that clears a stale value. Both are worth a
-	 * follow-up upstream: none of these bindings would need
-	 * re-running at all if Core delegated them on `document`.
+	 * Also left alone: `common.js`'s empty-bulk-action guard and
+	 * search-box mousedown, and `$.table_hotkeys` (comment moderation
+	 * shortcuts stop navigating; re-running it would double-register).
+	 * All degraded rather than dead, and each would mean copying
+	 * dozens of lines of Core in here.
 	 */
 	function _openstationReinitListTables() {
 		var $ = window.jQuery;
@@ -2738,12 +2714,13 @@ function openstation_chromeless_bridge_script() {
 		}
 
 		/*
-		 * Mobile row expander. `common.js` binds it per-`tbody`
-		 * (`$( 'tbody' ).on( 'click', '.toggle-row', … )`), and every
-		 * list-table `tbody` is inside the subtree we just replaced.
-		 * Narrow windows are the norm in the shell, so this is the
-		 * one row-actions affordance most likely to be the ONLY one
-		 * on screen.
+		 * Mobile row expander. `common.js` binds it per-`tbody`, all
+		 * of which we just replaced. Narrow windows are the norm in
+		 * the shell, so it is often the only row affordance on screen.
+		 *
+		 * Per-`tbody` on purpose. Delegating on the now-surviving
+		 * `#wpbody-content` would stack with Core's own binding on
+		 * first load and toggle the row twice, back to closed.
 		 */
 		$( '#wpbody-content tbody' ).on( 'click', '.toggle-row', function () {
 			$( this ).closest( 'tr' ).toggleClass( 'is-expanded' );
@@ -2762,44 +2739,39 @@ function openstation_chromeless_bridge_script() {
 			} catch ( err ) { _openstationWarnReinit( 'inline-edit-tax', err ); }
 		}
 
-		if ( document.getElementById( 'the-comment-list' ) ) {
+		if ( document.getElementById( 'the-comment-list' ) && window.commentReply ) {
 			try {
-				if ( typeof window.setCommentsList === 'function' ) {
-					window.setCommentsList();
-				}
-				if ( window.commentReply && typeof window.commentReply.init === 'function' ) {
+				if ( typeof window.commentReply.init === 'function' ) {
 					window.commentReply.init();
-					/*
-					 * The `.comment-inline` delegation (Quick Edit /
-					 * Reply / Edit on a comment row) is the one binding
-					 * with no re-callable entry point — edit-comments.js
-					 * does it inline in its own `$( document ).ready`,
-					 * outside `commentReply.init`. Mirror it here. Kept
-					 * byte-for-byte equivalent to Core's handler so a
-					 * future Core change is a visible diff rather than a
-					 * silent behaviour drift.
-					 */
-					$( '#the-comment-list' ).on( 'click', '.comment-inline', function () {
-						var $el = $( this ),
-							action = 'replyto';
-
-						if ( 'undefined' !== typeof $el.data( 'action' ) ) {
-							action = $el.data( 'action' );
-						}
-
-						$( this ).attr( 'aria-expanded', 'true' );
-						window.commentReply.open( $el.data( 'commentId' ), $el.data( 'postId' ), action );
-					} );
 				}
-			} catch ( err ) { _openstationWarnReinit( 'edit-comments', err ); }
+			} catch ( err ) { _openstationWarnReinit( 'comment-reply', err ); }
+			try {
+				/*
+				 * Quick Edit / Reply / Edit on a comment row.
+				 * edit-comments.js binds this in its own doc-ready
+				 * rather than in `commentReply.init`, so there is
+				 * nothing to re-call. Mirror Core's handler.
+				 */
+				$( '#the-comment-list' ).on( 'click', '.comment-inline', function () {
+					var $el = $( this ),
+						action = 'replyto';
+
+					if ( 'undefined' !== typeof $el.data( 'action' ) ) {
+						action = $el.data( 'action' );
+					}
+
+					$( this ).attr( 'aria-expanded', 'true' );
+					window.commentReply.open( $el.data( 'commentId' ), $el.data( 'postId' ), action );
+				} );
+			} catch ( err ) { _openstationWarnReinit( 'comment-inline', err ); }
 		}
 	}
 
 	/*
-	 * A re-init that throws must not take the rest of the re-init —
-	 * or the `os-soft-reloaded` listeners after it — down with it.
-	 * Warn loudly instead: a silent catch here would present as the
-	 * exact bug this function exists to fix.
+	 * One failing re-init must not take the others, or the
+	 * `os-soft-reloaded` listeners after them, down with it. Warn
+	 * rather than swallow: a silent catch here looks exactly like the
+	 * bug this function exists to fix.
 	 */
 	function _openstationWarnReinit( which, err ) {
 		if ( window.console && window.console.warn ) {
@@ -2832,20 +2804,12 @@ function openstation_chromeless_bridge_script() {
 				return;
 			}
 			/*
-			 * Swap the CONTENTS of `#wpbody-content`, not the
-			 * element itself. `#wpbody-content`'s own markup is
-			 * static (`id`, `aria-label`, `tabindex`), so nothing
-			 * is lost by keeping the node — and keeping it keeps
-			 * every handler delegated ON it, which Core relies on
-			 * for the row-actions focus reveal in `common.js`
-			 * (`$( '#wpbody-content' ).on( { focusin, focusout },
-			 * '.table-view-list .has-row-actions' )`). `replaceWith`
-			 * silently dropped that one on every soft reload.
-			 *
-			 * Nodes parsed into another document are adopted on
-			 * insert, same as they were under `replaceWith`. The
-			 * slice is load-bearing: `childNodes` is live, and it
-			 * empties out from under the iteration otherwise.
+			 * Swap the CONTENTS of `#wpbody-content`, keeping the
+			 * node. Keeping it preserves handlers delegated on it,
+			 * which is where `common.js` puts the row-actions focus
+			 * reveal. Core emits the container as a bare
+			 * `<div id="wpbody-content">`, so the only thing this
+			 * discards is any attribute a plugin added to `fresh`.
 			 */
 			live.replaceChildren.apply( live, Array.prototype.slice.call( fresh.childNodes ) );
 			_openstationReinitListTables();
