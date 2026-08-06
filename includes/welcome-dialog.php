@@ -179,7 +179,7 @@ function openstation_render_welcome_dialog() {
 	}
 	@keyframes os-welcome-shimmer {
 		0%   { background-position: 0% 50%; }
-		100% { background-position: 200% 50%; }
+		100% { background-position: 100% 50%; }
 	}
 	.os-welcome__card {
 		position: relative;

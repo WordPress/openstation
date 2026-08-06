@@ -11,8 +11,7 @@
  * keyword is what routes it down the mask path in both painters — the
  * dock masks image icons so a plugin's brand colours cannot break the
  * monochrome rail, and `renderIcon()` masks it to the title bar's own
- * text colour. Fixed fills would survive neither. See
- * `src/ui/brand-mark.ts` for the longer version of that lesson.
+ * text colour. Fixed fills would survive neither.
  *
  * Held to two shapes — an annulus and eight teeth — because it renders
  * as small as 20px in the dock, where the hole is under 7px across and

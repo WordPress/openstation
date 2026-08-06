@@ -25,16 +25,16 @@
  *
  * It is the same dialog as the first-run welcome card in
  * `includes/welcome-dialog.php`, deliberately: a blurred Void scrim, a
- * Starlight card with a holographic hairline, a shimmering hero. That
- * is the product's one loud moment and an announcement about the
- * product's own name is the only other thing that earns it.
+ * Starlight card with a holographic hairline, a shimmering hero opening
+ * on an eyebrow pill. That is the product's one loud moment and an
+ * announcement about the product's own name is the only other thing
+ * that earns it.
  * `<os-modal>` is a control-panel chrome; every gradient here would
  * have to be fought past it. Styles live in `assets/css/announce.css`
  * under the `.os-announce` namespace.
  */
 
 import { __ } from './i18n';
-import { OPENSTATION_LOGOMARK_SVG } from './ui/brand-mark';
 import { trackedFetch } from './tracked-fetch';
 import type { DesktopConfig } from './types';
 
@@ -104,23 +104,24 @@ export function buildRebrandDialog(): HTMLElement {
 	card.className = 'os-announce__card';
 	scrim.appendChild( card );
 
-	const close = document.createElement( 'button' );
-	close.type = 'button';
-	close.className = 'os-announce__close';
-	close.dataset.rebrandDismiss = '';
-	close.setAttribute( 'aria-label', __( 'Close' ) );
-	close.innerHTML = '&times;';
-	card.appendChild( close );
-
 	// ---- Hero -------------------------------------------------------
 	const hero = document.createElement( 'div' );
 	hero.className = 'os-announce__hero';
 	card.appendChild( hero );
 
-	const mark = document.createElement( 'div' );
-	mark.className = 'os-announce__mark';
-	mark.innerHTML = OPENSTATION_LOGOMARK_SVG;
-	hero.appendChild( mark );
+	// The eyebrow pill, not the logomark. The welcome dialog opens on
+	// "New here"; this one is the same chip answering the same implicit
+	// question, so the two dialogs read as one voice. A logomark would
+	// have said "OpenStation" a beat before the headline says it, which
+	// is the one thing this card cannot afford to bury.
+	const eyebrow = document.createElement( 'span' );
+	eyebrow.className = 'os-announce__eyebrow';
+	const dot = document.createElement( 'span' );
+	dot.className = 'os-announce__eyebrow-dot';
+	dot.setAttribute( 'aria-hidden', 'true' );
+	eyebrow.appendChild( dot );
+	eyebrow.appendChild( document.createTextNode( __( 'New name' ) ) );
+	hero.appendChild( eyebrow );
 
 	const title = document.createElement( 'h2' );
 	title.id = 'os-announce-title';
@@ -130,9 +131,7 @@ export function buildRebrandDialog(): HTMLElement {
 
 	const subtitle = document.createElement( 'p' );
 	subtitle.className = 'os-announce__subtitle';
-	subtitle.textContent = __(
-		'Same plugin, same vision, new name. Your windows, wallpaper, dock and settings are exactly where you left them.',
-	);
+	subtitle.textContent = __( 'The beginning of a new identity.' );
 	hero.appendChild( subtitle );
 
 	// ---- Body -------------------------------------------------------
@@ -143,22 +142,23 @@ export function buildRebrandDialog(): HTMLElement {
 	const why = document.createElement( 'p' );
 	why.id = 'os-announce-desc';
 	why.textContent = __(
-		'To virtually everyone online, "Desktop Mode" means the request-desktop-site toggle in a mobile browser, so we realized that the name didn\'t really capture what it is. We are building an environment where you can control your WordPress site more efficiently.',
+		'Why OpenStation? Because it represents much more than a desktop interface. It\'s an open workspace where WordPress becomes a complete environment for creating, managing and building, just like a real workstation, but powered by the web.',
 	);
 	body.appendChild( why );
 
-	// Its own paragraph, and its own string. It is the sign-off, not
-	// the tail of the explanation above it, and a translator handed it
-	// separately can land it as one in their language.
-	const welcome = document.createElement( 'p' );
-	welcome.className = 'os-announce__welcome';
-	welcome.textContent = __( 'Welcome to OpenStation.' );
-	body.appendChild( welcome );
+	// Its own paragraph, and its own string. The theme is a separate
+	// piece of news from the rename, and a translator handed the two
+	// together would have to guess where one ends.
+	const theme = document.createElement( 'p' );
+	theme.textContent = __(
+		'This update also comes with a new default theme that we hope you enjoy.',
+	);
+	body.appendChild( theme );
 
 	const fine = document.createElement( 'p' );
 	fine.className = 'os-announce__fine';
 	fine.textContent = __(
-		'Nothing about your install moved. Updates arrive the same way, from the same plugin listing, under the same slug.',
+		'Everything is already set up. You don\'t need to install any new plugins, so you can keep using the same features as before.',
 	);
 	body.appendChild( fine );
 
@@ -206,9 +206,8 @@ export async function maybeShowRebrandNotice(
 	const doc = document;
 	const returnFocusTo = doc.activeElement as HTMLElement | null;
 
-	// One close path for every route out (button, close chip, ESC,
-	// backdrop) so the announcement is recorded as seen however the
-	// user leaves it. Dismissing IS reading it; there is no second
+	// One close path for every route out (button, ESC, backdrop) so the
+	// announcement is recorded as seen however the user leaves it. Dismissing IS reading it; there is no second
 	// chance being withheld, and a dialog that came back because you
 	// pressed Escape instead of the button would be the more annoying
 	// bug.
