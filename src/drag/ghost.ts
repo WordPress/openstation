@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Drag ghost element.
+ * OpenStation — Drag ghost element.
  *
  * The ghost is the visual element the user sees following the
  * pointer during a drag. By default it's a deep clone of the source
@@ -23,14 +23,14 @@
 import { __ } from '../i18n';
 import type { DragPayload, GhostHintConfig } from './types';
 
-const GHOST_CLASS = 'desktop-mode-drag-ghost';
-const GHOST_ACCEPT_CLASS = 'desktop-mode-drag-ghost--accept';
-const GHOST_REJECT_CLASS = 'desktop-mode-drag-ghost--reject';
+const GHOST_CLASS = 'os-drag-ghost';
+const GHOST_ACCEPT_CLASS = 'os-drag-ghost--accept';
+const GHOST_REJECT_CLASS = 'os-drag-ghost--reject';
 
-const HINT_CLASS = 'desktop-mode-drag-hint';
-const HINT_ACCEPT_CLASS = 'desktop-mode-drag-hint--accept';
-const HINT_REJECT_CLASS = 'desktop-mode-drag-hint--reject';
-const HINT_NEUTRAL_CLASS = 'desktop-mode-drag-hint--neutral';
+const HINT_CLASS = 'os-drag-hint';
+const HINT_ACCEPT_CLASS = 'os-drag-hint--accept';
+const HINT_REJECT_CLASS = 'os-drag-hint--reject';
+const HINT_NEUTRAL_CLASS = 'os-drag-hint--neutral';
 
 /** Horizontal offset of the hint chip from the cursor, in CSS px. */
 const HINT_OFFSET_X = 16;

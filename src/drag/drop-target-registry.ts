@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Drop target registry.
+ * OpenStation — Drop target registry.
  *
  * Keeps the live list of drop targets and runs the hit-test on each
  * `pointermove`. Hit-testing is a simple "deepest registered ancestor
@@ -52,14 +52,14 @@ export class DropTargetRegistry {
 	 * Find the deepest registered target whose element is `el` or an
 	 * ancestor of `el`. Walks the DOM tree once (O(depth)).
 	 *
-	 * Window claim boundary: if the walk crosses a `.desktop-mode-window`
+	 * Window claim boundary: if the walk crosses a `.os-window`
 	 * element BEFORE finding a registered target, hit-testing stops
 	 * there and returns null. This is the rule that makes "drag over
 	 * a Gutenberg admin window" produce reject feedback instead of
 	 * silently routing the drop to the wallpaper canvas underneath.
 	 *
 	 * A window can opt INTO accepting drops by registering a target
-	 * on its own body (e.g. Recycle Bin's `[data-desktop-mode-recycle-bin-root]`):
+	 * on its own body (e.g. Recycle Bin's `[data-os-recycle-bin-root]`):
 	 * since that element sits inside the window, the walk hits it
 	 * before reaching the window boundary and the body's target wins.
 	 */
@@ -71,7 +71,7 @@ export class DropTargetRegistry {
 				if ( t ) {
 					return t;
 				}
-				if ( cur.classList.contains( 'desktop-mode-window' ) ) {
+				if ( cur.classList.contains( 'os-window' ) ) {
 					return null;
 				}
 			}

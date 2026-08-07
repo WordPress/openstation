@@ -2,37 +2,37 @@
 
 Every desktop window's title bar has a small **modem-style activity LED** sitting between the icon and the title. At rest it's a hollow ring tinted with the user's accent color — a calm "alive, ready" affordance. While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
 
-> Status: `wp.desktop.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<wpd-save-status>` are **Experimental**.
+> Status: `wp.os.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<os-save-status>` are **Experimental**.
 
 ## The shortest possible adoption
 
-Use `wp.desktop.fetch` instead of the global `fetch`:
+Use `wp.os.fetch` instead of the global `fetch`:
 
 ```js
 // Before:
 const res = await fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 
 // After:
-const res = await wp.desktop.fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
+const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 ```
 
 That's it. The title-bar dot blinks for the round-trip, flashes green on success, red on failure (with the error message as tooltip). No CSS, no DOM, no per-window plumbing.
 
 ## Where it lights up
 
-By default, `wp.desktop.fetch` attributes the request to the **focused window** at the moment of the call. Most fetches happen inside event handlers — clicks, key presses, form submits — and the click already focused the window. So in 95% of cases the default attribution is correct.
+By default, `wp.os.fetch` attributes the request to the **focused window** at the moment of the call. Most fetches happen inside event handlers — clicks, key presses, form submits — and the click already focused the window. So in 95% of cases the default attribution is correct.
 
 For the 5% where focus isn't your friend, pass an explicit attribution:
 
 ```js
 // You have the window's id (most native-window bundles know their own id):
-wp.desktop.fetch( url, init, { windowId: 'my-plugin/inbox' } );
+wp.os.fetch( url, init, { windowId: 'my-plugin/inbox' } );
 
 // You have a Window instance in scope:
-wp.desktop.fetch( url, init, { window: ctx.window } );
+wp.os.fetch( url, init, { window: ctx.window } );
 
 // Don't blink for this fetch (background polls, prefetches):
-wp.desktop.fetch( url, init, { silent: true } );
+wp.os.fetch( url, init, { silent: true } );
 ```
 
 ## Bundle-level migration recipe
@@ -42,8 +42,8 @@ Wrap the bundle's fetch helper once, then every call inherits the indicator:
 ```js
 // my-plugin/rest.js
 function shellFetch( input, init ) {
-    if ( window.wp?.desktop?.fetch ) {
-        return wp.desktop.fetch( input, init, { windowId: 'my-plugin/inbox' } );
+    if ( window.wp?.os?.fetch ) {
+        return wp.os.fetch( input, init, { windowId: 'my-plugin/inbox' } );
     }
     return fetch( input, init );
 }
@@ -65,7 +65,7 @@ Every call site (`fetchInbox`, `archive`) now lights up the inbox window's title
 When the operation isn't a single fetch — a `postMessage` handshake, an IndexedDB write, a `BroadcastChannel` round-trip, a long client-side computation — reach for `Window.trackActivity( promise )`:
 
 ```js
-const win = wp.desktop.windowManager.getById( 'my-plugin/dashboard' );
+const win = wp.os.windowManager.getById( 'my-plugin/dashboard' );
 
 // Single Promise:
 await win.trackActivity( indexedDbWrite( record ) );
@@ -117,8 +117,8 @@ Phases:
 ```js
 // Two fetches in parallel — dot stays lit until the LAST one settles.
 await Promise.all( [
-    wp.desktop.fetch( urlA ),
-    wp.desktop.fetch( urlB ),
+    wp.os.fetch( urlA ),
+    wp.os.fetch( urlB ),
 ] );
 ```
 
@@ -158,4 +158,4 @@ function trackedXhr( url, body, win ) {
 ## See also
 
 - [`docs/javascript-reference.md`](../javascript-reference.md#wpdesktopfetch-input-init-opts---stable) — full API surface.
-- [`<wpd-save-status>`](../components-reference.md#display--feedback) — the standalone component the title-bar indicator uses. Drop one anywhere (panel headers, plugin own settings forms, custom toolbars) — it auto-listens to a configurable CustomEvent and renders the same modem dot.
+- [`<os-save-status>`](../components-reference.md#display--feedback) — the standalone component the title-bar indicator uses. Drop one anywhere (panel headers, plugin own settings forms, custom toolbars) — it auto-listens to a configurable CustomEvent and renders the same modem dot.

@@ -1,14 +1,14 @@
 /**
- * Desktop Mode — File-type registry (JS side).
+ * OpenStation — File-type registry (JS side).
  *
- * Mirrors the PHP {@link desktop_mode_register_file_type} surface:
+ * Mirrors the PHP {@link openstation_register_file_type} surface:
  * maps a type slug to the {@link DesktopFile} subclass that
  * adapts shapes for that type, plus user-facing metadata (label,
  * sort order). Plugins use {@link registerType} to add their own
  * types; built-in types register themselves on bundle boot.
  *
  * The registry is cache-free: every call to {@link getTypes}
- * re-applies the `desktop-mode.files.types` filter so plugins can
+ * re-applies the `os.files.types` filter so plugins can
  * reorder, hide, or override entries at filter time.
  */
 
@@ -37,10 +37,10 @@ const listeners = new Set<() => void >();
  */
 export function registerType( def: DesktopFileTypeDef ): void {
 	if ( ! def.type ) {
-		throw new Error( '[desktop-mode] registerType: `type` is required.' );
+		throw new Error( '[openstation] registerType: `type` is required.' );
 	}
 	if ( ! def.label ) {
-		throw new Error( '[desktop-mode] registerType: `label` is required.' );
+		throw new Error( '[openstation] registerType: `label` is required.' );
 	}
 	seed.set( def.type, {
 		type: def.type,
@@ -48,14 +48,14 @@ export function registerType( def: DesktopFileTypeDef ): void {
 		sort: typeof def.sort === 'number' ? def.sort : 100,
 		DesktopFile: def.DesktopFile,
 	} );
-	doAction( 'desktop-mode.files.type-registered', def.type, def );
+	doAction( 'os.files.type-registered', def.type, def );
 	notify();
 }
 
 /** Unregister a type. Used by the server-sync module on plugin deactivation. */
 export function unregisterType( typeSlug: string ): void {
 	if ( seed.delete( typeSlug ) ) {
-		doAction( 'desktop-mode.files.type-unregistered', typeSlug );
+		doAction( 'os.files.type-unregistered', typeSlug );
 		notify();
 	}
 }
@@ -68,12 +68,12 @@ export function getType( typeSlug: string ): DesktopFileTypeDef | null {
 
 /**
  * Returns every registered type, sorted by `sort` then label, with
- * the `desktop-mode.files.types` filter applied.
+ * the `os.files.types` filter applied.
  */
 export function getTypes(): DesktopFileTypeDef[] {
 	const list = Array.from( seed.values() ).slice();
 	const filtered = applyFilters< DesktopFileTypeDef[], [] >(
-		'desktop-mode.files.types',
+		'os.files.types',
 		list,
 	);
 	const arr = Array.isArray( filtered ) ? filtered : list;
@@ -113,12 +113,12 @@ function notify(): void {
 		} catch ( err ) {
 			// Don't let a single broken subscriber break the rest.
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] files registry subscriber threw:', err );
+			console.error( '[openstation] files registry subscriber threw:', err );
 		}
 	}
 }
 
-/** Test-only — wipes the registry. Not exported via `wp.desktop.files`. */
+/** Test-only — wipes the registry. Not exported via `wp.os.files`. */
 export function __resetForTests(): void {
 	seed.clear();
 	listeners.clear();

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Public API barrel (architecture-0.8.1 location).
+ * OpenStation — Public API barrel (architecture-0.8.1 location).
  *
  * The canonical home of the public API for plugin authors going
  * forward. Re-exports the historical `src/public-api.ts` types
@@ -9,7 +9,7 @@
  *
  * Phase 5 (boot decomposition) will move the runtime facade
  * assembly here as well — a single `attachPublicApi(services)`
- * function that wires every `wp.desktop.*` method in one place.
+ * function that wires every `wp.os.*` method in one place.
  * Until then, the runtime assembly continues to live in
  * `src/desktop.ts`.
  */

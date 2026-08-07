@@ -9,7 +9,7 @@
  * next open without an explicit target falls back to the viewer's
  * own profile (the "Edit my profile" path from the admin bar).
  *
- * Shared via `wp.desktop.createSharedStore` so a future split of
+ * Shared via `wp.os.createSharedStore` so a future split of
  * the user-edit code into its own bundle keeps the same single
  * source of truth across bundles (per CLAUDE.md guidance).
  */
@@ -49,8 +49,8 @@ function getStore(): SharedStoreApi< UserEditTarget > | null {
 	if ( _store ) {
 		return _store;
 	}
-	const w = window as unknown as { wp?: { desktop?: DesktopFacade } };
-	const factory = w.wp?.desktop?.createSharedStore;
+	const w = window as unknown as { wp?: { os?: DesktopFacade } };
+	const factory = w.wp?.os?.createSharedStore;
 	if ( typeof factory !== 'function' ) {
 		return null;
 	}

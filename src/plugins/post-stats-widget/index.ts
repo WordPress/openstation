@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Post Stats Widget (lazy bundle).
+ * OpenStation — Post Stats Widget (lazy bundle).
  *
  * Stacked canvas bar chart of posts per calendar month over
  * the last 6 months, split by Published / Pending / Draft.
@@ -271,7 +271,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

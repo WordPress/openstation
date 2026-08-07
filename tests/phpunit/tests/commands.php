@@ -1,7 +1,7 @@
 <?php
 /**
- * Tests for `desktop_mode_register_command_script()` and
- * `desktop_mode_register_command()` — the PHP-side entry points that
+ * Tests for `openstation_register_command_script()` and
+ * `openstation_register_command()` — the PHP-side entry points that
  * hand command-palette providers off to the shell's server-sync so
  * newly-installed plugins appear live in the palette.
  *
@@ -12,48 +12,57 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-commands
+ * @group openstation
+ * @group os-commands
  */
-class Tests_DesktopMode_Commands extends WP_UnitTestCase {
+class Tests_OpenStation_Commands extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
 		// Module-level stores are process-static; flush so a prior
 		// test's synthetic handle doesn't trip our payload-builder's
 		// `_doing_it_wrong` notice during this test.
-		desktop_mode_flush_script_handle_registries();
+		openstation_flush_script_handle_registries();
+	}
+
+	public function tear_down() {
+		// Symmetric flush. Without it the last test in this class
+		// leaves a synthetic handle behind, and the notice surfaces
+		// in whichever class next builds the shell config — making
+		// the failure depend on suite ordering rather than on code.
+		openstation_flush_script_handle_registries();
+		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command_script
+	 * @covers ::openstation_register_command_script
 	 */
 	public function test_register_command_script_stores_handle() {
 		$handle = 'cmd-test-a-' . uniqid();
-		$result = desktop_mode_register_command_script( $handle );
+		$result = openstation_register_command_script( $handle );
 		$this->assertTrue( $result );
 
-		$this->assertTrue( desktop_mode_desktop_command_script_registry( $handle ) );
+		$this->assertTrue( openstation_desktop_command_script_registry( $handle ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command_script
+	 * @covers ::openstation_register_command_script
 	 */
 	public function test_register_command_script_rejects_empty_handle() {
-		$result = desktop_mode_register_command_script( '' );
+		$result = openstation_register_command_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $result );
-		$this->assertSame( 'desktop_mode_missing_handle', $result->get_error_code() );
+		$this->assertSame( 'openstation_missing_handle', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_command_scripts_payload
+	 * @covers ::openstation_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_resolves_registered_handle_to_absolute_url() {
 		$handle = 'cmd-test-b-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/cmd.js', array(), '1.0.0', true );
-		desktop_mode_register_command_script( $handle );
+		openstation_register_command_script( $handle );
 
-		$payload = desktop_mode_build_desktop_command_scripts_payload();
+		$payload = openstation_build_desktop_command_scripts_payload();
 
 		$entry = null;
 		foreach ( $payload as $p ) {
@@ -67,30 +76,30 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_command_scripts_payload
+	 * @covers ::openstation_build_desktop_command_scripts_payload
 	 */
 	public function test_payload_omits_unresolvable_handles() {
-		$this->setExpectedIncorrectUsage( 'desktop_mode_register_command_script' );
+		$this->setExpectedIncorrectUsage( 'openstation_register_command_script' );
 
 		$handle = 'cmd-test-c-' . uniqid();
 		// Registered as a provider but the script handle itself was
 		// never enqueued / registered with wp_register_script —
 		// payload omits it AND fires a `_doing_it_wrong` notice
 		// pointing at the unresolvable handle.
-		desktop_mode_register_command_script( $handle );
+		openstation_register_command_script( $handle );
 
-		$payload = desktop_mode_build_desktop_command_scripts_payload();
+		$payload = openstation_build_desktop_command_scripts_payload();
 		foreach ( $payload as $entry ) {
 			$this->assertNotSame( $handle, $entry['handle'] );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command
+	 * @covers ::openstation_register_command
 	 */
 	public function test_register_desktop_command_stores_metadata() {
 		$slug = 'cmd-test-d-' . uniqid();
-		$result = desktop_mode_register_command( array(
+		$result = openstation_register_command( array(
 			'slug'        => $slug,
 			'label'       => 'Home Assistant: Lights',
 			'description' => 'Toggle smart lights',
@@ -98,57 +107,57 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 		) );
 		$this->assertTrue( $result );
 
-		$entry = desktop_mode_desktop_command_registry( $slug );
+		$entry = openstation_desktop_command_registry( $slug );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'Home Assistant: Lights', $entry['label'] );
 		$this->assertSame( 'dashicons-lightbulb', $entry['icon'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command
+	 * @covers ::openstation_register_command
 	 */
 	public function test_register_desktop_command_implicitly_registers_its_script() {
 		$slug   = 'cmd-test-e-' . uniqid();
 		$handle = 'cmd-script-e-' . uniqid();
-		desktop_mode_register_command( array(
+		openstation_register_command( array(
 			'slug'   => $slug,
 			'label'  => 'Lights',
 			'script' => $handle,
 		) );
 
-		$this->assertTrue( desktop_mode_desktop_command_script_registry( $handle ) );
+		$this->assertTrue( openstation_desktop_command_script_registry( $handle ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command
+	 * @covers ::openstation_register_command
 	 */
 	public function test_register_desktop_command_requires_slug_and_label() {
-		$no_slug = desktop_mode_register_command( array( 'label' => 'x' ) );
+		$no_slug = openstation_register_command( array( 'label' => 'x' ) );
 		$this->assertInstanceOf( 'WP_Error', $no_slug );
-		$this->assertSame( 'desktop_mode_missing_slug', $no_slug->get_error_code() );
+		$this->assertSame( 'openstation_missing_slug', $no_slug->get_error_code() );
 
-		$no_label = desktop_mode_register_command( array( 'slug' => 'cmd-test-f-' . uniqid() ) );
+		$no_label = openstation_register_command( array( 'slug' => 'cmd-test-f-' . uniqid() ) );
 		$this->assertInstanceOf( 'WP_Error', $no_label );
-		$this->assertSame( 'desktop_mode_missing_label', $no_label->get_error_code() );
+		$this->assertSame( 'openstation_missing_label', $no_label->get_error_code() );
 	}
 
 	/**
 	 * The documented (Stable) contract for
-	 * `desktop_mode_command_script_registered` says it also fires when
-	 * `desktop_mode_register_command()` implicitly registers its
+	 * `openstation_command_script_registered` says it also fires when
+	 * `openstation_register_command()` implicitly registers its
 	 * `script` argument — not only on direct
-	 * `desktop_mode_register_command_script()` calls.
+	 * `openstation_register_command_script()` calls.
 	 *
-	 * @covers ::desktop_mode_register_command
+	 * @covers ::openstation_register_command
 	 */
 	public function test_registered_action_fires_on_implicit_script_registration() {
 		$calls = array();
-		add_action( 'desktop_mode_command_script_registered', function ( $handle ) use ( &$calls ) {
+		add_action( 'openstation_command_script_registered', function ( $handle ) use ( &$calls ) {
 			$calls[] = $handle;
 		} );
 		$slug   = 'cmd-test-i-' . uniqid();
 		$handle = 'cmd-script-i-' . uniqid();
-		desktop_mode_register_command( array(
+		openstation_register_command( array(
 			'slug'   => $slug,
 			'label'  => 'Lights',
 			'script' => $handle,
@@ -158,17 +167,17 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_register_command_script
+	 * @covers ::openstation_register_command_script
 	 */
 	public function test_registered_action_fires_per_call() {
 		$calls = array();
-		add_action( 'desktop_mode_command_script_registered', function ( $handle ) use ( &$calls ) {
+		add_action( 'openstation_command_script_registered', function ( $handle ) use ( &$calls ) {
 			$calls[] = $handle;
 		} );
 		$h1 = 'cmd-test-g-' . uniqid();
 		$h2 = 'cmd-test-h-' . uniqid();
-		desktop_mode_register_command_script( $h1 );
-		desktop_mode_register_command_script( $h2 );
+		openstation_register_command_script( $h1 );
+		openstation_register_command_script( $h2 );
 		$this->assertContains( $h1, $calls );
 		$this->assertContains( $h2, $calls );
 	}

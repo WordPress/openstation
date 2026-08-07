@@ -1,5 +1,5 @@
 /**
- * `wp.desktop.updateOsSettings()` — the public write path into OS
+ * `wp.os.updateOsSettings()` — the public write path into OS
  * Settings.
  *
  * Two things are worth pinning here. First, the whitelist: the patch

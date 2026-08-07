@@ -2,7 +2,7 @@
 /**
  * Popup Siege manifest.
  *
- * @package DesktopModePopupSiege
+ * @package OpenStationPopupSiege
  */
 
 defined( 'ABSPATH' ) || exit;

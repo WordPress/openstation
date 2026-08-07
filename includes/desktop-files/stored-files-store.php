@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — stored-files store (real per-user file storage).
+ * OpenStation — stored-files store (real per-user file storage).
  *
  * Backs the `upload` file type. One row per uploaded file in
  * `{$wpdb->prefix}desktop_mode_stored_files`; the bytes live flat on
@@ -25,9 +25,9 @@
  * placement OWNS the entity. Soft-trash keeps the bytes; when the
  * owner's last placement of a file is permanently removed, the row,
  * the bytes, and every recipient placement are purged (see
- * {@see desktop_mode_stored_files_handle_unplaced()}).
+ * {@see openstation_stored_files_handle_unplaced()}).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,12 +36,17 @@ defined( 'ABSPATH' ) || exit;
  * Absolute path of the storage base dir (no trailing slash), or of
  * a user's subdirectory when `$user_id` is given. Purely a path
  * computation — nothing is created; see
- * {@see desktop_mode_stored_files_ensure_dir()}.
+ * {@see openstation_stored_files_ensure_dir()}.
+ *
+ * The `desktop-mode-files` segment is the pre-rebrand spelling and is
+ * frozen: users' uploaded bytes already live there. Renaming it points
+ * the plugin at an empty directory while every stored file stays on
+ * disk, unreachable. The mismatch with the function name is deliberate.
  *
  * @param int $user_id Optional. Owner whose subdirectory to return.
  * @return string
  */
-function desktop_mode_stored_files_dir( $user_id = 0 ) {
+function openstation_stored_files_dir( $user_id = 0 ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-files';
 	/**
@@ -50,7 +55,7 @@ function desktop_mode_stored_files_dir( $user_id = 0 ) {
 	 *
 	 * @param string $base Absolute path, no trailing slash.
 	 */
-	$base = (string) apply_filters( 'desktop_mode_stored_files_base_dir', $base );
+	$base = (string) apply_filters( 'openstation_stored_files_base_dir', $base );
 	if ( (int) $user_id > 0 ) {
 		return $base . '/' . (int) $user_id;
 	}
@@ -65,15 +70,15 @@ function desktop_mode_stored_files_dir( $user_id = 0 ) {
  * @param int $user_id Owner.
  * @return string|WP_Error
  */
-function desktop_mode_stored_files_ensure_dir( $user_id ) {
+function openstation_stored_files_ensure_dir( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
-		return new WP_Error( 'desktop_mode_stored_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_stored_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$base = desktop_mode_stored_files_dir();
-	$dir  = desktop_mode_stored_files_dir( $user_id );
+	$base = openstation_stored_files_dir();
+	$dir  = openstation_stored_files_dir( $user_id );
 	if ( ! wp_mkdir_p( $dir ) ) {
-		return new WP_Error( 'desktop_mode_stored_files_mkdir_failed', __( 'Could not create the storage directory.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_stored_files_mkdir_failed', __( 'Could not create the storage directory.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
 	// Protection files in the base. `Require all denied` alone 500s
@@ -112,7 +117,7 @@ function desktop_mode_stored_files_ensure_dir( $user_id ) {
  * @param string $disk_name Candidate.
  * @return bool
  */
-function desktop_mode_stored_files_valid_disk_name( $disk_name ) {
+function openstation_stored_files_valid_disk_name( $disk_name ) {
 	return (bool) preg_match( '/^[a-f0-9-]{16,64}$/', (string) $disk_name );
 }
 
@@ -125,15 +130,15 @@ function desktop_mode_stored_files_valid_disk_name( $disk_name ) {
  * @param array $row Normalized stored-file row.
  * @return string|null
  */
-function desktop_mode_stored_file_path( $row ) {
+function openstation_stored_file_path( $row ) {
 	if ( ! is_array( $row ) || empty( $row['owner_id'] ) || empty( $row['disk_name'] ) ) {
 		return null;
 	}
-	if ( ! desktop_mode_stored_files_valid_disk_name( $row['disk_name'] ) ) {
+	if ( ! openstation_stored_files_valid_disk_name( $row['disk_name'] ) ) {
 		return null;
 	}
-	$base = desktop_mode_stored_files_dir();
-	$path = desktop_mode_stored_files_dir( (int) $row['owner_id'] ) . '/' . $row['disk_name'];
+	$base = openstation_stored_files_dir();
+	$path = openstation_stored_files_dir( (int) $row['owner_id'] ) . '/' . $row['disk_name'];
 
 	// realpath() fails on not-yet-existing leaves; canonicalize the
 	// parent instead and re-attach the (regex-validated) leaf.
@@ -158,11 +163,11 @@ function desktop_mode_stored_file_path( $row ) {
  * @param array $args     `display_name`, `disk_name`, `size_bytes`, `mime`.
  * @return int|WP_Error Row id.
  */
-function desktop_mode_stored_files_create( $owner_id, $args ) {
+function openstation_stored_files_create( $owner_id, $args ) {
 	global $wpdb;
 	$owner_id = (int) $owner_id;
 	if ( $owner_id <= 0 ) {
-		return new WP_Error( 'desktop_mode_stored_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_stored_files_invalid_user', __( 'A user id is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 	$args = wp_parse_args(
 		$args,
@@ -173,16 +178,16 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
 			'mime'         => '',
 		)
 	);
-	if ( ! desktop_mode_stored_files_valid_disk_name( $args['disk_name'] ) ) {
-		return new WP_Error( 'desktop_mode_stored_files_bad_disk_name', __( 'Invalid storage name.', 'desktop-mode' ), array( 'status' => 400 ) );
+	if ( ! openstation_stored_files_valid_disk_name( $args['disk_name'] ) ) {
+		return new WP_Error( 'openstation_stored_files_bad_disk_name', __( 'Invalid storage name.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 	$display = sanitize_file_name( wp_strip_all_tags( (string) $args['display_name'] ) );
 	if ( '' === $display ) {
 		$display = __( 'file', 'desktop-mode' );
 	}
 
-	$tables = desktop_mode_files_table_names();
-	$now    = desktop_mode_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 	$ok     = $wpdb->insert(
 		$tables['stored_files'],
 		array(
@@ -197,7 +202,7 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
 		array( '%d', '%s', '%s', '%d', '%s', '%d', '%d' )
 	);
 	if ( false === $ok ) {
-		return new WP_Error( 'desktop_mode_stored_files_insert_failed', __( 'Failed to record the uploaded file.', 'desktop-mode' ), array( 'status' => 500 ) );
+		return new WP_Error( 'openstation_stored_files_insert_failed', __( 'Failed to record the uploaded file.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	$id = (int) $wpdb->insert_id;
 
@@ -208,7 +213,7 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
 	 * @param int $id       Stored-file id.
 	 * @param int $owner_id Owner.
 	 */
-	do_action( 'desktop_mode_stored_file_created', $id, $owner_id );
+	do_action( 'openstation_stored_file_created', $id, $owner_id );
 
 	return $id;
 }
@@ -219,13 +224,13 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
  * @param int $file_id Row id.
  * @return array|null
  */
-function desktop_mode_stored_files_get( $file_id ) {
+function openstation_stored_files_get( $file_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
 	if ( $file_id <= 0 ) {
 		return null;
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare( "SELECT * FROM {$tables['stored_files']} WHERE id = %d", $file_id ),
 		ARRAY_A
@@ -233,7 +238,7 @@ function desktop_mode_stored_files_get( $file_id ) {
 	if ( ! $row ) {
 		return null;
 	}
-	return desktop_mode_stored_files_normalize_row( $row );
+	return openstation_stored_files_normalize_row( $row );
 }
 
 /**
@@ -244,7 +249,7 @@ function desktop_mode_stored_files_get( $file_id ) {
  * @param array $row Raw wpdb row.
  * @return array
  */
-function desktop_mode_stored_files_normalize_row( $row ) {
+function openstation_stored_files_normalize_row( $row ) {
 	return array(
 		'id'            => (int) $row['id'],
 		'owner_id'      => (int) $row['owner_id'],
@@ -266,18 +271,18 @@ function desktop_mode_stored_files_normalize_row( $row ) {
  * @param string $name    New display name.
  * @return true|WP_Error
  */
-function desktop_mode_stored_files_rename( $file_id, $name ) {
+function openstation_stored_files_rename( $file_id, $name ) {
 	global $wpdb;
-	$row = desktop_mode_stored_files_get( $file_id );
+	$row = openstation_stored_files_get( $file_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	$name = sanitize_file_name( wp_strip_all_tags( (string) $name ) );
 	if ( '' === $name ) {
-		return new WP_Error( 'desktop_mode_stored_files_bad_name', __( 'A file name is required.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_stored_files_bad_name', __( 'A file name is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$tables = desktop_mode_files_table_names();
-	$now    = desktop_mode_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 	$wpdb->update(
 		$tables['stored_files'],
 		array(
@@ -310,7 +315,7 @@ function desktop_mode_stored_files_rename( $file_id, $name ) {
 	 * @param string $new_name New display name.
 	 * @param string $old_name Previous display name.
 	 */
-	do_action( 'desktop_mode_stored_file_renamed', (int) $row['id'], $name, (string) $row['display_name'] );
+	do_action( 'openstation_stored_file_renamed', (int) $row['id'], $name, (string) $row['display_name'] );
 
 	return true;
 }
@@ -327,37 +332,37 @@ function desktop_mode_stored_files_rename( $file_id, $name ) {
  * @param array $row     Placement row.
  * @return bool
  */
-function desktop_mode_stored_files_gate_trash( $can, $user_id, $row ) {
+function openstation_stored_files_gate_trash( $can, $user_id, $row ) {
 	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
 		return $can;
 	}
-	$stored = desktop_mode_stored_files_get( (int) $row['file_ref'] );
+	$stored = openstation_stored_files_get( (int) $row['file_ref'] );
 	if ( ! $stored ) {
 		return $can; // Dangling tile — normal rules, so it stays cleanable.
 	}
 	return (int) $stored['owner_id'] === (int) $user_id;
 }
-add_filter( 'desktop_mode_files_user_can_trash_placement', 'desktop_mode_stored_files_gate_trash', 20, 3 );
+add_filter( 'openstation_files_user_can_trash_placement', 'openstation_stored_files_gate_trash', 20, 3 );
 
 /**
  * Delete a stored file: bytes first, then the row. Does NOT touch
  * placements — callers that need the full cascade go through
- * {@see desktop_mode_stored_files_purge()}.
+ * {@see openstation_stored_files_purge()}.
  *
  * @param int $file_id Row id.
  * @return true|WP_Error
  */
-function desktop_mode_stored_files_delete( $file_id ) {
+function openstation_stored_files_delete( $file_id ) {
 	global $wpdb;
-	$row = desktop_mode_stored_files_get( $file_id );
+	$row = openstation_stored_files_get( $file_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$path = desktop_mode_stored_file_path( $row );
+	$path = openstation_stored_file_path( $row );
 	if ( $path && file_exists( $path ) ) {
 		wp_delete_file( $path );
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$wpdb->delete( $tables['stored_files'], array( 'id' => (int) $row['id'] ), array( '%d' ) );
 
 	/**
@@ -366,7 +371,7 @@ function desktop_mode_stored_files_delete( $file_id ) {
 	 * @param int   $file_id Stored-file id.
 	 * @param array $row     The row as it was before deletion.
 	 */
-	do_action( 'desktop_mode_stored_file_deleted', (int) $row['id'], $row );
+	do_action( 'openstation_stored_file_deleted', (int) $row['id'], $row );
 
 	return true;
 }
@@ -379,14 +384,14 @@ function desktop_mode_stored_files_delete( $file_id ) {
  * @param int $file_id Row id.
  * @return true|WP_Error
  */
-function desktop_mode_stored_files_purge( $file_id ) {
+function openstation_stored_files_purge( $file_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
-	$row     = desktop_mode_stored_files_get( $file_id );
+	$row     = openstation_stored_files_get( $file_id );
 	if ( ! $row ) {
-		return new WP_Error( 'desktop_mode_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// Remaining placements (trashed included — the file is going
 	// away for good, a recycle-bin restore must not resurrect a
@@ -401,7 +406,7 @@ function desktop_mode_stored_files_purge( $file_id ) {
 	);
 	foreach ( (array) $placement_ids as $pid ) {
 		$wpdb->delete( $tables['placements'], array( 'id' => (int) $pid ), array( '%d' ) );
-		desktop_mode_files_write_tombstone( 'placement', (int) $pid );
+		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 
 	// File shares (target_type='file'). The shares table keys the
@@ -415,7 +420,7 @@ function desktop_mode_stored_files_purge( $file_id ) {
 		array( '%s', '%d' )
 	);
 
-	return desktop_mode_stored_files_delete( $file_id );
+	return openstation_stored_files_delete( $file_id );
 }
 
 /**
@@ -424,9 +429,9 @@ function desktop_mode_stored_files_purge( $file_id ) {
  * @param int $owner_id Owner.
  * @return int
  */
-function desktop_mode_stored_files_total_bytes( $owner_id ) {
+function openstation_stored_files_total_bytes( $owner_id ) {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	return (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COALESCE( SUM( size_bytes ), 0 ) FROM {$tables['stored_files']} WHERE owner_id = %d",
@@ -443,7 +448,7 @@ function desktop_mode_stored_files_total_bytes( $owner_id ) {
  * @param int $user_id User.
  * @return int
  */
-function desktop_mode_stored_files_user_quota_bytes( $user_id ) {
+function openstation_stored_files_user_quota_bytes( $user_id ) {
 	/**
 	 * Filters the per-user storage quota in bytes. Return 0 for
 	 * unlimited.
@@ -451,7 +456,7 @@ function desktop_mode_stored_files_user_quota_bytes( $user_id ) {
 	 * @param int $quota   Quota in bytes. Default 0 (unlimited).
 	 * @param int $user_id User being checked.
 	 */
-	return max( 0, (int) apply_filters( 'desktop_mode_stored_files_user_quota_bytes', 0, (int) $user_id ) );
+	return max( 0, (int) apply_filters( 'openstation_stored_files_user_quota_bytes', 0, (int) $user_id ) );
 }
 
 /**
@@ -461,13 +466,13 @@ function desktop_mode_stored_files_user_quota_bytes( $user_id ) {
  *
  * @return string
  */
-function desktop_mode_stored_files_upload_capability() {
+function openstation_stored_files_upload_capability() {
 	/**
 	 * Filters the capability required to upload desktop files.
 	 *
 	 * @param string $capability Default 'upload_files'.
 	 */
-	return (string) apply_filters( 'desktop_mode_stored_files_upload_capability', 'upload_files' );
+	return (string) apply_filters( 'openstation_stored_files_upload_capability', 'upload_files' );
 }
 
 /**
@@ -484,14 +489,14 @@ function desktop_mode_stored_files_upload_capability() {
  * @param int $user_id Viewer.
  * @return bool
  */
-function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
+function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
 	$user_id = (int) $user_id;
 	if ( $file_id <= 0 || $user_id <= 0 ) {
 		return false;
 	}
-	$row = desktop_mode_stored_files_get( $file_id );
+	$row = openstation_stored_files_get( $file_id );
 	if ( ! $row ) {
 		return false;
 	}
@@ -500,14 +505,14 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
 	}
 
 	// Accepted direct file share.
-	if ( function_exists( 'desktop_mode_stored_file_share_state' ) ) {
-		if ( 'accepted' === desktop_mode_stored_file_share_state( $file_id, $user_id ) ) {
+	if ( function_exists( 'openstation_stored_file_share_state' ) ) {
+		if ( 'accepted' === openstation_stored_file_share_state( $file_id, $user_id ) ) {
 			return true;
 		}
 	}
 
 	// Read+ capability on a folder containing a live placement.
-	$tables  = desktop_mode_files_table_names();
+	$tables  = openstation_files_table_names();
 	$parents = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT parent_id FROM {$tables['placements']}
@@ -518,9 +523,9 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
 			(string) $file_id
 		)
 	);
-	if ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {
+	if ( function_exists( 'openstation_folder_share_user_capability' ) ) {
 		foreach ( (array) $parents as $parent_id ) {
-			if ( 'none' !== desktop_mode_folder_share_user_capability( (int) $parent_id, $user_id ) ) {
+			if ( 'none' !== openstation_folder_share_user_capability( (int) $parent_id, $user_id ) ) {
 				return true;
 			}
 		}
@@ -535,7 +540,7 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
 	 * @param int   $user_id Viewer.
 	 * @param array $row     Stored-file row.
 	 */
-	return (bool) apply_filters( 'desktop_mode_stored_file_can_read', false, $file_id, $user_id, $row );
+	return (bool) apply_filters( 'openstation_stored_file_can_read', false, $file_id, $user_id, $row );
 }
 
 /**
@@ -552,20 +557,20 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
  * @param int   $placement_id Removed placement id.
  * @param array $row          The removed row.
  */
-function desktop_mode_stored_files_handle_unplaced( $placement_id, $row ) {
+function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 	global $wpdb;
 	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
 		return;
 	}
 	$file_id = (int) $row['file_ref'];
-	$file    = desktop_mode_stored_files_get( $file_id );
+	$file    = openstation_stored_files_get( $file_id );
 	if ( ! $file ) {
 		return;
 	}
 	if ( (int) $row['owner_id'] !== (int) $file['owner_id'] ) {
 		return; // A recipient's tile went away; bytes stay.
 	}
-	$tables    = desktop_mode_files_table_names();
+	$tables    = openstation_files_table_names();
 	$remaining = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$tables['placements']}
@@ -578,12 +583,14 @@ function desktop_mode_stored_files_handle_unplaced( $placement_id, $row ) {
 	if ( $remaining > 0 ) {
 		return;
 	}
-	desktop_mode_stored_files_purge( $file_id );
+	openstation_stored_files_purge( $file_id );
 }
-add_action( 'desktop_mode_file_unplaced', 'desktop_mode_stored_files_handle_unplaced', 10, 2 );
+add_action( 'openstation_file_unplaced', 'openstation_stored_files_handle_unplaced', 10, 2 );
 
 /**
  * Daily reconciliation sweep, both directions:
+ *
+ * Two classes of orphan get collected:
  *
  *   a) Rows with no placement at all (crashed uploads, interrupted
  *      purges) older than the grace period → delete row + bytes.
@@ -593,13 +600,13 @@ add_action( 'desktop_mode_file_unplaced', 'desktop_mode_stored_files_handle_unpl
  * Rows whose bytes are missing are left alone — `exists()` still
  * renders the tile so the user can see and remove it.
  */
-function desktop_mode_stored_files_reconcile() {
+function openstation_stored_files_reconcile() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$grace  = DAY_IN_SECONDS;
 
 	// a) Placement-less rows past grace.
-	$cutoff_ms = desktop_mode_files_now_ms() - ( $grace * 1000 );
+	$cutoff_ms = openstation_files_now_ms() - ( $grace * 1000 );
 	$orphans   = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT sf.id FROM {$tables['stored_files']} sf
@@ -612,12 +619,12 @@ function desktop_mode_stored_files_reconcile() {
 		)
 	);
 	foreach ( (array) $orphans as $orphan_id ) {
-		desktop_mode_stored_files_delete( (int) $orphan_id );
+		openstation_stored_files_delete( (int) $orphan_id );
 	}
 
 	// b) Row-less bytes past grace. The flat layout makes this a
 	// two-level scan: <base>/<user_id>/<disk_name>.
-	$base = desktop_mode_stored_files_dir();
+	$base = openstation_stored_files_dir();
 	if ( ! is_dir( $base ) ) {
 		return;
 	}
@@ -627,7 +634,7 @@ function desktop_mode_stored_files_reconcile() {
 		if ( $owner_id <= 0 ) {
 			continue;
 		}
-		$known = $wpdb->get_col(
+		$known     = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT disk_name FROM {$tables['stored_files']} WHERE owner_id = %d",
 				$owner_id
@@ -643,7 +650,7 @@ function desktop_mode_stored_files_reconcile() {
 			if ( isset( $known_set[ $name ] ) ) {
 				continue;
 			}
-			if ( ! desktop_mode_stored_files_valid_disk_name( $name ) ) {
+			if ( ! openstation_stored_files_valid_disk_name( $name ) ) {
 				continue; // Not ours — leave foreign files alone.
 			}
 			$mtime = (int) filemtime( $entry );
@@ -653,7 +660,7 @@ function desktop_mode_stored_files_reconcile() {
 		}
 	}
 }
-add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_stored_files_reconcile' );
+add_action( 'desktop_mode_files_daily_prune', 'openstation_stored_files_reconcile' );
 
 /**
  * When a WordPress user is deleted, purge their stored files (rows,
@@ -661,20 +668,20 @@ add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_stored_files_reconci
  *
  * @param int $user_id Deleted user id.
  */
-function desktop_mode_stored_files_handle_deleted_user( $user_id ) {
+function openstation_stored_files_handle_deleted_user( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return;
 	}
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$ids    = $wpdb->get_col(
 		$wpdb->prepare( "SELECT id FROM {$tables['stored_files']} WHERE owner_id = %d", $user_id )
 	);
 	foreach ( (array) $ids as $file_id ) {
-		desktop_mode_stored_files_purge( (int) $file_id );
+		openstation_stored_files_purge( (int) $file_id );
 	}
-	$dir = desktop_mode_stored_files_dir( $user_id );
+	$dir = openstation_stored_files_dir( $user_id );
 	if ( is_dir( $dir ) ) {
 		$index = $dir . '/index.php';
 		if ( file_exists( $index ) ) {
@@ -684,4 +691,4 @@ function desktop_mode_stored_files_handle_deleted_user( $user_id ) {
 		@rmdir( $dir ); // Only succeeds when empty — leftovers are the sweep's job.
 	}
 }
-add_action( 'deleted_user', 'desktop_mode_stored_files_handle_deleted_user' );
+add_action( 'deleted_user', 'openstation_stored_files_handle_deleted_user' );

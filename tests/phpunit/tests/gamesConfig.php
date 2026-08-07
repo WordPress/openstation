@@ -7,10 +7,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-games
  */
-class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
+class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -22,21 +22,21 @@ class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
 		parent::set_up();
 		set_current_screen( 'dashboard' );
 		wp_set_current_user( self::$admin_id );
-		desktop_mode_flush_script_handle_registries();
+		openstation_flush_script_handle_registries();
 	}
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		remove_all_filters( 'desktop_mode_games_words_url' );
-		remove_all_filters( 'desktop_mode_shell_config' );
+		remove_all_filters( 'openstation_games_words_url' );
+		remove_all_filters( 'openstation_shell_config' );
 		foreach ( array( 'cfg-game', 'alphabet-soup' ) as $id ) {
-			desktop_mode_unregister_game( $id );
+			openstation_unregister_game( $id );
 		}
 		parent::tear_down();
 	}
 
 	private function payload_entry( $id ) {
-		foreach ( desktop_mode_build_desktop_games_payload() as $row ) {
+		foreach ( openstation_build_desktop_games_payload() as $row ) {
 			if ( $id === $row['id'] ) {
 				return $row;
 			}
@@ -45,46 +45,46 @@ class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_words_url
+	 * @covers ::openstation_games_words_url
 	 */
 	public function test_words_url_points_at_the_shared_asset() {
-		$url = desktop_mode_games_words_url();
+		$url = openstation_games_words_url();
 		$this->assertStringContainsString( 'assets/games/words.txt', $url );
 		// The committed asset exists, so the URL must be cache-busted.
 		$this->assertStringContainsString( 'ver=', $url );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_words_url
+	 * @covers ::openstation_games_words_url
 	 */
 	public function test_words_url_is_filterable() {
 		add_filter(
-			'desktop_mode_games_words_url',
+			'openstation_games_words_url',
 			static function () {
 				return 'https://example.test/custom-words.txt';
 			}
 		);
-		$this->assertSame( 'https://example.test/custom-words.txt', desktop_mode_games_words_url() );
+		$this->assertSame( 'https://example.test/custom-words.txt', openstation_games_words_url() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_games_framework_config
+	 * @covers ::openstation_games_framework_config
 	 */
 	public function test_framework_config_is_injected_into_every_game() {
-		desktop_mode_register_game( 'cfg-game', array(
+		openstation_register_game( 'cfg-game', array(
 			'title'  => 'Config Game',
 			'script' => 'cfg-game-script',
 		) );
 		$entry = $this->payload_entry( 'cfg-game' );
 		$this->assertNotNull( $entry );
-		$this->assertSame( desktop_mode_games_words_url(), $entry['config']['wordsUrl'] );
+		$this->assertSame( openstation_games_words_url(), $entry['config']['wordsUrl'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_build_desktop_games_payload
+	 * @covers ::openstation_build_desktop_games_payload
 	 */
 	public function test_game_config_wins_over_framework_config() {
-		desktop_mode_register_game( 'cfg-game', array(
+		openstation_register_game( 'cfg-game', array(
 			'title'  => 'Config Game',
 			'script' => 'cfg-game-script',
 			'config' => array( 'wordsUrl' => 'https://example.test/own-words.txt' ),
@@ -100,25 +100,25 @@ class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
 	 * fills after the first chromeless live-refresh and the Games
 	 * hub boots empty.
 	 *
-	 * @covers ::desktop_mode_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
 	public function test_shell_config_ships_server_games_at_boot() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		desktop_mode_register_game( 'cfg-game', array(
+		openstation_register_game( 'cfg-game', array(
 			'title'  => 'Config Game',
 			'script' => 'cfg-game-script',
 		) );
 
 		$received = null;
 		add_filter(
-			'desktop_mode_shell_config',
+			'openstation_shell_config',
 			function ( $config ) use ( &$received ) {
 				$received = $config;
 				return $config;
 			}
 		);
 
-		desktop_mode_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$this->assertIsArray( $received );
 		$this->assertArrayHasKey( 'serverGames', $received );
@@ -126,13 +126,13 @@ class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_alphabet_soup_register
+	 * @covers ::openstation_alphabet_soup_register
 	 */
 	public function test_alphabet_soup_registers_with_score_columns() {
-		desktop_mode_alphabet_soup_register();
-		$this->assertTrue( desktop_mode_games_is_registered( 'alphabet-soup' ) );
-		$entry = desktop_mode_games_registry( 'alphabet-soup' );
-		$this->assertSame( 'desktop-mode-game-alphabet-soup', $entry['script'] );
+		openstation_alphabet_soup_register();
+		$this->assertTrue( openstation_games_is_registered( 'alphabet-soup' ) );
+		$entry = openstation_games_registry( 'alphabet-soup' );
+		$this->assertSame( 'os-game-alphabet-soup', $entry['script'] );
 		$this->assertSame(
 			array( 'score', 'mode', 'size', 'words', 'wpm', 'accuracy', 'streak', 'wave', 'time' ),
 			wp_list_pluck( $entry['score_columns'], 'key' )
@@ -141,6 +141,6 @@ class Tests_DesktopMode_GamesConfig extends WP_UnitTestCase {
 		// The payload hands it the framework dictionary.
 		$payload = $this->payload_entry( 'alphabet-soup' );
 		$this->assertNotNull( $payload );
-		$this->assertSame( desktop_mode_games_words_url(), $payload['config']['wordsUrl'] );
+		$this->assertSame( openstation_games_words_url(), $payload['config']['wordsUrl'] );
 	}
 }

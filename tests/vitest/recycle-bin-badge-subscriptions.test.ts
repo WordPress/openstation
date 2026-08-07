@@ -15,49 +15,49 @@ describe( 'Recycle Bin Badge Subscriptions', () => {
 		_resetAllSharedStoresForTests();
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
-		const w = window as unknown as { desktopModeConfig?: unknown };
-		delete w.desktopModeConfig;
+		const w = window as unknown as { openStationConfig?: unknown };
+		delete w.openStationConfig;
 	} );
 
-	test( 'subscribes to dynamic CPT post types injected in desktopModeConfig', () => {
+	test( 'subscribes to dynamic CPT post types injected in openStationConfig', () => {
 		const config = {
 			recycleBinCount: 0,
 			recycleBinCountUrl: 'http://localhost/count',
 			recycleBinPostTypes: [ 'portfolio', 'product' ],
 		};
-		( window as any ).desktopModeConfig = config;
+		( window as any ).openStationConfig = config;
 
 		startRecycleBinBadge( 0, 'http://localhost/count' );
 
 		// Should subscribe to the CPTs
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.portfolio.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.product.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.portfolio.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.product.changed', expect.any( Function ) );
 
 		// Should subscribe to standard fixed extras
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.comment.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.placement.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.shortcut.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.folder.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.comment.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.placement.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.shortcut.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.folder.changed', expect.any( Function ) );
 
 		// Should NOT subscribe to standard fallback post types like 'post' unless they were in the array
-		expect( bc.subscribe ).not.toHaveBeenCalledWith( 'desktop-mode.post.changed', expect.any( Function ) );
+		expect( bc.subscribe ).not.toHaveBeenCalledWith( 'os.post.changed', expect.any( Function ) );
 	} );
 
-	test( 'falls back to post, page, attachment when desktopModeConfig.recycleBinPostTypes is missing', () => {
+	test( 'falls back to post, page, attachment when openStationConfig.recycleBinPostTypes is missing', () => {
 		const config = {
 			recycleBinCount: 0,
 			recycleBinCountUrl: 'http://localhost/count',
 		};
-		( window as any ).desktopModeConfig = config;
+		( window as any ).openStationConfig = config;
 
 		startRecycleBinBadge( 0, 'http://localhost/count' );
 
 		// Should subscribe to the defaults
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.post.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.page.changed', expect.any( Function ) );
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.attachment.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.post.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.page.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.attachment.changed', expect.any( Function ) );
 
 		// Should subscribe to standard fixed extras
-		expect( bc.subscribe ).toHaveBeenCalledWith( 'desktop-mode.comment.changed', expect.any( Function ) );
+		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.comment.changed', expect.any( Function ) );
 	} );
 } );

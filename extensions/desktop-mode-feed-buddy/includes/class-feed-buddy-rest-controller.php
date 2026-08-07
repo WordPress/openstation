@@ -2,7 +2,7 @@
 /**
  * FeedBuddy REST controller.
  *
- * @package DesktopModeFeedBuddy
+ * @package OpenStationFeedBuddy
  */
 
 defined( 'ABSPATH' ) || exit;

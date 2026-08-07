@@ -16,11 +16,11 @@ onto the **Posts** dock tile. Both go through
 
 The affordances only appear for users who can author posts
 (`current_user_can( 'edit_posts' )`, surfaced to the shell as
-`desktopModeConfig.canCreatePosts`).
+`openStationConfig.canCreatePosts`).
 
 ## Reshape the draft it creates
 
-Use `desktop_mode_notes_convert_post_args` to change the post
+Use `openstation_notes_convert_post_args` to change the post
 type/status, assign a taxonomy, or rewrite the block markup. It filters
 the array handed to `wp_insert_post()`.
 
@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
 
 // File converted notes into the "Notes" category and hold them for
 // review instead of saving a plain draft.
-add_filter( 'desktop_mode_notes_convert_post_args', static function ( $args, $note ) {
+add_filter( 'openstation_notes_convert_post_args', static function ( $args, $note ) {
     $args['post_status'] = 'pending';
 
     $term = get_term_by( 'slug', 'notes', 'category' );
@@ -51,18 +51,18 @@ may create one.
 
 ## React after a conversion
 
-`desktop_mode_notes_converted` fires once the draft exists and the note
+`openstation_notes_converted` fires once the draft exists and the note
 has been trashed — a good place to seed post meta, notify an editor, or
 log the event.
 
 ```php
-add_action( 'desktop_mode_notes_converted', static function ( $post_id, $note ) {
+add_action( 'openstation_notes_converted', static function ( $post_id, $note ) {
     update_post_meta( $post_id, '_from_pinned_note', (int) $note->ID );
 }, 10, 2 );
 ```
 
 ## Related
 
-- [Hooks Reference — `desktop_mode_notes_convert_post_args`](../hooks-reference.md#desktop_mode_notes_convert_post_args--experimental-filter)
-- [Hooks Reference — `desktop_mode_notes_converted`](../hooks-reference.md#desktop_mode_notes_converted--experimental-action)
+- [Hooks Reference — `openstation_notes_convert_post_args`](../hooks-reference.md#openstation_notes_convert_post_args--experimental-filter)
+- [Hooks Reference — `openstation_notes_converted`](../hooks-reference.md#openstation_notes_converted--experimental-action)
 - [JavaScript Reference — Pinned-note drag payloads](../javascript-reference.md#pinned-note-drag-payloads--experimental)

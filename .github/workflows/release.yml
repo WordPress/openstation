@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -35,10 +35,10 @@ jobs:
           tag="${tag#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
-          constant=$(grep -oP "DESKTOP_MODE_VERSION',\s*'\K[^']+" desktop-mode.php)
+          constant=$(grep -oP "OPENSTATION_VERSION',\s*'\K[^']+" desktop-mode.php)
           stable=$(grep -oP '^Stable tag:\s*\K\S+' readme.txt)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" && "$tag" == "$stable" ]]; then
-            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header DESKTOP_MODE_VERSION=$constant readme.txt Stable tag=$stable"
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header OPENSTATION_VERSION=$constant readme.txt Stable tag=$stable"
             exit 1
           fi
 
@@ -61,11 +61,11 @@ jobs:
             --title "$tag" \
             --generate-notes \
             "${flags[@]}" \
-            desktop-mode.zip
+            openstation.zip
 
       - name: Unpack zip for wp.org deploy
         if: ${{ !contains(github.ref_name, '-') }}
-        run: unzip -q desktop-mode.zip -d build/
+        run: unzip -q openstation.zip -d build/
 
       - name: Deploy to WordPress.org
         if: ${{ !contains(github.ref_name, '-') }}

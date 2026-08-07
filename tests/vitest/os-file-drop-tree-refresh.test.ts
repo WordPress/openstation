@@ -144,7 +144,7 @@ describe( 'tree upload desktop refresh', () => {
 
 		// Click the primary Upload button.
 		const buttons = Array.from(
-			document.querySelectorAll< HTMLElement >( 'wpd-button[variant="primary"]' ),
+			document.querySelectorAll< HTMLElement >( 'os-button[variant="primary"]' ),
 		);
 		expect( buttons.length ).toBe( 1 );
 		buttons[ 0 ].click();
@@ -186,13 +186,13 @@ describe( 'tree upload desktop refresh', () => {
 		} );
 
 		const buttons = Array.from(
-			document.querySelectorAll< HTMLElement >( 'wpd-button[variant="primary"]' ),
+			document.querySelectorAll< HTMLElement >( 'os-button[variant="primary"]' ),
 		);
 		buttons[ 0 ].click();
 
 		// Wait for the modal to close (batch finished)…
 		await vi.waitFor( () => {
-			expect( document.querySelector( 'wpd-modal' ) ).toBeNull();
+			expect( document.querySelector( 'os-modal' ) ).toBeNull();
 		} );
 		// …and confirm no canonical re-pull happened (the returned
 		// placement was ingested directly instead).

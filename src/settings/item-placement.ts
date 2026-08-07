@@ -24,7 +24,7 @@ import type { ItemVisibility, OsSettingsState } from './types';
 /**
  * The two rails a placeable item can live on. Items registered through
  * the admin menu pipeline default to `'dock'`; items registered via
- * `desktop_mode_register_icon()` default to `'desktop'`.
+ * `openstation_register_icon()` default to `'desktop'`.
  */
 export type NativeRail = 'dock' | 'desktop';
 
@@ -41,6 +41,27 @@ export interface PlaceableItem {
 	nativeRail: NativeRail;
 	/** Resolved placement after applying the user's override (defaults if absent). */
 	placement: ItemVisibility;
+	/**
+	 * Whether the item can only ever live on the dock, so the picker
+	 * should offer just "on the dock" and "hidden".
+	 *
+	 * Set for **system tiles**: they are JS-owned shell affordances
+	 * attached straight to a rail, with no server-side icon entry for
+	 * the wallpaper grid to synthesize from. Offering "on the
+	 * desktop" would read as a placement and behave as a disappearance.
+	 */
+	dockOnly?: boolean;
+}
+
+/**
+ * A JS-owned system tile that has opted into the Apps & Icons list.
+ * Shape-compatible with `listSystemTiles()` output.
+ */
+export interface PlaceableSystemTile {
+	id: string;
+	title: string;
+	icon: string;
+	placeable: boolean;
 }
 
 /**
@@ -258,17 +279,38 @@ export function applyOrder< T extends { id: string } >(
 
 /**
  * Build the union list shown in the OS Settings → Apps & Icons tab.
- * Union of dock items and desktop icons (dock wins on id collisions),
- * sorted alphabetically by display title for the flat picker. The
- * resolved `placement` on each entry is what the picker pre-selects.
+ * Union of dock items, desktop icons, and any system tiles that opted
+ * in (first registration wins on id collisions), sorted alphabetically
+ * by display title for the flat picker. The resolved `placement` on
+ * each entry is what the picker pre-selects.
+ *
+ * System tiles are opt-in via `SystemDockItem.placeable`, because most
+ * of them are load-bearing — OS Settings is how you reach the very
+ * screen that would hide it.
  */
 export function listPlaceableItems(
 	dockItems: DockItem[],
 	desktopIcons: DesktopIconServerEntry[],
 	visibility: Record< string, ItemVisibility >,
+	systemTiles: PlaceableSystemTile[] = [],
 ): PlaceableItem[] {
 	const out: PlaceableItem[] = [];
 	const seen = new Set< string >();
+
+	for ( const tile of systemTiles ) {
+		if ( ! tile.placeable || seen.has( tile.id ) ) {
+			continue;
+		}
+		seen.add( tile.id );
+		out.push( {
+			id: tile.id,
+			title: tile.title,
+			icon: tile.icon,
+			nativeRail: 'dock',
+			placement: resolvePlacement( tile.id, 'dock', visibility ),
+			dockOnly: true,
+		} );
+	}
 
 	for ( const item of dockItems ) {
 		if ( seen.has( item.id ) ) {

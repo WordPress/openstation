@@ -2,7 +2,7 @@
  * The Focus Timer runtime — a DOM-independent state machine that owns
  * the countdown, the alarm, and the window-shake loop.
  *
- * It lives as a single instance on `window.__desktopModeFocusTimer` so a
+ * It lives as a single instance on `window.__openStationFocusTimer` so a
  * running timer survives the widget being torn down and re-mounted (the
  * widget layer re-docks / re-renders cards freely). The view subscribes
  * for change notifications and never holds timer state itself.
@@ -28,7 +28,7 @@ export interface TimerSnapshot {
 	remainingMs: number;
 	/** The configured full duration, in ms. */
 	durationMs: number;
-	/** Id of the linked Desktop Mode window, or null. */
+	/** Id of the linked OpenStation window, or null. */
 	linkedWindowId: string | null;
 	/** Whether the countdown digits are shown while running. */
 	showRemaining: boolean;
@@ -87,7 +87,7 @@ class FocusTimer {
 			return;
 		}
 		this.windowListenerInstalled = true;
-		window.addEventListener( 'desktop-mode-window-closed', ( e ) => {
+		window.addEventListener( 'os-window-closed', ( e ) => {
 			const id = ( e as CustomEvent< { windowId?: string } > ).detail
 				?.windowId;
 			if ( ! id || id !== this.linkedWindowId ) {
@@ -338,12 +338,12 @@ function clampDuration( ms: number ): number {
  */
 export function focusTimer(): FocusTimer {
 	const holder = window as unknown as {
-		__desktopModeFocusTimer?: FocusTimer;
+		__openStationFocusTimer?: FocusTimer;
 	};
-	if ( ! holder.__desktopModeFocusTimer ) {
-		holder.__desktopModeFocusTimer = new FocusTimer();
+	if ( ! holder.__openStationFocusTimer ) {
+		holder.__openStationFocusTimer = new FocusTimer();
 	}
-	return holder.__desktopModeFocusTimer;
+	return holder.__openStationFocusTimer;
 }
 
 export const DURATION_BOUNDS = {

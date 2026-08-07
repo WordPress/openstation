@@ -11,7 +11,7 @@
 import type { DragManagerApi } from '../drag';
 
 /**
- * Read the runtime DragManager off the `wp.desktop` global. Boot
+ * Read the runtime DragManager off the `wp.os` global. Boot
  * order guarantees this is present by the time any tile builder
  * runs (the My WordPress window only mounts after
  * `installPublicApi(desktopApi)` has wired the manager).
@@ -20,8 +20,8 @@ import type { DragManagerApi } from '../drag';
  */
 export function getDragManager(): DragManagerApi | null {
 	const api = (
-		window as { wp?: { desktop?: { dragManager?: DragManagerApi } } }
-	).wp?.desktop?.dragManager;
+		window as { wp?: { os?: { dragManager?: DragManagerApi } } }
+	).wp?.os?.dragManager;
 	return api ?? null;
 }
 

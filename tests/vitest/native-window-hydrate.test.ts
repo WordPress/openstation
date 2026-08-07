@@ -18,7 +18,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
-import '../../src/ui/components/wpd-select/wpd-select';
+import '../../src/ui/components/os-select/os-select';
 
 const tick = (): Promise<void> => Promise.resolve();
 
@@ -78,7 +78,7 @@ describe( 'WindowManager — native-window hydration order', async () => {
 		expect( isDesktopAncestorAtRenderTime ).toBe( true );
 	} );
 
-	test( 'declarative .items on a wpd-select inside render populates the native <select>', async () => {
+	test( 'declarative .items on a os-select inside render populates the native <select>', async () => {
 		let selInsideBody: ( HTMLElement & {
 			items: ReadonlyArray<{ value: string; label: string }>;
 		} ) | null = null;
@@ -89,13 +89,13 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			title: 'Picker',
 			native: true,
 			render: ( body ) => {
-				body.innerHTML = `<wpd-select></wpd-select>`;
+				body.innerHTML = `<os-select></os-select>`;
 				// Same-tick write of a declarative setter — pre-0.12
 				// this would silently create an own data property on
 				// a pre-upgrade element. Post-0.12 it hits the real
-				// WpdSelect setter because the body is connected and
+				// OsSelect setter because the body is connected and
 				// the element has already upgraded.
-				const sel = body.querySelector( 'wpd-select' ) as HTMLElement & {
+				const sel = body.querySelector( 'os-select' ) as HTMLElement & {
 					items: ReadonlyArray<{ value: string; label: string }>;
 				};
 				sel.items = [

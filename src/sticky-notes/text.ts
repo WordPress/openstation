@@ -176,10 +176,10 @@ function truncate( value: string, max: number ): string {
 
 function modifiedTimeMs( guideline: RestStickyGuideline ): number {
 	if (
-		typeof guideline.desktop_mode_modified_ms === 'number' &&
-		Number.isFinite( guideline.desktop_mode_modified_ms )
+		typeof guideline.openstation_modified_ms === 'number' &&
+		Number.isFinite( guideline.openstation_modified_ms )
 	) {
-		return guideline.desktop_mode_modified_ms;
+		return guideline.openstation_modified_ms;
 	}
 	if ( ! guideline.modified ) {
 		return 0;

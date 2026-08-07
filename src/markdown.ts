@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — minimal shared Markdown renderer.
+ * OpenStation — minimal shared Markdown renderer.
  *
  * Extracted from the AI assistant so every conversation surface (the
  * assistant overlay, the Agent chat window) formats model output the

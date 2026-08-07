@@ -69,7 +69,7 @@ export async function uploadDesktopTheme(
 	const url = config.desktopThemesUrl ?? '';
 	if ( url === '' ) {
 		throw new Error(
-			'[desktop-mode] No desktopThemesUrl in the shell config — the desktop-themes REST route is unavailable.',
+			'[openstation] No desktopThemesUrl in the shell config — the desktop-themes REST route is unavailable.',
 		);
 	}
 
@@ -112,7 +112,7 @@ export async function deleteDesktopTheme(
 	const base = config.desktopThemesUrl ?? '';
 	if ( base === '' ) {
 		throw new Error(
-			'[desktop-mode] No desktopThemesUrl in the shell config — the desktop-themes REST route is unavailable.',
+			'[openstation] No desktopThemesUrl in the shell config — the desktop-themes REST route is unavailable.',
 		);
 	}
 

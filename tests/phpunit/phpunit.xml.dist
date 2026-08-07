@@ -13,13 +13,13 @@
 	failOnWarning="true"
 	failOnRisky="true">
 	<testsuites>
-		<testsuite name="desktop-mode">
+		<testsuite name="openstation">
 			<directory suffix=".php">tests</directory>
 		</testsuite>
 	</testsuites>
 	<groups>
 		<include>
-			<group>desktop-mode</group>
+			<group>openstation</group>
 		</include>
 	</groups>
 </phpunit>

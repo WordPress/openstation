@@ -10,7 +10,7 @@
  * job is to:
  *
  *   - render a full-size canvas host into the tabpanel
- *   - kick off `wp.desktop.loadModules(['pixijs'])` so the vendor
+ *   - kick off `wp.os.loadModules(['pixijs'])` so the vendor
  *     script is in memory before the scene mounts
  *   - mount on first attach, tear down when the wrapper leaves the
  *     DOM (panel re-render, OS Settings window closed). We watch for
@@ -67,22 +67,22 @@ function waitForSize( el: HTMLElement ): Promise<void> {
  */
 export function buildAboutSection(): HTMLElement {
 	const wrapper = document.createElement( 'div' );
-	wrapper.classList.add( 'desktop-mode-os-settings__about' );
+	wrapper.classList.add( 'os-settings__about' );
 
 	const config = (
-		window as unknown as { desktopModeConfig?: DesktopGlobalShape }
-	).desktopModeConfig ?? {};
+		window as unknown as { openStationConfig?: DesktopGlobalShape }
+	).openStationConfig ?? {};
 	const pluginUrl = config.pluginUrl ?? '';
 	const version = config.pluginVersion ?? '';
 	const aboutSceneBundleUrl = config.aboutSceneBundleUrl ?? '';
 
-	const desktopApi = ( window.wp as { desktop?: DesktopApiShape } | undefined )
-		?.desktop;
+	const desktopApi = ( window.wp as { os?: DesktopApiShape } | undefined )
+		?.os;
 
 	render(
 		html`
 			<div
-				class="desktop-mode-os-settings__about-stage-host"
+				class="os-settings__about-stage-host"
 				data-about-stage
 			></div>
 		`,
@@ -138,7 +138,7 @@ export function buildAboutSection(): HTMLElement {
 						typeof window.matchMedia === 'function' &&
 						window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches,
 					labels: {
-						eyebrow: __( 'WordPress Desktop Mode' ),
+						eyebrow: __( 'WordPress OpenStation' ),
 						title: __( 'Crafted with curiosity' ),
 						byline: __( 'an experiment by Automattic' ),
 						version: version

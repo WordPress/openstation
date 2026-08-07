@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — game play-time tracker.
+ * OpenStation — game play-time tracker.
  *
  * The launcher starts one tracker per game window; it measures how
  * long the game is actually in front of the player — the clock

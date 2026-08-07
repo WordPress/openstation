@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — the camera-shutter reveal.
+ * OpenStation — the camera-shutter reveal.
  *
  * ## The mechanism
  *
@@ -241,7 +241,7 @@ function wedgeElement( index: number, masked: boolean ): SVGPathElement {
  * @public
  */
 export function renderObturator(): WindowRevealRendered {
-	const maskId = `desktop-mode-iris-${ ++uid }`;
+	const maskId = `os-iris-${ ++uid }`;
 
 	const svg = document.createElementNS( SVG_NS, 'svg' );
 	svg.setAttribute( 'viewBox', `0 0 ${ VIEW } ${ VIEW }` );

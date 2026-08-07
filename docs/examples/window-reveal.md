@@ -3,9 +3,9 @@
 **Status:** Experimental
 
 A **window reveal** is the transition that uncovers a window's content
-once it has finished loading. Desktop Mode paints an opaque surface
+once it has finished loading. OpenStation paints an opaque surface
 over the window body for the duration of the load, then animates that
-surface's `clip-path` away. The user picks one in **OS Settings →
+surface's `clip-path` away. The user picks one in **OpenStation Preferences →
 Effects → "Window reveal"**, and sets a global speed next to it. The
 twelve built-ins — `sweep`, `rise`, `diagonal`, `iris`, `diamond`,
 `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`,
@@ -19,8 +19,8 @@ plugin's layout, or interfere with whatever is loading.
 ## The minimum viable reveal
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerWindowReveal( {
+wp.os.ready( () => {
+    wp.os.registerWindowReveal( {
         id:    'acme/rise',
         label: 'Rise',
         // The surface starts covering everything…
@@ -58,7 +58,7 @@ shape functions:
 
 ```javascript
 // Throws: `inset()` and `circle()` cannot interpolate.
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:    'acme/broken',
     label: 'Broken',
     from:  'inset( 0% )',
@@ -86,7 +86,7 @@ function band( h ) {
     )`.replace( /\s+/g, ' ' );
 }
 
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:    'acme/band',
     label: 'Band',
     from:  band( 0 ),
@@ -113,7 +113,7 @@ as a test.
 ## The leading edge
 
 A reveal can be drawn as **two** layers: the surface you described, and
-behind it an **edge** painted in `--desktop-mode-window-reveal-edge`.
+behind it an **edge** painted in `--os-window-reveal-edge`.
 The edge runs your *same* `from` → `to` keyframes over a slightly
 longer duration, so it is permanently a little less far along and peeks
 out past the surface as a band hugging the clip boundary.
@@ -129,11 +129,11 @@ rather than animating something invisible — so an edge costs nothing
 until someone asks for one. Turning it on is pure CSS:
 
 ```css
-.desktop-mode-shell {
-    --desktop-mode-window-reveal-edge: #7c5cff;
+.os-shell {
+    --os-window-reveal-edge: #7c5cff;
     /* Fraction of the reveal's travel — holds its apparent width at
        any speed. `70ms` would pin it to time instead. */
-    --desktop-mode-window-reveal-edge-thickness: 12%;
+    --os-window-reveal-edge-thickness: 12%;
 }
 ```
 
@@ -142,7 +142,7 @@ belongs to the theme's look rather than to any one reveal. Your
 `edgeLag` is what applies when no theme has an opinion:
 
 ```javascript
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:      'acme/edgeless',
     label:   'Edgeless',
     from:    band( 0 ),
@@ -157,7 +157,7 @@ lag means a wider band.
 ## Tuning the motion
 
 ```javascript
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:          'acme/slow-iris',
     label:       'Slow iris',
     description: 'Opens out from the centre, unhurried.',
@@ -180,7 +180,7 @@ own preference has to win:
 1. **The user's OS-Settings speed** — *Effects → Reveal speed*. When
    they pick anything other than "Default (per reveal)", it overrides
    every reveal, including yours.
-2. **`--desktop-mode-window-reveal-duration`** — a desktop theme's
+2. **`--os-window-reveal-duration`** — a desktop theme's
    house pace. Undeclared by default; accepts `620ms`, `0.62s`, or a
    bare `620`.
 3. **Your def's `duration`.**
@@ -196,21 +196,21 @@ block or any stylesheet:
 
 | Token | Role | Default |
 |---|---|---|
-| `--desktop-mode-window-reveal-surface` | The covering surface | white |
-| `--desktop-mode-window-reveal-edge` | The trailing edge band | `transparent` — no edge |
-| `--desktop-mode-window-reveal-edge-thickness` | Band width: `%`/fraction of travel, or a time | undeclared — the def's `edgeLag` |
-| `--desktop-mode-window-reveal-duration` | House pace for every reveal | undeclared — the def's `duration` |
+| `--os-window-reveal-surface` | The covering surface | white |
+| `--os-window-reveal-edge` | The trailing edge band | `transparent` — no edge |
+| `--os-window-reveal-edge-thickness` | Band width: `%`/fraction of travel, or a time | undeclared — the def's `edgeLag` |
+| `--os-window-reveal-duration` | House pace for every reveal | undeclared — the def's `duration` |
 
 ```css
-.desktop-mode-shell {
-    --desktop-mode-window-reveal-surface: linear-gradient(
+.os-shell {
+    --os-window-reveal-surface: linear-gradient(
         135deg,
         #12122a,
         #241f4d
     );
-    --desktop-mode-window-reveal-edge: #7c5cff;
-    --desktop-mode-window-reveal-edge-thickness: 12%;
-    --desktop-mode-window-reveal-duration: 620ms;
+    --os-window-reveal-edge: #7c5cff;
+    --os-window-reveal-edge-thickness: 12%;
+    --os-window-reveal-duration: 620ms;
 }
 ```
 
@@ -228,7 +228,7 @@ The uncovered area then becomes whatever *all* the layers leave
 uncovered:
 
 ```javascript
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:      'acme/split-doors',
     label:   'Split doors',
     edgeLag: 0,
@@ -261,7 +261,7 @@ Some effects a stack of clipped boxes simply cannot express. `render`
 hands you the DOM instead:
 
 ```javascript
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:      'acme/iris',
     label:   'Iris',
     edgeLag: 0,             // a rendered reveal has no trailing-edge layer
@@ -306,7 +306,7 @@ A def can carry its own surface paint with `surfaceColor`, overriding
 the token:
 
 ```javascript
-wp.desktop.registerWindowReveal( {
+wp.os.registerWindowReveal( {
     id:           'acme/noir',
     label:        'Noir',
     from:         band( 0 ),
@@ -350,19 +350,19 @@ manifest, applied once on the user's first activation — see
 ## Reading and removing
 
 ```javascript
-wp.desktop.listWindowReveals();                  // every registered reveal
-wp.desktop.unregisterWindowReveal( 'acme/rise' );
-wp.desktop.getOsSettings().windowReveal;         // the user's pick, or 'none'
-wp.desktop.getOsSettings().windowRevealDuration; // ms, or 0 for per-reveal
+wp.os.listWindowReveals();                  // every registered reveal
+wp.os.unregisterWindowReveal( 'acme/rise' );
+wp.os.getOsSettings().windowReveal;         // the user's pick, or 'none'
+wp.os.getOsSettings().windowRevealDuration; // ms, or 0 for per-reveal
 ```
 
-The raw `desktop-mode.window-reveals` JS filter receives the registry
+The raw `os.window-reveals` JS filter receives the registry
 array on every read — use it to reorder, remove, or conditionally swap
 reveals:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.window-reveals',
+    'os.window-reveals',
     'my-plugin/only-calm-reveals',
     ( reveals ) => reveals.filter( ( r ) => r.id !== 'blinds' ),
 );
@@ -371,7 +371,7 @@ wp.hooks.addFilter(
 ## Known limitation
 
 Registration is JS-only. There is no
-`desktop_mode_register_window_reveal_script()` PHP companion yet, so a
+`openstation_register_window_reveal_script()` PHP companion yet, so a
 reveal shipped by a plugin the user activates mid-session shows up in
 the selector only after a page reload. Reveals from plugins that were
 already active work normally. The same gap applies to palettes.

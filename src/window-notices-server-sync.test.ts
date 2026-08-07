@@ -46,7 +46,7 @@ function fakeWindow(
 }
 
 function matcherFor( noticeId: string ) {
-	const slotId = `desktop-mode-notice/${ noticeId }`;
+	const slotId = `os-notice/${ noticeId }`;
 	// `slotsForWindow` filters by `match(win)`, so to read the
 	// predicate we ask the slot-registry whether a given fake window
 	// matches the entry. We use that as our predicate-under-test.

@@ -37,8 +37,8 @@ function installFakeJQuery(): JQueryHandlers {
 }
 
 interface ShellWindow extends Window {
-	desktopModeConfig?: { restNonce?: string };
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationConfig?: { restNonce?: string };
+	openStationWindowConfig?: Record< string, unknown >;
 	jQuery?: unknown;
 }
 
@@ -51,21 +51,21 @@ describe( 'nonce-refresh', () => {
 		_resetHeartbeatBusForTests();
 		_resetNonceRefreshForTests();
 		delete shellWindow().jQuery;
-		delete shellWindow().desktopModeConfig;
-		delete shellWindow().desktopModeWindowConfig;
+		delete shellWindow().openStationConfig;
+		delete shellWindow().openStationWindowConfig;
 	} );
 
 	afterEach( () => {
 		_resetHeartbeatBusForTests();
 		_resetNonceRefreshForTests();
 		delete shellWindow().jQuery;
-		delete shellWindow().desktopModeConfig;
-		delete shellWindow().desktopModeWindowConfig;
+		delete shellWindow().openStationConfig;
+		delete shellWindow().openStationWindowConfig;
 	} );
 
 	test( 'rewrites the shell-wide restNonce on every tick', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'stale' };
+		shellWindow().openStationConfig = { restNonce: 'stale' };
 
 		bootHeartbeatBus();
 		bootNonceRefresh();
@@ -74,18 +74,18 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh-1' } },
 		);
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'fresh-1' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh-1' );
 
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh-2' } },
 		);
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'fresh-2' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh-2' );
 	} );
 
 	test( 'rewrites the plugins-window restNonce / ajaxNonce / updatesNonce', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeWindowConfig = {
+		shellWindow().openStationWindowConfig = {
 			'desktop-mode-plugins': {
 				restNonce:    'stale-rest',
 				ajaxNonce:    'stale-ajax',
@@ -107,7 +107,7 @@ describe( 'nonce-refresh', () => {
 			},
 		);
 
-		const cfg = shellWindow().desktopModeWindowConfig?.[
+		const cfg = shellWindow().openStationWindowConfig?.[
 			'desktop-mode-plugins'
 		] as Record< string, string >;
 		expect( cfg.restNonce ).toBe( 'fresh-rest' );
@@ -117,12 +117,12 @@ describe( 'nonce-refresh', () => {
 
 	test( 'refreshes restNonce on EVERY native window blob, not just plugins', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeWindowConfig = {
+		shellWindow().openStationWindowConfig = {
 			'desktop-mode-plugins': { restNonce: 'stale' },
 			'desktop-mode-posts':   { restNonce: 'stale' },
 			'desktop-mode-users':   { restNonce: 'stale' },
 			// A blob without restNonce — should be left alone.
-			'desktop-mode-other':   { something: 'else' },
+			'os-other':   { something: 'else' },
 		};
 
 		bootHeartbeatBus();
@@ -133,7 +133,7 @@ describe( 'nonce-refresh', () => {
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
 
-		const cfgs = shellWindow().desktopModeWindowConfig!;
+		const cfgs = shellWindow().openStationWindowConfig!;
 		expect(
 			( cfgs[ 'desktop-mode-plugins' ] as { restNonce: string } ).restNonce,
 		).toBe( 'fresh' );
@@ -144,22 +144,22 @@ describe( 'nonce-refresh', () => {
 			( cfgs[ 'desktop-mode-users' ] as { restNonce: string } ).restNonce,
 		).toBe( 'fresh' );
 		expect(
-			( cfgs[ 'desktop-mode-other' ] as Record< string, unknown > ).restNonce,
+			( cfgs[ 'os-other' ] as Record< string, unknown > ).restNonce,
 		).toBeUndefined();
 	} );
 
 	test( 'ignores ticks without the desktop_mode_nonces field', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'original' };
+		shellWindow().openStationConfig = { restNonce: 'original' };
 
 		bootHeartbeatBus();
 		bootNonceRefresh();
 
 		handlers[ 'heartbeat-tick' ]?.( {}, { something_else: 'ignored' } );
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'original' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'original' );
 	} );
 
-	test( 'tolerates a missing desktopModeConfig and missing window-config blob', () => {
+	test( 'tolerates a missing openStationConfig and missing window-config blob', () => {
 		const handlers = installFakeJQuery();
 		// Neither global set — must NOT throw.
 		bootHeartbeatBus();
@@ -181,7 +181,7 @@ describe( 'nonce-refresh', () => {
 
 	test( 'skips a stray non-string value in the payload', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'original' };
+		shellWindow().openStationConfig = { restNonce: 'original' };
 
 		bootHeartbeatBus();
 		bootNonceRefresh();
@@ -190,12 +190,12 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 42 } },
 		);
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'original' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'original' );
 	} );
 
 	test( 'registerNonceTarget composes with built-in targets', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'stale' };
+		shellWindow().openStationConfig = { restNonce: 'stale' };
 
 		const seen: string[] = [];
 		bootHeartbeatBus();
@@ -207,12 +207,12 @@ describe( 'nonce-refresh', () => {
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
 		expect( seen ).toEqual( [ 'fresh' ] );
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'fresh' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 	} );
 
 	test( 'bootNonceRefresh is idempotent', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'stale' };
+		shellWindow().openStationConfig = { restNonce: 'stale' };
 
 		bootHeartbeatBus();
 		bootNonceRefresh();
@@ -229,12 +229,12 @@ describe( 'nonce-refresh', () => {
 		// our spy called exactly once. A double-boot would either
 		// double-fire the spy or re-register the built-in target.
 		expect( calls ).toEqual( [ 'fresh' ] );
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'fresh' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 	} );
 
 	test( 'a throwing updater does not strand peer updaters', () => {
 		const handlers = installFakeJQuery();
-		shellWindow().desktopModeConfig = { restNonce: 'stale' };
+		shellWindow().openStationConfig = { restNonce: 'stale' };
 
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
 		bootHeartbeatBus();
@@ -248,7 +248,7 @@ describe( 'nonce-refresh', () => {
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
 		// Built-in target still ran despite the throwing peer.
-		expect( shellWindow().desktopModeConfig?.restNonce ).toBe( 'fresh' );
+		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 		errSpy.mockRestore();
 	} );
 } );

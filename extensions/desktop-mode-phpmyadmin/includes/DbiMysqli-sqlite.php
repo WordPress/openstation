@@ -5,7 +5,7 @@
  *
  * Originally written by the WordPress Studio team as part of their
  * phpMyAdmin bundle (`wp-files/phpmyadmin/libraries/classes/Dbal/
- * DbiMysqli.php`). Adapted here for wp-desktop-mode so the bundled
+ * DbiMysqli.php`). Adapted here for openstation so the bundled
  * phpMyAdmin works against the WordPress sqlite-database-integration
  * plugin in any WordPress install — not just inside Studio.
  *
@@ -38,15 +38,15 @@ use WP_SQLite_Driver;
 // into the plugin's own bootstrap which loads WP_SQLite_Driver,
 // WP_SQLite_Connection, and defines the FQDB constant we use below.
 if (!class_exists('WP_SQLite_Driver') && defined('WP_CONTENT_DIR')) {
-	$wpdc_pma_dropin = WP_CONTENT_DIR . '/db.php';
-	if (is_readable($wpdc_pma_dropin)) {
-		require_once $wpdc_pma_dropin;
+	$osc_pma_dropin = WP_CONTENT_DIR . '/db.php';
+	if (is_readable($osc_pma_dropin)) {
+		require_once $osc_pma_dropin;
 	}
-	unset($wpdc_pma_dropin);
+	unset($osc_pma_dropin);
 }
 
 if (!class_exists('WP_SQLite_Driver')) {
-	die('phpMyAdmin SQLite adapter (wp-desktop-mode): WP_SQLite_Driver class not found. Is the sqlite-database-integration plugin active?');
+	die('phpMyAdmin SQLite adapter (openstation): WP_SQLite_Driver class not found. Is the sqlite-database-integration plugin active?');
 }
 
 // Supress the following phpMyAdmin warning:

@@ -1,14 +1,14 @@
 /**
- * Desktop Mode — Native Posts window styles.
+ * OpenStation — Native Posts window styles.
  *
  * Scoped to `.desktop-mode-posts` so the rules can't leak into other
  * windows. Layout: a toolbar across the top, a flex-1 body that hosts
- * a `<wpd-table>`, and a footer pager at the bottom. The table is
- * told to size to the body via `--wpd-table-max-height: 100%` so
+ * a `<os-table>`, and a footer pager at the bottom. The table is
+ * told to size to the body via `--os-ui-table-max-height: 100%` so
  * sticky-header engages without an outer scrollbar.
  *
  * Cell-content styles are NOT here — they're inlined in
- * `src/posts-window/index.ts` because `<wpd-table>` renders into its
+ * `src/posts-window/index.ts` because `<os-table>` renders into its
  * own shadow DOM and document stylesheets do not cross that boundary.
  *
  * @since 0.8.0
@@ -19,25 +19,25 @@
 	flex-direction: column;
 	height: 100%;
 	width: 100%;
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 /* --- Toolbar --------------------------------------------------------- */
 
-.desktop-mode-posts__toolbar {
+.os-posts__toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
 	padding: 10px 14px;
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
 }
 
-.desktop-mode-posts__toolbar-left,
-.desktop-mode-posts__toolbar-right,
-.desktop-mode-posts__toolbar-trailing {
+.os-posts__toolbar-left,
+.os-posts__toolbar-right,
+.os-posts__toolbar-trailing {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -49,25 +49,25 @@
  * above wins on specificity, so we restore the hide behaviour
  * for `bulkBar.hidden = true` from JS.
  */
-.desktop-mode-posts__toolbar-right[hidden] {
+.os-posts__toolbar-right[hidden] {
 	display: none;
 }
 
-.desktop-mode-posts__toolbar-trailing {
+.os-posts__toolbar-trailing {
 	margin-inline-start: auto;
 }
 
-.desktop-mode-posts__count {
+.os-posts__count {
 	font-size: 12px;
 	font-weight: 600;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-variant-numeric: tabular-nums;
 	padding-inline-end: 4px;
 }
 
 /* --- Body ------------------------------------------------------------ */
 
-.desktop-mode-posts__body {
+.os-posts__body {
 	flex: 1 1 auto;
 	/*
 	 * `min-width: 0` is the load-bearing piece — without it, the
@@ -84,100 +84,100 @@
 	padding: 8px 12px;
 }
 
-.desktop-mode-posts__body wpd-table {
+.os-posts__body os-table {
 	flex: 1 1 auto;
 	min-width: 0;
-	--wpd-table-max-height: 100%;
+	--os-ui-table-max-height: 100%;
 }
 
 /* --- Empty state ----------------------------------------------------- */
 
-.desktop-mode-posts__empty {
+.os-posts__empty {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	gap: 12px;
 	padding: 48px 24px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: center;
 }
 
-.desktop-mode-posts__empty .dashicons {
+.os-posts__empty .dashicons {
 	font-size: 40px;
 	width: 40px;
 	height: 40px;
-	color: var( --wpd-fg-muted, #a7aaad );
+	color: var( --os-ui-fg-muted, #a7aaad );
 }
 
-.desktop-mode-posts__empty p {
+.os-posts__empty p {
 	margin: 0;
 }
 
-.desktop-mode-posts__empty-hint {
+.os-posts__empty-hint {
 	font-size: 13px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* --- Footer / pager -------------------------------------------------- */
 
-.desktop-mode-posts__pager {
+.os-posts__pager {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 	padding: 10px 14px;
-	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
 	font-size: 13px;
 }
 
-.desktop-mode-posts__pager-meta {
-	color: var( --wpd-fg-muted, #50575e );
+.os-posts__pager-meta {
+	color: var( --os-ui-fg-muted, #50575e );
 	font-variant-numeric: tabular-nums;
 }
 
-.desktop-mode-posts__pager-nav {
+.os-posts__pager-nav {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.desktop-mode-posts__pager-perpage {
+.os-posts__pager-perpage {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 12px;
 	margin-inline-start: 8px;
 }
 
-.desktop-mode-posts__pager-perpage select {
+.os-posts__pager-perpage select {
 	padding: 4px 6px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 4px;
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 	font: inherit;
 }
 
 /* Title-bar ⋯ menu — "Show columns" sub-section.
  * Section label is a small caps separator above the column toggles.
- * The toggles are real <wpd-menu-item role="menuitemcheckbox"> nodes,
+ * The toggles are real <os-menu-item role="menuitemcheckbox"> nodes,
  * so they pick up the menu's existing styling automatically. */
-.desktop-mode-posts-window__menu-columns {
+.os-posts-window__menu-columns {
 	margin-top: 4px;
 	padding: 6px 12px 2px;
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #50575e );
-	border-top: 1px solid var( --wpd-border, #dcdcde );
+	color: var( --os-ui-fg-muted, #50575e );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	pointer-events: none;
 }
 
-/* Filter cell uses the framework's `<wpd-multiselect>` — no
+/* Filter cell uses the framework's `<os-multiselect>` — no
  * post-specific styles needed here. The component lives inside the
  * <th> and renders its popover into <body> so the dropdown escapes
  * the table's overflow chain. */
@@ -187,18 +187,18 @@
  *
  * Reimagined replacement for legacy `edit-tags.php`. Layout (top to
  * bottom): horizontal stats strip → search + add-row toolbar →
- * `<wpd-table>` → pager. The stats strip is the value-add over the
+ * `<os-table>` → pager. The stats strip is the value-add over the
  * legacy view — at-a-glance counts the user previously had to hunt
  * for. */
 /* Tabs strip — auto-height; only the active panel below grows. */
-.desktop-mode-posts__tabs {
+.os-posts__tabs {
 	flex: 0 0 auto;
 }
 
 /* Sibling panels under the same flex column. The hidden ones are
  * UA-display:none via the `[hidden]` attribute; the visible one
  * stretches to fill the remaining height. */
-.desktop-mode-posts__panel {
+.os-posts__panel {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
@@ -206,12 +206,12 @@
 	flex-direction: column;
 }
 
-.desktop-mode-posts__panel[ hidden ] {
+.os-posts__panel[ hidden ] {
 	display: none;
 }
 
-.desktop-mode-posts__terms-host,
-.desktop-mode-posts__terms {
+.os-posts__terms-host,
+.os-posts__terms {
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 auto;
@@ -219,24 +219,24 @@
 	min-width: 0;
 }
 
-.desktop-mode-posts__stats {
+.os-posts__stats {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
 	gap: 8px;
 	padding: 12px 14px 0;
 }
 
-.desktop-mode-posts__stat {
+.os-posts__stat {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	padding: 10px 14px;
-	background: var( --wpd-surface-elevated, #f6f7f7 );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 8px;
 }
 
-.desktop-mode-posts__stat[ data-tone='accent' ] {
+.os-posts__stat[ data-tone='accent' ] {
 	border-color: color-mix(
 		in srgb,
 		var( --wp-admin-theme-color, #2271b1 ) 45%,
@@ -244,58 +244,58 @@
 	);
 }
 
-.desktop-mode-posts__stat[ data-tone='warning' ] {
-	border-color: color-mix( in srgb, var( --wpd-danger, #d63638 ) 45%, transparent );
+.os-posts__stat[ data-tone='warning' ] {
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 45%, transparent );
 }
 
-.desktop-mode-posts__stat-value {
+.os-posts__stat-value {
 	font-size: 18px;
 	font-weight: 700;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	line-height: 1.2;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.desktop-mode-posts__stat[ data-tone='accent' ] .desktop-mode-posts__stat-value {
+.os-posts__stat[ data-tone='accent' ] .os-posts__stat-value {
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-posts__stat[ data-tone='warning' ] .desktop-mode-posts__stat-value {
-	color: var( --wpd-danger, #d63638 );
+.os-posts__stat[ data-tone='warning' ] .os-posts__stat-value {
+	color: var( --os-ui-danger, #d63638 );
 }
 
-.desktop-mode-posts__stat-label {
+.os-posts__stat-label {
 	font-size: 11px;
 	font-weight: 500;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.desktop-mode-posts__terms-toolbar {
+.os-posts__terms-toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
 	padding: 12px 14px;
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.desktop-mode-posts__terms-search {
+.os-posts__terms-search {
 	flex: 1 1 220px;
 	min-width: 0;
 }
 
-.desktop-mode-posts__terms-search wpd-text-field {
+.os-posts__terms-search os-text-field {
 	width: 100%;
 }
 
-.desktop-mode-posts__terms-add {
+.os-posts__terms-add {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -304,104 +304,104 @@
 	justify-content: flex-end;
 }
 
-.desktop-mode-posts__terms-add wpd-text-field {
+.os-posts__terms-add os-text-field {
 	flex: 1 1 200px;
 	min-width: 0;
 }
 
-.desktop-mode-posts__terms-parent {
+.os-posts__terms-parent {
 	padding: 6px 8px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 4px;
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 	font: inherit;
 	font-size: 13px;
 	max-width: 180px;
 }
 
-.desktop-mode-posts__terms wpd-table {
+.os-posts__terms os-table {
 	flex: 1 1 auto;
 	min-width: 0;
 	min-height: 0;
 	margin: 0 14px;
-	--wpd-table-max-height: 100%;
+	--os-ui-table-max-height: 100%;
 }
 
-.desktop-mode-posts__term-name {
+.os-posts__term-name {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 }
 
-.desktop-mode-posts__term-indent {
+.os-posts__term-indent {
 	display: inline-block;
 	flex-shrink: 0;
 }
 
-.desktop-mode-posts__term-tee {
-	color: var( --wpd-fg-muted, #8c8f94 );
+.os-posts__term-tee {
+	color: var( --os-ui-fg-muted, #8c8f94 );
 	font-size: 13px;
 	flex-shrink: 0;
 }
 
-.desktop-mode-posts__term-label {
+.os-posts__term-label {
 	font-weight: 500;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.desktop-mode-posts__term-slug {
+.os-posts__term-slug {
 	display: inline-block;
 	padding: 2px 6px;
 	border-radius: 4px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
-	color: var( --wpd-fg-muted, #50575e );
-	font-family: var( --wpd-font-mono, ui-monospace, "SF Mono", Menlo, monospace );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --os-ui-fg-muted, #50575e );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SF Mono", Menlo, monospace );
 	font-size: 11px;
 }
 
-.desktop-mode-posts__term-count {
+.os-posts__term-count {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
 	min-width: 0;
 }
 
-.desktop-mode-posts__term-bar {
+.os-posts__term-bar {
 	flex: 1 1 auto;
 	height: 4px;
 	min-width: 24px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) );
 	border-radius: 999px;
 	position: relative;
 	overflow: hidden;
 }
 
-.desktop-mode-posts__term-bar::before {
+.os-posts__term-bar::before {
 	content: '';
 	position: absolute;
 	inset-inline-start: 0;
 	top: 0;
 	bottom: 0;
-	width: var( --wpd-term-bar, 0% );
+	width: var( --os-ui-term-bar, 0% );
 	background: var( --wp-admin-theme-color, #2271b1 );
 	border-radius: 999px;
 	transition: width 0.2s ease;
 }
 
-.desktop-mode-posts__term-count-num {
+.os-posts__term-count-num {
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	min-width: 2ch;
 	text-align: end;
 }
 
-.desktop-mode-posts__term-desc {
-	color: var( --wpd-fg-muted, #50575e );
+.os-posts__term-desc {
+	color: var( --os-ui-fg-muted, #50575e );
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -409,17 +409,17 @@
 	max-width: 100%;
 }
 
-.desktop-mode-posts__term-desc.is-empty {
-	color: var( --wpd-fg-faint, #c3c4c7 );
+.os-posts__term-desc.is-empty {
+	color: var( --os-ui-fg-faint, #c3c4c7 );
 	font-style: italic;
 }
 
-.desktop-mode-posts__term-actions {
+.os-posts__term-actions {
 	display: inline-flex;
 	gap: 4px;
 }
 
-.desktop-mode-posts__term-action {
+.os-posts__term-action {
 	appearance: none;
 	padding: 3px 8px;
 	font: inherit;
@@ -433,7 +433,7 @@
 	transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
-.desktop-mode-posts__term-action:hover {
+.os-posts__term-action:hover {
 	background: color-mix(
 		in srgb,
 		var( --wp-admin-theme-color, #2271b1 ) 10%,
@@ -446,13 +446,13 @@
 	);
 }
 
-.desktop-mode-posts__term-action--danger {
-	color: var( --wpd-danger, #d63638 );
+.os-posts__term-action--danger {
+	color: var( --os-ui-danger, #d63638 );
 }
 
-.desktop-mode-posts__term-action--danger:hover {
-	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 10%, transparent );
-	border-color: color-mix( in srgb, var( --wpd-danger, #d63638 ) 35%, transparent );
+.os-posts__term-action--danger:hover {
+	background: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 10%, transparent );
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 35%, transparent );
 }
 
 /* ---------------------------------------------------------------
@@ -462,7 +462,7 @@
  * paints labels + count badges + the inline editor + post mini-cards.
  * The overlay keeps text crisp at any zoom; the canvas keeps the
  * graph hardware-accelerated. */
-.wpd-mindmap {
+.os-mindmap {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
@@ -499,15 +499,15 @@
 			),
 			transparent 58%
 		),
-		var( --wpd-surface, #fff );
+		var( --os-ui-surface, #fff );
 }
 
-.wpd-mindmap__toolbar {
+.os-mindmap__toolbar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 10px 14px;
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	background: rgba( 255, 255, 255, 0.6 );
 	backdrop-filter: blur( 8px );
 	/* New stacking context so the search dropdown (z-index inside)
@@ -519,7 +519,7 @@
 	z-index: 2;
 }
 
-.wpd-mindmap__btn {
+.os-mindmap__btn {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -528,88 +528,88 @@
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
 	background: transparent;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	cursor: pointer;
 	transition: background-color 0.12s ease, border-color 0.12s ease,
 		color 0.12s ease;
 }
 
-.wpd-mindmap__btn:hover {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+.os-mindmap__btn:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wpd-mindmap__btn--primary {
+.os-mindmap__btn--primary {
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	border-color: transparent;
 }
 
-.wpd-mindmap__btn--primary:hover {
+.os-mindmap__btn--primary:hover {
 	filter: brightness( 1.05 );
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.wpd-mindmap__btn--secondary {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+.os-mindmap__btn--secondary {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
 }
 
-.wpd-mindmap__btn--danger {
-	color: var( --wpd-danger, #d63638 );
+.os-mindmap__btn--danger {
+	color: var( --os-ui-danger, #d63638 );
 	border-color: transparent;
 }
 
-.wpd-mindmap__btn--danger:hover {
-	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 10%, transparent );
-	border-color: color-mix( in srgb, var( --wpd-danger, #d63638 ) 35%, transparent );
+.os-mindmap__btn--danger:hover {
+	background: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 10%, transparent );
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 35%, transparent );
 }
 
-.wpd-mindmap__btn--danger.is-armed {
-	background: var( --wpd-danger, #d63638 );
-	color: var( --wpd-fg-on-accent, #fff );
+.os-mindmap__btn--danger.is-armed {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
 	border-color: transparent;
 }
 
-.wpd-mindmap__hint {
+.os-mindmap__hint {
 	flex: 1 1 auto;
 	font-size: 12px;
 	font-style: italic;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: end;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-mindmap__search {
+.os-mindmap__search {
 	position: relative;
 	flex: 0 1 280px;
 	min-width: 180px;
 }
 
-.wpd-mindmap__search-input {
+.os-mindmap__search-input {
 	width: 100%;
 	padding: 6px 10px;
-	border: 1px solid var( --wpd-border, #d8dde4 );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	font: inherit;
 	font-size: 13px;
 }
 
-.wpd-mindmap__search-input:focus {
+.os-mindmap__search-input:focus {
 	outline: none;
-	border-color: var( --wpd-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
 	box-shadow: 0 0 0 3px
-		var( --wpd-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.18 ) );
 }
 
-.wpd-mindmap__search-results {
+.os-mindmap__search-results {
 	position: absolute;
 	top: calc( 100% + 4px );
 	inset-inline-start: 0;
@@ -617,8 +617,8 @@
 	margin: 0;
 	padding: 4px;
 	list-style: none;
-	background: var( --wpd-surface-elevated, #fff );
-	border: 1px solid var( --wpd-border, #d8dde4 );
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
 	border-radius: 8px;
 	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
 	z-index: 100;
@@ -626,7 +626,7 @@
 	overflow-y: auto;
 }
 
-.wpd-mindmap__search-result {
+.os-mindmap__search-result {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -643,21 +643,21 @@
 	font-size: 13px;
 }
 
-.wpd-mindmap__search-result:hover,
-.wpd-mindmap__search-result.is-active {
-	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+.os-mindmap__search-result:hover,
+.os-mindmap__search-result.is-active {
+	background: var( --os-ui-hover, rgba( 79, 139, 243, 0.08 ) );
 }
 
-.wpd-mindmap__search-title {
+.os-mindmap__search-title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-mindmap__search-meta {
+.os-mindmap__search-meta {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #6b7280 );
+	color: var( --os-ui-fg-muted, #6b7280 );
 	white-space: nowrap;
 }
 
@@ -665,14 +665,14 @@
  * right. The sidebar always renders — empty-state copy when no node
  * is focused, full editor form otherwise — so the editing surface
  * never covers the post nodes. */
-.wpd-mindmap__layout {
+.os-mindmap__layout {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
 }
 
-.wpd-mindmap__stage {
+.os-mindmap__stage {
 	position: relative;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -685,55 +685,55 @@
 	transition: opacity 200ms ease;
 }
 
-.wpd-mindmap__stage.is-loading {
+.os-mindmap__stage.is-loading {
 	opacity: 0;
 }
 
-.wpd-mindmap__sidebar {
+.os-mindmap__sidebar {
 	flex: 0 0 320px;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	padding: 16px;
-	border-inline-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 	overflow-y: auto;
 	min-height: 0;
 }
 
-.wpd-mindmap__sidebar-empty {
+.os-mindmap__sidebar-empty {
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: center;
 	padding: 24px 8px;
 }
 
-.wpd-mindmap__sidebar-empty .dashicons {
+.os-mindmap__sidebar-empty .dashicons {
 	font-size: 36px;
 	width: 36px;
 	height: 36px;
 	opacity: 0.5;
 }
 
-.wpd-mindmap__sidebar-empty-title {
+.os-mindmap__sidebar-empty-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.wpd-mindmap__sidebar-empty-hint {
+.os-mindmap__sidebar-empty-hint {
 	font-size: 12px;
 	font-style: italic;
 	max-width: 220px;
 }
 
-.wpd-mindmap__sidebar-header {
+.os-mindmap__sidebar-header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -741,36 +741,36 @@
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.wpd-mindmap__sidebar-dot {
+.os-mindmap__sidebar-dot {
 	width: 10px;
 	height: 10px;
 	border-radius: 50%;
 	flex: 0 0 10px;
 }
 
-.wpd-mindmap__sidebar-slug {
+.os-mindmap__sidebar-slug {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-mindmap__sidebar-label {
+.os-mindmap__sidebar-label {
 	font-size: 11px;
 	font-weight: 500;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	margin-block-start: 4px;
 }
 
-.wpd-mindmap__sidebar-meta {
+.os-mindmap__sidebar-meta {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	padding-block: 4px;
 }
 
-.wpd-mindmap__canvas {
+.os-mindmap__canvas {
 	display: block;
 	position: absolute;
 	inset: 0;
@@ -792,24 +792,24 @@
  * positioning, shadow or backdrop. Just a vertical stack of inputs +
  * actions. (Kept the class so the form's children still hit the
  * existing input/button styles below.) */
-.wpd-mindmap__editor {
+.os-mindmap__editor {
 	display: contents;
 }
 
-.wpd-mindmap__editor-name {
+.os-mindmap__editor-name {
 	appearance: none;
 	font: inherit;
 	font-size: 14px;
 	font-weight: 600;
 	padding: 6px 8px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 }
 
-.wpd-mindmap__editor-name:focus,
-.wpd-mindmap__editor-desc:focus {
+.os-mindmap__editor-name:focus,
+.os-mindmap__editor-desc:focus {
 	outline: none;
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 2px
@@ -820,38 +820,38 @@
 		);
 }
 
-.wpd-mindmap__editor-desc {
+.os-mindmap__editor-desc {
 	appearance: none;
 	font: inherit;
 	font-size: 12px;
 	padding: 6px 8px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	resize: vertical;
 	min-height: 46px;
 }
 
-.wpd-mindmap__editor-actions {
+.os-mindmap__editor-actions {
 	display: flex;
 	gap: 6px;
 	flex-wrap: wrap;
 }
 
-.wpd-mindmap__editor-actions .wpd-mindmap__btn {
+.os-mindmap__editor-actions .os-mindmap__btn {
 	flex: 1 1 auto;
 	justify-content: center;
 }
 
-.wpd-mindmap__empty {
+.os-mindmap__empty {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	pointer-events: none;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 13px;
 	font-style: italic;
 	text-align: center;
@@ -868,7 +868,7 @@
  * directly into the canvas; this stylesheet only owns the chrome
  * around the canvas (toolbar, sidebar form, empty states).
  * ------------------------------------------------------------------ */
-.wpd-tagcloud {
+.os-tagcloud {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
@@ -891,24 +891,24 @@
 			),
 			transparent 65%
 		),
-		var( --wpd-surface, #fff );
+		var( --os-ui-surface, #fff );
 }
 
-.wpd-tagcloud__toolbar {
+.os-tagcloud__toolbar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 10px 14px;
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	background: rgba( 255, 255, 255, 0.6 );
 	backdrop-filter: blur( 8px );
 	/* Stacking context for the search dropdown — see the matching
-	 * comment on `.wpd-mindmap__toolbar`. */
+	 * comment on `.os-mindmap__toolbar`. */
 	position: relative;
 	z-index: 2;
 }
 
-.wpd-tagcloud__btn {
+.os-tagcloud__btn {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -917,84 +917,84 @@
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
 	background: transparent;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	cursor: pointer;
 	transition: background-color 0.12s ease, border-color 0.12s ease,
 		color 0.12s ease;
 }
 
-.wpd-tagcloud__btn:hover {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+.os-tagcloud__btn:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.wpd-tagcloud__btn--primary {
+.os-tagcloud__btn--primary {
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	border-color: transparent;
 }
 
-.wpd-tagcloud__btn--primary:hover {
+.os-tagcloud__btn--primary:hover {
 	filter: brightness( 1.05 );
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.wpd-tagcloud__btn--danger {
-	color: var( --wpd-danger, #d63638 );
+.os-tagcloud__btn--danger {
+	color: var( --os-ui-danger, #d63638 );
 	border-color: transparent;
 }
 
-.wpd-tagcloud__btn--danger:hover {
-	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 10%, transparent );
-	border-color: color-mix( in srgb, var( --wpd-danger, #d63638 ) 35%, transparent );
+.os-tagcloud__btn--danger:hover {
+	background: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 10%, transparent );
+	border-color: color-mix( in srgb, var( --os-ui-danger, #d63638 ) 35%, transparent );
 }
 
-.wpd-tagcloud__btn--danger.is-armed {
-	background: var( --wpd-danger, #d63638 );
-	color: var( --wpd-fg-on-accent, #fff );
+.os-tagcloud__btn--danger.is-armed {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
 	border-color: transparent;
 }
 
-.wpd-tagcloud__hint {
+.os-tagcloud__hint {
 	flex: 1 1 auto;
 	font-size: 12px;
 	font-style: italic;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: end;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-tagcloud__search {
+.os-tagcloud__search {
 	position: relative;
 	flex: 0 1 280px;
 	min-width: 180px;
 }
 
-.wpd-tagcloud__search-input {
+.os-tagcloud__search-input {
 	width: 100%;
 	padding: 6px 10px;
-	border: 1px solid var( --wpd-border, #d8dde4 );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	font: inherit;
 	font-size: 13px;
 }
 
-.wpd-tagcloud__search-input:focus {
+.os-tagcloud__search-input:focus {
 	outline: none;
-	border-color: var( --wpd-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
 	box-shadow: 0 0 0 3px
-		var( --wpd-accent-soft, rgba( 34, 113, 177, 0.18 ) );
+		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.18 ) );
 }
 
-.wpd-tagcloud__search-results {
+.os-tagcloud__search-results {
 	position: absolute;
 	top: calc( 100% + 4px );
 	inset-inline-start: 0;
@@ -1002,8 +1002,8 @@
 	margin: 0;
 	padding: 4px;
 	list-style: none;
-	background: var( --wpd-surface-elevated, #fff );
-	border: 1px solid var( --wpd-border, #d8dde4 );
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
 	border-radius: 8px;
 	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
 	z-index: 100;
@@ -1011,7 +1011,7 @@
 	overflow-y: auto;
 }
 
-.wpd-tagcloud__search-result {
+.os-tagcloud__search-result {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -1028,32 +1028,32 @@
 	font-size: 13px;
 }
 
-.wpd-tagcloud__search-result:hover,
-.wpd-tagcloud__search-result.is-active {
-	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
+.os-tagcloud__search-result:hover,
+.os-tagcloud__search-result.is-active {
+	background: var( --os-ui-hover, rgba( 79, 139, 243, 0.08 ) );
 }
 
-.wpd-tagcloud__search-title {
+.os-tagcloud__search-title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-tagcloud__search-meta {
+.os-tagcloud__search-meta {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #6b7280 );
+	color: var( --os-ui-fg-muted, #6b7280 );
 	white-space: nowrap;
 }
 
-.wpd-tagcloud__layout {
+.os-tagcloud__layout {
 	display: flex;
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
 }
 
-.wpd-tagcloud__stage {
+.os-tagcloud__stage {
 	position: relative;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -1062,57 +1062,57 @@
 	transition: opacity 200ms ease;
 }
 
-.wpd-tagcloud__stage.is-loading {
+.os-tagcloud__stage.is-loading {
 	opacity: 0;
 }
 
-.wpd-tagcloud__sidebar {
+.os-tagcloud__sidebar {
 	flex: 0 0 320px;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	padding: 16px;
-	border-inline-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 	overflow-y: auto;
 	min-height: 0;
 }
 
-.wpd-tagcloud__sidebar-empty {
+.os-tagcloud__sidebar-empty {
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-align: center;
 	padding: 24px 8px;
 }
 
-.wpd-tagcloud__sidebar-empty .dashicons {
+.os-tagcloud__sidebar-empty .dashicons {
 	font-size: 36px;
 	width: 36px;
 	height: 36px;
 	opacity: 0.5;
 }
 
-.wpd-tagcloud__sidebar-empty-title {
+.os-tagcloud__sidebar-empty-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	margin: 0;
 }
 
-.wpd-tagcloud__sidebar-empty-hint {
+.os-tagcloud__sidebar-empty-hint {
 	font-size: 12px;
 	font-style: italic;
 	max-width: 240px;
 	margin: 0;
 }
 
-.wpd-tagcloud__sidebar-header {
+.os-tagcloud__sidebar-header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -1120,36 +1120,36 @@
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.wpd-tagcloud__sidebar-dot {
+.os-tagcloud__sidebar-dot {
 	width: 10px;
 	height: 10px;
 	border-radius: 50%;
 	flex: 0 0 10px;
 }
 
-.wpd-tagcloud__sidebar-slug {
+.os-tagcloud__sidebar-slug {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.wpd-tagcloud__sidebar-label {
+.os-tagcloud__sidebar-label {
 	font-size: 11px;
 	font-weight: 500;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	margin-block-start: 4px;
 }
 
-.wpd-tagcloud__sidebar-meta {
+.os-tagcloud__sidebar-meta {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	padding-block: 4px;
 }
 
-.wpd-tagcloud__canvas {
+.os-tagcloud__canvas {
 	display: block;
 	position: absolute;
 	inset: 0;
@@ -1158,20 +1158,20 @@
 	touch-action: none;
 }
 
-.wpd-tagcloud__editor-name {
+.os-tagcloud__editor-name {
 	appearance: none;
 	font: inherit;
 	font-size: 14px;
 	font-weight: 600;
 	padding: 6px 8px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 }
 
-.wpd-tagcloud__editor-name:focus,
-.wpd-tagcloud__editor-desc:focus {
+.os-tagcloud__editor-name:focus,
+.os-tagcloud__editor-desc:focus {
 	outline: none;
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 2px
@@ -1182,38 +1182,38 @@
 		);
 }
 
-.wpd-tagcloud__editor-desc {
+.os-tagcloud__editor-desc {
 	appearance: none;
 	font: inherit;
 	font-size: 12px;
 	padding: 6px 8px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	resize: vertical;
 	min-height: 46px;
 }
 
-.wpd-tagcloud__editor-actions {
+.os-tagcloud__editor-actions {
 	display: flex;
 	gap: 6px;
 	flex-wrap: wrap;
 }
 
-.wpd-tagcloud__editor-actions .wpd-tagcloud__btn {
+.os-tagcloud__editor-actions .os-tagcloud__btn {
 	flex: 1 1 auto;
 	justify-content: center;
 }
 
-.wpd-tagcloud__empty {
+.os-tagcloud__empty {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	pointer-events: none;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 13px;
 	font-style: italic;
 	text-align: center;
@@ -1224,7 +1224,7 @@
 /*  Posts-window intro dialog (first-open Pixi preview)              */
 /* ---------------------------------------------------------------- */
 
-.wpd-intro-backdrop {
+.os-intro-backdrop {
 	position: fixed;
 	inset: 0;
 	background: rgba( 15, 23, 42, 0.55 );
@@ -1233,14 +1233,14 @@
 	align-items: center;
 	justify-content: center;
 	z-index: 100000;
-	animation: wpd-intro-fade 180ms ease-out;
+	animation: os-intro-fade 180ms ease-out;
 }
 
-.wpd-intro {
+.os-intro {
 	width: min( 720px, calc( 100vw - 48px ) );
 	max-height: calc( 100vh - 48px );
-	background: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1d2327 );
 	border-radius: 14px;
 	box-shadow: 0 20px 60px rgba( 0, 0, 0, 0.35 );
 	padding: 28px 28px 22px;
@@ -1248,25 +1248,25 @@
 	flex-direction: column;
 	gap: 12px;
 	outline: none;
-	animation: wpd-intro-pop 220ms cubic-bezier( 0.2, 0.8, 0.2, 1.05 );
+	animation: os-intro-pop 220ms cubic-bezier( 0.2, 0.8, 0.2, 1.05 );
 	overflow: hidden;
 }
 
-.wpd-intro__title {
+.os-intro__title {
 	margin: 0;
 	font-size: 20px;
 	font-weight: 600;
 	letter-spacing: -0.01em;
 }
 
-.wpd-intro__lede {
+.os-intro__lede {
 	margin: 0;
 	font-size: 14px;
 	line-height: 1.5;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.wpd-intro__stage {
+.os-intro__stage {
 	position: relative;
 	height: 550px;
 	border-radius: 10px;
@@ -1283,49 +1283,49 @@
 			transparent 55%
 		),
 		linear-gradient( 180deg, #f8fafc, #eef2f7 );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.wpd-intro__canvas {
+.os-intro__canvas {
 	display: block;
 	width: 100% !important;
 	height: 100% !important;
 }
 
-.wpd-intro__fallback {
+.os-intro__fallback {
 	margin: 0;
 	padding: 40px 24px;
 	font-size: 14px;
 	line-height: 1.5;
 	text-align: center;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.wpd-intro__tip {
+.os-intro__tip {
 	margin: 0;
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-style: italic;
 }
 
-.wpd-intro__escape {
+.os-intro__escape {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.5;
 	padding: 10px 12px;
 	border-radius: 8px;
 	background: rgba( 34, 113, 177, 0.07 );
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.wpd-intro__actions {
+.os-intro__actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 4px;
 }
 
-.wpd-intro__btn {
+.os-intro__btn {
 	appearance: none;
 	font: inherit;
 	font-size: 13px;
@@ -1338,31 +1338,31 @@
 		filter 0.12s ease;
 }
 
-.wpd-intro__btn--secondary {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
-	color: var( --wpd-fg, #1d2327 );
-	border-color: var( --wpd-border, rgba( 0, 0, 0, 0.10 ) );
+.os-intro__btn--secondary {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+	color: var( --os-ui-fg, #1d2327 );
+	border-color: var( --os-ui-border, rgba( 0, 0, 0, 0.10 ) );
 }
 
-.wpd-intro__btn--secondary:hover {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.07 ) );
+.os-intro__btn--secondary:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.07 ) );
 }
 
-.wpd-intro__btn--primary {
+.os-intro__btn--primary {
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.wpd-intro__btn--primary:hover {
+.os-intro__btn--primary:hover {
 	filter: brightness( 1.05 );
 }
 
-@keyframes wpd-intro-fade {
+@keyframes os-intro-fade {
 	from { opacity: 0; }
 	to   { opacity: 1; }
 }
 
-@keyframes wpd-intro-pop {
+@keyframes os-intro-pop {
 	from { opacity: 0; transform: translateY( 8px ) scale( 0.98 ); }
 	to   { opacity: 1; transform: translateY( 0 )   scale( 1 );    }
 }
@@ -1370,31 +1370,31 @@
 /* ─── Native Users window — tabs + Add User panel ────────────────── */
 /*
  * Lives in the shared posts-window stylesheet because the Users
- * window enqueues `desktop-mode-posts-window` (single bundle, single
+ * window enqueues `os-posts-window` (single bundle, single
  * style handle covers both). Scoped to `.desktop-mode-users` so it
  * never bleeds into the Posts/Pages markup.
  */
 /*
  * Tab strip — keep it auto-height (matches the
- * `.desktop-mode-posts__tabs` rule). Without the `flex: 0 0 auto`
- * the wpd-tabs element grows to fill the column and the panel
+ * `.os-posts__tabs` rule). Without the `flex: 0 0 auto`
+ * the os-tabs element grows to fill the column and the panel
  * below collapses to zero height — exactly the "no table"
  * regression the first cut hit.
  */
-.desktop-mode-users__tabs {
+.os-users__tabs {
 	flex: 0 0 auto;
 	padding: 0 18px;
-	border-bottom: 1px solid var( --wpd-border, #dcdcde );
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 }
 
 /*
  * The Add User tab. The PHP template applies this class to the
- * `<wpd-tabpanel>`. Padding lives on the host so the form's own
+ * `<os-tabpanel>`. Padding lives on the host so the form's own
  * footer separator sits flush with the panel edges. `flex: 1 1
  * auto` matches the All-users panel so the active tab fills the
  * remaining height and the inactive one is fully `hidden`.
  */
-.desktop-mode-users__add-panel {
+.os-users__add-panel {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: block;
@@ -1402,49 +1402,49 @@
 	box-sizing: border-box;
 	overflow-y: auto;
 }
-.desktop-mode-users__add-panel[ hidden ] {
+.os-users__add-panel[ hidden ] {
 	display: none;
 }
 
 /*
- * Center the form at a comfortable reading width. The wpd-form
+ * Center the form at a comfortable reading width. The os-form
  * itself does the column layout — we only do the OUTER centering
  * here. `min(760px, 100%)` keeps it from blowing past the panel's
  * edges on narrow windows where the max-width would be moot.
  */
-.desktop-mode-users__add-panel > wpd-form {
+.os-users__add-panel > os-form {
 	display: block;
 	margin-inline: auto;
 	width: min( 760px, 100% );
 }
 
-.desktop-mode-users__add-panel [ slot="header" ] {
+.os-users__add-panel [ slot="header" ] {
 	margin-bottom: 4px;
 }
-.desktop-mode-users__add-panel [ slot="header" ] h2 {
+.os-users__add-panel [ slot="header" ] h2 {
 	margin: 0 0 6px;
 	font-size: 20px;
 	font-weight: 600;
 	letter-spacing: -0.01em;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
-.desktop-mode-users__form-lede {
+.os-users__form-lede {
 	margin: 0 0 8px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 13px;
 	line-height: 1.5;
 }
-.desktop-mode-users__form-pwd-actions {
+.os-users__form-pwd-actions {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	flex-wrap: wrap;
 	margin-top: -4px;
 }
-.desktop-mode-users__form-hint {
+.os-users__form-hint {
 	margin: 0;
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 /*
  * Narrow-window trim — at < 540px the side padding gets in the way
@@ -1452,38 +1452,38 @@
  * collapse to one column, so the visual cadence stays consistent.
  */
 @media ( max-width: 540px ) {
-	.desktop-mode-users__add-panel {
+	.os-users__add-panel {
 		padding: 20px 14px 16px;
 	}
-	.desktop-mode-users__tabs {
+	.os-users__tabs {
 		padding: 0 12px;
 	}
 }
 
 /*
  * Profile tab — third tab in the Users window. Same flex
- * stretch as the .desktop-mode-posts__panel rule: the active
+ * stretch as the .os-posts__panel rule: the active
  * tabpanel fills the remaining height, scrolls its own content,
  * leaves the tab strip pinned at the top.
  */
-.desktop-mode-users__edit-panel {
+.os-users__edit-panel {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
 }
-.desktop-mode-users__edit-panel[ hidden ] {
+.os-users__edit-panel[ hidden ] {
 	display: none;
 }
 /*
- * `<wpd-user-profile>` slotted as a tabpanel child needs to fill
+ * `<os-user-profile>` slotted as a tabpanel child needs to fill
  * the height itself so its internal scroll container takes the
  * remaining space. Without this the layout grid lives at its
  * intrinsic height and the user can't reach the bottom of the
  * form on shorter windows.
  */
-.desktop-mode-users__edit-panel > wpd-user-profile {
+.os-users__edit-panel > os-user-profile {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
@@ -1492,18 +1492,18 @@
 
 /*
  * Standalone `desktop-mode-user-edit` window. The native body is
- * a chromeless host; `<wpd-user-profile>` fills the whole space
+ * a chromeless host; `<os-user-profile>` fills the whole space
  * and owns its own scroll. Without `min-height: 0` on the chain,
  * the inner `overflow-y: auto` on the layout grid never gets a
  * chance to clip and scroll.
  */
-.desktop-mode-user-edit-window {
+.os-user-edit-window {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
 }
-.desktop-mode-user-edit-window > wpd-user-profile {
+.os-user-edit-window > os-user-profile {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
@@ -1512,14 +1512,14 @@
 /*
  * The component itself — light-DOM host of the layout. Same
  * flex semantics so the inner scroll container is the
- * .desktop-mode-users__edit-layout div.
+ * .os-users__edit-layout div.
  */
-wpd-user-profile {
+os-user-profile {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
 }
-wpd-user-profile > .desktop-mode-users__edit-layout {
+os-user-profile > .os-users__edit-layout {
 	flex: 1 1 auto;
 	min-height: 0;
 }
@@ -1530,10 +1530,10 @@ wpd-user-profile > .desktop-mode-users__edit-layout {
  * single CSS container query collapses the two columns to one
  * stack on narrow widths, where the aside moves above the form
  * (the user still sees their summary; just scrolls past it
- * before the form). The Profile form's own wpd-form container
+ * before the form). The Profile form's own os-form container
  * query handles the inner 1↔2 column flip.
  */
-.desktop-mode-users__edit-layout {
+.os-users__edit-layout {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
@@ -1542,14 +1542,14 @@ wpd-user-profile > .desktop-mode-users__edit-layout {
 	gap: 28px;
 	padding: 28px 32px 32px;
 	container-type: inline-size;
-	container-name: wpd-user-edit;
+	container-name: desktop-mode-user-edit;
 }
-@container wpd-user-edit ( max-width: 800px ) {
-	.desktop-mode-users__edit-layout {
+@container desktop-mode-user-edit ( max-width: 800px ) {
+	.os-users__edit-layout {
 		grid-template-columns: minmax( 0, 1fr );
 	}
 }
-.desktop-mode-users__edit-aside {
+.os-users__edit-aside {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -1558,12 +1558,12 @@ wpd-user-profile > .desktop-mode-users__edit-layout {
 	top: 0;
 	align-self: start;
 }
-@container wpd-user-edit ( max-width: 800px ) {
-	.desktop-mode-users__edit-aside {
+@container desktop-mode-user-edit ( max-width: 800px ) {
+	.os-users__edit-aside {
 		position: static;
 	}
 }
-.desktop-mode-users__edit-main {
+.os-users__edit-main {
 	min-width: 0;
 	width: 100%;
 	max-width: 720px;
@@ -1576,6 +1576,6 @@ wpd-user-profile > .desktop-mode-users__edit-layout {
 	display: flex;
 	flex-direction: column;
 }
-.desktop-mode-users__edit-activity {
+.os-users__edit-activity {
 	min-width: 0;
 }

@@ -223,7 +223,7 @@ export async function mountTagsCloud(
 	host: HTMLElement,
 	client: PostsWindowClient,
 ): Promise< () => void > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( ! api || typeof api.loadModules !== 'function' ) {
 		host.textContent = __( 'Tag cloud unavailable: shell modules API missing.' );
 		return () => {};
@@ -242,26 +242,26 @@ export async function mountTagsCloud(
 	const pixi: PixiNamespace = pixiMaybe;
 
 	host.replaceChildren();
-	host.classList.add( 'wpd-tagcloud' );
+	host.classList.add( 'os-tagcloud' );
 
 	// --- Toolbar -------------------------------------------------------
 	const toolbar = document.createElement( 'div' );
-	toolbar.className = 'wpd-tagcloud__toolbar';
+	toolbar.className = 'os-tagcloud__toolbar';
 	const addTagBtn = document.createElement( 'button' );
 	addTagBtn.type = 'button';
-	addTagBtn.className = 'wpd-tagcloud__btn wpd-tagcloud__btn--primary';
+	addTagBtn.className = 'os-tagcloud__btn os-tagcloud__btn--primary';
 	addTagBtn.innerHTML =
 		'<span class="dashicons dashicons-plus" aria-hidden="true"></span>' +
 		__( 'Add tag' );
 	const recenterBtn = document.createElement( 'button' );
 	recenterBtn.type = 'button';
-	recenterBtn.className = 'wpd-tagcloud__btn';
+	recenterBtn.className = 'os-tagcloud__btn';
 	recenterBtn.innerHTML =
 		'<span class="dashicons dashicons-image-rotate" aria-hidden="true"></span>' +
 		__( 'Recenter' );
 	const reflowBtn = document.createElement( 'button' );
 	reflowBtn.type = 'button';
-	reflowBtn.className = 'wpd-tagcloud__btn';
+	reflowBtn.className = 'os-tagcloud__btn';
 	reflowBtn.innerHTML =
 		'<span class="dashicons dashicons-grid-view" aria-hidden="true"></span>' +
 		__( 'Reflow' );
@@ -272,10 +272,10 @@ export async function mountTagsCloud(
 	// the DOM lives here so the toolbar paints with the box in place
 	// from the first frame.
 	const searchWrap = document.createElement( 'div' );
-	searchWrap.className = 'wpd-tagcloud__search';
+	searchWrap.className = 'os-tagcloud__search';
 	const searchInput = document.createElement( 'input' );
 	searchInput.type = 'search';
-	searchInput.className = 'wpd-tagcloud__search-input';
+	searchInput.className = 'os-tagcloud__search-input';
 	searchInput.placeholder = __( 'Search tags…' );
 	searchInput.setAttribute(
 		'aria-label',
@@ -283,11 +283,11 @@ export async function mountTagsCloud(
 	);
 	searchWrap.appendChild( searchInput );
 	const searchResults = document.createElement( 'ul' );
-	searchResults.className = 'wpd-tagcloud__search-results';
+	searchResults.className = 'os-tagcloud__search-results';
 	searchResults.hidden = true;
 	searchWrap.appendChild( searchResults );
 	const hint = document.createElement( 'span' );
-	hint.className = 'wpd-tagcloud__hint';
+	hint.className = 'os-tagcloud__hint';
 	hint.textContent = __(
 		'Click a tag to focus + edit · drag to reposition · wheel to zoom',
 	);
@@ -300,16 +300,16 @@ export async function mountTagsCloud(
 
 	// --- Layout: canvas on the left, fixed sidebar on the right ------
 	const layout = document.createElement( 'div' );
-	layout.className = 'wpd-tagcloud__layout';
+	layout.className = 'os-tagcloud__layout';
 	host.appendChild( layout );
 
 	const stage = document.createElement( 'div' );
-	stage.className = 'wpd-tagcloud__stage';
+	stage.className = 'os-tagcloud__stage';
 	stage.classList.add( 'is-loading' );
 	layout.appendChild( stage );
 
 	const sidebar = document.createElement( 'aside' );
-	sidebar.className = 'wpd-tagcloud__sidebar';
+	sidebar.className = 'os-tagcloud__sidebar';
 	layout.appendChild( sidebar );
 
 	// --- Pixi --------------------------------------------------------
@@ -322,7 +322,7 @@ export async function mountTagsCloud(
 		resolution: Math.min( window.devicePixelRatio || 1, 2 ),
 	} );
 	stage.appendChild( app.canvas );
-	app.canvas.classList.add( 'wpd-tagcloud__canvas' );
+	app.canvas.classList.add( 'os-tagcloud__canvas' );
 
 	const world = new pixi.Container();
 	world.x = stage.clientWidth / 2;
@@ -1632,49 +1632,49 @@ export async function mountTagsCloud(
 	// --- Sidebar editor ----------------------------------------------
 	function paintDraftSidebar(): void {
 		const header = document.createElement( 'div' );
-		header.className = 'wpd-tagcloud__sidebar-header';
+		header.className = 'os-tagcloud__sidebar-header';
 		const dot = document.createElement( 'span' );
-		dot.className = 'wpd-tagcloud__sidebar-dot';
+		dot.className = 'os-tagcloud__sidebar-dot';
 		dot.style.background = `hsl( ${ themeHue }deg 60% 55% )`;
 		const label = document.createElement( 'code' );
-		label.className = 'wpd-tagcloud__sidebar-slug';
+		label.className = 'os-tagcloud__sidebar-slug';
 		label.textContent = __( 'New tag' );
 		header.appendChild( dot );
 		header.appendChild( label );
 		sidebar.appendChild( header );
 
 		const nameLabel = document.createElement( 'label' );
-		nameLabel.className = 'wpd-tagcloud__sidebar-label';
+		nameLabel.className = 'os-tagcloud__sidebar-label';
 		nameLabel.textContent = __( 'Name' );
 		sidebar.appendChild( nameLabel );
 		const nameInput = document.createElement( 'input' );
 		nameInput.type = 'text';
-		nameInput.className = 'wpd-tagcloud__editor-name';
+		nameInput.className = 'os-tagcloud__editor-name';
 		nameInput.placeholder = __( 'e.g. featured' );
 		sidebar.appendChild( nameInput );
 		requestAnimationFrame( () => nameInput.focus() );
 
 		const descLabel = document.createElement( 'label' );
-		descLabel.className = 'wpd-tagcloud__sidebar-label';
+		descLabel.className = 'os-tagcloud__sidebar-label';
 		descLabel.textContent = __( 'Description' );
 		sidebar.appendChild( descLabel );
 		const descInput = document.createElement( 'textarea' );
-		descInput.className = 'wpd-tagcloud__editor-desc';
+		descInput.className = 'os-tagcloud__editor-desc';
 		descInput.placeholder = __( 'Description (optional)' );
 		descInput.rows = 4;
 		sidebar.appendChild( descInput );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpd-tagcloud__editor-actions';
+		actions.className = 'os-tagcloud__editor-actions';
 
 		const createBtn = document.createElement( 'button' );
 		createBtn.type = 'button';
-		createBtn.className = 'wpd-tagcloud__btn wpd-tagcloud__btn--primary';
+		createBtn.className = 'os-tagcloud__btn os-tagcloud__btn--primary';
 		createBtn.textContent = __( 'Create' );
 
 		const cancelBtn = document.createElement( 'button' );
 		cancelBtn.type = 'button';
-		cancelBtn.className = 'wpd-tagcloud__btn wpd-tagcloud__btn--danger';
+		cancelBtn.className = 'os-tagcloud__btn os-tagcloud__btn--danger';
 		cancelBtn.textContent = __( 'Cancel' );
 
 		const handleCreate = async (): Promise< void > => {
@@ -1773,17 +1773,17 @@ export async function mountTagsCloud(
 		}
 		if ( focusId === null ) {
 			const empty = document.createElement( 'div' );
-			empty.className = 'wpd-tagcloud__sidebar-empty';
+			empty.className = 'os-tagcloud__sidebar-empty';
 			const icon = document.createElement( 'span' );
 			icon.className = 'dashicons dashicons-tag';
 			icon.setAttribute( 'aria-hidden', 'true' );
 			empty.appendChild( icon );
 			const title = document.createElement( 'h3' );
-			title.className = 'wpd-tagcloud__sidebar-empty-title';
+			title.className = 'os-tagcloud__sidebar-empty-title';
 			title.textContent = __( 'No tag selected' );
 			empty.appendChild( title );
 			const help = document.createElement( 'p' );
-			help.className = 'wpd-tagcloud__sidebar-empty-hint';
+			help.className = 'os-tagcloud__sidebar-empty-hint';
 			help.textContent = __(
 				'Click a tag on the cloud to edit it, or click + Add tag to create a new one.',
 			);
@@ -1800,36 +1800,36 @@ export async function mountTagsCloud(
 		const id = box.id;
 
 		const header = document.createElement( 'div' );
-		header.className = 'wpd-tagcloud__sidebar-header';
+		header.className = 'os-tagcloud__sidebar-header';
 		const dot = document.createElement( 'span' );
-		dot.className = 'wpd-tagcloud__sidebar-dot';
+		dot.className = 'os-tagcloud__sidebar-dot';
 		dot.style.background = `hsl( ${ box.hue }deg 60% 55% )`;
 		const term = terms.find( ( t ) => t.id === id );
 		const idLabel = document.createElement( 'code' );
-		idLabel.className = 'wpd-tagcloud__sidebar-slug';
+		idLabel.className = 'os-tagcloud__sidebar-slug';
 		idLabel.textContent = `#${ id }`;
 		header.appendChild( dot );
 		header.appendChild( idLabel );
 		sidebar.appendChild( header );
 
 		const nameLabel = document.createElement( 'label' );
-		nameLabel.className = 'wpd-tagcloud__sidebar-label';
+		nameLabel.className = 'os-tagcloud__sidebar-label';
 		nameLabel.textContent = __( 'Name' );
 		sidebar.appendChild( nameLabel );
 		const nameInput = document.createElement( 'input' );
 		nameInput.type = 'text';
-		nameInput.className = 'wpd-tagcloud__editor-name';
+		nameInput.className = 'os-tagcloud__editor-name';
 		nameInput.value = box.name;
 		nameInput.placeholder = __( 'Name' );
 		sidebar.appendChild( nameInput );
 
 		const slugLabel = document.createElement( 'label' );
-		slugLabel.className = 'wpd-tagcloud__sidebar-label';
+		slugLabel.className = 'os-tagcloud__sidebar-label';
 		slugLabel.textContent = __( 'Slug' );
 		sidebar.appendChild( slugLabel );
 		const slugInput = document.createElement( 'input' );
 		slugInput.type = 'text';
-		slugInput.className = 'wpd-tagcloud__editor-name';
+		slugInput.className = 'os-tagcloud__editor-name';
 		slugInput.value = term?.slug || '';
 		slugInput.placeholder = __( 'auto-from-name' );
 		slugInput.spellcheck = false;
@@ -1846,18 +1846,18 @@ export async function mountTagsCloud(
 		sidebar.appendChild( slugInput );
 
 		const descLabel = document.createElement( 'label' );
-		descLabel.className = 'wpd-tagcloud__sidebar-label';
+		descLabel.className = 'os-tagcloud__sidebar-label';
 		descLabel.textContent = __( 'Description' );
 		sidebar.appendChild( descLabel );
 		const descInput = document.createElement( 'textarea' );
-		descInput.className = 'wpd-tagcloud__editor-desc';
+		descInput.className = 'os-tagcloud__editor-desc';
 		descInput.value = box.description || '';
 		descInput.placeholder = __( 'Description (optional)' );
 		descInput.rows = 4;
 		sidebar.appendChild( descInput );
 
 		const meta = document.createElement( 'p' );
-		meta.className = 'wpd-tagcloud__sidebar-meta';
+		meta.className = 'os-tagcloud__sidebar-meta';
 		meta.textContent = sprintf(
 			/* translators: %d: post count. */
 			_n(
@@ -1870,11 +1870,11 @@ export async function mountTagsCloud(
 		sidebar.appendChild( meta );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpd-tagcloud__editor-actions';
+		actions.className = 'os-tagcloud__editor-actions';
 
 		const saveBtn = document.createElement( 'button' );
 		saveBtn.type = 'button';
-		saveBtn.className = 'wpd-tagcloud__btn wpd-tagcloud__btn--primary';
+		saveBtn.className = 'os-tagcloud__btn os-tagcloud__btn--primary';
 		saveBtn.textContent = __( 'Save' );
 		saveBtn.addEventListener( 'click', async () => {
 			const name = nameInput.value.trim();
@@ -1927,7 +1927,7 @@ export async function mountTagsCloud(
 
 		const delBtn = document.createElement( 'button' );
 		delBtn.type = 'button';
-		delBtn.className = 'wpd-tagcloud__btn wpd-tagcloud__btn--danger';
+		delBtn.className = 'os-tagcloud__btn os-tagcloud__btn--danger';
 		delBtn.textContent = __( 'Delete' );
 		let armResetTimer: number | null = null;
 		const armDelete = (): void => {
@@ -2114,7 +2114,7 @@ export async function mountTagsCloud(
 	async function refreshCountsViaBulk(): Promise< void > {
 		// Defensive fallback — hit the plugin's bulk-count endpoint to
 		// get the authoritative "any non-trashed status" count per
-		// term. The `desktop_mode_count` REST field on `/wp/v2/tags`
+		// term. The `openstation_count` REST field on `/wp/v2/tags`
 		// is the primary source (and `fetchTerms` already prefers it),
 		// but on hosts where REST middleware strips custom fields, the
 		// chip silently falls back to core's `count` — which only
@@ -2253,7 +2253,7 @@ export async function mountTagsCloud(
 	// Empty-state hint when no tags exist.
 	if ( terms.length === 0 ) {
 		const empty = document.createElement( 'div' );
-		empty.className = 'wpd-tagcloud__empty';
+		empty.className = 'os-tagcloud__empty';
 		empty.textContent = __(
 			'No tags yet. Click "Add tag" to start building the cloud.',
 		);
@@ -2278,7 +2278,7 @@ export async function mountTagsCloud(
 	let selectedIndex = 0;
 	const repaintHighlight = (): void => {
 		const items = searchResults.querySelectorAll< HTMLButtonElement >(
-			'.wpd-tagcloud__search-result',
+			'.os-tagcloud__search-result',
 		);
 		items.forEach( ( el, i ) => {
 			const active = i === selectedIndex;
@@ -2319,15 +2319,15 @@ export async function mountTagsCloud(
 			const li = document.createElement( 'li' );
 			const btn = document.createElement( 'button' );
 			btn.type = 'button';
-			btn.className = 'wpd-tagcloud__search-result';
+			btn.className = 'os-tagcloud__search-result';
 			if ( i === 0 ) {
 				btn.classList.add( 'is-active' );
 			}
 			const nameEl = document.createElement( 'span' );
-			nameEl.className = 'wpd-tagcloud__search-title';
+			nameEl.className = 'os-tagcloud__search-title';
 			nameEl.textContent = t.name || `#${ t.id }`;
 			const countEl = document.createElement( 'span' );
-			countEl.className = 'wpd-tagcloud__search-meta';
+			countEl.className = 'os-tagcloud__search-meta';
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a tag. */
 				_n( '%d post', '%d posts', t.count ),
@@ -2428,7 +2428,7 @@ export async function mountTagsCloud(
 			// Best-effort — Pixi sometimes throws on teardown races.
 		}
 		host.replaceChildren();
-		host.classList.remove( 'wpd-tagcloud' );
+		host.classList.remove( 'os-tagcloud' );
 	};
 }
 
@@ -2596,7 +2596,7 @@ function stripTags( html: string ): string {
 
 function showToast( title: string, err: unknown ): void {
 	const reason = err instanceof Error ? err.message : String( err );
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( {
 			message: `${ title } ${ reason }`.trim(),
@@ -2651,9 +2651,9 @@ function computePositionsKey(): string {
 	try {
 		const host = window.location.host || 'unknown';
 		const path = window.location.pathname.replace( /\/?wp-admin\/?.*$/, '' );
-		return `wpd-tagcloud-positions:${ host }${ path }`;
+		return `os-tagcloud-positions:${ host }${ path }`;
 	} catch {
-		return 'wpd-tagcloud-positions:fallback';
+		return 'os-tagcloud-positions:fallback';
 	}
 }
 

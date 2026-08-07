@@ -17,7 +17,7 @@ interface ConfigShape {
 }
 
 function setConfig( cfg: ConfigShape ): void {
-	( window as unknown as { desktopModeConfig?: ConfigShape } ).desktopModeConfig = cfg;
+	( window as unknown as { openStationConfig?: ConfigShape } ).openStationConfig = cfg;
 }
 
 const uploadPlacement = ( overrides: Record< string, unknown > = {} ) => ( {
@@ -69,13 +69,13 @@ async function loadAndInstall() {
 	return {
 		applyMenu: ( placement: unknown ) =>
 			hooks.applyFilters(
-				'desktop-mode.files.tile-menu',
+				'os.files.tile-menu',
 				[],
 				placement,
 			) as Array< { id: string; label: string } >,
 		applyWallpaper: () =>
 			hooks.applyFilters(
-				'desktop-mode.wallpaper-context-menu',
+				'os.wallpaper-context-menu',
 				[],
 			) as Array< { id: string } >,
 	};

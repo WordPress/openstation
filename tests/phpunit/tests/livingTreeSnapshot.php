@@ -11,10 +11,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group living-tree
  */
-class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
+class Tests_OpenStation_LivingTreeSnapshot extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
@@ -23,10 +23,10 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_build_snapshot
+	 * @covers ::openstation_living_tree_build_snapshot
 	 */
 	public function test_snapshot_has_the_full_expected_shape() {
-		$snapshot = desktop_mode_living_tree_build_snapshot();
+		$snapshot = openstation_living_tree_build_snapshot();
 
 		$this->assertIsArray( $snapshot );
 		$expected_keys = array(
@@ -51,10 +51,10 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_build_snapshot
+	 * @covers ::openstation_living_tree_build_snapshot
 	 */
 	public function test_snapshot_field_types_and_bounds() {
-		$snapshot = desktop_mode_living_tree_build_snapshot();
+		$snapshot = openstation_living_tree_build_snapshot();
 
 		$this->assertNotEmpty( $snapshot['siteUrl'] );
 		$this->assertIsString( $snapshot['siteUrl'] );
@@ -83,16 +83,16 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_user_can_use
+	 * @covers ::openstation_living_tree_user_can_use
 	 */
 	public function test_permission_gate_default_and_filter() {
 		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin );
-		$this->assertTrue( desktop_mode_living_tree_user_can_use() );
+		$this->assertTrue( openstation_living_tree_user_can_use() );
 
-		add_filter( 'desktop_mode_living_tree_user_can_use', '__return_false' );
-		$this->assertFalse( desktop_mode_living_tree_user_can_use() );
-		remove_filter( 'desktop_mode_living_tree_user_can_use', '__return_false' );
+		add_filter( 'openstation_living_tree_user_can_use', '__return_false' );
+		$this->assertFalse( openstation_living_tree_user_can_use() );
+		remove_filter( 'openstation_living_tree_user_can_use', '__return_false' );
 	}
 
 	/**
@@ -100,7 +100,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	 * server is first built) — we don't call the registrar directly, which
 	 * would trip core's "register on rest_api_init" notice.
 	 *
-	 * @covers ::desktop_mode_living_tree_register_routes
+	 * @covers ::openstation_living_tree_register_routes
 	 */
 	public function test_snapshot_route_is_registered() {
 		$routes = rest_get_server()->get_routes();
@@ -108,16 +108,16 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_flush_cache
+	 * @covers ::openstation_living_tree_flush_cache
 	 */
 	public function test_flush_cache_clears_the_transient() {
 		set_transient( 'desktop_mode_living_tree_snapshot', array( 'stale' => true ), HOUR_IN_SECONDS );
-		desktop_mode_living_tree_flush_cache();
+		openstation_living_tree_flush_cache();
 		$this->assertFalse( get_transient( 'desktop_mode_living_tree_snapshot' ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_build_snapshot
+	 * @covers ::openstation_living_tree_build_snapshot
 	 */
 	public function test_snapshot_totals_reflect_published_content() {
 		self::factory()->post->create_many( 3, array( 'post_status' => 'publish' ) );
@@ -129,7 +129,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			)
 		);
 
-		$snapshot = desktop_mode_living_tree_build_snapshot();
+		$snapshot = openstation_living_tree_build_snapshot();
 		$this->assertGreaterThanOrEqual( 3, $snapshot['totalPosts'] );
 		$this->assertGreaterThanOrEqual( 1, $snapshot['totalPages'] );
 		// Drafts are invisible to the tree: only published content grows
@@ -141,23 +141,23 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	 * The determinism seed is `siteUrl|installEpoch` — the epoch must be
 	 * stable across calls or the skeleton would reshuffle on every load.
 	 *
-	 * @covers ::desktop_mode_living_tree_install_epoch
+	 * @covers ::openstation_living_tree_install_epoch
 	 */
 	public function test_install_epoch_is_stable_and_site_age_non_negative() {
-		$first  = desktop_mode_living_tree_install_epoch();
-		$second = desktop_mode_living_tree_install_epoch();
+		$first  = openstation_living_tree_install_epoch();
+		$second = openstation_living_tree_install_epoch();
 		$this->assertSame( $first, $second );
 		// The tests factory always seeds an admin user, so an epoch exists.
 		$this->assertGreaterThan( 0, $first );
-		$this->assertGreaterThanOrEqual( 0, desktop_mode_living_tree_site_age_days() );
+		$this->assertGreaterThanOrEqual( 0, openstation_living_tree_site_age_days() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_branch_dna
+	 * @covers ::openstation_living_tree_branch_dna
 	 */
 	public function test_branch_dna_is_capped_and_normalised() {
 		self::factory()->post->create_many( 2, array( 'post_status' => 'publish' ) );
-		$dna = desktop_mode_living_tree_branch_dna();
+		$dna = openstation_living_tree_branch_dna();
 		$this->assertLessThanOrEqual( 12, count( $dna ) );
 		foreach ( $dna as $hint ) {
 			$this->assertSame( array( 'depth', 'girth', 'length' ), array_keys( $hint ) );
@@ -167,16 +167,16 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_build_snapshot
+	 * @covers ::openstation_living_tree_build_snapshot
 	 */
 	public function test_snapshot_filter_can_adjust_the_payload() {
 		$filter = static function ( $snapshot ) {
 			$snapshot['seoHealth'] = 0.25;
 			return $snapshot;
 		};
-		add_filter( 'desktop_mode_living_tree_snapshot', $filter );
-		$snapshot = desktop_mode_living_tree_build_snapshot();
-		remove_filter( 'desktop_mode_living_tree_snapshot', $filter );
+		add_filter( 'openstation_living_tree_snapshot', $filter );
+		$snapshot = openstation_living_tree_build_snapshot();
+		remove_filter( 'openstation_living_tree_snapshot', $filter );
 		$this->assertSame( 0.25, $snapshot['seoHealth'] );
 	}
 
@@ -196,7 +196,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_traffic
+	 * @covers ::openstation_living_tree_traffic
 	 */
 	public function test_traffic_sums_recent_post_views_meta() {
 		$this->load_wpcom_stats_stub();
@@ -215,12 +215,12 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			100
 		);
 
-		$this->assertSame( 17, desktop_mode_living_tree_traffic() );
+		$this->assertSame( 17, openstation_living_tree_traffic() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_traffic
-	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 * @covers ::openstation_living_tree_traffic
+	 * @covers ::openstation_living_tree_jetpack_visits
 	 */
 	public function test_traffic_prefers_jetpack_visits_over_the_meta_fallback() {
 		$this->load_wpcom_stats_stub();
@@ -243,7 +243,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			),
 		);
 		try {
-			$this->assertSame( 9, desktop_mode_living_tree_traffic() );
+			$this->assertSame( 9, openstation_living_tree_traffic() );
 			$this->assertSame(
 				array(
 					'unit'     => 'day',
@@ -257,7 +257,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 * @covers ::openstation_living_tree_jetpack_visits
 	 */
 	public function test_traffic_honours_the_fields_order_of_the_jetpack_payload() {
 		$this->load_wpcom_stats_stub();
@@ -270,15 +270,15 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			'data'   => array( array( 7, '2026-07-11' ), array( 6, '2026-07-10' ) ),
 		);
 		try {
-			$this->assertSame( 13, desktop_mode_living_tree_traffic() );
+			$this->assertSame( 13, openstation_living_tree_traffic() );
 		} finally {
 			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_traffic
-	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 * @covers ::openstation_living_tree_traffic
+	 * @covers ::openstation_living_tree_jetpack_visits
 	 */
 	public function test_traffic_falls_back_to_meta_when_jetpack_errors_or_misbehaves() {
 		$this->load_wpcom_stats_stub();
@@ -290,28 +290,28 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 		add_post_meta( $post_id, '_post_views_' . current_time( 'Y-m-d' ), 8 );
 
 		// Default script → WP_Error → fallback.
-		$this->assertSame( 8, desktop_mode_living_tree_traffic() );
+		$this->assertSame( 8, openstation_living_tree_traffic() );
 
 		// Garbage payload (no data rows) → fallback too.
 		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array( 'unexpected' => true );
 		try {
-			$this->assertSame( 8, desktop_mode_living_tree_traffic() );
+			$this->assertSame( 8, openstation_living_tree_traffic() );
 		} finally {
 			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_performance
-	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 * @covers ::openstation_living_tree_performance
+	 * @covers ::openstation_living_tree_site_health_performance
 	 */
 	public function test_performance_defaults_when_site_health_has_never_run() {
-		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+		$this->assertSame( 0.8, openstation_living_tree_performance() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_performance
-	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 * @covers ::openstation_living_tree_performance
+	 * @covers ::openstation_living_tree_site_health_performance
 	 */
 	public function test_performance_composes_site_health_tallies() {
 		// Core's weekly cron stores the tallies as a JSON string.
@@ -326,11 +326,11 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			)
 		);
 		// 1.0 − 0.15·1 − 0.04·2 = 0.77.
-		$this->assertEqualsWithDelta( 0.77, desktop_mode_living_tree_performance(), 0.0001 );
+		$this->assertEqualsWithDelta( 0.77, openstation_living_tree_performance(), 0.0001 );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 * @covers ::openstation_living_tree_site_health_performance
 	 */
 	public function test_performance_is_floored_so_a_broken_site_never_fully_stalls() {
 		set_transient(
@@ -343,22 +343,22 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 				)
 			)
 		);
-		$this->assertSame( 0.2, desktop_mode_living_tree_performance() );
+		$this->assertSame( 0.2, openstation_living_tree_performance() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 * @covers ::openstation_living_tree_site_health_performance
 	 */
 	public function test_performance_falls_back_on_garbage_tallies() {
 		set_transient( 'health-check-site-status-result', 'not json at all' );
-		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+		$this->assertSame( 0.8, openstation_living_tree_performance() );
 
 		set_transient( 'health-check-site-status-result', wp_json_encode( array( 'surprise' => 1 ) ) );
-		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+		$this->assertSame( 0.8, openstation_living_tree_performance() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_performance
+	 * @covers ::openstation_living_tree_performance
 	 */
 	public function test_performance_filter_is_the_final_word() {
 		set_transient(
@@ -374,23 +374,23 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 		$filter = static function () {
 			return 0.33;
 		};
-		add_filter( 'desktop_mode_living_tree_performance', $filter );
-		$performance = desktop_mode_living_tree_performance();
-		remove_filter( 'desktop_mode_living_tree_performance', $filter );
+		add_filter( 'openstation_living_tree_performance', $filter );
+		$performance = openstation_living_tree_performance();
+		remove_filter( 'openstation_living_tree_performance', $filter );
 		$this->assertSame( 0.33, $performance );
 	}
 
 	/**
-	 * @covers ::desktop_mode_living_tree_traffic
+	 * @covers ::openstation_living_tree_traffic
 	 */
 	public function test_traffic_filter_is_the_final_word() {
 		$this->load_wpcom_stats_stub();
 		$filter = static function () {
 			return 4321;
 		};
-		add_filter( 'desktop_mode_living_tree_traffic', $filter );
-		$traffic = desktop_mode_living_tree_traffic();
-		remove_filter( 'desktop_mode_living_tree_traffic', $filter );
+		add_filter( 'openstation_living_tree_traffic', $filter );
+		$traffic = openstation_living_tree_traffic();
+		remove_filter( 'openstation_living_tree_traffic', $filter );
 		$this->assertSame( 4321, $traffic );
 	}
 }

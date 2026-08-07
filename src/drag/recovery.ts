@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Drag-session recovery handlers.
+ * OpenStation — Drag-session recovery handlers.
  *
  * Wires the global cancel paths the system used to lack:
  *

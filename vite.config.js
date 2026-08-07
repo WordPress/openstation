@@ -1,5 +1,5 @@
 /**
- * Vite configuration for the WP Desktop Mode plugin.
+ * Vite configuration for the WP OpenStation plugin.
  *
  * Builds the TypeScript entries listed in the `TARGETS` map below into
  * IIFE bundle pairs under `assets/js/`:
@@ -8,7 +8,7 @@
  *   `<fileBase>.min.js` (production, esbuild-minified — loaded otherwise)
  *
  * Which entry the current invocation builds is controlled by the
- * `DESKTOP_MODE_TARGET` env var (`desktop` is the default). `npm run build`
+ * `OPENSTATION_TARGET` env var (`desktop` is the default). `npm run build`
  * invokes every target — one `build:<target>` script per entry in
  * `package.json`, each running Vite twice (dev + prod mode).
  * `npm run dev` watches and rebuilds the unminified `desktop` bundle
@@ -27,14 +27,14 @@ import { visualizer } from 'rollup-plugin-visualizer';
 /**
  * Strip `static help = { … };` blocks from production builds.
  *
- * Every `<wpd-*>` component class declares a `static help = { … }`
+ * Every `<os-*>` component class declares a `static help = { … }`
  * descriptor — title, summary, props/slots/parts/cssProps tables,
  * examples, status, since. ~82 kB of plain documentation across the
  * 47 components in the kit.
  *
  * That descriptor has exactly one runtime consumer: the OS Settings
  * → Help tab (`src/settings/sections/help.ts`), which iterates
- * `WPD_COMPONENT_TAGS` and renders the metadata. The same module
+ * `OS_COMPONENT_TAGS` and renders the metadata. The same module
  * already handles components without a descriptor — it falls back
  * to a minimal stub built from `static props`. So in production we
  * can drop the descriptor from the bundle entirely and the help
@@ -56,7 +56,7 @@ function stripStaticHelpInProd( enabled ) {
 		return null;
 	}
 	return {
-		name: 'wp-desktop-mode-strip-static-help',
+		name: 'openstation-strip-static-help',
 		enforce: 'pre',
 		apply: 'build',
 		transform( code, id ) {
@@ -163,7 +163,7 @@ function minifyCssTemplates() {
 	// runtime to `calc(100% -10px)`, which CSS rejects because `-`
 	// in `calc()` requires whitespace on both sides (without it,
 	// `-10px` parses as a single negative-length token). The
-	// `wpd-crumb-chain` chevron polygon broke exactly this way.
+	// `os-crumb-chain` chevron polygon broke exactly this way.
 	//
 	// We still collapse adjacent whitespace and strip it around
 	// punctuation that doesn't care (`{ } : ; , >`), so the
@@ -178,7 +178,7 @@ function minifyCssTemplates() {
 			.replace( /;}/g, '}' );
 
 	return {
-		name: 'wp-desktop-mode-minify-css-templates',
+		name: 'openstation-minify-css-templates',
 		enforce: 'pre',
 		apply: 'build',
 		transform( code, id ) {
@@ -267,92 +267,102 @@ const TARGETS = {
 	desktop: {
 		entry:    'src/desktop.ts',
 		fileBase: 'desktop',
-		// Exports from the entry land on `window.desktopMode` — a no-op
+		// Exports from the entry land on `window.openStation` — a no-op
 		// today (no external consumers) but leaves the door open for
 		// tests or devtools probing.
-		iifeName: 'desktopMode',
+		iifeName: 'openStation',
 	},
 	'iframe-bridge': {
 		entry:    'src/iframe-bridge-standalone.ts',
 		fileBase: 'iframe-bridge',
-		iifeName: 'desktopModeIframeBridge',
+		iifeName: 'openStationIframeBridge',
 	},
 	// Gutenberg drop-receiver — tiny iframe-side bundle enqueued only
-	// on post.php / post-new.php. Listens for `desktop-mode-drop`
+	// on post.php / post-new.php. Listens for `os-drop`
 	// messages from the shell and inserts the corresponding block via
 	// `wp.data.dispatch('core/block-editor').insertBlocks(...)`. See
 	// `src/drag/iframe-drop-targets.ts` for the shell side.
 	'gutenberg-drop-receiver': {
 		entry:    'src/gutenberg-drop-receiver.ts',
 		fileBase: 'gutenberg-drop-receiver',
-		iifeName: 'desktopModeGutenbergDropReceiver',
+		iifeName: 'openStationGutenbergDropReceiver',
 	},
 	// Recycle Bin app — a thin bundle that registers a render
-	// callback on `window.desktopModeNativeWindows['desktop-mode-recycle-bin']`
-	// and renders a `<wpd-table>` populated from the REST list. The
-	// `<wpd-*>` elements themselves are defined by the main desktop
+	// callback on `window.openStationNativeWindows['desktop-mode-recycle-bin']`
+	// and renders a `<os-table>` populated from the REST list. The
+	// `<os-*>` elements themselves are defined by the main desktop
 	// bundle, so this module just consumes them.
 	'recycle-bin': {
 		entry:    'src/recycle-bin/index.ts',
 		fileBase: 'recycle-bin',
-		iifeName: 'desktopModeRecycleBin',
+		iifeName: 'openStationRecycleBin',
 	},
-	// Native Posts window — `<wpd-table>`-driven replacement for the
+	// Native Posts window — `<os-table>`-driven replacement for the
 	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
 	// Features. Same shape as recycle-bin: registers a render
-	// callback on `window.desktopModeNativeWindows['desktop-mode-posts']`
-	// and consumes the `<wpd-*>` tags defined by the main bundle.
+	// callback on `window.openStationNativeWindows['desktop-mode-posts']`
+	// and consumes the `<os-*>` tags defined by the main bundle.
 	'posts-window': {
 		entry:    'src/posts-window/index.ts',
 		fileBase: 'posts-window',
-		iifeName: 'desktopModePostsWindow',
+		iifeName: 'openStationPostsWindow',
 	},
 	// "My WordPress" file-explorer window — registers a render
-	// callback on `window.desktopModeNativeWindows['desktop-mode-my-wordpress']`
-	// and reuses the `<wpd-*>` tags defined by the main desktop bundle.
+	// callback on `window.openStationNativeWindows['desktop-mode-my-wordpress']`
+	// and reuses the `<os-*>` tags defined by the main desktop bundle.
 	'my-wordpress': {
 		entry:    'src/my-wordpress/index.ts',
 		fileBase: 'my-wordpress',
-		iifeName: 'desktopModeMyWordpress',
+		iifeName: 'openStationMyWordpress',
+	},
+	// WooCommerce integration for the site window — subscribes to the
+	// window's `preview-extras` / `group-extras` actions to paint
+	// merchant panels. Enqueued only when WooCommerce is active, and
+	// deliberately separate from the `my-wordpress` bundle so stores
+	// without WooCommerce ship none of it.
+	'my-wordpress-woocommerce': {
+		entry:    'src/my-wordpress/integrations/woocommerce.ts',
+		fileBase: 'my-wordpress-woocommerce',
+		iifeName: 'openStationMyWordpressWoo',
 	},
 	// Content Graph — PixiJS-driven force-directed map of every post
 	// and page (and any opt-in public CPT) wired together by their
 	// internal hyperlinks. Lazy-loads PixiJS via the same module
 	// registry the wallpapers + posts-window mindmap use. Registers a
-	// render callback on `window.desktopModeNativeWindows['desktop-mode-content-graph']`.
+	// render callback on `window.openStationNativeWindows['desktop-mode-content-graph']`.
 	'content-graph': {
 		entry:    'src/content-graph/index.ts',
 		fileBase: 'content-graph',
-		iifeName: 'desktopModeContentGraph',
+		iifeName: 'openStationContentGraph',
 	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
-	// `window.desktopModeNativeWindows['desktop-mode-games']`; the
+	// `window.openStationNativeWindows['desktop-mode-games']`; the
 	// games registry itself is shared cross-bundle via
-	// `createSharedStore`. `<wpd-*>` tags come from the main bundle.
+	// `createSharedStore`. `<os-*>` tags come from the main bundle.
 	games: {
 		entry:    'src/games/entry.ts',
 		fileBase: 'games',
-		iifeName: 'desktopModeGames',
+		iifeName: 'openStationGames',
 	},
 	// Inkfall — the built-in typing game. Lazy-loaded by the games
 	// framework on first launch; publishes its GameDef on
-	// `window.desktopModeGames.inkfall`. Loads PixiJS through the
+	// `window.openStationGames.inkfall`. Loads PixiJS through the
 	// module registry like content-graph / the canvas wallpapers.
 	'game-inkfall': {
 		entry:    'src/games/inkfall/index.ts',
 		fileBase: 'game-inkfall',
-		iifeName: 'desktopModeGameInkfall',
+		iifeName: 'openStationGameInkfall',
 	},
 	// Alphabet Soup — the built-in daily word search. Seeded by the
 	// current date (dd-mm-yyyy) so the puzzle is identical worldwide;
 	// lazy-loaded by the games framework on first launch; publishes
-	// its GameDef on `window.desktopModeGames['alphabet-soup']`.
+	// its GameDef on `window.openStationGames['alphabet-soup']`.
 	// Loads PixiJS through the module registry like Inkfall.
 	'game-alphabet-soup': {
 		entry:    'src/games/alphabet-soup/index.ts',
 		fileBase: 'game-alphabet-soup',
-		iifeName: 'desktopModeGameAlphabetSoup',
+		iifeName: 'openStationGameAlphabetSoup',
 	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
@@ -362,186 +372,198 @@ const TARGETS = {
 	'pwa-sw': {
 		entry:    'src/pwa/sw.ts',
 		fileBase: 'sw',
-		iifeName: 'desktopModeServiceWorker',
+		iifeName: 'openStationServiceWorker',
 	},
 	// Native Comments window — replaces the chromeless
-	// `edit-comments.php` iframe with a `<wpd-table>`-driven moderation
+	// `edit-comments.php` iframe with a `<os-table>`-driven moderation
 	// queue: Pending/All/Spam/Trash/Mine tabs, bulk + undo,
 	// inline reply, keyboard nav, spam confidence score, author
 	// insights drawer. Same shape as posts-window: registers a
 	// render callback on
-	// `window.desktopModeNativeWindows['desktop-mode-comments']`.
+	// `window.openStationNativeWindows['desktop-mode-comments']`.
 	'comments-window': {
 		entry:    'src/comments-window/index.ts',
 		fileBase: 'comments-window',
-		iifeName: 'desktopModeCommentsWindow',
+		iifeName: 'openStationCommentsWindow',
 	},
 	// Native Plugins window — replaces the chromeless `plugins.php`
-	// and `plugin-install.php` iframes with a `<wpd-tabs>`-driven
+	// and `plugin-install.php` iframes with a `<os-tabs>`-driven
 	// installed list + browse-the-repo gallery + detail flyout. Same
 	// shape as posts-window: registers a render callback on
-	// `window.desktopModeNativeWindows['desktop-mode-plugins']` and
-	// consumes the `<wpd-*>` tags defined by the main desktop bundle.
+	// `window.openStationNativeWindows['desktop-mode-plugins']` and
+	// consumes the `<os-*>` tags defined by the main desktop bundle.
 	'plugins-window': {
 		entry:    'src/plugins-window/index.ts',
 		fileBase: 'plugins-window',
-		iifeName: 'desktopModePluginsWindow',
+		iifeName: 'openStationPluginsWindow',
 	},
 	// AI Assistant — moved out of the main bundle in 0.8.4. The
 	// main `desktop[.min].js` bundle ships a tiny `AiAssistantStub`
-	// matching the public `wp.desktop.ai` contract; this bundle
+	// matching the public `wp.os.ai` contract; this bundle
 	// holds the 38 kB implementation and is `<script>`-injected by
 	// the stub on the user's first invocation. Publishes
-	// `window.desktopModeCreateAiAssistant`.
+	// `window.openStationCreateAiAssistant`.
 	'ai-assistant': {
 		entry:    'src/ai-assistant/entry.ts',
 		fileBase: 'ai-assistant',
-		iifeName: 'desktopModeAiAssistant',
+		iifeName: 'openStationAiAssistant',
 	},
 	// Animated WP Logo wallpaper — built-in canvas wallpaper moved
 	// out of the main bundle in 0.8.4. PHP registers the wallpaper
-	// via `desktop_mode_register_wallpaper()` with a `script` handle;
+	// via `openstation_register_wallpaper()` with a `script` handle;
 	// the shell's wallpaper sync loads this bundle only when the
 	// user selects (or hovers in OS Settings) the wallpaper. The
 	// bundle's only side effect is publishing the `WallpaperDef` on
-	// `window.desktopModeWallpapers['wp-animated-logo']`.
+	// `window.openStationWallpapers['wp-animated-logo']`.
 	'animated-logo-wallpaper': {
 		entry:    'src/plugins/animated-logo-wallpaper/index.ts',
 		fileBase: 'animated-logo-wallpaper',
-		iifeName: 'desktopModeAnimatedLogoWallpaper',
+		iifeName: 'openStationAnimatedLogoWallpaper',
 	},
 	// Living Tree wallpaper — built-in canvas wallpaper that renders the
 	// site as a growing plant organism (posts=leaves, comments=flowers,
 	// tags=lianas, users=fireflies, traffic=wind). PixiJS-driven, lazy-
 	// loaded by the wallpaper server-sync when selected. Publishes the
-	// `WallpaperDef` on `window.desktopModeWallpapers['wp-living-tree']`.
+	// `WallpaperDef` on `window.openStationWallpapers['wp-living-tree']`.
 	// See docs/living-tree-algorithm.md.
 	'living-tree-wallpaper': {
 		entry:    'src/plugins/living-tree-wallpaper/index.ts',
 		fileBase: 'living-tree-wallpaper',
-		iifeName: 'desktopModeLivingTreeWallpaper',
+		iifeName: 'openStationLivingTreeWallpaper',
 	},
 	// Snow wallpaper — built-in canvas wallpaper: PixiJS snowfall that
-	// accumulates on window tops (via `wp.desktop.getWallpaperSurfaces`)
+	// accumulates on window tops (via `wp.os.getWallpaperSurfaces`)
 	// and melts away. Lazy-loaded by the wallpaper server-sync when
 	// selected. Publishes the `WallpaperDef` on
-	// `window.desktopModeWallpapers['wp-snow']`; first built-in
+	// `window.openStationWallpapers['wp-snow']`; first built-in
 	// consumer of the `renderConfig` wallpaper-settings dialog.
 	'snow-wallpaper': {
 		entry:    'src/plugins/snow-wallpaper/index.ts',
 		fileBase: 'snow-wallpaper',
-		iifeName: 'desktopModeSnowWallpaper',
+		iifeName: 'openStationSnowWallpaper',
 	},
 	// About-scene — the PixiJS particle scene rendered inside OS
 	// Settings → About. ~25 kB of code that only ever runs after the
 	// user explicitly opens that tab. Loaded by the main-bundle
 	// `about-scene-loader.ts` on first mount; publishes
-	// `window.desktopModeMountAboutScene`.
+	// `window.openStationMountAboutScene`.
 	'about-scene': {
 		entry:    'src/settings/sections/about-scene-entry.ts',
 		fileBase: 'about-scene',
-		iifeName: 'desktopModeAboutScene',
+		iifeName: 'openStationAboutScene',
 	},
 	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
-	// section renderer + the `<wpd-*>` components only the panel
+	// section renderer + the `<os-*>` components only the panel
 	// uses (color/range field, swatch, swatch-grid, section,
 	// segmented, tabs, panel, empty-state, checkbox-label, button,
 	// select, text-field). Loaded on the user's first Settings open
 	// by the `OsSettings.renderPanel()` stub. Publishes
-	// `window.desktopModeRenderOsSettingsPanel`.
+	// `window.openStationRenderOsSettingsPanel`.
 	'os-settings-panel': {
 		entry:    'src/settings/panel-entry.ts',
 		fileBase: 'os-settings-panel',
-		iifeName: 'desktopModeOsSettingsPanel',
+		iifeName: 'openStationOsSettingsPanel',
+	},
+	// Mio — the desk companion: a PixiJS soft-body blob with a
+	// chroma neon outline that floats over the wallpaper, falls onto
+	// nearby windows, watches the pointer, and can be dragged around.
+	// Off by default and toggled from Mio's dock tile; the
+	// main bundle only carries `src/mio/controller.ts`, which
+	// script-injects this bundle on the first switch-on. Publishes
+	// `window.openStationMountMio`. See docs/mio.md.
+	mio: {
+		entry:    'src/mio/entry.ts',
+		fileBase: 'mio',
+		iifeName: 'openStationMio',
 	},
 	// Item-visibility menu — the right-click "hide from dock /
 	// desktop" menu + plugin provenance actions. Pure interaction UI
 	// that can never be on screen at first paint; injected by the
 	// main bundle's `src/item-visibility-menu-loader.ts` shim on the
 	// first right-click. Publishes
-	// `window.desktopModeItemVisibilityMenu`.
+	// `window.openStationItemVisibilityMenu`.
 	'item-visibility-menu': {
 		entry:    'src/item-visibility-menu-entry.ts',
 		fileBase: 'item-visibility-menu',
-		iifeName: 'desktopModeItemVisibilityMenu',
+		iifeName: 'openStationItemVisibilityMenu',
 	},
 	// Release card — the vinyl core-update announcement (card DOM +
 	// animation CSS + art resolver). Only needed when an update is
 	// pending; injected by `maybeShowUpdate()` in
 	// `src/update-notice.ts` after it confirms there is something to
-	// announce. Publishes `window.desktopModeReleaseCard`.
+	// announce. Publishes `window.openStationReleaseCard`.
 	'release-card': {
 		entry:    'src/release-card-entry.ts',
 		fileBase: 'release-card',
-		iifeName: 'desktopModeReleaseCardBundle',
+		iifeName: 'openStationReleaseCardBundle',
 	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via
-	// `preloadShellOverlays( … )` so the first toast / wpdConfirm /
+	// `preloadShellOverlays( … )` so the first toast / osConfirm /
 	// right-click feels instant. Side-effect-only bundle: each leaf
 	// import runs its `defineComponent( … )` call at top level.
 	'shell-overlays': {
 		entry:    'src/shell-overlays/entry.ts',
 		fileBase: 'shell-overlays',
-		iifeName: 'desktopModeShellOverlays',
+		iifeName: 'openStationShellOverlays',
 	},
 	// Window system (Stage 11) — the `Window` class + DOM / pointer
 	// / tab / chrome helpers. Largest single module in the pre-0.8.4
 	// main bundle (~68 kB pre-min just for `window/index.ts`).
 	// Loaded on demand by the first call to
 	// `WindowManager.open()` / `openNew()` — both async since
-	// 0.8.4. Publishes `window.desktopModeWindowSystem`. Pre-loaded
+	// 0.8.4. Publishes `window.openStationWindowSystem`. Pre-loaded
 	// by `desktop.ts` after first paint via
 	// `preloadWindowSystem( … )` so any "user clicks the first icon"
 	// click typically lands on the sync fast path.
 	'window-system': {
 		entry:    'src/window-system/entry.ts',
 		fileBase: 'window-system',
-		iifeName: 'desktopModeWindowSystemBundle',
+		iifeName: 'openStationWindowSystemBundle',
 	},
 	// Heartbeat widget — built-in PixiJS widget moved out of the
 	// main bundle in 0.18.0. Same registration shape third-party
-	// widgets use: PHP declares it via `desktop_mode_register_widget()`
-	// with the `desktop-mode-heartbeat-widget` script handle; the
+	// widgets use: PHP declares it via `openstation_register_widget()`
+	// with the `os-heartbeat-widget` script handle; the
 	// shell's widgets server-sync loads the bundle on demand. The
 	// bundle ships JS + a co-located `styles.css` chunk so widget
 	// chrome stays out of the main `desktop.css`.
 	'widget-heartbeat': {
 		entry:    'src/plugins/heartbeat-widget/index.ts',
 		fileBase: 'widget-heartbeat',
-		iifeName: 'desktopModeHeartbeatWidget',
+		iifeName: 'openStationHeartbeatWidget',
 	},
 	'widget-recent-comments': {
 		entry:    'src/plugins/recent-comments-widget/index.ts',
 		fileBase: 'widget-recent-comments',
-		iifeName: 'desktopModeRecentCommentsWidget',
+		iifeName: 'openStationRecentCommentsWidget',
 	},
 	'widget-drafts': {
 		entry:    'src/plugins/drafts-widget/index.ts',
 		fileBase: 'widget-drafts',
-		iifeName: 'desktopModeDraftsWidget',
+		iifeName: 'openStationDraftsWidget',
 	},
 	'widget-post-stats': {
 		entry:    'src/plugins/post-stats-widget/index.ts',
 		fileBase: 'widget-post-stats',
-		iifeName: 'desktopModePostStatsWidget',
+		iifeName: 'openStationPostStatsWidget',
 	},
 	'widget-site-views': {
 		entry:    'src/plugins/site-views-widget/index.ts',
 		fileBase: 'widget-site-views',
-		iifeName: 'desktopModeSiteViewsWidget',
+		iifeName: 'openStationSiteViewsWidget',
 	},
 
 	'widget-jazz-quote': {
 		entry:    'src/plugins/jazz-quote-widget/index.ts',
 		fileBase: 'widget-jazz-quote',
-		iifeName: 'desktopModeJazzQuoteWidget',
+		iifeName: 'openStationJazzQuoteWidget',
 	},
 	'widget-starter': {
 		entry:    'src/plugins/starter-widget/index.ts',
 		fileBase: 'widget-starter',
-		iifeName: 'desktopModeStarterWidget',
+		iifeName: 'openStationStarterWidget',
 	},
 	// Note Pad widget — the pinned-notes composer. Ships JS + a
 	// co-located `styles.css` chunk (`widget-notes[.min].css`) that
@@ -549,7 +571,7 @@ const TARGETS = {
 	'widget-notes': {
 		entry:    'src/plugins/notes-widget/index.ts',
 		fileBase: 'widget-notes',
-		iifeName: 'desktopModeNotesWidget',
+		iifeName: 'openStationNotesWidget',
 	},
 	// Focus Timer widget — a countdown that links to a window and
 	// shakes it (via Window.shake()) with an alarm when time is up.
@@ -558,30 +580,30 @@ const TARGETS = {
 	'widget-focus-timer': {
 		entry:    'src/plugins/focus-timer-widget/index.ts',
 		fileBase: 'widget-focus-timer',
-		iifeName: 'desktopModeFocusTimerWidget',
+		iifeName: 'openStationFocusTimerWidget',
 	},
 
 	// "Agent chat" window — conversation surface for the agents
 	// framework (extended option `agents`). Registers a render
-	// callback on `window.desktopModeNativeWindows['desktop-mode-agent-run']`
-	// and consumes the `<wpd-*>` tags defined by the main bundle plus
+	// callback on `window.openStationNativeWindows['desktop-mode-agent-run']`
+	// and consumes the `<os-*>` tags defined by the main bundle plus
 	// the cross-bundle `desktop-mode/agents-chat` shared store seeded
 	// by the My WordPress Agents section.
 	'agent-run-window': {
 		entry:    'src/agent-run-window.ts',
 		fileBase: 'agent-run-window',
-		iifeName: 'desktopModeAgentRunWindow',
+		iifeName: 'openStationAgentRunWindow',
 	},
 
 };
 
 export default defineConfig( ( { mode } ) => {
 	const isProd = mode === 'production';
-	const targetKey = process.env.DESKTOP_MODE_TARGET || 'desktop';
+	const targetKey = process.env.OPENSTATION_TARGET || 'desktop';
 	const target = TARGETS[ targetKey ];
 	if ( ! target ) {
 		throw new Error(
-			`vite.config.js: unknown DESKTOP_MODE_TARGET="${ targetKey }". ` +
+			`vite.config.js: unknown OPENSTATION_TARGET="${ targetKey }". ` +
 				`Expected one of: ${ Object.keys( TARGETS ).join( ', ' ) }.`,
 		);
 	}

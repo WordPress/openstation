@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Bug Report native window styles.
+ * OpenStation — Bug Report native window styles.
  *
  * Compact form: type radio strip + title input + two textareas + a
  * collapsible environment block + a primary submit. Designed to fit
@@ -12,11 +12,11 @@
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	background: var( --desktop-mode-window-bg, #fff );
-	color: var( --desktop-mode-fg, #1d2327 );
+	background: var( --os-window-bg, #fff );
+	color: var( --os-fg, #1d2327 );
 }
 
-.desktop-mode-bug-report__form {
+.os-bug-report__form {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
@@ -24,65 +24,67 @@
 	overflow-y: auto;
 }
 
-.desktop-mode-bug-report__intro {
+.os-bug-report__intro {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.45;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.desktop-mode-bug-report__error {
+.os-bug-report__error {
 	padding: 8px 10px;
-	border: 1px solid var( --wpd-danger, #d63638 );
+	border: 1px solid var( --os-ui-danger, #d63638 );
 	border-radius: 4px;
-	background: #fcf0f1;
-	color: var( --wpd-danger-hover, #b32d2e );
+	/* Same pairing rule as every other status wash: the surface follows
+	   the palette so its ink stays legible on it. */
+	background: var( --os-ui-notice-error-bg, #fcf0f1 );
+	color: var( --os-ui-danger, #b32d2e );
 	font-size: 12px;
 }
 
-.desktop-mode-bug-report__field {
+.os-bug-report__field {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.desktop-mode-bug-report__label {
+.os-bug-report__label {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 	font-size: 12px;
 	font-weight: 500;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 }
 
-.desktop-mode-bug-report__radio-group {
+.os-bug-report__radio-group {
 	display: flex;
 	gap: 14px;
 	flex-wrap: wrap;
 	margin-top: 2px;
 }
 
-.desktop-mode-bug-report__radio {
+.os-bug-report__radio {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	font-size: 13px;
 	font-weight: 400;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 	cursor: pointer;
 }
 
-.desktop-mode-bug-report__radio input[ type = "radio" ] {
+.os-bug-report__radio input[ type = "radio" ] {
 	margin: 0;
 }
 
-.desktop-mode-bug-report__input,
-.desktop-mode-bug-report__textarea {
+.os-bug-report__input,
+.os-bug-report__textarea {
 	width: 100%;
 	padding: 8px 10px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 4px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	font: inherit;
 	font-size: 13px;
 	line-height: 1.45;
@@ -93,59 +95,59 @@
 		box-shadow 120ms ease-out;
 }
 
-.desktop-mode-bug-report__textarea {
+.os-bug-report__textarea {
 	resize: vertical;
 	min-height: 80px;
 	font-family: inherit;
 }
 
-.desktop-mode-bug-report__input:focus,
-.desktop-mode-bug-report__textarea:focus {
+.os-bug-report__input:focus,
+.os-bug-report__textarea:focus {
 	outline: none;
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-bug-report__metadata {
+.os-bug-report__metadata {
 	margin-top: 4px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
+	border: 1px solid var( --os-ui-border, #c3c4c7 );
 	border-radius: 4px;
-	background: var( --wpd-surface-elevated, #f6f7f7 );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
 	font-size: 12px;
 }
 
-.desktop-mode-bug-report__metadata > summary {
+.os-bug-report__metadata > summary {
 	padding: 8px 10px;
 	cursor: pointer;
 	font-weight: 500;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 	user-select: none;
 }
 
-.desktop-mode-bug-report__metadata-body {
+.os-bug-report__metadata-body {
 	margin: 0;
 	padding: 0 10px 10px;
-	font-family: var( --wpd-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace );
+	font-family: var( --os-ui-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace );
 	font-size: 11px;
 	line-height: 1.5;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	white-space: pre-wrap;
 	word-break: break-all;
 }
 
-.desktop-mode-bug-report__actions {
+.os-bug-report__actions {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	margin-top: 4px;
 }
 
-.desktop-mode-bug-report__submit {
+.os-bug-report__submit {
 	padding: 8px 16px;
 	border: 1px solid var( --wp-admin-theme-color, #2271b1 );
 	border-radius: 4px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font: inherit;
 	font-size: 13px;
 	font-weight: 500;
@@ -155,17 +157,17 @@
 		box-shadow 120ms ease-out;
 }
 
-.desktop-mode-bug-report__submit:hover {
+.os-bug-report__submit:hover {
 	filter: brightness( 1.05 );
 	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.15 );
 }
 
-.desktop-mode-bug-report__submit:focus-visible {
+.os-bug-report__submit:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-bug-report__hint {
+.os-bug-report__hint {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }

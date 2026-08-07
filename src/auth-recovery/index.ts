@@ -1,7 +1,7 @@
 /**
  * Session-expiry detection + in-place recovery for the parent shell.
  *
- * Replaces the inline `desktop-mode-parent-auth-recovery.js` script
+ * Replaces the inline `os-parent-auth-recovery.js` script
  * that used to ship from `includes/render/shell.php`. That script
  * monkey-patched `window.fetch` + `XMLHttpRequest` (so every shell
  * request showed the recovery script as its DevTools initiator) and
@@ -18,11 +18,11 @@
  *     `wp-auth-check` (attached server-side by core on every tick)
  *     flips to `false`. Core's own `wp-auth-check.js` shows the
  *     login modal in the parent shell; chromeless iframes have
- *     theirs suppressed (`desktop_mode_chromeless_suppress_auth_check()`)
+ *     theirs suppressed (`openstation_chromeless_suppress_auth_check()`)
  *     so the desktop shows exactly ONE prompt.
  *   - **Detect recovery** — the same field flips back to `true`,
  *     or a chromeless iframe's bridge posts
- *     `desktop-mode-reauth-detected` (its heartbeat noticed first),
+ *     `os-reauth-detected` (its heartbeat noticed first),
  *     or core's modal hides (the user just re-authed inside it).
  *     The modal-hide path only *accelerates* the next tick — the
  *     heartbeat flag stays the single source of truth, so closing
@@ -42,7 +42,7 @@
  * `desktop_mode_auth.uid` heartbeat field detects that and reloads.
  *
  * The 401/403 fast path (`noteAuthFailure`, called by
- * `wp.desktop.fetch`) only *accelerates* detection by forcing an
+ * `wp.os.fetch`) only *accelerates* detection by forcing an
  * early tick — it never decides anything by itself, so a plain
  * permission 403 (`rest_forbidden` for a capability the user
  * lacks) costs at most one debounced heartbeat POST and can never
@@ -52,7 +52,7 @@
 import { heartbeat } from '../heartbeat';
 import { doAction, HOOKS } from '../hooks';
 
-/** Matches `DESKTOP_MODE_AUTH_FIELD` in `includes/nonce-refresh.php`. */
+/** Matches `OPENSTATION_AUTH_FIELD` in `includes/nonce-refresh.php`. */
 const AUTH_FIELD = 'desktop_mode_auth';
 
 /**
@@ -150,7 +150,7 @@ function announceAuthLost(): void {
 	}
 	authLostAnnounced = true;
 	doAction( HOOKS.AUTH_LOST );
-	document.dispatchEvent( new CustomEvent( 'desktop-mode-auth-lost' ) );
+	document.dispatchEvent( new CustomEvent( 'os-auth-lost' ) );
 }
 
 /**
@@ -229,7 +229,7 @@ function runRecovery(): void {
 	reloadChromelessIframes();
 
 	doAction( HOOKS.AUTH_RESTORED );
-	document.dispatchEvent( new CustomEvent( 'desktop-mode-auth-restored' ) );
+	document.dispatchEvent( new CustomEvent( 'os-auth-restored' ) );
 }
 
 /**
@@ -258,7 +258,7 @@ function checkUid( value: unknown ): void {
 }
 
 /**
- * Fast-path accelerator fed by `wp.desktop.fetch`: a same-origin
+ * Fast-path accelerator fed by `wp.os.fetch`: a same-origin
  * admin request came back 401/403, so the session *might* be gone —
  * ask Heartbeat for a verdict now instead of waiting up to 120 s
  * for the next scheduled tick. Deliberately decides nothing itself:
@@ -267,7 +267,7 @@ function checkUid( value: unknown ): void {
  * cause any user-visible reaction.
  *
  * Unlike the old global `fetch`/XHR monkey-patch this only sees
- * traffic routed through `wp.desktop.fetch` — which the framework
+ * traffic routed through `wp.os.fetch` — which the framework
  * mandates for all shell HTTP. Raw-fetch stragglers merely fall
  * back to the regular heartbeat schedule.
  */
@@ -351,7 +351,7 @@ export interface AuthRecoveryOpts {
  * Wire the recovery state machine. Idempotent. Called once from
  * `src/desktop.ts` during shell boot; plugin authors subscribe to
  * `HOOKS.AUTH_LOST` / `HOOKS.AUTH_RESTORED` (or the
- * `desktop-mode-auth-lost` / `desktop-mode-auth-restored` document
+ * `os-auth-lost` / `os-auth-restored` document
  * CustomEvents) instead of calling this.
  *
  * @internal
@@ -382,7 +382,7 @@ export function bootAuthRecovery( opts: AuthRecoveryOpts = {} ): void {
 	// A tick bounced off a stale `heartbeat-nonce` (first tick after
 	// a re-login, or plain 24 h nonce expiry). The response already
 	// healed heartbeat's own nonce AND carried `desktop_mode_nonces`
-	// (see `desktop_mode_nonce_refresh_on_expired()`).
+	// (see `openstation_nonce_refresh_on_expired()`).
 	//
 	// Only core's LOGGED-IN heartbeat handler ever sends this field —
 	// a logged-out request routes to `wp_ajax_nopriv_heartbeat`,
@@ -415,7 +415,7 @@ export function bootAuthRecovery( opts: AuthRecoveryOpts = {} ): void {
 		if ( ! data || typeof data !== 'object' ) {
 			return;
 		}
-		if ( data.type === 'desktop-mode-reauth-detected' ) {
+		if ( data.type === 'os-reauth-detected' ) {
 			runRecovery();
 		}
 	};

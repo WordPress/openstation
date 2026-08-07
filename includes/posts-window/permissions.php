@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Posts Window: capability gate.
+ * OpenStation — Native Posts Window: capability gate.
  *
  * The native Posts window is gated on TWO conditions, both required:
  *
@@ -15,7 +15,7 @@
  *   - bypass the opt-in entirely on a managed install ("everyone gets the
  *     native window")
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,7 +38,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function desktop_mode_posts_window_user_can_register( $user_id = null ) {
+function openstation_posts_window_user_can_register( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	$can = $user_id > 0 && user_can( $user_id, 'edit_posts' );
@@ -56,7 +56,7 @@ function desktop_mode_posts_window_user_can_register( $user_id = null ) {
 	 * @param int  $user_id User being checked.
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_posts_window_user_can_register',
+		'openstation_posts_window_user_can_register',
 		$can,
 		$user_id
 	);
@@ -66,20 +66,20 @@ function desktop_mode_posts_window_user_can_register( $user_id = null ) {
  * Whether the user has opted into the native Posts experience.
  * Cap-and-opt-in check — kept for any caller that needs the combined
  * answer (e.g. analytics, an arrange-menu entry). Boot registration
- * uses {@see desktop_mode_posts_window_user_can_register()} instead;
+ * uses {@see openstation_posts_window_user_can_register()} instead;
  * runtime dock-click swap uses the JS-side snapshot.
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function desktop_mode_posts_window_user_can_use( $user_id = null ) {
+function openstation_posts_window_user_can_use( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
-	$cap_ok = desktop_mode_posts_window_user_can_register( $user_id );
+	$cap_ok = openstation_posts_window_user_can_register( $user_id );
 
 	$opt_in = false;
-	if ( $cap_ok && function_exists( 'desktop_mode_get_os_settings' ) ) {
-		$settings = desktop_mode_get_os_settings( $user_id );
+	if ( $cap_ok && function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( $user_id );
 		$opt_in   = ! empty( $settings['nativePostsEnabled'] );
 	}
 
@@ -97,5 +97,5 @@ function desktop_mode_posts_window_user_can_use( $user_id = null ) {
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
-	return (bool) apply_filters( 'desktop_mode_posts_window_user_can_use', $can, $user_id );
+	return (bool) apply_filters( 'openstation_posts_window_user_can_use', $can, $user_id );
 }

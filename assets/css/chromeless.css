@@ -1,16 +1,16 @@
 /**
- * Desktop Mode — Chromeless Overrides.
+ * OpenStation — Chromeless Overrides.
  *
- * CSS adjustments for legacy admin pages rendered inside desktop mode
- * iframes (chromeless mode). All rules are scoped to .desktop-mode-chromeless
+ * CSS adjustments for legacy admin pages rendered inside OpenStation
+ * iframes (chromeless mode). All rules are scoped to .os-chromeless
  * so they never affect the classic admin or the desktop shell.
  *
  * Plugin and theme developers: to add your own chromeless overrides,
- * enqueue a stylesheet on the 'desktop_mode_chromeless_styles' action.
- * Your CSS just needs to target .desktop-mode-chromeless as the body class.
+ * enqueue a stylesheet on the 'openstation_chromeless_styles' action.
+ * Your CSS just needs to target .os-chromeless as the body class.
  *
  * Example:
- *   add_action( 'desktop_mode_chromeless_styles', function() {
+ *   add_action( 'openstation_chromeless_styles', function() {
  *       wp_enqueue_style( 'my-plugin-chromeless', plugin_dir_url( __FILE__ ) . 'chromeless.css' );
  *   } );
  *
@@ -22,13 +22,38 @@
  * reserve space (sidebar gutter, footer, admin bar) around the
  * chromeless page content.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #adminmenuwrap,
-.desktop-mode-chromeless #adminmenuback,
-.desktop-mode-chromeless #wpfooter,
-.desktop-mode-chromeless #wpadminbar,
-.desktop-mode-chromeless .wp-responsive-toggle,
-.desktop-mode-chromeless #collapse-menu {
+.os-chromeless #adminmenuwrap,
+.os-chromeless #adminmenuback,
+.os-chromeless #wpfooter,
+.os-chromeless #wpadminbar,
+.os-chromeless .wp-responsive-toggle,
+.os-chromeless #collapse-menu {
 	display: none !important;
+}
+
+/* ---------------------------------------------------------------
+ * The iframe paints its own canvas.
+ *
+ * An admin page leaves whole regions unpainted — the gutter around
+ * `#wpbody-content`, the strip behind `.subsubsub` and `.tablenav`,
+ * everything below short content. In a normal admin tab the browser
+ * canvas is white underneath, so nobody notices. Inside an iframe the
+ * canvas is TRANSPARENT, and what shows through is the window element
+ * behind it — `--os-window-bg`.
+ *
+ * That was invisible while the window body was white and became a
+ * black band the moment the station's palette made it Obsidian. It is
+ * a real coupling either way: the look of a wp-admin page must not
+ * depend on the colour of the frame around it.
+ *
+ * So the chromeless document paints itself, in the colour the browser
+ * canvas would have been. Deliberately a literal and deliberately NOT
+ * a token: nothing about the shell's palette — or any desktop theme —
+ * should reach a real admin page. **An admin page in a window renders
+ * exactly as it does outside one.**
+ * --------------------------------------------------------------- */
+body.os-chromeless {
+	background: #fff;
 }
 
 /*
@@ -49,14 +74,14 @@
  * on small screens) gap that no longer exists, producing visible jumps
  * on first paint and dead space at the top of the content area.
  */
-html.wp-toolbar:has( body.desktop-mode-chromeless ) {
+html.wp-toolbar:has( body.os-chromeless ) {
 	padding-top: 0 !important;
 	--wp-admin--admin-bar--height: 0px;
 	--wp-admin--admin-bar--position-offset: 0px;
 }
 
 /* Remove the sidebar gutter on #wpcontent and let the body fill the frame. */
-.desktop-mode-chromeless #wpcontent {
+.os-chromeless #wpcontent {
 	margin-inline-start: 0 !important;
 	padding-inline-start: 0 !important;
 }
@@ -90,7 +115,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * and the header's content uses the full window width. No
  * transform / overflow / visibility tricks needed.
  */
-.desktop-mode-chromeless .woocommerce-layout__header {
+.os-chromeless .woocommerce-layout__header {
 	width: 100% !important;
 }
 
@@ -104,12 +129,12 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Collapse all margins on the hidden links and the panel container
  * so they don't leave a gap at the top of the iframe content.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #screen-meta-links {
+.os-chromeless #screen-meta-links {
 	display: none;
 	margin: 0;
 }
 
-.desktop-mode-chromeless #screen-meta {
+.os-chromeless #screen-meta {
 	margin: 0;
 	border: none;
 }
@@ -119,7 +144,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Remove the default left margin that accounts for the sidebar
  * which doesn't exist in chromeless mode.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .wrap {
+.os-chromeless .wrap {
 	margin: 0;
 }
 
@@ -143,16 +168,16 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * entirely.
  *
  * Sites that prefer the cleaner Core-page look can hide the button
- * on specific pages via the `desktop_mode_chromeless_styles`
+ * on specific pages via the `openstation_chromeless_styles`
  * action — e.g.:
  *
  *     body.edit-php .wrap > .page-title-action { display: none; }
  *
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .wrap > h1,
-.desktop-mode-chromeless .wrap > h1.wp-heading-inline,
-.desktop-mode-chromeless #wpbody-content > .wrap > h1,
-.desktop-mode-chromeless .wrap > .wp-header-end {
+.os-chromeless .wrap > h1,
+.os-chromeless .wrap > h1.wp-heading-inline,
+.os-chromeless #wpbody-content > .wrap > h1,
+.os-chromeless .wrap > .wp-header-end {
 	display: none;
 }
 
@@ -164,17 +189,17 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * any adjacent inline content like the `.subsubsub` filter row).
  *
  * Themes.php's native "Add Theme" button lives in the submenu tab
- * strip via `desktop_mode_inject_appearance_tabs`
+ * strip via `openstation_inject_appearance_tabs`
  * (includes/themes-tabs.php), so its in-page page-title-action is
  * redundant on that one screen — keep the per-page hide rule below
  * so we don't ship two "Add Theme" entry points.
  */
-.desktop-mode-chromeless .wrap > .page-title-action {
+.os-chromeless .wrap > .page-title-action {
 	display: inline-block;
 	margin-top: 12px;
 }
 
-.desktop-mode-chromeless.themes-php .wrap > .page-title-action {
+.os-chromeless.themes-php .wrap > .page-title-action {
 	display: none;
 }
 
@@ -219,13 +244,38 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  *
  * @since 0.8.9
  */
-.desktop-mode-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
-.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
+.os-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
+.os-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
 	display: none !important;
 }
-.desktop-mode-chromeless.woocommerce_page_wc-orders #wpbody,
-.desktop-mode-chromeless.woocommerce_page_wc-orders--shop_order #wpbody {
+.os-chromeless.woocommerce_page_wc-orders #wpbody,
+.os-chromeless.woocommerce_page_wc-orders--shop_order #wpbody {
 	margin-top: 0 !important;
+}
+
+/* ---------------------------------------------------------------
+ * Revisions screen — page-scoped.
+ *
+ * "← Go to editor" is a back button for a screen the user navigated
+ * into. Here they didn't: the editor is open in its own window
+ * behind this one, and closing this window is the way back.
+ *
+ * The revision tooltip is positioned upward from the bottom of
+ * `.revisions-control-frame` and clears the top of the viewport only
+ * thanks to the screen H1, which chromeless hides. An iframe can't
+ * overflow its box, so the space has to be given back: 48px covers
+ * both slider modes.
+ *
+ * The padding goes on `.revisions`, not on the frame — the frame is
+ * the positioned ancestor for the compare-mode checkbox and the
+ * tooltip, so padding it would leave both behind at the old top edge.
+ * --------------------------------------------------------------- */
+.os-chromeless.revision-php .wrap > h1.long-header + a {
+	display: none;
+}
+
+.os-chromeless.revision-php .revisions {
+	padding-top: 48px;
 }
 
 /* ---------------------------------------------------------------
@@ -234,8 +284,8 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * visible gap at the top of the iframe. Collapse it in chromeless
  * mode so the panel sits flush with the top of the window body.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #welcome-panel,
-.desktop-mode-chromeless .welcome-panel {
+.os-chromeless #welcome-panel,
+.os-chromeless .welcome-panel {
 	margin-top: 0.5em;
 }
 
@@ -244,7 +294,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * The classic footer is not rendered in chromeless mode,
  * but some pages have bottom padding assuming it exists.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #wpbody-content {
+.os-chromeless #wpbody-content {
 	margin: 0;
 	padding: 0 8px 8px;
 	float: none;
@@ -273,13 +323,13 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * was permanently stealing the one-time orientation tour from every
  * user who never got to see it. Modal's focus trap is Tab-only and
  * doesn't fight the shell. Let it run. (See git history for the
- * removed `desktop_mode_chromeless_editor_preferences` override.)
+ * removed `openstation_chromeless_editor_preferences` override.)
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .edit-post-fullscreen-mode-close,
-.desktop-mode-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
-.desktop-mode-chromeless .edit-site-navigation-link,
-.desktop-mode-chromeless .edit-site-site-hub,
-.desktop-mode-chromeless .edit-site-site-hub__toggle {
+.os-chromeless .edit-post-fullscreen-mode-close,
+.os-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
+.os-chromeless .edit-site-navigation-link,
+.os-chromeless .edit-site-site-hub,
+.os-chromeless .edit-site-site-hub__toggle {
 	display: none !important;
 }
 
@@ -290,9 +340,9 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * editor and breaks its layout, so reset to zero on those pages
  * and let the editor render edge-to-edge.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless.block-editor-page #wpbody-content,
-.desktop-mode-chromeless.site-editor-php #wpbody-content,
-.desktop-mode-chromeless.is-fullscreen-mode #wpbody-content {
+.os-chromeless.block-editor-page #wpbody-content,
+.os-chromeless.site-editor-php #wpbody-content,
+.os-chromeless.is-fullscreen-mode #wpbody-content {
 	padding: 0;
 }
 
@@ -307,11 +357,11 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * — detection is purely structural (`:has()`), so a plugin that
  * adopts the same container class inherits the fix automatically.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless #wpbody-content:has( .boot-layout-container ) {
+.os-chromeless #wpbody-content:has( .boot-layout-container ) {
 	padding: 0;
 }
 
-.desktop-mode-chromeless:has( .boot-layout-container ) #wpwrap {
+.os-chromeless:has( .boot-layout-container ) #wpwrap {
 	/* Neutralize the inline dark background so any stray overflow
 	 * matches the window body instead of flashing black. */
 	background: transparent;
@@ -325,9 +375,9 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * side margins leave ugly bleed at the edges. Collapse it to a plain
  * edge-to-edge surface.
  */
-.desktop-mode-chromeless .boot-layout__surfaces,
-.desktop-mode-chromeless .boot-layout__stage,
-.desktop-mode-chromeless .boot-layout__canvas {
+.os-chromeless .boot-layout__surfaces,
+.os-chromeless .boot-layout__stage,
+.os-chromeless .boot-layout__canvas {
 	border-radius: 0 !important;
 	margin: 0 !important;
 }
@@ -339,8 +389,8 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * redundant. Visually hide it but keep it in the DOM for screen readers
  * and for the boot app's own focus management.
  */
-.desktop-mode-chromeless .boot-navigation-screen__title,
-.desktop-mode-chromeless .boot-navigation-screen__title-icon {
+.os-chromeless .boot-navigation-screen__title,
+.os-chromeless .boot-navigation-screen__title-icon {
 	position: absolute;
 	width: 1px;
 	height: 1px;
@@ -366,13 +416,13 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Pin them flush to the bottom of the iframe and make sure nothing
  * in the window chrome can occlude them.
  *
- * Triggering a snackbar to verify (desktop mode enabled):
+ * Triggering a snackbar to verify (OpenStation enabled):
  *   - Open Posts → Add New, save/publish → "Post published" toast.
  *   - Open Media, upload a file → "Uploaded" toast.
  *   - Open Appearance → Fonts, install a Google Font → toast.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .components-snackbar-list,
-.desktop-mode-chromeless .boot-notices__snackbar {
+.os-chromeless .components-snackbar-list,
+.os-chromeless .boot-notices__snackbar {
 	bottom: 16px !important;
 	z-index: 100000;
 }
@@ -390,7 +440,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * shared persistence layer. This rule keeps chromeless rendering
  * edge-to-edge either way.
  */
-.desktop-mode-chromeless .interface-interface-skeleton {
+.os-chromeless .interface-interface-skeleton {
 	top: 0 !important;
 	left: 0 !important;
 	right: 0 !important;
@@ -401,7 +451,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Notices
  * Give notices a bit of top margin since there's no admin bar above.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .notice:first-child {
+.os-chromeless .notice:first-child {
 	margin-top: 4px;
 }
 
@@ -409,10 +459,10 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * Update nag
  * Core's global update / maintenance nags are detached server-side
  * inside chromeless iframes (see
- * `desktop_mode_chromeless_suppress_update_nags()`) and re-surfaced
+ * `openstation_chromeless_suppress_update_nags()`) and re-surfaced
  * once by the shell as a single notice.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .update-nag {
+.os-chromeless .update-nag {
 	display: none !important;
 }
 
@@ -424,7 +474,7 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * the dialog would still render. Hide it so the shell's palette
  * stays the only surface users ever see.
  * --------------------------------------------------------------- */
-.desktop-mode-chromeless .commands-command-menu__container,
-.desktop-mode-chromeless .commands-command-menu {
+.os-chromeless .commands-command-menu__container,
+.os-chromeless .commands-command-menu {
 	display: none !important;
 }

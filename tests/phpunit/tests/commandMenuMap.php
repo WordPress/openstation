@@ -5,11 +5,11 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  *
- * @covers ::desktop_mode_build_command_menu_map
+ * @covers ::openstation_build_command_menu_map
  */
-class Tests_DesktopMode_CommandMenuMap extends WP_UnitTestCase {
+class Tests_OpenStation_CommandMenuMap extends WP_UnitTestCase {
 
 	/**
 	 * Legacy file-path slugs (WP-Sweep's `wp-sweep/admin.php`,
@@ -34,7 +34,7 @@ class Tests_DesktopMode_CommandMenuMap extends WP_UnitTestCase {
 
 		$_parent_pages['wp-sweep/admin.php'] = 'tools.php';
 
-		$map = desktop_mode_build_command_menu_map();
+		$map = openstation_build_command_menu_map();
 
 		$menu    = $menu_backup;
 		$submenu = $submenu_backup;
@@ -67,7 +67,7 @@ class Tests_DesktopMode_CommandMenuMap extends WP_UnitTestCase {
 		);
 		$submenu = array();
 
-		$map = desktop_mode_build_command_menu_map();
+		$map = openstation_build_command_menu_map();
 
 		$menu    = $menu_backup;
 		$submenu = $submenu_backup;
@@ -108,7 +108,7 @@ class Tests_DesktopMode_CommandMenuMap extends WP_UnitTestCase {
 		$_parent_pages['edit.php?post_type=acf-field-group'] = false;
 		$_parent_pages['edit.php?post_type=acf-post-type']   = 'edit.php?post_type=acf-field-group';
 
-		$map = desktop_mode_build_command_menu_map();
+		$map = openstation_build_command_menu_map();
 
 		$menu    = $menu_backup;
 		$submenu = $submenu_backup;

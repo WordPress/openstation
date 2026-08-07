@@ -36,7 +36,7 @@ function pointerEvent(
 function makeSource( id: string ): HTMLElement {
 	const el = document.createElement( 'div' );
 	el.id = id;
-	el.className = 'desktop-mode-file-tile';
+	el.className = 'os-file-tile';
 	el.style.position = 'absolute';
 	el.style.width = '88px';
 	el.style.height = '96px';
@@ -115,7 +115,7 @@ describe( 'DragManager', () => {
 		// Move 2px — below threshold.
 		document.dispatchEvent( pointerEvent( 'pointermove', 102, 100 ) );
 		expect( manager.isDragging() ).toBe( false );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).toBeNull();
+		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 
 		// Release.
 		document.dispatchEvent( pointerEvent( 'pointerup', 102, 100 ) );
@@ -135,14 +135,14 @@ describe( 'DragManager', () => {
 
 		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
 		expect( manager.isDragging() ).toBe( true );
-		expect( source.classList.contains( 'desktop-mode-file-tile--dragging' ) ).toBe( true );
-		const ghost = document.querySelector( '.desktop-mode-drag-ghost' );
+		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( true );
+		const ghost = document.querySelector( '.os-drag-ghost' );
 		expect( ghost ).not.toBeNull();
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 110, 100 ) );
 		// Cleanup.
-		expect( source.classList.contains( 'desktop-mode-file-tile--dragging' ) ).toBe( false );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).toBeNull();
+		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( false );
+		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 	} );
 
 	test( 'second start() while dragging returns null', () => {
@@ -342,13 +342,13 @@ describe( 'DragManager', () => {
 			origin: pointerEvent( 'pointerdown', 50, 50, source ),
 		} );
 		document.dispatchEvent( pointerEvent( 'pointermove', 60, 50 ) );
-		expect( source.classList.contains( 'desktop-mode-file-tile--dragging' ) ).toBe( true );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).not.toBeNull();
+		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( true );
+		expect( document.querySelector( '.os-drag-ghost' ) ).not.toBeNull();
 
 		session?.cancel();
 		expect( session?.isFinished() ).toBe( true );
-		expect( source.classList.contains( 'desktop-mode-file-tile--dragging' ) ).toBe( false );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).toBeNull();
+		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( false );
+		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 		expect( manager.getActive() ).toBeNull();
 	} );
 
@@ -404,9 +404,9 @@ describe( 'DragManager', () => {
 	test( 'findOrphans returns elements with stale drag classes/attrs', () => {
 		const manager = new DragManager();
 		const dirty = makeSource( 'dirty' );
-		dirty.classList.add( 'desktop-mode-file-tile--dragging' );
+		dirty.classList.add( 'os-file-tile--dragging' );
 		const someBin = document.createElement( 'div' );
-		someBin.setAttribute( 'data-desktop-mode-trash-drop-active', '' );
+		someBin.setAttribute( 'data-os-trash-drop-active', '' );
 		document.body.appendChild( someBin );
 
 		const orphans = manager.debug().findOrphans();

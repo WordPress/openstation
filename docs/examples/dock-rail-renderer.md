@@ -14,7 +14,7 @@ The radical end of dock customization: a plugin can take over the
 entire rail and paint it however they want — a circular ring, a
 Stage-Manager-style stack, a floating cluster, anything that fits
 the controller contract. The user picks among registered renderers
-in OS Settings → Appearance → Dock style.
+in OpenStation Preferences → Appearance → Dock style.
 
 For lighter touches (animations, classNames, wrappers, custom
 tooltips), use the [decoration hooks](./dock-decoration-hooks.md)
@@ -29,7 +29,7 @@ registration.
 ```ts
 interface DockRailRenderer {
     id: string;                // 'default' | 'ring' | 'stage-manager' | …
-    label: string;             // shown in OS Settings picker
+    label: string;             // shown in OpenStation Preferences picker
     description?: string;
     icon?: string;             // dashicon for the picker
     apiVersion?: 1;            // forward-compat gate
@@ -45,7 +45,7 @@ interface DockRailMountDeps {
     orientation:      'left' | 'right' | 'bottom';
     openItem(         item ): void;                   // primary tile click — routes through window manager
     openSubmenuPick(  item, sub: SubmenuItem ): void; // submenu link click
-    openSystemItem(   item ): void;                   // OS Settings / plugin native-window tiles
+    openSystemItem(   item ): void;                   // OpenStation Preferences / plugin native-window tiles
     windowManager:    WindowManager;
     adminUrl:         string;
 }
@@ -80,7 +80,7 @@ Dock items split into views the renderer can read at mount time:
 |---|---|---|
 | `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
 | `fullMenu` | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
-| `fullSystemTiles` | Every **JS-registered system tile** — OS Settings, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
+| `fullSystemTiles` | Every **JS-registered system tile** — OpenStation Preferences, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
 
 A renderer that doesn't care about the layout split (it draws every
 menu on screen no matter which rail it's mounted on) reads
@@ -110,7 +110,7 @@ Live updates flow through the controller's `replaceItems( items )`
 the same way regardless of which view you read at mount —
 `replaceItems` carries the same rail-scoped slice. If your renderer
 needs the full menu after a refresh, call
-`wp.desktop.getMenuItems()` from inside `replaceItems`.
+`wp.os.getMenuItems()` from inside `replaceItems`.
 
 ## System tiles — `appendSystemItem` lifecycle
 
@@ -182,7 +182,7 @@ encapsulate the right behaviour:
   ends up with mismatched ids — switching renderer mid-session
   loses the user's open windows. Plugins that absolutely need to
   build a window config from scratch can call
-  `wp.desktop.deriveWindowId(url)` for the same id semantics.
+  `wp.os.deriveWindowId(url)` for the same id semantics.
 
 `openSubmenuPick(item, sub)` is the canonical path for surfacing
 submenus. A renderer that paints a radial menu / fan-out / cards
@@ -219,8 +219,8 @@ About 80 lines including the simple animation. The shipped Dock is
 ignored entirely; this owns the rail.
 
 ```js
-wp.desktop.ready( () => {
-    wp.desktop.registerDockRailRenderer( {
+wp.os.ready( () => {
+    wp.os.registerDockRailRenderer( {
         id:    'my-ring',
         label: 'Ring',
         description: 'Items orbit a central button.',
@@ -309,36 +309,36 @@ Style the tiles with whatever CSS makes sense — `position: absolute`
 on `.my-ring__tile`, transitions, hover scaling, glow, particle
 trails. The renderer owns the visual treatment entirely.
 
-## What `wp.desktop.dock` does with a custom renderer
+## What `wp.os.dock` does with a custom renderer
 
-When the active renderer is `'default'`, `wp.desktop.dock` and
-`wp.desktop.sideDock` keep returning the underlying `Dock`
+When the active renderer is `'default'`, `wp.os.dock` and
+`wp.os.sideDock` keep returning the underlying `Dock`
 instance — backwards compat for plugins that read the API
 directly. With a custom renderer active, both return `null`
 because the controller doesn't expose a `Dock`. Plugins that need
 renderer-agnostic access (drive a badge from somewhere else) should
 fan the update across every rail with optional chaining (see
 [the dock-badge example](./dock-badge.md)) rather than reading
-`wp.desktop.dock` alone:
+`wp.os.dock` alone:
 
 ```js
 // Renderer-agnostic: the rails that own the id paint, the
 // missing handles silently no-op.
-wp.desktop.dock?.setBadge?.(    'edit.php', 3 );
-wp.desktop.taskbar?.setBadge?.( 'edit.php', 3 );
-wp.desktop.icons?.setBadge?.(   'edit.php', 3 );
+wp.os.dock?.setBadge?.(    'edit.php', 3 );
+wp.os.taskbar?.setBadge?.( 'edit.php', 3 );
+wp.os.icons?.setBadge?.(   'edit.php', 3 );
 
 // Renderer-specific: only works when the default renderer is active.
-wp.desktop.dock?.setBadge( 'edit.php', 3 );
+wp.os.dock?.setBadge( 'edit.php', 3 );
 ```
 
 ## Live registration on plugin activation
 
 Same lifecycle as commands and settings tabs. Register the script
 handle server-side via
-`desktop_mode_register_dock_rail_renderer_script()`; the shell
+`openstation_register_dock_rail_renderer_script()`; the shell
 loads the script over the chromeless bridge on activation, the JS
-calls `registerDockRailRenderer()`, and OS Settings → Dock style
+calls `registerDockRailRenderer()`, and OpenStation Preferences → Dock style
 surfaces the new option immediately — no F5.
 
 ```php
@@ -352,7 +352,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-rail-renderer',
         plugin_dir_url( __FILE__ ) . 'assets/rail-renderer.js',
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
@@ -361,13 +361,13 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Opt this script into the live-refresh payload so it loads
 // the moment the plugin activates (and unloads on deactivation).
-desktop_mode_register_dock_rail_renderer_script( 'my-rail-renderer' );
+openstation_register_dock_rail_renderer_script( 'my-rail-renderer' );
 ```
 
 ```js
 // assets/rail-renderer.js
-wp.desktop.ready( () => {
-    wp.desktop.registerDockRailRenderer( {
+wp.os.ready( () => {
+    wp.os.registerDockRailRenderer( {
         id:    'my-ring',
         label: 'Ring',
         owner: 'my-rail-renderer',   // matches the script handle above
@@ -392,7 +392,7 @@ with the shipped baseline. No reload required either way.
 
 ## Composability with decoration hooks
 
-The default `Dock` renderer fires the `desktop-mode.dock.tile-class`,
+The default `Dock` renderer fires the `os.dock.tile-class`,
 `tile-element`, `tile-tooltip`, `tile-rendered`, `before-render`,
 and `after-render` filters/actions while painting. Custom rail
 renderers SHOULD fire the same hooks at equivalent points so
@@ -411,7 +411,7 @@ mount( { container, fullMenu } ) {
             'my-renderer__tile',
             isSystem ? 'my-renderer__tile--system' : 'my-renderer__tile--menu',
         ];
-        const classes = wp.desktop.applyTileClasses(
+        const classes = wp.os.applyTileClasses(
             baseClasses,
             item,
             { ...ctx, isSystem },
@@ -422,14 +422,14 @@ mount( { container, fullMenu } ) {
         tile.dataset[ isSystem ? 'systemId' : 'menuSlug' ] = item.id;
 
         // 2. Render the icon via the canonical dispatch.
-        tile.appendChild( wp.desktop.renderIcon( item.icon, {
+        tile.appendChild( wp.os.renderIcon( item.icon, {
             title: item.title,
             className: 'my-renderer__icon',
         } ) );
 
         // 3. Resolve the tooltip text through the filter (returns
         //    empty string if a plugin requested suppression).
-        const tooltipLabel = wp.desktop.applyTileTooltip(
+        const tooltipLabel = wp.os.applyTileTooltip(
             item.title,
             item,
             { ...ctx, isSystem },
@@ -439,7 +439,7 @@ mount( { container, fullMenu } ) {
         }
 
         // 4. Let decoration plugins wrap or replace the tile.
-        const finalEl = wp.desktop.applyTileElement(
+        const finalEl = wp.os.applyTileElement(
             tile,
             item,
             { ...ctx, isSystem },
@@ -450,14 +450,14 @@ mount( { container, fullMenu } ) {
         // 5. Fire the after-insertion action so plugins doing
         //    layout-dependent decoration (animations,
         //    IntersectionObserver) get a chance.
-        wp.desktop.dispatchTileRendered( finalEl, item, {
+        wp.os.dispatchTileRendered( finalEl, item, {
             ...ctx,
             isSystem,
         } );
     }
 
     // … paint everything, register the dock selector …
-    const unregisterSelector = wp.desktop.registerDockSelector(
+    const unregisterSelector = wp.os.registerDockSelector(
         '.my-renderer__root',
     );
 
@@ -474,7 +474,7 @@ mount( { container, fullMenu } ) {
 ```
 
 `registerDockSelector` registers your renderer's root selector with
-`wp.desktop.isDockElement` so other plugins' click-outside handlers
+`wp.os.isDockElement` so other plugins' click-outside handlers
 correctly recognise clicks on your renderer as "inside the dock"
 and don't dismiss themselves.
 
@@ -485,7 +485,7 @@ Two customization registries, both orthogonal:
 - **Decoration hooks** — fire from inside the *default* rail
   renderer. Custom rail renderers SHOULD fire equivalent hooks for
   ecosystem compatibility (the shell can't enforce, but it's a
-  signed contract). Use the `wp.desktop.applyTileClasses` /
+  signed contract). Use the `wp.os.applyTileClasses` /
   `applyTileElement` / `applyTileTooltip` / `dispatchTileRendered`
   helpers to participate in two lines.
 - **Dock rail renderer** — owns the entire rail. The radical

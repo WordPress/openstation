@@ -2,9 +2,9 @@
  * My WordPress — window-local layout.
  *
  * Two-pane file-explorer for browsing WordPress entities. Mirrors the
- * Recycle Bin and Posts window CSS conventions (`desktop-mode-*`
+ * Recycle Bin and Posts window CSS conventions (`os-*`
  * BEM-ish prefix, container-relative geometry, theming via the
- * desktop-mode-variables CSS custom properties).
+ * os-variables CSS custom properties).
  *
  */
 
@@ -15,53 +15,53 @@
 	height: 100%;
 	min-height: 0;
 	font-family: var(
-		--desktop-mode-font,
+		--os-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
-	color: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	/* Window background — separate from the wallpaper bg so the
 	 * folder window reads as a real OS window even when the desktop
 	 * gradient is dark. Themes / plugins can override
-	 * `--desktop-mode-my-wordpress-bg` to repaint just this surface
+	 * `--os-my-wordpress-bg` to repaint just this surface
 	 * without touching every other window. */
 	background: var(
-		--desktop-mode-my-wordpress-bg,
-		var( --desktop-mode-window-bg, #fff )
+		--os-my-wordpress-bg,
+		var( --os-window-bg, #fff )
 	);
 	/* Light-context tile color tokens — same recipe as the folder
 	 * window. Tiles inside My WordPress paint dark-on-light. */
-	--desktop-mode-tile-fg: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
-	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
-	--desktop-mode-tile-hover-bg: var(
-		--desktop-mode-hover,
+	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
+	--os-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--os-tile-hover-bg: var(
+		--os-hover,
 		rgba( 0, 0, 0, 0.06 )
 	);
 	/* Light-context label rendering — same recipe as the folder
 	 * window. Defined as tokens in `variables.css`; the single
-	 * `.desktop-mode-file-tile__label` rule reads them for every
+	 * `.os-file-tile__label` rule reads them for every
 	 * surface. */
-	--desktop-mode-tile-label-shadow: none;
-	--desktop-mode-tile-label-weight: 500;
-	--desktop-mode-tile-label-smoothing: antialiased;
-	--desktop-mode-tile-label-color: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
+	--os-tile-label-shadow: none;
+	--os-tile-label-weight: 500;
+	--os-tile-label-smoothing: antialiased;
+	--os-tile-label-color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* Pinned-icon visual cue — used by `desktop-mode-icon--pinned` (the
+/* Pinned-icon visual cue — used by `os-icon--pinned` (the
  * generic flag added in 0.8.0). The icon-rail itself owns the
  * non-draggable invariant; this rule just removes the grab affordance
  * if the framework ever attaches one in a later phase.
  */
-.desktop-mode-icon--pinned {
+.os-icon--pinned {
 	cursor: pointer;
 }
 
 /* Breadcrumb header chrome — owned by the shared
- * `.desktop-mode-breadcrumbs` rules in `desktop-files.css`. No
+ * `.os-breadcrumbs` rules in `desktop-files.css`. No
  * per-surface duplication. */
 
 /* ----- Body host ----- */
 
-.desktop-mode-my-wordpress__body {
+.os-my-wordpress__body {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
@@ -76,45 +76,49 @@
  * filter / sort controls. Visual treatment mirrors the Content
  * Graph toolbar's search row so the two surfaces read as the same
  * control. */
-.desktop-mode-my-wordpress__list-toolbar {
+.os-my-wordpress__list-toolbar {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
-	border-bottom: 1px solid var( --wpd-border, #dcdcde );
-	background: transparent;
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+	/* Opaque and above the canvas: the tile canvas scrolls beneath
+	 * this row, and a transparent toolbar let tiles read through it. */
+	position: relative;
+	z-index: 4;
+	background: var( --os-ui-bg, #fff );
 }
 
-.desktop-mode-my-wordpress__list-toolbar-search {
+.os-my-wordpress__list-toolbar-search {
 	position: relative;
 	flex: 1 1 auto;
 	min-width: 0;
 	max-width: 360px;
 }
 
-.desktop-mode-my-wordpress__list-toolbar-search-input {
+.os-my-wordpress__list-toolbar-search-input {
 	width: 100%;
 	padding: 6px 10px;
-	border: 1px solid var( --wpd-border, #d8dde4 );
+	border: 1px solid var( --os-ui-border, #d8dde4 );
 	border-radius: 6px;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 	color: inherit;
 	font-size: 13px;
 	box-sizing: border-box;
 }
 
-.desktop-mode-my-wordpress__list-toolbar-search-input:focus {
+.os-my-wordpress__list-toolbar-search-input:focus {
 	outline: none;
-	border-color: var( --wpd-accent, #2c6be5 );
-	box-shadow: 0 0 0 3px var( --wpd-accent-soft, rgba( 44, 107, 229, 0.18 ) );
+	border-color: var( --os-ui-accent, #2c6be5 );
+	box-shadow: 0 0 0 3px var( --os-ui-accent-soft, rgba( 44, 107, 229, 0.18 ) );
 }
 
 /* When the list-toolbar mounts, the split pane needs to claim the
  * remaining vertical space inside the flex column body — without
  * this rule it would size to its content (which, for an empty list,
  * is zero) and the tile canvas would collapse. */
-.desktop-mode-my-wordpress__body > .desktop-mode-my-wordpress__split {
+.os-my-wordpress__body > .os-my-wordpress__split {
 	flex: 1 1 auto;
 	min-height: 0;
 }
@@ -124,33 +128,33 @@
  * "stale" until the new page lands and the renderer atomically swaps
  * the tiles. `pointer-events: none` blocks the user from clicking
  * a tile that's about to disappear. */
-.desktop-mode-my-wordpress__tiles--searching,
-.desktop-mode-my-wordpress__media-grid--searching {
+.os-my-wordpress__tiles--searching,
+.os-my-wordpress__media-grid--searching {
 	opacity: 0.45;
 	pointer-events: none;
 	transition: opacity 0.12s ease-out;
 }
 
 /* Reuse the file-system folder window's status-bar element
- * (`.desktop-mode-folder-status-bar`) so segments render with the
+ * (`.os-folder-status-bar`) so segments render with the
  * exact same DOM the file-system uses — but retone it for the
  * white window background. The dark default (white-on-dark) reads
- * as invisible against `--desktop-mode-window-bg`. */
-.desktop-mode-my-wordpress > .desktop-mode-folder-status-bar {
-	border-top: 1px solid var( --wpd-border, #dcdcde );
+ * as invisible against `--os-window-bg`. */
+.desktop-mode-my-wordpress > .os-folder-status-bar {
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	background: transparent;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 .desktop-mode-my-wordpress
-	> .desktop-mode-folder-status-bar
-	button.desktop-mode-folder-status-bar__segment:hover {
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+	> .os-folder-status-bar
+	button.os-folder-status-bar__segment:hover {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
 /* ----- Tile canvas (root + entity list) -----
  *
- * Both views use the SAME tile element (`.desktop-mode-file-tile`)
+ * Both views use the SAME tile element (`.os-file-tile`)
  * the wallpaper uses, so visuals stay 1:1 with the desktop. The
  * canvas is `position: relative`; tiles are absolute-positioned and
  * draggable — same interaction pattern as the wallpaper, just
@@ -158,7 +162,7 @@
  * `localStorage` (see `createTileLayout` in src/my-wordpress).
  */
 
-.desktop-mode-my-wordpress__canvas {
+.os-my-wordpress__canvas {
 	position: relative;
 	min-height: 100%;
 	box-sizing: border-box;
@@ -169,7 +173,7 @@
 	 * IntersectionObserver-based infinite scroll. */
 }
 
-.desktop-mode-my-wordpress__grid {
+.os-my-wordpress__grid {
 	height: 100%;
 	overflow-y: scroll;
 }
@@ -179,10 +183,10 @@
  * white text + a 12% white hover — both of which would be invisible
  * on a white window background. Inside My WordPress we re-tone the
  * same element to read on light surfaces. The dimensions / tile
- * structure are inherited from `.desktop-mode-file-tile`.
+ * structure are inherited from `.os-file-tile`.
  */
-.desktop-mode-my-wordpress .desktop-mode-file-tile {
-	/* Color + hover come from `--desktop-mode-tile-*` — see the
+.desktop-mode-my-wordpress .os-file-tile {
+	/* Color + hover come from `--os-tile-*` — see the
 	 * scope-level variable overrides on `.desktop-mode-my-wordpress`
 	 * above. We only override structural / animation bits here.
 	 *
@@ -196,22 +200,184 @@
 }
 
 /* Selected state for every tile in My WordPress is rendered by
- * the canonical `.desktop-mode-file-tile--selected` rule in
+ * the canonical `.os-file-tile--selected` rule in
  * `desktop-files.css` — same accent border + tinted background
  * the folder windows + wallpaper tiles use. No section-specific
  * override here — visual parity across the whole shell.
  */
+
+/* Large tiles — sections that opt in with `tileSize: 'large'`.
+ *
+ * A section whose rows carry a photograph (a shop's products) reads
+ * as a catalogue, not a file list: the picture is what's being
+ * scanned, and at 48px it's a thumbnail of a thumbnail. Roughly
+ * doubling the icon well also gives a corner ribbon room to be a
+ * corner flash instead of covering the subject.
+ *
+ * The cell pitch lives in `TILE_METRICS_LARGE` (src/my-wordpress/
+ * index.ts) and the two MUST move together — a wider tile in a cell
+ * that didn't grow overlaps its neighbour. */
+/*
+ * Image-led sections re-point the tile tokens for their whole
+ * subtree rather than overriding the tile's width directly. The base
+ * `.os-file-tile` rule then sizes itself from them, and so does
+ * everything derived from them (the label's max-width, the loading
+ * skeletons) — one declaration instead of a chain of overrides that
+ * have to be kept in step.
+ */
+.os-my-wordpress__tiles--large {
+	--os-tile-w: var( --os-tile-w-large, 132px );
+	--os-tile-h: var( --os-tile-h-large, 160px );
+}
+
+.os-my-wordpress__tiles--large .os-file-tile__visual,
+.os-my-wordpress__tiles--large .os-file-tile__icon {
+	width: 104px;
+	height: 104px;
+	font-size: 64px;
+}
+
+.os-my-wordpress__tiles--large .os-file-tile__preview {
+	width: 104px;
+	height: 104px;
+	border-radius: 8px;
+}
+
+/* Three lines of title at this width instead of two — a product name
+ * is long and the extra width earns the room. Matches the taller
+ * cell in `TILE_METRICS_LARGE`. */
+.os-my-wordpress__tiles--large .os-file-tile__label {
+	-webkit-line-clamp: 3;
+}
+
+/* Featured-image tiles. Entries that have a featured image render it
+ * in the icon well instead of the section dashicon — decisive for
+ * image-led types like WooCommerce products. The base
+ * `.os-file-tile__preview` rule in `desktop-files.css`
+ * already sizes and crops it; all that's added here is a hairline
+ * border so a light-on-light photo still reads as a distinct object
+ * against the wallpaper, plus a neutral well behind it so a
+ * transparent PNG or a slow-loading image doesn't flash the
+ * wallpaper through. */
+.os-my-wordpress__tile--entry .os-file-tile__preview {
+	background: var(
+		--os-media-tile-bg,
+		rgba( 0, 0, 0, 0.05 )
+	);
+	box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, 0.12 );
+}
+
+/* Banded list views. A section can split its tiles into labelled
+ * bands (WooCommerce Orders groups by status, needs-attention first)
+ * instead of one flat canvas. The root container stops being a
+ * positioned canvas and becomes a plain stack; each band owns its
+ * own canvas below its heading. */
+.os-my-wordpress__tiles--banded {
+	position: static;
+	min-height: 0;
+}
+
+.os-my-wordpress__band + .os-my-wordpress__band {
+	margin-block-start: 8px;
+}
+
+/* Bands are laid out in order before the first page arrives so none
+ * appears mid-scroll, but one that hasn't received a row yet stays
+ * out of the way rather than showing a heading over nothing. */
+.os-my-wordpress__band--empty {
+	display: none;
+}
+
+.os-my-wordpress__band-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	position: sticky;
+	/* Keeps the band label visible while scrolling a long band —
+	 * the whole point of banding is knowing what you're looking at. */
+	top: 0;
+	/* Above the absolutely-positioned tiles of every band, including
+	 * the ones that come later in the DOM. */
+	z-index: 3;
+	margin: 0;
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #787c82 );
+	/* Near-opaque on purpose. Tiles scrolling underneath are behind
+	 * the bar, but at 85% they still read as ghostly blurred shapes
+	 * through it, which looks like a rendering fault rather than
+	 * frosted glass. The blur + saturate keeps the frosted feel while
+	 * the alpha stops the content beneath resolving into shapes. */
+	background: color-mix(
+		in srgb,
+		var( --os-ui-bg, #fff ) 94%,
+		transparent
+	);
+	backdrop-filter: blur( 14px ) saturate( 180% );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+/* Browsers without `color-mix()` fall back to the flat surface —
+ * still opaque, just without the translucency. */
+@supports not ( background: color-mix( in srgb, red 50%, transparent ) ) {
+	.os-my-wordpress__band-title {
+		background: var( --os-ui-bg, #fff );
+	}
+}
+
+/* Attention-carrying bands (WooCommerce's "Needs attention",
+ * "Problems") tint their bar so the eye lands there first instead of
+ * having to read every heading. */
+.os-my-wordpress__band-title--warn {
+	color: var( --os-ui-warning, #8a6116 );
+	background: color-mix(
+		in srgb,
+		var( --os-ui-warning, #8a6116 ) 12%,
+		var( --os-ui-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --os-ui-warning, #8a6116 ) 35%,
+		transparent
+	);
+}
+
+.os-my-wordpress__band-title--danger {
+	color: var( --os-ui-danger, #b32d2e );
+	background: color-mix(
+		in srgb,
+		var( --os-ui-danger, #b32d2e ) 12%,
+		var( --os-ui-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --os-ui-danger, #b32d2e ) 35%,
+		transparent
+	);
+}
+
+.os-my-wordpress__band-count {
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	line-height: 1.7;
+	background: color-mix( in srgb, currentColor 16%, transparent );
+	color: inherit;
+}
 
 /* Lock state — another user is currently editing this post. We dim
  * the tile a touch and overlay a small dashicon-lock badge on the
  * top-right of the icon. The whole tile stays clickable; the lock
  * is just a visual heads-up so the user knows the takeover dialog
  * is coming if they double-click. */
-.desktop-mode-my-wordpress__tile--locked {
+.os-my-wordpress__tile--locked {
 	opacity: 0.85;
 }
 
-.desktop-mode-my-wordpress__tile-lock {
+.os-my-wordpress__tile-lock {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
@@ -221,8 +387,8 @@
 	line-height: 18px;
 	text-align: center;
 	border-radius: 50%;
-	background: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
+	color: var( --os-ui-fg-on-accent, #fff );
 	box-shadow:
 		0 0 0 1.5px rgba( 0, 0, 0, 0.4 ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
@@ -230,7 +396,7 @@
 }
 
 /* Tooltip lock banner — shown above the excerpt when present. */
-.desktop-mode-my-wordpress__tooltip-lock {
+.os-my-wordpress__tooltip-lock {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -238,12 +404,12 @@
 	padding: 6px 8px;
 	border-radius: 4px;
 	background: rgba( 179, 45, 46, 0.08 );
-	color: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
+	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
 	font-size: 12px;
 	font-weight: 600;
 }
 
-.desktop-mode-my-wordpress__tooltip-lock .dashicons {
+.os-my-wordpress__tooltip-lock .dashicons {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
@@ -255,7 +421,7 @@
  * blurry. `max-height: 2 × line-height` + `overflow: hidden` looks
  * the same and stays sharp.
  */
-.desktop-mode-my-wordpress__tile .desktop-mode-file-tile__label {
+.os-my-wordpress__tile .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.3;
 	max-height: calc( 1.3em * 2 );
@@ -267,16 +433,16 @@
 
 /* ----- Entity list: two-pane split ----- */
 
-.desktop-mode-my-wordpress__split {
+.os-my-wordpress__split {
 	display: grid;
 	grid-template-columns: minmax( 240px, 60% ) minmax( 0, 1fr );
 	height: 100%;
 	min-height: 0;
 }
 
-.desktop-mode-my-wordpress__list {
+.os-my-wordpress__list {
 	overflow-y: scroll;
-	border-inline-end: 1px solid var( --wpd-border, #dcdcde );
+	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
 	min-width: 0;
 }
 
@@ -287,38 +453,38 @@
  * or to the right. We force the scrollbar to render at all times
  * via `::-webkit-scrollbar` (works in WebKit / Blink / Edge), and
  * the explicit `scrollbar-width: thin` covers Firefox. */
-.desktop-mode-my-wordpress__list,
-.desktop-mode-my-wordpress__grid {
+.os-my-wordpress__list,
+.os-my-wordpress__grid {
 	scrollbar-width: thin;
 	scrollbar-color: rgba( 0, 0, 0, 0.25 ) transparent;
 }
 
-.desktop-mode-my-wordpress__list::-webkit-scrollbar,
-.desktop-mode-my-wordpress__grid::-webkit-scrollbar {
+.os-my-wordpress__list::-webkit-scrollbar,
+.os-my-wordpress__grid::-webkit-scrollbar {
 	width: 12px;
 	height: 12px;
 }
 
-.desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb,
-.desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb {
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.25 ) );
+.os-my-wordpress__list::-webkit-scrollbar-thumb,
+.os-my-wordpress__grid::-webkit-scrollbar-thumb {
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.25 ) );
 	border-radius: 6px;
 	border: 3px solid transparent;
 	background-clip: padding-box;
 }
 
-.desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb:hover,
-.desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb:hover {
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.4 ) );
+.os-my-wordpress__list::-webkit-scrollbar-thumb:hover,
+.os-my-wordpress__grid::-webkit-scrollbar-thumb:hover {
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.4 ) );
 	background-clip: padding-box;
 }
 
-.desktop-mode-my-wordpress__list::-webkit-scrollbar-track,
-.desktop-mode-my-wordpress__grid::-webkit-scrollbar-track {
+.os-my-wordpress__list::-webkit-scrollbar-track,
+.os-my-wordpress__grid::-webkit-scrollbar-track {
 	background: transparent;
 }
 
-.desktop-mode-my-wordpress__sentinel {
+.os-my-wordpress__sentinel {
 	height: 1px;
 }
 
@@ -337,48 +503,51 @@
  * width are inlined so a row of placeholders reads as a cascade,
  * not a uniform pulse.
  *
- * Tile dimensions mirror the real `.desktop-mode-file-tile` width
+ * Tile dimensions mirror the real `.os-file-tile` width
  * so a placeholder sits cleanly in the cell its successor will
  * inherit.
  */
-.desktop-mode-my-wordpress__skeleton-tile {
+.os-my-wordpress__skeleton-tile {
 	position: absolute;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 6px;
-	width: 88px;
+	/* Same box as the real tile it stands in for — a skeleton that
+	 * doesn't match the grid makes the list jump when rows land. */
+	width: var( --os-tile-w, 88px );
+	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
 	box-sizing: border-box;
 	pointer-events: none;
 }
 
-.desktop-mode-my-wordpress__skeleton-icon,
-.desktop-mode-my-wordpress__skeleton-label {
+.os-my-wordpress__skeleton-icon,
+.os-my-wordpress__skeleton-label {
 	background: linear-gradient(
 		90deg,
-		var( --desktop-mode-skeleton-low, var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) ) ) 0%,
-		var( --desktop-mode-skeleton-high, var( --wpd-hover, rgba( 0, 0, 0, 0.13 ) ) ) 50%,
-		var( --desktop-mode-skeleton-low, var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) ) ) 100%
+		var( --os-skeleton-low, var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) ) ) 0%,
+		var( --os-skeleton-high, var( --os-ui-hover, rgba( 0, 0, 0, 0.13 ) ) ) 50%,
+		var( --os-skeleton-low, var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) ) ) 100%
 	);
 	background-size: 200% 100%;
-	animation: desktop-mode-my-wordpress-skeleton-shimmer 1.4s ease-in-out
-		var( --desktop-mode-skeleton-delay, 0s ) infinite;
+	animation: os-my-wordpress-skeleton-shimmer 1.4s ease-in-out
+		var( --os-skeleton-delay, 0s ) infinite;
 }
 
-.desktop-mode-my-wordpress__skeleton-icon {
+.os-my-wordpress__skeleton-icon {
 	width: 44px;
 	height: 44px;
 	border-radius: 10px;
 }
 
-.desktop-mode-my-wordpress__skeleton-label {
+.os-my-wordpress__skeleton-label {
 	width: 72%;
 	height: 10px;
 	border-radius: 4px;
 }
 
-@keyframes desktop-mode-my-wordpress-skeleton-shimmer {
+@keyframes os-my-wordpress-skeleton-shimmer {
 	from {
 		background-position: 200% 0;
 	}
@@ -388,32 +557,57 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-my-wordpress__skeleton-icon,
-	.desktop-mode-my-wordpress__skeleton-label {
+	.os-my-wordpress__skeleton-icon,
+	.os-my-wordpress__skeleton-label {
 		animation: none;
 	}
 }
 
 /* ----- Right pane: preview ----- */
 
-.desktop-mode-my-wordpress__preview {
+.os-my-wordpress__preview {
 	overflow: auto;
 	min-width: 0;
 	background: transparent;
 }
 
-.desktop-mode-my-wordpress__preview-empty {
+.os-my-wordpress__preview-empty {
 	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	align-items: center;
 	justify-content: center;
 	height: 100%;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 	font-size: 13px;
 	padding: 24px;
 	text-align: center;
 }
 
-.desktop-mode-my-wordpress__preview-loading {
+/* Type / status breakdown under a multi-selection's count. */
+.os-my-wordpress__preview-selection-breakdown {
+	font-size: 12px;
+	opacity: 0.75;
+}
+
+/* One labelled control in the bulk-edit modal. Label above field,
+ * because the fields are wide (a category tree, a tag row) and a
+ * two-column grid would put a one-word label beside a control four
+ * times its height. */
+.os-my-wordpress__bulk-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block-end: 16px;
+}
+
+.os-my-wordpress__bulk-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #787c82 );
+}
+
+.os-my-wordpress__preview-loading {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -425,35 +619,35 @@
 
 /* Preview-pane loader — same scale curve as the tile-grid first
  * spinner and the window-loading overlay. The JS used to hard-code
- * `size="128"`, which set an inline `--wpd-spinner-size` that
+ * `size="128"`, which set an inline `--os-ui-spinner-size` that
  * overrode any CSS knob; the size attribute is now omitted so this
  * rule is the single source of truth for both the My WordPress
  * preview and the wallpaper file-preview pane (which reuses this
  * class deliberately).
  */
-.desktop-mode-my-wordpress__preview-loading wpd-spinner {
-	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
+.os-my-wordpress__preview-loading os-spinner {
+	--os-ui-spinner-size: clamp( 96px, 14vw, 192px );
 }
 
-.desktop-mode-my-wordpress__article {
+.os-my-wordpress__article {
 	padding: 24px 32px;
 	max-width: 720px;
 	margin: 0 auto;
 }
 
-.desktop-mode-my-wordpress__article-title {
+.os-my-wordpress__article-title {
 	font-size: 22px;
 	margin: 0 0 8px;
 	line-height: 1.3;
 }
 
-.desktop-mode-my-wordpress__article-meta {
+.os-my-wordpress__article-meta {
 	margin: 0 0 16px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 12px;
 }
 
-.desktop-mode-my-wordpress__article-hero {
+.os-my-wordpress__article-hero {
 	width: 100%;
 	height: auto;
 	border-radius: 6px;
@@ -461,20 +655,20 @@
 	display: block;
 }
 
-.desktop-mode-my-wordpress__article-content {
+.os-my-wordpress__article-content {
 	font-size: 14px;
 	line-height: 1.6;
 }
 
-.desktop-mode-my-wordpress__article-content img {
+.os-my-wordpress__article-content img {
 	max-width: 100%;
 	height: auto;
 }
 
-.desktop-mode-my-wordpress__article-footer {
+.os-my-wordpress__article-footer {
 	margin-top: 24px;
 	padding-top: 16px;
-	border-top: 1px solid var( --wpd-border, #dcdcde );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
@@ -484,33 +678,33 @@
 
 /* ----- Empty / error states ----- */
 
-.desktop-mode-my-wordpress__empty,
-.desktop-mode-my-wordpress__error {
+.os-my-wordpress__empty,
+.os-my-wordpress__error {
 	padding: 32px 24px;
 	text-align: center;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 	font-size: 13px;
 }
 
-.desktop-mode-my-wordpress__error {
-	color: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
+.os-my-wordpress__error {
+	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
 }
 
 /* ----- Hover tooltip (floats over body) ----- */
 
-.desktop-mode-my-wordpress__tooltip {
+.os-my-wordpress__tooltip {
 	position: fixed;
 	z-index: 100000;
 	max-width: 320px;
 	background: var(
-		--desktop-mode-tooltip-bg,
-		var( --desktop-mode-surface, var( --wpd-surface, #fff ) )
+		--os-tooltip-bg,
+		var( --os-surface, var( --os-ui-surface, #fff ) )
 	);
 	color: var(
-		--desktop-mode-tooltip-fg,
-		var( --desktop-mode-fg, #1d2327 )
+		--os-tooltip-fg,
+		var( --os-fg, #1d2327 )
 	);
-	border: 1px solid var( --wpd-border, #dcdcde );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 6px;
 	padding: 12px;
 	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
@@ -518,13 +712,13 @@
 	pointer-events: none;
 }
 
-.desktop-mode-my-wordpress__tooltip-title {
+.os-my-wordpress__tooltip-title {
 	font-weight: 600;
 	margin-bottom: 6px;
 	font-size: 13px;
 }
 
-.desktop-mode-my-wordpress__tooltip-thumb {
+.os-my-wordpress__tooltip-thumb {
 	display: block;
 	max-width: 100%;
 	height: auto;
@@ -532,15 +726,15 @@
 	margin: 6px 0;
 }
 
-.desktop-mode-my-wordpress__tooltip-excerpt {
+.os-my-wordpress__tooltip-excerpt {
 	margin: 0;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	line-height: 1.4;
 }
 
 /* ----- Context menu host ----- */
 
-.desktop-mode-my-wordpress__menu {
+.os-my-wordpress__menu {
 	position: fixed;
 	z-index: 100001;
 }
@@ -554,18 +748,18 @@
  * helping readability.
  * --------------------------------------------------------------- */
 
-.desktop-mode-my-wordpress__user {
+.os-my-wordpress__user {
 	max-width: 720px;
 }
 
-.desktop-mode-my-wordpress__user-header {
+.os-my-wordpress__user-header {
 	display: flex;
 	gap: 16px;
 	align-items: center;
 	margin-bottom: 16px;
 }
 
-.desktop-mode-my-wordpress__user-avatar {
+.os-my-wordpress__user-avatar {
 	width: 96px;
 	height: 96px;
 	border-radius: 50%;
@@ -573,24 +767,24 @@
 	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.12 );
 }
 
-.desktop-mode-my-wordpress__user-headline {
+.os-my-wordpress__user-headline {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.desktop-mode-my-wordpress__user
-	.desktop-mode-my-wordpress__article-title {
+.os-my-wordpress__user
+	.os-my-wordpress__article-title {
 	margin: 0 0 4px;
 }
 
-.desktop-mode-my-wordpress__user-roles {
+.os-my-wordpress__user-roles {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-bottom: 6px;
 }
 
-.desktop-mode-my-wordpress__user-role {
+.os-my-wordpress__user-role {
 	display: inline-flex;
 	align-items: center;
 	padding: 2px 8px;
@@ -603,50 +797,50 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-my-wordpress__user-links {
+.os-my-wordpress__user-links {
 	display: flex;
 	gap: 12px;
 	font-size: 12px;
 }
 
-.desktop-mode-my-wordpress__user-links a {
-	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
+.os-my-wordpress__user-links a {
+	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
-.desktop-mode-my-wordpress__user-links a:hover {
+.os-my-wordpress__user-links a:hover {
 	text-decoration: underline;
 }
 
-.desktop-mode-my-wordpress__user-bio {
+.os-my-wordpress__user-bio {
 	font-size: 14px;
 	line-height: 1.5;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 	margin: 0 0 16px;
 	padding-left: 12px;
-	border-left: 3px solid var( --wpd-border, #dcdcde );
+	border-left: 3px solid var( --os-ui-border, #dcdcde );
 }
 
 /* ----- Stat cards row ----- */
 
-.desktop-mode-my-wordpress__user-stats {
+.os-my-wordpress__user-stats {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 120px, 1fr ) );
 	gap: 8px;
 	margin-bottom: 20px;
 }
 
-.desktop-mode-my-wordpress__user-stat {
+.os-my-wordpress__user-stat {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	padding: 12px 14px;
 	border-radius: 8px;
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__user-stat-value {
+.os-my-wordpress__user-stat-value {
 	font-size: 26px;
 	font-weight: 700;
 	line-height: 1.1;
@@ -654,34 +848,34 @@
 	font-variant-numeric: tabular-nums;
 }
 
-.desktop-mode-my-wordpress__user-stat-label {
+.os-my-wordpress__user-stat-label {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
-.desktop-mode-my-wordpress__user-stat-caption {
+.os-my-wordpress__user-stat-caption {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* ----- 12-month activity sparkline ----- */
 
-.desktop-mode-my-wordpress__user-section {
+.os-my-wordpress__user-section {
 	margin-bottom: 20px;
 }
 
-.desktop-mode-my-wordpress__user-section h3 {
+.os-my-wordpress__user-section h3 {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin: 0 0 8px;
 }
 
-.desktop-mode-my-wordpress__user-spark-chart {
+.os-my-wordpress__user-spark-chart {
 	display: grid;
 	grid-template-columns: repeat( 12, 1fr );
 	gap: 4px;
@@ -690,7 +884,7 @@
 	padding: 6px 0;
 }
 
-.desktop-mode-my-wordpress__user-spark-col {
+.os-my-wordpress__user-spark-col {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
@@ -700,7 +894,7 @@
 	min-height: 0;
 }
 
-.desktop-mode-my-wordpress__user-spark-bar {
+.os-my-wordpress__user-spark-bar {
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
@@ -711,36 +905,36 @@
 	transition: height 0.3s ease;
 }
 
-.desktop-mode-my-wordpress__user-spark-bar--empty {
-	background: var( --wpd-border, #dcdcde );
+.os-my-wordpress__user-spark-bar--empty {
+	background: var( --os-ui-border, #dcdcde );
 	min-height: 2px;
 	height: 2px !important;
 }
 
-.desktop-mode-my-wordpress__user-spark-label {
+.os-my-wordpress__user-spark-label {
 	font-size: 10px;
 	text-align: center;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* ----- Milestones ----- */
 
-.desktop-mode-my-wordpress__user-milestones {
+.os-my-wordpress__user-milestones {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
 	gap: 12px;
 	margin: 0 0 20px;
 }
 
-.desktop-mode-my-wordpress__user-milestones dt {
+.os-my-wordpress__user-milestones dt {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin-bottom: 2px;
 }
 
-.desktop-mode-my-wordpress__user-milestones dd {
+.os-my-wordpress__user-milestones dd {
 	font-size: 14px;
 	font-weight: 600;
 	margin: 0;
@@ -748,7 +942,7 @@
 
 /* ----- Recent posts list ----- */
 
-.desktop-mode-my-wordpress__user-recent {
+.os-my-wordpress__user-recent {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -757,55 +951,55 @@
 	gap: 6px;
 }
 
-.desktop-mode-my-wordpress__user-recent li {
+.os-my-wordpress__user-recent li {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	padding: 8px 10px;
 	border-radius: 6px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.02 ) );
 }
 
-.desktop-mode-my-wordpress__user-recent a {
+.os-my-wordpress__user-recent a {
 	font-weight: 600;
-	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
+	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
-.desktop-mode-my-wordpress__user-recent a:hover {
+.os-my-wordpress__user-recent a:hover {
 	text-decoration: underline;
 }
 
-.desktop-mode-my-wordpress__user-recent-meta {
+.os-my-wordpress__user-recent-meta {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* ----- Top categories chips ----- */
 
-.desktop-mode-my-wordpress__user-chips {
+.os-my-wordpress__user-chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.desktop-mode-my-wordpress__user-chip {
+.os-my-wordpress__user-chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	padding: 4px 10px;
 	border-radius: 999px;
 	font-size: 12px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__user-chip--tag {
+.os-my-wordpress__user-chip--tag {
 	background: rgba( 124, 58, 237, 0.08 );
 	border-color: rgba( 124, 58, 237, 0.25 );
 }
 
-.desktop-mode-my-wordpress__user-chip-count {
+.os-my-wordpress__user-chip-count {
 	font-weight: 700;
 	color: var( --wp-admin-theme-color, #2271b1 );
 	font-variant-numeric: tabular-nums;
@@ -820,14 +1014,14 @@
  * post count.
  * --------------------------------------------------------------- */
 
-.desktop-mode-my-wordpress__term-header {
+.os-my-wordpress__term-header {
 	display: flex;
 	align-items: center;
 	gap: 16px;
 	margin-bottom: 16px;
 }
 
-.desktop-mode-my-wordpress__term-icon {
+.os-my-wordpress__term-icon {
 	width: 64px;
 	height: 64px;
 	border-radius: 12px;
@@ -835,61 +1029,61 @@
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.desktop-mode-my-wordpress__term-icon--category {
-	background: linear-gradient( 135deg, var( --wpd-accent, #2271b1 ) 0%, var( --wpd-accent-strong, #135e96 ) 100% );
+.os-my-wordpress__term-icon--category {
+	background: linear-gradient( 135deg, var( --os-ui-accent, #2271b1 ) 0%, var( --os-ui-accent-strong, #135e96 ) 100% );
 	box-shadow: 0 4px 12px rgba( 34, 113, 177, 0.32 );
 }
 
-.desktop-mode-my-wordpress__term-icon--tag {
+.os-my-wordpress__term-icon--tag {
 	background: linear-gradient( 135deg, #7c3aed 0%, #5b21b6 100% );
 	box-shadow: 0 4px 12px rgba( 124, 58, 237, 0.32 );
 }
 
-.desktop-mode-my-wordpress__user-role--category {
+.os-my-wordpress__user-role--category {
 	background: rgba( 34, 113, 177, 0.12 );
-	color: var( --wpd-accent-strong, #135e96 );
+	color: var( --os-ui-accent-strong, #135e96 );
 }
 
-.desktop-mode-my-wordpress__user-role--tag {
+.os-my-wordpress__user-role--tag {
 	background: rgba( 124, 58, 237, 0.12 );
 	color: #6d28d9;
 }
 
 /* Top contributors row — paired avatar + name + post count. */
-.desktop-mode-my-wordpress__term-authors {
+.os-my-wordpress__term-authors {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
 	gap: 8px;
 }
 
-.desktop-mode-my-wordpress__term-author {
+.os-my-wordpress__term-author {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 8px 12px;
 	border-radius: 8px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__term-author-avatar {
+.os-my-wordpress__term-author-avatar {
 	width: 36px;
 	height: 36px;
 	border-radius: 50%;
 	flex-shrink: 0;
 }
 
-.desktop-mode-my-wordpress__term-author-text {
+.os-my-wordpress__term-author-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	min-width: 0;
 }
 
-.desktop-mode-my-wordpress__term-author-name {
+.os-my-wordpress__term-author-name {
 	font-weight: 600;
 	font-size: 13px;
 	overflow: hidden;
@@ -897,9 +1091,9 @@
 	white-space: nowrap;
 }
 
-.desktop-mode-my-wordpress__term-author-count {
+.os-my-wordpress__term-author-count {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 /* ---------------------------------------------------------------
@@ -910,37 +1104,37 @@
  * for users with moderate_comments.
  * --------------------------------------------------------------- */
 
-.desktop-mode-my-wordpress__comment-status--approved {
+.os-my-wordpress__comment-status--approved {
 	background: rgba( 34, 113, 177, 0.12 );
-	color: var( --wpd-accent-strong, #135e96 );
+	color: var( --os-ui-accent-strong, #135e96 );
 }
 
-.desktop-mode-my-wordpress__comment-status--pending {
+.os-my-wordpress__comment-status--pending {
 	background: rgba( 217, 119, 6, 0.16 );
 	color: #b45309;
 }
 
-.desktop-mode-my-wordpress__comment-status--spam {
+.os-my-wordpress__comment-status--spam {
 	background: rgba( 179, 45, 46, 0.14 );
-	color: var( --wpd-danger-hover, #b32d2e );
+	color: var( --os-ui-danger-hover, #b32d2e );
 }
 
-.desktop-mode-my-wordpress__comment-status--trash {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) );
-	color: var( --wpd-fg-muted, #50575e );
+.os-my-wordpress__comment-status--trash {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.desktop-mode-my-wordpress__comment-date-badge {
+.os-my-wordpress__comment-date-badge {
 	background: transparent;
-	color: var( --wpd-fg-muted, #50575e );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	color: var( --os-ui-fg-muted, #50575e );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 	text-transform: none;
 	letter-spacing: normal;
 }
 
 /* "In reply to ..." quote shown above the comment body when this
  * is a thread reply. */
-.desktop-mode-my-wordpress__comment-quote {
+.os-my-wordpress__comment-quote {
 	margin: 0 0 16px;
 	padding: 10px 14px;
 	border-left: 3px solid var( --wp-admin-theme-color, #2271b1 );
@@ -949,57 +1143,57 @@
 	font-size: 13px;
 }
 
-.desktop-mode-my-wordpress__comment-quote-lead {
+.os-my-wordpress__comment-quote-lead {
 	font-size: 11px;
 	font-weight: 600;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin-bottom: 4px;
 }
 
-.desktop-mode-my-wordpress__comment-quote p {
+.os-my-wordpress__comment-quote p {
 	margin: 0;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 }
 
 /* Comment body — same style as article-content but with a soft
  * card background so it reads as the focal element. */
-.desktop-mode-my-wordpress__comment-body {
+.os-my-wordpress__comment-body {
 	padding: 14px 16px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
 	border-radius: 8px;
-	border: 1px solid var( --wpd-border, #dcdcde );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
 /* Parent-post card under the comment body. */
-.desktop-mode-my-wordpress__comment-post {
+.os-my-wordpress__comment-post {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 	padding: 10px 14px;
 	border-radius: 8px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__comment-post-title {
+.os-my-wordpress__comment-post-title {
 	font-weight: 600;
-	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
+	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
-.desktop-mode-my-wordpress__comment-post-title:hover {
+.os-my-wordpress__comment-post-title:hover {
 	text-decoration: underline;
 }
 
-.desktop-mode-my-wordpress__comment-post-meta {
+.os-my-wordpress__comment-post-meta {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* Replies list. */
-.desktop-mode-my-wordpress__comment-replies {
+.os-my-wordpress__comment-replies {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -1008,51 +1202,51 @@
 	gap: 10px;
 }
 
-.desktop-mode-my-wordpress__comment-reply {
+.os-my-wordpress__comment-reply {
 	display: flex;
 	gap: 10px;
 	align-items: flex-start;
 	padding: 10px 12px;
 	border-radius: 8px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
-	border: 1px solid var( --wpd-border, #dcdcde );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.02 ) );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__comment-reply-avatar {
+.os-my-wordpress__comment-reply-avatar {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
 	flex-shrink: 0;
 }
 
-.desktop-mode-my-wordpress__comment-reply-text {
+.os-my-wordpress__comment-reply-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	min-width: 0;
 }
 
-.desktop-mode-my-wordpress__comment-reply-head {
+.os-my-wordpress__comment-reply-head {
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
 	flex-wrap: wrap;
 }
 
-.desktop-mode-my-wordpress__comment-reply-name {
+.os-my-wordpress__comment-reply-name {
 	font-weight: 600;
 	font-size: 13px;
 }
 
-.desktop-mode-my-wordpress__comment-reply-when {
+.os-my-wordpress__comment-reply-when {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-my-wordpress__comment-reply-excerpt {
+.os-my-wordpress__comment-reply-excerpt {
 	margin: 0;
 	font-size: 13px;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 	line-height: 1.45;
 }
 
@@ -1069,7 +1263,7 @@
  * =================================================================== */
 
 /* User tile — replaces the dashicon glyph with a real avatar */
-.desktop-mode-my-wordpress__tile--user {
+.os-my-wordpress__tile--user {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -1079,7 +1273,7 @@
 	box-sizing: border-box;
 }
 
-.desktop-mode-my-wordpress__user-tile-avatar {
+.os-my-wordpress__user-tile-avatar {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1098,14 +1292,14 @@
 	flex: 0 0 auto;
 }
 
-.desktop-mode-my-wordpress__user-tile-avatar img {
+.os-my-wordpress__user-tile-avatar img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	display: block;
 }
 
-.desktop-mode-my-wordpress__user-tile-initials {
+.os-my-wordpress__user-tile-initials {
 	font-weight: 600;
 	font-size: 14px;
 	letter-spacing: 0.02em;
@@ -1116,7 +1310,7 @@
 /* Single-line label for user tiles — we already have a generic
  * label clamp, but the user variant gets only ONE line so the
  * sub-line ("Editor · 12 posts") can fit beneath it. */
-.desktop-mode-my-wordpress__tile--user .desktop-mode-file-tile__label {
+.os-my-wordpress__tile--user .os-file-tile__label {
 	font-size: 11px;
 	font-weight: 500;
 	line-height: 1.25;
@@ -1129,10 +1323,10 @@
 	box-sizing: border-box;
 }
 
-.desktop-mode-my-wordpress__user-tile-sub {
+.os-my-wordpress__user-tile-sub {
 	font-size: 10px;
 	line-height: 1.2;
-	color: var( --desktop-mode-tile-fg-muted, rgba( 0, 0, 0, 0.55 ) );
+	color: var( --os-tile-fg-muted, rgba( 0, 0, 0, 0.55 ) );
 	max-height: 1.2em;
 	white-space: nowrap;
 	overflow: hidden;
@@ -1144,7 +1338,7 @@
 }
 
 /* Selected/hover user tiles inherit the same chrome the post tiles
- * use — see `.desktop-mode-my-wordpress__tile--selected` above. */
+ * use — see `.os-my-wordpress__tile--selected` above. */
 
 /* ----- Activity footprint — full-width body surface -----
  *
@@ -1154,7 +1348,7 @@
  * to read.
  */
 
-.desktop-mode-my-wordpress__footprint {
+.os-my-wordpress__footprint {
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
@@ -1169,18 +1363,18 @@
 	align-items: center;
 }
 
-.desktop-mode-my-wordpress__footprint > * {
+.os-my-wordpress__footprint > * {
 	width: 100%;
 	max-width: 1080px;
 }
 
-.desktop-mode-my-wordpress__footprint-section {
-	border: 1px solid var( --wpd-border, #dcdcde );
+.os-my-wordpress__footprint-section {
+	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 12px;
 	padding: 18px 20px;
 	background: var(
-		--desktop-mode-my-wordpress-surface,
-		var( --desktop-mode-surface, var( --wpd-surface, rgba( 255, 255, 255, 0.6 ) ) )
+		--os-my-wordpress-surface,
+		var( --os-surface, var( --os-ui-surface, rgba( 255, 255, 255, 0.6 ) ) )
 	);
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.04 );
 	/* The parent `.__footprint` is a flex column with `overflow-y:
@@ -1194,18 +1388,18 @@
 	flex: 0 0 auto;
 }
 
-.desktop-mode-my-wordpress__footprint-section h3 {
+.os-my-wordpress__footprint-section h3 {
 	margin: 0 0 12px;
 	font-size: 13px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 /* ----- Hero ----- */
 
-.desktop-mode-my-wordpress__footprint-hero {
+.os-my-wordpress__footprint-hero {
 	display: flex;
 	gap: 20px;
 	align-items: center;
@@ -1217,10 +1411,10 @@
 		rgba( 34, 113, 177, 0.02 ) 60%,
 		transparent 100%
 	);
-	border: 1px solid var( --wpd-border, #dcdcde );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__footprint-avatar {
+.os-my-wordpress__footprint-avatar {
 	width: 112px;
 	height: 112px;
 	border-radius: 50%;
@@ -1239,19 +1433,19 @@
 	justify-content: center;
 }
 
-.desktop-mode-my-wordpress__footprint-avatar img {
+.os-my-wordpress__footprint-avatar img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	display: block;
 }
 
-.desktop-mode-my-wordpress__footprint-avatar
-	.desktop-mode-my-wordpress__user-tile-initials {
+.os-my-wordpress__footprint-avatar
+	.os-my-wordpress__user-tile-initials {
 	font-size: 36px;
 }
 
-.desktop-mode-my-wordpress__footprint-headline {
+.os-my-wordpress__footprint-headline {
 	min-width: 0;
 	flex: 1 1 auto;
 	display: flex;
@@ -1259,48 +1453,48 @@
 	gap: 8px;
 }
 
-.desktop-mode-my-wordpress__footprint-title {
+.os-my-wordpress__footprint-title {
 	margin: 0;
 	font-size: 28px;
 	line-height: 1.15;
 	font-weight: 700;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 }
 
-.desktop-mode-my-wordpress__footprint-meta {
+.os-my-wordpress__footprint-meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	align-items: center;
 }
 
-.desktop-mode-my-wordpress__footprint-since {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
-	color: var( --wpd-fg-muted, #50575e );
+.os-my-wordpress__footprint-since {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 /* ----- Headline stats row (4 cards) ----- */
 
-.desktop-mode-my-wordpress__footprint-stats-row {
+.os-my-wordpress__footprint-stats-row {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
 	gap: 12px;
 	padding: 16px 18px;
 }
 
-.desktop-mode-my-wordpress__footprint-stats-row
-	.desktop-mode-my-wordpress__user-stat {
-	background: var( --desktop-mode-surface, var( --wpd-surface, rgba( 255, 255, 255, 0.9 ) ) );
+.os-my-wordpress__footprint-stats-row
+	.os-my-wordpress__user-stat {
+	background: var( --os-surface, var( --os-ui-surface, rgba( 255, 255, 255, 0.9 ) ) );
 	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.04 );
 }
 
 /* ----- Calendar heatmap (GitHub-style) ----- */
 
-.desktop-mode-my-wordpress__footprint-calendar-section {
+.os-my-wordpress__footprint-calendar-section {
 	overflow-x: auto;
 }
 
-.desktop-mode-my-wordpress__footprint-calendar {
+.os-my-wordpress__footprint-calendar {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -1313,7 +1507,7 @@
 	margin-inline: auto;
 }
 
-.desktop-mode-my-wordpress__footprint-grid {
+.os-my-wordpress__footprint-grid {
 	display: grid;
 	/* Row 1 holds month labels (auto height); rows 2–8 are the 7
 	 * weekdays at fixed 11px. Col 1 holds weekday labels (auto width);
@@ -1327,15 +1521,15 @@
 	width: max-content;
 }
 
-.desktop-mode-my-wordpress__footprint-month,
-.desktop-mode-my-wordpress__footprint-weekday {
+.os-my-wordpress__footprint-month,
+.os-my-wordpress__footprint-weekday {
 	font-size: 10px;
 	line-height: 11px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	white-space: nowrap;
 }
 
-.desktop-mode-my-wordpress__footprint-weekday {
+.os-my-wordpress__footprint-weekday {
 	/* Sit flush to the right of the label gutter so each label reads
 	 * adjacent to its row. The 6px breathing room is in addition to
 	 * the grid's column-gap. */
@@ -1344,84 +1538,84 @@
 	justify-self: end;
 }
 
-.desktop-mode-my-wordpress__footprint-month {
+.os-my-wordpress__footprint-month {
 	padding-bottom: 2px;
 }
 
-.desktop-mode-my-wordpress__footprint-cell {
+.os-my-wordpress__footprint-cell {
 	width: 11px;
 	height: 11px;
 	border-radius: 2px;
-	background: var( --wpd-border, #ebedf0 );
+	background: var( --os-ui-border, #ebedf0 );
 	display: inline-block;
 	transition: transform 0.12s ease;
 }
 
-.desktop-mode-my-wordpress__footprint-cell--pad {
+.os-my-wordpress__footprint-cell--pad {
 	background: transparent;
 }
 
-.desktop-mode-my-wordpress__footprint-cell--l0 {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+.os-my-wordpress__footprint-cell--l0 {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) );
 }
 
-.desktop-mode-my-wordpress__footprint-cell--l1 {
+.os-my-wordpress__footprint-cell--l1 {
 	background: rgba( 34, 113, 177, 0.25 );
 }
 
-.desktop-mode-my-wordpress__footprint-cell--l2 {
+.os-my-wordpress__footprint-cell--l2 {
 	background: rgba( 34, 113, 177, 0.5 );
 }
 
-.desktop-mode-my-wordpress__footprint-cell--l3 {
+.os-my-wordpress__footprint-cell--l3 {
 	background: rgba( 34, 113, 177, 0.75 );
 }
 
-.desktop-mode-my-wordpress__footprint-cell--l4 {
+.os-my-wordpress__footprint-cell--l4 {
 	background: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-my-wordpress__footprint-cell:hover {
+.os-my-wordpress__footprint-cell:hover {
 	transform: scale( 1.4 );
 	z-index: 1;
 }
 
-.desktop-mode-my-wordpress__footprint-legend {
+.os-my-wordpress__footprint-legend {
 	display: flex;
 	gap: 4px;
 	align-items: center;
 	justify-content: flex-end;
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
-.desktop-mode-my-wordpress__footprint-legend-label {
+.os-my-wordpress__footprint-legend-label {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	padding: 0 4px;
 }
 
 /* ----- Rhythm (weekday + hour bar charts) ----- */
 
-.desktop-mode-my-wordpress__footprint-rhythm-grid {
+.os-my-wordpress__footprint-rhythm-grid {
 	display: grid;
 	grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1.7fr );
 	gap: 24px;
 }
 
 @container ( max-width: 720px ) {
-	.desktop-mode-my-wordpress__footprint-rhythm-grid {
+	.os-my-wordpress__footprint-rhythm-grid {
 		grid-template-columns: 1fr;
 	}
 }
 
-.desktop-mode-my-wordpress__footprint-chart-caption {
+.os-my-wordpress__footprint-chart-caption {
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	margin-bottom: 6px;
 }
 
-.desktop-mode-my-wordpress__footprint-bars {
+.os-my-wordpress__footprint-bars {
 	display: flex;
 	align-items: end;
 	gap: 4px;
@@ -1430,7 +1624,7 @@
 	position: relative;
 }
 
-.desktop-mode-my-wordpress__footprint-bar-col {
+.os-my-wordpress__footprint-bar-col {
 	flex: 1 1 0;
 	min-width: 0;
 	display: flex;
@@ -1442,7 +1636,7 @@
 	position: relative;
 }
 
-.desktop-mode-my-wordpress__footprint-bar {
+.os-my-wordpress__footprint-bar {
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
@@ -1453,25 +1647,25 @@
 	transition: opacity 0.2s ease;
 }
 
-.desktop-mode-my-wordpress__footprint-bar--empty {
-	background: var( --wpd-border, #dcdcde );
+.os-my-wordpress__footprint-bar--empty {
+	background: var( --os-ui-border, #dcdcde );
 	height: 2px !important;
 	min-height: 2px;
 }
 
-.desktop-mode-my-wordpress__footprint-bar-label {
+.os-my-wordpress__footprint-bar-label {
 	position: absolute;
 	bottom: -16px;
 	left: 0;
 	right: 0;
 	text-align: center;
 	font-size: 10px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* ----- Most-prolific-month callout ----- */
 
-.desktop-mode-my-wordpress__footprint-callout {
+.os-my-wordpress__footprint-callout {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
@@ -1485,31 +1679,31 @@
 	);
 }
 
-.desktop-mode-my-wordpress__footprint-callout-label {
+.os-my-wordpress__footprint-callout-label {
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-weight: 600;
 }
 
-.desktop-mode-my-wordpress__footprint-callout-value {
+.os-my-wordpress__footprint-callout-value {
 	margin: 2px 0;
 	font-size: 24px;
 	font-weight: 700;
-	color: var( --desktop-mode-fg, #1d2327 );
+	color: var( --os-fg, #1d2327 );
 }
 
-.desktop-mode-my-wordpress__footprint-callout-detail {
+.os-my-wordpress__footprint-callout-detail {
 	margin: 0;
 	font-size: 13px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	max-width: 480px;
 }
 
 /* ----- Recent-activity timeline ----- */
 
-.desktop-mode-my-wordpress__footprint-timeline {
+.os-my-wordpress__footprint-timeline {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -1519,18 +1713,18 @@
 	gap: 12px;
 }
 
-.desktop-mode-my-wordpress__footprint-timeline::before {
+.os-my-wordpress__footprint-timeline::before {
 	content: '';
 	position: absolute;
 	inset-inline-start: 13px;
 	top: 4px;
 	bottom: 4px;
 	width: 2px;
-	background: var( --wpd-border, #dcdcde );
+	background: var( --os-ui-border, #dcdcde );
 	border-radius: 1px;
 }
 
-.desktop-mode-my-wordpress__footprint-event {
+.os-my-wordpress__footprint-event {
 	display: flex;
 	gap: 12px;
 	align-items: flex-start;
@@ -1539,7 +1733,7 @@
 	min-height: 28px;
 }
 
-.desktop-mode-my-wordpress__footprint-dot {
+.os-my-wordpress__footprint-dot {
 	position: absolute;
 	inset-inline-start: 0;
 	top: 0;
@@ -1549,25 +1743,25 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --desktop-mode-surface, var( --wpd-surface, #fff ) );
+	background: var( --os-surface, var( --os-ui-surface, #fff ) );
 	border: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-my-wordpress__footprint-event--comment
-	.desktop-mode-my-wordpress__footprint-dot {
-	border-color: var( --wpd-fg-muted, #787c82 );
-	color: var( --wpd-fg-muted, #787c82 );
+.os-my-wordpress__footprint-event--comment
+	.os-my-wordpress__footprint-dot {
+	border-color: var( --os-ui-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-my-wordpress__footprint-dot .dashicons {
+.os-my-wordpress__footprint-dot .dashicons {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
 	line-height: 1;
 }
 
-.desktop-mode-my-wordpress__footprint-event-body {
+.os-my-wordpress__footprint-event-body {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -1575,28 +1769,28 @@
 	flex: 1 1 auto;
 }
 
-.desktop-mode-my-wordpress__footprint-event-title {
+.os-my-wordpress__footprint-event-title {
 	font-weight: 600;
 	font-size: 13px;
-	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
+	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	text-decoration: none;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-a.desktop-mode-my-wordpress__footprint-event-title:hover {
+a.os-my-wordpress__footprint-event-title:hover {
 	text-decoration: underline;
 }
 
-.desktop-mode-my-wordpress__footprint-event-meta {
+.os-my-wordpress__footprint-event-meta {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
 /* ----- Footer actions ----- */
 
-.desktop-mode-my-wordpress__footprint-footer {
+.os-my-wordpress__footprint-footer {
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
@@ -1626,7 +1820,7 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
  *      tile edges; `overflow: hidden` on the parent crops it
  *      into a clean triangle.
  *
- *  The status tiles need a positioning context. `.desktop-mode-
+ *  The status tiles need a positioning context. `.os-
  *  file-tile` is `position: absolute` (canvas layout) on the
  *  Posts/Pages browse views — that satisfies the positioning-
  *  context requirement. For the Media drill-in usage tiles we
@@ -1635,24 +1829,24 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
  * ============================================================ */
 
 /* Status ribbon — the diagonal corner banner — is now drawn by
- * the `<wpd-ribbon>` web component slotted inside `<wpd-tile>`.
+ * the `<os-ribbon>` web component slotted inside `<os-tile>`.
  * The component's own shadow-DOM styles own placement, rotation,
  * background, lettering, and the WP admin-theme tint. The only
  * surface-specific rule left here is dimming the icon on non-
  * published tiles so the unpublished signal carries even when
  * the ribbon is hidden via the OS-settings toggle. */
 
-.desktop-mode-my-wordpress__tile--draft,
-.desktop-mode-my-wordpress__tile--pending,
-.desktop-mode-my-wordpress__tile--private,
-.desktop-mode-my-wordpress__tile--future {
+.os-my-wordpress__tile--draft,
+.os-my-wordpress__tile--pending,
+.os-my-wordpress__tile--private,
+.os-my-wordpress__tile--future {
 	overflow: hidden;
 }
 
-wpd-tile[ status='draft' ] .desktop-mode-file-tile__icon,
-wpd-tile[ status='pending' ] .desktop-mode-file-tile__icon,
-wpd-tile[ status='private' ] .desktop-mode-file-tile__icon,
-wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
+os-tile[ status='draft' ] .os-file-tile__icon,
+os-tile[ status='pending' ] .os-file-tile__icon,
+os-tile[ status='private' ] .os-file-tile__icon,
+os-tile[ status='future' ] .os-file-tile__icon {
 	opacity: 0.7;
 }
 
@@ -1660,29 +1854,37 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
  *  Media section (since 0.21.0)
  * ============================================================ */
 
-.desktop-mode-my-wordpress__media-grid {
+.os-my-wordpress__media-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 120px, 1fr ) );
-	gap: 12px;
-	padding: 16px;
+	/* A flow grid rather than the absolute canvas, but the air
+	 * between two icons should not depend on which window you are
+	 * looking at — so the gaps and the gutter come from the same
+	 * tokens the canvas pitch is built from. */
+	gap: var( --os-grid-gap-y, 16px ) var( --os-grid-gap-x, 20px );
+	padding: var( --os-grid-padding, 16px );
 	overflow-y: auto;
 	align-content: start;
 }
 
-.desktop-mode-my-wordpress__media-tile {
-	/* Override the base `.desktop-mode-file-tile` (position: absolute,
+.os-my-wordpress__media-tile {
+	/* Override the base `.os-file-tile` (position: absolute,
 	 * width: 88px) so media tiles flow inside the CSS Grid instead of
 	 * stacking at (0,0) like the absolute-positioned post/user tiles.
 	 *
 	 * `relative` (not `static`) so the tile remains a containing
 	 * block for absolutely-positioned descendants — the `::after`
 	 * shortcut-arrow badge on attachment tiles, and the
-	 * `<wpd-ribbon>` post-status corner ribbon — both of which
+	 * `<os-ribbon>` post-status corner ribbon — both of which
 	 * would otherwise escape to the nearest positioned ancestor
 	 * (the window, the desktop, the viewport) and render way off
 	 * the tile. */
 	position: relative;
 	width: auto;
+	/* …and out of the fixed tile height for the same reason: a media
+	 * tile is a square thumbnail plus a caption, sized by the grid
+	 * column it lands in, not by the icon-canvas cell. */
+	height: auto;
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
@@ -1696,11 +1898,11 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	min-width: 0;
 }
 
-.desktop-mode-my-wordpress__media-tile:hover {
-	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
+.os-my-wordpress__media-tile:hover {
+	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
 }
 
-/* Media tiles inherit the canonical `.desktop-mode-file-tile--selected`
+/* Media tiles inherit the canonical `.os-file-tile--selected`
  * rule from `desktop-files.css` — accent inset border + tinted
  * background — same as every other tile in the shell. */
 
@@ -1710,7 +1912,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
  * folder-icon look. Applies to BOTH the `<img>` (real thumbnail)
  * and the dashicon fallback (non-image MIME), so the two tile
  * shapes are visually consistent in the grid. */
-.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__visual {
+.os-my-wordpress__media-tile .os-file-tile__visual {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1720,7 +1922,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	overflow: hidden;
 	border-radius: 6px;
 	background: var(
-		--desktop-mode-media-tile-bg,
+		--os-media-tile-bg,
 		rgba( 0, 0, 0, 0.05 )
 	);
 	/* Reset the base 32px font + 48px size since we're sizing the
@@ -1729,23 +1931,23 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	line-height: 1;
 }
 
-.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__preview {
+.os-my-wordpress__media-tile .os-file-tile__preview {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	border-radius: 0;
 }
 
-.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__icon {
+.os-my-wordpress__media-tile .os-file-tile__icon {
 	/* Centered dashicon fallback — proportional to the larger
 	 * thumbnail well so it doesn't look like a postage stamp. */
 	width: auto;
 	height: auto;
 	font-size: 36px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__label {
+.os-my-wordpress__media-tile .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.3;
 	overflow: hidden;
@@ -1757,50 +1959,50 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 
 /* ----- Media preview pane ----- */
 
-.desktop-mode-my-wordpress__media-pane {
+.os-my-wordpress__media-pane {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
 	padding: 16px;
 }
 
-.desktop-mode-my-wordpress__media-title {
+.os-my-wordpress__media-title {
 	font-size: 16px;
 	font-weight: 600;
 	margin: 0;
 }
 
-.desktop-mode-my-wordpress__media-visual {
+.os-my-wordpress__media-visual {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --desktop-mode-media-visual-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
+	background: var( --os-media-visual-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
 	border-radius: 8px;
 	min-height: 200px;
 	max-height: 480px;
 	overflow: hidden;
 }
 
-.desktop-mode-my-wordpress__media-image,
-.desktop-mode-my-wordpress__media-video {
+.os-my-wordpress__media-image,
+.os-my-wordpress__media-video {
 	max-width: 100%;
 	max-height: 480px;
 	object-fit: contain;
 }
 
-.desktop-mode-my-wordpress__media-fallback-icon {
+.os-my-wordpress__media-fallback-icon {
 	font-size: 96px;
 	width: 96px;
 	height: 96px;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-.desktop-mode-my-wordpress__media-doc-link {
+.os-my-wordpress__media-doc-link {
 	margin-inline-start: 16px;
 	align-self: center;
 }
 
-.desktop-mode-my-wordpress__media-audio-stack {
+.os-my-wordpress__media-audio-stack {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -1808,7 +2010,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	padding: 24px;
 }
 
-.desktop-mode-my-wordpress__media-meta {
+.os-my-wordpress__media-meta {
 	display: grid;
 	grid-template-columns: max-content 1fr;
 	gap: 4px 16px;
@@ -1816,29 +2018,29 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	margin: 0;
 }
 
-.desktop-mode-my-wordpress__media-meta-term {
-	color: var( --wpd-fg-muted, #787c82 );
+.os-my-wordpress__media-meta-term {
+	color: var( --os-ui-fg-muted, #787c82 );
 	margin: 0;
 }
 
-.desktop-mode-my-wordpress__media-meta-value {
-	color: var( --wpd-fg, #1d2327 );
+.os-my-wordpress__media-meta-value {
+	color: var( --os-ui-fg, #1d2327 );
 	word-break: break-word;
 	margin: 0;
 }
 
-.desktop-mode-my-wordpress__media-actions {
+.os-my-wordpress__media-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 	padding-top: 8px;
-	border-top: 1px solid var( --wpd-border, #dcdcde );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
 }
 
 /* ----- Media drill-in ----- */
 
 /* Drill-in: referencing-posts list. Visually identical to the
- * Posts / Pages tiles — same `desktop-mode-file-tile` chrome (48px
+ * Posts / Pages tiles — same `os-file-tile` chrome (48px
  * dashicon + 88px-wide two-line label). We can't reuse the
  * absolute-positioning canvas layout from `renderEntityList` here
  * (those internals don't export), so this surface uses a flex-wrap
@@ -1848,38 +2050,38 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
  * defaults (which target square thumbnails on 130px columns) so
  * usage tiles match the canvas-flowed post tiles instead.
  */
-.desktop-mode-my-wordpress__usage-grid {
+.os-my-wordpress__usage-grid {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 12px 8px;
-	padding: 16px;
+	gap: var( --os-grid-gap-y, 16px ) var( --os-grid-gap-x, 20px );
+	padding: var( --os-grid-padding, 16px );
 	align-content: flex-start;
 }
 
 /* Reset the `__media-tile` overrides for usage tiles so they
- * inherit the unmodified `.desktop-mode-file-tile` chrome the
+ * inherit the unmodified `.os-file-tile` chrome the
  * canvas-positioned post tiles use — except for `position: static`
  * so they participate in the flex layout. */
-.desktop-mode-my-wordpress__tile--usage {
-	width: 88px;
+.os-my-wordpress__tile--usage {
+	width: var( --os-tile-w, 88px );
 	align-items: center;
 	padding: 8px 4px;
 	gap: 6px;
 }
 
 /* Right-pane summary bar sits ABOVE the inline media preview. */
-.desktop-mode-my-wordpress__media-detail-summary-bar {
+.os-my-wordpress__media-detail-summary-bar {
 	padding: 12px 16px;
-	border-bottom: 1px solid var( --wpd-border, #dcdcde );
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-.desktop-mode-my-wordpress__media-detail-summary {
+.os-my-wordpress__media-detail-summary {
 	margin: 0;
-	color: var( --wpd-fg-muted, #787c82 );
+	color: var( --os-ui-fg-muted, #787c82 );
 	font-size: 13px;
 }
 
-.desktop-mode-my-wordpress__media-detail-preview {
+.os-my-wordpress__media-detail-preview {
 	/* Lets the embedded `__media-pane` keep its own padding without
 	 * fighting the summary bar's spacing. */
 	display: block;
@@ -1911,8 +2113,8 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	min-height: 320px;
 }
 
-.dm-agents__loading wpd-spinner {
-	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
+.dm-agents__loading os-spinner {
+	--os-ui-spinner-size: clamp( 96px, 14vw, 192px );
 }
 
 .dm-agents__layout {
@@ -1936,7 +2138,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	   non-visible overflow zeroed the minimum for free. */
 	min-width: 0;
 	min-height: 0;
-	border-inline-end: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-inline-end: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
 .dm-agents__list-toolbar {
@@ -1970,18 +2172,20 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .dm-agents__row:hover {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --os-hover, rgba( 0, 0, 0, 0.06 ) );
 }
 
 .dm-agents__row.is-selected {
-	background: var( --desktop-mode-selected, rgba( 0, 0, 0, 0.1 ) );
+	background: var( --os-selected, rgba( 0, 0, 0, 0.1 ) );
 }
 
 .dm-agents__row-avatar {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: #fff;
+	/* Placeholder behind the avatar image while it loads — follows the
+	   palette so it isn't a white disc on a dark station. */
+	background: var( --os-ui-surface-elevated, #fff );
 	flex: none;
 }
 
@@ -2027,7 +2231,9 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	width: 48px;
 	height: 48px;
 	border-radius: 50%;
-	background: #fff;
+	/* Placeholder behind the avatar image while it loads — follows the
+	   palette so it isn't a white disc on a dark station. */
+	background: var( --os-ui-surface-elevated, #fff );
 	flex: none;
 }
 
@@ -2058,7 +2264,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 .dm-agents__tabs {
 	display: flex;
 	gap: 4px;
-	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
 .dm-agents__tab {
@@ -2074,7 +2280,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .dm-agents__tab.is-active {
-	border-bottom-color: var( --desktop-mode-accent, #2271b1 );
+	border-bottom-color: var( --os-accent, #2271b1 );
 	opacity: 1;
 	font-weight: 600;
 }
@@ -2096,8 +2302,8 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	min-height: 260px;
 }
 
-.dm-agents__pane--loading wpd-spinner {
-	--wpd-spinner-size: clamp( 96px, 12vw, 160px );
+.dm-agents__pane--loading os-spinner {
+	--os-ui-spinner-size: clamp( 96px, 12vw, 160px );
 }
 
 .dm-agents__hint {
@@ -2130,7 +2336,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .dm-agents__trigger {
-	border: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 8px;
 	padding: 8px 10px;
 	display: flex;

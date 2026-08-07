@@ -1,15 +1,15 @@
 /**
- * Desktop Mode — Window-reveal types.
+ * OpenStation — Window-reveal types.
  *
  * A "window reveal" is the transition that uncovers a window's content
  * once it has finished loading. The shell paints an opaque surface over
  * the window body while the content boots (the same span the
- * `<wpd-spinner>` overlay covers), then animates that surface's
+ * `<os-spinner>` overlay covers), then animates that surface's
  * `clip-path` away — so the page appears to be wiped, irised, or
  * shuttered into view.
  *
  * The surface lives in the SHELL's DOM, as a sibling of the `<iframe>`
- * inside `.desktop-mode-window__body`. Nothing is ever injected into
+ * inside `.os-window__body`. Nothing is ever injected into
  * the framed document, and the iframe itself is never clipped: a reveal
  * cannot interfere with the page it is revealing, and a plugin's native
  * window content is equally untouched.
@@ -168,7 +168,7 @@ export interface WindowRevealDef {
 	easing?: string;
 	/**
 	 * Paint for the covering surface, overriding the
-	 * `--desktop-mode-window-reveal-surface` theme token. Any CSS
+	 * `--os-window-reveal-surface` theme token. Any CSS
 	 * `background` value — a colour, a gradient, an image.
 	 *
 	 * Almost no reveal should set this. The token is the site's to
@@ -184,7 +184,7 @@ export interface WindowRevealDef {
 	surfaceColor?: string;
 	/**
 	 * Paint for the trailing edge, overriding the
-	 * `--desktop-mode-window-reveal-edge` theme token.
+	 * `--os-window-reveal-edge` theme token.
 	 *
 	 * Same warning as {@link surfaceColor}, with one extra use: a
 	 * multi-layer reveal usually wants an edge DARKER than its own
@@ -200,7 +200,7 @@ export interface WindowRevealDef {
 	 * the edge entirely. Clamped to 0–600.
 	 *
 	 * The edge is a second layer painted in
-	 * `--desktop-mode-window-reveal-edge` that sits BEHIND the surface
+	 * `--os-window-reveal-edge` that sits BEHIND the surface
 	 * and runs the very same `from` → `to` keyframes, just over a
 	 * slightly longer duration. Being always a little less far along,
 	 * it peeks out beyond the surface as a band hugging the clip
@@ -218,7 +218,7 @@ export interface WindowRevealDef {
 	 * ships as `transparent`, and while it computes that way the shell
 	 * drops the layer rather than animating something invisible. A
 	 * theme that gives the token a colour also gets
-	 * `--desktop-mode-window-reveal-edge-thickness`, which overrides
+	 * `--os-window-reveal-edge-thickness`, which overrides
 	 * this field outright — thickness is a property of the theme's
 	 * look, not of any one reveal.
 	 */

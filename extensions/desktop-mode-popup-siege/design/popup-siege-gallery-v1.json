@@ -78,7 +78,7 @@
       "sha256": "e622130a6a994357a1c1a207a439383e197af9d7578d53b45f616c3c445fd500"
     },
     "vendor": {
-      "path": "vendor/desktop-mode-0.9.7.zip",
+      "path": "vendor/os-0.9.7.zip",
       "sha256": "691391174af4692ee882113693d4f5ac4d32ad350be9902efbf2ab809597dc1e"
     },
     "lockfile": {

@@ -1,15 +1,15 @@
 <?php
 /**
- * Desktop Mode — Site Views Widget.
+ * OpenStation — Site Views Widget.
  *
  * Sparkline graph of page views over the last 7 days with
  * week-over-week delta. Tries Jetpack Stats first, falls back
  * to a _post_views_YYYY-MM-DD meta-key aggregator.
  *
  * Refresh: every 10 minutes.
- * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
+ * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,20 +21,20 @@ defined( 'ABSPATH' ) || exit;
  * Route: GET /desktop-mode/v1/site-views-meta
  * Permission: edit_posts.
  */
-function desktop_mode_register_site_views_rest_route() {
+function openstation_register_site_views_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/site-views-meta',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_site_views_meta_callback',
+			'callback'            => 'openstation_site_views_meta_callback',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_posts' );
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_site_views_rest_route' );
+add_action( 'rest_api_init', 'openstation_register_site_views_rest_route' );
 
 /**
  * Aggregate _post_views_YYYY-MM-DD meta across all posts for 14 days.
@@ -49,7 +49,7 @@ add_action( 'rest_api_init', 'desktop_mode_register_site_views_rest_route' );
  * @param WP_REST_Request $request REST request.
  * @return array
  */
-function desktop_mode_site_views_meta_callback( $request ) {
+function openstation_site_views_meta_callback( $request ) {
 	global $wpdb;
 
 	$cached = get_transient( 'desktop_mode_site_views_meta' );
@@ -71,7 +71,7 @@ function desktop_mode_site_views_meta_callback( $request ) {
 				$meta_key
 			)
 		);
-		$rows[] = array(
+		$rows[]   = array(
 			'date'  => $date,
 			'views' => $total,
 		);
@@ -93,58 +93,58 @@ function desktop_mode_site_views_meta_callback( $request ) {
 /**
  * Register the JS + CSS assets.
  */
-function desktop_mode_register_site_views_widget_assets() {
-	$suffix  = desktop_mode_asset_suffix();
-	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
+function openstation_register_site_views_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.js';
-	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-site-views' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-site-views' . $suffix . '.css';
 
 	wp_register_style(
-		'desktop-mode-site-views-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-site-views' . $suffix . '.css',
+		'os-site-views-widget',
+		OPENSTATION_URL . 'assets/js/widget-site-views' . $suffix . '.css',
 		array(),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
-		'desktop-mode-site-views-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-site-views' . $suffix . '.js',
+		'os-site-views-widget',
+		OPENSTATION_URL . 'assets/js/widget-site-views' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'desktop_mode_register_site_views_widget_assets', 5 );
+add_action( 'init', 'openstation_register_site_views_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages.
  */
-function desktop_mode_enqueue_site_views_widget_styles() {
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+function openstation_enqueue_site_views_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
-	wp_enqueue_style( 'desktop-mode-site-views-widget' );
+	wp_enqueue_style( 'os-site-views-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_site_views_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_site_views_widget_styles', 20 );
 
 /**
  * Register the widget definition.
  */
-function desktop_mode_register_site_views_widget() {
-	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
+function openstation_register_site_views_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
-	desktop_mode_register_widget(
+	openstation_register_widget(
 		'desktop-mode/site-views',
 		array(
 			'label'          => __( 'Site Views', 'desktop-mode' ),
 			'description'    => __( 'Sparkline of page views over the last 7 days with week-over-week delta.', 'desktop-mode' ),
 			'icon'           => 'dashicons-chart-area',
-			'script'         => 'desktop-mode-site-views-widget',
+			'script'         => 'os-site-views-widget',
 			'movable'        => true,
 			'resizable'      => true,
 			'min_width'      => 240,
@@ -154,4 +154,4 @@ function desktop_mode_register_site_views_widget() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_register_site_views_widget', 6 );
+add_action( 'init', 'openstation_register_site_views_widget', 6 );

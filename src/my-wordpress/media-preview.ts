@@ -11,11 +11,11 @@
  * Renders a metadata grid (filename, dimensions, filesize, MIME,
  * uploaded, uploader, alt text, caption, description) and an
  * action-button row sourced from server descriptors merged with
- * the `desktop-mode.my-wordpress.preview-actions` JS filter.
+ * the `os.my-wordpress.preview-actions` JS filter.
  *
  * Plugins can inject arbitrary DOM into the three named slots
  * (`'header'`, `'meta'`, `'footer'`) via the
- * `desktop-mode.my-wordpress.preview-extras` action.
+ * `os.my-wordpress.preview-extras` action.
  *
  * @public
  */
@@ -104,7 +104,7 @@ function formatDate( iso: string | undefined ): string {
 
 function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-my-wordpress__media-visual';
+	wrap.className = 'os-my-wordpress__media-visual';
 	const group = mimeGroup( media.mime_type );
 
 	if ( group === 'image' ) {
@@ -118,7 +118,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		img.alt = media.alt_text ?? stripTags( media.title.rendered );
 		img.loading = 'lazy';
 		img.decoding = 'async';
-		img.className = 'desktop-mode-my-wordpress__media-image';
+		img.className = 'os-my-wordpress__media-image';
 		wrap.appendChild( img );
 		return wrap;
 	}
@@ -134,17 +134,17 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		if ( poster ) {
 			video.poster = poster;
 		}
-		video.className = 'desktop-mode-my-wordpress__media-video';
+		video.className = 'os-my-wordpress__media-video';
 		wrap.appendChild( video );
 		return wrap;
 	}
 
 	if ( group === 'audio' ) {
 		const stack = document.createElement( 'div' );
-		stack.className = 'desktop-mode-my-wordpress__media-audio-stack';
+		stack.className = 'os-my-wordpress__media-audio-stack';
 		const icon = document.createElement( 'span' );
 		icon.className =
-			'desktop-mode-my-wordpress__media-fallback-icon dashicons ' +
+			'os-my-wordpress__media-fallback-icon dashicons ' +
 			dashiconForMime( media.mime_type );
 		icon.setAttribute( 'aria-hidden', 'true' );
 		stack.appendChild( icon );
@@ -152,7 +152,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 		audio.controls = true;
 		audio.preload = 'metadata';
 		audio.src = media.source_url;
-		audio.className = 'desktop-mode-my-wordpress__media-audio';
+		audio.className = 'os-my-wordpress__media-audio';
 		stack.appendChild( audio );
 		wrap.appendChild( stack );
 		return wrap;
@@ -161,7 +161,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	// Documents — big dashicon and a "View file" link.
 	const icon = document.createElement( 'span' );
 	icon.className =
-		'desktop-mode-my-wordpress__media-fallback-icon dashicons ' +
+		'os-my-wordpress__media-fallback-icon dashicons ' +
 		dashiconForMime( media.mime_type );
 	icon.setAttribute( 'aria-hidden', 'true' );
 	wrap.appendChild( icon );
@@ -169,7 +169,7 @@ function buildMediaVisual( media: MediaListItem ): HTMLElement {
 	link.href = media.source_url;
 	link.target = '_blank';
 	link.rel = 'noopener noreferrer';
-	link.className = 'desktop-mode-my-wordpress__media-doc-link';
+	link.className = 'os-my-wordpress__media-doc-link';
 	link.textContent = __( 'Open file', 'desktop-mode' );
 	wrap.appendChild( link );
 	return wrap;
@@ -189,10 +189,10 @@ function buildMetaRow(
 		return null;
 	}
 	const dt = document.createElement( 'dt' );
-	dt.className = 'desktop-mode-my-wordpress__media-meta-term';
+	dt.className = 'os-my-wordpress__media-meta-term';
 	dt.textContent = label;
 	const dd = document.createElement( 'dd' );
-	dd.className = 'desktop-mode-my-wordpress__media-meta-value';
+	dd.className = 'os-my-wordpress__media-meta-value';
 	if ( typeof value === 'string' ) {
 		dd.textContent = value;
 	} else {
@@ -203,7 +203,7 @@ function buildMetaRow(
 
 function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 	const grid = document.createElement( 'dl' );
-	grid.className = 'desktop-mode-my-wordpress__media-meta';
+	grid.className = 'os-my-wordpress__media-meta';
 
 	const filename = media.media_details?.file
 		? media.media_details.file.split( '/' ).pop() ?? ''
@@ -239,7 +239,7 @@ function buildMetadataGrid( media: MediaListItem ): HTMLElement {
 }
 
 /**
- * Run the `desktop-mode.my-wordpress.preview-extras` action,
+ * Run the `os.my-wordpress.preview-extras` action,
  * passing each registered subscriber a host element for the named
  * slot so they can append arbitrary DOM.
  */
@@ -251,7 +251,7 @@ function fireSlot(
 	item: Record< string, unknown >,
 ): void {
 	doAction(
-		'desktop-mode.my-wordpress.preview-extras',
+		'os.my-wordpress.preview-extras',
 		{
 			slot,
 			container: host,
@@ -298,7 +298,7 @@ export function resolvePreviewActions(
 	const merged = applyFilters<
 		MediaPreviewAction[],
 		[ MediaPreviewActionContext ]
-	>( 'desktop-mode.my-wordpress.preview-actions', scoped, ctx );
+	>( 'os.my-wordpress.preview-actions', scoped, ctx );
 	return Array.isArray( merged ) ? merged : scoped;
 }
 
@@ -313,10 +313,10 @@ function buildActionRow(
 		return null;
 	}
 	const row = document.createElement( 'div' );
-	row.className = 'desktop-mode-my-wordpress__media-actions';
+	row.className = 'os-my-wordpress__media-actions';
 	row.setAttribute( 'role', 'toolbar' );
 	for ( const action of visible ) {
-		const btn = document.createElement( 'wpd-button' );
+		const btn = document.createElement( 'os-button' );
 		btn.setAttribute( 'variant', 'secondary' );
 		btn.dataset.actionId = action.id;
 		if ( action.icon ) {
@@ -358,12 +358,12 @@ export function renderMediaPreview(
 ): void {
 	host.replaceChildren();
 	const pane = document.createElement( 'div' );
-	pane.className = 'desktop-mode-my-wordpress__media-pane';
+	pane.className = 'os-my-wordpress__media-pane';
 
 	const header = document.createElement( 'header' );
-	header.className = 'desktop-mode-my-wordpress__media-header';
+	header.className = 'os-my-wordpress__media-header';
 	const heading = document.createElement( 'h2' );
-	heading.className = 'desktop-mode-my-wordpress__media-title';
+	heading.className = 'os-my-wordpress__media-title';
 	heading.textContent =
 		stripTags( media.title.rendered ) || __( '(no title)', 'desktop-mode' );
 	header.appendChild( heading );
@@ -393,8 +393,8 @@ export function renderMediaPreview(
 
 	if ( opts.onOpenDetail ) {
 		const footer = document.createElement( 'footer' );
-		footer.className = 'desktop-mode-my-wordpress__article-footer';
-		const drillBtn = document.createElement( 'wpd-button' );
+		footer.className = 'os-my-wordpress__article-footer';
+		const drillBtn = document.createElement( 'os-button' );
 		drillBtn.setAttribute( 'variant', 'primary' );
 		drillBtn.textContent = __( 'See where this is used', 'desktop-mode' );
 		drillBtn.title = __(
@@ -407,7 +407,7 @@ export function renderMediaPreview(
 		fireSlot( footer, 'footer', opts.entityId, 'media', item );
 	} else {
 		const footer = document.createElement( 'div' );
-		footer.className = 'desktop-mode-my-wordpress__media-footer';
+		footer.className = 'os-my-wordpress__media-footer';
 		pane.appendChild( footer );
 		fireSlot( footer, 'footer', opts.entityId, 'media', item );
 	}

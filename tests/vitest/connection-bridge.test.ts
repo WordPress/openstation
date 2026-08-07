@@ -72,7 +72,7 @@ describe( 'connection bridge', () => {
 		const calls = iframe.contentWindow.postMessage.mock.calls;
 		expect( calls ).toHaveLength( 1 );
 		expect( calls[ 0 ][ 0 ] ).toMatchObject( {
-			type: 'desktop-mode-bridge-handshake',
+			type: 'os-bridge-handshake',
 			connectionId: conn.id,
 			topics: [ 'foo' ],
 		} );
@@ -83,7 +83,7 @@ describe( 'connection bridge', () => {
 
 		// Iframe acks → onOpen fires + queue flushes.
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
@@ -91,7 +91,7 @@ describe( 'connection bridge', () => {
 		// Original handshake + flushed publish.
 		expect( iframe.contentWindow.postMessage.mock.calls ).toHaveLength( 2 );
 		expect( iframe.contentWindow.postMessage.mock.calls[ 1 ][ 0 ] ).toMatchObject( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			topic: 'foo',
 			payload: { hello: 1 },
 		} );
@@ -103,7 +103,7 @@ describe( 'connection bridge', () => {
 		const bridge = createConnectionBridge( mgr );
 		const conn = bridge.connect( 'win-1' );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 
@@ -111,7 +111,7 @@ describe( 'connection bridge', () => {
 		conn.subscribe< { count: number } >( 'gutenberg:content', cb );
 
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			connectionId: conn.id,
 			topic: 'gutenberg:content',
 			payload: { count: 42 },
@@ -131,7 +131,7 @@ describe( 'connection bridge', () => {
 		);
 		const conn = bridge.connect( 'w' );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 
@@ -139,13 +139,13 @@ describe( 'connection bridge', () => {
 		conn.subscribe( '*', ( _p, m ) => seen.push( m.topic ) );
 
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			connectionId: conn.id,
 			topic: 'a',
 			payload: 1,
 		} );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			connectionId: conn.id,
 			topic: 'b',
 			payload: 2,
@@ -161,7 +161,7 @@ describe( 'connection bridge', () => {
 		const onClose = vi.fn();
 		const conn = bridge.connect( 'w', { onClose } );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 
@@ -171,7 +171,7 @@ describe( 'connection bridge', () => {
 		// Last postMessage was the disconnect signal.
 		const last = iframe.contentWindow.postMessage.mock.calls.pop()?.[ 0 ];
 		expect( last ).toMatchObject( {
-			type: 'desktop-mode-bridge-disconnect',
+			type: 'os-bridge-disconnect',
 			connectionId: conn.id,
 		} );
 	} );
@@ -186,11 +186,11 @@ describe( 'connection bridge', () => {
 		const a = bridge.connect( 'w', { onClose: closeA } );
 		const b = bridge.connect( 'w', { onClose: closeB } );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: a.id,
 		} );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: b.id,
 		} );
 
@@ -207,7 +207,7 @@ describe( 'connection bridge', () => {
 		);
 		const conn = bridge.connect( 'w' );
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-handshake-ack',
+			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 
@@ -219,7 +219,7 @@ describe( 'connection bridge', () => {
 		conn.subscribe( 't', ok );
 
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			connectionId: conn.id,
 			topic: 't',
 			payload: 1,
@@ -237,7 +237,7 @@ describe( 'connection bridge', () => {
 		);
 		// Should not throw.
 		bridge.routeIncomingFromIframe( {
-			type: 'desktop-mode-bridge-publish',
+			type: 'os-bridge-publish',
 			connectionId: 'never-existed',
 			topic: 't',
 			payload: 1,

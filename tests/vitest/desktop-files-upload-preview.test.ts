@@ -1,7 +1,7 @@
 /**
  * Tests for the upload preview pane: inline media rendering via
  * the authenticated download URL, the no-preview fallback with a
- * Download action, and the `desktop-mode.files.preview` filter
+ * Download action, and the `os.files.preview` filter
  * that lets plugins take over (the PDF-extension seam).
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -64,7 +64,7 @@ describe( 'upload preview', () => {
 		// Meta line carries mime + human size.
 		expect( host.textContent ).toContain( 'image/jpeg · 2.0 KB' );
 		// Download action is present.
-		expect( host.querySelector( 'wpd-button' )?.textContent ).toBe( 'Download' );
+		expect( host.querySelector( 'os-button' )?.textContent ).toBe( 'Download' );
 	} );
 
 	test( 'video and audio kinds render playable elements', async () => {
@@ -89,7 +89,7 @@ describe( 'upload preview', () => {
 		await tick();
 		expect( host.querySelector( 'img, video, audio' ) ).toBeNull();
 		expect( host.textContent ).toContain( 'No preview available for this file type.' );
-		expect( host.querySelector( 'wpd-button' )?.textContent ).toBe( 'Download' );
+		expect( host.querySelector( 'os-button' )?.textContent ).toBe( 'Download' );
 	} );
 
 	test( 'an undecodable image degrades to the no-preview note', async () => {
@@ -103,11 +103,11 @@ describe( 'upload preview', () => {
 		expect( host.textContent ).toContain( 'No preview available for this file type.' );
 	} );
 
-	test( 'the desktop-mode.files.preview filter lets a plugin take over (PDF seam)', async () => {
+	test( 'the os.files.preview filter lets a plugin take over (PDF seam)', async () => {
 		const preview = await load();
 		const hooks = await import( '../../src/hooks' );
 		hooks.addFilter(
-			'desktop-mode.files.preview',
+			'os.files.preview',
 			'my-plugin/pdf-preview',
 			( node: unknown, placement: { file: { mime?: string } } ) => {
 				if ( placement.file.mime === 'application/pdf' ) {

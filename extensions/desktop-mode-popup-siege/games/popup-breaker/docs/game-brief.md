@@ -6,7 +6,7 @@
   and challenge adapter.
 - Current registered candidate: `games/popup-breaker/game.php`, version 0.7.0.
 - Current presentation owner: `standalone/popup-breaker-0.7.0.css`.
-- Production registration: Game Lab demo only; not promoted into Desktop Mode
+- Production registration: Game Lab demo only; not promoted into OpenStation
   core.
 - Fresh Human Fun Proof: not run.
 - Production art: blocked until Fresh Human Fun Proof passes.

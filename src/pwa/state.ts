@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — PWA user-state client.
+ * OpenStation — PWA user-state client.
  *
  * Thin wrapper over `POST /desktop-mode/v1/pwa-state` so the install
  * pill and the notifications module can persist user-level prefs
@@ -76,7 +76,7 @@ export function updatePwaState( patch: Partial< PwaUserState > ): PwaUserState {
 		// warrant a toast (the pref is still applied locally; next
 		// page load will re-read).
 		if ( typeof console !== 'undefined' ) {
-			console.warn( '[desktop-mode] pwa-state write failed:', err );
+			console.warn( '[openstation] pwa-state write failed:', err );
 		}
 	} );
 
@@ -101,7 +101,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] pwa-state listener threw:',
+					'[openstation] pwa-state listener threw:',
 					err,
 				);
 			}
@@ -110,7 +110,7 @@ function notify(): void {
 }
 
 function readRestNonce(): string {
-	const cfg = ( window as unknown as { desktopModeConfig?: { restNonce?: string } } )
-		.desktopModeConfig;
+	const cfg = ( window as unknown as { openStationConfig?: { restNonce?: string } } )
+		.openStationConfig;
 	return cfg?.restNonce ?? '';
 }

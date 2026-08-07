@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Pinned notes CPT.
+ * OpenStation — Pinned notes CPT.
  *
  * Registers the `wpd_note` post type backing the pinned-notes feature:
  * paper notes the user writes in the Note Pad widget and pins to the
@@ -11,7 +11,7 @@
  * Visibility model: the "public" checkbox maps to `post_status`.
  *
  *   'private' — default; only the owner sees the note.
- *   'publish' — public; every desktop-mode user sees it (read-only
+ *   'publish' — public; every openstation user sees it (read-only
  *               for non-owners). Nothing leaks outside the plugin's
  *               own REST controller because the CPT is not publicly
  *               queryable, excluded from search, and absent from the
@@ -21,12 +21,12 @@
  * z-order live in postmeta — per-owner placement is the canonical
  * placement every viewer sees.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const DESKTOP_MODE_NOTES_POST_TYPE = 'wpd_note';
+const OPENSTATION_NOTES_POST_TYPE = 'wpd_note';
 
 /**
  * The pastel paper color slugs a note may use.
@@ -37,7 +37,7 @@ const DESKTOP_MODE_NOTES_POST_TYPE = 'wpd_note';
  *
  * @return string[] Color slugs.
  */
-function desktop_mode_notes_colors() {
+function openstation_notes_colors() {
 	$colors = array( 'butter', 'blush', 'sky', 'mint', 'lilac', 'peach' );
 
 	/**
@@ -50,7 +50,7 @@ function desktop_mode_notes_colors() {
 	 *
 	 * @param string[] $colors Allowed color slugs.
 	 */
-	$colors = apply_filters( 'desktop_mode_notes_colors', $colors );
+	$colors = apply_filters( 'openstation_notes_colors', $colors );
 
 	return array_values( array_filter( array_map( 'sanitize_key', (array) $colors ) ) );
 }
@@ -58,9 +58,9 @@ function desktop_mode_notes_colors() {
 /**
  * Register the `wpd_note` post type + its meta.
  */
-function desktop_mode_notes_register_cpt() {
+function openstation_notes_register_cpt() {
 	register_post_type(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		array(
 			'label'               => __( 'Desktop Notes', 'desktop-mode' ),
 			'public'              => false,
@@ -79,40 +79,40 @@ function desktop_mode_notes_register_cpt() {
 	);
 
 	register_post_meta(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		'_wpd_note_color',
 		array(
 			'type'              => 'string',
 			'single'            => true,
 			'default'           => 'butter',
-			'sanitize_callback' => 'desktop_mode_notes_sanitize_color',
+			'sanitize_callback' => 'openstation_notes_sanitize_color',
 		)
 	);
 
 	register_post_meta(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		'_wpd_note_x',
 		array(
 			'type'              => 'number',
 			'single'            => true,
 			'default'           => 0.1,
-			'sanitize_callback' => 'desktop_mode_notes_sanitize_fraction',
+			'sanitize_callback' => 'openstation_notes_sanitize_fraction',
 		)
 	);
 
 	register_post_meta(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		'_wpd_note_y',
 		array(
 			'type'              => 'number',
 			'single'            => true,
 			'default'           => 0.1,
-			'sanitize_callback' => 'desktop_mode_notes_sanitize_fraction',
+			'sanitize_callback' => 'openstation_notes_sanitize_fraction',
 		)
 	);
 
 	register_post_meta(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		'_wpd_note_z',
 		array(
 			'type'              => 'integer',
@@ -125,7 +125,7 @@ function desktop_mode_notes_register_cpt() {
 	// Jitter seed — hashed from the note's text once at CREATION and
 	// never rewritten, so the paper's subtle tilt survives edits.
 	register_post_meta(
-		DESKTOP_MODE_NOTES_POST_TYPE,
+		OPENSTATION_NOTES_POST_TYPE,
 		'_wpd_note_seed',
 		array(
 			'type'              => 'integer',
@@ -135,7 +135,7 @@ function desktop_mode_notes_register_cpt() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_notes_register_cpt' );
+add_action( 'init', 'openstation_notes_register_cpt' );
 
 /**
  * Clamp a note color to the allowed pastel whitelist.
@@ -143,9 +143,9 @@ add_action( 'init', 'desktop_mode_notes_register_cpt' );
  * @param mixed $color Raw value.
  * @return string Whitelisted slug (falls back to 'butter').
  */
-function desktop_mode_notes_sanitize_color( $color ) {
+function openstation_notes_sanitize_color( $color ) {
 	$color  = is_scalar( $color ) ? sanitize_key( (string) $color ) : '';
-	$colors = desktop_mode_notes_colors();
+	$colors = openstation_notes_colors();
 	if ( in_array( $color, $colors, true ) ) {
 		return $color;
 	}
@@ -158,7 +158,7 @@ function desktop_mode_notes_sanitize_color( $color ) {
  * @param mixed $value Raw value.
  * @return float
  */
-function desktop_mode_notes_sanitize_fraction( $value ) {
+function openstation_notes_sanitize_fraction( $value ) {
 	return (float) min( 1, max( 0, (float) $value ) );
 }
 
@@ -174,8 +174,8 @@ function desktop_mode_notes_sanitize_fraction( $value ) {
  * @param string $previous_status Status the post had before trashing.
  * @return string
  */
-function desktop_mode_notes_untrash_status( $new_status, $post_id, $previous_status ) {
-	if ( DESKTOP_MODE_NOTES_POST_TYPE !== get_post_type( $post_id ) ) {
+function openstation_notes_untrash_status( $new_status, $post_id, $previous_status ) {
+	if ( OPENSTATION_NOTES_POST_TYPE !== get_post_type( $post_id ) ) {
 		return $new_status;
 	}
 	if ( in_array( $previous_status, array( 'private', 'publish' ), true ) ) {
@@ -183,4 +183,4 @@ function desktop_mode_notes_untrash_status( $new_status, $post_id, $previous_sta
 	}
 	return 'private';
 }
-add_filter( 'wp_untrash_post_status', 'desktop_mode_notes_untrash_status', 10, 3 );
+add_filter( 'wp_untrash_post_status', 'openstation_notes_untrash_status', 10, 3 );

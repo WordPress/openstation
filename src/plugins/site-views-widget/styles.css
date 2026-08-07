@@ -3,7 +3,7 @@
 	justify-content: space-between;
 	align-items: center;
 	padding-bottom: 6px;
-	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	border-bottom: 1px solid var(--os-ui-color-border, #e5e7eb);
 	margin-bottom: 6px;
 	flex-shrink: 0;
 	min-width: 0;
@@ -13,7 +13,7 @@
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	color: var(--wpd-color-text-subtle, #6b7280);
+	color: var(--os-ui-color-text-subtle, #6b7280);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -40,7 +40,7 @@
 .dm-views__delta--flat { color: #9ca3af; }
 .dm-views__label {
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	white-space: nowrap;
 }
 .dm-views__spark {
@@ -63,7 +63,7 @@
 }
 .dm-views__days span {
 	font-size: 9px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	flex: 1;
 	text-align: center;
 	overflow: hidden;
@@ -79,7 +79,7 @@
 .dm-views__no-source p {
 	margin: 0;
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	line-height: 1.5;
 	text-align: center;
 }

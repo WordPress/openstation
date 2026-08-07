@@ -2,7 +2,7 @@
 
 Stable.
 
-Desktop Mode ships a **web app manifest**, a **service worker**, and a
+OpenStation ships a **web app manifest**, a **service worker**, and a
 **local notifications API** so users can install their WordPress site as
 a real OS app and plugins can surface alerts the same way native apps
 do.
@@ -16,21 +16,21 @@ copy-paste recipes see
 
 | Surface | Behaviour |
 |---|---|
-| **Web app manifest** | Served at `/desktop-mode/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/desktop-mode/` so existing installs aren't reset). Filterable via `desktop_mode_pwa_manifest`. |
-| **Service worker** | Served at `/desktop-mode/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/desktop-mode/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
-| **Install hint** | A system tile on the dock (`id: 'desktop-mode-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
-| **Local notifications** | `wp.desktop.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
-| **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/desktop-mode/` window client, or opens `notification.data.url` (default `/desktop-mode/`) when none exists. The same `wp.desktop.notify` shape will route through the SW's `showNotification` once push is wired. |
+| **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `openstation_pwa_manifest`. |
+| **Service worker** | Served at `/openstation/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/openstation/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
+| **Install hint** | A system tile on the dock (`id: 'os-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
+| **Local notifications** | `wp.os.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
+| **Push notifications** | **Not in v1.** The SW registers a no-op `push` handler (claimed so future v2 push payloads aren't silently dropped); the `notificationclick` handler is live — it closes the notification, focuses an existing `/openstation/` window client, or opens `notification.data.url` (default `/openstation/`) when none exists. The same `wp.os.notify` shape will route through the SW's `showNotification` once push is wired. |
 
 ## Why root scope (with a narrow fetch handler)
 
 A service worker has exactly one scope path. The only common ancestor of
-`/desktop-mode/` and `/wp-admin/` is `/`. Registering at `/desktop-mode/`
+`/openstation/` and `/wp-admin/` is `/`. Registering at `/openstation/`
 would cut the SW off from admin-page navigations — defeating the purpose
 for the typical install target (a dashboard URL inside wp-admin).
 
 So the SW registers at root scope, but the fetch handler returns early
-(no `event.respondWith` call) for any URL outside `/desktop-mode/`,
+(no `event.respondWith` call) for any URL outside `/openstation/`,
 `/wp-admin/`, or the plugin's own assets directory. Behaviorally this is
 "narrow scope" without inheriting the technical limitation.
 
@@ -42,15 +42,15 @@ focused toast pointing at the opt-in filter (rather than the generic
 actionable message instead of silently broken behaviour.
 
 To opt this install in, return `true` from the
-`desktop_mode_pwa_force_replace_sw` filter:
+`openstation_pwa_force_replace_sw` filter:
 
 ```php
-add_filter( 'desktop_mode_pwa_force_replace_sw', '__return_true' );
+add_filter( 'openstation_pwa_force_replace_sw', '__return_true' );
 ```
 
 The filter resolves at shell-config build time; effective on the next
 page load. Use this when another PWA plugin's SW is shadowing
-desktop-mode and you want desktop-mode to take over the install path.
+OpenStation and you want OpenStation to take over the install path.
 
 ## Caching policy
 
@@ -62,8 +62,8 @@ desktop-mode and you want desktop-mode to take over the install path.
 | REST / AJAX / non-asset GETs | Pass-through (no SW handling) | Same reason as navigation — auth-bound dynamic content must hit the network. |
 | `install`-time precache | A handful of CSS files, the three critical-path JS bundles (`desktop.min.js`, `window-system.min.js`, `shell-overlays.min.js`), and the plugin logo | Just enough to render the offline shell skeleton. Anything else is picked up at runtime by the caching paths above. |
 
-The cache is keyed by version (`desktop-mode-static-<v>`,
-`desktop-mode-runtime-<v>`). The `activate` step deletes any cache whose
+The cache is keyed by version (`os-static-<v>`,
+`os-runtime-<v>`). The `activate` step deletes any cache whose
 key doesn't carry the current version, so a deploy doesn't accumulate
 stale buckets.
 
@@ -71,28 +71,27 @@ stale buckets.
 
 | Symbol | Role |
 |---|---|
-| `desktop_mode_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
-| `desktop_mode_pwa_sw_url()` | Absolute URL of the service worker. |
-| `desktop_mode_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
-| `desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
-| `desktop_mode_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
+| `openstation_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
+| `openstation_pwa_sw_url()` | Absolute URL of the service worker. |
+| `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
+| `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
+| `openstation_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
 
 REST routes:
 
 - `GET /wp-json/desktop-mode/v1/pwa-state` → `{ installHintDismissed, notificationsEnabled }`
 - `POST /wp-json/desktop-mode/v1/pwa-state` → merge partial state. Body: `{ installHintDismissed?: bool, notificationsEnabled?: bool }`.
 
-Both routes require a logged-in user with desktop mode enabled for
-their account (`desktop_mode_rest_require_enabled()` — 401 when logged
-out, 403 when desktop mode is off; hardened from plain `read` in
-0.9.0) and a valid `X-WP-Nonce`.
+Both routes require a logged-in user with OpenStation enabled for
+their account (`openstation_rest_require_enabled()` — 401 when logged
+out, 403 when OpenStation is off) and a valid `X-WP-Nonce`.
 
 ## JS surface
 
 ```ts
-// All exposed on `window.wp.desktop`:
+// All exposed on `window.wp.os`:
 
-wp.desktop.notify( {
+wp.os.notify( {
     title: 'Build complete',
     body: '12 files updated.',
     icon: '/favicon.png',
@@ -100,16 +99,16 @@ wp.desktop.notify( {
     onClick: ( n ) => { window.focus(); n.close(); },
 } );
 
-const choice = await wp.desktop.pwa.promptInstall();
+const choice = await wp.os.pwa.promptInstall();
 //   'accepted' | 'dismissed' | 'unavailable'
 
-await wp.desktop.pwa.requestNotificationPermission();
+await wp.os.pwa.requestNotificationPermission();
 //   'granted' | 'denied' | 'default' | 'unsupported'
 
-const state = wp.desktop.pwa.getState();
+const state = wp.os.pwa.getState();
 //   { installHintDismissed: boolean, notificationsEnabled: boolean }
 
-const off = wp.desktop.pwa.subscribe( ( s ) => {
+const off = wp.os.pwa.subscribe( ( s ) => {
     console.log( 'PWA state changed:', s );
 } );
 off();
@@ -117,9 +116,9 @@ off();
 
 Activity-bus channels for plugins that want to mute / amplify / audit:
 
-- `desktop-mode/notification-requested` — filterable; set
+- `os/notification-requested` — filterable; set
   `cancel: true` to suppress the underlying notification.
-- `desktop-mode/notification-shown` — fire-and-forget; carries
+- `os/notification-shown` — fire-and-forget; carries
   `fallback: 'toast' | null` so analytics can distinguish the
   permission-denied path from the real-notification path.
 
@@ -142,10 +141,10 @@ app via the "Share → Add to Home Screen" gesture, which picks up our
 ## What's coming next
 
 - **Phase 4 — Web Push.** VAPID keypair, REST routes for subscribe /
-  unsubscribe, server-side `desktop_mode_push( $user_id, $payload )` PHP
+  unsubscribe, server-side `openstation_push( $user_id, $payload )` PHP
   helper, SW `push` payload renderer wired to the existing `notify()`
-  intent shape. The v1 `wp.desktop.notify` API is the same call site —
+  intent shape. The v1 `wp.os.notify` API is the same call site —
   only the transport changes.
-- **Per-site icon override hint.** A small OS Settings tab entry that
+- **Per-site icon override hint.** A small OpenStation Preferences tab entry that
   lets administrators upload a custom PWA icon without writing a
   filter.

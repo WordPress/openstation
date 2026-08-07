@@ -17,9 +17,9 @@ import { setActiveWindowId } from './rest';
 type RenderCallback = ( body: HTMLElement ) => void;
 
 const win = window as unknown as {
-	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 };
-const registry = ( win.desktopModeNativeWindows ??= {} );
+const registry = ( win.openStationNativeWindows ??= {} );
 
 registry[ 'desktop-mode-comments' ] = ( body: HTMLElement ) => {
 	setActiveWindowId( 'desktop-mode-comments' );

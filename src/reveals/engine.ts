@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window-reveal engine.
+ * OpenStation — Window-reveal engine.
  *
  * Holds the user's currently-selected reveal and keeps it in sync with
  * OS Settings. Deliberately thin: unlike the unfocus engine, which has
@@ -85,7 +85,7 @@ export function setActiveWindowRevealDuration( ms: number ): void {
 /**
  * The user's global duration override, or {@link REVEAL_DURATION_AUTO}
  * when they have not set one. The surface consults this BEFORE the
- * `--desktop-mode-window-reveal-duration` theme token: an explicit
+ * `--os-window-reveal-duration` theme token: an explicit
  * choice in OS Settings is the user speaking, and a theme should not
  * out-rank it — the same precedence window corner radius uses.
  */

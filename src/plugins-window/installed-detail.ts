@@ -1,13 +1,13 @@
 /**
  * Native Plugins window — Installed tab expandable-row detail panel.
  *
- * Rendered inside `<wpd-table>`'s sub-row slot. Shows a hero band
+ * Rendered inside `<os-table>`'s sub-row slot. Shows a hero band
  * (banner + icon + title + author + status chips), a tab strip
  * (Overview / Details / Changelog / FAQ / Reviews), and lazy-loads
  * the wp.org `plugin_information` payload the first time a row is
  * expanded so plugins on the directory get rich content inline.
  *
- * Composed almost entirely from `<wpd-*>` primitives so it picks up
+ * Composed almost entirely from `<os-*>` primitives so it picks up
  * the framework's theming, hover, and dark-mode treatment for free.
  *
  * @public
@@ -23,22 +23,22 @@ import type {
 	PluginReviewsResponse,
 	WpOrgPluginInfo,
 } from './types';
-import '../ui/components/wpd-tabs/wpd-tabs';
-import '../ui/components/wpd-chip/wpd-chip';
-import '../ui/components/wpd-card/wpd-card';
-import '../ui/components/wpd-cluster/wpd-cluster';
-import '../ui/components/wpd-stack/wpd-stack';
-import '../ui/components/wpd-grid/wpd-grid';
-import '../ui/components/wpd-spinner/wpd-spinner';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-icon/wpd-icon';
-import '../ui/components/wpd-badge/wpd-badge';
-import '../ui/components/wpd-rating-summary/wpd-rating-summary';
+import '../ui/components/os-tabs/os-tabs';
+import '../ui/components/os-chip/os-chip';
+import '../ui/components/os-card/os-card';
+import '../ui/components/os-cluster/os-cluster';
+import '../ui/components/os-stack/os-stack';
+import '../ui/components/os-grid/os-grid';
+import '../ui/components/os-spinner/os-spinner';
+import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-icon/os-icon';
+import '../ui/components/os-badge/os-badge';
+import '../ui/components/os-rating-summary/os-rating-summary';
 import type {
-	WpdRatingBuckets,
-	WpdRatingSummary,
-} from '../ui/components/wpd-rating-summary/wpd-rating-summary';
+	OsRatingBuckets,
+	OsRatingSummary,
+} from '../ui/components/os-rating-summary/os-rating-summary';
 
 /** Resolved wp.org payloads keyed by slug — survives row re-paints. */
 const wpOrgCache = new Map< string, WpOrgPluginInfo >();
@@ -54,19 +54,19 @@ type DetailTab = 'overview' | 'details' | 'changelog' | 'faq' | 'reviews';
  */
 export function buildInstalledDetail( row: InstalledPlugin ): HTMLElement {
 	const root = document.createElement( 'div' );
-	root.className = 'desktop-mode-plugins__detail';
+	root.className = 'os-plugins__detail';
 	// Click inside the detail panel should NOT bubble up to the table
 	// row-click toggle — the user is interacting with the panel, not
 	// asking to collapse it.
 	root.setAttribute( 'data-noclick', '' );
 
-	// The detail panel lives inside `<wpd-table>`'s shadow DOM (the
+	// The detail panel lives inside `<os-table>`'s shadow DOM (the
 	// sub-table mechanism appends our element into a `<td>` inside
 	// the table's shadow root). Document-level stylesheets do NOT
 	// pierce shadow boundaries, so we ship a `<style>` element
 	// alongside the panel — its rules apply inside the same shadow
 	// tree where the panel renders. All selectors are uniquely
-	// namespaced under `.desktop-mode-plugins__detail*`.
+	// namespaced under `.os-plugins__detail*`.
 	const style = document.createElement( 'style' );
 	style.textContent = PANEL_STYLES;
 	root.appendChild( style );
@@ -76,18 +76,18 @@ export function buildInstalledDetail( row: InstalledPlugin ): HTMLElement {
 	root.appendChild( buildHero( row, slug ) );
 
 	const tabsHost = document.createElement( 'div' );
-	tabsHost.className = 'desktop-mode-plugins__detail-tabs-wrap';
+	tabsHost.className = 'os-plugins__detail-tabs-wrap';
 	root.appendChild( tabsHost );
 
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-plugins__detail-body';
+	body.className = 'os-plugins__detail-body';
 	root.appendChild( body );
 
 	// Build tab strip. Tabs that depend on wp.org are always present
 	// when the plugin is on the directory — they paint a spinner
 	// until the lazy fetch lands, swapping content in place.
-	const tabs = document.createElement( 'wpd-tabs' );
-	tabs.className = 'desktop-mode-plugins__detail-tabs';
+	const tabs = document.createElement( 'os-tabs' );
+	tabs.className = 'os-plugins__detail-tabs';
 	tabs.setAttribute( 'value', 'overview' );
 
 	const tabDefs: Array< { value: DetailTab; label: string; show: boolean } > = [
@@ -102,7 +102,7 @@ export function buildInstalledDetail( row: InstalledPlugin ): HTMLElement {
 		if ( ! def.show ) {
 			continue;
 		}
-		const tab = document.createElement( 'wpd-tab' );
+		const tab = document.createElement( 'os-tab' );
 		tab.setAttribute( 'value', def.value );
 		tab.textContent = def.label;
 		tabs.appendChild( tab );
@@ -140,7 +140,7 @@ export function buildInstalledDetail( row: InstalledPlugin ): HTMLElement {
 		body.replaceChildren( renderTab( active, row, slug, info ) );
 	};
 
-	tabs.addEventListener( 'wpd-tab-change', ( ev: Event ) => {
+	tabs.addEventListener( 'os-tab-change', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		active = ( detail?.value as DetailTab ) ?? 'overview';
 		// wp.org-dependent tabs trigger the fetch on first activation.
@@ -160,18 +160,18 @@ export function buildInstalledDetail( row: InstalledPlugin ): HTMLElement {
 
 function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 	const hero = document.createElement( 'div' );
-	hero.className = 'desktop-mode-plugins__detail-hero';
+	hero.className = 'os-plugins__detail-hero';
 
 	const inner = document.createElement( 'div' );
-	inner.className = 'desktop-mode-plugins__detail-hero-inner';
+	inner.className = 'os-plugins__detail-hero-inner';
 
 	// Icon tile — small, square, on a clean surface. No banner backdrop:
 	// wp.org banners are often just the icon stretched, which makes the
 	// expanded row look like a billboard. The icon alone gives identity
 	// without the visual shouting.
 	const iconTile = document.createElement( 'div' );
-	iconTile.className = 'desktop-mode-plugins__detail-hero-icon';
-	const iconUrl = row.desktop_mode_icon_url;
+	iconTile.className = 'os-plugins__detail-hero-icon';
+	const iconUrl = row.openstation_icon_url;
 	if ( iconUrl ) {
 		const img = document.createElement( 'img' );
 		img.alt = '';
@@ -186,19 +186,19 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 	}
 
 	// Title block — vertical stack of title row + byline + chip strip
-	const titleBlock = document.createElement( 'wpd-stack' );
+	const titleBlock = document.createElement( 'os-stack' );
 	titleBlock.setAttribute( 'gap', '6' );
-	titleBlock.className = 'desktop-mode-plugins__detail-hero-text';
+	titleBlock.className = 'os-plugins__detail-hero-text';
 
-	const titleRow = document.createElement( 'wpd-cluster' );
+	const titleRow = document.createElement( 'os-cluster' );
 	titleRow.setAttribute( 'gap', '10' );
 	titleRow.setAttribute( 'align', 'center' );
 	const title = document.createElement( 'h3' );
-	title.className = 'desktop-mode-plugins__detail-title';
+	title.className = 'os-plugins__detail-title';
 	title.textContent = row.name || row.plugin;
 	titleRow.appendChild( title );
 	if ( row.version ) {
-		const ver = document.createElement( 'wpd-badge' );
+		const ver = document.createElement( 'os-badge' );
 		ver.setAttribute( 'tone', 'neutral' );
 		ver.setAttribute( 'no-dot', '' );
 		ver.textContent = sprintf(
@@ -209,16 +209,16 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 		titleRow.appendChild( ver );
 	}
 	const isActive = row.status === 'active' || row.status === 'active-network';
-	const statusBadge = document.createElement( 'wpd-badge' );
+	const statusBadge = document.createElement( 'os-badge' );
 	statusBadge.setAttribute( 'tone', isActive ? 'success' : 'neutral' );
 	statusBadge.textContent = isActive
 		? __( 'Active', 'desktop-mode' )
 		: __( 'Inactive', 'desktop-mode' );
 	titleRow.appendChild( statusBadge );
 
-	const update = row.desktop_mode_update_available;
+	const update = row.openstation_update_available;
 	if ( update?.available && update.new_version ) {
-		const upd = document.createElement( 'wpd-badge' );
+		const upd = document.createElement( 'os-badge' );
 		upd.setAttribute( 'tone', 'warning' );
 		upd.textContent = sprintf(
 			/* translators: %s: new version available */
@@ -232,7 +232,7 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 
 	// Byline
 	const byline = document.createElement( 'p' );
-	byline.className = 'desktop-mode-plugins__detail-byline';
+	byline.className = 'os-plugins__detail-byline';
 	const authorText = stripHtml( row.author ?? '' ) || __( 'Unknown author', 'desktop-mode' );
 	if ( row.author_uri ) {
 		const a = document.createElement( 'a' );
@@ -287,7 +287,7 @@ function renderOverview(
 	slug: string,
 	info: WpOrgPluginInfo | null,
 ): HTMLElement {
-	const stack = document.createElement( 'wpd-stack' );
+	const stack = document.createElement( 'os-stack' );
 	stack.setAttribute( 'gap', '20' );
 
 	// Meta chips strip (rating, installs, last updated, tested up to)
@@ -304,7 +304,7 @@ function renderOverview(
 		readDescription( row );
 	if ( descHtml ) {
 		const desc = document.createElement( 'div' );
-		desc.className = 'desktop-mode-plugins__detail-html';
+		desc.className = 'os-plugins__detail-html';
 		desc.innerHTML = sanitizeHtml( descHtml );
 		sanitizeLinks( desc );
 		stack.appendChild( desc );
@@ -323,9 +323,9 @@ function renderOverview(
 	}
 
 	// Action cluster — links to wp.org / plugin site / author site.
-	const actions = document.createElement( 'wpd-cluster' );
+	const actions = document.createElement( 'os-cluster' );
 	actions.setAttribute( 'gap', '8' );
-	actions.className = 'desktop-mode-plugins__detail-actions';
+	actions.className = 'os-plugins__detail-actions';
 	if ( slug ) {
 		actions.appendChild(
 			linkButton(
@@ -356,15 +356,15 @@ function buildOverviewChips(
 	row: InstalledPlugin,
 	info: WpOrgPluginInfo | null,
 ): HTMLElement {
-	const strip = document.createElement( 'wpd-cluster' );
+	const strip = document.createElement( 'os-cluster' );
 	strip.setAttribute( 'gap', '8' );
-	strip.className = 'desktop-mode-plugins__detail-chip-strip';
+	strip.className = 'os-plugins__detail-chip-strip';
 
 	if ( info ) {
 		// Stars + rating count — render the existing star cluster.
 		if ( typeof info.rating === 'number' && info.rating > 0 ) {
 			const stars = document.createElement( 'span' );
-			stars.className = 'desktop-mode-plugins__detail-stars-pill';
+			stars.className = 'os-plugins__detail-stars-pill';
 			stars.appendChild( buildStarCluster( info.rating, info.num_ratings ?? 0 ) );
 			strip.appendChild( stars );
 		}
@@ -442,21 +442,21 @@ function buildOverviewChips(
 // ─── Details (metadata cards) ──────────────────────────────────────
 
 function renderDetails( row: InstalledPlugin ): HTMLElement {
-	const grid = document.createElement( 'wpd-grid' );
+	const grid = document.createElement( 'os-grid' );
 	grid.setAttribute( 'columns', '2' );
 	grid.setAttribute( 'gap', '12' );
-	grid.className = 'desktop-mode-plugins__detail-grid';
+	grid.className = 'os-plugins__detail-grid';
 
 	pushFactCard( grid, 'media-document', __( 'Plugin file', 'desktop-mode' ), codeNode( row.plugin ) );
 	if ( row.version ) {
 		pushFactCard( grid, 'tag', __( 'Version', 'desktop-mode' ), row.version );
 	}
-	if ( row.desktop_mode_size_kb !== null && row.desktop_mode_size_kb !== undefined ) {
+	if ( row.openstation_size_kb !== null && row.openstation_size_kb !== undefined ) {
 		pushFactCard(
 			grid,
 			'database',
 			__( 'Size on disk', 'desktop-mode' ),
-			formatSize( row.desktop_mode_size_kb ),
+			formatSize( row.openstation_size_kb ),
 		);
 	}
 	if ( row.requires_wp ) {
@@ -514,24 +514,24 @@ function pushFactCard(
 	label: string,
 	value: HTMLElement | string,
 ): void {
-	const card = document.createElement( 'wpd-card' );
+	const card = document.createElement( 'os-card' );
 	card.setAttribute( 'compact', '' );
-	card.className = 'desktop-mode-plugins__detail-fact';
+	card.className = 'os-plugins__detail-fact';
 
 	const head = document.createElement( 'div' );
 	head.setAttribute( 'slot', 'header' );
-	head.className = 'desktop-mode-plugins__detail-fact-head';
+	head.className = 'os-plugins__detail-fact-head';
 	const ico = document.createElement( 'span' );
 	ico.className = `dashicons dashicons-${ icon }`;
 	ico.setAttribute( 'aria-hidden', 'true' );
 	const lab = document.createElement( 'span' );
-	lab.className = 'desktop-mode-plugins__detail-fact-label';
+	lab.className = 'os-plugins__detail-fact-label';
 	lab.textContent = label;
 	head.append( ico, lab );
 	card.appendChild( head );
 
 	const val = document.createElement( 'div' );
-	val.className = 'desktop-mode-plugins__detail-fact-value';
+	val.className = 'os-plugins__detail-fact-value';
 	if ( typeof value === 'string' ) {
 		val.textContent = value;
 	} else {
@@ -569,32 +569,32 @@ function renderChangelog( info: WpOrgPluginInfo | null ): HTMLElement {
 	if ( entries.length === 0 ) {
 		// Fall back to the plain sanitized HTML — better than nothing.
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-plugins__detail-html';
+		wrap.className = 'os-plugins__detail-html';
 		wrap.innerHTML = sanitizeHtml( html );
 		sanitizeLinks( wrap );
 		return wrap;
 	}
 
-	const stack = document.createElement( 'wpd-stack' );
+	const stack = document.createElement( 'os-stack' );
 	stack.setAttribute( 'gap', '12' );
-	stack.className = 'desktop-mode-plugins__detail-changelog';
+	stack.className = 'os-plugins__detail-changelog';
 
 	entries.forEach( ( entry, i ) => {
-		const card = document.createElement( 'wpd-card' );
-		card.className = 'desktop-mode-plugins__detail-changelog-entry';
+		const card = document.createElement( 'os-card' );
+		card.className = 'os-plugins__detail-changelog-entry';
 
 		const head = document.createElement( 'div' );
 		head.setAttribute( 'slot', 'header' );
-		head.className = 'desktop-mode-plugins__detail-changelog-head';
+		head.className = 'os-plugins__detail-changelog-head';
 
-		const ver = document.createElement( 'wpd-badge' );
+		const ver = document.createElement( 'os-badge' );
 		ver.setAttribute( 'tone', i === 0 ? 'success' : 'neutral' );
 		ver.textContent = entry.version;
 		head.appendChild( ver );
 
 		if ( i === 0 ) {
 			const latest = document.createElement( 'span' );
-			latest.className = 'desktop-mode-plugins__detail-changelog-latest';
+			latest.className = 'os-plugins__detail-changelog-latest';
 			latest.textContent = __( 'Latest', 'desktop-mode' );
 			head.appendChild( latest );
 		}
@@ -602,7 +602,7 @@ function renderChangelog( info: WpOrgPluginInfo | null ): HTMLElement {
 		card.appendChild( head );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-plugins__detail-html';
+		body.className = 'os-plugins__detail-html';
 		body.innerHTML = sanitizeHtml( entry.body );
 		sanitizeLinks( body );
 		card.appendChild( body );
@@ -693,19 +693,19 @@ function renderFaq( info: WpOrgPluginInfo | null ): HTMLElement {
 	const pairs = parseFaqPairs( html );
 	if ( pairs.length === 0 ) {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-plugins__detail-html';
+		wrap.className = 'os-plugins__detail-html';
 		wrap.innerHTML = sanitizeHtml( html );
 		sanitizeLinks( wrap );
 		return wrap;
 	}
 
-	const stack = document.createElement( 'wpd-stack' );
+	const stack = document.createElement( 'os-stack' );
 	stack.setAttribute( 'gap', '8' );
-	stack.className = 'desktop-mode-plugins__detail-faq';
+	stack.className = 'os-plugins__detail-faq';
 
 	pairs.forEach( ( pair, i ) => {
 		const item = document.createElement( 'details' );
-		item.className = 'desktop-mode-plugins__detail-faq-item';
+		item.className = 'os-plugins__detail-faq-item';
 		// Open the first question by default — gives the user a sample
 		// of the answer style without making them click first.
 		if ( i === 0 ) {
@@ -713,12 +713,12 @@ function renderFaq( info: WpOrgPluginInfo | null ): HTMLElement {
 		}
 
 		const summary = document.createElement( 'summary' );
-		summary.className = 'desktop-mode-plugins__detail-faq-q';
+		summary.className = 'os-plugins__detail-faq-q';
 		const qText = document.createElement( 'span' );
-		qText.className = 'desktop-mode-plugins__detail-faq-q-text';
+		qText.className = 'os-plugins__detail-faq-q-text';
 		qText.textContent = pair.question;
 		const chevron = document.createElement( 'span' );
-		chevron.className = 'desktop-mode-plugins__detail-faq-chevron';
+		chevron.className = 'os-plugins__detail-faq-chevron';
 		chevron.setAttribute( 'aria-hidden', 'true' );
 		// SVG so the rotation animates smoothly via CSS.
 		chevron.innerHTML =
@@ -728,7 +728,7 @@ function renderFaq( info: WpOrgPluginInfo | null ): HTMLElement {
 		summary.append( qText, chevron );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-plugins__detail-faq-a desktop-mode-plugins__detail-html';
+		body.className = 'os-plugins__detail-faq-a os-plugins__detail-html';
 		body.innerHTML = sanitizeHtml( pair.answer );
 		sanitizeLinks( body );
 
@@ -906,7 +906,7 @@ function renderReviews(
 	slug: string,
 	info: WpOrgPluginInfo | null,
 ): HTMLElement {
-	const stack = document.createElement( 'wpd-stack' );
+	const stack = document.createElement( 'os-stack' );
 	stack.setAttribute( 'gap', '16' );
 
 	if ( ! info ) {
@@ -920,7 +920,7 @@ function renderReviews(
 	// Lives as its own child so the histogram stays put and the grid
 	// can grow/shrink without re-rendering the rest.
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-plugins__detail-reviews';
+	body.className = 'os-plugins__detail-reviews';
 	stack.appendChild( body );
 
 	const cached = reviewsCache.get( slug );
@@ -976,13 +976,13 @@ function paintReviewList(
 		return;
 	}
 
-	// Two-column grid of review cards. `wpd-grid columns="2"` keeps
+	// Two-column grid of review cards. `os-grid columns="2"` keeps
 	// the cards equal-width and aligned; on narrow widths the CSS
 	// in `PANEL_STYLES` collapses it to a single column.
-	const grid = document.createElement( 'wpd-grid' );
+	const grid = document.createElement( 'os-grid' );
 	grid.setAttribute( 'columns', '2' );
 	grid.setAttribute( 'gap', '12' );
-	grid.className = 'desktop-mode-plugins__detail-reviews-grid';
+	grid.className = 'os-plugins__detail-reviews-grid';
 	for ( const item of resp.items ) {
 		grid.appendChild( buildReviewCard( item ) );
 	}
@@ -991,7 +991,7 @@ function paintReviewList(
 	// Always offer a way out to the full wp.org thread — even when
 	// we have items, the user may want the full discussion.
 	const more = document.createElement( 'div' );
-	more.className = 'desktop-mode-plugins__detail-reviews-more';
+	more.className = 'os-plugins__detail-reviews-more';
 	more.appendChild(
 		linkButton(
 			'ghost',
@@ -1017,7 +1017,7 @@ function buildReviewsFallback( slug: string ): HTMLElement {
 			'desktop-mode',
 		),
 	);
-	const cta = document.createElement( 'wpd-button' );
+	const cta = document.createElement( 'os-button' );
 	cta.setAttribute( 'slot', 'cta' );
 	cta.setAttribute( 'variant', 'primary' );
 	cta.setAttribute( 'size', 'small' );
@@ -1041,7 +1041,7 @@ function buildReviewsFallback( slug: string ): HTMLElement {
  */
 function buildWriteReviewCta( slug: string ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__detail-reviews-cta';
+	wrap.className = 'os-plugins__detail-reviews-cta';
 	wrap.appendChild(
 		linkButton(
 			'primary',
@@ -1053,13 +1053,13 @@ function buildWriteReviewCta( slug: string ): HTMLElement {
 }
 
 function buildReviewCard( item: PluginReview ): HTMLElement {
-	const card = document.createElement( 'wpd-card' );
+	const card = document.createElement( 'os-card' );
 	card.setAttribute( 'compact', '' );
-	card.className = 'desktop-mode-plugins__detail-review';
+	card.className = 'os-plugins__detail-review';
 
 	const head = document.createElement( 'div' );
 	head.setAttribute( 'slot', 'header' );
-	head.className = 'desktop-mode-plugins__detail-review-head';
+	head.className = 'os-plugins__detail-review-head';
 	const author = document.createElement( 'strong' );
 	author.textContent = item.author || __( 'Anonymous', 'desktop-mode' );
 	head.appendChild( author );
@@ -1067,7 +1067,7 @@ function buildReviewCard( item: PluginReview ): HTMLElement {
 	head.appendChild( stars );
 	if ( item.date ) {
 		const date = document.createElement( 'span' );
-		date.className = 'desktop-mode-plugins__detail-review-date';
+		date.className = 'os-plugins__detail-review-date';
 		date.textContent = item.date;
 		head.appendChild( date );
 	}
@@ -1075,7 +1075,7 @@ function buildReviewCard( item: PluginReview ): HTMLElement {
 
 	if ( item.excerpt ) {
 		const body = document.createElement( 'p' );
-		body.className = 'desktop-mode-plugins__detail-review-body';
+		body.className = 'os-plugins__detail-review-body';
 		body.textContent = item.excerpt;
 		card.appendChild( body );
 	}
@@ -1089,7 +1089,7 @@ function buildReviewCard( item: PluginReview ): HTMLElement {
 		link.rel = 'noopener noreferrer';
 		link.setAttribute( 'data-noclick', '' );
 		link.textContent = __( 'Read full review ↗', 'desktop-mode' );
-		link.className = 'desktop-mode-plugins__detail-review-link';
+		link.className = 'os-plugins__detail-review-link';
 		foot.appendChild( link );
 		card.appendChild( foot );
 	}
@@ -1097,14 +1097,14 @@ function buildReviewCard( item: PluginReview ): HTMLElement {
 }
 
 function buildHistogram( info: WpOrgPluginInfo ): HTMLElement {
-	const el = document.createElement( 'wpd-rating-summary' ) as WpdRatingSummary;
+	const el = document.createElement( 'os-rating-summary' ) as OsRatingSummary;
 	if ( typeof info.rating === 'number' ) {
 		el.setAttribute( 'rating', String( info.rating ) );
 	}
 	if ( info.num_ratings ) {
 		el.setAttribute( 'total', String( info.num_ratings ) );
 	}
-	const buckets: WpdRatingBuckets = {};
+	const buckets: OsRatingBuckets = {};
 	const ratings = info.ratings ?? {};
 	for ( const key of [ '1', '2', '3', '4', '5' ] as const ) {
 		const v = ratings[ key ];
@@ -1119,7 +1119,7 @@ function buildHistogram( info: WpOrgPluginInfo ): HTMLElement {
 // ─── Small helpers ─────────────────────────────────────────────────
 
 function chip( icon: string, label: string ): HTMLElement {
-	const c = document.createElement( 'wpd-chip' );
+	const c = document.createElement( 'os-chip' );
 	c.setAttribute( 'label', label );
 	c.setAttribute( 'tone', 'neutral' );
 	const ico = document.createElement( 'span' );
@@ -1132,8 +1132,8 @@ function chip( icon: string, label: string ): HTMLElement {
 
 function buildLoadingBlock( label: string ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__detail-loading-block';
-	const spinner = document.createElement( 'wpd-spinner' );
+	wrap.className = 'os-plugins__detail-loading-block';
+	const spinner = document.createElement( 'os-spinner' );
 	spinner.setAttribute( 'preset', 'classic' );
 	spinner.setAttribute( 'size', '20' );
 	wrap.appendChild( spinner );
@@ -1148,7 +1148,7 @@ function buildEmpty(
 	heading: string,
 	description: string,
 ): HTMLElement {
-	const e = document.createElement( 'wpd-empty-state' );
+	const e = document.createElement( 'os-empty-state' );
 	e.setAttribute( 'icon', `dashicons-${ icon }` );
 	e.setAttribute( 'heading', heading );
 	e.setAttribute( 'description', description );
@@ -1163,7 +1163,7 @@ function buildFallbackGlyph(): HTMLElement {
 }
 
 function linkButton( variant: string, label: string, href: string ): HTMLElement {
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.setAttribute( 'variant', variant );
 	btn.setAttribute( 'size', 'small' );
 	btn.textContent = label;
@@ -1198,31 +1198,13 @@ function sanitizeLinks( wrap: HTMLElement ): void {
 	} );
 }
 
-function deriveSlug( row: InstalledPlugin ): string {
-	if ( ! row.desktop_mode_icon_url ) {
-		return '';
-	}
-	// `update_plugins` transient carries the canonical wp.org slug
-	// when the plugin has a pending update — prefer it.
-	const fromUpdate = row.desktop_mode_update_available?.slug;
-	if ( fromUpdate ) {
-		return fromUpdate;
-	}
-	// Folder name is the wp.org repo slug for nearly every installed
-	// plugin on the directory. Textdomain only matches for a minority,
-	// so it's the last-resort fallback (single-file plugins where the
-	// folder is `.`).
-	const file = typeof row.plugin === 'string' ? row.plugin : '';
-	if ( file ) {
-		const slash = file.indexOf( '/' );
-		if ( slash > 0 ) {
-			return file.slice( 0, slash );
-		}
-	}
-	if ( row.textdomain ) {
-		return String( row.textdomain );
-	}
-	return '';
+/**
+ * The plugin's wp.org directory slug, or `''` when it isn't listed
+ * there.
+ */
+export function deriveSlug( row: InstalledPlugin ): string {
+	const slug = row.openstation_wporg_slug;
+	return typeof slug === 'string' ? slug : '';
 }
 
 function readDescription( row: InstalledPlugin ): string {
@@ -1320,49 +1302,49 @@ function sanitizeHtml( html: string ): string {
 
 // ─── Panel styles (injected into the shadow tree at mount) ─────────
 //
-// `<wpd-table>` renders the sub-row inside its own shadow DOM, so
+// `<os-table>` renders the sub-row inside its own shadow DOM, so
 // document-level CSS (`plugins-window.css`) does NOT reach the
 // panel. We ship this stylesheet as a `<style>` element appended
 // inside the panel root so the rules live in the same shadow tree
 // as the markup. Every selector is namespaced under
-// `.desktop-mode-plugins__detail*` so the rules don't bleed into
+// `.os-plugins__detail*` so the rules don't bleed into
 // other rows of the table.
 
 const PANEL_STYLES = `
-.desktop-mode-plugins__detail {
+.os-plugins__detail {
 	display: block;
-	background: var( --wpd-surface-subtle, rgba( 0, 0, 0, 0.025 ) );
-	border-block-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	color: var( --wpd-fg, inherit );
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.025 ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	color: var( --os-ui-fg, inherit );
 	font-size: 13px;
 	line-height: 1.55;
 }
 
 /* Hero */
-.desktop-mode-plugins__detail-hero {
-	background: var( --wpd-surface-raised, rgba( 255, 255, 255, 0.6 ) );
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+.os-plugins__detail-hero {
+	background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.6 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
-.desktop-mode-plugins__detail-hero-inner {
+.os-plugins__detail-hero-inner {
 	display: flex;
 	align-items: center;
 	gap: 14px;
 	padding: 14px 24px;
 }
-.desktop-mode-plugins__detail-hero-icon {
+.os-plugins__detail-hero-icon {
 	flex: 0 0 44px;
 	width: 44px;
 	height: 44px;
 	border-radius: 10px;
 	overflow: hidden;
-	background: var( --wpd-surface, rgba( 0, 0, 0, 0.04 ) );
-	box-shadow: 0 0 0 1px var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) inset;
+	background: var( --os-ui-surface, rgba( 0, 0, 0, 0.04 ) );
+	box-shadow: 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) inset;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 }
-.desktop-mode-plugins__detail-hero-icon img {
+.os-plugins__detail-hero-icon img {
 	width: 100%;
 	height: 100%;
 	max-width: 100%;
@@ -1370,63 +1352,63 @@ const PANEL_STYLES = `
 	object-fit: contain;
 	display: block;
 }
-.desktop-mode-plugins__detail-hero-icon .dashicons {
+.os-plugins__detail-hero-icon .dashicons {
 	font-size: 20px;
 	width: 20px;
 	height: 20px;
 	line-height: 20px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
-.desktop-mode-plugins__detail-hero-text {
+.os-plugins__detail-hero-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
-.desktop-mode-plugins__detail-title {
+.os-plugins__detail-title {
 	margin: 0;
 	font-size: 15px;
 	font-weight: 600;
 	line-height: 1.25;
 	letter-spacing: -0.005em;
-	color: var( --wpd-fg, inherit );
+	color: var( --os-ui-fg, inherit );
 }
-.desktop-mode-plugins__detail-byline {
+.os-plugins__detail-byline {
 	margin: 0;
 	font-size: 12.5px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 }
-.desktop-mode-plugins__detail-byline a {
+.os-plugins__detail-byline a {
 	color: inherit;
 	text-decoration: underline;
-	text-decoration-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.25 ) );
+	text-decoration-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.25 ) );
 }
-.desktop-mode-plugins__detail-byline a:hover {
+.os-plugins__detail-byline a:hover {
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
 /* Tab strip */
-.desktop-mode-plugins__detail-tabs-wrap {
+.os-plugins__detail-tabs-wrap {
 	padding: 0 24px;
-	background: var( --wpd-surface-raised, rgba( 255, 255, 255, 0.6 ) );
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.6 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
-.desktop-mode-plugins__detail-tabs {
+.os-plugins__detail-tabs {
 	display: block;
 }
 
 /* Body */
-.desktop-mode-plugins__detail-body {
+.os-plugins__detail-body {
 	padding: 22px 24px 26px;
 	max-width: 100%;
 }
 
 /* Overview chip strip */
-.desktop-mode-plugins__detail-chip-strip {
+.os-plugins__detail-chip-strip {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 	align-items: center;
 }
-.desktop-mode-plugins__detail-stars-pill {
+.os-plugins__detail-stars-pill {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -1437,59 +1419,59 @@ const PANEL_STYLES = `
 	font-size: 12px;
 	font-weight: 600;
 }
-.desktop-mode-plugins__detail-actions {
+.os-plugins__detail-actions {
 	padding-top: 4px;
 }
 
 /* Sanitized HTML body (description / changelog / FAQ answers) */
-.desktop-mode-plugins__detail-html {
-	color: var( --wpd-fg, inherit );
+.os-plugins__detail-html {
+	color: var( --os-ui-fg, inherit );
 	font-size: 14px;
 	line-height: 1.65;
 	max-width: 78ch;
 }
-.desktop-mode-plugins__detail-html h1,
-.desktop-mode-plugins__detail-html h2,
-.desktop-mode-plugins__detail-html h3,
-.desktop-mode-plugins__detail-html h4 {
+.os-plugins__detail-html h1,
+.os-plugins__detail-html h2,
+.os-plugins__detail-html h3,
+.os-plugins__detail-html h4 {
 	margin: 16px 0 6px;
 	line-height: 1.3;
 	font-weight: 600;
 }
-.desktop-mode-plugins__detail-html h1 { font-size: 18px; }
-.desktop-mode-plugins__detail-html h2 { font-size: 16px; }
-.desktop-mode-plugins__detail-html h3 { font-size: 14.5px; }
-.desktop-mode-plugins__detail-html h4 { font-size: 13.5px; }
-.desktop-mode-plugins__detail-html p {
+.os-plugins__detail-html h1 { font-size: 18px; }
+.os-plugins__detail-html h2 { font-size: 16px; }
+.os-plugins__detail-html h3 { font-size: 14.5px; }
+.os-plugins__detail-html h4 { font-size: 13.5px; }
+.os-plugins__detail-html p {
 	margin: 0 0 10px;
 }
-.desktop-mode-plugins__detail-html ul,
-.desktop-mode-plugins__detail-html ol {
+.os-plugins__detail-html ul,
+.os-plugins__detail-html ol {
 	margin: 0 0 10px;
 	padding-inline-start: 22px;
 }
-.desktop-mode-plugins__detail-html li { margin-bottom: 4px; }
-.desktop-mode-plugins__detail-html code,
-.desktop-mode-plugins__detail-html pre {
+.os-plugins__detail-html li { margin-bottom: 4px; }
+.os-plugins__detail-html code,
+.os-plugins__detail-html pre {
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font-size: 12px;
 	background: rgba( 0, 0, 0, 0.06 );
 	border-radius: 4px;
 }
-.desktop-mode-plugins__detail-html code { padding: 1px 6px; }
-.desktop-mode-plugins__detail-html pre {
+.os-plugins__detail-html code { padding: 1px 6px; }
+.os-plugins__detail-html pre {
 	padding: 10px 12px;
 	overflow-x: auto;
 	margin: 0 0 10px;
 }
-.desktop-mode-plugins__detail-html pre code {
+.os-plugins__detail-html pre code {
 	background: transparent;
 	padding: 0;
 }
-.desktop-mode-plugins__detail-html a {
+.os-plugins__detail-html a {
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
-.desktop-mode-plugins__detail-html img {
+.os-plugins__detail-html img {
 	display: block;
 	max-width: 100%;
 	max-height: 220px;
@@ -1501,36 +1483,36 @@ const PANEL_STYLES = `
 }
 
 /* Details fact cards */
-.desktop-mode-plugins__detail-grid {
+.os-plugins__detail-grid {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-fact {
+.os-plugins__detail-fact {
 	min-width: 0;
 }
-.desktop-mode-plugins__detail-fact-head {
+.os-plugins__detail-fact-head {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 }
-.desktop-mode-plugins__detail-fact-head .dashicons {
+.os-plugins__detail-fact-head .dashicons {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
 	line-height: 14px;
 }
-.desktop-mode-plugins__detail-fact-value {
+.os-plugins__detail-fact-value {
 	font-size: 14px;
-	color: var( --wpd-fg, inherit );
+	color: var( --os-ui-fg, inherit );
 	word-break: break-word;
 	overflow-wrap: anywhere;
 	font-weight: 500;
 }
-.desktop-mode-plugins__detail-fact-value code {
+.os-plugins__detail-fact-value code {
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font-size: 12.5px;
 	background: rgba( 0, 0, 0, 0.06 );
@@ -1538,50 +1520,50 @@ const PANEL_STYLES = `
 	border-radius: 4px;
 	font-weight: 400;
 }
-.desktop-mode-plugins__detail-fact-value a {
+.os-plugins__detail-fact-value a {
 	color: var( --wp-admin-theme-color, #2271b1 );
 	text-decoration: none;
 }
-.desktop-mode-plugins__detail-fact-value a:hover {
+.os-plugins__detail-fact-value a:hover {
 	text-decoration: underline;
 }
 
 /* Changelog — version-grouped cards */
-.desktop-mode-plugins__detail-changelog {
+.os-plugins__detail-changelog {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-changelog-entry {
+.os-plugins__detail-changelog-entry {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-changelog-head {
+.os-plugins__detail-changelog-head {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 }
-.desktop-mode-plugins__detail-changelog-latest {
+.os-plugins__detail-changelog-latest {
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 }
 
 /* FAQ — accordion */
-.desktop-mode-plugins__detail-faq {
+.os-plugins__detail-faq {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-faq-item {
-	background: var( --wpd-surface-raised, rgba( 255, 255, 255, 0.7 ) );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+.os-plugins__detail-faq-item {
+	background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.7 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 12px;
 	overflow: hidden;
 	transition: box-shadow 160ms ease, border-color 160ms ease;
 }
-.desktop-mode-plugins__detail-faq-item[open] {
+.os-plugins__detail-faq-item[open] {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.06 );
 }
-.desktop-mode-plugins__detail-faq-q {
+.os-plugins__detail-faq-q {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -1590,20 +1572,20 @@ const PANEL_STYLES = `
 	list-style: none;
 	user-select: none;
 }
-.desktop-mode-plugins__detail-faq-q::-webkit-details-marker {
+.os-plugins__detail-faq-q::-webkit-details-marker {
 	display: none;
 }
-.desktop-mode-plugins__detail-faq-q:hover {
+.os-plugins__detail-faq-q:hover {
 	background: rgba( 0, 0, 0, 0.025 );
 }
-.desktop-mode-plugins__detail-faq-q-text {
+.os-plugins__detail-faq-q-text {
 	flex: 1 1 auto;
 	font-size: 14px;
 	font-weight: 600;
-	color: var( --wpd-fg, inherit );
+	color: var( --os-ui-fg, inherit );
 	line-height: 1.4;
 }
-.desktop-mode-plugins__detail-faq-chevron {
+.os-plugins__detail-faq-chevron {
 	flex: 0 0 auto;
 	width: 24px;
 	height: 24px;
@@ -1612,97 +1594,97 @@ const PANEL_STYLES = `
 	align-items: center;
 	justify-content: center;
 	background: rgba( 0, 0, 0, 0.05 );
-	color: var( --wpd-fg-muted, #555 );
+	color: var( --os-ui-fg-muted, #555 );
 	transition: transform 200ms cubic-bezier( 0.2, 0.8, 0.2, 1 ), background 160ms ease;
 }
-.desktop-mode-plugins__detail-faq-item[open] .desktop-mode-plugins__detail-faq-chevron {
+.os-plugins__detail-faq-item[open] .os-plugins__detail-faq-chevron {
 	transform: rotate( 180deg );
 	background: var( --wp-admin-theme-color, #2271b1 );
 	color: #fff;
 }
-.desktop-mode-plugins__detail-faq-a {
+.os-plugins__detail-faq-a {
 	padding: 4px 16px 16px;
-	border-block-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 	background: rgba( 0, 0, 0, 0.012 );
 }
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-plugins__detail-faq-chevron,
-	.desktop-mode-plugins__detail-faq-item {
+	.os-plugins__detail-faq-chevron,
+	.os-plugins__detail-faq-item {
 		transition: none;
 	}
 }
 
 /* Reviews */
-.desktop-mode-plugins__detail-reviews {
+.os-plugins__detail-reviews {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-reviews-grid {
+.os-plugins__detail-reviews-grid {
 	width: 100%;
 }
-.desktop-mode-plugins__detail-reviews-more,
-.desktop-mode-plugins__detail-reviews-cta {
+.os-plugins__detail-reviews-more,
+.os-plugins__detail-reviews-cta {
 	display: flex;
 	justify-content: center;
 	padding-top: 12px;
 }
-.desktop-mode-plugins__detail-review {
+.os-plugins__detail-review {
 	width: 100%;
 	height: 100%;
 	box-sizing: border-box;
 }
-.desktop-mode-plugins__detail-review-body {
+.os-plugins__detail-review-body {
 	display: -webkit-box;
 	-webkit-line-clamp: 4;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
 @media ( max-width: 720px ) {
-	.desktop-mode-plugins__detail-reviews-grid {
+	.os-plugins__detail-reviews-grid {
 		grid-template-columns: 1fr !important;
 	}
 }
-.desktop-mode-plugins__detail-review-head {
+.os-plugins__detail-review-head {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	flex-wrap: wrap;
 }
-.desktop-mode-plugins__detail-review-date {
+.os-plugins__detail-review-date {
 	margin-inline-start: auto;
 	font-size: 11.5px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
-.desktop-mode-plugins__detail-review-body {
+.os-plugins__detail-review-body {
 	margin: 0;
 	font-size: 13px;
-	color: var( --wpd-fg, inherit );
+	color: var( --os-ui-fg, inherit );
 	line-height: 1.55;
 }
-.desktop-mode-plugins__detail-review-link {
+.os-plugins__detail-review-link {
 	font-size: 12px;
 	font-weight: 600;
 	color: var( --wp-admin-theme-color, #2271b1 );
 	text-decoration: none;
 }
-.desktop-mode-plugins__detail-review-link:hover {
+.os-plugins__detail-review-link:hover {
 	text-decoration: underline;
 }
 
 /* Loading block */
-.desktop-mode-plugins__detail-loading-block {
+.os-plugins__detail-loading-block {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
 	padding: 12px 14px;
 	border-radius: 10px;
-	background: var( --wpd-surface-raised, rgba( 255, 255, 255, 0.7 ) );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
-	color: var( --wpd-fg-muted, #666 );
+	background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.7 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	color: var( --os-ui-fg-muted, #666 );
 	font-size: 13px;
 }
 
 @media ( max-width: 720px ) {
-	.desktop-mode-plugins__detail-grid {
+	.os-plugins__detail-grid {
 		grid-template-columns: 1fr !important;
 	}
 }

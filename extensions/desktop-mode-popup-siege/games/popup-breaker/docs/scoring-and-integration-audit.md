@@ -12,7 +12,7 @@ input and is the adapter's single production runtime request.
 Each launch receives a fresh mount. The adapter uses the rules-v3 state
 subscription, unregisters native window lifecycle handlers, disconnects its
 resize observer, tears down the game and audio owners, and clears the container
-when Desktop Mode closes the game. A failed runtime load clears its promise so
+when OpenStation closes the game. A failed runtime load clears its promise so
 a later launch can retry.
 
 ## Score submission

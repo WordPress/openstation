@@ -1,9 +1,9 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 /**
- * Desktop Mode — framework-level presence.
+ * OpenStation — framework-level presence.
  *
- * Tracks who's currently in the desktop-mode WP-Admin and what
+ * Tracks who's currently in the openstation WP-Admin and what
  * their state is — `online`, `inactive`, `offline`. Lives at
  * framework level so any plugin can consume presence without
  * depending on chat / collaboration / co-editing features being
@@ -24,42 +24,49 @@ defined( 'ABSPATH' ) || exit;
  *
  * **Public surface.** PHP helpers:
  *
- *   - `desktop_mode_presence_record( $user_id, $active )`
- *   - `desktop_mode_presence_status_for_user( $user_id )`
- *   - `desktop_mode_presence_get_all()`
- *   - `desktop_mode_presence_snapshot( $user_ids = null )`
+ *   - `openstation_presence_record( $user_id, $active )`
+ *   - `openstation_presence_status_for_user( $user_id )`
+ *   - `openstation_presence_get_all()`
+ *   - `openstation_presence_snapshot( $user_ids = null )`
  *
  * Filters:
  *
- *   - `desktop_mode_presence_inactive_after` — int seconds. Default 300.
- *   - `desktop_mode_presence_offline_after`  — int seconds. Default 120.
- *   - `desktop_mode_presence_can_track`      — bool, $user_id. Veto.
- *   - `desktop_mode_presence_visible_users`  — int[], $viewer_id.
+ *   - `openstation_presence_inactive_after` — int seconds. Default 300.
+ *   - `openstation_presence_offline_after`  — int seconds. Default 120.
+ *   - `openstation_presence_can_track`      — bool, $user_id. Veto.
+ *   - `openstation_presence_visible_users`  — int[], $viewer_id.
  *                                             Privacy gate for who's
  *                                             surfaced to a given user.
  *
  * Actions:
  *
- *   - `desktop_mode_presence_recorded( $user_id, $record )` — on every
+ *   - `openstation_presence_recorded( $user_id, $record )` — on every
  *     bump.
- *   - `desktop_mode_presence_changed( $user_id, $new, $old )` — on
+ *   - `openstation_presence_changed( $user_id, $new, $old )` — on
  *     state transitions only.
  *
  * REST: `/desktop-mode/v1/presence` (GET snapshot, POST mark active /
  * inactive).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
-const DESKTOP_MODE_PRESENCE_OPTION = '_desktop_mode_presence';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_PRESENCE_OPTION = '_desktop_mode_presence';
 
 /**
  * Read the entire presence map. Single autoload=false option.
  *
  * @return array<int,array{last_seen_ms:int,last_active_ms:int}>
  */
-function desktop_mode_presence_get_all() {
-	$raw = get_option( DESKTOP_MODE_PRESENCE_OPTION, array() );
+function openstation_presence_get_all() {
+	$raw = get_option( OPENSTATION_PRESENCE_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -89,12 +96,12 @@ function desktop_mode_presence_get_all() {
  * idle users no longer rewrite the shared row every tick. Persisted
  * timestamps can therefore lag real activity by up to the throttle
  * window — always well inside the offline threshold, so computed
- * statuses stay correct. Fires `desktop_mode_presence_recorded` on
+ * statuses stay correct. Fires `openstation_presence_recorded` on
  * every call (with the fresh, un-throttled record) and
- * `desktop_mode_presence_changed` only when the computed status moves
+ * `openstation_presence_changed` only when the computed status moves
  * between `online | inactive | offline`.
  *
- * The `desktop_mode_presence_can_track` filter is the per-user opt-out:
+ * The `openstation_presence_can_track` filter is the per-user opt-out:
  * a plugin that hides specific accounts (compliance, "set yourself
  * invisible", etc.) returns false to skip the bump entirely.
  *
@@ -103,7 +110,7 @@ function desktop_mode_presence_get_all() {
  *                      explicit user activity (mousedown, keydown).
  * @return bool True if recorded; false if vetoed by filter or invalid id.
  */
-function desktop_mode_presence_record( $user_id, $active = true ) {
+function openstation_presence_record( $user_id, $active = true ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
@@ -118,29 +125,29 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 	 * @param bool $can     Default true.
 	 * @param int  $user_id The user being tracked.
 	 */
-	$can = (bool) apply_filters( 'desktop_mode_presence_can_track', true, $user_id );
+	$can = (bool) apply_filters( 'openstation_presence_can_track', true, $user_id );
 	if ( ! $can ) {
 		return false;
 	}
 
-	$now_ms = (int) round( microtime( true ) * 1000 );
-	$all    = desktop_mode_presence_get_all();
-	$prev   = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
+	$now_ms      = (int) round( microtime( true ) * 1000 );
+	$all         = openstation_presence_get_all();
+	$prev        = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
 		'last_seen_ms'   => 0,
 		'last_active_ms' => 0,
 	);
-	$prev_status = desktop_mode_presence_status_from_record( $prev );
+	$prev_status = openstation_presence_status_from_record( $prev );
 
 	$next = array(
 		'last_seen_ms'   => $now_ms,
 		'last_active_ms' => $active ? $now_ms : (int) $prev['last_active_ms'],
 	);
 
-	$next_status = desktop_mode_presence_status_from_record( $next );
+	$next_status = openstation_presence_status_from_record( $next );
 
-	if ( desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) ) {
+	if ( openstation_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) ) {
 		$all[ $user_id ] = $next;
-		update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
+		update_option( OPENSTATION_PRESENCE_OPTION, $all, false );
 	}
 
 	/**
@@ -151,7 +158,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 	 * @param int   $user_id
 	 * @param array $record  { last_seen_ms, last_active_ms }
 	 */
-	do_action( 'desktop_mode_presence_recorded', $user_id, $next );
+	do_action( 'openstation_presence_recorded', $user_id, $next );
 
 	if ( $next_status !== $prev_status ) {
 		/**
@@ -164,7 +171,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		 * @param string $new_status One of `online | inactive | offline`.
 		 * @param string $old_status One of `online | inactive | offline`.
 		 */
-		do_action( 'desktop_mode_presence_changed', $user_id, $next_status, $prev_status );
+		do_action( 'openstation_presence_changed', $user_id, $next_status, $prev_status );
 	}
 	return true;
 }
@@ -185,7 +192,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
  *     while the user is genuinely present.
  *
  * Everything else is a redundant rewrite and is skipped. Skipped
- * bumps still fire `desktop_mode_presence_recorded` with the fresh
+ * bumps still fire `openstation_presence_recorded` with the fresh
  * record — only the persisted copy lags.
  *
  * @param array  $all         Stored presence map.
@@ -197,7 +204,7 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
  * @param int    $now_ms      Current epoch milliseconds.
  * @return bool True to persist, false to skip the write.
  */
-function desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) {
+function openstation_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) {
 	if ( ! isset( $all[ $user_id ] ) ) {
 		return true;
 	}
@@ -206,7 +213,7 @@ function desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_stat
 	}
 
 	/** This filter is documented in includes/presence.php */
-	$offline_after = (int) apply_filters( 'desktop_mode_presence_offline_after', 120 );
+	$offline_after = (int) apply_filters( 'openstation_presence_offline_after', 120 );
 	$throttle_ms   = (int) min( 60 * 1000, $offline_after * 500 );
 
 	if ( ( $now_ms - (int) $prev['last_seen_ms'] ) >= $throttle_ms ) {
@@ -229,7 +236,7 @@ function desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_stat
  * @param array $record { last_seen_ms?: int, last_active_ms?: int }
  * @return string `online | inactive | offline`
  */
-function desktop_mode_presence_status_from_record( $record ) {
+function openstation_presence_status_from_record( $record ) {
 	$now_ms      = (int) round( microtime( true ) * 1000 );
 	$last_seen   = isset( $record['last_seen_ms'] ) ? (int) $record['last_seen_ms'] : 0;
 	$last_active = isset( $record['last_active_ms'] ) ? (int) $record['last_active_ms'] : 0;
@@ -241,7 +248,7 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 *
 	 * @param int $seconds
 	 */
-	$inactive_after = (int) apply_filters( 'desktop_mode_presence_inactive_after', 300 );
+	$inactive_after = (int) apply_filters( 'openstation_presence_inactive_after', 300 );
 
 	/**
 	 * Offline threshold (default 120s = 2 min). Inactive / online
@@ -250,7 +257,7 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 *
 	 * @param int $seconds
 	 */
-	$offline_after = (int) apply_filters( 'desktop_mode_presence_offline_after', 120 );
+	$offline_after = (int) apply_filters( 'openstation_presence_offline_after', 120 );
 
 	if ( $now_ms - $last_seen > $offline_after * 1000 ) {
 		return 'offline';
@@ -267,10 +274,10 @@ function desktop_mode_presence_status_from_record( $record ) {
  * @param int $user_id
  * @return string `online | inactive | offline`
  */
-function desktop_mode_presence_status_for_user( $user_id ) {
-	$all    = desktop_mode_presence_get_all();
+function openstation_presence_status_for_user( $user_id ) {
+	$all    = openstation_presence_get_all();
 	$record = isset( $all[ (int) $user_id ] ) ? $all[ (int) $user_id ] : array();
-	return desktop_mode_presence_status_from_record( (array) $record );
+	return openstation_presence_status_from_record( (array) $record );
 }
 
 /**
@@ -285,8 +292,8 @@ function desktop_mode_presence_status_for_user( $user_id ) {
  * @param int[]|null $user_ids Restrict to these ids. `null` = all.
  * @return array<string,array{ status:string, lastSeenMs:int, lastActiveMs:int }>
  */
-function desktop_mode_presence_snapshot( $user_ids = null ) {
-	$all = desktop_mode_presence_get_all();
+function openstation_presence_snapshot( $user_ids = null ) {
+	$all = openstation_presence_get_all();
 	$out = array();
 
 	if ( null === $user_ids ) {
@@ -302,9 +309,9 @@ function desktop_mode_presence_snapshot( $user_ids = null ) {
 	}
 
 	foreach ( $ids as $uid ) {
-		$record = isset( $all[ $uid ] ) ? $all[ $uid ] : array();
+		$record               = isset( $all[ $uid ] ) ? $all[ $uid ] : array();
 		$out[ (string) $uid ] = array(
-			'status'       => desktop_mode_presence_status_from_record( $record ),
+			'status'       => openstation_presence_status_from_record( $record ),
 			'lastSeenMs'   => isset( $record['last_seen_ms'] ) ? (int) $record['last_seen_ms'] : 0,
 			'lastActiveMs' => isset( $record['last_active_ms'] ) ? (int) $record['last_active_ms'] : 0,
 		);
@@ -316,16 +323,19 @@ function desktop_mode_presence_snapshot( $user_ids = null ) {
  * Filter a list of candidate user ids down to those a given viewer
  * is allowed to see presence for. Defaults to passing the list
  * through unchanged — plugins implementing per-team / per-role
- * privacy boundaries hook `desktop_mode_presence_visible_users`
+ * privacy boundaries hook `openstation_presence_visible_users`
  * (e.g., "subscribers can only see other subscribers' presence").
  *
  * @param int[] $candidate_user_ids
  * @param int   $viewer_id          Defaults to the current user.
  * @return int[]
  */
-function desktop_mode_presence_visible_users( $candidate_user_ids, $viewer_id = 0 ) {
-	$viewer_id = (int) $viewer_id ?: get_current_user_id();
-	$ids       = array();
+function openstation_presence_visible_users( $candidate_user_ids, $viewer_id = 0 ) {
+	$viewer_id = (int) $viewer_id;
+	if ( ! $viewer_id ) {
+		$viewer_id = get_current_user_id();
+	}
+	$ids = array();
 	foreach ( (array) $candidate_user_ids as $uid ) {
 		$uid = (int) $uid;
 		if ( $uid > 0 ) {
@@ -343,15 +353,15 @@ function desktop_mode_presence_visible_users( $candidate_user_ids, $viewer_id = 
 	 * @param int[] $ids       Candidate user ids.
 	 * @param int   $viewer_id The user requesting visibility.
 	 */
-	return (array) apply_filters( 'desktop_mode_presence_visible_users', $ids, $viewer_id );
+	return (array) apply_filters( 'openstation_presence_visible_users', $ids, $viewer_id );
 }
 
 /**
  * Daily cron: prune presence entries for users idle >14 days.
  * Keeps the option compact even on long-running sites.
  */
-function desktop_mode_presence_cron_prune() {
-	$all = desktop_mode_presence_get_all();
+function openstation_presence_cron_prune() {
+	$all = openstation_presence_get_all();
 	if ( empty( $all ) ) {
 		return;
 	}
@@ -364,101 +374,105 @@ function desktop_mode_presence_cron_prune() {
 		$pruned[ (int) $uid ] = $record;
 	}
 	if ( count( $pruned ) !== count( $all ) ) {
-		update_option( DESKTOP_MODE_PRESENCE_OPTION, $pruned, false );
+		update_option( OPENSTATION_PRESENCE_OPTION, $pruned, false );
 	}
 }
-add_action( 'desktop_mode_presence_daily_prune', 'desktop_mode_presence_cron_prune' );
+add_action( 'desktop_mode_presence_daily_prune', 'openstation_presence_cron_prune' );
 
 /**
  * Schedule the daily cron once. Idempotent.
  */
-function desktop_mode_presence_schedule_cron() {
+function openstation_presence_schedule_cron() {
 	if ( ! wp_next_scheduled( 'desktop_mode_presence_daily_prune' ) ) {
 		wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', 'desktop_mode_presence_daily_prune' );
 	}
 }
-add_action( 'init', 'desktop_mode_presence_schedule_cron', 50 );
+add_action( 'init', 'openstation_presence_schedule_cron', 50 );
 
-/* -------------------------------------------------------------------------
+/*
+-------------------------------------------------------------------------
  * Heartbeat integration
- * ----------------------------------------------------------------------- */
+ * -----------------------------------------------------------------------
+ */
 
 /**
- * Heartbeat handler — bumps presence on every tick a desktop-mode
+ * Heartbeat handler — bumps presence on every tick a openstation
  * user is on the page. Returns the visible-presence snapshot in
  * the response so the client store can update without a separate
  * REST round-trip.
  *
- * Triggered by the client opting in via `desktop_mode_presence_active:
+ * Triggered by the client opting in via `openstation_presence_active:
  * true` in the heartbeat-send payload, with optional
- * `desktop_mode_user_active` (mousedown / keydown within the
+ * `openstation_user_active` (mousedown / keydown within the
  * inactive-threshold window).
  *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
  * @return array
  */
-function desktop_mode_presence_heartbeat_received( $response, $data ) {
+function openstation_presence_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( empty( $data['desktop_mode_presence_active'] ) ) {
+	if ( empty( $data['openstation_presence_active'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
 		return $response;
 	}
 	$user_id     = (int) get_current_user_id();
-	$user_active = ! empty( $data['desktop_mode_user_active'] );
+	$user_active = ! empty( $data['openstation_user_active'] );
 
-	desktop_mode_presence_record( $user_id, $user_active );
+	openstation_presence_record( $user_id, $user_active );
 
 	// Snapshot the users this viewer is allowed to see — by default
 	// all tracked users; plugins can narrow via the
-	// `desktop_mode_presence_visible_users` filter.
-	$all_ids = array_keys( desktop_mode_presence_get_all() );
-	$visible = desktop_mode_presence_visible_users( $all_ids, $user_id );
+	// `openstation_presence_visible_users` filter.
+	$all_ids = array_keys( openstation_presence_get_all() );
+	$visible = openstation_presence_visible_users( $all_ids, $user_id );
 
-	$response['desktop_mode_presence'] = array(
-		'snapshot'     => desktop_mode_presence_snapshot( $visible ),
+	$response['openstation_presence'] = array(
+		'snapshot'     => openstation_presence_snapshot( $visible ),
 		'serverTimeMs' => (int) round( microtime( true ) * 1000 ),
 	);
 	return $response;
 }
-add_filter( 'heartbeat_received', 'desktop_mode_presence_heartbeat_received', 5, 2 );
+add_filter( 'heartbeat_received', 'openstation_presence_heartbeat_received', 5, 2 );
 
-/* -------------------------------------------------------------------------
+/*
+-------------------------------------------------------------------------
  * REST endpoints
- * ----------------------------------------------------------------------- */
+ * -----------------------------------------------------------------------
+ */
 
 /**
  * Permission gate for presence endpoints — login required +
- * desktop mode enabled. Delegates to the shared
- * {@see desktop_mode_rest_require_enabled()} gate.
+ * OpenStation enabled. Delegates to the shared
+ * {@see openstation_rest_require_enabled()} gate.
  *
  * @return true|WP_Error
  */
-function desktop_mode_presence_rest_permission() {
-	return desktop_mode_rest_require_enabled();
+function openstation_presence_rest_permission() {
+	return openstation_rest_require_enabled();
 }
 
 /**
  * Register `/desktop-mode/v1/presence` routes.
  */
-function desktop_mode_presence_register_rest_routes() {
+function openstation_presence_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/presence',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'permission_callback' => 'desktop_mode_presence_rest_permission',
-				'callback'            => 'desktop_mode_presence_rest_get',
+				'permission_callback' => 'openstation_presence_rest_permission',
+				'callback'            => 'openstation_presence_rest_get',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'permission_callback' => 'desktop_mode_presence_rest_permission',
-				'callback'            => 'desktop_mode_presence_rest_post',
+				'permission_callback' => 'openstation_presence_rest_permission',
+				'callback'            => 'openstation_presence_rest_post',
 				'args'                => array(
 					'active'   => array( 'type' => 'boolean' ),
 					'inactive' => array( 'type' => 'boolean' ),
@@ -467,19 +481,19 @@ function desktop_mode_presence_register_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_presence_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_presence_register_rest_routes' );
 
 /**
  * GET /desktop-mode/v1/presence — current snapshot, narrowed by the
  * visibility filter.
  */
-function desktop_mode_presence_rest_get() {
+function openstation_presence_rest_get() {
 	$viewer_id = (int) get_current_user_id();
-	$all_ids   = array_keys( desktop_mode_presence_get_all() );
-	$visible   = desktop_mode_presence_visible_users( $all_ids, $viewer_id );
+	$all_ids   = array_keys( openstation_presence_get_all() );
+	$visible   = openstation_presence_visible_users( $all_ids, $viewer_id );
 	return rest_ensure_response(
 		array(
-			'snapshot'     => desktop_mode_presence_snapshot( $visible ),
+			'snapshot'     => openstation_presence_snapshot( $visible ),
 			'serverTimeMs' => (int) round( microtime( true ) * 1000 ),
 		)
 	);
@@ -497,34 +511,34 @@ function desktop_mode_presence_rest_get() {
  * Defaults to `{ active: true }` when neither flag is supplied —
  * the simplest "I'm here" call.
  */
-function desktop_mode_presence_rest_post( WP_REST_Request $request ) {
-	$user_id = (int) get_current_user_id();
-	$active  = $request->get_param( 'active' );
+function openstation_presence_rest_post( WP_REST_Request $request ) {
+	$user_id  = (int) get_current_user_id();
+	$active   = $request->get_param( 'active' );
 	$inactive = (bool) $request->get_param( 'inactive' );
 
 	if ( $inactive ) {
 		// Set the user immediately to `inactive`: bump last_seen
 		// (still alive) but force last_active to zero (no recent
 		// interaction).
-		$all = desktop_mode_presence_get_all();
-		$rec = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
+		$all                   = openstation_presence_get_all();
+		$rec                   = isset( $all[ $user_id ] ) ? $all[ $user_id ] : array(
 			'last_seen_ms'   => 0,
 			'last_active_ms' => 0,
 		);
-		$prev_status     = desktop_mode_presence_status_from_record( $rec );
+		$prev_status           = openstation_presence_status_from_record( $rec );
 		$rec['last_seen_ms']   = (int) round( microtime( true ) * 1000 );
 		$rec['last_active_ms'] = 0;
 		$all[ $user_id ]       = $rec;
-		update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
+		update_option( OPENSTATION_PRESENCE_OPTION, $all, false );
 
-		$next_status = desktop_mode_presence_status_from_record( $rec );
-		do_action( 'desktop_mode_presence_recorded', $user_id, $rec );
+		$next_status = openstation_presence_status_from_record( $rec );
+		do_action( 'openstation_presence_recorded', $user_id, $rec );
 		if ( $next_status !== $prev_status ) {
-			do_action( 'desktop_mode_presence_changed', $user_id, $next_status, $prev_status );
+			do_action( 'openstation_presence_changed', $user_id, $next_status, $prev_status );
 		}
 	} else {
 		$flag = ( null === $active ) ? true : (bool) $active;
-		desktop_mode_presence_record( $user_id, $flag );
+		openstation_presence_record( $user_id, $flag );
 	}
 
 	return rest_ensure_response( array( 'ok' => true ) );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for `desktop_mode_ai_normalize_response_schema()` — the projection that
+ * Tests for `openstation_ai_normalize_response_schema()` — the projection that
  * keeps a structured-output schema from 400-ing on providers that validate it
  * in strict mode ("For 'object' type, 'additionalProperties' must be explicitly
  * set to false").
@@ -12,18 +12,18 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-ai
+ * @group openstation
+ * @group os-ai
  */
-class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
+class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 
 	/**
 	 * The root object gets the key even when the schema never mentioned it.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_root_object_gets_additional_properties_false() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array( 'text' => array( 'type' => 'string' ) ),
@@ -40,10 +40,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * Scalar leaves are left alone — only object nodes carry the key.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_scalar_properties_are_untouched() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array(
@@ -63,10 +63,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * the provider rejects the request over any node in the tree, not just
 	 * the root.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_nested_object_property_is_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array(
@@ -85,10 +85,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * Array `items` in single-schema form — the agents answer schema's
 	 * `call_to_actions` shape.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_array_items_object_is_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array(
@@ -109,10 +109,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * Tuple-form `items` (a list of schemas) is walked entry by entry.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_tuple_items_are_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'  => 'array',
 				'items' => array(
@@ -130,10 +130,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * Objects inside `anyOf` / `oneOf` / `allOf` branches — how a nullable
 	 * object is usually written.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_combinator_branches_are_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array(
@@ -162,10 +162,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * A type UNION that includes "object" still needs the key.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_type_union_including_object_is_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => array( 'object', 'null' ),
 				'properties' => array( 'id' => array( 'type' => 'integer' ) ),
@@ -179,10 +179,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * An untyped node that declares `properties` is an object as far as the
 	 * validator is concerned.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_untyped_node_with_properties_is_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array( 'properties' => array( 'id' => array( 'type' => 'integer' ) ) )
 		);
 
@@ -193,10 +193,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * `true` and schema-shaped values are exactly what strict mode rejects,
 	 * so an existing `additionalProperties` is overwritten rather than kept.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_permissive_additional_properties_is_overwritten() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'                 => 'object',
 				'additionalProperties' => true,
@@ -218,10 +218,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * A property literally named `items` / `properties` is a property, not a
 	 * keyword — the walk is structure-aware.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_property_named_like_a_keyword_is_treated_as_a_property() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'       => 'object',
 				'properties' => array(
@@ -246,10 +246,10 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * `$defs` / `definitions` pools are walked too — a `$ref` target is a
 	 * schema the validator sees.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_definition_pools_are_normalized() {
-		$out = desktop_mode_ai_normalize_response_schema(
+		$out = openstation_ai_normalize_response_schema(
 			array(
 				'type'  => 'object',
 				'$defs' => array(
@@ -264,7 +264,7 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * A schema that already complies is returned unchanged.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_compliant_schema_is_unchanged() {
 		$schema = array(
@@ -274,17 +274,17 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 			'properties'           => array( 'text' => array( 'type' => 'string' ) ),
 		);
 
-		$this->assertSame( $schema, desktop_mode_ai_normalize_response_schema( $schema ) );
+		$this->assertSame( $schema, openstation_ai_normalize_response_schema( $schema ) );
 	}
 
 	/**
 	 * The agents answer schema is compliant as written — the shape that
 	 * produced the original 400.
 	 *
-	 * @covers ::desktop_mode_agent_answer_schema
+	 * @covers ::openstation_agent_answer_schema
 	 */
 	public function test_agent_answer_schema_is_strict() {
-		$schema = desktop_mode_agent_answer_schema();
+		$schema = openstation_agent_answer_schema();
 
 		$this->assertFalse( $schema['additionalProperties'] );
 		$this->assertFalse( $schema['properties']['call_to_actions']['items']['additionalProperties'] );
@@ -297,7 +297,7 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		);
 		$items = $schema['properties']['call_to_actions']['items'];
 		$this->assertSame( array_keys( $items['properties'] ), $items['required'] );
-		$this->assertSame( $schema, desktop_mode_ai_normalize_response_schema( $schema ) );
+		$this->assertSame( $schema, openstation_ai_normalize_response_schema( $schema ) );
 	}
 
 	/**
@@ -305,7 +305,7 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * strict mode has no optional fields ("'required' is required to be
 	 * supplied and to be an array including every key in properties").
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_partial_required_is_repaired() {
 		$schema = array(
@@ -327,7 +327,7 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 			'required'   => array( 'text' ),
 		);
 
-		$normalized = desktop_mode_ai_normalize_response_schema( $schema );
+		$normalized = openstation_ai_normalize_response_schema( $schema );
 		$this->assertSame( array( 'text', 'items' ), $normalized['required'] );
 		$this->assertSame(
 			array( 'label', 'style' ),
@@ -339,21 +339,21 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * Every schema we hand to `as_json_response()` is already strict, so
 	 * normalization is a safety net rather than a load-bearing rewrite.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_shipped_schemas_are_strict_as_written() {
 		$post = self::factory()->post->create_and_get( array( 'post_status' => 'draft' ) );
 
 		$schemas = array(
-			'copilot answer' => desktop_mode_ai_search_answer_schema(),
-			'comment'        => desktop_mode_ai_schema_comment(),
-			'drafts'         => desktop_mode_drafts_ai_schema( $post ),
+			'copilot answer' => openstation_ai_search_answer_schema(),
+			'comment'        => openstation_ai_schema_comment(),
+			'drafts'         => openstation_drafts_ai_schema( $post ),
 		);
 
 		foreach ( $schemas as $label => $schema ) {
 			$this->assertSame(
 				$schema,
-				desktop_mode_ai_normalize_response_schema( $schema ),
+				openstation_ai_normalize_response_schema( $schema ),
 				"The {$label} schema is not strict as written."
 			);
 		}
@@ -363,7 +363,7 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 	 * A plugin that adds a nested object through a documented schema filter
 	 * can't break the request by omitting the provider-only key.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 * @covers ::openstation_ai_normalize_response_schema
 	 */
 	public function test_filtered_schema_addition_is_repaired() {
 		$add_field = static function ( $schema ) {
@@ -374,9 +374,9 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 			return $schema;
 		};
 
-		add_filter( 'desktop_mode_ai_schema_comment', $add_field );
-		$schema = desktop_mode_ai_normalize_response_schema( desktop_mode_ai_schema_comment() );
-		remove_filter( 'desktop_mode_ai_schema_comment', $add_field );
+		add_filter( 'openstation_ai_schema_comment', $add_field );
+		$schema = openstation_ai_normalize_response_schema( openstation_ai_schema_comment() );
+		remove_filter( 'openstation_ai_schema_comment', $add_field );
 
 		$this->assertFalse( $schema['properties']['compliance']['additionalProperties'] );
 	}

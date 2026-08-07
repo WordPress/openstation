@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Content Graph: graph builder.
+ * OpenStation — Content Graph: graph builder.
  *
  * Walks the WordPress post store to produce two arrays for the bundle:
  *
@@ -20,7 +20,7 @@
  * editors don't see stale data even if some other process pre-warms
  * the transient.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +30,15 @@ defined( 'ABSPATH' ) || exit;
 // previous schema (e.g. missing per-node `contributor_ids`) and
 // surface as runtime errors on the client. Each bump is a one-time
 // cache miss for every site that updates the plugin.
-const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg3_';
-const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg3_';
+const OPENSTATION_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 
 /**
  * Build (or reuse the cached version of) the graph payload for the
@@ -56,8 +63,8 @@ const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
  *     stats: array{ nodes: int, edges: int, generated_at: int }
  * }
  */
-function desktop_mode_content_graph_build( array $types ) {
-	$types = desktop_mode_content_graph_normalize_types( $types );
+function openstation_content_graph_build( array $types ) {
+	$types = openstation_content_graph_normalize_types( $types );
 	if ( empty( $types ) ) {
 		return array(
 			'nodes'  => array(),
@@ -75,25 +82,25 @@ function desktop_mode_content_graph_build( array $types ) {
 		);
 	}
 
-	$cache_key = desktop_mode_content_graph_cache_key( $types );
+	$cache_key = openstation_content_graph_cache_key( $types );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['nodes'], $cached['edges'] ) ) {
 		return $cached;
 	}
 
-	$rows = desktop_mode_content_graph_fetch_rows( $types );
+	$rows = openstation_content_graph_fetch_rows( $types );
 
 	$post_ids = array();
 	foreach ( $rows as $row ) {
 		$post_ids[] = (int) $row->ID;
 	}
 
-	$terms_by_post = desktop_mode_content_graph_collect_post_terms( $post_ids );
+	$terms_by_post = openstation_content_graph_collect_post_terms( $post_ids );
 	// Distinct revision authors per post — used to pull collaborator
 	// posts toward both the primary author's cluster AND the
 	// contributor's clusters when grouping by author. Bulk-queried so
 	// we don't N+1 `wp_get_post_revisions` per node.
-	$contribs_by_post = desktop_mode_content_graph_collect_post_contributors( $post_ids );
+	$contribs_by_post = openstation_content_graph_collect_post_contributors( $post_ids );
 
 	$default_category = max( 1, (int) get_option( 'default_category', 1 ) );
 
@@ -103,10 +110,10 @@ function desktop_mode_content_graph_build( array $types ) {
 	$cat_ids     = array();
 	$tag_ids     = array();
 	foreach ( $rows as $row ) {
-		$id              = (int) $row->ID;
-		$author_id       = (int) $row->post_author;
-		$year            = 0;
-		$year_month      = '';
+		$id         = (int) $row->ID;
+		$author_id  = (int) $row->post_author;
+		$year       = 0;
+		$year_month = '';
 		if ( ! empty( $row->post_date ) ) {
 			// Use post_date (site-local) rather than post_date_gmt for the
 			// "year published" / "year-month published" buckets — editors
@@ -130,7 +137,7 @@ function desktop_mode_content_graph_build( array $types ) {
 		$post_tags = isset( $terms_by_post[ $id ]['post_tag'] )
 			? $terms_by_post[ $id ]['post_tag']
 			: array();
-		$contribs = isset( $contribs_by_post[ $id ] )
+		$contribs  = isset( $contribs_by_post[ $id ] )
 			? $contribs_by_post[ $id ]
 			: array();
 		// Strip the primary author from the contributor list — the
@@ -148,7 +155,7 @@ function desktop_mode_content_graph_build( array $types ) {
 			);
 		}
 
-		$node = array(
+		$node               = array(
 			'id'              => $id,
 			'type'            => (string) $row->post_type,
 			'title'           => (string) get_the_title( $row ),
@@ -181,16 +188,16 @@ function desktop_mode_content_graph_build( array $types ) {
 	}
 
 	$groups = array(
-		'authors'    => desktop_mode_content_graph_format_author_catalog( array_keys( $author_ids ) ),
-		'categories' => desktop_mode_content_graph_format_term_catalog( array_keys( $cat_ids ), 'category' ),
-		'tags'       => desktop_mode_content_graph_format_term_catalog( array_keys( $tag_ids ), 'post_tag' ),
+		'authors'    => openstation_content_graph_format_author_catalog( array_keys( $author_ids ) ),
+		'categories' => openstation_content_graph_format_term_catalog( array_keys( $cat_ids ), 'category' ),
+		'tags'       => openstation_content_graph_format_term_catalog( array_keys( $tag_ids ), 'post_tag' ),
 	);
 
 	$edges_seen = array();
 	$edges      = array();
 	foreach ( $rows as $row ) {
 		$from = (int) $row->ID;
-		$tos  = desktop_mode_content_graph_extract_internal_links( (string) $row->post_content );
+		$tos  = openstation_content_graph_extract_internal_links( (string) $row->post_content );
 		foreach ( $tos as $to ) {
 			if ( $to === $from ) {
 				continue;
@@ -224,7 +231,7 @@ function desktop_mode_content_graph_build( array $types ) {
 		),
 	);
 
-	set_transient( $cache_key, $payload, DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL );
+	set_transient( $cache_key, $payload, OPENSTATION_CONTENT_GRAPH_TRANSIENT_TTL );
 
 	return $payload;
 }
@@ -233,14 +240,14 @@ function desktop_mode_content_graph_build( array $types ) {
  * Filter, sanitize, and uniquify the requested type slugs against the
  * public post-type registry. Returned slugs are guaranteed to exist
  * AND to be among the slugs declared by
- * `desktop_mode_content_graph_post_types()`.
+ * `openstation_content_graph_post_types()`.
  *
  * @param string[] $types
  * @return string[]
  */
-function desktop_mode_content_graph_normalize_types( array $types ) {
+function openstation_content_graph_normalize_types( array $types ) {
 	$allowed = array();
-	foreach ( desktop_mode_content_graph_post_types() as $entry ) {
+	foreach ( openstation_content_graph_post_types() as $entry ) {
 		if ( ! empty( $entry['slug'] ) ) {
 			$allowed[ (string) $entry['slug'] ] = true;
 		}
@@ -273,7 +280,7 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  * @param string[] $types Already normalized.
  * @return array{ where: string, values: array, key: string }
  */
-function desktop_mode_content_graph_visibility_sql( array $types ) {
+function openstation_content_graph_visibility_sql( array $types ) {
 	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 	$values       = $types;
 
@@ -323,9 +330,9 @@ function desktop_mode_content_graph_visibility_sql( array $types ) {
  * @param string[] $types Already normalized.
  * @return string
  */
-function desktop_mode_content_graph_cache_key( array $types ) {
+function openstation_content_graph_cache_key( array $types ) {
 	global $wpdb;
-	$visibility = desktop_mode_content_graph_visibility_sql( $types );
+	$visibility = openstation_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
@@ -339,7 +346,7 @@ function desktop_mode_content_graph_cache_key( array $types ) {
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
-	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $visibility['key'] . '|' . $hash ), 0, 24 );
+	return OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $visibility['key'] . '|' . $hash ), 0, 24 );
 }
 
 /**
@@ -350,14 +357,14 @@ function desktop_mode_content_graph_cache_key( array $types ) {
  * Rows are scoped to what the current user can read: published posts,
  * plus private posts only where the user holds the type's
  * `read_private_posts` capability (or authored the post). See
- * `desktop_mode_content_graph_visibility_sql()`.
+ * `openstation_content_graph_visibility_sql()`.
  *
  * @param string[] $types Already normalized.
  * @return WP_Post[]
  */
-function desktop_mode_content_graph_fetch_rows( array $types ) {
+function openstation_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
-	$visibility = desktop_mode_content_graph_visibility_sql( $types );
+	$visibility = openstation_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
@@ -396,7 +403,7 @@ function desktop_mode_content_graph_fetch_rows( array $types ) {
  * @param string $content
  * @return int[] Unique target post ids (order preserved).
  */
-function desktop_mode_content_graph_extract_internal_links( $content ) {
+function openstation_content_graph_extract_internal_links( $content ) {
 	if ( '' === trim( (string) $content ) ) {
 		return array();
 	}
@@ -442,11 +449,11 @@ function desktop_mode_content_graph_extract_internal_links( $content ) {
 
 /**
  * Cache invalidation. Any post-type change wipes every transient
- * carrying the `desktop_mode_cg_` prefix. We don't have a per-type
+ * carrying the `openstation_cg_` prefix. We don't have a per-type
  * index so we wipe globally, the cost is one extra build on next
  * open which dominates the time-savings on subsequent opens.
  */
-function desktop_mode_content_graph_flush_cache() {
+function openstation_content_graph_flush_cache() {
 	global $wpdb;
 	// Enumerate matching transient option names first, then route each
 	// through `delete_transient()` so WP's transient/options cache
@@ -457,7 +464,7 @@ function desktop_mode_content_graph_flush_cache() {
 	// This bit the `set_object_terms` invalidation path because that
 	// hook doesn't update `post_modified_gmt`, so the cache key stayed
 	// identical and `get_transient` (cache hit) returned pre-retag data.
-	$prefix_like = $wpdb->esc_like( '_transient_' . DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
+	$prefix_like = $wpdb->esc_like( '_transient_' . OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$option_names = $wpdb->get_col(
 		$wpdb->prepare(
@@ -477,12 +484,12 @@ function desktop_mode_content_graph_flush_cache() {
 		}
 	}
 }
-add_action( 'save_post', 'desktop_mode_content_graph_flush_cache' );
-add_action( 'deleted_post', 'desktop_mode_content_graph_flush_cache' );
+add_action( 'save_post', 'openstation_content_graph_flush_cache' );
+add_action( 'deleted_post', 'openstation_content_graph_flush_cache' );
 // Term assignments can change outside the post-edit path (CLI, bulk
 // quick-edit, REST). Without this the per-node `category_ids` / `tag_ids`
 // the group-by UI reads would go stale until the 6h TTL expires.
-add_action( 'set_object_terms', 'desktop_mode_content_graph_flush_cache' );
+add_action( 'set_object_terms', 'openstation_content_graph_flush_cache' );
 
 /**
  * Bulk-fetch every (post_id → taxonomy → term_ids[]) mapping for the
@@ -494,7 +501,7 @@ add_action( 'set_object_terms', 'desktop_mode_content_graph_flush_cache' );
  * @return array<int, array<string, int[]>>  Outer key = post id; inner
  *         key = taxonomy slug; value = term ids the post is in.
  */
-function desktop_mode_content_graph_collect_post_terms( array $post_ids ) {
+function openstation_content_graph_collect_post_terms( array $post_ids ) {
 	$post_ids = array_values( array_filter( array_map( 'intval', $post_ids ) ) );
 	if ( empty( $post_ids ) ) {
 		return array();
@@ -535,7 +542,7 @@ function desktop_mode_content_graph_collect_post_terms( array $post_ids ) {
 
 /**
  * Bulk-fetch distinct revision authors per post for the requested
- * post ids. Used by `desktop_mode_content_graph_build()` to populate
+ * post ids. Used by `openstation_content_graph_build()` to populate
  * each node's `contributor_ids` array so the cluster-attractor force
  * can pull collaborator posts toward both the primary author's
  * cluster AND each contributor's cluster (weighted so the primary
@@ -548,7 +555,7 @@ function desktop_mode_content_graph_collect_post_terms( array $post_ids ) {
  * @param int[] $post_ids
  * @return array<int, int[]>  post_id => list of contributor user ids.
  */
-function desktop_mode_content_graph_collect_post_contributors( array $post_ids ) {
+function openstation_content_graph_collect_post_contributors( array $post_ids ) {
 	$post_ids = array_values( array_filter( array_map( 'intval', $post_ids ) ) );
 	if ( empty( $post_ids ) ) {
 		return array();
@@ -590,7 +597,7 @@ function desktop_mode_content_graph_collect_post_contributors( array $post_ids )
  * @param int[] $author_ids
  * @return array<int, array{ name: string }>
  */
-function desktop_mode_content_graph_format_author_catalog( array $author_ids ) {
+function openstation_content_graph_format_author_catalog( array $author_ids ) {
 	$author_ids = array_values( array_unique( array_filter( array_map( 'intval', $author_ids ) ) ) );
 	if ( empty( $author_ids ) ) {
 		return array();
@@ -602,7 +609,7 @@ function desktop_mode_content_graph_format_author_catalog( array $author_ids ) {
 			'number'  => count( $author_ids ),
 		)
 	);
-	$out = array();
+	$out   = array();
 	foreach ( (array) $query->get_results() as $user ) {
 		$out[ (int) $user->ID ] = array(
 			'name' => (string) $user->display_name,
@@ -620,7 +627,7 @@ function desktop_mode_content_graph_format_author_catalog( array $author_ids ) {
  * @param string $taxonomy
  * @return array<int, array{ name: string }>
  */
-function desktop_mode_content_graph_format_term_catalog( array $term_ids, $taxonomy ) {
+function openstation_content_graph_format_term_catalog( array $term_ids, $taxonomy ) {
 	$term_ids = array_values( array_unique( array_filter( array_map( 'intval', $term_ids ) ) ) );
 	if ( empty( $term_ids ) ) {
 		return array();
@@ -633,7 +640,7 @@ function desktop_mode_content_graph_format_term_catalog( array $term_ids, $taxon
 			'number'     => count( $term_ids ),
 		)
 	);
-	$out = array();
+	$out   = array();
 	if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
 		return $out;
 	}

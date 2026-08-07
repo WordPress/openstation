@@ -48,7 +48,7 @@ mkdir -p "$LANG_DIR"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-js_pot="$tmp_dir/desktop-mode-js.pot"
+js_pot="$tmp_dir/os-js.pot"
 js_segments="$tmp_dir/js-segments"
 
 # 1. Extract JS/TS strings via Automattic's Babel-based extractor.
@@ -69,6 +69,19 @@ js_segments="$tmp_dir/js-segments"
 #    --skip-js prevents wp-cli from also scanning .js/.jsx (we already
 #    have those from babel). The exclude list keeps build output,
 #    third-party code, sibling plugins, and tests out of the result.
+#
+#    Two header fields are worth knowing about:
+#
+#    Project-Id-Version is derived by make-pot from the plugin header in
+#    desktop-mode.php (Plugin Name + Version), so it tracks the product
+#    name and the released version with no extra wiring here. Don't pin
+#    it, or it goes stale the moment either one moves.
+#
+#    Report-Msgid-Bugs-To points translators at the plugin's wp.org
+#    support forum. The slug is `desktop-mode` and stays that way, it is
+#    the published wp.org slug and is frozen even though the plugin is
+#    now called OpenStation. See AGENTS.md, "desktop_mode_* values are
+#    frozen".
 EXCLUDE_PATHS=(
 	"assets/js"
 	"dist"
@@ -88,7 +101,7 @@ wp i18n make-pot "$PLUGIN_DIR" "$POT_FILE" \
 	--skip-js \
 	--exclude="$EXCLUDE_CSV" \
 	--merge="$js_pot" \
-	--headers='{"Report-Msgid-Bugs-To":"https://wordpress.org/support/plugin/alcazaba-plugin"}' \
+	--headers="{\"Report-Msgid-Bugs-To\":\"https://wordpress.org/support/plugin/${DOMAIN}\"}" \
 	>/dev/null
 
 echo "extract-i18n.sh: wrote $POT_FILE"

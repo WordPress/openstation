@@ -4,28 +4,28 @@
  *
  * Single-source path safety for every REST route the editor exposes.
  *
- *   - {@see desktop_mode_code_editor_workspace_root()}      — canonical
+ *   - {@see openstation_code_editor_workspace_root()}      — canonical
  *                                                              absolute
  *                                                              workspace
  *                                                              root.
- *   - {@see desktop_mode_code_editor_resolve_path()}        — turns an
+ *   - {@see openstation_code_editor_resolve_path()}        — turns an
  *                                                              untrusted
  *                                                              relative
  *                                                              path into
  *                                                              a canonical
  *                                                              absolute
  *                                                              one.
- *   - {@see desktop_mode_code_editor_extension_allowlist()} — the file-
+ *   - {@see openstation_code_editor_extension_allowlist()} — the file-
  *                                                              extension
  *                                                              allowlist.
  *
  * **All filesystem entry points MUST go through
- * {@see desktop_mode_code_editor_resolve_path()}.** Concatenating user
+ * {@see openstation_code_editor_resolve_path()}.** Concatenating user
  * input directly with the workspace root invites traversal bugs; the
  * resolver does `realpath()` + prefix check + symlink-escape detection
  * in one place so the rest of the editor doesn't have to think about it.
  *
- * @package DesktopModeCodeEditor
+ * @package OpenStationCodeEditor
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Default file-extension allowlist (lowercased, no leading dot).
  */
-const DESKTOP_MODE_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
+const OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
 	'php',
 	'js',
 	'jsx',
@@ -66,7 +66,7 @@ const DESKTOP_MODE_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
  *
  * @return bool
  */
-function desktop_mode_code_editor_file_edit_allowed() {
+function openstation_code_editor_file_edit_allowed() {
 	return ! ( defined( 'DISALLOW_FILE_EDIT' ) && DISALLOW_FILE_EDIT );
 }
 
@@ -75,15 +75,15 @@ function desktop_mode_code_editor_file_edit_allowed() {
  *
  * @return bool
  */
-function desktop_mode_code_editor_user_can_use() {
-	$can = desktop_mode_code_editor_file_edit_allowed() && current_user_can( 'edit_plugins' );
+function openstation_code_editor_user_can_use() {
+	$can = openstation_code_editor_file_edit_allowed() && current_user_can( 'edit_plugins' );
 
 	/**
 	 * Filter whether the current user can see/use the Code Editor.
 	 *
 	 * @param bool $can Default: edit_plugins capability + DISALLOW_FILE_EDIT respected.
 	 */
-	return (bool) apply_filters( 'desktop_mode_code_editor_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_code_editor_user_can_use', $can );
 }
 
 /**
@@ -91,7 +91,7 @@ function desktop_mode_code_editor_user_can_use() {
  *
  * @return string Canonical absolute path, or '' if the root can't resolve.
  */
-function desktop_mode_code_editor_workspace_root() {
+function openstation_code_editor_workspace_root() {
 	$default = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR : '';
 
 	/**
@@ -99,7 +99,7 @@ function desktop_mode_code_editor_workspace_root() {
 	 *
 	 * @param string $root Default workspace root (absolute path).
 	 */
-	$root = (string) apply_filters( 'desktop_mode_code_editor_workspace_root', $default );
+	$root = (string) apply_filters( 'openstation_code_editor_workspace_root', $default );
 
 	$resolved = realpath( $root );
 	return is_string( $resolved ) ? rtrim( $resolved, DIRECTORY_SEPARATOR ) : '';
@@ -110,15 +110,15 @@ function desktop_mode_code_editor_workspace_root() {
  *
  * @return string[]
  */
-function desktop_mode_code_editor_extension_allowlist() {
+function openstation_code_editor_extension_allowlist() {
 	/**
 	 * Filter the extensions the code editor is allowed to read/write.
 	 *
 	 * @param string[] $exts Default allowlist.
 	 */
 	$exts = (array) apply_filters(
-		'desktop_mode_code_editor_extension_allowlist',
-		DESKTOP_MODE_CODE_EDITOR_DEFAULT_EXTENSIONS
+		'openstation_code_editor_extension_allowlist',
+		OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS
 	);
 
 	$out = array();
@@ -137,16 +137,16 @@ function desktop_mode_code_editor_extension_allowlist() {
  * @param string $absolute_path Canonical absolute path.
  * @return bool
  */
-function desktop_mode_code_editor_extension_allowed( $absolute_path ) {
+function openstation_code_editor_extension_allowed( $absolute_path ) {
 	if ( is_dir( $absolute_path ) ) {
 		return true;
 	}
 	$ext = strtolower( pathinfo( $absolute_path, PATHINFO_EXTENSION ) );
 	if ( '' === $ext ) {
 		$base = strtolower( pathinfo( $absolute_path, PATHINFO_BASENAME ) );
-		return in_array( ltrim( $base, '.' ), desktop_mode_code_editor_extension_allowlist(), true );
+		return in_array( ltrim( $base, '.' ), openstation_code_editor_extension_allowlist(), true );
 	}
-	return in_array( $ext, desktop_mode_code_editor_extension_allowlist(), true );
+	return in_array( $ext, openstation_code_editor_extension_allowlist(), true );
 }
 
 /**
@@ -155,11 +155,11 @@ function desktop_mode_code_editor_extension_allowed( $absolute_path ) {
  * @param string $rel_path Untrusted relative path.
  * @return string|WP_Error Canonical absolute path, or WP_Error.
  */
-function desktop_mode_code_editor_resolve_path( $rel_path ) {
-	$root = desktop_mode_code_editor_workspace_root();
+function openstation_code_editor_resolve_path( $rel_path ) {
+	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_no_workspace',
+			'openstation_code_editor_no_workspace',
 			__( 'Code editor workspace root is not configured or could not be resolved.', 'desktop-mode-code-editor' ),
 			array( 'status' => 500 )
 		);
@@ -175,7 +175,7 @@ function desktop_mode_code_editor_resolve_path( $rel_path ) {
 
 	if ( preg_match( '/[\\x00-\\x1f]/', $rel_path ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_path_invalid',
+			'openstation_code_editor_path_invalid',
 			__( 'Path contains control characters.', 'desktop-mode-code-editor' ),
 			array( 'status' => 400 )
 		);
@@ -185,7 +185,7 @@ function desktop_mode_code_editor_resolve_path( $rel_path ) {
 	$resolved  = realpath( $candidate );
 	if ( false === $resolved ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_path_not_found',
+			'openstation_code_editor_path_not_found',
 			__( 'Path does not exist or is not accessible.', 'desktop-mode-code-editor' ),
 			array( 'status' => 404 )
 		);
@@ -198,15 +198,15 @@ function desktop_mode_code_editor_resolve_path( $rel_path ) {
 		strpos( $resolved_norm . DIRECTORY_SEPARATOR, $root_norm . DIRECTORY_SEPARATOR ) !== 0
 	) {
 		return new WP_Error(
-			'desktop_mode_code_editor_path_outside_workspace',
+			'openstation_code_editor_path_outside_workspace',
 			__( 'Path resolves outside the workspace root.', 'desktop-mode-code-editor' ),
 			array( 'status' => 403 )
 		);
 	}
 
-	if ( ! desktop_mode_code_editor_extension_allowed( $resolved_norm ) ) {
+	if ( ! openstation_code_editor_extension_allowed( $resolved_norm ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_extension_denied',
+			'openstation_code_editor_extension_denied',
 			__( 'File extension is not allowed by the editor.', 'desktop-mode-code-editor' ),
 			array( 'status' => 403 )
 		);
@@ -225,29 +225,29 @@ function desktop_mode_code_editor_resolve_path( $rel_path ) {
  * Returns:
  *
  *   array  { path, mtime, size }                                     — happy path.
- *   WP_Error 'desktop_mode_code_editor_write_invalid_path'           — empty or
+ *   WP_Error 'openstation_code_editor_write_invalid_path'           — empty or
  *           non-string path supplied (500).
- *   WP_Error 'desktop_mode_code_editor_write_target_missing'         — target file
+ *   WP_Error 'openstation_code_editor_write_target_missing'         — target file
  *           does not exist (404); the editor cannot create new files.
- *   WP_Error 'desktop_mode_code_editor_conflict'                     — caller's
+ *   WP_Error 'openstation_code_editor_conflict'                     — caller's
  *           expected mtime doesn't match current. Error data carries
  *           `{ server_mtime, server_content, server_size }` so the
  *           UI can offer "diff & overwrite" / "reload from disk".
- *   WP_Error 'desktop_mode_code_editor_filesystem_unavailable'       — host needs
+ *   WP_Error 'openstation_code_editor_filesystem_unavailable'       — host needs
  *           FTP/SSH credentials we don't yet collect.
- *   WP_Error 'desktop_mode_code_editor_write_failed'                 — generic.
+ *   WP_Error 'openstation_code_editor_write_failed'                 — generic.
  *
- * @param string $absolute_path  Result of {@see desktop_mode_code_editor_resolve_path()}.
+ * @param string $absolute_path  Result of {@see openstation_code_editor_resolve_path()}.
  * @param string $content        UTF-8 bytes to write.
  * @param int    $expected_mtime The mtime the caller read this file at; pass `0` to skip
  *                               the conflict check. (New-file creation is not supported —
  *                               the target must already exist.)
  * @return array|WP_Error
  */
-function desktop_mode_code_editor_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
+function openstation_code_editor_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 	if ( ! is_string( $absolute_path ) || '' === $absolute_path ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_write_invalid_path',
+			'openstation_code_editor_write_invalid_path',
 			__( 'Invalid path supplied to the writer.', 'desktop-mode-code-editor' ),
 			array( 'status' => 500 )
 		);
@@ -255,7 +255,7 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 
 	if ( ! is_file( $absolute_path ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_write_target_missing',
+			'openstation_code_editor_write_target_missing',
 			__( 'File does not exist; the editor cannot create new files yet.', 'desktop-mode-code-editor' ),
 			array( 'status' => 404 )
 		);
@@ -267,7 +267,7 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$current = file_get_contents( $absolute_path );
 		return new WP_Error(
-			'desktop_mode_code_editor_conflict',
+			'openstation_code_editor_conflict',
 			__( 'File changed on disk since you opened it. Reload or overwrite.', 'desktop-mode-code-editor' ),
 			array(
 				'status'         => 409,
@@ -279,7 +279,7 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	}
 
 	$context = array(
-		'path'  => desktop_mode_code_editor_path_to_relative( $absolute_path ),
+		'path'  => openstation_code_editor_path_to_relative( $absolute_path ),
 		'mtime' => $current_mtime,
 		'bytes' => strlen( $content ),
 	);
@@ -291,7 +291,7 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	 * @param string $absolute_path Resolved absolute path.
 	 * @param array  $context       { path (rel), mtime, bytes }.
 	 */
-	$filtered = apply_filters( 'desktop_mode_code_editor_save_content', $content, $absolute_path, $context );
+	$filtered = apply_filters( 'openstation_code_editor_save_content', $content, $absolute_path, $context );
 	if ( is_wp_error( $filtered ) ) {
 		return $filtered;
 	}
@@ -306,16 +306,16 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	 * @param string $content
 	 * @param array  $context
 	 */
-	do_action( 'desktop_mode_code_editor_before_save', $absolute_path, $content, $context );
+	do_action( 'openstation_code_editor_before_save', $absolute_path, $content, $context );
 
-	$fs = desktop_mode_code_editor_get_filesystem();
+	$fs = openstation_code_editor_get_filesystem();
 	if ( is_wp_error( $fs ) ) {
 		return $fs;
 	}
 
 	if ( ! $fs->put_contents( $absolute_path, $content, FS_CHMOD_FILE ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_write_failed',
+			'openstation_code_editor_write_failed',
 			__( 'WP_Filesystem refused the write. The file may be read-only or owned by a different user.', 'desktop-mode-code-editor' ),
 			array( 'status' => 500 )
 		);
@@ -340,10 +340,10 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	 * @param string $content
 	 * @param array  $context
 	 */
-	do_action( 'desktop_mode_code_editor_after_save', $absolute_path, $content, $context );
+	do_action( 'openstation_code_editor_after_save', $absolute_path, $content, $context );
 
 	return array(
-		'path'  => desktop_mode_code_editor_path_to_relative( $absolute_path ),
+		'path'  => openstation_code_editor_path_to_relative( $absolute_path ),
 		'mtime' => $new_mtime,
 		'size'  => $new_size,
 	);
@@ -354,7 +354,7 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
  *
  * @return WP_Filesystem_Base|WP_Error
  */
-function desktop_mode_code_editor_get_filesystem() {
+function openstation_code_editor_get_filesystem() {
 	global $wp_filesystem;
 
 	if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
@@ -365,13 +365,13 @@ function desktop_mode_code_editor_get_filesystem() {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 	}
 
-	add_filter( 'filesystem_method', 'desktop_mode_code_editor_force_direct_filesystem', 999 );
+	add_filter( 'filesystem_method', 'openstation_code_editor_force_direct_filesystem', 999 );
 	$ok = WP_Filesystem();
-	remove_filter( 'filesystem_method', 'desktop_mode_code_editor_force_direct_filesystem', 999 );
+	remove_filter( 'filesystem_method', 'openstation_code_editor_force_direct_filesystem', 999 );
 
 	if ( ! $ok || ! ( $wp_filesystem instanceof WP_Filesystem_Base ) ) {
 		return new WP_Error(
-			'desktop_mode_code_editor_filesystem_unavailable',
+			'openstation_code_editor_filesystem_unavailable',
 			__( "This host doesn't allow direct file writes from the WordPress process. The code editor's save flow needs FTP/SSH credentials, which aren't supported yet.", 'desktop-mode-code-editor' ),
 			array( 'status' => 503 )
 		);
@@ -381,9 +381,9 @@ function desktop_mode_code_editor_get_filesystem() {
 }
 
 /**
- * @internal Filter callback for {@see desktop_mode_code_editor_get_filesystem()} — pin to direct.
+ * @internal Filter callback for {@see openstation_code_editor_get_filesystem()} — pin to direct.
  */
-function desktop_mode_code_editor_force_direct_filesystem() {
+function openstation_code_editor_force_direct_filesystem() {
 	return 'direct';
 }
 
@@ -397,8 +397,8 @@ function desktop_mode_code_editor_force_direct_filesystem() {
  * @param string $absolute_path
  * @return string
  */
-function desktop_mode_code_editor_path_to_relative( $absolute_path ) {
-	$root = desktop_mode_code_editor_workspace_root();
+function openstation_code_editor_path_to_relative( $absolute_path ) {
+	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {
 		return '';
 	}

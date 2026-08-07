@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents: persisted chat conversations.
+ * OpenStation — Agents: persisted chat conversations.
  *
  * Each conversation is one post of the private `desktop_mode_chat`
  * post type: `post_author` is the human who held the conversation,
@@ -22,25 +22,33 @@
  *   PUT    /agents/conversations/:id   — replace messages ({messages})
  *   DELETE /agents/conversations/:id   — delete
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Post type holding one conversation per post. */
-const DESKTOP_MODE_AGENT_CHAT_POST_TYPE = 'desktop_mode_chat';
+/**
+ * Post type holding one conversation per post.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_CHAT_POST_TYPE = 'desktop_mode_chat';
 
 /** Newest conversations kept per user — creating past the cap prunes the oldest. */
-const DESKTOP_MODE_AGENT_CONVERSATION_CAP = 100;
+const OPENSTATION_AGENT_CONVERSATION_CAP = 100;
 
 /** Newest messages kept per conversation — updates past the cap trim the oldest. */
-const DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP = 200;
+const OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP = 200;
 
 /** Stored per-message text cap. Wider than the runner's replay cap so long answers reload intact. */
-const DESKTOP_MODE_AGENT_CONVERSATION_TEXT_CAP = 20000;
+const OPENSTATION_AGENT_CONVERSATION_TEXT_CAP = 20000;
 
 /** Characters of the last message shown as the sidebar's second line. */
-const DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP = 80;
+const OPENSTATION_AGENT_CONVERSATION_PREVIEW_CAP = 80;
 
 /**
  * Entity kinds a message attachment may reference — mirrors the
@@ -48,7 +56,7 @@ const DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP = 80;
  *
  * @return string[]
  */
-function desktop_mode_agent_conversation_attachment_kinds() {
+function openstation_agent_conversation_attachment_kinds() {
 	return array( 'post', 'page', 'media', 'user', 'comment' );
 }
 
@@ -58,9 +66,9 @@ function desktop_mode_agent_conversation_attachment_kinds() {
  *
  * @return void
  */
-function desktop_mode_agent_conversations_register_post_type() {
+function openstation_agent_conversations_register_post_type() {
 	register_post_type(
-		DESKTOP_MODE_AGENT_CHAT_POST_TYPE,
+		OPENSTATION_AGENT_CHAT_POST_TYPE,
 		array(
 			'label'               => __( 'Agent conversations', 'desktop-mode' ),
 			'public'              => false,
@@ -75,7 +83,7 @@ function desktop_mode_agent_conversations_register_post_type() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_agent_conversations_register_post_type', 5 );
+add_action( 'init', 'openstation_agent_conversations_register_post_type', 5 );
 
 /**
  * Normalize caller-supplied messages for storage.
@@ -93,7 +101,7 @@ add_action( 'init', 'desktop_mode_agent_conversations_register_post_type', 5 );
  * @param mixed $messages Incoming message rows.
  * @return array<int, array<string, mixed>>
  */
-function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
+function openstation_agent_conversation_sanitize_messages( $messages ) {
 	if ( ! is_array( $messages ) ) {
 		return array();
 	}
@@ -114,15 +122,15 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 
 		$entry = array(
 			'role' => $role,
-			'text' => mb_substr( $text, 0, DESKTOP_MODE_AGENT_CONVERSATION_TEXT_CAP ),
+			'text' => mb_substr( $text, 0, OPENSTATION_AGENT_CONVERSATION_TEXT_CAP ),
 			'at'   => isset( $row['at'] ) ? (int) $row['at'] : 0,
 		);
 
 		// Call-to-action buttons survive with the message so a reopened
 		// conversation still shows them (spent ones stay disabled via
 		// `ctaUsed`). Reuses the runner's sanitizer — same caps.
-		if ( isset( $row['callToActions'] ) && function_exists( 'desktop_mode_agent_sanitize_call_to_actions' ) ) {
-			$ctas = desktop_mode_agent_sanitize_call_to_actions( $row['callToActions'] );
+		if ( isset( $row['callToActions'] ) && function_exists( 'openstation_agent_sanitize_call_to_actions' ) ) {
+			$ctas = openstation_agent_sanitize_call_to_actions( $row['callToActions'] );
 			if ( ! empty( $ctas ) ) {
 				$entry['callToActions'] = $ctas;
 			}
@@ -132,7 +140,7 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 		}
 
 		if ( isset( $row['attachment'] ) ) {
-			$attachment = desktop_mode_agent_conversation_sanitize_attachment( $row['attachment'] );
+			$attachment = openstation_agent_conversation_sanitize_attachment( $row['attachment'] );
 			if ( null !== $attachment ) {
 				$entry['attachment'] = $attachment;
 			}
@@ -159,8 +167,8 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 		$clean[] = $entry;
 	}
 
-	if ( count( $clean ) > DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP ) {
-		$clean = array_slice( $clean, -DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP );
+	if ( count( $clean ) > OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP ) {
+		$clean = array_slice( $clean, -OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP );
 	}
 
 	return $clean;
@@ -178,13 +186,13 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
  * @param mixed $raw Incoming attachment block.
  * @return array<string, mixed>|null
  */
-function desktop_mode_agent_conversation_sanitize_attachment( $raw ) {
+function openstation_agent_conversation_sanitize_attachment( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
 	}
 	$kind = isset( $raw['kind'] ) ? sanitize_key( (string) $raw['kind'] ) : '';
 	$id   = isset( $raw['id'] ) ? (int) $raw['id'] : 0;
-	if ( $id <= 0 || ! in_array( $kind, desktop_mode_agent_conversation_attachment_kinds(), true ) ) {
+	if ( $id <= 0 || ! in_array( $kind, openstation_agent_conversation_attachment_kinds(), true ) ) {
 		return null;
 	}
 	$title = isset( $raw['title'] ) ? trim( wp_strip_all_tags( (string) $raw['title'] ) ) : '';
@@ -201,7 +209,7 @@ function desktop_mode_agent_conversation_sanitize_attachment( $raw ) {
  * @param array $messages Sanitized messages.
  * @return string
  */
-function desktop_mode_agent_conversation_title( array $messages ) {
+function openstation_agent_conversation_title( array $messages ) {
 	foreach ( $messages as $row ) {
 		if ( 'user' === $row['role'] ) {
 			return wp_html_excerpt( $row['text'], 60, '…' );
@@ -223,7 +231,7 @@ function desktop_mode_agent_conversation_title( array $messages ) {
  * @param array $messages Sanitized messages.
  * @return string
  */
-function desktop_mode_agent_conversation_preview( array $messages ) {
+function openstation_agent_conversation_preview( array $messages ) {
 	$last = empty( $messages ) ? null : $messages[ count( $messages ) - 1 ];
 	if ( ! is_array( $last ) ) {
 		return '';
@@ -236,10 +244,10 @@ function desktop_mode_agent_conversation_preview( array $messages ) {
 	if ( '' === $text ) {
 		return '';
 	}
-	if ( mb_strlen( $text ) <= DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP ) {
+	if ( mb_strlen( $text ) <= OPENSTATION_AGENT_CONVERSATION_PREVIEW_CAP ) {
 		return $text;
 	}
-	return '…' . mb_substr( $text, -DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP );
+	return '…' . mb_substr( $text, -OPENSTATION_AGENT_CONVERSATION_PREVIEW_CAP );
 }
 
 /**
@@ -249,12 +257,12 @@ function desktop_mode_agent_conversation_preview( array $messages ) {
  * @param int $id Post id.
  * @return WP_Post|null
  */
-function desktop_mode_agent_conversation_get_own( $id ) {
+function openstation_agent_conversation_get_own( $id ) {
 	$post = get_post( (int) $id );
-	if ( ! $post || DESKTOP_MODE_AGENT_CHAT_POST_TYPE !== $post->post_type ) {
+	if ( ! $post || OPENSTATION_AGENT_CHAT_POST_TYPE !== $post->post_type ) {
 		return null;
 	}
-	if ( (int) $post->post_author !== get_current_user_id() ) {
+	if ( get_current_user_id() !== (int) $post->post_author ) {
 		return null;
 	}
 	return $post;
@@ -269,7 +277,7 @@ function desktop_mode_agent_conversation_get_own( $id ) {
  * @param bool    $with_messages Include the decoded messages array.
  * @return array<string, mixed>
  */
-function desktop_mode_agent_conversation_prepare( WP_Post $post, $with_messages = false ) {
+function openstation_agent_conversation_prepare( WP_Post $post, $with_messages = false ) {
 	$agent_id = (int) get_post_meta( $post->ID, '_desktop_mode_agent_chat_agent_id', true );
 	$agent    = $agent_id > 0 ? get_userdata( $agent_id ) : false;
 
@@ -285,11 +293,11 @@ function desktop_mode_agent_conversation_prepare( WP_Post $post, $with_messages 
 		'agentId'          => $agent_id,
 		'agentName'        => $agent ? $agent->display_name : __( 'Deleted agent', 'desktop-mode' ),
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
-		'agentAvatarUrl'   => function_exists( 'desktop_mode_agent_avatar_url' ) ? desktop_mode_agent_avatar_url() : '',
+		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url() : '',
 		'title'            => (string) $post->post_title,
 		// Second sidebar line + who spoke last, so the list can say
 		// where each conversation got to instead of repeating its opener.
-		'preview'          => desktop_mode_agent_conversation_preview( $messages ),
+		'preview'          => openstation_agent_conversation_preview( $messages ),
 		'lastRole'         => is_array( $last ) && isset( $last['role'] ) ? (string) $last['role'] : '',
 		'messageCount'     => count( $messages ),
 		'createdAt'        => mysql2date( 'c', $post->post_date_gmt, false ),
@@ -310,20 +318,20 @@ function desktop_mode_agent_conversation_prepare( WP_Post $post, $with_messages 
  *
  * @return void
  */
-function desktop_mode_agent_conversations_register_routes() {
+function openstation_agent_conversations_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/agents/conversations',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_agents_rest_conversations_list',
-				'permission_callback' => 'desktop_mode_agents_rest_invoke_permission',
+				'callback'            => 'openstation_agents_rest_conversations_list',
+				'permission_callback' => 'openstation_agents_rest_invoke_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'desktop_mode_agents_rest_conversations_create',
-				'permission_callback' => 'desktop_mode_agents_rest_invoke_permission',
+				'callback'            => 'openstation_agents_rest_conversations_create',
+				'permission_callback' => 'openstation_agents_rest_invoke_permission',
 				'args'                => array(
 					'agentId'  => array(
 						'type'     => 'integer',
@@ -345,13 +353,13 @@ function desktop_mode_agent_conversations_register_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_agents_rest_conversations_get',
-				'permission_callback' => 'desktop_mode_agents_rest_invoke_permission',
+				'callback'            => 'openstation_agents_rest_conversations_get',
+				'permission_callback' => 'openstation_agents_rest_invoke_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => 'desktop_mode_agents_rest_conversations_update',
-				'permission_callback' => 'desktop_mode_agents_rest_invoke_permission',
+				'callback'            => 'openstation_agents_rest_conversations_update',
+				'permission_callback' => 'openstation_agents_rest_invoke_permission',
 				'args'                => array(
 					'messages' => array(
 						'type'     => 'array',
@@ -361,13 +369,13 @@ function desktop_mode_agent_conversations_register_routes() {
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => 'desktop_mode_agents_rest_conversations_delete',
-				'permission_callback' => 'desktop_mode_agents_rest_invoke_permission',
+				'callback'            => 'openstation_agents_rest_conversations_delete',
+				'permission_callback' => 'openstation_agents_rest_invoke_permission',
 			),
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_agent_conversations_register_routes' );
+add_action( 'rest_api_init', 'openstation_agent_conversations_register_routes' );
 
 /**
  * GET /agents/conversations — the caller's conversations, most
@@ -376,13 +384,13 @@ add_action( 'rest_api_init', 'desktop_mode_agent_conversations_register_routes' 
  *
  * @return WP_REST_Response
  */
-function desktop_mode_agents_rest_conversations_list() {
+function openstation_agents_rest_conversations_list() {
 	$posts = get_posts(
 		array(
-			'post_type'        => DESKTOP_MODE_AGENT_CHAT_POST_TYPE,
+			'post_type'        => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'      => 'publish',
 			'author'           => get_current_user_id(),
-			'numberposts'      => desktop_mode_agent_conversation_cap(),
+			'numberposts'      => openstation_agent_conversation_cap(),
 			'orderby'          => 'modified',
 			'order'            => 'DESC',
 			'suppress_filters' => false,
@@ -390,7 +398,7 @@ function desktop_mode_agents_rest_conversations_list() {
 	);
 
 	return rest_ensure_response(
-		array_map( 'desktop_mode_agent_conversation_prepare', $posts )
+		array_map( 'openstation_agent_conversation_prepare', $posts )
 	);
 }
 
@@ -400,20 +408,20 @@ function desktop_mode_agents_rest_conversations_list() {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_agents_rest_conversations_create( WP_REST_Request $request ) {
+function openstation_agents_rest_conversations_create( WP_REST_Request $request ) {
 	$agent_id = (int) $request['agentId'];
-	if ( ! function_exists( 'desktop_mode_agent_is_agent' ) || ! desktop_mode_agent_is_agent( $agent_id ) ) {
+	if ( ! function_exists( 'openstation_agent_is_agent' ) || ! openstation_agent_is_agent( $agent_id ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_not_found',
+			'openstation_agent_not_found',
 			__( 'No agent with that id exists.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 
-	$messages = desktop_mode_agent_conversation_sanitize_messages( $request['messages'] );
+	$messages = openstation_agent_conversation_sanitize_messages( $request['messages'] );
 	if ( empty( $messages ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_conversation_empty',
+			'openstation_agent_conversation_empty',
 			__( 'A conversation needs at least one message.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -421,10 +429,10 @@ function desktop_mode_agents_rest_conversations_create( WP_REST_Request $request
 
 	$post_id = wp_insert_post(
 		array(
-			'post_type'    => DESKTOP_MODE_AGENT_CHAT_POST_TYPE,
+			'post_type'    => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'  => 'publish',
 			'post_author'  => get_current_user_id(),
-			'post_title'   => desktop_mode_agent_conversation_title( $messages ),
+			'post_title'   => openstation_agent_conversation_title( $messages ),
 			// JSON survives the insert-path unslashing only when slashed.
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
@@ -435,10 +443,10 @@ function desktop_mode_agents_rest_conversations_create( WP_REST_Request $request
 	}
 	update_post_meta( $post_id, '_desktop_mode_agent_chat_agent_id', $agent_id );
 
-	desktop_mode_agent_conversations_prune( get_current_user_id() );
+	openstation_agent_conversations_prune( get_current_user_id() );
 
 	return rest_ensure_response(
-		desktop_mode_agent_conversation_prepare( get_post( $post_id ), true )
+		openstation_agent_conversation_prepare( get_post( $post_id ), true )
 	);
 }
 
@@ -448,13 +456,13 @@ function desktop_mode_agents_rest_conversations_create( WP_REST_Request $request
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_agents_rest_conversations_get( WP_REST_Request $request ) {
-	$post = desktop_mode_agent_conversation_get_own( (int) $request['id'] );
+function openstation_agents_rest_conversations_get( WP_REST_Request $request ) {
+	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
-		return desktop_mode_agent_conversation_not_found();
+		return openstation_agent_conversation_not_found();
 	}
 	return rest_ensure_response(
-		desktop_mode_agent_conversation_prepare( $post, true )
+		openstation_agent_conversation_prepare( $post, true )
 	);
 }
 
@@ -466,16 +474,16 @@ function desktop_mode_agents_rest_conversations_get( WP_REST_Request $request ) 
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_agents_rest_conversations_update( WP_REST_Request $request ) {
-	$post = desktop_mode_agent_conversation_get_own( (int) $request['id'] );
+function openstation_agents_rest_conversations_update( WP_REST_Request $request ) {
+	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
-		return desktop_mode_agent_conversation_not_found();
+		return openstation_agent_conversation_not_found();
 	}
 
-	$messages = desktop_mode_agent_conversation_sanitize_messages( $request['messages'] );
+	$messages = openstation_agent_conversation_sanitize_messages( $request['messages'] );
 	if ( empty( $messages ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_conversation_empty',
+			'openstation_agent_conversation_empty',
 			__( 'A conversation needs at least one message.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -484,7 +492,7 @@ function desktop_mode_agents_rest_conversations_update( WP_REST_Request $request
 	$updated = wp_update_post(
 		array(
 			'ID'           => $post->ID,
-			'post_title'   => desktop_mode_agent_conversation_title( $messages ),
+			'post_title'   => openstation_agent_conversation_title( $messages ),
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
 		true
@@ -494,7 +502,7 @@ function desktop_mode_agents_rest_conversations_update( WP_REST_Request $request
 	}
 
 	return rest_ensure_response(
-		desktop_mode_agent_conversation_prepare( get_post( $post->ID ), true )
+		openstation_agent_conversation_prepare( get_post( $post->ID ), true )
 	);
 }
 
@@ -504,10 +512,10 @@ function desktop_mode_agents_rest_conversations_update( WP_REST_Request $request
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function desktop_mode_agents_rest_conversations_delete( WP_REST_Request $request ) {
-	$post = desktop_mode_agent_conversation_get_own( (int) $request['id'] );
+function openstation_agents_rest_conversations_delete( WP_REST_Request $request ) {
+	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
-		return desktop_mode_agent_conversation_not_found();
+		return openstation_agent_conversation_not_found();
 	}
 	wp_delete_post( $post->ID, true );
 	return rest_ensure_response( array( 'deleted' => true ) );
@@ -519,9 +527,9 @@ function desktop_mode_agents_rest_conversations_delete( WP_REST_Request $request
  *
  * @return WP_Error
  */
-function desktop_mode_agent_conversation_not_found() {
+function openstation_agent_conversation_not_found() {
 	return new WP_Error(
-		'desktop_mode_agent_conversation_not_found',
+		'openstation_agent_conversation_not_found',
 		__( 'No conversation with that id exists.', 'desktop-mode' ),
 		array( 'status' => 404 )
 	);
@@ -532,14 +540,14 @@ function desktop_mode_agent_conversation_not_found() {
  *
  * @return int
  */
-function desktop_mode_agent_conversation_cap() {
+function openstation_agent_conversation_cap() {
 	/**
 	 * Filters how many conversations are kept per user. Creating past
 	 * the cap prunes the least recently updated rows.
 	 *
 	 * @param int $cap Maximum stored conversations per user.
 	 */
-	return max( 1, (int) apply_filters( 'desktop_mode_agent_conversation_cap', DESKTOP_MODE_AGENT_CONVERSATION_CAP ) );
+	return max( 1, (int) apply_filters( 'openstation_agent_conversation_cap', OPENSTATION_AGENT_CONVERSATION_CAP ) );
 }
 
 /**
@@ -548,11 +556,11 @@ function desktop_mode_agent_conversation_cap() {
  * @param int $user_id Owner.
  * @return void
  */
-function desktop_mode_agent_conversations_prune( $user_id ) {
-	$cap   = desktop_mode_agent_conversation_cap();
+function openstation_agent_conversations_prune( $user_id ) {
+	$cap   = openstation_agent_conversation_cap();
 	$posts = get_posts(
 		array(
-			'post_type'        => DESKTOP_MODE_AGENT_CHAT_POST_TYPE,
+			'post_type'        => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'      => 'publish',
 			'author'           => (int) $user_id,
 			// One page past the cap is plenty — pruning runs on every create.

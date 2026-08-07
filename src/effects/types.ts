@@ -1,11 +1,11 @@
 /**
- * Desktop Mode — Unfocused-window effect types.
+ * OpenStation — Unfocused-window effect types.
  *
  * An "unfocus effect" is a visual treatment applied to every window
  * that is NOT the focused one — the first of a growing family of
  * desktop effects surfaced in OS Settings → Effects. The built-in
  * `darken` dims unfocused windows; plugins register their own through
- * the same public hook (`wp.desktop.registerUnfocusEffect`).
+ * the same public hook (`wp.os.registerUnfocusEffect`).
  *
  * An effect is intentionally tiny: it either toggles a CSS class on
  * the window root (the cheap, declarative path the built-in uses) or
@@ -27,10 +27,10 @@ export interface UnfocusEffectDef {
 	/** Optional one-line description shown under the selector. */
 	description?: string;
 	/**
-	 * CSS class toggled on the window root (`.desktop-mode-window`)
+	 * CSS class toggled on the window root (`.os-window`)
 	 * while the window is unfocused. The declarative path — ship the
 	 * matching rule in your stylesheet. The built-in `darken` uses
-	 * `desktop-mode-window--fx-darken`.
+	 * `os-window--fx-darken`.
 	 */
 	className?: string;
 	/**

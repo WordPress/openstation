@@ -79,7 +79,7 @@ describe( 'renderIcon — silhouette SVGs', () => {
 			title: 'Foo',
 		} );
 
-		expect( el.classList.contains( 'desktop-mode-icon-letter' ) ).toBe( true );
+		expect( el.classList.contains( 'os-icon-letter' ) ).toBe( true );
 	} );
 
 	test( 'base64 that passes the charset check but not atob degrades safely', () => {

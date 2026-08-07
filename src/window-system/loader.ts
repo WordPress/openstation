@@ -4,7 +4,7 @@
  * Ships in `desktop.min.js`. `WindowManager.open()` / `openNew()`
  * (both async) call `ensureWindowSystemLoaded()`
  * before constructing any `Window` instance — the factory is
- * published on `window.desktopModeWindowSystem` by the lazy
+ * published on `window.openStationWindowSystem` by the lazy
  * bundle's entry.
  *
  * Pattern mirrors `src/shell-overlays/loader.ts` exactly:
@@ -28,13 +28,13 @@ import type { WindowSystemApi } from './types';
 let inflight: Promise< void > | null = null;
 
 function isLoaded(): boolean {
-	return !! window.desktopModeWindowSystem;
+	return !! window.openStationWindowSystem;
 }
 
 function injectScript( scriptUrl: string ): Promise< void > {
 	return new Promise( ( resolve, reject ) => {
 		const existing = document.querySelector< HTMLScriptElement >(
-			'script[data-desktop-mode-window-system="1"]',
+			'script[data-os-window-system="1"]',
 		);
 		const finish = (): void => {
 			if ( isLoaded() ) {
@@ -43,7 +43,7 @@ function injectScript( scriptUrl: string ): Promise< void > {
 			}
 			reject(
 				new Error(
-					'[desktop-mode] window-system bundle loaded but did not register `window.desktopModeWindowSystem`.',
+					'[openstation] window-system bundle loaded but did not register `window.openStationWindowSystem`.',
 				),
 			);
 		};
@@ -61,7 +61,7 @@ function injectScript( scriptUrl: string ): Promise< void > {
 		const s = document.createElement( 'script' );
 		s.src = scriptUrl;
 		s.async = true;
-		s.dataset.desktopModeWindowSystem = '1';
+		s.dataset.osWindowSystem = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
 			reject( new Error( 'failed to load window-system bundle' ) ),
@@ -72,12 +72,12 @@ function injectScript( scriptUrl: string ): Promise< void > {
 
 /**
  * URL of the lazy window-system bundle, read from the shell
- * config that PHP wrote onto `window.desktopModeConfig`.
+ * config that PHP wrote onto `window.openStationConfig`.
  */
 export function windowSystemBundleUrl(): string {
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { windowSystemBundleUrl?: string };
-	} ).desktopModeConfig;
+		openStationConfig?: { windowSystemBundleUrl?: string };
+	} ).openStationConfig;
 	return cfg?.windowSystemBundleUrl ?? '';
 }
 
@@ -95,7 +95,7 @@ export function preloadWindowSystem( scriptUrl: string ): void {
 		inflight = null;
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] window-system preload failed; will retry on first open():',
+				'[openstation] window-system preload failed; will retry on first open():',
 				err,
 			);
 		}
@@ -116,7 +116,7 @@ export async function ensureWindowSystemLoaded(
 	scriptUrl: string,
 ): Promise< WindowSystemApi > {
 	if ( isLoaded() ) {
-		return window.desktopModeWindowSystem as WindowSystemApi;
+		return window.openStationWindowSystem as WindowSystemApi;
 	}
 	if ( ! scriptUrl ) {
 		// No URL configured. Two cases land here:
@@ -125,7 +125,7 @@ export async function ensureWindowSystemLoaded(
 		//     loads; the test setup imports the `Window` class
 		//     directly and assigns the factory by hand. If neither
 		//     of those happened the test will fail loudly when it
-		//     reads `window.desktopModeWindowSystem`, which is the
+		//     reads `window.openStationWindowSystem`, which is the
 		//     right failure mode.
 		//
 		//   - Mis-configured production deploys. We throw an
@@ -133,17 +133,17 @@ export async function ensureWindowSystemLoaded(
 		//     promise) — far easier to diagnose than returning the
 		//     undefined slot and letting the caller crash later
 		//     with an opaque TypeError on `factory.createWindow( … )`.
-		const fn = window.desktopModeWindowSystem;
+		const fn = window.openStationWindowSystem;
 		if ( fn ) {
 			return fn;
 		}
 		throw new Error(
-			'[desktop-mode] ensureWindowSystemLoaded(): no bundle URL configured and `window.desktopModeWindowSystem` is not pre-registered.',
+			'[openstation] ensureWindowSystemLoaded(): no bundle URL configured and `window.openStationWindowSystem` is not pre-registered.',
 		);
 	}
 	if ( ! inflight ) {
 		inflight = injectScript( scriptUrl );
 	}
 	await inflight;
-	return window.desktopModeWindowSystem as WindowSystemApi;
+	return window.openStationWindowSystem as WindowSystemApi;
 }

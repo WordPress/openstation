@@ -1,9 +1,9 @@
 <?php
 /**
- * Desktop Mode — Agents: definition store (user meta on the agent row).
+ * OpenStation — Agents: definition store (user meta on the agent row).
  *
  * Everything that defines an agent beyond its `wp_users` row lives as
- * user meta on that row, in one `_desktop_mode_agent_*` key family:
+ * user meta on that row, in one `_openstation_agent_*` key family:
  *
  *   - `_desktop_mode_agent`              marker ('1') — the existence test
  *   - `_desktop_mode_agent_description`  "when to use" short text
@@ -17,7 +17,7 @@
  *   - `_desktop_mode_agent_created_by`   creating user id (audit aid)
  *
  * User meta has no revisions — the audit trail for definition changes
- * is the `desktop_mode_agent_{created,updated,deleted}` actions fired
+ * is the `openstation_agent_{created,updated,deleted}` actions fired
  * from this module's orchestrators, each carrying before/after values
  * so logging plugins can persist a history.
  *
@@ -25,28 +25,76 @@
  * sanitization, getters/setters, and the create/update orchestrators
  * the REST surface calls. `identity.php` owns the user row itself.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
+require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
 /**
  * Meta keys owned by the agents store. Constants so the other layer
  * files reuse them instead of typing the literals.
  *
- * `DESKTOP_MODE_AGENT_USER_MARKER_META` is the exception — it lives in
+ * `OPENSTATION_AGENT_USER_MARKER_META` is the exception — it lives in
  * guard.php, which loads unconditionally, because the agent test has to
  * resolve even when this module does not load.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
-const DESKTOP_MODE_AGENT_DESCRIPTION_META  = '_desktop_mode_agent_description';
-const DESKTOP_MODE_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
-const DESKTOP_MODE_AGENT_ABILITIES_META    = '_desktop_mode_agent_abilities';
-const DESKTOP_MODE_AGENT_TRIGGERS_META     = '_desktop_mode_agent_triggers';
-const DESKTOP_MODE_AGENT_MODEL_META        = '_desktop_mode_agent_model';
-const DESKTOP_MODE_AGENT_RATE_LIMIT_META   = '_desktop_mode_agent_rate_limit';
-const DESKTOP_MODE_AGENT_CREATED_BY_META   = '_desktop_mode_agent_created_by';
+const OPENSTATION_AGENT_DESCRIPTION_META = '_desktop_mode_agent_description';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_ABILITIES_META = '_desktop_mode_agent_abilities';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_TRIGGERS_META = '_desktop_mode_agent_triggers';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_MODEL_META = '_desktop_mode_agent_model';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_RATE_LIMIT_META = '_desktop_mode_agent_rate_limit';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_AGENT_CREATED_BY_META = '_desktop_mode_agent_created_by';
 
 /**
  * Every meta key the store writes — the privacy eraser and any future
@@ -54,16 +102,16 @@ const DESKTOP_MODE_AGENT_CREATED_BY_META   = '_desktop_mode_agent_created_by';
  *
  * @return string[]
  */
-function desktop_mode_agent_meta_keys() {
+function openstation_agent_meta_keys() {
 	return array(
-		DESKTOP_MODE_AGENT_USER_MARKER_META,
-		DESKTOP_MODE_AGENT_DESCRIPTION_META,
-		DESKTOP_MODE_AGENT_INSTRUCTIONS_META,
-		DESKTOP_MODE_AGENT_ABILITIES_META,
-		DESKTOP_MODE_AGENT_TRIGGERS_META,
-		DESKTOP_MODE_AGENT_MODEL_META,
-		DESKTOP_MODE_AGENT_RATE_LIMIT_META,
-		DESKTOP_MODE_AGENT_CREATED_BY_META,
+		OPENSTATION_AGENT_USER_MARKER_META,
+		OPENSTATION_AGENT_DESCRIPTION_META,
+		OPENSTATION_AGENT_INSTRUCTIONS_META,
+		OPENSTATION_AGENT_ABILITIES_META,
+		OPENSTATION_AGENT_TRIGGERS_META,
+		OPENSTATION_AGENT_MODEL_META,
+		OPENSTATION_AGENT_RATE_LIMIT_META,
+		OPENSTATION_AGENT_CREATED_BY_META,
 	);
 }
 
@@ -76,14 +124,14 @@ function desktop_mode_agent_meta_keys() {
  *
  * @return void
  */
-function desktop_mode_agents_register_user_meta() {
+function openstation_agents_register_user_meta() {
 	$auth = static function () {
 		return current_user_can( 'edit_users' );
 	};
 
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_DESCRIPTION_META,
+		OPENSTATION_AGENT_DESCRIPTION_META,
 		array(
 			'type'              => 'string',
 			'single'            => true,
@@ -95,7 +143,7 @@ function desktop_mode_agents_register_user_meta() {
 	);
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_INSTRUCTIONS_META,
+		OPENSTATION_AGENT_INSTRUCTIONS_META,
 		array(
 			'type'              => 'string',
 			'single'            => true,
@@ -107,31 +155,31 @@ function desktop_mode_agents_register_user_meta() {
 	);
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_ABILITIES_META,
+		OPENSTATION_AGENT_ABILITIES_META,
 		array(
 			'type'              => 'string',
 			'single'            => true,
 			'default'           => '',
 			'show_in_rest'      => false,
-			'sanitize_callback' => 'desktop_mode_agent_sanitize_abilities_json',
+			'sanitize_callback' => 'openstation_agent_sanitize_abilities_json',
 			'auth_callback'     => $auth,
 		)
 	);
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_TRIGGERS_META,
+		OPENSTATION_AGENT_TRIGGERS_META,
 		array(
 			'type'              => 'string',
 			'single'            => true,
 			'default'           => '',
 			'show_in_rest'      => false,
-			'sanitize_callback' => 'desktop_mode_agent_sanitize_triggers_json',
+			'sanitize_callback' => 'openstation_agent_sanitize_triggers_json',
 			'auth_callback'     => $auth,
 		)
 	);
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_MODEL_META,
+		OPENSTATION_AGENT_MODEL_META,
 		array(
 			'type'              => 'string',
 			'single'            => true,
@@ -143,7 +191,7 @@ function desktop_mode_agents_register_user_meta() {
 	);
 	register_meta(
 		'user',
-		DESKTOP_MODE_AGENT_RATE_LIMIT_META,
+		OPENSTATION_AGENT_RATE_LIMIT_META,
 		array(
 			'type'              => 'integer',
 			'single'            => true,
@@ -154,7 +202,7 @@ function desktop_mode_agents_register_user_meta() {
 		)
 	);
 }
-add_action( 'init', 'desktop_mode_agents_register_user_meta' );
+add_action( 'init', 'openstation_agents_register_user_meta' );
 
 // ---------------------------------------------------------------------------
 // Sanitizers
@@ -166,7 +214,7 @@ add_action( 'init', 'desktop_mode_agents_register_user_meta' );
  * @param mixed $value Incoming list.
  * @return string[]
  */
-function desktop_mode_agents_sanitize_ability_slugs( $value ) {
+function openstation_agents_sanitize_ability_slugs( $value ) {
 	if ( is_string( $value ) ) {
 		$decoded = json_decode( $value, true );
 		$value   = is_array( $decoded ) ? $decoded : array();
@@ -195,8 +243,8 @@ function desktop_mode_agents_sanitize_ability_slugs( $value ) {
  * @param mixed $value Incoming value (array or JSON string).
  * @return string JSON-encoded slug list.
  */
-function desktop_mode_agent_sanitize_abilities_json( $value ) {
-	return (string) wp_json_encode( desktop_mode_agents_sanitize_ability_slugs( $value ) );
+function openstation_agent_sanitize_abilities_json( $value ) {
+	return (string) wp_json_encode( openstation_agents_sanitize_ability_slugs( $value ) );
 }
 
 /**
@@ -209,7 +257,7 @@ function desktop_mode_agent_sanitize_abilities_json( $value ) {
  * @param mixed $value Incoming triggers array (or JSON string).
  * @return array
  */
-function desktop_mode_agent_sanitize_triggers( $value ) {
+function openstation_agent_sanitize_triggers( $value ) {
 	if ( is_string( $value ) ) {
 		$decoded = json_decode( $value, true );
 		$value   = is_array( $decoded ) ? $decoded : array();
@@ -219,7 +267,7 @@ function desktop_mode_agent_sanitize_triggers( $value ) {
 	}
 
 	$known_kinds = array();
-	foreach ( desktop_mode_agent_trigger_kinds() as $kind ) {
+	foreach ( openstation_agent_trigger_kinds() as $kind ) {
 		$known_kinds[ $kind['slug'] ] = $kind;
 	}
 
@@ -234,7 +282,7 @@ function desktop_mode_agent_sanitize_triggers( $value ) {
 		}
 
 		$config = isset( $row['config'] ) && is_array( $row['config'] ) ? $row['config'] : array();
-		$config = desktop_mode_agent_sanitize_trigger_config_deep( $config );
+		$config = openstation_agent_sanitize_trigger_config_deep( $config );
 
 		$out[] = array(
 			'kind'   => $kind,
@@ -251,8 +299,8 @@ function desktop_mode_agent_sanitize_triggers( $value ) {
  * @param mixed $value Incoming value.
  * @return string JSON-encoded triggers list.
  */
-function desktop_mode_agent_sanitize_triggers_json( $value ) {
-	return (string) wp_json_encode( desktop_mode_agent_sanitize_triggers( $value ) );
+function openstation_agent_sanitize_triggers_json( $value ) {
+	return (string) wp_json_encode( openstation_agent_sanitize_triggers( $value ) );
 }
 
 /**
@@ -267,7 +315,7 @@ function desktop_mode_agent_sanitize_triggers_json( $value ) {
  * @param mixed $value Arbitrary input.
  * @return mixed
  */
-function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
+function openstation_agent_sanitize_trigger_config_deep( $value ) {
 	if ( is_array( $value ) ) {
 		$out = array();
 		foreach ( $value as $k => $v ) {
@@ -279,7 +327,7 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
 			} else {
 				$key = (int) $k;
 			}
-			$out[ $key ] = desktop_mode_agent_sanitize_trigger_config_deep( $v );
+			$out[ $key ] = openstation_agent_sanitize_trigger_config_deep( $v );
 		}
 		return $out;
 	}
@@ -306,13 +354,13 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
  * Triggers pane can already store configuration for them, and later
  * phases add the intake plumbing without a storage migration.
  *
- * Plugins can extend the list via the `desktop_mode_agent_trigger_kinds`
+ * Plugins can extend the list via the `openstation_agent_trigger_kinds`
  * filter — each entry must declare a `slug`, `label`, and a JSON-Schema
  * `config_schema` describing the shape of `trigger.config`.
  *
  * @return array<int, array{slug:string,wired:bool,label:string,description:string,icon:string,config_schema:array}>
  */
-function desktop_mode_agent_trigger_kinds() {
+function openstation_agent_trigger_kinds() {
 	$kinds = array(
 		array(
 			'slug'          => 'chat',
@@ -421,7 +469,7 @@ function desktop_mode_agent_trigger_kinds() {
 	 *
 	 * @param array $kinds Default trigger kinds.
 	 */
-	$filtered = apply_filters( 'desktop_mode_agent_trigger_kinds', $kinds );
+	$filtered = apply_filters( 'openstation_agent_trigger_kinds', $kinds );
 	if ( ! is_array( $filtered ) ) {
 		return $kinds;
 	}
@@ -437,7 +485,7 @@ function desktop_mode_agent_trigger_kinds() {
  *
  * @return array<int, array{hook:string, when:string}>
  */
-function desktop_mode_agent_hooks_catalogue() {
+function openstation_agent_hooks_catalogue() {
 	$hooks = array(
 		array(
 			'hook' => 'save_post',
@@ -479,7 +527,7 @@ function desktop_mode_agent_hooks_catalogue() {
 	 *
 	 * @param array $hooks Default catalogue.
 	 */
-	$filtered = apply_filters( 'desktop_mode_agent_hooks_catalogue', $hooks );
+	$filtered = apply_filters( 'openstation_agent_hooks_catalogue', $hooks );
 	return is_array( $filtered ) ? array_values( $filtered ) : $hooks;
 }
 
@@ -508,7 +556,7 @@ function desktop_mode_agent_hooks_catalogue() {
  * @param string $role Role slug being assigned.
  * @return bool
  */
-function desktop_mode_agent_actor_can_assign_role( $role ) {
+function openstation_agent_actor_can_assign_role( $role ) {
 	$role = sanitize_key( (string) $role );
 	$can  = current_user_can( 'promote_users' );
 
@@ -534,7 +582,7 @@ function desktop_mode_agent_actor_can_assign_role( $role ) {
 	 * @param int    $user_id Acting user id (0 when there is none).
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_agent_actor_can_assign_role',
+		'openstation_agent_actor_can_assign_role',
 		$can,
 		$role,
 		get_current_user_id()
@@ -547,12 +595,12 @@ function desktop_mode_agent_actor_can_assign_role( $role ) {
  *
  * The whitelist keeps agents in the standard content-role band; each
  * survivor is then run through
- * {@see desktop_mode_agent_actor_can_assign_role()}, which is where the
+ * {@see openstation_agent_actor_can_assign_role()}, which is where the
  * real gating lives.
  *
  * @return string[] Role slugs.
  */
-function desktop_mode_agent_allowed_roles() {
+function openstation_agent_allowed_roles() {
 	$whitelist = array( 'administrator', 'editor', 'author', 'contributor' );
 
 	/**
@@ -565,7 +613,7 @@ function desktop_mode_agent_allowed_roles() {
 	 *
 	 * @param string[] $whitelist Default role slugs.
 	 */
-	$whitelist = apply_filters( 'desktop_mode_agent_allowed_roles', $whitelist );
+	$whitelist = apply_filters( 'openstation_agent_allowed_roles', $whitelist );
 	if ( ! is_array( $whitelist ) ) {
 		return array();
 	}
@@ -579,7 +627,7 @@ function desktop_mode_agent_allowed_roles() {
 
 	$allowed = array();
 	foreach ( $candidates as $role ) {
-		if ( desktop_mode_agent_actor_can_assign_role( $role ) ) {
+		if ( openstation_agent_actor_can_assign_role( $role ) ) {
 			$allowed[] = $role;
 		}
 	}
@@ -597,8 +645,8 @@ function desktop_mode_agent_allowed_roles() {
  * @param int $user_id Agent user id.
  * @return string
  */
-function desktop_mode_agent_get_description( $user_id ) {
-	return (string) get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_DESCRIPTION_META, true );
+function openstation_agent_get_description( $user_id ) {
+	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_DESCRIPTION_META, true );
 }
 
 /**
@@ -607,8 +655,8 @@ function desktop_mode_agent_get_description( $user_id ) {
  * @param int $user_id Agent user id.
  * @return string
  */
-function desktop_mode_agent_get_instructions( $user_id ) {
-	return (string) get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_INSTRUCTIONS_META, true );
+function openstation_agent_get_instructions( $user_id ) {
+	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_INSTRUCTIONS_META, true );
 }
 
 /**
@@ -617,12 +665,12 @@ function desktop_mode_agent_get_instructions( $user_id ) {
  * @param int $user_id Agent user id.
  * @return string[]
  */
-function desktop_mode_agent_get_abilities( $user_id ) {
-	$raw = get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_ABILITIES_META, true );
+function openstation_agent_get_abilities( $user_id ) {
+	$raw = get_user_meta( (int) $user_id, OPENSTATION_AGENT_ABILITIES_META, true );
 	if ( '' === $raw || null === $raw ) {
 		return array();
 	}
-	return desktop_mode_agents_sanitize_ability_slugs( $raw );
+	return openstation_agents_sanitize_ability_slugs( $raw );
 }
 
 /**
@@ -631,12 +679,12 @@ function desktop_mode_agent_get_abilities( $user_id ) {
  * @param int $user_id Agent user id.
  * @return array
  */
-function desktop_mode_agent_get_triggers( $user_id ) {
-	$raw = get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_TRIGGERS_META, true );
+function openstation_agent_get_triggers( $user_id ) {
+	$raw = get_user_meta( (int) $user_id, OPENSTATION_AGENT_TRIGGERS_META, true );
 	if ( '' === $raw || null === $raw ) {
 		return array();
 	}
-	return desktop_mode_agent_sanitize_triggers( $raw );
+	return openstation_agent_sanitize_triggers( $raw );
 }
 
 /**
@@ -645,8 +693,8 @@ function desktop_mode_agent_get_triggers( $user_id ) {
  * @param int $user_id Agent user id.
  * @return string Empty string if not set.
  */
-function desktop_mode_agent_get_model( $user_id ) {
-	return (string) get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_MODEL_META, true );
+function openstation_agent_get_model( $user_id ) {
+	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_MODEL_META, true );
 }
 
 /**
@@ -655,8 +703,8 @@ function desktop_mode_agent_get_model( $user_id ) {
  * @param int $user_id Agent user id.
  * @return int Zero when no per-agent override is set.
  */
-function desktop_mode_agent_get_rate_limit( $user_id ) {
-	return (int) get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_RATE_LIMIT_META, true );
+function openstation_agent_get_rate_limit( $user_id ) {
+	return (int) get_user_meta( (int) $user_id, OPENSTATION_AGENT_RATE_LIMIT_META, true );
 }
 
 // ---------------------------------------------------------------------------
@@ -674,9 +722,9 @@ function desktop_mode_agent_get_rate_limit( $user_id ) {
  * @return array|null Trigger row, or null when the agent declares none
  *                    for this source.
  */
-function desktop_mode_agent_trigger_for_source( $agent_user_id, $source ) {
+function openstation_agent_trigger_for_source( $agent_user_id, $source ) {
 	$source = sanitize_key( (string) $source );
-	foreach ( desktop_mode_agent_get_triggers( (int) $agent_user_id ) as $trigger ) {
+	foreach ( openstation_agent_get_triggers( (int) $agent_user_id ) as $trigger ) {
 		if ( isset( $trigger['kind'] ) && $source === $trigger['kind'] ) {
 			return $trigger;
 		}
@@ -687,7 +735,7 @@ function desktop_mode_agent_trigger_for_source( $agent_user_id, $source ) {
 /**
  * Whether the current user may invoke THIS agent through THIS source.
  *
- * The route-level `desktop_mode_agents_user_can_invoke()` check is
+ * The route-level `openstation_agents_user_can_invoke()` check is
  * site-wide — it answers "may this user invoke agents at all". This is
  * the per-agent half: a trigger may declare a `capability` in its
  * config, and until it is enforced here the field is decorative. The
@@ -704,8 +752,8 @@ function desktop_mode_agent_trigger_for_source( $agent_user_id, $source ) {
  * @param string $source        Invocation source slug.
  * @return bool
  */
-function desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source = 'chat' ) {
-	$trigger    = desktop_mode_agent_trigger_for_source( $agent_user_id, $source );
+function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'chat' ) {
+	$trigger    = openstation_agent_trigger_for_source( $agent_user_id, $source );
 	$capability = '';
 	if ( is_array( $trigger ) && isset( $trigger['config']['capability'] ) ) {
 		$capability = trim( (string) $trigger['config']['capability'] );
@@ -722,7 +770,7 @@ function desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source = 'ch
 	 * @param array|null $trigger       The matching trigger row, if any.
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_agent_user_can_invoke_agent',
+		'openstation_agent_user_can_invoke_agent',
 		$can,
 		(int) $agent_user_id,
 		(string) $source,
@@ -740,9 +788,9 @@ function desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source = 'ch
  * @param array $args Optional overrides merged into the `get_users()` query.
  * @return WP_User[]
  */
-function desktop_mode_agent_get_agents( $args = array() ) {
+function openstation_agent_get_agents( $args = array() ) {
 	$defaults = array(
-		'meta_key'   => DESKTOP_MODE_AGENT_USER_MARKER_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		'meta_key'   => OPENSTATION_AGENT_USER_MARKER_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 		'meta_value' => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		'orderby'    => 'display_name',
 		'order'      => 'ASC',
@@ -761,35 +809,35 @@ function desktop_mode_agent_get_agents( $args = array() ) {
  * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array} $args Creation args.
  * @return WP_User|WP_Error
  */
-function desktop_mode_agent_create( $args ) {
+function openstation_agent_create( $args ) {
 	$role    = isset( $args['role'] ) ? sanitize_key( (string) $args['role'] ) : '';
-	$allowed = desktop_mode_agent_allowed_roles();
+	$allowed = openstation_agent_allowed_roles();
 	if ( '' === $role || ! in_array( $role, $allowed, true ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_invalid_role',
+			'openstation_agent_invalid_role',
 			__( 'Pick a role you are allowed to assign to an agent.', 'desktop-mode' )
 		);
 	}
 
-	$user = desktop_mode_agent_create_user( $args );
+	$user = openstation_agent_create_user( $args );
 	if ( is_wp_error( $user ) ) {
 		return $user;
 	}
 
 	$description  = isset( $args['description'] ) ? sanitize_text_field( (string) $args['description'] ) : '';
 	$instructions = isset( $args['instructions'] ) ? wp_kses_post( (string) $args['instructions'] ) : '';
-	$abilities    = isset( $args['abilities'] ) ? desktop_mode_agents_sanitize_ability_slugs( $args['abilities'] ) : array();
+	$abilities    = isset( $args['abilities'] ) ? openstation_agents_sanitize_ability_slugs( $args['abilities'] ) : array();
 
 	if ( '' !== $description ) {
-		update_user_meta( $user->ID, DESKTOP_MODE_AGENT_DESCRIPTION_META, $description );
+		update_user_meta( $user->ID, OPENSTATION_AGENT_DESCRIPTION_META, $description );
 	}
 	if ( '' !== $instructions ) {
-		update_user_meta( $user->ID, DESKTOP_MODE_AGENT_INSTRUCTIONS_META, $instructions );
+		update_user_meta( $user->ID, OPENSTATION_AGENT_INSTRUCTIONS_META, $instructions );
 	}
 	if ( ! empty( $abilities ) ) {
-		update_user_meta( $user->ID, DESKTOP_MODE_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
+		update_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
 	}
-	update_user_meta( $user->ID, DESKTOP_MODE_AGENT_CREATED_BY_META, get_current_user_id() );
+	update_user_meta( $user->ID, OPENSTATION_AGENT_CREATED_BY_META, get_current_user_id() );
 
 	/**
 	 * Fires after an agent is created.
@@ -800,7 +848,7 @@ function desktop_mode_agent_create( $args ) {
 	 * @param int   $actor_id User who created the agent.
 	 */
 	do_action(
-		'desktop_mode_agent_created',
+		'openstation_agent_created',
 		(int) $user->ID,
 		array(
 			'name'         => (string) $user->display_name,
@@ -817,7 +865,7 @@ function desktop_mode_agent_create( $args ) {
 
 /**
  * Update an agent's definition. Accepts any subset of the recognized
- * fields, applies the valid ones, and fires `desktop_mode_agent_updated`
+ * fields, applies the valid ones, and fires `openstation_agent_updated`
  * once with a before/after map of everything that changed.
  *
  * Recognized fields: `name`, `role`, `description`, `instructions`,
@@ -827,11 +875,11 @@ function desktop_mode_agent_create( $args ) {
  * @param array $fields  Field map.
  * @return true|WP_Error
  */
-function desktop_mode_agent_update( $user_id, array $fields ) {
+function openstation_agent_update( $user_id, array $fields ) {
 	$user = get_userdata( (int) $user_id );
-	if ( ! $user || ! desktop_mode_agent_is_agent( $user ) ) {
+	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_not_found',
+			'openstation_agent_not_found',
 			__( 'Agent not found.', 'desktop-mode' )
 		);
 	}
@@ -842,7 +890,7 @@ function desktop_mode_agent_update( $user_id, array $fields ) {
 		$name = sanitize_text_field( (string) $fields['name'] );
 		if ( '' === $name ) {
 			return new WP_Error(
-				'desktop_mode_agent_invalid_name',
+				'openstation_agent_invalid_name',
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
@@ -863,9 +911,9 @@ function desktop_mode_agent_update( $user_id, array $fields ) {
 
 	if ( isset( $fields['role'] ) ) {
 		$role = sanitize_key( (string) $fields['role'] );
-		if ( ! in_array( $role, desktop_mode_agent_allowed_roles(), true ) ) {
+		if ( ! in_array( $role, openstation_agent_allowed_roles(), true ) ) {
 			return new WP_Error(
-				'desktop_mode_agent_invalid_role',
+				'openstation_agent_invalid_role',
 				__( 'Pick a role you are allowed to assign to an agent.', 'desktop-mode' )
 			);
 		}
@@ -881,80 +929,80 @@ function desktop_mode_agent_update( $user_id, array $fields ) {
 
 	if ( isset( $fields['description'] ) ) {
 		$description = sanitize_text_field( (string) $fields['description'] );
-		$before      = desktop_mode_agent_get_description( $user->ID );
+		$before      = openstation_agent_get_description( $user->ID );
 		if ( $description !== $before ) {
 			$changed['description'] = array(
 				'from' => $before,
 				'to'   => $description,
 			);
-			update_user_meta( $user->ID, DESKTOP_MODE_AGENT_DESCRIPTION_META, $description );
+			update_user_meta( $user->ID, OPENSTATION_AGENT_DESCRIPTION_META, $description );
 		}
 	}
 
 	if ( isset( $fields['instructions'] ) ) {
 		$instructions = wp_kses_post( (string) $fields['instructions'] );
-		$before       = desktop_mode_agent_get_instructions( $user->ID );
+		$before       = openstation_agent_get_instructions( $user->ID );
 		if ( $instructions !== $before ) {
 			$changed['instructions'] = array(
 				'from' => $before,
 				'to'   => $instructions,
 			);
-			update_user_meta( $user->ID, DESKTOP_MODE_AGENT_INSTRUCTIONS_META, $instructions );
+			update_user_meta( $user->ID, OPENSTATION_AGENT_INSTRUCTIONS_META, $instructions );
 		}
 	}
 
 	if ( isset( $fields['abilities'] ) ) {
-		$abilities = desktop_mode_agents_sanitize_ability_slugs( $fields['abilities'] );
-		$before    = desktop_mode_agent_get_abilities( $user->ID );
+		$abilities = openstation_agents_sanitize_ability_slugs( $fields['abilities'] );
+		$before    = openstation_agent_get_abilities( $user->ID );
 		if ( $abilities !== $before ) {
 			$changed['abilities'] = array(
 				'from' => $before,
 				'to'   => $abilities,
 			);
-			update_user_meta( $user->ID, DESKTOP_MODE_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
+			update_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
 		}
 	}
 
 	if ( isset( $fields['triggers'] ) ) {
-		$triggers = desktop_mode_agent_sanitize_triggers( $fields['triggers'] );
-		$before   = desktop_mode_agent_get_triggers( $user->ID );
+		$triggers = openstation_agent_sanitize_triggers( $fields['triggers'] );
+		$before   = openstation_agent_get_triggers( $user->ID );
 		if ( $triggers !== $before ) {
 			$changed['triggers'] = array(
 				'from' => $before,
 				'to'   => $triggers,
 			);
-			update_user_meta( $user->ID, DESKTOP_MODE_AGENT_TRIGGERS_META, wp_json_encode( $triggers ) );
+			update_user_meta( $user->ID, OPENSTATION_AGENT_TRIGGERS_META, wp_json_encode( $triggers ) );
 		}
 	}
 
 	if ( isset( $fields['model'] ) ) {
 		$model  = sanitize_text_field( (string) $fields['model'] );
-		$before = desktop_mode_agent_get_model( $user->ID );
+		$before = openstation_agent_get_model( $user->ID );
 		if ( $model !== $before ) {
 			$changed['model'] = array(
 				'from' => $before,
 				'to'   => $model,
 			);
 			if ( '' === $model ) {
-				delete_user_meta( $user->ID, DESKTOP_MODE_AGENT_MODEL_META );
+				delete_user_meta( $user->ID, OPENSTATION_AGENT_MODEL_META );
 			} else {
-				update_user_meta( $user->ID, DESKTOP_MODE_AGENT_MODEL_META, $model );
+				update_user_meta( $user->ID, OPENSTATION_AGENT_MODEL_META, $model );
 			}
 		}
 	}
 
 	if ( isset( $fields['rateLimit'] ) ) {
 		$rate   = max( 0, (int) $fields['rateLimit'] );
-		$before = desktop_mode_agent_get_rate_limit( $user->ID );
+		$before = openstation_agent_get_rate_limit( $user->ID );
 		if ( $rate !== $before ) {
 			$changed['rateLimit'] = array(
 				'from' => $before,
 				'to'   => $rate,
 			);
 			if ( 0 === $rate ) {
-				delete_user_meta( $user->ID, DESKTOP_MODE_AGENT_RATE_LIMIT_META );
+				delete_user_meta( $user->ID, OPENSTATION_AGENT_RATE_LIMIT_META );
 			} else {
-				update_user_meta( $user->ID, DESKTOP_MODE_AGENT_RATE_LIMIT_META, $rate );
+				update_user_meta( $user->ID, OPENSTATION_AGENT_RATE_LIMIT_META, $rate );
 			}
 		}
 	}
@@ -970,7 +1018,7 @@ function desktop_mode_agent_update( $user_id, array $fields ) {
 		 * @param array $changed  Map of field => { from, to }.
 		 * @param int   $actor_id User who made the change.
 		 */
-		do_action( 'desktop_mode_agent_updated', (int) $user->ID, $changed, get_current_user_id() );
+		do_action( 'openstation_agent_updated', (int) $user->ID, $changed, get_current_user_id() );
 	}
 
 	return true;

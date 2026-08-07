@@ -1,6 +1,6 @@
 # Register a slash-command
 
-The AI Assistant palette (`⌘K` / `Ctrl+K`) is extensible. Plugins can contribute slash-commands with `wp.desktop.registerCommand()`. Typing `/` in the palette shows every registered command; the handler receives whatever the user typed after the slug.
+The AI Assistant palette (`⌘K` / `Ctrl+K`) is extensible. Plugins can contribute slash-commands with `wp.os.registerCommand()`. Typing `/` in the palette shows every registered command; the handler receives whatever the user typed after the slug.
 
 Registrations are live — if the palette is open when you call `registerCommand`, the new command shows up in the list immediately, no page reload required.
 
@@ -21,7 +21,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_enqueue_script(
         'my-echo',
         plugins_url( 'my-echo.js', __FILE__ ),
-        array( 'desktop-mode' ),   // <- hooks into the shell
+        array( 'openstation' ),   // <- hooks into the shell
         '1.0.0',
         true
     );
@@ -32,11 +32,11 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ```javascript
 ( function () {
-    // Wait until `wp.desktop` is available — the shell script loads
-    // independently of this one, so we use the `desktop-mode.init`
+    // Wait until `wp.os` is available — the shell script loads
+    // independently of this one, so we use the `os.init`
     // action which fires after the public API is mounted.
-    wp.desktop.ready( function () {
-        wp.desktop.registerCommand( {
+    wp.os.ready( function () {
+        wp.os.registerCommand( {
             slug:        'echo',
             label:       'Echo',
             description: 'Repeat the arguments back as a message.',
@@ -62,8 +62,8 @@ A more realistic command: parses a post ID argument, hits a plugin REST endpoint
 **my-comments.js**
 
 ```javascript
-wp.desktop.ready( function () {
-    wp.desktop.registerCommand( {
+wp.os.ready( function () {
+    wp.os.registerCommand( {
         slug:        'turn_on_comments',
         label:       'Turn on comments',
         description: 'Re-enable the comments section on a given post.',
@@ -79,7 +79,7 @@ wp.desktop.ready( function () {
                 '/wp-json/my-plugin/v1/enable-comments/' + id,
                 {
                     method:  'POST',
-                    headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
+                    headers: { 'X-WP-Nonce': openStationConfig.restNonce },
                 }
             );
 
@@ -105,7 +105,7 @@ Note the **markdown support** — `**bold**`, `*italic*`, `[links](https://…)`
 Commands don't have to return a message. Calling `ctx.openInWindow()` and returning `void` is a clean shortcut for "open this page and get out of my way".
 
 ```javascript
-wp.desktop.registerCommand( {
+wp.os.registerCommand( {
     slug:  'open_dashboard',
     label: 'Open the Dashboard',
     icon:  'dashicons-dashboard',
@@ -121,11 +121,11 @@ wp.desktop.registerCommand( {
 
 ## Recipe 4 — Extend the built-in `/open` command
 
-The shell ships with one built-in: `/open [window]`, which autocompletes every admin menu entry (dock + taskbar). Plugins that register native windows or custom destinations add themselves to its list via the `desktop-mode.open-command.items` filter:
+The shell ships with one built-in: `/open [window]`, which autocompletes every admin menu entry (dock + taskbar). Plugins that register native windows or custom destinations add themselves to its list via the `os.open-command.items` filter:
 
 ```javascript
 wp.hooks.addFilter(
-    'desktop-mode.open-command.items',
+    'os.open-command.items',
     'my-plugin/jorvy-in-open',
     function ( items ) {
         return [
@@ -137,7 +137,7 @@ wp.hooks.addFilter(
                 icon:        'dashicons-star-filled',
                 open:        () => {
                     // Focus if already open, otherwise open fresh.
-                    wp.desktop.registerWindow( {
+                    wp.os.registerWindow( {
                         id:     'jorvy',
                         title:  'Jorvy',
                         icon:   'dashicons-star-filled',
@@ -153,8 +153,8 @@ wp.hooks.addFilter(
 The filter runs on every `/open` keystroke, so you can show/hide entries dynamically — e.g. only contribute your entry when the user has a specific capability:
 
 ```javascript
-wp.hooks.addFilter( 'desktop-mode.open-command.items', 'my-plugin/gate', ( items ) => {
-    if ( ! desktopModeConfig.currentUserIsAdmin ) {
+wp.hooks.addFilter( 'os.open-command.items', 'my-plugin/gate', ( items ) => {
+    if ( ! openStationConfig.currentUserIsAdmin ) {
         return items;
     }
     return [ ...items, { id: 'admin-tools', label: 'Admin Tools', ... } ];
@@ -168,7 +168,7 @@ wp.hooks.addFilter( 'desktop-mode.open-command.items', 'my-plugin/gate', ( items
 For commands whose arguments come from a finite list, define a `suggest()` function. The palette will render it under the input as the user types; ↑/↓ to navigate, Tab to fill, Enter to commit.
 
 ```javascript
-wp.desktop.registerCommand( {
+wp.os.registerCommand( {
     slug:  'switch_theme',
     label: 'Switch theme',
     hint:  '[theme slug]',
@@ -177,7 +177,7 @@ wp.desktop.registerCommand( {
     // Suggestions are the static list of installed themes — loaded
     // once at registration time for this example.
     suggest: ( args ) => {
-        const themes = desktopModeConfig.installedThemes || [];  // hypothetical
+        const themes = openStationConfig.installedThemes || [];  // hypothetical
         const q = args.trim().toLowerCase();
         return themes
             .filter( ( t ) => t.name.toLowerCase().includes( q ) )
@@ -192,7 +192,7 @@ wp.desktop.registerCommand( {
     run: async ( slug, ctx ) => {
         await fetch( `/wp-json/my-plugin/v1/switch-theme/${ slug }`, {
             method: 'POST',
-            headers: { 'X-WP-Nonce': desktopModeConfig.restNonce },
+            headers: { 'X-WP-Nonce': openStationConfig.restNonce },
         } );
         ctx.close();
         return `Switched to **${ slug }**.`;
@@ -206,17 +206,17 @@ wp.desktop.registerCommand( {
 
 ## Recipe 6 — `/close_all_windows` with confirm + protect-list
 
-A destructive command that uses every plugin point: `ctx.confirm()` for the user prompt, `windowManager.closeAll()` for the batch op, and the `desktop-mode.windows.close-all` filter so any plugin can keep specific windows alive.
+A destructive command that uses every plugin point: `ctx.confirm()` for the user prompt, `windowManager.closeAll()` for the batch op, and the `os.windows.close-all` filter so any plugin can keep specific windows alive.
 
 ```javascript
-wp.desktop.ready( function () {
-    wp.desktop.registerCommand( {
+wp.os.ready( function () {
+    wp.os.registerCommand( {
         slug:        'close_all_windows',
         label:       'Close all windows',
         description: 'Close every open window on every desktop.',
         icon:        'dashicons-dismiss',
         run: async ( _args, ctx ) => {
-            const before = wp.desktop.windowManager.getAll().length;
+            const before = wp.os.windowManager.getAll().length;
             if ( before === 0 ) return 'No windows are open.';
 
             const ok = await ctx.confirm(
@@ -225,25 +225,25 @@ wp.desktop.ready( function () {
             );
             if ( ! ok ) return 'Cancelled.';
 
-            const closed = wp.desktop.windowManager.closeAll();
+            const closed = wp.os.windowManager.closeAll();
             ctx.close();
             return `Closed **${ closed }** window${ closed === 1 ? '' : 's' }.`;
         },
     } );
 } );
 
-// Optional protect-list — keep the OS Settings window alive.
+// Optional protect-list — keep the OpenStation Preferences window alive.
 wp.hooks.addFilter(
-    'desktop-mode.windows.close-all',
+    'os.windows.close-all',
     'my-plugin/keep-os-settings',
-    ( windows ) => windows.filter( ( w ) => w.id !== 'desktop-mode-os-settings' )
+    ( windows ) => windows.filter( ( w ) => w.id !== 'os-settings' )
 );
 ```
 
 `exceptIds` on the call site does the same thing:
 
 ```javascript
-wp.desktop.windowManager.closeAll( { exceptIds: [ 'desktop-mode-os-settings' ] } );
+wp.os.windowManager.closeAll( { exceptIds: [ 'os-settings' ] } );
 ```
 
 The difference is **scope**: `exceptIds` applies only to one call site; the filter applies to every batch close anywhere on the page.

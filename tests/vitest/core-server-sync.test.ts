@@ -14,7 +14,7 @@ beforeEach( () => {
 	vi.useFakeTimers();
 	fetchMock = vi.fn().mockResolvedValue( new Response( '{}', { status: 200 } ) );
 	( window as unknown as { wp?: unknown } ).wp = {
-		desktop: { fetch: fetchMock },
+		os: { fetch: fetchMock },
 	};
 } );
 

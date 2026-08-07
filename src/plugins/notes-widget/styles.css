@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Note Pad widget styles.
+ * OpenStation — Note Pad widget styles.
  *
  * The pad of pastel paper on the widget card. Consumes the shared
  * pastel tokens (`--dm-note-*`) defined in `assets/css/notes.css`,
@@ -77,7 +77,7 @@
 }
 
 /* Torn off — the DragManager stamps its source class at lift. */
-.dm-notes-pad__sheet.desktop-mode-file-tile--dragging {
+.dm-notes-pad__sheet.os-file-tile--dragging {
 	visibility: hidden;
 }
 
@@ -204,8 +204,8 @@
 .dm-notes-pad__public {
 	font-size: 11px;
 	/* The widget card is dark glass; the component's default
-	   --wpd-fg is near-black and disappears on it. */
-	--wpd-fg: rgba(255, 255, 255, 0.85);
+	   --os-ui-fg is near-black and disappears on it. */
+	--os-ui-fg: rgba(255, 255, 255, 0.85);
 	align-self: center;
 }
 

@@ -35,7 +35,7 @@ function openConfig( id: string ) {
 	};
 }
 
-const BUFFER_SELECTOR = '.desktop-mode-window__iframe--buffer';
+const BUFFER_SELECTOR = '.os-window__iframe--buffer';
 
 describe( 'Window.swapReload', () => {
 	let hooks: FakeWpHooks;
@@ -85,10 +85,10 @@ describe( 'Window.swapReload', () => {
 
 	test( 'loads into a hidden twin — visible frame and overlay untouched', async () => {
 		const win = await manager.open( openConfig( 'sw1' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		const original = win.iframe!;
 		const overlayStateBefore = body.classList.contains(
-			'desktop-mode-window__body--loading',
+			'os-window__body--loading',
 		);
 
 		win.swapReload();
@@ -104,18 +104,18 @@ describe( 'Window.swapReload', () => {
 		expect( original.isConnected ).toBe( true );
 		expect(
 			original.classList.contains(
-				'desktop-mode-window__iframe--swap-front',
+				'os-window__iframe--swap-front',
 			),
 		).toBe( true );
 		// swapReload never arms (or clears) the loading overlay.
 		expect(
-			body.classList.contains( 'desktop-mode-window__body--loading' ),
+			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( overlayStateBefore );
 	} );
 
 	test( 'buffer load promotes instantly and re-points win.iframe', async () => {
 		const win = await manager.open( openConfig( 'sw2' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		const original = win.iframe!;
 
 		win.swapReload( '/wp-admin/a.php?fresh=1' );
@@ -133,21 +133,46 @@ describe( 'Window.swapReload', () => {
 		expect( win.iframe ).toBe( buffer );
 		expect(
 			buffer.classList.contains(
-				'desktop-mode-window__iframe--buffer',
+				'os-window__iframe--buffer',
 			),
 		).toBe( false );
 		expect( buffer.hasAttribute( 'aria-hidden' ) ).toBe( false );
 		expect( buffer.getAttribute( 'name' ) ).toBe(
-			'desktop-mode-frame-sw2',
+			'os-frame-sw2',
 		);
 		expect( buffer.src ).toContain( 'fresh=1' );
 		// Same-origin gate rode along, like navigateTo.
-		expect( buffer.src ).toContain( 'desktop_mode_chromeless=1' );
+		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
+	} );
+
+	test( 'a swap completing before the FIRST load clears the boot overlay', async () => {
+		const win = await manager.open( openConfig( 'sw-early' ) );
+		const body = win.element.querySelector( '.os-window__body' )!;
+		// The initial load never fired — the boot overlay is armed.
+		expect(
+			body.classList.contains( 'os-window__body--loading' ),
+		).toBe( true );
+
+		// Refresh before the initial load lands (an editor-preview
+		// companion whose background autosave settles fast does
+		// exactly this). The original frame is removed with its
+		// pending load event — without the completion-side
+		// markWindowContentReady, nothing would ever clear the
+		// overlay.
+		win.swapReload();
+		const buffer = body.querySelector< HTMLIFrameElement >(
+			BUFFER_SELECTOR,
+		)!;
+		buffer.dispatchEvent( new Event( 'load' ) );
+
+		expect(
+			body.classList.contains( 'os-window__body--loading' ),
+		).toBe( false );
 	} );
 
 	test( 'a newer swap supersedes an in-flight buffer; its late load is inert', async () => {
 		const win = await manager.open( openConfig( 'sw3' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		const original = win.iframe!;
 
 		win.swapReload( '/wp-admin/a.php?v=1' );
@@ -176,7 +201,7 @@ describe( 'Window.swapReload', () => {
 
 	test( 'a later classic reload() still clears the overlay after a swap', async () => {
 		const win = await manager.open( openConfig( 'sw4' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		// Settle the initial load state first.
 		win.iframe!.dispatchEvent( new Event( 'load' ) );
 
@@ -202,17 +227,17 @@ describe( 'Window.swapReload', () => {
 		} );
 		win.reload();
 		expect(
-			body.classList.contains( 'desktop-mode-window__body--loading' ),
+			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( true );
 		buffer.dispatchEvent( new Event( 'load' ) );
 		expect(
-			body.classList.contains( 'desktop-mode-window__body--loading' ),
+			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( false );
 	} );
 
 	test( 'fires WINDOW_RELOADED with silent: true on completion', async () => {
 		const win = await manager.open( openConfig( 'sw5' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		const log = recordActions( hooks, [ HOOKS.WINDOW_RELOADED ] );
 
 		win.swapReload( '/wp-admin/a.php?v=3' );
@@ -230,7 +255,7 @@ describe( 'Window.swapReload', () => {
 
 	test( 'a cross-origin URL is rejected — no buffer created', async () => {
 		const win = await manager.open( openConfig( 'sw6' ) );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 
 		win.swapReload( 'https://evil.example/?p=1' );
 
@@ -271,12 +296,12 @@ describe( 'Window.swapReload', () => {
 				{ title: 'Add New', url: '/wp-admin/post-new.php' },
 			],
 		} );
-		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const body = win.element.querySelector( '.os-window__body' )!;
 		const tabs = win.element.querySelectorAll< HTMLElement >(
-			'.desktop-mode-window__tab[data-kind="submenu"]',
+			'.os-window__tab[data-kind="submenu"]',
 		);
 		expect(
-			tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ),
+			tabs[ 0 ].classList.contains( 'os-window__tab--active' ),
 		).toBe( true );
 
 		win.swapReload( '/wp-admin/post-new.php' );
@@ -287,10 +312,10 @@ describe( 'Window.swapReload', () => {
 		// must follow (the sync wiring is re-attached, not lost with
 		// the old frame).
 		expect(
-			tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ),
+			tabs[ 1 ].classList.contains( 'os-window__tab--active' ),
 		).toBe( true );
 		expect(
-			tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ),
+			tabs[ 0 ].classList.contains( 'os-window__tab--active' ),
 		).toBe( false );
 	} );
 
@@ -302,7 +327,7 @@ describe( 'Window.swapReload', () => {
 			icon: 'dashicons-visibility',
 		} );
 		const body = winA.element.querySelector(
-			'.desktop-mode-window__body',
+			'.os-window__body',
 		)!;
 
 		winA.swapReload( '/hello-world/?preview=true&fresh=1' );

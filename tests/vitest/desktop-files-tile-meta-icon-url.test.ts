@@ -71,7 +71,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		document.body.appendChild( tile );
 
 		const img = tile.querySelector< HTMLImageElement >(
-			'img.desktop-mode-file-tile__icon',
+			'img.os-file-tile__icon',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( PNG_DATA_URI );
@@ -81,7 +81,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		expect( img!.draggable ).toBe( false );
 		// The dashicon span must NOT be present — meta wins.
 		expect(
-			tile.querySelector( 'span.desktop-mode-file-tile__icon.dashicons' ),
+			tile.querySelector( 'span.os-file-tile__icon.dashicons' ),
 		).toBeNull();
 	} );
 
@@ -99,7 +99,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		document.body.appendChild( tile );
 
 		const iconEl = tile.querySelector< HTMLElement >(
-			'.desktop-mode-file-tile__icon',
+			'.os-file-tile__icon',
 		);
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( true );
@@ -120,7 +120,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		document.body.appendChild( tile );
 
 		const iconEl = tile.querySelector< HTMLElement >(
-			'.desktop-mode-file-tile__icon',
+			'.os-file-tile__icon',
 		);
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons-admin-links' ) ).toBe( true );
@@ -140,7 +140,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		document.body.appendChild( tile );
 
 		const iconEl = tile.querySelector< HTMLElement >(
-			'.desktop-mode-file-tile__icon',
+			'.os-file-tile__icon',
 		);
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons-admin-links' ) ).toBe( true );

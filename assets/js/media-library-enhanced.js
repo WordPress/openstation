@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Media Library drag-and-drop enhancement.
+ * OpenStation — Media Library drag-and-drop enhancement.
  *
  * Injects draggable=true on every .attachment tile in the WordPress
  * Media Library (grid view AND modal view) and wires a dragstart
@@ -170,10 +170,10 @@
 		// to the user that a re-upload is about to happen.
 		var style = document.createElement( 'style' );
 		style.textContent =
-			'body.desktop-mode-dragging-attachment .uploader-window,' +
-			'body.desktop-mode-dragging-attachment .uploader-window-content,' +
-			'body.desktop-mode-dragging-attachment .uploader-editor-content,' +
-			'body.desktop-mode-dragging-attachment .wp-uploader {' +
+			'body.os-dragging-attachment .uploader-window,' +
+			'body.os-dragging-attachment .uploader-window-content,' +
+			'body.os-dragging-attachment .uploader-editor-content,' +
+			'body.os-dragging-attachment .wp-uploader {' +
 			'  display: none !important;' +
 			'  pointer-events: none !important;' +
 			'}';
@@ -186,10 +186,10 @@
 	 * @param {HTMLElement} el The .attachment element.
 	 */
 	function enhance( el ) {
-		if ( el.dataset.desktopModeDraggable === '1' ) {
+		if ( el.dataset.osDraggable === '1' ) {
 			return;
 		}
-		el.dataset.desktopModeDraggable = '1';
+		el.dataset.osDraggable = '1';
 		el.setAttribute( 'draggable', 'true' );
 
 		el.addEventListener( 'dragstart', function ( e ) {
@@ -238,10 +238,10 @@
 	 *                         `.edit-attachment-frame` container.
 	 */
 	function enhanceDetail( el ) {
-		if ( el.dataset.desktopModeDraggable === '1' ) {
+		if ( el.dataset.osDraggable === '1' ) {
 			return;
 		}
-		el.dataset.desktopModeDraggable = '1';
+		el.dataset.osDraggable = '1';
 		el.setAttribute( 'draggable', 'true' );
 
 		el.addEventListener( 'dragstart', function ( e ) {
@@ -392,7 +392,7 @@
 	 */
 	function populateDragTransfer( e, sourceEl, record ) {
 		dragInProgress = true;
-		document.body.classList.add( 'desktop-mode-dragging-attachment' );
+		document.body.classList.add( 'os-dragging-attachment' );
 
 		var url = record.url;
 		var title = record.title;
@@ -443,7 +443,7 @@
 		try {
 			if ( window.parent && window.parent !== window ) {
 				window.parent.postMessage( {
-					type: 'desktop-mode-drag-start',
+					type: 'os-drag-start',
 					payload: {
 						id: record.id,
 						url: url,
@@ -463,11 +463,11 @@
 
 	function onDragEnd() {
 		dragInProgress = false;
-		document.body.classList.remove( 'desktop-mode-dragging-attachment' );
+		document.body.classList.remove( 'os-dragging-attachment' );
 		try {
 			if ( window.parent && window.parent !== window ) {
 				window.parent.postMessage(
-					{ type: 'desktop-mode-drag-end' },
+					{ type: 'os-drag-end' },
 					window.location.origin
 				);
 			}

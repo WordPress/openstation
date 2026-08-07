@@ -89,7 +89,7 @@ export function openAgentEditor( agentId: number ): void {
 	const openWindow = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					openWindow?: (
 						id: string,
 						opts?: { source?: string },
@@ -97,7 +97,7 @@ export function openAgentEditor( agentId: number ): void {
 				};
 			};
 		}
-	).wp?.desktop?.openWindow;
+	).wp?.os?.openWindow;
 	if ( typeof openWindow === 'function' ) {
 		openWindow( MY_WORDPRESS_WINDOW_ID, { source: 'agents/editor' } );
 	}

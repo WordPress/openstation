@@ -5,9 +5,9 @@
  *     (no-op — Layer 1-3 already painted).
  *   - Resolving a registered chrome calls its `render(host, ctx)`
  *     once and returns the handle.
- *   - The `desktop-mode.window.chrome.render` filter can swap the
+ *   - The `os.window.chrome.render` filter can swap the
  *     resolved id.
- *   - `desktop-mode.window.chrome.applied` action fires with
+ *   - `os.window.chrome.applied` action fires with
  *     `layer: 'chrome'` on successful mount.
  *   - A throwing render is isolated — null returns, framework
  *     keeps the standard chrome in place.
@@ -101,14 +101,14 @@ describe( 'mountWindowChrome', () => {
 		).toBeNull();
 	} );
 
-	test( 'desktop-mode.window.chrome.render filter can swap the resolved id', () => {
+	test( 'os.window.chrome.render filter can swap the resolved id', () => {
 		registerWindowChrome( {
 			id: 'plug/swapped',
 			match: () => true,
 			render: () => ( { destroy: () => {} } ),
 		} );
 		window.wp!.hooks!.addFilter(
-			'desktop-mode.window.chrome.render',
+			'os.window.chrome.render',
 			'test/swap',
 			( () => 'plug/swapped' ) as ( ...a: unknown[] ) => unknown,
 		);
@@ -122,10 +122,10 @@ describe( 'mountWindowChrome', () => {
 		expect( mounted?.id ).toBe( 'plug/swapped' );
 	} );
 
-	test( 'fires desktop-mode.window.chrome.applied with layer: chrome', () => {
+	test( 'fires os.window.chrome.applied with layer: chrome', () => {
 		const seen: Array< { layer?: string; chromeId?: string } > = [];
 		window.wp!.hooks!.addAction(
-			'desktop-mode.window.chrome.applied',
+			'os.window.chrome.applied',
 			'test/applied',
 			( ( payload: { layer?: string; chromeId?: string } ) => {
 				seen.push( payload );

@@ -27,7 +27,7 @@ function cfg(
 
 function makeDesktop(): HTMLElement {
 	const desktop = document.createElement( 'div' );
-	desktop.id = 'desktop-mode-area';
+	desktop.id = 'os-area';
 	Object.defineProperty( desktop, 'getBoundingClientRect', {
 		value: () =>
 			( {

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes trash flow.
+ * OpenStation — Pinned notes trash flow.
  *
  * Soft-trash a note (`wp_trash_post` server-side) with optimistic
  * eviction + an Undo toast, mirroring the desktop-files trash UX
@@ -21,8 +21,8 @@ interface ToastApi {
 
 function getToastApi(): ToastApi | null {
 	const api = (
-		window as { wp?: { desktop?: ToastApi } }
-	).wp?.desktop;
+		window as { wp?: { os?: ToastApi } }
+	).wp?.os;
 	return api && typeof api.showToast === 'function' ? api : null;
 }
 
@@ -55,7 +55,7 @@ export async function trashNoteWithUndo(
 						.catch( ( err: unknown ) => {
 							// eslint-disable-next-line no-console
 							console.error(
-								'[desktop-mode] notes: restore failed:',
+								'[openstation] notes: restore failed:',
 								err,
 							);
 						} );
@@ -64,7 +64,7 @@ export async function trashNoteWithUndo(
 		} );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] notes: trash failed:', err );
+		console.error( '[openstation] notes: trash failed:', err );
 		callbacks.onRestore( note );
 		getToastApi()?.showToast?.( {
 			message: __( 'Could not move the note to the Trash.', 'desktop-mode' ),

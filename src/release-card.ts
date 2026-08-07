@@ -3,7 +3,7 @@
  * CSS-drawn record that slides out; the close button fades it away.
  */
 
-import { markNoticeDismissed } from './ui/components/wpd-notice/storage';
+import { markNoticeDismissed } from './ui/components/os-notice/storage';
 import { __ } from './i18n';
 
 export interface ReleaseCardOptions {
@@ -19,8 +19,8 @@ export interface ReleaseCardOptions {
 	onUpdate: () => void;
 }
 
-const STYLE_ID = 'desktop-mode-release-card-styles';
-const HOST_CLASS = 'desktop-mode-release-host';
+const STYLE_ID = 'os-release-card-styles';
+const HOST_CLASS = 'os-release-host';
 
 const WP_LOGO =
 	'<svg viewBox="0 0 122.52 122.523" aria-hidden="true"><path fill="currentColor" ' +
@@ -34,7 +34,7 @@ const STYLES = `
 .dm-release-card {
 	position: relative; box-sizing: border-box; width: 268px; padding: 11px;
 	border-radius: 14px; color: #fff;
-	font-family: var( --desktop-mode-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
+	font-family: var( --os-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
 	background: #34373f; border: 1px solid rgba( 255, 255, 255, 0.14 );
 	box-shadow: 0 16px 40px rgba( 0, 0, 0, 0.55 ), 0 3px 8px rgba( 0, 0, 0, 0.3 ), inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
 	--accent: #2271b1; --accent-ink: #ffffff;
@@ -146,7 +146,7 @@ function ensureHost(): HTMLElement {
 		'position:fixed;' +
 		'top:calc(var(--wp-admin--admin-bar--height,32px) + 16px);' +
 		'inset-inline-end:16px;' +
-		'z-index:calc(var(--desktop-mode-z-fullscreen,99999) + 10);' +
+		'z-index:calc(var(--os-z-fullscreen,99999) + 10);' +
 		'pointer-events:none;';
 	document.body.appendChild( el );
 	return el;

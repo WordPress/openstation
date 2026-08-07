@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — DevTools primitives.
+ * OpenStation — DevTools primitives.
  *
  * Cross-plugin instrumentation surface. Lets a third-party plugin
  * (a SQL inspector, a perf profiler, a request logger) attach
@@ -29,16 +29,16 @@
  *   - **Generic debug bus** —
  *     `debug.publish( sessionId, channel, payload )` and
  *     `debug.subscribe( sessionId, channel, cb )` are sugar over the
- *     server-side `desktop_mode_debug_publish()` / REST poll loop.
+ *     server-side `openstation_debug_publish()` / REST poll loop.
  *     A SQL inspector flips on `SAVEQUERIES`, captures `$wpdb->queries`,
  *     publishes via the PHP API; the inspector window subscribes here.
  *
  * The instrumentation message protocol (parent → iframe) is
- * `desktop-mode-instrument-set` with a single `headers` map plus an
+ * `os-instrument-set` with a single `headers` map plus an
  * `observe` flag. The iframe-side bridges (the inline chromeless
  * bridge in `includes/render.php` and `iframe-bridge-standalone.ts`)
  * apply it to every captured request — see the
- * `DESKTOP_MODE_INSTRUMENT` glue below.
+ * `OPENSTATION_INSTRUMENT` glue below.
  */
 
 import { addAction, removeAction, HOOKS } from '../hooks';
@@ -90,7 +90,7 @@ export interface ReloadWithDebugSessionOptions {
 	/**
 	 * The header name contributed alongside. Plugins that publish to
 	 * the debug bus from REST / AJAX endpoints read this header via
-	 * {@link desktop_mode_debug_session_for_request}; it defaults to
+	 * {@link openstation_debug_session_for_request}; it defaults to
 	 * `X-WP-Debug-Session` (the canonical one).
 	 */
 	headerName?: string;
@@ -168,7 +168,7 @@ export interface DebugBusApi {
 	/**
 	 * Publish locally — fires for any local subscriber on the same
 	 * (sessionId, channel). Server-side publishes go through PHP
-	 * `desktop_mode_debug_publish()`; the shell polls and replays them
+	 * `openstation_debug_publish()`; the shell polls and replays them
 	 * through the same dispatch path so subscribers don't need to know
 	 * the source.
 	 */
@@ -233,7 +233,7 @@ function ensureState( windowId: string ): WindowState {
  * chromeless inline bridge resets that slot on every fresh page.
  *
  * The shell's `IFRAME_READY` action covers the same job — the
- * chromeless bridge posts `desktop-mode-ready`, the iframe bridge
+ * chromeless bridge posts `os-ready`, the iframe bridge
  * fires the hook, and the replay handler below consumes it — but
  * it only fires for documents the chromeless bridge actually runs
  * in. This `load` listener is the belt-and-braces for navigations
@@ -303,8 +303,8 @@ function findIframe( windowId: string ): HTMLIFrameElement | null {
 	// the connection bridge maintains). Fall back to a DOM lookup so
 	// the module remains usable in tests that don't boot the manager.
 	const wpd = ( window as unknown as {
-		wp?: { desktop?: { windowManager?: { getById?: ( id: string ) => unknown } } };
-	} ).wp?.desktop?.windowManager;
+		wp?: { os?: { windowManager?: { getById?: ( id: string ) => unknown } } };
+	} ).wp?.os?.windowManager;
 	if ( wpd && typeof wpd.getById === 'function' ) {
 		const win = wpd.getById( windowId ) as
 			| { iframe?: HTMLIFrameElement | null; element?: HTMLElement }
@@ -360,7 +360,7 @@ function pushInstrumentation( windowId: string ): void {
 	try {
 		iframe.contentWindow.postMessage(
 			{
-				type: 'desktop-mode-instrument-set',
+				type: 'os-instrument-set',
 				headers,
 				observe,
 			},
@@ -457,7 +457,7 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 	// Plus: stamp every active subscription channel as `channels[]=…`
 	// so the server-side drain has the full list to walk. Without
 	// this, the drain returns `{ events: [] }` on every poll unless a
-	// `desktop_mode_debug_channels` filter contributor exists — silent
+	// `openstation_debug_channels` filter contributor exists — silent
 	// failure that looks like "publishes never arrive".
 	const u = new URL( restUrl + 'desktop-mode/v1/debug', window.location.origin );
 	u.searchParams.set( 'sessionId', sessionId );
@@ -510,8 +510,8 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 
 function getRestEndpoint(): { restUrl: string; restNonce: string } | null {
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { restUrl?: string; restNonce?: string };
-	} ).desktopModeConfig;
+		openStationConfig?: { restUrl?: string; restNonce?: string };
+	} ).openStationConfig;
 	if ( ! cfg || ! cfg.restUrl || ! cfg.restNonce ) {
 		return null;
 	}

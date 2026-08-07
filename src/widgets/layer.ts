@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — Widget layer.
+ * OpenStation — Widget layer.
  *
- * Owns the right-side `#desktop-mode-widgets` column + the floating
+ * Owns the right-side `#os-widgets` column + the floating
  * overlay for widgets the user has liberated via drag. Responsibilities:
  *
  *   - Load the enabled-id list + floating-widget geometry from
@@ -74,7 +74,7 @@ export class WidgetLayer {
 	private generation = 0;
 
 	/**
-	 * @param root         The column element (`#desktop-mode-widgets`).
+	 * @param root         The column element (`#os-widgets`).
 	 * @param pluginUrl    Absolute plugin URL — passed to widget ctx.
 	 * @param floatingHost Parent for liberated (floating) widgets.
 	 *                     Defaults to the column's parent (the desktop
@@ -94,7 +94,7 @@ export class WidgetLayer {
 		this.floatingHost = floatingHost ?? root.parentElement ?? root;
 
 		this.listEl = document.createElement( 'div' );
-		this.listEl.className = 'desktop-mode-widgets__list';
+		this.listEl.className = 'os-widgets__list';
 		this.root.appendChild( this.listEl );
 
 		this.addTile = this.buildAddTile();
@@ -358,7 +358,7 @@ export class WidgetLayer {
 			doAction( HOOKS.SHELL_ERROR, { scope: 'widget-teardown', id, error: err } );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] Widget "${ id }" teardown threw:`,
+					`[openstation] Widget "${ id }" teardown threw:`,
 					err,
 				);
 			}
@@ -380,7 +380,7 @@ export class WidgetLayer {
 		doAction( HOOKS.SHELL_ERROR, { scope: 'widget-mount', id, error: err } );
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[desktop-mode] Widget "${ id }" failed to mount:`,
+				`[openstation] Widget "${ id }" failed to mount:`,
 				err,
 			);
 		}
@@ -389,14 +389,14 @@ export class WidgetLayer {
 	private buildAddTile(): HTMLButtonElement {
 		const tile = document.createElement( 'button' );
 		tile.type = 'button';
-		tile.className = 'desktop-mode-widgets__add';
+		tile.className = 'os-widgets__add';
 		tile.setAttribute( 'aria-label', __( 'Add widget' ) );
 		const plus = document.createElement( 'span' );
-		plus.className = 'desktop-mode-widgets__add-plus';
+		plus.className = 'os-widgets__add-plus';
 		plus.setAttribute( 'aria-hidden', 'true' );
 		plus.textContent = '+';
 		const label = document.createElement( 'span' );
-		label.className = 'desktop-mode-widgets__add-label';
+		label.className = 'os-widgets__add-label';
 		label.textContent = __( 'Add widget' );
 		tile.appendChild( plus );
 		tile.appendChild( label );
@@ -449,8 +449,8 @@ export class WidgetLayer {
 	 * shell boot brings it up docked. Called when the user clicks
 	 * the re-dock button in the card's chrome header, or
 	 * programmatically by companion plugins via
-	 * `wp.desktop.widgets.redock( id )` /
-	 * `wp.desktop.widgetLayer.redock( id )`.
+	 * `wp.os.widgets.redock( id )` /
+	 * `wp.os.widgetLayer.redock( id )`.
 	 *
 	 * Idempotent — a docked widget silently no-ops, an unknown id
 	 * silently no-ops. The `--floating` class on the card is
@@ -475,7 +475,7 @@ export class WidgetLayer {
 		// bleed into column layout. A persisted docked height (from a
 		// previous column resize) is re-applied instead of cleared.
 		const card = record.frame.card;
-		card.classList.remove( 'desktop-mode-widgets__card--floating' );
+		card.classList.remove( 'os-widgets__card--floating' );
 		card.style.left = '';
 		card.style.top = '';
 		card.style.width = '';
@@ -519,7 +519,7 @@ export class WidgetLayer {
 			}
 		}
 		this.root.classList.toggle(
-			'desktop-mode-widgets--has-widgets',
+			'os-widgets--has-widgets',
 			docked > 0,
 		);
 	}

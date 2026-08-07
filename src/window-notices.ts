@@ -3,7 +3,7 @@
  *
  * Plugins call {@link registerWindowNotice} to surface a banner at the
  * top of any window matching the registration's `match` predicate.
- * The banner is rendered as a `<wpd-notice>` element appended to the
+ * The banner is rendered as a `<os-notice>` element appended to the
  * window's `after-titlebar` slot — the slot host the window-chrome
  * framework already exposes for "below the title bar, above the body,
  * full window width" affordances.
@@ -32,16 +32,16 @@ import type { Window as DesktopWindow } from './window';
 import {
 	clearNoticeDismissed,
 	markNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
-// Side-effect import — registers the `<wpd-notice>` custom element so
+} from './ui/components/os-notice/storage';
+// Side-effect import — registers the `<os-notice>` custom element so
 // the element we synthesize in `buildNoticeElement` upgrades
 // synchronously. Idempotent: harmless if another bundle (or the
 // barrel) already loaded the module.
-import './ui/components/wpd-notice/wpd-notice';
+import './ui/components/os-notice/os-notice';
 
 /**
  * Tone palette accepted by {@link WindowNoticeEntry}. Mirrors
- * `<wpd-notice>`'s `tone` attribute.
+ * `<os-notice>`'s `tone` attribute.
  */
 export type WindowNoticeTone =
 	| 'info'
@@ -60,7 +60,7 @@ export type WindowNoticeMatch = ( win: DesktopWindow ) => boolean;
 /**
  * One declarative window-notice. The `id` is also the persistence key
  * — when the user dismisses the notice we record `id → true` in
- * localStorage and the `<wpd-notice>` self-hides on subsequent mounts.
+ * localStorage and the `<os-notice>` self-hides on subsequent mounts.
  */
 export interface WindowNoticeEntry {
 	/**
@@ -108,11 +108,11 @@ const store = createSharedStore< RegistryState >(
 const ID_PATTERN = /^[a-z0-9_/-]+$/;
 
 function slotIdFor( id: string ): string {
-	return `desktop-mode-notice/${ id.toLowerCase() }`;
+	return `os-notice/${ id.toLowerCase() }`;
 }
 
 function buildNoticeElement( entry: WindowNoticeEntry ): HTMLElement {
-	const el = document.createElement( 'wpd-notice' );
+	const el = document.createElement( 'os-notice' );
 	el.setAttribute( 'tone', entry.tone ?? 'info' );
 	el.setAttribute( 'notice-id', entry.id );
 	if ( entry.dismissible === false ) {
@@ -135,7 +135,7 @@ function buildNoticeElement( entry: WindowNoticeEntry ): HTMLElement {
  *
  * @example
  * ```ts
- * wp.desktop.registerWindowNotice( {
+ * wp.os.registerWindowNotice( {
  *     id: 'my-plugin/welcome',
  *     tone: 'info',
  *     message: 'Welcome! <a href="…">Read the docs</a>.',
@@ -166,7 +166,7 @@ export function registerWindowNotice(
 		slot: 'after-titlebar',
 		order: normalised.order ?? 100,
 		// Append rather than clear — every notice slot entry appends
-		// its own `<wpd-notice>` so multiple notices stack.
+		// its own `<os-notice>` so multiple notices stack.
 		replace: false,
 		owner: normalised.owner,
 		match: ( win ) => {

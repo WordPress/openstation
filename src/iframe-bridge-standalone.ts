@@ -1,15 +1,15 @@
 /**
- * desktop-mode — iframe-side bridge (standalone, enqueueable).
+ * openstation — iframe-side bridge (standalone, enqueueable).
  *
- * Entry point for the `desktop-mode-iframe-bridge` script handle. Any
+ * Entry point for the `os-iframe-bridge` script handle. Any
  * same-origin iframe that enqueues this script gets
- * `wp.desktop.iframe.{ publish, subscribe, onConnection,
+ * `wp.os.iframe.{ publish, subscribe, onConnection,
  * requestConnection }`.
  *
  * Two ways to load:
  *
  *   1. Enqueue the public handle —
- *      `wp_enqueue_script( 'desktop-mode-iframe-bridge' )`.
+ *      `wp_enqueue_script( 'os-iframe-bridge' )`.
  *
  *   2. Set `iframeContent: { bridge: true }` on a native window;
  *      the parent shell auto-injects this bundle via `<script src>`
@@ -18,7 +18,7 @@
  * The chromeless bridge embedded in `includes/render/chromeless-bridge.php`
  * ships its own copy of the same logic inline so chromeless wp-admin
  * pages don't need a separate enqueue. Keep the two in sync — any
- * change here must be mirrored there (search for `desktop-mode-bridge-`
+ * change here must be mirrored there (search for `os-bridge-`
  * in `chromeless-bridge.php`).
  *
  * Built by Vite to:
@@ -48,7 +48,7 @@ interface RequestConnectionOptions {
 
 /**
  * Iframe-side window-chrome helpers — symmetric with the parent
- * shell's `wp.desktop.applyWindowTheme` / `applyWindowControls` /
+ * shell's `wp.os.applyWindowTheme` / `applyWindowControls` /
  * `applyWindowSlot`. The iframe content can re-theme its own
  * window, reorder controls, or replace a slot without owning a
  * registry entry on the parent side. Each helper just posts to
@@ -83,8 +83,8 @@ interface IframeApi {
 	 *
 	 * Replaces the brittle `iframe.contentWindow ===` walk plugins
 	 * had to do parent-side; iframe code can now self-identify
-	 * (e.g. `wp.desktop.iframe.publish('focus-changed', {windowId:
-	 * wp.desktop.iframe.windowId})`).
+	 * (e.g. `wp.os.iframe.publish('focus-changed', {windowId:
+	 * wp.os.iframe.windowId})`).
 	 */
 	readonly windowId: string | null;
 	/**
@@ -101,7 +101,7 @@ interface IframeApi {
 	 * debugging vanishing messages:
 	 *
 	 * ```js
-	 * if ( ! wp.desktop.iframe.isParentReachable() ) {
+	 * if ( ! wp.os.iframe.isParentReachable() ) {
 	 *     // Cross-origin parent — bridge can't operate. Fall back
 	 *     // to in-iframe UI or skip the feature entirely.
 	 *     return;
@@ -117,7 +117,7 @@ interface IframeApi {
 	 *   - Parent is cross-origin (accessing `window.parent.location`
 	 *     throws). Includes most Gutenberg `srcdoc` canvases that
 	 *     inherited a different origin, sandboxed iframes, PWA
-	 *     wrappers loading desktop-mode in a foreign frame.
+	 *     wrappers loading openstation in a foreign frame.
 	 */
 	isParentReachable(): boolean;
 }
@@ -128,7 +128,7 @@ type WindowChannelCb = (
 ) => void;
 
 interface IframeWp {
-	desktop?: {
+	os?: {
 		iframe?: IframeApi;
 		send?: ( channel: string, payload?: unknown ) => void;
 		on?: ( channel: string, cb: WindowChannelCb ) => () => void;
@@ -137,13 +137,13 @@ interface IframeWp {
 
 /**
  * Editor-autosave query handler — answers the parent shell's
- * `desktop-mode-editor-autosave-request` (sent by the editor-preview
+ * `os-editor-autosave-request` (sent by the editor-preview
  * module before opening the front-end preview) with a
- * `desktop-mode-editor-autosave-response`.
+ * `os-editor-autosave-response`.
  *
  * Installed OUTSIDE the double-install guard below: on chromeless
  * wp-admin pages the inline chromeless bridge installs
- * `wp.desktop.iframe` first and this bundle's main listener bails,
+ * `wp.os.iframe` first and this bundle's main listener bails,
  * but the autosave handler only lives here (not in the inline
  * bridge), so it must register regardless. Its own dedupe flag
  * protects against a double enqueue.
@@ -159,26 +159,26 @@ interface IframeWp {
  *    a list table or settings page that has nothing to save.
  *
  * The same listener also serves the LIVE-preview watch
- * (`desktop-mode-editor-live-watch` / `-unwatch`): while a preview
+ * (`os-editor-live-watch` / `-unwatch`): while a preview
  * companion is open, the shell asks this page to watch its own editor
  * for content changes — block-list / title reference changes in
- * Gutenberg, the `after-autosave` event in classic — and, debounced
- * after the typing pause, autosave and announce
- * `desktop-mode-editor-live-saved` so the shell reloads the preview.
- * Typing detection has to live iframe-side: keystrokes never cross
- * the frame boundary.
+ * Gutenberg; `input` on the title/content/excerpt fields plus TinyMCE
+ * edit events in classic — and, debounced after the typing pause,
+ * autosave and announce `os-editor-live-saved` so the shell
+ * reloads the preview. Typing detection has to live iframe-side:
+ * keystrokes never cross the frame boundary.
  *
  * Exported for tests (entry exports land on the
- * `desktopModeIframeBridge` IIFE global — no runtime consumers).
+ * `openStationIframeBridge` IIFE global — no runtime consumers).
  */
 export function installEditorAutosaveHandler(): void {
 	const flagged = window as unknown as {
-		__desktopModeEditorAutosaveInstalled?: boolean;
+		__openStationEditorAutosaveInstalled?: boolean;
 	};
-	if ( flagged.__desktopModeEditorAutosaveInstalled ) {
+	if ( flagged.__openStationEditorAutosaveInstalled ) {
 		return;
 	}
-	flagged.__desktopModeEditorAutosaveInstalled = true;
+	flagged.__openStationEditorAutosaveInstalled = true;
 
 	const origin = window.location.origin;
 
@@ -240,7 +240,7 @@ export function installEditorAutosaveHandler(): void {
 
 	/**
 	 * Start watching the editor for content changes; on each debounced
-	 * settle, autosave and announce `desktop-mode-editor-live-saved`.
+	 * settle, autosave and announce `os-editor-live-saved`.
 	 * Returns a teardown, or `null` when no watchable editor exists.
 	 */
 	const startLiveWatch = (
@@ -307,7 +307,7 @@ export function installEditorAutosaveHandler(): void {
 						.then( ( link ) => {
 							if ( ! stopped ) {
 								postToParent( {
-									type: 'desktop-mode-editor-live-saved',
+									type: 'os-editor-live-saved',
 									watchId,
 									...( sameOriginLink( link )
 										? { previewUrl: sameOriginLink( link ) }
@@ -323,7 +323,7 @@ export function installEditorAutosaveHandler(): void {
 				if ( typeof dispatch?.autosave === 'function' ) {
 					void dispatch.autosave();
 					postToParent( {
-						type: 'desktop-mode-editor-live-saved',
+						type: 'os-editor-live-saved',
 						watchId,
 					} );
 				}
@@ -384,9 +384,17 @@ export function installEditorAutosaveHandler(): void {
 			};
 		}
 
-		// Classic editor: no reactive store to watch — ride the
-		// heartbeat-driven autosave core already runs (~60 s) and
-		// announce after each round-trip.
+		// Classic editor: no reactive store to watch. Typing is
+		// detected on the raw fields instead — the title input, the
+		// text-mode content textarea, the excerpt (the three fields
+		// classic autosave snapshots) and every TinyMCE editor — and
+		// each debounced settle forces the server autosave core would
+		// otherwise only run on its ~60 s heartbeat. `triggerSave()`
+		// resets the interval and connects immediately, and core's
+		// own `save()` still bails when nothing changed, so a settle
+		// with nothing new stays silent (no request, no reload).
+		// `after-autosave` announces every completed round-trip —
+		// ours and core's own — as `os-editor-live-saved`.
 		if ( editorWp?.autosave?.server ) {
 			const jqWindow = window as unknown as {
 				jQuery?: ( el: Document ) => {
@@ -398,15 +406,115 @@ export function installEditorAutosaveHandler(): void {
 			if ( ! jq ) {
 				return null;
 			}
-			const eventName = `after-autosave.desktop-mode-live-${ watchId }`;
-			jq( document ).on( eventName, () => {
+
+			let timer: number | null = null;
+			let stopped = false;
+			// Core drops a `triggerSave()` silently while an autosave
+			// round-trip is on the wire (`_blockSave`) — track
+			// in-flight state via the before/after events and retry a
+			// settle that landed mid-save instead of losing it.
+			let inFlight = false;
+
+			const save = (): void => {
+				timer = null;
+				if ( stopped ) {
+					return;
+				}
+				if ( inFlight ) {
+					timer = window.setTimeout( save, 1000 );
+					return;
+				}
+				try {
+					editorWp.autosave?.server?.triggerSave?.();
+				} catch {
+					/* Autosave unavailable — the next edit retries. */
+				}
+			};
+
+			const schedule = (): void => {
+				if ( stopped ) {
+					return;
+				}
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+				}
+				timer = window.setTimeout( save, debounceMs );
+			};
+
+			const ns = `.os-live-${ watchId }`;
+			jq( document ).on( `before-autosave${ ns }`, () => {
+				inFlight = true;
+			} );
+			jq( document ).on( `after-autosave${ ns }`, () => {
+				inFlight = false;
 				postToParent( {
-					type: 'desktop-mode-editor-live-saved',
+					type: 'os-editor-live-saved',
 					watchId,
 				} );
 			} );
+
+			const fields: HTMLElement[] = [];
+			for ( const fieldId of [ 'title', 'content', 'excerpt' ] ) {
+				const el = document.getElementById( fieldId );
+				if ( el ) {
+					el.addEventListener( 'input', schedule );
+					fields.push( el );
+				}
+			}
+
+			// Visual mode: typing happens inside TinyMCE's own iframe
+			// and never reaches the #content textarea until a save —
+			// bind every current editor, and late arrivals too (a
+			// text↔visual mode switch re-initializes the editor).
+			interface TinyEditor {
+				on?: ( events: string, cb: () => void ) => void;
+				off?: ( events: string, cb: () => void ) => void;
+			}
+			interface Tiny {
+				editors?: TinyEditor[];
+				on?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+				off?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+			}
+			const tiny = ( window as unknown as { tinymce?: Tiny } )
+				.tinymce;
+			const tinyEvents = 'keyup input change undo redo SetContent';
+			const bound: TinyEditor[] = [];
+			const bindEditor = ( ed: TinyEditor | undefined ): void => {
+				if ( ed?.on ) {
+					ed.on( tinyEvents, schedule );
+					bound.push( ed );
+				}
+			};
+			( tiny?.editors ?? [] ).forEach( bindEditor );
+			const onAddEditor = ( e: { editor?: TinyEditor } ): void =>
+				bindEditor( e?.editor );
+			tiny?.on?.( 'AddEditor', onAddEditor );
+
 			return () => {
-				jq( document ).off( eventName );
+				stopped = true;
+				if ( timer !== null ) {
+					window.clearTimeout( timer );
+					timer = null;
+				}
+				jq( document ).off( `before-autosave${ ns }` );
+				jq( document ).off( `after-autosave${ ns }` );
+				for ( const el of fields ) {
+					el.removeEventListener( 'input', schedule );
+				}
+				for ( const ed of bound ) {
+					try {
+						ed.off?.( tinyEvents, schedule );
+					} catch {
+						/* Editor already destroyed. */
+					}
+				}
+				tiny?.off?.( 'AddEditor', onAddEditor );
 			};
 		}
 
@@ -428,7 +536,7 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type === 'desktop-mode-editor-live-watch' &&
+			data.type === 'os-editor-live-watch' &&
 			typeof data.watchId === 'string'
 		) {
 			// Replace an existing watch with the same id (an unwatch
@@ -454,7 +562,7 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type === 'desktop-mode-editor-live-unwatch' &&
+			data.type === 'os-editor-live-unwatch' &&
 			typeof data.watchId === 'string'
 		) {
 			try {
@@ -467,7 +575,7 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type !== 'desktop-mode-editor-autosave-request' ||
+			data.type !== 'os-editor-autosave-request' ||
 			typeof data.requestId !== 'string'
 		) {
 			return;
@@ -486,7 +594,7 @@ export function installEditorAutosaveHandler(): void {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-editor-autosave-response',
+						type: 'os-editor-autosave-response',
 						requestId,
 						status,
 						...( previewUrl ? { previewUrl } : {} ),
@@ -563,7 +671,7 @@ export function installEditorAutosaveHandler(): void {
 				};
 				const jq = jqWindow.jQuery;
 				if ( jq ) {
-					jq( document ).one( 'after-autosave.desktop-mode-editor-preview', () =>
+					jq( document ).one( 'after-autosave.os-editor-preview', () =>
 						respond( 'saved' ),
 					);
 				}
@@ -591,7 +699,7 @@ export function installEditorAutosaveHandler(): void {
 	installEditorAutosaveHandler();
 
 	const w = window as unknown as { wp?: IframeWp };
-	if ( w.wp?.desktop?.iframe ) {
+	if ( w.wp?.os?.iframe ) {
 		// Already installed (chromeless inline bridge ran first, or
 		// a previous load of this script). Don't double-install.
 		return;
@@ -604,7 +712,7 @@ export function installEditorAutosaveHandler(): void {
 
 	/**
 	 * The host window's id, learned from the first
-	 * `desktop-mode-bridge-handshake` the parent sends. `null` until
+	 * `os-bridge-handshake` the parent sends. `null` until
 	 * the parent connects; resolves through
 	 * {@link IframeApi.whenWindowId} for callers that need a wait.
 	 */
@@ -627,9 +735,9 @@ export function installEditorAutosaveHandler(): void {
 
 	/**
 	 * Per-channel subscribers for the unified window-channel API
-	 * (`wp.desktop.send` / `wp.desktop.on`). Distinct from the
+	 * (`wp.os.send` / `wp.os.on`). Distinct from the
 	 * connection-bridge `subs` map above — this one fires from
-	 * `desktop-mode-window-send` messages the parent posts on
+	 * `os-window-send` messages the parent posts on
 	 * `Window.send( channel, payload )`.
 	 */
 	const channelSubs: Record< string, WindowChannelCb[] > = {};
@@ -642,7 +750,7 @@ export function installEditorAutosaveHandler(): void {
 		try {
 			window.parent.postMessage(
 				{
-					type: 'desktop-mode-bridge-publish',
+					type: 'os-bridge-publish',
 					connectionId,
 					topic,
 					payload,
@@ -672,11 +780,11 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-handshake' &&
+			data.type === 'os-bridge-handshake' &&
 			typeof data.connectionId === 'string'
 		) {
 			// The parent's handshake carries the host window id since
-			// 0.8.8. Stash it so `wp.desktop.iframe.windowId` and
+			// 0.8.8. Stash it so `wp.os.iframe.windowId` and
 			// `whenWindowId()` can serve callers that need to know
 			// which native window opened this iframe.
 			const tw = ( data as { targetWindowId?: unknown } ).targetWindowId;
@@ -687,7 +795,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-bridge-handshake-ack',
+							type: 'os-bridge-handshake-ack',
 							connectionId: data.connectionId,
 						},
 						parentOrigin,
@@ -705,7 +813,7 @@ export function installEditorAutosaveHandler(): void {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-bridge-handshake-ack',
+						type: 'os-bridge-handshake-ack',
 						connectionId: conn.id,
 					},
 					parentOrigin,
@@ -723,7 +831,7 @@ export function installEditorAutosaveHandler(): void {
 			return;
 		}
 
-		if ( data.type === 'desktop-mode-bridge-beforeunload-query' ) {
+		if ( data.type === 'os-bridge-beforeunload-query' ) {
 			let prevent = false;
 			let msg = '';
 
@@ -768,7 +876,7 @@ export function installEditorAutosaveHandler(): void {
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-bridge-beforeunload-response',
+						type: 'os-bridge-beforeunload-response',
 						prevent,
 						message: msg,
 					},
@@ -781,7 +889,7 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-publish' &&
+			data.type === 'os-bridge-publish' &&
 			typeof data.topic === 'string'
 		) {
 			const meta = {
@@ -812,17 +920,17 @@ export function installEditorAutosaveHandler(): void {
 		}
 
 		if (
-			data.type === 'desktop-mode-bridge-disconnect' &&
+			data.type === 'os-bridge-disconnect' &&
 			typeof data.connectionId === 'string'
 		) {
 			delete connections[ data.connectionId ];
 		}
 
 		// Unified window-channel delivery from the parent. Fires
-		// every `wp.desktop.on( channel, cb )` subscriber for the
+		// every `wp.os.on( channel, cb )` subscriber for the
 		// matching channel.
 		if (
-			data.type === 'desktop-mode-window-send' &&
+			data.type === 'os-window-send' &&
 			typeof ( data as { channel?: unknown } ).channel === 'string'
 		) {
 			const d = data as { channel: string; payload?: unknown };
@@ -864,7 +972,7 @@ export function installEditorAutosaveHandler(): void {
 				// least discoverable in DevTools.
 				// eslint-disable-next-line no-console
 				console.warn(
-					'[desktop-mode] wp.desktop.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.desktop.connect(windowId)` first.',
+					'[openstation] wp.os.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.os.connect(windowId)` first.',
 					topic,
 				);
 				return;
@@ -926,14 +1034,14 @@ export function installEditorAutosaveHandler(): void {
 		 *
 		 * Parent-side handler: see `src/connection/index.ts`
 		 * `handleConnectionRequest` + the
-		 * `desktop-mode.iframe.connection-request` filter.
+		 * `os.iframe.connection-request` filter.
 		 */
 		chrome: {
 			setTheme( tokens ) {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-theme',
+							type: 'os-chrome-theme',
 							tokens: tokens ?? {},
 						},
 						parentOrigin,
@@ -946,7 +1054,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-controls',
+							type: 'os-chrome-controls',
 							config: config ?? null,
 						},
 						parentOrigin,
@@ -962,7 +1070,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-chrome-slot',
+							type: 'os-chrome-slot',
 							slot: name,
 							html: typeof html === 'string' ? html : '',
 						},
@@ -1017,7 +1125,7 @@ export function installEditorAutosaveHandler(): void {
 					if (
 						! d ||
 						typeof d !== 'object' ||
-						d.type !== 'desktop-mode-bridge-connection-ack' ||
+						d.type !== 'os-bridge-connection-ack' ||
 						d.requestId !== requestId
 					) {
 						return;
@@ -1051,7 +1159,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-bridge-connection-request',
+							type: 'os-bridge-connection-request',
 							requestId,
 							topics,
 						},
@@ -1093,31 +1201,31 @@ export function installEditorAutosaveHandler(): void {
 	if ( ! w.wp ) {
 		w.wp = {};
 	}
-	if ( ! w.wp.desktop ) {
-		w.wp.desktop = {};
+	if ( ! w.wp.os ) {
+		w.wp.os = {};
 	}
-	w.wp.desktop.iframe = iframeApi;
+	w.wp.os.iframe = iframeApi;
 
 	/**
 	 * Unified window-channel API. The parent posts on this window
 	 * via `Window.send( channel, payload )`; iframe-side handlers
-	 * register via `wp.desktop.on( channel, cb )`. Symmetric with
+	 * register via `wp.os.on( channel, cb )`. Symmetric with
 	 * the native render's `windowApi.on()` — plugin authors write
 	 * the same code regardless of which side they're on.
 	 *
-	 * Sending the OTHER way (`wp.desktop.send( channel, payload )`)
-	 * posts a `desktop-mode-window-publish` message up to the parent,
+	 * Sending the OTHER way (`wp.os.send( channel, payload )`)
+	 * posts a `os-window-publish` message up to the parent,
 	 * where every `Window.on( channel, cb )` subscriber fires.
 	 */
-	if ( typeof w.wp.desktop.send !== 'function' ) {
-		w.wp.desktop.send = ( channel: string, payload?: unknown ): void => {
+	if ( typeof w.wp.os.send !== 'function' ) {
+		w.wp.os.send = ( channel: string, payload?: unknown ): void => {
 			if ( typeof channel !== 'string' || channel === '' ) {
 				return;
 			}
 			try {
 				window.parent.postMessage(
 					{
-						type: 'desktop-mode-window-publish',
+						type: 'os-window-publish',
 						channel,
 						payload,
 					},
@@ -1128,8 +1236,8 @@ export function installEditorAutosaveHandler(): void {
 			}
 		};
 	}
-	if ( typeof w.wp.desktop.on !== 'function' ) {
-		w.wp.desktop.on = (
+	if ( typeof w.wp.os.on !== 'function' ) {
+		w.wp.os.on = (
 			channel: string,
 			cb: WindowChannelCb,
 		): () => void => {
@@ -1162,24 +1270,25 @@ export function installEditorAutosaveHandler(): void {
 	// `#screen-meta-links` block with the Help and Screen Options
 	// buttons. When those exist inside an iframe-windowed admin page,
 	// we want them surfaced in the parent window's title bar — the
-	// shell renders them via the `desktop-mode-screen-meta` postMessage
+	// shell renders them via the `os-screen-meta` postMessage
 	// protocol.
 	//
 	// Used to live ONLY in the chromeless inline bridge (gated on
-	// `desktop_mode_is_chromeless_request()`), so any internal navigation
-	// that dropped the `?desktop_mode_chromeless=1` flag silently lost the title-
+	// `openstation_is_chromeless_request()`), so any internal navigation
+	// that dropped the `?openstation_chromeless=1` flag silently lost the title-
 	// bar icons. This standalone bridge is auto-enqueued on every
 	// admin page, so detection runs regardless. A sentinel global
-	// (`__desktopModeScreenMetaInstalled`) prevents double-emission
+	// (`__openStationScreenMetaInstalled`) prevents double-emission
 	// when the inline bridge also runs on the same response.
 	// -----------------------------------------------------------------
 	const sentinelHost = window as unknown as {
-		__desktopModeScreenMetaInstalled?: boolean;
-		__desktopModeOsFileDropForwarderInstalled?: boolean;
-		__desktopModeDragHoverForwarderInstalled?: boolean;
+		__openStationScreenMetaInstalled?: boolean;
+		__openStationOsFileDropForwarderInstalled?: boolean;
+		__openStationDragHoverForwarderInstalled?: boolean;
+		__openStationPointerForwarderInstalled?: boolean;
 	};
-	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
-		sentinelHost.__desktopModeScreenMetaInstalled = true;
+	if ( ! sentinelHost.__openStationScreenMetaInstalled ) {
+		sentinelHost.__openStationScreenMetaInstalled = true;
 		installScreenMetaHoist( parentOrigin );
 	}
 
@@ -1195,8 +1304,8 @@ export function installEditorAutosaveHandler(): void {
 	 * parent shell's OS-file drop manager receives real `File`
 	 * objects with no base64 round-trip.
 	 */
-	if ( ! sentinelHost.__desktopModeOsFileDropForwarderInstalled ) {
-		sentinelHost.__desktopModeOsFileDropForwarderInstalled = true;
+	if ( ! sentinelHost.__openStationOsFileDropForwarderInstalled ) {
+		sentinelHost.__openStationOsFileDropForwarderInstalled = true;
 		const hasFiles = ( ev: DragEvent ): boolean => {
 			const types = ev.dataTransfer?.types;
 			if ( ! types ) {
@@ -1304,7 +1413,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-os-file-drop',
+							type: 'os-file-drop',
 							files,
 							x: ev.clientX,
 							y: ev.clientY,
@@ -1333,8 +1442,8 @@ export function installEditorAutosaveHandler(): void {
 	 * The parent identifies the hovered window from the message
 	 * source, so no coordinates travel.
 	 */
-	if ( ! sentinelHost.__desktopModeDragHoverForwarderInstalled ) {
-		sentinelHost.__desktopModeDragHoverForwarderInstalled = true;
+	if ( ! sentinelHost.__openStationDragHoverForwarderInstalled ) {
+		sentinelHost.__openStationDragHoverForwarderInstalled = true;
 		const hoverHasFiles = ( ev: DragEvent ): boolean => {
 			const types = ev.dataTransfer?.types;
 			if ( ! types ) {
@@ -1361,7 +1470,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-drag-hover',
+							type: 'os-drag-hover',
 							payloadType: hoverHasFiles( ev ) ? 'os-file' : 'external',
 						},
 						parentOrigin,
@@ -1371,6 +1480,67 @@ export function installEditorAutosaveHandler(): void {
 				}
 			},
 			true,
+		);
+	}
+
+	/*
+	 * Pointer forwarder — OPT-IN, off by default. Mirrors the inline
+	 * equivalent in `includes/render/chromeless-bridge.php`.
+	 *
+	 * Pointer events don't cross iframe boundaries, so the parent
+	 * shell goes blind to the cursor the moment it enters a window.
+	 * Anything in the shell that needs the real cursor position while
+	 * it's over window content — today, Mio's gaze
+	 * (`src/mio/pointer.ts`) — gets a throttled stream of this
+	 * frame's client coordinates and rebases them through the iframe
+	 * element's own rect.
+	 *
+	 * Coordinates only, and only while a parent-side consumer has
+	 * armed it with `os-pointer-track { enabled: true }`.
+	 * See `docs/bridge-protocol.md`.
+	 */
+	if ( ! sentinelHost.__openStationPointerForwarderInstalled ) {
+		sentinelHost.__openStationPointerForwarderInstalled = true;
+		let pointerTrackOn = false;
+		let pointerLastSent = 0;
+		window.addEventListener( 'message', ( e: MessageEvent ) => {
+			if ( e.origin !== window.location.origin ) {
+				return;
+			}
+			const data = e.data as { type?: string; enabled?: unknown } | null;
+			if ( ! data || data.type !== 'os-pointer-track' ) {
+				return;
+			}
+			pointerTrackOn = data.enabled === true;
+		} );
+		document.addEventListener(
+			'pointermove',
+			( ev: PointerEvent ) => {
+				if ( ! pointerTrackOn ) {
+					return;
+				}
+				const now = Date.now();
+				// ~25 Hz. The consumer interpolates; a faster stream
+				// buys nothing visible and costs a postMessage per
+				// mouse move.
+				if ( now - pointerLastSent < 40 ) {
+					return;
+				}
+				pointerLastSent = now;
+				try {
+					window.parent.postMessage(
+						{
+							type: 'os-pointer-move',
+							x: ev.clientX,
+							y: ev.clientY,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* cross-origin parent; swallow */
+				}
+			},
+			{ capture: true, passive: true },
 		);
 	}
 
@@ -1388,7 +1558,7 @@ export function installEditorAutosaveHandler(): void {
 	try {
 		if ( window.parent && window.parent !== window ) {
 			window.parent.postMessage(
-				{ type: 'desktop-mode-ready' },
+				{ type: 'os-ready' },
 				parentOrigin,
 			);
 		}
@@ -1458,7 +1628,7 @@ export function installEditorAutosaveHandler(): void {
 			// `[]` is the correct "remove everything" signal.
 			try {
 				window.parent.postMessage(
-					{ type: 'desktop-mode-screen-meta', panels },
+					{ type: 'os-screen-meta', panels },
 					origin,
 				);
 			} catch {
@@ -1488,7 +1658,7 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					window.parent.postMessage(
 						{
-							type: 'desktop-mode-screen-meta-state',
+							type: 'os-screen-meta-state',
 							open: getOpenPanel(),
 						},
 						origin,
@@ -1556,7 +1726,7 @@ export function installEditorAutosaveHandler(): void {
 					return;
 				}
 				const d = e.data as { type?: string; panel?: string } | null;
-				if ( ! d || d.type !== 'desktop-mode-toggle-panel' ) {
+				if ( ! d || d.type !== 'os-toggle-panel' ) {
 					return;
 				}
 				let target: HTMLElement | null = null;

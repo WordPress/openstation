@@ -55,7 +55,7 @@ function installDesktopConfig(
 	icons: Array< { id: string; title: string; icon: string; url: string; window: string; position: number } >,
 	dockItems: TestDockItem[] = [],
 ): void {
-	( window as unknown as { desktopModeConfig: unknown } ).desktopModeConfig = {
+	( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
 		desktopIcons: icons,
 		dockItems,
 	};
@@ -65,11 +65,11 @@ function stubOsSettings(
 	dockPromotedPositions: Record< string, { x: number; y: number } > = {},
 ): { updateOsSettings: ReturnType< typeof vi.fn > } {
 	const updateOsSettings = vi.fn();
-	const w = window as unknown as { wp?: { desktop?: Record< string, unknown > } };
+	const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
 	w.wp = w.wp ?? {};
-	w.wp.desktop = w.wp.desktop ?? {};
-	w.wp.desktop.getOsSettings = () => ( { dockPromotedPositions } );
-	w.wp.desktop.updateOsSettings = updateOsSettings;
+	w.wp.os = w.wp.os ?? {};
+	w.wp.os.getOsSettings = () => ( { dockPromotedPositions } );
+	w.wp.os.updateOsSettings = updateOsSettings;
 	return { updateOsSettings };
 }
 
@@ -80,7 +80,7 @@ describe( 'syncShortcutsWithVisibility — server-icon visibility round-trip', (
 
 	afterEach( () => {
 		clearHooksStub();
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 	} );
 
 	test( 'hiding a server icon removes its placement; restoring re-adds it', async () => {
@@ -174,7 +174,7 @@ describe( 'syncShortcutsWithVisibility — spatial layout core icons', () => {
 
 	afterEach( () => {
 		clearHooksStub();
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 

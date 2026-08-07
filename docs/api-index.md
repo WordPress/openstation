@@ -9,7 +9,7 @@ One table per surface. Use this to grep for a method, see its status at a glance
 
 ---
 
-## `wp.desktop.*` — JavaScript API
+## `wp.os.*` — JavaScript API
 
 The full surface is documented in [`javascript-reference.md`](./javascript-reference.md). This table indexes the most-used members — for the exhaustive inventory, use the reference.
 
@@ -31,7 +31,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | Member | Signature | Status |
 |---|---|---|
 | [`fetch`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable) | `( input, init?, opts? ) => Promise<Response>` *(routed fetch — pulses title-bar dot)* | **Stable** |
-| `confirm` | `( opts: WpdConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
+| `confirm` | `( opts: OsConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
 | `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable |
 
 ### Window management
@@ -67,6 +67,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
 | `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental |
 | `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental |
+| `mio` | `MioApi` *(`isEnabled` / `enable` / `disable` / `toggle` / `getPosition` / `setPosition` / `getConfig` / `setConfig` / `setStyle` / `getLook` / `commitStyle` / `resetStyle` — the soft-body desk companion; see [`mio.md`](./mio.md))* | Experimental |
 
 ### Cross-bundle / cross-window state
 
@@ -77,8 +78,9 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `heartbeat` | `HeartbeatBus` *(WordPress Heartbeat bridge)* | Stable |
 | `broadcast` | `<T>( topic: string, payload: T ) => void` *(cross-window)* | Stable |
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable |
-| — topic family | `desktop-mode.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
+| — topic family | `os.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable |
 | `presence` | `PresenceApi` | Stable |
+| `selection` | `SelectionApi` *(`active()`, `resolveCommonActions()`, `createModel()`)* | Experimental |
 
 ### Commands, palettes, AI, settings
 
@@ -155,7 +157,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `dragManager` | `DragManager` *(in-shell drag)* | Stable |
 | `dragBridge` | `DragBridge` *(cross-iframe drag)* | Stable |
 
-### Iframe-side bridge — `wp.desktop.iframe.*`
+### Iframe-side bridge — `wp.os.iframe.*`
 
 Inside an iframe window, after the chromeless bridge installs the API:
 
@@ -180,16 +182,29 @@ Inside an iframe window, after the chromeless bridge installs the API:
 
 ### AI Agents *(Experimental — behind the `agents` extended option)*
 
-No dedicated `wp.desktop.agents` namespace yet — the surface is REST +
+No dedicated `wp.os.agents` namespace yet — the surface is REST +
 shared-store + registries. Index:
 
 | Surface | Where | Status |
 |---|---|---|
 | Trust model, capability ceiling, untrusted tool output | [`agents-security.md`](./agents-security.md) | Experimental |
 | `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
-| `desktop_mode_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
+| `openstation_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
-| `agent` site-folder entity kind | `registerEntityKind()` seam | Experimental |
+| `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
+
+### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
+
+No `wp.os.woo` namespace. The surface is PHP filters + REST + a
+native window, all hanging off WP Explorer. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| What the integration renders, and why | [`plugin-compat-layer.md`](./plugin-compat-layer.md#the-site-window-side-woocommerce) | Experimental |
+| `openstation_my_wordpress_woo_*` filters (orders, products, coupons, store, summaries, customers) | [`hooks-reference.md`](./hooks-reference.md#woocommerce-integration--experimental-filters) | Experimental |
+| `desktop-mode/v1/woocommerce/{orders, store, summary/<type>/<id>, customers, customers/<id>}` | `includes/my-wordpress/integrations/` | Experimental |
+| `openstation_woo_customer` REST field on the core `user` resource | [`hooks-reference.md`](./hooks-reference.md#customers) | Experimental |
+| `desktop-mode-woo-customer` native window *(retargetable singleton, `customerId` param)* | [`hooks-reference.md`](./hooks-reference.md#the-customer-window) | Experimental |
 
 ## CustomEvents on `document`
 
@@ -197,32 +212,33 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 
 | Event | Status |
 |---|---|
-| `desktop-mode-init` | Stable |
-| `desktop-mode-window-opened` | Stable |
-| `desktop-mode-window-reopened` | Stable |
-| `desktop-mode-window-content-loading` | Stable |
-| `desktop-mode-window-content-loaded` | Stable |
-| `desktop-mode-window-focused` | Stable |
-| `desktop-mode-window-blurred` | Stable |
-| `desktop-mode-window-closing` | Stable |
-| `desktop-mode-window-closed` | Stable |
-| `desktop-mode-window-changed` | Experimental |
-| `desktop-mode-window-content-changed` | Experimental |
-| `desktop-mode-window-link-groups-changed` | Experimental |
-| `desktop-mode-presence-changed` | Stable |
-| `desktop-mode-layout-changed` | Stable |
-| `desktop-mode-registry-changed` | Stable |
-| `desktop-mode.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |
-| `desktop-mode-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable |
-| `desktop-mode-os-settings-save-lifecycle` | Stable |
-| `desktop-mode-default-window-changed` | Stable |
-| `desktop-mode-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
-| `desktop-mode-intros-reset` | Experimental |
-| `desktop-mode-my-wordpress-entity-trashed` | Experimental |
-| `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
-| `desktop-mode-auth-lost` / `desktop-mode-auth-restored` *(session expiry / recovery)* | Stable |
-| `desktop-mode-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
-| `desktop-mode-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
+| `os-init` | Stable |
+| `os-window-opened` | Stable |
+| `os-window-reopened` | Stable |
+| `os-window-content-loading` | Stable |
+| `os-window-content-loaded` | Stable |
+| `os-window-focused` | Stable |
+| `os-window-blurred` | Stable |
+| `os-window-closing` | Stable |
+| `os-window-closed` | Stable |
+| `os-window-changed` | Experimental |
+| `os-window-content-changed` | Experimental |
+| `os-window-link-groups-changed` | Experimental |
+| `os-presence-changed` | Stable |
+| `os-selection-changed` | Experimental |
+| `os-layout-changed` | Stable |
+| `os-registry-changed` | Stable |
+| `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |
+| `os-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable |
+| `os-settings-save-lifecycle` | Stable |
+| `os-default-window-changed` | Stable |
+| `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
+| `os-intros-reset` | Experimental |
+| `os-my-wordpress-entity-trashed` | Experimental |
+| `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
+| `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
+| `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
+| `os-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
 
 ---
 
@@ -232,28 +248,30 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 
 | Message type | Direction | Status |
 |---|---|---|
-| `desktop-mode-ready` | iframe → parent | Stable |
-| `desktop-mode-window-publish` | iframe → parent | Stable |
-| `desktop-mode-window-send` | parent → iframe | Stable |
-| `desktop-mode-bridge-*` *(connection-bridge family)* | both | Stable |
-| `desktop-mode-plugins-changed` | iframe → shell (top window) | Stable |
-| `desktop-mode-menu-signature` | iframe → shell (top window) | Stable |
-| `desktop-mode-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable |
-| `wp-desktop-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable |
-| `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable |
-| `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
-| `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable |
-| `desktop-mode-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable |
-| `desktop-mode-editor-autosave-request` / `-response` *(preview-button autosave query)* | parent → iframe / iframe → parent | Experimental |
-| `desktop-mode-editor-live-watch` / `-unwatch` / `-live-saved` *(typing-driven preview refresh)* | parent → iframe / parent → iframe / iframe → parent | Experimental |
+| `os-ready` | iframe → parent | Stable |
+| `os-window-publish` | iframe → parent | Stable |
+| `os-window-send` | parent → iframe | Stable |
+| `os-bridge-*` *(connection-bridge family)* | both | Stable |
+| `os-plugins-changed` | iframe → shell (top window) | Stable |
+| `os-menu-signature` | iframe → shell (top window) | Stable |
+| `os-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable |
+| `os-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable |
+| `os-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable |
+| `os-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
+| `os-drag-over` / `-leave` / `os-drop` | parent → iframe | Stable |
+| `os-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable |
+| `os-pointer-track` *(arm / disarm the pointer forwarder; off by default)* | parent → iframe | Experimental |
+| `os-pointer-move` *(cursor position inside the iframe, ~25 Hz, only while armed)* | iframe → parent | Experimental |
+| `os-editor-autosave-request` / `-response` *(preview-button autosave query)* | parent → iframe / iframe → parent | Experimental |
+| `os-editor-live-watch` / `-unwatch` / `-live-saved` *(typing-driven preview refresh)* | parent → iframe / parent → iframe / iframe → parent | Experimental |
 
 ---
 
 ## Where status labels live
 
-- `wp.desktop.*` methods — JSDoc on each member, plus this table.
+- `wp.os.*` methods — JSDoc on each member, plus this table.
 - CustomEvents — section heading in `javascript-reference.md`, plus this table.
 - PHP hooks — `hooks-reference.md`.
-- Web Components — `static help` block on each `<wpd-*>` class, plus `components-reference.md`.
+- Web Components — `static help` block on each `<os-*>` class, plus `components-reference.md`.
 
 When a status changes (Experimental → Stable, or anything → removed), update **all three** of: the JSDoc, this table, and the relevant per-doc reference. The doc lint guidance in `AGENTS.md` enforces this rule of thumb: a hook change without a doc update ships a lie.

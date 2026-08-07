@@ -13,10 +13,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-user-edit-window
+ * @group openstation
+ * @group os-user-edit-window
  */
-class Tests_DesktopMode_UserEditWindowRegistration extends WP_UnitTestCase {
+class Tests_OpenStation_UserEditWindowRegistration extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $editor_id;
@@ -32,13 +32,13 @@ class Tests_DesktopMode_UserEditWindowRegistration extends WP_UnitTestCase {
 	 * whether to render the role dropdown and which options to put
 	 * in it.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_register_window
+	 * @covers ::openstation_user_edit_window_register_window
 	 */
 	public function test_admin_config_carries_promote_capability_and_assignable_roles() {
 		wp_set_current_user( $this->admin_id );
-		desktop_mode_user_edit_window_register_window();
+		openstation_user_edit_window_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-user-edit' );
+		$entry = openstation_native_window_registry( 'desktop-mode-user-edit' );
 		$this->assertIsArray( $entry );
 		$this->assertArrayHasKey( 'config', $entry );
 
@@ -62,13 +62,13 @@ class Tests_DesktopMode_UserEditWindowRegistration extends WP_UnitTestCase {
 	 * A viewer without `promote_users` (default editor) must see
 	 * `canPromote => false` so the JS hides the dropdown.
 	 *
-	 * @covers ::desktop_mode_user_edit_window_register_window
+	 * @covers ::openstation_user_edit_window_register_window
 	 */
 	public function test_editor_config_reports_no_promote_capability() {
 		wp_set_current_user( $this->editor_id );
-		desktop_mode_user_edit_window_register_window();
+		openstation_user_edit_window_register_window();
 
-		$entry  = desktop_mode_native_window_registry( 'desktop-mode-user-edit' );
+		$entry  = openstation_native_window_registry( 'desktop-mode-user-edit' );
 		$config = $entry['config'];
 
 		$this->assertFalse(

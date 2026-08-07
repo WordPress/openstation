@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents: identity layer (synthetic WordPress users).
+ * OpenStation — Agents: identity layer (synthetic WordPress users).
  *
  * Each agent has a real row in `wp_users` so capability checks, edit
  * locks, comment attribution, and the standard WP audit trail work
@@ -8,7 +8,7 @@
  * login and session path is blocked — the agent never authenticates;
  * it is invoked on the site's behalf.
  *
- * Those blocks, and `desktop_mode_agent_is_agent()` itself, live in
+ * Those blocks, and `openstation_agent_is_agent()` itself, live in
  * guard.php, which loads unconditionally. This file owns the row
  * lifecycle (create / delete) and the identity surface: the bot avatar
  * and the wp-admin Users list "Type" column, so administrators can
@@ -16,12 +16,12 @@
  *
  * Definition meta constants live in store.php.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
+require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
 /**
  * Resolve a unique `user_login` for an agent given its desired slug.
@@ -32,7 +32,7 @@ require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
  * @param string $slug Sanitized slug.
  * @return string
  */
-function desktop_mode_agent_resolve_unique_login( $slug ) {
+function openstation_agent_resolve_unique_login( $slug ) {
 	$base    = 'agent-' . $slug;
 	$login   = $base;
 	$counter = 1;
@@ -53,7 +53,7 @@ function desktop_mode_agent_resolve_unique_login( $slug ) {
  * @param string $slug Sanitized agent slug.
  * @return string
  */
-function desktop_mode_agent_synthetic_email( $slug ) {
+function openstation_agent_synthetic_email( $slug ) {
 	$host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 	if ( ! is_string( $host ) || '' === $host ) {
 		$host = 'invalid.local';
@@ -69,7 +69,7 @@ function desktop_mode_agent_synthetic_email( $slug ) {
 
 /**
  * Create a synthetic agent user row. Definition meta is written by the
- * `desktop_mode_agent_create()` orchestrator in store.php — call that,
+ * `openstation_agent_create()` orchestrator in store.php — call that,
  * not this, unless you only need the bare row.
  *
  * @param array{name:string, role:string, slug?:string} $args Agent
@@ -77,14 +77,14 @@ function desktop_mode_agent_synthetic_email( $slug ) {
  *        roles. `slug` defaults to `sanitize_title( $name )`.
  * @return WP_User|WP_Error
  */
-function desktop_mode_agent_create_user( $args ) {
+function openstation_agent_create_user( $args ) {
 	$name = isset( $args['name'] ) ? trim( (string) $args['name'] ) : '';
 	$role = isset( $args['role'] ) ? sanitize_key( $args['role'] ) : '';
 	$slug = isset( $args['slug'] ) ? sanitize_title( $args['slug'] ) : '';
 
 	if ( '' === $name ) {
 		return new WP_Error(
-			'desktop_mode_agent_invalid_name',
+			'openstation_agent_invalid_name',
 			__( 'Agent name is required.', 'desktop-mode' )
 		);
 	}
@@ -92,7 +92,7 @@ function desktop_mode_agent_create_user( $args ) {
 	$roles = wp_roles()->get_names();
 	if ( '' === $role || ! isset( $roles[ $role ] ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_invalid_role',
+			'openstation_agent_invalid_role',
 			__( 'Pick a valid WordPress role for the agent.', 'desktop-mode' )
 		);
 	}
@@ -102,15 +102,15 @@ function desktop_mode_agent_create_user( $args ) {
 	}
 	if ( '' === $slug ) {
 		return new WP_Error(
-			'desktop_mode_agent_invalid_slug',
+			'openstation_agent_invalid_slug',
 			__( 'Agent slug could not be derived from the name.', 'desktop-mode' )
 		);
 	}
 
 	$user_id = wp_insert_user(
 		array(
-			'user_login'           => desktop_mode_agent_resolve_unique_login( $slug ),
-			'user_email'           => desktop_mode_agent_synthetic_email( $slug ),
+			'user_login'           => openstation_agent_resolve_unique_login( $slug ),
+			'user_email'           => openstation_agent_synthetic_email( $slug ),
 			'user_pass'            => wp_generate_password( 64, true, true ),
 			'display_name'         => $name,
 			'nickname'             => $name,
@@ -123,7 +123,7 @@ function desktop_mode_agent_create_user( $args ) {
 		return $user_id;
 	}
 
-	update_user_meta( $user_id, DESKTOP_MODE_AGENT_USER_MARKER_META, '1' );
+	update_user_meta( $user_id, OPENSTATION_AGENT_USER_MARKER_META, '1' );
 
 	return new WP_User( $user_id );
 }
@@ -138,11 +138,11 @@ function desktop_mode_agent_create_user( $args ) {
  * @param int|null $reassign Optional user id to reassign authored content to.
  * @return true|WP_Error
  */
-function desktop_mode_agent_delete( $user_id, $reassign = null ) {
-	if ( ! desktop_mode_agent_is_agent( $user_id ) ) {
+function openstation_agent_delete( $user_id, $reassign = null ) {
+	if ( ! openstation_agent_is_agent( $user_id ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_not_an_agent',
-			__( 'User is not a Desktop Mode agent.', 'desktop-mode' )
+			'openstation_agent_not_an_agent',
+			__( 'User is not a OpenStation agent.', 'desktop-mode' )
 		);
 	}
 
@@ -153,7 +153,7 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
 	$deleted = wp_delete_user( (int) $user_id, $reassign );
 	if ( ! $deleted ) {
 		return new WP_Error(
-			'desktop_mode_agent_delete_failed',
+			'openstation_agent_delete_failed',
 			__( 'Could not delete the agent user.', 'desktop-mode' )
 		);
 	}
@@ -164,7 +164,7 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
 	 * @param int $user_id  Agent user id (row no longer exists when this fires).
 	 * @param int $actor_id User who deleted the agent.
 	 */
-	do_action( 'desktop_mode_agent_deleted', (int) $user_id, get_current_user_id() );
+	do_action( 'openstation_agent_deleted', (int) $user_id, get_current_user_id() );
 
 	return true;
 }
@@ -184,8 +184,8 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
  *
  * @return string
  */
-function desktop_mode_agent_avatar_url() {
-	return DESKTOP_MODE_URL . 'assets/images/agent-avatar.svg';
+function openstation_agent_avatar_url() {
+	return OPENSTATION_URL . 'assets/images/agent-avatar.svg';
 }
 
 /**
@@ -195,7 +195,7 @@ function desktop_mode_agent_avatar_url() {
  * @param int|string|WP_User|WP_Comment $id_or_email Identifier the caller passed.
  * @return array
  */
-function desktop_mode_agent_avatar( $args, $id_or_email ) {
+function openstation_agent_avatar( $args, $id_or_email ) {
 	$user_id = 0;
 	if ( is_numeric( $id_or_email ) ) {
 		$user_id = (int) $id_or_email;
@@ -210,13 +210,13 @@ function desktop_mode_agent_avatar( $args, $id_or_email ) {
 		}
 	}
 
-	if ( $user_id > 0 && desktop_mode_agent_is_agent( $user_id ) ) {
-		$args['url']          = desktop_mode_agent_avatar_url();
+	if ( $user_id > 0 && openstation_agent_is_agent( $user_id ) ) {
+		$args['url']          = openstation_agent_avatar_url();
 		$args['found_avatar'] = true;
 	}
 	return $args;
 }
-add_filter( 'pre_get_avatar_data', 'desktop_mode_agent_avatar', 10, 2 );
+add_filter( 'pre_get_avatar_data', 'openstation_agent_avatar', 10, 2 );
 
 /**
  * Add a "Type" column to the wp-admin Users list that labels agents.
@@ -224,11 +224,11 @@ add_filter( 'pre_get_avatar_data', 'desktop_mode_agent_avatar', 10, 2 );
  * @param string[] $columns Existing column id => label map.
  * @return string[]
  */
-function desktop_mode_agent_users_columns( $columns ) {
-	$columns['desktop_mode_agent_type'] = __( 'Type', 'desktop-mode' );
+function openstation_agent_users_columns( $columns ) {
+	$columns['openstation_agent_type'] = __( 'Type', 'desktop-mode' );
 	return $columns;
 }
-add_filter( 'manage_users_columns', 'desktop_mode_agent_users_columns' );
+add_filter( 'manage_users_columns', 'openstation_agent_users_columns' );
 
 /**
  * Render the cell for the "Type" column.
@@ -238,16 +238,16 @@ add_filter( 'manage_users_columns', 'desktop_mode_agent_users_columns' );
  * @param int    $user_id     User id being rendered.
  * @return string
  */
-function desktop_mode_agent_users_custom_column( $output, $column_name, $user_id ) {
-	if ( 'desktop_mode_agent_type' !== $column_name ) {
+function openstation_agent_users_custom_column( $output, $column_name, $user_id ) {
+	if ( 'openstation_agent_type' !== $column_name ) {
 		return $output;
 	}
-	if ( desktop_mode_agent_is_agent( $user_id ) ) {
-		return '<span class="desktop-mode-agent-type" aria-label="' . esc_attr__( 'Desktop Mode agent', 'desktop-mode' ) . '">'
+	if ( openstation_agent_is_agent( $user_id ) ) {
+		return '<span class="os-agent-type" aria-label="' . esc_attr__( 'OpenStation agent', 'desktop-mode' ) . '">'
 			. '<span class="dashicons dashicons-superhero" aria-hidden="true"></span> '
 			. esc_html__( 'Agent', 'desktop-mode' )
 			. '</span>';
 	}
-	return '<span class="desktop-mode-agent-type-human">' . esc_html__( 'Person', 'desktop-mode' ) . '</span>';
+	return '<span class="os-agent-type-human">' . esc_html__( 'Person', 'desktop-mode' ) . '</span>';
 }
-add_filter( 'manage_users_custom_column', 'desktop_mode_agent_users_custom_column', 10, 3 );
+add_filter( 'manage_users_custom_column', 'openstation_agent_users_custom_column', 10, 3 );

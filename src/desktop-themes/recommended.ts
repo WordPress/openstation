@@ -1,6 +1,6 @@
 /**
  * Recommended OS settings — the shell-side mirror of PHP's
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()`.
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
  *
  * Two responsibilities, and they are deliberately separate:
  *
@@ -16,7 +16,7 @@
  *
  * Keep the enums equal to `DOCK_SIZES` / `DESKTOP_LAYOUTS` /
  * `WINDOW_RADII` / `ADMIN_BAR_MODES` in `src/settings/constants.ts`
- * and to the `DESKTOP_MODE_OS_SETTINGS_*` constants in
+ * and to the `OPENSTATION_OS_SETTINGS_*` constants in
  * `includes/os-settings.php`.
  * They are duplicated rather than imported because this module is a
  * leaf of the always-on shell bundle and must not pull the settings
@@ -25,6 +25,13 @@
 
 import { get as getDockRailRenderer } from '../dock-rail/registry';
 import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
+// The one import from the settings module, and a deliberate exception
+// to the note above: `constants.ts` is itself a leaf — everything it
+// imports is type-only — so this pulls in the accent list and nothing
+// else. Duplicating the swatch ids here would defeat the point, since
+// the list is filterable and the whole check is "does the site still
+// offer this one?".
+import { getAccents } from '../settings/constants';
 import type { RecommendedOsSettings } from './types';
 
 /** Closed enums, keyed by the OS-settings field they belong to. */
@@ -36,12 +43,12 @@ const ENUMS: Record< string, readonly string[] > = {
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */
-const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal' ] as const;
+const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal', 'accent' ] as const;
 
 /**
  * Numeric fields, with the range the sanitizer clamps into. Mirrors
  * the `int` grammar in
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()`.
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
  *
  * Values are clamped rather than dropped: a theme asking for a reveal
  * slower than the shell will play is expressing "slow", and the honest
@@ -142,6 +149,14 @@ export function resolveRecommendedOsSettings(
 		! hasWindowReveal( clean.windowReveal )
 	) {
 		delete clean.windowReveal;
+	}
+	// The accent list is filterable in PHP, so a swatch id only means
+	// something if the site still offers it.
+	if (
+		typeof clean.accent === 'string' &&
+		! getAccents().some( ( a ) => a.id === clean.accent )
+	) {
+		delete clean.accent;
 	}
 	return clean;
 }

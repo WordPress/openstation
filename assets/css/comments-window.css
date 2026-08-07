@@ -4,7 +4,7 @@
  * Thread rail (left) + nested conversation (right) + composer.
  * Variables come from `variables.css`; this file just maps them onto
  * the comments-specific markup so the window picks up theme +
- * color-scheme changes for free. Controls that have a `<wpd-*>`
+ * color-scheme changes for free. Controls that have a `<os-*>`
  * component are styled through that component's documented custom
  * properties rather than re-implemented here.
  */
@@ -25,7 +25,7 @@
 	inline-size: 100%;
 	overflow: hidden;
 	position: relative;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 }
 
 /*
@@ -60,27 +60,27 @@
 
 /* ── Tab strip ───────────────────────────────────────────────── */
 /*
- * `<wpd-tabs>` brings its own chrome, roving tabindex and focus ring.
+ * `<os-tabs>` brings its own chrome, roving tabindex and focus ring.
  * All that's needed here is the strip's place in the column and the
- * count chip slotted into each `<wpd-tab>` (light DOM, so a plain
+ * count chip slotted into each `<os-tab>` (light DOM, so a plain
  * descendant selector reaches it).
  */
-.desktop-mode-comments__tabrow {
+.os-comments__tabrow {
 	flex: 0 0 auto;
 	padding-inline: 12px;
-	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 }
 
-/* `<wpd-badge no-dot>` owns the pill — this is spacing only. */
-.desktop-mode-comments__tab-count {
-	--wpd-badge-padding: 1px 6px;
-	--wpd-badge-font: 500 11px/1.4 var( --desktop-mode-font, system-ui );
+/* `<os-badge no-dot>` owns the pill — this is spacing only. */
+.os-comments__tab-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 11px/1.4 var( --os-font, system-ui );
 	margin-inline-start: 6px;
 	font-variant-numeric: tabular-nums;
 }
 
 /* ── Split ───────────────────────────────────────────────────── */
-.desktop-mode-comments__split {
+.os-comments__split {
 	flex: 1 1 auto;
 	min-block-size: 0;
 	display: grid;
@@ -89,60 +89,60 @@
 }
 
 /* ── Left rail ───────────────────────────────────────────────── */
-.desktop-mode-comments__rail {
-	border-inline-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+.os-comments__rail {
+	border-inline-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 	display: flex;
 	flex-direction: column;
 	min-block-size: 0;
-	background: var( --wpd-surface-sunken, #fbfbfc );
+	background: var( --os-ui-surface-sunken, #fbfbfc );
 }
 
-.desktop-mode-comments__search {
+.os-comments__search {
 	padding: 12px;
 	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__search wpd-text-field {
+.os-comments__search os-text-field {
 	display: block;
 	width: 100%;
 }
 
-.desktop-mode-comments__list {
+.os-comments__list {
 	overflow-y: auto;
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
 /* "Scoped to one post" banner at the top of the rail. */
-.desktop-mode-comments__rail-filter {
+.os-comments__rail-filter {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 8px 14px;
 	font-size: 12px;
-	background: color-mix( in srgb, var( --wpd-accent, #2271b1 ) 8%, transparent );
-	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 }
-.desktop-mode-comments__rail-filter-label {
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+.os-comments__rail-filter-label {
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 	font-weight: 600;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.desktop-mode-comments__rail-filter-clear {
+.os-comments__rail-filter-clear {
 	flex: 0 0 auto;
-	--wpd-button-padding: 0;
+	--os-ui-button-padding: 0;
 	font-size: 12px;
 }
 
 /* `role="listitem"` wrapper — the row itself has to stay a button. */
-.desktop-mode-comments__thread-slot {
+.os-comments__thread-slot {
 	display: block;
 }
 
-.desktop-mode-comments__thread {
+.os-comments__thread {
 	display: grid;
 	grid-template-columns: 36px 1fr auto;
 	gap: 10px;
@@ -160,76 +160,76 @@
 	width: 100%;
 }
 
-.desktop-mode-comments__thread:hover {
-	background: var( --wp-desktop-hover-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.045 ) ) );
+.os-comments__thread:hover {
+	background: var( --wp-desktop-hover-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.045 ) ) );
 }
 
-.desktop-mode-comments__thread:focus-visible {
-	outline: 2px solid var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+.os-comments__thread:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	outline-offset: -2px;
 }
 
-.desktop-mode-comments__thread.is-selected {
-	background: color-mix( in srgb, var( --wpd-accent, #2271b1 ) 8%, transparent );
+.os-comments__thread.is-selected {
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
 }
 
-.desktop-mode-comments__thread.is-selected::before {
+.os-comments__thread.is-selected::before {
 	content: "";
 	position: absolute;
 	inset-inline-start: 0;
 	inset-block: 0;
 	width: 3px;
-	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	background: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 }
 
 /* In-flight moderation on this conversation. */
-.desktop-mode-comments__thread.is-busy {
+.os-comments__thread.is-busy {
 	opacity: 0.5;
 	pointer-events: none;
 }
 
 /*
- * Avatar. `<wpd-avatar>` owns the circle, the hue, the initials
+ * Avatar. `<os-avatar>` owns the circle, the hue, the initials
  * fallback and its own sizing (via the `size` attribute) — anything
  * set here would be a light-DOM author style overriding the
  * component's `:host` rules, so this stays to layout only.
  */
-.desktop-mode-comments__disc {
+.os-comments__disc {
 	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__thread-main {
+.os-comments__thread-main {
 	min-width: 0;
 }
 
-.desktop-mode-comments__thread-name {
+.os-comments__thread-name {
 	font-size: 13.5px;
 	font-weight: 600;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 	display: flex;
 	align-items: center;
 	gap: 6px;
 }
 
-.desktop-mode-comments__thread-snip {
+.os-comments__thread-snip {
 	font-size: 12.5px;
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
 	margin-block-start: 2px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-comments__thread-post {
+.os-comments__thread-post {
 	font-size: 11.5px;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 	margin-block-start: 3px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-comments__thread-meta {
+.os-comments__thread-meta {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
@@ -237,89 +237,89 @@
 	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__thread-time {
+.os-comments__thread-time {
 	font-size: 11px;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
 
 /*
- * Rail status: a `<wpd-badge>` with no room for its label, so the pill
+ * Rail status: a `<os-badge>` with no room for its label, so the pill
  * collapses to the tone dot the component already paints. Driven
  * through the badge's own variable surface rather than by overriding
  * its `:host` rules from the light DOM — the tone palette still owns
  * the colour. The label rides along as slotted screen-reader text, so
  * the hue is never the only carrier of the meaning.
  */
-.desktop-mode-comments__status {
-	--wpd-badge-padding: 0;
-	--wpd-badge-bg: transparent;
-	--wpd-badge-border: 0;
-	--wpd-badge-gap: 0;
+.os-comments__status {
+	--os-ui-badge-padding: 0;
+	--os-ui-badge-bg: transparent;
+	--os-ui-badge-border: 0;
+	--os-ui-badge-gap: 0;
 	flex: 0 0 auto;
 	position: relative;
 }
 
-.desktop-mode-comments__reply-count {
-	--wpd-badge-padding: 1px 6px;
-	--wpd-badge-font: 500 10.5px/1.4 var( --desktop-mode-font, system-ui );
+.os-comments__reply-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 10.5px/1.4 var( --os-font, system-ui );
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 	position: relative;
 }
 
-.desktop-mode-comments__list-loading {
+.os-comments__list-loading {
 	display: flex;
 	justify-content: center;
 	padding: 28px 16px;
 }
 
-.desktop-mode-comments__load-more {
+.os-comments__load-more {
 	display: flex;
 	justify-content: center;
 	padding: 12px;
 }
 
 /* ── Right pane: conversation ────────────────────────────────── */
-.desktop-mode-comments__convo {
+.os-comments__convo {
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
 	min-block-size: 0;
-	background: var( --wp-desktop-window-bg, var( --wpd-surface, #fff ) );
+	background: var( --wp-desktop-window-bg, var( --os-ui-surface, #fff ) );
 }
 
-/* `<wpd-empty-state>` owns the icon + copy; this is placement only. */
-.desktop-mode-comments__placeholder {
+/* `<os-empty-state>` owns the icon + copy; this is placement only. */
+.os-comments__placeholder {
 	margin: auto;
 	padding: 40px 24px;
 	display: block;
 }
 
-.desktop-mode-comments__convo-head {
+.os-comments__convo-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 	padding: 14px 18px;
-	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 	flex: 0 0 auto;
 }
-.desktop-mode-comments__convo-context {
+.os-comments__convo-context {
 	min-width: 0;
 }
-.desktop-mode-comments__convo-kicker {
+.os-comments__convo-kicker {
 	font-size: 11px;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 	font-weight: 600;
 }
-.desktop-mode-comments__convo-post {
+.os-comments__convo-post {
 	font-size: 15px;
 	font-weight: 600;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 	margin-block-start: 2px;
 	display: block;
 	overflow: hidden;
@@ -333,40 +333,40 @@
  * rest — a hover-only hint would be invisible to anyone who never
  * hovers, and invisible on touch entirely.
  */
-a.desktop-mode-comments__convo-post--editable {
+a.os-comments__convo-post--editable {
 	text-decoration: none;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 }
-.desktop-mode-comments__convo-post-pencil {
+.os-comments__convo-post-pencil {
 	margin-inline-start: 6px;
 	vertical-align: -2px;
 	opacity: 0.55;
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
 }
-a.desktop-mode-comments__convo-post--editable:hover,
-a.desktop-mode-comments__convo-post--editable:focus-visible {
-	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+a.os-comments__convo-post--editable:hover,
+a.os-comments__convo-post--editable:focus-visible {
+	color: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	text-decoration: underline;
 }
-a.desktop-mode-comments__convo-post--editable:hover .desktop-mode-comments__convo-post-pencil,
-a.desktop-mode-comments__convo-post--editable:focus-visible .desktop-mode-comments__convo-post-pencil {
+a.os-comments__convo-post--editable:hover .os-comments__convo-post-pencil,
+a.os-comments__convo-post--editable:focus-visible .os-comments__convo-post-pencil {
 	opacity: 1;
 	color: inherit;
 }
-a.desktop-mode-comments__convo-post--editable:focus-visible {
-	outline: 2px solid var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+a.os-comments__convo-post--editable:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	outline-offset: 2px;
 	border-radius: 3px;
 }
 
-.desktop-mode-comments__convo-head-actions {
+.os-comments__convo-head-actions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex: 0 0 auto;
 }
-.desktop-mode-comments__convo-link {
-	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+.os-comments__convo-link {
+	color: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	font-size: 12.5px;
 	text-decoration: none;
 	white-space: nowrap;
@@ -374,22 +374,22 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
 	align-items: center;
 	gap: 4px;
 }
-.desktop-mode-comments__convo-link:hover { text-decoration: underline; }
-.desktop-mode-comments__convo-link:focus-visible {
-	outline: 2px solid var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+.os-comments__convo-link:hover { text-decoration: underline; }
+.os-comments__convo-link:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	outline-offset: 2px;
 	border-radius: 3px;
 }
 
 /* The block editor's `external` glyph — inherits the link colour. */
-.desktop-mode-comments__ext-icon {
+.os-comments__ext-icon {
 	width: 18px;
 	height: 18px;
 	fill: currentColor;
 	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__thread-scroll {
+.os-comments__thread-scroll {
 	padding: 18px 18px 6px;
 	overflow-y: auto;
 	flex: 1 1 auto;
@@ -397,45 +397,45 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
 }
 
 /* A message + its nested children */
-.desktop-mode-comments__msg {
+.os-comments__msg {
 	display: grid;
 	grid-template-columns: 34px 1fr;
 	gap: 12px;
 }
-.desktop-mode-comments__msg-rail {
+.os-comments__msg-rail {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 }
-.desktop-mode-comments__msg-line {
+.os-comments__msg-line {
 	flex: 1 1 auto;
 	width: 2px;
-	background: var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	background: var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 	margin-block-start: 6px;
 	border-radius: 2px;
 }
-.desktop-mode-comments__msg-body {
+.os-comments__msg-body {
 	min-width: 0;
 	padding-block-end: 12px;
 }
-.desktop-mode-comments__msg-head {
+.os-comments__msg-head {
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
 	flex-wrap: wrap;
 }
-.desktop-mode-comments__msg-name {
+.os-comments__msg-name {
 	font-weight: 600;
 	font-size: 13.5px;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 }
-.desktop-mode-comments__msg-you {
-	--wpd-badge-padding: 0 5px;
-	--wpd-badge-font: 600 10.5px/1.4 var( --desktop-mode-font, system-ui );
+.os-comments__msg-you {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
 }
-.desktop-mode-comments__msg-time {
+.os-comments__msg-time {
 	font-size: 11.5px;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 	font-variant-numeric: tabular-nums;
 }
 
@@ -444,21 +444,21 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
  * buried in an approved thread is exactly what a moderator is
  * looking for — the tint alone doesn't carry that.
  */
-/* Tone + pill come from `<wpd-badge>`; only the metrics are ours. */
-.desktop-mode-comments__msg-status {
-	--wpd-badge-padding: 0 5px;
-	--wpd-badge-font: 600 10.5px/1.4 var( --desktop-mode-font, system-ui );
+/* Tone + pill come from `<os-badge>`; only the metrics are ours. */
+.os-comments__msg-status {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
 }
 
-.desktop-mode-comments__msg[ data-status="spam" ] .desktop-mode-comments__msg-text,
-.desktop-mode-comments__msg[ data-status="trash" ] .desktop-mode-comments__msg-text {
+.os-comments__msg[ data-status="spam" ] .os-comments__msg-text,
+.os-comments__msg[ data-status="trash" ] .os-comments__msg-text {
 	opacity: 0.65;
 }
 
-.desktop-mode-comments__msg-text {
+.os-comments__msg-text {
 	font-size: 13.5px;
 	line-height: 1.5;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #2c3338 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #2c3338 ) );
 	margin-block-start: 4px;
 	overflow-wrap: anywhere;
 }
@@ -472,7 +472,7 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
  * but the first, so it never lands on a hidden-by-capability action
  * and never needs a DOM node of its own.
  */
-.desktop-mode-comments__msg-actions {
+.os-comments__msg-actions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -481,9 +481,9 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
 	font-size: 12.5px;
 }
 
-.desktop-mode-comments__act {
-	--wpd-button-padding: 0;
-	--wpd-button-fg: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+.os-comments__act {
+	--os-ui-button-padding: 0;
+	--os-ui-button-fg: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
 	font-size: 12.5px;
 	line-height: 1.4;
 }
@@ -493,69 +493,69 @@ a.desktop-mode-comments__convo-post--editable:focus-visible {
  * out of the underline, out of both hit targets, and (via
  * `aria-hidden`) out of the accessibility tree.
  */
-.desktop-mode-comments__act-sep {
-	color: var( --wpd-fg-faint, #c3c4c7 );
+.os-comments__act-sep {
+	color: var( --os-ui-fg-faint, #c3c4c7 );
 	user-select: none;
 	pointer-events: none;
 }
 
-.desktop-mode-comments__act.is-danger {
-	--wpd-button-fg: var( --wpd-danger, #b32d2e );
+.os-comments__act.is-danger {
+	--os-ui-button-fg: var( --os-ui-danger, #b32d2e );
 }
 
-.desktop-mode-comments__nested {
+.os-comments__nested {
 	margin-block-start: 12px;
 }
 
 /* ── Composer ────────────────────────────────────────────────── */
-.desktop-mode-comments__composer {
-	border-block-start: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+.os-comments__composer {
+	border-block-start: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+	background: var( --wp-desktop-elevated-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	padding: 12px 18px 16px;
 	flex: 0 0 auto;
 }
-.desktop-mode-comments__composer.is-empty {
+.os-comments__composer.is-empty {
 	display: none;
 }
-.desktop-mode-comments__composer-to {
+.os-comments__composer-to {
 	font-size: 12px;
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
 	margin-block-end: 8px;
 }
-.desktop-mode-comments__composer-to b {
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+.os-comments__composer-to b {
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 }
-.desktop-mode-comments__composer-row {
+.os-comments__composer-row {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 8px;
 	margin-block-start: 10px;
 }
-.desktop-mode-comments__composer-hint {
+.os-comments__composer-hint {
 	font-size: 11.5px;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 	margin-inline-end: auto;
 }
 
-.desktop-mode-comments__reply-input {
+.os-comments__reply-input {
 	display: block;
 	width: 100%;
 }
 
-.desktop-mode-comments__fatal {
+.os-comments__fatal {
 	padding: 24px;
-	color: var( --wpd-fg-faint, #787c82 );
+	color: var( --os-ui-fg-faint, #787c82 );
 }
 
 /* Cursor override: the shell forces `cursor: default !important`. */
-body.desktop-mode-active .desktop-mode-comments__thread,
-body.desktop-mode-active .desktop-mode-comments__convo-link,
-body.desktop-mode-active a.desktop-mode-comments__convo-post--editable {
+body.os-active .os-comments__thread,
+body.os-active .os-comments__convo-link,
+body.os-active a.os-comments__convo-post--editable {
 	cursor: pointer !important;
 }
 
 @media ( max-width: 720px ) {
-	.desktop-mode-comments__split { grid-template-columns: 1fr; }
-	.desktop-mode-comments__rail { display: none; }
+	.os-comments__split { grid-template-columns: 1fr; }
+	.os-comments__rail { display: none; }
 }

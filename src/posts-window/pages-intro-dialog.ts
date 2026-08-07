@@ -28,7 +28,7 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 export async function showPagesIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		const backdrop = document.createElement( 'div' );
-		backdrop.className = 'desktop-mode-pages-intro__backdrop';
+		backdrop.className = 'os-pages-intro__backdrop';
 		backdrop.setAttribute( 'role', 'presentation' );
 		Object.assign( backdrop.style, {
 			position: 'fixed',
@@ -45,8 +45,8 @@ export async function showPagesIntroDialog(): Promise< IntroResult > {
 		const dialog = document.createElement( 'div' );
 		dialog.setAttribute( 'role', 'dialog' );
 		dialog.setAttribute( 'aria-modal', 'true' );
-		dialog.setAttribute( 'aria-labelledby', 'desktop-mode-pages-intro-title' );
-		dialog.className = 'desktop-mode-pages-intro';
+		dialog.setAttribute( 'aria-labelledby', 'os-pages-intro-title' );
+		dialog.className = 'os-pages-intro';
 		Object.assign( dialog.style, {
 			background: 'var(--wp-admin-theme-bg, #fff)',
 			color: 'var(--wp-admin-theme-fg, #1d2327)',
@@ -111,7 +111,7 @@ export async function showPagesIntroDialog(): Promise< IntroResult > {
 function renderDialogMarkup(): string {
 	const title = __( 'Welcome to the new Pages window' );
 	const lede = __(
-		"You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how Desktop Mode wants you to work.",
+		"You're looking at the redesigned Pages list — same data you already manage, with a UX tuned for how OpenStation wants you to work.",
 	);
 
 	const highlights = [
@@ -132,32 +132,32 @@ function renderDialogMarkup(): string {
 
 	return `
 		<style>
-			.desktop-mode-pages-intro h2 {
+			.os-pages-intro h2 {
 				margin: 0 0 8px;
 				font-size: 22px;
 				font-weight: 600;
 				letter-spacing: -0.01em;
 			}
-			.desktop-mode-pages-intro p.lede {
+			.os-pages-intro p.lede {
 				margin: 0 0 20px;
 				color: var(--wp-admin-theme-fg-muted, #50575e);
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-pages-intro__list {
+			.os-pages-intro__list {
 				list-style: none;
 				margin: 0 0 22px;
 				padding: 0;
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-pages-intro__list li {
+			.os-pages-intro__list li {
 				display: flex;
 				align-items: flex-start;
 				gap: 10px;
 				padding: 6px 0;
 			}
-			.desktop-mode-pages-intro__list .dot {
+			.os-pages-intro__list .dot {
 				flex: 0 0 auto;
 				width: 6px;
 				height: 6px;
@@ -165,13 +165,13 @@ function renderDialogMarkup(): string {
 				border-radius: 50%;
 				background: var(--wp-admin-theme-color, #2271b1);
 			}
-			.desktop-mode-pages-intro__footer {
+			.os-pages-intro__footer {
 				display: flex;
 				justify-content: flex-end;
 				gap: 8px;
 				margin-top: 8px;
 			}
-			.desktop-mode-pages-intro__footer button {
+			.os-pages-intro__footer button {
 				appearance: none;
 				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
 				background: var(--wp-admin-theme-bg, #fff);
@@ -181,22 +181,22 @@ function renderDialogMarkup(): string {
 				font-size: 13px;
 				cursor: pointer;
 			}
-			.desktop-mode-pages-intro__footer button.primary {
+			.os-pages-intro__footer button.primary {
 				border-color: var(--wp-admin-theme-color, #2271b1);
 				background: var(--wp-admin-theme-color, #2271b1);
 				color: #fff;
 				font-weight: 500;
 			}
-			.desktop-mode-pages-intro__footer button:hover { filter: brightness(1.05); }
-			.desktop-mode-pages-intro__footer button:focus-visible {
+			.os-pages-intro__footer button:hover { filter: brightness(1.05); }
+			.os-pages-intro__footer button:focus-visible {
 				outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 				outline-offset: 2px;
 			}
 		</style>
-		<h2 id="desktop-mode-pages-intro-title">${ escapeHtml( title ) }</h2>
+		<h2 id="os-pages-intro-title">${ escapeHtml( title ) }</h2>
 		<p class="lede">${ escapeHtml( lede ) }</p>
-		<ul class="desktop-mode-pages-intro__list">${ li( highlights ) }</ul>
-		<div class="desktop-mode-pages-intro__footer">
+		<ul class="os-pages-intro__list">${ li( highlights ) }</ul>
+		<div class="os-pages-intro__footer">
 			<button type="button" data-action="settings">${ escapeHtml(
 				__( 'Take me to settings' ),
 			) }</button>

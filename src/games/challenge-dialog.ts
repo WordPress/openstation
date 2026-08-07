@@ -1,19 +1,19 @@
 /**
- * Desktop Mode — Send-challenge dialog.
+ * OpenStation — Send-challenge dialog.
  *
- * `<wpd-modal>` hosting a `<wpd-user-search>` opponent picker
+ * `<os-modal>` hosting a `<os-user-search>` opponent picker
  * (pointed at the games-scoped search endpoint) and a summary of
  * the score being thrown down. Picked users show a presence dot via
- * `<wpd-avatar user-id>`, so challenging someone who's online right
+ * `<os-avatar user-id>`, so challenging someone who's online right
  * now is one glance away.
  */
 
-// Side-effect imports — register the `<wpd-*>` components this module
+// Side-effect imports — register the `<os-*>` components this module
 // constructs. `defineComponent` is idempotent across bundles.
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-modal/wpd-modal';
-import '../ui/components/wpd-user-search/wpd-user-search';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-modal/os-modal';
+import '../ui/components/os-user-search/os-user-search';
 
 import { __, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
@@ -35,16 +35,16 @@ interface PickedUser {
 
 function usersSearchUrl(): string {
 	const globals = window as unknown as {
-		desktopModeGamesConfig?: { usersSearchUrl?: string };
+		openStationGamesConfig?: { usersSearchUrl?: string };
 	};
-	const localized = globals.desktopModeGamesConfig?.usersSearchUrl;
+	const localized = globals.openStationGamesConfig?.usersSearchUrl;
 	if ( localized ) {
 		return localized;
 	}
 	const wpGlobal = window.wp as
-		| { desktop?: { config?: { restUrl?: string } } }
+		| { os?: { config?: { restUrl?: string } } }
 		| undefined;
-	const restUrl = wpGlobal?.desktop?.config?.restUrl || '/wp-json/';
+	const restUrl = wpGlobal?.os?.config?.restUrl || '/wp-json/';
 	return joinRestUrl( restUrl, 'desktop-mode/v1/games/users/search' );
 }
 
@@ -55,16 +55,16 @@ export function openChallengeDialog(
 	args: ChallengeDialogArgs,
 ): Promise< void > {
 	return new Promise( ( resolve ) => {
-		const modal = document.createElement( 'wpd-modal' );
+		const modal = document.createElement( 'os-modal' );
 		modal.setAttribute( 'open', '' );
 		modal.setAttribute( 'title', __( 'Send a challenge' ) );
 		modal.setAttribute( 'size', 'sm' );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-games__challenge-dialog';
+		body.className = 'os-games__challenge-dialog';
 
 		const summary = document.createElement( 'p' );
-		summary.className = 'desktop-mode-games__challenge-summary';
+		summary.className = 'os-games__challenge-summary';
 		summary.textContent = sprintf(
 			/* translators: 1: game title, 2: score. */
 			__( 'Challenge someone to beat your %1$s score of %2$s.' ),
@@ -73,13 +73,13 @@ export function openChallengeDialog(
 		);
 		body.appendChild( summary );
 
-		const search = document.createElement( 'wpd-user-search' );
+		const search = document.createElement( 'os-user-search' );
 		search.setAttribute( 'placeholder', __( 'Find a player…' ) );
 		search.setAttribute( 'endpoint', usersSearchUrl() );
 		body.appendChild( search );
 
 		const picked = document.createElement( 'div' );
-		picked.className = 'desktop-mode-games__challenge-picked';
+		picked.className = 'os-games__challenge-picked';
 		picked.hidden = true;
 		body.appendChild( picked );
 
@@ -87,11 +87,11 @@ export function openChallengeDialog(
 
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
-		footer.className = 'desktop-mode-games__challenge-footer';
-		const cancel = document.createElement( 'wpd-button' );
+		footer.className = 'os-games__challenge-footer';
+		const cancel = document.createElement( 'os-button' );
 		cancel.setAttribute( 'variant', 'ghost' );
 		cancel.textContent = __( 'Cancel' );
-		const send = document.createElement( 'wpd-button' );
+		const send = document.createElement( 'os-button' );
 		send.setAttribute( 'variant', 'primary' );
 		send.setAttribute( 'disabled', '' );
 		send.textContent = __( 'Send challenge' );
@@ -114,7 +114,7 @@ export function openChallengeDialog(
 				return;
 			}
 			picked.hidden = false;
-			const avatar = document.createElement( 'wpd-avatar' );
+			const avatar = document.createElement( 'os-avatar' );
 			avatar.setAttribute( 'src', opponent.avatarUrl );
 			avatar.setAttribute( 'name', opponent.name );
 			avatar.setAttribute( 'size', 'sm' );
@@ -126,7 +126,7 @@ export function openChallengeDialog(
 			send.removeAttribute( 'disabled' );
 		};
 
-		search.addEventListener( 'wpd-user-pick', ( e: Event ) => {
+		search.addEventListener( 'os-user-pick', ( e: Event ) => {
 			const user = ( e as CustomEvent< { user?: PickedUser } > ).detail
 				?.user;
 			if ( user ) {
@@ -136,7 +136,7 @@ export function openChallengeDialog(
 		} );
 
 		cancel.addEventListener( 'click', close );
-		modal.addEventListener( 'wpd-modal-cancel', close );
+		modal.addEventListener( 'os-modal-cancel', close );
 
 		send.addEventListener( 'click', () => {
 			if ( ! opponent || sending ) {

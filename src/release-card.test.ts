@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { showReleaseCard, type ReleaseCardOptions } from './release-card';
-import { isNoticeDismissed } from './ui/components/wpd-notice/storage';
+import { isNoticeDismissed } from './ui/components/os-notice/storage';
 
 function open( over: Partial< ReleaseCardOptions > = {} ): {
 	dismiss: () => void;
@@ -25,8 +25,8 @@ function open( over: Partial< ReleaseCardOptions > = {} ): {
 
 beforeEach( () => localStorage.clear() );
 afterEach( () => {
-	document.querySelector( '.desktop-mode-release-host' )?.remove();
-	document.getElementById( 'desktop-mode-release-card-styles' )?.remove();
+	document.querySelector( '.os-release-host' )?.remove();
+	document.getElementById( 'os-release-card-styles' )?.remove();
 	localStorage.clear();
 } );
 

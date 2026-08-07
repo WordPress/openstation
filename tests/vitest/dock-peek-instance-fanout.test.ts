@@ -37,7 +37,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		const windows = [
 			makeWindowStub( 'desktop-mode-my-wordpress', 'desktop-mode-my-wordpress' ),
 			makeWindowStub(
-				'desktop-mode-my-wordpress-2',
+				'os-my-wordpress-2',
 				'desktop-mode-my-wordpress',
 			),
 		];
@@ -87,7 +87,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		const instances = peekDeps[ 0 ].getInstances();
 		expect( instances.map( ( w ) => w.id ) ).toEqual( [
 			'desktop-mode-my-wordpress',
-			'desktop-mode-my-wordpress-2',
+			'os-my-wordpress-2',
 		] );
 	} );
 } );

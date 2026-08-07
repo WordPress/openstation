@@ -1,8 +1,8 @@
 /**
- * Boot-time `wp.desktop.fetch` implementation.
+ * Boot-time `wp.os.fetch` implementation.
  *
  * The runtime side of the framework's tracked fetch. Plugin-side
- * code reaches the function through `wp.desktop.fetch`
+ * code reaches the function through `wp.os.fetch`
  * (or the `trackedFetch` helper in `src/tracked-fetch.ts` which
  * looks the function up at runtime); this module owns the
  * implementation.
@@ -48,7 +48,7 @@ export function trackedFetch(
 	opts?: TrackedFetchImplOpts,
 ): Promise< Response > {
 	const finalInit = injectRestNonce( input, requestInit );
-	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.desktop.fetch`; it's the one legitimate place to call the raw global.
+	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.os.fetch`; it's the one legitimate place to call the raw global.
 	const promise = window.fetch( input, finalInit );
 	// Session-expiry fast path: a 401/403 through the framework
 	// fetch asks Heartbeat for an auth verdict now instead of

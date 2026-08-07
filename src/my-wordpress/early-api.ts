@@ -3,12 +3,12 @@
  *
  * Imported by `src/desktop.ts` so it lands in the main `desktop.min.js`
  * bundle that's always loaded. Installs a queueing stub on
- * `window.wp.desktop.myWordpress` so plugin scripts can call
+ * `window.wp.os.myWordpress` so plugin scripts can call
  * `registerEntityKind(...)` at script-load time, before the lazy
  * `my-wordpress.min.js` bundle has mounted.
  *
  * When the lazy bundle initializes it drains
- * `window.wp.desktop.myWordpress.__pendingKinds` and replaces this
+ * `window.wp.os.myWordpress.__pendingKinds` and replaces this
  * stub with the real API.
  *
  * @public
@@ -51,25 +51,25 @@ interface MyWordpressEarlyStub {
 /**
  * Idempotent — safe to call from every bundle entry. Only the first
  * call installs the stub. Reads/writes the loosely-typed
- * `window.wp.desktop` namespace via casts to side-step the strict
- * `WpDesktopPublicApi` global type — the early stub installs BEFORE
+ * `window.wp.os` namespace via casts to side-step the strict
+ * `OpenStationPublicApi` global type — the early stub installs BEFORE
  * the full public API is wired, so a partial shape is expected here.
  *
  * @public
  */
 export function installMyWordpressEarlyStub(): void {
 	type Loose = {
-		wp?: { desktop?: Record< string, unknown > & {
+		wp?: { os?: Record< string, unknown > & {
 			myWordpress?: MyWordpressEarlyStub;
 		} };
 	};
 	const w = window as unknown as Loose;
 	w.wp = w.wp ?? {};
 	const wp = w.wp;
-	if ( ! wp.desktop ) {
-		wp.desktop = {};
+	if ( ! wp.os ) {
+		wp.os = {};
 	}
-	const desktop = wp.desktop;
+	const desktop = wp.os;
 	if ( desktop.myWordpress ) {
 		return;
 	}

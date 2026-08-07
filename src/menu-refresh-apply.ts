@@ -5,7 +5,7 @@
  * isolation. Given the parent shell's mutable `config`, the dock
  * instance, and the per-surface sync callbacks, returns a single
  * `applyPayload( payload )` function that mirrors a fresh
- * `desktop-mode-plugins-changed` payload onto the live shell — adding
+ * `os-plugins-changed` payload onto the live shell — adding
  * dock tiles, repainting widgets, registering plugin wallpapers,
  * re-rendering wallpaper-shortcut icons, and so on, all without an F5.
  *
@@ -127,13 +127,13 @@ export interface MenuRefreshDeps {
  * without paying a page reload — the event detail names the registry
  * and the id-based diff against the prior snapshot.
  *
- * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
+ * Naming: `os-*`, NOT `os-*`. The `wp-` prefix is
  * reserved for WordPress Core per plugin reviewer guidelines; all
  * public surface uses the project-owned prefix.
  */
-export const REGISTRY_CHANGED_EVENT = 'desktop-mode-registry-changed';
+export const REGISTRY_CHANGED_EVENT = 'os-registry-changed';
 
-/** Shape of the `desktop-mode-registry-changed` event detail. */
+/** Shape of the `os-registry-changed` event detail. */
 export interface RegistryChangedDetail {
 	registry:
 		| 'dock-items'
@@ -261,7 +261,7 @@ export function createApplyPayload(
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added
 		// server-side (plugin activated via
-		// `desktop_mode_register_window`) appear; tiles whose plugin
+		// `openstation_register_window`) appear; tiles whose plugin
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
@@ -279,7 +279,7 @@ export function createApplyPayload(
 
 		// Widget-registry sync — same lifecycle story for the
 		// right-column widget layer. Plugins declared via
-		// `desktop_mode_register_widget()` show up in the picker
+		// `openstation_register_widget()` show up in the picker
 		// without a reload; deactivated plugin widgets disappear.
 		if ( Array.isArray( serverWidgets ) ) {
 			void syncServerWidgets(

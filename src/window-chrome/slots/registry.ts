@@ -6,7 +6,7 @@
  * `controls`, `after-controls`, `after-titlebar`. The shell renders
  * default content into each slot to preserve the canonical look;
  * plugin authors register slot renderers via
- * `wp.desktop.registerWindowSlot()` to replace or augment what a slot
+ * `wp.os.registerWindowSlot()` to replace or augment what a slot
  * draws, on a per-window basis (driven by the `match` predicate).
  *
  * Multiple registrations may target the same slot. The shell calls
@@ -130,7 +130,7 @@ export interface WindowSlotDef {
  * Cross-bundle shared backing store. The lazy
  * `window-system[.min].js` bundle constructs/reads from this
  * registry while main writes to it via `registerBuiltIn*` and
- * `wp.desktop.register*` — each bundle would otherwise see its
+ * `wp.os.register*` — each bundle would otherwise see its
  * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
  * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
  * pattern.
@@ -264,7 +264,7 @@ export function slotsForWindow(
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] window-slot "${ def.id }" match() threw — skipping`,
+					`[openstation] window-slot "${ def.id }" match() threw — skipping`,
 					err,
 				);
 			}
@@ -294,7 +294,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] window-slot registry listener threw:',
+					'[openstation] window-slot registry listener threw:',
 					err,
 				);
 			}

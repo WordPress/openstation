@@ -58,7 +58,7 @@ function mount( items: DockItem[] = [] ): {
 	dock: Dock;
 } {
 	const container = document.createElement( 'nav' );
-	container.id = 'desktop-mode-dock';
+	container.id = 'os-dock';
 	document.body.appendChild( container );
 	const dock = new Dock(
 		container,
@@ -97,7 +97,7 @@ describe( 'dock decoration hooks', () => {
 		expect( tile ).not.toBeNull();
 		expect( tile?.classList.contains( 'plugin-decorated' ) ).toBe( true );
 		// Default classes survive — filters must not stomp on the base.
-		expect( tile?.classList.contains( 'desktop-mode-dock__item' ) ).toBe(
+		expect( tile?.classList.contains( 'os-dock__item' ) ).toBe(
 			true,
 		);
 	} );
@@ -120,7 +120,7 @@ describe( 'dock decoration hooks', () => {
 		// tile lives inside the wrapper. Plugin contract: the returned
 		// element is what gets painted as the tile; the shell still
 		// finds `[data-menu-slug]` descendants for active state.
-		const wrap = container.querySelector( '.desktop-mode-dock__scroll > .plugin-wrap' );
+		const wrap = container.querySelector( '.os-dock__scroll > .plugin-wrap' );
 		expect( wrap ).not.toBeNull();
 		expect( wrap?.querySelector( '[data-menu-slug="edit.php"]' ) ).not.toBeNull();
 	} );
@@ -169,10 +169,10 @@ describe( 'dock decoration hooks', () => {
 		// pick up the `--visible` class.
 		tile?.dispatchEvent( new Event( 'pointerenter' ) );
 		const tooltip = document.querySelector(
-			'.desktop-mode-dock__tooltip',
+			'.os-dock__tooltip',
 		);
 		expect(
-			tooltip?.classList.contains( 'desktop-mode-dock__tooltip--visible' ),
+			tooltip?.classList.contains( 'os-dock__tooltip--visible' ),
 		).toBe( false );
 	} );
 
@@ -197,7 +197,7 @@ describe( 'dock decoration hooks', () => {
 		expect( after ).toHaveBeenCalledTimes( 1 );
 
 		const beforeCtx = before.mock.calls[ 0 ][ 0 ] as DockRenderContext;
-		expect( beforeCtx.dockId ).toBe( 'desktop-mode-dock' );
+		expect( beforeCtx.dockId ).toBe( 'os-dock' );
 		expect( beforeCtx.orientation ).toBe( 'bottom' );
 		expect( beforeCtx.rail ).toBe( 'taskbar' );
 		expect( beforeCtx.items ).toHaveLength( 2 );
@@ -280,18 +280,18 @@ describe( 'dock decoration hooks', () => {
 		);
 
 		const left = document.createElement( 'nav' );
-		left.id = 'desktop-mode-side-dock';
+		left.id = 'os-side-dock';
 		document.body.appendChild( left );
 		new Dock( left, makeManager(), [ makeItem() ], '/wp-admin/', 'left' );
 
 		const bottom = document.createElement( 'nav' );
-		bottom.id = 'desktop-mode-dock';
+		bottom.id = 'os-dock';
 		document.body.appendChild( bottom );
 		new Dock( bottom, makeManager(), [ makeItem() ], '/wp-admin/', 'bottom' );
 
 		expect( seen ).toEqual( [
-			'desktop-mode-side-dock',
-			'desktop-mode-dock',
+			'os-side-dock',
+			'os-dock',
 		] );
 	} );
 } );

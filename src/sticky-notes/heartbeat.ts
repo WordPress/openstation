@@ -4,8 +4,8 @@ import type {
 	StickyNotesHeartbeatSubscribe,
 } from './types';
 
-const SUBSCRIBE_FIELD = 'desktop_mode_sticky_notes_subscribe';
-const RESPONSE_FIELD = 'desktop_mode_sticky_notes';
+const SUBSCRIBE_FIELD = 'openstation_sticky_notes_subscribe';
+const RESPONSE_FIELD = 'openstation_sticky_notes';
 
 export interface StickyNotesHeartbeatTarget {
 	getHeartbeatSubscription: () => StickyNotesHeartbeatSubscribe | undefined;

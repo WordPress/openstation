@@ -27,7 +27,7 @@ beforeAll( async () => {
 } );
 
 const WINDOW_ID = 'desktop-mode-my-wordpress';
-const FILTER = 'desktop-mode.my-wordpress.tile-context-menu';
+const FILTER = 'os.my-wordpress.tile-context-menu';
 
 type FetchMock = ReturnType< typeof vi.fn >;
 
@@ -74,7 +74,7 @@ const AGENTS = [
 ];
 
 function installConfig(): void {
-	( window as unknown as Record< string, unknown > ).desktopModeWindowConfig = {
+	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
 		[ WINDOW_ID ]: {
 			restRoot: 'https://example.test/wp-json/',
 			restNonce: 'test-nonce',
@@ -146,7 +146,7 @@ beforeEach( async () => {
 afterEach( () => {
 	vi.restoreAllMocks();
 	delete ( window as unknown as Record< string, unknown > )
-		.desktopModeWindowConfig;
+		.openStationWindowConfig;
 } );
 
 describe( 'agents send-to menu', () => {
@@ -221,7 +221,7 @@ describe( 'agents send-to menu', () => {
 		const wpBag = ( window as unknown as {
 			wp: Record< string, unknown >;
 		} ).wp;
-		wpBag.desktop = { openWindow };
+		wpBag.os = { openWindow };
 		const fetchMock = stubListFetch();
 
 		try {
@@ -255,7 +255,7 @@ describe( 'agents send-to menu', () => {
 				agentsChatStore.state.transcripts[ 12 ]?.length,
 			).toBeGreaterThan( 0 );
 		} finally {
-			delete wpBag.desktop;
+			delete wpBag.os;
 		}
 	} );
 } );

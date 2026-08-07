@@ -102,11 +102,11 @@ describe( 'games/registry.ts', () => {
 		expect( listener ).toHaveBeenCalledTimes( 2 );
 	} );
 
-	test( 'the desktop-mode.games filter participates in all()', async () => {
+	test( 'the os.games filter participates in all()', async () => {
 		const { registry } = await loadModules();
 		registry.register( makeEntry() );
 		hooks.addFilter(
-			'desktop-mode.games',
+			'os.games',
 			'test/add-game',
 			( games ) => [
 				...( games as GameRegistryEntry[] ),
@@ -122,7 +122,7 @@ describe( 'games/registry.ts', () => {
 	test( 'invalid entries returned by a filter are dropped', async () => {
 		const { registry } = await loadModules();
 		registry.register( makeEntry() );
-		hooks.addFilter( 'desktop-mode.games', 'test/mangle', ( games ) => [
+		hooks.addFilter( 'os.games', 'test/mangle', ( games ) => [
 			...( games as GameRegistryEntry[] ),
 			{ id: '' },
 		] );
@@ -154,7 +154,7 @@ describe( 'games/server-sync.ts', () => {
 		} );
 		// No script tags injected — stubs are metadata-only.
 		expect(
-			document.querySelectorAll( 'script[data-desktop-mode-vendor]' ),
+			document.querySelectorAll( 'script[data-os-vendor]' ),
 		).toHaveLength( 0 );
 	} );
 

@@ -14,10 +14,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-themes
+ * @group openstation
+ * @group os-themes
  */
-class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	private function permissive_resolver() {
 		return static function ( $path ) {
@@ -26,7 +26,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	}
 
 	private function sanitize( $raw ) {
-		return desktop_mode_sanitize_desktop_theme_manifest(
+		return openstation_sanitize_desktop_theme_manifest(
 			array_merge(
 				array(
 					'manifestVersion' => 1,
@@ -45,11 +45,11 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	/**
 	 * @dataProvider data_valid_colors
-	 * @covers ::desktop_mode_desktop_theme_is_color_value
+	 * @covers ::openstation_desktop_theme_is_color_value
 	 */
 	public function test_valid_colors_are_accepted( $value ) {
 		$this->assertTrue(
-			desktop_mode_desktop_theme_is_color_value( $value ),
+			openstation_desktop_theme_is_color_value( $value ),
 			'Should have been accepted: ' . $value
 		);
 	}
@@ -72,11 +72,11 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	/**
 	 * @dataProvider data_invalid_colors
-	 * @covers ::desktop_mode_desktop_theme_is_color_value
+	 * @covers ::openstation_desktop_theme_is_color_value
 	 */
 	public function test_invalid_colors_are_rejected( $value ) {
 		$this->assertFalse(
-			desktop_mode_desktop_theme_is_color_value( $value ),
+			openstation_desktop_theme_is_color_value( $value ),
 			'Should have been rejected: ' . var_export( $value, true )
 		);
 	}
@@ -104,16 +104,16 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * `currentColor` is echoed back to authors through the payload and
 	 * the JS API, so it comes out spelled the way CSS spells it.
 	 *
-	 * @covers ::desktop_mode_desktop_theme_normalize_color
+	 * @covers ::openstation_desktop_theme_normalize_color
 	 */
 	public function test_current_color_is_normalized() {
 		$this->assertSame(
 			'currentColor',
-			desktop_mode_desktop_theme_normalize_color( 'CURRENTCOLOR' )
+			openstation_desktop_theme_normalize_color( 'CURRENTCOLOR' )
 		);
 		$this->assertSame(
 			'#fff',
-			desktop_mode_desktop_theme_normalize_color( '#fff' )
+			openstation_desktop_theme_normalize_color( '#fff' )
 		);
 	}
 
@@ -122,7 +122,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_per_icon_color_survives() {
 		$manifest = $this->sanitize( array(
@@ -148,7 +148,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * The manifest-wide default is what makes a monochrome iconset one
 	 * line instead of twenty-odd repetitions.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_manifest_wide_icon_color_applies_to_every_icon() {
 		$manifest = $this->sanitize( array(
@@ -171,14 +171,14 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_per_icon_color_overrides_the_default() {
 		$manifest = $this->sanitize( array(
 			'iconColor' => 'currentColor',
 			'icons'     => array(
 				'OS_SETTINGS'       => array( 'type' => 'image', 'path' => 'a.svg' ),
-				'EXIT_DESKTOP_MODE' => array(
+				'EXIT_OPENSTATION' => array(
 					'type'  => 'image',
 					'path'  => 'b.svg',
 					'color' => '#ff6b81',
@@ -187,7 +187,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 		) );
 
 		$this->assertSame( 'currentColor', $manifest['icons']['OS_SETTINGS']['color'] );
-		$this->assertSame( '#ff6b81', $manifest['icons']['EXIT_DESKTOP_MODE']['color'] );
+		$this->assertSame( '#ff6b81', $manifest['icons']['EXIT_OPENSTATION']['color'] );
 	}
 
 	/**
@@ -195,7 +195,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * keep its own artwork inside an otherwise-tinted set, without the
 	 * author having to abandon the manifest-wide default.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_color_none_opts_a_single_icon_out() {
 		$manifest = $this->sanitize( array(
@@ -221,7 +221,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	/**
 	 * A bad colour drops the colour, never the icon.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_bad_color_drops_without_dropping_the_icon() {
 		$manifest = $this->sanitize( array(
@@ -239,7 +239,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_bad_manifest_icon_color_is_dropped() {
 		$manifest = $this->sanitize( array( 'iconColor' => 'url( evil.png )' ) );
@@ -255,10 +255,10 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * string — the shape `resolveIcon()` and the JS icon filter are
 	 * typed against.
 	 *
-	 * @covers ::desktop_mode_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_payload_carries_tints_in_a_parallel_map() {
-		desktop_mode_register_desktop_theme( 'acme/tinted', array(
+		openstation_register_desktop_theme( 'acme/tinted', array(
 			'name'      => 'Tinted',
 			'iconColor' => 'currentColor',
 			'icons'     => array(
@@ -274,8 +274,8 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 			),
 		) );
 
-		$entry  = desktop_mode_desktop_theme_registry( 'acme-tinted' );
-		$shaped = desktop_mode_shape_desktop_theme_payload_entry( $entry, 'code' );
+		$entry  = openstation_desktop_theme_registry( 'acme-tinted' );
+		$shaped = openstation_shape_desktop_theme_payload_entry( $entry, 'code' );
 
 		$this->assertSame(
 			'https://cdn.test/settings.svg',
@@ -290,17 +290,17 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 		$this->assertArrayNotHasKey( 'RECYCLE_BIN', $shaped['iconColors'] );
 
-		desktop_mode_unregister_desktop_theme( 'acme/tinted' );
+		openstation_unregister_desktop_theme( 'acme/tinted' );
 	}
 
 	/**
 	 * A theme with no tints ships an empty map, not a missing key —
 	 * the shell iterates it unconditionally.
 	 *
-	 * @covers ::desktop_mode_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_untinted_theme_ships_an_empty_map() {
-		desktop_mode_register_desktop_theme( 'acme/plain', array(
+		openstation_register_desktop_theme( 'acme/plain', array(
 			'name'  => 'Plain',
 			'icons' => array(
 				'OS_SETTINGS' => array(
@@ -310,13 +310,13 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 			),
 		) );
 
-		$shaped = desktop_mode_shape_desktop_theme_payload_entry(
-			desktop_mode_desktop_theme_registry( 'acme-plain' ),
+		$shaped = openstation_shape_desktop_theme_payload_entry(
+			openstation_desktop_theme_registry( 'acme-plain' ),
 			'code'
 		);
 		$this->assertSame( array(), $shaped['iconColors'] );
 
-		desktop_mode_unregister_desktop_theme( 'acme/plain' );
+		openstation_unregister_desktop_theme( 'acme/plain' );
 	}
 
 	// ------------------------------------------------------------------
@@ -325,11 +325,11 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	/**
 	 * @dataProvider data_valid_positions
-	 * @covers ::desktop_mode_desktop_theme_is_position_value
+	 * @covers ::openstation_desktop_theme_is_position_value
 	 */
 	public function test_valid_positions_are_accepted( $value ) {
 		$this->assertTrue(
-			desktop_mode_desktop_theme_is_position_value( $value ),
+			openstation_desktop_theme_is_position_value( $value ),
 			'Should have been accepted: ' . $value
 		);
 	}
@@ -349,11 +349,11 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	/**
 	 * @dataProvider data_invalid_positions
-	 * @covers ::desktop_mode_desktop_theme_is_position_value
+	 * @covers ::openstation_desktop_theme_is_position_value
 	 */
 	public function test_invalid_positions_are_rejected( $value ) {
 		$this->assertFalse(
-			desktop_mode_desktop_theme_is_position_value( $value ),
+			openstation_desktop_theme_is_position_value( $value ),
 			'Should have been rejected: ' . $value
 		);
 	}
@@ -373,7 +373,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * A grid texture has to be anchored, not centred — `position` is
 	 * what stops the lattice sliding every time a window resizes.
 	 *
-	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_position_compiles_to_a_background_position() {
 		$manifest = $this->sanitize( array(
@@ -386,16 +386,16 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 				),
 			),
 		) );
-		$css = desktop_mode_desktop_theme_compile_css( $manifest, 'acme-neon', 'https://x.test/t' );
+		$css = openstation_desktop_theme_compile_css( $manifest, 'acme-neon', 'https://x.test/t' );
 
 		$this->assertStringContainsString(
-			'--desktop-mode-window-body-image-position: top left;',
+			'--os-window-body-image-position: top left;',
 			$css
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_bad_position_drops_without_dropping_the_texture() {
 		$manifest = $this->sanitize( array(
@@ -417,7 +417,7 @@ class Tests_DesktopMode_DesktopThemesIconColor extends WP_UnitTestCase {
 	 * for them is slice / width / repeat, and a stray `position` must
 	 * not leak into the output.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_border_image_slots_take_no_position() {
 		$manifest = $this->sanitize( array(

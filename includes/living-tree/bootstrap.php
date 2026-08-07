@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Living Tree wallpaper module bootstrap.
+ * OpenStation — Living Tree wallpaper module bootstrap.
  *
  * The `wp-living-tree` canvas wallpaper renders the site as a living
  * plant organism whose shape is the visual fingerprint of the site's
@@ -12,7 +12,7 @@
  * carries the compact site DNA, the metric helpers behind it, the
  * wallpaper registration, and the bundle asset handle.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

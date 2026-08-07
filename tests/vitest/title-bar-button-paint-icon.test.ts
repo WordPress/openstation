@@ -5,15 +5,15 @@
  * built-in keys onto the `icon` attribute.
  *
  * Catches the regression that prompted this helper: passing a
- * Dashicons class via `wp.desktop.registerTitleBarButton({ icon })`
- * silently rendered an empty button, because `<wpd-window-button>`
+ * Dashicons class via `wp.os.registerTitleBarButton({ icon })`
+ * silently rendered an empty button, because `<os-window-button>`
  * only knows seven hardcoded icon keys.
  */
 import { describe, expect, test } from 'vitest';
 import { paintTitleBarButtonIcon } from '../../src/title-bar-buttons/paint-icon';
 
 function makeHost(): HTMLElement {
-	const host = document.createElement( 'wpd-window-button' );
+	const host = document.createElement( 'os-window-button' );
 	document.body.appendChild( host );
 	return host;
 }

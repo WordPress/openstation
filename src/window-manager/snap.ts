@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Snap-to-grid.
+ * OpenStation — Snap-to-grid.
  *
  * Optional drag / resize quantization. State lives on the window
  * manager and persists to localStorage so the choice survives reloads.

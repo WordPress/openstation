@@ -8,10 +8,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-files
+ * @group openstation
+ * @group os-files
  */
-class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
+class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 	protected static $owner_id;
 	protected static $reader_id;
@@ -25,18 +25,18 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		desktop_mode_files_install_schema();
+		openstation_files_install_schema();
 		wp_set_current_user( self::$owner_id );
 	}
 
 	public function tear_down() {
 		global $wpdb;
-		$tables = desktop_mode_files_table_names();
+		$tables = openstation_files_table_names();
 		foreach ( $tables as $t ) {
 			$wpdb->query( "TRUNCATE TABLE $t" );
 		}
-		remove_all_filters( 'desktop_mode_stored_files_zip_caps' );
-		$base = desktop_mode_stored_files_dir();
+		remove_all_filters( 'openstation_stored_files_zip_caps' );
+		$base = openstation_stored_files_dir();
 		if ( is_dir( $base ) ) {
 			$this->rrmdir( $base );
 		}
@@ -54,10 +54,10 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 	}
 
 	private function make_stored_file( $owner_id, $name, $contents = 'bytes', $mime = 'text/plain' ) {
-		$dir       = desktop_mode_stored_files_ensure_dir( $owner_id );
+		$dir       = openstation_stored_files_ensure_dir( $owner_id );
 		$disk_name = wp_generate_uuid4();
 		file_put_contents( $dir . '/' . $disk_name, $contents );
-		return desktop_mode_stored_files_create( $owner_id, array(
+		return openstation_stored_files_create( $owner_id, array(
 			'display_name' => $name,
 			'disk_name'    => $disk_name,
 			'size_bytes'   => strlen( $contents ),
@@ -68,20 +68,20 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 	private function download_request( $file_id ) {
 		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/uploads/' . $file_id . '/download' );
 		$req['id'] = $file_id;
-		return desktop_mode_files_rest_download_file( $req );
+		return openstation_files_rest_download_file( $req );
 	}
 
 	private function zip_request( $folder_id ) {
 		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/folders/' . $folder_id . '/download' );
 		$req['id'] = $folder_id;
-		return desktop_mode_files_rest_download_folder_zip( $req );
+		return openstation_files_rest_download_folder_zip( $req );
 	}
 
 	public function test_owner_gets_stream_marker_with_correct_path() {
 		$id  = $this->make_stored_file( self::$owner_id, 'a.txt', 'file contents' );
 		$res = $this->download_request( $id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__desktop_mode_stream'];
+		$stream = $res->get_data()['__openstation_stream'];
 		$this->assertSame( 'a.txt', $stream['name'] );
 		$this->assertSame( 'text/plain', $stream['mime'] );
 		$this->assertFalse( $stream['delete_after'] );
@@ -104,17 +104,17 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 
 	public function test_file_share_recipient_can_download_until_revoked() {
 		$id       = $this->make_stored_file( self::$owner_id, 'shared.txt' );
-		desktop_mode_files_place( self::$owner_id, 0, 'upload', (string) $id );
-		$share_id = desktop_mode_stored_file_share_invite( $id, self::$owner_id, self::$reader_id );
+		openstation_files_place( self::$owner_id, 0, 'upload', (string) $id );
+		$share_id = openstation_stored_file_share_invite( $id, self::$owner_id, self::$reader_id );
 		$this->assertIsInt( $share_id );
-		desktop_mode_stored_file_share_accept( $share_id, self::$reader_id );
+		openstation_stored_file_share_accept( $share_id, self::$reader_id );
 
 		wp_set_current_user( self::$reader_id );
 		$res = $this->download_request( $id );
 		$this->assertNotWPError( $res );
 
 		wp_set_current_user( self::$owner_id );
-		desktop_mode_stored_file_share_revoke( $share_id, self::$owner_id );
+		openstation_stored_file_share_revoke( $share_id, self::$owner_id );
 
 		wp_set_current_user( self::$reader_id );
 		$res2 = $this->download_request( $id );
@@ -124,24 +124,24 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 
 	public function test_zip_contains_nested_paths_skips_references_and_keeps_empty_dirs() {
 		// Tree: Root/ { a.txt, Sub/ { b.txt }, Empty/, <post reference> }
-		$root_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Root' ) );
-		$sub_id  = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Sub' ) );
-		$empty_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Empty' ) );
-		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'folder', (string) $sub_id );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'folder', (string) $empty_id );
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Root' ) );
+		$sub_id  = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Sub' ) );
+		$empty_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Empty' ) );
+		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'folder', (string) $sub_id );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'folder', (string) $empty_id );
 
 		$a = $this->make_stored_file( self::$owner_id, 'a.txt', 'AAA' );
 		$b = $this->make_stored_file( self::$owner_id, 'b.txt', 'BBB' );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $a );
-		desktop_mode_files_place( self::$owner_id, (int) $sub_id, 'upload', (string) $b );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $a );
+		openstation_files_place( self::$owner_id, (int) $sub_id, 'upload', (string) $b );
 
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'post', (string) $post_id );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'post', (string) $post_id );
 
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__desktop_mode_stream'];
+		$stream = $res->get_data()['__openstation_stream'];
 		$this->assertSame( 'Root.zip', $stream['name'] );
 		$this->assertSame( 'application/zip', $stream['mime'] );
 		$this->assertTrue( $stream['delete_after'] );
@@ -163,16 +163,16 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 	}
 
 	public function test_zip_dedupes_case_colliding_names() {
-		$root_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Dupes' ) );
-		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Dupes' ) );
+		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
 		$a = $this->make_stored_file( self::$owner_id, 'report.pdf', '1' );
 		$b = $this->make_stored_file( self::$owner_id, 'Report.pdf', '2' );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $a );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $b );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $a );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $b );
 
 		$res    = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__desktop_mode_stream'];
+		$stream = $res->get_data()['__openstation_stream'];
 		$zip    = new ZipArchive();
 		$zip->open( $stream['path'] );
 		$names = array();
@@ -188,22 +188,22 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 	}
 
 	public function test_zip_cap_exceeded_yields_friendly_error() {
-		add_filter( 'desktop_mode_stored_files_zip_caps', function () {
+		add_filter( 'openstation_stored_files_zip_caps', function () {
 			return array( 'max_entries' => 1, 'max_bytes' => MB_IN_BYTES );
 		} );
-		$root_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Big' ) );
-		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Big' ) );
+		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
 		foreach ( array( 'a.txt', 'b.txt' ) as $n ) {
 			$fid = $this->make_stored_file( self::$owner_id, $n );
-			desktop_mode_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $fid );
+			openstation_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $fid );
 		}
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertWPError( $res );
-		$this->assertSame( 'desktop_mode_stored_files_zip_too_big', $res->get_error_code() );
+		$this->assertSame( 'openstation_stored_files_zip_too_big', $res->get_error_code() );
 	}
 
 	public function test_zip_of_unshared_folder_is_masked_404_for_stranger() {
-		$root_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Private' ) );
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Private' ) );
 		wp_set_current_user( self::$stranger_id );
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertWPError( $res );
@@ -211,38 +211,38 @@ class Tests_DesktopMode_Downloads extends WP_UnitTestCase {
 	}
 
 	public function test_folder_share_reader_can_zip() {
-		$root_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
-		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
+		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
 		$fid = $this->make_stored_file( self::$owner_id, 'doc.txt' );
-		desktop_mode_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $fid );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'upload', (string) $fid );
 
-		$share_id = desktop_mode_folder_share_invite( (int) $root_id, self::$owner_id, 'user', (string) self::$reader_id, 'read' );
-		desktop_mode_folder_share_accept( $share_id, self::$reader_id );
+		$share_id = openstation_folder_share_invite( (int) $root_id, self::$owner_id, 'user', (string) self::$reader_id, 'read' );
+		openstation_folder_share_accept( $share_id, self::$reader_id );
 
 		wp_set_current_user( self::$reader_id );
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		wp_delete_file( $res->get_data()['__desktop_mode_stream']['path'] );
+		wp_delete_file( $res->get_data()['__openstation_stream']['path'] );
 	}
 
 	public function test_serve_filter_ignores_foreign_routes_and_errors() {
 		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/placements' );
 		$this->assertFalse(
-			desktop_mode_files_serve_download( false, new WP_REST_Response( array( 'x' => 1 ) ), $req )
+			openstation_files_serve_download( false, new WP_REST_Response( array( 'x' => 1 ) ), $req )
 		);
 		$dl_req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/uploads/5/download' );
 		// A 404 error result must fall through to JSON serving.
 		$this->assertFalse(
-			desktop_mode_files_serve_download( false, new WP_REST_Response( array( 'code' => 'x' ), 404 ), $dl_req )
+			openstation_files_serve_download( false, new WP_REST_Response( array( 'code' => 'x' ), 404 ), $dl_req )
 		);
 	}
 
 	public function test_zip_unique_name_helper() {
 		$used = array();
-		$this->assertSame( 'a.txt', desktop_mode_files_zip_unique_name( 'a.txt', $used ) );
-		$this->assertSame( 'a (2).txt', desktop_mode_files_zip_unique_name( 'a.txt', $used ) );
-		$this->assertSame( 'A (3).txt', desktop_mode_files_zip_unique_name( 'A.txt', $used ) );
-		$this->assertSame( 'noext', desktop_mode_files_zip_unique_name( 'noext', $used ) );
-		$this->assertSame( 'noext (2)', desktop_mode_files_zip_unique_name( 'noext', $used ) );
+		$this->assertSame( 'a.txt', openstation_files_zip_unique_name( 'a.txt', $used ) );
+		$this->assertSame( 'a (2).txt', openstation_files_zip_unique_name( 'a.txt', $used ) );
+		$this->assertSame( 'A (3).txt', openstation_files_zip_unique_name( 'A.txt', $used ) );
+		$this->assertSame( 'noext', openstation_files_zip_unique_name( 'noext', $used ) );
+		$this->assertSame( 'noext (2)', openstation_files_zip_unique_name( 'noext', $used ) );
 	}
 }

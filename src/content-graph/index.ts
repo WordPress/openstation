@@ -9,7 +9,7 @@
  * out per-relationship satellites that the user can click to deep-link
  * into authors, terms, comments, media, and revisions.
  *
- * The `<wpd-*>` web components are defined by the main desktop
+ * The `<os-*>` web components are defined by the main desktop
  * bundle; this module only consumes them.
  *
  * @public
@@ -34,7 +34,7 @@ type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
@@ -46,7 +46,7 @@ interface ActiveState {
 
 async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 	const root = body.querySelector< HTMLElement >(
-		'[data-desktop-mode-content-graph-root]',
+		'[data-os-content-graph-root]',
 	);
 	if ( ! root ) {
 		body.textContent = __( 'Corkboard container missing.' );
@@ -55,20 +55,20 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 	const cfg = getConfig();
 
 	const toolbarHost = root.querySelector< HTMLElement >(
-		'[data-desktop-mode-content-graph-toolbar]',
+		'[data-os-content-graph-toolbar]',
 	)!;
 	const stageHost = root.querySelector< HTMLElement >(
-		'[data-desktop-mode-content-graph-stage]',
+		'[data-os-content-graph-stage]',
 	)!;
 	const panelHost = root.querySelector< HTMLElement >(
-		'[data-desktop-mode-content-graph-panel]',
+		'[data-os-content-graph-panel]',
 	)!;
 	const loading = root.querySelector< HTMLElement >(
-		'[data-desktop-mode-content-graph-loading]',
+		'[data-os-content-graph-loading]',
 	);
 
-	const desktopApi = ( window.wp as { desktop?: DesktopApiLike } | undefined )
-		?.desktop ?? {};
+	const desktopApi = ( window.wp as { os?: DesktopApiLike } | undefined )
+		?.os ?? {};
 
 	let activeTypes: string[] = cfg.postTypes.map( ( t ) => t.slug );
 	let scene: GraphScene | null = null;
@@ -268,8 +268,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 }
 
 const registry =
-	( window.desktopModeNativeWindows ??
-		( window.desktopModeNativeWindows = {} ) ) as Record<
+	( window.openStationNativeWindows ??
+		( window.openStationNativeWindows = {} ) ) as Record<
 		string,
 		RenderCallback | undefined
 	>;

@@ -1,32 +1,35 @@
 /**
- * Desktop Mode — editor-preview ("eye") title-bar button.
+ * OpenStation — editor-preview ("eye") title-bar button.
  *
  * Registers the built-in "Preview" button through the very same
  * public surface a plugin would use (`registerTitleBarButton`). The
  * button appears only on windows whose content identity carries a
  * `previewUrl` — built server-side by
- * `desktop_mode_window_preview_url()` in `includes/window-links.php`
+ * `openstation_window_preview_url()` in `includes/window-links.php`
  * for post/page/CPT edit screens of viewable post types, and
- * travelling with the `desktop-mode-content-identity` bridge payload.
+ * travelling with the `os-content-identity` bridge payload.
  *
  * Clicking the eye:
  *  1. Snaps the editor window to the left half (instant feedback;
  *     skipped on small screens).
- *  2. Asks the editor iframe to autosave (`requestEditorAutosave`),
- *     so the preview reflects on-screen content — the same thing
- *     Gutenberg's own Preview button does.
- *  3. Opens the front-end preview as a companion window snapped to
- *     the right half, and records the editor↔preview pairing.
+ *  2. Opens the front-end preview as a companion window snapped to
+ *     the right half — immediately, wearing the standard loading
+ *     overlay — and records the editor↔preview pairing.
+ *  3. In parallel, asks the editor iframe to autosave
+ *     (`requestEditorAutosave`) — the same thing Gutenberg's own
+ *     Preview button does — and, when something was actually saved,
+ *     silently refreshes the companion so it reflects on-screen
+ *     content even when its first load raced the save.
  *
  * The pairing drives everything after that: the preview auto-reloads
- * whenever the post is saved (via the `desktop-mode.<type>.changed`
+ * whenever the post is saved (via the `os.<type>.changed`
  * broadcast every save path already emits), closes when the editor
  * closes or navigates to different content, and toggles off on a
  * second eye click. Closing the preview never touches the editor.
  * After the initial placement the module never re-snaps either window
  * — the user is free to rearrange, the pairing survives.
  *
- * Developer surface: the `desktop_mode_window_preview_url` PHP filter
+ * Developer surface: the `openstation_window_preview_url` PHP filter
  * rewrites/suppresses the URL; `HOOKS.EDITOR_PREVIEW_WINDOW_CONFIG`
  * filters the companion's `WindowConfig`;
  * `HOOKS.EDITOR_PREVIEW_OPENED` / `EDITOR_PREVIEW_CLOSED` (and the
@@ -93,9 +96,9 @@ interface PreviewPairing {
 	reloadTimer: number | null;
 	/**
 	 * Correlation id of the iframe-side live watch (typing →
-	 * debounced autosave → `desktop-mode-editor-live-saved`).
+	 * debounced autosave → `os-editor-live-saved`).
 	 * Empty when live updates are disabled via the
-	 * `desktop-mode.editor-preview.live` filter.
+	 * `os.editor-preview.live` filter.
 	 */
 	watchId: string;
 }
@@ -122,7 +125,7 @@ const RELOAD_DEBOUNCE_MS = 400;
  * Default settle window for live (typing-driven) preview updates —
  * how long after the last edit the editor iframe waits before
  * autosaving and nudging the preview to reload. Filterable via
- * `desktop-mode.editor-preview.live`.
+ * `os.editor-preview.live`.
  */
 const LIVE_DEBOUNCE_DEFAULT_MS = 1500;
 
@@ -202,23 +205,7 @@ function teardownPairing(
 		/* already unsubscribed */
 	}
 
-	// Stop the iframe-side live watch. Best-effort: when the editor
-	// window itself is closing (or already navigated away) the watch
-	// dies with the page anyway.
-	if ( pairing.watchId ) {
-		const editorWin = manager.getById( pairing.editorWindowId );
-		try {
-			editorWin?.iframe?.contentWindow?.postMessage(
-				{
-					type: 'desktop-mode-editor-live-unwatch',
-					watchId: pairing.watchId,
-				},
-				window.location.origin,
-			);
-		} catch {
-			/* frame gone */
-		}
-	}
+	stopLiveWatch( manager, pairing );
 
 	if ( closePreview !== 'none' ) {
 		const previewWin = manager.getById( pairing.previewWindowId );
@@ -237,7 +224,7 @@ function teardownPairing(
 		reason,
 	};
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-editor-preview-closed', { detail } ),
+		new CustomEvent( 'os-editor-preview-closed', { detail } ),
 	);
 	doAction( HOOKS.EDITOR_PREVIEW_CLOSED, detail );
 
@@ -292,7 +279,7 @@ function scheduleReload(
 /**
  * Wire the save-driven reload for a fresh pairing: subscribe to the
  * content-change topic every save path emits
- * (`desktop-mode.<type>.changed` — Gutenberg save-watcher, classic
+ * (`os.<type>.changed` — Gutenberg save-watcher, classic
  * footer emitter, Heartbeat catch-up) and soft-reload the companion,
  * debounced.
  */
@@ -301,7 +288,7 @@ function wireSaveReload(
 	pairing: PreviewPairing,
 	content: WindowContentRef,
 ): void {
-	const topic = `desktop-mode.${ content.type }.changed`;
+	const topic = `os.${ content.type }.changed`;
 	const postId = String( content.id );
 
 	pairing.unsubscribe = subscribe< { ids?: unknown } >(
@@ -323,9 +310,37 @@ function wireSaveReload(
 let watchCounter = 0;
 
 /**
+ * Stop a pairing's iframe-side live watch and clear the correlation
+ * id. Best-effort: when the editor window is closing (or the page
+ * already navigated away) the watch dies with the page anyway, and
+ * an unwatch for an id the current page never saw is a no-op.
+ */
+function stopLiveWatch(
+	manager: EditorPreviewManager,
+	pairing: PreviewPairing,
+): void {
+	if ( ! pairing.watchId ) {
+		return;
+	}
+	const editorWin = manager.getById( pairing.editorWindowId );
+	try {
+		editorWin?.iframe?.contentWindow?.postMessage(
+			{
+				type: 'os-editor-live-unwatch',
+				watchId: pairing.watchId,
+			},
+			window.location.origin,
+		);
+	} catch {
+		/* frame gone */
+	}
+	pairing.watchId = '';
+}
+
+/**
  * Ask the editor iframe to watch its own content and autosave after
- * every typing pause (`desktop-mode-editor-live-watch`) — the live
- * half of the preview. The `desktop-mode.editor-preview.live` filter
+ * every typing pause (`os-editor-live-watch`) — the live
+ * half of the preview. The `os.editor-preview.live` filter
  * can disable it or tune the settle window; without a reachable
  * iframe (or with `enabled: false`) the pairing falls back to
  * save-driven reloads only.
@@ -335,6 +350,10 @@ function startLiveWatch(
 	pairing: PreviewPairing,
 	content: WindowContentRef,
 ): void {
+	// A previous watch on this pairing (re-announced readiness
+	// without a page reload) must not keep autosaving in parallel.
+	stopLiveWatch( manager, pairing );
+
 	const live = applyFilters< {
 		enabled?: boolean;
 		debounceMs?: number;
@@ -358,7 +377,7 @@ function startLiveWatch(
 	try {
 		target.postMessage(
 			{
-				type: 'desktop-mode-editor-live-watch',
+				type: 'os-editor-live-watch',
 				watchId,
 				debounceMs:
 					typeof live.debounceMs === 'number'
@@ -396,8 +415,18 @@ export function _setAutosaveTransportForTests(
 }
 
 /**
- * The eye click: toggle off when paired, otherwise snap-left +
- * autosave + open the companion snapped right.
+ * The eye click: toggle off when paired, otherwise snap-left + open
+ * the companion snapped right IMMEDIATELY — wearing the standard
+ * window loading overlay — while the editor autosaves in parallel.
+ *
+ * The companion opens at the identity's `previewUrl` without waiting
+ * for the autosave round-trip: on a slow save the old
+ * autosave-then-open order read as a hang (nothing on screen reacted
+ * for seconds). Instead, the round-trip resolves in the background
+ * and — when it actually saved — silently `swapReload`s the
+ * companion, so the preview still ends up reflecting the content
+ * that was on screen at click time even when its first load raced
+ * the save. The eye pulses (`aria-busy`) until the save settles.
  */
 async function onEyeClick(
 	manager: EditorPreviewManager,
@@ -410,7 +439,12 @@ async function onEyeClick(
 	}
 
 	if ( store.state.busyEditors.has( win.id ) ) {
-		// Autosave round-trip already in flight — ignore the re-click.
+		// A companion open is already in flight — ignore the re-click.
+		return;
+	}
+
+	if ( ! manager.getById( win.id ) ) {
+		// The editor window is already gone (stale render).
 		return;
 	}
 
@@ -430,120 +464,124 @@ async function onEyeClick(
 		win.applySnap?.( 'left' );
 	}
 
-	try {
-		const result = await requestAutosave( win );
-		if ( result.status === 'error' ) {
-			showToast( {
-				message: __(
-					"Couldn't save your latest changes — the preview shows the last saved version.",
-				),
-			} );
-		}
+	// Kick the autosave off first — it runs while the companion
+	// window opens and loads. The busy pulse on the eye clears when
+	// the round-trip settles, whatever happened to the pairing
+	// meanwhile; the error toast is owed to the user regardless.
+	const autosavePromise = requestAutosave( win );
+	void autosavePromise
+		.then( ( result ) => {
+			if ( result.status === 'error' ) {
+				showToast( {
+					message: __(
+						"Couldn't save your latest changes — the preview shows the last saved version.",
+					),
+				} );
+			}
+		} )
+		.finally( () => {
+			store.state.busyEditors.delete( win.id );
+			manager.getById( win.id )?.renderCustomTitleBarButtons?.();
+		} );
 
-		// The window may have closed (or navigated away) while the
-		// autosave was in flight.
-		if ( ! manager.getById( win.id ) ) {
-			return;
-		}
-		const latest = getWindowContent( win.id ) ?? content;
-		if ( contentKey( latest ) !== contentKey( content ) ) {
-			return;
-		}
-
-		const url =
-			( result.status === 'saved' && result.previewUrl ) ||
-			latest.previewUrl ||
-			content.previewUrl;
-		if ( ! url ) {
-			return;
-		}
-
-		const previewId = `editor-preview-${ String( content.type ).replace(
-			/\//g,
-			'-',
-		) }-${ content.id }`;
-		let title = __( 'Preview' );
-		if ( latest.label ) {
-			/* translators: %s: post title. */
-			title = sprintf( __( 'Preview: %s' ), latest.label );
-		}
-
-		let config: Partial< WindowConfig > & {
-			id: string;
-			url: string;
-			title: string;
-		} = {
-			id: previewId,
-			baseId: previewId, // Singleton per post — reopen focuses.
-			url,
-			title,
-			icon: 'dashicons-visibility',
-			ephemeral: true,
-			...( small ? {} : { initialState: 'snapped-right' as const } ),
-		};
-		const filtered = applyFilters< typeof config >(
-			HOOKS.EDITOR_PREVIEW_WINDOW_CONFIG,
-			config,
-			{ editorWindowId: win.id, content: latest },
-		);
-		if (
-			filtered &&
-			typeof filtered === 'object' &&
-			typeof filtered.id === 'string' &&
-			filtered.id !== '' &&
-			typeof filtered.url === 'string' &&
-			filtered.url !== ''
-		) {
-			config = filtered;
-		} else if ( typeof console !== 'undefined' ) {
-			console.warn(
-				'[desktop-mode] `desktop-mode.editor-preview.window-config` ' +
-					'filter returned an invalid config; using the default.',
-			);
-		}
-
-		await manager.open( config );
-
-		// The editor may have closed — or navigated to different
-		// content — while the companion was OPENING: no pairing
-		// existed yet, so the lifecycle handlers couldn't clean up.
-		// Don't strand an orphaned companion.
-		if (
-			! manager.getById( win.id ) ||
-			contentKey( getWindowContent( win.id ) ) !== contentKey( latest )
-		) {
-			manager.getById( config.id )?.destroy?.();
-			return;
-		}
-
-		const pairing: PreviewPairing = {
-			editorWindowId: win.id,
-			previewWindowId: config.id,
-			postKey: contentKey( latest ),
-			openUrl: config.url,
-			unsubscribe: () => undefined,
-			reloadTimer: null,
-			watchId: '',
-		};
-		wireSaveReload( manager, pairing, latest );
-		startLiveWatch( manager, pairing, latest );
-		store.state.pairings.set( win.id, pairing );
-
-		const detail = {
-			editorWindowId: win.id,
-			previewWindowId: config.id,
-			content: latest,
-		};
-		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-editor-preview-opened', {
-				detail,
-			} ),
-		);
-		doAction( HOOKS.EDITOR_PREVIEW_OPENED, detail );
-	} finally {
-		store.state.busyEditors.delete( win.id );
-		manager.getById( win.id )?.renderCustomTitleBarButtons?.();
+	const previewId = `editor-preview-${ String( content.type ).replace(
+		/\//g,
+		'-',
+	) }-${ content.id }`;
+	let title = __( 'Preview' );
+	if ( content.label ) {
+		/* translators: %s: post title. */
+		title = sprintf( __( 'Preview: %s' ), content.label );
 	}
+
+	let config: Partial< WindowConfig > & {
+		id: string;
+		url: string;
+		title: string;
+	} = {
+		id: previewId,
+		baseId: previewId, // Singleton per post — reopen focuses.
+		url: content.previewUrl,
+		title,
+		icon: 'dashicons-visibility',
+		ephemeral: true,
+		...( small ? {} : { initialState: 'snapped-right' as const } ),
+	};
+	const filtered = applyFilters< typeof config >(
+		HOOKS.EDITOR_PREVIEW_WINDOW_CONFIG,
+		config,
+		{ editorWindowId: win.id, content },
+	);
+	if (
+		filtered &&
+		typeof filtered === 'object' &&
+		typeof filtered.id === 'string' &&
+		filtered.id !== '' &&
+		typeof filtered.url === 'string' &&
+		filtered.url !== ''
+	) {
+		config = filtered;
+	} else if ( typeof console !== 'undefined' ) {
+		console.warn(
+			'[openstation] `os.editor-preview.window-config` ' +
+				'filter returned an invalid config; using the default.',
+		);
+	}
+
+	await manager.open( config );
+
+	// The editor may have closed — or navigated to different
+	// content — while the companion was OPENING: no pairing
+	// existed yet, so the lifecycle handlers couldn't clean up.
+	// Don't strand an orphaned companion.
+	if (
+		! manager.getById( win.id ) ||
+		contentKey( getWindowContent( win.id ) ) !== contentKey( content )
+	) {
+		manager.getById( config.id )?.destroy?.();
+		return;
+	}
+
+	const pairing: PreviewPairing = {
+		editorWindowId: win.id,
+		previewWindowId: config.id,
+		postKey: contentKey( content ),
+		openUrl: config.url,
+		unsubscribe: () => undefined,
+		reloadTimer: null,
+		watchId: '',
+	};
+	wireSaveReload( manager, pairing, content );
+	startLiveWatch( manager, pairing, content );
+	store.state.pairings.set( win.id, pairing );
+
+	const detail = {
+		editorWindowId: win.id,
+		previewWindowId: config.id,
+		content,
+	};
+	document.dispatchEvent(
+		new CustomEvent( 'os-editor-preview-opened', {
+			detail,
+		} ),
+	);
+	doAction( HOOKS.EDITOR_PREVIEW_OPENED, detail );
+
+	// When the background autosave actually saved something, refresh
+	// the companion — silently, and at the fresher preview link when
+	// the save reported one (e.g. a published post's autosave
+	// revision). `not-dirty` / `no-editor` settles change nothing
+	// server-side, so the initial load is already current and a
+	// refresh would be wasted work.
+	void autosavePromise.then( ( result ) => {
+		if ( store.state.pairings.get( win.id ) !== pairing ) {
+			// Torn down (or replaced) while the save was in flight.
+			return;
+		}
+		if ( result.status === 'saved' ) {
+			scheduleReload( manager, pairing, result.previewUrl );
+		}
+	} );
 }
 
 /**
@@ -585,7 +623,7 @@ export function bootEditorPreview( {
 				host.setAttribute( 'aria-disabled', 'true' );
 				host.setAttribute( 'aria-label', hint );
 				host.setAttribute( 'title', hint );
-				host.classList.add( 'desktop-mode-window__btn--disabled' );
+				host.classList.add( 'os-window__btn--disabled' );
 				host.addEventListener( 'click', ( e: Event ) => {
 					e.stopPropagation();
 					showToast( {
@@ -602,7 +640,7 @@ export function bootEditorPreview( {
 			host.setAttribute( 'aria-pressed', String( paired ) );
 			if ( busy ) {
 				host.setAttribute( 'aria-busy', 'true' );
-				host.classList.add( 'desktop-mode-window__btn--busy' );
+				host.classList.add( 'os-window__btn--busy' );
 			}
 			host.addEventListener( 'click', ( e: Event ) => {
 				e.stopPropagation();
@@ -659,13 +697,27 @@ export function bootEditorPreview( {
 	// window's buttons so the disabled eye appears when the user
 	// navigates to "Add New" WITHOUT an identity change (list table →
 	// post-new.php is a null → null identity transition, which fires
-	// no WINDOW_CONTENT_CHANGED).
+	// no WINDOW_CONTENT_CHANGED). For a paired EDITOR window this is
+	// also the re-arm point for the live watch: the watch lives in
+	// the iframe page's JS and dies on every reload or navigation —
+	// the classic editor reloads on every manual save, which used to
+	// leave the pairing alive but the typing-driven refresh
+	// permanently dead. Same-post navigations keep the pairing
+	// (WINDOW_CONTENT_CHANGED tears it down when the content stops
+	// matching), so a fresh watch is the right default here.
 	addAction(
 		HOOKS.IFRAME_READY,
 		'desktop-mode/editor-preview',
 		( e: { windowId?: string } ) => {
 			if ( ! e?.windowId ) {
 				return;
+			}
+			const pairing = store.state.pairings.get( e.windowId );
+			if ( pairing ) {
+				const content = getWindowContent( e.windowId );
+				if ( content && contentKey( content ) === pairing.postKey ) {
+					startLiveWatch( manager, pairing, content );
+				}
 			}
 			manager.getById( e.windowId )?.renderCustomTitleBarButtons?.();
 		},
@@ -683,7 +735,7 @@ export function bootEditorPreview( {
 		if (
 			! data ||
 			typeof data !== 'object' ||
-			data.type !== 'desktop-mode-editor-live-saved' ||
+			data.type !== 'os-editor-live-saved' ||
 			typeof data.watchId !== 'string'
 		) {
 			return;

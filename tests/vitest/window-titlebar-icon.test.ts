@@ -31,7 +31,7 @@ function makeWindow( icon: string ): HTMLElement {
 }
 
 function titleBarIcon( el: HTMLElement ): HTMLElement | null {
-	return el.querySelector< HTMLElement >( '.desktop-mode-window__icon' );
+	return el.querySelector< HTMLElement >( '.os-window__icon' );
 }
 
 describe( 'createWindowElement — title-bar icon shapes', () => {
@@ -77,7 +77,7 @@ describe( 'createWindowElement — title-bar icon shapes', () => {
 		const iconEl = titleBarIcon( makeWindow( 'none' ) );
 		expect( iconEl ).not.toBeNull();
 		expect(
-			iconEl!.classList.contains( 'desktop-mode-icon-letter' ),
+			iconEl!.classList.contains( 'os-icon-letter' ),
 		).toBe( true );
 		expect( iconEl!.textContent ).toBe( 'GA' );
 	} );

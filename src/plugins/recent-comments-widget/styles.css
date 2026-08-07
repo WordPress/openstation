@@ -3,7 +3,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding-bottom: 8px;
-	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	border-bottom: 1px solid var(--os-ui-color-border, #e5e7eb);
 	margin-bottom: 4px;
 	flex-shrink: 0;
 	min-width: 0;
@@ -13,7 +13,7 @@
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	color: var(--wpd-color-text-subtle, #6b7280);
+	color: var(--os-ui-color-text-subtle, #6b7280);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -44,7 +44,7 @@
 	align-items: flex-start;
 	gap: 8px;
 	padding: 6px 0;
-	border-bottom: 1px solid var(--wpd-color-border, #f3f4f6);
+	border-bottom: 1px solid var(--os-ui-color-border, #f3f4f6);
 	min-width: 0;
 }
 .dm-comments__row:last-child { border-bottom: none; }
@@ -52,7 +52,7 @@
 	width: 28px;
 	height: 28px;
 	border-radius: 50%;
-	background: var(--wpd-color-accent, #3b82f6);
+	background: var(--os-ui-color-accent, #3b82f6);
 	color: #fff;
 	display: flex;
 	align-items: center;
@@ -92,14 +92,14 @@
 }
 .dm-comments__time {
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	margin-left: auto;
 	white-space: nowrap;
 	flex-shrink: 0;
 }
 .dm-comments__post {
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -109,7 +109,7 @@
 .dm-comments__error {
 	padding: 12px 0;
 	font-size: 11px;
-	color: var(--wpd-color-text-subtle, #9ca3af);
+	color: var(--os-ui-color-text-subtle, #9ca3af);
 	text-align: center;
 }
 .dm-comments__error { color: #ef4444; }

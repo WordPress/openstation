@@ -201,7 +201,7 @@ export interface SnowSceneOptions {
 	settings: SnowSettings;
 	prefersReducedMotion: boolean;
 	/**
-	 * Live surface supplier (`wp.desktop.getWallpaperSurfaces`), or
+	 * Live surface supplier (`wp.os.getWallpaperSurfaces`), or
 	 * `null` to disable collisions entirely (tile previews — surface
 	 * rects are viewport-space and meaningless inside a tile).
 	 */
@@ -428,7 +428,7 @@ export async function mountSnowScene(
 	// Cached list of solid surfaces with a `top` face — the shell
 	// owns the authoritative list (windows, taskbar, widget cards,
 	// shell floor, plus anything plugin filters push in via
-	// `desktop-mode.wallpaper.surfaces`) and hands it back via
+	// `os.wallpaper.surfaces`) and hands it back via
 	// `getSurfaces`. Refreshed on a 20Hz cadence, and eagerly
 	// whenever the entry flips the dirty bit on a window-geometry
 	// hook so stuck-flake positions track fast-moving windows

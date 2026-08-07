@@ -1,18 +1,18 @@
 <?php
 /**
- * Desktop Mode widget/window and asset registration.
+ * OpenStation widget/window and asset registration.
  *
- * @package DesktopModeFeedBuddy
+ * @package OpenStationFeedBuddy
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Attach UI hooks when Desktop Mode is available.
+ * Attach UI hooks when OpenStation is available.
  */
 function feed_buddy_maybe_boot_ui() {
-	if ( ! function_exists( 'desktop_mode_register_window' )
-		|| ! function_exists( 'desktop_mode_register_widget' ) ) {
+	if ( ! function_exists( 'openstation_register_window' )
+		|| ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
 
@@ -28,7 +28,7 @@ function feed_buddy_register_assets() {
 	wp_register_script(
 		'desktop-mode-feed-buddy',
 		FEED_BUDDY_URL . 'assets/js/feed-buddy.min.js',
-		array( 'wp-i18n', 'desktop-mode' ),
+		array( 'wp-i18n', 'openstation' ),
 		FEED_BUDDY_VERSION,
 		true
 	);
@@ -37,7 +37,7 @@ function feed_buddy_register_assets() {
 		wp_register_script(
 			'desktop-mode-feed-buddy',
 			FEED_BUDDY_URL . 'assets/js/feed-buddy.js',
-			array( 'wp-i18n', 'desktop-mode' ),
+			array( 'wp-i18n', 'openstation' ),
 			FEED_BUDDY_VERSION,
 			true
 		);
@@ -46,7 +46,7 @@ function feed_buddy_register_assets() {
 	wp_register_style(
 		'desktop-mode-feed-buddy',
 		FEED_BUDDY_URL . 'assets/css/feed-buddy.css',
-		array( 'desktop-mode-variables', 'dashicons' ),
+		array( 'os-variables', 'dashicons' ),
 		FEED_BUDDY_VERSION
 	);
 
@@ -64,7 +64,7 @@ function feed_buddy_register_assets() {
  * The window's own `placement => 'dock'` puts a launcher tile on the
  * dock, but a docked native window is not a *placeable item* — the
  * OS Settings "Apps & Icons" tab builds its list from the dock-item
- * payload plus `desktop_mode_register_icon()` registrations, so a
+ * payload plus `openstation_register_icon()` registrations, so a
  * window-only registration never shows up there and the user has no
  * way to move it to the wallpaper or hide it. Registering the icon
  * alongside the window is the pattern the other bundled extensions
@@ -83,7 +83,7 @@ function feed_buddy_register_surfaces() {
 		'pollMs'    => 300000,
 	);
 
-	$window = desktop_mode_register_window(
+	$window = openstation_register_window(
 		'feed-buddy-reader',
 		array(
 			'title'        => __( 'SOL Inbound Monologue', 'desktop-mode-feed-buddy' ),
@@ -104,7 +104,7 @@ function feed_buddy_register_surfaces() {
 		error_log( '[feed-buddy] reader registration failed: ' . $window->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
-	$widget = desktop_mode_register_widget(
+	$widget = openstation_register_widget(
 		'feed-buddy/buddy-list',
 		array(
 			'label'          => __( 'SOL Inbound Monologue', 'desktop-mode-feed-buddy' ),
@@ -126,14 +126,14 @@ function feed_buddy_register_surfaces() {
 		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
-	// Guarded: older Desktop Mode builds shipped the window and widget
+	// Guarded: older OpenStation builds shipped the window and widget
 	// registries without the icon one. Missing icon support costs the
 	// Apps & Icons row, not the extension.
-	if ( ! function_exists( 'desktop_mode_register_icon' ) ) {
+	if ( ! function_exists( 'openstation_register_icon' ) ) {
 		return;
 	}
 
-	$icon = desktop_mode_register_icon(
+	$icon = openstation_register_icon(
 		'feed-buddy-reader',
 		array(
 			'title'        => __( 'SOL Inbound Monologue', 'desktop-mode-feed-buddy' ),
@@ -152,7 +152,7 @@ function feed_buddy_register_surfaces() {
  * Ensure widget-only sessions receive the companion stylesheet.
  */
 function feed_buddy_enqueue_widget_style() {
-	if ( function_exists( 'desktop_mode_is_enabled' ) && desktop_mode_is_enabled() ) {
+	if ( function_exists( 'openstation_is_enabled' ) && openstation_is_enabled() ) {
 		wp_enqueue_style( 'desktop-mode-feed-buddy' );
 	}
 }
@@ -164,18 +164,18 @@ function feed_buddy_render_reader_template() {
 	?>
 	<div class="feed-buddy-reader" data-feed-buddy-reader>
 		<nav class="feed-buddy-reader__menubar" aria-label="<?php esc_attr_e( 'SOL Inbound Monologue commands', 'desktop-mode-feed-buddy' ); ?>">
-			<wpd-button variant="ghost" data-feed-buddy-manage>
+			<os-button variant="ghost" data-feed-buddy-manage>
 				<?php esc_html_e( 'Feeds', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
-			<wpd-button variant="ghost" data-feed-buddy-refresh>
+			</os-button>
+			<os-button variant="ghost" data-feed-buddy-refresh>
 				<?php esc_html_e( 'Refresh', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
-			<wpd-button variant="ghost" data-feed-buddy-sound aria-pressed="false">
+			</os-button>
+			<os-button variant="ghost" data-feed-buddy-sound aria-pressed="false">
 				<?php esc_html_e( 'Sound off', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
-			<wpd-button variant="ghost" data-feed-buddy-about>
+			</os-button>
+			<os-button variant="ghost" data-feed-buddy-about>
 				<?php esc_html_e( 'About', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
+			</os-button>
 		</nav>
 
 		<header class="feed-buddy-reader__conversation">
@@ -186,9 +186,9 @@ function feed_buddy_render_reader_template() {
 					<small data-feed-buddy-presence-copy><?php esc_html_e( 'Online — incoming articles', 'desktop-mode-feed-buddy' ); ?></small>
 				</div>
 			</div>
-			<wpd-select data-feed-buddy-feed-select label="<?php esc_attr_e( 'Conversation', 'desktop-mode-feed-buddy' ); ?>">
-				<wpd-option value=""><?php esc_html_e( 'All feeds', 'desktop-mode-feed-buddy' ); ?></wpd-option>
-			</wpd-select>
+			<os-select data-feed-buddy-feed-select label="<?php esc_attr_e( 'Conversation', 'desktop-mode-feed-buddy' ); ?>">
+				<os-option value=""><?php esc_html_e( 'All feeds', 'desktop-mode-feed-buddy' ); ?></os-option>
+			</os-select>
 		</header>
 
 		<main class="feed-buddy-reader__main">
@@ -196,24 +196,24 @@ function feed_buddy_render_reader_template() {
 				<span class="dashicons dashicons-rss" aria-hidden="true"></span>
 				<h2 data-feed-buddy-empty-title><?php esc_html_e( 'Your buddy list is quiet', 'desktop-mode-feed-buddy' ); ?></h2>
 				<p data-feed-buddy-empty-copy><?php esc_html_e( 'Add an RSS or Atom feed to start a conversation.', 'desktop-mode-feed-buddy' ); ?></p>
-				<wpd-button variant="primary" data-feed-buddy-add-first>
+				<os-button variant="primary" data-feed-buddy-add-first>
 					<?php esc_html_e( 'Add a feed', 'desktop-mode-feed-buddy' ); ?>
-				</wpd-button>
+				</os-button>
 			</div>
 			<ol class="feed-buddy-transcript" data-feed-buddy-items aria-label="<?php esc_attr_e( 'Feed articles', 'desktop-mode-feed-buddy' ); ?>"></ol>
 			<div class="feed-buddy-reader__loading" data-feed-buddy-loading hidden>
-				<wpd-spinner preset="dots"></wpd-spinner>
+				<os-spinner preset="dots"></os-spinner>
 				<span><?php esc_html_e( 'Contacting buddies…', 'desktop-mode-feed-buddy' ); ?></span>
 			</div>
 		</main>
 
 		<footer class="feed-buddy-reader__actionbar">
-			<wpd-button variant="secondary" data-feed-buddy-mark-all>
+			<os-button variant="secondary" data-feed-buddy-mark-all>
 				<?php esc_html_e( 'Mark all read', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
-			<wpd-button variant="secondary" data-feed-buddy-manage>
+			</os-button>
+			<os-button variant="secondary" data-feed-buddy-manage>
 				<?php esc_html_e( 'Manage feeds', 'desktop-mode-feed-buddy' ); ?>
-			</wpd-button>
+			</os-button>
 			<span data-feed-buddy-flavor><?php esc_html_e( 'RSS conversation', 'desktop-mode-feed-buddy' ); ?></span>
 		</footer>
 
@@ -223,14 +223,14 @@ function feed_buddy_render_reader_template() {
 					<h2><?php esc_html_e( 'Manage feeds', 'desktop-mode-feed-buddy' ); ?></h2>
 					<p><?php esc_html_e( 'Paste a feed or website URL. SOL Inbound Monologue will look for RSS or Atom.', 'desktop-mode-feed-buddy' ); ?></p>
 				</div>
-				<wpd-button variant="ghost" data-feed-buddy-close-manager>
+				<os-button variant="ghost" data-feed-buddy-close-manager>
 					<?php esc_html_e( 'Close', 'desktop-mode-feed-buddy' ); ?>
-				</wpd-button>
+				</os-button>
 			</header>
 			<form class="feed-buddy-manager__add" data-feed-buddy-add-form>
-				<wpd-text-field type="url" name="url" required label="<?php esc_attr_e( 'Feed or website URL', 'desktop-mode-feed-buddy' ); ?>" placeholder="https://example.com/feed"></wpd-text-field>
-				<wpd-text-field name="group" label="<?php esc_attr_e( 'Buddy group', 'desktop-mode-feed-buddy' ); ?>" placeholder="<?php esc_attr_e( 'Feeds', 'desktop-mode-feed-buddy' ); ?>"></wpd-text-field>
-				<wpd-button type="submit" variant="primary" data-feed-buddy-add-submit><?php esc_html_e( 'Add buddy', 'desktop-mode-feed-buddy' ); ?></wpd-button>
+				<os-text-field type="url" name="url" required label="<?php esc_attr_e( 'Feed or website URL', 'desktop-mode-feed-buddy' ); ?>" placeholder="https://example.com/feed"></os-text-field>
+				<os-text-field name="group" label="<?php esc_attr_e( 'Buddy group', 'desktop-mode-feed-buddy' ); ?>" placeholder="<?php esc_attr_e( 'Feeds', 'desktop-mode-feed-buddy' ); ?>"></os-text-field>
+				<os-button type="submit" variant="primary" data-feed-buddy-add-submit><?php esc_html_e( 'Add buddy', 'desktop-mode-feed-buddy' ); ?></os-button>
 			</form>
 			<div class="feed-buddy-manager__list" data-feed-buddy-manager-list></div>
 		</aside>

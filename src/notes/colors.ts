@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — Pinned notes pastel palette.
+ * OpenStation — Pinned notes pastel palette.
  *
- * Mirror of `desktop_mode_notes_colors()` in `includes/notes/cpt.php`
+ * Mirror of `openstation_notes_colors()` in `includes/notes/cpt.php`
  * — keep both lists in sync. The actual paper/ink values live as CSS
  * custom properties in `assets/css/notes.css`, keyed by
  * `[data-note-color="<slug>"]`.
@@ -28,7 +28,7 @@ export function normalizeNoteColor( color: string ): NoteColor {
 /**
  * Sanitize a color slug for rendering WITHOUT clamping to the
  * built-in palette. The server already whitelists against
- * `desktop_mode_notes_colors()`, which plugins can extend — a
+ * `openstation_notes_colors()`, which plugins can extend — a
  * filter-added slug (with its own `[data-note-color="..."]` CSS)
  * must survive to the DOM, not get rewritten to butter. Unknown
  * slugs without CSS simply fall back to the default paper via the

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents: authentication guard.
+ * OpenStation — Agents: authentication guard.
  *
  * Agents own a real `wp_users` row so capability checks, edit locks,
  * comment attribution, and the standard WordPress audit trail work
@@ -32,7 +32,7 @@
  * re-runs the filter, so switching into an agent to evaluate ability
  * permissions still works exactly as before.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -40,23 +40,29 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Marker meta key — the existence test for an agent.
  *
- * Lives here rather than in store.php because `desktop_mode_agent_is_agent()`
+ * Lives here rather than in store.php because `openstation_agent_is_agent()`
  * must resolve even when the agents module itself is not loaded.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
-const DESKTOP_MODE_AGENT_USER_MARKER_META = '_desktop_mode_agent';
+const OPENSTATION_AGENT_USER_MARKER_META = '_desktop_mode_agent';
 
 /**
- * Whether the given user is a Desktop Mode agent.
+ * Whether the given user is a OpenStation agent.
  *
  * @param int|WP_User|null $user User id or object.
  * @return bool
  */
-function desktop_mode_agent_is_agent( $user ) {
+function openstation_agent_is_agent( $user ) {
 	$user_id = $user instanceof WP_User ? $user->ID : (int) $user;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return '1' === (string) get_user_meta( $user_id, DESKTOP_MODE_AGENT_USER_MARKER_META, true );
+	return '1' === (string) get_user_meta( $user_id, OPENSTATION_AGENT_USER_MARKER_META, true );
 }
 
 /**
@@ -75,16 +81,16 @@ function desktop_mode_agent_is_agent( $user ) {
  * @param WP_User|WP_Error|null $user Current candidate from the chain.
  * @return WP_User|WP_Error|null
  */
-function desktop_mode_agent_block_authentication( $user ) {
-	if ( $user instanceof WP_User && desktop_mode_agent_is_agent( $user ) ) {
+function openstation_agent_block_authentication( $user ) {
+	if ( $user instanceof WP_User && openstation_agent_is_agent( $user ) ) {
 		return new WP_Error(
-			'desktop_mode_agent_login_blocked',
-			__( 'This account is a Desktop Mode agent. Login is disabled.', 'desktop-mode' )
+			'openstation_agent_login_blocked',
+			__( 'This account is a OpenStation agent. Login is disabled.', 'desktop-mode' )
 		);
 	}
 	return $user;
 }
-add_filter( 'authenticate', 'desktop_mode_agent_block_authentication', 30 );
+add_filter( 'authenticate', 'openstation_agent_block_authentication', 30 );
 
 /**
  * Refuse to resolve an agent as the current user for a request.
@@ -101,13 +107,13 @@ add_filter( 'authenticate', 'desktop_mode_agent_block_authentication', 30 );
  * @param int|false $user_id User id resolved so far, or false.
  * @return int|false
  */
-function desktop_mode_agent_block_session( $user_id ) {
-	if ( $user_id && desktop_mode_agent_is_agent( (int) $user_id ) ) {
+function openstation_agent_block_session( $user_id ) {
+	if ( $user_id && openstation_agent_is_agent( (int) $user_id ) ) {
 		return false;
 	}
 	return $user_id;
 }
-add_filter( 'determine_current_user', 'desktop_mode_agent_block_session', PHP_INT_MAX );
+add_filter( 'determine_current_user', 'openstation_agent_block_session', PHP_INT_MAX );
 
 /**
  * Block password-reset emails for agent users.
@@ -116,33 +122,33 @@ add_filter( 'determine_current_user', 'desktop_mode_agent_block_session', PHP_IN
  * @param int  $user_id Target user id.
  * @return bool
  */
-function desktop_mode_agent_block_password_reset( $allow, $user_id ) {
-	if ( desktop_mode_agent_is_agent( $user_id ) ) {
+function openstation_agent_block_password_reset( $allow, $user_id ) {
+	if ( openstation_agent_is_agent( $user_id ) ) {
 		return false;
 	}
 	return $allow;
 }
-add_filter( 'allow_password_reset', 'desktop_mode_agent_block_password_reset', 10, 2 );
+add_filter( 'allow_password_reset', 'openstation_agent_block_password_reset', 10, 2 );
 
 /**
  * Application passwords are the one credential that could authenticate
  * a never-logs-in account over REST — refuse to make them available
  * for agents, so the credential cannot be minted in the first place.
  *
- * `desktop_mode_agent_block_authentication()` would reject it at use
+ * `openstation_agent_block_authentication()` would reject it at use
  * time anyway; this stops it existing.
  *
  * @param bool    $available Whether application passwords are available.
  * @param WP_User $user      The user being checked.
  * @return bool
  */
-function desktop_mode_agent_block_application_passwords( $available, $user ) {
-	if ( $user instanceof WP_User && desktop_mode_agent_is_agent( $user ) ) {
+function openstation_agent_block_application_passwords( $available, $user ) {
+	if ( $user instanceof WP_User && openstation_agent_is_agent( $user ) ) {
 		return false;
 	}
 	return $available;
 }
-add_filter( 'wp_is_application_passwords_available_for_user', 'desktop_mode_agent_block_application_passwords', 10, 2 );
+add_filter( 'wp_is_application_passwords_available_for_user', 'openstation_agent_block_application_passwords', 10, 2 );
 
 /**
  * Suppress the password/email-changed notification emails for agents —
@@ -153,15 +159,15 @@ add_filter( 'wp_is_application_passwords_available_for_user', 'desktop_mode_agen
  * @param array $user The original user array before changes.
  * @return bool
  */
-function desktop_mode_agent_suppress_change_emails( $send, $user ) {
+function openstation_agent_suppress_change_emails( $send, $user ) {
 	$user_id = is_array( $user ) && isset( $user['ID'] ) ? (int) $user['ID'] : 0;
-	if ( $user_id > 0 && desktop_mode_agent_is_agent( $user_id ) ) {
+	if ( $user_id > 0 && openstation_agent_is_agent( $user_id ) ) {
 		return false;
 	}
 	return $send;
 }
-add_filter( 'send_password_change_email', 'desktop_mode_agent_suppress_change_emails', 10, 2 );
-add_filter( 'send_email_change_email', 'desktop_mode_agent_suppress_change_emails', 10, 2 );
+add_filter( 'send_password_change_email', 'openstation_agent_suppress_change_emails', 10, 2 );
+add_filter( 'send_email_change_email', 'openstation_agent_suppress_change_emails', 10, 2 );
 
 /**
  * Send front-end author archives for agents to a 404.
@@ -178,7 +184,7 @@ add_filter( 'send_email_change_email', 'desktop_mode_agent_suppress_change_email
  * @param WP_Query $query The query about to run.
  * @return void
  */
-function desktop_mode_agent_block_author_archive( $query ) {
+function openstation_agent_block_author_archive( $query ) {
 	if ( is_admin() || ! $query->is_main_query() || ! $query->is_author() ) {
 		return;
 	}
@@ -192,10 +198,10 @@ function desktop_mode_agent_block_author_archive( $query ) {
 		}
 	}
 
-	if ( $author_id > 0 && desktop_mode_agent_is_agent( $author_id ) ) {
+	if ( $author_id > 0 && openstation_agent_is_agent( $author_id ) ) {
 		$query->set_404();
 		status_header( 404 );
 		nocache_headers();
 	}
 }
-add_action( 'pre_get_posts', 'desktop_mode_agent_block_author_archive' );
+add_action( 'pre_get_posts', 'openstation_agent_block_author_archive' );

@@ -47,7 +47,7 @@ describe( 'convertNoteToPost', () => {
 		closeWindow = vi.fn();
 		getById = vi.fn( () => ( { close: closeWindow } ) );
 		( window as unknown as { wp: unknown } ).wp = {
-			desktop: {
+			os: {
 				showToast,
 				deriveWindowId: ( url: string ) => `win:${ url }`,
 				windowManager: { open: openWindow, getById },

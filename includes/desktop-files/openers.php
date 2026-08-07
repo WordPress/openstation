@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — file-opener registry.
+ * OpenStation — file-opener registry.
  *
  * An "opener" is the equivalent of a default-app association in a
  * desktop OS: it answers the question "what should happen when the
@@ -24,13 +24,21 @@
  * actual logic; the PHP entry feeds the OS Settings UI and
  * validates user-meta choices against the known set.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** User-meta key holding `{ type => opener_id, … }`. */
-define( 'DESKTOP_MODE_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' );
+/**
+ * User-meta key holding `{ type => opener_id, … }`.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+define( 'OPENSTATION_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' );
 
 /**
  * Internal static-store registry. Same pattern as the file-type
@@ -38,7 +46,7 @@ define( 'DESKTOP_MODE_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' 
  *
  * @internal
  */
-function desktop_mode_file_opener_registry( $id = '', $entry = null ) {
+function openstation_file_opener_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -74,11 +82,11 @@ function desktop_mode_file_opener_registry( $id = '', $entry = null ) {
  * }
  * @return true|WP_Error
  */
-function desktop_mode_register_file_opener( $id, $args = array() ) {
+function openstation_register_file_opener( $id, $args = array() ) {
 	$id = (string) $id;
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Opener id is required.', 'desktop-mode' )
 		);
 	}
@@ -91,25 +99,28 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 		'script'       => '',
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this opener.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
 
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Opener registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -117,8 +128,8 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 
 	$types = array_values( array_filter( array_map( 'strval', (array) $args['types'] ) ) );
 	if ( empty( $types ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_types',
+		return openstation_registration_error(
+			'openstation_missing_types',
 			__( 'Opener registration requires at least one file `type`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -132,7 +143,7 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 		'sort'       => (int) $args['sort'],
 		'script'     => (string) $args['script'],
 	);
-	desktop_mode_file_opener_registry( $id, $entry );
+	openstation_file_opener_registry( $id, $entry );
 
 	/**
 	 * Fires after a file opener is successfully registered. Does
@@ -141,7 +152,7 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 	 * @param string $id    Opener id.
 	 * @param array  $entry Stored registry entry.
 	 */
-	do_action( 'desktop_mode_file_opener_registered', $id, $entry );
+	do_action( 'openstation_file_opener_registered', $id, $entry );
 
 	return true;
 }
@@ -151,8 +162,8 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
  *
  * @return array[]
  */
-function desktop_mode_get_file_openers() {
-	$registry = desktop_mode_file_opener_registry();
+function openstation_get_file_openers() {
+	$registry = openstation_file_opener_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -163,7 +174,7 @@ function desktop_mode_get_file_openers() {
 	 *
 	 * @param array[] $registry Registered openers keyed by id.
 	 */
-	$registry = apply_filters( 'desktop_mode_file_openers', $registry );
+	$registry = apply_filters( 'openstation_file_openers', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -192,14 +203,14 @@ function desktop_mode_get_file_openers() {
  * @param string $type File-type slug.
  * @return array[]
  */
-function desktop_mode_get_file_openers_for_type( $type ) {
+function openstation_get_file_openers_for_type( $type ) {
 	$type = (string) $type;
 	if ( '' === $type ) {
 		return array();
 	}
 	return array_values(
 		array_filter(
-			desktop_mode_get_file_openers(),
+			openstation_get_file_openers(),
 			static function ( $entry ) use ( $type ) {
 				return in_array( $type, (array) $entry['types'], true );
 			}
@@ -221,8 +232,8 @@ function desktop_mode_get_file_openers_for_type( $type ) {
  * @param int    $user_id Viewer.
  * @return string Opener id, or empty string when nothing matches.
  */
-function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
-	$candidates = desktop_mode_get_file_openers_for_type( $type );
+function openstation_resolve_file_opener_id( $type, $user_id ) {
+	$candidates = openstation_get_file_openers_for_type( $type );
 	if ( empty( $candidates ) ) {
 		return '';
 	}
@@ -234,7 +245,7 @@ function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
 	// 1. User override.
 	$override = '';
 	if ( $user_id > 0 ) {
-		$assoc = get_user_meta( (int) $user_id, DESKTOP_MODE_FILE_ASSOCIATIONS_META, true );
+		$assoc = get_user_meta( (int) $user_id, OPENSTATION_FILE_ASSOCIATIONS_META, true );
 		if ( is_array( $assoc ) && isset( $assoc[ $type ] ) ) {
 			$override = (string) $assoc[ $type ];
 		}
@@ -266,7 +277,7 @@ function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
 	 * @param string $type     File-type slug.
 	 * @param int    $user_id  Viewer.
 	 */
-	return (string) apply_filters( 'desktop_mode_resolve_file_opener', $resolved, $type, $user_id );
+	return (string) apply_filters( 'openstation_resolve_file_opener', $resolved, $type, $user_id );
 }
 
 /**
@@ -274,8 +285,8 @@ function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
  *
  * @return array[]
  */
-function desktop_mode_build_file_openers_payload() {
-	$entries = desktop_mode_get_file_openers();
+function openstation_build_file_openers_payload() {
+	$entries = openstation_get_file_openers();
 	if ( empty( $entries ) ) {
 		return array();
 	}
@@ -283,7 +294,7 @@ function desktop_mode_build_file_openers_payload() {
 	foreach ( $entries as $entry ) {
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
+			? openstation_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),
@@ -291,7 +302,7 @@ function desktop_mode_build_file_openers_payload() {
 				'l10n'         => array(),
 				'translations' => '',
 			);
-		$out[] = array(
+		$out[]   = array(
 			'id'                 => (string) $entry['id'],
 			'label'              => (string) $entry['label'],
 			'types'              => array_values( (array) $entry['types'] ),
@@ -318,15 +329,15 @@ function desktop_mode_build_file_openers_payload() {
  * @param int $user_id Viewer.
  * @return array<string,string>
  */
-function desktop_mode_get_user_file_associations( $user_id ) {
+function openstation_get_user_file_associations( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return array();
 	}
-	$raw = get_user_meta( (int) $user_id, DESKTOP_MODE_FILE_ASSOCIATIONS_META, true );
+	$raw = get_user_meta( (int) $user_id, OPENSTATION_FILE_ASSOCIATIONS_META, true );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$openers = desktop_mode_get_file_openers();
+	$openers = openstation_get_file_openers();
 	$known   = array();
 	foreach ( $openers as $entry ) {
 		$known[ (string) $entry['id'] ] = (array) $entry['types'];

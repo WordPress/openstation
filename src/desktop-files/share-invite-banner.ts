@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pending-invite prompt.
+ * OpenStation — Pending-invite prompt.
  *
  * Watches `sharesStore` for fresh pending invites. When one lands
  * we open the accept/deny modal once per invite per session. The
@@ -18,8 +18,8 @@ const prompted = new Set< number >();
  */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}
