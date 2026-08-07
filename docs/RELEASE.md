@@ -28,6 +28,16 @@ The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` t
 
 Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.
 
+### Re-deploying a published tag
+
+A tag push runs the workflow definition **frozen into that tag's commit**, so a deploy that failed for a workflow-level reason cannot be fixed by re-running it — the re-run replays the same broken definition. Dispatch the workflow from `trunk` instead, which runs the current definition against an existing tag:
+
+```bash
+gh workflow run release.yml --repo WordPress/openstation --ref trunk -f tag=v1.0.0
+```
+
+The GitHub Release is left untouched: `gh release create` is not idempotent, so that step is gated on `github.event_name == 'push'` and skipped on dispatch. Everything else — checkout of the tag, the version gate, build, package, deploy — runs identically. The action itself is idempotent against SVN: a version already published is detected and skipped rather than re-committed.
+
 ## Pre-releases
 
 Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps pointing at the last stable. The workflow detects the hyphen and sets `--prerelease` automatically:
