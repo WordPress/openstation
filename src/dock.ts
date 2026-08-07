@@ -521,7 +521,7 @@ export class Dock {
 			// tile from the server-declared art, so re-apply the swap.
 			const art = this.artOverrides.get( item.id );
 			if ( art ) {
-				this._paintArt( btn, art );
+				this._paintArt( btn, item.id, art );
 			}
 			doAction( HOOKS.DOCK_TILE_RENDERED, {
 				...base,
@@ -677,28 +677,55 @@ export class Dock {
 	 * @param svg    Icon string, or `''` to restore the original.
 	 */
 	public setArt( itemId: string, svg: string ): void {
-		// Record BEFORE resolving the tile. A caller that sets art
-		// during boot usually beats the rail to the DOM — the bin does
-		// exactly this — and the tile builders below re-apply from
-		// this map, so an early call lands the moment the tile exists
-		// rather than being dropped on the floor.
+		// Clearing restores the declared icon immediately, the way
+		// `setBadge( id, 0 )` removes the pill immediately rather than
+		// waiting for the next rebuild.
 		if ( ! svg ) {
-			this.artOverrides.delete( itemId );
-		} else {
-			this.artOverrides.set( itemId, svg );
+			if ( ! this.artOverrides.delete( itemId ) ) {
+				return; // Nothing was overridden — nothing changed.
+			}
+			const tile = this._resolveTileElement( itemId );
+			const declared = this._declaredIcon( itemId );
+			if ( tile && declared ) {
+				this._paintArt( tile, itemId, declared );
+			}
+			activity.publish( 'os/art-changed', {
+				itemId,
+				icon: '',
+				rail: this.rail,
+			} );
+			return;
 		}
+
+		// Record BEFORE painting. A caller that sets art during boot
+		// usually beats the rail to the DOM (the bin does exactly
+		// this), and the tile builders re-apply from this map, so an
+		// early call lands the moment the tile exists rather than
+		// being dropped on the floor.
+		this.artOverrides.set( itemId, svg );
 		const tile = this._resolveTileElement( itemId );
 		if ( ! tile ) {
 			return;
 		}
-		if ( svg ) {
-			this._paintArt( tile, svg );
-		}
+		this._paintArt( tile, itemId, svg );
 		activity.publish( 'os/art-changed', {
 			itemId,
 			icon: svg,
 			rail: this.rail,
 		} );
+	}
+
+	/**
+	 * The icon a tile was registered with, menu item or system item.
+	 * Used to put things back when an art override is cleared.
+	 */
+	private _declaredIcon( itemId: string ): string {
+		const menu = this.items.find( ( i ) => i.id === itemId );
+		if ( menu ) {
+			return menu.icon;
+		}
+		const system = this.systemItems.find( ( i ) => i.id === itemId );
+		return system ? system.icon : '';
 	}
 
 	/**
@@ -711,22 +738,39 @@ export class Dock {
 	 * isn't maskable, which is the same "don't make it worse" rule
 	 * `resolveIcon` follows.
 	 */
-	private _paintArt( tile: HTMLElement, svg: string ): void {
+	private _paintArt( tile: HTMLElement, itemId: string, svg: string ): void {
 		const primary =
 			tile.querySelector< HTMLElement >( '.os-dock__item-primary' ) ??
 			tile;
-		const masked = this._makeMaskSpan();
-		if ( ! applyIconMask( masked, svg, 'currentColor' ) ) {
-			return;
-		}
+		// Route through the rail's own resolver rather than masking by
+		// hand, so `setArt` accepts everything a registered icon does —
+		// dashicon class, data URI, http(s) URL — and still honours a
+		// desktop theme's slot override. Hand-rolling the mask here
+		// would have quietly rejected dashicons.
+		const next = this.resolveIcon(
+			svg,
+			this._declaredTitle( itemId ),
+			undefined,
+			slotForTileId( itemId ),
+		);
 		const current = primary.querySelector< HTMLElement >(
 			'.os-dock__item-mask, .os-dock__item-svg, .dashicons, img',
 		);
 		if ( current ) {
-			current.replaceWith( masked );
+			current.replaceWith( next );
 		} else {
-			primary.prepend( masked );
+			primary.prepend( next );
 		}
+	}
+
+	/** Registered title for a tile, for the letter-badge fallback. */
+	private _declaredTitle( itemId: string ): string {
+		const menu = this.items.find( ( i ) => i.id === itemId );
+		if ( menu ) {
+			return menu.title;
+		}
+		const system = this.systemItems.find( ( i ) => i.id === itemId );
+		return system ? system.title : '';
 	}
 
 	/**
@@ -832,7 +876,7 @@ export class Dock {
 		// almost certainly already run and found no tile.
 		const systemArt = this.artOverrides.get( item.id );
 		if ( systemArt ) {
-			this._paintArt( tile, systemArt );
+			this._paintArt( tile, item.id, systemArt );
 		}
 		this.systemHost.appendChild( tile );
 		this.updateActiveStates();

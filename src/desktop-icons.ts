@@ -257,6 +257,22 @@ export function getIconArt( iconId: string ): string {
 }
 
 /**
+ * Escape a value for use inside a `[attr="…"]` selector.
+ *
+ * `CSS.escape` is the right tool and is used when it exists, but it
+ * is absent in jsdom and in older engines, and an icon id reaching
+ * this function is server-registered rather than user input. Falling
+ * back to escaping the two characters that can terminate the quoted
+ * string keeps the lookup working instead of throwing on load.
+ */
+function _escapeAttr( value: string ): string {
+	if ( typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ) {
+		return CSS.escape( value );
+	}
+	return value.replace( /["\\]/g, '\\$&' );
+}
+
+/**
  * Paint an art override onto every surface that might be showing
  * this icon. Both branches are no-ops when their layout isn't the
  * one rendering, so this is safe to call blind.
@@ -278,7 +294,7 @@ function _paintArtNodes( iconId: string, svg: string ): void {
 	// rather than a poke at its internals.
 	document
 		.querySelectorAll< HTMLElement >(
-			`os-tile[data-file-ref="${ CSS.escape( iconId ) }"]`,
+			`os-tile[data-file-ref="${ _escapeAttr( iconId ) }"]`,
 		)
 		.forEach( ( el ) => el.setAttribute( 'icon', svg ) );
 }
