@@ -18,7 +18,7 @@
  *   - **offline**  — no heartbeat in `_offline_after` seconds.
  *
  * **Storage.** A `createSharedStore` keyed by
- * `'desktop-mode/presence'` so any number of bundles can subscribe to
+ * `'os/presence'` so any number of bundles can subscribe to
  * the same map of `{ status, lastSeenMs, lastActiveMs }` per user.
  *
  * **Wire.** A jQuery-Heartbeat probe sends
@@ -51,7 +51,7 @@ interface HeartbeatBlock {
 }
 
 const store: SharedStore< PresenceState > = createSharedStore< PresenceState >(
-	'desktop-mode/presence',
+	'os/presence',
 	() => ( { byUser: new Map(), serverTimeMs: 0 } ),
 );
 
@@ -133,12 +133,12 @@ function applySnapshot( block: HeartbeatBlock ): void {
 		);
 		// Mirror the per-transition event onto activity so plugins
 		// subscribe through the unified API.
-		activity.publish( 'desktop-mode/presence-changed', detail );
+		activity.publish( 'os/presence-changed', detail );
 	}
 	// Batch-level activity event — useful for "repaint everything
 	// that depends on presence" subscribers that don't need
 	// per-user granularity.
-	activity.publish( 'desktop-mode/presence-snapshot-applied', {
+	activity.publish( 'os/presence-snapshot-applied', {
 		applied: Object.keys( block.snapshot ).length,
 		transitions: transitions.length,
 	} );
@@ -339,9 +339,9 @@ export function applyPresenceBatch(
 		document.dispatchEvent(
 			new CustomEvent( 'os-presence-changed', { detail } ),
 		);
-		activity.publish( 'desktop-mode/presence-changed', detail );
+		activity.publish( 'os/presence-changed', detail );
 	}
-	activity.publish( 'desktop-mode/presence-snapshot-applied', {
+	activity.publish( 'os/presence-snapshot-applied', {
 		applied: updates.length,
 		transitions: transitions.length,
 	} );

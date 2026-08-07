@@ -84,8 +84,7 @@ REST routes:
 
 Both routes require a logged-in user with OpenStation enabled for
 their account (`openstation_rest_require_enabled()` — 401 when logged
-out, 403 when OpenStation is off; hardened from plain `read` in
-0.9.0) and a valid `X-WP-Nonce`.
+out, 403 when OpenStation is off) and a valid `X-WP-Nonce`.
 
 ## JS surface
 
@@ -117,9 +116,9 @@ off();
 
 Activity-bus channels for plugins that want to mute / amplify / audit:
 
-- `desktop-mode/notification-requested` — filterable; set
+- `os/notification-requested` — filterable; set
   `cancel: true` to suppress the underlying notification.
-- `desktop-mode/notification-shown` — fire-and-forget; carries
+- `os/notification-shown` — fire-and-forget; carries
   `fallback: 'toast' | null` so analytics can distinguish the
   permission-denied path from the real-notification path.
 

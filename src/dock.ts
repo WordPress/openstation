@@ -256,7 +256,7 @@ export class Dock {
 	/**
 	 * Routing discriminator stamped onto every event this rail
 	 * publishes. `'left'` orientation carries `'dock'`; `'bottom'`
-	 * carries `'taskbar'`. Lets a single `desktop-mode/badge-changed`
+	 * carries `'taskbar'`. Lets a single `os/badge-changed`
 	 * subscriber tell the two visually-distinct rails apart
 	 * without inferring from id space.
 	 */
@@ -617,7 +617,7 @@ export class Dock {
 		// Single emission point — activity bus. `rail` is the
 		// routing discriminator so a single subscriber can
 		// compose dock + taskbar + icons under one shape.
-		activity.publish( 'desktop-mode/badge-changed', {
+		activity.publish( 'os/badge-changed', {
 			itemId,
 			count: safe,
 			rail: this.rail,

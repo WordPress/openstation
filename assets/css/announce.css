@@ -111,7 +111,7 @@
 		background-position: 0% 50%;
 	}
 	100% {
-		background-position: 200% 50%;
+		background-position: 100% 50%;
 	}
 }
 
@@ -194,20 +194,36 @@
 	);
 }
 
-/* The logomark, sitting above the hero's own overlay. */
-.os-announce__mark {
+/*
+ * The eyebrow pill, sitting above the hero's own overlay. Same chip the
+ * welcome dialog wears for "New here", so the two dialogs read as the
+ * same voice saying two different things.
+ */
+.os-announce__eyebrow {
 	position: relative;
 	z-index: 1;
-	width: 44px;
-	height: 44px;
-	margin: 0 0 16px;
-	filter: drop-shadow(0 4px 14px rgba(242, 82, 252, 0.55));
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: #fff;
+	background: rgba(255, 255, 255, 0.18);
+	border: 1px solid rgba(255, 255, 255, 0.28);
+	border-radius: 999px;
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
 }
 
-.os-announce__mark svg {
-	display: block;
-	width: 100%;
-	height: 100%;
+.os-announce__eyebrow-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #ec9bff;
+	box-shadow: 0 0 0 4px rgba(236, 155, 255, 0.28);
 }
 
 .os-announce__title {
@@ -243,15 +259,6 @@
 
 .os-announce__body p:last-child {
 	margin-bottom: 0;
-}
-
-/*
- * The sign-off. Carries a little more weight than the explanation it
- * follows, which is the whole reason it is its own paragraph.
- */
-.os-announce__welcome {
-	font-weight: 600;
-	color: #0c0b0f;
 }
 
 /*
@@ -333,37 +340,6 @@
 	transform: translateY(0);
 }
 
-.os-announce__close {
-	position: absolute;
-	top: 14px;
-	right: 14px;
-	z-index: 2;
-	width: 32px;
-	height: 32px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
-	background: rgba(255, 255, 255, 0.18);
-	color: #fff;
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	border-radius: 50%;
-	cursor: pointer;
-	font-size: 18px;
-	line-height: 1;
-	transition: background 120ms ease, transform 120ms ease;
-}
-
-.os-announce__close:hover {
-	background: rgba(255, 255, 255, 0.32);
-	transform: rotate(90deg);
-}
-
-.os-announce__close:focus-visible {
-	outline: 2px solid #fff;
-	outline-offset: 2px;
-}
-
 @media (max-width: 600px) {
 	.os-announce__hero {
 		padding: 26px 24px 20px;
@@ -401,12 +377,7 @@
 		animation: none;
 	}
 
-	.os-announce__btn,
-	.os-announce__close {
+	.os-announce__btn {
 		transition: none;
-	}
-
-	.os-announce__close:hover {
-		transform: none;
 	}
 }

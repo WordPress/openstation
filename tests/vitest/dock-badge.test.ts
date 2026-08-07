@@ -1,6 +1,6 @@
 /**
  * Tests for `Dock.setBadge` — the rail discriminator on the
- * `desktop-mode/badge-changed` activity channel and the
+ * `os/badge-changed` activity channel and the
  * client-override map that lets `replaceItems()` (live menu
  * refresh) preserve a badge a plugin had already set.
  *
@@ -63,7 +63,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'left orientation publishes rail: "dock"', () => {
 		const { dock } = mount( [ makeItem() ], 'left' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'plugin-x', 4 );
 		expect( cb ).toHaveBeenCalledWith( {
 			itemId: 'plugin-x',
@@ -76,7 +76,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'bottom orientation publishes rail: "taskbar"', () => {
 		const { dock } = mount( [ makeItem() ], 'bottom' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'plugin-x', 2 );
 		expect( cb ).toHaveBeenCalledWith( {
 			itemId: 'plugin-x',
@@ -89,7 +89,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'silently no-ops for an id not on this rail', () => {
 		const { dock } = mount( [ makeItem() ], 'left' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'never-on-this-rail', 5 );
 		expect( cb ).not.toHaveBeenCalled();
 		off();

@@ -68,11 +68,34 @@ describe( '<os-segmented> + <os-segment>', () => {
 	 * jsdom has no layout, so every box measures zero. These give the
 	 * group and its segments a pretend geometry: the group starts at
 	 * x=100 with 3px of padding, and three 60px segments sit inside it.
+	 *
+	 * `scale` stands in for an ancestor transform — every reading comes
+	 * back multiplied, exactly as getBoundingClientRect reports it.
+	 *
+	 * `offsetWidth` is set too, and separately from the host rect: the
+	 * component divides one by the other, and in a browser the first is
+	 * integer-rounded while the second is not. Leaving it at jsdom's 0
+	 * is what an unlaid-out group looks like, so a test that wants a
+	 * measurable group has to opt in here.
 	 */
-	function layOut( group: Element ): void {
-		const rect = ( left: number, width: number ) =>
-			( { left, width, right: left + width, top: 0, bottom: 24, height: 24, x: left, y: 0, toJSON: () => ( {} ) } ) as DOMRect;
-		group.getBoundingClientRect = () => rect( 100, 189 );
+	function layOut(
+		group: Element,
+		{
+			scale = 1,
+			hostWidth = 189,
+			offsetWidth = 189,
+		}: { scale?: number; hostWidth?: number; offsetWidth?: number } = {},
+	): void {
+		const rect = ( left: number, width: number ) => {
+			const l = left * scale;
+			const w = width * scale;
+			return { left: l, width: w, right: l + w, top: 0, bottom: 24, height: 24, x: l, y: 0, toJSON: () => ( {} ) } as DOMRect;
+		};
+		group.getBoundingClientRect = () => rect( 100, hostWidth );
+		Object.defineProperty( group, 'offsetWidth', {
+			configurable: true,
+			value: offsetWidth,
+		} );
 		const segs = Array.from( group.querySelectorAll( ':scope > os-segment' ) );
 		segs.forEach( ( seg, i ) => {
 			seg.getBoundingClientRect = () => rect( 103 + i * 62, 60 );
@@ -128,6 +151,97 @@ describe( '<os-segmented> + <os-segment>', () => {
 
 		// Third segment: 103 + 124 = 227, minus 100.
 		expect( group.style.getPropertyValue( '--_thumb-x' ) ).toBe( '127px' );
+	} );
+
+	test( 'a fractional layout width does not drift the thumb off the segment', async () => {
+		// The production case: no transform anywhere, but offsetWidth is
+		// integer-rounded and the group is inline-flex and content-sized,
+		// so its real width is fractional. The ratio between the two is
+		// therefore never quite 1, and dividing by it would walk the pill
+		// off its label by a fraction of a pixel on every group in the
+		// app — the same sub-pixel class the rounding below guards.
+		host.innerHTML = `
+			<os-segmented value="c">
+				<os-segment value="a">A</os-segment>
+				<os-segment value="b">B</os-segment>
+				<os-segment value="c">C</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		const group = host.querySelector( 'os-segmented' ) as HTMLElement;
+		// 189.4 / 189 = 1.0021…, which is rounding, not a transform.
+		layOut( group, { hostWidth: 189.4, offsetWidth: 189 } );
+
+		group.setAttribute( 'value', 'c' );
+		( group as HTMLElement & { value: string } ).value = 'c';
+		await tick();
+		await tick();
+
+		// The rect readings, untouched: third segment at 103 + 124 = 227,
+		// minus the group's own 100.
+		expect( group.style.getPropertyValue( '--_thumb-x' ) ).toBe( '127px' );
+		expect( group.style.getPropertyValue( '--_thumb-w' ) ).toBe( '60px' );
+	} );
+
+	test( 'the thumb ignores an ancestor scale instead of shrinking with it', async () => {
+		// A window playing `os-window--opening` is mid `scale(0.92)` on
+		// the frame the panel first renders. getBoundingClientRect reads
+		// the shrunken boxes; offsetWidth does not. Without dividing the
+		// scale back out the pill lands narrow and left of its label and
+		// stays there, because a transform never resizes the border box
+		// and so never wakes the ResizeObserver.
+		host.innerHTML = `
+			<os-segmented value="b">
+				<os-segment value="a">A</os-segment>
+				<os-segment value="b">B</os-segment>
+				<os-segment value="c">C</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		const group = host.querySelector( 'os-segmented' ) as HTMLElement;
+		layOut( group, { scale: 0.92 } );
+
+		group.setAttribute( 'value', 'b' );
+		( group as HTMLElement & { value: string } ).value = 'b';
+		await tick();
+		await tick();
+
+		// Identical to the untransformed case: the thumb is placed in
+		// the group's own coordinates, which the transform does not move.
+		expect( group.style.getPropertyValue( '--_thumb-x' ) ).toBe( '65px' );
+		expect( group.style.getPropertyValue( '--_thumb-w' ) ).toBe( '60px' );
+	} );
+
+	test( 'a collapsed ancestor keeps the last placement instead of hiding the thumb', async () => {
+		// scale(0) makes every rect zero, which is indistinguishable from
+		// "never laid out" if you test the rect. Hiding here would be
+		// permanent — nothing re-measures when a transform ends — so the
+		// last good geometry has to survive it.
+		host.innerHTML = `
+			<os-segmented value="b">
+				<os-segment value="a">A</os-segment>
+				<os-segment value="b">B</os-segment>
+				<os-segment value="c">C</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		const group = host.querySelector( 'os-segmented' ) as HTMLElement;
+		layOut( group );
+		( group as HTMLElement & { value: string } ).value = 'b';
+		await tick();
+		await tick();
+		expect( group.style.getPropertyValue( '--_thumb-x' ) ).toBe( '65px' );
+
+		// The group collapses; offsetWidth is untouched by the transform.
+		layOut( group, { scale: 0 } );
+		group.setAttribute( 'value', 'b' );
+		( group as HTMLElement & { value: string } ).value = 'b';
+		await tick();
+		await tick();
+
+		expect( group.hasAttribute( 'data-thumb' ) ).toBe( true );
+		expect( group.style.getPropertyValue( '--_thumb-x' ) ).toBe( '65px' );
+		expect( group.style.getPropertyValue( '--_thumb-w' ) ).toBe( '60px' );
 	} );
 
 	test( 'an unmeasurable group hides the thumb rather than smearing it at the origin', async () => {

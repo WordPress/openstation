@@ -1286,7 +1286,7 @@ export function createNativeWindowSync(
 		// or "show coachmark on first open" hook this independent
 		// of the WINDOW_OPENED / WINDOW_REOPENED branch the
 		// framework will take next.
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
@@ -1305,7 +1305,7 @@ export function createNativeWindowSync(
 		if ( ! entry ) {
 			return false;
 		}
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );

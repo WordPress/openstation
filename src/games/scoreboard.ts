@@ -11,7 +11,7 @@
  * Hosted by the Games hub's detail panel (Steam-library style):
  * one instance per selected game, torn down on re-selection.
  *
- * Refreshes itself when `desktop-mode/game-score-recorded` names
+ * Refreshes itself when `os/game-score-recorded` names
  * the mounted game, so a run finishing in the game's own window
  * repaints the board here without a re-selection or an F5.
  */
@@ -222,7 +222,7 @@ export function renderScoreboard(
 	// top, but yanking them off page 3 to show it is worse than
 	// leaving them where they were.
 	const unsubscribe = activity.subscribe(
-		'desktop-mode/game-score-recorded',
+		'os/game-score-recorded',
 		( payload ) => {
 			if ( disposed || payload?.game !== game.id ) {
 				return;

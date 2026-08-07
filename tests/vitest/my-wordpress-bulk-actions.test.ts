@@ -77,7 +77,7 @@ async function load(): Promise< BulkModule > {
 	// The channel's slash is sanitized to a dot on its way to
 	// `wp.hooks` (see `hookName()` in `src/activity.ts`).
 	addFilter(
-		'os.activity.desktop-mode.toast-requested',
+		'os.activity.os.toast-requested',
 		'test/capture',
 		( intent: { message?: string } ) => {
 			toasts.push( String( intent?.message ?? '' ) );

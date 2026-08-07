@@ -365,11 +365,11 @@ the heartbeat ingest.
 **Planned** — `wp.os.activity` channels for the share
 lifecycle are not yet published:
 
-- `desktop-mode/folder-share-invited`
-- `desktop-mode/folder-share-accepted`
-- `desktop-mode/folder-share-denied`
-- `desktop-mode/folder-share-revoked`
-- `desktop-mode/folder-share-capability-changed`
+- `os/folder-share-invited`
+- `os/folder-share-accepted`
+- `os/folder-share-denied`
+- `os/folder-share-revoked`
+- `os/folder-share-capability-changed`
 
 Programmatic entry points (from `src/desktop-files/rest.ts`):
 

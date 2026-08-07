@@ -161,11 +161,11 @@ export class OsSegmented extends Component {
 	 * two differ, and the pill would sit a border-width off — visible
 	 * on exactly the themes that add one.
 	 *
-	 * A zero-width measurement means the group has not been laid out
-	 * yet (display:none, a collapsed panel, a tab that has never been
-	 * opened). Leaving the thumb hidden is right in every one of those
-	 * cases; the ResizeObserver brings it back the moment there is a
-	 * box to measure.
+	 * `offsetWidth` is the not-laid-out test rather than a zero-width
+	 * rect (display:none, a collapsed panel, a tab that has never been
+	 * opened). It is transform-immune, so a group measured under a
+	 * near-zero scale is not mistaken for one of those and hidden for
+	 * good — a transform change does not wake the ResizeObserver.
 	 */
 	private _placeThumb(): void {
 		const thumb = this.shadowRoot?.querySelector(
@@ -178,14 +178,39 @@ export class OsSegmented extends Component {
 		const selected = Array.from(
 			this.querySelectorAll( ':scope > os-segment' ),
 		).find( ( el ) => el.getAttribute( 'value' ) === current );
-		const box = selected?.getBoundingClientRect();
-		if ( ! box || box.width === 0 ) {
+		if ( ! selected || this.offsetWidth === 0 ) {
 			this.removeAttribute( 'data-thumb' );
 			return;
 		}
 		const host = this.getBoundingClientRect();
-		this.style.setProperty( '--_thumb-x', `${ box.left - host.left }px` );
-		this.style.setProperty( '--_thumb-w', `${ box.width }px` );
+		// Rects come back through every ancestor transform, and a group
+		// is routinely measured inside one: a window plays
+		// `os-window--opening` (scale 0.92 to 1) while the panel renders.
+		// `offsetWidth` is the untransformed border box, so their ratio
+		// maps the reading back into the group's own coordinates, which
+		// is the space the thumb is positioned in. A transform never
+		// resizes the border box, so the ResizeObserver would not fix
+		// this up when the animation lands.
+		const raw = host.width / this.offsetWidth;
+		// offsetWidth is integer-rounded and the group is content-sized,
+		// so its laid-out width is nearly always fractional and the ratio
+		// lands a hair off 1 with no transform in play at all. Treat that
+		// band as 1: 0.02 sits above the rounding error for any realistic
+		// group width and well below the animation's 0.08.
+		const scale = Math.abs( raw - 1 ) < 0.02 ? 1 : raw;
+		if ( ! ( scale > 0 ) ) {
+			// A fully collapsed ancestor. There is nothing to divide by,
+			// and no event will bring us back, so keep the last good
+			// placement rather than hide a thumb that would never return.
+			return;
+		}
+		const box = selected.getBoundingClientRect();
+		// Two decimals keeps the pill on the sub-pixel edge the browser
+		// laid the segment on, without the float noise the division
+		// leaves behind (65.00000000000001px).
+		const px = ( v: number ) => `${ Math.round( v * 100 ) / 100 }px`;
+		this.style.setProperty( '--_thumb-x', px( ( box.left - host.left ) / scale ) );
+		this.style.setProperty( '--_thumb-w', px( box.width / scale ) );
 		this.setAttribute( 'data-thumb', '' );
 		// One frame later than the first placement, so the pill does
 		// not animate in from the origin on page load. See the note on
