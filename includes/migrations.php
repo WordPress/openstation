@@ -9,10 +9,10 @@
  * pending migrations exactly once. Guarded so it is a cheap no-op after
  * the first successful pass.
  *
- * A fresh install skips the runner entirely: activation stamps the
- * shipped version straight away, so nothing here ever has to infer the
- * past of a site that does not have one. See
- * {@see openstation_stamp_migrations_on_fresh_install}.
+ * On a site with no history the runner fires at activation instead, so
+ * nothing here ever has to infer the past of a site from evidence that
+ * site wrote after it was installed. See
+ * {@see openstation_run_migrations_on_activation}.
  *
  * @package OpenStation
  */
@@ -26,10 +26,10 @@ defined( 'ABSPATH' ) || exit;
  * {@see openstation_run_pending_migrations}) whenever a new one-time
  * migration is needed.
  *
- * Only for migrations that are a no-op on a fresh install. Activation
- * stamps this value outright ({@see openstation_stamp_migrations_on_fresh_install}),
- * so a migration that has real work to do on a brand-new site will never
- * run on one.
+ * A new migration runs on every install, including brand-new ones: on a
+ * site with no history the runner fires at activation
+ * ({@see openstation_run_migrations_on_activation}) rather than on the
+ * first `admin_init`.
  *
  * - 1: native list windows flipped from opt-out (default ON) to opt-in
  *   Beta (default OFF). Clears the five `native*Enabled` flags from every
@@ -88,24 +88,39 @@ function openstation_maybe_run_migrations() {
 add_action( 'admin_init', 'openstation_maybe_run_migrations' );
 
 /**
- * Records the shipped version at activation so a fresh install never
- * runs a migration.
+ * Runs the pending migrations at activation, on a site with no history.
+ *
+ * Migration 5 infers who used the shell before the rename from user meta
+ * that a site can write to itself between activation and the first
+ * `admin_init` (the portal auto-enable). Running at activation is the
+ * one moment that window is still shut, so the same runner reaches the
+ * same conclusion about the same site and cannot be fooled by evidence
+ * that arrives later.
+ *
+ * The whole runner, not a subset: migrations 2 and 3 clear leftover AI
+ * cron events and a stored provider credential, neither of which any
+ * user meta predicts.
  *
  * @return void
  */
-function openstation_stamp_migrations_on_fresh_install() {
+function openstation_run_migrations_on_activation() {
+	// Migrations have already run here; their high-water mark is the
+	// truth and the runner would be a no-op anyway.
 	if ( false !== get_option( OPENSTATION_MIGRATION_OPTION, false ) ) {
 		return;
 	}
 
+	// The site has history, so this is a reactivation and not a new
+	// install. Leave it to `admin_init`, where migration 5 reads meta
+	// that is genuinely older than this request.
 	$prior_users = openstation_users_with_prior_desktop_use();
 	if ( ! empty( $prior_users ) ) {
 		return;
 	}
 
-	update_option( OPENSTATION_MIGRATION_OPTION, OPENSTATION_MIGRATION_VERSION, false );
+	openstation_maybe_run_migrations();
 }
-register_activation_hook( OPENSTATION_FILE, 'openstation_stamp_migrations_on_fresh_install' );
+register_activation_hook( OPENSTATION_FILE, 'openstation_run_migrations_on_activation' );
 
 /**
  * Dispatches each migration whose version is newer than what has run.
@@ -227,11 +242,10 @@ function openstation_users_with_prior_desktop_use() {
  * enabled OpenStation this morning.
  *
  * What that gate does NOT do on its own is prove the evidence is old.
- * On a fresh install it can be written between activation and the first
+ * On a new install it can be written between activation and the first
  * `admin_init`, and then read back here as history. That window is
- * closed by {@see openstation_stamp_migrations_on_fresh_install}, which
- * retires the whole runner at activation; this migration is only ever
- * reached on a site that already existed.
+ * closed by {@see openstation_run_migrations_on_activation}, which runs
+ * this migration before anything can write it.
  *
  * Deliberately NOT folded into migration 4, even though the two ship
  * together: 4 has already run on trunk checkouts, and a migration that

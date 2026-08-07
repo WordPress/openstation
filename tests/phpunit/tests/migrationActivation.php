@@ -1,15 +1,14 @@
 <?php
 /**
- * Tests for the activation-time migration stamp.
+ * Tests for running the migrations at activation.
  *
- * Every migration in `includes/migrations.php` reconstructs something
- * about a site's past, and migration 5 does it by reading user meta.
- * That only holds while the meta predates the runner, and on a fresh
- * install it need not: activation may run no `admin_init` at all (
- * WP-CLI, a Playground Blueprint, a provisioning script), leaving the
- * runner pending until after the portal has auto-enabled the shell and
- * written the very key it scans for. Stamping the shipped version at
- * activation is what keeps a minute-old site from being told about a
+ * Migration 5 reconstructs who used the shell before the rename from
+ * user meta, and that only holds while the meta is older than the
+ * runner. On a new install it need not be: activation may run no
+ * `admin_init` at all (WP-CLI, a Playground Blueprint, a provisioning
+ * script), leaving the runner pending until after the portal has
+ * auto-enabled the shell and written the very key it scans for. Running
+ * at activation is what keeps a minute-old site from being told about a
  * rename it never lived through.
  *
  * @package WordPress
@@ -18,7 +17,7 @@
  * @group openstation
  * @group migrations
  */
-class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
+class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
@@ -33,21 +32,18 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The stamp is wired to activation.
+	 * The runner is wired to activation.
 	 *
 	 * Every other test here calls the function directly, so they would
-	 * all pass with the hook unregistered. `includes/migrations.php`
-	 * loads unconditionally for this reason: a programmatic activation
-	 * need not look like an admin request, and a hook registered only on
-	 * admin requests would miss exactly the installs this fixes.
+	 * all pass with the hook unregistered.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
-	public function test_stamp_is_registered_on_activation() {
+	public function test_runner_is_registered_on_activation() {
 		$this->assertNotFalse(
 			has_action(
 				'activate_' . plugin_basename( OPENSTATION_FILE ),
-				'openstation_stamp_migrations_on_fresh_install'
+				'openstation_run_migrations_on_activation'
 			)
 		);
 	}
@@ -60,9 +56,9 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	 * suite, so the hook is registered here however the loader is
 	 * written. Read the loader instead, and pin the require ahead of the
 	 * admin-only block. Move it inside and a Playground-style activation
-	 * silently stops stamping.
+	 * silently stops running migrations.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
 	public function test_migrations_load_outside_the_admin_module_guard() {
 		$loader = file_get_contents( OPENSTATION_DIR . 'desktop-mode.php' );
@@ -80,28 +76,72 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A genuinely fresh install records the shipped version outright.
+	 * A site with no history records the shipped version at activation.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
-	public function test_fresh_install_is_stamped_at_the_shipped_version() {
+	public function test_activation_records_the_shipped_version() {
 		self::factory()->user->create();
 
-		openstation_stamp_migrations_on_fresh_install();
+		openstation_run_migrations_on_activation();
 
 		$this->assertSame( OPENSTATION_MIGRATION_VERSION, $this->stored_version() );
 	}
 
 	/**
-	 * The stamp leaves nothing for the runner to do.
+	 * Every migration runs, not just the one the gate is about.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * The gate reads user meta, and site-level leftovers are invisible to
+	 * it: a stored AI credential (migration 3) outlives the user who
+	 * saved it, since deleting a user drops their meta. Retiring the
+	 * runner without running it would leave that key in the database
+	 * forever.
+	 *
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
-	public function test_stamped_install_runs_no_migration() {
-		$user_id = self::factory()->user->create();
-		openstation_stamp_migrations_on_fresh_install();
+	public function test_activation_still_clears_site_level_leftovers() {
+		update_option( 'desktop_mode_ai_platform', array( 'apiKey' => 'sk-secret-leftover' ) );
+		self::factory()->user->create();
 
-		// The runner would flag this user if it ran at all.
+		openstation_run_migrations_on_activation();
+
+		$this->assertFalse(
+			get_option( 'desktop_mode_ai_platform', false ),
+			'Migration 3 should have deleted the leftover provider credential.'
+		);
+		$this->assertSame( OPENSTATION_MIGRATION_VERSION, $this->stored_version() );
+	}
+
+	/**
+	 * Queued AI cron events are unscheduled too.
+	 *
+	 * Same shape as the credential: migration 2's work is site-level and
+	 * no user meta predicts it.
+	 *
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
+	public function test_activation_still_unschedules_stale_ai_cron() {
+		wp_schedule_single_event( time() + HOUR_IN_SECONDS, 'desktop_mode_ai_analyze_post', array( 1 ) );
+		self::factory()->user->create();
+
+		openstation_run_migrations_on_activation();
+
+		$this->assertFalse(
+			wp_next_scheduled( 'desktop_mode_ai_analyze_post', array( 1 ) ),
+			'Migration 2 should have unscheduled the leftover event.'
+		);
+	}
+
+	/**
+	 * Activation leaves nothing for the `admin_init` runner to do.
+	 *
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
+	public function test_activated_install_runs_no_further_migration() {
+		$user_id = self::factory()->user->create();
+		openstation_run_migrations_on_activation();
+
+		// The runner would flag this user if it ran again.
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 		openstation_maybe_run_migrations();
 
@@ -116,16 +156,16 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	 *
 	 * Activation runs no `admin_init`; `/openstation/` then auto-enables
 	 * the shell on the front end and writes `desktop_mode_mode`; the
-	 * redirect into wp-admin is the first `admin_init`. Without the
-	 * stamp, migration 5 reads meta written seconds earlier as proof of
-	 * years of use, and the desk opens on the rebrand announcement.
+	 * redirect into wp-admin is the first `admin_init`. Run only there,
+	 * migration 5 reads meta written seconds earlier as proof of years of
+	 * use, and the desk opens on the rebrand announcement.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
 	public function test_portal_auto_enable_after_activation_earns_no_notice() {
 		$user_id = self::factory()->user->create();
 
-		openstation_stamp_migrations_on_fresh_install();      // Activation.
+		openstation_run_migrations_on_activation();          // Activation.
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' ); // Portal.
 		openstation_maybe_run_migrations();                    // First admin_init.
 
@@ -142,34 +182,34 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	 * Activation fires on a plain deactivate/reactivate too, and the
 	 * stored mark is the truth there.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
 	public function test_existing_version_is_never_moved() {
 		update_option( OPENSTATION_MIGRATION_OPTION, 2, false );
 
-		openstation_stamp_migrations_on_fresh_install();
+		openstation_run_migrations_on_activation();
 
 		$this->assertSame( 2, $this->stored_version() );
 	}
 
 	/**
-	 * A pre-runner install being reactivated is not mistaken for a fresh
-	 * one, and its users still get the announcement.
+	 * A pre-runner install being reactivated is left to `admin_init`, and
+	 * its users still get the announcement.
 	 *
 	 * The runner shipped in 0.9.1, so a site coming from 0.9.0 has no
 	 * stored version either. Only the users tell the two apart.
 	 *
-	 * @covers ::openstation_stamp_migrations_on_fresh_install
+	 * @covers ::openstation_run_migrations_on_activation
 	 */
-	public function test_prior_use_blocks_the_stamp() {
+	public function test_prior_use_defers_to_admin_init() {
 		$user_id = self::factory()->user->create();
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 
-		openstation_stamp_migrations_on_fresh_install();
+		openstation_run_migrations_on_activation();
 
 		$this->assertNull(
 			$this->stored_version(),
-			'A site with history has migrations to run.'
+			'A site with history has migrations to run on its next admin load.'
 		);
 
 		openstation_maybe_run_migrations();
@@ -189,11 +229,11 @@ class Tests_OpenStation_MigrationStamp extends WP_UnitTestCase {
 	 *
 	 * @covers ::openstation_users_with_prior_desktop_use
 	 */
-	public function test_saved_settings_alone_block_the_stamp() {
+	public function test_saved_settings_alone_defer_to_admin_init() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings( $user_id, array( 'wallpaper' => 'custom-gradient' ) );
 
-		openstation_stamp_migrations_on_fresh_install();
+		openstation_run_migrations_on_activation();
 
 		$this->assertNull( $this->stored_version() );
 	}
