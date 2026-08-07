@@ -218,16 +218,29 @@ Strings flow through three files per locale in `languages/`:
 - `desktop-mode.pot` — extracted from PHP and TS sources. Regenerate
   with `npm run extract:i18n` (wraps `wp i18n make-pot` and then
   `msgmerge`-es the refreshed POT into every existing
-  `os-{locale}.po`).
-- `os-{locale}.po` / `.mo` — translator output, one pair per
+  `desktop-mode-{locale}.po`).
+- `desktop-mode-{locale}.po` / `.mo` — translator output, one pair per
   shipped locale.
-- `os-{locale}-{handle}.json` — JS translation bundles.
+- `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
   WordPress's `wp_set_script_translations()` looks up these files by
   the script handle, NOT by source-file hash, because we pass a path
   argument from `includes/assets.php`. Today three handles have
   populated bundles — `openstation` (the main shell),
   `os-posts-window`, and `desktop-mode-recycle-bin`; see
   `bin/build-i18n.sh` for the handle to source-prefix map.
+
+### POT header fields
+
+`Project-Id-Version` is derived by `make-pot` from the plugin header
+in `desktop-mode.php` (Plugin Name plus Version). Nothing pins it in
+the extraction script, and nothing should: pinning is how it goes
+stale.
+
+`Report-Msgid-Bugs-To` points translators at
+`https://wordpress.org/support/plugin/desktop-mode`. That slug is the
+published wp.org slug and is frozen, so it keeps reading
+`desktop-mode` even though the plugin is now called OpenStation. See
+AGENTS.md, "`desktop_mode_*` values are frozen".
 
 The two-step pipeline is:
 

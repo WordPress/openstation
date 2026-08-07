@@ -9,10 +9,22 @@
                 "lang": "es_ES",
                 "plural-forms": "nplurals=2; plural=(n != 1);"
             },
+            "#%s": [
+                ""
+            ],
             "%1$d %3$s, %2$d failed.": [
                 ""
             ],
+            "%1$d files deleted · %2$d could not be deleted": [
+                ""
+            ],
+            "%1$d items moved to Trash · %2$d could not be moved": [
+                ""
+            ],
             "%1$d nodes · %2$d links": [
+                ""
+            ],
+            "%1$d of %2$d": [
                 ""
             ],
             "%1$d of %2$d items": [
@@ -30,11 +42,20 @@
             "%1$d posts · %2$d pages": [
                 ""
             ],
+            "%1$d · %2$d": [
+                ""
+            ],
             "%1$dh %2$dm": [
                 ""
             ],
             "%1$s %2$s": [
                 ""
+            ],
+            "%1$s (%2$d items)": [
+                ""
+            ],
+            "%1$s (%2$d)": [
+                "Error al subir."
             ],
             "%1$s accepted your %2$s challenge and is playing.": [
                 ""
@@ -66,13 +87,22 @@
             "%1$s of %2$s components match.": [
                 ""
             ],
+            "%1$s over %2$d orders": [
+                ""
+            ],
             "%1$s updated to %2$s.": [
                 ""
             ],
             "%1$s · %2$d": [
                 ""
             ],
+            "%1$s · %2$d failed — %3$s": [
+                ""
+            ],
             "%1$s · %2$d posts": [
+                ""
+            ],
+            "%1$s · %2$d variations": [
                 ""
             ],
             "%1$s · %2$s KB": [
@@ -87,6 +117,12 @@
             "%1$s → %2$s": [
                 ""
             ],
+            "%1$s ★ (%2$d)": [
+                ""
+            ],
+            "%d (no limit)": [
+                ""
+            ],
             "%d KB": [
                 ""
             ],
@@ -96,7 +132,32 @@
             "%d day": [
                 ""
             ],
+            "%d day ago": [
+                "Navegación del administrador",
+                "Navegación del administrador"
+            ],
+            "%d entries updated": [
+                "%d actualización"
+            ],
             "%d entry references this file.": [
+                ""
+            ],
+            "%d entry updated": [
+                "%d actualización"
+            ],
+            "%d file detached": [
+                ""
+            ],
+            "%d files deleted.": [
+                "Biblioteca de medios"
+            ],
+            "%d files detached": [
+                ""
+            ],
+            "%d files selected": [
+                ""
+            ],
+            "%d files will be permanently deleted. This cannot be undone.": [
                 ""
             ],
             "%d hidden by HD filter": [
@@ -105,16 +166,44 @@
             "%d item": [
                 ""
             ],
+            "%d items moved to Trash": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "%d items selected": [
+                ""
+            ],
+            "%d left": [
+                ""
+            ],
+            "%d links copied.": [
+                ""
+            ],
             "%d min": [
                 "Navegación del administrador"
             ],
+            "%d month ago": [
+                "Navegación del administrador",
+                "Navegación del administrador"
+            ],
             "%d notification": [
+                ""
+            ],
+            "%d order": [
+                ""
+            ],
+            "%d orders": [
+                ""
+            ],
+            "%d person": [
                 ""
             ],
             "%d post": [
                 ""
             ],
             "%d post published — their personal record.": [
+                ""
+            ],
+            "%d products": [
                 ""
             ],
             "%d published": [
@@ -129,9 +218,34 @@
             "%d selected": [
                 ""
             ],
+            "%d units": [
+                ""
+            ],
             "%d update": [
                 "%d actualización",
                 "%d actualizaciones"
+            ],
+            "%d user deleted": [
+                "Biblioteca de medios"
+            ],
+            "%d user updated": [
+                "%d actualización"
+            ],
+            "%d users deleted": [
+                "Biblioteca de medios"
+            ],
+            "%d users selected": [
+                ""
+            ],
+            "%d users updated": [
+                "%d actualización"
+            ],
+            "%d uses": [
+                "Añadir %s"
+            ],
+            "%d year ago": [
+                "Navegación del administrador",
+                "Navegación del administrador"
             ],
             "%d ★": [
                 ""
@@ -157,6 +271,9 @@
             "%ds": [
                 ""
             ],
+            "%d×": [
+                ""
+            ],
             "%s (already added)": [
                 "%s (ya añadido)"
             ],
@@ -164,6 +281,9 @@
                 ""
             ],
             "%s activated.": [
+                ""
+            ],
+            "%s average": [
                 ""
             ],
             "%s components registered.": [
@@ -313,8 +433,17 @@
             "Add a minute": [
                 "Añadir nuevo escritorio"
             ],
+            "Add categories": [
+                "No se pudieron cargar tus medios."
+            ],
             "Add new desktop": [
                 "Añadir nuevo escritorio"
+            ],
+            "Add tags": [
+                "Añadir %s"
+            ],
+            "Add tags…": [
+                "Añadir %s"
             ],
             "Add trigger": [
                 "Añadir %s"
@@ -325,13 +454,16 @@
             "Added": [
                 "Añadido"
             ],
+            "Addresses": [
+                ""
+            ],
             "Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.": [
                 ""
             ],
             "Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.": [
                 ""
             ],
-            "Adds an Agents section to My WordPress: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.": [
+            "Adds an Agents section to WP Explorer: durable AI workers that live on the site as login-blocked users, act through the WordPress Abilities API under their own role, and answer in a chat window. Requires a configured AI connector to run. Off by default — while off, nothing agent-related loads. Agent definitions are kept across a disable and reappear when re-enabled.": [
                 ""
             ],
             "Admin bar": [
@@ -353,6 +485,18 @@
                 ""
             ],
             "All": [
+                ""
+            ],
+            "All orders": [
+                ""
+            ],
+            "All their orders": [
+                ""
+            ],
+            "Allow": [
+                ""
+            ],
+            "Allowed emails": [
                 ""
             ],
             "Alphabet Soup": [
@@ -418,6 +562,9 @@
             "Attached media": [
                 "Buscar medios"
             ],
+            "Attribute all content to %s": [
+                ""
+            ],
             "Author": [
                 ""
             ],
@@ -454,6 +601,12 @@
             "Automatic Updates": [
                 ""
             ],
+            "Average order": [
+                ""
+            ],
+            "Awaiting action": [
+                "Acciones de ventana"
+            ],
             "Back": [
                 ""
             ],
@@ -461,6 +614,9 @@
                 ""
             ],
             "Background color": [
+                ""
+            ],
+            "Backorder": [
                 ""
             ],
             "Beat %1$s: %2$s": [
@@ -490,11 +646,26 @@
             "Big": [
                 ""
             ],
+            "Billing": [
+                ""
+            ],
             "Blinds": [
+                ""
+            ],
+            "Blob": [
                 ""
             ],
             "Board size": [
                 "Tamaño del dock"
+            ],
+            "Body": [
+                ""
+            ],
+            "Body colour": [
+                ""
+            ],
+            "Body opacity": [
+                ""
             ],
             "Bookmark": [
                 ""
@@ -508,6 +679,9 @@
             "Breadcrumb": [
                 ""
             ],
+            "Brightness": [
+                ""
+            ],
             "Bring related windows to front": [
                 ""
             ],
@@ -515,6 +689,9 @@
                 ""
             ],
             "Bug": [
+                ""
+            ],
+            "Buys most": [
                 ""
             ],
             "By hour of day (site time)": [
@@ -589,6 +766,18 @@
             "Change paper color (next: %s)": [
                 ""
             ],
+            "Change role": [
+                ""
+            ],
+            "Change role for %d users…": [
+                ""
+            ],
+            "Change role…": [
+                ""
+            ],
+            "Change shape on its own": [
+                ""
+            ],
             "Changelog": [
                 ""
             ],
@@ -605,6 +794,9 @@
                 ""
             ],
             "Choose your pace": [
+                ""
+            ],
+            "Circle": [
                 ""
             ],
             "Classic": [
@@ -634,7 +826,13 @@
             "Close window": [
                 "Organizar ventanas"
             ],
+            "Cloud": [
+                ""
+            ],
             "Co-occurring": [
+                ""
+            ],
+            "Colour": [
                 ""
             ],
             "Comment": [
@@ -715,7 +913,22 @@
             "Convert to post": [
                 ""
             ],
+            "Copy %d links": [
+                "Mostrando %d"
+            ],
+            "Copy author archive link": [
+                ""
+            ],
+            "Copy file URL": [
+                ""
+            ],
+            "Copy link": [
+                "Mostrando %d"
+            ],
             "Corkboard container missing.": [
+                ""
+            ],
+            "Corners": [
                 ""
             ],
             "Could not accept the challenge.": [
@@ -741,6 +954,12 @@
             ],
             "Could not initialise the graph renderer.": [
                 ""
+            ],
+            "Could not load WooCommerce details (%d).": [
+                "No se pudieron cargar tus medios."
+            ],
+            "Could not load WooCommerce details.": [
+                "No se pudieron cargar tus medios."
             ],
             "Could not load comments": [
                 "No se pudieron cargar tus medios."
@@ -775,11 +994,20 @@
             "Could not pin the note. Please try again.": [
                 ""
             ],
+            "Could not reach the clipboard — copying needs a secure (https) connection.": [
+                ""
+            ],
+            "Could not read the selected entries.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
             "Could not save sticky note.": [
                 "No se pudieron cargar tus medios."
             ],
             "Could not send the challenge.": [
                 "No se pudieron cargar tus medios: %s"
+            ],
+            "Could not show WooCommerce details.": [
+                "No se pudieron cargar tus medios."
             ],
             "Could not toggle auto-updates for %1$s: %2$s": [
                 ""
@@ -802,6 +1030,12 @@
             "Couldn’t load your media: %s": [
                 "No se pudieron cargar tus medios: %s"
             ],
+            "Coupon": [
+                ""
+            ],
+            "Coupons": [
+                ""
+            ],
             "Crafted with curiosity": [
                 ""
             ],
@@ -812,6 +1046,9 @@
                 ""
             ],
             "Create your first agent: give it a name, a role, and instructions, then pick the abilities it may use.": [
+                ""
+            ],
+            "Created": [
                 ""
             ],
             "Current streak": [
@@ -831,6 +1068,18 @@
             ],
             "Custom image wallpaper": [
                 "Fondo de imagen personalizada"
+            ],
+            "Customer": [
+                "Imagen personalizada"
+            ],
+            "Customer since": [
+                "Imagen personalizada"
+            ],
+            "Customers": [
+                "Imagen personalizada"
+            ],
+            "Cycle the colours": [
+                "Color de acento"
             ],
             "Daily": [
                 ""
@@ -865,10 +1114,22 @@
             "Delete": [
                 ""
             ],
+            "Delete %d files permanently": [
+                "Error al subir."
+            ],
+            "Delete %d users": [
+                "Error al subir."
+            ],
+            "Delete %d users…": [
+                "Error al subir."
+            ],
             "Delete %s": [
                 "Error al subir."
             ],
             "Delete agent?": [
+                "Error al subir."
+            ],
+            "Delete all their content": [
                 "Error al subir."
             ],
             "Delete conversation": [
@@ -904,6 +1165,9 @@
             "Delete this theme?": [
                 "Error al subir."
             ],
+            "Delete…": [
+                "Subiendo…"
+            ],
             "Deleting…": [
                 "Subiendo…"
             ],
@@ -916,11 +1180,8 @@
             "Desktop %d": [
                 "Escritorio %d"
             ],
-            "Desktop Mode deactivated. Reloading…": [
-                ""
-            ],
-            "Desktop Mode deleted. Reloading…": [
-                ""
+            "Desktop Mode is now OpenStation": [
+                "Escritorio %d"
             ],
             "Desktop icons": [
                 "Escritorio 1"
@@ -933,6 +1194,12 @@
             ],
             "Desktop themes": [
                 "Escritorio %d"
+            ],
+            "Detach": [
+                ""
+            ],
+            "Detach %d files": [
+                ""
             ],
             "Details": [
                 ""
@@ -958,10 +1225,19 @@
             "Disabling…": [
                 "Subiendo…"
             ],
+            "Discount": [
+                ""
+            ],
+            "Discount given": [
+                ""
+            ],
             "Dismiss": [
                 ""
             ],
             "Dismiss notice": [
+                ""
+            ],
+            "Do not allow": [
                 ""
             ],
             "Dock %s back to widget column": [
@@ -980,6 +1256,9 @@
                 ""
             ],
             "Download": [
+                ""
+            ],
+            "Draft": [
                 ""
             ],
             "Draft moved to Trash.": [
@@ -1045,7 +1324,16 @@
             "Edit": [
                 ""
             ],
+            "Edit %1$d %2$s": [
+                "Error al subir."
+            ],
+            "Edit %d entries…": [
+                ""
+            ],
             "Edit comment…": [
+                ""
+            ],
+            "Edit coupon": [
                 ""
             ],
             "Edit draft": [
@@ -1054,16 +1342,28 @@
             "Edit failed.": [
                 "Error al subir."
             ],
+            "Edit in WooCommerce": [
+                ""
+            ],
+            "Edit profile": [
+                "Error al subir."
+            ],
             "Edit this post": [
                 ""
             ],
             "Edit user": [
                 ""
             ],
+            "Edit…": [
+                ""
+            ],
             "Effects": [
                 ""
             ],
             "Eight vertical slats retract at once, letting the page through between them.": [
+                ""
+            ],
+            "Email": [
                 ""
             ],
             "Emerald": [
@@ -1099,7 +1399,10 @@
             "Events": [
                 ""
             ],
-            "Every <wpd-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.": [
+            "Every <os-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.": [
+                ""
+            ],
+            "Everything is already set up. You don't need to install any new plugins, so you can keep using the same features as before.": [
                 ""
             ],
             "Example": [
@@ -1111,8 +1414,14 @@
             "Excerpt updated.": [
                 "%d actualización"
             ],
-            "Exit Desktop Mode": [
-                "Escritorio %d"
+            "Excludes": [
+                ""
+            ],
+            "Excludes sale items": [
+                ""
+            ],
+            "Exit OpenStation": [
+                ""
             ],
             "Exit fullscreen": [
                 "Salir de pantalla completa"
@@ -1123,10 +1432,22 @@
             "Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.": [
                 ""
             ],
+            "Expires": [
+                ""
+            ],
             "Explore details": [
                 ""
             ],
             "Extended options": [
+                ""
+            ],
+            "Eye colour": [
+                "Color de acento"
+            ],
+            "Eye size": [
+                "Tamaño del dock"
+            ],
+            "Eyes": [
                 ""
             ],
             "F": [
@@ -1180,6 +1501,9 @@
             "Find a player…": [
                 ""
             ],
+            "First order": [
+                ""
+            ],
             "First post": [
                 ""
             ],
@@ -1194,6 +1518,9 @@
             ],
             "Flake size": [
                 "Tamaño del dock"
+            ],
+            "Flower": [
+                ""
             ],
             "Focus timer cancelled — the linked window was closed.": [
                 ""
@@ -1231,7 +1558,22 @@
             "Game challenge": [
                 ""
             ],
+            "Ghost": [
+                ""
+            ],
+            "Glow": [
+                ""
+            ],
             "Got it": [
+                ""
+            ],
+            "Gradient": [
+                "Gradiente personalizado"
+            ],
+            "Gradient angle": [
+                ""
+            ],
+            "Grants free shipping": [
                 ""
             ],
             "Grayscale": [
@@ -1258,7 +1600,13 @@
             "Group posts by a shared facet": [
                 ""
             ],
+            "Guest checkout": [
+                ""
+            ],
             "Hard": [
+                ""
+            ],
+            "Heart": [
                 ""
             ],
             "Hidden": [
@@ -1279,6 +1627,12 @@
             "Highlight related windows": [
                 ""
             ],
+            "Hologram": [
+                ""
+            ],
+            "Holographic": [
+                ""
+            ],
             "Hook name": [
                 ""
             ],
@@ -1291,7 +1645,16 @@
             "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
                 ""
             ],
+            "Hue": [
+                ""
+            ],
+            "Hue spread": [
+                ""
+            ],
             "IP": [
+                ""
+            ],
+            "Idle": [
                 ""
             ],
             "Image source": [
@@ -1311,6 +1674,9 @@
             ],
             "Indigo": [
                 "Índigo"
+            ],
+            "Individual use only": [
+                ""
             ],
             "Inkfall": [
                 ""
@@ -1333,7 +1699,7 @@
             "Install isn't available right now. Keep using the page; if it still doesn't appear, the app may already be installed in this browser.": [
                 ""
             ],
-            "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the desktop_mode_pwa_force_replace_sw filter to true.": [
+            "Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the openstation_pwa_force_replace_sw filter to true.": [
                 ""
             ],
             "Installed %s as an app.": [
@@ -1348,14 +1714,26 @@
             "Instructions (system prompt)": [
                 ""
             ],
+            "Iridescence": [
+                ""
+            ],
             "Iris": [
+                ""
+            ],
+            "Items (%d)": [
                 ""
             ],
             "JPEG, PNG, or WebP · goes straight to your Media Library": [
                 "JPEG, PNG o WebP · va directo a tu biblioteca de medios"
             ],
+            "Lapsed": [
+                ""
+            ],
             "Large": [
                 "Grande"
+            ],
+            "Last order": [
+                ""
             ],
             "Last post": [
                 ""
@@ -1385,6 +1763,15 @@
                 ""
             ],
             "Level %1$s · %2$s": [
+                ""
+            ],
+            "Lifetime spend": [
+                ""
+            ],
+            "Limit to items": [
+                ""
+            ],
+            "Link copied.": [
                 ""
             ],
             "Link style": [
@@ -1426,14 +1813,23 @@
             "Local time and date, refreshed every second.": [
                 "Hora y fecha locales, se actualiza cada segundo."
             ],
+            "Location": [
+                "Navegación del administrador"
+            ],
             "Longest streak": [
+                ""
+            ],
+            "Loop the gradient (no seam)": [
                 ""
             ],
             "M": [
                 ""
             ],
-            "Made for Desktop Mode": [
-                "Cambiar a modo escritorio"
+            "Made for OpenStation": [
+                ""
+            ],
+            "Make it yours": [
+                ""
             ],
             "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.": [
                 ""
@@ -1446,6 +1842,9 @@
             ],
             "Maximize": [
                 "Maximizar"
+            ],
+            "Maximum spend": [
+                ""
             ],
             "Media": [
                 ""
@@ -1477,6 +1876,9 @@
             "Minimize": [
                 "Minimizar"
             ],
+            "Minimum spend": [
+                ""
+            ],
             "Missing-import warner — live demo": [
                 ""
             ],
@@ -1506,6 +1908,12 @@
             ],
             "Move \"%s\" to Trash?": [
                 ""
+            ],
+            "Move %d items to Trash": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Move %d items to Trash?": [
+                "No se pudieron cargar tus medios: %s"
             ],
             "Move cancelled.": [
                 ""
@@ -1558,13 +1966,22 @@
             "Network only": [
                 ""
             ],
+            "Never": [
+                ""
+            ],
             "New": [
                 "Añadir %s"
             ],
             "New %s": [
                 ""
             ],
+            "New name": [
+                "Añadir nuevo escritorio"
+            ],
             "New note": [
+                "Añadir nuevo escritorio"
+            ],
+            "New role": [
                 "Añadir nuevo escritorio"
             ],
             "New sticky note": [
@@ -1612,6 +2029,9 @@
             "No apps registered yet": [
                 ""
             ],
+            "No assignable roles are available on this site.": [
+                "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+            ],
             "No author available.": [
                 ""
             ],
@@ -1643,6 +2063,9 @@
                 ""
             ],
             "No conversations yet.": [
+                ""
+            ],
+            "No customer selected. Open one from the Customers folder.": [
                 ""
             ],
             "No description": [
@@ -1723,10 +2146,19 @@
             "None": [
                 ""
             ],
+            "None yet": [
+                ""
+            ],
             "Normal — 460 ms": [
                 ""
             ],
+            "Not counted on a store this large": [
+                ""
+            ],
             "Not now": [
+                ""
+            ],
+            "Not sticky": [
                 ""
             ],
             "Note by %s": [
@@ -1750,7 +2182,16 @@
             "Note text": [
                 ""
             ],
+            "Nothing could be moved to Trash.": [
+                "No se pudieron cargar tus medios: %s"
+            ],
+            "Nothing could be updated.": [
+                "%d actualización"
+            ],
             "Nothing on this post here": [
+                ""
+            ],
+            "Nothing to copy — no links found.": [
                 ""
             ],
             "Nothing to show yet.": [
@@ -1798,19 +2239,31 @@
             "Only HD (≥%1$d×%2$d)": [
                 "Solo HD (≥%1$d×%2$d)"
             ],
+            "Only the fields you change are applied. Categories and tags are added to what each entry already has.": [
+                ""
+            ],
             "Open": [
                 "Abrir"
+            ],
+            "Open %1$d items in %2$s": [
+                "Error al subir."
+            ],
+            "Open %d items in the editor": [
+                "Abrir en una nueva pestaña del navegador"
             ],
             "Open Connectors settings": [
                 ""
             ],
-            "Open an agent from the Agents section of the site folder, or pick a past conversation.": [
+            "Open an agent from the Agents section of WP Explorer, or pick a past conversation.": [
                 ""
             ],
             "Open another %s": [
                 "Abrir otra ventana de %s"
             ],
             "Open artifact": [
+                ""
+            ],
+            "Open customer": [
                 ""
             ],
             "Open file": [
@@ -1855,13 +2308,22 @@
             "Open the %1$s \"%2$s\"": [
                 "Error al subir."
             ],
-            "Open the agent in My WordPress": [
+            "Open the agent in WP Explorer": [
                 ""
             ],
             "Open the full activity footprint surface for this user.": [
                 ""
             ],
+            "Open the orders screen filtered to this customer, in its own window.": [
+                ""
+            ],
             "Open this user’s profile editor in a new window.": [
+                ""
+            ],
+            "OpenStation deactivated. Reloading…": [
+                ""
+            ],
+            "OpenStation deleted. Reloading…": [
                 ""
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
@@ -1870,7 +2332,16 @@
             "Or use your own image": [
                 "O usa tu propia imagen"
             ],
+            "Order": [
+                ""
+            ],
+            "Orders": [
+                ""
+            ],
             "Other": [
+                ""
+            ],
+            "Out of stock": [
                 ""
             ],
             "Overview": [
@@ -1885,7 +2356,10 @@
             "Pages": [
                 ""
             ],
-            "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
+            "Paid via": [
+                ""
+            ],
+            "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on WP Explorer tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.": [
                 ""
             ],
             "Paper color": [
@@ -1902,6 +2376,12 @@
             ],
             "Pending": [
                 ""
+            ],
+            "Pending Review": [
+                ""
+            ],
+            "Per customer": [
+                "Color de acento"
             ],
             "Per-row capability flags so the UI hides actions you can't perform — and the server re-validates every mutation, so flags can't be tampered into more permissions.": [
                 ""
@@ -1944,6 +2424,9 @@
             ],
             "Pinned notes": [
                 ""
+            ],
+            "Placed": [
+                "Error al subir."
             ],
             "Planned": [
                 ""
@@ -1993,13 +2476,16 @@
             "Plugins and the admin menu will appear here once they’re registered.": [
                 ""
             ],
-            "Plugins can add games with desktop_mode_register_game().": [
+            "Plugins can add games with openstation_register_game().": [
                 ""
             ],
-            "Plugins that extend Desktop Mode — desktop decorations, native windows, widgets, and other companions.": [
+            "Plugins that extend OpenStation — desktop decorations, native windows, widgets, and other companions.": [
                 ""
             ],
             "Plugins window template missing.": [
+                ""
+            ],
+            "Polygon": [
                 ""
             ],
             "Popular": [
@@ -2009,6 +2495,9 @@
                 ""
             ],
             "Posts": [
+                ""
+            ],
+            "Potato": [
                 ""
             ],
             "Press Challenge to throw down one of your scores, or pick a row from the scoreboard.": [
@@ -2026,7 +2515,22 @@
             "Previous": [
                 ""
             ],
+            "Price": [
+                ""
+            ],
+            "Price (on sale)": [
+                ""
+            ],
+            "Private": [
+                ""
+            ],
             "Private note. Click to share with every desktop user.": [
+                ""
+            ],
+            "Product": [
+                ""
+            ],
+            "Products": [
                 ""
             ],
             "Props": [
@@ -2036,6 +2540,12 @@
                 ""
             ],
             "Public — visible to other desktop users": [
+                ""
+            ],
+            "Publish": [
+                ""
+            ],
+            "Publish %d entries": [
                 ""
             ],
             "Published": [
@@ -2051,6 +2561,9 @@
                 ""
             ],
             "Rated %s out of 5": [
+                ""
+            ],
+            "Rating": [
                 ""
             ],
             "Re-shows the one-time introduction dialog the next time you open each redesigned native window.": [
@@ -2070,6 +2583,9 @@
             ],
             "Recent activity": [
                 ""
+            ],
+            "Recent orders": [
+                "Cambiar a modo escritorio"
             ],
             "Recent posts": [
                 ""
@@ -2161,6 +2677,12 @@
             "Resetting…": [
                 ""
             ],
+            "Restore Mio": [
+                ""
+            ],
+            "Restrictions": [
+                "Acciones de ventana"
+            ],
             "Resume": [
                 ""
             ],
@@ -2169,6 +2691,9 @@
             ],
             "Reveal style": [
                 ""
+            ],
+            "Revenue this month": [
+                "Error al subir."
             ],
             "Reviews": [
                 "Vista general"
@@ -2185,6 +2710,9 @@
             "Right": [
                 ""
             ],
+            "Ring": [
+                ""
+            ],
             "Rise": [
                 ""
             ],
@@ -2197,10 +2725,22 @@
             "Rose": [
                 "Rosa"
             ],
+            "Rotation": [
+                "Navegación del administrador"
+            ],
             "Round": [
                 ""
             ],
             "S": [
+                ""
+            ],
+            "SKU": [
+                ""
+            ],
+            "Sale": [
+                ""
+            ],
+            "Saturation": [
                 ""
             ],
             "Saturday": [
@@ -2326,6 +2866,9 @@
             "Send challenge": [
                 ""
             ],
+            "Send email": [
+                ""
+            ],
             "Send reply": [
                 ""
             ],
@@ -2353,6 +2896,12 @@
             "Shaking “%s”": [
                 "Añadir %s"
             ],
+            "Shape": [
+                ""
+            ],
+            "Shape strength": [
+                ""
+            ],
             "Share card": [
                 ""
             ],
@@ -2365,7 +2914,13 @@
             "Sharp": [
                 ""
             ],
+            "Shipping": [
+                ""
+            ],
             "Shortcut": [
+                ""
+            ],
+            "Show %d profiles": [
                 ""
             ],
             "Show all": [
@@ -2399,9 +2954,6 @@
                 ""
             ],
             "Side bar with the core admin menus, plus a bottom dock for plugin apps.": [
-                ""
-            ],
-            "Since": [
                 ""
             ],
             "Single bottom dock holding every menu — core and plugin apps share one rail.": [
@@ -2446,6 +2998,12 @@
             "Snowflakes": [
                 ""
             ],
+            "Sold": [
+                ""
+            ],
+            "Sold out": [
+                ""
+            ],
             "Sort by": [
                 ""
             ],
@@ -2458,10 +3016,16 @@
             "Spatial": [
                 ""
             ],
+            "Spin the gradient": [
+                "Gradiente personalizado"
+            ],
             "Splines": [
                 ""
             ],
             "Stable": [
+                ""
+            ],
+            "Star": [
                 ""
             ],
             "Start focus": [
@@ -2476,6 +3040,9 @@
             "Steps to reproduce (bug only)": [
                 ""
             ],
+            "Sticky": [
+                ""
+            ],
             "Sticky note text": [
                 ""
             ],
@@ -2485,10 +3052,19 @@
             "Sticky term is unavailable.": [
                 ""
             ],
+            "Stock": [
+                ""
+            ],
             "Stop alarm": [
                 ""
             ],
+            "Store": [
+                ""
+            ],
             "Streak": [
+                ""
+            ],
+            "Subtotal": [
                 ""
             ],
             "Subtract a minute": [
@@ -2503,17 +3079,23 @@
             "Sunday": [
                 ""
             ],
+            "Surprise me": [
+                ""
+            ],
             "Sweep": [
+                ""
+            ],
+            "Switch %d entries to Draft": [
                 ""
             ],
             "Switch to %s": [
                 "Cambiar a %s"
             ],
+            "Switch to Draft": [
+                "Cambiar a %s"
+            ],
             "System Preferences": [
                 ""
-            ],
-            "System default": [
-                "Predeterminada"
             ],
             "T": [
                 "Hasta"
@@ -2539,6 +3121,9 @@
             "Teal": [
                 "Verde azulado"
             ],
+            "Teardrop": [
+                ""
+            ],
             "Tested up to WP %s": [
                 ""
             ],
@@ -2551,6 +3136,9 @@
             "That file isn’t an image.": [
                 "Ese archivo no es una imagen."
             ],
+            "That folder is empty.": [
+                ""
+            ],
             "That theme could not be deleted.": [
                 ""
             ],
@@ -2560,7 +3148,7 @@
             "The admin bar is always visible above the desktop.": [
                 ""
             ],
-            "The admin bar is never shown. Use the Exit Desktop Mode tile on the dock to get back to the classic admin.": [
+            "The admin bar is never shown. Use the Exit OpenStation tile on the dock to get back to the classic admin.": [
                 ""
             ],
             "The admin bar slides out of the way and comes back when you move the pointer to the top edge of the screen.": [
@@ -2581,6 +3169,9 @@
             "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.": [
                 "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio gradiente o suelta una imagen."
             ],
+            "The beginning of a new identity.": [
+                ""
+            ],
             "The card could not be shared.": [
                 ""
             ],
@@ -2593,7 +3184,7 @@
             "The dock repaints LIVE after every install / activate / deactivate / delete. No reload, no stale tile, no \"wait, did that work?\".": [
                 ""
             ],
-            "The look Desktop Mode ships with": [
+            "The look OpenStation ships with": [
                 "Cambiar a modo escritorio"
             ],
             "The page arrives as a grid of tiles, each opening out from its own centre.": [
@@ -2611,7 +3202,7 @@
             "The preview opens once the post has been saved.": [
                 ""
             ],
-            "The three <wpd-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
+            "The three <os-*> tags below are intentionally bogus. Open the browser console: within ~2 seconds you should see three console.error entries from the framework, each pointing the developer at the fix (typo with \"did you mean\", and unknown tags). The tags are kept off-screen so they do not affect layout. Remove this section in your fork if you want a quieter Components tab.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
@@ -2623,8 +3214,14 @@
             "The user sent you the %1$s \"%2$s\" (id %3$s) from the \"Send to\" menu. Handle it according to your instructions, using your tools as needed.": [
                 ""
             ],
+            "Their content": [
+                ""
+            ],
             "Themes": [
                 "Añadir %s"
+            ],
+            "Thickness": [
+                ""
             ],
             "Thinking…": [
                 "Subiendo…"
@@ -2677,6 +3274,9 @@
             "This revision has no rendered content.": [
                 ""
             ],
+            "This update also comes with a new default theme that we hope you enjoy.": [
+                ""
+            ],
             "Throw unfocused windows out of focus — a soft, frosted-glass blur, as if you were looking at them through an iced-over pane.": [
                 ""
             ],
@@ -2707,6 +3307,9 @@
             "To": [
                 "Hasta"
             ],
+            "Today": [
+                ""
+            ],
             "Tool calls": [
                 ""
             ],
@@ -2723,6 +3326,9 @@
                 ""
             ],
             "Top topics": [
+                ""
+            ],
+            "Total": [
                 ""
             ],
             "Total content": [
@@ -2746,7 +3352,7 @@
             "Tuesday": [
                 ""
             ],
-            "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.": [
+            "Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.": [
                 ""
             ],
             "Two panels part from the middle of the window and slide off the sides.": [
@@ -2806,7 +3412,7 @@
             "Unknown error.": [
                 ""
             ],
-            "Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OS Settings → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.": [
+            "Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OpenStation Preferences → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.": [
                 ""
             ],
             "Unmute sound effects": [
@@ -2820,6 +3426,9 @@
             ],
             "Untitled window": [
                 "Organizar ventanas"
+            ],
+            "Update": [
+                "Añadir %s"
             ],
             "Update %d": [
                 "Añadir %s"
@@ -2899,6 +3508,9 @@
             "Use the native Users window": [
                 ""
             ],
+            "Used": [
+                ""
+            ],
             "Used in focused window title bars, buttons, and focus rings.": [
                 "Usado en barras de título enfocadas, botones y anillos de foco."
             ],
@@ -2906,6 +3518,15 @@
                 ""
             ],
             "User agent": [
+                ""
+            ],
+            "Users have no trash — this cannot be undone.": [
+                ""
+            ],
+            "VIP": [
+                ""
+            ],
+            "VIP · lapsed": [
                 ""
             ],
             "Version": [
@@ -2926,6 +3547,9 @@
             "View": [
                 ""
             ],
+            "View %d author archives": [
+                ""
+            ],
             "View activity footprint": [
                 ""
             ],
@@ -2941,6 +3565,9 @@
             "View details for %s": [
                 ""
             ],
+            "View in shop": [
+                "Acciones de ventana"
+            ],
             "View on WordPress.org": [
                 "Azul WordPress"
             ],
@@ -2951,6 +3578,9 @@
                 ""
             ],
             "View post": [
+                "Acciones de ventana"
+            ],
+            "View their orders": [
                 "Acciones de ventana"
             ],
             "W": [
@@ -3007,6 +3637,9 @@
             "While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.": [
                 ""
             ],
+            "Why OpenStation? Because it represents much more than a desktop interface. It's an open workspace where WordPress becomes a complete environment for creating, managing and building, just like a real workstation, but powered by the web.": [
+                ""
+            ],
             "Width of the dock and size of its icons.": [
                 "Anchura del dock y tamaño de sus iconos."
             ],
@@ -3028,6 +3661,18 @@
             "Window reveal": [
                 "Acciones de ventana"
             ],
+            "Wobble speed": [
+                ""
+            ],
+            "Wobble strength": [
+                ""
+            ],
+            "Wobble when idle": [
+                ""
+            ],
+            "WooCommerce data is unavailable.": [
+                "Azul WordPress"
+            ],
             "WordPress": [
                 "Azul WordPress"
             ],
@@ -3040,10 +3685,10 @@
             "WordPress Blue": [
                 "Azul WordPress"
             ],
-            "WordPress Desktop Mode": [
-                "Escritorio %d"
-            ],
             "WordPress Heartbeat rate": [
+                "Azul WordPress"
+            ],
+            "WordPress OpenStation": [
                 "Azul WordPress"
             ],
             "WordPress Updates": [
@@ -3103,7 +3748,7 @@
             "You will review and submit on GitHub.": [
                 ""
             ],
-            "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how Desktop Mode wants you to work.": [
+            "You're looking at the redesigned Plugins admin — same WordPress.org repository under the hood, with a workflow tuned for how OpenStation wants you to work.": [
                 ""
             ],
             "Your score could not be saved.": [
@@ -3139,10 +3784,16 @@
             "in %s": [
                 ""
             ],
+            "joined %s": [
+                ""
+            ],
             "just now": [
                 ""
             ],
             "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.": [
+                ""
+            ],
+            "no reason given": [
                 ""
             ],
             "one contributor": [
@@ -3154,6 +3805,9 @@
             "read-only": [
                 ""
             ],
+            "since %s": [
+                "Cerrar %s"
+            ],
             "updated": [
                 "%d actualización"
             ],
@@ -3164,7 +3818,16 @@
                 "· %d pestaña abierta",
                 "· %d pestañas abiertas"
             ],
+            "×%d": [
+                ""
+            ],
+            "×%d bought": [
+                ""
+            ],
             "—": [
+                ""
+            ],
+            "— No change —": [
                 ""
             ],
             "“%s” will be moved to the Trash. You can restore it later.": [
