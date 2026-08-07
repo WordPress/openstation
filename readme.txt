@@ -122,6 +122,33 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 == Changelog ==
 
+= 1.0.0 =
+* Desktop Mode is now OpenStation — new name, new look, same plugin. Settings, files, sessions and desktop layouts carry over untouched.
+* The site folder is now WP Explorer, and OS Settings is now OpenStation Preferences.
+* A new palette and typography, with four wallpapers: Galaxy (the new default), Space, Holomesh and Pulsemesh.
+* Desktop Mode (Legacy) — a built-in desktop theme that puts the previous look back in one click, WordPress blue included.
+* Mio — a soft-body desk companion that drifts across the wallpaper and gets pushed around by your windows. Off by default; turn it on from the dock. It also ships as a standalone script you can drop on any page, WordPress or not.
+* Holographic controls — switches, primary buttons and selected items catch an iridescent mesh on hover and press.
+* New Switch component, and a searchable Components tab in OpenStation Preferences.
+* Select more than one thing at a time — click, Ctrl-click, Shift-click, marquee and Cmd+A on the desktop and in every folder window, with WordPress's own bulk actions and multi-item drag.
+* Custom post types now appear in WP Explorer, grouped into a folder named after the plugin or theme that registered them.
+* Post tiles show their featured image instead of a generic icon, which turns a catalogue into a photo grid.
+* WooCommerce — Orders, Products, Coupons and Customers as browsable folders, with out-of-stock, low-stock, backorder and sale ribbons, and a details pane showing price, stock, order totals, line items and coupon usage.
+* Open a customer for their lifetime spend, what they buy most and their recent orders, and follow a product to its buyers or a coupon to who redeemed it.
+* The editor's preview companion follows your typing in the classic editor too, and opens straight away instead of waiting on a save.
+* Plugins can accept files dropped onto their own desktop icon, via `wp.os.files.registerTilePayloadHandler()`.
+* The Games leaderboard refreshes the moment a run finishes, instead of waiting for a reload.
+* Fix the Media Library's uploader button opening a window instead of the inline uploader, and uploaded files not reaching the grid until the window was reopened.
+* Fix context menus opened near the bottom of the screen running off the edge, which put most of their options out of reach.
+* Fix Quick Edit and Bulk Edit going dead once a list refreshed in place.
+* Fix the classic revisions screen opening in a browser tab instead of a window, and restoring a revision leaving a stale editor behind.
+* Fix closed windows reappearing after a refresh, and window state being lost when several windows were closed in quick succession.
+* Fix the widget column rendering empty.
+* Desktop icons and file tiles now fade out in Overview, so they no longer collide with window thumbnails.
+* Fix `wp.os.activity.subscribe()` never receiving events — channel names containing a slash were silently rejected.
+* The portal URL moved from `/desktop-mode/` to `/openstation/`. Reinstall the app if you added OpenStation to your home screen.
+* For plugin authors: `wp.desktop` is now `wp.os`, `<wpd-*>` components are `<os-*>`, PHP functions and hooks use the `openstation_` prefix, and activity channels moved from `desktop-mode/<event>` to `os/<event>`. Stored data — options, meta, custom tables, REST namespaces and the WordPress.org slug — is unchanged.
+
 = 0.9.8 =
 * Desktop Themes — uploadable ZIP theme system
 * Add a Drafts widget
@@ -384,6 +411,9 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 See the [GitHub releases page](https://github.com/WordPress/openstation/releases) for the full history.
 
 == Upgrade Notice ==
+
+= 1.0.0 =
+Desktop Mode is now OpenStation. Settings, files and desktop layouts carry over. The portal URL moved to /openstation/, so reinstall the app if you added it to your home screen. Plugins extending the shell need updating: `wp.desktop` is now `wp.os`, and PHP uses the `openstation_` prefix.
 
 = 0.8.1 =
 Framework and stability rework, reworked drag and drop, native Posts/Pages/Users windows, and a new Content Graph tool. Backwards-compatible.
