@@ -233,14 +233,22 @@ if [[ "$branch" != "trunk" ]]; then
 	exit 1
 fi
 
-# Leftovers from an aborted release attempt (the i18n refresh under
-# languages/, a drafted-but-unconfirmed changelog in readme.txt) are
-# regenerated or re-reviewed on every run and belong in the bump commit,
-# so they must not block a re-run. Anything else dirty still aborts:
-# the bump uses `git commit -am` and would silently sweep it up.
-dirty=$(git status --porcelain --untracked-files=no | grep -vE '^.{3}(languages/|readme\.txt$)' || true)
+# Leftovers from an aborted release attempt are regenerated or
+# re-reviewed on every run and belong in the bump commit, so they must
+# not block a re-run: the i18n refresh under languages/, a
+# drafted-but-unconfirmed changelog in readme.txt, and the version
+# strings themselves. The version files are on this list because
+# `bump-version.sh` runs before the changelog gate, so answering `n`
+# there leaves them written but uncommitted; without the exemption the
+# re-run that gate promises would abort instead of returning to the
+# prompt. `bump-version.sh` rewrites them deterministically on every
+# run, so a stale value cannot survive.
+#
+# Anything else dirty still aborts: the bump uses `git commit -am` and
+# would silently sweep it up.
+dirty=$(git status --porcelain --untracked-files=no | grep -vE '^.{3}(languages/|readme\.txt$|package\.json$|package-lock\.json$|desktop-mode\.php$|packages/openstation-types/)' || true)
 if [[ -n "$dirty" ]]; then
-	echo "error: working tree has changes beyond languages/ and readme.txt. Commit or stash first:" >&2
+	echo "error: working tree has changes beyond the release-owned files. Commit or stash first:" >&2
 	printf '%s\n' "$dirty" >&2
 	exit 1
 fi
@@ -276,7 +284,21 @@ header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' desktop-
 constant=$(awk -F"'" '/OPENSTATION_VERSION/ { print $4; exit }' desktop-mode.php)
 stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 
-if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
+# Matching strings are not proof the bump was committed. `bump-version.sh`
+# writes the files and never commits, and the changelog gate below can
+# exit between the write and the commit, so an aborted run leaves the
+# tree bumped and uncommitted. Resuming on the strings alone would skip
+# the commit and tag whatever HEAD already is, which is the pre-bump
+# commit. Require the bump to be committed as well; when it is not, the
+# else branch below re-runs `bump-version.sh` as a no-op and commits
+# normally.
+if git diff HEAD --quiet -- package.json package-lock.json packages/openstation-types/package.json desktop-mode.php; then
+	bump_committed=1
+else
+	bump_committed=0
+fi
+
+if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" && "$bump_committed" == "1" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 	confirm_changelog
 	# In resume mode the bump commit is already pushed; readme.txt edits
