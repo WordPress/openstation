@@ -274,6 +274,15 @@ export class Dock {
 	private badgeOverrides: Map<string, number> = new Map();
 
 	/**
+	 * Client-set artwork, keyed by item id. Same job as
+	 * {@link badgeOverrides}: a tile whose art was swapped via
+	 * `setArt()` has to keep it across a live menu refresh, or the
+	 * next plugin activation would silently put the server-declared
+	 * icon back.
+	 */
+	private artOverrides: Map<string, string> = new Map();
+
+	/**
 	 * Active attention timers, keyed by item id. Used to cancel a
 	 * pending auto-clear when a fresh `setAttention()` call comes in
 	 * before the previous duration has elapsed.
@@ -508,6 +517,12 @@ export class Dock {
 				);
 				_applyBadgeNode( primary ?? btn, override );
 			}
+			// Same for a client-set icon: the refresh rebuilt this
+			// tile from the server-declared art, so re-apply the swap.
+			const art = this.artOverrides.get( item.id );
+			if ( art ) {
+				this._paintArt( btn, art );
+			}
 			doAction( HOOKS.DOCK_TILE_RENDERED, {
 				...base,
 				item,
@@ -561,6 +576,7 @@ export class Dock {
 		// the tile is gone, the override would otherwise re-apply
 		// on a future re-registration of the same id.
 		this.badgeOverrides.delete( id );
+		this.artOverrides.delete( id );
 
 		if ( this.systemItemElements.size === 0 && this.systemSeparator ) {
 			this.systemSeparator.remove();
@@ -629,6 +645,88 @@ export class Dock {
 	 */
 	public clearBadge( itemId: string ): void {
 		this.setBadge( itemId, 0 );
+	}
+
+	/**
+	 * Swap a tile's artwork.
+	 *
+	 * The counterpart to {@link setBadge} for apps whose tile means
+	 * something different depending on state, rather than counting
+	 * something. The Recycle Bin is the in-tree example: an empty bin
+	 * and a bin holding something are two drawings of one object, and
+	 * a tile that changes shape says it without spending a corner on
+	 * a number.
+	 *
+	 * Same fan-out contract as `setBadge`: an id this rail doesn't own
+	 * is a silent no-op, so a caller can fan one change to
+	 * `dock.setArt`, `taskbar.setArt` and `icons.setArt` and let the
+	 * rail that owns the tile be the one that paints.
+	 *
+	 * `svg` takes the same shapes {@link renderIcon} accepts, so a
+	 * data URI, an http(s) URL, or a dashicon class. Art naming
+	 * `currentColor` is painted as a mask and follows the tile's own
+	 * glyph colour; fixed-colour art keeps its own.
+	 *
+	 * Survives a live menu refresh — see {@link artOverrides}. Pass an
+	 * empty string to drop the override and hand the tile back to the
+	 * server-declared icon.
+	 *
+	 * @public
+	 *
+	 * @param itemId Tile id.
+	 * @param svg    Icon string, or `''` to restore the original.
+	 */
+	public setArt( itemId: string, svg: string ): void {
+		// Record BEFORE resolving the tile. A caller that sets art
+		// during boot usually beats the rail to the DOM — the bin does
+		// exactly this — and the tile builders below re-apply from
+		// this map, so an early call lands the moment the tile exists
+		// rather than being dropped on the floor.
+		if ( ! svg ) {
+			this.artOverrides.delete( itemId );
+		} else {
+			this.artOverrides.set( itemId, svg );
+		}
+		const tile = this._resolveTileElement( itemId );
+		if ( ! tile ) {
+			return;
+		}
+		if ( svg ) {
+			this._paintArt( tile, svg );
+		}
+		activity.publish( 'os/art-changed', {
+			itemId,
+			icon: svg,
+			rail: this.rail,
+		} );
+	}
+
+	/**
+	 * Repaint a tile's icon node in place.
+	 *
+	 * Replaces whatever the icon currently is — dashicon span, `<img>`,
+	 * mask span — with a mask span carrying the new art, so a tile can
+	 * cross between icon shapes without the caller knowing which one it
+	 * started as. Falls back to leaving the node alone when the art
+	 * isn't maskable, which is the same "don't make it worse" rule
+	 * `resolveIcon` follows.
+	 */
+	private _paintArt( tile: HTMLElement, svg: string ): void {
+		const primary =
+			tile.querySelector< HTMLElement >( '.os-dock__item-primary' ) ??
+			tile;
+		const masked = this._makeMaskSpan();
+		if ( ! applyIconMask( masked, svg, 'currentColor' ) ) {
+			return;
+		}
+		const current = primary.querySelector< HTMLElement >(
+			'.os-dock__item-mask, .os-dock__item-svg, .dashicons, img',
+		);
+		if ( current ) {
+			current.replaceWith( masked );
+		} else {
+			primary.prepend( masked );
+		}
 	}
 
 	/**
@@ -728,6 +826,14 @@ export class Dock {
 
 		const tile = this.createSystemItemButton( item );
 		this.systemItemElements.set( item.id, tile );
+		// Re-apply a client-set icon, same as the menu-item path does.
+		// System items are appended asynchronously (native-window sync
+		// awaits a lazy script load), so `setArt` for one of these has
+		// almost certainly already run and found no tile.
+		const systemArt = this.artOverrides.get( item.id );
+		if ( systemArt ) {
+			this._paintArt( tile, systemArt );
+		}
 		this.systemHost.appendChild( tile );
 		this.updateActiveStates();
 

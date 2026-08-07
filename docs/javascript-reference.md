@@ -1344,6 +1344,35 @@ Every applied change publishes on:
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
+### `setArt` — Stable
+
+The same three rails share `setArt( id, svg )`, for a tile whose icon means something different depending on state rather than counting something. Same unified id space and the same fan-to-all-rails pattern:
+
+```js
+function paintBinState( isFull ) {
+    const art = isFull ? FULL_BIN_URI : EMPTY_BIN_URI;
+    wp.os.dock?.setArt?.(     'my-bin', art );
+    wp.os.sideDock?.setArt?.( 'my-bin', art );
+    wp.os.icons?.setArt?.(    'my-bin', art );
+}
+paintBinState( true );
+wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
+```
+
+`svg` takes the shapes `renderIcon()` accepts: a `data:` URI, an `http(s)` URL, or a dashicon class. Art naming `currentColor` is painted as a mask and follows the tile's own glyph colour; fixed-colour art keeps its own. Each call:
+
+- **Idempotent on the icon rail** — the same art twice is a no-op.
+- **`''` clears** the override and hands the tile back to its registered icon.
+- **Silent no-op when the id isn't on this rail.**
+- **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
+- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+
+Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
+
+`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+
+In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
+
 ### `icons` — Stable
 
 The wallpaper-icon rail. Same `setBadge` shape as `dock` / `sideDock`, plus two read helpers:

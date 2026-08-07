@@ -141,7 +141,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,
@@ -3277,7 +3277,7 @@ function init(): void {
 		recycleBinCountUrl?: string;
 	};
 	const cfgCountRaw = cfgWithBin.recycleBinCount;
-	startRecycleBinBadge(
+	startRecycleBinIconState(
 		Number( cfgCountRaw ) || 0,
 		typeof cfgWithBin.recycleBinCountUrl === 'string'
 			? cfgWithBin.recycleBinCountUrl
@@ -3290,7 +3290,7 @@ function init(): void {
 	// their own thumbnails — this is just the built-in set so the
 	// in-tree windows look like first-class apps.
 	registerBuiltInPeekRenderers( {
-		getRecycleBinCount: _currentRecycleBinBadge,
+		getRecycleBinCount: _currentRecycleBinCount,
 	} );
 
 	// Auto-reload iframes on `os.<post_type>.changed` is

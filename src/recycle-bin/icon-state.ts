@@ -1,22 +1,30 @@
 /**
- * Recycle Bin — count badge.
+ * Recycle Bin — icon state.
  *
- * Paints a numeric badge on the bin's dock/taskbar tile + its
- * desktop icon. Stays accurate without a page refresh:
+ * Swaps the bin's artwork between empty and holding-something, on
+ * its dock/taskbar tile and its desktop icon. Stays accurate
+ * without a page refresh:
  *
  *   - Initial value comes from the shell config
- *     (`config.recycleBinCount`), so the badge is correct on the
+ *     (`config.recycleBinCount`), so the icon is right on the
  *     first paint, even before the user opens the bin.
  *   - Cross-window broadcasts (`os.<type>.changed`) drive
  *     delta updates: a `'trashed'` action with N ids increments
  *     by N, an `'untrashed'` / `'deleted'` action decrements.
  *   - Authoritative resets come from the bin window itself
- *     (every `refresh()` sets the badge to the server's exact
- *     `total`), and from the lightweight REST `/count` endpoint.
+ *     (every `refresh()` reports the server's exact `total`), and
+ *     from the lightweight REST `/count` endpoint.
  *
- * The badge caps the rendered value at 99 — anything higher
- * shows as `99+` so the pill stays compact regardless of how
- * full the trash gets.
+ * The state is binary: anything above zero is holding something.
+ * The count is still tracked exactly, because the deltas have to
+ * add up to know when it crosses back to zero, but only the sign
+ * of it reaches the screen.
+ *
+ * Quantity used to ride here as a numeric badge. It was dropped
+ * because the pill is positioned onto the artwork rather than
+ * beside it, and on a 20px dock tile it covered about 30% of the
+ * icon. A bin that changes shape carries the same signal without
+ * spending the corner.
  */
 
 import { addAction, HOOKS } from '../hooks';
@@ -29,7 +37,7 @@ const LOG_PREFIX = '[os-bin badge]';
  * Verbose debug trace — silent unless `localStorage.openStationBinDebug`
  * is set. Useful when this thing breaks again: type
  * `localStorage.openStationBinDebug = '1'` in DevTools, reload, and the
- * full `setRecycleBinBadge` / `paintBadge` / `watchForTargets`
+ * full `setRecycleBinCount` / `paintIconState` / `watchForTargets`
  * trace prints. Cheap when off (one localStorage read per call).
  */
 function log( ...args: unknown[] ): void {
@@ -60,17 +68,16 @@ const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
  * the public API is a guaranteed sibling — but typing the lookup
  * keeps us honest about which methods we actually call.
  */
-interface BadgeRails {
-	setBadge?: ( id: string, count: number ) => void;
+interface ArtRail {
+	setArt?: ( id: string, svg: string ) => void;
 }
-interface OpenStationBadgeRails {
-	dock?: BadgeRails | null;
-	taskbar?: BadgeRails | null;
-	icons?: BadgeRails;
-	windowManager?: { isActive?: ( id: string ) => boolean; isActiveByBaseId?: ( baseId: string ) => boolean };
+interface OpenStationArtRails {
+	dock?: ArtRail | null;
+	taskbar?: ArtRail | null;
+	icons?: ArtRail;
 }
-function getDesktopApi(): OpenStationBadgeRails | undefined {
-	return ( window as unknown as { wp?: { os?: OpenStationBadgeRails } } )
+function getDesktopApi(): OpenStationArtRails | undefined {
+	return ( window as unknown as { wp?: { os?: OpenStationArtRails } } )
 		.wp?.os;
 }
 
@@ -88,6 +95,9 @@ function getDesktopApi(): OpenStationBadgeRails | undefined {
  */
 interface BadgeState {
 	current: number;
+	/** Art for each state, handed over by the PHP shell config. */
+	emptyArt: string;
+	fullArt: string;
 	// High-water mark for "did anything change since I last asked".
 	// Bumped from heartbeat responses + chromeless-iframe
 	// postMessages. Initialised to `Date.now()` on `start()` so a
@@ -98,9 +108,11 @@ interface BadgeState {
 	countUrl: string;
 }
 const store = createSharedStore< BadgeState >(
-	'desktop-mode/recycle-bin/badge',
+	'desktop-mode/recycle-bin/icon-state',
 	() => ( {
 		current: 0,
+		emptyArt: '',
+		fullArt: '',
 		seenTs: 0,
 		started: false,
 		countUrl: '',
@@ -115,27 +127,27 @@ const store = createSharedStore< BadgeState >(
  *
  * @param next Non-negative integer count.
  */
-export function setRecycleBinBadge( next: number ): void {
+export function setRecycleBinCount( next: number ): void {
 	const safe = Math.max( 0, Math.floor( next ) );
 	const prev = store.state.current;
 	store.state.current = safe;
-	log( 'setRecycleBinBadge', { prev, next: safe } );
-	paintBadge( safe );
+	log( 'setRecycleBinCount', { prev, next: safe } );
+	paintIconState( safe );
 }
 
 /**
  * Apply a delta to the current badge value. Used by broadcast
  * subscribers — `'trashed'` events bump up, `'untrashed'` /
  * `'deleted'` events bump down. Drift correction happens via the
- * authoritative `setRecycleBinBadge()` calls from `/list` (bin
+ * authoritative `setRecycleBinCount()` calls from `/list` (bin
  * window refresh) and `/count` (manual reconcile).
  *
  * @public
  *
  * @param delta Signed integer; clamped at zero.
  */
-export function adjustRecycleBinBadge( delta: number ): void {
-	setRecycleBinBadge( store.state.current + delta );
+export function adjustRecycleBinCount( delta: number ): void {
+	setRecycleBinCount( store.state.current + delta );
 }
 
 /**
@@ -143,50 +155,40 @@ export function adjustRecycleBinBadge( delta: number ): void {
  *
  * @internal
  */
-export function _currentRecycleBinBadge(): number {
+export function _currentRecycleBinCount(): number {
 	return store.state.current;
 }
 
 /**
- * Fan the badge count to every rail that might be hosting our
- * tile. The framework rails (`dock`, `taskbar`, `icons`) all
- * expose the same `setBadge( id, count )` shape and silently
- * no-op for ids they don't own — so calling all three is the
- * canonical pattern, not a hack.
+ * Fan the icon state to every rail that might be hosting our tile.
+ * The framework rails (`dock`, `taskbar`, `icons`) all expose the
+ * same `setArt( id, svg )` shape and silently no-op for ids they
+ * don't own, so calling all three is the canonical pattern rather
+ * than a hack.
  *
- * Honours the framework "show 0 when my window is active" UX
- * policy: when the user is currently looking at the bin window,
- * the badge renders as 0 so we don't double-signal. The internal
- * `store.state.current` count is preserved either way; closing or
- * minimising the window restores the visible badge on the next
- * lifecycle event (see {@link wireWindowLifecycleSignals}).
+ * Deliberately NOT suppressed while the bin window is focused. A
+ * badge is a notification, so hiding it while the user is looking
+ * at the thing it points to is right. This is a description of the
+ * object, and a bin drawn empty while it is holding something would
+ * simply be wrong.
  *
- * No DOM scraping — the rails own paint state, including
- * survival across grid rebuilds. Plugin authors looking for the
- * canonical "how do I badge a tile" example should land here.
+ * No DOM scraping — the rails own paint state, including survival
+ * across grid rebuilds. Plugin authors looking for the canonical
+ * "how do I change a tile's icon" example should land here.
  */
-function paintBadge( count: number ): void {
-	const desktop = getDesktopApi();
-	const active = isBinWindowActive();
-	const visible = active ? 0 : count;
-	log( 'paintBadge', { count, visible, active } );
-	desktop?.dock?.setBadge?.( TARGET_ID, visible );
-	desktop?.taskbar?.setBadge?.( TARGET_ID, visible );
-	desktop?.icons?.setBadge?.( TARGET_ID, visible );
-}
-
-/**
- * Window-activeness check — relies on the framework's
- * `wp.os.windowManager.isActive()`. Falls back to false when
- * the manager isn't reachable yet (this module loads inside
- * `desktop.js` so that's rare, but cheap to handle).
- */
-function isBinWindowActive(): boolean {
-	const mgr = getDesktopApi()?.windowManager;
-	if ( mgr?.isActiveByBaseId ) {
-		return mgr.isActiveByBaseId( TARGET_ID );
+function paintIconState( count: number ): void {
+	const art = count > 0 ? store.state.fullArt : store.state.emptyArt;
+	log( 'paintIconState', { count, full: count > 0, hasArt: !! art } );
+	if ( ! art ) {
+		// The PHP filter didn't deliver. Leaving the server-declared
+		// icon alone is the right failure: a bin that never changes
+		// is worse than one that does, but it is still a bin.
+		return;
 	}
-	return !! mgr?.isActive?.( TARGET_ID );
+	const desktop = getDesktopApi();
+	desktop?.dock?.setArt?.( TARGET_ID, art );
+	desktop?.taskbar?.setArt?.( TARGET_ID, art );
+	desktop?.icons?.setArt?.( TARGET_ID, art );
 }
 
 /**
@@ -206,7 +208,7 @@ function isBinWindowActive(): boolean {
  *     WP-CLI, cron — anything that doesn't render an admin footer.
  *
  * The bin window's lazy-loaded `index.ts` also calls
- * `setRecycleBinBadge()` after every successful `refresh()`, so
+ * `setRecycleBinCount()` after every successful `refresh()`, so
  * authoritative resets happen any time the user is looking at the
  * bin directly. The heartbeat probe runs regardless — that's the
  * fix for "badge doesn't update unless I open the bin".
@@ -218,7 +220,7 @@ function isBinWindowActive(): boolean {
  *                   every scalar).
  * @param countUrl   REST endpoint for `/recycle-bin/count`.
  */
-export function startRecycleBinBadge(
+export function startRecycleBinIconState(
 	initialRaw: number | string,
 	countUrl = '',
 ): void {
@@ -231,8 +233,12 @@ export function startRecycleBinBadge(
 	} ).openStationConfig;
 	const cfgCount = cfg?.recycleBinCount;
 	const cfgUrl = cfg?.recycleBinCountUrl;
+	// Both drawings arrive on the first paint, so crossing zero is a
+	// local swap rather than a round trip.
+	store.state.emptyArt = String( cfg?.recycleBinIconEmpty ?? '' );
+	store.state.fullArt = String( cfg?.recycleBinIconFull ?? '' );
 	const cfgDebug = cfg?.openStationBinDebug;
-	log( 'startRecycleBinBadge entry', {
+	log( 'startRecycleBinIconState entry', {
 		initial,
 		countUrl,
 		alreadyStarted: store.state.started,
@@ -260,13 +266,13 @@ export function startRecycleBinBadge(
 		);
 	}
 	if ( store.state.started ) {
-		setRecycleBinBadge( initial );
+		setRecycleBinCount( initial );
 		return;
 	}
 	store.state.started = true;
 	store.state.countUrl = countUrl;
 	store.state.seenTs = Date.now();
-	setRecycleBinBadge( initial );
+	setRecycleBinCount( initial );
 
 	// Both targets render asynchronously after init: the dock
 	// tile is registered by `native-window-sync` (`await`s the
@@ -280,40 +286,6 @@ export function startRecycleBinBadge(
 	wireBroadcastDeltas();
 	wirePostMessageFastPath();
 	wireHeartbeatProbe();
-	wireWindowLifecycleSignals();
-}
-
-/**
- * Re-paint the badge when the bin window's lifecycle changes —
- * focus / blur / minimize / restore / open / close. The
- * `paintBadge` function consults
- * `wp.os.windowManager.isActive()` and renders 0 while the
- * user is looking at the window, so transitions need to trigger
- * a re-paint to apply or undo that suppression. Internal count
- * (`store.state.current`) doesn't change here — only the rendered DOM
- * value.
- */
-function wireWindowLifecycleSignals(): void {
-	const ns = 'desktop-mode/recycle-bin/badge-lifecycle';
-	const repaint = ( payload: unknown ): void => {
-		const detail = payload as { windowId?: string };
-		const windowId = detail?.windowId;
-		if ( ! windowId ) {
-			return;
-		}
-		const isBin = windowId === TARGET_ID || windowId.startsWith( TARGET_ID + '-' );
-		if ( ! isBin ) {
-			return;
-		}
-		paintBadge( store.state.current );
-	};
-	addAction( HOOKS.WINDOW_OPENED, ns, repaint );
-	addAction( HOOKS.WINDOW_FOCUSED, ns, repaint );
-	addAction( HOOKS.WINDOW_BLURRED, ns, repaint );
-	addAction( HOOKS.WINDOW_MINIMIZED, ns, repaint );
-	addAction( HOOKS.WINDOW_RESTORED, ns, repaint );
-	addAction( HOOKS.WINDOW_CLOSED, ns, repaint );
-	addAction( HOOKS.WINDOW_REOPENED, ns, repaint );
 }
 
 /**
@@ -324,10 +296,10 @@ function wireWindowLifecycleSignals(): void {
 function wireDockTileSignal(): void {
 	addAction(
 		HOOKS.DOCK_ITEM_APPENDED,
-		'desktop-mode/recycle-bin/badge',
+		'desktop-mode/recycle-bin/icon-state',
 		( payload: { id?: string } ) => {
 			if ( payload?.id === TARGET_ID ) {
-				paintBadge( store.state.current );
+				paintIconState( store.state.current );
 			}
 		},
 	);
@@ -344,10 +316,10 @@ function wireDockTileSignal(): void {
 function wireDesktopIconsSignal(): void {
 	addAction(
 		HOOKS.DESKTOP_ICONS_RENDERED,
-		'desktop-mode/recycle-bin/badge',
+		'desktop-mode/recycle-bin/icon-state',
 		( payload: { ids?: string[] } ) => {
 			if ( payload?.ids?.includes( TARGET_ID ) ) {
-				paintBadge( store.state.current );
+				paintIconState( store.state.current );
 			}
 		},
 	);
@@ -377,11 +349,11 @@ function wireBroadcastDeltas(): void {
 		const ids = Array.isArray( detail.ids ) ? detail.ids.length : 0;
 		switch ( detail.action ) {
 			case 'trashed':
-				adjustRecycleBinBadge( +ids );
+				adjustRecycleBinCount( +ids );
 				break;
 			case 'untrashed':
 			case 'deleted':
-				adjustRecycleBinBadge( -ids );
+				adjustRecycleBinCount( -ids );
 				break;
 		}
 	};
@@ -480,7 +452,7 @@ function wireHeartbeatProbe(): void {
 			store.state.seenTs = block.ts;
 		}
 		if ( typeof block.count === 'number' ) {
-			setRecycleBinBadge( block.count );
+			setRecycleBinCount( block.count );
 		}
 	} );
 }
@@ -511,7 +483,7 @@ async function refetchCount(): Promise< void > {
 		const json = ( await response.json() ) as { count?: number };
 		log( 'refetchCount: response', json );
 		if ( typeof json.count === 'number' ) {
-			setRecycleBinBadge( json.count );
+			setRecycleBinCount( json.count );
 		}
 	} catch ( err ) {
 		warn( 'refetchCount: fetch failed', err );
