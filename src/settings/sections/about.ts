@@ -10,6 +10,9 @@
  * job is to:
  *
  *   - render a full-size canvas host into the tabpanel
+ *   - paint the poster (the same eyebrow / title / byline / version
+ *     the scene draws inside the canvas, plus an `<os-spinner>`)
+ *     synchronously, so the tab never shows a blank void
  *   - kick off `wp.os.loadModules(['pixijs'])` so the vendor
  *     script is in memory before the scene mounts
  *   - mount on first attach, tear down when the wrapper leaves the
@@ -17,10 +20,30 @@
  *     removal via a `MutationObserver` on `document.body` so we don't
  *     leak the WebGL context across re-renders triggered by the
  *     settings-tab registry, save-failure rollbacks, or a Reset.
+ *
+ * ## Why a poster and not just a spinner
+ *
+ * Every word on this tab — the product name, the credit line, the
+ * plugin version — is painted inside the WebGL canvas, so all of it
+ * used to be gated on three separate network round-trips (the PixiJS
+ * vendor bundle, the about-scene bundle, the logotype PNG) plus a
+ * pixel-sampling pass over that PNG. The poster is plain HTML with
+ * the same copy, laid out to roughly the same proportions the scene
+ * uses, so the useful information is on screen on the first frame
+ * and the canvas cross-fades in over it once it is live.
+ *
+ * The poster is never removed from the DOM and never gets
+ * `visibility: hidden` — it fades to `opacity: 0` and stays
+ * `pointer-events: none`. The canvas exposes no text to assistive
+ * technology, so the faded poster is the only accessible copy of
+ * what this tab says. It also means a scene that fails to load (no
+ * WebGL, blocked bundle) degrades to a readable About tab rather
+ * than to the blank panel it degraded to before.
  */
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
+import '../../ui/components/os-spinner/os-spinner';
 import {
 	mountAboutSceneLazy,
 	type AboutScene,
@@ -59,11 +82,17 @@ function waitForSize( el: HTMLElement ): Promise<void> {
 
 /**
  * Builder — returns the About section element ready to drop into the
- * OS Settings tabpanel. The Pixi mount is deferred until the wrapper
- * is in the DOM (next animation frame), so the section can be safely
- * embedded inside a hidden tabpanel without spinning up a canvas on
- * a zero-size host. A ResizeObserver picks up the visibility flip
- * once the user activates the tab.
+ * OS Settings tabpanel. The poster renders synchronously; the Pixi
+ * mount is deferred until the wrapper is in the DOM (next animation
+ * frame), so the section can be safely embedded inside a hidden
+ * tabpanel without spinning up a canvas on a zero-size host. A
+ * ResizeObserver picks up the visibility flip once the user activates
+ * the tab.
+ *
+ * The wrapper carries the hand-over state as a class: none while the
+ * scene is loading, `is-scene-ready` once the canvas is live (cross-
+ * fade), `is-scene-failed` if it never arrives (poster stays, canvas
+ * host goes).
  */
 export function buildAboutSection(): HTMLElement {
 	const wrapper = document.createElement( 'div' );
@@ -79,18 +108,61 @@ export function buildAboutSection(): HTMLElement {
 	const desktopApi = ( window.wp as { os?: DesktopApiShape } | undefined )
 		?.os;
 
+	const labels = {
+		eyebrow: __( 'WordPress OpenStation' ),
+		title: __( 'Crafted with curiosity' ),
+		byline: __( 'an experiment by Automattic' ),
+		version: version ? `${ __( 'Version' ) } ${ version }` : '',
+		hint: __( 'Move your cursor through the swarm · click for a spark' ),
+	};
+
 	render(
 		html`
 			<div
 				class="os-settings__about-stage-host"
 				data-about-stage
 			></div>
+			<div class="os-settings__about-poster" data-about-poster>
+				<p class="os-settings__about-eyebrow">${ labels.eyebrow }</p>
+				<p class="os-settings__about-title">${ labels.title }</p>
+				<div class="os-settings__about-loader" data-about-loader>
+					<os-spinner
+						preset="orbit"
+						size="44"
+						label=${ __( 'Loading the About scene' ) }
+					></os-spinner>
+				</div>
+				<p class="os-settings__about-byline">${ labels.byline }</p>
+				<p class="os-settings__about-version">${ labels.version }</p>
+			</div>
 		`,
 		wrapper,
 	);
 
 	let scene: AboutScene | null = null;
 	let aborted = false;
+
+	/**
+	 * Drop the spinner. Called both when the scene goes live (the
+	 * canvas takes over) and when it fails (nothing is coming, so a
+	 * spinner would be a lie). The box around it stays as a spacer so
+	 * the byline and version keep their place either way.
+	 */
+	const stopLoading = (): void => {
+		wrapper
+			.querySelector< HTMLElement >( '[data-about-loader] os-spinner' )
+			?.remove();
+	};
+
+	const markSceneReady = (): void => {
+		stopLoading();
+		wrapper.classList.add( 'is-scene-ready' );
+	};
+
+	const markSceneFailed = (): void => {
+		stopLoading();
+		wrapper.classList.add( 'is-scene-failed' );
+	};
 
 	const tearDown = (): void => {
 		aborted = true;
@@ -137,15 +209,7 @@ export function buildAboutSection(): HTMLElement {
 					prefersReducedMotion:
 						typeof window.matchMedia === 'function' &&
 						window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches,
-					labels: {
-						eyebrow: __( 'WordPress OpenStation' ),
-						title: __( 'Crafted with curiosity' ),
-						byline: __( 'an experiment by Automattic' ),
-						version: version
-							? `${ __( 'Version' ) } ${ version }`
-							: '',
-						hint: __( 'Move your cursor through the swarm · click for a spark' ),
-					},
+					labels,
 				},
 				aboutSceneBundleUrl,
 			);
@@ -154,7 +218,9 @@ export function buildAboutSection(): HTMLElement {
 				return;
 			}
 			scene = built;
+			markSceneReady();
 		} catch ( err ) {
+			markSceneFailed();
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error( '[desktop-mode/about] scene mount failed:', err );

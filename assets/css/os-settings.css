@@ -1157,15 +1157,16 @@
 /*
  * About tab — full-tabpanel PixiJS canvas. Every credit string and
  * the AUTOMATTIC logotype (formed by particles) render inside Pixi
- * itself; this stylesheet only sizes the host so the canvas fills
- * the available height + width without any HTML chrome around it.
+ * itself, so this stylesheet does two things: it sizes the host so
+ * the canvas fills the available height + width without any HTML
+ * chrome around it, and it lays out the poster that stands in for
+ * the canvas until the scene is live (see about.ts).
  *
  * The chain is: tabpanel → os-panel → .about (flex column) →
  * .about-stage-host (the canvas mounts here). Each link sets
  * `flex: 1; min-height: 0;` so the canvas inherits the tabpanel's
- * full inner height instead of hugging an intrinsic minimum.
- *
- * @since 0.8.0
+ * full inner height instead of hugging an intrinsic minimum. The
+ * poster is absolutely positioned over that host.
  */
 .os-settings
 	> os-tabpanel[ for='about' ]:not( [ hidden ] ) {
@@ -1184,6 +1185,7 @@
 }
 
 .os-settings__about {
+	position: relative;
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -1191,10 +1193,16 @@
 	margin: 0;
 	/* Edge-to-edge — no border-radius / box-shadow framing — so the
 	 * canvas (and the logotype centred inside it) consume the entire
-	 * tabpanel surface. The gradient is just the colour-of-last-resort
-	 * underneath while Pixi initialises; once the canvas is rendering
-	 * it covers every pixel of this element anyway. */
-	background: linear-gradient( 180deg, #060a1c 0%, #0c1733 100% );
+	 * tabpanel surface. The gradient is the scene's own backdrop
+	 * (BACKDROP_CSS in about-scene.ts) so the poster below already
+	 * sits on the final background and the canvas fade-in doesn't
+	 * swap it out under the reader. */
+	background: radial-gradient(
+		circle at 50% 35%,
+		#1b3461 0%,
+		#0c1733 55%,
+		#050918 100%
+	);
 	overflow: hidden;
 }
 
@@ -1204,12 +1212,154 @@
 	width: 100%;
 	overflow: hidden;
 	cursor: crosshair;
+	/* Held back until the scene is live, then cross-faded over the
+	 * poster. Without this the canvas pops in mid-sentence. */
+	opacity: 0;
+	transition: opacity 500ms ease;
+}
+
+.os-settings__about.is-scene-ready .os-settings__about-stage-host {
+	opacity: 1;
+}
+
+/* No scene, no swarm to point at: drop the host so the crosshair
+ * cursor stops promising interactivity that isn't coming. */
+.os-settings__about.is-scene-failed .os-settings__about-stage-host {
+	display: none;
 }
 
 .os-settings__about-stage-host canvas {
 	display: block;
 	width: 100%;
 	height: 100%;
+}
+
+/*
+ * The poster — the same copy the scene paints inside the canvas,
+ * as plain HTML, on the first frame. Three network round-trips (the
+ * PixiJS vendor bundle, the about-scene bundle, the logotype PNG)
+ * plus a pixel-sampling pass sit between opening this tab and the
+ * canvas having anything on it; this is what the reader looks at
+ * meanwhile.
+ *
+ * Proportions echo `computeLayout()` in about-scene.ts — eyebrow near
+ * the top tenth, title under it, then the band the logotype fills,
+ * with byline and version stacked below — so the cross-fade lands the
+ * text close to where the canvas is about to draw it. Close, not
+ * pixel-exact: the scene measures its own text and the fade covers
+ * the difference.
+ *
+ * Colours are the scene's own text fills, spelled out rather than
+ * tokenised: the About scene is deliberately outside the desktop-
+ * theme surface (see docs/desktop-themes.md, "What stays fixed"),
+ * and the poster has to match the canvas it hands over to.
+ */
+.os-settings__about-poster {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-inline: 24px;
+	text-align: center;
+	/* Never in the way of the swarm — the canvas below owns the
+	 * pointer once it is live. */
+	pointer-events: none;
+	font-family: -apple-system, blinkmacsystemfont, 'Segoe UI', roboto,
+		'Helvetica Neue', arial, sans-serif;
+	transition: opacity 500ms ease;
+}
+
+/*
+ * Vertical rhythm as flex spacers rather than padding: a percentage
+ * flex-basis in a column resolves against the container's HEIGHT,
+ * which is what the scene's own layout is a fraction of. Percentage
+ * padding would resolve against the width and slide the whole poster
+ * around as the panel gets wider.
+ */
+.os-settings__about-poster::before {
+	content: '';
+	flex: 0 0 9%;
+}
+
+.os-settings__about-poster::after {
+	content: '';
+	/* Roughly the band the scene keeps for the interaction hint,
+	 * which the poster has nothing to say about yet. */
+	flex: 0 0 12%;
+}
+
+/*
+ * Faded, not hidden. `visibility: hidden` or `display: none` would
+ * take it out of the accessibility tree, and the canvas exposes no
+ * text at all — the poster is the only readable copy of what this
+ * tab says.
+ */
+.os-settings__about.is-scene-ready .os-settings__about-poster {
+	opacity: 0;
+}
+
+.os-settings__about-eyebrow {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 4px;
+	color: #9bb5ff;
+}
+
+.os-settings__about-title {
+	margin: 16px 0 0;
+	font-size: clamp( 23px, 5vw, 38px );
+	font-weight: 300;
+	letter-spacing: -0.4px;
+	color: #fff;
+}
+
+/* Occupies the band the logotype particles will fill, so the
+ * spinner reads as "the artwork is on its way" rather than as a
+ * detached widget. */
+.os-settings__about-loader {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #9bb5ff;
+}
+
+.os-settings__about-loader os-spinner {
+	--os-ui-spinner-color: #9bb5ff;
+	--os-ui-spinner-accent: #0c1733;
+}
+
+.os-settings__about-byline {
+	margin: 0;
+	font-size: 14px;
+	font-style: italic;
+	letter-spacing: 0.3px;
+	color: #c0caea;
+}
+
+.os-settings__about-version {
+	margin: 12px 0 0;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 1px;
+	color: #6f7eb0;
+}
+
+/* `pluginVersion` can be missing from the shell config; don't leave
+ * a line of empty space where the version would have been. */
+.os-settings__about-version:empty {
+	display: none;
+}
+
+/* Nothing here is load-bearing motion: the canvas still arrives, it
+ * just arrives without a fade. */
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__about-stage-host,
+	.os-settings__about-poster {
+		transition: none;
+	}
 }
 
 
