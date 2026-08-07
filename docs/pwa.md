@@ -117,9 +117,9 @@ off();
 
 Activity-bus channels for plugins that want to mute / amplify / audit:
 
-- `desktop-mode/notification-requested` — filterable; set
+- `os/notification-requested` — filterable; set
   `cancel: true` to suppress the underlying notification.
-- `desktop-mode/notification-shown` — fire-and-forget; carries
+- `os/notification-shown` — fire-and-forget; carries
   `fallback: 'toast' | null` so analytics can distinguish the
   permission-denied path from the real-notification path.
 

@@ -298,7 +298,7 @@ describe( 'games/launch.ts', () => {
 		await capturedCtx!.submitScore( { score: 42, meta: { wpm: 61 } } );
 
 		expect( fake.activity.publish ).toHaveBeenCalledWith(
-			'desktop-mode/game-score-recorded',
+			'os/game-score-recorded',
 			{
 				game: 'test-game',
 				score: 42,
@@ -374,7 +374,7 @@ describe( 'games/launch.ts', () => {
 		await capturedCtx!.submitScore( { score: 120 } );
 
 		expect( fake.activity.publish ).toHaveBeenCalledWith(
-			'desktop-mode/game-score-recorded',
+			'os/game-score-recorded',
 			expect.objectContaining( { game: 'test-game', challengeId: 7 } ),
 		);
 	} );

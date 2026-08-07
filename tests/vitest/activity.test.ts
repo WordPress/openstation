@@ -75,10 +75,10 @@ describe( 'wp.os.activity', () => {
 		// in a browser: `addAction` bails on an invalid name, and
 		// `doAction` still "succeeds" against zero handlers.
 		const cb = vi.fn();
-		activity.subscribe( 'desktop-mode/game-score-recorded', cb );
+		activity.subscribe( 'os/game-score-recorded', cb );
 		// Reaching the same channel by its raw hook name proves the
 		// mapping, not just that publish/subscribe agree with itself.
-		doAction( 'os.activity.desktop-mode.game-score-recorded', {
+		doAction( 'os.activity.os.game-score-recorded', {
 			game: 'inkfall',
 		} );
 		expect( cb ).toHaveBeenCalledWith( { game: 'inkfall' } );

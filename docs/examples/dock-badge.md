@@ -63,7 +63,7 @@ discriminator — one subscription, every rail composed:
 
 ```js
 wp.os.activity.subscribe(
-    'desktop-mode/badge-changed',
+    'os/badge-changed',
     ( { itemId, count, rail } ) => {
         console.log( `${ rail }:${ itemId } → ${ count }` );
     },

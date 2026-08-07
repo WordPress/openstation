@@ -72,7 +72,7 @@ that one was shown:
 
 ```js
 wp.hooks.addFilter(
-    'os.activity.desktop-mode.notification-requested',
+    'os.activity.os.notification-requested',
     'my-plugin/dnd',
     ( intent ) => {
         if ( isDoNotDisturbActive() ) {
@@ -83,7 +83,7 @@ wp.hooks.addFilter(
 );
 
 wp.os.activity.subscribe(
-    'desktop-mode/notification-shown',
+    'os/notification-shown',
     ( payload ) => {
         // payload.fallback === 'toast' means permission was denied
         // and the user only saw the in-shell toast version.
