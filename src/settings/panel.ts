@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — OS Settings panel renderer (lazy bundle).
+ * OpenStation — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
  * every built-in tab (Appearance / Apps & Icons / Features / Effects /
@@ -22,11 +22,11 @@
  *     forwards.
  *
  * This bundle owns:
- *   - Every `<wpd-*>` component leaf import the panel needs
- *     (`wpd-button`, `wpd-color-field`, `wpd-range-field`,
- *     `wpd-swatch`, `wpd-swatch-grid`, `wpd-section`,
- *     `wpd-segmented`, `wpd-tabs`, `wpd-panel`, `wpd-empty-state`,
- *     `wpd-checkbox-label`, `wpd-select`, `wpd-text-field`).
+ *   - Every `<os-*>` component leaf import the panel needs
+ *     (`os-button`, `os-color-field`, `os-range-field`,
+ *     `os-swatch`, `os-swatch-grid`, `os-section`,
+ *     `os-segmented`, `os-tabs`, `os-panel`, `os-empty-state`,
+ *     `os-checkbox-label`, `os-select`, `os-text-field`).
  *   - Every built-in section renderer in `./sections/*`.
  *   - The tab interleaving + registry subscription that paint the
  *     final UI.
@@ -34,24 +34,24 @@
 
 import { __ } from '../i18n';
 import { html, render } from '../ui/core';
-// Side-effect imports — register every `<wpd-*>` component the
+// Side-effect imports — register every `<os-*>` component the
 // panel constructs in this bundle (not in main). `defineComponent`
 // is idempotent so other bundles can register the same tag without
 // conflict.
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../ui/components/wpd-color-field/wpd-color-field';
-import '../ui/components/wpd-empty-state/wpd-empty-state';
-import '../ui/components/wpd-notice/wpd-notice';
-import '../ui/components/wpd-panel/wpd-panel';
-import '../ui/components/wpd-range-field/wpd-range-field';
-import '../ui/components/wpd-section/wpd-section';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-select/wpd-select';
-import '../ui/components/wpd-swatch/wpd-swatch';
-import '../ui/components/wpd-swatch-grid/wpd-swatch-grid';
-import '../ui/components/wpd-tabs/wpd-tabs';
-import '../ui/components/wpd-text-field/wpd-text-field';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-checkbox-label/os-checkbox-label';
+import '../ui/components/os-color-field/os-color-field';
+import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-notice/os-notice';
+import '../ui/components/os-panel/os-panel';
+import '../ui/components/os-range-field/os-range-field';
+import '../ui/components/os-section/os-section';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-select/os-select';
+import '../ui/components/os-swatch/os-swatch';
+import '../ui/components/os-swatch-grid/os-swatch-grid';
+import '../ui/components/os-tabs/os-tabs';
+import '../ui/components/os-text-field/os-text-field';
 import { structuredDefaults } from './state';
 import type { OsSettings } from './index';
 import type { DesktopSettingsTab } from './registry';
@@ -99,7 +99,7 @@ function isTabVisible( tab: DesktopSettingsTab, isAdmin: boolean ): boolean {
  * Re-entrancy: a save-failure rollback or a registry mutation can
  * re-invoke this function with the same `body`. The function tears
  * down its previous registry subscription on each call to avoid
- * leaks, and the `<wpd-*>` host elements deduplicate by reusing the
+ * leaks, and the `<os-*>` host elements deduplicate by reusing the
  * existing DOM nodes under `lit`.
  *
  * @param ctx  The `OsSettings` instance the panel reads/writes
@@ -132,7 +132,18 @@ export function renderOsSettingsPanel(
 		ctx.tabRegistryUnsubscribe = null;
 	}
 
-	body.classList.add( 'desktop-mode-os-settings' );
+	// The hook every rule in `os-settings.css` hangs off. It is a CSS
+	// class, not one of the frozen `desktop_mode_*` stored values — the
+	// stylesheet was renamed to `.os-settings` in the rebrand and this
+	// line was not, which left all 153 of its rules matching nothing.
+	//
+	// The About tab is where that showed: its canvas gets its height
+	// from a `flex: 1; min-height: 0` chain whose first two links are
+	// scoped under `.os-settings`, so the stage host measured zero, and
+	// `waitForSize()` — which has no timeout, by design, because a
+	// hidden tabpanel legitimately takes a while — waited for a box
+	// that was never coming. The scene never mounted and never errored.
+	body.classList.add( 'os-settings' );
 
 	const onReset = (): void => {
 		// Preserve the uploaded image so the user doesn't lose
@@ -171,12 +182,12 @@ export function renderOsSettingsPanel(
 		{
 			id: 'appearance',
 			order: 10,
-			tab: html`<wpd-tab value="appearance"
-				>${ __( 'Appearance' ) }</wpd-tab
+			tab: html`<os-tab value="appearance"
+				>${ __( 'Appearance' ) }</os-tab
 			>`,
-			panel: html`<wpd-tabpanel for="appearance">
-				<wpd-panel>
-					<p class="desktop-mode-os-settings__intro">
+			panel: html`<os-tabpanel for="appearance">
+				<os-panel>
+					<p class="os-settings__intro">
 						${ __(
 							'Personalize your desktop. Changes apply instantly and are saved to this browser.',
 						) }
@@ -188,21 +199,21 @@ export function renderOsSettingsPanel(
 					${ buildWindowRadiusSection( ctx ) }
 					${ buildAdminBarSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
-				</wpd-panel>
-			</wpd-tabpanel>`,
+				</os-panel>
+			</os-tabpanel>`,
 		},
 		{
 			id: 'features',
 			order: 25,
-			tab: html`<wpd-tab value="features"
-				>${ __( 'Features' ) }</wpd-tab
+			tab: html`<os-tab value="features"
+				>${ __( 'Features' ) }</os-tab
 			>`,
-			panel: html`<wpd-tabpanel for="features">
-				<wpd-panel>
+			panel: html`<os-tabpanel for="features">
+				<os-panel>
 					${ buildFeaturesSection( ctx ) }
 					${ isAdmin ? buildExtendedSection( ctx ) : '' }
-				</wpd-panel>
-			</wpd-tabpanel>`,
+				</os-panel>
+			</os-tabpanel>`,
 		},
 		{
 			id: 'themes',
@@ -210,30 +221,30 @@ export function renderOsSettingsPanel(
 			// theme is a coarser version of what Appearance does, so
 			// it reads as the next step, not a separate concern.
 			order: 12,
-			tab: html`<wpd-tab value="themes">${ __( 'Themes' ) }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for="themes">
-				<wpd-panel>${ buildThemesSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
+			tab: html`<os-tab value="themes">${ __( 'Themes' ) }</os-tab>`,
+			panel: html`<os-tabpanel for="themes">
+				<os-panel>${ buildThemesSection( ctx ) }</os-panel>
+			</os-tabpanel>`,
 		},
 		{
 			id: 'apps-icons',
 			order: 22,
-			tab: html`<wpd-tab value="apps-icons"
-				>${ __( 'Apps & Icons' ) }</wpd-tab
+			tab: html`<os-tab value="apps-icons"
+				>${ __( 'Apps & Icons' ) }</os-tab
 			>`,
-			panel: html`<wpd-tabpanel for="apps-icons">
-				<wpd-panel>${ buildAppsIconsSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
+			panel: html`<os-tabpanel for="apps-icons">
+				<os-panel>${ buildAppsIconsSection( ctx ) }</os-panel>
+			</os-tabpanel>`,
 		},
 		{
 			id: 'effects',
 			order: 27,
-			tab: html`<wpd-tab value="effects"
-				>${ __( 'Effects' ) }</wpd-tab
+			tab: html`<os-tab value="effects"
+				>${ __( 'Effects' ) }</os-tab
 			>`,
-			panel: html`<wpd-tabpanel for="effects">
-				<wpd-panel>${ buildEffectsSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
+			panel: html`<os-tabpanel for="effects">
+				<os-panel>${ buildEffectsSection( ctx ) }</os-panel>
+			</os-tabpanel>`,
 		},
 	];
 
@@ -241,10 +252,10 @@ export function renderOsSettingsPanel(
 		rows.push( {
 			id: 'help',
 			order: 40,
-			tab: html`<wpd-tab value="help">${ __( 'Components' ) }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for="help">
-				<wpd-panel>${ buildHelpSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
+			tab: html`<os-tab value="help">${ __( 'Components' ) }</os-tab>`,
+			panel: html`<os-tabpanel for="help">
+				<os-panel>${ buildHelpSection( ctx ) }</os-panel>
+			</os-tabpanel>`,
 		} );
 	}
 
@@ -255,28 +266,28 @@ export function renderOsSettingsPanel(
 	// registry (which default to `order: 100`). The visual moment
 	// belongs at the end of the settings tour. Visible to every
 	// user, not just admins; `padding="0"` so the dark stage
-	// extends to the tabpanel edge without the wpd-panel's
+	// extends to the tabpanel edge without the os-panel's
 	// default 16px frame.
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,
-		tab: html`<wpd-tab value="about">${ __( 'About' ) }</wpd-tab>`,
-		panel: html`<wpd-tabpanel for="about">
-			<wpd-panel padding="0">${ buildAboutSection() }</wpd-panel>
-		</wpd-tabpanel>`,
+		tab: html`<os-tab value="about">${ __( 'About' ) }</os-tab>`,
+		panel: html`<os-tabpanel for="about">
+			<os-panel padding="0">${ buildAboutSection() }</os-panel>
+		</os-tabpanel>`,
 	} );
 
 	for ( const tab of externalTabs ) {
 		const tabId = `ext-${ tab.id }`;
-		const hostAttr = `wpd-settings-tab-host-${ tab.id }`;
+		const hostAttr = `os-settings-tab-host-${ tab.id }`;
 		const tabRef = tab;
 		rows.push( {
 			id: tabId,
 			order: tab.order ?? 100,
-			tab: html`<wpd-tab value=${ tabId }>${ tab.label }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for=${ tabId }>
-				<wpd-panel><div data-host=${ hostAttr }></div></wpd-panel>
-			</wpd-tabpanel>`,
+			tab: html`<os-tab value=${ tabId }>${ tab.label }</os-tab>`,
+			panel: html`<os-tabpanel for=${ tabId }>
+				<os-panel><div data-host=${ hostAttr }></div></os-panel>
+			</os-tabpanel>`,
 			mount: ( rootBody: HTMLElement ): void => {
 				const host = rootBody.querySelector< HTMLElement >(
 					`[data-host="${ hostAttr }"]`,
@@ -294,7 +305,7 @@ export function renderOsSettingsPanel(
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] settings tab render threw:',
+							'[openstation] settings tab render threw:',
 							tabRef.id,
 							err,
 						);
@@ -313,10 +324,10 @@ export function renderOsSettingsPanel(
 	// refreshMenu() snaps the user back to the Appearance tab
 	// mid-action.
 	//
-	// `<wpd-tabs>` keeps the live selected value on the JS property,
+	// `<os-tabs>` keeps the live selected value on the JS property,
 	// not the attribute — `getAttribute('value')` would always
 	// return the initial value, regardless of what the user picked.
-	const previousTabs = body.querySelector( 'wpd-tabs' ) as
+	const previousTabs = body.querySelector( 'os-tabs' ) as
 		| ( HTMLElement & { value?: string } )
 		| null;
 	const previousValue =
@@ -329,15 +340,15 @@ export function renderOsSettingsPanel(
 
 	render(
 		html`
-			<wpd-tabs value=${ initialTab } label=${ __( 'Settings sections' ) }>
+			<os-tabs value=${ initialTab } label=${ __( 'Settings sections' ) }>
 				${ rows.map( ( r ) => r.tab ) }
-			</wpd-tabs>
+			</os-tabs>
 			${ rows.map( ( r ) => r.panel ) }
-			<wpd-panel class="desktop-mode-os-settings__footer">
-				<wpd-button variant="ghost" @click=${ onReset }
-					>${ __( 'Reset to defaults' ) }</wpd-button
+			<os-panel class="os-settings__footer">
+				<os-button variant="ghost" @click=${ onReset }
+					>${ __( 'Reset to defaults' ) }</os-button
 				>
-			</wpd-panel>
+			</os-panel>
 		`,
 		body,
 	);
@@ -356,12 +367,12 @@ export function renderOsSettingsPanel(
 
 	// Track the active tab id so a registry-driven re-render can
 	// land the user back on it. Bound on the freshly-rendered
-	// `<wpd-tabs>` host — `lit` reuses the DOM node across
+	// `<os-tabs>` host — `lit` reuses the DOM node across
 	// renders, but the listener idempotently overwrites
 	// `activeTabId` so duplicates are harmless.
-	const tabsHost = body.querySelector( 'wpd-tabs' );
+	const tabsHost = body.querySelector( 'os-tabs' );
 	if ( tabsHost ) {
-		tabsHost.addEventListener( 'wpd-tab-change', ( e: Event ) => {
+		tabsHost.addEventListener( 'os-tab-change', ( e: Event ) => {
 			const detail = ( e as CustomEvent ).detail as { value?: string };
 			if ( detail?.value ) {
 				ctx.activeTabId = detail.value;

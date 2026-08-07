@@ -1,6 +1,6 @@
 /**
  * Per-wallpaper settings — the shared store, the OS Settings config
- * button, and the `<wpd-modal>` config dialog.
+ * button, and the `<os-modal>` config dialog.
  *
  * Covers: store seed/get/publish semantics (including the
  * settings-changed action), the config button rendering only for
@@ -108,7 +108,7 @@ describe( 'wallpaper config button', () => {
 		const slot = slotElement();
 		syncWallpaperConfigButton( ctxFor( 'test-configurable' ), slot );
 		expect( slot.dataset.expanded ).toBe( 'true' );
-		expect( slot.querySelector( 'wpd-button' ) ).not.toBeNull();
+		expect( slot.querySelector( 'os-button' ) ).not.toBeNull();
 	} );
 
 	test( 'collapses for defs without renderConfig', () => {
@@ -157,7 +157,7 @@ describe( 'wallpaper config dialog', () => {
 
 		openWallpaperConfigDialog( ctx, def );
 
-		const modal = document.body.querySelector( 'wpd-modal' );
+		const modal = document.body.querySelector( 'os-modal' );
 		expect( modal ).not.toBeNull();
 		expect( modal!.getAttribute( 'open' ) ).not.toBeNull();
 		expect( received ).not.toBeNull();
@@ -191,13 +191,13 @@ describe( 'wallpaper config dialog', () => {
 		registry.register( def );
 
 		openWallpaperConfigDialog( ctxFor( 'test-configurable' ), def );
-		const modal = document.body.querySelector( 'wpd-modal' );
+		const modal = document.body.querySelector( 'os-modal' );
 		expect( modal ).not.toBeNull();
 
 		modal!.dispatchEvent(
-			new CustomEvent( 'wpd-modal-cancel', { bubbles: true } ),
+			new CustomEvent( 'os-modal-cancel', { bubbles: true } ),
 		);
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
-		expect( document.body.querySelector( 'wpd-modal' ) ).toBeNull();
+		expect( document.body.querySelector( 'os-modal' ) ).toBeNull();
 	} );
 } );

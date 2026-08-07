@@ -5,7 +5,7 @@
  * in-tree kinds (`post`, `user`, `media`). The registry decouples
  * the dispatch from the bundle: third-party plugins can ship their
  * own section type by calling
- * `wp.desktop.myWordpress.registerEntityKind(kind, renderer)`
+ * `wp.os.myWordpress.registerEntityKind(kind, renderer)`
  * before (or after) the window mounts, and the dispatcher will
  * find it.
  *

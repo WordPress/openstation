@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window arrangement algorithms.
+ * OpenStation — Window arrangement algorithms.
  *
  * `cascade` and `tile` are the two "Arrange" commands exposed from the
  * admin-bar menu. Both touch every window on the active desktop, so
@@ -99,7 +99,7 @@ export function cascade( mgr: WindowManager ): void {
 
 	// Persist the new geometry — session saver listens to this.
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-changed', {
+		new CustomEvent( 'os-window-changed', {
 			detail: { reason: 'cascade' },
 		} ),
 	);
@@ -198,7 +198,7 @@ export function tile( mgr: WindowManager ): void {
 	}
 
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-window-changed', {
+		new CustomEvent( 'os-window-changed', {
 			detail: { reason: 'tile' },
 		} ),
 	);

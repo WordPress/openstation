@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Plugins Window: admin-ajax actions.
+ * OpenStation — Native Plugins Window: admin-ajax actions.
  *
  * Anything that needs an admin-only class lives here, NOT on REST.
  * Reason: `admin-ajax.php` itself ships from `wp-admin/`, so by the
@@ -13,11 +13,11 @@
  * Action map (every callback verifies a `desktop-mode-plugins` nonce
  * AND a per-action capability):
  *
- *   wp_ajax_desktop_mode_plugins_browse   — `plugins_api( 'query_plugins' )`
- *   wp_ajax_desktop_mode_plugins_info     — `plugins_api( 'plugin_information' )`
- *   wp_ajax_desktop_mode_plugins_reviews  — wp.org reviews scrape (DOMDocument)
- *   wp_ajax_desktop_mode_plugins_upload   — `Plugin_Upgrader::install()` from $_FILES
- *   wp_ajax_desktop_mode_plugins_featured — curated + requires_plugins-discovered
+ *   wp_ajax_openstation_plugins_browse   — `plugins_api( 'query_plugins' )`
+ *   wp_ajax_openstation_plugins_info     — `plugins_api( 'plugin_information' )`
+ *   wp_ajax_openstation_plugins_reviews  — wp.org reviews scrape (DOMDocument)
+ *   wp_ajax_openstation_plugins_upload   — `Plugin_Upgrader::install()` from $_FILES
+ *   wp_ajax_openstation_plugins_featured — curated + requires_plugins-discovered
  *                                           gallery (`plugins_api`)
  *
  * Install-by-slug is handled by Core's existing `wp_ajax_install_plugin`
@@ -28,7 +28,7 @@
  * (`PUT/DELETE /wp/v2/plugins/{plugin}`), which lives in
  * `wp-includes/`. No custom handler needed there.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,23 +38,23 @@ defined( 'ABSPATH' ) || exit;
  *
  * Uses `check_ajax_referer( …, …, false )` so a missing/expired
  * nonce surfaces as a clean JSON error rather than a `wp_die()` —
- * the JS wraps every call in a `wp.desktop.fetch` and expects JSON.
+ * the JS wraps every call in a `wp.os.fetch` and expects JSON.
  *
  * @param string $cap Capability the requester must hold.
  * @return true|WP_Error True on pass, WP_Error on rejection.
  */
-function desktop_mode_plugins_window_ajax_guard( $cap ) {
+function openstation_plugins_window_ajax_guard( $cap ) {
 	$nonce_ok = check_ajax_referer( 'desktop-mode-plugins', '_ajax_nonce', false );
 	if ( ! $nonce_ok ) {
 		return new WP_Error(
-			'desktop_mode_plugins_bad_nonce',
+			'openstation_plugins_bad_nonce',
 			__( 'Security check failed. Refresh the window and try again.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 	if ( ! current_user_can( $cap ) ) {
 		return new WP_Error(
-			'desktop_mode_plugins_forbidden',
+			'openstation_plugins_forbidden',
 			__( 'You are not allowed to do that.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -68,7 +68,7 @@ function desktop_mode_plugins_window_ajax_guard( $cap ) {
  * @param WP_Error $error
  * @return void
  */
-function desktop_mode_plugins_window_ajax_error( WP_Error $error ) {
+function openstation_plugins_window_ajax_error( WP_Error $error ) {
 	$status = 500;
 	$data   = $error->get_error_data();
 	if ( is_array( $data ) && isset( $data['status'] ) ) {
@@ -84,7 +84,7 @@ function desktop_mode_plugins_window_ajax_error( WP_Error $error ) {
 }
 
 /**
- * `wp_ajax_desktop_mode_plugins_browse` — proxy to
+ * `wp_ajax_openstation_plugins_browse` — proxy to
  * `plugins_api( 'query_plugins', … )` with a 10-minute transient
  * cache keyed by the args.
  *
@@ -95,10 +95,10 @@ function desktop_mode_plugins_window_ajax_error( WP_Error $error ) {
  *   - page      int,    default 1
  *   - per_page  int,    default 24, capped at 60
  */
-function desktop_mode_plugins_window_ajax_browse() {
-	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
+function openstation_plugins_window_ajax_browse() {
+	$guard = openstation_plugins_window_ajax_guard( 'install_plugins' );
 	if ( is_wp_error( $guard ) ) {
-		desktop_mode_plugins_window_ajax_error( $guard );
+		openstation_plugins_window_ajax_error( $guard );
 		return; // unreachable; clarity for static analyzers.
 	}
 
@@ -114,6 +114,7 @@ function desktop_mode_plugins_window_ajax_browse() {
 		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 	}
 
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above; the sniff cannot follow the check across a function boundary.
 	$browse_raw = isset( $_POST['browse'] ) ? sanitize_key( wp_unslash( (string) $_POST['browse'] ) ) : 'featured';
 	$allowed    = array( 'featured', 'popular', 'recommended', 'favorites', 'new', 'beta', 'updated' );
 	if ( ! in_array( $browse_raw, $allowed, true ) ) {
@@ -124,6 +125,7 @@ function desktop_mode_plugins_window_ajax_browse() {
 	$tag      = isset( $_POST['tag'] ) ? sanitize_key( wp_unslash( (string) $_POST['tag'] ) ) : '';
 	$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
 	$per_page = isset( $_POST['per_page'] ) ? max( 1, min( 60, (int) $_POST['per_page'] ) ) : 24;
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 	$api_args = array(
 		'page'     => $page,
@@ -168,7 +170,7 @@ function desktop_mode_plugins_window_ajax_browse() {
 	 * @param array $raw_params Sanitized request params.
 	 */
 	$api_args = (array) apply_filters(
-		'desktop_mode_plugins_window_browse_args',
+		'openstation_plugins_window_browse_args',
 		$api_args,
 		array(
 			'browse'   => $browse_raw,
@@ -188,7 +190,7 @@ function desktop_mode_plugins_window_ajax_browse() {
 
 	$result = plugins_api( 'query_plugins', $api_args );
 	if ( is_wp_error( $result ) ) {
-		desktop_mode_plugins_window_ajax_error( $result );
+		openstation_plugins_window_ajax_error( $result );
 		return;
 	}
 
@@ -205,7 +207,7 @@ function desktop_mode_plugins_window_ajax_browse() {
 	 * @param array $api_args Args used.
 	 */
 	$payload = (array) apply_filters(
-		'desktop_mode_plugins_window_browse_response',
+		'openstation_plugins_window_browse_response',
 		$payload,
 		$api_args
 	);
@@ -213,20 +215,20 @@ function desktop_mode_plugins_window_ajax_browse() {
 	set_transient( $cache_key, $payload, 10 * MINUTE_IN_SECONDS );
 	wp_send_json_success( $payload );
 }
-add_action( 'wp_ajax_desktop_mode_plugins_browse', 'desktop_mode_plugins_window_ajax_browse' );
+add_action( 'wp_ajax_openstation_plugins_browse', 'openstation_plugins_window_ajax_browse' );
 
 /**
- * `wp_ajax_desktop_mode_plugins_info` — proxy to
+ * `wp_ajax_openstation_plugins_info` — proxy to
  * `plugins_api( 'plugin_information', { slug, fields: { … } } )`
  * with a 1-hour transient cache per slug.
  *
  * Body params:
  *   - slug  string, required
  */
-function desktop_mode_plugins_window_ajax_info() {
-	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
+function openstation_plugins_window_ajax_info() {
+	$guard = openstation_plugins_window_ajax_guard( 'install_plugins' );
 	if ( is_wp_error( $guard ) ) {
-		desktop_mode_plugins_window_ajax_error( $guard );
+		openstation_plugins_window_ajax_error( $guard );
 		return;
 	}
 
@@ -237,11 +239,12 @@ function desktop_mode_plugins_window_ajax_info() {
 		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above.
 	$slug = isset( $_POST['slug'] ) ? sanitize_key( wp_unslash( (string) $_POST['slug'] ) ) : '';
 	if ( '' === $slug ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_missing_slug',
+				'openstation_plugins_missing_slug',
 				__( 'Missing plugin slug.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -278,7 +281,7 @@ function desktop_mode_plugins_window_ajax_info() {
 
 	$result = plugins_api( 'plugin_information', $api_args );
 	if ( is_wp_error( $result ) ) {
-		desktop_mode_plugins_window_ajax_error( $result );
+		openstation_plugins_window_ajax_error( $result );
 		return;
 	}
 
@@ -291,7 +294,7 @@ function desktop_mode_plugins_window_ajax_info() {
 	 * @param string $slug    Plugin slug.
 	 */
 	$payload = (array) apply_filters(
-		'desktop_mode_plugins_window_info_response',
+		'openstation_plugins_window_info_response',
 		$payload,
 		$slug
 	);
@@ -299,10 +302,10 @@ function desktop_mode_plugins_window_ajax_info() {
 	set_transient( $cache_key, $payload, HOUR_IN_SECONDS );
 	wp_send_json_success( $payload );
 }
-add_action( 'wp_ajax_desktop_mode_plugins_info', 'desktop_mode_plugins_window_ajax_info' );
+add_action( 'wp_ajax_openstation_plugins_info', 'openstation_plugins_window_ajax_info' );
 
 /**
- * `wp_ajax_desktop_mode_plugins_reviews` — best-effort scrape of the
+ * `wp_ajax_openstation_plugins_reviews` — best-effort scrape of the
  * top reviews from a plugin's wp.org page.
  *
  * Body params:
@@ -313,18 +316,19 @@ add_action( 'wp_ajax_desktop_mode_plugins_info', 'desktop_mode_plugins_window_aj
  * expected to fall back to the histogram-only view on `parsed: false`.
  * Cache success 1h, failure 15m so wp.org can recover quickly.
  */
-function desktop_mode_plugins_window_ajax_reviews() {
-	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
+function openstation_plugins_window_ajax_reviews() {
+	$guard = openstation_plugins_window_ajax_guard( 'install_plugins' );
 	if ( is_wp_error( $guard ) ) {
-		desktop_mode_plugins_window_ajax_error( $guard );
+		openstation_plugins_window_ajax_error( $guard );
 		return;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above.
 	$slug = isset( $_POST['slug'] ) ? sanitize_key( wp_unslash( (string) $_POST['slug'] ) ) : '';
 	if ( '' === $slug ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_missing_slug',
+				'openstation_plugins_missing_slug',
 				__( 'Missing plugin slug.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -350,7 +354,7 @@ function desktop_mode_plugins_window_ajax_reviews() {
 	 * @param array|null $items Override list, or null for default behaviour.
 	 * @param string     $slug  Plugin slug.
 	 */
-	$override = apply_filters( 'desktop_mode_plugins_window_review_parser', null, $slug );
+	$override = apply_filters( 'openstation_plugins_window_review_parser', null, $slug );
 	if ( is_array( $override ) ) {
 		$payload = array(
 			'items'  => array_values( $override ),
@@ -408,7 +412,7 @@ function desktop_mode_plugins_window_ajax_reviews() {
 		return;
 	}
 
-	$items = desktop_mode_plugins_window_parse_reviews_html( $body );
+	$items = openstation_plugins_window_parse_reviews_html( $body );
 	if ( null === $items ) {
 		$payload = array(
 			'items'  => array(),
@@ -427,7 +431,7 @@ function desktop_mode_plugins_window_ajax_reviews() {
 	set_transient( $cache_key, $payload, HOUR_IN_SECONDS );
 	wp_send_json_success( $payload );
 }
-add_action( 'wp_ajax_desktop_mode_plugins_reviews', 'desktop_mode_plugins_window_ajax_reviews' );
+add_action( 'wp_ajax_openstation_plugins_reviews', 'openstation_plugins_window_ajax_reviews' );
 
 /**
  * Default DOMDocument-based parser for the wp.org plugin reviews
@@ -441,7 +445,7 @@ add_action( 'wp_ajax_desktop_mode_plugins_reviews', 'desktop_mode_plugins_window
  * @param string $html
  * @return array<int,array<string,mixed>>|null
  */
-function desktop_mode_plugins_window_parse_reviews_html( $html ) {
+function openstation_plugins_window_parse_reviews_html( $html ) {
 	if ( ! class_exists( 'DOMDocument' ) ) {
 		return null;
 	}
@@ -479,7 +483,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 				continue;
 			}
 
-			$author = '';
+			$author       = '';
 			$author_nodes = $xpath->query(
 				'.//*[contains(concat(" ", normalize-space(@class), " "), " reviewer-name ")]',
 				$review
@@ -488,7 +492,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 				$author = trim( (string) $author_nodes->item( 0 )->textContent );
 			}
 
-			$excerpt = '';
+			$excerpt       = '';
 			$excerpt_nodes = $xpath->query( './/p', $review );
 			if ( $excerpt_nodes instanceof DOMNodeList && $excerpt_nodes->length > 0 ) {
 				$excerpt = trim( (string) $excerpt_nodes->item( 0 )->textContent );
@@ -497,7 +501,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 				$excerpt = mb_strimwidth( $excerpt, 0, 320, '…' );
 			}
 
-			$date = '';
+			$date       = '';
 			$date_nodes = $xpath->query(
 				'.//*[contains(concat(" ", normalize-space(@class), " "), " review-date ")]',
 				$review
@@ -506,7 +510,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 				$date = trim( (string) $date_nodes->item( 0 )->textContent );
 			}
 
-			$stars = 0;
+			$stars        = 0;
 			$rating_nodes = $xpath->query(
 				'.//*[contains(concat(" ", normalize-space(@class), " "), " wporg-ratings ") or contains(concat(" ", normalize-space(@class), " "), " star-rating ")]',
 				$review
@@ -530,7 +534,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 			}
 			$stars = max( 0, min( 5, $stars ) );
 
-			$url = '';
+			$url        = '';
 			$link_nodes = $xpath->query( './/a[contains(@href, "/topic/")]', $review );
 			if ( $link_nodes instanceof DOMNodeList && $link_nodes->length > 0 ) {
 				$href = $link_nodes->item( 0 );
@@ -550,7 +554,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 				'date'    => $date,
 				'url'     => $url,
 			);
-			$count++;
+			++$count;
 		}
 
 		return $out;
@@ -563,7 +567,7 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
 }
 
 /**
- * `wp_ajax_desktop_mode_plugins_upload` — install a plugin from a
+ * `wp_ajax_openstation_plugins_upload` — install a plugin from a
  * .zip uploaded as multipart/form-data under the `pluginzip` field.
  *
  * Mirrors the classic `update.php?action=upload-plugin` flow but
@@ -571,17 +575,18 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
  * `Plugin_Upgrader`, `WP_Ajax_Upgrader_Skin`, and `wp_handle_upload`
  * symbols are already loaded (admin-ajax loads them).
  */
-function desktop_mode_plugins_window_ajax_upload() {
-	$guard = desktop_mode_plugins_window_ajax_guard( 'upload_plugins' );
+function openstation_plugins_window_ajax_upload() {
+	$guard = openstation_plugins_window_ajax_guard( 'upload_plugins' );
 	if ( is_wp_error( $guard ) ) {
-		desktop_mode_plugins_window_ajax_error( $guard );
+		openstation_plugins_window_ajax_error( $guard );
 		return;
 	}
 
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above.
 	if ( empty( $_FILES['pluginzip'] ) || ! is_array( $_FILES['pluginzip'] ) ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_missing_file',
+				'openstation_plugins_missing_file',
 				__( 'No file received. Pick a .zip and try again.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -590,11 +595,12 @@ function desktop_mode_plugins_window_ajax_upload() {
 	}
 
 	$file = $_FILES['pluginzip']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read raw, sanitized below.
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 	if ( ! isset( $file['name'] ) || ! isset( $file['tmp_name'] ) || ! isset( $file['error'] ) ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_invalid_file',
+				'openstation_plugins_invalid_file',
 				__( 'Upload payload is malformed.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -603,9 +609,9 @@ function desktop_mode_plugins_window_ajax_upload() {
 	}
 
 	if ( UPLOAD_ERR_OK !== (int) $file['error'] ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_upload_error',
+				'openstation_plugins_upload_error',
 				sprintf(
 					/* translators: %d: PHP UPLOAD_ERR_* code. */
 					__( 'Upload failed (error %d). Try again.', 'desktop-mode' ),
@@ -619,9 +625,9 @@ function desktop_mode_plugins_window_ajax_upload() {
 
 	$name = sanitize_file_name( (string) $file['name'] );
 	if ( '' === $name || '.zip' !== strtolower( substr( $name, -4 ) ) ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_not_zip',
+				'openstation_plugins_not_zip',
 				__( 'Plugin uploads must be a .zip file.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -633,9 +639,9 @@ function desktop_mode_plugins_window_ajax_upload() {
 	if ( ! is_uploaded_file( $tmp_name ) ) {
 		// Defensive — `is_uploaded_file()` is the standard guard
 		// against a path-traversal payload smuggled through tmp_name.
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_bad_tmp',
+				'openstation_plugins_bad_tmp',
 				__( 'Refused: temporary upload path is not trusted.', 'desktop-mode' ),
 				array( 'status' => 400 )
 			)
@@ -659,9 +665,9 @@ function desktop_mode_plugins_window_ajax_upload() {
 		require_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
 	}
 	if ( ! class_exists( 'Plugin_Upgrader' ) || ! class_exists( 'WP_Ajax_Upgrader_Skin' ) ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_upgrader_missing',
+				'openstation_plugins_upgrader_missing',
 				__( 'Plugin upgrader is unavailable in this context. Reload the page and try again.', 'desktop-mode' ),
 				array( 'status' => 503 )
 			)
@@ -669,7 +675,7 @@ function desktop_mode_plugins_window_ajax_upload() {
 		return;
 	}
 
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified above via desktop_mode_plugins_window_ajax_guard().
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified above via openstation_plugins_window_ajax_guard().
 	$overwrite = ! empty( $_POST['overwrite'] );
 
 	$skin     = new WP_Ajax_Upgrader_Skin();
@@ -706,7 +712,7 @@ function desktop_mode_plugins_window_ajax_upload() {
 	}
 
 	if ( $folder_exists ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
 				'folder_exists',
 				__(
@@ -720,21 +726,21 @@ function desktop_mode_plugins_window_ajax_upload() {
 	}
 
 	if ( is_wp_error( $skin->result ) ) {
-		desktop_mode_plugins_window_ajax_error( $skin->result );
+		openstation_plugins_window_ajax_error( $skin->result );
 		return;
 	}
 	if ( $skin->get_errors()->has_errors() ) {
-		desktop_mode_plugins_window_ajax_error( $skin->get_errors() );
+		openstation_plugins_window_ajax_error( $skin->get_errors() );
 		return;
 	}
 	if ( is_wp_error( $result ) ) {
-		desktop_mode_plugins_window_ajax_error( $result );
+		openstation_plugins_window_ajax_error( $result );
 		return;
 	}
 	if ( false === $result || null === $result ) {
-		desktop_mode_plugins_window_ajax_error(
+		openstation_plugins_window_ajax_error(
 			new WP_Error(
-				'desktop_mode_plugins_install_failed',
+				'openstation_plugins_install_failed',
 				__( 'Plugin install failed.', 'desktop-mode' ),
 				array( 'status' => 500 )
 			)
@@ -750,7 +756,7 @@ function desktop_mode_plugins_window_ajax_upload() {
 	 *
 	 * @param string $plugin_file Plugin file (e.g. "akismet/akismet.php").
 	 */
-	do_action( 'desktop_mode_plugins_window_installed', $plugin_file );
+	do_action( 'openstation_plugins_window_installed', $plugin_file );
 
 	// Read the just-installed plugin's headers so the client can show
 	// a name / version on the post-install Activate panel without a
@@ -781,7 +787,7 @@ function desktop_mode_plugins_window_ajax_upload() {
 		)
 	);
 }
-add_action( 'wp_ajax_desktop_mode_plugins_upload', 'desktop_mode_plugins_window_ajax_upload' );
+add_action( 'wp_ajax_openstation_plugins_upload', 'openstation_plugins_window_ajax_upload' );
 
 /**
  * Curated list of slugs that lead the Featured tab.
@@ -798,10 +804,10 @@ add_action( 'wp_ajax_desktop_mode_plugins_upload', 'desktop_mode_plugins_window_
  *
  * @return string[] List of wp.org plugin slugs.
  */
-function desktop_mode_plugins_window_featured_slugs() {
+function openstation_plugins_window_featured_slugs() {
 	$slugs = array(
-		// The author of this plugin forgot to declare Desktop Mode as a
-		// dependency — surfacing it here makes sure desktop-mode users
+		// The author of this plugin forgot to declare OpenStation as a
+		// dependency — surfacing it here makes sure openstation users
 		// discover it anyway. Once the `requires_plugins` query lands on
 		// wp.org we can remove the manual seed.
 		'odd-outlandish-desktop-decorator',
@@ -816,7 +822,7 @@ function desktop_mode_plugins_window_featured_slugs() {
 	 *
 	 * @param string[] $slugs Plugin slugs.
 	 */
-	$slugs = (array) apply_filters( 'desktop_mode_plugins_featured_slugs', $slugs );
+	$slugs = (array) apply_filters( 'openstation_plugins_featured_slugs', $slugs );
 	$slugs = array_values(
 		array_unique(
 			array_filter(
@@ -833,16 +839,16 @@ function desktop_mode_plugins_window_featured_slugs() {
 }
 
 /**
- * `wp_ajax_desktop_mode_plugins_featured` — return the Featured tab's
+ * `wp_ajax_openstation_plugins_featured` — return the Featured tab's
  * curated + auto-discovered list of plugins that integrate with Desktop
  * Mode.
  *
  * Composition:
- *   1. Curated slugs from `desktop_mode_plugins_window_featured_slugs()`,
+ *   1. Curated slugs from `openstation_plugins_window_featured_slugs()`,
  *      hydrated via `plugins_api( 'plugin_information' )` so the card
  *      payload is always fresh.
  *   2. Auto-discovered slugs from `plugins_api( 'query_plugins' )` whose
- *      `requires_plugins` array contains `desktop-mode`. wp.org has no
+ *      `requires_plugins` array contains `openstation`. wp.org has no
  *      server-side filter for this today, so we run a broad query and
  *      filter server-side. Deduped against the curated set.
  *
@@ -851,10 +857,10 @@ function desktop_mode_plugins_window_featured_slugs() {
  * Cached for 1h. Failures cached for 15m so a flaky wp.org doesn't
  * hammer the API on every tab open.
  */
-function desktop_mode_plugins_window_ajax_featured() {
-	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
+function openstation_plugins_window_ajax_featured() {
+	$guard = openstation_plugins_window_ajax_guard( 'install_plugins' );
 	if ( is_wp_error( $guard ) ) {
-		desktop_mode_plugins_window_ajax_error( $guard );
+		openstation_plugins_window_ajax_error( $guard );
 		return;
 	}
 
@@ -869,9 +875,9 @@ function desktop_mode_plugins_window_ajax_featured() {
 		return;
 	}
 
-	$plugins      = array();
-	$seen_slugs   = array();
-	$fields       = array(
+	$plugins    = array();
+	$seen_slugs = array();
+	$fields     = array(
 		'icons'             => true,
 		'banners'           => true,
 		'short_description' => true,
@@ -895,7 +901,7 @@ function desktop_mode_plugins_window_ajax_featured() {
 	);
 
 	// ─── 1. Curated slugs ─────────────────────────────────────────────
-	$curated = desktop_mode_plugins_window_featured_slugs();
+	$curated = openstation_plugins_window_featured_slugs();
 	foreach ( $curated as $slug ) {
 		if ( isset( $seen_slugs[ $slug ] ) ) {
 			continue;
@@ -912,15 +918,15 @@ function desktop_mode_plugins_window_ajax_featured() {
 			// tab.
 			continue;
 		}
-		$row             = (array) $info;
-		$row['featured'] = true;
-		$plugins[]       = $row;
+		$row                 = (array) $info;
+		$row['featured']     = true;
+		$plugins[]           = $row;
 		$seen_slugs[ $slug ] = true;
 	}
 
 	// ─── 2. Auto-discover via `requires_plugins` ──────────────────────
 	// Best-effort scan: pull the top of the directory and keep rows that
-	// declare desktop-mode as a dependency. The wp.org `query_plugins`
+	// declare openstation as a dependency. The wp.org `query_plugins`
 	// API ignores `requires_plugins` as a filter, so we have to fetch +
 	// sift locally. Scope is intentionally small (100 most-popular rows)
 	// to keep the request bounded; as the ecosystem grows we'll widen
@@ -942,6 +948,8 @@ function desktop_mode_plugins_window_ajax_featured() {
 				continue;
 			}
 			$requires = isset( $candidate['requires_plugins'] ) ? (array) $candidate['requires_plugins'] : array();
+			// The wp.org directory slug, not the brand — `requires_plugins`
+			// rows resolve against our plugin folder name.
 			if ( ! in_array( 'desktop-mode', $requires, true ) ) {
 				continue;
 			}
@@ -978,7 +986,7 @@ function desktop_mode_plugins_window_ajax_featured() {
 	 * @param array $curated  Curated slug list.
 	 */
 	$payload = (array) apply_filters(
-		'desktop_mode_plugins_featured_response',
+		'openstation_plugins_featured_response',
 		$payload,
 		$curated
 	);
@@ -986,4 +994,4 @@ function desktop_mode_plugins_window_ajax_featured() {
 	set_transient( $cache_key, $payload, HOUR_IN_SECONDS );
 	wp_send_json_success( $payload );
 }
-add_action( 'wp_ajax_desktop_mode_plugins_featured', 'desktop_mode_plugins_window_ajax_featured' );
+add_action( 'wp_ajax_openstation_plugins_featured', 'openstation_plugins_window_ajax_featured' );

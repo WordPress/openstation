@@ -1,10 +1,10 @@
 <?php
 /**
- * Desktop Mode — Wallpapers registry.
+ * OpenStation — Wallpapers registry.
  *
  * Server-side registration API + payload builder + asset enqueue
  * for the desktop wallpaper picker. Wallpaper definitions live
- * on `window.desktopModeWallpapers[ id ]` (set by the plugin's
+ * on `window.openStationWallpapers[ id ]` (set by the plugin's
  * own JS); this module is the PHP side that announces them to
  * the shell and ships their script handles into the boot
  * payload.
@@ -13,17 +13,17 @@
  * PHP slicing (phase 6). Behaviour, function names, filter
  * contracts, and error codes all unchanged.
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register a server-side desktop wallpaper. Symmetrical to
- * {@see desktop_mode_register_widget()}. The plugin's JS side
+ * {@see openstation_register_widget()}. The plugin's JS side
  * publishes the full `WallpaperDef` (with mount / resolveValue /
  * renderEditor callbacks as appropriate) on
- * `window.desktopModeWallpapers[ <id> ]`; the shell loads the
+ * `window.openStationWallpapers[ <id> ]`; the shell loads the
  * declared script, reads that global, and registers the def via
  * the normal wallpaper registry. Deactivation unregisters the
  * def and re-applies the current selection (which falls back to
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * desktop_mode_register_wallpaper( 'myplugin/snow', array(
+ * openstation_register_wallpaper( 'myplugin/snow', array(
  *     'label'   => __( 'Snow', 'my-plugin' ),
  *     'preview' => 'linear-gradient(#fff, #ddd)',
  *     'type'    => 'canvas',
@@ -42,8 +42,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * ```js
  * // Inside my-plugin-snow-wallpaper.js
- * window.desktopModeWallpapers = window.desktopModeWallpapers || {};
- * window.desktopModeWallpapers[ 'myplugin/snow' ] = {
+ * window.openStationWallpapers = window.openStationWallpapers || {};
+ * window.openStationWallpapers[ 'myplugin/snow' ] = {
  *     id: 'myplugin/snow',
  *     label: 'Snow',
  *     type: 'canvas',
@@ -54,7 +54,7 @@ defined( 'ABSPATH' ) || exit;
  * ```
  *
  * @param string $id   Wallpaper id. For canvas wallpapers this must
- *                     match the `window.desktopModeWallpapers[<id>]`
+ *                     match the `window.openStationWallpapers[<id>]`
  *                     key the plugin's JS publishes.
  * @param array  $args {
  *     @type string   $label        Picker label. Required.
@@ -80,15 +80,15 @@ defined( 'ABSPATH' ) || exit;
  *                                  it. Optional.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
- *                                  `WP_Error desktop_mode_capability_denied`.
+ *                                  `WP_Error openstation_capability_denied`.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function desktop_mode_register_wallpaper( $id, $args = array() ) {
+function openstation_register_wallpaper( $id, $args = array() ) {
 	$id = (string) $id;
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Wallpaper id is required.', 'desktop-mode' )
 		);
 	}
@@ -102,24 +102,27 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 		'description'  => '',
 		'capabilities' => array(),
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this wallpaper.', 'desktop-mode' ),
 					(string) $cap
 				),
-				array( 'capability' => (string) $cap, 'id' => $id )
+				array(
+					'capability' => (string) $cap,
+					'id'         => $id,
+				)
 			);
 		}
 	}
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Wallpaper registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -132,8 +135,8 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 	// script). CSS wallpapers can skip the script — the shell can
 	// render from the `value` / `preview` string alone.
 	if ( 'canvas' === $type && '' === (string) $args['script'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_script',
+		return openstation_registration_error(
+			'openstation_missing_script',
 			__( 'Canvas wallpaper registration requires a `script` handle that publishes the def.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -169,30 +172,30 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 		// as HTML, so strip tags here rather than trusting every caller.
 		'description' => sanitize_textarea_field( (string) $args['description'] ),
 	);
-	desktop_mode_desktop_wallpaper_registry( $id, $entry );
+	openstation_desktop_wallpaper_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop wallpaper is successfully registered.
 	 *
-	 * Does NOT fire when `desktop_mode_register_wallpaper()` returns a
+	 * Does NOT fire when `openstation_register_wallpaper()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The wallpaper id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_wallpaper_registered', $id, $entry );
+	do_action( 'openstation_wallpaper_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for wallpapers registered via
- * {@see desktop_mode_register_wallpaper()}. Same static-store
+ * {@see openstation_register_wallpaper()}. Same static-store
  * pattern as the widget + native-window registries.
  *
  * @internal
  */
-function desktop_mode_desktop_wallpaper_registry( $id = '', $entry = null ) {
+function openstation_desktop_wallpaper_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -211,20 +214,20 @@ function desktop_mode_desktop_wallpaper_registry( $id = '', $entry = null ) {
  *
  * @return array[]
  */
-function desktop_mode_build_desktop_wallpapers_payload() {
-	$registry = desktop_mode_desktop_wallpaper_registry();
+function openstation_build_desktop_wallpapers_payload() {
+	$registry = openstation_desktop_wallpaper_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
 	/**
 	 * Filters the server-declared wallpaper list before it ships to
-	 * the shell. Mirrors the JS-side `desktop-mode.wallpapers` filter
+	 * the shell. Mirrors the JS-side `os.wallpapers` filter
 	 * so plugins can rearrange, hide, or override entries at boot
 	 * without round-tripping through the JS registry.
 	 *
 	 * @param array[] $registry The registered wallpaper entries.
 	 */
-	$registry = apply_filters( 'desktop_mode_wallpapers', $registry );
+	$registry = apply_filters( 'openstation_wallpapers', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -234,19 +237,19 @@ function desktop_mode_build_desktop_wallpapers_payload() {
 			continue;
 		}
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$payload = desktop_mode_resolve_script_payload( $handle );
-		$out[] = array(
-			'id'                => (string) $entry['id'],
-			'label'             => isset( $entry['label'] ) ? (string) $entry['label'] : '',
-			'preview'           => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
-			'type'              => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
-			'value'             => isset( $entry['value'] ) ? (string) $entry['value'] : '',
-			'description'       => isset( $entry['description'] ) ? (string) $entry['description'] : '',
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+		$payload = openstation_resolve_script_payload( $handle );
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => isset( $entry['label'] ) ? (string) $entry['label'] : '',
+			'preview'            => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
+			'type'               => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
+			'value'              => isset( $entry['value'] ) ? (string) $entry['value'] : '',
+			'description'        => isset( $entry['description'] ) ? (string) $entry['description'] : '',
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}
@@ -259,11 +262,11 @@ function desktop_mode_build_desktop_wallpapers_payload() {
  * so wallpapers active at boot time have their defs available
  * without any dynamic-load roundtrip.
  */
-function desktop_mode_enqueue_desktop_wallpaper_scripts() {
-	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
+function openstation_enqueue_desktop_wallpaper_scripts() {
+	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	$registry = desktop_mode_desktop_wallpaper_registry();
+	$registry = openstation_desktop_wallpaper_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -273,5 +276,4 @@ function desktop_mode_enqueue_desktop_wallpaper_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_desktop_wallpaper_scripts', 20 );
-
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_desktop_wallpaper_scripts', 20 );

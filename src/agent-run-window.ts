@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Agents: "Agent chat" window bundle.
+ * OpenStation — Agents: "Agent chat" window bundle.
  *
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-agent-run` window opens. Registers the render
- * callback on `window.desktopModeNativeWindows` and paints the
+ * callback on `window.openStationNativeWindows` and paints the
  * conversation for the agent seeded into the cross-bundle
  * `desktop-mode/agents-chat` shared store by the opener (the My
  * WordPress Agents section today; send-to and drag intakes in later
@@ -18,11 +18,11 @@
 
 import { __, sprintf } from './i18n';
 import { renderMarkdown } from './markdown';
-import './ui/components/wpd-avatar/wpd-avatar';
-import './ui/components/wpd-button/wpd-button';
-import './ui/components/wpd-empty-state/wpd-empty-state';
-import './ui/components/wpd-spinner/wpd-spinner';
-import './ui/components/wpd-textarea/wpd-textarea';
+import './ui/components/os-avatar/os-avatar';
+import './ui/components/os-button/os-button';
+import './ui/components/os-empty-state/os-empty-state';
+import './ui/components/os-spinner/os-spinner';
+import './ui/components/os-textarea/os-textarea';
 import { applyAvatarSrc } from './ui/util/avatar-resolve';
 import {
 	agentsChatStore,
@@ -47,7 +47,7 @@ import {
 	openConversation,
 	type AgentConversationSummary,
 } from './agents-conversations';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
 
 const WINDOW_ID = 'desktop-mode-agent-run';
 
@@ -80,10 +80,10 @@ interface MinimalDropTarget {
 }
 
 interface RunWindowGlobals {
-	desktopModeWindowConfig?: Record< string, unknown >;
-	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	openStationWindowConfig?: Record< string, unknown >;
+	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	wp?: {
-		desktop?: {
+		os?: {
 			dragManager?: {
 				registerDropTarget( target: MinimalDropTarget ): () => void;
 			};
@@ -97,7 +97,7 @@ const globals = window as unknown as RunWindowGlobals;
 let chatDropSeq = 0;
 
 function getRunConfig(): RunWindowConfig | null {
-	const cfg = globals.desktopModeWindowConfig?.[ WINDOW_ID ] as
+	const cfg = globals.openStationWindowConfig?.[ WINDOW_ID ] as
 		| RunWindowConfig
 		| undefined;
 	return cfg && typeof cfg.restRoot === 'string' ? cfg : null;
@@ -139,7 +139,7 @@ function formatConversationTime( iso: string ): string {
 }
 
 /**
- * Build a `<wpd-avatar>`. Gravatar URLs go through the probe so users
+ * Build a `<os-avatar>`. Gravatar URLs go through the probe so users
  * with no registered Gravatar get their initials tile instead of the
  * mystery-person silhouette (a raw Gravatar URL answers 200 with the
  * silhouette, so the component's own error fallback never fires).
@@ -150,7 +150,7 @@ function buildAvatar(
 	src: string,
 	name: string,
 ): HTMLElement {
-	const avatar = document.createElement( 'wpd-avatar' );
+	const avatar = document.createElement( 'os-avatar' );
 	avatar.className = className;
 	avatar.setAttribute( 'size', String( size ) );
 	avatar.setAttribute( 'name', name );
@@ -170,7 +170,7 @@ function linkAvatarToAgentEditor( avatar: HTMLElement, agentId: number ): void {
 	avatar.setAttribute( 'clickable', '' );
 	avatar.setAttribute(
 		'title',
-		__( 'Open the agent in My WordPress', 'desktop-mode' ),
+		__( 'Open the agent in WP Explorer', 'desktop-mode' ),
 	);
 	avatar.addEventListener( 'click', ( e: Event ) => {
 		e.stopPropagation();
@@ -240,7 +240,7 @@ function transcriptFor( agent: AgentChatAgent ): AgentChatMessage[] {
 function renderChat( body: HTMLElement ): ( () => void ) | void {
 	const root =
 		body.querySelector< HTMLElement >(
-			'[data-desktop-mode-agent-run-root]',
+			'[data-os-agent-run-root]',
 		) ?? body;
 
 	let busy = false;
@@ -291,7 +291,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( ! cfg ) {
 			return;
 		}
-		const ok = await wpdConfirm( {
+		const ok = await osConfirm( {
 			title: __( 'Delete conversation?', 'desktop-mode' ),
 			message: __( 'Cannot be undone.', 'desktop-mode' ),
 			confirmLabel: __( 'Delete', 'desktop-mode' ),
@@ -324,7 +324,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		const sidebar = document.createElement( 'div' );
 		sidebar.className = 'dm-agent-chat__sidebar';
 
-		const newChat = document.createElement( 'wpd-button' );
+		const newChat = document.createElement( 'os-button' );
 		newChat.className = 'dm-agent-chat__new';
 		newChat.textContent = __( '+ New chat', 'desktop-mode' );
 		if ( ! agent || busy ) {
@@ -343,13 +343,22 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			? agentsChatStore.state.conversationIds?.[ agent.id ] ?? null
 			: null;
 
-		if ( conversationsLoaded && conversations.length === 0 ) {
+		// Per-agent scope: with an agent active, the sidebar is THAT
+		// agent's history only — conversations never mix across agents.
+		// With no agent seeded yet (a cold-open or session-restored
+		// window) the full list acts as the picker, since a row click
+		// re-targets the chat to its agent anyway.
+		const visible = agent
+			? conversations.filter( ( row ) => row.agentId === agent.id )
+			: conversations;
+
+		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
 			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
 			list.appendChild( none );
 		}
-		for ( const row of conversations ) {
+		for ( const row of visible ) {
 			const item = document.createElement( 'div' );
 			item.className = 'dm-agent-chat__conv';
 			if ( row.id === activeId ) {
@@ -414,7 +423,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				}
 			} );
 
-			// Feature-specific micro-control — a full wpd-button would
+			// Feature-specific micro-control — a full os-button would
 			// out-weigh the row it lives in.
 			const del = document.createElement( 'button' );
 			del.type = 'button';
@@ -449,7 +458,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		wrap.appendChild( main );
 
 		if ( ! agent ) {
-			const empty = document.createElement( 'wpd-empty-state' );
+			const empty = document.createElement( 'os-empty-state' );
 			empty.setAttribute( 'icon', 'superhero' );
 			empty.setAttribute(
 				'heading',
@@ -458,7 +467,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			empty.setAttribute(
 				'description',
 				__(
-					'Open an agent from the Agents section of the site folder, or pick a past conversation.',
+					'Open an agent from the Agents section of WP Explorer, or pick a past conversation.',
 					'desktop-mode',
 				),
 			);
@@ -499,7 +508,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 
 		const composer = document.createElement( 'div' );
 		composer.className = 'dm-agent-chat__composer';
-		const input = document.createElement( 'wpd-textarea' ) as HTMLElement & {
+		const input = document.createElement( 'os-textarea' ) as HTMLElement & {
 			value?: string;
 		};
 		input.setAttribute(
@@ -515,7 +524,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( busy ) {
 			input.setAttribute( 'disabled', '' );
 		}
-		const send = document.createElement( 'wpd-button' ) as HTMLElement & {
+		const send = document.createElement( 'os-button' ) as HTMLElement & {
 			disabled?: boolean;
 		};
 		send.textContent = __( 'Send', 'desktop-mode' );
@@ -530,7 +539,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			void sendMessage( agent, text );
 		};
-		input.addEventListener( 'wpd-submit', submit );
+		input.addEventListener( 'os-submit', submit );
 		send.addEventListener( 'click', submit );
 		composer.append( input, send );
 		main.appendChild( composer );
@@ -552,7 +561,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 
 		// WhatsApp-style avatars: the agent on the left, the viewer on
 		// the right. Error rows sit on the agent side, avatar-less.
-		// `<wpd-avatar>` rather than a bare `<img>` so a viewer with no
+		// `<os-avatar>` rather than a bare `<img>` so a viewer with no
 		// registered Gravatar gets their initials instead of the
 		// mystery-person silhouette.
 		if ( message.role === 'agent' ) {
@@ -612,7 +621,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			row.appendChild( text );
 		}
 		if ( message.pending ) {
-			const spinner = document.createElement( 'wpd-spinner' );
+			const spinner = document.createElement( 'os-spinner' );
 			row.appendChild( spinner );
 		}
 		if ( message.toolCalls && message.toolCalls.length > 0 ) {
@@ -647,7 +656,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			ctas.className = 'dm-agent-chat__ctas';
 			const live = isLast && ! message.ctaUsed && ! busy;
 			for ( const cta of message.callToActions ) {
-				const btn = document.createElement( 'wpd-button' );
+				const btn = document.createElement( 'os-button' );
 				btn.setAttribute( 'variant', cta.style ?? 'secondary' );
 				btn.textContent = cta.label;
 				if ( ! live ) {
@@ -706,7 +715,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	// (the chat trigger), so only the entity shape is checked.
 	let deregisterDrop: ( () => void ) | undefined;
 	const dropConfig = getRunConfig();
-	const dragManager = globals.wp?.desktop?.dragManager;
+	const dragManager = globals.wp?.os?.dragManager;
 	if ( dragManager && dropConfig ) {
 		deregisterDrop = dragManager.registerDropTarget( {
 			id: `dm-agent-chat-${ ++chatDropSeq }`,
@@ -754,5 +763,5 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	};
 }
 
-globals.desktopModeNativeWindows = globals.desktopModeNativeWindows || {};
-globals.desktopModeNativeWindows[ WINDOW_ID ] = renderChat;
+globals.openStationNativeWindows = globals.openStationNativeWindows || {};
+globals.openStationNativeWindows[ WINDOW_ID ] = renderChat;

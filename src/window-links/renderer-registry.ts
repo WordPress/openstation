@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Window-link renderer registry.
+ * OpenStation — Window-link renderer registry.
  *
  * Owns the list of available window-link renderers (how relation ties
  * between windows are drawn) and applies the
- * `desktop-mode.window-links.renderers` filter each time callers read
+ * `os.window-links.renderers` filter each time callers read
  * it. The built-in `svg-splines` is seeded here through the very same
  * `register()` the public hook calls — the shipped renderer dogfoods
  * the extensibility API rather than taking a private shortcut.
@@ -128,7 +128,7 @@ export function unregisterWindowLinkRenderersByOwner( owner: string ): number {
 }
 
 /**
- * Current renderer list with the `desktop-mode.window-links.renderers`
+ * Current renderer list with the `os.window-links.renderers`
  * filter applied. Map values are copied so a filter callback can
  * mutate its input safely; a misbehaving filter that returns a
  * non-array falls back to the unfiltered list.
@@ -142,7 +142,7 @@ export function listWindowLinkRenderers(): WindowLinkRendererDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.window-links.renderers` filter ' +
+				'[openstation] `os.window-links.renderers` filter ' +
 					'returned a non-array; falling back to registry list.',
 			);
 		}
@@ -180,7 +180,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] window-link-renderer registry listener threw:',
+					'[openstation] window-link-renderer registry listener threw:',
 					err,
 				);
 			}

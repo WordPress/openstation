@@ -19,7 +19,7 @@ export function buildDockSizeSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.dockSize = id as DockSizeId;
 		ctx.save();
 		ctx.apply();
-		// `<wpd-segmented>` already flips its children's aria-checked
+		// `<os-segmented>` already flips its children's aria-checked
 		// when its `value` changes — no explicit re-paint needed here.
 		// Calling paint() still reconciles and is cheap since the
 		// templater no-ops unchanged attributes.
@@ -30,22 +30,22 @@ export function buildDockSizeSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Dock size' ) }
 					description=${ __( 'Width of the dock and size of its icons.' ) }
 				>
-					<wpd-segmented
+					<os-segmented
 						value=${ ctx.state.dockSize }
 						label=${ __( 'Dock size' ) }
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
 						${ DOCK_SIZES.map(
-		( s ) => html`<wpd-segment value=${ s.id }
-								>${ translateDockSizeLabel( s.id, s.label ) }</wpd-segment
+		( s ) => html`<os-segment value=${ s.id }
+								>${ translateDockSizeLabel( s.id, s.label ) }</os-segment
 							>`,
 	) }
-					</wpd-segmented>
-				</wpd-section>
+					</os-segmented>
+				</os-section>
 			`,
 			wrapper,
 		);

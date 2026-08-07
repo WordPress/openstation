@@ -3,8 +3,8 @@
  *
  * Conversation surface painted by the `agent-run-window` bundle
  * (src/agent-run-window.ts). Same conventions as the other window
- * stylesheets: `desktop-mode-*` / `dm-*` prefixes, theming via the
- * desktop-mode-variables custom properties.
+ * stylesheets: `os-*` / `dm-*` prefixes, theming via the
+ * os-variables custom properties.
  *
  */
 
@@ -15,15 +15,15 @@
 	height: 100%;
 	min-height: 0;
 	font-family: var(
-		--desktop-mode-font,
+		--os-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
-	color: var( --wpd-fg, #1d2327 );
-	background: var( --desktop-mode-window-bg, #fff );
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-window-bg, #fff );
 	box-sizing: border-box;
 }
 
-.desktop-mode-agent-run__loading {
+.os-agent-run__loading {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -163,7 +163,7 @@
 	align-items: center;
 	gap: 10px;
 	padding: 12px;
-	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
 .dm-agent-chat__avatar {
@@ -207,19 +207,22 @@
 
 .dm-agent-chat__msg--user {
 	align-self: flex-end;
-	background: var( --desktop-mode-accent, #2271b1 );
+	background: var( --os-accent, #2271b1 );
 	color: #fff;
 }
 
 .dm-agent-chat__msg--agent {
 	align-self: flex-start;
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --os-hover, rgba( 0, 0, 0, 0.06 ) );
 }
 
 .dm-agent-chat__msg--error {
 	align-self: flex-start;
-	background: rgba( 214, 54, 56, 0.12 );
-	color: #8a1f21;
+	/* Tokenized so the wash and its ink move together: a dark-red
+	   literal on a translucent red wash reads fine over a white bubble
+	   list and vanishes over a dark one. Literals unchanged. */
+	background: var( --os-ui-notice-error-bg, rgba( 214, 54, 56, 0.12 ) );
+	color: var( --os-ui-danger, #8a1f21 );
 }
 
 .dm-agent-chat__msg-text {
@@ -256,10 +259,10 @@
 	align-items: flex-end;
 	gap: 8px;
 	padding: 10px 12px;
-	border-top: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-top: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.dm-agent-chat__composer wpd-textarea {
+.dm-agent-chat__composer os-textarea {
 	flex: 1;
 }
 
@@ -317,7 +320,7 @@
 
 .dm-agent-chat__msg--agent .dm-agent-chat__attachment,
 .dm-agent-chat__msg--error .dm-agent-chat__attachment {
-	border-color: var( --desktop-mode-border, rgba( 0, 0, 0, 0.12 ) );
+	border-color: var( --os-border, rgba( 0, 0, 0, 0.12 ) );
 	background: rgba( 0, 0, 0, 0.04 );
 }
 
@@ -383,8 +386,8 @@
 	text-align: center;
 }
 
-.dm-agent-chat__msg--pending wpd-spinner {
-	--wpd-spinner-size: 24px;
+.dm-agent-chat__msg--pending os-spinner {
+	--os-ui-spinner-size: 24px;
 }
 
 /* Markdown content inside agent bubbles. */

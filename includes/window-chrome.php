@@ -6,71 +6,73 @@
  * pattern across four surfaces:
  *
  *   - **Themes** (Layer 1) — per-window CSS-variable maps.
- *     `desktop_mode_register_window_theme_script()` /
- *     `desktop_mode_register_window_theme()`.
+ *     `openstation_register_window_theme_script()` /
+ *     `openstation_register_window_theme()`.
  *
  *   - **Controls** (Layer 2) — title-bar buttons (close / minimize /
  *     maximize plus plugin custom controls).
- *     `desktop_mode_register_window_control_script()` /
- *     `desktop_mode_register_window_control()`.
+ *     `openstation_register_window_control_script()` /
+ *     `openstation_register_window_control()`.
  *
  *   - **Slots** (Layer 3) — named title-bar regions plugins can
  *     replace (icon, title, before-controls, …).
- *     `desktop_mode_register_window_slot_script()` /
- *     `desktop_mode_register_window_slot()`.
+ *     `openstation_register_window_slot_script()` /
+ *     `openstation_register_window_slot()`.
  *
  *   - **Chrome** (Layer 4, Experimental) — full title-bar render
  *     replacement.
- *     `desktop_mode_register_window_chrome_script()` /
- *     `desktop_mode_register_window_chrome()`.
+ *     `openstation_register_window_chrome_script()` /
+ *     `openstation_register_window_chrome()`.
  *
  * Each surface contributes a `serverWindow*Scripts` and (optionally)
  * `serverWindow*` array to the shell payload, consumed by the matching
  * sync module under `src/window-chrome/{themes,controls,slots,chrome}/server-sync.ts`.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/* ============================================================
+/*
+============================================================
  * Layer 1 — Themes
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-theme provider.
  *
- * The script's JS calls `wp.desktop.registerWindowTheme( { id, tokens,
+ * The script's JS calls `wp.os.registerWindowTheme( { id, tokens,
  * match, owner } )` as usual. Plugins that pass `owner` matching this
  * handle get live unregister on deactivation.
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function desktop_mode_register_window_theme_script( $handle ) {
+function openstation_register_window_theme_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window theme script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_window_theme_script_registry( $handle, true );
+	openstation_window_theme_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop window-theme script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_window_theme_script_registered', $handle );
+	do_action( 'openstation_window_theme_script_registered', $handle );
 
 	return true;
 }
 
 /**
  * Declare a window theme server-side. Optional companion to
- * `desktop_mode_register_window_theme_script()` for plugins that want
+ * `openstation_register_window_theme_script()` for plugins that want
  * to ship a tokens map without writing JS — designers can hand off
  * a single PHP-array of CSS variables and call it done.
  *
@@ -83,7 +85,7 @@ function desktop_mode_register_window_theme_script( $handle ) {
  * }
  * @return true|WP_Error
  */
-function desktop_mode_register_window_theme( $args = array() ) {
+function openstation_register_window_theme( $args = array() ) {
 	$defaults = array(
 		'id'       => '',
 		'label'    => '',
@@ -91,18 +93,18 @@ function desktop_mode_register_window_theme( $args = array() ) {
 		'priority' => 100,
 		'script'   => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Window theme registration requires a non-empty `id`.', 'desktop-mode' )
 		);
 	}
 	if ( ! is_array( $args['tokens'] ) || empty( $args['tokens'] ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_tokens',
+		return openstation_registration_error(
+			'openstation_missing_tokens',
 			__( 'Window theme registration requires a non-empty `tokens` map.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -111,8 +113,8 @@ function desktop_mode_register_window_theme( $args = array() ) {
 	foreach ( $args['tokens'] as $key => $value ) {
 		$key = (string) $key;
 		if ( '' === $key || 0 !== strpos( $key, '--' ) ) {
-			return desktop_mode_registration_error(
-				'desktop_mode_invalid_token',
+			return openstation_registration_error(
+				'openstation_invalid_token',
 				__( 'Window theme tokens must use CSS custom-property keys (start with "--").', 'desktop-mode' ),
 				array(
 					'id'  => $id,
@@ -130,10 +132,10 @@ function desktop_mode_register_window_theme( $args = array() ) {
 		'priority' => (int) $args['priority'],
 		'script'   => (string) $args['script'],
 	);
-	desktop_mode_window_theme_registry( $id, $entry );
+	openstation_window_theme_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_window_theme_script_registry( $entry['script'], true );
+		openstation_window_theme_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -142,7 +144,7 @@ function desktop_mode_register_window_theme( $args = array() ) {
 	 * @param string $id    The theme id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_window_theme_registered', $id, $entry );
+	do_action( 'openstation_window_theme_registered', $id, $entry );
 
 	return true;
 }
@@ -156,7 +158,7 @@ function desktop_mode_register_window_theme( $args = array() ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function desktop_mode_window_theme_script_registry( $handle = '', $value = null ) {
+function openstation_window_theme_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -173,8 +175,8 @@ function desktop_mode_window_theme_script_registry( $handle = '', $value = null 
 }
 
 /** Flush the theme-script registry. Tests only. */
-function desktop_mode_flush_window_theme_script_registry() {
-	desktop_mode_window_theme_script_registry( '__flush__' );
+function openstation_flush_window_theme_script_registry() {
+	openstation_window_theme_script_registry( '__flush__' );
 }
 
 /**
@@ -186,7 +188,7 @@ function desktop_mode_flush_window_theme_script_registry() {
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function desktop_mode_window_theme_registry( $id = '', $entry = null ) {
+function openstation_window_theme_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $id ) {
@@ -203,18 +205,18 @@ function desktop_mode_window_theme_registry( $id = '', $entry = null ) {
 }
 
 /** Flush the theme registry. Tests only. */
-function desktop_mode_flush_window_theme_registry() {
-	desktop_mode_window_theme_registry( '__flush__' );
+function openstation_flush_window_theme_registry() {
+	openstation_window_theme_registry( '__flush__' );
 }
 
 /**
  * Build the theme-script payload. Same shape as
- * `desktop_mode_build_desktop_command_scripts_payload()`.
+ * `openstation_build_desktop_command_scripts_payload()`.
  *
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function desktop_mode_build_window_theme_scripts_payload() {
-	$registry = desktop_mode_window_theme_script_registry();
+function openstation_build_window_theme_scripts_payload() {
+	$registry = openstation_window_theme_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -225,10 +227,10 @@ function desktop_mode_build_window_theme_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_window_theme_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_theme_script',
 				'Window theme',
 				(string) $handle
 			);
@@ -253,8 +255,8 @@ function desktop_mode_build_window_theme_scripts_payload() {
  *
  * @return array[]
  */
-function desktop_mode_build_window_themes_payload() {
-	$registry = desktop_mode_window_theme_registry();
+function openstation_build_window_themes_payload() {
+	$registry = openstation_window_theme_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -263,27 +265,35 @@ function desktop_mode_build_window_themes_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
-			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
-		$out[]  = array(
-			'id'                => (string) $entry['id'],
-			'label'             => (string) $entry['label'],
-			'tokens'            => (array) $entry['tokens'],
-			'priority'          => (int) $entry['priority'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+			? openstation_resolve_script_payload( $handle )
+			: array(
+				'url'          => '',
+				'before'       => array(),
+				'after'        => array(),
+				'l10n'         => array(),
+				'translations' => '',
+			);
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => (string) $entry['label'],
+			'tokens'             => (array) $entry['tokens'],
+			'priority'           => (int) $entry['priority'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
 }
 
-/* ============================================================
+/*
+============================================================
  * Layer 2 — Controls
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-control provider.
@@ -291,23 +301,23 @@ function desktop_mode_build_window_themes_payload() {
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
  */
-function desktop_mode_register_window_control_script( $handle ) {
+function openstation_register_window_control_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window control script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_window_control_script_registry( $handle, true );
+	openstation_window_control_script_registry( $handle, true );
 
 	/**
 	 * Fires after a window-control script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_window_control_script_registered', $handle );
+	do_action( 'openstation_window_control_script_registered', $handle );
 
 	return true;
 }
@@ -326,7 +336,7 @@ function desktop_mode_register_window_control_script( $handle ) {
  * }
  * @return true|WP_Error
  */
-function desktop_mode_register_window_control( $args = array() ) {
+function openstation_register_window_control( $args = array() ) {
 	$defaults = array(
 		'id'        => '',
 		'label'     => '',
@@ -335,26 +345,26 @@ function desktop_mode_register_window_control( $args = array() ) {
 		'order'     => 100,
 		'script'    => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Window control registration requires a non-empty `id`.', 'desktop-mode' )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Window control registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	$placement = (string) $args['placement'];
 	if ( ! in_array( $placement, array( 'left', 'right', 'controls' ), true ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_invalid_placement',
+		return openstation_registration_error(
+			'openstation_invalid_placement',
 			__( 'Window control `placement` must be one of "left", "right", "controls".', 'desktop-mode' ),
 			array(
 				'id'        => $id,
@@ -371,10 +381,10 @@ function desktop_mode_register_window_control( $args = array() ) {
 		'order'     => (int) $args['order'],
 		'script'    => (string) $args['script'],
 	);
-	desktop_mode_window_control_registry( $id, $entry );
+	openstation_window_control_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_window_control_script_registry( $entry['script'], true );
+		openstation_window_control_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -383,13 +393,13 @@ function desktop_mode_register_window_control( $args = array() ) {
 	 * @param string $id    The control id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_window_control_registered', $id, $entry );
+	do_action( 'openstation_window_control_registered', $id, $entry );
 
 	return true;
 }
 
 /** @internal */
-function desktop_mode_window_control_script_registry( $handle = '', $value = null ) {
+function openstation_window_control_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -406,12 +416,12 @@ function desktop_mode_window_control_script_registry( $handle = '', $value = nul
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_control_script_registry() {
-	desktop_mode_window_control_script_registry( '__flush__' );
+function openstation_flush_window_control_script_registry() {
+	openstation_window_control_script_registry( '__flush__' );
 }
 
 /** @internal */
-function desktop_mode_window_control_registry( $id = '', $entry = null ) {
+function openstation_window_control_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $id ) {
@@ -428,15 +438,15 @@ function desktop_mode_window_control_registry( $id = '', $entry = null ) {
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_control_registry() {
-	desktop_mode_window_control_registry( '__flush__' );
+function openstation_flush_window_control_registry() {
+	openstation_window_control_registry( '__flush__' );
 }
 
 /**
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function desktop_mode_build_window_control_scripts_payload() {
-	$registry = desktop_mode_window_control_script_registry();
+function openstation_build_window_control_scripts_payload() {
+	$registry = openstation_window_control_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -447,10 +457,10 @@ function desktop_mode_build_window_control_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_window_control_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_control_script',
 				'Window control',
 				(string) $handle
 			);
@@ -472,8 +482,8 @@ function desktop_mode_build_window_control_scripts_payload() {
 /**
  * @return array[]
  */
-function desktop_mode_build_window_controls_payload() {
-	$registry = desktop_mode_window_control_registry();
+function openstation_build_window_controls_payload() {
+	$registry = openstation_window_control_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -482,28 +492,36 @@ function desktop_mode_build_window_controls_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
-			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
-		$out[]  = array(
-			'id'                => (string) $entry['id'],
-			'label'             => (string) $entry['label'],
-			'icon'              => (string) $entry['icon'],
-			'placement'         => (string) $entry['placement'],
-			'order'             => (int) $entry['order'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+			? openstation_resolve_script_payload( $handle )
+			: array(
+				'url'          => '',
+				'before'       => array(),
+				'after'        => array(),
+				'l10n'         => array(),
+				'translations' => '',
+			);
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => (string) $entry['label'],
+			'icon'               => (string) $entry['icon'],
+			'placement'          => (string) $entry['placement'],
+			'order'              => (int) $entry['order'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
 }
 
-/* ============================================================
+/*
+============================================================
  * Layer 3 — Slots
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Canonical slot names. Mirrors the `WindowSlotName` TypeScript
@@ -511,7 +529,7 @@ function desktop_mode_build_window_controls_payload() {
  *
  * @return string[]
  */
-function desktop_mode_window_slot_names() {
+function openstation_window_slot_names() {
 	return array(
 		'before-titlebar',
 		'before-icon',
@@ -529,23 +547,23 @@ function desktop_mode_window_slot_names() {
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
  */
-function desktop_mode_register_window_slot_script( $handle ) {
+function openstation_register_window_slot_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window slot script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_window_slot_script_registry( $handle, true );
+	openstation_window_slot_script_registry( $handle, true );
 
 	/**
 	 * Fires after a window-slot script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_window_slot_script_registered', $handle );
+	do_action( 'openstation_window_slot_script_registered', $handle );
 
 	return true;
 }
@@ -553,32 +571,32 @@ function desktop_mode_register_window_slot_script( $handle ) {
 /**
  * @param array $args {
  *     @type string $id     Required.
- *     @type string $slot   Required, one of {@see desktop_mode_window_slot_names()}.
+ *     @type string $slot   Required, one of {@see openstation_window_slot_names()}.
  *     @type int    $order  Default 100.
  *     @type string $script Optional script handle.
  * }
  * @return true|WP_Error
  */
-function desktop_mode_register_window_slot( $args = array() ) {
+function openstation_register_window_slot( $args = array() ) {
 	$defaults = array(
 		'id'     => '',
 		'slot'   => '',
 		'order'  => 100,
 		'script' => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Window slot registration requires a non-empty `id`.', 'desktop-mode' )
 		);
 	}
 	$slot = (string) $args['slot'];
-	if ( ! in_array( $slot, desktop_mode_window_slot_names(), true ) ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_invalid_slot',
+	if ( ! in_array( $slot, openstation_window_slot_names(), true ) ) {
+		return openstation_registration_error(
+			'openstation_invalid_slot',
 			__( 'Window slot registration requires a known `slot` name.', 'desktop-mode' ),
 			array(
 				'id'   => $id,
@@ -593,10 +611,10 @@ function desktop_mode_register_window_slot( $args = array() ) {
 		'order'  => (int) $args['order'],
 		'script' => (string) $args['script'],
 	);
-	desktop_mode_window_slot_registry( $id, $entry );
+	openstation_window_slot_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_window_slot_script_registry( $entry['script'], true );
+		openstation_window_slot_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -605,13 +623,13 @@ function desktop_mode_register_window_slot( $args = array() ) {
 	 * @param string $id    The slot-renderer id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_window_slot_registered', $id, $entry );
+	do_action( 'openstation_window_slot_registered', $id, $entry );
 
 	return true;
 }
 
 /** @internal */
-function desktop_mode_window_slot_script_registry( $handle = '', $value = null ) {
+function openstation_window_slot_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -628,12 +646,12 @@ function desktop_mode_window_slot_script_registry( $handle = '', $value = null )
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_slot_script_registry() {
-	desktop_mode_window_slot_script_registry( '__flush__' );
+function openstation_flush_window_slot_script_registry() {
+	openstation_window_slot_script_registry( '__flush__' );
 }
 
 /** @internal */
-function desktop_mode_window_slot_registry( $id = '', $entry = null ) {
+function openstation_window_slot_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $id ) {
@@ -650,15 +668,15 @@ function desktop_mode_window_slot_registry( $id = '', $entry = null ) {
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_slot_registry() {
-	desktop_mode_window_slot_registry( '__flush__' );
+function openstation_flush_window_slot_registry() {
+	openstation_window_slot_registry( '__flush__' );
 }
 
 /**
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function desktop_mode_build_window_slot_scripts_payload() {
-	$registry = desktop_mode_window_slot_script_registry();
+function openstation_build_window_slot_scripts_payload() {
+	$registry = openstation_window_slot_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -669,10 +687,10 @@ function desktop_mode_build_window_slot_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_window_slot_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_slot_script',
 				'Window slot',
 				(string) $handle
 			);
@@ -694,8 +712,8 @@ function desktop_mode_build_window_slot_scripts_payload() {
 /**
  * @return array[]
  */
-function desktop_mode_build_window_slots_payload() {
-	$registry = desktop_mode_window_slot_registry();
+function openstation_build_window_slots_payload() {
+	$registry = openstation_window_slot_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -704,26 +722,34 @@ function desktop_mode_build_window_slots_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
-			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
-		$out[]  = array(
-			'id'                => (string) $entry['id'],
-			'slot'              => (string) $entry['slot'],
-			'order'             => (int) $entry['order'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+			? openstation_resolve_script_payload( $handle )
+			: array(
+				'url'          => '',
+				'before'       => array(),
+				'after'        => array(),
+				'l10n'         => array(),
+				'translations' => '',
+			);
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'slot'               => (string) $entry['slot'],
+			'order'              => (int) $entry['order'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}
 	return $out;
 }
 
-/* ============================================================
+/*
+============================================================
  * Layer 4 — Custom chrome (Experimental)
- * ============================================================ */
+ * ============================================================
+ */
 
 /**
  * Declare a WP-registered script handle as a window-chrome provider.
@@ -733,23 +759,23 @@ function desktop_mode_build_window_slots_payload() {
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
  */
-function desktop_mode_register_window_chrome_script( $handle ) {
+function openstation_register_window_chrome_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window chrome script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	desktop_mode_window_chrome_script_registry( $handle, true );
+	openstation_window_chrome_script_registry( $handle, true );
 
 	/**
 	 * Fires after a window-chrome script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'desktop_mode_window_chrome_script_registered', $handle );
+	do_action( 'openstation_window_chrome_script_registered', $handle );
 
 	return true;
 }
@@ -765,18 +791,18 @@ function desktop_mode_register_window_chrome_script( $handle ) {
  * }
  * @return true|WP_Error
  */
-function desktop_mode_register_window_chrome( $args = array() ) {
+function openstation_register_window_chrome( $args = array() ) {
 	$defaults = array(
 		'id'     => '',
 		'label'  => '',
 		'script' => '',
 	);
-	$args = wp_parse_args( $args, $defaults );
+	$args     = wp_parse_args( $args, $defaults );
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {
-		return desktop_mode_registration_error(
-			'desktop_mode_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Window chrome registration requires a non-empty `id`.', 'desktop-mode' )
 		);
 	}
@@ -786,10 +812,10 @@ function desktop_mode_register_window_chrome( $args = array() ) {
 		'label'  => (string) $args['label'],
 		'script' => (string) $args['script'],
 	);
-	desktop_mode_window_chrome_registry( $id, $entry );
+	openstation_window_chrome_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_window_chrome_script_registry( $entry['script'], true );
+		openstation_window_chrome_script_registry( $entry['script'], true );
 	}
 
 	/**
@@ -798,13 +824,13 @@ function desktop_mode_register_window_chrome( $args = array() ) {
 	 * @param string $id    The chrome id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'desktop_mode_window_chrome_registered', $id, $entry );
+	do_action( 'openstation_window_chrome_registered', $id, $entry );
 
 	return true;
 }
 
 /** @internal */
-function desktop_mode_window_chrome_script_registry( $handle = '', $value = null ) {
+function openstation_window_chrome_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -821,12 +847,12 @@ function desktop_mode_window_chrome_script_registry( $handle = '', $value = null
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_chrome_script_registry() {
-	desktop_mode_window_chrome_script_registry( '__flush__' );
+function openstation_flush_window_chrome_script_registry() {
+	openstation_window_chrome_script_registry( '__flush__' );
 }
 
 /** @internal */
-function desktop_mode_window_chrome_registry( $id = '', $entry = null ) {
+function openstation_window_chrome_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $id ) {
@@ -843,15 +869,15 @@ function desktop_mode_window_chrome_registry( $id = '', $entry = null ) {
 }
 
 /** Tests only. */
-function desktop_mode_flush_window_chrome_registry() {
-	desktop_mode_window_chrome_registry( '__flush__' );
+function openstation_flush_window_chrome_registry() {
+	openstation_window_chrome_registry( '__flush__' );
 }
 
 /**
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
-function desktop_mode_build_window_chrome_scripts_payload() {
-	$registry = desktop_mode_window_chrome_script_registry();
+function openstation_build_window_chrome_scripts_payload() {
+	$registry = openstation_window_chrome_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -862,10 +888,10 @@ function desktop_mode_build_window_chrome_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = desktop_mode_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			desktop_mode_warn_unresolvable_script_handle(
-				'desktop_mode_register_window_chrome_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_chrome_script',
 				'Window chrome',
 				(string) $handle
 			);
@@ -887,8 +913,8 @@ function desktop_mode_build_window_chrome_scripts_payload() {
 /**
  * @return array[]
  */
-function desktop_mode_build_window_chromes_payload() {
-	$registry = desktop_mode_window_chrome_registry();
+function openstation_build_window_chromes_payload() {
+	$registry = openstation_window_chrome_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -897,16 +923,22 @@ function desktop_mode_build_window_chromes_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? desktop_mode_resolve_script_payload( $handle )
-			: array( 'url' => '', 'before' => array(), 'after' => array(), 'l10n' => array(), 'translations' => '' );
-		$out[]  = array(
-			'id'                => (string) $entry['id'],
-			'label'             => (string) $entry['label'],
-			'scriptUrl'         => $payload['url'],
-			'scriptHandle'      => $handle,
-			'scriptBefore'      => $payload['before'],
-			'scriptAfter'       => $payload['after'],
-			'scriptL10n'        => $payload['l10n'],
+			? openstation_resolve_script_payload( $handle )
+			: array(
+				'url'          => '',
+				'before'       => array(),
+				'after'        => array(),
+				'l10n'         => array(),
+				'translations' => '',
+			);
+		$out[]   = array(
+			'id'                 => (string) $entry['id'],
+			'label'              => (string) $entry['label'],
+			'scriptUrl'          => $payload['url'],
+			'scriptHandle'       => $handle,
+			'scriptBefore'       => $payload['before'],
+			'scriptAfter'        => $payload['after'],
+			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
 		);
 	}

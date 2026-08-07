@@ -51,10 +51,10 @@ if ( ! class_exists( 'ActionScheduler_AdminView' ) ) {
 }
 
 /**
- * @group desktop-mode
- * @group desktop-mode-plugin-notices
+ * @group openstation
+ * @group os-plugin-notices
  */
-class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
+class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -70,27 +70,27 @@ class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
 
 	public function tear_down() {
 		ActionScheduler_Store::$fake_count = 0;
-		unset( $_GET['desktop_mode_chromeless'] );
+		unset( $_GET['openstation_chromeless'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		remove_all_filters( 'desktop_mode_plugin_notices' );
+		remove_all_filters( 'openstation_plugin_notices' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_no_notice_when_no_pastdue_actions() {
 		ActionScheduler_Store::$fake_count = 0;
-		$this->assertNull( desktop_mode_plugin_notice_action_scheduler() );
+		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_notice_reports_pastdue_count() {
 		ActionScheduler_Store::$fake_count = 15;
 
-		$notice = desktop_mode_plugin_notice_action_scheduler();
+		$notice = openstation_plugin_notice_action_scheduler();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'action-scheduler-pastdue', $notice['id'] );
 		$this->assertStringContainsString( '15', $notice['message'] );
@@ -99,50 +99,50 @@ class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_no_notice_without_capability() {
 		ActionScheduler_Store::$fake_count = 15;
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$this->assertNull( desktop_mode_plugin_notice_action_scheduler() );
+		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_get_plugin_notices
+	 * @covers ::openstation_get_plugin_notices
 	 */
 	public function test_aggregate_includes_action_scheduler() {
 		ActionScheduler_Store::$fake_count = 3;
 
-		$ids = wp_list_pluck( desktop_mode_get_plugin_notices(), 'id' );
+		$ids = wp_list_pluck( openstation_get_plugin_notices(), 'id' );
 		$this->assertContains( 'action-scheduler-pastdue', $ids );
 	}
 
 	/**
-	 * @covers ::desktop_mode_get_plugin_notices
+	 * @covers ::openstation_get_plugin_notices
 	 */
 	public function test_filter_can_suppress_all() {
 		ActionScheduler_Store::$fake_count = 3;
-		add_filter( 'desktop_mode_plugin_notices', '__return_empty_array' );
+		add_filter( 'openstation_plugin_notices', '__return_empty_array' );
 
-		$this->assertSame( array(), desktop_mode_get_plugin_notices() );
+		$this->assertSame( array(), openstation_get_plugin_notices() );
 	}
 
 	/**
 	 * The chromeless suppressor detaches Action Scheduler's past-due notice.
 	 *
-	 * @covers ::desktop_mode_chromeless_suppress_plugin_notices
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
 	 */
 	public function test_suppressor_removes_notice_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['desktop_mode_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		add_action(
 			'admin_notices',
 			array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' )
 		);
 
-		desktop_mode_chromeless_suppress_plugin_notices();
+		openstation_chromeless_suppress_plugin_notices();
 
 		$this->assertFalse(
 			has_action(
@@ -155,7 +155,7 @@ class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
 	/**
 	 * Outside a chromeless request the notice is left in place.
 	 *
-	 * @covers ::desktop_mode_chromeless_suppress_plugin_notices
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
 	 */
 	public function test_suppressor_leaves_notice_when_not_chromeless() {
 		add_action(
@@ -163,7 +163,7 @@ class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
 			array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' )
 		);
 
-		desktop_mode_chromeless_suppress_plugin_notices();
+		openstation_chromeless_suppress_plugin_notices();
 
 		$this->assertNotFalse(
 			has_action(

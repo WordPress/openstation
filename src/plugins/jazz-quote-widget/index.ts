@@ -1,12 +1,12 @@
 /**
- * Desktop Mode — Jazz Quote Widget (lazy bundle).
+ * OpenStation — Jazz Quote Widget (lazy bundle).
  *
  * A love letter to WordPress's jazz musician release naming tradition.
  * Shows the current WP version, its jazz musician codename, and a
  * rotating daily quote from that musician.
  *
  * Version detection priority:
- *   1. window.desktopModeJazzQuote.wpVersion — inlined by PHP via the
+ *   1. window.openStationJazzQuote.wpVersion — inlined by PHP via the
  *      main shell payload (most reliable, no DOM scraping)
  *   2. <meta name="generator"> tag — present on most WP installs
  *   3. Falls back to jazz wisdom pool with no version shown
@@ -157,13 +157,13 @@ const JAZZ_WISDOM = [
 
 declare global {
 	interface Window {
-		desktopModeJazzQuote?: { wpVersion?: string };
+		openStationJazzQuote?: { wpVersion?: string };
 	}
 }
 
 function detectWpVersion(): string | null {
 	// Priority 1: PHP-inlined global via main shell payload.
-	const inlined = window.desktopModeJazzQuote?.wpVersion;
+	const inlined = window.openStationJazzQuote?.wpVersion;
 	if ( inlined && /^\d+\.\d+/.test( inlined ) ) {
 		return inlined;
 	}
@@ -282,7 +282,7 @@ const mount = async (
 // ---------------------------------------------------------------------------
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window Manager.
+ * OpenStation — Window Manager.
  *
  * Manages the lifecycle, z-order, and focus of all desktop windows,
  * plus the virtual-desktop registry ("Spaces"). Most heavy logic lives
@@ -111,7 +111,7 @@ export interface ResolvedWindowGeometry {
  *     "leave the user's layout alone" should bail when this is true.
  *   - `callerPinned`: the caller of `manager.open()` passed at least
  *     one of `{ x, y, width, height, initialState }` explicitly. For
- *     native windows registered via `desktop_mode_register_window()`
+ *     native windows registered via `openstation_register_window()`
  *     this is usually `true` (the framework's native-window opener
  *     passes the registry's declared dimensions); for admin-page
  *     iframe windows opened from the dock this is usually `false`.
@@ -186,7 +186,7 @@ export class WindowManager {
 	/**
 	 * Injected by the shell on init — called when a user clicks
 	 * "Open on startup" in a window's ⋯ menu. The manager stays
-	 * decoupled from the public `wp.desktop.setDefaultWindow()` API
+	 * decoupled from the public `wp.os.setDefaultWindow()` API
 	 * by taking the handler as a callback.
 	 */
 	public onToggleStartupRequested: ( ( win: Window ) => void ) | null = null;
@@ -287,7 +287,7 @@ export class WindowManager {
 
 	/**
 	 * The translucent preview rectangle shown while a snap is armed.
-	 * Lives inside `.desktop-mode-area`.
+	 * Lives inside `.os-area`.
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
@@ -337,7 +337,7 @@ export class WindowManager {
 	 *
 	 * We use that signal: listen for `window.blur` on the parent,
 	 * check `document.activeElement` — if it's an iframe, walk up to
-	 * its owning `.desktop-mode-window`, find the matching Window in
+	 * its owning `.os-window`, find the matching Window in
 	 * our stack, and focus it. Covers clicks on the primary iframe
 	 * AND any external-tab sub-iframes mounted as descendants of the
 	 * window element.
@@ -354,7 +354,7 @@ export class WindowManager {
 					return;
 				}
 				const winEl = active.closest<HTMLElement>(
-					'.desktop-mode-window',
+					'.os-window',
 				);
 				if ( ! winEl ) {
 					return;
@@ -396,7 +396,7 @@ export class WindowManager {
 	 * INCOMING shape change (the shell reshaped us), not an outgoing
 	 * user action worth persisting.
 	 *
-	 * Also toggles `desktop-mode-window--reflowing` so the base
+	 * Also toggles `os-window--reflowing` so the base
 	 * left/top/width/height transition doesn't interpolate between
 	 * every ResizeObserver tick — without that, the windows would
 	 * always lag ~250 ms behind a browser edge-drag.
@@ -416,14 +416,14 @@ export class WindowManager {
 				continue;
 			}
 			if ( w.state === 'maximized' ) {
-				w.element.classList.add( 'desktop-mode-window--reflowing' );
+				w.element.classList.add( 'os-window--reflowing' );
 				w.element.style.width = `${ parent.clientWidth }px`;
 				w.element.style.height = `${ parent.clientHeight }px`;
 			} else if (
 				w.state === 'snapped-left' ||
 				w.state === 'snapped-right'
 			) {
-				w.element.classList.add( 'desktop-mode-window--reflowing' );
+				w.element.classList.add( 'os-window--reflowing' );
 				const halfW = Math.floor( parent.clientWidth / 2 );
 				const height = parent.clientHeight;
 				const left = w.state === 'snapped-left' ? 0 : halfW;
@@ -439,7 +439,7 @@ export class WindowManager {
 				const safe = clampWindowPosition( currentX, currentY, width, parent.clientWidth, parent.clientHeight );
 
 				if ( currentX !== safe.x || currentY !== safe.y ) {
-					w.element.classList.add( 'desktop-mode-window--reflowing' );
+					w.element.classList.add( 'os-window--reflowing' );
 					w.element.style.left = `${ safe.x }px`;
 					w.element.style.top = `${ safe.y }px`;
 				}
@@ -456,7 +456,7 @@ export class WindowManager {
 		this._reflowRestoreTimer = window.setTimeout( () => {
 			this._reflowRestoreTimer = null;
 			for ( const w of this._stack ) {
-				w.element.classList.remove( 'desktop-mode-window--reflowing' );
+				w.element.classList.remove( 'os-window--reflowing' );
 			}
 		}, 140 ) as unknown as number;
 	}
@@ -478,7 +478,7 @@ export class WindowManager {
 	 * place — an action URL like
 	 * `plugins.php?action=activate&…&_wpnonce=…` actually runs
 	 * instead of being dropped by a bare focus. The
-	 * `desktop-mode-window-reopened` event reports which path was
+	 * `os-window-reopened` event reports which path was
 	 * taken via its `navigated` flag.
 	 *
 	 * To force a brand-new instance alongside an existing one, use
@@ -558,26 +558,39 @@ export class WindowManager {
 				}
 			}
 			// Plugins (messages, code-editor, …) routinely call
-			// `wp.desktop.openWindow(id)` to "switch the window to
+			// `wp.os.openWindow(id)` to "switch the window to
 			// this state" — selecting a conversation, opening a file,
 			// jumping to a tab. For NEW windows the render callback
 			// runs and the seeded state lands on first paint; for
 			// EXISTING windows there was no signal at all that an
 			// open was requested. Plugins were forced to subscribe to
-			// `desktop-mode-window-focused` and infer "open" from
+			// `os-window-focused` and infer "open" from
 			// "focus", which double-fires on every alt-tab and never
 			// fires when the window is already focused. The reopen
 			// event is the unambiguous "open requested while already
 			// open" signal — fires exactly once per `open()` call on
 			// an existing instance.
+			// Retarget: a native singleton reopened with new params is
+			// being asked to show something else. Write them onto the
+			// live config BEFORE the reopen event so a subscriber can
+			// read `params` and repaint, and so the next session save
+			// records what the window is showing NOW rather than what
+			// it opened on. An argument-less reopen leaves the params
+			// alone — a dock click on an already-open profile window
+			// must not wipe whose profile it is.
+			if ( config.params ) {
+				existing.config.params = { ...config.params };
+			}
+
 			const reopenedDetail = {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
 				navigated,
+				params: existing.config.params ?? {},
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),
+				new CustomEvent( 'os-window-reopened', { detail: reopenedDetail } ),
 			);
 			doAction( HOOKS.WINDOW_REOPENED, reopenedDetail );
 			return existing;
@@ -611,7 +624,7 @@ export class WindowManager {
 	 * the next free slot. Session restore depends on this: it replays
 	 * saved instance ids (`edit-php-2`) and anything keyed by window
 	 * id — the focused-window pointer in the same session payload,
-	 * per-window plugin state, `wp.desktop.onWindow( id )`
+	 * per-window plugin state, `wp.os.onWindow( id )`
 	 * subscriptions — only lines up if the restored window comes back
 	 * under the id it was saved with. Slot allocation still applies
 	 * to every other caller (a plain duplicate request passes
@@ -774,7 +787,7 @@ export class WindowManager {
 			} );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
+					`[openstation] WINDOW_GEOMETRY filter threw for "${ config.id }":`,
 					err,
 				);
 			}
@@ -836,10 +849,10 @@ export class WindowManager {
 		//   1. `window-system[.min].js` — the `Window` class
 		//      itself + its DOM / pointer / tab helpers.
 		//   2. `shell-overlays[.min].js` — the window-chrome
-		//      component classes (`<wpd-window-button>`,
-		//      `<wpd-menu>`, `<wpd-tab-chip>`, `<wpd-save-status>`,
-		//      `<wpd-spinner>`). Without these the constructor's
-		//      `createElement( 'wpd-window-button' )` calls
+		//      component classes (`<os-window-button>`,
+		//      `<os-menu>`, `<os-tab-chip>`, `<os-save-status>`,
+		//      `<os-spinner>`). Without these the constructor's
+		//      `createElement( 'os-window-button' )` calls
 		//      return un-upgraded elements with empty shadow DOMs
 		//      — the title bar's minimize / maximize / close
 		//      icons would be invisible until the overlays
@@ -876,14 +889,14 @@ export class WindowManager {
 			if ( w.config.native ) {
 				const api = ( window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							openNewWindow?: (
 								id: string,
 								opts?: { source?: string },
 							) => boolean;
 						};
 					};
-				} ).wp?.desktop;
+				} ).wp?.os;
 				if ( api?.openNewWindow?.( baseId, { source: 'open-another' } ) ) {
 					return;
 				}
@@ -911,14 +924,14 @@ export class WindowManager {
 			if ( w.config.native ) {
 				const api = ( window as unknown as {
 					wp?: {
-						desktop?: {
+						os?: {
 							openNewWindow?: (
 								id: string,
 								opts?: { source?: string },
 							) => boolean;
 						};
 					};
-				} ).wp?.desktop;
+				} ).wp?.os;
 				if ( api?.openNewWindow?.( baseId, { source: 'open-in-new-window' } ) ) {
 					return;
 				}
@@ -938,7 +951,7 @@ export class WindowManager {
 		// preference to point at this window's current URL — or
 		// disables it entirely when the window is already the default.
 		// The actual REST write is owned by the shell's public API
-		// (`wp.desktop.setDefaultWindow`), injected via
+		// (`wp.os.setDefaultWindow`), injected via
 		// `this.onToggleStartupRequested`.
 		win.onToggleStartup = ( w: Window ) => {
 			this.onToggleStartupRequested?.( w );
@@ -965,13 +978,13 @@ export class WindowManager {
 
 		// Hydrate native windows AFTER mount. The plugin's render
 		// callback receives a body that's already connected to the
-		// document, so any `<wpd-*>` custom element the plugin
+		// document, so any `<os-*>` custom element the plugin
 		// creates or populates via declarative setters upgrades
 		// synchronously (HTML spec: elements upgrade on connection).
 		// Calling before mount would leave the body detached,
 		// which made `element.items = […]` stash an own data
 		// property on the pre-upgrade instance that shadowed the
-		// class setter after upgrade — empty `<wpd-select>`s in
+		// class setter after upgrade — empty `<os-select>`s in
 		// practice. No-op for iframe windows.
 		win.hydrateNative();
 
@@ -984,7 +997,7 @@ export class WindowManager {
 			url: config.url,
 		};
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-opened', { detail: openedDetail } ),
+			new CustomEvent( 'os-window-opened', { detail: openedDetail } ),
 		);
 		// Fan out to the hook bus so plugins using wp.hooks.addAction()
 		// stay in their idiomatic API rather than juggling
@@ -1023,7 +1036,7 @@ export class WindowManager {
 			this._stack.length > 0 ? this._stack[ this._stack.length - 1 ] : null;
 
 		// A fullscreen window pins itself above all other windows via
-		// `z-index: var(--desktop-mode-z-fullscreen)`, so any newly-
+		// `z-index: var(--os-z-fullscreen)`, so any newly-
 		// focused window would render behind it. Default: exit
 		// fullscreen on focus change. Plugins whose fullscreen surface
 		// is meant to persist (slideshow, video, game) can opt out via
@@ -1078,7 +1091,7 @@ export class WindowManager {
 				focusedTo: win.id,
 			};
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-window-blurred', { detail: blurredDetail } ),
+				new CustomEvent( 'os-window-blurred', { detail: blurredDetail } ),
 			);
 			doAction( HOOKS.WINDOW_BLURRED, blurredDetail );
 		}
@@ -1086,7 +1099,7 @@ export class WindowManager {
 		// Dispatch custom event + action for the newly-focused window.
 		const focusedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-focused', { detail: focusedDetail } ),
+			new CustomEvent( 'os-window-focused', { detail: focusedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
@@ -1161,7 +1174,7 @@ export class WindowManager {
 		// fade-out starts, which is an unnecessary footgun.
 		const closingDetail = { windowId: win.id, element: win.element };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-closing', { detail: closingDetail } ),
+			new CustomEvent( 'os-window-closing', { detail: closingDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSING, closingDetail );
 
@@ -1172,7 +1185,7 @@ export class WindowManager {
 		// element now have `closing` above.
 		const closedDetail = { windowId: win.id };
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-closed', { detail: closedDetail } ),
+			new CustomEvent( 'os-window-closed', { detail: closedDetail } ),
 		);
 		doAction( HOOKS.WINDOW_CLOSED, closedDetail );
 	}
@@ -1362,7 +1375,7 @@ export class WindowManager {
 	 * survivor when an `onlyOnPrimary` mode is requested.
 	 *
 	 * Default: the first desktop in `getDesktops()`. Filterable via
-	 * `desktop-mode.primary-desktop-id` so downstream code that wants a
+	 * `os.primary-desktop-id` so downstream code that wants a
 	 * different convention (e.g. a pinned "Inbox" desktop) can override
 	 * without having to fork the manager.
 	 */
@@ -1389,11 +1402,11 @@ export class WindowManager {
 	 *
 	 * Hook chain:
 	 *
-	 *   1. `desktop-mode.windows.before-close-all` — action. Subscribers
+	 *   1. `os.windows.before-close-all` — action. Subscribers
 	 *      can prepare for the wipe (cancel pending saves, dismiss
 	 *      menus, etc.). Detail: `{ candidates: Window[] }`.
 	 *
-	 *   2. `desktop-mode.windows.close-all` — filter. Receives the
+	 *   2. `os.windows.close-all` — filter. Receives the
 	 *      candidate Window list and returns the (possibly smaller) list
 	 *      that will actually be closed. Plugins use this to PROTECT
 	 *      specific windows — e.g. keep a draft post window open during
@@ -1402,7 +1415,7 @@ export class WindowManager {
 	 *
 	 *   3. Each surviving window's `close()` is called.
 	 *
-	 *   4. `desktop-mode.windows.after-close-all` — action. Detail:
+	 *   4. `os.windows.after-close-all` — action. Detail:
 	 *      `{ closed: number, skipped: Window[] }`.
 	 *
 	 * @param options           Close options.
@@ -1438,7 +1451,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] closeAll: window.close() threw for',
+						'[openstation] closeAll: window.close() threw for',
 						win.id,
 						err,
 					);
@@ -1482,7 +1495,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] minimizeAll: window.minimize() threw for',
+						'[openstation] minimizeAll: window.minimize() threw for',
 						win.id,
 						err,
 					);
@@ -1525,7 +1538,7 @@ export class WindowManager {
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] restoreFrom: window.restore() threw for',
+						'[openstation] restoreFrom: window.restore() threw for',
 						win.id,
 						err,
 					);
@@ -1626,7 +1639,7 @@ export class WindowManager {
 	 * `element` is the window's outer DOM node.
 	 *
 	 * Intended for wallpaper / overlay plugins that used to scrape
-	 * `document.querySelectorAll('.desktop-mode-window')` + read the
+	 * `document.querySelectorAll('.os-window')` + read the
 	 * `--minimized` / `--maximized` modifier classes by name. The
 	 * accessor decouples plugin code from the shell's CSS class
 	 * naming, so a future refactor of modifier prefixes is not an
@@ -1660,6 +1673,33 @@ export class WindowManager {
 	}
 
 	/**
+	 * Keep only what survives a round-trip through the session store.
+	 *
+	 * The snapshot is `JSON.stringify`d and POSTed, so a param holding
+	 * a DOM node, a function or a cyclic object would take the whole
+	 * save down with it — losing every window's geometry to one
+	 * plugin's careless value. Drop the offender, keep the session.
+	 *
+	 * @param params Raw params off the window config.
+	 * @return Serializable subset; `undefined` when nothing survives.
+	 */
+	private sanitizeParams(
+		params: Record< string, unknown >,
+	): Record< string, string | number | boolean > | undefined {
+		const out: Record< string, string | number | boolean > = {};
+		for ( const [ key, value ] of Object.entries( params ) ) {
+			if (
+				typeof value === 'string' ||
+				typeof value === 'boolean' ||
+				( typeof value === 'number' && Number.isFinite( value ) )
+			) {
+				out[ key ] = value;
+			}
+		}
+		return Object.keys( out ).length > 0 ? out : undefined;
+	}
+
+	/**
 	 * Serialize the current window stack for session persistence.
 	 *
 	 * Order in the returned `windows` array mirrors z-order (earliest
@@ -1685,11 +1725,26 @@ export class WindowManager {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
 			const native = !! w.config.native;
+			// Read once into a local rather than narrowing
+			// `w.config.params` and re-reading it inside a nested
+			// closure: property narrowing that has to survive a
+			// function boundary is a compile that works by accident.
+			const openParams = w.config.params;
+			const params =
+				native && openParams
+					? this.sanitizeParams( openParams )
+					: null;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
 				...( native ? { native: true } : {} ),
+				// Open-time arguments — what a native window is showing
+				// this time. Without these a singleton native window
+				// restores by id alone and comes back showing its default
+				// (the profile editor on whoever is logged in), which
+				// reads as the window silently changing subject.
+				...( params ? { params } : {} ),
 				// Native windows have no navigable URL — `config.url` is
 				// the `#slug` marker they were opened with, and
 				// `getCurrentUrl()` reads an iframe they don't have.
@@ -1711,7 +1766,15 @@ export class WindowManager {
 			desktops: this.getDesktops(),
 			activeDesktop: this._activeDesktopId,
 			focused: focusedId,
-			updated: Math.floor( Date.now() / 1000 ),
+			// Epoch MILLISECONDS, not seconds. This is the ordering key
+			// the server's stale-write guard compares, and at second
+			// resolution the two writes that race hardest — a
+			// `keepalive` fetch still on the wire and the `pagehide`
+			// beacon that supersedes it — almost always tie. A tie is
+			// accepted, so the loser is whichever the server happens to
+			// process last, and a stale payload can reinstate a window
+			// the user just closed. Milliseconds separate them.
+			updated: Date.now(),
 		};
 	}
 

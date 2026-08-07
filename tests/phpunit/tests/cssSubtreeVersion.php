@@ -5,9 +5,9 @@
  * ## History, because it explains the shape of these tests
  *
  * `windows.css` used to `@import` six sub-sheets and ship them under
- * a single `desktop-mode-windows` handle. An `@import` URL carries no
+ * a single `os-windows` handle. An `@import` URL carries no
  * `?ver=`, so when a sub-sheet changed there was no URL anywhere for
- * the browser to invalidate. `desktop_mode_css_subtree_version()` was
+ * the browser to invalidate. `openstation_css_subtree_version()` was
  * the mitigation: stamp the PARENT with the max mtime of the whole
  * import subtree.
  *
@@ -26,10 +26,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-assets
+ * @group openstation
+ * @group os-assets
  */
-class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
+class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 
 	/**
 	 * Ordered chain of window stylesheets. Order is the contract:
@@ -39,14 +39,14 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * @var array<string,string>
 	 */
 	private static $chain = array(
-		'desktop-mode-window-chrome' => 'assets/css/window-chrome.css',
-		'desktop-mode-window-states' => 'assets/css/window-states.css',
-		'desktop-mode-effects'       => 'assets/css/effects.css',
-		'desktop-mode-window-links'  => 'assets/css/window-links.css',
+		'os-window-chrome' => 'assets/css/window-chrome.css',
+		'os-window-states' => 'assets/css/window-states.css',
+		'os-effects'       => 'assets/css/effects.css',
+		'os-window-links'  => 'assets/css/window-links.css',
 	);
 
 	/**
-	 * Registered AFTER `desktop-mode-windows` so they can load
+	 * Registered AFTER `os-windows` so they can load
 	 * deferred — the OS Settings panel and the window overview are
 	 * lazy-loaded UI that cannot be on screen at first paint. They
 	 * still need their own filemtime stamp, which is what this file
@@ -55,13 +55,13 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * @var array<string,string>
 	 */
 	private static $deferred = array(
-		'desktop-mode-window-overview' => 'assets/css/window-overview.css',
-		'desktop-mode-os-settings'     => 'assets/css/os-settings.css',
+		'os-window-overview' => 'assets/css/window-overview.css',
+		'os-settings'     => 'assets/css/os-settings.css',
 	);
 
 	public function set_up() {
 		parent::set_up();
-		desktop_mode_register_assets();
+		openstation_register_assets();
 	}
 
 	// ------------------------------------------------------------------
@@ -72,7 +72,7 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * No window stylesheet may go back to `@import`. An `@import`ed
 	 * sheet cannot be cache-busted — that is the entire bug.
 	 *
-	 * @covers ::desktop_mode_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_window_sheets_do_not_use_import() {
 		$sheets = array_merge(
@@ -81,7 +81,7 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 			array_values( self::$deferred )
 		);
 		foreach ( $sheets as $relative ) {
-			$path = DESKTOP_MODE_DIR . $relative;
+			$path = OPENSTATION_DIR . $relative;
 			$this->assertFileExists( $path );
 			$css = (string) file_get_contents( $path );
 			// Strip comments first — these files discuss `@import` at
@@ -99,12 +99,12 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * Every window sheet is registered on its own handle, stamped
 	 * with its own `filemtime`, so each has a real cache key.
 	 *
-	 * @covers ::desktop_mode_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_each_window_sheet_has_its_own_filemtime_stamp() {
 		$styles = wp_styles();
 		$all = self::$chain + self::$deferred;
-		$all['desktop-mode-windows'] = 'assets/css/windows.css';
+		$all['os-windows'] = 'assets/css/windows.css';
 
 		foreach ( $all as $handle => $relative ) {
 			$this->assertArrayHasKey(
@@ -113,7 +113,7 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 				"{$handle} is not registered."
 			);
 			$this->assertSame(
-				(string) filemtime( DESKTOP_MODE_DIR . $relative ),
+				(string) filemtime( OPENSTATION_DIR . $relative ),
 				(string) $styles->registered[ $handle ]->ver,
 				"{$handle} is not stamped with its own filemtime."
 			);
@@ -122,10 +122,10 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 
 	/**
 	 * The dependency chain reproduces the old `@import` order, and
-	 * `desktop-mode-windows` still sits at the end so its own rules
+	 * `os-windows` still sits at the end so its own rules
 	 * keep winning ties.
 	 *
-	 * @covers ::desktop_mode_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_dependency_chain_preserves_cascade_order() {
 		$styles   = wp_styles();
@@ -134,7 +134,7 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 		foreach ( array_keys( self::$chain ) as $handle ) {
 			$deps = $styles->registered[ $handle ]->deps;
 			if ( null === $previous ) {
-				$this->assertContains( 'desktop-mode-variables', $deps );
+				$this->assertContains( 'os-variables', $deps );
 			} else {
 				$this->assertContains(
 					$previous,
@@ -147,8 +147,8 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 
 		$this->assertContains(
 			$previous,
-			$styles->registered['desktop-mode-windows']->deps,
-			'desktop-mode-windows must depend on the tail of the chain.'
+			$styles->registered['os-windows']->deps,
+			'os-windows must depend on the tail of the chain.'
 		);
 
 		// The deferred pair hangs off the entry point so it prints
@@ -156,9 +156,9 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 		// `@import`.
 		foreach ( array_keys( self::$deferred ) as $handle ) {
 			$this->assertContains(
-				'desktop-mode-windows',
+				'os-windows',
 				$styles->registered[ $handle ]->deps,
-				"{$handle} must depend on desktop-mode-windows to print after it."
+				"{$handle} must depend on os-windows to print after it."
 			);
 		}
 	}
@@ -167,19 +167,19 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * Enqueuing the one entry-point handle must still pull in every
 	 * window sheet — that is what callers had when these were
 	 * `@import`s, and `includes/render/assets.php` still enqueues
-	 * only `desktop-mode-windows`.
+	 * only `os-windows`.
 	 *
-	 * @covers ::desktop_mode_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_entry_handle_pulls_in_the_whole_chain() {
 		$styles = wp_styles();
-		$styles->all_deps( array( 'desktop-mode-windows' ) );
+		$styles->all_deps( array( 'os-windows' ) );
 
 		foreach ( array_keys( self::$chain ) as $handle ) {
 			$this->assertContains(
 				$handle,
 				$styles->to_do,
-				"Enqueuing desktop-mode-windows did not pull in {$handle}."
+				"Enqueuing os-windows did not pull in {$handle}."
 			);
 		}
 	}
@@ -193,10 +193,10 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	 * no plugin stylesheet uses `@import` any more, and pinning this
 	 * to one that did would re-introduce the coupling we just removed.
 	 *
-	 * @covers ::desktop_mode_css_subtree_version
+	 * @covers ::openstation_css_subtree_version
 	 */
 	public function test_version_covers_imported_sub_sheets() {
-		$dir    = DESKTOP_MODE_DIR . 'assets/css';
+		$dir    = OPENSTATION_DIR . 'assets/css';
 		$parent = $dir . '/__test-parent.css';
 		$child  = $dir . '/__test-child.css';
 
@@ -207,7 +207,7 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 		touch( $parent, time() - 500 );
 		touch( $child, time() );
 
-		$version = desktop_mode_css_subtree_version( 'assets/css/__test-parent.css', '0' );
+		$version = openstation_css_subtree_version( 'assets/css/__test-parent.css', '0' );
 
 		$this->assertGreaterThanOrEqual(
 			(int) filemtime( $child ),
@@ -220,12 +220,12 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_css_subtree_version
+	 * @covers ::openstation_css_subtree_version
 	 */
 	public function test_missing_file_falls_back() {
 		$this->assertSame(
 			'fallback',
-			desktop_mode_css_subtree_version( 'assets/css/does-not-exist.css', 'fallback' )
+			openstation_css_subtree_version( 'assets/css/does-not-exist.css', 'fallback' )
 		);
 	}
 }

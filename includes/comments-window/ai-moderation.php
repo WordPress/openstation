@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Comments Window: AI moderation.
+ * OpenStation — Native Comments Window: AI moderation.
  *
  * Lives on its own toggle ("Use AI to score new comments", surfaced
  * in OS Settings → Features for users with `manage_options`). Off by
@@ -8,8 +8,8 @@
  * for AI analysis through the AI Copilot's existing
  * `desktop_mode_ai_analyze_comment` job. The structured verdict
  * (`{ harmful, spam, topic, ai_summary }`) lands in comment meta via
- * `desktop_mode_ai_save_meta()`; the Comments window reads it back
- * through the `desktop_mode_comments_window_spam_score` filter to
+ * `openstation_ai_save_meta()`; the Comments window reads it back
+ * through the `openstation_comments_window_spam_score` filter to
  * bump the per-row chip, and surfaces the prose summary in a new
  * REST field so the bundle can render it on hover.
  *
@@ -32,21 +32,29 @@
  *     This makes the toggle safe to enable on sites that don't have
  *     an AI provider — it just stays inert.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Site option storing the on/off state. */
-const DESKTOP_MODE_COMMENTS_AI_OPTION = 'desktop_mode_comments_ai_moderation';
+/**
+ * Site option storing the on/off state.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_COMMENTS_AI_OPTION = 'desktop_mode_comments_ai_moderation';
 
 /**
  * Returns whether AI moderation for new comments is currently enabled.
  *
  * @return bool
  */
-function desktop_mode_comments_ai_is_enabled() {
-	$raw = get_option( DESKTOP_MODE_COMMENTS_AI_OPTION, false );
+function openstation_comments_ai_is_enabled() {
+	$raw = get_option( OPENSTATION_COMMENTS_AI_OPTION, false );
 	/**
 	 * Filter whether AI moderation is enabled for new comments.
 	 *
@@ -58,7 +66,7 @@ function desktop_mode_comments_ai_is_enabled() {
 	 * @param bool $enabled Current option value.
 	 */
 	return (bool) apply_filters(
-		'desktop_mode_comments_ai_is_enabled',
+		'openstation_comments_ai_is_enabled',
 		(bool) $raw
 	);
 }
@@ -78,15 +86,15 @@ function desktop_mode_comments_ai_is_enabled() {
  *
  * @param int $comment_id The comment id (from `wp_insert_comment` or `edit_comment`).
  */
-function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
+function openstation_comments_ai_on_new_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
-	if ( $comment_id <= 0 || ! desktop_mode_comments_ai_is_enabled() ) {
+	if ( $comment_id <= 0 || ! openstation_comments_ai_is_enabled() ) {
 		return;
 	}
 
 	// No usable provider configured in Connectors — stay inert so the toggle
 	// is safe to leave on before a provider is set up.
-	if ( ! desktop_mode_comments_ai_provider_configured() ) {
+	if ( ! openstation_comments_ai_provider_configured() ) {
 		return;
 	}
 
@@ -98,7 +106,7 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 		return;
 	}
 
-	if ( ! function_exists( 'desktop_mode_ai_schedule_job' ) ) {
+	if ( ! function_exists( 'openstation_ai_schedule_job' ) ) {
 		return;
 	}
 
@@ -110,16 +118,16 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 	// id (0 for anonymous) is fine.
 	$user_id = (int) $comment->user_id;
 
-	desktop_mode_ai_schedule_job(
+	openstation_ai_schedule_job(
 		'desktop_mode_ai_analyze_comment',
 		array( $comment_id, $user_id ),
 		'comment_' . $comment_id
 	);
 }
-add_action( 'wp_insert_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
+add_action( 'wp_insert_comment', 'openstation_comments_ai_on_new_comment', 25, 1 );
 // Re-analyze on edit so the spam-confidence meta stays fresh under normal
 // moderation flows (the verdict filter always trusts the latest analysis).
-add_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
+add_action( 'edit_comment', 'openstation_comments_ai_on_new_comment', 25, 1 );
 
 /**
  * Fold the AI verdict into the per-row spam-confidence score.
@@ -138,14 +146,14 @@ add_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
  * @param WP_Comment $comment Comment object.
  * @return int Adjusted score, clamped to 0–100.
  */
-function desktop_mode_comments_ai_filter_spam_score( $score, $comment ) {
+function openstation_comments_ai_filter_spam_score( $score, $comment ) {
 	if ( ! $comment instanceof WP_Comment ) {
 		return $score;
 	}
-	if ( ! function_exists( 'desktop_mode_ai_get_meta' ) ) {
+	if ( ! function_exists( 'openstation_ai_get_meta' ) ) {
 		return $score;
 	}
-	$meta = desktop_mode_ai_get_meta( 'comment', (int) $comment->comment_ID );
+	$meta = openstation_ai_get_meta( 'comment', (int) $comment->comment_ID );
 	if ( ! is_array( $meta ) ) {
 		return $score;
 	}
@@ -161,8 +169,8 @@ function desktop_mode_comments_ai_filter_spam_score( $score, $comment ) {
 	return $score;
 }
 add_filter(
-	'desktop_mode_comments_window_spam_score',
-	'desktop_mode_comments_ai_filter_spam_score',
+	'openstation_comments_window_spam_score',
+	'openstation_comments_ai_filter_spam_score',
 	10,
 	2
 );
@@ -179,21 +187,21 @@ add_filter(
  * stays writable even when it's `false` so an admin who's about to
  * configure the provider can flip this on first.
  */
-function desktop_mode_comments_ai_register_rest_route() {
+function openstation_comments_ai_register_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/comments/ai-settings',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_comments_ai_rest_get',
+				'callback'            => 'openstation_comments_ai_rest_get',
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
 				},
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'desktop_mode_comments_ai_rest_post',
+				'callback'            => 'openstation_comments_ai_rest_post',
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
 				},
@@ -207,18 +215,18 @@ function desktop_mode_comments_ai_register_rest_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_comments_ai_register_rest_route' );
+add_action( 'rest_api_init', 'openstation_comments_ai_register_rest_route' );
 
 /**
  * REST GET handler — returns the current state + provider hint.
  *
  * @return WP_REST_Response
  */
-function desktop_mode_comments_ai_rest_get() {
+function openstation_comments_ai_rest_get() {
 	return new WP_REST_Response(
 		array(
-			'enabled'            => desktop_mode_comments_ai_is_enabled(),
-			'providerConfigured' => desktop_mode_comments_ai_provider_configured(),
+			'enabled'            => openstation_comments_ai_is_enabled(),
+			'providerConfigured' => openstation_comments_ai_provider_configured(),
 		),
 		200
 	);
@@ -230,21 +238,21 @@ function desktop_mode_comments_ai_rest_get() {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response
  */
-function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
+function openstation_comments_ai_rest_post( WP_REST_Request $request ) {
 	$enabled = (bool) $request['enabled'];
-	update_option( DESKTOP_MODE_COMMENTS_AI_OPTION, $enabled, false );
+	update_option( OPENSTATION_COMMENTS_AI_OPTION, $enabled, false );
 
 	/**
 	 * Fires after the Comments AI moderation toggle is changed.
 	 *
 	 * @param bool $enabled New state.
 	 */
-	do_action( 'desktop_mode_comments_ai_toggled', $enabled );
+	do_action( 'openstation_comments_ai_toggled', $enabled );
 
 	return new WP_REST_Response(
 		array(
 			'enabled'            => $enabled,
-			'providerConfigured' => desktop_mode_comments_ai_provider_configured(),
+			'providerConfigured' => openstation_comments_ai_provider_configured(),
 		),
 		200
 	);
@@ -254,13 +262,13 @@ function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
  * Whether a usable AI text-generation provider is configured in Connectors.
  *
  * Delegates to the AI Copilot's capability check
- * ({@see desktop_mode_ai_provider_configured()}), which inspects the WordPress
+ * ({@see openstation_ai_provider_configured()}), which inspects the WordPress
  * AI Client's provider registry without making a network request. Returns
  * `false` when the AI Copilot bundle isn't loaded.
  *
  * @return bool
  */
-function desktop_mode_comments_ai_provider_configured() {
-	return function_exists( 'desktop_mode_ai_provider_configured' )
-		&& desktop_mode_ai_provider_configured();
+function openstation_comments_ai_provider_configured() {
+	return function_exists( 'openstation_ai_provider_configured' )
+		&& openstation_ai_provider_configured();
 }

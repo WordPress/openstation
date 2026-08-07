@@ -22,7 +22,7 @@ const MAX_ICON_SLOTS = 128;
  * Whether a payload icon value is something we're willing to paint.
  *
  * PHP already validated these, but the shell must not assume the
- * payload is trustworthy: a filter (`desktop_mode_desktop_themes`)
+ * payload is trustworthy: a filter (`openstation_desktop_themes`)
  * runs after sanitization and can put anything in.
  */
 function isPaintableIcon( value: unknown ): value is string {
@@ -140,9 +140,9 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
  */
 function seed(): DesktopThemeState {
 	const globals = window as unknown as {
-		desktopModeConfig?: { serverDesktopThemes?: unknown };
+		openStationConfig?: { serverDesktopThemes?: unknown };
 	};
-	const raw = globals.desktopModeConfig?.serverDesktopThemes;
+	const raw = globals.openStationConfig?.serverDesktopThemes;
 
 	const themes: DesktopThemeEntry[] = [];
 	if ( Array.isArray( raw ) ) {

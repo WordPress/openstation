@@ -484,12 +484,12 @@ export async function mountScene(
 	/** Set / clear the debug time-of-day override the sky reads. */
 	const setHourOverride = ( hour: number | null ): void => {
 		const w = window as unknown as {
-			desktopModeLivingTreeHourOverride?: number;
+			openStationLivingTreeHourOverride?: number;
 		};
 		if ( hour === null ) {
-			delete w.desktopModeLivingTreeHourOverride;
+			delete w.openStationLivingTreeHourOverride;
 		} else {
-			w.desktopModeLivingTreeHourOverride = hour;
+			w.openStationLivingTreeHourOverride = hour;
 		}
 	};
 	let disposeTuner: ( () => void ) | null = null;

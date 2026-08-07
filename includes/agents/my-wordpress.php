@@ -1,43 +1,43 @@
 <?php
 /**
- * Desktop Mode — Agents: site folder integration.
+ * OpenStation — Agents: WP Explorer integration.
  *
- * Adds the "Agents" entity to the site folder window (via the
- * `desktop_mode_my_wordpress_entities` filter) and ships the agents
+ * Adds the "Agents" entity to the WP Explorer window (via the
+ * `openstation_my_wordpress_entities` filter) and ships the agents
  * section config on the window's `config` payload (via
- * `desktop_mode_my_wordpress_window_args`). The bundle side registers
+ * `openstation_my_wordpress_window_args`). The bundle side registers
  * the `agent` entity-kind renderer.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Append the Agents entity to the site folder's entity list.
+ * Append the Agents entity to WP Explorer's entity list.
  *
  * @param array $entities Existing entity descriptors.
  * @return array
  */
-function desktop_mode_agents_my_wordpress_entity( $entities ) {
-	if ( ! is_array( $entities ) || ! desktop_mode_agents_user_can_read() ) {
+function openstation_agents_my_wordpress_entity( $entities ) {
+	if ( ! is_array( $entities ) || ! openstation_agents_user_can_read() ) {
 		return $entities;
 	}
 
 	$entities[] = array(
 		'id'       => 'agents',
 		'label'    => __( 'Agents', 'desktop-mode' ),
-		'icon'     => desktop_mode_agent_avatar_url(),
+		'icon'     => openstation_agent_avatar_url(),
 		'restPath' => 'desktop-mode/v1/agents',
 		'kind'     => 'agent',
 	);
 
 	return $entities;
 }
-add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_agents_my_wordpress_entity' );
+add_filter( 'openstation_my_wordpress_entities', 'openstation_agents_my_wordpress_entity' );
 
 /**
- * Ship the agents section config on the site folder window config.
+ * Ship the agents section config on the WP Explorer window config.
  *
  * `aiAvailable` is the cheap structural check (WP 7.0 AI Client +
  * Abilities API present); whether a connector is actually configured
@@ -45,11 +45,11 @@ add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_agents_my_wordpr
  * OS Settings Features tab, so a freshly configured connector is
  * picked up without a reload.
  *
- * @param array $window_args Args passed to `desktop_mode_register_window()`.
+ * @param array $window_args Args passed to `openstation_register_window()`.
  * @return array
  */
-function desktop_mode_agents_my_wordpress_window_args( $window_args ) {
-	if ( ! is_array( $window_args ) || ! desktop_mode_agents_user_can_read() ) {
+function openstation_agents_my_wordpress_window_args( $window_args ) {
+	if ( ! is_array( $window_args ) || ! openstation_agents_user_can_read() ) {
 		return $window_args;
 	}
 
@@ -58,9 +58,9 @@ function desktop_mode_agents_my_wordpress_window_args( $window_args ) {
 	}
 
 	$window_args['config']['agents'] = array(
-		'canManage'     => desktop_mode_agents_user_can_manage(),
-		'canInvoke'     => desktop_mode_agents_user_can_invoke(),
-		'aiAvailable'   => function_exists( 'desktop_mode_ai_is_available' ) && desktop_mode_ai_is_available(),
+		'canManage'     => openstation_agents_user_can_manage(),
+		'canInvoke'     => openstation_agents_user_can_invoke(),
+		'aiAvailable'   => function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available(),
 		'aiStatusUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 		'connectorsUrl' => esc_url_raw( admin_url( 'options-connectors.php' ) ),
 		'runWindowId'   => 'desktop-mode-agent-run',
@@ -68,4 +68,4 @@ function desktop_mode_agents_my_wordpress_window_args( $window_args ) {
 
 	return $window_args;
 }
-add_filter( 'desktop_mode_my_wordpress_window_args', 'desktop_mode_agents_my_wordpress_window_args' );
+add_filter( 'openstation_my_wordpress_window_args', 'openstation_agents_my_wordpress_window_args' );

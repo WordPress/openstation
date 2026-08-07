@@ -1,10 +1,10 @@
-# Desktop Mode — Popup Siege
+# OpenStation — Popup Siege
 
 Popup Siege is a standalone companion plugin for
-[Desktop Mode](https://github.com/WordPress/desktop-mode). It adds a
+[OpenStation](https://github.com/WordPress/openstation). It adds a
 90-second Breakout-style rescue game to the Games hub, including the unified
 leaderboard, play-time tracking, and score-to-beat challenges supplied by
-Desktop Mode.
+OpenStation.
 
 ![Popup Siege playing in its supported desktop layout](design/popup-siege-gallery-v1.png)
 
@@ -21,20 +21,20 @@ Challenge launches show the score to beat and allow one submitted run.
 
 ## Install
 
-1. Install and activate Desktop Mode.
+1. Install and activate OpenStation.
 2. Install and activate the `desktop-mode-popup-siege.zip` companion plugin.
 3. In **OS Settings → Features → Extended options**, turn on **Games**.
 4. Open the **Games** desktop icon and choose **Popup Siege**.
 
-Games are opt-in in Desktop Mode. While Games is off, this plugin stays
+Games are opt-in in OpenStation. While Games is off, this plugin stays
 dormant and does not register or load the runtime.
 
 ## Integration
 
-The PHP manifest gives Desktop Mode the launcher and scoreboard metadata. The
+The PHP manifest gives OpenStation the launcher and scoreboard metadata. The
 browser adapter and deterministic 0.7.0 runtime are registered but not
-enqueued; Desktop Mode loads them only when a player launches Popup Siege.
-PixiJS comes from Desktop Mode's shared module loader and is not bundled here.
+enqueued; OpenStation loads them only when a player launches Popup Siege.
+PixiJS comes from OpenStation's shared module loader and is not bundled here.
 
 Every launch owns a fresh mount, event subscriptions, resize observer, audio
 owner, and animation controller. The adapter releases all of them when the
@@ -63,7 +63,7 @@ stylesheet, and generated-art hashes, and syntax-checks the browser
 JavaScript. `npm test` runs the deterministic game/audio suites plus the
 framework-free PHP registration and score-contract smoke test.
 
-From the Desktop Mode repository root, build the installable extension zip
+From the OpenStation repository root, build the installable extension zip
 with:
 
 ```sh

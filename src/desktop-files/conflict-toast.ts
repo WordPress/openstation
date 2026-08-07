@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — File conflict toast helper.
+ * OpenStation — File conflict toast helper.
  *
  * When a PATCH /placements or PATCH /folders returns 409, the REST
  * client throws `FilesConflictError` carrying the actor and the
@@ -14,7 +14,7 @@ import type { Window as DesktopWindow } from '../window';
 
 declare global {
 	interface Window {
-		desktopMode?: {
+		openStation?: {
 			windowManager?: {
 				focus?: ( id: string ) => DesktopWindow | null;
 				open?: ( id: string ) => Promise< DesktopWindow | null >;
@@ -55,8 +55,8 @@ export function showConflictToast( err: FilesConflictError ): void {
 		action = {
 			label: 'View folder',
 			onClick: () => {
-				const winId = `desktop-mode-folder-${ targetParentId }`;
-				const mgr = window.desktopMode?.windowManager;
+				const winId = `os-folder-${ targetParentId }`;
+				const mgr = window.openStation?.windowManager;
 				if ( mgr?.focus ) {
 					const w = mgr.focus( winId );
 					if ( w ) {

@@ -14,16 +14,16 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-ai
+ * @group openstation
+ * @group os-ai
  */
-class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
+class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 
 	/**
 	 * A published post with no analysis meta is found by a title keyword.
 	 *
-	 * @covers ::desktop_mode_ai_search_dispatch_tool
-	 * @covers ::desktop_mode_ai_search_fetch_posts
+	 * @covers ::openstation_ai_search_dispatch_tool
+	 * @covers ::openstation_ai_search_fetch_posts
 	 */
 	public function test_search_posts_finds_unanalyzed_post_by_keyword() {
 		$post_id = self::factory()->post->create(
@@ -37,11 +37,11 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 		// Sanity: the post carries no AI analysis meta.
 		$this->assertSame(
 			'',
-			get_post_meta( $post_id, DESKTOP_MODE_AI_META_KEY, true ),
+			get_post_meta( $post_id, OPENSTATION_AI_META_KEY, true ),
 			'Fixture must have no analysis meta — that is the whole point.'
 		);
 
-		$result = desktop_mode_ai_search_dispatch_tool(
+		$result = openstation_ai_search_dispatch_tool(
 			'search_posts',
 			array( 'query' => 'paella', 'offset' => 0 )
 		);
@@ -58,7 +58,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 	/**
 	 * A keyword that matches nothing returns an empty, well-formed batch.
 	 *
-	 * @covers ::desktop_mode_ai_search_fetch_posts
+	 * @covers ::openstation_ai_search_fetch_posts
 	 */
 	public function test_search_posts_keyword_excludes_non_matches() {
 		self::factory()->post->create(
@@ -69,7 +69,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 			)
 		);
 
-		$result = desktop_mode_ai_search_dispatch_tool(
+		$result = openstation_ai_search_dispatch_tool(
 			'search_posts',
 			array( 'query' => 'paella', 'offset' => 0 )
 		);
@@ -82,7 +82,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 	 * Comments are found by their text with native comment search, with no
 	 * analysis meta present.
 	 *
-	 * @covers ::desktop_mode_ai_search_fetch_comments
+	 * @covers ::openstation_ai_search_fetch_comments
 	 */
 	public function test_search_comments_finds_unanalyzed_comment_by_keyword() {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
@@ -94,7 +94,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 			)
 		);
 
-		$result = desktop_mode_ai_search_dispatch_tool(
+		$result = openstation_ai_search_dispatch_tool(
 			'search_comments',
 			array( 'query' => 'Alcazaba', 'offset' => 0 )
 		);
@@ -106,7 +106,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 	/**
 	 * `search_comments_by_post` scopes results to the given post.
 	 *
-	 * @covers ::desktop_mode_ai_search_fetch_comments_by_post
+	 * @covers ::openstation_ai_search_fetch_comments_by_post
 	 */
 	public function test_search_comments_by_post_is_scoped_to_the_post() {
 		$post_a = self::factory()->post->create( array( 'post_status' => 'publish' ) );
@@ -127,7 +127,7 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 			)
 		);
 
-		$result = desktop_mode_ai_search_dispatch_tool(
+		$result = openstation_ai_search_dispatch_tool(
 			'search_comments_by_post',
 			array( 'post_id' => $post_a, 'query' => 'night tour', 'offset' => 0 )
 		);
@@ -141,14 +141,14 @@ class Tests_DesktopMode_AiNativeSearch extends WP_UnitTestCase {
 	 * The entity-detail builder no longer requires analysis meta — a plain
 	 * published post resolves to a full record built from core fields.
 	 *
-	 * @covers ::desktop_mode_ai_search_build_entity
+	 * @covers ::openstation_ai_search_build_entity
 	 */
 	public function test_build_entity_works_without_analysis_meta() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'publish', 'post_title' => 'Plain post' )
 		);
 
-		$entity = desktop_mode_ai_search_build_entity( 'post', $post_id );
+		$entity = openstation_ai_search_build_entity( 'post', $post_id );
 
 		$this->assertIsArray( $entity );
 		$this->assertSame( $post_id, $entity['id'] );

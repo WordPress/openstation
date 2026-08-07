@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mio — drop-in demo</title>
+<style>
+	:root {
+		color-scheme: dark;
+		--void: #0c0b0f;
+		--obsidian: #17151d;
+		--pulse: #f252fc;
+		--shade: #a29fae;
+		--starlight: #fffbff;
+	}
+
+	body {
+		margin: 0;
+		padding: 0 0 40vh;
+		background: var( --void );
+		color: var( --starlight );
+		font: 16px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+	}
+
+	main {
+		max-width: 46rem;
+		margin: 0 auto;
+		padding: 12vh 1.5rem 0;
+	}
+
+	/*
+	 * Headings are the collision markers, and they are styled to make
+	 * the boundary visible: the tinted box IS the content box, which is
+	 * exactly the rect Mio collides with. The generous margin above
+	 * each one is deliberate — margins are NOT part of the collision
+	 * rect, so Mio passes straight through the gap and only stops on
+	 * the box itself.
+	 */
+	h1,
+	h2 {
+		margin: 4rem 0 1rem;
+		background: linear-gradient( 90deg, rgba( 242, 82, 252, .16 ), rgba( 75, 62, 255, .16 ) );
+		outline: 1px dashed rgba( 242, 82, 252, .5 );
+		font-weight: 700;
+		letter-spacing: -.02em;
+	}
+
+	h1 {
+		font-size: clamp( 2rem, 6vw, 3.2rem );
+		line-height: 1.15;
+	}
+
+	h2 {
+		font-size: clamp( 1.3rem, 3.5vw, 1.8rem );
+	}
+
+	p {
+		color: var( --shade );
+	}
+
+	code {
+		background: var( --obsidian );
+		border-radius: .3rem;
+		padding: .1rem .35rem;
+		color: var( --starlight );
+		font-size: .9em;
+	}
+
+	pre {
+		background: var( --obsidian );
+		border-radius: .6rem;
+		padding: 1rem 1.2rem;
+		overflow-x: auto;
+		color: var( --starlight );
+	}
+
+	pre code {
+		background: none;
+		padding: 0;
+	}
+
+	.note {
+		border-inline-start: 3px solid var( --pulse );
+		padding-inline-start: 1rem;
+	}
+</style>
+</head>
+<body>
+
+<main>
+
+	<h1>Mio lives here now</h1>
+
+	<p class="note">
+		Everything on this page except Mio is one HTML file with no
+		build step. Mio itself is a single <code>&lt;script&gt;</code>
+		at the bottom of the document.
+	</p>
+
+	<h2>Things to try</h2>
+
+	<p>
+		<strong>Pick it up.</strong> Grab Mio and drag it around. The
+		body squashes against whatever it is pressed into, and the eyes
+		keep tracking the cursor the whole time.
+	</p>
+
+	<p>
+		<strong>Throw it.</strong> Flick the pointer and let go. It
+		keeps the velocity of your hand, drifts across the page, and
+		bounces off the edges of the viewport — those are hard walls,
+		wherever you scroll to.
+	</p>
+
+	<p>
+		<strong>Drop it on a heading.</strong> Every <code>h1</code> and
+		<code>h2</code> on this page is a collision marker (the dashed
+		boxes). Mio is drawn toward the nearest one, lands on it, and
+		squashes on impact. Scroll while it is resting and it rides the
+		heading down the page.
+	</p>
+
+	<p>
+		<strong>Watch the margins.</strong> The collision rect is each
+		heading's <em>content box</em> — the tinted area — so the 4rem
+		of margin above every heading is empty air Mio falls straight
+		through.
+	</p>
+
+	<h2>The whole integration</h2>
+
+	<pre><code>&lt;script src="mio.min.js" data-mio-colliders="h1, h2"&gt;&lt;/script&gt;</code></pre>
+
+	<p>
+		Drop the attribute and Mio floats in an empty room, which is
+		what it does on an OpenStation desk with every window closed.
+	</p>
+
+	<h2>From script</h2>
+
+	<pre><code>Mio.setColliders( 'h1, h2, img' );
+Mio.setPosition( 200, 300 );
+Mio.stop();
+await Mio.start();
+
+document.addEventListener( 'mio:dropped', ( e ) =&gt; {
+	console.log( 'put down at', e.detail.position );
+} );</code></pre>
+
+	<h2>Scroll down</h2>
+
+	<p>
+		Keep going — the markers below are the same as the ones above,
+		and Mio will find them.
+	</p>
+
+	<h2>Another marker</h2>
+
+	<p>
+		Mio's physics run at a fixed 240&nbsp;Hz sub-step regardless of
+		your display's refresh rate, so a throw feels the same on a
+		60&nbsp;Hz laptop panel and a 120&nbsp;Hz phone.
+	</p>
+
+	<h2>And one more</h2>
+
+	<p>
+		The silhouette changes on its own every minute or so — circle,
+		blob, ghost, star, heart, cloud — and eases across rather than
+		popping, because the shape lives in the soft body's spring rest
+		lengths rather than in a redraw. Pick Mio up mid-morph and the
+		change carries on underneath your hand.
+	</p>
+
+	<h2>The last one</h2>
+
+	<p>
+		If you have <em>reduce motion</em> switched on at the OS level,
+		Mio holds still by itself: no idle bob, no silhouette shuffle.
+		Motion you cause — a drag, a throw, the squash on landing —
+		stays, because a companion that refuses to move when you pick it
+		up is broken rather than accessible.
+	</p>
+
+</main>
+
+<script src="../dist/mio.js" data-mio-colliders="h1, h2"></script>
+
+</body>
+</html>

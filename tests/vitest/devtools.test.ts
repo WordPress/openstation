@@ -39,10 +39,10 @@ function mountFakeWindow( id: string ): FakeIframeContext {
 	const iframe = { contentWindow } as unknown as HTMLIFrameElement;
 
 	( window as unknown as {
-		wp?: { hooks?: unknown; desktop?: { windowManager?: { getById: ( id: string ) => unknown } } };
+		wp?: { hooks?: unknown; os?: { windowManager?: { getById: ( id: string ) => unknown } } };
 	} ).wp = {
 		...( window as unknown as { wp?: object } ).wp,
-		desktop: {
+		os: {
 			windowManager: {
 				getById: ( queryId: string ) => ( queryId === id ? { iframe } : null ),
 			},
@@ -53,9 +53,9 @@ function mountFakeWindow( id: string ): FakeIframeContext {
 }
 
 function clearWindowManagerStub(): void {
-	const w = ( window as unknown as { wp?: { desktop?: unknown } } ).wp;
+	const w = ( window as unknown as { wp?: { os?: unknown } } ).wp;
 	if ( w ) {
-		delete w.desktop;
+		delete w.os;
 	}
 }
 
@@ -79,12 +79,12 @@ describe( 'devtools.addRequestHeader', () => {
 		clearWindowManagerStub();
 	} );
 
-	test( 'pushes a desktop-mode-instrument-set message with the header', async () => {
+	test( 'pushes a os-instrument-set message with the header', async () => {
 		const { dt } = await freshDevtools();
 		const ctx = mountFakeWindow( 'win-a' );
 		dt.devtools.addRequestHeader( 'win-a', 'X-Token', 'abc' );
 		expect( ctx.captures ).toHaveLength( 1 );
-		expect( ctx.captures[ 0 ].type ).toBe( 'desktop-mode-instrument-set' );
+		expect( ctx.captures[ 0 ].type ).toBe( 'os-instrument-set' );
 		expect( ctx.captures[ 0 ].headers ).toEqual( { 'X-Token': 'abc' } );
 		expect( ctx.captures[ 0 ].observe ).toBe( false );
 	} );
@@ -123,7 +123,7 @@ describe( 'devtools.addRequestHeader', () => {
 	} );
 
 	test( 'iframe load event re-pushes instrumentation', async () => {
-		// Regression: if the desktop-mode-ready signal isn't emitted
+		// Regression: if the os-ready signal isn't emitted
 		// (chromeless bridge doesn't post it today), only the iframe's
 		// native `load` event closes the timing gap. Headers
 		// registered before a manual `iframe.src = newUrl` MUST be
@@ -137,8 +137,8 @@ describe( 'devtools.addRequestHeader', () => {
 		// stub. Patch in just enough to satisfy the devtools module.
 		let loadCb: ( () => void ) | null = null;
 		const stub = ( window as unknown as {
-			wp: { desktop: { windowManager: { getById: ( id: string ) => unknown } } };
-		} ).wp.desktop.windowManager.getById( 'reload-target' ) as {
+			wp: { os: { windowManager: { getById: ( id: string ) => unknown } } };
+		} ).wp.os.windowManager.getById( 'reload-target' ) as {
 			iframe: HTMLIFrameElement;
 		};
 		( stub.iframe as unknown as {
@@ -181,8 +181,8 @@ describe( 'devtools.addRequestHeader', () => {
 		// and add/removeEventListener stubs the load-handler logic
 		// queries on registration.
 		const stub = ( window as unknown as {
-			wp: { desktop: { windowManager: { getById: ( id: string ) => unknown } } };
-		} ).wp.desktop.windowManager.getById( 'with-session' ) as {
+			wp: { os: { windowManager: { getById: ( id: string ) => unknown } } };
+		} ).wp.os.windowManager.getById( 'with-session' ) as {
 			iframe: HTMLIFrameElement & { _src: string };
 		};
 		stub.iframe._src = 'http://example.test/wp-admin/post.php';
@@ -337,8 +337,8 @@ describe( 'devtools.debug', () => {
 		// the URL parser folds the second batch of params into the
 		// existing query.
 		( window as unknown as {
-			desktopModeConfig?: { restUrl?: string; restNonce?: string };
-		} ).desktopModeConfig = {
+			openStationConfig?: { restUrl?: string; restNonce?: string };
+		} ).openStationConfig = {
 			restUrl: 'http://example.test/?rest_route=/',
 			restNonce: 'abc',
 		};
@@ -371,21 +371,21 @@ describe( 'devtools.debug', () => {
 			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
-			delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+			delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 		}
 	} );
 
 	test( 'poll URL includes subscribed channels (regression: empty drains)', async () => {
 		// Server-side drain returns `{ events: [] }` when no channels
-		// are passed and no `desktop_mode_debug_channels` filter
+		// are passed and no `openstation_debug_channels` filter
 		// contributor exists. The poll URL must therefore stamp every
 		// active subscription channel as `channels[]=…` so the server
 		// has the full set to walk. Regression for a real silent-fail
 		// bug: subscribe + publish-on-server returned nothing because
 		// the URL omitted channels entirely.
 		( window as unknown as {
-			desktopModeConfig?: { restUrl?: string; restNonce?: string };
-		} ).desktopModeConfig = {
+			openStationConfig?: { restUrl?: string; restNonce?: string };
+		} ).openStationConfig = {
 			restUrl: 'https://example.test/wp-json/',
 			restNonce: 'abc',
 		};
@@ -415,7 +415,7 @@ describe( 'devtools.debug', () => {
 			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
-			delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+			delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 		}
 	} );
 } );

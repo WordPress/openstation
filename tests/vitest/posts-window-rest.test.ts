@@ -21,7 +21,7 @@ import {
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
@@ -43,8 +43,8 @@ function installConfig( over: Partial< PostsWindowConfig > = {} ): void {
 		},
 		...over,
 	};
-	window.desktopModeWindowConfig = window.desktopModeWindowConfig ?? {};
-	window.desktopModeWindowConfig[ 'desktop-mode-posts' ] = cfg;
+	window.openStationWindowConfig = window.openStationWindowConfig ?? {};
+	window.openStationWindowConfig[ 'desktop-mode-posts' ] = cfg;
 }
 
 function jsonResponse(
@@ -65,13 +65,13 @@ beforeEach( () => {
 } );
 
 afterEach( () => {
-	delete window.desktopModeWindowConfig;
+	delete window.openStationWindowConfig;
 	vi.restoreAllMocks();
 } );
 
 describe( 'getConfig', () => {
 	test( 'throws a useful error when the config blob is missing', () => {
-		delete window.desktopModeWindowConfig;
+		delete window.openStationWindowConfig;
 		expect( () => client.getConfig() ).toThrow( /config blob is missing/ );
 	} );
 

@@ -2,7 +2,7 @@
 	"name": "desktop-mode-code-editor",
 	"version": "0.22.11",
 	"private": true,
-	"description": "Build pipeline for the Desktop Mode Code Editor extension. Compiles src/*.ts into assets/js/code-editor[.min].js and copies the Monaco vendor distributable into assets/vendor/.",
+	"description": "Build pipeline for the OpenStation Code Editor extension. Compiles src/*.ts into assets/js/code-editor[.min].js and copies the Monaco vendor distributable into assets/vendor/.",
 	"scripts": {
 		"build": "npm run vendor:monaco && npm run build:bundle",
 		"build:bundle": "vite build --mode development && vite build --mode production",

@@ -1,5 +1,5 @@
 /**
- * Vite configuration for the Desktop Mode Code Editor extension.
+ * Vite configuration for the OpenStation Code Editor extension.
  *
  * Builds `src/index.ts` into:
  *
@@ -35,7 +35,7 @@ export default defineConfig( ( { mode } ) => {
 			lib: {
 				entry: resolve( __dirname, 'src/index.ts' ),
 				formats: [ 'iife' ],
-				name: 'wpDesktopCodeEditor',
+				name: 'openStationCodeEditor',
 				fileName: () =>
 					isProd ? 'code-editor.min.js' : 'code-editor.js',
 			},

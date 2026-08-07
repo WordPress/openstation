@@ -1,6 +1,6 @@
 {
-	"name": "automattic/wp-desktop-mode",
-	"description": "WP Desktop Mode — PHP dev dependencies for PHPUnit tests.",
+	"name": "automattic/openstation",
+	"description": "WP OpenStation — PHP dev dependencies for PHPUnit tests.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require-dev": {

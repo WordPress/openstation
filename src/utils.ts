@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Shared Utilities.
+ * OpenStation — Shared Utilities.
  */
 
 /**
@@ -11,7 +11,7 @@
  * on post.php — different posts must resolve to different windows so
  * opening a second post from the Posts list doesn't just refocus the
  * first. Everything else — pagination, nonces, action-feedback flags,
- * our internal desktop_mode_chromeless marker — is considered transient
+ * our internal openstation_chromeless marker — is considered transient
  * and stripped, so a direct-URL land and a dock click resolve to the
  * same window ID.
  */
@@ -93,7 +93,7 @@ function slugify( path: string ): string {
  *
  * The ID is the admin filename plus any query params that distinguish
  * one admin page from another (see IDENTITY_PARAMS). Transient params —
- * desktop_mode_chromeless, _wpnonce, paged, message — are discarded so the same
+ * openstation_chromeless, _wpnonce, paged, message — are discarded so the same
  * logical page always maps to the same window, whether reached via
  * direct URL or via the dock.
  *
@@ -148,11 +148,11 @@ export function sanitizeClassName( value: string ): string {
 /**
  * Apply a randomized fade-in cadence to a freshly-built file/icon
  * tile. The animation itself is declared in CSS on
- * `.desktop-mode-file-tile`; this helper writes the two CSS
+ * `.os-file-tile`; this helper writes the two CSS
  * custom properties that drive the per-tile stagger:
  *
- *   - `--desktop-mode-file-tile-enter-delay`: 0 → 0.25s
- *   - `--desktop-mode-file-tile-enter-duration`: 0.3 → 0.55s
+ *   - `--os-file-tile-enter-delay`: 0 → 0.25s
+ *   - `--os-file-tile-enter-duration`: 0.3 → 0.55s
  *
  * Both ranges sit in the decimal-of-a-second window, so a grid of
  * tiles reads as a soft cascade rather than a uniform pop-in.
@@ -163,11 +163,11 @@ export function sanitizeClassName( value: string ): string {
  */
 export function applyTileEntryStagger( tile: HTMLElement ): void {
 	tile.style.setProperty(
-		'--desktop-mode-file-tile-enter-delay',
+		'--os-file-tile-enter-delay',
 		`${ ( Math.random() * 0.25 ).toFixed( 3 ) }s`,
 	);
 	tile.style.setProperty(
-		'--desktop-mode-file-tile-enter-duration',
+		'--os-file-tile-enter-duration',
 		`${ ( 0.3 + Math.random() * 0.25 ).toFixed( 3 ) }s`,
 	);
 }
@@ -222,7 +222,7 @@ export function pageIdentityKey( url: string ): string {
 export function urlMatchKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
-		parsed.searchParams.delete( 'desktop_mode_chromeless' );
+		parsed.searchParams.delete( 'openstation_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
 		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
 	} catch {
@@ -251,7 +251,7 @@ export function urlMatchKey( url: string ): string {
 export function urlReuseKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
-		parsed.searchParams.delete( 'desktop_mode_chromeless' );
+		parsed.searchParams.delete( 'openstation_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
 		parsed.searchParams.delete( '_wp_http_referer' );
 		parsed.searchParams.sort();

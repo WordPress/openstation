@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Per-wallpaper settings store.
+ * OpenStation — Per-wallpaper settings store.
  *
  * Holds the current user's per-wallpaper settings (the values edited
  * through a wallpaper's `renderConfig` dialog in OS Settings). The
@@ -12,7 +12,7 @@
  *     `WallpaperContext.settings` at mount time.
  *   - The OS Settings preview manager does the same for tile previews.
  *   - The config dialog writes through {@link publishWallpaperSettings},
- *     which also fires `desktop-mode.wallpaper.settings-changed` so a
+ *     which also fires `os.wallpaper.settings-changed` so a
  *     mounted wallpaper can live-apply without a remount.
  *
  * Routed through `createSharedStore` because the OS Settings panel
@@ -72,7 +72,7 @@ export function seedWallpaperSettings(
 
 /**
  * Write a wallpaper's settings into the store and fire the
- * `desktop-mode.wallpaper.settings-changed` action so a mounted
+ * `os.wallpaper.settings-changed` action so a mounted
  * wallpaper (or anything else watching) can live-apply.
  *
  * Persistence is the caller's job — the OS Settings config dialog

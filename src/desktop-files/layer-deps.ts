@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Layer-side dependency surface.
+ * OpenStation — Layer-side dependency surface.
  *
  * Re-exports the few REST + store entry points the layer
  * needs, in a tiny module so importing `layer.ts` doesn't

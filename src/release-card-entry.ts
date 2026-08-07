@@ -10,19 +10,19 @@
  * announce; if the bundle fails to load, the notice degrades to the
  * plain toast it already used as the no-art fallback.
  *
- * Publishes `window.desktopModeReleaseCard`.
+ * Publishes `window.openStationReleaseCard`.
  */
 
 import { showReleaseCard } from './release-card';
 import { resolveReleaseArt, preloadImage } from './release-art';
 
 ( window as unknown as {
-	desktopModeReleaseCard?: {
+	openStationReleaseCard?: {
 		showReleaseCard: typeof showReleaseCard;
 		resolveReleaseArt: typeof resolveReleaseArt;
 		preloadImage: typeof preloadImage;
 	};
-} ).desktopModeReleaseCard = {
+} ).openStationReleaseCard = {
 	showReleaseCard,
 	resolveReleaseArt,
 	preloadImage,

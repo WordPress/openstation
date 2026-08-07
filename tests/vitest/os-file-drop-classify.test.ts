@@ -26,12 +26,12 @@ describe( 'classifyDropTarget', () => {
 	} );
 
 	test( 'drop on the files layer inside a folder window resolves the folder', () => {
-		// Real window DOM: class `desktop-mode-window` + element id
+		// Real window DOM: class `os-window` + element id
 		// `wp-window-<windowId>` (createWindowElement in
 		// src/window/dom.ts). Window roots have NO data-window-id.
 		document.body.innerHTML = `
-			<div class="desktop-mode-window desktop-mode-window--native" id="wp-window-desktop-mode-folder-7">
-				<div class="desktop-mode-files-layer" data-folder-id="7">
+			<div class="os-window os-window--native" id="wp-window-os-folder-7">
+				<div class="os-files-layer" data-folder-id="7">
 					<span id="target"></span>
 				</div>
 			</div>`;
@@ -44,20 +44,20 @@ describe( 'classifyDropTarget', () => {
 		// The reported bug: empty area below the tiles / preview pane
 		// is not inside the files-layer element.
 		document.body.innerHTML = `
-			<div class="desktop-mode-window desktop-mode-window--native" id="wp-window-desktop-mode-folder-7">
-				<div class="desktop-mode-folder-window__split" id="target"></div>
+			<div class="os-window os-window--native" id="wp-window-os-folder-7">
+				<div class="os-folder-window__split" id="target"></div>
 			</div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
 		expect( ctx.surface ).toBe( 'folder' );
 		expect( ctx.folderId ).toBe( 7 );
-		expect( ctx.windowId ).toBe( 'desktop-mode-folder-7' );
+		expect( ctx.windowId ).toBe( 'os-folder-7' );
 	} );
 
 	test( 'drop on a closed folder TILE routes into that folder, not its parent', () => {
 		document.body.innerHTML = `
-			<div id="desktop-mode-area">
-				<div class="desktop-mode-files-layer" data-folder-id="0">
-					<button class="desktop-mode-file-tile" data-file-type="folder" data-file-ref="9" id="target"></button>
+			<div id="os-area">
+				<div class="os-files-layer" data-folder-id="0">
+					<button class="os-file-tile" data-file-type="folder" data-file-ref="9" id="target"></button>
 				</div>
 			</div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
@@ -67,8 +67,8 @@ describe( 'classifyDropTarget', () => {
 
 	test( 'drop on a NON-folder tile lands in the containing surface', () => {
 		document.body.innerHTML = `
-			<div class="desktop-mode-files-layer" data-folder-id="0">
-				<button class="desktop-mode-file-tile" data-file-type="post" data-file-ref="13" id="target"></button>
+			<div class="os-files-layer" data-folder-id="0">
+				<button class="os-file-tile" data-file-type="post" data-file-ref="13" id="target"></button>
 			</div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
 		expect( ctx.surface ).toBe( 'wallpaper' );
@@ -76,7 +76,7 @@ describe( 'classifyDropTarget', () => {
 
 	test( 'root files layer classifies as wallpaper', () => {
 		document.body.innerHTML = `
-			<div class="desktop-mode-files-layer" data-folder-id="0"><span id="target"></span></div>`;
+			<div class="os-files-layer" data-folder-id="0"><span id="target"></span></div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
 		expect( ctx.surface ).toBe( 'wallpaper' );
 		expect( ctx.folderId ).toBeUndefined();
@@ -84,7 +84,7 @@ describe( 'classifyDropTarget', () => {
 
 	test( 'non-folder windows still classify as window', () => {
 		document.body.innerHTML = `
-			<div class="desktop-mode-window" id="wp-window-desktop-mode-posts"><span id="target"></span></div>`;
+			<div class="os-window" id="wp-window-desktop-mode-posts"><span id="target"></span></div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
 		expect( ctx.surface ).toBe( 'window' );
 		expect( ctx.windowId ).toBe( 'desktop-mode-posts' );
@@ -93,11 +93,11 @@ describe( 'classifyDropTarget', () => {
 
 	test( 'iframe drops resolve their window id from the wp-window- root', () => {
 		document.body.innerHTML = `
-			<div class="desktop-mode-window" id="wp-window-desktop-mode-media">
+			<div class="os-window" id="wp-window-os-media">
 				<iframe id="target"></iframe>
 			</div>`;
 		const ctx = classifyDropTarget( dropOn( document.getElementById( 'target' )! ) );
 		expect( ctx.surface ).toBe( 'iframe' );
-		expect( ctx.windowId ).toBe( 'desktop-mode-media' );
+		expect( ctx.windowId ).toBe( 'os-media' );
 	} );
 } );

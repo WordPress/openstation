@@ -1,15 +1,16 @@
 <?php
 /**
- * Desktop Mode — Native Plugins Window: REST field decorators.
+ * OpenStation — Native Plugins Window: REST field decorators.
  *
  * Adds enrichment fields to Core's `/wp/v2/plugins` REST resource so
  * the JS bundle can render rich rows in one round-trip:
  *
- *   - desktop_mode_update_available — `{ available, new_version }`
- *   - desktop_mode_can_manage       — `{ activate, deactivate, delete }`
- *   - desktop_mode_icon_url         — local-folder icon, falling back to wp.org
- *   - desktop_mode_size_kb          — disk size of plugin folder
- *   - desktop_mode_auto_update      — `{ enabled, forced, supported }`
+ *   - openstation_update_available — `{ available, new_version }`
+ *   - openstation_can_manage       — `{ activate, deactivate, delete }`
+ *   - openstation_wporg_slug       — .org directory slug, or null when not listed
+ *   - openstation_icon_url         — local-folder icon, falling back to wp.org
+ *   - openstation_size_kb          — disk size of plugin folder
+ *   - openstation_auto_update      — `{ enabled, forced, supported }`
  *
  * Plugin Check posture: every callback below uses ONLY functions
  * available in `wp-includes/` (current_user_can, get_site_transient,
@@ -17,20 +18,20 @@
  * the right home — registering these fields on `rest_api_init` keeps
  * the contract consistent with Core's other plugin REST decorators.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the five enrichment fields on the `plugin` REST resource.
+ * Register the six enrichment fields on the `plugin` REST resource.
  */
-function desktop_mode_plugins_window_register_rest_fields() {
+function openstation_plugins_window_register_rest_fields() {
 	register_rest_field(
 		'plugin',
-		'desktop_mode_update_available',
+		'openstation_update_available',
 		array(
-			'get_callback' => 'desktop_mode_plugins_window_field_update_available',
+			'get_callback' => 'openstation_plugins_window_field_update_available',
 			'schema'       => array(
 				'description' => __( 'Whether an update is available for this plugin (and the available version).', 'desktop-mode' ),
 				'type'        => 'object',
@@ -42,9 +43,9 @@ function desktop_mode_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'desktop_mode_can_manage',
+		'openstation_can_manage',
 		array(
-			'get_callback' => 'desktop_mode_plugins_window_field_can_manage',
+			'get_callback' => 'openstation_plugins_window_field_can_manage',
 			'schema'       => array(
 				'description' => __( 'Per-plugin capability flags for the requester (activate / deactivate / delete).', 'desktop-mode' ),
 				'type'        => 'object',
@@ -56,9 +57,23 @@ function desktop_mode_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'desktop_mode_icon_url',
+		'openstation_wporg_slug',
 		array(
-			'get_callback' => 'desktop_mode_plugins_window_field_icon_url',
+			'get_callback' => 'openstation_plugins_window_field_wporg_slug',
+			'schema'       => array(
+				'description' => __( 'The plugin\'s slug on the WordPress.org directory, or null when the plugin is not listed there.', 'desktop-mode' ),
+				'type'        => array( 'string', 'null' ),
+				'context'     => array( 'view', 'edit' ),
+				'readonly'    => true,
+			),
+		)
+	);
+
+	register_rest_field(
+		'plugin',
+		'openstation_icon_url',
+		array(
+			'get_callback' => 'openstation_plugins_window_field_icon_url',
 			'schema'       => array(
 				'description' => __( 'Best-effort card icon URL. Prefers a local file in the plugin folder, falling back to the wp.org SVN URL; null when neither resolves.', 'desktop-mode' ),
 				'type'        => array( 'string', 'null' ),
@@ -70,9 +85,9 @@ function desktop_mode_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'desktop_mode_size_kb',
+		'openstation_size_kb',
 		array(
-			'get_callback' => 'desktop_mode_plugins_window_field_size_kb',
+			'get_callback' => 'openstation_plugins_window_field_size_kb',
 			'schema'       => array(
 				'description' => __( 'Approximate disk footprint of the plugin folder, in kilobytes (cached 6h).', 'desktop-mode' ),
 				'type'        => array( 'integer', 'null' ),
@@ -84,9 +99,9 @@ function desktop_mode_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'desktop_mode_auto_update',
+		'openstation_auto_update',
 		array(
-			'get_callback' => 'desktop_mode_plugins_window_field_auto_update',
+			'get_callback' => 'openstation_plugins_window_field_auto_update',
 			'schema'       => array(
 				'description' => __( 'Auto-update state for this plugin (enabled / forced / supported), mirroring Core\'s plugins.php column.', 'desktop-mode' ),
 				'type'        => 'object',
@@ -96,7 +111,7 @@ function desktop_mode_plugins_window_register_rest_fields() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_plugins_window_register_rest_fields' );
+add_action( 'rest_api_init', 'openstation_plugins_window_register_rest_fields' );
 
 /**
  * Resolve the plugin file path (relative to `WP_PLUGIN_DIR`, ending in
@@ -118,7 +133,7 @@ add_action( 'rest_api_init', 'desktop_mode_plugins_window_register_rest_fields' 
  * @return string Plugin file (e.g. `"elementor/elementor.php"`), or `''`
  *                when the row has no `plugin` field.
  */
-function desktop_mode_plugins_window_row_plugin_file( $row ) {
+function openstation_plugins_window_row_plugin_file( $row ) {
 	$file = isset( $row['plugin'] ) ? (string) $row['plugin'] : '';
 	if ( '' === $file ) {
 		return '';
@@ -150,7 +165,7 @@ function desktop_mode_plugins_window_row_plugin_file( $row ) {
  * @param bool $force When true, delete the transient and force a fresh
  *                    wp.org check regardless of the 12h throttle.
  */
-function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = false ) {
+function openstation_plugins_window_maybe_refresh_update_transient( $force = false ) {
 	/**
 	 * Short-circuit the lazy refresh of the `update_plugins` transient.
 	 *
@@ -164,7 +179,7 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
 	 * @param bool $refresh Whether to call `wp_update_plugins()`.
 	 * @param bool $force   Whether the caller asked to bypass the throttle.
 	 */
-	if ( ! apply_filters( 'desktop_mode_plugins_window_refresh_updates', true, $force ) ) {
+	if ( ! apply_filters( 'openstation_plugins_window_refresh_updates', true, $force ) ) {
 		return;
 	}
 
@@ -178,15 +193,15 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
 	if ( $force ) {
 		// Explicit user-initiated refresh — bypass the throttle.
 		// Two steps:
-		//   1. Delete the `update_plugins` site transient (and the
-		//      `plugins` cache group) via `wp_clean_plugins_cache()`,
-		//      OR fall back to `delete_site_transient()` directly when
-		//      the admin-side helper isn't loaded.
-		//   2. Call `wp_update_plugins()` to repopulate the transient
-		//      with a fresh wp.org snapshot. Without step 2 the field
-		//      callback reads `false` for the rest of this request and
-		//      every row reports "no updates" — that's the exact
-		//      regression from the first cut of this fix (GH#202).
+		// 1. Delete the `update_plugins` site transient (and the
+		// `plugins` cache group) via `wp_clean_plugins_cache()`,
+		// OR fall back to `delete_site_transient()` directly when
+		// the admin-side helper isn't loaded.
+		// 2. Call `wp_update_plugins()` to repopulate the transient
+		// with a fresh wp.org snapshot. Without step 2 the field
+		// callback reads `false` for the rest of this request and
+		// every row reports "no updates" — that's the exact
+		// regression from the first cut of this fix (GH#202).
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache( true );
 		} else {
@@ -212,7 +227,7 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
 
 /**
  * Detect whether the current REST request asked for an explicit
- * `update_plugins` refresh via `?desktop_mode_force_refresh=1`.
+ * `update_plugins` refresh via `?openstation_force_refresh=1`.
  *
  * The flag is set by the in-window Refresh button (see
  * `fetchInstalledPlugins({ force: true })` in `src/plugins-window/rest.ts`)
@@ -224,24 +239,38 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
  *
  * @return bool True when the request asked for a force-refresh.
  */
-function desktop_mode_plugins_window_force_refresh_requested() {
+function openstation_plugins_window_force_refresh_requested() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
-	if ( ! isset( $_GET['desktop_mode_force_refresh'] ) ) {
+	if ( ! isset( $_GET['openstation_force_refresh'] ) ) {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
-	$value = sanitize_text_field( wp_unslash( (string) $_GET['desktop_mode_force_refresh'] ) );
+	$value = sanitize_text_field( wp_unslash( (string) $_GET['openstation_force_refresh'] ) );
 	return '1' === $value || 'true' === $value;
 }
 
 /**
- * `desktop_mode_update_available` callback.
+ * Prime the `update_plugins` transient at most once per request.
+ */
+function openstation_plugins_window_prime_updates_once() {
+	static $primed = false;
+	if ( $primed ) {
+		return;
+	}
+	$primed = true;
+	openstation_plugins_window_maybe_refresh_update_transient(
+		openstation_plugins_window_force_refresh_requested()
+	);
+}
+
+/**
+ * `openstation_update_available` callback.
  *
  * @param array $row Core REST plugin row.
  * @return array{available:bool,new_version:string|null,package:string,slug:string}
  */
-function desktop_mode_plugins_window_field_update_available( $row ) {
-	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_update_available( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return array(
 			'available'   => false,
@@ -253,19 +282,12 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
 
 	// Prime the transient once per request before reading it —
 	// otherwise REST callers see a stale/empty snapshot relative to
-	// the classic Plugins screen and the dock update badge. Static
-	// guard keeps the transient read off the hot per-row path. When
-	// the request carries `?desktop_mode_force_refresh=1` we always
-	// take the slow path so the in-window Refresh button can actually
+	// the classic Plugins screen and the dock update badge. When the
+	// request carries `?openstation_force_refresh=1` the helper always
+	// takes the slow path so the in-window Refresh button can actually
 	// pull a fresh wp.org snapshot (the original throttle made it a
 	// no-op within 12h of the last check — see GH#202).
-	static $primed = false;
-	if ( ! $primed ) {
-		$primed = true;
-		desktop_mode_plugins_window_maybe_refresh_update_transient(
-			desktop_mode_plugins_window_force_refresh_requested()
-		);
-	}
+	openstation_plugins_window_prime_updates_once();
 
 	// `update_plugins` is the canonical site-wide cache of pending
 	// updates, refreshed by `wp_update_plugins()` on the standard
@@ -339,7 +361,7 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
  *
  * @return int Number of installed plugins with a pending update.
  */
-function desktop_mode_plugins_window_count_visible_updates() {
+function openstation_plugins_window_count_visible_updates() {
 	$updates = get_site_transient( 'update_plugins' );
 	if ( ! is_object( $updates ) || empty( $updates->response ) || ! is_array( $updates->response ) ) {
 		return 0;
@@ -364,7 +386,7 @@ function desktop_mode_plugins_window_count_visible_updates() {
 }
 
 /**
- * `desktop_mode_can_manage` callback.
+ * `openstation_can_manage` callback.
  *
  * Per-row cap surface so the JS UI can hide actions the viewer can't
  * perform without re-deriving caps client-side. Server still
@@ -373,7 +395,7 @@ function desktop_mode_plugins_window_count_visible_updates() {
  * @param array $row Core REST plugin row.
  * @return array{activate:bool,deactivate:bool,delete:bool}
  */
-function desktop_mode_plugins_window_field_can_manage( $row ) {
+function openstation_plugins_window_field_can_manage( $row ) {
 	$status = isset( $row['status'] ) ? (string) $row['status'] : '';
 
 	$can_activate = current_user_can( 'activate_plugins' );
@@ -392,7 +414,42 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
 }
 
 /**
- * `desktop_mode_icon_url` callback.
+ * `openstation_wporg_slug` callback.
+ *
+ * Is this plugin listed on the WordPress.org directory, and under
+ * which slug?
+ *
+ * This mirrors Core (see `WP_Plugins_List_Table::prepare_items()`).
+ *
+ * @param array $row Core REST plugin row.
+ * @return string|null Directory slug, or null when the plugin isn't listed.
+ */
+function openstation_plugins_window_field_wporg_slug( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+
+	openstation_plugins_window_prime_updates_once();
+
+	$slug = '';
+	if ( '' !== $plugin_file ) {
+		$updates = get_site_transient( 'update_plugins' );
+		if ( is_object( $updates ) ) {
+			$entry = null;
+			if ( isset( $updates->response[ $plugin_file ] ) ) {
+				$entry = (array) $updates->response[ $plugin_file ];
+			} elseif ( isset( $updates->no_update[ $plugin_file ] ) ) {
+				$entry = (array) $updates->no_update[ $plugin_file ];
+			}
+			if ( null !== $entry && ! empty( $entry['slug'] ) ) {
+				$slug = sanitize_key( (string) $entry['slug'] );
+			}
+		}
+	}
+
+	return '' !== $slug ? $slug : null;
+}
+
+/**
+ * `openstation_icon_url` callback.
  *
  * Resolves a card icon URL for an installed plugin row, in priority:
  *
@@ -400,7 +457,7 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  *      conventional path (`assets/icon.svg`, `assets/icon-256x256.png`,
  *      `assets/icon-128x128.png`, or the same names at the folder
  *      root), return its `plugins_url()`. This is what makes premium /
- *      internal / native-bundled plugins (alcazaba-*, desktop-mode-*,
+ *      internal / native-bundled plugins (alcazaba-*, os-*,
  *      and any private plugin that ships its own art) display
  *      correctly — they aren't on `ps.w.org/<slug>/`, so the wp.org
  *      candidate chain 404s through every variant before the
@@ -413,14 +470,14 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  *
  * We don't HEAD-check the URL — the JS card walks a candidate chain
  * (SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF) on `<img>` error for wp.org URLs, then
- * drops to a `<wpd-icon name="dashicons-admin-plugins">` placeholder.
+ * drops to a `<os-icon name="dashicons-admin-plugins">` placeholder.
  * A 404 here costs nothing.
  *
  * @param array $row Core REST plugin row.
  * @return string|null
  */
-function desktop_mode_plugins_window_field_icon_url( $row ) {
-	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_icon_url( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	$folder      = '' !== $plugin_file ? dirname( $plugin_file ) : '';
 	$slug        = ( '' !== $folder && '.' !== $folder ) ? $folder : '';
 
@@ -435,7 +492,7 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 		return null;
 	}
 
-	$default = desktop_mode_plugins_window_local_icon_url( $plugin_file );
+	$default = openstation_plugins_window_local_icon_url( $plugin_file );
 	if ( null === $default ) {
 		$default = 'https://ps.w.org/' . $slug . '/assets/icon.svg';
 	}
@@ -462,7 +519,7 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 	 * @param array       $row  Core REST plugin row.
 	 */
 	return apply_filters(
-		'desktop_mode_plugins_window_icon_url',
+		'openstation_plugins_window_icon_url',
 		$default,
 		$slug,
 		$row
@@ -473,7 +530,7 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
  * Probe an installed plugin's own folder for a card icon.
  *
  * Many premium and private plugins (and our own native extensions —
- * alcazaba-*, desktop-mode-*) aren't on the .org repo, so the wp.org
+ * alcazaba-*, os-*) aren't on the .org repo, so the wp.org
  * SVN URL 404s through every candidate before the placeholder paints.
  * Most that ship art do so at a conventional location inside their
  * own folder — typically `assets/icon.svg` mirroring the wp.org SVN
@@ -490,13 +547,13 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
  * install/update/delete.
  *
  * The candidate list is filterable via
- * `desktop_mode_plugins_window_local_icon_candidates` so a host can
+ * `openstation_plugins_window_local_icon_candidates` so a host can
  * support a custom convention (e.g. an `icon@2x.svg` shape).
  *
  * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
  * @return string|null URL of the first local icon found, or null.
  */
-function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
+function openstation_plugins_window_local_icon_url( $plugin_file ) {
 	if ( '' === $plugin_file ) {
 		return null;
 	}
@@ -515,7 +572,7 @@ function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
 	 * @param string   $folder     Plugin folder name (e.g. `"akismet"`).
 	 */
 	$candidates = apply_filters(
-		'desktop_mode_plugins_window_local_icon_candidates',
+		'openstation_plugins_window_local_icon_candidates',
 		array(
 			'assets/icon.svg',
 			'assets/icon-256x256.png',
@@ -542,15 +599,15 @@ function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
 }
 
 /**
- * `desktop_mode_size_kb` callback. Caches per-plugin for 6 hours so
+ * `openstation_size_kb` callback. Caches per-plugin for 6 hours so
  * a 50-row table doesn't `glob`+`filesize` 50 directories on every
  * fetch. Returns `null` when the folder can't be read.
  *
  * @param array $row Core REST plugin row.
  * @return int|null Size in kilobytes, or null on failure.
  */
-function desktop_mode_plugins_window_field_size_kb( $row ) {
-	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_size_kb( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return null;
 	}
@@ -575,7 +632,7 @@ function desktop_mode_plugins_window_field_size_kb( $row ) {
 		return $cached;
 	}
 
-	$kb = desktop_mode_plugins_window_compute_dir_size_kb( $root );
+	$kb = openstation_plugins_window_compute_dir_size_kb( $root );
 	set_transient( $cache_key, $kb, 6 * HOUR_IN_SECONDS );
 	return $kb;
 }
@@ -592,7 +649,7 @@ function desktop_mode_plugins_window_field_size_kb( $row ) {
  * @param string $dir Absolute filesystem path.
  * @return int Kilobytes (rounded).
  */
-function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
+function openstation_plugins_window_compute_dir_size_kb( $dir ) {
 	if ( ! is_dir( $dir ) ) {
 		return 0;
 	}
@@ -619,7 +676,7 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
 				// list ignores symlink contents for the same reason.
 				continue;
 			}
-			$visited++;
+			++$visited;
 			if ( $visited >= $max_visit ) {
 				break 2;
 			}
@@ -635,7 +692,7 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
 }
 
 /**
- * `desktop_mode_auto_update` callback.
+ * `openstation_auto_update` callback.
  *
  * Mirrors the per-row state Core derives in
  * `WP_Plugins_List_Table::prepare_items()` for its "Automatic Updates"
@@ -655,13 +712,13 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
  *
  * NOT included here (lives on the window config instead): the global
  * `wp_is_auto_update_enabled_for_type( 'plugin' )` flag, which depends
- * on admin-only includes — see `desktop_mode_plugins_window_auto_updates_enabled()`.
+ * on admin-only includes — see `openstation_plugins_window_auto_updates_enabled()`.
  *
  * @param array $row Core REST plugin row.
  * @return array{enabled:bool,forced:bool|null,supported:bool}
  */
-function desktop_mode_plugins_window_field_auto_update( $row ) {
-	$plugin_file = desktop_mode_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_auto_update( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return array(
 			'enabled'   => false,
@@ -700,7 +757,7 @@ function desktop_mode_plugins_window_field_auto_update( $row ) {
 	// (including Core's own) reads `$item->plugin` expecting the FULL
 	// filename. We layer the normalized `$plugin_file` AFTER the parse
 	// so it always wins.
-	$filter_payload = wp_parse_args(
+	$filter_payload           = wp_parse_args(
 		$row,
 		array(
 			'id'            => $plugin_file,
@@ -721,7 +778,7 @@ function desktop_mode_plugins_window_field_auto_update( $row ) {
 	$filter_payload['id']     = $plugin_file;
 	$filter_payload           = (object) $filter_payload;
 	/** This filter is documented in wp-admin/includes/class-wp-automatic-updater.php */
-	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload );
+	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the effective auto-update state has to come from the same source Core reads.
 	if ( null !== $forced ) {
 		$forced = (bool) $forced;
 		// When a filter forces the state, that's the effective state

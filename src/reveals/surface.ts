@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window-reveal surface.
+ * OpenStation — Window-reveal surface.
  *
  * The DOM half of the reveal feature: create the opaque covering
  * surface, arm it when a window starts loading, and animate it away
@@ -7,8 +7,8 @@
  *
  * ## Where the surface sits
  *
- * Up to two `<div class="desktop-mode-window__reveal">` elements inside
- * `.desktop-mode-window__body`, absolutely positioned over the whole
+ * Up to two `<div class="os-window__reveal">` elements inside
+ * `.os-window__body`, absolutely positioned over the whole
  * body, `pointer-events: none`. They are SIBLINGS of the `<iframe>`,
  * never wrappers and never inside the framed document:
  *
@@ -19,16 +19,16 @@
  *   - native windows get exactly the same treatment as iframe windows,
  *     because the surface never touches the content subtree at all.
  *
- * Both stack BELOW the `<wpd-spinner>` loading overlay, which is why
+ * Both stack BELOW the `<os-spinner>` loading overlay, which is why
  * the spinner stays readable for the whole load and the surface only
  * becomes visible once the spinner has faded.
  *
  * ## The two layers
  *
- * - **Surface** — painted in `--desktop-mode-window-reveal-surface`
+ * - **Surface** — painted in `--os-window-reveal-surface`
  *   (white by default). This is the layer that hides the content, so
  *   it has to be opaque or there is nothing to reveal from.
- * - **Edge** — painted in `--desktop-mode-window-reveal-edge`
+ * - **Edge** — painted in `--os-window-reveal-edge`
  *   (`transparent` by default, i.e. off), sitting behind the surface
  *   and running the SAME keyframes over a slightly longer duration.
  *   Always a little less far along, it peeks out past the surface as a
@@ -94,10 +94,10 @@ import type {
  * treat reveal chrome as "not content" keys off this one class, so
  * adding the edge layer needed no selector churn.
  */
-export const REVEAL_SURFACE_CLASS = 'desktop-mode-window__reveal';
+export const REVEAL_SURFACE_CLASS = 'os-window__reveal';
 
 /** Modifier marking the trailing edge layer. */
-export const REVEAL_EDGE_CLASS = 'desktop-mode-window__reveal--edge';
+export const REVEAL_EDGE_CLASS = 'os-window__reveal--edge';
 
 /**
  * Modifier on a layer whose paint comes from its own DOM rather than
@@ -109,7 +109,7 @@ export const REVEAL_EDGE_CLASS = 'desktop-mode-window__reveal--edge';
  * only appears when the layer is finally removed — a clean animation
  * followed by an abrupt pop.
  */
-export const REVEAL_CUSTOM_CLASS = 'desktop-mode-window__reveal--custom';
+export const REVEAL_CUSTOM_CLASS = 'os-window__reveal--custom';
 
 /**
  * Modifier on the window body while a reveal is playing. Its CSS rule
@@ -118,7 +118,7 @@ export const REVEAL_CUSTOM_CLASS = 'desktop-mode-window__reveal--custom';
  * that uncovered content mid-fade would show a half-transparent strip
  * along its leading edge.
  */
-export const REVEALING_BODY_CLASS = 'desktop-mode-window__body--revealing';
+export const REVEALING_BODY_CLASS = 'os-window__body--revealing';
 
 /**
  * Timestamp (ms) when the surface was armed, stamped on the element
@@ -128,7 +128,7 @@ export const REVEALING_BODY_CLASS = 'desktop-mode-window__body--revealing';
  *
  * @internal
  */
-const ARMED_AT_ATTR = 'data-desktop-mode-reveal-armed';
+const ARMED_AT_ATTR = 'data-os-reveal-armed';
 
 /**
  * Id of the reveal that armed this surface. Read back at play time so a
@@ -138,7 +138,7 @@ const ARMED_AT_ATTR = 'data-desktop-mode-reveal-armed';
  *
  * @internal
  */
-const REVEAL_ID_ATTR = 'data-desktop-mode-reveal';
+const REVEAL_ID_ATTR = 'data-os-reveal';
 
 /**
  * Which of the def's layers this element draws. A single-layer reveal
@@ -148,7 +148,7 @@ const REVEAL_ID_ATTR = 'data-desktop-mode-reveal';
  *
  * @internal
  */
-const LAYER_INDEX_ATTR = 'data-desktop-mode-reveal-layer';
+const LAYER_INDEX_ATTR = 'data-os-reveal-layer';
 
 /** Running animations, so a re-arm can cancel the one it replaces. */
 const running = new WeakMap< HTMLElement, Animation >();
@@ -201,7 +201,7 @@ function prefersReducedMotion(): boolean {
  *
  * @internal
  */
-const DURATION_TOKEN = '--desktop-mode-window-reveal-duration';
+const DURATION_TOKEN = '--os-window-reveal-duration';
 
 /**
  * Theme token carrying the edge band's thickness. **Undeclared by
@@ -218,7 +218,7 @@ const DURATION_TOKEN = '--desktop-mode-window-reveal-duration';
  *
  * @internal
  */
-const EDGE_THICKNESS_TOKEN = '--desktop-mode-window-reveal-edge-thickness';
+const EDGE_THICKNESS_TOKEN = '--os-window-reveal-edge-thickness';
 
 /**
  * Parse a CSS time value into ms. Accepts `420ms`, `0.42s`, and a bare
@@ -360,12 +360,12 @@ function paintsNothing( el: HTMLElement ): boolean {
  *   1. The user's **OS Settings** override — an explicit choice, and
  *      the one thing a theme must not out-rank. Same principle as the
  *      window corner-radius preset.
- *   2. The **`--desktop-mode-window-reveal-duration` theme token** — a
+ *   2. The **`--os-window-reveal-duration` theme token** — a
  *      theme's house pace, applied to every reveal the user might pick.
  *   3. The **def's own `duration`** — the reveal author's tuning, which
  *      is why nothing above is a default rather than an override.
  *
- * The edge lag follows the `--desktop-mode-window-reveal-edge-thickness`
+ * The edge lag follows the `--os-window-reveal-edge-thickness`
  * token when a theme sets one, and otherwise the def's own `edgeLag`
  * scaled by whatever ratio the duration moved. That scaling is what
  * keeps the band's apparent WIDTH constant: left unscaled, a 70 ms lag
@@ -406,7 +406,7 @@ function resolveTiming(
 /** Resolve a window element's body, or `null`. @internal */
 function findBody( windowEl: HTMLElement ): HTMLElement | null {
 	return windowEl.querySelector< HTMLElement >(
-		':scope .desktop-mode-window__body',
+		':scope .os-window__body',
 	);
 }
 
@@ -515,7 +515,7 @@ export function createRevealLayers(): HTMLElement[] {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] window reveal "${ def.id }" render threw:`,
+					`[openstation] window reveal "${ def.id }" render threw:`,
 					err,
 				);
 			}
@@ -611,13 +611,13 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 	try {
 		def = getWindowReveal( surface.getAttribute( REVEAL_ID_ATTR ) ?? '' );
 	} catch ( err ) {
-		// The lookup runs the `desktop-mode.window-reveals` filter, and
+		// The lookup runs the `os.window-reveals` filter, and
 		// a throwing filter callback lands here — with the armed opaque
 		// surface already over the window. Degrade to "no reveal" so the
 		// content is uncovered no matter what a plugin's filter does.
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				'[desktop-mode] window-reveal lookup threw; uncovering without a reveal:',
+				'[openstation] window-reveal lookup threw; uncovering without a reveal:',
 				err,
 			);
 		}
@@ -666,7 +666,7 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] window reveal "${ def.id }" play threw:`,
+					`[openstation] window reveal "${ def.id }" play threw:`,
 					err,
 				);
 			}
@@ -759,13 +759,13 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 			);
 		} catch ( err ) {
 			// Registration validates `easing`, but a def injected by the
-			// `desktop-mode.window-reveals` filter never went through
+			// `os.window-reveals` filter never went through
 			// registration — and `animate()` throws on input it cannot
 			// parse. Uncover rather than leave the window under a
 			// surface that cannot animate away.
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] window reveal "${ def.id }" failed to animate; uncovering:`,
+					`[openstation] window reveal "${ def.id }" failed to animate; uncovering:`,
 					err,
 				);
 			}

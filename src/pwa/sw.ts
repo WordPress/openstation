@@ -1,16 +1,16 @@
 /**
- * Desktop Mode — service worker.
+ * OpenStation — service worker.
  *
  * Built by Vite as its own IIFE bundle (target `pwa-sw`,
  * outputs `assets/js/sw[.min].js`). Served by PHP at
- * `/desktop-mode/sw.js` with `Service-Worker-Allowed: /`.
+ * `/openstation/sw.js` with `Service-Worker-Allowed: /`.
  *
  * Caching policy — intentionally narrow. wp-admin HTML must NEVER be
  * served from cache: nonces, login state, and per-request screen
  * options would all desynchronise instantly. Our fetch handler
  * follows three rules:
  *
- *   1. Only intercept GETs whose path starts with `/desktop-mode/` or
+ *   1. Only intercept GETs whose path starts with `/openstation/` or
  *      `/wp-admin/`. Everything else falls through to the network with
  *      no SW involvement.
  *   2. Static assets shipped by this plugin (under
@@ -28,8 +28,8 @@
  * future v2 push payload doesn't fall through to the browser's
  * default, but emits nothing until the push REST surface ships.
  * The `notificationclick` handler is live: it closes the
- * notification, focuses an existing `/desktop-mode/` window client,
- * or opens `notification.data.url` (default `/desktop-mode/`) when
+ * notification, focuses an existing `/openstation/` window client,
+ * or opens `notification.data.url` (default `/openstation/`) when
  * none exists.
  */
 
@@ -94,9 +94,9 @@ interface SWGlobal {
 const sw = globalThis as unknown as SWGlobal;
 
 const VERSION = '0.8.0-pwa-5';
-const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
-const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
-const OFFLINE_URL = '/desktop-mode/?offline=1';
+const STATIC_CACHE = `os-static-${ VERSION }`;
+const RUNTIME_CACHE = `os-runtime-${ VERSION }`;
+const OFFLINE_URL = '/openstation/?offline=1';
 
 /**
  * Asset URLs precached on install. Kept narrow on purpose — paths
@@ -166,8 +166,8 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		return;
 	}
 
-	// Only intercept paths under the desktop-mode portal or wp-admin.
-	const isPortal = url.pathname.startsWith( '/desktop-mode/' );
+	// Only intercept paths under the openstation portal or wp-admin.
+	const isPortal = url.pathname.startsWith( '/openstation/' );
 	const isAdmin = url.pathname.startsWith( '/wp-admin/' );
 	const isPluginAsset = url.pathname.includes(
 		'/wp-content/plugins/desktop-mode/',
@@ -202,7 +202,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		// load, Chrome would forward the request with
 		// `Sec-Fetch-Dest: empty` instead of `iframe`, and the
 		// server-side Sec-Fetch fallback in
-		// `desktop_mode_is_chromeless_request()` would fail to
+		// `openstation_is_chromeless_request()` would fail to
 		// detect the chromeless context. The plain-admin → portal
 		// redirect would then fire inside a chromeless iframe,
 		// rendering the entire desktop shell inside an existing
@@ -231,12 +231,12 @@ sw.addEventListener( 'notificationclick', ( event: SWNotificationEvent ) => {
 	event.notification.close();
 	event.waitUntil(
 		( async () => {
-			const target = event.notification.data?.url ?? '/desktop-mode/';
+			const target = event.notification.data?.url ?? '/openstation/';
 			const all = await sw.clients.matchAll( {
 				type: 'window',
 				includeUncontrolled: true,
 			} );
-			const existing = all.find( ( c ) => c.url.includes( '/desktop-mode/' ) );
+			const existing = all.find( ( c ) => c.url.includes( '/openstation/' ) );
 			if ( existing ) {
 				if ( typeof existing.focus === 'function' ) {
 					await existing.focus();
@@ -265,7 +265,7 @@ async function precache(): Promise< void > {
 }
 
 function pluginAssetBase(): string {
-	// Plugin URL — we can't read DESKTOP_MODE_URL from the JS-side
+	// Plugin URL — we can't read OPENSTATION_URL from the JS-side
 	// service-worker context, so we hardcode the conventional path.
 	// Hosts using a non-default `wp-content/plugins/` directory
 	// (Bedrock/Trellis's `web/app/plugins/`, Composer-based sites,
@@ -317,7 +317,7 @@ function isJsAssetPath( pathname: string ): boolean {
 async function networkFirstForAsset( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 		const fresh = await fetch( req.url, { cache: 'reload' } );
 		if ( fresh && fresh.status === 200 ) {
 			cache.put( req, fresh.clone() ).catch( () => undefined );
@@ -357,7 +357,7 @@ async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	// returned the stale bytes immediately. Users saw old CSS / old JS
 	// for as long as the SW lived in their profile. Fixed in pwa-5.
 	const cached = await cache.match( req );
-	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
+	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
 			if ( res && res.status === 200 ) {
@@ -406,7 +406,7 @@ async function networkFirstWithOfflineFallback(
 	req: Request,
 ): Promise< Response > {
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available.
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available.
 		const fresh = await fetch( req );
 		return fresh;
 	} catch {

@@ -82,13 +82,13 @@ test( 'the OpenStation adapter publishes the deterministic 0.7.0 contract', () =
 	);
 	const styles = read( 'standalone/popup-breaker.css' );
 	const window = {
-		desktopModeGames: {},
+		openStationGames: {},
 		document: {},
 	};
 	vm.runInNewContext( source, window, {
 		filename: 'openstation-adapter.js',
 	} );
-	const definition = window.desktopModeGames[ 'popup-siege' ];
+	const definition = window.openStationGames[ 'popup-siege' ];
 
 	assert.match( source, /const ASSET_VERSION = '0\.7\.0'/ );
 	assert.match( source, /const RULES_VERSION = 3/ );

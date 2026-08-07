@@ -1,0 +1,48 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ES2020",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"allowSyntheticDefaultImports": true,
+		"noEmit": true,
+		"baseUrl": "../..",
+		"paths": {
+			"@/*":              [ "src/*" ],
+			"@api/*":           [ "src/api/*" ],
+			"@boot/*":          [ "src/boot/*" ],
+			"@core/*":          [ "src/core/*" ],
+			"@features/*":      [ "src/features/*" ],
+			"@layout/*":        [ "src/layout/*" ],
+			"@protocol/*":      [ "src/protocol/*" ],
+			"@ui/*":            [ "src/ui/*" ],
+			"@window-system/*": [ "src/window-system/*" ]
+		},
+		"lib": [ "es2020", "dom", "dom.iterable" ]
+	},
+	/*
+	 * The whole plugin `src/` comes along, not just `src/mio/**`.
+	 *
+	 * This library's code is checked against the REAL `../hooks` and
+	 * `./style-panel` rather than the build-time shims in `src/shims/`
+	 * — the shims are a bundling concern, and checking against the
+	 * modules they stand in for is what catches a signature drifting
+	 * out from under one of them.
+	 *
+	 * Those modules reach the rest of the shell, and the shell's
+	 * `declare global` blocks are spread across it: check a subset and
+	 * the errors you get are missing globals rather than real problems.
+	 * So the include list matches the root `tsconfig.json`'s, plus this
+	 * directory. It is slower and it is the only version that says
+	 * anything true.
+	 */
+	"include": [
+		"src/**/*.ts",
+		"../../src/**/*.ts"
+	]
+}

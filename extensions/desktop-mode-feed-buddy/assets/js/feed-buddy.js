@@ -1,11 +1,11 @@
-var desktopModeFeedBuddy = function(exports) {
+var openStationFeedBuddy = function(exports) {
   "use strict";
   const WINDOW_ID = "feed-buddy-reader";
   const WIDGET_ID = "feed-buddy/buddy-list";
   function desktop() {
-    const api = window.wp?.desktop;
+    const api = window.wp?.os;
     if (!api) {
-      throw new Error("SOL Inbound Monologue requires the Desktop Mode public API.");
+      throw new Error("SOL Inbound Monologue requires the OpenStation public API.");
     }
     return api;
   }
@@ -213,7 +213,7 @@ var desktopModeFeedBuddy = function(exports) {
     return element;
   }
   function createButton(label, action, variant = "secondary") {
-    const button = document.createElement("wpd-button");
+    const button = document.createElement("os-button");
     button.textContent = label;
     button.setAttribute("variant", variant);
     button.dataset.feedBuddyAction = action;
@@ -532,7 +532,7 @@ var desktopModeFeedBuddy = function(exports) {
     return (event) => {
       const target = event.target;
       if (event.metaKey || event.ctrlKey || event.altKey || event.key.length !== 1 || target?.closest(
-        'input, textarea, select, [contenteditable="true"], wpd-text-field'
+        'input, textarea, select, [contenteditable="true"], os-text-field'
       )) {
         return;
       }
@@ -548,7 +548,7 @@ var desktopModeFeedBuddy = function(exports) {
     };
   }
   function openAboutDialog() {
-    const modal = document.createElement("wpd-modal");
+    const modal = document.createElement("os-modal");
     modal.className = "feed-buddy-about";
     modal.dataset.feedBuddyAboutDialog = "";
     modal.setAttribute("open", "");
@@ -587,7 +587,7 @@ var desktopModeFeedBuddy = function(exports) {
       modal.remove();
     };
     modal.addEventListener(
-      "wpd-modal-cancel",
+      "os-modal-cancel",
       () => window.queueMicrotask(cleanup),
       { once: true }
     );
@@ -766,20 +766,20 @@ var desktopModeFeedBuddy = function(exports) {
   function applyReaderTheme() {
     desktop().applyWindowTheme(WINDOW_ID, {
       tokens: {
-        "--desktop-mode-window-bg": "#c0c0c0",
-        "--desktop-mode-window-border": "#1f1f1f",
-        "--desktop-mode-window-radius": "2px",
-        "--desktop-mode-window-shadow": "3px 3px 0 rgba(0,0,0,.24)",
-        "--desktop-mode-window-shadow-focused": "4px 4px 0 rgba(0,0,0,.3)",
-        "--desktop-mode-titlebar-bg": "#808080",
-        "--desktop-mode-titlebar-bg-focused": "#063eb7",
-        "--desktop-mode-titlebar-image": "none",
-        "--desktop-mode-titlebar-image-focused": "none",
-        "--desktop-mode-titlebar-color": "#ffffff",
-        "--desktop-mode-titlebar-color-focused": "#ffffff",
-        "--wpd-btn-color": "#111111",
-        "--wpd-btn-bg-hover": "#d9e7ff",
-        "--wpd-btn-outline": "#000000"
+        "--os-window-bg": "#c0c0c0",
+        "--os-window-border": "#1f1f1f",
+        "--os-window-radius": "2px",
+        "--os-window-shadow": "3px 3px 0 rgba(0,0,0,.24)",
+        "--os-window-shadow-focused": "4px 4px 0 rgba(0,0,0,.3)",
+        "--os-titlebar-bg": "#808080",
+        "--os-titlebar-bg-focused": "#063eb7",
+        "--os-titlebar-image": "none",
+        "--os-titlebar-image-focused": "none",
+        "--os-titlebar-color": "#ffffff",
+        "--os-titlebar-color-focused": "#ffffff",
+        "--os-ui-btn-color": "#111111",
+        "--os-ui-btn-bg-hover": "#d9e7ff",
+        "--os-ui-btn-outline": "#000000"
       }
     });
   }
@@ -789,12 +789,12 @@ var desktopModeFeedBuddy = function(exports) {
       return;
     }
     const options = [];
-    const all = document.createElement("wpd-option");
+    const all = document.createElement("os-option");
     all.setAttribute("value", "");
     all.textContent = __("All feeds");
     options.push(all);
     for (const subscription of server?.subscriptions ?? []) {
-      const option = document.createElement("wpd-option");
+      const option = document.createElement("os-option");
       option.setAttribute("value", subscription.id);
       option.textContent = subscription.title;
       options.push(option);
@@ -844,7 +844,7 @@ var desktopModeFeedBuddy = function(exports) {
         meta.appendChild(createElement("span", "", item.author));
       }
       if (item.publishedAt) {
-        const time = document.createElement("wpd-relative-time");
+        const time = document.createElement("os-relative-time");
         time.setAttribute("datetime", item.publishedAt);
         meta.appendChild(time);
       }
@@ -882,11 +882,11 @@ var desktopModeFeedBuddy = function(exports) {
     for (const subscription of state.server?.subscriptions ?? []) {
       const card = createElement("section", "feed-buddy-manager__item");
       card.dataset.feedId = subscription.id;
-      const title = document.createElement("wpd-text-field");
+      const title = document.createElement("os-text-field");
       title.dataset.feedBuddyField = "title";
       title.setAttribute("label", __("Feed title"));
       setCustomValue(title, subscription.title);
-      const group = document.createElement("wpd-text-field");
+      const group = document.createElement("os-text-field");
       group.dataset.feedBuddyField = "group";
       group.setAttribute("label", __("Buddy group"));
       setCustomValue(group, subscription.group);
@@ -1287,9 +1287,9 @@ var desktopModeFeedBuddy = function(exports) {
         );
       }
     };
-    root.addEventListener("wpd-pick", onPick);
+    root.addEventListener("os-pick", onPick);
     root.addEventListener("submit", onSubmit);
-    root.addEventListener("wpd-submit", onFieldSubmit);
+    root.addEventListener("os-submit", onFieldSubmit);
     root.addEventListener("click", onClick);
     root.addEventListener("keydown", onSecretKeyDown);
     context.markLoading();
@@ -1307,9 +1307,9 @@ var desktopModeFeedBuddy = function(exports) {
       }
     }
     return () => {
-      root.removeEventListener("wpd-pick", onPick);
+      root.removeEventListener("os-pick", onPick);
       root.removeEventListener("submit", onSubmit);
-      root.removeEventListener("wpd-submit", onFieldSubmit);
+      root.removeEventListener("os-submit", onFieldSubmit);
       root.removeEventListener("click", onClick);
       root.removeEventListener("keydown", onSecretKeyDown);
       for (const cleanup of chimeCleanups) {
@@ -1322,9 +1322,9 @@ var desktopModeFeedBuddy = function(exports) {
       desktop().applyWindowTheme(WINDOW_ID, null);
     };
   }
-  const widgetRegistry = window.desktopModeWidgets ?? (window.desktopModeWidgets = {});
+  const widgetRegistry = window.openStationWidgets ?? (window.openStationWidgets = {});
   widgetRegistry[WIDGET_ID] = mountWidget;
-  const windowRegistry = window.desktopModeNativeWindows ?? (window.desktopModeNativeWindows = {});
+  const windowRegistry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
   windowRegistry[WINDOW_ID] = mountReader;
   exports.applyReaderTheme = applyReaderTheme;
   exports.loadItemsForSelection = loadItemsForSelection;

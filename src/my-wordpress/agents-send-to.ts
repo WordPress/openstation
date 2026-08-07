@@ -1,8 +1,8 @@
 /**
- * Site folder — Agents "Send to" context-menu intake.
+ * WP Explorer — Agents "Send to" context-menu intake.
  *
  * Agents whose triggers include a `send-to` row appear as
- * "Send to <agent>" entries in the site folder's tile context menus
+ * "Send to <agent>" entries in WP Explorer's tile context menus
  * (posts, pages, media, users), gated by the trigger's `entityKinds`
  * (empty = every kind). Picking one runs the same engine as drag &
  * drop: compose the message, open the chat window, invoke with
@@ -142,11 +142,11 @@ const FILTER_NAMESPACE = 'desktop-mode/agents-send-to';
  */
 export function registerSendToMenuFilter(): void {
 	removeFilter(
-		'desktop-mode.my-wordpress.tile-context-menu',
+		'os.my-wordpress.tile-context-menu',
 		FILTER_NAMESPACE,
 	);
 	addFilter< TileMenuOptionLike[], [ TileMenuCtx ] >(
-		'desktop-mode.my-wordpress.tile-context-menu',
+		'os.my-wordpress.tile-context-menu',
 		FILTER_NAMESPACE,
 		sendToMenuFilter,
 	);

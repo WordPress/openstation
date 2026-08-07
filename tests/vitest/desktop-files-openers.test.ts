@@ -138,7 +138,7 @@ describe( 'desktop-files openers registry', async () => {
 		expect( openers.resolveOpener( 'post' ) ).toBeNull();
 	} );
 
-	test( 'desktop-mode.files.resolve-opener filter can override the choice', async () => {
+	test( 'os.files.resolve-opener filter can override the choice', async () => {
 		const { openers } = await load();
 		openers.registerOpener( {
 			id: 'a',
@@ -155,7 +155,7 @@ describe( 'desktop-files openers registry', async () => {
 		} );
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.resolve-opener',
+			'os.files.resolve-opener',
 			'test/force-b',
 			() => openers.getOpener( 'b' ),
 		);
@@ -358,7 +358,7 @@ describe( 'desktop-files openers registry', async () => {
 		// Augment — replacing `window.wp` wholesale would clobber the
 		// hooks stub the registry depends on.
 		const openWindow = vi.fn( () => true );
-		( window.wp as unknown as Record< string, unknown > ).desktop = {
+		( window.wp as unknown as Record< string, unknown > ).os = {
 			openWindow,
 		};
 		try {
@@ -411,7 +411,7 @@ describe( 'desktop-files openers registry', async () => {
 			} );
 		} finally {
 			delete ( window.wp as unknown as Record< string, unknown > )
-				.desktop;
+				.os;
 		}
 	} );
 

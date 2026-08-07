@@ -3,7 +3,7 @@
  *
  * The bug it guards against: an admin opens user-edit for another
  * user, picks a new role, clicks Save. The server updates the role
- * (verified by curl-level integration). The form's wpd-select keeps
+ * (verified by curl-level integration). The form's os-select keeps
  * the picked value, but the header role chip (rendered from the
  * pre-save `user` snapshot) silently stays on the OLD role — which
  * reads as "the update didn't take" even though the DB is now
@@ -11,12 +11,12 @@
  * response so the chip text matches the new role.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import '../../src/ui/components/wpd-form/wpd-form';
-import '../../src/ui/components/wpd-select/wpd-select';
-import '../../src/ui/components/wpd-text-field/wpd-text-field';
-import '../../src/ui/components/wpd-textarea/wpd-textarea';
-import '../../src/ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../../src/ui/components/wpd-button/wpd-button';
+import '../../src/ui/components/os-form/os-form';
+import '../../src/ui/components/os-select/os-select';
+import '../../src/ui/components/os-text-field/os-text-field';
+import '../../src/ui/components/os-textarea/os-textarea';
+import '../../src/ui/components/os-checkbox-label/os-checkbox-label';
+import '../../src/ui/components/os-button/os-button';
 
 const tick = (): Promise< void > => Promise.resolve();
 const wait = ( ms = 0 ): Promise< void > =>
@@ -28,18 +28,18 @@ describe( 'User Edit window — role save flow', () => {
 	let profile: HTMLElement;
 
 	beforeEach( () => {
-		// Match the DOM shape `<wpd-user-profile>` creates in
-		// `wpd-user-profile.ts`: a form host AND a sidebar aside
+		// Match the DOM shape `<os-user-profile>` creates in
+		// `os-user-profile.ts`: a form host AND a sidebar aside
 		// host. The role chip lives in the form's header; the
 		// fix also re-fetches the aside.
 		profile = document.createElement( 'div' );
-		profile.className = 'desktop-mode-user-profile';
+		profile.className = 'os-user-profile';
 		const layout = document.createElement( 'div' );
-		layout.className = 'desktop-mode-users__edit-layout';
+		layout.className = 'os-users__edit-layout';
 		aside = document.createElement( 'aside' );
-		aside.setAttribute( 'data-wpd-user-profile-aside', '' );
+		aside.setAttribute( 'data-os-user-profile-aside', '' );
 		host = document.createElement( 'div' );
-		host.setAttribute( 'data-wpd-user-profile-form', '' );
+		host.setAttribute( 'data-os-user-profile-form', '' );
 		layout.appendChild( aside );
 		layout.appendChild( host );
 		profile.appendChild( layout );
@@ -47,8 +47,8 @@ describe( 'User Edit window — role save flow', () => {
 
 		// Config blob the user-edit-render reads via getConfig().
 		( window as unknown as {
-			desktopModeWindowConfig?: Record< string, unknown >;
-		} ).desktopModeWindowConfig = {
+			openStationWindowConfig?: Record< string, unknown >;
+		} ).openStationWindowConfig = {
 			'desktop-mode-user-edit': {
 				mode: 'user-edit',
 				restRoot: 'http://localhost/wp-json/',
@@ -176,7 +176,7 @@ describe( 'User Edit window — role save flow', () => {
 
 		// Pick "author" via the role select and submit.
 		const roleSelect = host.querySelector(
-			'wpd-select[name="roles[0]"]',
+			'os-select[name="roles[0]"]',
 		) as ( HTMLElement & {
 			value: string;
 			shadowRoot: ShadowRoot;
@@ -191,7 +191,7 @@ describe( 'User Edit window — role save flow', () => {
 		await tick();
 		await tick();
 
-		const form = host.querySelector( 'wpd-form' ) as HTMLElement & {
+		const form = host.querySelector( 'os-form' ) as HTMLElement & {
 			submit: () => void;
 		};
 		form.submit();
@@ -224,8 +224,8 @@ describe( 'User Edit window — role save flow', () => {
 		// surface the control whenever the viewer is editing
 		// someone else.
 		( window as unknown as {
-			desktopModeWindowConfig?: Record< string, unknown >;
-		} ).desktopModeWindowConfig = {
+			openStationWindowConfig?: Record< string, unknown >;
+		} ).openStationWindowConfig = {
 			'desktop-mode-user-edit': {
 				mode: 'user-edit',
 				restRoot: 'http://localhost/wp-json/',
@@ -276,7 +276,7 @@ describe( 'User Edit window — role save flow', () => {
 		await tick();
 		await wait( 0 );
 
-		const roleSelect = host.querySelector( 'wpd-select[name="roles[0]"]' );
+		const roleSelect = host.querySelector( 'os-select[name="roles[0]"]' );
 		expect( roleSelect ).not.toBeNull();
 	} );
 
@@ -290,8 +290,8 @@ describe( 'User Edit window — role save flow', () => {
 		// layers `desktop-mode-user-edit`'s blob underneath the
 		// active cfg via `resolveProfileConfig()`.
 		( window as unknown as {
-			desktopModeWindowConfig?: Record< string, unknown >;
-		} ).desktopModeWindowConfig = {
+			openStationWindowConfig?: Record< string, unknown >;
+		} ).openStationWindowConfig = {
 			// Active window id points HERE — only the Posts-shaped
 			// keys; nothing profile-specific.
 			'desktop-mode-posts': {
@@ -364,14 +364,14 @@ describe( 'User Edit window — role save flow', () => {
 		await tick();
 		await wait( 0 );
 
-		// Role select must have its 3 wpd-option children even
+		// Role select must have its 3 os-option children even
 		// though the active cfg has no `assignableRoles`.
 		const roleSelect = host.querySelector(
-			'wpd-select[name="roles[0]"]',
+			'os-select[name="roles[0]"]',
 		) as ( HTMLElement & { shadowRoot: ShadowRoot } ) | null;
 		expect( roleSelect ).not.toBeNull();
 		const roleOptions = roleSelect!.querySelectorAll(
-			':scope > wpd-option',
+			':scope > os-option',
 		);
 		expect( roleOptions.length ).toBe( 3 );
 
@@ -393,8 +393,8 @@ describe( 'User Edit window — role save flow', () => {
 		// the whole section in `if (isSelfEdit)`, which dropped the
 		// picker for every "edit someone else" flow.
 		( window as unknown as {
-			desktopModeWindowConfig?: Record< string, unknown >;
-		} ).desktopModeWindowConfig = {
+			openStationWindowConfig?: Record< string, unknown >;
+		} ).openStationWindowConfig = {
 			'desktop-mode-user-edit': {
 				mode: 'user-edit',
 				restRoot: 'http://localhost/wp-json/',
@@ -522,7 +522,7 @@ describe( 'User Edit window — role save flow', () => {
 
 		// Simulate a previous user-edit open that subscribed and
 		// then got closed: the profile element is detached.
-		const detachedProfile = document.createElement( 'wpd-user-profile' );
+		const detachedProfile = document.createElement( 'os-user-profile' );
 		// Mirror the real subscription body — including the
 		// fatal clearUserEditTarget call that the bug depended on.
 		const stale = subscribeUserEditTarget( ( next ) => {
@@ -552,8 +552,8 @@ describe( 'User Edit window — role save flow', () => {
 
 	test( 'meta checkbox values are saved as strings, not booleans (WP REST schema)', async () => {
 		// Regression for `meta.rich_editing is not of type string`:
-		// `wpd-form`'s value harvest returns `field.checked`
-		// (boolean) for `<wpd-checkbox-label>`. WP's user-meta
+		// `os-form`'s value harvest returns `field.checked`
+		// (boolean) for `<os-checkbox-label>`. WP's user-meta
 		// schema for `rich_editing`, `syntax_highlighting`,
 		// `comment_shortcuts`, `show_admin_bar_front` is `string`
 		// (`'true'` / `'false'`). Save used to ship the boolean,
@@ -652,7 +652,7 @@ describe( 'User Edit window — role save flow', () => {
 		await tick();
 		await wait( 0 );
 
-		const form = host.querySelector( 'wpd-form' ) as HTMLElement & {
+		const form = host.querySelector( 'os-form' ) as HTMLElement & {
 			submit: () => void;
 		};
 		form.submit();
@@ -679,10 +679,10 @@ describe( 'User Edit window — role save flow', () => {
 		expect( body.meta.show_admin_bar_front ).toMatch( /^(true|false)$/ );
 	} );
 
-	test( 'a successful save routes the confirmation through wp.desktop.showToast', async () => {
+	test( 'a successful save routes the confirmation through wp.os.showToast', async () => {
 		// The user-edit form surfaces save success via the shell's
-		// own `<wpd-toast-container>` (`wp.desktop.showToast`) — the
-		// same toast affordance every other wpd-component uses. Do
+		// own `<os-toast-container>` (`wp.os.showToast`) — the
+		// same toast affordance every other os-component uses. Do
 		// NOT bring back an inline banner: the user explicitly asked
 		// for the unified desktop-level toast.
 		const originalUser = {
@@ -761,10 +761,10 @@ describe( 'User Edit window — role save flow', () => {
 		const showToastSpy = vi.fn( () => () => undefined );
 		( window as unknown as {
 			wp?: {
-				desktop?: { showToast?: ( opts: unknown ) => () => void };
+				os?: { showToast?: ( opts: unknown ) => () => void };
 			};
 		} ).wp = {
-			desktop: { showToast: showToastSpy },
+			os: { showToast: showToastSpy },
 		};
 
 		
@@ -775,11 +775,11 @@ describe( 'User Edit window — role save flow', () => {
 
 		// Before submit: NO inline banner, NO toast call yet.
 		expect(
-			host.querySelector( '.desktop-mode-user-edit__save-banner' ),
+			host.querySelector( '.os-user-edit__save-banner' ),
 		).toBeNull();
 		expect( showToastSpy ).not.toHaveBeenCalled();
 
-		const form = host.querySelector( 'wpd-form' ) as HTMLElement & {
+		const form = host.querySelector( 'os-form' ) as HTMLElement & {
 			submit: () => void;
 		};
 		form.submit();
@@ -793,7 +793,7 @@ describe( 'User Edit window — role save flow', () => {
 		expect( opts.message.toLowerCase() ).toContain( 'saved' );
 		// Inline banner must still NOT exist after save.
 		expect(
-			host.querySelector( '.desktop-mode-user-edit__save-banner' ),
+			host.querySelector( '.os-user-edit__save-banner' ),
 		).toBeNull();
 	} );
 
@@ -831,7 +831,7 @@ describe( 'User Edit window — role save flow', () => {
 		await tick();
 		await wait( 0 );
 
-		const roleSelect = host.querySelector( 'wpd-select[name="roles[0]"]' );
+		const roleSelect = host.querySelector( 'os-select[name="roles[0]"]' );
 		expect( roleSelect ).toBeNull();
 	} );
 } );

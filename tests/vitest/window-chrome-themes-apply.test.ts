@@ -6,9 +6,9 @@
  *   - Re-applying with different tokens removes stale keys (a window
  *     can switch from theme-A to theme-B without theme-A's variables
  *     leaking).
- *   - The `desktop-mode.window.chrome.theme` filter mutates the
+ *   - The `os.window.chrome.theme` filter mutates the
  *     resolved tokens.
- *   - The `desktop-mode.window.chrome.theme-changed` action fires after
+ *   - The `os.window.chrome.theme-changed` action fires after
  *     a successful apply.
  *   - `clearWindowTheme()` removes every previously-written variable.
  *
@@ -54,8 +54,8 @@ describe( 'applyWindowTheme', () => {
 		registerWindowTheme( {
 			id: 'plug/midnight',
 			tokens: {
-				'--desktop-mode-titlebar-bg': '#1a1a2e',
-				'--desktop-mode-titlebar-color-focused': '#fafafa',
+				'--os-titlebar-bg': '#1a1a2e',
+				'--os-titlebar-color-focused': '#fafafa',
 			},
 			match: () => true,
 		} );
@@ -64,26 +64,26 @@ describe( 'applyWindowTheme', () => {
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#1a1a2e',
 		);
 		expect(
-			el.style.getPropertyValue( '--desktop-mode-titlebar-color-focused' ),
+			el.style.getPropertyValue( '--os-titlebar-color-focused' ),
 		).toBe( '#fafafa' );
 	} );
 
 	test( 'inline override bypasses the registry', () => {
 		registerWindowTheme( {
 			id: 'plug/registered',
-			tokens: { '--desktop-mode-titlebar-bg': '#000' },
+			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
 		const win = fakeWin( 'w-1' );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ], {
-			tokens: { '--desktop-mode-titlebar-bg': '#fff' },
+			tokens: { '--os-titlebar-bg': '#fff' },
 		} );
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#fff',
 		);
 	} );
@@ -91,7 +91,7 @@ describe( 'applyWindowTheme', () => {
 	test( 'themeId override resolves through the registry', () => {
 		registerWindowTheme( {
 			id: 'plug/blue',
-			tokens: { '--desktop-mode-titlebar-bg': '#00f' },
+			tokens: { '--os-titlebar-bg': '#00f' },
 			match: () => false, // would NOT match by predicate; the explicit id pin wins.
 		} );
 		const win = fakeWin( 'w-1' );
@@ -99,7 +99,7 @@ describe( 'applyWindowTheme', () => {
 			themeId: 'plug/blue',
 		} );
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#00f',
 		);
 	} );
@@ -108,8 +108,8 @@ describe( 'applyWindowTheme', () => {
 		registerWindowTheme( {
 			id: 'plug/a',
 			tokens: {
-				'--desktop-mode-titlebar-bg': '#000',
-				'--desktop-mode-window-radius': '8px',
+				'--os-titlebar-bg': '#000',
+				'--os-window-radius': '8px',
 			},
 			match: () => true,
 			priority: 200,
@@ -117,22 +117,22 @@ describe( 'applyWindowTheme', () => {
 		const win = fakeWin( 'w-1' );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 
-		// Switch to a theme that doesn't carry --desktop-mode-window-radius.
+		// Switch to a theme that doesn't carry --os-window-radius.
 		_resetWindowThemeRegistryForTests();
 		registerWindowTheme( {
 			id: 'plug/b',
-			tokens: { '--desktop-mode-titlebar-bg': '#fff' },
+			tokens: { '--os-titlebar-bg': '#fff' },
 			match: () => true,
 			priority: 200,
 		} );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#fff',
 		);
 		// The radius from theme-A must NOT linger on the element.
-		expect( el.style.getPropertyValue( '--desktop-mode-window-radius' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-window-radius' ) ).toBe(
 			'',
 		);
 	} );
@@ -141,24 +141,24 @@ describe( 'applyWindowTheme', () => {
 		const win = fakeWin( 'w-1' );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'',
 		);
 	} );
 
-	test( 'desktop-mode.window.chrome.theme filter mutates resolved tokens', () => {
+	test( 'os.window.chrome.theme filter mutates resolved tokens', () => {
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--desktop-mode-titlebar-bg': '#000' },
+			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
 		// Stub-side filter: forcibly add a brand colour to every theme.
 		window.wp!.hooks!.addFilter(
-			'desktop-mode.window.chrome.theme',
+			'os.window.chrome.theme',
 			'test/brand',
 			( ( tokens: Record< string, string > ) => ( {
 				...tokens,
-				'--desktop-mode-accent-color': '#ff00ff',
+				'--os-accent-color': '#ff00ff',
 			} ) ) as ( ...a: unknown[] ) => unknown,
 		);
 
@@ -166,7 +166,7 @@ describe( 'applyWindowTheme', () => {
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-accent-color' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-accent-color' ) ).toBe(
 			'#ff00ff',
 		);
 	} );
@@ -174,7 +174,7 @@ describe( 'applyWindowTheme', () => {
 	test( 'theme-changed action fires after each apply', () => {
 		const seen: Array< { themeId: string | null } > = [];
 		window.wp!.hooks!.addAction(
-			'desktop-mode.window.chrome.theme-changed',
+			'os.window.chrome.theme-changed',
 			'test/listener',
 			( ( payload: { themeId: string | null } ) => {
 				seen.push( { themeId: payload.themeId } );
@@ -183,7 +183,7 @@ describe( 'applyWindowTheme', () => {
 
 		registerWindowTheme( {
 			id: 'plug/x',
-			tokens: { '--desktop-mode-titlebar-bg': '#000' },
+			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
 		const win = fakeWin( 'w-1' );
@@ -195,8 +195,8 @@ describe( 'applyWindowTheme', () => {
 		registerWindowTheme( {
 			id: 'plug/x',
 			tokens: {
-				'--desktop-mode-titlebar-bg': '#000',
-				'--desktop-mode-window-radius': '8px',
+				'--os-titlebar-bg': '#000',
+				'--os-window-radius': '8px',
 			},
 			match: () => true,
 		} );
@@ -204,10 +204,10 @@ describe( 'applyWindowTheme', () => {
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 		clearWindowTheme( win as Parameters< typeof clearWindowTheme >[ 0 ] );
 		const el = ( win as { element: HTMLElement } ).element;
-		expect( el.style.getPropertyValue( '--desktop-mode-titlebar-bg' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'',
 		);
-		expect( el.style.getPropertyValue( '--desktop-mode-window-radius' ) ).toBe(
+		expect( el.style.getPropertyValue( '--os-window-radius' ) ).toBe(
 			'',
 		);
 	} );

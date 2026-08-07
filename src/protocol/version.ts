@@ -1,5 +1,5 @@
 /**
- * Desktop Mode bridge protocol version.
+ * OpenStation bridge protocol version.
  *
  * Reserved version constant for the bridge protocol. Messages do
  * not yet carry it; once outgoing messages are stamped with this

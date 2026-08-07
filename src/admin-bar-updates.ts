@@ -6,7 +6,7 @@
  * and omits the node entirely when nothing is pending. After an
  * in-window update run the numbers are stale until a hard refresh
  * (GH#296), so the live menu-refresh payload now carries the aggregate
- * counts (`updateCounts`, built by `desktop_mode_build_menu_payload()`)
+ * counts (`updateCounts`, built by `openstation_build_menu_payload()`)
  * and this module mirrors them onto the node: text + screen-reader
  * label when the count changes, hidden at zero, re-created when
  * updates appear on a shell that booted with none.

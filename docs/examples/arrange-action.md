@@ -2,7 +2,7 @@
 
 Add a button to the admin bar's **Arrange** dropdown that runs your own layout algorithm. The shell ships Cascade / Overview / Snap / Tile; your item sits alongside them with identical styling.
 
-The contract is a PHP filter (to register the menu item) plus a JS action (to run when the user clicks it). The two halves are decoupled — you can ship a plugin that registers the item without a JS callback, and some other code can subscribe to `desktop-mode.arrange.custom-action` independently.
+The contract is a PHP filter (to register the menu item) plus a JS action (to run when the user clicks it). The two halves are decoupled — you can ship a plugin that registers the item without a JS callback, and some other code can subscribe to `os.arrange.custom-action` independently.
 
 ## PHP: register the item
 
@@ -13,7 +13,7 @@ The contract is a PHP filter (to register the menu item) plus a JS action (to ru
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
+add_filter( 'openstation_arrange_menu_items', function ( $items ) {
     $items[] = array(
         'id'          => 'diagonal',
         'title'       => __( 'Diagonal cascade', 'diagonal-cascade' ),
@@ -23,17 +23,17 @@ add_filter( 'desktop_mode_arrange_menu_items', function ( $items ) {
     return $items;
 } );
 
-// Enqueue your JS on the desktop shell. `desktop-mode` is the shell's
-// main script handle; adding it as a dep guarantees `window.wp.desktop`
+// Enqueue your JS on the desktop shell. `openstation` is the shell's
+// main script handle; adding it as a dep guarantees `window.wp.os`
 // is populated by the time your code runs.
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+    if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
         'diagonal-cascade',
         plugin_dir_url( __FILE__ ) . 'diagonal-cascade.js',
-        array( 'desktop-mode', 'wp-hooks' ),
+        array( 'openstation', 'wp-hooks' ),
         '1.0.0',
         true
     );
@@ -45,15 +45,15 @@ add_action( 'admin_enqueue_scripts', function () {
 ```js
 // diagonal-cascade.js
 ( function () {
-    wp.desktop.whenReady( function () {
-        wp.desktop.hooks.addAction(
-            'desktop-mode.arrange.custom-action',
+    wp.os.whenReady( function () {
+        wp.os.hooks.addAction(
+            'os.arrange.custom-action',
             'diagonal-cascade/apply',
             function ( payload ) {
                 if ( payload.id !== 'diagonal' ) {
                     return;
                 }
-                var windows = wp.desktop.windowManager.getAll()
+                var windows = wp.os.windowManager.getAll()
                     .filter( function ( w ) {
                         return w.state !== 'minimized';
                     } );
@@ -71,7 +71,7 @@ add_action( 'admin_enqueue_scripts', function () {
 ## What you get
 
 - A new "Diagonal cascade" entry in the **Arrange** submenu, styled identically to the built-ins.
-- Clicking it fires `desktop-mode.arrange.custom-action` with `{ id: 'diagonal' }`.
+- Clicking it fires `os.arrange.custom-action` with `{ id: 'diagonal' }`.
 - Your subscriber runs the arrangement. Any other plugin can also subscribe (e.g. to play a sound, log analytics, etc.).
 
 ## Using typed hook constants
@@ -79,9 +79,9 @@ add_action( 'admin_enqueue_scripts', function () {
 If your plugin is TS:
 
 ```ts
-import { HOOKS } from 'desktop-mode';
+import { HOOKS } from 'openstation';
 
-wp.desktop.hooks.addAction(
+wp.os.hooks.addAction(
     HOOKS.ARRANGE_CUSTOM_ACTION,
     'diagonal-cascade/apply',
     ( payload: { id: string } ) => { /* ... */ }
@@ -90,5 +90,5 @@ wp.desktop.hooks.addAction(
 
 ## Related
 
-- [`desktop_mode_arrange_menu_items` filter](../hooks-reference.md#desktop_mode_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
-- [`desktop-mode.arrange.*` action family](../javascript-reference.md#arrange--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.
+- [`openstation_arrange_menu_items` filter](../hooks-reference.md#openstation_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
+- [`os.arrange.*` action family](../javascript-reference.md#arrange--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.

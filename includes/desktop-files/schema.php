@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Files-on-the-Desktop schema.
+ * OpenStation — Files-on-the-Desktop schema.
  *
  * Five custom tables back the system:
  *
@@ -32,22 +32,35 @@
  *
  * dbDelta is the only safe path for schema migrations against the
  * Core tables environment — Phase 6 re-uses this file by bumping
- * `DESKTOP_MODE_FILES_SCHEMA_VERSION` and adding columns.
+ * `OPENSTATION_FILES_SCHEMA_VERSION` and adding columns.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '13' );
-define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
+define( 'OPENSTATION_FILES_SCHEMA_VERSION', '13' );
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+define( 'OPENSTATION_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
  *
+ * The `desktop_mode_` segment is the pre-rebrand spelling and is frozen:
+ * these are real tables holding real rows on live installs. Renaming
+ * them silently creates a second, empty set and every desktop icon,
+ * folder and uploaded file disappears. The mismatch against the
+ * `openstation_*` function name is deliberate.
+ *
  * @return array{ placements: string, folders: string, tombstones: string, shares: string, decisions: string }
  */
-function desktop_mode_files_table_names() {
+function openstation_files_table_names() {
 	global $wpdb;
 	return array(
 		'placements'   => $wpdb->prefix . 'desktop_mode_file_placements',
@@ -64,13 +77,13 @@ function desktop_mode_files_table_names() {
  * `admin_init` (gated by a version-option mismatch) so a manual
  * file copy install still ends up with the tables.
  */
-function desktop_mode_files_install_schema() {
+function openstation_files_install_schema() {
 	global $wpdb;
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables           = desktop_mode_files_table_names();
-	$charset_collate  = $wpdb->get_charset_collate();
+	$tables          = openstation_files_table_names();
+	$charset_collate = $wpdb->get_charset_collate();
 
 	// Schema v2: adds trash columns to both placements
 	// and folders so deleted shortcuts and folders land in the
@@ -182,7 +195,7 @@ function desktop_mode_files_install_schema() {
 	// `user_id` in place + the new `owner_id` NULL). Running the
 	// CHANGE COLUMN first means dbDelta sees the table already
 	// matches the desired shape.
-	desktop_mode_files_rename_user_id_to_owner_id();
+	openstation_files_rename_user_id_to_owner_id();
 
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
@@ -193,7 +206,7 @@ function desktop_mode_files_install_schema() {
 	// (no DEFAULT) — under some MySQL/MariaDB combos it silently
 	// skips the ADD COLUMN. Verify the v2 trash columns are
 	// physically present and ALTER them in directly when not.
-	desktop_mode_files_ensure_trash_columns();
+	openstation_files_ensure_trash_columns();
 
 	// v4: clean up duplicate placements created by sessions that
 	// hit the auto-orphan-placer while the v2 trash columns were
@@ -202,13 +215,13 @@ function desktop_mode_files_install_schema() {
 	// registered shortcut. Collapse runs of identical
 	// `(owner_id, parent_id, file_type, file_ref)` rows down to
 	// the lowest id.
-	desktop_mode_files_dedupe_placements();
+	openstation_files_dedupe_placements();
 
 	// v5: enforce uniqueness at the DB level so a future bug
 	// (or a racing pair of REST requests) can never re-create
 	// the duplicate shortcuts again. Must run AFTER dedupe —
 	// adding a unique key against duplicate rows would fail.
-	desktop_mode_files_ensure_unique_placement_index();
+	openstation_files_ensure_unique_placement_index();
 
 	// v9: belt-and-suspenders existence check for the shares +
 	// decisions tables. The folder-sharing feature is the
@@ -216,8 +229,8 @@ function desktop_mode_files_install_schema() {
 	// the `share_meta` JSON column on the folders table remains
 	// for diagnostic purposes only and is not consulted by the
 	// visibility resolver.
-	desktop_mode_files_ensure_shares_table();
-	desktop_mode_files_ensure_decisions_table();
+	openstation_files_ensure_shares_table();
+	openstation_files_ensure_decisions_table();
 
 	// v10: `updated_by` column on placements so the If-Match 409
 	// conflict toast names the SESSION that actually won the race,
@@ -225,16 +238,16 @@ function desktop_mode_files_install_schema() {
 	// shared-write scenario where User B (writer recipient) moves a
 	// placement and User C gets the conflict — without this column,
 	// the toast would blame User A (owner of the row).
-	desktop_mode_files_ensure_updated_by_column();
+	openstation_files_ensure_updated_by_column();
 
-	update_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, DESKTOP_MODE_FILES_SCHEMA_VERSION );
+	update_option( OPENSTATION_FILES_SCHEMA_OPTION, OPENSTATION_FILES_SCHEMA_VERSION );
 
 	/**
 	 * Fires after the files schema is installed / migrated.
 	 *
 	 * @param string $version The version that was installed.
 	 */
-	do_action( 'desktop_mode_files_schema_installed', DESKTOP_MODE_FILES_SCHEMA_VERSION );
+	do_action( 'openstation_files_schema_installed', OPENSTATION_FILES_SCHEMA_VERSION );
 }
 
 /**
@@ -245,9 +258,9 @@ function desktop_mode_files_install_schema() {
  *
  * @internal
  */
-function desktop_mode_files_ensure_trash_columns() {
+function openstation_files_ensure_trash_columns() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// Two-worker race protection: between the INFORMATION_SCHEMA
 	// check and the ALTER, a concurrent worker (cron + admin-init,
@@ -262,10 +275,10 @@ function desktop_mode_files_ensure_trash_columns() {
 		$col_exists = static function () use ( $wpdb, $table, $column ) {
 			return (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 					WHERE TABLE_SCHEMA = DATABASE()
 						AND TABLE_NAME = %s
-						AND COLUMN_NAME = %s",
+						AND COLUMN_NAME = %s',
 					$table,
 					$column
 				)
@@ -287,16 +300,16 @@ function desktop_mode_files_ensure_trash_columns() {
 		}
 	};
 
-	$ensure( $tables['placements'], 'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['placements'], 'trashed_by',         'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['placements'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
 	// v6: ancestry snapshot — JSON capturing every folder in the
 	// parent chain at trash time so a restore can resurrect the
 	// chain even when a folder was hard-deleted in the meantime.
-	$ensure( $tables['placements'], 'trashed_meta',       'LONGTEXT NULL' );
-	$ensure( $tables['folders'],    'trashed_at_ms',      'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'],    'trashed_by',         'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'],    'trashed_meta',       'LONGTEXT NULL' );
+	$ensure( $tables['placements'], 'trashed_meta', 'LONGTEXT NULL' );
+	$ensure( $tables['folders'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
+	$ensure( $tables['folders'], 'trashed_meta', 'LONGTEXT NULL' );
 }
 
 /**
@@ -309,14 +322,14 @@ function desktop_mode_files_ensure_trash_columns() {
  * same (owner, parent) are disallowed at the DB level; if legacy
  * duplicates of another type exist, the (error-suppressed)
  * `ADD UNIQUE` in
- * `desktop_mode_files_ensure_unique_placement_index()` will fail
+ * `openstation_files_ensure_unique_placement_index()` will fail
  * and leave the index absent until those rows are cleaned up.
  *
  * @internal
  */
-function desktop_mode_files_dedupe_placements() {
+function openstation_files_dedupe_placements() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	// Once the unique index exists, MySQL prevents duplicate
@@ -326,10 +339,10 @@ function desktop_mode_files_dedupe_placements() {
 	// during the v4 → v5 migration.
 	$has_unique = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
-				AND INDEX_NAME   = %s",
+				AND INDEX_NAME   = %s',
 			$tbl,
 			'placement_unique'
 		)
@@ -367,17 +380,17 @@ function desktop_mode_files_dedupe_placements() {
  *
  * @internal
  */
-function desktop_mode_files_ensure_unique_placement_index() {
+function openstation_files_ensure_unique_placement_index() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
-				AND INDEX_NAME   = %s",
+				AND INDEX_NAME   = %s',
 			$tbl,
 			'placement_unique'
 		)
@@ -402,7 +415,7 @@ function desktop_mode_files_ensure_unique_placement_index() {
  * Add the v10 `updated_by` column to the placements table.
  *
  * Tracks which user last mutated the row (created, moved, restored).
- * Used by `desktop_mode_files_check_if_match()` so the If-Match 409
+ * Used by `openstation_files_check_if_match()` so the If-Match 409
  * conflict toast attributes the change to the SESSION that won the
  * race rather than to the row's static owner — critical when a
  * writer recipient of a shared folder rearranges placements and
@@ -413,16 +426,16 @@ function desktop_mode_files_ensure_unique_placement_index() {
  *
  * @internal
  */
-function desktop_mode_files_ensure_updated_by_column() {
+function openstation_files_ensure_updated_by_column() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME = %s
-				AND COLUMN_NAME = %s",
+				AND COLUMN_NAME = %s',
 			$tbl,
 			'updated_by'
 		)
@@ -442,7 +455,7 @@ function desktop_mode_files_ensure_updated_by_column() {
 /**
  * Rename `placements.user_id` to `placements.owner_id` and the
  * matching `user_parent` index to `owner_parent`. The two
- * desktop-mode-owned tables historically used different names for
+ * os-owned tables historically used different names for
  * the same "row's owner" concept — folders carried `owner_id` from
  * day one, placements carried `user_id`. v11 unifies them so SQL
  * and PHP read identically across the two tables.
@@ -452,7 +465,7 @@ function desktop_mode_files_ensure_updated_by_column() {
  * column name directly) and when the column is already renamed.
  *
  * Must run BEFORE `dbDelta( $placements_sql )` in
- * `desktop_mode_files_install_schema()` — dbDelta does NOT rename
+ * `openstation_files_install_schema()` — dbDelta does NOT rename
  * columns, so against a v≤10 table whose definition says
  * `owner_id` it would ADD a new `owner_id` column and leave the
  * stale `user_id` in place. Running the CHANGE COLUMN first puts
@@ -466,17 +479,17 @@ function desktop_mode_files_ensure_updated_by_column() {
  *
  * @internal
  */
-function desktop_mode_files_rename_user_id_to_owner_id() {
+function openstation_files_rename_user_id_to_owner_id() {
 	global $wpdb;
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	// Fresh install — the table doesn't exist yet; dbDelta creates
 	// it with `owner_id` directly. Nothing to migrate.
 	$table_exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
 			$tbl
 		)
 	);
@@ -539,17 +552,17 @@ function desktop_mode_files_rename_user_id_to_owner_id() {
  *
  * @internal
  */
-function desktop_mode_files_ensure_shares_table() {
+function openstation_files_ensure_shares_table() {
 	global $wpdb;
-	$tables          = desktop_mode_files_table_names();
+	$tables          = openstation_files_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 	$tbl             = $tables['shares'];
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
-				AND TABLE_NAME   = %s",
+				AND TABLE_NAME   = %s',
 			$tbl
 		)
 	);
@@ -578,10 +591,10 @@ function desktop_mode_files_ensure_shares_table() {
 		// installs that ran a pre-target_type build of v8.
 		$has_col = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 				WHERE TABLE_SCHEMA = DATABASE()
 					AND TABLE_NAME = %s
-					AND COLUMN_NAME = %s",
+					AND COLUMN_NAME = %s',
 				$tbl,
 				'target_type'
 			)
@@ -603,17 +616,17 @@ function desktop_mode_files_ensure_shares_table() {
  *
  * @internal
  */
-function desktop_mode_files_ensure_decisions_table() {
+function openstation_files_ensure_decisions_table() {
 	global $wpdb;
-	$tables          = desktop_mode_files_table_names();
+	$tables          = openstation_files_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 	$tbl             = $tables['decisions'];
 
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
-				AND TABLE_NAME   = %s",
+				AND TABLE_NAME   = %s',
 			$tbl
 		)
 	);
@@ -639,21 +652,21 @@ function desktop_mode_files_ensure_decisions_table() {
  * version doesn't match the constant. Idempotent: `dbDelta`
  * itself is a no-op when the table already matches.
  */
-function desktop_mode_files_maybe_install_schema() {
-	$installed = get_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, '' );
-	if ( $installed === DESKTOP_MODE_FILES_SCHEMA_VERSION ) {
+function openstation_files_maybe_install_schema() {
+	$installed = get_option( OPENSTATION_FILES_SCHEMA_OPTION, '' );
+	if ( OPENSTATION_FILES_SCHEMA_VERSION === $installed ) {
 		return;
 	}
-	desktop_mode_files_install_schema();
+	openstation_files_install_schema();
 }
-add_action( 'admin_init', 'desktop_mode_files_maybe_install_schema' );
+add_action( 'admin_init', 'openstation_files_maybe_install_schema' );
 // REST + front-end requests never fire `admin_init` — without these
 // hooks a session that hits a REST endpoint before any admin page
 // load would query the placements / folders tables before the v2
 // trash columns exist, throwing wpdb errors and blanking the desktop.
-add_action( 'rest_api_init', 'desktop_mode_files_maybe_install_schema' );
-add_action( 'init', 'desktop_mode_files_maybe_install_schema', 1 );
-register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_files_install_schema' );
+add_action( 'rest_api_init', 'openstation_files_maybe_install_schema' );
+add_action( 'init', 'openstation_files_maybe_install_schema', 1 );
+register_activation_hook( OPENSTATION_FILE, 'openstation_files_install_schema' );
 
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
@@ -661,6 +674,6 @@ register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_files_install_schema'
  *
  * @return int
  */
-function desktop_mode_files_now_ms() {
+function openstation_files_now_ms() {
 	return (int) round( microtime( true ) * 1000 );
 }

@@ -15,8 +15,11 @@ const read = ( relative ) =>
 	fs.readFileSync( path.join( root, relative ), 'utf8' );
 
 const expectedHashes = Object.freeze( {
+	// Re-pinned for the OpenStation rebrand: the kit loads shared PixiJS
+	// through `wp.os.loadModules`, which the framework renamed. Every
+	// gameplay layer below is byte-identical.
 	'sdk/openstation-game-kit-0.1.0.js':
-		'319a36c266be4baf435814d6cb73f37438067c215050eaab999f94e32d01aec5',
+		'ea30b278de91b70f3e5eda097eb5733faef2c65c62eff3590b010d181e147f11',
 	'sdk/openstation-audio-kit-0.1.0.js':
 		'ae570189df94c48f9d21b85392bd6dca35b9bcd0422a40c07de6cade3773dee9',
 	'games/popup-breaker/assets/popup-breaker-0.2.0.js':
@@ -85,13 +88,13 @@ test( 'the OpenStation adapter publishes one scored Popup Siege definition', () 
 		'games/popup-breaker/assets/openstation-adapter.js'
 	);
 	const window = {
-		desktopModeGames: {},
+		openStationGames: {},
 		document: {},
 	};
 	vm.runInNewContext( source, window, {
 		filename: 'openstation-adapter.js',
 	} );
-	const definition = window.desktopModeGames[ 'popup-siege' ];
+	const definition = window.openStationGames[ 'popup-siege' ];
 
 	assert.equal( definition.id, 'popup-siege' );
 	assert.equal( typeof definition.render, 'function' );

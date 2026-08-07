@@ -9,9 +9,9 @@ export const WINDOW_ID = 'feed-buddy-reader';
 export const WIDGET_ID = 'feed-buddy/buddy-list';
 
 export function desktop(): DesktopApi {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( ! api ) {
-		throw new Error( 'SOL Inbound Monologue requires the Desktop Mode public API.' );
+		throw new Error( 'SOL Inbound Monologue requires the OpenStation public API.' );
 	}
 	return api;
 }

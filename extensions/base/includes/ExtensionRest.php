@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Extension REST controller base.
+ * OpenStation — Extension REST controller base.
  *
  * Boilerplate-eliminator for REST endpoints used by extensions:
  * each extension's `rest.php` typically registers 3-6 routes
@@ -12,22 +12,22 @@
  * plugin entry. The base wires `rest_api_init` and the
  * permission callback for you.
  *
- * @package Desktop_Mode_Extension_Base
+ * @package OpenStation_Extension_Base
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'Desktop_Mode_Extension_Rest' ) ) :
+if ( ! class_exists( 'OpenStation_Extension_Rest' ) ) :
 
 /**
  * Base class an extension subclasses to declare its REST routes.
  */
-abstract class Desktop_Mode_Extension_Rest {
+abstract class OpenStation_Extension_Rest {
 
 	/**
-	 * REST namespace, e.g. `desktop-mode/v1` (the desktop-mode
+	 * REST namespace, e.g. `desktop-mode/v1` (the openstation
 	 * shell's own routes use this) or
-	 * `desktop-mode-<plugin>/v1` for extensions that prefer
+	 * `os-<plugin>/v1` for extensions that prefer
 	 * isolation.
 	 */
 	abstract protected function namespace(): string;

@@ -27,7 +27,7 @@ includes_file="$script_dir/sync-to-wp-develop.includes"
 
 # Destination resolution order (first hit wins):
 #
-#   1. `WPDM_SYNC_DEST=/path/to/plugin` env var. Use verbatim. Lets a
+#   1. `OSM_SYNC_DEST=/path/to/plugin` env var. Use verbatim. Lets a
 #      developer pin a specific worktree regardless of what Docker
 #      thinks.
 #   2. Auto-detect from a running Docker container: look for any
@@ -35,7 +35,7 @@ includes_file="$script_dir/sync-to-wp-develop.includes"
 #      (the wordpress-develop docker-compose convention — wp-env uses
 #      `/var/www/html` so it's automatically excluded), and verify
 #      the host-side Source has a `src/wp-content/plugins/` directory.
-#      Append `desktop-mode` to land at the plugin folder.
+#      Append `openstation` to land at the plugin folder.
 #   3. Fallback: `$HOME/github/wordpress-develop/src/wp-content/plugins/desktop-mode`.
 #      Preserves the historical default for the case where Docker
 #      isn't running yet but the checkout is in the canonical place.
@@ -68,9 +68,9 @@ default_dest_via_docker() {
 	return 1
 }
 
-if [[ -n "${WPDM_SYNC_DEST:-}" ]]; then
-	dest="$WPDM_SYNC_DEST"
-	echo "[sync] dest from WPDM_SYNC_DEST: $dest"
+if [[ -n "${OSM_SYNC_DEST:-}" ]]; then
+	dest="$OSM_SYNC_DEST"
+	echo "[sync] dest from OSM_SYNC_DEST: $dest"
 elif dest_auto=$(default_dest_via_docker); then
 	dest="$dest_auto"
 	echo "[sync] dest auto-detected from running container: $dest"
@@ -78,13 +78,13 @@ else
 	dest="$HOME/github/wordpress-develop/src/wp-content/plugins/desktop-mode"
 	echo "[sync] dest fallback default: $dest"
 	echo "[sync]   (no running wordpress-develop container found —"
-	echo "[sync]    set WPDM_SYNC_DEST to override, or start the container)"
+	echo "[sync]    set OSM_SYNC_DEST to override, or start the container)"
 fi
 
 parent_plugins_dir=$(dirname "$dest")
 if [[ ! -d "$parent_plugins_dir" ]]; then
 	echo "error: $parent_plugins_dir not found." >&2
-	echo "       Set WPDM_SYNC_DEST to the destination plugin path if it lives elsewhere." >&2
+	echo "       Set OSM_SYNC_DEST to the destination plugin path if it lives elsewhere." >&2
 	exit 1
 fi
 
@@ -174,13 +174,13 @@ build_and_sync
 
 echo "[sync] watching ${#watch_paths[@]} paths under $src — Ctrl-C to stop"
 
-# Quiet-period debounce: wait WPDM_SYNC_DEBOUNCE seconds with no
+# Quiet-period debounce: wait OSM_SYNC_DEBOUNCE seconds with no
 # further events before rebuilding. Editor atomic-saves emit several
 # FSEvents in a burst, and `npm run build` runs ~14 vite invocations
 # back-to-back (~30-60s), so any edit during the build queues another
 # rebuild even when nothing actually changed. Draining events first
 # coalesces both cases into a single build.
-debounce_secs="${WPDM_SYNC_DEBOUNCE:-2}"
+debounce_secs="${OSM_SYNC_DEBOUNCE:-2}"
 
 # Path-mode fswatch (no -o) so we can log what changed. Each event is
 # one absolute path per line. The exclude flags below remain in effect.

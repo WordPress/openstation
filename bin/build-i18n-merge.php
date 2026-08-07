@@ -15,7 +15,7 @@
  *                       `wp i18n make-json`.
  *   HANDLE_LOCALE       Locale slug (e.g. es_ES). Used in the output
  *                       header and revision-date passthrough.
- *   HANDLE_DOMAIN       Text domain (e.g. desktop-mode).
+ *   HANDLE_DOMAIN       Text domain (e.g. openstation).
  *
  * Output: writes HANDLE_OUT_FILE if at least one translation matches the
  * prefix, removes a stale file otherwise.
@@ -36,7 +36,7 @@ if ( ! $prefix || ! $out_file || ! $sources_dir || ! $locale || ! $domain ) {
 // exclude their sources from this handle's bundle. We re-derive the
 // list from the script's own ordering hint: anything passed via the
 // EXCLUDE_PREFIXES env var (newline separated) is skipped.
-$exclude = array_filter( preg_split( '/\R/', (string) getenv( 'HANDLE_EXCLUDE_PREFIXES' ) ?: '' ) );
+$exclude = array_filter( preg_split( '/\R/', (string) getenv( 'HANDLE_EXCLUDE_PREFIXES' ) ) );
 
 $plurals       = '';
 $revision_date = '';

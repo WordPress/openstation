@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Dock rail renderer barrel.
+ * OpenStation — Dock rail renderer barrel.
  *
  * Public re-exports so plugin authors only need one import path.
  */

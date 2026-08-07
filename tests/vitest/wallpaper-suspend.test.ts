@@ -1,7 +1,7 @@
 /**
  * Suspend/resume tests for WallpaperLayer.
  *
- * Covers the `wp.desktop.wallpaper` surface added for games:
+ * Covers the `wp.os.wallpaper` surface added for games:
  *   - refcounted reasons (same reason held twice, distinct reasons)
  *   - effective-visibility re-emission (suspend wins over a visible tab)
  *   - the frozen-frame overlay lifecycle (insert, hide live canvas,
@@ -18,8 +18,8 @@ import {
 	type FakeWpHooks,
 } from './helpers/hooks-stub';
 
-const SUSPEND = 'desktop-mode.wallpaper.suspend';
-const VISIBILITY = 'desktop-mode.wallpaper.visibility';
+const SUSPEND = 'os.wallpaper.suspend';
+const VISIBILITY = 'os.wallpaper.visibility';
 
 describe( 'WallpaperLayer — suspend/resume', () => {
 	let hooks: FakeWpHooks;
@@ -163,13 +163,13 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 
 		layer.suspend( 'game:a' );
 
-		const overlay = element.querySelector( '.desktop-mode-wallpaper-freeze' );
+		const overlay = element.querySelector( '.os-wallpaper-freeze' );
 		expect( overlay ).not.toBeNull();
 		expect( live.style.visibility ).toBe( 'hidden' );
 
 		layer.resume( 'game:a' );
 
-		expect( element.querySelector( '.desktop-mode-wallpaper-freeze' ) ).toBeNull();
+		expect( element.querySelector( '.os-wallpaper-freeze' ) ).toBeNull();
 		expect( live.style.visibility ).toBe( '' );
 	} );
 
@@ -181,18 +181,18 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 
 		layer.suspend( 'game:a' );
 
-		expect( element.querySelector( '.desktop-mode-wallpaper-freeze' ) ).toBeNull();
+		expect( element.querySelector( '.os-wallpaper-freeze' ) ).toBeNull();
 		expect( layer.isSuspended() ).toBe( true );
 	} );
 
 	test( 'switching wallpaper while suspended clears the stale overlay', async () => {
 		await mountCanvas();
 		layer.suspend( 'game:a' );
-		expect( element.querySelector( '.desktop-mode-wallpaper-freeze' ) ).not.toBeNull();
+		expect( element.querySelector( '.os-wallpaper-freeze' ) ).not.toBeNull();
 
 		layer.apply( cssDef() );
 
-		expect( element.querySelector( '.desktop-mode-wallpaper-freeze' ) ).toBeNull();
+		expect( element.querySelector( '.os-wallpaper-freeze' ) ).toBeNull();
 		// The reason is still held; a later canvas mount stays paused.
 		expect( layer.isSuspended() ).toBe( true );
 	} );

@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Window-reveal registry.
+ * OpenStation — Window-reveal registry.
  *
  * Owns the in-memory list of available window reveals and applies the
- * `desktop-mode.window-reveals` filter each time callers read it, so
- * plugins can register via `wp.desktop.registerWindowReveal()` and also
+ * `os.window-reveals` filter each time callers read it, so
+ * plugins can register via `wp.os.registerWindowReveal()` and also
  * reach the raw filter for reorder / remove / conditional swap.
  *
  * The built-ins are seeded here through the very same `register()`
@@ -362,7 +362,7 @@ export function unregisterWindowRevealsByOwner( owner: string ): number {
 }
 
 /**
- * Current reveal list with the `desktop-mode.window-reveals` filter
+ * Current reveal list with the `os.window-reveals` filter
  * applied. The values are copied so a filter callback can mutate its
  * input safely; a misbehaving filter that returns a non-array falls
  * back to the unfiltered list.
@@ -376,7 +376,7 @@ export function listWindowReveals(): WindowRevealDef[] {
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] `desktop-mode.window-reveals` filter ' +
+				'[openstation] `os.window-reveals` filter ' +
 					'returned a non-array; falling back to registry list.',
 			);
 		}
@@ -426,7 +426,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] window-reveal registry listener threw:',
+					'[openstation] window-reveal registry listener threw:',
 					err,
 				);
 			}

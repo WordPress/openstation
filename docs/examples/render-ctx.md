@@ -1,6 +1,6 @@
 # The native-window render `ctx`
 
-Native windows registered via `desktop_mode_register_window()` (or `wp.desktop.registerWindow()`) get a `render` callback. The callback receives a second `ctx` argument carrying the channel API and the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
+Native windows registered via `openstation_register_window()` (or `wp.os.registerWindow()`) get a `render` callback. The callback receives a second `ctx` argument carrying the channel API and the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
 
 ```ts
 render: (
@@ -15,7 +15,7 @@ Legacy unary callbacks (`render: ( body ) => …`) keep working — the second a
 
 | Field | Type | Use |
 |---|---|---|
-| `signal` | `AbortSignal` | Aborts when the window starts closing. Pass to `wp.desktop.fetch( url, { signal } )` so in-flight requests cancel. |
+| `signal` | `AbortSignal` | Aborts when the window starts closing. Pass to `wp.os.fetch( url, { signal } )` so in-flight requests cancel. |
 | `onResize( cb )` | `( cb: ( w, h ) => void ) => () => void` | Subscribe to body-resize events for this window. Returns an unsubscribe; auto-detaches on close. |
 | `onHide( cb )` | `( cb: () => void ) => () => void` | Fires when the window is minimized. Pause animations/intervals here. |
 | `onShow( cb )` | `( cb: () => void ) => () => void` | Fires when the window is restored. Resume what `onHide` paused. |
@@ -29,8 +29,8 @@ Legacy unary callbacks (`render: ( body ) => …`) keep working — the second a
 ## Recipe — feed reader that cancels on close, pauses while hidden
 
 ```ts
-window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
-window.desktopModeNativeWindows[ 'my-feed-inbox' ] = async (
+window.openStationNativeWindows = window.openStationNativeWindows || {};
+window.openStationNativeWindows[ 'my-feed-inbox' ] = async (
     body,
     { signal, onResize, onHide, onShow, markLoading, markReady, window: ch },
 ) => {
@@ -41,7 +41,7 @@ window.desktopModeNativeWindows[ 'my-feed-inbox' ] = async (
     async function loadPage() {
         markLoading();
         try {
-            const res = await wp.desktop.fetch(
+            const res = await wp.os.fetch(
                 '/wp-json/my-feed/v1/items?cursor=' + ( cursor ?? '' ),
                 { signal },
             );

@@ -33,7 +33,7 @@ export interface ShareCardData {
 	scoreLabel: string;
 	/** Up to five supporting stats, left to right. */
 	stats: ShareCardStat[];
-	/** Small footer branding, e.g. "WordPress Desktop Mode". */
+	/** Small footer branding, e.g. "WordPress OpenStation". */
 	footer: string;
 	/** Accent color for the score + trims. */
 	accent?: string;

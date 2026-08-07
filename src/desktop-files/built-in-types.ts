@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Built-in JS file-type registrations.
+ * OpenStation — Built-in JS file-type registrations.
  *
  * Registers the built-in file types that ship with the plugin
  * against the JS-side registry. None of them ship a custom {@link DesktopFile}

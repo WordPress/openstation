@@ -1,18 +1,18 @@
 <?php
 /**
- * Plugin Name:       Desktop Mode — SOL Inbound Monologue
+ * Plugin Name:       OpenStation — SOL Inbound Monologue
  * Description:       Syndicated Open Links presented as an inbound-only RSS and Atom buddy list.
  * Version:           0.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Requires Plugins:  desktop-mode
- * Author:            Desktop Mode Contributors
+ * Author:            OpenStation Contributors
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode-feed-buddy
  * Domain Path:       /languages
  *
- * @package DesktopModeFeedBuddy
+ * @package OpenStationFeedBuddy
  */
 
 defined( 'ABSPATH' ) || exit;

@@ -1,14 +1,14 @@
 <?php
 /**
- * Desktop Mode — Native Pages Window: registration + template.
+ * OpenStation — Native Pages Window: registration + template.
  *
  * Mirrors the structure of the Posts window (`includes/posts-window/window.php`),
  * adapted for the `page` post type:
  *   - No taxonomy tabs (pages have no Categories/Tags surface in core).
  *   - Hierarchical: surfaces a Parent column and `orderby=menu_order` default.
- *   - Same lock badge via the `desktop_mode_lock` REST field.
+ *   - Same lock badge via the `openstation_lock` REST field.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,41 +17,41 @@ defined( 'ABSPATH' ) || exit;
  * Echoes the native Pages window's template body.
  *
  * Same toolbar/table/pager structure as the Posts window, minus the
- * `<wpd-tabs>` taxonomy tabs. The `data-desktop-mode-posts-*` hooks
+ * `<os-tabs>` taxonomy tabs. The `data-os-posts-*` hooks
  * are the contract the JS bundle relies on — keep them intact (or
  * rename via the filter) when customizing the layout.
  */
-function desktop_mode_pages_window_render_template() {
+function openstation_pages_window_render_template() {
 	ob_start();
 	?>
-	<div class="desktop-mode-posts" data-desktop-mode-posts-root>
-		<div class="desktop-mode-posts__panel">
-			<header class="desktop-mode-posts__toolbar" data-desktop-mode-posts-toolbar>
-				<div class="desktop-mode-posts__toolbar-left">
-					<wpd-segmented data-desktop-mode-posts-status value=""></wpd-segmented>
-					<wpd-text-field
-						data-desktop-mode-posts-search
+	<div class="desktop-mode-posts" data-os-posts-root>
+		<div class="os-posts__panel">
+			<header class="os-posts__toolbar" data-os-posts-toolbar>
+				<div class="os-posts__toolbar-left">
+					<os-segmented data-os-posts-status value=""></os-segmented>
+					<os-text-field
+						data-os-posts-search
 						placeholder="<?php esc_attr_e( 'Search pages…', 'desktop-mode' ); ?>"
-					></wpd-text-field>
+					></os-text-field>
 				</div>
-				<div class="desktop-mode-posts__toolbar-right" data-desktop-mode-posts-bulk hidden>
-					<span class="desktop-mode-posts__count" data-desktop-mode-posts-count></span>
-					<span class="desktop-mode-posts__bulk-actions" data-desktop-mode-posts-bulk-actions></span>
+				<div class="os-posts__toolbar-right" data-os-posts-bulk hidden>
+					<span class="os-posts__count" data-os-posts-count></span>
+					<span class="os-posts__bulk-actions" data-os-posts-bulk-actions></span>
 				</div>
-				<div class="desktop-mode-posts__toolbar-trailing">
-					<span class="desktop-mode-posts__toolbar-extras" data-desktop-mode-posts-toolbar-extras></span>
-					<wpd-button variant="ghost" data-desktop-mode-posts-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
+				<div class="os-posts__toolbar-trailing">
+					<span class="os-posts__toolbar-extras" data-os-posts-toolbar-extras></span>
+					<os-button variant="ghost" data-os-posts-refresh title="<?php esc_attr_e( 'Refresh', 'desktop-mode' ); ?>">
 						<span class="dashicons dashicons-update" aria-hidden="true"></span>
-					</wpd-button>
-					<wpd-button variant="primary" data-desktop-mode-posts-new>
+					</os-button>
+					<os-button variant="primary" data-os-posts-new>
 						<span class="dashicons dashicons-plus" aria-hidden="true"></span>
 						<?php esc_html_e( 'Add New', 'desktop-mode' ); ?>
-					</wpd-button>
+					</os-button>
 				</div>
 			</header>
-			<div class="desktop-mode-posts__body" data-desktop-mode-posts-body>
-				<wpd-table
-					data-desktop-mode-posts-table
+			<div class="os-posts__body" data-os-posts-body>
+				<os-table
+					data-os-posts-table
 					selectable="multi"
 					sticky-header
 					sticky-columns="1"
@@ -60,31 +60,31 @@ function desktop_mode_pages_window_render_template() {
 					bordered
 					loading
 				>
-					<div slot="empty" class="desktop-mode-posts__empty">
+					<div slot="empty" class="os-posts__empty">
 						<span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
 						<p><?php esc_html_e( 'No pages found.', 'desktop-mode' ); ?></p>
-						<p class="desktop-mode-posts__empty-hint">
+						<p class="os-posts__empty-hint">
 							<?php esc_html_e( 'Try a different search or change the status filter.', 'desktop-mode' ); ?>
 						</p>
 					</div>
-				</wpd-table>
+				</os-table>
 			</div>
-			<footer class="desktop-mode-posts__pager" data-desktop-mode-posts-pager>
-				<div class="desktop-mode-posts__pager-meta">
-					<span data-desktop-mode-posts-page-indicator>—</span>
+			<footer class="os-posts__pager" data-os-posts-pager>
+				<div class="os-posts__pager-meta">
+					<span data-os-posts-page-indicator>—</span>
 				</div>
-				<div class="desktop-mode-posts__pager-nav">
-					<wpd-button variant="ghost" data-desktop-mode-posts-prev disabled>
+				<div class="os-posts__pager-nav">
+					<os-button variant="ghost" data-os-posts-prev disabled>
 						<span class="dashicons dashicons-arrow-left-alt2" aria-hidden="true"></span>
 						<?php esc_html_e( 'Previous', 'desktop-mode' ); ?>
-					</wpd-button>
-					<wpd-button variant="ghost" data-desktop-mode-posts-next disabled>
+					</os-button>
+					<os-button variant="ghost" data-os-posts-next disabled>
 						<?php esc_html_e( 'Next', 'desktop-mode' ); ?>
 						<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
-					</wpd-button>
-					<label class="desktop-mode-posts__pager-perpage">
+					</os-button>
+					<label class="os-posts__pager-perpage">
 						<?php esc_html_e( 'Per page', 'desktop-mode' ); ?>
-						<select data-desktop-mode-posts-per-page>
+						<select data-os-posts-per-page>
 							<option value="10">10</option>
 							<option value="20" selected>20</option>
 							<option value="50">50</option>
@@ -101,15 +101,15 @@ function desktop_mode_pages_window_render_template() {
 	/**
 	 * Filter the native Pages window's template HTML.
 	 *
-	 * Keep the `data-desktop-mode-posts-*` hooks intact so the JS
+	 * Keep the `data-os-posts-*` hooks intact so the JS
 	 * render callback can find its mount points.
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'desktop_mode_pages_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_pages_window_template_html', $html );
 
-	if ( function_exists( 'desktop_mode_kses_native_window_template' ) ) {
-		echo desktop_mode_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -118,21 +118,21 @@ function desktop_mode_pages_window_render_template() {
 /**
  * Register the native Pages window on `init` (priority 20).
  */
-function desktop_mode_pages_window_register_window() {
-	if ( ! desktop_mode_pages_window_user_can_register() ) {
+function openstation_pages_window_register_window() {
+	if ( ! openstation_pages_window_user_can_register() ) {
 		return;
 	}
 
 	$window_args = array(
 		'title'      => __( 'Pages', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-page',
-		'template'   => 'desktop_mode_pages_window_render_template',
+		'template'   => 'openstation_pages_window_render_template',
 		// Both Posts and Pages share a single bundle — `index.ts`
 		// registers `desktop-mode-posts` AND `desktop-mode-pages` from
-		// the same module. Loading `desktop-mode-posts-window` for the
+		// the same module. Loading `os-posts-window` for the
 		// Pages window reuses the already-cached script + style.
-		'script'     => 'desktop-mode-posts-window',
-		'style'      => 'desktop-mode-posts-window',
+		'script'     => 'os-posts-window',
+		'style'      => 'os-posts-window',
 		'width'      => 1100,
 		'height'     => 720,
 		'min_width'  => 720,
@@ -156,8 +156,8 @@ function desktop_mode_pages_window_register_window() {
 			'usersUrl'        => esc_url_raw( rest_url( 'wp/v2/users' ) ),
 			'currentUserId'   => (int) get_current_user_id(),
 			'defaultPerPage'  => 20,
-			'queryArgs'       => desktop_mode_pages_window_default_query_args(),
-			'introSeen'       => desktop_mode_has_seen_intro( get_current_user_id(), 'pages' ),
+			'queryArgs'       => openstation_pages_window_default_query_args(),
+			'introSeen'       => openstation_has_seen_intro( get_current_user_id(), 'pages' ),
 			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// Reading-page assignments — surfaced so the title cell can
 			// paint "Front page" / "Posts page" badges on matching rows
@@ -170,42 +170,42 @@ function desktop_mode_pages_window_register_window() {
 			// raw slug when a theme registers a template the table
 			// hasn't seen — better to show "page-fullwidth.php" than to
 			// hide which template is in use.
-			'pageTemplates'   => desktop_mode_pages_window_template_labels(),
+			'pageTemplates'   => openstation_pages_window_template_labels(),
 		),
 	);
 
 	/**
 	 * Filter the args used to register the native Pages window.
 	 *
-	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'desktop_mode_pages_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_pages_window_args', $window_args );
 
-	$registered = desktop_mode_register_window( 'desktop-mode-pages', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-pages', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[desktop-mode] Native Pages window registration failed: ' . $registered->get_error_message() );
+		error_log( '[openstation] Native Pages window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'desktop_mode_pages_window_register_window', 20 );
+add_action( 'init', 'openstation_pages_window_register_window', 20 );
 
 /**
  * Default REST query args for the Pages window.
  *
  * @return array
  */
-function desktop_mode_pages_window_default_query_args() {
+function openstation_pages_window_default_query_args() {
 	$args = array(
 		// Pages are usually shallow + ordered by menu_order; embed the
 		// author + featured media for the table cells.
 		'_embed'  => 'author,wp:featuredmedia',
-		// `slug`, `template`, `link` and the custom `desktop_mode_comment_count`
+		// `slug`, `template`, `link` and the custom `openstation_comment_count`
 		// field are pulled in for the new Slug / Template / Comments
 		// columns and the public-URL "View" quick-action. Missing them
 		// from the whitelist costs nothing on the wire (REST will skip
 		// them) but does silently break the column — keep them here.
 		'_fields' =>
-			'id,title,status,date,date_gmt,modified,modified_gmt,author,parent,menu_order,slug,link,template,comment_status,excerpt,desktop_mode_lock,desktop_mode_comment_count,_links,_embedded',
+			'id,title,status,date,date_gmt,modified,modified_gmt,author,parent,menu_order,slug,link,template,comment_status,excerpt,openstation_lock,openstation_comment_count,_links,_embedded',
 		'orderby' => 'menu_order',
 		'order'   => 'asc',
 	);
@@ -215,7 +215,7 @@ function desktop_mode_pages_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'desktop_mode_pages_window_query_args', $args );
+	return (array) apply_filters( 'openstation_pages_window_query_args', $args );
 }
 
 /**
@@ -229,7 +229,7 @@ function desktop_mode_pages_window_default_query_args() {
  *
  * @return array<string,string>
  */
-function desktop_mode_pages_window_template_labels() {
+function openstation_pages_window_template_labels() {
 	$labels = array(
 		'' => __( 'Default template', 'desktop-mode' ),
 	);
@@ -248,11 +248,11 @@ function desktop_mode_pages_window_template_labels() {
 	 *
 	 * @param array<string,string> $labels Slug → human label.
 	 */
-	return (array) apply_filters( 'desktop_mode_pages_window_template_labels', $labels );
+	return (array) apply_filters( 'openstation_pages_window_template_labels', $labels );
 }
 
 /**
- * Register the `desktop_mode_comment_count` REST field on `page`.
+ * Register the `openstation_comment_count` REST field on `page`.
  *
  * The default `/wp/v2/pages` response doesn't include a comment
  * count — surfacing one alongside the row keeps parity with the
@@ -264,10 +264,10 @@ function desktop_mode_pages_window_template_labels() {
  * comments via the classic admin and can be wired the same way
  * if/when the Posts window grows the column.
  */
-function desktop_mode_pages_window_register_comment_count_field() {
+function openstation_pages_window_register_comment_count_field() {
 	register_rest_field(
 		'page',
-		'desktop_mode_comment_count',
+		'openstation_comment_count',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -285,5 +285,5 @@ function desktop_mode_pages_window_register_comment_count_field() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_pages_window_register_comment_count_field' );
+add_action( 'rest_api_init', 'openstation_pages_window_register_comment_count_field' );
 

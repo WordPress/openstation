@@ -218,3 +218,69 @@ describe( 'tryNativeUrlRemap — multiple entries', () => {
 		expect( openById ).toHaveBeenNthCalledWith( 2, 'b' );
 	} );
 } );
+
+describe( 'tryNativeUrlRemap — open-time params', () => {
+	function bind( openOk = true ) {
+		const openById = vi.fn().mockReturnValue( openOk );
+		bindNativeUrlRemap( {
+			getSnapshot: () => snapshot(),
+			openById,
+			adminUrl: ADMIN_URL,
+		} );
+		return openById;
+	}
+
+	test( 'a params hook reaches the opener', () => {
+		const openById = bind();
+		registerNativeUrlRemap( {
+			id: 'customer',
+			nativeWindowId: 'desktop-mode-woo-customer',
+			matches: () => true,
+			params: ( _url, parsed ) => ( {
+				customerId: Number( parsed.searchParams.get( 'user_id' ) ) || 0,
+			} ),
+		} );
+
+		expect(
+			tryNativeUrlRemap( ADMIN_URL + 'user-edit.php?user_id=7' ),
+		).toBe( true );
+		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-woo-customer', {
+			params: { customerId: 7 },
+		} );
+	} );
+
+	test( 'a remap without params calls the opener with one argument', () => {
+		const openById = bind();
+		registerNativeUrlRemap( {
+			id: 'plain',
+			nativeWindowId: 'plain',
+			matches: () => true,
+		} );
+
+		tryNativeUrlRemap( ADMIN_URL + 'edit.php' );
+
+		// Not `( 'plain', undefined )`. The opener's signature is
+		// older than the params hook and most remaps will never use
+		// it; a trailing `undefined` would change what every existing
+		// caller observes for no benefit.
+		expect( openById ).toHaveBeenCalledWith( 'plain' );
+	} );
+
+	test( 'a throwing params hook still opens the window', () => {
+		const openById = bind();
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+		registerNativeUrlRemap( {
+			id: 'boom',
+			nativeWindowId: 'boom',
+			matches: () => true,
+			params: () => {
+				throw new Error( 'nope' );
+			},
+		} );
+
+		// Same tolerance `onMatch` has: the window opens, just
+		// without whatever the hook meant to tell it.
+		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php' ) ).toBe( true );
+		expect( openById ).toHaveBeenCalledWith( 'boom' );
+	} );
+} );

@@ -3,7 +3,7 @@
  *
  * Slides in from the inline-end edge over the active tab. Sticky
  * hero (banner background + icon + name + author + rating + active
- * installs) plus `<wpd-tabs>` for Overview / Screenshots / Reviews /
+ * installs) plus `<os-tabs>` for Overview / Screenshots / Reviews /
  * Changelog / FAQ. Action footer pinned to the bottom: Install /
  * Activate / Deactivate / Delete + a "View on WordPress.org" link.
  *
@@ -23,19 +23,19 @@ import {
 	fetchPluginReviews,
 	getConfig,
 	installPluginBySlug,
-	isDesktopModeSelf,
+	isOpenStationSelf,
 	refreshFrameworkMenu,
-	reloadOutOfDesktopMode,
+	reloadOutOfOpenStation,
 } from './rest';
 import type {
 	InstalledPlugin,
 	WpOrgBrowsePlugin,
 	WpOrgPluginInfo,
 } from './types';
-import '../ui/components/wpd-button/wpd-button';
-// `<wpd-tab>` is registered by the `wpd-tabs` compound module —
+import '../ui/components/os-button/os-button';
+// `<os-tab>` is registered by the `os-tabs` compound module —
 // both elements live in the same component file.
-import '../ui/components/wpd-tabs/wpd-tabs';
+import '../ui/components/os-tabs/os-tabs';
 
 interface FlyoutCallbacks {
 	getInstalled: ( slug: string ) => InstalledPlugin | undefined;
@@ -47,7 +47,7 @@ interface FlyoutCallbacks {
 
 /** Toast helper, shell-routed when available. */
 function toast( message: string, duration = 3500 ): void {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.showToast === 'function' ) {
 		api.showToast( { message, duration } );
 		return;
@@ -63,7 +63,7 @@ async function confirm( opts: {
 	confirmLabel?: string;
 	danger?: boolean;
 } ): Promise< boolean > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.confirm === 'function' ) {
 		return api.confirm( opts );
 	}
@@ -72,7 +72,7 @@ async function confirm( opts: {
 
 /**
  * Open the detail flyout for the given slug. The flyout element is
- * already in the template (`data-desktop-mode-plugins-flyout`) — we
+ * already in the template (`data-os-plugins-flyout`) — we
  * paint into it.
  */
 export function openDetailFlyout(
@@ -84,7 +84,7 @@ export function openDetailFlyout(
 	flyout.replaceChildren();
 
 	const card = document.createElement( 'div' );
-	card.className = 'desktop-mode-plugins__flyout';
+	card.className = 'os-plugins__flyout';
 
 	// Build skeleton sections; we'll fill in once `plugin_information`
 	// resolves, but render the hint header eagerly so the user sees
@@ -92,9 +92,9 @@ export function openDetailFlyout(
 	const hero = buildHeroSkeleton( hint );
 	const tabs = buildTabs();
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-plugins__flyout-body';
+	body.className = 'os-plugins__flyout-body';
 	const footer = document.createElement( 'footer' );
-	footer.className = 'desktop-mode-plugins__flyout-footer';
+	footer.className = 'os-plugins__flyout-footer';
 
 	card.append( hero.root, tabs.root, body, footer );
 	flyout.appendChild( card );
@@ -127,7 +127,7 @@ export function openDetailFlyout(
 		} catch ( err ) {
 			body.innerHTML = '';
 			const failure = document.createElement( 'p' );
-			failure.className = 'desktop-mode-plugins__flyout-error';
+			failure.className = 'os-plugins__flyout-error';
 			failure.textContent =
 				err instanceof Error
 					? err.message
@@ -151,28 +151,28 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): {
 	banner: HTMLElement;
 } {
 	const root = document.createElement( 'header' );
-	root.className = 'desktop-mode-plugins__flyout-hero';
+	root.className = 'os-plugins__flyout-hero';
 
 	const banner = document.createElement( 'div' );
-	banner.className = 'desktop-mode-plugins__flyout-banner';
+	banner.className = 'os-plugins__flyout-banner';
 	root.appendChild( banner );
 
 	const inner = document.createElement( 'div' );
-	inner.className = 'desktop-mode-plugins__flyout-hero-inner';
+	inner.className = 'os-plugins__flyout-hero-inner';
 
 	const icon = document.createElement( 'div' );
-	icon.className = 'desktop-mode-plugins__flyout-hero-icon';
+	icon.className = 'os-plugins__flyout-hero-icon';
 
 	const text = document.createElement( 'div' );
-	text.className = 'desktop-mode-plugins__flyout-hero-text';
+	text.className = 'os-plugins__flyout-hero-text';
 	const title = document.createElement( 'h2' );
-	title.className = 'desktop-mode-plugins__flyout-hero-title';
+	title.className = 'os-plugins__flyout-hero-title';
 	const byline = document.createElement( 'p' );
-	byline.className = 'desktop-mode-plugins__flyout-hero-byline';
+	byline.className = 'os-plugins__flyout-hero-byline';
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-plugins__flyout-hero-meta';
+	meta.className = 'os-plugins__flyout-hero-meta';
 	const stars = document.createElement( 'div' );
-	stars.className = 'desktop-mode-plugins__flyout-hero-stars';
+	stars.className = 'os-plugins__flyout-hero-stars';
 	meta.appendChild( stars );
 
 	text.append( title, byline, meta );
@@ -182,13 +182,13 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): {
 
 	// Circular glass close button — pinned top-right, floats over the
 	// banner. Plain `<button>` so we can inline-style every visual
-	// without fighting `<wpd-button>`'s own padding/min-width. The
-	// `data-flyout-close` attribute is the contract `<wpd-flyout>`
+	// without fighting `<os-button>`'s own padding/min-width. The
+	// `data-flyout-close` attribute is the contract `<os-flyout>`
 	// listens for, so the click still wires up to the framework's
 	// dismiss flow.
 	const close = document.createElement( 'button' );
 	close.type = 'button';
-	close.className = 'desktop-mode-plugins__flyout-close';
+	close.className = 'os-plugins__flyout-close';
 	close.setAttribute( 'data-flyout-close', '' );
 	close.setAttribute(
 		'aria-label',
@@ -257,9 +257,9 @@ function paintHero(
 	}
 
 	// Trailing meta line: active installs + last updated + tested up to.
-	parts.meta.querySelectorAll( ':scope > .desktop-mode-plugins__flyout-meta-row' ).forEach( ( n ) => n.remove() );
+	parts.meta.querySelectorAll( ':scope > .os-plugins__flyout-meta-row' ).forEach( ( n ) => n.remove() );
 	const metaRow = document.createElement( 'div' );
-	metaRow.className = 'desktop-mode-plugins__flyout-meta-row';
+	metaRow.className = 'os-plugins__flyout-meta-row';
 	const installs = document.createElement( 'span' );
 	installs.textContent = sprintf(
 		/* translators: %s: comma-grouped active install count */
@@ -294,8 +294,8 @@ function buildTabs(): {
 	current: () => DetailTab;
 	onChange: ( cb: ( tab: DetailTab ) => void ) => void;
 	} {
-	const root = document.createElement( 'wpd-tabs' );
-	root.className = 'desktop-mode-plugins__flyout-tabs';
+	const root = document.createElement( 'os-tabs' );
+	root.className = 'os-plugins__flyout-tabs';
 	root.setAttribute( 'value', 'overview' );
 	const labels: Array< { value: DetailTab; label: string } > = [
 		{ value: 'overview', label: __( 'Overview', 'desktop-mode' ) },
@@ -305,14 +305,14 @@ function buildTabs(): {
 		{ value: 'faq', label: __( 'FAQ', 'desktop-mode' ) },
 	];
 	for ( const opt of labels ) {
-		const tab = document.createElement( 'wpd-tab' );
+		const tab = document.createElement( 'os-tab' );
 		tab.setAttribute( 'value', opt.value );
 		tab.textContent = opt.label;
 		root.appendChild( tab );
 	}
 	let current: DetailTab = 'overview';
 	const subscribers = new Set<( tab: DetailTab ) => void >();
-	root.addEventListener( 'wpd-tab-change', ( ev: Event ) => {
+	root.addEventListener( 'os-tab-change', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		const value = ( detail?.value ?? 'overview' ) as DetailTab;
 		current = value;
@@ -358,9 +358,9 @@ function paintTabBody(
 	if ( tab === 'reviews' ) {
 		body.appendChild( buildRatingsHistogram( info ) );
 		const list = document.createElement( 'div' );
-		list.className = 'desktop-mode-plugins__reviews-list';
+		list.className = 'os-plugins__reviews-list';
 		const loadingLine = document.createElement( 'p' );
-		loadingLine.className = 'desktop-mode-plugins__reviews-loading';
+		loadingLine.className = 'os-plugins__reviews-loading';
 		loadingLine.textContent = __( 'Loading recent reviews…', 'desktop-mode' );
 		list.appendChild( loadingLine );
 		body.appendChild( list );
@@ -371,7 +371,7 @@ function paintTabBody(
 					list.replaceChildren();
 					if ( ! resp.parsed || resp.items.length === 0 ) {
 						const fallback = document.createElement( 'p' );
-						fallback.className = 'desktop-mode-plugins__reviews-fallback';
+						fallback.className = 'os-plugins__reviews-fallback';
 						fallback.innerHTML = sprintf(
 							/* translators: %s: anchor tag with link to wp.org reviews */
 							__(
@@ -393,7 +393,7 @@ function paintTabBody(
 				} catch {
 					list.replaceChildren();
 					const failure = document.createElement( 'p' );
-					failure.className = 'desktop-mode-plugins__reviews-fallback';
+					failure.className = 'os-plugins__reviews-fallback';
 					failure.textContent = __(
 						'Could not load reviews.',
 						'desktop-mode',
@@ -407,10 +407,10 @@ function paintTabBody(
 
 function buildHtmlSection( html: string ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__html';
+	wrap.className = 'os-plugins__html';
 	if ( ! html ) {
 		const empty = document.createElement( 'p' );
-		empty.className = 'desktop-mode-plugins__empty-line';
+		empty.className = 'os-plugins__empty-line';
 		empty.textContent = __( 'No content available.', 'desktop-mode' );
 		wrap.appendChild( empty );
 		return wrap;
@@ -430,11 +430,11 @@ function buildScreenshots(
 	shots: Record< string, { src: string; caption: string } > | undefined,
 ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__screenshots';
+	wrap.className = 'os-plugins__screenshots';
 	const items = shots ? Object.values( shots ) : [];
 	if ( items.length === 0 ) {
 		const empty = document.createElement( 'p' );
-		empty.className = 'desktop-mode-plugins__empty-line';
+		empty.className = 'os-plugins__empty-line';
 		empty.textContent = __(
 			'This plugin doesn’t ship screenshots.',
 			'desktop-mode',
@@ -444,7 +444,7 @@ function buildScreenshots(
 	}
 	for ( const shot of items ) {
 		const fig = document.createElement( 'figure' );
-		fig.className = 'desktop-mode-plugins__screenshot';
+		fig.className = 'os-plugins__screenshot';
 		const img = document.createElement( 'img' );
 		img.src = shot.src;
 		img.loading = 'lazy';
@@ -466,7 +466,7 @@ function buildScreenshots(
 
 function buildRatingsHistogram( info: WpOrgPluginInfo ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__histogram';
+	wrap.className = 'os-plugins__histogram';
 	const ratings = info.ratings ?? {};
 	const total = Object.values( ratings ).reduce(
 		( a, b ) => a + ( typeof b === 'number' ? b : 0 ),
@@ -474,7 +474,7 @@ function buildRatingsHistogram( info: WpOrgPluginInfo ): HTMLElement {
 	);
 	if ( total === 0 ) {
 		const empty = document.createElement( 'p' );
-		empty.className = 'desktop-mode-plugins__empty-line';
+		empty.className = 'os-plugins__empty-line';
 		empty.textContent = __( 'No ratings yet.', 'desktop-mode' );
 		wrap.appendChild( empty );
 		return wrap;
@@ -483,22 +483,22 @@ function buildRatingsHistogram( info: WpOrgPluginInfo ): HTMLElement {
 		const count = ratings[ String( star ) ] ?? 0;
 		const ratio = count / total;
 		const row = document.createElement( 'div' );
-		row.className = 'desktop-mode-plugins__histogram-row';
+		row.className = 'os-plugins__histogram-row';
 		const label = document.createElement( 'span' );
-		label.className = 'desktop-mode-plugins__histogram-label';
+		label.className = 'os-plugins__histogram-label';
 		label.textContent = sprintf(
 			/* translators: %d: number of stars (1–5) */
 			__( '%d ★', 'desktop-mode' ),
 			star,
 		);
 		const track = document.createElement( 'span' );
-		track.className = 'desktop-mode-plugins__histogram-track';
+		track.className = 'os-plugins__histogram-track';
 		const fill = document.createElement( 'span' );
-		fill.className = 'desktop-mode-plugins__histogram-fill';
+		fill.className = 'os-plugins__histogram-fill';
 		fill.style.width = `${ Math.round( ratio * 100 ) }%`;
 		track.appendChild( fill );
 		const num = document.createElement( 'span' );
-		num.className = 'desktop-mode-plugins__histogram-count';
+		num.className = 'os-plugins__histogram-count';
 		num.textContent = new Intl.NumberFormat().format( count );
 		row.append( label, track, num );
 		wrap.appendChild( row );
@@ -514,22 +514,22 @@ function buildReviewCard( item: {
 	url: string;
 } ): HTMLElement {
 	const card = document.createElement( 'article' );
-	card.className = 'desktop-mode-plugins__review';
+	card.className = 'os-plugins__review';
 	const head = document.createElement( 'header' );
-	head.className = 'desktop-mode-plugins__review-head';
+	head.className = 'os-plugins__review-head';
 	const author = document.createElement( 'span' );
-	author.className = 'desktop-mode-plugins__review-author';
+	author.className = 'os-plugins__review-author';
 	author.textContent = item.author || __( 'Anonymous', 'desktop-mode' );
 	const star = buildStarCluster( ( item.stars / 5 ) * 100, 0 );
 	head.append( author, star );
 	if ( item.date ) {
 		const date = document.createElement( 'time' );
-		date.className = 'desktop-mode-plugins__review-date';
+		date.className = 'os-plugins__review-date';
 		date.textContent = item.date;
 		head.appendChild( date );
 	}
 	const body = document.createElement( 'p' );
-	body.className = 'desktop-mode-plugins__review-excerpt';
+	body.className = 'os-plugins__review-excerpt';
 	body.textContent = item.excerpt;
 	card.append( head, body );
 	if ( item.url ) {
@@ -538,7 +538,7 @@ function buildReviewCard( item: {
 		link.target = '_blank';
 		link.rel = 'noopener nofollow';
 		link.textContent = __( 'Read on WordPress.org ↗', 'desktop-mode' );
-		link.className = 'desktop-mode-plugins__review-link';
+		link.className = 'os-plugins__review-link';
 		card.appendChild( link );
 	}
 	return card;
@@ -546,10 +546,10 @@ function buildReviewCard( item: {
 
 function buildSkeletonLines( count: number ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-plugins__skeleton';
+	wrap.className = 'os-plugins__skeleton';
 	for ( let i = 0; i < count; i++ ) {
 		const line = document.createElement( 'span' );
-		line.className = 'desktop-mode-plugins__skeleton-line';
+		line.className = 'os-plugins__skeleton-line';
 		line.style.width = `${ 60 + ( i * 10 ) % 40 }%`;
 		wrap.appendChild( line );
 	}
@@ -568,17 +568,17 @@ function paintFooter(
 
 	const installed = callbacks.getInstalled( slug );
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-plugins__flyout-footer-left';
+	left.className = 'os-plugins__flyout-footer-left';
 	const wpOrg = document.createElement( 'a' );
 	wpOrg.href = `https://wordpress.org/plugins/${ encodeURIComponent( slug ) }/`;
 	wpOrg.target = '_blank';
 	wpOrg.rel = 'noopener';
-	wpOrg.className = 'desktop-mode-plugins__flyout-wporg';
+	wpOrg.className = 'os-plugins__flyout-wporg';
 	wpOrg.textContent = __( 'View on WordPress.org ↗', 'desktop-mode' );
 	left.appendChild( wpOrg );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-plugins__flyout-footer-right';
+	right.className = 'os-plugins__flyout-footer-right';
 
 	if ( installed ) {
 		if ( cfg.caps.activate ) {
@@ -691,15 +691,15 @@ function paintFooter(
 		try {
 			const updated = await deactivateInstalledPlugin( installed );
 			callbacks.onPluginDeactivated( updated );
-			if ( isDesktopModeSelf( updated.plugin ) ) {
+			if ( isOpenStationSelf( updated.plugin ) ) {
 				toast(
 					__(
-						'Desktop Mode deactivated. Reloading…',
+						'OpenStation deactivated. Reloading…',
 						'desktop-mode',
 					),
 					2000,
 				);
-				reloadOutOfDesktopMode();
+				reloadOutOfOpenStation();
 				return;
 			}
 			toast(
@@ -746,15 +746,15 @@ function paintFooter(
 		try {
 			await deleteInstalledPlugin( installed );
 			callbacks.onPluginDeleted( installed );
-			if ( isDesktopModeSelf( installed.plugin ) ) {
+			if ( isOpenStationSelf( installed.plugin ) ) {
 				toast(
 					__(
-						'Desktop Mode deleted. Reloading…',
+						'OpenStation deleted. Reloading…',
 						'desktop-mode',
 					),
 					2000,
 				);
-				reloadOutOfDesktopMode();
+				reloadOutOfOpenStation();
 				return;
 			}
 			toast(
@@ -780,7 +780,7 @@ function paintFooter(
 }
 
 function button( label: string, variant: string ): HTMLElement {
-	const b = document.createElement( 'wpd-button' );
+	const b = document.createElement( 'os-button' );
 	b.setAttribute( 'variant', variant );
 	b.textContent = label;
 	return b;

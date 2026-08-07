@@ -1,8 +1,8 @@
 # Migration — `windowManager.open()` is async in 0.8.4
 
-> **TL;DR.** `wp.desktop.windowManager.open( cfg )`,
-> `wp.desktop.windowManager.openNew( cfg )`, and
-> `wp.desktop.registerWindow( def )` now return `Promise< Window >`
+> **TL;DR.** `wp.os.windowManager.open( cfg )`,
+> `wp.os.windowManager.openNew( cfg )`, and
+> `wp.os.registerWindow( def )` now return `Promise< Window >`
 > instead of `Window`. Add `await` (or `.then(...)`) on every call
 > site that uses the returned `Window`. Calls that already discard
 > the return value need no change in behavior, but should prefix
@@ -14,7 +14,7 @@
 
 Before 0.8.4, the `Window` class lived in `desktop.min.js`. It was
 the single largest module in the shell — ~68 kB of code that
-**never runs at first paint**. Opening desktop mode shows just the
+**never runs at first paint**. Opening OpenStation shows just the
 wallpaper, the dock, and the desktop icons; the user typically
 hasn't asked for a window yet.
 
@@ -22,8 +22,8 @@ hasn't asked for a window yet.
 helpers) in a separate `assets/js/window-system[.min].js`
 bundle that `desktop.ts` `<script>`-injects in the background
 right after first paint. The window-chrome components themselves
-(`<wpd-window-button>`, `<wpd-menu>`, `<wpd-tab-chip>`,
-`<wpd-save-status>`, `<wpd-spinner>`) live in a sibling
+(`<os-window-button>`, `<os-menu>`, `<os-tab-chip>`,
+`<os-save-status>`, `<os-spinner>`) live in a sibling
 `assets/js/shell-overlays[.min].js` bundle that pre-loads on the
 same idle-callback. Both are guaranteed to be ready before
 `manager.open()` constructs the first window — `createWindow()`
@@ -48,19 +48,19 @@ preload), but the type system requires `await` regardless.
 
 | Surface | Pre-0.8.4 | 0.8.4 |
 | ------- | --------- | ----- |
-| `wp.desktop.windowManager.open( cfg )` | returns `Window` | returns `Promise< Window >` |
-| `wp.desktop.windowManager.openNew( cfg )` | returns `Window` | returns `Promise< Window >` |
-| `wp.desktop.registerWindow( def )` | returns `Window` | returns `Promise< Window >` |
+| `wp.os.windowManager.open( cfg )` | returns `Window` | returns `Promise< Window >` |
+| `wp.os.windowManager.openNew( cfg )` | returns `Window` | returns `Promise< Window >` |
+| `wp.os.registerWindow( def )` | returns `Window` | returns `Promise< Window >` |
 
 ### Unchanged API
 
 These keep their pre-0.8.4 signatures:
 
-- `wp.desktop.openWindow( id, opts? )` — still returns `boolean`. Semantics: "did the shell accept the open intent?" The actual window opens asynchronously; this hasn't changed observable behaviour for plugins.
-- `wp.desktop.openNewWindow( id, opts? )` — same.
-- `wp.desktop.windowManager.getById( id )` — still synchronous, still returns `Window | undefined`.
-- `wp.desktop.windowManager.getWindows()` — still synchronous, still returns `Window[]`.
-- `wp.desktop.windowManager.focus( win )` — still synchronous; you already have a `Window` reference.
+- `wp.os.openWindow( id, opts? )` — still returns `boolean`. Semantics: "did the shell accept the open intent?" The actual window opens asynchronously; this hasn't changed observable behaviour for plugins.
+- `wp.os.openNewWindow( id, opts? )` — same.
+- `wp.os.windowManager.getById( id )` — still synchronous, still returns `Window | undefined`.
+- `wp.os.windowManager.getWindows()` — still synchronous, still returns `Window[]`.
+- `wp.os.windowManager.focus( win )` — still synchronous; you already have a `Window` reference.
 - Every method on a `Window` instance (`win.focus()`, `win.close()`, `win.minimize()`, etc.) — unchanged.
 
 ---
@@ -72,7 +72,7 @@ These keep their pre-0.8.4 signatures:
 **Before:**
 
 ```ts
-const win = wp.desktop.windowManager.open( {
+const win = wp.os.windowManager.open( {
     id: 'my-window',
     url: '/wp-admin/edit.php',
     title: 'Posts',
@@ -83,7 +83,7 @@ win.focus();
 **After:**
 
 ```ts
-const win = await wp.desktop.windowManager.open( {
+const win = await wp.os.windowManager.open( {
     id: 'my-window',
     url: '/wp-admin/edit.php',
     title: 'Posts',
@@ -95,7 +95,7 @@ The enclosing function must be `async`. If it can't be (e.g. an
 event handler that can't await), use `.then( … )`:
 
 ```ts
-wp.desktop.windowManager
+wp.os.windowManager
     .open( { id, url, title } )
     .then( ( win ) => win.focus() );
 ```
@@ -105,13 +105,13 @@ wp.desktop.windowManager
 **Before:**
 
 ```ts
-wp.desktop.windowManager.open( { id, url, title } );
+wp.os.windowManager.open( { id, url, title } );
 ```
 
 **After:**
 
 ```ts
-void wp.desktop.windowManager.open( { id, url, title } );
+void wp.os.windowManager.open( { id, url, title } );
 ```
 
 The runtime behaviour is identical — the window opens
@@ -125,7 +125,7 @@ async.
 **Before:**
 
 ```ts
-const win = wp.desktop.registerWindow( {
+const win = wp.os.registerWindow( {
     id: 'my-plugin/dashboard',
     title: 'My Dashboard',
     icon: 'dashicons-chart-bar',
@@ -136,7 +136,7 @@ const win = wp.desktop.registerWindow( {
 **After:**
 
 ```ts
-const win = await wp.desktop.registerWindow( {
+const win = await wp.os.registerWindow( {
     id: 'my-plugin/dashboard',
     title: 'My Dashboard',
     icon: 'dashicons-chart-bar',
@@ -154,13 +154,13 @@ change.
 **No change needed.**
 
 ```ts
-const opened = wp.desktop.openWindow( 'my-window' );
+const opened = wp.os.openWindow( 'my-window' );
 if ( ! opened ) {
     showFallbackUi();
 }
 ```
 
-`wp.desktop.openWindow` still returns `boolean` — `true` when
+`wp.os.openWindow` still returns `boolean` — `true` when
 the shell accepted the open intent (the id is registered),
 `false` when it didn't (e.g. the id isn't known). The actual
 window opens asynchronously under the hood; the boolean has
@@ -174,7 +174,7 @@ code without `<script type="module">`, wrap in an IIFE:
 
 ```ts
 ( async () => {
-    const win = await wp.desktop.windowManager.open( cfg );
+    const win = await wp.os.windowManager.open( cfg );
     win.focus();
 } )();
 ```
@@ -196,7 +196,7 @@ Defensive handling:
 
 ```ts
 try {
-    const win = await wp.desktop.windowManager.open( cfg );
+    const win = await wp.os.windowManager.open( cfg );
     win.focus();
 } catch ( err ) {
     console.error( '[my-plugin] failed to open window:', err );
@@ -218,8 +218,8 @@ If you see this exact error in the console while iterating on the
 framework:
 
 ```
-Error: [desktop-mode] window-system bundle loaded but did not
-register `window.desktopModeWindowSystem`.
+Error: [openstation] window-system bundle loaded but did not
+register `window.openStationWindowSystem`.
 ```
 
 …it almost always means **the browser is serving a cached old
@@ -260,7 +260,7 @@ The trade-off: every plugin that calls `manager.open()` /
 
 ## CI / lint catches
 
-The Stage-7 ESLint rule (`local-rules/wpd-component-registration`)
+The Stage-7 ESLint rule (`local-rules/os-component-registration`)
 doesn't catch missing `await` on its own. To enforce the
 migration across a plugin codebase, enable the standard
 TypeScript-ESLint rules:
@@ -291,7 +291,7 @@ unlikely but possible if you typo a method).
 | Total bytes if user opens a window | 360 kB | 374 kB |
 | Total bytes if user never opens a window | 360 kB | **307 kB** |
 
-A user who enters desktop mode and never opens a window saves
+A user who enters OpenStation and never opens a window saves
 ~53 kB minified / ~13 kB gzipped. A user who opens a window
 pays slightly more total bytes (~14 kB minified / ~4 kB gz —
 overhead from the lazy-loader plumbing + per-bundle utility
@@ -313,5 +313,5 @@ materially change the "open a window" cost.
 - Cross-bundle factory contract: `src/window-system/types.ts`
 - Pre-load hook in shell boot: `src/desktop.ts` (search for `preloadWindowSystem`)
 - Shared-store contract for chrome registries: `src/window-chrome/{controls,slots,themes,chrome}/registry.ts` + `src/title-bar-buttons/registry.ts` (all back their state on `createSharedStore` since 0.8.4 so the lazy bundle sees the same registry main writes to — see `AGENTS.md` for the underlying primitive)
-- PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `DESKTOP_MODE_VERSION`)
-- Migration discussion: [PR #190 — "Faster Desktop Mode, main bundle cut by 59 %"](https://github.com/WordPress/desktop-mode/pull/190).
+- PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `OPENSTATION_VERSION`)
+- Migration discussion: [PR #190 — "Faster OpenStation, main bundle cut by 59 %"](https://github.com/WordPress/openstation/pull/190).

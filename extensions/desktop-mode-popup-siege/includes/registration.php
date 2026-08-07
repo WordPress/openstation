@@ -1,8 +1,8 @@
 <?php
 /**
- * Desktop Mode registration for Popup Siege.
+ * OpenStation registration for Popup Siege.
  *
- * @package DesktopModePopupSiege
+ * @package OpenStationPopupSiege
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  * Register Popup Siege's discovery metadata and lazy-loaded browser runtime.
  */
 function popup_siege_register_game() {
-	if ( ! function_exists( 'desktop_mode_register_game' ) ) {
+	if ( ! function_exists( 'openstation_register_game' ) ) {
 		return;
 	}
 
@@ -27,7 +27,7 @@ function popup_siege_register_game() {
 	wp_register_script(
 		$handle,
 		plugins_url( $script, POPUP_SIEGE_FILE ),
-		array( 'desktop-mode' ),
+		array( 'openstation' ),
 		POPUP_SIEGE_ASSET_VERSION,
 		true
 	);
@@ -35,7 +35,7 @@ function popup_siege_register_game() {
 	$config           = $manifest['config'];
 	$config['cssUrl'] = plugins_url( $style, POPUP_SIEGE_FILE );
 
-	desktop_mode_register_game(
+	openstation_register_game(
 		$manifest['id'],
 		array(
 			'title'         => $manifest['title'],

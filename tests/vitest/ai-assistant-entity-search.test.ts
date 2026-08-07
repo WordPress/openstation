@@ -2,7 +2,7 @@
  * Tests for AiAssistant entity search integration.
  *
  * Covers the gap between Classic Admin Mode's Cmd+K (which searches
- * posts/pages via REST) and Desktop Mode's command palette:
+ * posts/pages via REST) and OpenStation's command palette:
  *
  * - `_fetchRemoteCommands` only fires in Commands mode, never AI mode
  * - Entity results render as clickable items in the command list
@@ -93,7 +93,7 @@ function stubShell(): void {
 	const existing = ( window as unknown as Record< string, unknown > ).wp ?? {};
 	( window as unknown as Record< string, unknown > ).wp = {
 		...existing,
-		desktop: {
+		os: {
 			windowManager: WINDOW_MANAGER,
 			deriveWindowId: DERIVE_WINDOW_ID,
 		},
@@ -151,7 +151,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		expect( input ).toBeTruthy();
 		input.value = 'hello';
@@ -170,7 +170,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = '/help';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -187,7 +187,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = '';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -209,7 +209,7 @@ describe( 'AiAssistant — entity search', () => {
 		 * The palette defaults to AI mode when override is on.
 		 */
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = 'How do I create a post?';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -227,7 +227,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = 'hello';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -238,7 +238,7 @@ describe( 'AiAssistant — entity search', () => {
 		 */
 		await vi.waitFor( () => {
 			const buttons = document.querySelectorAll(
-				'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item',
+				'#desktop-mode-ai-assistant .os-ai__cmd-item',
 			);
 			expect( buttons.length ).toBeGreaterThanOrEqual( 3 );
 		}, { timeout: 500, interval: 50 } );
@@ -247,7 +247,7 @@ describe( 'AiAssistant — entity search', () => {
 		 * All three fixtures rendered with styling class.
 		 */
 		const entityItem = document.querySelector(
-			'.desktop-mode-ai__cmd-item.is-entity-result',
+			'.os-ai__cmd-item.is-entity-result',
 		);
 		expect( entityItem ).toBeTruthy();
 	} );
@@ -260,7 +260,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = 'hello';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -270,7 +270,7 @@ describe( 'AiAssistant — entity search', () => {
 		 */
 		await vi.waitFor( () => {
 			const btn = document.querySelector(
-				'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item',
+				'#desktop-mode-ai-assistant .os-ai__cmd-item',
 			);
 			expect( btn ).toBeTruthy();
 		}, { timeout: 500, interval: 50 } );
@@ -279,7 +279,7 @@ describe( 'AiAssistant — entity search', () => {
 		 * Click the first entity result.
 		 */
 		const firstItem = document.querySelector< HTMLButtonElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item',
+			'#desktop-mode-ai-assistant .os-ai__cmd-item',
 		)!;
 		firstItem.click();
 
@@ -303,7 +303,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = 'hello';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
@@ -319,7 +319,7 @@ describe( 'AiAssistant — entity search', () => {
 		 * After the failed fetch, no entity results should have rendered.
 		 */
 		const entityItems = document.querySelectorAll(
-			'.desktop-mode-ai__cmd-item.is-entity-result',
+			'.os-ai__cmd-item.is-entity-result',
 		);
 		expect( entityItems.length ).toBe( 0 );
 	} );
@@ -332,14 +332,14 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 		input.value = 'hello';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 
 		await vi.waitFor( () => {
 			const entityItems = document.querySelectorAll(
-				'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item.is-entity-result',
+				'#desktop-mode-ai-assistant .os-ai__cmd-item.is-entity-result',
 			);
 			expect( entityItems.length ).toBe( SEARCH_FIXTURE.length );
 		}, { timeout: 500, interval: 50 } );
@@ -356,7 +356,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 
 		/**
@@ -369,7 +369,7 @@ describe( 'AiAssistant — entity search', () => {
 		await vi.waitFor( () => {
 			expect(
 				document.querySelector(
-					'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item',
+					'#desktop-mode-ai-assistant .os-ai__cmd-item',
 				),
 			).toBeTruthy();
 		}, { timeout: 500, interval: 50 } );
@@ -378,7 +378,7 @@ describe( 'AiAssistant — entity search', () => {
 		 * The local command should NOT have the entity class.
 		 */
 		const localItem = document.querySelector(
-			'.desktop-mode-ai__cmd-item:not(.is-entity-result)',
+			'.os-ai__cmd-item:not(.is-entity-result)',
 		);
 		expect( localItem ).toBeTruthy();
 		expect( localItem?.getAttribute( 'data-slug' ) ).toBe( 'test-command' );
@@ -414,7 +414,7 @@ describe( 'AiAssistant — entity search', () => {
 		assistant.open();
 
 		const input = document.querySelector< HTMLInputElement >(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__input',
+			'#desktop-mode-ai-assistant .os-ai__input',
 		)!;
 
 		// 1. Trigger first slow query
@@ -438,7 +438,7 @@ describe( 'AiAssistant — entity search', () => {
 
 		// Verify only the 'Fresh Post' remains in the list, and 'Stale Post' is discarded
 		const items = document.querySelectorAll(
-			'#desktop-mode-ai-assistant .desktop-mode-ai__cmd-item',
+			'#desktop-mode-ai-assistant .os-ai__cmd-item',
 		);
 		expect( items.length ).toBe( 1 );
 		expect( items[ 0 ].textContent ).toContain( 'Fresh Post' );

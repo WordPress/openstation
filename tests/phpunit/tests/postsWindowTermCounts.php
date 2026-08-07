@@ -12,10 +12,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-posts-window
+ * @group openstation
+ * @group os-posts-window
  */
-class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
+class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 
 	private $admin_id;
 	private $subscriber_id;
@@ -65,7 +65,7 @@ class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
 		$response = rest_get_server()->dispatch( $request );
 		$this->assertSame( 400, $response->get_status() );
 		$this->assertSame(
-			'desktop_mode_invalid_taxonomy',
+			'openstation_invalid_taxonomy',
 			$response->get_data()['code']
 		);
 	}
@@ -187,7 +187,7 @@ class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
 
 		// Cache version moves on every fixture call; read it AFTER
 		// fixtures are set up.
-		$version   = desktop_mode_posts_window_terms_cache_version();
+		$version   = openstation_posts_window_terms_cache_version();
 		$cache_key = sprintf( 'dmtcnt_v%d_%s', $version, 'post_tag' );
 
 		// Caller only asks for t1, but the cache should still
@@ -210,7 +210,7 @@ class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
 	public function test_second_call_short_circuits_on_cache_hit() {
 		wp_set_current_user( $this->admin_id );
 
-		$version   = desktop_mode_posts_window_terms_cache_version();
+		$version   = openstation_posts_window_terms_cache_version();
 		$cache_key = sprintf( 'dmtcnt_v%d_%s', $version, 'post_tag' );
 
 		// Plant a sentinel map; the dispatcher must read this
@@ -229,7 +229,7 @@ class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
 	public function test_set_object_terms_invalidates_term_counts_cache() {
 		wp_set_current_user( $this->admin_id );
 
-		$version_a = desktop_mode_posts_window_terms_cache_version();
+		$version_a = openstation_posts_window_terms_cache_version();
 		$key_a     = sprintf( 'dmtcnt_v%d_%s', $version_a, 'post_tag' );
 
 		// Plant a sentinel under the current version's key.
@@ -242,7 +242,7 @@ class Tests_DesktopMode_PostsWindowTermCounts extends WP_UnitTestCase {
 		wp_set_object_terms( $post, array( $tag ), 'post_tag' );
 
 		// New version → new cache key → sentinel no longer reachable.
-		$version_b = desktop_mode_posts_window_terms_cache_version();
+		$version_b = openstation_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $version_a, $version_b );
 
 		$data = $this->dispatch_with_ids( array( $tag, 4242 ) )->get_data();

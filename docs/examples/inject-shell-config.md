@@ -1,4 +1,4 @@
-# Inject data into `desktopModeConfig`
+# Inject data into `openStationConfig`
 
 Add a feature flag + REST endpoint to the shell config so your TypeScript can read it without another `rest_url()` round-trip.
 
@@ -11,7 +11,7 @@ Add a feature flag + REST endpoint to the shell config so your TypeScript can re
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'desktop_mode_shell_config', function ( $config ) {
+add_filter( 'openstation_shell_config', function ( $config ) {
     $config['myFeature'] = array(
         'enabled'  => (bool) get_option( 'my_ext_feature_enabled' ),
         'endpoint' => esc_url_raw( rest_url( 'my-ext/v1/stats' ) ),
@@ -24,8 +24,8 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 ## Reading from JS
 
 ```javascript
-document.addEventListener( 'desktop-mode-init', () => {
-    const cfg = window.desktopModeConfig;
+document.addEventListener( 'os-init', () => {
+    const cfg = window.openStationConfig;
     if ( ! cfg.myFeature?.enabled ) {
         return;
     }
@@ -46,5 +46,5 @@ document.addEventListener( 'desktop-mode-init', () => {
 
 ## Related
 
-- [Hooks Reference — `desktop_mode_shell_config`](../hooks-reference.md#desktop_mode_shell_config--stable)
-- [JavaScript Reference — `desktop-mode-init`](../javascript-reference.md#desktop-mode-init--stable)
+- [Hooks Reference — `openstation_shell_config`](../hooks-reference.md#openstation_shell_config--stable)
+- [JavaScript Reference — `os-init`](../javascript-reference.md#os-init--stable)

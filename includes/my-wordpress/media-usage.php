@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-attachment "used in" endpoint.
+ * OpenStation — My WordPress: per-attachment "used in" endpoint.
  *
  * `GET /desktop-mode/v1/media-usage/<id>` returns the list of public
  * post-type entries that reference a given attachment, either as
@@ -28,7 +28,7 @@
  * leak rows across viewers with different capabilities. Cache is
  * busted whenever any post is saved or deleted.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,13 +36,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function desktop_mode_my_wordpress_register_media_usage_route() {
+function openstation_my_wordpress_register_media_usage_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/media-usage/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_media_usage_callback',
+			'callback'            => 'openstation_my_wordpress_media_usage_callback',
 			'permission_callback' => static function ( $request ) {
 				$id = (int) $request->get_param( 'id' );
 				if ( $id <= 0 ) {
@@ -64,7 +64,7 @@ function desktop_mode_my_wordpress_register_media_usage_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_media_usage_route' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_media_usage_route' );
 
 /**
  * Cache TTL (seconds). Filterable so sites that bulk-import media
@@ -74,14 +74,14 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_media_usage_rou
  * @param int $attachment_id Attachment id.
  * @return int
  */
-function desktop_mode_my_wordpress_media_usage_ttl( $attachment_id ) {
+function openstation_my_wordpress_media_usage_ttl( $attachment_id ) {
 	/**
 	 * Filter the media-usage transient TTL.
 	 *
 	 * @param int $seconds       Default 300 (5 minutes).
 	 * @param int $attachment_id Attachment id the cache key is for.
 	 */
-	return (int) apply_filters( 'desktop_mode_my_wordpress_media_usage_cache_ttl', 300, $attachment_id );
+	return (int) apply_filters( 'openstation_my_wordpress_media_usage_cache_ttl', 300, $attachment_id );
 }
 
 /**
@@ -92,7 +92,7 @@ function desktop_mode_my_wordpress_media_usage_ttl( $attachment_id ) {
  *
  * @return string[]
  */
-function desktop_mode_my_wordpress_media_usage_cache_buckets() {
+function openstation_my_wordpress_media_usage_cache_buckets() {
 	return array( 'edit', 'read' );
 }
 
@@ -102,7 +102,7 @@ function desktop_mode_my_wordpress_media_usage_cache_buckets() {
  *
  * @return string
  */
-function desktop_mode_my_wordpress_media_usage_current_bucket() {
+function openstation_my_wordpress_media_usage_current_bucket() {
 	return current_user_can( 'edit_others_posts' ) ? 'edit' : 'read';
 }
 
@@ -118,9 +118,9 @@ function desktop_mode_my_wordpress_media_usage_current_bucket() {
  *                              the current user's bucket.
  * @return string
  */
-function desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id, $bucket = null ) {
+function openstation_my_wordpress_media_usage_cache_key( $attachment_id, $bucket = null ) {
 	if ( null === $bucket ) {
-		$bucket = desktop_mode_my_wordpress_media_usage_current_bucket();
+		$bucket = openstation_my_wordpress_media_usage_current_bucket();
 	}
 	return 'dm_media_usage_' . (int) $attachment_id . '_' . $bucket . '_v1';
 }
@@ -131,25 +131,25 @@ function desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id, $bucke
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_media_usage_callback( $request ) {
+function openstation_my_wordpress_media_usage_callback( $request ) {
 	$attachment_id = (int) $request->get_param( 'id' );
 	$attachment    = get_post( $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
 		return new WP_Error(
-			'desktop_mode_media_not_found',
+			'openstation_media_not_found',
 			__( 'Attachment not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 
-	$cache_key    = desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id );
+	$cache_key    = openstation_my_wordpress_media_usage_cache_key( $attachment_id );
 	$rows_by_post = get_transient( $cache_key );
 	if ( ! is_array( $rows_by_post ) ) {
-		$rows_by_post = desktop_mode_my_wordpress_media_usage_collect( $attachment );
+		$rows_by_post = openstation_my_wordpress_media_usage_collect( $attachment );
 		set_transient(
 			$cache_key,
 			$rows_by_post,
-			desktop_mode_my_wordpress_media_usage_ttl( $attachment_id )
+			openstation_my_wordpress_media_usage_ttl( $attachment_id )
 		);
 	}
 
@@ -164,7 +164,7 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
 	 * refreshes on the cache-bust events (save_post,
 	 * before_delete_post, delete_attachment).
 	 */
-	$payload = desktop_mode_my_wordpress_media_usage_build( $attachment, $rows_by_post );
+	$payload = openstation_my_wordpress_media_usage_build( $attachment, $rows_by_post );
 
 	/**
 	 * Filter the media-usage payload before returning to the bundle.
@@ -174,7 +174,7 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
 	 * @param array $payload       Default payload.
 	 * @param int   $attachment_id Subject attachment id.
 	 */
-	return apply_filters( 'desktop_mode_my_wordpress_media_usage', $payload, $attachment_id );
+	return apply_filters( 'openstation_my_wordpress_media_usage', $payload, $attachment_id );
 }
 
 /**
@@ -182,14 +182,14 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
  * post id => 'featured'|'content'. This is the heavy SQL portion of
  * the payload and the ONLY part that gets transient-cached — the
  * per-row `read_post` gate lives in
- * `desktop_mode_my_wordpress_media_usage_build()` and runs on every
+ * `openstation_my_wordpress_media_usage_build()` and runs on every
  * request, so a cached map can never leak rows across viewers with
  * different capabilities.
  *
  * @param WP_Post $attachment Attachment post.
  * @return array<int,string> Map of post id => usedAs kind.
  */
-function desktop_mode_my_wordpress_media_usage_collect( $attachment ) {
+function openstation_my_wordpress_media_usage_collect( $attachment ) {
 	global $wpdb;
 
 	$attachment_id = (int) $attachment->ID;
@@ -237,8 +237,8 @@ function desktop_mode_my_wordpress_media_usage_collect( $attachment ) {
 		}
 		$basename_variants = array_values( array_unique( $basename_variants ) );
 
-		$class_pattern   = '%wp-image-' . $attachment_id . '%';
-		$url_patterns    = array();
+		$class_pattern = '%wp-image-' . $attachment_id . '%';
+		$url_patterns  = array();
 		foreach ( $basename_variants as $variant ) {
 			$url_patterns[] = '%' . $wpdb->esc_like( $variant ) . '%';
 		}
@@ -319,7 +319,7 @@ function desktop_mode_my_wordpress_media_usage_collect( $attachment ) {
  *                                             post id => usedAs kind.
  * @return array
  */
-function desktop_mode_my_wordpress_media_usage_build( $attachment, $rows_by_post = null ) {
+function openstation_my_wordpress_media_usage_build( $attachment, $rows_by_post = null ) {
 	$attachment_id = (int) $attachment->ID;
 	$file_url      = (string) wp_get_attachment_url( $attachment_id );
 	$file_basename = '' !== $file_url ? wp_basename( $file_url ) : '';
@@ -339,7 +339,7 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment, $rows_by_post
 	);
 
 	if ( ! is_array( $rows_by_post ) ) {
-		$rows_by_post = desktop_mode_my_wordpress_media_usage_collect( $attachment );
+		$rows_by_post = openstation_my_wordpress_media_usage_collect( $attachment );
 	}
 
 	$public_types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
@@ -408,7 +408,7 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment, $rows_by_post
  *
  * @var array<int,array<int,true>>
  */
-$GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
+$GLOBALS['openstation_media_usage_pre_save_refs'] = array();
 
 /**
  * Extract attachment ids referenced by a post — featured image plus
@@ -417,7 +417,7 @@ $GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
  * cases the REST field does (block-class scan, classic `[caption]`
  * shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>`
  * URL resolution including `-scaled.jpg` ↔ original swaps), plus
- * any ids appended via the `desktop_mode_my_wordpress_attached_media`
+ * any ids appended via the `openstation_my_wordpress_attached_media`
  * filter (ACF, page builders, post-meta galleries). Without this
  * delegation, editing a post to add or remove a raw URL embed
  * wouldn't bust the affected attachment's media-usage cache until
@@ -426,13 +426,13 @@ $GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
  * @param int|WP_Post $post Post id or object.
  * @return array<int,true> Set of attachment ids keyed for dedup.
  */
-function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
+function openstation_my_wordpress_media_usage_extract_refs( $post ) {
 	$ids = array();
 	$obj = is_object( $post ) ? $post : get_post( (int) $post );
 	if ( ! $obj || ! isset( $obj->ID ) ) {
 		return $ids;
 	}
-	if ( ! function_exists( 'desktop_mode_my_wordpress_post_attached_media' ) ) {
+	if ( ! function_exists( 'openstation_my_wordpress_post_attached_media' ) ) {
 		// Defensive: bootstrap order should always load
 		// attached-media.php before this can be called from a save
 		// hook, but fall back to the legacy minimal scan just in
@@ -449,7 +449,7 @@ function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
 		}
 		return $ids;
 	}
-	foreach ( desktop_mode_my_wordpress_post_attached_media( (int) $obj->ID ) as $id ) {
+	foreach ( openstation_my_wordpress_post_attached_media( (int) $obj->ID ) as $id ) {
 		$id = (int) $id;
 		if ( $id > 0 ) {
 			$ids[ $id ] = true;
@@ -466,15 +466,15 @@ function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
  *
  * @param int $post_id Post id about to be updated.
  */
-function desktop_mode_my_wordpress_media_usage_snapshot_pre_save( $post_id ) {
+function openstation_my_wordpress_media_usage_snapshot_pre_save( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return;
 	}
-	$GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] =
-		desktop_mode_my_wordpress_media_usage_extract_refs( $post_id );
+	$GLOBALS['openstation_media_usage_pre_save_refs'][ $post_id ] =
+		openstation_my_wordpress_media_usage_extract_refs( $post_id );
 }
-add_action( 'pre_post_update', 'desktop_mode_my_wordpress_media_usage_snapshot_pre_save' );
+add_action( 'pre_post_update', 'openstation_my_wordpress_media_usage_snapshot_pre_save' );
 
 /**
  * Bust the transient when a post changes. The cache key is
@@ -492,28 +492,28 @@ add_action( 'pre_post_update', 'desktop_mode_my_wordpress_media_usage_snapshot_p
  *
  * @param int $post_id Post id that was just modified.
  */
-function desktop_mode_my_wordpress_media_usage_bust_for_post( $post_id ) {
+function openstation_my_wordpress_media_usage_bust_for_post( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return;
 	}
 
-	$ids = desktop_mode_my_wordpress_media_usage_extract_refs( $post_id );
+	$ids = openstation_my_wordpress_media_usage_extract_refs( $post_id );
 
-	if ( isset( $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] ) ) {
-		$ids += $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ];
-		unset( $GLOBALS['desktop_mode_media_usage_pre_save_refs'][ $post_id ] );
+	if ( isset( $GLOBALS['openstation_media_usage_pre_save_refs'][ $post_id ] ) ) {
+		$ids += $GLOBALS['openstation_media_usage_pre_save_refs'][ $post_id ];
+		unset( $GLOBALS['openstation_media_usage_pre_save_refs'][ $post_id ] );
 	}
 
 	foreach ( array_keys( $ids ) as $attachment_id ) {
-		foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+		foreach ( openstation_my_wordpress_media_usage_cache_buckets() as $bucket ) {
 			delete_transient(
-				desktop_mode_my_wordpress_media_usage_cache_key( (int) $attachment_id, $bucket )
+				openstation_my_wordpress_media_usage_cache_key( (int) $attachment_id, $bucket )
 			);
 		}
 	}
 }
-add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+add_action( 'save_post', 'openstation_my_wordpress_media_usage_bust_for_post' );
 // `before_delete_post`, NOT `deleted_post`. By the time `deleted_post`
 // fires, `delete_all_meta_for_post` has already wiped `_thumbnail_id`
 // and the row itself is gone — `extract_refs()` would return an empty
@@ -521,7 +521,7 @@ add_action( 'save_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' )
 // its 5-minute TTL. `before_delete_post` fires while the post + meta
 // are still readable. Signature matches (we only consume the first
 // arg, the post id).
-add_action( 'before_delete_post', 'desktop_mode_my_wordpress_media_usage_bust_for_post' );
+add_action( 'before_delete_post', 'openstation_my_wordpress_media_usage_bust_for_post' );
 // New posts skip `pre_post_update` but still go through `save_post`,
 // so the buster works as-is — the pre-snapshot is just empty.
 
@@ -530,15 +530,15 @@ add_action( 'before_delete_post', 'desktop_mode_my_wordpress_media_usage_bust_fo
  *
  * @param int $post_id Attachment id.
  */
-function desktop_mode_my_wordpress_media_usage_bust_for_attachment( $post_id ) {
+function openstation_my_wordpress_media_usage_bust_for_attachment( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return;
 	}
-	foreach ( desktop_mode_my_wordpress_media_usage_cache_buckets() as $bucket ) {
+	foreach ( openstation_my_wordpress_media_usage_cache_buckets() as $bucket ) {
 		delete_transient(
-			desktop_mode_my_wordpress_media_usage_cache_key( $post_id, $bucket )
+			openstation_my_wordpress_media_usage_cache_key( $post_id, $bucket )
 		);
 	}
 }
-add_action( 'delete_attachment', 'desktop_mode_my_wordpress_media_usage_bust_for_attachment' );
+add_action( 'delete_attachment', 'openstation_my_wordpress_media_usage_bust_for_attachment' );

@@ -2,7 +2,7 @@
  * Desktop themes — public entry point for the module.
  *
  * A desktop theme reskins the entire shell from a ZIP of a manifest
- * plus images: every `--desktop-mode-*` token, the title-bar / dock
+ * plus images: every `--os-*` token, the title-bar / dock
  * / desktop textures, the window frame and corners, and a complete
  * iconset down to the window control glyphs.
  *

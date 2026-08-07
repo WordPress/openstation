@@ -130,13 +130,13 @@ describe( 'games/challenges-client.ts', () => {
 		// Outgoing tick carries the store's version.
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]( null, data );
-		expect( data.desktop_mode_games_subscribe ).toEqual( {
+		expect( data.openstation_games_subscribe ).toEqual( {
 			challengesVersion: 0,
 		} );
 
 		// Incoming tick feeds the store.
 		handlers[ 'heartbeat-tick' ]( null, {
-			desktop_mode_games: {
+			openstation_games: {
 				challenges: [ makeRow( { updatedAtMs: 5000 } ) ],
 			},
 		} );
@@ -144,7 +144,7 @@ describe( 'games/challenges-client.ts', () => {
 
 		const next: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]( null, next );
-		expect( next.desktop_mode_games_subscribe ).toEqual( {
+		expect( next.openstation_games_subscribe ).toEqual( {
 			challengesVersion: 5000,
 		} );
 	} );

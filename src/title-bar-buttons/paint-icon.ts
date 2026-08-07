@@ -1,7 +1,7 @@
 /**
  * Icon painter for plugin-registered title-bar buttons.
  *
- * `<wpd-window-button>` only knows seven built-in icon keys
+ * `<os-window-button>` only knows seven built-in icon keys
  * (`minimize` / `maximize` / `fullscreen` / `fullscreen-exit` /
  * `detach` / `close` / `menu`); passing a Dashicons class or an
  * inline SVG via the `icon` attribute paints nothing because the

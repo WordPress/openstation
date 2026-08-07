@@ -126,7 +126,7 @@ describe( 'drop gating', () => {
 function installOpenWindowStub(): ReturnType< typeof vi.fn > {
 	const openWindow = vi.fn( () => true );
 	( window as unknown as Record< string, unknown > ).wp = {
-		desktop: { openWindow },
+		os: { openWindow },
 	};
 	return openWindow;
 }

@@ -7,13 +7,13 @@
  * reparent. No REST writes — the demo is a pure local toy whose
  * only job is to hint at what the real Categories tab feels like.
  *
- * Lifecycle is identical to {@link wpdConfirm}: render a backdrop +
+ * Lifecycle is identical to {@link osConfirm}: render a backdrop +
  * dialog, return a Promise that resolves with the chosen action,
  * tear down on close. Two outcomes: `'confirm'` ("Got it"), or
  * `'settings'` ("Take me to settings"). Either way the dialog is
  * marked seen by the caller.
  *
- * Reuses the framework's `wp.desktop.loadModules( ['pixijs'] )` so
+ * Reuses the framework's `wp.os.loadModules( ['pixijs'] )` so
  * the bundle does not ship Pixi twice. Falls back to a static
  * markup-only intro when Pixi is unavailable (offline boot, the
  * shell hasn't loaded yet, etc.) so the dialog is never broken.
@@ -90,10 +90,10 @@ interface PixiNamespace {
  *
  * - `'confirm'`  — user clicked "Got it" → caller should mark seen.
  * - `'settings'` — user clicked "Take me to settings" → caller marks
- *                  seen and routes to OS Settings.
+ *                  seen and routes to OpenStation Preferences.
  * - `'cancel'`   — Escape / backdrop click → caller MUST NOT mark
  *                  seen. Lets us test the intro repeatedly without
- *                  having to wipe meta from OS Settings.
+ *                  having to wipe meta from OpenStation Preferences.
  */
 export type IntroResult = 'confirm' | 'settings' | 'cancel';
 
@@ -481,7 +481,7 @@ function paintTagChip( chip: TagChip ): void {
 function renderFallback( stage: HTMLElement ): void {
 	stage.replaceChildren();
 	const note = document.createElement( 'p' );
-	note.className = 'wpd-intro__fallback';
+	note.className = 'os-intro__fallback';
 	note.textContent = __(
 		'A new visual editor for Categories and Tags awaits inside — drag, drop, and reorganize your taxonomy in seconds.',
 	);
@@ -496,48 +496,48 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		// --- Backdrop + dialog DOM -----------------------------------
 		const backdrop = document.createElement( 'div' );
-		backdrop.className = 'wpd-intro-backdrop';
+		backdrop.className = 'os-intro-backdrop';
 		const dialog = document.createElement( 'div' );
-		dialog.className = 'wpd-intro';
+		dialog.className = 'os-intro';
 		dialog.setAttribute( 'role', 'dialog' );
 		dialog.setAttribute( 'aria-modal', 'true' );
-		dialog.setAttribute( 'aria-labelledby', 'wpd-intro-title' );
+		dialog.setAttribute( 'aria-labelledby', 'os-intro-title' );
 		dialog.tabIndex = -1;
 		backdrop.appendChild( dialog );
 
 		const titleEl = document.createElement( 'h2' );
-		titleEl.id = 'wpd-intro-title';
-		titleEl.className = 'wpd-intro__title';
+		titleEl.id = 'os-intro-title';
+		titleEl.className = 'os-intro__title';
 		titleEl.textContent = __( 'Welcome to the new Posts' );
 		dialog.appendChild( titleEl );
 
 		const lede = document.createElement( 'p' );
-		lede.className = 'wpd-intro__lede';
+		lede.className = 'os-intro__lede';
 		lede.textContent = __(
 			'A redesigned Posts experience built around how you actually work. Try the new Categories canvas — grab a node and drop it on another to reparent it.',
 		);
 		dialog.appendChild( lede );
 
 		const stage = document.createElement( 'div' );
-		stage.className = 'wpd-intro__stage';
+		stage.className = 'os-intro__stage';
 		dialog.appendChild( stage );
 
 		const escape = document.createElement( 'p' );
-		escape.className = 'wpd-intro__escape';
+		escape.className = 'os-intro__escape';
 		escape.textContent = __(
-			'Prefer the classic Posts list? You can switch back any time from OS Settings → Features.',
+			'Prefer the classic Posts list? You can switch back any time from OpenStation Preferences → Features.',
 		);
 		dialog.appendChild( escape );
 
 		const actions = document.createElement( 'div' );
-		actions.className = 'wpd-intro__actions';
+		actions.className = 'os-intro__actions';
 		const settingsBtn = document.createElement( 'button' );
 		settingsBtn.type = 'button';
-		settingsBtn.className = 'wpd-intro__btn wpd-intro__btn--secondary';
+		settingsBtn.className = 'os-intro__btn os-intro__btn--secondary';
 		settingsBtn.textContent = __( 'Take me to settings' );
 		const confirmBtn = document.createElement( 'button' );
 		confirmBtn.type = 'button';
-		confirmBtn.className = 'wpd-intro__btn wpd-intro__btn--primary';
+		confirmBtn.className = 'os-intro__btn os-intro__btn--primary';
 		confirmBtn.textContent = __( 'Got it' );
 		actions.appendChild( settingsBtn );
 		actions.appendChild( confirmBtn );
@@ -590,7 +590,7 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 }
 
 async function mountPixi( stage: HTMLElement ): Promise< () => void > {
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( ! api || typeof api.loadModules !== 'function' ) {
 		renderFallback( stage );
 		return () => {};
@@ -617,7 +617,7 @@ async function mountPixi( stage: HTMLElement ): Promise< () => void > {
 		resolution: Math.min( window.devicePixelRatio || 1, 2 ),
 	} );
 	stage.appendChild( app.canvas );
-	app.canvas.classList.add( 'wpd-intro__canvas' );
+	app.canvas.classList.add( 'os-intro__canvas' );
 
 	const world = new pixi.Container();
 	world.sortableChildren = true;

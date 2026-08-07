@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — clip-path shape builders for window reveals.
+ * OpenStation — clip-path shape builders for window reveals.
  *
  * Pure string math, no DOM. Every builder returns a `clip-path` value
  * for the OPAQUE COVERING SURFACE, not for the content: a reveal is

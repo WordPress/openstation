@@ -1,8 +1,8 @@
 /**
  * Deterministic auto-id generation for form controls.
  *
- * Plugin authors expect form primitives (`<wpd-text-field>`,
- * `<wpd-select>`, `<wpd-number-field>`) to ship stable, predictable
+ * Plugin authors expect form primitives (`<os-text-field>`,
+ * `<os-select>`, `<os-number-field>`) to ship stable, predictable
  * `id` attributes — for `<label for>` pairing inside the shadow
  * root, for `document.querySelector` reuse across renders, and for
  * devtools inspection. Hand-typing `id` on every control is the
@@ -14,11 +14,11 @@
  *   1. Native-window id — found via the nearest ancestor whose
  *      `id` starts with `wp-window-` (the shell's window-root
  *      naming convention).
- *   2. Tabpanel context — each enclosing `<wpd-tabpanel for="X">`
+ *   2. Tabpanel context — each enclosing `<os-tabpanel for="X">`
  *      contributes a `tab-X` token, outermost first.
  *   3. The element's own `label` attribute, slugified.
  *
- * Combined as `wpd-<window>-<tab…>-<label>`. Deterministic: same
+ * Combined as `os-<window>-<tab…>-<label>`. Deterministic: same
  * ancestry + same label yields the same id across renders. Unique
  * within a page as long as any two controls either live in
  * different tab panes or carry different labels — which is the
@@ -31,7 +31,7 @@
 
 /**
  * Compute the deterministic auto-id for an element based on its
- * ancestry + `label` attribute. Returns `'wpd-unnamed'` as a last
+ * ancestry + `label` attribute. Returns `'os-unnamed'` as a last
  * resort so the shell never produces an empty id.
  *
  * @param element The element requesting an auto-id.
@@ -59,7 +59,7 @@ export function computeAutoId( element: HTMLElement ): string {
 		// Collect in reverse order so the outermost tab comes first
 		// in the slug — matches the "window → outer tab → inner
 		// tab → label" reading order.
-		if ( node.tagName.toLowerCase() === 'wpd-tabpanel' ) {
+		if ( node.tagName.toLowerCase() === 'os-tabpanel' ) {
 			const forValue = node.getAttribute( 'for' );
 			if ( forValue ) {
 				tabs.unshift( forValue );
@@ -80,9 +80,9 @@ export function computeAutoId( element: HTMLElement ): string {
 	}
 
 	if ( parts.length === 0 ) {
-		return 'wpd-unnamed';
+		return 'os-unnamed';
 	}
-	return 'wpd-' + parts.filter( ( p ) => p !== '' ).join( '-' );
+	return 'os-' + parts.filter( ( p ) => p !== '' ).join( '-' );
 }
 
 /**

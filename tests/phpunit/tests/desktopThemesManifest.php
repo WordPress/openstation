@@ -10,10 +10,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-themes
+ * @group openstation
+ * @group os-themes
  */
-class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
+class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 
 	/**
 	 * Local recursive delete. The module's own `_rmdir()` refuses to
@@ -46,7 +46,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	private function sanitize( $raw, $resolver = null ) {
-		return desktop_mode_sanitize_desktop_theme_manifest(
+		return openstation_sanitize_desktop_theme_manifest(
 			$raw,
 			$resolver ? $resolver : $this->permissive_resolver()
 		);
@@ -57,7 +57,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_valid_manifest_sanitizes() {
 		$out = $this->sanitize( $this->valid_manifest() );
@@ -68,19 +68,19 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_non_array_manifest_is_fatal() {
 		$this->assertWPError( $this->sanitize( 'not-a-manifest' ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_wrong_manifest_version_is_fatal() {
 		$error = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 3 ) ) );
 		$this->assertWPError( $error );
-		$this->assertSame( 'desktop_mode_desktop_theme_bad_version', $error->get_error_code() );
+		$this->assertSame( 'openstation_desktop_theme_bad_version', $error->get_error_code() );
 	}
 
 	/**
@@ -89,7 +89,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * exactly like a v1 manifest otherwise, and round-trip its own
 	 * version number rather than being rewritten to 1.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_manifest_version_two_is_accepted() {
 		$manifest = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 2 ) ) );
@@ -99,7 +99,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_missing_manifest_version_is_fatal() {
 		$raw = $this->valid_manifest();
@@ -108,26 +108,26 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_missing_name_is_fatal() {
 		$raw = $this->valid_manifest();
 		unset( $raw['name'] );
 		$error = $this->sanitize( $raw );
 		$this->assertWPError( $error );
-		$this->assertSame( 'desktop_mode_desktop_theme_missing_name', $error->get_error_code() );
+		$this->assertSame( 'openstation_desktop_theme_missing_name', $error->get_error_code() );
 	}
 
 	/**
 	 * @dataProvider data_bad_ids
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 *
 	 * @param string $id Candidate id.
 	 */
 	public function test_bad_ids_are_fatal( $id ) {
 		$error = $this->sanitize( $this->valid_manifest( array( 'id' => $id ) ) );
 		$this->assertWPError( $error, "Expected id '{$id}' to be rejected." );
-		$this->assertSame( 'desktop_mode_desktop_theme_bad_id', $error->get_error_code() );
+		$this->assertSame( 'openstation_desktop_theme_bad_id', $error->get_error_code() );
 	}
 
 	public function data_bad_ids() {
@@ -148,18 +148,18 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_tokens
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
 	 */
 	public function test_valid_tokens_survive() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
-				'--desktop-mode-window-radius' => '14px',
+				'--os-window-radius' => '14px',
 				'--wp-admin-theme-color'       => '#7c5cff',
-				'--desktop-mode-dock-bg'       => 'rgba( 12, 12, 30, 0.72 )',
+				'--os-dock-bg'       => 'rgba( 12, 12, 30, 0.72 )',
 			),
 		) ) );
 		$this->assertCount( 3, $out['tokens'] );
-		$this->assertSame( '14px', $out['tokens']['--desktop-mode-window-radius'] );
+		$this->assertSame( '14px', $out['tokens']['--os-window-radius'] );
 	}
 
 	/**
@@ -167,7 +167,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * theme must not be able to reach properties the shell never meant
 	 * to expose.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_tokens
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
 	 */
 	public function test_out_of_namespace_token_keys_are_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -175,68 +175,68 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 				'--evil'                       => 'red',
 				'color'                        => 'red',
 				'--wp-something-else'          => 'red',
-				'--desktop-mode-window-radius' => '4px',
+				'--os-window-radius' => '4px',
 			),
 		) ) );
 		$this->assertSame(
-			array( '--desktop-mode-window-radius' => '4px' ),
+			array( '--os-window-radius' => '4px' ),
 			$out['tokens']
 		);
 	}
 
 	/**
-	 * The `--wpd-*` namespace is the component kit's theming
+	 * The `--os-ui-*` namespace is the component kit's theming
 	 * contract, and window BODIES are built entirely from those
 	 * components. Blocking it would leave a theme able to restyle
 	 * the chrome around a window but nothing inside it.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_tokens
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
 	 */
 	public function test_wpd_component_tokens_are_accepted() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
-				'--wpd-surface'       => '#161634',
-				'--wpd-fg'            => '#e9e7ff',
-				'--wpd-fg-muted'      => '#a5a1cc',
-				'--wpd-border'        => '#2f2a63',
-				'--wpd-border-strong' => '#453e8c',
-				'--wpd-hover'         => 'rgba( 124, 92, 255, 0.16 )',
-				'--wpd-scrim'         => 'rgba( 6, 4, 24, 0.68 )',
-				'--wpd-accent'        => '#7c5cff',
-				'--wpd-danger'        => '#ff6b81',
-				'--wpd-warning-bg'    => '#33280d',
+				'--os-ui-surface'       => '#161634',
+				'--os-ui-fg'            => '#e9e7ff',
+				'--os-ui-fg-muted'      => '#a5a1cc',
+				'--os-ui-border'        => '#2f2a63',
+				'--os-ui-border-strong' => '#453e8c',
+				'--os-ui-hover'         => 'rgba( 124, 92, 255, 0.16 )',
+				'--os-ui-scrim'         => 'rgba( 6, 4, 24, 0.68 )',
+				'--os-ui-accent'        => '#7c5cff',
+				'--os-ui-danger'        => '#ff6b81',
+				'--os-ui-warning-bg'    => '#33280d',
 			),
 		) ) );
 		$this->assertCount( 10, $out['tokens'] );
-		$this->assertSame( '#161634', $out['tokens']['--wpd-surface'] );
+		$this->assertSame( '#161634', $out['tokens']['--os-ui-surface'] );
 	}
 
 	/**
-	 * `--wpd-*` widens the namespace but not the VALUE grammar — a
+	 * `--os-ui-*` widens the namespace but not the VALUE grammar — a
 	 * component token is validated exactly like a shell token.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_tokens
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
 	 */
 	public function test_wpd_tokens_still_obey_the_value_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
-				'--wpd-surface' => 'red; background: url(//evil)',
-				'--wpd-fg'      => 'var(--secret)',
-				'--wpd-border'  => '#2f2a63',
+				'--os-ui-surface' => 'red; background: url(//evil)',
+				'--os-ui-fg'      => 'var(--secret)',
+				'--os-ui-border'  => '#2f2a63',
 			),
 		) ) );
-		$this->assertSame( array( '--wpd-border' => '#2f2a63' ), $out['tokens'] );
+		$this->assertSame( array( '--os-ui-border' => '#2f2a63' ), $out['tokens'] );
 	}
 
 	/**
 	 * @dataProvider data_unsafe_css_values
-	 * @covers ::desktop_mode_desktop_theme_is_safe_css_value
+	 * @covers ::openstation_desktop_theme_is_safe_css_value
 	 *
 	 * @param string $value Candidate value.
 	 */
 	public function test_unsafe_css_values_are_rejected( $value ) {
 		$this->assertFalse(
-			desktop_mode_desktop_theme_is_safe_css_value( $value ),
+			openstation_desktop_theme_is_safe_css_value( $value ),
 			"Expected value to be rejected: {$value}"
 		);
 	}
@@ -268,13 +268,13 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 
 	/**
 	 * @dataProvider data_safe_css_values
-	 * @covers ::desktop_mode_desktop_theme_is_safe_css_value
+	 * @covers ::openstation_desktop_theme_is_safe_css_value
 	 *
 	 * @param string $value Candidate value.
 	 */
 	public function test_safe_css_values_are_accepted( $value ) {
 		$this->assertTrue(
-			desktop_mode_desktop_theme_is_safe_css_value( $value ),
+			openstation_desktop_theme_is_safe_css_value( $value ),
 			"Expected value to be accepted: {$value}"
 		);
 	}
@@ -298,7 +298,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_known_icon_slots_survive() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -314,7 +314,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_unknown_icon_slot_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -327,7 +327,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_bad_dashicon_name_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -342,7 +342,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * The resolver returning `false` (file missing, outside the theme
 	 * dir, wrong extension) drops just that entry.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_resolver_rejection_drops_only_that_icon() {
 		$resolver = static function ( $path ) {
@@ -361,7 +361,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_icons
+	 * @covers ::openstation_sanitize_desktop_theme_icons
 	 */
 	public function test_app_slot_slug_is_sanitized() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -377,7 +377,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_image_texture_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -398,7 +398,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * A bad presentational property drops on its own — the texture
 	 * itself still applies, with the CSS initial value.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_bad_texture_property_drops_without_dropping_texture() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -417,7 +417,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_border_image_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -442,7 +442,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * the compiler emits different properties per type and would
 	 * otherwise produce nonsense.
 	 *
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_texture_type_must_match_the_slot() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -454,7 +454,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_textures
+	 * @covers ::openstation_sanitize_desktop_theme_textures
 	 */
 	public function test_unknown_texture_slot_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
@@ -470,7 +470,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_desktop_theme_staging_asset_resolver
+	 * @covers ::openstation_desktop_theme_staging_asset_resolver
 	 */
 	public function test_staging_resolver_containment() {
 		$base = get_temp_dir() . 'dm-theme-resolver-' . wp_generate_uuid4();
@@ -478,7 +478,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 		file_put_contents( $base . '/icons/ok.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>' );
 		file_put_contents( $base . '/notes.txt', 'nope' );
 
-		$resolve = desktop_mode_desktop_theme_staging_asset_resolver( $base );
+		$resolve = openstation_desktop_theme_staging_asset_resolver( $base );
 
 		$this->assertSame( 'icons/ok.svg', $resolve( 'icons/ok.svg' ) );
 		$this->assertFalse( $resolve( '../outside.png' ), 'Traversal rejected.' );
@@ -493,10 +493,10 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_theme_url_asset_resolver
+	 * @covers ::openstation_desktop_theme_url_asset_resolver
 	 */
 	public function test_url_resolver() {
-		$resolve = desktop_mode_desktop_theme_url_asset_resolver();
+		$resolve = openstation_desktop_theme_url_asset_resolver();
 
 		$this->assertSame(
 			'https://example.com/x.png',
@@ -514,12 +514,12 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_manifest_filter_receives_raw_and_slug() {
 		$seen = array();
 		add_filter(
-			'desktop_mode_desktop_theme_manifest',
+			'openstation_desktop_theme_manifest',
 			function ( $manifest, $raw, $slug ) use ( &$seen ) {
 				$seen = compact( 'raw', 'slug' );
 				$manifest['name'] = 'Filtered';
@@ -535,15 +535,15 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'acme-neon', $seen['slug'] );
 		$this->assertSame( 'acme/neon', $seen['raw']['id'] );
 
-		remove_all_filters( 'desktop_mode_desktop_theme_manifest' );
+		remove_all_filters( 'openstation_desktop_theme_manifest' );
 	}
 
 	/**
-	 * @covers ::desktop_mode_desktop_theme_icon_slots
+	 * @covers ::openstation_desktop_theme_icon_slots
 	 */
 	public function test_icon_slot_allowlist_is_filterable() {
 		add_filter(
-			'desktop_mode_desktop_theme_icon_slots',
+			'openstation_desktop_theme_icon_slots',
 			static function ( $slots ) {
 				$slots[] = 'ACME_CUSTOM';
 				return $slots;
@@ -557,7 +557,7 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 		) ) );
 		$this->assertArrayHasKey( 'ACME_CUSTOM', $out['icons'] );
 
-		remove_all_filters( 'desktop_mode_desktop_theme_icon_slots' );
+		remove_all_filters( 'openstation_desktop_theme_icon_slots' );
 	}
 
 	/**
@@ -566,10 +566,10 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * silently never consulted at render time. Parse the TS source to
 	 * hold both halves together.
 	 *
-	 * @covers ::desktop_mode_desktop_theme_icon_slots
+	 * @covers ::openstation_desktop_theme_icon_slots
 	 */
 	public function test_php_and_ts_slot_lists_match() {
-		$ts = DESKTOP_MODE_DIR . 'src/desktop-themes/slots.ts';
+		$ts = OPENSTATION_DIR . 'src/desktop-themes/slots.ts';
 		$this->assertFileExists( $ts );
 
 		$source = file_get_contents( $ts );
@@ -581,13 +581,13 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 		$ts_slots = $matches[1];
 
 		sort( $ts_slots );
-		$php_slots = desktop_mode_desktop_theme_icon_slots();
+		$php_slots = openstation_desktop_theme_icon_slots();
 		sort( $php_slots );
 
 		$this->assertSame(
 			$php_slots,
 			$ts_slots,
-			'desktop_mode_desktop_theme_icon_slots() and DESKTOP_THEME_SLOTS have drifted.'
+			'openstation_desktop_theme_icon_slots() and DESKTOP_THEME_SLOTS have drifted.'
 		);
 	}
 }

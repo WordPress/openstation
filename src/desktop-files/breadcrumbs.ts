@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — shared breadcrumb header.
+ * OpenStation — shared breadcrumb header.
  *
  * Both the folder window and the My WordPress folder window grow a
  * navigation stack as the user drills in. The chrome is identical:
@@ -9,7 +9,7 @@
  *
  * This module owns the DOM construction so both surfaces render
  * pixel-identical breadcrumbs and share a single set of CSS rules
- * (`.desktop-mode-breadcrumbs__*`). The caller manages the route
+ * (`.os-breadcrumbs__*`). The caller manages the route
  * stack — this is purely a render helper.
  *
  * @public
@@ -43,7 +43,7 @@ export interface BreadcrumbsOptions {
 	backDisabled?: boolean;
 }
 
-const ROOT_CLASS = 'desktop-mode-breadcrumbs';
+const ROOT_CLASS = 'os-breadcrumbs';
 
 /**
  * Build the breadcrumb header DOM into `host`. Replaces children,

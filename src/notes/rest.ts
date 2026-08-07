@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes REST client.
+ * OpenStation — Pinned notes REST client.
  *
  * Thin `trackedFetch` wrapper against `includes/notes/rest.php`.
  * Same conventions as the files client (`src/desktop-files/rest.ts`):
@@ -26,7 +26,7 @@ export function installNotesRestDeps( next: NotesRestDeps ): void {
 function ensureDeps(): NotesRestDeps {
 	if ( ! deps ) {
 		throw new Error(
-			'[desktop-mode] notes REST client called before installNotesRestDeps().',
+			'[openstation] notes REST client called before installNotesRestDeps().',
 		);
 	}
 	return deps;
@@ -34,7 +34,7 @@ function ensureDeps(): NotesRestDeps {
 
 /**
  * The nonce to send RIGHT NOW. The heartbeat nonce-refresh
- * (`src/nonce-refresh.ts`) rewrites `window.desktopModeConfig.restNonce`
+ * (`src/nonce-refresh.ts`) rewrites `window.openStationConfig.restNonce`
  * in place when the 24h `nonce_life` boundary rolls over — a nonce
  * captured once at install time would go stale and 403 every note
  * operation in a long-lived session. Fall back to the installed value
@@ -43,9 +43,9 @@ function ensureDeps(): NotesRestDeps {
 function liveNonce( installed: string ): string {
 	const cfg = (
 		window as unknown as {
-			desktopModeConfig?: { restNonce?: unknown };
+			openStationConfig?: { restNonce?: unknown };
 		}
-	).desktopModeConfig;
+	).openStationConfig;
 	return typeof cfg?.restNonce === 'string' && cfg.restNonce
 		? cfg.restNonce
 		: installed;
@@ -103,12 +103,12 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 		}
 		const err = body as { code?: string; message?: string } | null;
 		throw new Error(
-			`[desktop-mode] notes REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
+			`[openstation] notes REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
 		);
 	}
 	if ( null === body ) {
 		throw new Error(
-			`[desktop-mode] notes REST ${ res.status }: empty or unparseable body.`,
+			`[openstation] notes REST ${ res.status }: empty or unparseable body.`,
 		);
 	}
 	return body as T;

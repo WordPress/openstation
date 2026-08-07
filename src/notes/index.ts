@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes boot.
+ * OpenStation — Pinned notes boot.
  *
  * Composes the feature: REST deps, the layer, the drop-handler
  * routes, and the cross-bundle "note created elsewhere" listener

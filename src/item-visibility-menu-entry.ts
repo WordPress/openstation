@@ -9,9 +9,9 @@
  * shim (`src/item-visibility-menu-loader.ts`) that injects this
  * bundle on the first right-click and forwards the call.
  *
- * Publishes `window.desktopModeItemVisibilityMenu`. Cross-bundle
+ * Publishes `window.openStationItemVisibilityMenu`. Cross-bundle
  * safety: the menu reads and writes OS-settings state exclusively
- * through the `wp.desktop` global shim (`getOsSettings` /
+ * through the `wp.os` global shim (`getOsSettings` /
  * `updateOsSettings`), never through imported module state, so the
  * copy compiled here can't drift from the main bundle.
  */
@@ -19,7 +19,7 @@
 import { openItemVisibilityMenu } from './item-visibility-menu';
 
 ( window as unknown as {
-	desktopModeItemVisibilityMenu?: {
+	openStationItemVisibilityMenu?: {
 		openItemVisibilityMenu: typeof openItemVisibilityMenu;
 	};
-} ).desktopModeItemVisibilityMenu = { openItemVisibilityMenu };
+} ).openStationItemVisibilityMenu = { openItemVisibilityMenu };

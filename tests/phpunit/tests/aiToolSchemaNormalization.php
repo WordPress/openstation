@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for `desktop_mode_ai_normalize_tool_schema()` — the projection that keeps
+ * Tests for `openstation_ai_normalize_tool_schema()` — the projection that keeps
  * one ability's legal-but-unsupported input schema from 400-ing the whole
  * assistant.
  *
@@ -11,19 +11,19 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-ai
+ * @group openstation
+ * @group os-ai
  */
-class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
+class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 
 	/**
 	 * A `type` array (an ability's GET/null run-path) becomes the literal
 	 * "object" the provider requires at the top level.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_type_union_becomes_object() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => array( 'object', 'null' ),
 			'properties' => array( 'range' => array( 'type' => 'integer' ) ),
 		) );
@@ -40,10 +40,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * Top-level oneOf / anyOf / allOf are stripped — the provider rejects them
 	 * outright, and one such tool fails the entire request.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_top_level_combinators_are_stripped() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'  => 'object',
 			'anyOf' => array(
 				array( 'required' => array( 'post_id' ) ),
@@ -70,7 +70,7 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * A combinator NESTED inside a property is a real constraint the provider
 	 * accepts — only the top level is projected.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_nested_combinators_are_preserved() {
 		$nested = array(
@@ -85,7 +85,7 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 			),
 		);
 
-		$out = desktop_mode_ai_normalize_tool_schema( $nested );
+		$out = openstation_ai_normalize_tool_schema( $nested );
 
 		$this->assertArrayHasKey( 'anyOf', $out['properties']['id'] );
 	}
@@ -94,10 +94,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * An empty PHP `properties` array (which would encode as `[]`) becomes an
 	 * object, so the emitted JSON is `{}`.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_empty_properties_array_becomes_object() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',
 			'properties' => array(),
 		) );
@@ -110,11 +110,11 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * A no-args ability (empty or non-array schema) becomes a valid empty object
 	 * schema rather than passing nothing through.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_empty_or_non_array_becomes_object_schema() {
 		foreach ( array( array(), null, '', 0, false ) as $empty ) {
-			$out = desktop_mode_ai_normalize_tool_schema( $empty );
+			$out = openstation_ai_normalize_tool_schema( $empty );
 			$this->assertSame( 'object', $out['type'] );
 			$this->assertSame(
 				'{"type":"object","properties":{}}',
@@ -131,10 +131,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * missing key is defaulted to an empty object so the emitted schema is
 	 * always a complete object schema.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_combinator_only_schema_gets_empty_properties() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'oneOf' => array(
 				array(
 					'properties' => array( 'post_id' => array( 'type' => 'integer' ) ),
@@ -158,10 +158,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * A non-empty schema that never declared `properties` (e.g. a bare
 	 * `{ type: ['object','null'] }`) gains an empty-object `properties`.
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_missing_properties_key_is_defaulted() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type' => array( 'object', 'null' ),
 		) );
 
@@ -172,17 +172,17 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * Normalizing an already-normalized schema changes nothing — the projection
 	 * is a fixed point, so it is safe to apply more than once (e.g. a plugin that
-	 * also normalizes on the `desktop_mode_ai_tools` filter).
+	 * also normalizes on the `openstation_ai_tools` filter).
 	 *
-	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_idempotent() {
-		$once  = desktop_mode_ai_normalize_tool_schema( array(
+		$once  = openstation_ai_normalize_tool_schema( array(
 			'type'       => array( 'object', 'null' ),
 			'anyOf'      => array( array( 'required' => array( 'a' ) ) ),
 			'properties' => array(),
 		) );
-		$twice = desktop_mode_ai_normalize_tool_schema( $once );
+		$twice = openstation_ai_normalize_tool_schema( $once );
 
 		$this->assertEquals( $once, $twice );
 		$this->assertSame( wp_json_encode( $once ), wp_json_encode( $twice ) );
@@ -195,10 +195,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * received. Unknown name \"sanitize_callback\"") and 400 the whole
 	 * request over one property.
 	 *
-	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_strip_wp_schema_keys
 	 */
 	public function test_wp_callback_keys_are_stripped_recursively() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'              => 'object',
 			'sanitize_callback' => 'sanitize_text_field',
 			'properties'        => array(
@@ -250,10 +250,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * the walk is structure-aware, so only schema-level keys are
 	 * stripped, never property names.
 	 *
-	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_strip_wp_schema_keys
 	 */
 	public function test_property_named_like_a_callback_key_is_preserved() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',
 			'properties' => array(
 				'sanitize_callback' => array(
@@ -274,10 +274,10 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * Tuple-form `items` (a list of schemas) is cleaned per entry.
 	 *
-	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_strip_wp_schema_keys
 	 */
 	public function test_tuple_items_are_cleaned_per_entry() {
-		$out = desktop_mode_ai_normalize_tool_schema( array(
+		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',
 			'properties' => array(
 				'pair' => array(

@@ -31,7 +31,7 @@ function pointerEvent(
 
 function makeSource(): HTMLElement {
 	const el = document.createElement( 'div' );
-	el.className = 'desktop-mode-file-tile';
+	el.className = 'os-file-tile';
 	document.body.appendChild( el );
 	return el;
 }
@@ -74,8 +74,8 @@ describe( 'DragManager recovery', () => {
 		document.dispatchEvent( escape );
 
 		expect( onCancel ).toHaveBeenCalledWith( 'escape' );
-		expect( source.classList.contains( 'desktop-mode-file-tile--dragging' ) ).toBe( false );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).toBeNull();
+		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( false );
+		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 		expect( manager.debug().findOrphans() ).toEqual( [] );
 	} );
 

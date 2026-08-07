@@ -6,13 +6,14 @@
  * implementation (which would create a circular-import trap).
  */
 
+import type { MioLook } from '../mio/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import type { ADMIN_BAR_MODES, DOCK_SIZES, WINDOW_RADII } from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
- * but accents now come from PHP (`desktop_mode_accent_colors`) and a
+ * but accents now come from PHP (`openstation_accent_colors`) and a
  * theme can legitimately add its own swatch. String is the honest
  * type — validation happens at runtime in `getAccents()` / state
  * deserialization.
@@ -60,7 +61,7 @@ export interface AiSettings {
 }
 
 /**
- * `desktopModeConfig.aiAssistant` — availability + per-user state the shell
+ * `openStationConfig.aiAssistant` — availability + per-user state the shell
  * uses to gate the Cmd+K assistant and its admin-bar icon.
  */
 export interface AiAssistantConfig {
@@ -150,7 +151,7 @@ export interface OsSettingsState {
 	 * durations, and flattening them all to one number would lose that.
 	 * Any other value is clamped to 80–4000 and wins over both the
 	 * reveal's own duration and the
-	 * `--desktop-mode-window-reveal-duration` theme token.
+	 * `--os-window-reveal-duration` theme token.
 	 */
 	windowRevealDuration: number;
 	/**
@@ -204,7 +205,7 @@ export interface OsSettingsState {
 	ai: AiSettings;
 	/**
 	 * Per-user opt-in for the native Posts window. When true, clicking
-	 * the Posts dock tile opens the `<wpd-table>`-driven native window
+	 * the Posts dock tile opens the `<os-table>`-driven native window
 	 * instead of the chromeless `edit.php` iframe. Default off so
 	 * existing muscle memory is preserved on upgrade.
 	 */
@@ -234,7 +235,7 @@ export interface OsSettingsState {
 	/**
 	 * Per-user opt-in for the native Pages window. When true, clicking
 	 * the Pages dock tile (or any link to `edit.php?post_type=page`)
-	 * opens the `<wpd-table>`-driven native window instead of the
+	 * opens the `<os-table>`-driven native window instead of the
 	 * chromeless iframe. Defaults on — see the matching default in
 	 * `constants.ts`.
 	 */
@@ -242,7 +243,7 @@ export interface OsSettingsState {
 	/**
 	 * Per-user opt-in for the native Users window. When true, the
 	 * Users dock tile / `users.php` links open the native
-	 * `<wpd-table>` window instead of the classic iframe. Defaults on.
+	 * `<os-table>` window instead of the classic iframe. Defaults on.
 	 * Capability-gated on the server (the window is only registered
 	 * for users with `list_users`); read-only for `list_users`-only
 	 * users, with mutation actions appearing only when the matching
@@ -263,7 +264,7 @@ export interface OsSettingsState {
 	/**
 	 * Per-user opt-in for the native Comments window. When true, the
 	 * Comments dock tile / `edit-comments.php` links open the native
-	 * `<wpd-table>`-driven moderation queue instead of the chromeless
+	 * `<os-table>`-driven moderation queue instead of the chromeless
 	 * iframe. Defaults on. Capability-gated on the server (`edit_posts`);
 	 * bulk + reply actions further cap-gate inside the bundle.
 	 */
@@ -276,6 +277,23 @@ export interface OsSettingsState {
 	 * wallpaper do nothing. Per-user.
 	 */
 	showDesktopOnWallpaperClick: boolean;
+	/**
+	 * Whether Mio, the desk companion, is on. Toggled from Mio's dock
+	 * tile; the shell lazy-loads `assets/js/mio[.min].js` the first
+	 * time it flips true. Off by default. See `docs/mio.md`.
+	 */
+	mioEnabled: boolean;
+	/**
+	 * The user's own Mio, as built in "Make it yours" — colours, ring,
+	 * glow, hologram, and silhouette. Only the keys they actually
+	 * changed are stored, so a site that later ships a different Mio
+	 * still shows through everywhere the user has no opinion.
+	 *
+	 * Here rather than in localStorage because it is a preference about
+	 * the person, not the machine: ten minutes spent building a
+	 * companion should be waiting on their phone. See `docs/mio.md`.
+	 */
+	mioStyle: MioLook;
 	/**
 	 * When true, post-type tiles inside the My WordPress window
 	 * carry a diagonal corner ribbon (`Draft` / `Pending` /
@@ -396,7 +414,7 @@ export interface OsSettingsConfig {
 	 * bundle (`os-settings-panel[.min].js`). The class's stub
 	 * `renderPanel()` `<script>`-injects it on the user's first
 	 * Settings open; the bundle holds every section renderer + the
-	 * `<wpd-*>` components only the panel needs.
+	 * `<os-*>` components only the panel needs.
 	 */
 	osSettingsPanelBundleUrl?: string;
 	/**

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Widget frame.
+ * OpenStation — Widget frame.
  *
  * The shell-side wrapper around each widget's body. Owns:
  *
@@ -20,11 +20,11 @@
 import { __, sprintf } from '../i18n';
 import type { WidgetDef, WidgetGeometry } from './types';
 
-const FLOATING_CLASS = 'desktop-mode-widgets__card--floating';
-const MOVABLE_CLASS = 'desktop-mode-widgets__card--movable';
-const RESIZABLE_CLASS = 'desktop-mode-widgets__card--resizable';
-const DRAGGING_CLASS = 'desktop-mode-widgets__card--dragging';
-const RESIZING_CLASS = 'desktop-mode-widgets__card--resizing';
+const FLOATING_CLASS = 'os-widgets__card--floating';
+const MOVABLE_CLASS = 'os-widgets__card--movable';
+const RESIZABLE_CLASS = 'os-widgets__card--resizable';
+const DRAGGING_CLASS = 'os-widgets__card--dragging';
+const RESIZING_CLASS = 'os-widgets__card--resizing';
 
 /** Safe fallback minimums for widgets that don't declare their own. */
 const DEFAULT_MIN_WIDTH = 160;
@@ -128,7 +128,7 @@ export function buildFrame(
 	handlers: FrameHandlers,
 ): Frame {
 	const card = document.createElement( 'div' );
-	card.className = 'desktop-mode-widgets__card';
+	card.className = 'os-widgets__card';
 	card.dataset.widgetId = def.id;
 
 	const movable = def.movable === true;
@@ -149,7 +149,7 @@ export function buildFrame(
 	}
 
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-widgets__card-body';
+	body.className = 'os-widgets__card-body';
 	card.appendChild( body );
 
 	// Pre-apply saved geometry if the widget is already floating. The
@@ -190,7 +190,7 @@ export function buildFrame(
 	if ( resizable ) {
 		for ( const dir of allHandleDirs() ) {
 			const handle = document.createElement( 'div' );
-			handle.className = `desktop-mode-widgets__resize desktop-mode-widgets__resize--${ dir }`;
+			handle.className = `os-widgets__resize os-widgets__resize--${ dir }`;
 			handle.setAttribute( 'aria-hidden', 'true' );
 			handle.dataset.dir = dir;
 			card.appendChild( handle );
@@ -207,7 +207,7 @@ export function buildFrame(
 	let dragCleanup: ( () => void ) | null = null;
 	if ( movable ) {
 		const chrome = card.querySelector<HTMLElement>(
-			'.desktop-mode-widgets__chrome',
+			'.os-widgets__chrome',
 		);
 		if ( chrome ) {
 			dragCleanup = attachDrag( card, chrome, def, ctx, handlers );
@@ -247,17 +247,17 @@ function buildChrome(
 	onRedock: () => void,
 ): HTMLElement {
 	const chrome = document.createElement( 'header' );
-	chrome.className = 'desktop-mode-widgets__chrome';
+	chrome.className = 'os-widgets__chrome';
 
 	const grip = document.createElement( 'span' );
-	grip.className = 'desktop-mode-widgets__grip';
+	grip.className = 'os-widgets__grip';
 	grip.setAttribute( 'aria-hidden', 'true' );
 	// Six dots in a 2×3 pattern — universal "drag me" affordance,
 	// rendered via CSS background so we ship no extra SVG.
 	chrome.appendChild( grip );
 
 	const title = document.createElement( 'span' );
-	title.className = 'desktop-mode-widgets__title';
+	title.className = 'os-widgets__title';
 	title.textContent = def.label;
 	chrome.appendChild( title );
 
@@ -288,7 +288,7 @@ function buildRedockButton(
 ): HTMLButtonElement {
 	const btn = document.createElement( 'button' );
 	btn.type = 'button';
-	btn.className = 'desktop-mode-widgets__card-redock';
+	btn.className = 'os-widgets__card-redock';
 	btn.setAttribute(
 		'aria-label',
 		// translators: %s is the widget label (e.g., "Clock")
@@ -316,7 +316,7 @@ function buildRedockButton(
 function buildCornerClose( def: WidgetDef, onRemove: () => void ): HTMLElement {
 	// Non-movable widgets keep the top-right floating ×.
 	const close = buildCloseButton( def, onRemove );
-	close.classList.add( 'desktop-mode-widgets__card-close--corner' );
+	close.classList.add( 'os-widgets__card-close--corner' );
 	return close;
 }
 
@@ -326,7 +326,7 @@ function buildCloseButton(
 ): HTMLButtonElement {
 	const close = document.createElement( 'button' );
 	close.type = 'button';
-	close.className = 'desktop-mode-widgets__card-close';
+	close.className = 'os-widgets__card-close';
 	// translators: %s is the widget label (e.g., "Clock")
 	close.setAttribute( 'aria-label', sprintf( __( 'Remove %s' ), def.label ) );
 	close.innerHTML =

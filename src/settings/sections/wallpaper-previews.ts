@@ -2,7 +2,7 @@
  * Wallpaper live previews — mounts `renderPreview` callbacks into the
  * OS Settings swatch grid.
  *
- * Each `<wpd-swatch>` tile whose wallpaper def declares
+ * Each `<os-swatch>` tile whose wallpaper def declares
  * `renderPreview` gets a light-DOM overlay `<div>` (slotted into the
  * tile button, absolutely positioned over the CSS `preview`
  * background). The preview mounts lazily — only when the tile is
@@ -57,7 +57,7 @@ const REMOUNT_DEBOUNCE_MS = 250;
 
 /** Class of the overlay div slotted into each previewing tile. */
 export const PREVIEW_OVERLAY_CLASS =
-	'desktop-mode-os-settings__wallpaper-live-preview';
+	'os-settings__wallpaper-live-preview';
 
 /** Per-tile mount state. */
 interface TilePreview {
@@ -92,7 +92,7 @@ export interface WallpaperPreviewManager {
 	dispose(): void;
 }
 
-/** Shape of the bits we need from the public `wp.desktop` API. */
+/** Shape of the bits we need from the public `wp.os` API. */
 interface DesktopApiShape {
 	loadModules?: ( ids: string[] ) => Promise< void >;
 }
@@ -102,13 +102,13 @@ function loadNeeds( def: WallpaperDef ): Promise< void > {
 	if ( ! needs || needs.length === 0 ) {
 		return Promise.resolve();
 	}
-	const api = ( window.wp as { desktop?: DesktopApiShape } | undefined )
-		?.desktop;
+	const api = ( window.wp as { os?: DesktopApiShape } | undefined )
+		?.os;
 	if ( ! api?.loadModules ) {
 		return Promise.reject(
 			new Error(
-				`[desktop-mode] Wallpaper "${ def.id }" declares needs ` +
-					`but wp.desktop.loadModules is unavailable.`,
+				`[openstation] Wallpaper "${ def.id }" declares needs ` +
+					`but wp.os.loadModules is unavailable.`,
 			),
 		);
 	}
@@ -118,8 +118,8 @@ function loadNeeds( def: WallpaperDef ): Promise< void > {
 /** Plugin base URL — same source the shell hands to WallpaperLayer. */
 function pluginUrl(): string {
 	const config = (
-		window as unknown as { desktopModeConfig?: { pluginUrl?: string } }
-	).desktopModeConfig;
+		window as unknown as { openStationConfig?: { pluginUrl?: string } }
+	).openStationConfig;
 	return config?.pluginUrl ?? '';
 }
 
@@ -132,7 +132,7 @@ function prefersReducedMotion(): boolean {
 
 /**
  * Build the preview params for a def: the author's `previewParams`
- * seed run through the `desktop-mode.wallpaper.preview-params` filter.
+ * seed run through the `os.wallpaper.preview-params` filter.
  * A filter returning a non-object is ignored (seed wins) — same
  * defensive posture as the registry's non-array filter guard.
  */
@@ -151,7 +151,7 @@ function previewParams( def: WallpaperDef ): Record< string, unknown > {
 
 /**
  * Create a preview manager bound to `root` (the wallpaper section
- * wrapper — tiles are found via `wpd-swatch[data-wallpaper-id]`
+ * wrapper — tiles are found via `os-swatch[data-wallpaper-id]`
  * inside it).
  *
  * Lifecycle: the caller invokes `sync()` after each grid paint and
@@ -195,7 +195,7 @@ export function createWallpaperPreviewManager(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[desktop-mode] Wallpaper "${ p.defId }" preview teardown threw:`,
+						`[openstation] Wallpaper "${ p.defId }" preview teardown threw:`,
 						err,
 					);
 				}
@@ -282,7 +282,7 @@ export function createWallpaperPreviewManager(
 			p.overlay.innerHTML = '';
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] Wallpaper "${ def.id }" renderPreview failed:`,
+					`[openstation] Wallpaper "${ def.id }" renderPreview failed:`,
 					err,
 				);
 			}
@@ -389,7 +389,7 @@ export function createWallpaperPreviewManager(
 			return;
 		}
 		const tiles = root.querySelectorAll< HTMLElement >(
-			'wpd-swatch[data-wallpaper-id]',
+			'os-swatch[data-wallpaper-id]',
 		);
 		const seen = new Set< HTMLElement >();
 		tiles.forEach( ( tile ) => {
@@ -448,7 +448,7 @@ export function createWallpaperPreviewManager(
 		observer?.disconnect();
 		resizeObserver?.disconnect();
 		document.removeEventListener(
-			'desktop-mode-window-closed',
+			'os-window-closed',
 			onWindowClosed,
 		);
 	};
@@ -461,7 +461,7 @@ export function createWallpaperPreviewManager(
 			dispose();
 		}
 	};
-	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+	document.addEventListener( 'os-window-closed', onWindowClosed );
 
 	return { sync, dispose };
 }

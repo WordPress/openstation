@@ -2,11 +2,11 @@
  * Tests for the four wallpaper-plugin-facing additions:
  *
  *   1. `WindowManager.getVisibleRects()` — public geometry accessor.
- *   2. `desktop-mode.window.closing` action — pre-detach hook carrying
+ *   2. `os.window.closing` action — pre-detach hook carrying
  *      the live element.
- *   3. `desktop-mode.window.bounds-changed` — rAF-coalesced live
+ *   3. `os.window.bounds-changed` — rAF-coalesced live
  *      geometry action during drag/resize.
- *   4. `collectWallpaperSurfaces()` + `desktop-mode.wallpaper.surfaces`
+ *   4. `collectWallpaperSurfaces()` + `os.wallpaper.surfaces`
  *      filter.
  *
  * Exercises the shell's public contracts that a canvas wallpaper
@@ -61,7 +61,7 @@ describe( 'WindowManager.getVisibleRects', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		stubRect( desktop, { left: 0, top: 0, width: 1600, height: 900 } );
@@ -118,7 +118,7 @@ describe( 'WindowManager.getVisibleRects', async () => {
 	} );
 } );
 
-describe( 'desktop-mode.window.closing', async () => {
+describe( 'os.window.closing', async () => {
 	let hooks: FakeWpHooks;
 	let desktop: HTMLElement;
 	let manager: WindowManager;
@@ -126,7 +126,7 @@ describe( 'desktop-mode.window.closing', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		document.body.appendChild( desktop );
@@ -162,12 +162,12 @@ describe( 'desktop-mode.window.closing', async () => {
 		expect( closingPayload.element ).toBe( element );
 	} );
 
-	test( 'dispatches desktop-mode-window-closing CustomEvent with live element', async () => {
+	test( 'dispatches os-window-closing CustomEvent with live element', async () => {
 		const w = await manager.open( openConfig( 'closing-event' ) );
 		const element = w.element;
 
 		let observed: { windowId: string; element: HTMLElement } | null = null;
-		document.addEventListener( 'desktop-mode-window-closing', ( e: Event ) => {
+		document.addEventListener( 'os-window-closing', ( e: Event ) => {
 			observed = ( e as CustomEvent ).detail;
 		}, { once: true } );
 
@@ -178,7 +178,7 @@ describe( 'desktop-mode.window.closing', async () => {
 	} );
 } );
 
-describe( 'desktop-mode.wallpaper.surfaces', async () => {
+describe( 'os.wallpaper.surfaces', async () => {
 	let hooks: FakeWpHooks;
 	let shell: HTMLElement;
 	let desktop: HTMLElement;
@@ -190,18 +190,18 @@ describe( 'desktop-mode.wallpaper.surfaces', async () => {
 		// Fake shell — lets collectWallpaperSurfaces find the expected
 		// ids for shell, dock, taskbar, area.
 		shell = document.createElement( 'div' );
-		shell.id = 'desktop-mode-shell';
+		shell.id = 'os-shell';
 		stubRect( shell, { left: 0, top: 0, width: 1600, height: 900 } );
 		document.body.appendChild( shell );
 
 		const dock = document.createElement( 'nav' );
-		dock.id = 'desktop-mode-dock';
-		dock.className = 'desktop-mode-dock';
+		dock.id = 'os-dock';
+		dock.className = 'os-dock';
 		stubRect( dock, { left: 0, top: 0, width: 56, height: 900 } );
 		shell.appendChild( dock );
 
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		Object.defineProperty( desktop, 'clientWidth', { value: 1544, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		stubRect( desktop, { left: 56, top: 0, width: 1544, height: 900 } );
@@ -255,7 +255,7 @@ describe( 'desktop-mode.wallpaper.surfaces', async () => {
 	} );
 
 	test( 'dock edge face flips with placement attribute', async () => {
-		const dockEl = document.getElementById( 'desktop-mode-dock' )!;
+		const dockEl = document.getElementById( 'os-dock' )!;
 
 		// Default (no attribute → bottom placement): face 'top'.
 		const bottomFace = collectWallpaperSurfaces( manager ).find(
@@ -264,21 +264,21 @@ describe( 'desktop-mode.wallpaper.surfaces', async () => {
 		expect( bottomFace ).toBe( 'top' );
 
 		// Left placement: face 'right' (inside-edge of left rail).
-		dockEl.setAttribute( 'data-desktop-mode-dock-placement', 'left' );
+		dockEl.setAttribute( 'data-os-dock-placement', 'left' );
 		const leftFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( leftFace ).toBe( 'right' );
 
 		// Right placement: face 'left' (inside-edge of right rail).
-		dockEl.setAttribute( 'data-desktop-mode-dock-placement', 'right' );
+		dockEl.setAttribute( 'data-os-dock-placement', 'right' );
 		const rightFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( rightFace ).toBe( 'left' );
 	} );
 
-	test( 'applies desktop-mode.wallpaper.surfaces filter — plugin can add custom surface', async () => {
+	test( 'applies os.wallpaper.surfaces filter — plugin can add custom surface', async () => {
 		hooks.addFilter(
 			HOOKS.WALLPAPER_SURFACES,
 			'test/extra',

@@ -15,7 +15,7 @@
 	min-height: 0;
 	min-width: 0;
 	max-width: 100%;
-	/* Clip horizontal overflow at every level — `<wpd-flyout>` when
+	/* Clip horizontal overflow at every level — `<os-flyout>` when
 	 * closed sits at `transform: translateX(110%)` and would
 	 * otherwise create a phantom scroll out to its off-screen
 	 * resting position. We need `overflow-x` AND `position:
@@ -27,12 +27,12 @@
 	box-sizing: border-box;
 }
 
-.desktop-mode-plugins__tabs {
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+.os-plugins__tabs {
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 }
 
-.desktop-mode-plugins__panel {
+.os-plugins__panel {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
@@ -42,21 +42,21 @@
 	box-sizing: border-box;
 	/* Belt + braces — never let a child stretch the panel past the
 	 * window width. Earlier the right-hand side of the window would
-	 * scroll into empty space because the wpd-table host was sized
+	 * scroll into empty space because the os-table host was sized
 	 * by content rather than container. */
 	overflow: hidden;
 }
 
-/* Honour the `hidden` attribute — `<wpd-tabs>` toggles it on inactive
+/* Honour the `hidden` attribute — `<os-tabs>` toggles it on inactive
  * panels, but our explicit `display: flex` above wins by specificity.
  * Without this rule every panel renders concurrently in the first
  * panel slot. */
-.desktop-mode-plugins__panel[ hidden ] {
+.os-plugins__panel[ hidden ] {
 	display: none;
 }
 
-.desktop-mode-plugins__installed,
-.desktop-mode-plugins__browse {
+.os-plugins__installed,
+.os-plugins__browse {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
@@ -65,16 +65,16 @@
 
 /* ─── Toolbar ───────────────────────────────────────────────────── */
 
-.desktop-mode-plugins__toolbar {
+.os-plugins__toolbar {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	padding: 12px 16px;
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex-wrap: wrap;
 }
 
-.desktop-mode-plugins__toolbar-left {
+.os-plugins__toolbar-left {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -82,39 +82,39 @@
 	min-width: 0;
 }
 
-.desktop-mode-plugins__toolbar-left wpd-text-field {
+.os-plugins__toolbar-left os-text-field {
 	flex: 1 1 240px;
 	min-width: 200px;
 	max-width: 360px;
 }
 
-.desktop-mode-plugins__toolbar-right {
+.os-plugins__toolbar-right {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.desktop-mode-plugins__toolbar-trailing {
+.os-plugins__toolbar-trailing {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 }
 
-.desktop-mode-plugins__bulk {
+.os-plugins__bulk {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding-inline: 8px;
 }
 
-.desktop-mode-plugins__bulk-count {
+.os-plugins__bulk-count {
 	font-size: 0.85em;
-	color: var( --wpd-fg-muted, #555 );
+	color: var( --os-ui-fg-muted, #555 );
 }
 
 /* ─── Body / table ──────────────────────────────────────────────── */
 
-.desktop-mode-plugins__body {
+.os-plugins__body {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
@@ -128,34 +128,34 @@
 	padding: 8px 12px 12px;
 }
 
-.desktop-mode-plugins__body wpd-table {
+.os-plugins__body os-table {
 	flex: 1 1 auto;
 	min-height: 0;
 	min-width: 0;
 	max-width: 100%;
 	width: 100%;
 	box-sizing: border-box;
-	/* The `<wpd-table>` ships with its own scroll container, but it
+	/* The `<os-table>` ships with its own scroll container, but it
 	 * needs a constrained height to know when to start scrolling.
-	 * Without `--wpd-table-max-height` set, sticky-header silently
+	 * Without `--os-ui-table-max-height` set, sticky-header silently
 	 * disables itself and the table grows to its full intrinsic
 	 * height instead of scrolling inside the panel.
 	 *
-	 * NO `overflow` here — wpd-table's internal `.scroll` div
+	 * NO `overflow` here — os-table's internal `.scroll` div
 	 * handles scrolling. An outer `overflow: auto` here was
 	 * causing a phantom horizontal scrollbar that revealed empty
 	 * space to the right of the table because the host was sized
 	 * by content (icon cell + actions cell) rather than container. */
-	--wpd-table-max-height: 100%;
+	--os-ui-table-max-height: 100%;
 }
 
-.desktop-mode-plugins__empty {
+.os-plugins__empty {
 	text-align: center;
 	padding: 32px 16px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 }
 
-.desktop-mode-plugins__empty .dashicons {
+.os-plugins__empty .dashicons {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
@@ -166,7 +166,7 @@
 
 /* ─── Cells ─────────────────────────────────────────────────────── */
 
-.desktop-mode-plugins__name-cell {
+.os-plugins__name-cell {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -174,7 +174,7 @@
 	padding-block: 4px;
 }
 
-.desktop-mode-plugins__name-icon {
+.os-plugins__name-icon {
 	flex: 0 0 40px;
 	width: 40px;
 	height: 40px;
@@ -185,14 +185,14 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 }
 
 /* Hard-clamp the inner image too — wp.org SVG icons are unsized,
  * which left the user agent stretching them to the document's full
  * width when the parent ever became `auto`. */
-.desktop-mode-plugins__name-icon img,
-.desktop-mode-plugins__name-icon svg {
+.os-plugins__name-icon img,
+.os-plugins__name-icon svg {
 	width: 100%;
 	height: 100%;
 	max-width: 100%;
@@ -202,15 +202,15 @@
 	transition: opacity 180ms ease;
 }
 
-.desktop-mode-plugins__name-icon-fallback {
+.os-plugins__name-icon-fallback {
 	font-size: 22px;
 	width: 22px;
 	height: 22px;
 	line-height: 22px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
 
-.desktop-mode-plugins__name-text {
+.os-plugins__name-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -223,28 +223,28 @@
  * parent doesn't always force flex-item layout when the cell
  * surrounding them comes from a third-party component (the user
  * reported them rendering on the same line). */
-.desktop-mode-plugins__name-text > strong,
-.desktop-mode-plugins__name-text > span {
+.os-plugins__name-text > strong,
+.os-plugins__name-text > span {
 	display: block;
 }
 
-.desktop-mode-plugins__name-text > strong {
+.os-plugins__name-text > strong {
 	font-weight: 600;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__name-path {
+.os-plugins__name-path {
 	font-size: 0.78em;
-	color: var( --wpd-fg-muted, #888 );
-	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
+	color: var( --os-ui-fg-muted, #888 );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__badge {
+.os-plugins__badge {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -260,7 +260,7 @@
 
 /* Coloured dot prepended to the badge label — provides the
  * status-at-a-glance signal without relying on text alone. */
-.desktop-mode-plugins__badge::before {
+.os-plugins__badge::before {
 	content: '';
 	width: 6px;
 	height: 6px;
@@ -270,39 +270,39 @@
 	display: inline-block;
 }
 
-.desktop-mode-plugins__badge.is-active {
+.os-plugins__badge.is-active {
 	background: rgba( 35, 165, 90, 0.14 );
 	color: rgb( 22, 110, 55 );
 }
 
-.desktop-mode-plugins__badge.is-inactive {
+.os-plugins__badge.is-inactive {
 	background: rgba( 120, 120, 120, 0.12 );
-	color: var( --wpd-fg-muted, #555 );
+	color: var( --os-ui-fg-muted, #555 );
 }
 
-.desktop-mode-plugins__version-cell {
+.os-plugins__version-cell {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
 }
 
-.desktop-mode-plugins__update-badge {
+.os-plugins__update-badge {
 	font-size: 0.78em;
-	background: rgba( 250, 175, 0, 0.18 );
-	color: rgb( 145, 95, 0 );
+	background: var( --os-ui-notice-warning-bg, rgba( 250, 175, 0, 0.18 ) );
+	color: var( --os-ui-warning-fg, rgb( 145, 95, 0 ) );
 	padding: 1px 7px;
 	border-radius: 999px;
 	font-weight: 600;
 }
 
-.desktop-mode-plugins__author-cell {
+.os-plugins__author-cell {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__row-actions {
+.os-plugins__row-actions {
 	display: inline-flex;
 	gap: 8px;
 	align-items: center;
@@ -310,13 +310,13 @@
 	flex-wrap: nowrap;
 }
 
-.desktop-mode-plugins__row-actions wpd-button {
+.os-plugins__row-actions os-button {
 	flex: 0 0 auto;
 }
 
 /* ─── Browse — gallery ──────────────────────────────────────────── */
 
-.desktop-mode-plugins__gallery {
+.os-plugins__gallery {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 280px, 1fr ) );
 	gap: 14px;
@@ -335,13 +335,13 @@
 	box-sizing: border-box;
 }
 
-.desktop-mode-plugins__gallery-sentinel {
+.os-plugins__gallery-sentinel {
 	height: 1px;
 }
 
-.desktop-mode-plugins__gallery-status {
+.os-plugins__gallery-status {
 	padding: 12px 16px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	text-align: center;
 	margin: 0;
 }
@@ -349,22 +349,22 @@
 /* ─── Browse — card ─────────────────────────────────────────────── */
 
 /* The card chrome (padding, gap, border, radius, hover lift, focus
- * ring, reduced-motion fallback) all comes from `<wpd-card>` —
+ * ring, reduced-motion fallback) all comes from `<os-card>` —
  * `:host([interactive])` handles the hover transform, the kit's
  * `prefers-reduced-motion` rule kills the transition. We layer
  * gallery-specific tweaks here; nothing duplicates the kit. */
 
-.desktop-mode-plugins__card.desktop-mode-plugins__card--skeleton {
+.os-plugins__card.os-plugins__card--skeleton {
 	gap: 8px;
 }
 
-.desktop-mode-plugins__card-header {
+.os-plugins__card-header {
 	display: flex;
 	gap: 12px;
 	align-items: center;
 }
 
-.desktop-mode-plugins__card-icon {
+.os-plugins__card-icon {
 	flex: 0 0 auto;
 	width: 56px;
 	height: 56px;
@@ -373,10 +373,10 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 }
 
-.desktop-mode-plugins__card-icon img {
+.os-plugins__card-icon img {
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
@@ -384,23 +384,23 @@
 	transition: opacity 180ms ease;
 }
 
-.desktop-mode-plugins__card-icon img.is-loaded {
+.os-plugins__card-icon img.is-loaded {
 	opacity: 1;
 }
 
-.desktop-mode-plugins__card-icon-fallback {
+.os-plugins__card-icon-fallback {
 	font-size: 28px;
 	width: 28px;
 	height: 28px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
 
-.desktop-mode-plugins__card-titleblock {
+.os-plugins__card-titleblock {
 	min-width: 0;
 	flex: 1 1 auto;
 }
 
-.desktop-mode-plugins__card-title {
+.os-plugins__card-title {
 	margin: 0 0 2px 0;
 	font-size: 1rem;
 	font-weight: 600;
@@ -409,18 +409,18 @@
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__card-byline {
+.os-plugins__card-byline {
 	margin: 0;
-	color: var( --wpd-fg-muted, #777 );
+	color: var( --os-ui-fg-muted, #777 );
 	font-size: 0.82rem;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__card-desc {
+.os-plugins__card-desc {
 	margin: 0;
-	color: var( --wpd-fg, #333 );
+	color: var( --os-ui-fg, #333 );
 	font-size: 0.88rem;
 	line-height: 1.45;
 	display: -webkit-box;
@@ -430,7 +430,7 @@
 	overflow: hidden;
 }
 
-.desktop-mode-plugins__card-footer {
+.os-plugins__card-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -438,54 +438,54 @@
 	margin-top: auto;
 }
 
-.desktop-mode-plugins__card-meta {
+.os-plugins__card-meta {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	font-size: 0.78rem;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 }
 
 /* ─── Stars ─────────────────────────────────────────────────────── */
 
-.desktop-mode-plugins__stars {
+.os-plugins__stars {
 	display: inline-flex;
 	align-items: center;
 	gap: 2px;
 }
 
-.desktop-mode-plugins__star .dashicons {
+.os-plugins__star .dashicons {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
 	color: rgb( 245, 175, 0 );
 }
 
-.desktop-mode-plugins__star .dashicons-star-empty {
-	color: var( --wpd-fg-muted, rgba( 0, 0, 0, 0.25 ) );
+.os-plugins__star .dashicons-star-empty {
+	color: var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.25 ) );
 }
 
-.desktop-mode-plugins__stars-count {
+.os-plugins__stars-count {
 	margin-inline-start: 4px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 	font-size: 0.78em;
 }
 
-.desktop-mode-plugins__card-installs {
+.os-plugins__card-installs {
 	font-size: 0.78em;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
 
 /* ─── Skeleton lines (gallery + flyout) ─────────────────────────── */
 
-.desktop-mode-plugins__skeleton {
+.os-plugins__skeleton {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	padding: 16px;
 }
 
-.desktop-mode-plugins__skeleton-line {
+.os-plugins__skeleton-line {
 	display: block;
 	height: 12px;
 	border-radius: 4px;
@@ -509,31 +509,31 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-plugins__skeleton-line {
+	.os-plugins__skeleton-line {
 		animation: none;
 	}
 }
 
 /* ─── Flyout detail ─────────────────────────────────────────────── */
 
-[data-desktop-mode-plugins-flyout] {
+[data-os-plugins-flyout] {
 	width: min( 560px, calc( 100% - 28px ) );
 }
 
-.desktop-mode-plugins__flyout {
+.os-plugins__flyout {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
 }
 
-.desktop-mode-plugins__flyout-hero {
+.os-plugins__flyout-hero {
 	position: relative;
 	padding: 16px 56px 14px 18px;
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 	overflow: hidden;
-	/* Mirror the flyout shell's outer corner radius (`<wpd-flyout>`
+	/* Mirror the flyout shell's outer corner radius (`<os-flyout>`
 	 * uses 14px) so a banner background-image stops at the rounded
 	 * top edge instead of bleeding past it. */
 	border-start-start-radius: 14px;
@@ -542,22 +542,25 @@
 
 /* ─── Flyout close — circular glass button ──────────────────────── */
 
-.desktop-mode-plugins__flyout-close {
+.os-plugins__flyout-close {
 	position: absolute;
 	inset-block-start: 12px;
 	inset-inline-end: 12px;
 	width: 32px;
 	height: 32px;
 	padding: 0;
-	border: 1px solid rgba( 0, 0, 0, 0.08 );
+	/* Glass close button. Tokenized so it follows the palette: a white
+	   disc on a dark flyout is the one control you cannot miss, in the
+	   wrong sense. Literals unchanged for the unthemed look. */
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 50%;
-	background: rgba( 255, 255, 255, 0.78 );
+	background: var( --os-ui-surface, rgba( 255, 255, 255, 0.78 ) );
 	-webkit-backdrop-filter: blur( 12px ) saturate( 160% );
 	backdrop-filter: blur( 12px ) saturate( 160% );
 	box-shadow:
 		0 1px 4px rgba( 0, 0, 0, 0.10 ),
 		0 0 0 1px rgba( 255, 255, 255, 0.4 ) inset;
-	color: var( --wpd-fg, #333 );
+	color: var( --os-ui-fg, #333 );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -570,35 +573,35 @@
 		box-shadow 150ms ease;
 }
 
-.desktop-mode-plugins__flyout-close:hover {
-	background: rgba( 255, 255, 255, 0.96 );
+.os-plugins__flyout-close:hover {
+	background: var( --os-ui-surface-elevated, rgba( 255, 255, 255, 0.96 ) );
 	transform: scale( 1.06 );
-	border-color: rgba( 0, 0, 0, 0.16 );
+	border-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.16 ) );
 	box-shadow:
 		0 4px 10px rgba( 0, 0, 0, 0.14 ),
 		0 0 0 1px rgba( 255, 255, 255, 0.5 ) inset;
 }
 
-.desktop-mode-plugins__flyout-close:active {
+.os-plugins__flyout-close:active {
 	transform: scale( 0.96 );
 }
 
-.desktop-mode-plugins__flyout-close:focus-visible {
+.os-plugins__flyout-close:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-plugins__flyout-close {
+	.os-plugins__flyout-close {
 		transition: none;
 	}
-	.desktop-mode-plugins__flyout-close:hover,
-	.desktop-mode-plugins__flyout-close:active {
+	.os-plugins__flyout-close:hover,
+	.os-plugins__flyout-close:active {
 		transform: none;
 	}
 }
 
-.desktop-mode-plugins__flyout-banner {
+.os-plugins__flyout-banner {
 	position: absolute;
 	inset: 0;
 	background-size: cover;
@@ -608,11 +611,11 @@
 	z-index: 0;
 }
 
-.desktop-mode-plugins__flyout-banner.has-banner {
+.os-plugins__flyout-banner.has-banner {
 	opacity: 0.18;
 }
 
-.desktop-mode-plugins__flyout-hero-inner {
+.os-plugins__flyout-hero-inner {
 	position: relative;
 	display: flex;
 	gap: 12px;
@@ -620,95 +623,95 @@
 	z-index: 1;
 }
 
-.desktop-mode-plugins__flyout-hero-icon {
+.os-plugins__flyout-hero-icon {
 	width: 64px;
 	height: 64px;
 	border-radius: 12px;
 	overflow: hidden;
-	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 }
 
-.desktop-mode-plugins__flyout-hero-icon img {
+.os-plugins__flyout-hero-icon img {
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
 }
 
-.desktop-mode-plugins__flyout-hero-text {
+.os-plugins__flyout-hero-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.desktop-mode-plugins__flyout-hero-title {
+.os-plugins__flyout-hero-title {
 	margin: 0 0 4px;
 	font-size: 1.2rem;
 	font-weight: 600;
 }
 
-.desktop-mode-plugins__flyout-hero-byline {
+.os-plugins__flyout-hero-byline {
 	margin: 0 0 6px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 }
 
-.desktop-mode-plugins__flyout-meta-row {
+.os-plugins__flyout-meta-row {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px 16px;
 	font-size: 0.78rem;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	margin-top: 6px;
 }
 
-.desktop-mode-plugins__flyout-tabs {
+.os-plugins__flyout-tabs {
 	flex: 0 0 auto;
-	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.desktop-mode-plugins__flyout-body {
+.os-plugins__flyout-body {
 	padding: 16px 18px;
 	flex: 1 1 auto;
 	overflow: auto;
 	min-height: 0;
 }
 
-.desktop-mode-plugins__flyout-footer {
+.os-plugins__flyout-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 12px 16px;
-	border-block-start: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 }
 
-.desktop-mode-plugins__flyout-footer-right {
+.os-plugins__flyout-footer-right {
 	display: inline-flex;
 	gap: 6px;
 }
 
-.desktop-mode-plugins__flyout-wporg {
+.os-plugins__flyout-wporg {
 	font-size: 0.86rem;
 }
 
-.desktop-mode-plugins__flyout-error {
+.os-plugins__flyout-error {
 	color: rgb( 184, 50, 50 );
 	padding: 16px;
 }
 
 /* ─── Histogram (Reviews tab) ───────────────────────────────────── */
 
-.desktop-mode-plugins__histogram {
+.os-plugins__histogram {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	margin-block-end: 16px;
 }
 
-.desktop-mode-plugins__histogram-row {
+.os-plugins__histogram-row {
 	display: grid;
 	grid-template-columns: 32px 1fr 48px;
 	gap: 8px;
@@ -716,14 +719,14 @@
 	font-size: 0.82rem;
 }
 
-.desktop-mode-plugins__histogram-track {
-	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.06 ) );
+.os-plugins__histogram-track {
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) );
 	border-radius: 999px;
 	height: 6px;
 	overflow: hidden;
 }
 
-.desktop-mode-plugins__histogram-fill {
+.os-plugins__histogram-fill {
 	display: block;
 	height: 100%;
 	background: rgb( 245, 175, 0 );
@@ -731,25 +734,25 @@
 	transition: width 220ms ease;
 }
 
-.desktop-mode-plugins__histogram-count {
-	color: var( --wpd-fg-muted, #777 );
+.os-plugins__histogram-count {
+	color: var( --os-ui-fg-muted, #777 );
 	text-align: end;
 }
 
-.desktop-mode-plugins__reviews-list {
+.os-plugins__reviews-list {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 }
 
-.desktop-mode-plugins__review {
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+.os-plugins__review {
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 	padding: 12px 14px;
-	background: var( --wpd-card-bg, #fff );
+	background: var( --os-ui-card-bg, #fff );
 }
 
-.desktop-mode-plugins__review-head {
+.os-plugins__review-head {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -757,69 +760,69 @@
 	flex-wrap: wrap;
 }
 
-.desktop-mode-plugins__review-author {
+.os-plugins__review-author {
 	font-weight: 600;
 }
 
-.desktop-mode-plugins__review-date {
+.os-plugins__review-date {
 	margin-inline-start: auto;
 	font-size: 0.78em;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 }
 
-.desktop-mode-plugins__review-excerpt {
+.os-plugins__review-excerpt {
 	margin: 0;
 	font-size: 0.92em;
 	line-height: 1.5;
-	color: var( --wpd-fg, #333 );
+	color: var( --os-ui-fg, #333 );
 }
 
-.desktop-mode-plugins__review-link {
+.os-plugins__review-link {
 	display: inline-block;
 	margin-block-start: 6px;
 	font-size: 0.82em;
 }
 
-.desktop-mode-plugins__reviews-loading,
-.desktop-mode-plugins__reviews-fallback {
-	color: var( --wpd-fg-muted, #888 );
+.os-plugins__reviews-loading,
+.os-plugins__reviews-fallback {
+	color: var( --os-ui-fg-muted, #888 );
 	font-size: 0.92em;
 }
 
-.desktop-mode-plugins__html {
+.os-plugins__html {
 	font-size: 0.92rem;
 	line-height: 1.5;
 }
 
-.desktop-mode-plugins__html h3,
-.desktop-mode-plugins__html h4 {
+.os-plugins__html h3,
+.os-plugins__html h4 {
 	margin-top: 1em;
 }
 
-.desktop-mode-plugins__screenshots {
+.os-plugins__screenshots {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
 }
 
-.desktop-mode-plugins__screenshot img {
+.os-plugins__screenshot img {
 	max-width: 100%;
 	border-radius: 8px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-.desktop-mode-plugins__screenshot figcaption {
+.os-plugins__screenshot figcaption {
 	font-size: 0.84rem;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	margin-top: 6px;
 }
 
 /* ─── Upload dialog ─────────────────────────────────────────────── */
 
-.desktop-mode-plugins__upload-overlay {
+.os-plugins__upload-overlay {
 	position: absolute;
 	inset: 0;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -827,9 +830,9 @@
 	animation: dm-plugins-fade-in 180ms ease both;
 }
 
-.desktop-mode-plugins__upload-card {
+.os-plugins__upload-card {
 	width: min( 480px, calc( 100% - 32px ) );
-	background: var( --wpd-card-bg, #fff );
+	background: var( --os-ui-card-bg, #fff );
 	border-radius: 14px;
 	padding: 22px 22px 18px;
 	box-shadow: 0 16px 48px rgba( 0, 0, 0, 0.32 );
@@ -847,25 +850,25 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-plugins__upload-overlay,
-	.desktop-mode-plugins__upload-card {
+	.os-plugins__upload-overlay,
+	.os-plugins__upload-card {
 		animation: none;
 	}
 }
 
-.desktop-mode-plugins__upload-heading {
+.os-plugins__upload-heading {
 	margin: 0 0 4px;
 	font-size: 1.1rem;
 }
 
-.desktop-mode-plugins__upload-lede {
+.os-plugins__upload-lede {
 	margin: 0 0 16px;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	font-size: 0.9em;
 }
 
-.desktop-mode-plugins__upload-dropzone {
-	border: 2px dashed var( --wpd-border-strong, rgba( 0, 0, 0, 0.18 ) );
+.os-plugins__upload-dropzone {
+	border: 2px dashed var( --os-ui-border-strong, rgba( 0, 0, 0, 0.18 ) );
 	border-radius: 12px;
 	padding: 24px 16px;
 	text-align: center;
@@ -873,67 +876,67 @@
 	transition: border-color 150ms ease, background 150ms ease;
 }
 
-.desktop-mode-plugins__upload-dropzone.is-hovered,
-.desktop-mode-plugins__upload-dropzone.has-file {
+.os-plugins__upload-dropzone.is-hovered,
+.os-plugins__upload-dropzone.has-file {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	background: rgba( 34, 113, 177, 0.05 );
 }
 
-.desktop-mode-plugins__upload-icon {
+.os-plugins__upload-icon {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
-	color: var( --wpd-fg-muted, #888 );
+	color: var( --os-ui-fg-muted, #888 );
 	margin-block-end: 6px;
 }
 
-.desktop-mode-plugins__upload-hint {
+.os-plugins__upload-hint {
 	margin: 0 0 4px;
 }
 
-.desktop-mode-plugins__upload-filename {
+.os-plugins__upload-filename {
 	margin: 0;
 	font-size: 0.86em;
-	color: var( --wpd-fg, #333 );
-	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
+	color: var( --os-ui-fg, #333 );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 }
 
-.desktop-mode-plugins__upload-status {
+.os-plugins__upload-status {
 	margin: 12px 0 0;
 	font-size: 0.86em;
 }
 
-.desktop-mode-plugins__upload-status[ data-tone='error' ] {
+.os-plugins__upload-status[ data-tone='error' ] {
 	color: rgb( 184, 50, 50 );
 }
 
-.desktop-mode-plugins__upload-status[ data-tone='success' ] {
+.os-plugins__upload-status[ data-tone='success' ] {
 	color: rgb( 25, 120, 65 );
 }
 
-.desktop-mode-plugins__upload-actions {
+.os-plugins__upload-actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	margin-block-start: 14px;
 }
 
-.desktop-mode-plugins__upload-success-heading {
+.os-plugins__upload-success-heading {
 	margin: 4px 0 6px;
 	font-size: 1rem;
 	color: rgb( 25, 120, 65 );
 }
 
-.desktop-mode-plugins__upload-success-detail {
+.os-plugins__upload-success-detail {
 	margin: 0 0 6px;
-	color: var( --wpd-fg, #333 );
-	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
+	color: var( --os-ui-fg, #333 );
+	font-family: var( --os-ui-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	font-size: 0.9em;
 }
 
 /* ─── Window-level .zip drop overlay ────────────────────────────── */
 
-.desktop-mode-plugins__window-drop {
+.os-plugins__window-drop {
 	position: absolute;
 	inset: 12px;
 	border: 2px dashed var( --wp-admin-theme-color, #2271b1 );
@@ -951,18 +954,18 @@
 	z-index: 9;
 }
 
-.has-zip-dragover .desktop-mode-plugins__window-drop {
+.has-zip-dragover .os-plugins__window-drop {
 	opacity: 1;
 }
 
 /* ─── Drag ghost ────────────────────────────────────────────────── */
 
-.desktop-mode-plugins__drag-ghost {
+.os-plugins__drag-ghost {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 14px;
-	background: var( --wpd-card-bg, #fff );
+	background: var( --os-ui-card-bg, #fff );
 	border-radius: 999px;
 	box-shadow: 0 6px 20px rgba( 0, 0, 0, 0.18 );
 	font-size: 0.92rem;
@@ -973,14 +976,14 @@
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-plugins__drag-ghost img {
+.os-plugins__drag-ghost img {
 	width: 24px;
 	height: 24px;
 	border-radius: 6px;
 }
 
-.desktop-mode-plugins__drag-ghost-fallback {
-	color: var( --wpd-fg-muted, #888 );
+.os-plugins__drag-ghost-fallback {
+	color: var( --os-ui-fg-muted, #888 );
 	font-size: 22px;
 }
 
@@ -990,48 +993,48 @@
 }
 /* Row-click cue — pointer-cursor on Installed-tab body rows so users
  * discover that clicking the plugin name expands the detail panel.
- * `<wpd-table>` exposes each body `<tr>` as a `row` shadow part. */
+ * `<os-table>` exposes each body `<tr>` as a `row` shadow part. */
 
-wpd-table[ data-installed-rows ]::part( row ) {
+os-table[ data-installed-rows ]::part( row ) {
 	cursor: pointer;
 }
 
 /* ─── Featured tab ─────────────────────────────────────────────── */
 
-.desktop-mode-plugins__featured {
+.os-plugins__featured {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
 	flex: 1 1 auto;
 }
 
-.desktop-mode-plugins__featured-intro {
+.os-plugins__featured-intro {
 	padding: 20px 20px 4px;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.desktop-mode-plugins__featured-heading {
+.os-plugins__featured-heading {
 	margin: 0;
 	font-size: 1.15em;
 	font-weight: 600;
 }
 
-.desktop-mode-plugins__featured-blurb {
+.os-plugins__featured-blurb {
 	margin: 0;
-	color: var( --wpd-fg-muted, #666 );
+	color: var( --os-ui-fg-muted, #666 );
 	font-size: 0.9em;
 	line-height: 1.45;
 }
 
-/* Curated cards get a soft inset border + a `<wpd-ribbon>` stamped
+/* Curated cards get a soft inset border + a `<os-ribbon>` stamped
  * onto the top-end corner. The card host carries `position: relative`
  * so the ribbon's `position: absolute` anchors to the card itself,
  * not to whatever positioned ancestor lives further out. The ribbon
  * owns its own clipping geometry; nothing else here needs to know
  * about the diagonal. */
-.desktop-mode-plugins__card--featured {
+.os-plugins__card--featured {
 	position: relative;
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
 }

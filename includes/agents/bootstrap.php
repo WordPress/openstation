@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Agents module bootstrap.
+ * OpenStation — Agents module bootstrap.
  *
  * Agents are durable workers that live on the site as real WordPress
  * users and act through the WordPress Abilities API under their own
@@ -16,13 +16,13 @@
  * Plus the abilities bridge + runner (runner.php), a REST surface at
  * `/desktop-mode/v1/agents` (rest.php), privacy hooks (privacy.php),
  * the "Agent chat" native window (run-window.php), and the Agents
- * section inside the site folder (my-wordpress.php).
+ * section inside WP Explorer (my-wordpress.php).
  *
  * The module is opt-in behind the `agents` extended option — while
  * off, no user-meta registration, no REST routes, no window, no
- * site-folder entity. The one exception is guard.php: see below.
+ * WP Explorer entity. The one exception is guard.php: see below.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,18 +34,18 @@ defined( 'ABSPATH' ) || exit;
  * would accept application passwords and password resets again. The
  * blocks are a property of the rows, not of the feature.
  */
-require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
+require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
 /**
  * Whether the Agents framework is enabled site-wide.
  *
  * Backed by the `agents` key of the extended options bundle
- * (`desktop_mode_get_extended_options()`), default off — opt-in.
+ * (`openstation_get_extended_options()`), default off — opt-in.
  *
  * @return bool
  */
-function desktop_mode_agents_enabled() {
-	$options = desktop_mode_get_extended_options();
+function openstation_agents_enabled() {
+	$options = openstation_get_extended_options();
 	$enabled = ! empty( $options['agents'] );
 
 	/**
@@ -57,7 +57,7 @@ function desktop_mode_agents_enabled() {
 	 *
 	 * @param bool $enabled Whether the Agents framework is enabled.
 	 */
-	return (bool) apply_filters( 'desktop_mode_agents_enabled', $enabled );
+	return (bool) apply_filters( 'openstation_agents_enabled', $enabled );
 }
 
 /**
@@ -65,20 +65,20 @@ function desktop_mode_agents_enabled() {
  *
  * @access private
  */
-function desktop_mode_agents_load() {
-	if ( ! desktop_mode_agents_enabled() ) {
+function openstation_agents_load() {
+	if ( ! openstation_agents_enabled() ) {
 		return;
 	}
 
-	require_once DESKTOP_MODE_DIR . 'includes/agents/store.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/defaults.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/identity.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/abilities.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/runner.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/rest.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/conversations.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/privacy.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/run-window.php';
-	require_once DESKTOP_MODE_DIR . 'includes/agents/my-wordpress.php';
+	require_once OPENSTATION_DIR . 'includes/agents/store.php';
+	require_once OPENSTATION_DIR . 'includes/agents/defaults.php';
+	require_once OPENSTATION_DIR . 'includes/agents/identity.php';
+	require_once OPENSTATION_DIR . 'includes/agents/abilities.php';
+	require_once OPENSTATION_DIR . 'includes/agents/runner.php';
+	require_once OPENSTATION_DIR . 'includes/agents/rest.php';
+	require_once OPENSTATION_DIR . 'includes/agents/conversations.php';
+	require_once OPENSTATION_DIR . 'includes/agents/privacy.php';
+	require_once OPENSTATION_DIR . 'includes/agents/run-window.php';
+	require_once OPENSTATION_DIR . 'includes/agents/my-wordpress.php';
 }
-add_action( 'plugins_loaded', 'desktop_mode_agents_load', 5 );
+add_action( 'plugins_loaded', 'openstation_agents_load', 5 );

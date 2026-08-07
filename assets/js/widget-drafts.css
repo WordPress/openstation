@@ -76,10 +76,10 @@
 }
 
 /*
- * Row actions (Trash, Suggest) are `<wpd-button variant="ghost">` hosts —
+ * Row actions (Trash, Suggest) are `<os-button variant="ghost">` hosts —
  * the component owns the focus ring, disabled semantics and theming; these
  * rules only tune it into a 26px icon square via the documented
- * `--wpd-button-*` surface and the `button` shadow part. Both stay hidden
+ * `--os-ui-button-*` surface and the `button` shadow part. Both stay hidden
  * until the row is hovered or the control takes focus.
  */
 .dm-drafts__trash,
@@ -87,13 +87,13 @@
 	flex: 0 0 auto;
 	opacity: 0;
 	transition: opacity 120ms ease-out;
-	--wpd-button-padding: 0;
-	--wpd-button-border: none;
-	--wpd-button-border-radius: 6px;
-	--wpd-button-bg: transparent;
+	--os-ui-button-padding: 0;
+	--os-ui-button-border: none;
+	--os-ui-button-border-radius: 6px;
+	--os-ui-button-bg: transparent;
 	/* Inherit the card's text color instead of the component's own
 	   light-theme default — widget cards can be dark glass. */
-	--wpd-button-fg: currentColor;
+	--os-ui-button-fg: currentColor;
 }
 
 .dm-drafts__trash {
@@ -115,32 +115,32 @@
 
 .dm-drafts__trash:hover {
 	opacity: 1;
-	--wpd-button-bg-hover: color-mix(
+	--os-ui-button-bg-hover: color-mix(
 		in srgb,
-		var( --wpd-danger, #d63638 ) 22%,
+		var( --os-ui-danger, #d63638 ) 22%,
 		transparent
 	);
-	--wpd-button-fg: var( --dm-drafts-danger, #d63638 );
+	--os-ui-button-fg: var( --dm-drafts-danger, #d63638 );
 }
 
 .dm-drafts__spark:hover {
 	opacity: 1;
-	--wpd-button-bg-hover: color-mix(
+	--os-ui-button-bg-hover: color-mix(
 		in srgb,
-		var( --wpd-accent, #2271b1 ) 22%,
+		var( --os-ui-accent, #2271b1 ) 22%,
 		transparent
 	);
-	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
 }
 
 .dm-drafts__spark[aria-expanded='true'] {
 	opacity: 1;
-	--wpd-button-bg: color-mix(
+	--os-ui-button-bg: color-mix(
 		in srgb,
-		var( --wpd-accent, #2271b1 ) 18%,
+		var( --os-ui-accent, #2271b1 ) 18%,
 		transparent
 	);
-	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
 }
 
 .dm-drafts__trash .dashicons,
@@ -153,14 +153,14 @@
 }
 
 /* The shell forces `cursor: default !important`; out-specify it. The
-   `<wpd-button>` controls set their own cursor inside the shadow root,
+   `<os-button>` controls set their own cursor inside the shadow root,
    which that rule can't reach. */
-body.desktop-mode-active .dm-drafts__link {
+body.os-active .dm-drafts__link {
 	cursor: pointer !important;
 }
 
 /*
- * Adaptive accent for text + glyphs. `--wpd-accent` neat is a mid blue
+ * Adaptive accent for text + glyphs. `--os-ui-accent` neat is a mid blue
  * that sinks into a dark glass card; mixing it toward `currentColor`
  * keeps it legible whichever way the card leans. Backgrounds still use
  * the neat token — a low-alpha wash doesn't have a contrast problem.
@@ -169,12 +169,12 @@ body.desktop-mode-active .dm-drafts__link {
 .dm-drafts__suggest {
 	--dm-drafts-accent: color-mix(
 		in srgb,
-		var( --wpd-accent, #2271b1 ) 55%,
+		var( --os-ui-accent, #2271b1 ) 55%,
 		currentColor
 	);
 	--dm-drafts-danger: color-mix(
 		in srgb,
-		var( --wpd-danger, #d63638 ) 65%,
+		var( --os-ui-danger, #d63638 ) 65%,
 		currentColor
 	);
 }
@@ -208,8 +208,8 @@ body.desktop-mode-active .dm-drafts__link {
 /*
  * Notices inside the panel (readiness, load failure).
  *
- * `<wpd-notice>`'s built-in palette is tuned for a light window surface —
- * its text defaults to `--wpd-fg` (#1d2327) over an 8%-alpha tone wash.
+ * `<os-notice>`'s built-in palette is tuned for a light window surface —
+ * its text defaults to `--os-ui-fg` (#1d2327) over an 8%-alpha tone wash.
  * A widget card is glass over the wallpaper and can be arbitrarily dark,
  * so that pairing collapses to unreadable. Drive the component's
  * documented color surface from `currentColor` instead: the text tracks
@@ -218,23 +218,23 @@ body.desktop-mode-active .dm-drafts__link {
  * visible on a dark and a light card alike.
  */
 .dm-drafts__notice {
-	--wpd-notice-color: currentColor;
-	--wpd-notice-bg: color-mix( in srgb, currentColor 8%, transparent );
-	--wpd-notice-border: transparent;
-	--wpd-notice-font: inherit;
-	--wpd-notice-success: color-mix(
+	--os-ui-notice-color: currentColor;
+	--os-ui-notice-bg: color-mix( in srgb, currentColor 8%, transparent );
+	--os-ui-notice-border: transparent;
+	--os-ui-notice-font: inherit;
+	--os-ui-notice-success: color-mix(
 		in srgb,
-		var( --wpd-success-fg, #46b450 ) 65%,
+		var( --os-ui-success-fg, #46b450 ) 65%,
 		currentColor
 	);
-	--wpd-notice-warning: color-mix(
+	--os-ui-notice-warning: color-mix(
 		in srgb,
-		var( --wpd-warning-fg, #dba617 ) 65%,
+		var( --os-ui-warning-fg, #dba617 ) 65%,
 		currentColor
 	);
-	--wpd-notice-error: color-mix(
+	--os-ui-notice-error: color-mix(
 		in srgb,
-		var( --wpd-danger, #d63638 ) 65%,
+		var( --os-ui-danger, #d63638 ) 65%,
 		currentColor
 	);
 	/* Out-specifies the component's own `:host` padding — 10px/14px is
@@ -276,20 +276,20 @@ body.desktop-mode-active .dm-drafts__link {
 	opacity: 0.72;
 }
 
-/* Suggestion buttons — `<wpd-button variant="ghost">` tuned to read as
+/* Suggestion buttons — `<os-button variant="ghost">` tuned to read as
    list rows (title / excerpt) or pills (tags / categories). */
 .dm-drafts__suggest-item,
 .dm-drafts__suggest-tag {
-	--wpd-button-border: none;
-	--wpd-button-bg: transparent;
-	--wpd-button-fg: currentColor;
+	--os-ui-button-border: none;
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: currentColor;
 }
 
 .dm-drafts__suggest-item {
 	display: flex;
-	--wpd-button-padding: 4px 6px;
-	--wpd-button-border-radius: 6px;
-	--wpd-button-bg-hover: color-mix( in srgb, currentColor 12%, transparent );
+	--os-ui-button-padding: 4px 6px;
+	--os-ui-button-border-radius: 6px;
+	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 12%, transparent );
 }
 
 .dm-drafts__suggest-item::part( button ) {
@@ -308,13 +308,13 @@ body.desktop-mode-active .dm-drafts__link {
 }
 
 .dm-drafts__suggest-tag {
-	--wpd-button-padding: 2px 8px;
-	--wpd-button-border-radius: 999px;
-	--wpd-button-border: 1px solid
+	--os-ui-button-padding: 2px 8px;
+	--os-ui-button-border-radius: 999px;
+	--os-ui-button-border: 1px solid
 		color-mix( in srgb, currentColor 30%, transparent );
-	--wpd-button-bg-hover: color-mix(
+	--os-ui-button-bg-hover: color-mix(
 		in srgb,
-		var( --wpd-accent, #2271b1 ) 16%,
+		var( --os-ui-accent, #2271b1 ) 16%,
 		transparent
 	);
 }
@@ -325,8 +325,8 @@ body.desktop-mode-active .dm-drafts__link {
 }
 
 .dm-drafts__suggest-tag:hover {
-	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
-	--wpd-button-border: 1px solid
+	--os-ui-button-fg: var( --dm-drafts-accent, #2271b1 );
+	--os-ui-button-border: 1px solid
 		color-mix( in srgb, var( --dm-drafts-accent, #2271b1 ) 55%, transparent );
 }
 
@@ -346,15 +346,15 @@ body.desktop-mode-active .dm-drafts__link {
 .dm-drafts__suggest-tag.is-applied {
 	--dm-drafts-applied: color-mix(
 		in srgb,
-		var( --wpd-success-fg, #46b450 ) 55%,
+		var( --os-ui-success-fg, #46b450 ) 55%,
 		currentColor
 	);
-	--wpd-button-fg: currentColor;
-	--wpd-button-bg: color-mix( in srgb, currentColor 15%, transparent );
+	--os-ui-button-fg: currentColor;
+	--os-ui-button-bg: color-mix( in srgb, currentColor 15%, transparent );
 	/* Same as the resting fill — an applied suggestion is inert, so it
 	   must not light up under the pointer as if it were still actionable. */
-	--wpd-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
-	--wpd-button-border: 1px solid
+	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
+	--os-ui-button-border: 1px solid
 		color-mix( in srgb, var( --dm-drafts-applied ) 60%, transparent );
 	opacity: 1;
 	cursor: default;

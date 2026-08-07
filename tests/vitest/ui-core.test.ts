@@ -1,5 +1,5 @@
 /**
- * wpd-ui core — tests for the templater + base component.
+ * os-ui core — tests for the templater + base component.
  *
  * Covers:
  *   - text, attribute, event, property, boolean-attribute bindings
@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Component, css, defineComponent, html, render } from '../../src/ui/core';
 
-describe( 'wpd-ui html renderer', () => {
+describe( 'os-ui html renderer', () => {
 	let host: HTMLDivElement;
 
 	beforeEach( () => {
@@ -359,7 +359,7 @@ describe( 'wpd-ui html renderer', () => {
 	} );
 } );
 
-describe( 'wpd-ui css', () => {
+describe( 'os-ui css', () => {
 	test( 'returns a StyleDef with text content', () => {
 		const style = css`
 			:host {
@@ -390,12 +390,12 @@ describe( 'wpd-ui css', () => {
 	} );
 } );
 
-describe( 'wpd-ui Component', () => {
+describe( 'os-ui Component', () => {
 	// Light-DOM component — exercises the `shadow = false` escape
 	// hatch. Most app components use the default (shadow = true),
 	// but a few low-level shells want the outer CSS cascade to
 	// continue; this test keeps that path covered.
-	class WpdGreeter extends Component {
+	class OsGreeter extends Component {
 		static props = [ 'name' ] as const;
 		static shadow = false;
 		protected render() {
@@ -403,9 +403,9 @@ describe( 'wpd-ui Component', () => {
 			return html`<p>Hello ${ name }</p>`;
 		}
 	}
-	defineComponent( 'wpd-greeter', WpdGreeter );
+	defineComponent( 'os-greeter', OsGreeter );
 
-	class WpdSwatch extends Component {
+	class OsSwatch extends Component {
 		static props = [ 'selected', 'label' ] as const;
 		static shadow = true;
 		static styles = [
@@ -432,17 +432,17 @@ describe( 'wpd-ui Component', () => {
 			</button>`;
 		}
 		private _onClick( _e: Event ): void {
-			this.emit( 'wpd-pick', { label: ( this as unknown as { label: string } ).label } );
+			this.emit( 'os-pick', { label: ( this as unknown as { label: string } ).label } );
 		}
 	}
-	defineComponent( 'wpd-swatch', WpdSwatch );
+	defineComponent( 'os-swatch', OsSwatch );
 
 	afterEach( () => {
 		document.body.innerHTML = '';
 	} );
 
 	test( 'renders on connection + reflects the initial prop', async () => {
-		const el = document.createElement( 'wpd-greeter' ) as WpdGreeter;
+		const el = document.createElement( 'os-greeter' ) as OsGreeter;
 		( el as unknown as { name: string } ).name = 'Alice';
 		document.body.appendChild( el );
 		await microtask();
@@ -450,7 +450,7 @@ describe( 'wpd-ui Component', () => {
 	} );
 
 	test( 'property → attribute sync', async () => {
-		const el = document.createElement( 'wpd-greeter' ) as WpdGreeter;
+		const el = document.createElement( 'os-greeter' ) as OsGreeter;
 		document.body.appendChild( el );
 		( el as unknown as { name: string } ).name = 'Bob';
 		await microtask();
@@ -458,7 +458,7 @@ describe( 'wpd-ui Component', () => {
 	} );
 
 	test( 'attribute → property → re-render', async () => {
-		const el = document.createElement( 'wpd-greeter' ) as WpdGreeter;
+		const el = document.createElement( 'os-greeter' ) as OsGreeter;
 		document.body.appendChild( el );
 		await microtask();
 		el.setAttribute( 'name', 'Carol' );
@@ -470,7 +470,7 @@ describe( 'wpd-ui Component', () => {
 		// Subclass-local counter — more robust than spying on DOM
 		// ops that an optimiser might skip.
 		let renderCount = 0;
-		class WpdCounter extends Component {
+		class OsCounter extends Component {
 			static props = [ 'n' ] as const;
 			static shadow = false;
 			protected render() {
@@ -478,8 +478,8 @@ describe( 'wpd-ui Component', () => {
 				return html`<span>${ ( this as unknown as { n: string } ).n }</span>`;
 			}
 		}
-		defineComponent( 'wpd-counter', WpdCounter );
-		const el = document.createElement( 'wpd-counter' ) as WpdCounter;
+		defineComponent( 'os-counter', OsCounter );
+		const el = document.createElement( 'os-counter' ) as OsCounter;
 		document.body.appendChild( el );
 		await microtask();
 		const before = renderCount;
@@ -492,7 +492,7 @@ describe( 'wpd-ui Component', () => {
 	} );
 
 	test( 'shadow DOM component adopts stylesheets on mount', async () => {
-		const el = document.createElement( 'wpd-swatch' ) as WpdSwatch;
+		const el = document.createElement( 'os-swatch' ) as OsSwatch;
 		( el as unknown as { label: string } ).label = 'Red';
 		document.body.appendChild( el );
 		await microtask();
@@ -502,12 +502,12 @@ describe( 'wpd-ui Component', () => {
 	} );
 
 	test( 'emit dispatches a CustomEvent with detail', async () => {
-		const el = document.createElement( 'wpd-swatch' ) as WpdSwatch;
+		const el = document.createElement( 'os-swatch' ) as OsSwatch;
 		( el as unknown as { label: string } ).label = 'Blue';
 		document.body.appendChild( el );
 		await microtask();
 		const heard: { detail: { label: string } }[] = [];
-		el.addEventListener( 'wpd-pick', ( e: Event ) => {
+		el.addEventListener( 'os-pick', ( e: Event ) => {
 			heard.push( { detail: ( e as CustomEvent ).detail } );
 		} );
 		el.shadowRoot!.querySelector( 'button' )!.click();

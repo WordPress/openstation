@@ -10,16 +10,16 @@
  *   - `StatusSegment` — entries in the segmented control above the
  *     table (All / Published / Drafts / …).
  *   - `PostsWindowContext` — shell-managed handle handed to
- *     `BulkAction.run()` and the `desktop_mode.postsWindow.opened`
+ *     `BulkAction.run()` and the `openstation.postsWindow.opened`
  *     subscribers.
  *
  * The PostListItem row shape lives in `./rest.ts`; columns added via
- * `desktop_mode.postsWindow.columns` reach into that shape.
+ * `openstation.postsWindow.columns` reach into that shape.
  *
  * @public
  */
 
-import type { WpdTable } from '../ui/components/wpd-table/wpd-table';
+import type { OsTable } from '../ui/components/os-table/os-table';
 import type { PostListItem, PostsListParams } from './rest';
 
 /**
@@ -31,8 +31,8 @@ import type { PostListItem, PostsListParams } from './rest';
 export interface PostsWindowContext {
 	/** The native window's body element. Plugins can use this for scoping. */
 	body: HTMLElement;
-	/** The `<wpd-table>` instance the window populates. */
-	table: WpdTable< PostListItem >;
+	/** The `<os-table>` instance the window populates. */
+	table: OsTable< PostListItem >;
 	/**
 	 * Re-fetch + re-paint with the current view state. Returns a
 	 * Promise that resolves after the data lands.
@@ -49,7 +49,7 @@ export interface PostsWindowContext {
 /**
  * A bulk action that appears in the toolbar when one or more rows
  * are selected. The shipped default is "Move to trash"; plugins
- * append/replace via the `desktop_mode.postsWindow.bulkActions`
+ * append/replace via the `openstation.postsWindow.bulkActions`
  * filter.
  */
 export interface BulkAction {
@@ -60,7 +60,7 @@ export interface BulkAction {
 	/** Optional dashicon class (e.g. `'dashicons-trash'`). */
 	icon?: string;
 	/**
-	 * `<wpd-button>` variant. Defaults to `'secondary'`; pass `'danger'`
+	 * `<os-button>` variant. Defaults to `'secondary'`; pass `'danger'`
 	 * for destructive actions, `'primary'` for the headline action.
 	 */
 	variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -85,7 +85,7 @@ export interface BulkAction {
  * A status filter segment in the segmented control above the table.
  * Defaults are All / Published / Drafts / Pending / Scheduled / Trash;
  * plugins extend or replace via
- * `desktop_mode.postsWindow.statusSegments`.
+ * `openstation.postsWindow.statusSegments`.
  *
  * The `value` is sent verbatim as the REST `?status=…` param when the
  * segment is selected. Use `''` (empty string) for the "All" sentinel
@@ -98,8 +98,8 @@ export interface StatusSegment {
 }
 
 /**
- * Detail shape of the `desktop-mode-posts-window-data-loaded`
- * CustomEvent (and the matching `desktop_mode.postsWindow.dataLoaded`
+ * Detail shape of the `os-posts-window-data-loaded`
+ * CustomEvent (and the matching `openstation.postsWindow.dataLoaded`
  * hook-bus action). Fired after every successful refresh.
  */
 export interface PostsWindowDataLoadedDetail {

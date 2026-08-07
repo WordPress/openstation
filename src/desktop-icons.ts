@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Wallpaper shortcut icons.
+ * OpenStation — Wallpaper shortcut icons.
  *
  * Renders the list of `config.desktopIcons` entries (registered
- * server-side via `desktop_mode_register_icon()`) as clickable
+ * server-side via `openstation_register_icon()`) as clickable
  * tiles on the desktop wallpaper. Clicking an icon opens the
  * referenced native window (via the injected `openWindow` callback)
  * or opens the URL as an iframe window / new tab.
@@ -10,7 +10,7 @@
  * **Badge surface.** The icon rail mirrors the
  * dock + taskbar API exactly: `setBadge( id, count )` is
  * idempotent, `0` clears, `>99` renders `99+`. Every change emits
- * `desktop-mode/badge-changed` with `rail: 'icon'` on the activity
+ * `os/badge-changed` with `rail: 'icon'` on the activity
  * bus and {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus, so a
  * plugin author writing one badge wrapper for all three rails
  * sees one consistent shape across every surface.
@@ -88,7 +88,7 @@ export interface DesktopIconRenderDeps {
  *  `DESKTOP_ICONS_RENDERED`.
  * --------------------------------------------------------------- */
 
-const BADGE_CLASS = 'desktop-mode-icon__badge';
+const BADGE_CLASS = 'os-icon__badge';
 const _badges = new Map< string, number >();
 
 /**
@@ -109,9 +109,9 @@ function _safeBadge( count: number ): number {
  *
  * ```ts
  * function setBadgeEverywhere( id: string, count: number ): void {
- *     wp.desktop.dock?.setBadge?.(    id, count );
- *     wp.desktop.taskbar?.setBadge?.( id, count );
- *     wp.desktop.icons?.setBadge?.(   id, count );
+ *     wp.os.dock?.setBadge?.(    id, count );
+ *     wp.os.taskbar?.setBadge?.( id, count );
+ *     wp.os.icons?.setBadge?.(   id, count );
  * }
  * ```
  *
@@ -120,9 +120,9 @@ function _safeBadge( count: number ): number {
  *
  * On every applied change this fires:
  *
- *   - `desktop-mode/badge-changed` on the activity bus with
+ *   - `os/badge-changed` on the activity bus with
  *     `{ itemId, count, rail: 'icon' }`. Subscribe via
- *     `wp.desktop.activity.subscribe( 'desktop-mode/badge-changed', cb )`
+ *     `wp.os.activity.subscribe( 'os/badge-changed', cb )`
  *     for global notification-center widgets that aggregate
  *     across rails.
  *   - {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -135,7 +135,7 @@ function _safeBadge( count: number ): number {
  *
  * @public
  *
- * @param iconId Id passed to `desktop_mode_register_icon()`.
+ * @param iconId Id passed to `openstation_register_icon()`.
  * @param count  Non-negative integer. `>99` renders as `99+`.
  *               `0` removes the badge.
  */
@@ -159,7 +159,7 @@ export function setIconBadge( iconId: string, count: number ): void {
 		_badges.set( iconId, safe );
 	}
 	_paintBadgeNode( tile, safe );
-	activity.publish( 'desktop-mode/badge-changed', {
+	activity.publish( 'os/badge-changed', {
 		itemId: iconId,
 		count: safe,
 		rail: 'icon',
@@ -209,7 +209,7 @@ export function _resetIconBadgesForTests(): void {
 }
 
 /**
- * Public icon-rail surface exposed on `wp.desktop.icons`. The
+ * Public icon-rail surface exposed on `wp.os.icons`. The
  * shape is deliberately minimal and mirrors `Dock` so plugin
  * authors can write a single badge wrapper that dispatches
  * across rails. New methods only get added here when they earn
@@ -228,7 +228,7 @@ export interface IconsApi {
  * Singleton — every bundle that imports this module ends up
  * with the SAME badge map (the closure here is shared because
  * the module is only loaded by the always-on shell bundle).
- * Plugins reach this through `wp.desktop.icons` rather than
+ * Plugins reach this through `wp.os.icons` rather than
  * importing the symbol directly.
  *
  * @public
@@ -243,7 +243,7 @@ export const iconsApi: IconsApi = {
  * Stable serialisation of the icons-array shape we actually care
  * about. Used to skip rebuilds when the live menu-refresh path
  * fires with an identical payload — chromeless `admin_footer`
- * emits `desktop-mode-plugins-changed` on every iframe paint, so
+ * emits `os-plugins-changed` on every iframe paint, so
  * `applyPayload()` was previously rebuilding the icon grid
  * dozens of times during normal use, taking out anything we'd
  * appended (drag handles, custom decorations) each time. Cheap
@@ -289,7 +289,7 @@ let _lastFingerprint = '';
  * called `setIconBadge` once doesn't need to re-decorate after
  * each {@link HOOKS.DESKTOP_ICONS_RENDERED}.
  *
- * @param host  Desktop-area element (`#desktop-mode-area`).
+ * @param host  Desktop-area element (`#os-area`).
  * @param icons Ordered list from `config.desktopIcons`.
  * @param deps  See {@link DesktopIconRenderDeps}.
  */
@@ -306,12 +306,12 @@ export function renderDesktopIcons(
 	// position shifted) flips the fingerprint and triggers the
 	// full rebuild.
 	const fp = fingerprintIcons( icons );
-	if ( fp === _lastFingerprint && host.querySelector( ':scope > .desktop-mode-icons' ) ) {
+	if ( fp === _lastFingerprint && host.querySelector( ':scope > .os-icons' ) ) {
 		return;
 	}
 	_lastFingerprint = fp;
 
-	const existing = host.querySelector( ':scope > .desktop-mode-icons' );
+	const existing = host.querySelector( ':scope > .os-icons' );
 	if ( existing ) {
 		existing.remove();
 	}
@@ -320,7 +320,7 @@ export function renderDesktopIcons(
 	}
 
 	const container = document.createElement( 'div' );
-	container.className = 'desktop-mode-icons';
+	container.className = 'os-icons';
 	container.setAttribute( 'role', 'list' );
 	container.setAttribute( 'aria-label', __( 'Desktop icons' ) );
 
@@ -383,7 +383,7 @@ function _findIconTile( iconId: string ): HTMLElement | null {
 		return null;
 	}
 	const container = document.querySelector< HTMLElement >(
-		'.desktop-mode-icons',
+		'.os-icons',
 	);
 	if ( ! container ) {
 		return null;
@@ -452,8 +452,8 @@ function buildIcon(
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
 	tile.className = entry.pinned
-		? 'desktop-mode-icon desktop-mode-icon--pinned'
-		: 'desktop-mode-icon';
+		? 'os-icon os-icon--pinned'
+		: 'os-icon';
 	tile.dataset.iconId = entry.id;
 	if ( entry.pinned ) {
 		tile.dataset.pinned = '1';
@@ -470,13 +470,13 @@ function buildIcon(
 	// URIs (an earlier bug).
 	const icon = renderIcon( entry.icon, {
 		title: entry.title,
-		className: 'desktop-mode-icon__image',
+		className: 'os-icon__image',
 		slot: slotForTileId( entry.id ),
 	} );
 	tile.appendChild( icon );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-icon__label';
+	label.className = 'os-icon__label';
 	label.textContent = entry.title;
 	tile.appendChild( label );
 

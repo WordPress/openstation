@@ -74,14 +74,14 @@ function makeShell(): {
 } {
 	document.body.innerHTML = '';
 	const shellRoot = document.createElement( 'div' );
-	shellRoot.id = 'desktop-mode-shell';
+	shellRoot.id = 'os-shell';
 	const shellBody = document.createElement( 'div' );
-	shellBody.className = 'desktop-mode-shell__body';
+	shellBody.className = 'os-shell__body';
 	const bottomDockEl = document.createElement( 'nav' );
-	bottomDockEl.id = 'desktop-mode-dock';
-	bottomDockEl.className = 'desktop-mode-dock';
+	bottomDockEl.id = 'os-dock';
+	bottomDockEl.className = 'os-dock';
 	const desktopArea = document.createElement( 'div' );
-	desktopArea.id = 'desktop-mode-area';
+	desktopArea.id = 'os-area';
 	shellBody.append( bottomDockEl, desktopArea );
 	shellRoot.append( shellBody );
 	document.body.append( shellRoot );
@@ -403,7 +403,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		const wp = window.wp!;
 		const onError = vi.fn();
 		wp.hooks.addAction(
-			'desktop-mode.shell.error',
+			'os.shell.error',
 			'test/error',
 			onError,
 		);

@@ -1,14 +1,14 @@
 /**
- * Desktop Mode — Shared registration-error helpers.
+ * OpenStation — Shared registration-error helpers.
  *
  * Plugin authors that register a widget / wallpaper / module with a
  * malformed def used to see a generic
- * `[desktop-mode] Ignored invalid widget registration: { ... }`
+ * `[openstation] Ignored invalid widget registration: { ... }`
  * warning and have to guess which field failed. These helpers collect
  * per-field errors instead, so the console message tells them exactly
  * what's wrong:
  *
- *   [desktop-mode] Widget registration rejected — fields: id (missing), mount (not a function).
+ *   [openstation] Widget registration rejected — fields: id (missing), mount (not a function).
  *
  * Factored out so every registry validates with the same ergonomics.
  */
@@ -63,7 +63,7 @@ export class RegistrationError extends Error {
 
 	constructor( kind: string, errors: string[], def: unknown ) {
 		super(
-			`[desktop-mode] ${ kind } registration rejected — fields: ` +
+			`[openstation] ${ kind } registration rejected — fields: ` +
 				errors.join( ', ' ) +
 				'.',
 		);
@@ -112,7 +112,7 @@ export function logRegistrationErrors(
 		return;
 	}
 	console.warn(
-		`[desktop-mode] ${ kind } registration rejected — fields: ` +
+		`[openstation] ${ kind } registration rejected — fields: ` +
 			errors.join( ', ' ) +
 			'.',
 		def,

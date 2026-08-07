@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Folder shares shared store.
+ * OpenStation — Folder shares shared store.
  *
  * Tracks every share row the active session has touched, plus the
  * set of pending invites the current user has received via the

@@ -80,9 +80,12 @@ export async function fetchMediaPage(
 	const url = new URL( buildUrl( entity.restPath ) );
 	url.searchParams.set( 'page', String( params.page ) );
 	url.searchParams.set( 'per_page', String( params.perPage ) );
+	// `post` is the attachment's parent. It costs nothing to ask for
+	// and it is what decides whether the Detach action applies to a
+	// file — without it here, Detach could never appear.
 	url.searchParams.set(
 		'_fields',
-		'id,title,date,mime_type,source_url,alt_text,caption,description,author,media_details,_embedded',
+		'id,title,date,mime_type,source_url,alt_text,caption,description,author,post,media_details,_embedded',
 	);
 	url.searchParams.set( '_embed', 'author' );
 	url.searchParams.set( 'orderby', 'date' );
@@ -174,6 +177,37 @@ export async function deleteMediaItem( mediaId: number ): Promise< void > {
 	if ( ! response.ok ) {
 		throw new Error(
 			await readErrorMessage( response, 'Failed to delete media item' ),
+		);
+	}
+}
+
+/**
+ * Patch an attachment.
+ *
+ * Used by the bulk actions for two of core's own media operations:
+ * "Detach" (`post: 0`, the same thing the media list table's Detach
+ * row action does) and re-attributing an author.
+ *
+ * @public
+ */
+export async function updateMediaItem(
+	mediaId: number,
+	body: Record< string, unknown >,
+): Promise< void > {
+	const cfg = getConfig();
+	const response = await shellFetch( buildUrl( `wp/v2/media/${ mediaId }` ), {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'X-WP-Nonce': cfg.restNonce,
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify( body ),
+	} );
+	if ( ! response.ok ) {
+		throw new Error(
+			await readErrorMessage( response, 'Failed to update media item' ),
 		);
 	}
 }

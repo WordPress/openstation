@@ -1,11 +1,11 @@
 /**
- * Desktop Mode — Files Heartbeat sync (JS).
+ * OpenStation — Files Heartbeat sync (JS).
  *
  * Mirror of `includes/desktop-files/heartbeat.php`. Contributes a
- * `desktop_mode_files_subscribe` block on every Heartbeat send
+ * `openstation_files_subscribe` block on every Heartbeat send
  * carrying the per-folder version map + the latest placement
  * `updated_at_ms` we've seen. Subscribes to the
- * `desktop_mode_files` block on the response and merges deltas
+ * `openstation_files` block on the response and merges deltas
  * into the shared store with `source: 'remote'`.
  *
  * On `truncated: true` we issue a one-shot REST resync of every
@@ -44,7 +44,7 @@ export function startFilesHeartbeat(): void {
 	}
 	started = true;
 
-	heartbeat.contribute( 'desktop_mode_files_subscribe', () => {
+	heartbeat.contribute( 'openstation_files_subscribe', () => {
 		const state = getFilesState();
 		const folderVersions: Record< string, number > = {};
 		for ( const [ id, folder ] of state.folders ) {
@@ -57,7 +57,7 @@ export function startFilesHeartbeat(): void {
 		};
 	} );
 
-	heartbeat.subscribe< FilesHeartbeatPayload >( 'desktop_mode_files', ( payload ) => {
+	heartbeat.subscribe< FilesHeartbeatPayload >( 'openstation_files', ( payload ) => {
 		applyDelta( payload );
 	} );
 }

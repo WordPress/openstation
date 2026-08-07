@@ -1,6 +1,6 @@
 /**
  * Tests for `Dock.setBadge` — the rail discriminator on the
- * `desktop-mode/badge-changed` activity channel and the
+ * `os/badge-changed` activity channel and the
  * client-override map that lets `replaceItems()` (live menu
  * refresh) preserve a badge a plugin had already set.
  *
@@ -49,7 +49,7 @@ function mount( items: DockItem[], orientation: 'left' | 'bottom' = 'left' ) {
 
 function badgeText( container: HTMLElement, slug: string ): string | null {
 	return container
-		.querySelector( `[data-menu-slug="${ slug }"] .desktop-mode-dock__badge` )
+		.querySelector( `[data-menu-slug="${ slug }"] .os-dock__badge` )
 		?.textContent ?? null;
 }
 
@@ -63,7 +63,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'left orientation publishes rail: "dock"', () => {
 		const { dock } = mount( [ makeItem() ], 'left' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'plugin-x', 4 );
 		expect( cb ).toHaveBeenCalledWith( {
 			itemId: 'plugin-x',
@@ -76,7 +76,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'bottom orientation publishes rail: "taskbar"', () => {
 		const { dock } = mount( [ makeItem() ], 'bottom' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'plugin-x', 2 );
 		expect( cb ).toHaveBeenCalledWith( {
 			itemId: 'plugin-x',
@@ -89,7 +89,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 	test( 'silently no-ops for an id not on this rail', () => {
 		const { dock } = mount( [ makeItem() ], 'left' );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		dock.setBadge( 'never-on-this-rail', 5 );
 		expect( cb ).not.toHaveBeenCalled();
 		off();
@@ -142,7 +142,7 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 	 * removed but the popover lived on, and a fresh popover for the
 	 * rebuilt tile collided with it on `view-transition-name`. Chrome
 	 * surfaced this as "Unexpected duplicate view-transition-name:
-	 * desktop-mode-peek-card-<id>". `replaceItems` now drains
+	 * os-peek-card-<id>". `replaceItems` now drains
 	 * `peekTeardowns` for the items being replaced; system tile
 	 * peeks (keyed `system:*`) stay untouched.
 	 */
@@ -192,17 +192,17 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 
 		pointerEnter( tile! );
 		vi.advanceTimersByTime( 500 );
-		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 1 );
+		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 1 );
 
 		// Live menu refresh — would happen on plugin install/activate
-		// or any chromeless `desktop-mode-plugins-changed` postMessage.
+		// or any chromeless `os-plugins-changed` postMessage.
 		dock.replaceItems( [ item ] );
 
 		// The orphaned popover must be gone before the rebuilt tile
 		// is allowed to spawn a fresh one. Without the teardown drain
 		// in `replaceItems`, the old popover lingers and a second
 		// peek collides on `view-transition-name`.
-		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 0 );
+		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 0 );
 	} );
 
 	test( 'after replaceItems, the rebuilt tile shows a fresh peek', () => {
@@ -253,7 +253,7 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 		vi.advanceTimersByTime( 500 );
 		// Exactly one peek — not zero (teardown over-drained), not
 		// two (leaked old listener also fired).
-		expect( document.querySelectorAll( '.desktop-mode-dock-peek' ).length ).toBe( 1 );
+		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 1 );
 	} );
 } );
 
@@ -274,7 +274,7 @@ describe( 'Dock.removeSystemItem fires HOOKS.DOCK_ITEM_REMOVED', () => {
 		} );
 
 		const cb = vi.fn();
-		const ns = 'desktop-mode-tests/remove-system-item';
+		const ns = 'os-tests/remove-system-item';
 		window.wp?.hooks?.addAction?.( HOOKS.DOCK_ITEM_REMOVED, ns, cb );
 		dock.removeSystemItem( 'jorvy' );
 		expect( cb ).toHaveBeenCalledWith( { id: 'jorvy', placement: 'taskbar' } );
@@ -284,7 +284,7 @@ describe( 'Dock.removeSystemItem fires HOOKS.DOCK_ITEM_REMOVED', () => {
 	test( 'removeSystemItem on an unknown id is a silent no-op', () => {
 		const { dock } = mount( [], 'left' );
 		const cb = vi.fn();
-		const ns = 'desktop-mode-tests/remove-noop';
+		const ns = 'os-tests/remove-noop';
 		window.wp?.hooks?.addAction?.( HOOKS.DOCK_ITEM_REMOVED, ns, cb );
 		dock.removeSystemItem( 'never-registered' );
 		expect( cb ).not.toHaveBeenCalled();

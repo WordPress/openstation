@@ -1,7 +1,7 @@
 /**
  * OS Settings → Appearance → Admin bar, at the apply pass.
  *
- * The pick reaches CSS as a `desktop-mode-admin-bar-<mode>` body
+ * The pick reaches CSS as a `os-admin-bar-<mode>` body
  * class, and it has to be the ONLY one of the three on the body —
  * `desktop.css` gives `hidden` a `display: none !important` and
  * `dynamic` a transform, so two classes at once is a bar that is
@@ -29,7 +29,7 @@ function makeSettings(): OsSettings {
 /** Which of the three mode classes are currently on the body. */
 function modeClasses(): string[] {
 	return MODES.filter( ( m ) =>
-		document.body.classList.contains( `desktop-mode-admin-bar-${ m }` ),
+		document.body.classList.contains( `os-admin-bar-${ m }` ),
 	);
 }
 
@@ -37,13 +37,13 @@ beforeEach( () => {
 	_resetAllSharedStoresForTests();
 	installHooksStub();
 	window.localStorage.clear();
-	delete ( window as unknown as { desktopModeConfig?: unknown } )
-		.desktopModeConfig;
+	delete ( window as unknown as { openStationConfig?: unknown } )
+		.openStationConfig;
 	document.body.innerHTML = '';
 	document.body.className = '';
 
 	const shell = document.createElement( 'div' );
-	shell.id = 'desktop-mode-shell';
+	shell.id = 'os-shell';
 	document.body.appendChild( shell );
 
 	return () => clearHooksStub();

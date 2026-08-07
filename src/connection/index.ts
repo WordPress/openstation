@@ -1,14 +1,14 @@
 /**
  * Cross-window connection bridge.
  *
- * Plugins use `wp.desktop.connect( windowId )` to open a typed
+ * Plugins use `wp.os.connect( windowId )` to open a typed
  * pub/sub channel with any open window's content — iframe or
  * native, the API is the same. The shell only routes; topic
  * semantics are plugin-defined.
  *
  * Wire model — iframe windows:
  *
- *   parent shell ─[postMessage]─▶ iframe (desktop-mode-bridge-handshake)
+ *   parent shell ─[postMessage]─▶ iframe (os-bridge-handshake)
  *                                            │ chromeless-bridge installs handlers
  *                                            ▼
  *                                       handshake-ack
@@ -139,14 +139,14 @@ export function getSyntheticIframe(
  * single shell instance).
  */
 function nextId(): string {
-	return `desktop-mode-conn-${ ++_connSeq }`;
+	return `os-conn-${ ++_connSeq }`;
 }
 
 /**
  * Factory that binds the connect API to the live window manager.
  * Returns the public `connect` function plus an internal
  * `routeIncomingFromIframe` that the iframe-bridge handler calls
- * for every `desktop-mode-bridge-*` message.
+ * for every `os-bridge-*` message.
  */
 export function createConnectionBridge( manager: WindowManager ) {
 	const sendToIframe = (
@@ -158,7 +158,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] connection: postMessage failed',
+					'[openstation] connection: postMessage failed',
 					err,
 				);
 			}
@@ -215,7 +215,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 			while ( queue.length ) {
 				const msg = queue.shift()!;
 				sendToIframe( iframe, {
-					type: 'desktop-mode-bridge-publish',
+					type: 'os-bridge-publish',
 					connectionId: id,
 					topic: msg.topic,
 					payload: msg.payload,
@@ -248,7 +248,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[desktop-mode] connection subscriber threw:',
+										'[openstation] connection subscriber threw:',
 										err,
 									);
 								}
@@ -292,7 +292,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					return;
 				}
 				sendToIframe( iframe, {
-					type: 'desktop-mode-bridge-publish',
+					type: 'os-bridge-publish',
 					connectionId: id,
 					topic,
 					payload,
@@ -307,7 +307,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					return;
 				}
 				const msg = data as { type?: string };
-				if ( msg.type === 'desktop-mode-bridge-handshake-ack' ) {
+				if ( msg.type === 'os-bridge-handshake-ack' ) {
 					if ( isOpen ) {
 						return;
 					}
@@ -319,7 +319,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 						// Ship the live Connection alongside the id so
 						// iframe-initiated connections can be subscribed
 						// to directly from the hook handler — without
-						// `wp.desktop.getConnection(id)` plumbing the
+						// `wp.os.getConnection(id)` plumbing the
 						// payload would carry the id but no way to call
 						// `.subscribe()` against it.
 						connection: conn,
@@ -329,7 +329,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					} catch ( err ) {
 						if ( typeof console !== 'undefined' ) {
 							console.error(
-								'[desktop-mode] connection.onOpen threw:',
+								'[openstation] connection.onOpen threw:',
 								err,
 							);
 						}
@@ -337,7 +337,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					flushQueue();
 					return;
 				}
-				if ( msg.type === 'desktop-mode-bridge-publish' ) {
+				if ( msg.type === 'os-bridge-publish' ) {
 					const m = data as {
 						topic?: string;
 						payload?: unknown;
@@ -359,7 +359,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[desktop-mode] connection subscriber threw:',
+										'[openstation] connection subscriber threw:',
 										err,
 									);
 								}
@@ -374,7 +374,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 							} catch ( err ) {
 								if ( typeof console !== 'undefined' ) {
 									console.error(
-										'[desktop-mode] connection wildcard subscriber threw:',
+										'[openstation] connection wildcard subscriber threw:',
 										err,
 									);
 								}
@@ -383,7 +383,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					}
 					return;
 				}
-				if ( msg.type === 'desktop-mode-bridge-disconnect' ) {
+				if ( msg.type === 'os-bridge-disconnect' ) {
 					conn._destroy( 'disconnect' );
 				}
 			},
@@ -417,7 +417,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 					const iframe = targetIframe();
 					if ( iframe ) {
 						sendToIframe( iframe, {
-							type: 'desktop-mode-bridge-disconnect',
+							type: 'os-bridge-disconnect',
 							connectionId: id,
 						} );
 					}
@@ -431,7 +431,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] connection.onClose threw:',
+							'[openstation] connection.onClose threw:',
 							err,
 						);
 					}
@@ -466,7 +466,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				} catch ( err ) {
 					if ( typeof console !== 'undefined' ) {
 						console.error(
-							'[desktop-mode] connection.onOpen threw:',
+							'[openstation] connection.onOpen threw:',
 							err,
 						);
 					}
@@ -477,13 +477,13 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 		// Send the handshake. Iframes that haven't loaded yet won't
 		// have a `contentWindow`; the chromeless bridge replays
-		// pending handshakes after `desktop-mode-ready` (see
+		// pending handshakes after `os-ready` (see
 		// `replayPendingHandshakes` below — wired in `desktop.ts` on
 		// IFRAME_READY).
 		const iframe = targetIframe();
 		if ( iframe ) {
 			sendToIframe( iframe, {
-				type: 'desktop-mode-bridge-handshake',
+				type: 'os-bridge-handshake',
 				connectionId: id,
 				targetWindowId,
 				topics,
@@ -495,7 +495,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 	/**
 	 * Called from `iframe-bridge.ts` for every
-	 * `desktop-mode-bridge-*` message. Routes to the right connection
+	 * `os-bridge-*` message. Routes to the right connection
 	 * by id; silently drops messages whose connection is gone.
 	 *
 	 * Iframe-initiated connection requests (`requestConnection()`)
@@ -504,7 +504,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 * `HOOKS.IFRAME_CONNECTION_REQUEST` filter synchronously
 	 * (default `true` = accept; return `false` to reject, or
 	 * `{ topics }` to accept with a narrowed topic list) and
-	 * replies with `desktop-mode-bridge-connection-ack`.
+	 * replies with `os-bridge-connection-ack`.
 	 *
 	 * `windowId` identifies the window the message came from — the
 	 * iframe-bridge handler in `src/window/iframe-bridge.ts` looks
@@ -521,14 +521,14 @@ export function createConnectionBridge( manager: WindowManager ) {
 			requestId?: string;
 			topics?: unknown;
 		};
-		if ( typeof msg.type !== 'string' || ! msg.type.startsWith( 'desktop-mode-bridge-' ) ) {
+		if ( typeof msg.type !== 'string' || ! msg.type.startsWith( 'os-bridge-' ) ) {
 			return;
 		}
 
 		// Iframe-initiated connection request — open a connection
 		// back to this iframe unless a plugin rejects.
 		if (
-			msg.type === 'desktop-mode-bridge-connection-request' &&
+			msg.type === 'os-bridge-connection-request' &&
 			typeof msg.requestId === 'string' &&
 			typeof windowId === 'string' &&
 			windowId !== ''
@@ -573,7 +573,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 		if ( decision === false ) {
 			try {
 				iframe.contentWindow?.postMessage( {
-					type: 'desktop-mode-bridge-connection-ack',
+					type: 'os-bridge-connection-ack',
 					requestId,
 					accepted: false,
 					reason: 'rejected',
@@ -590,7 +590,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 
 		try {
 			iframe.contentWindow?.postMessage( {
-				type: 'desktop-mode-bridge-connection-ack',
+				type: 'os-bridge-connection-ack',
 				requestId,
 				accepted: true,
 				connectionId: conn.id,
@@ -618,7 +618,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 				continue;
 			}
 			sendToIframe( iframe, {
-				type: 'desktop-mode-bridge-handshake',
+				type: 'os-bridge-handshake',
 				connectionId: conn.id,
 				targetWindowId: conn.target,
 				topics: [], // already negotiated client-side; iframe re-uses
@@ -648,7 +648,7 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 *
 	 * Companion to {@link HOOKS.CONNECTION_OPENED}: shell-side plugin
 	 * code that observes a connection being opened by an iframe (via
-	 * `wp.desktop.iframe.requestConnection`) gets the id in the hook
+	 * `wp.os.iframe.requestConnection`) gets the id in the hook
 	 * payload but had no way to obtain the live Connection object
 	 * before this accessor existed. Now `connection` is also passed
 	 * directly in the hook payload — both paths produce the same

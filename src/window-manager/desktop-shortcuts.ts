@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Virtual-desktop arrow-key shortcuts.
+ * OpenStation — Virtual-desktop arrow-key shortcuts.
  *
  * Bare arrow keys drive the four most common desktop-shell actions
  * when focus is outside a text-entry surface:

@@ -1,8 +1,8 @@
 <?php
 /**
- * Desktop Mode — Extension window base.
+ * OpenStation — Extension window base.
  *
- * Abstract base for in-tree (and third-party) Desktop Mode
+ * Abstract base for in-tree (and third-party) OpenStation
  * extensions that ship a single native window backed by an
  * admin-ajax-served bundle. Replaces ~250 LOC of boilerplate per
  * extension with ~30 lines of subclass declarations.
@@ -16,9 +16,9 @@
  *   2. Streams the prebuilt bundle (.js or .min.js depending on
  *      SCRIPT_DEBUG).
  *   3. Closes with a best-effort `customElements.whenDefined(
- *      'wpd-table' )` probe whose Promise is discarded — it does
+ *      'os-table' )` probe whose Promise is discarded — it does
  *      NOT defer the bundle's render callback. Extensions whose
- *      first render depends on upgraded `<wpd-*>` elements must
+ *      first render depends on upgraded `<os-*>` elements must
  *      defend against the upgrade race themselves (see the
  *      desktop-mode-cron-manager bundle trailer for a wrapper
  *      that does).
@@ -26,21 +26,21 @@
  * Concrete subclasses declare the constants the base needs;
  * everything else is inherited.
  *
- * @package Desktop_Mode_Extension_Base
+ * @package OpenStation_Extension_Base
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'Desktop_Mode_Extension_Window' ) ) :
+if ( ! class_exists( 'OpenStation_Extension_Window' ) ) :
 
 /**
  * Base class an extension subclasses to declare its native window.
  */
-abstract class Desktop_Mode_Extension_Window {
+abstract class OpenStation_Extension_Window {
 
 	/**
 	 * Stable id for the native window. Matches the value passed
-	 * to `desktop_mode_register_window()`.
+	 * to `openstation_register_window()`.
 	 */
 	abstract protected function window_id(): string;
 
@@ -71,19 +71,19 @@ abstract class Desktop_Mode_Extension_Window {
 	/**
 	 * `wp_ajax_<action>` slug used to serve the bundle. Must be
 	 * unique across all extensions. Convention:
-	 * `desktop_mode_<plugin>_bundle`.
+	 * `openstation_<plugin>_bundle`.
 	 */
 	abstract protected function bundle_action(): string;
 
 	/**
 	 * Global on `window` that holds the config blob the bundle
-	 * reads at load time. Convention: `wpDesktop<Plugin>Config`.
+	 * reads at load time. Convention: `openStation<Plugin>Config`.
 	 */
 	abstract protected function config_global(): string;
 
 	/**
 	 * Native-window registration args passed to
-	 * `desktop_mode_register_window()` minus the `script`,
+	 * `openstation_register_window()` minus the `script`,
 	 * `style`, and `id` fields the base fills in. Subclasses
 	 * declare title, icon, template, default size, etc.
 	 *
@@ -136,7 +136,7 @@ abstract class Desktop_Mode_Extension_Window {
 		wp_register_script(
 			$this->asset_handle(),
 			$bundle_url,
-			array( 'wp-i18n', 'desktop-mode' ),
+			array( 'wp-i18n', 'openstation' ),
 			$this->version(),
 			true
 		);
@@ -144,18 +144,18 @@ abstract class Desktop_Mode_Extension_Window {
 		wp_register_style(
 			$this->asset_handle(),
 			$this->plugin_url() . 'assets/css/' . $this->asset_handle() . '.css',
-			array( 'desktop-mode-variables', 'dashicons' ),
+			array( 'os-variables', 'dashicons' ),
 			$this->version()
 		);
 	}
 
 	/**
 	 * Hook callback — registers the native window. Runs on
-	 * `plugins_loaded` so the desktop-mode plugin's
-	 * `desktop_mode_register_window()` is available.
+	 * `plugins_loaded` so the openstation plugin's
+	 * `openstation_register_window()` is available.
 	 */
 	public function register_window(): void {
-		if ( ! function_exists( 'desktop_mode_register_window' ) ) {
+		if ( ! function_exists( 'openstation_register_window' ) ) {
 			return;
 		}
 		$args = array_merge(
@@ -166,16 +166,16 @@ abstract class Desktop_Mode_Extension_Window {
 				'style'  => $this->asset_handle(),
 			)
 		);
-		desktop_mode_register_window( $this->window_id(), $args );
+		openstation_register_window( $this->window_id(), $args );
 	}
 
 	/**
 	 * Hook callback — serves the bundle on
 	 * `wp_ajax_<bundle_action>`. The trailing
-	 * `customElements.whenDefined( 'wpd-table' )` call is a
+	 * `customElements.whenDefined( 'os-table' )` call is a
 	 * fire-and-forget probe (its Promise is discarded) — it does
 	 * not wrap or defer the bundle's render callback. Render
-	 * callbacks that need the `<wpd-*>` upgrade must wait for it
+	 * callbacks that need the `<os-*>` upgrade must wait for it
 	 * themselves.
 	 *
 	 * Subclasses normally don't override this.
@@ -198,7 +198,7 @@ abstract class Desktop_Mode_Extension_Window {
 		header( 'Content-Type: application/javascript; charset=utf-8' );
 		header( 'X-Robots-Tag: noindex' );
 
-		echo "/* desktop-mode extension bundle: " . esc_js( $this->asset_handle() ) . " */\n";
+		echo "/* openstation extension bundle: " . esc_js( $this->asset_handle() ) . " */\n";
 
 		echo 'window.' . esc_js( $this->config_global() ) . ' = '
 			. wp_json_encode( $this->config_payload() ) . ";\n";
@@ -207,13 +207,13 @@ abstract class Desktop_Mode_Extension_Window {
 		echo file_get_contents( $file );
 
 		// Fire-and-forget probe only: the Promise is discarded, so
-		// this does NOT defer the render callback past the `<wpd-*>`
+		// this does NOT defer the render callback past the `<os-*>`
 		// upgrade. Render callbacks that need upgraded elements must
 		// await `customElements.whenDefined()` themselves.
 		echo "\n;( function () {\n";
 		echo "  if ( ! window.customElements ) { return; }\n";
 		echo "  if ( window.customElements.whenDefined ) {\n";
-		echo "    window.customElements.whenDefined( 'wpd-table' );\n";
+		echo "    window.customElements.whenDefined( 'os-table' );\n";
 		echo "  }\n";
 		echo "} )();\n";
 

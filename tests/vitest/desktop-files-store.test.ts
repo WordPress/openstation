@@ -82,7 +82,7 @@ describe( 'desktop-files store', () => {
 		expect( store.getFilesState().placementsByFolder.get( 0 )?.length ?? 0 ).toBe( 0 );
 	} );
 
-	test( 'desktop-mode-files-changed CustomEvent fires on mutation', async () => {
+	test( 'os-files-changed CustomEvent fires on mutation', async () => {
 		const store = await loadStore();
 		store.__resetFilesStoreForTests();
 		const seen: Array< { kind: string; placementId?: number } > = [];
@@ -90,10 +90,10 @@ describe( 'desktop-files store', () => {
 			const detail = ( e as CustomEvent< { kind: string; placementId?: number } > ).detail;
 			seen.push( detail );
 		};
-		document.addEventListener( 'desktop-mode-files-changed', listener );
+		document.addEventListener( 'os-files-changed', listener );
 		store.upsertPlacement( samplePlacement( { id: 1 } ) );
 		store.removePlacement( 1 );
-		document.removeEventListener( 'desktop-mode-files-changed', listener );
+		document.removeEventListener( 'os-files-changed', listener );
 		expect( seen.map( ( s ) => s.kind ) ).toEqual( [ 'placement-upserted', 'placement-removed' ] );
 		expect( seen[ 1 ].placementId ).toBe( 1 );
 	} );
@@ -168,14 +168,14 @@ describe( 'desktop-files REST client', () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn( async () =>
-				new Response( JSON.stringify( { code: 'desktop_mode_files_forbidden', message: 'No.' } ), {
+				new Response( JSON.stringify( { code: 'openstation_files_forbidden', message: 'No.' } ), {
 					status: 403,
 					headers: { 'Content-Type': 'application/json' },
 				} ),
 			),
 		);
 		await expect( rest.createPlacement( { type: 'post', ref: '1' } ) ).rejects.toThrow(
-			/desktop_mode_files_forbidden/,
+			/openstation_files_forbidden/,
 		);
 	} );
 } );

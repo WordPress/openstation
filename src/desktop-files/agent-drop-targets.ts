@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — agent tiles on the wallpaper as drop targets.
+ * OpenStation — agent tiles on the wallpaper as drop targets.
  *
  * A user file tile whose user is an agent (`file.isAgent`) accepts
  * entity drops — the PR #240 North Star: "drop this image onto the
@@ -55,9 +55,9 @@ function agentFileOf( ctx: TilePayloadContext ): AgentFileShape | null {
 function agentRestDeps(): { restRoot: string; restNonce: string } | null {
 	const cfg = (
 		window as unknown as {
-			desktopModeConfig?: { restUrl?: string; restNonce?: string };
+			openStationConfig?: { restUrl?: string; restNonce?: string };
 		}
-	).desktopModeConfig;
+	).openStationConfig;
 	if ( cfg?.restUrl && cfg?.restNonce ) {
 		return { restRoot: cfg.restUrl, restNonce: cfg.restNonce };
 	}

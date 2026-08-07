@@ -39,12 +39,12 @@ module.exports = {
 			'error',
 			{
 				selector: 'CallExpression[callee.name="fetch"]',
-				message: 'Use wp.desktop.fetch so Desktop Mode can track the request.',
+				message: 'Use wp.os.fetch so OpenStation can track the request.',
 			},
 			{
 				selector:
 					'CallExpression[callee.object.name="window"][callee.property.name=/^(confirm|alert|prompt)$/]',
-				message: 'Use a Desktop Mode dialog or status surface.',
+				message: 'Use a OpenStation dialog or status surface.',
 			},
 		],
 	},

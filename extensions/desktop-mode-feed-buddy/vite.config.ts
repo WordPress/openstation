@@ -11,7 +11,7 @@ export default defineConfig( ( { mode } ) => ( {
 		lib: {
 			entry: resolve( __dirname, 'src/index.ts' ),
 			formats: [ 'iife' ],
-			name: 'desktopModeFeedBuddy',
+			name: 'openStationFeedBuddy',
 			fileName: () =>
 				mode === 'production' ? 'feed-buddy.min.js' : 'feed-buddy.js',
 		},

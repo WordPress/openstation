@@ -130,20 +130,20 @@ export interface DesktopApi {
 declare global {
 	interface Window {
 		wp?: {
-			desktop?: DesktopApi;
+			os?: DesktopApi;
 			i18n?: {
 				__( text: string, domain?: string ): string;
 				sprintf( format: string, ...values: Array< string | number > ): string;
 			};
 		};
-		desktopModeWidgets?: Record<
+		openStationWidgets?: Record<
 			string,
 			(
 				container: HTMLElement,
 				context: WidgetContext,
 			) => void | ( () => void ) | Promise< void | ( () => void ) >
 		>;
-		desktopModeNativeWindows?: Record<
+		openStationNativeWindows?: Record<
 			string,
 			(
 				container: HTMLElement,

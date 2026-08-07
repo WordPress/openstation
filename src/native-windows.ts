@@ -3,7 +3,7 @@
  *
  * Two convenience wrappers land here:
  *
- *   - {@link createRegisterWindow} → `wp.desktop.registerWindow()`.
+ *   - {@link createRegisterWindow} → `wp.os.registerWindow()`.
  *     Wraps `windowManager.open()` with sensible native defaults so
  *     plugin authors don't have to re-declare the same scaffolding
  *     every time: `native: true`, fallback `url` (`#<id>`), minimum
@@ -13,7 +13,7 @@
  *   - {@link cloneTemplate} → a tiny `<template>` cloner. The shell
  *     uses it internally to populate every native window's body with
  *     the registered template before invoking the render callback,
- *     so plugin authors using `desktop_mode_register_window()` don't
+ *     so plugin authors using `openstation_register_window()` don't
  *     touch this directly. Exported for advanced cases that want to
  *     re-clone (e.g. dynamic per-row templates, custom hydration
  *     flows outside the standard pipeline).
@@ -64,7 +64,7 @@ import {
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
 	/**
-	 * `wp.desktop.openWindow(id)` was called for an already-open
+	 * `wp.os.openWindow(id)` was called for an already-open
 	 * instance — the plugin's render callback won't run again, but
 	 * the user/caller is asking to "show this window". A typical
 	 * use is to re-orient content (focus a tab, scroll to a row).
@@ -140,7 +140,10 @@ let _ctxInstance = 0;
  *
  * @internal
  */
-function buildNativeRenderContext( windowId: string ): {
+function buildNativeRenderContext(
+	windowId: string,
+	params: Record< string, string | number | boolean > = {},
+): {
 	ctx: NativeRenderContext;
 	dispose: () => void;
 } {
@@ -284,6 +287,7 @@ function buildNativeRenderContext( windowId: string ): {
 				},
 			);
 		},
+		params,
 	};
 
 	const dispose = (): void => {
@@ -312,7 +316,7 @@ function buildNativeRenderContext( windowId: string ): {
  * Window class's `hydrateNative()` — the single point inside the
  * framework that invokes `config.render(body)` for native windows.
  * Centralising the ctx build there means every code path
- * (`wp.desktop.registerWindow`, PHP-registered windows, direct
+ * (`wp.os.registerWindow`, PHP-registered windows, direct
  * `manager.open({ native: true, render })`) gets the same ctx
  * shape without each call site re-implementing the wiring.
  *
@@ -361,7 +365,7 @@ function resolveMountedWindowId(
  *     `onMessage`.
  *   - When `bridge: true` AND the iframe is same-origin, injects
  *     the public iframe-side bridge script via `<script>` so the
- *     iframe can `wp.desktop.iframe.publish/subscribe/
+ *     iframe can `wp.os.iframe.publish/subscribe/
  *     onConnection/requestConnection` without enqueueing the
  *     bridge handle itself.
  *
@@ -401,7 +405,7 @@ function buildIframeContentRender(
 
 		// Tell the connection bridge that this window's "iframe"
 		// lives here in the native body, not on `Window.iframe`.
-		// Without this, `wp.desktop.connect( id ).send( … )` would
+		// Without this, `wp.os.connect( id ).send( … )` would
 		// silently drop messages — the bridge's iframe lookup would
 		// hit a null `Window.iframe` and bail.
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
@@ -438,16 +442,16 @@ function buildIframeContentRender(
 			if ( cfg.bridge ) {
 				try {
 					const doc = iframe.contentDocument;
-					if ( doc && ! doc.querySelector( 'script[data-desktop-mode-iframe-bridge]' ) ) {
+					if ( doc && ! doc.querySelector( 'script[data-os-iframe-bridge]' ) ) {
 						const bridgeUrl = (
 							window as unknown as {
-								desktopModeConfig?: { iframeBridgeUrl?: string };
+								openStationConfig?: { iframeBridgeUrl?: string };
 							}
-						).desktopModeConfig?.iframeBridgeUrl;
+						).openStationConfig?.iframeBridgeUrl;
 						if ( bridgeUrl ) {
 							const s = doc.createElement( 'script' );
 							s.src = bridgeUrl;
-							s.setAttribute( 'data-desktop-mode-iframe-bridge', '1' );
+							s.setAttribute( 'data-os-iframe-bridge', '1' );
 							doc.head?.appendChild( s );
 						}
 					}
@@ -471,9 +475,9 @@ function buildIframeContentRender(
 		// foreign caller). Origin is also validated — same-origin
 		// only by default, matching the chromeless bridge.
 		//
-		// Bridge-prefixed messages (`desktop-mode-bridge-*`) are also
+		// Bridge-prefixed messages (`os-bridge-*`) are also
 		// forwarded into the connection registry so this iframe can
-		// participate in `wp.desktop.connect()` traffic — the
+		// participate in `wp.os.connect()` traffic — the
 		// chromeless bridge's own message listener doesn't see this
 		// iframe (it sits inside a native window's body, not the
 		// shell-managed iframe).
@@ -489,18 +493,18 @@ function buildIframeContentRender(
 				data &&
 				typeof data === 'object' &&
 				typeof ( data as { type?: string } ).type === 'string' &&
-				( data as { type: string } ).type.startsWith( 'desktop-mode-bridge-' )
+				( data as { type: string } ).type.startsWith( 'os-bridge-' )
 			) {
 				const bridgeRouter = (
 					window as unknown as {
-						__desktopModeConnectionBridge?: {
+						__openStationConnectionBridge?: {
 							routeIncomingFromIframe(
 								d: unknown,
 								fromWindowId?: string,
 							): void;
 						};
 					}
-				).__desktopModeConnectionBridge;
+				).__openStationConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
 			}
 			// Unified window-channel publish from the synthetic iframe.
@@ -511,7 +515,7 @@ function buildIframeContentRender(
 			if (
 				data &&
 				typeof data === 'object' &&
-				( data as { type?: string } ).type === 'desktop-mode-window-publish' &&
+				( data as { type?: string } ).type === 'os-window-publish' &&
 				typeof ( data as { channel?: string } ).channel === 'string' &&
 				( data as { channel: string } ).channel !== ''
 			) {
@@ -526,7 +530,7 @@ function buildIframeContentRender(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						'[desktop-mode] iframeContent.onMessage threw:',
+						'[openstation] iframeContent.onMessage threw:',
 						err,
 					);
 				}
@@ -546,7 +550,7 @@ function buildIframeContentRender(
 /**
  * Build the `registerWindow` implementation bound to the shell's
  * window manager. Returned function is the one exposed on
- * `wp.desktop.registerWindow`.
+ * `wp.os.registerWindow`.
  *
  * The returned helper is idempotent for a given id — if a window
  * with the same id is already open, it focuses it rather than
@@ -570,7 +574,7 @@ export function createRegisterWindow(
 		if ( def.iframeContent ) {
 			if ( userRender && typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
+					'[openstation] registerWindow: both `render` and `iframeContent` provided — ignoring `render` and using the iframe shorthand. Drop one.',
 				);
 			}
 			render = buildIframeContentRender(
@@ -583,7 +587,7 @@ export function createRegisterWindow(
 		// onHide / onShow) used to live here as a wrapper around the
 		// user's render. It moved into `Window.hydrateNative()` in
 		// 0.8.2 so EVERY code path that opens a native window —
-		// `wp.desktop.registerWindow`, PHP-registered windows, direct
+		// `wp.os.registerWindow`, PHP-registered windows, direct
 		// `manager.open({ native: true, render })` — gets the same
 		// shape without each call site re-implementing the wiring.
 		// `userRender` therefore reaches `manager.open()` unchanged
@@ -672,7 +676,7 @@ export function createRegisterWindow(
  * Lets plugins write:
  *
  * ```ts
- * wp.desktop.onWindow( 'calc', {
+ * wp.os.onWindow( 'calc', {
  *   opened:  () => trackOpen(),
  *   closed:  () => trackClose(),
  *   resized: ( { width, height } ) => relayout( width, height ),
@@ -806,12 +810,12 @@ export function onWindow(
  * `templateHtml`; ditto for the plugin script via
  * `loadVendorScript( entry.scriptUrl )`. Once the script loads the
  * plugin registers a render callback on
- * `window.desktopModeNativeWindows[ id ]`, which the shell invokes
+ * `window.openStationNativeWindows[ id ]`, which the shell invokes
  * when the tile opens its window.
  *
  * Mutually exclusive with the legacy JS-only path (a plugin calling
- * `wp.desktop.registerSystemTile` directly). Plugins that use
- * `desktop_mode_register_window()` get this automatic lifecycle;
+ * `wp.os.registerSystemTile` directly). Plugins that use
+ * `openstation_register_window()` get this automatic lifecycle;
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
@@ -854,13 +858,16 @@ type RenderCallback = (
 ) => void | ( () => void ) | Promise< void | ( () => void ) >;
 
 interface NativeWindowGlobals {
-	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	/**
 	 * Deprecated legacy registry bag. Extension bundles built before
 	 * the rename (cron-manager, code-editor, phpMyAdmin) register
 	 * their render callbacks here; the shell merges it at read time
 	 * so those windows stay interactive. New code must register on
-	 * `desktopModeNativeWindows`.
+	 * `openStationNativeWindows`.
+	 *
+	 * Deliberately keeps its pre-rebrand spelling: the whole point of
+	 * the bag is to match what already-built bundles write.
 	 */
 	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
 }
@@ -868,7 +875,7 @@ interface NativeWindowGlobals {
 /**
  * Resolve the render-callback registry, merging the deprecated
  * `wpDesktopNativeWindows` bag under the canonical
- * `desktopModeNativeWindows` one (canonical wins on id collisions).
+ * `openStationNativeWindows` one (canonical wins on id collisions).
  *
  * Merged at every read — not copied once at load — because some
  * legacy bundles rewrite their entry after the bundle executes
@@ -879,7 +886,7 @@ function readGlobalRegistry(): Record< string, RenderCallback | undefined > {
 	const g = window as unknown as NativeWindowGlobals;
 	return {
 		...( g.wpDesktopNativeWindows || {} ),
-		...( g.desktopModeNativeWindows || {} ),
+		...( g.openStationNativeWindows || {} ),
 	};
 }
 
@@ -914,7 +921,13 @@ export interface NativeWindowSync {
 	 * so the body always has the cloned template before the render
 	 * callback fires. **Do not duplicate this elsewhere.**
 	 */
-	openById: ( id: string ) => boolean;
+	openById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 
 	/**
 	 * Spawn a BRAND-NEW instance of a registered native window — even
@@ -929,7 +942,13 @@ export interface NativeWindowSync {
 	 *
 	 * Returns `false` when the id isn't registered.
 	 */
-	openNewById: ( id: string ) => boolean;
+	openNewById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 }
 
 export function createNativeWindowSync(
@@ -1021,7 +1040,7 @@ export function createNativeWindowSync(
 			link.rel = 'stylesheet';
 			link.href = url;
 			if ( entry.styleHandle ) {
-				link.dataset.desktopModeStyleHandle = entry.styleHandle;
+				link.dataset.osStyleHandle = entry.styleHandle;
 			}
 			document.head.appendChild( link );
 		}
@@ -1036,7 +1055,7 @@ export function createNativeWindowSync(
 				}
 				const style = document.createElement( 'style' );
 				if ( entry.styleHandle ) {
-					style.dataset.desktopModeStyleHandle = entry.styleHandle;
+					style.dataset.osStyleHandle = entry.styleHandle;
 				}
 				style.textContent = css;
 				document.head.appendChild( style );
@@ -1072,7 +1091,10 @@ export function createNativeWindowSync(
 		loadedScripts.add( entry.scriptUrl );
 	};
 
-	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
+	const openFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
 		const render = readGlobalRegistry()[ entry.id ];
 
 		// Pre-populate the window body with the cloned template, then
@@ -1118,6 +1140,13 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			// What this open is showing. Persisted with the session,
+			// so a singleton that retargets comes back on the same
+			// subject after a reload instead of on its default.
+			// Omitted rather than set empty: `manager.open()` focuses
+			// an existing window rather than rebuilding it, and an
+			// argument-less reopen must not wipe what it was showing.
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1127,7 +1156,10 @@ export function createNativeWindowSync(
 	 * render callback is built fresh per call — every duplicate gets
 	 * its own template clone and its own teardown.
 	 */
-	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
+	const openNewFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
 		const render = readGlobalRegistry()[ entry.id ];
 
 		const finalRender: RenderCallback = ( body, ctx ) => {
@@ -1158,6 +1190,7 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
+			...( params ? { params } : {} ),
 		} );
 	};
 
@@ -1171,7 +1204,7 @@ export function createNativeWindowSync(
 			// Plugin declared a window but opted out of a tile —
 			// shell still processes the template + script so the
 			// plugin can open the window programmatically via
-			// `wp.desktop.windowManager.open()`. Nothing to
+			// `wp.os.windowManager.open()`. Nothing to
 			// register on the rails.
 			ensureTemplate( entry );
 			ensureStyle( entry );
@@ -1238,7 +1271,10 @@ export function createNativeWindowSync(
 
 	const openById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
@@ -1250,27 +1286,30 @@ export function createNativeWindowSync(
 		// or "show coachmark on first open" hook this independent
 		// of the WINDOW_OPENED / WINDOW_REOPENED branch the
 		// framework will take next.
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openFromEntry( entry );
+		openFromEntry( entry, opts.params );
 		return true;
 	};
 
 	const openNewById = (
 		id: string,
-		opts: { source?: string } = {},
+		opts: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		} = {},
 	): boolean => {
 		const entry = entriesById.get( id );
 		if ( ! entry ) {
 			return false;
 		}
-		activity.publish( 'desktop-mode/open-requested', {
+		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
 		} );
-		openNewFromEntry( entry );
+		openNewFromEntry( entry, opts.params );
 		return true;
 	};
 
@@ -1434,7 +1473,7 @@ export function cloneTemplate(
 	}
 	if ( ! tpl ) {
 		throw new Error(
-			`[desktop-mode] cloneTemplate: no <template> found for ${
+			`[openstation] cloneTemplate: no <template> found for ${
 				typeof template === 'string' ? `#${ template }` : '<reference>'
 			}`,
 		);

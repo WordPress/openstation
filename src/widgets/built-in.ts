@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Built-in widgets.
+ * OpenStation — Built-in widgets.
  *
  * Ships one widget on first run: a clock. Universal, demonstrates
  * interval-driven mount/teardown, paints in well under a frame. Any
@@ -24,14 +24,14 @@ const clock: WidgetDef = {
 	},
 	icon: 'dashicons-clock',
 	mount: ( container ) => {
-		container.classList.add( 'desktop-mode-widget-clock' );
+		container.classList.add( 'os-widget-clock' );
 
 		const time = document.createElement( 'div' );
-		time.className = 'desktop-mode-widget-clock__time';
+		time.className = 'os-widget-clock__time';
 		container.appendChild( time );
 
 		const date = document.createElement( 'div' );
-		date.className = 'desktop-mode-widget-clock__date';
+		date.className = 'os-widget-clock__date';
 		container.appendChild( date );
 
 		const render = (): void => {
@@ -78,8 +78,8 @@ const clock: WidgetDef = {
 export function registerBuiltInWidgets(): void {
 	registry.register( clock );
 	// Heartbeat widget moved out of the main bundle.
-	// PHP registers it via `desktop_mode_register_widget()`
-	// with the `desktop-mode-heartbeat-widget` script handle —
+	// PHP registers it via `openstation_register_widget()`
+	// with the `os-heartbeat-widget` script handle —
 	// the shell's widgets server-sync loads the bundle on
 	// demand. See `includes/widgets/heartbeat.php`.
 }

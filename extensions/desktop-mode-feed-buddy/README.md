@@ -1,6 +1,6 @@
-# Desktop Mode — SOL Inbound Monologue
+# OpenStation — SOL Inbound Monologue
 
-**SOL Inbound Monologue** is a personal RSS/Atom reader for Desktop Mode.
+**SOL Inbound Monologue** is a personal RSS/Atom reader for OpenStation.
 “SOL” stands for **Syndicated Open Links**. It presents subscriptions as a
 compact 1999–2001-inspired buddy list and opens articles in a native
 conversation-style reader window. Feeds talk; you listen.
@@ -28,7 +28,7 @@ audio, logos, icons, or other copied assets ship with the extension.
 
 ## Development
 
-Install the repository dependencies from the Desktop Mode root with `npm ci`,
+Install the repository dependencies from the OpenStation root with `npm ci`,
 then run these commands from this extension directory:
 
 ```sh
@@ -38,7 +38,7 @@ npm run typecheck
 npm run test
 ```
 
-From the Desktop Mode repository root, run the extension's WordPress integration
+From the OpenStation repository root, run the extension's WordPress integration
 suite and coding standards inside `wp-env`:
 
 ```sh

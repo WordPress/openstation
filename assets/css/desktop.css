@@ -1,7 +1,7 @@
 /**
- * Desktop Mode — Shell Layout.
+ * OpenStation — Shell Layout.
  *
- * When desktop mode is active, the classic admin chrome still renders
+ * When OpenStation is active, the classic admin chrome still renders
  * server-side (for hook compatibility) but is hidden with CSS. The
  * plugin-injected shell floats above it, positioned just below the
  * fixed admin bar, covering the rest of the viewport.
@@ -9,14 +9,54 @@
  * @since 0.1.0
  */
 
-/* Solid backdrop behind the shell. */
-body.desktop-mode-active {
-	background: #1d2327;
+/*
+ * Solid backdrop behind the shell. Reads the backstop token rather
+ * than a literal so it moves with the desk: this is the colour a
+ * dropped frame shows, and it has to be the same one the shell paints
+ * or the seam is visible at exactly the wrong moment.
+ */
+body.os-active {
+	background: var( --os-backstop, #1d2327 );
 	overflow: hidden;
 }
 
 /*
- * Cursor policy — default arrow everywhere in desktop mode.
+ * Text selection.
+ *
+ * The shell had no ::selection rule at all, so every selection in it
+ * was the browser default — a colour chosen for a white page, landing
+ * on a near-black one. In Chrome that is a dark translucent blue over
+ * Obsidian, which is roughly 1.3:1 against the surface and leaves the
+ * selected text at a contrast the UA never checked, because the UA
+ * assumed a light background. Dragging across a paragraph produced no
+ * visible change at all on some displays.
+ *
+ * Both halves are set on purpose. `background` alone is the common
+ * half-fix: the UA then keeps its own selected-text colour, which is
+ * frequently forced to black and lands on this violet at ~2:1.
+ *
+ * Scoped to the shell document. `variables.css` is a dependency of
+ * `chromeless.css` and so loads inside every iframe window, but this
+ * file does not — a wp-admin page in a window keeps the selection
+ * colour it has outside one, which is the same promise the palette
+ * makes about everything else.
+ *
+ * `::-moz-selection` is a separate rule rather than a second selector
+ * on this one: an unrecognised pseudo-element invalidates the entire
+ * selector list, so pairing them would leave Chrome unstyled too.
+ */
+body.os-active ::selection {
+	background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
+	color: var( --os-ui-selection-fg, #fffbff );
+}
+
+body.os-active ::-moz-selection {
+	background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
+	color: var( --os-ui-selection-fg, #fffbff );
+}
+
+/*
+ * Cursor policy — default arrow everywhere in OpenStation.
  *
  * Per user preference (since 0.20.0): no hand/pointer/grab/grabbing/
  * copy/no-drop cursors on icons, tiles, dock items, dock peek,
@@ -39,44 +79,44 @@ body.desktop-mode-active {
  * higher specificity. The resize-handle exceptions use `!important`
  * for the same reason.
  *
- * Shadow-DOM web components (`wpd-*`) define their own cursors
+ * Shadow-DOM web components (`os-*`) define their own cursors
  * inside their shadow trees; those internal rules win regardless of
  * what we set on the host. Anything visible on the desktop shell
  * (light DOM) is covered by this policy.
  */
-body.desktop-mode-active,
-body.desktop-mode-active * {
+body.os-active,
+body.os-active * {
 	cursor: default !important;
 }
 
-body.desktop-mode-active input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
-body.desktop-mode-active textarea,
-body.desktop-mode-active [contenteditable=""],
-body.desktop-mode-active [contenteditable="true"] {
+body.os-active input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+body.os-active textarea,
+body.os-active [contenteditable=""],
+body.os-active [contenteditable="true"] {
 	cursor: text !important;
 }
 
-body.desktop-mode-active .desktop-mode-window__resize-handle--se,
-body.desktop-mode-active .desktop-mode-window__resize-handle--nw,
-body.desktop-mode-active .desktop-mode-widgets__resize--se,
-body.desktop-mode-active .desktop-mode-widgets__resize--nw {
+body.os-active .os-window__resize-handle--se,
+body.os-active .os-window__resize-handle--nw,
+body.os-active .os-widgets__resize--se,
+body.os-active .os-widgets__resize--nw {
 	cursor: nwse-resize !important;
 }
 
-body.desktop-mode-active .desktop-mode-window__resize-handle--sw,
-body.desktop-mode-active .desktop-mode-window__resize-handle--ne,
-body.desktop-mode-active .desktop-mode-widgets__resize--sw,
-body.desktop-mode-active .desktop-mode-widgets__resize--ne {
+body.os-active .os-window__resize-handle--sw,
+body.os-active .os-window__resize-handle--ne,
+body.os-active .os-widgets__resize--sw,
+body.os-active .os-widgets__resize--ne {
 	cursor: nesw-resize !important;
 }
 
-body.desktop-mode-active .desktop-mode-widgets__resize--n,
-body.desktop-mode-active .desktop-mode-widgets__resize--s {
+body.os-active .os-widgets__resize--n,
+body.os-active .os-widgets__resize--s {
 	cursor: ns-resize !important;
 }
 
-body.desktop-mode-active .desktop-mode-widgets__resize--e,
-body.desktop-mode-active .desktop-mode-widgets__resize--w {
+body.os-active .os-widgets__resize--e,
+body.os-active .os-widgets__resize--w {
 	cursor: ew-resize !important;
 }
 
@@ -87,17 +127,17 @@ body.desktop-mode-active .desktop-mode-widgets__resize--w {
  * target these regions (admin_notices, in_admin_footer, etc.) continue
  * to fire — we just take them out of the visual flow.
  */
-body.desktop-mode-active #adminmenuwrap,
-body.desktop-mode-active #adminmenuback,
-body.desktop-mode-active #wpbody,
-body.desktop-mode-active #wpfooter,
-body.desktop-mode-active .wp-responsive-toggle,
-body.desktop-mode-active #collapse-menu {
+body.os-active #adminmenuwrap,
+body.os-active #adminmenuback,
+body.os-active #wpbody,
+body.os-active #wpfooter,
+body.os-active .wp-responsive-toggle,
+body.os-active #collapse-menu {
 	display: none !important;
 }
 
 /*
- * The admin bar is the ONLY escape hatch in desktop mode — it hosts the
+ * The admin bar is the ONLY escape hatch in OpenStation — it hosts the
  * "Switch to Classic Admin" toggle. Any plugin CSS, Gutenberg state,
  * user preference, or stray `display:none` that hides it would strand
  * the user inside the shell with no way out. Hard-pin it visible.
@@ -106,7 +146,7 @@ body.desktop-mode-active #collapse-menu {
  * the bar hidden (macOS convention). That rule lives below and wins on
  * specificity because it also targets #wpadminbar under a body class.
  */
-body.desktop-mode-active #wpadminbar {
+body.os-active #wpadminbar {
 	display: block !important;
 	visibility: visible !important;
 	opacity: 1 !important;
@@ -119,7 +159,7 @@ body.desktop-mode-active #wpadminbar {
 /*
  * Admin-bar presentation modes — OS Settings → Appearance → Admin bar,
  * persisted as `adminBarMode` and emitted as a
- * `desktop-mode-admin-bar-<mode>` body class by PHP on first paint and
+ * `os-admin-bar-<mode>` body class by PHP on first paint and
  * re-written by the shell's apply pass on every change.
  *
  * `static` is the absence of rules: the pin above stands and the shell
@@ -140,16 +180,16 @@ body.desktop-mode-active #wpadminbar {
  * off-screen. What DOES catch it is the peek strip plus the reveal
  * zone added below.
  */
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
+body.os-active.os-admin-bar-dynamic #wpadminbar {
 	transform: translateY(
-		calc(-100% + var(--desktop-mode-admin-bar-peek, 4px))
+		calc(-100% + var(--os-admin-bar-peek, 4px))
 	);
 	transition: transform 180ms ease;
 }
 
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:hover,
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:focus-within,
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active {
+body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
+body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
+body.os-active.os-admin-bar-dynamic #wpadminbar:active {
 	transform: translateY(0);
 }
 
@@ -161,17 +201,17 @@ body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active {
  * element, so this widens what `:hover` above responds to WITHOUT
  * widening the visible seam. The two wants are genuinely different:
  * the seam should be a hairline, the target should be forgiving, and
- * `--desktop-mode-admin-bar-peek` alone can't be both.
+ * `--os-admin-bar-peek` alone can't be both.
  *
  * Core ships no bare `#wpadminbar::before/::after` rule, so this
  * claims the slot rather than fighting one.
  */
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar::after {
+body.os-active.os-admin-bar-dynamic #wpadminbar::after {
 	content: "";
 	position: absolute;
 	inset-inline: 0;
 	inset-block-start: 100%;
-	height: var(--desktop-mode-admin-bar-reveal-zone, 16px);
+	height: var(--os-admin-bar-reveal-zone, 16px);
 }
 
 /*
@@ -183,9 +223,9 @@ body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar::after {
  * that tripped the zone is, post-reveal, inside the bar's real box,
  * so `:hover` holds without the zone's help.
  */
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:hover::after,
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:focus-within::after,
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active::after {
+body.os-active.os-admin-bar-dynamic #wpadminbar:hover::after,
+body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within::after,
+body.os-active.os-admin-bar-dynamic #wpadminbar:active::after {
 	height: 0;
 }
 
@@ -196,14 +236,14 @@ body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active::afte
  * there. Kept under the 32px bar height, same ceiling as the default.
  */
 @media (hover: none) {
-	body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
-		--desktop-mode-admin-bar-peek: 10px;
-		--desktop-mode-admin-bar-reveal-zone: 20px;
+	body.os-active.os-admin-bar-dynamic #wpadminbar {
+		--os-admin-bar-peek: 10px;
+		--os-admin-bar-reveal-zone: 20px;
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
+	body.os-active.os-admin-bar-dynamic #wpadminbar {
 		transition: none;
 	}
 }
@@ -211,20 +251,20 @@ body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active::afte
 /*
  * Hidden — the bar is gone. This removes the "Switch to Classic Admin"
  * toggle, which is why it is safe: the dock's core rail always carries
- * an "Exit Desktop Mode" tile (src/exit-desktop-mode.ts) hitting the
+ * an "Exit OpenStation" tile (src/exit-os.ts) hitting the
  * same endpoint. Do not add a mode that removes both.
  */
-body.desktop-mode-active.desktop-mode-admin-bar-hidden #wpadminbar {
+body.os-active.os-admin-bar-hidden #wpadminbar {
 	display: none !important;
 }
 
 /*
  * Both non-static modes: the shell owns the whole viewport. Two body
- * classes beat the `.desktop-mode-shell` base rule AND its <783px
+ * classes beat the `.os-shell` base rule AND its <783px
  * media-query variant on specificity, so source order doesn't matter.
  */
-body.desktop-mode-active.desktop-mode-admin-bar-dynamic .desktop-mode-shell,
-body.desktop-mode-active.desktop-mode-admin-bar-hidden .desktop-mode-shell {
+body.os-active.os-admin-bar-dynamic .os-shell,
+body.os-active.os-admin-bar-hidden .os-shell {
 	inset-block-start: 0;
 }
 
@@ -235,8 +275,8 @@ body.desktop-mode-active.desktop-mode-admin-bar-hidden .desktop-mode-shell {
  * it so any classic content behind the shell isn't pushed down by a
  * bar that isn't sitting there. Same idiom as chromeless.css.
  */
-html.wp-toolbar:has(body.desktop-mode-admin-bar-dynamic),
-html.wp-toolbar:has(body.desktop-mode-admin-bar-hidden) {
+html.wp-toolbar:has(body.os-admin-bar-dynamic),
+html.wp-toolbar:has(body.os-admin-bar-hidden) {
 	padding-top: 0 !important;
 }
 
@@ -250,15 +290,15 @@ html.wp-toolbar:has(body.desktop-mode-admin-bar-hidden) {
  * regions" — visually scruffy on an otherwise tight shell.
  *
  * We size the logo's <li> to match the dock's width and center the
- * W inside, so the two columns share an axis. `--desktop-mode-dock-width`
+ * W inside, so the two columns share an axis. `--os-dock-width`
  * is now set on :root (see settings.ts → apply()) so it reaches
- * siblings of #desktop-mode-shell like the admin bar.
+ * siblings of #os-shell like the admin bar.
  */
-body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo {
-	width: var( --desktop-mode-dock-width, 56px );
+body.os-active #wpadminbar #wp-admin-bar-wp-logo {
+	width: var( --os-dock-width, 56px );
 }
 
-body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
+body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
 	display: flex !important;
 	align-items: center;
 	justify-content: center;
@@ -270,7 +310,7 @@ body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
  * it within the flex cell so varying dock widths don't leave it
  * visually offset.
  */
-body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
+body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
 	margin: 0;
 }
 
@@ -280,7 +320,7 @@ body.desktop-mode-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon
  * fixed-positioned anyway so this doesn't change the shell's layout, it
  * just prevents a phantom sidebar gutter in any stray visible content.
  */
-body.desktop-mode-active #wpcontent {
+body.os-active #wpcontent {
 	margin-inline-start: 0;
 	padding-inline-start: 0;
 }
@@ -290,7 +330,7 @@ body.desktop-mode-active #wpcontent {
  * Uses position: fixed so it's unaffected by any containing-block
  * quirks in #wpwrap/#wpcontent.
  */
-.desktop-mode-shell {
+.os-shell {
 	position: fixed;
 	inset-block-start: var(--wp-admin--admin-bar--height, 32px);
 	inset-inline-start: 0;
@@ -299,23 +339,32 @@ body.desktop-mode-active #wpcontent {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	z-index: var(--desktop-mode-z-base);
+	z-index: var(--os-z-base);
+	/*
+	 * Opaque floor. The wallpaper paints over this and is what anyone
+	 * actually sees — but the wallpaper is one layer among several,
+	 * and behind this shell is the classic admin page, which is WHITE.
+	 * Without a background here, any frame in which the wallpaper
+	 * doesn't paint flashes that white through the whole viewport.
+	 * See `--os-backstop`.
+	 */
+	background: var(--os-backstop, #1d2327);
 	/*
 	 * Shell typeface. Every piece of chrome that doesn't set its own
 	 * face inherits from here — dock labels, desktop icon labels,
-	 * widgets, the overview. Windows override with `--wpd-font` on
+	 * widgets, the overview. Windows override with `--os-ui-font` on
 	 * their body, so a theme can run a display face on the desk and a
 	 * text face inside windows. `inherit` is the no-theme value, i.e.
 	 * identical to not declaring the property at all.
 	 */
-	font-family: var(--desktop-mode-font, inherit);
+	font-family: var(--os-font, inherit);
 }
 
 /*
  * Wallpaper layer — first child of the shell, sits behind the dock
  * and desktop area so a translucent dock shows through to the
  * background (macOS pattern). CSS wallpapers paint via the
- * `--desktop-mode-bg` custom property; canvas wallpapers mount their
+ * `--os-bg` custom property; canvas wallpapers mount their
  * own DOM (typically a <canvas>) into this element via JS.
  *
  * z-index: 0 keeps it below the shell body flex row which has no
@@ -323,26 +372,148 @@ body.desktop-mode-active #wpcontent {
  * stacking context via `position: relative`, so the dock + windows
  * always render above the wallpaper regardless of DOM order.
  */
-.desktop-mode-wallpaper {
+.os-wallpaper {
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-	background: var(--desktop-mode-bg);
+	background: var(--os-bg);
 	overflow: hidden;
 	pointer-events: none;
 }
 
 /*
+ * Mio layer — the desk companion.
+ *
+ * A sibling of the wallpaper inside the shell, but at the far end of
+ * the stack: Mio paints ABOVE windows (it perches on them)
+ * and below the dock (it must never cover navigation). Created on
+ * demand by `src/mio/controller.ts`. A shell whose user has never
+ * switched Mio on has no extra element at all; switching it off
+ * hides this one rather than removing it, because the instance is
+ * parked (WebGL context intact) rather than destroyed — see the
+ * `parked` field there.
+ *
+ * The layer and its <canvas> are permanently inert. Making a
+ * full-shell canvas interactive — even conditionally, from a
+ * per-frame hit test — would swallow clicks meant for the window
+ * underneath. Only the small round `__handle` inside it takes
+ * pointer events, and it rides on the blob.
+ */
+.os-mio {
+	position: absolute;
+	inset: 0;
+	z-index: var(--os-z-mio);
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.os-mio__handle {
+	position: absolute;
+	/*
+	 * PHYSICAL `top` / `left`, deliberately — the one place in this
+	 * sheet that isn't logical. The handle is positioned every frame
+	 * by a `translate3d()` carrying the body's canvas coordinates,
+	 * and `transform` is always physical. Anchoring with
+	 * `inset-inline-start` would flip the origin to the right edge
+	 * under RTL while the translation kept pushing rightwards, and
+	 * the handle would walk off screen.
+	 */
+	top: 0;
+	left: 0;
+	border-radius: 50%;
+	pointer-events: auto;
+	cursor: grab;
+	/* Promote to its own layer: the handle is re-positioned via
+	 * `transform` on every animation frame. */
+	will-change: transform;
+	touch-action: none;
+}
+
+.os-mio__handle.is-dragging {
+	cursor: grabbing;
+}
+
+/*
+ * "Make it yours" panel — a live-preview dialog, not a modal.
+ *
+ * `<os-modal>` is built for the usual case: dim the page, blur it
+ * slightly, put the decision in front of everything. Every one of
+ * those defaults is wrong here, because the thing being edited is
+ * ON the page and the whole point is watching it change.
+ *
+ *   - No scrim and no `backdrop-filter`, or the companion the sliders
+ *     are driving is a blurred grey smudge behind them.
+ *   - `pointer-events: none` on the scrim so the desk stays live: Mio
+ *     can still be picked up and thrown while the panel is open, and a
+ *     click on the wallpaper doesn't dismiss the panel mid-adjustment.
+ *     `::part(dialog)` puts them back for the box itself.
+ *   - Parked against the inline end rather than centred, so it isn't
+ *     sitting on top of the subject.
+ *
+ * Mio never treats the panel as an obstacle: the collision set comes
+ * from `getWallpaperSurfaces()`, which seeds windows, the shell floor,
+ * docks and widget cards — a dialog on `document.body` is none of
+ * those, so there is nothing to bump into.
+ */
+.os-mio-panel {
+	background: transparent;
+	background-image: none;
+	backdrop-filter: none;
+	pointer-events: none;
+	justify-content: flex-end;
+	padding-inline-end: clamp(16px, 4vw, 64px);
+}
+
+/*
+ * Both halves are required, and the second one is easy to miss.
+ *
+ * `::part(dialog)` reaches the box in the modal's SHADOW tree — its
+ * header, title and close button inherit from there. But the controls
+ * are slotted LIGHT-DOM children of `<os-modal>`, and slotted content
+ * inherits from its light-DOM parent (the host) rather than from the
+ * shadow ancestor it is projected into. So the host's
+ * `pointer-events: none` reaches them regardless of what the part
+ * says, and without this second rule every slider and button in the
+ * panel is inert while looking perfectly normal.
+ */
+.os-mio-panel::part(dialog),
+.os-mio-panel > * {
+	pointer-events: auto;
+}
+
+/*
+ * Overview (Exposé) hides the desk furniture so the window grid
+ * reads cleanly — Mio goes with the widgets and the notes.
+ * `:has()` rather than a descendant selector because Mio
+ * layer is a sibling of `.os-shell__body`, not a child of
+ * the desktop area.
+ */
+.os-mio {
+	transition: opacity 160ms ease;
+}
+
+.os-shell:has( .os-area--overview ) .os-mio {
+	opacity: 0;
+}
+
+/*
+ * Reduced motion is handled in the simulation, not here: the runtime
+ * zeroes the idle float and the hue drift so Mio holds still
+ * until the user actually interacts with it. Hiding it would be
+ * wrong — the user switched it on deliberately.
+ */
+
+/*
  * Desktop-theme wallpaper texture (DESKTOP slot).
  *
  * On a `::before` rather than this element's own background, because
- * `--desktop-mode-bg` is set by the wallpaper picker and can be a
+ * `--os-bg` is set by the wallpaper picker and can be a
  * gradient — i.e. a background-IMAGE. Overriding `background-image`
  * here would silently erase every gradient wallpaper the moment a
  * theme was active. The pseudo-element layers instead of replacing.
  *
  * Resulting precedence, bottom to top:
- *   CSS wallpaper (`--desktop-mode-bg`)
+ *   CSS wallpaper (`--os-bg`)
  *   → theme DESKTOP texture (this rule)
  *   → canvas wallpapers, which mount as CHILDREN of the layer and
  *     therefore paint above both.
@@ -351,15 +522,15 @@ body.desktop-mode-active #wpcontent {
  * texture with transparency; an opaque one takes the desk over.
  * With no theme active the image is `none` and this paints nothing.
  */
-.desktop-mode-wallpaper::before {
+.os-wallpaper::before {
 	content: "";
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	background-image: var(--desktop-mode-desktop-image, none);
-	background-repeat: var(--desktop-mode-desktop-image-repeat, repeat);
-	background-size: var(--desktop-mode-desktop-image-size, auto);
-	background-position: var(--desktop-mode-desktop-image-position, center);
+	background-image: var(--os-desktop-image, none);
+	background-repeat: var(--os-desktop-image-repeat, repeat);
+	background-size: var(--os-desktop-image-size, auto);
+	background-position: var(--os-desktop-image-position, center);
 }
 
 /*
@@ -368,8 +539,8 @@ body.desktop-mode-active #wpcontent {
  * element. Plugins that genuinely need a clickable wallpaper can
  * override `pointer-events` on their own mounted node.
  */
-.desktop-mode-wallpaper > canvas,
-.desktop-mode-wallpaper > * {
+.os-wallpaper > canvas,
+.os-wallpaper > * {
 	width: 100%;
 	height: 100%;
 	display: block;
@@ -377,7 +548,7 @@ body.desktop-mode-active #wpcontent {
 
 /* Below 783px WP collapses the admin bar to 46px. */
 @media screen and (max-width: 782px) {
-	.desktop-mode-shell {
+	.os-shell {
 		inset-block-start: var(--wp-admin--admin-bar--height, 46px);
 	}
 }
@@ -394,16 +565,16 @@ body.desktop-mode-active #wpcontent {
  * position: fixed at top: 0, so the focus/exit-fullscreen button is
  * still reachable.
  */
-body.desktop-mode-has-fullscreen-window #wpadminbar {
+body.os-has-fullscreen-window #wpadminbar {
 	display: none !important;
 }
 
-body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
+body.os-has-fullscreen-window .os-shell {
 	inset-block-start: 0;
 }
 
 /* Shell body: contains dock + desktop area side by side. */
-.desktop-mode-shell__body {
+.os-shell__body {
 	flex: 1;
 	display: flex;
 	overflow: hidden;
@@ -420,7 +591,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * that every layout (Classic, Unified, Spatial) puts at the bottom
  * — 40px icons + 16px padding + 12px gap below + 8px breathing room.
  */
-.desktop-mode-area {
+.os-area {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
@@ -434,7 +605,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  *
  * On F5 the shell paints in stages: the dispatcher's
  * `repaintIcons()` lands the server-rendered wallpaper icons
- * synchronously from `desktopModeConfig.desktopIcons`, then the
+ * synchronously from `openStationConfig.desktopIcons`, then the
  * files-layer mounts and momentarily renders an empty bucket while
  * REST `listPlacements(0)` is in flight, then folders/posts/links
  * slot in on the next paint. The user reads that as "plugins show
@@ -449,7 +620,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * `desktop.ts` removes the class inside a `requestAnimationFrame`
  * after the root files-layer's `hydrated` promise resolves (with a
  * 2 s JS safety timeout). The opacity transition declared on
- * `.desktop-mode-area` smooths the reveal.
+ * `.os-area` smooths the reveal.
  *
  * The fallback animation is a resilience layer for the case where
  * the shell JS never runs (network error mid-load, ad-blocker
@@ -465,13 +636,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  *
  * @since 0.18.x
  */
-.desktop-mode-area--booting {
+.os-area--booting {
 	opacity: 0;
 	pointer-events: none;
-	animation: desktop-mode-area-boot-fallback 3s forwards;
+	animation: os-area-boot-fallback 3s forwards;
 }
 
-@keyframes desktop-mode-area-boot-fallback {
+@keyframes os-area-boot-fallback {
 	0%,
 	90% {
 		opacity: 0;
@@ -497,7 +668,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * remain clickable.
  * --------------------------------------------------------------- */
 
-.desktop-mode-icons {
+.os-icons {
 	position: absolute;
 	inset-block-start: 16px;
 	inset-block-end: 16px;
@@ -534,7 +705,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	overflow: auto;
 }
 
-.desktop-mode-icon {
+.os-icon {
 	pointer-events: auto;
 	display: flex;
 	flex-direction: column;
@@ -551,61 +722,61 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	 * desktop shortcuts a physical tile the way a phone home screen
 	 * does. Unset = `none` = the transparent tile we always had.
 	 */
-	background-image: var(--desktop-mode-tile-image, none);
-	background-repeat: var(--desktop-mode-tile-image-repeat, no-repeat);
-	background-size: var(--desktop-mode-tile-image-size, auto);
-	background-position: var(--desktop-mode-tile-image-position, center);
-	color: var(--desktop-mode-fg, #fff);
+	background-image: var(--os-tile-image, none);
+	background-repeat: var(--os-tile-image-repeat, no-repeat);
+	background-size: var(--os-tile-image-size, auto);
+	background-position: var(--os-tile-image-position, center);
+	color: var(--os-fg, #fff);
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease;
-	/* Positioning context for `.desktop-mode-icon__badge`. */
+	/* Positioning context for `.os-icon__badge`. */
 	position: relative;
 }
 
 /*
- * Icon badge — symmetric to `.desktop-mode-dock__badge` but anchored
+ * Icon badge — symmetric to `.os-dock__badge` but anchored
  * to the wallpaper-icon image. Same gradient, same ring, slightly
  * larger so it reads at the longer wallpaper viewing distance.
- * Painted by `wp.desktop.icons.setBadge( id, count )` — see
+ * Painted by `wp.os.icons.setBadge( id, count )` — see
  * `src/desktop-icons.ts` for the imperative API and
  * `src/recycle-bin/badge.ts` for the canonical multi-rail
  * consumer. The class name is part of the stable contract; the
  * positioning, color, and shadow are not — themes or future
  * shell builds may restyle freely.
  */
-.desktop-mode-icon__badge {
+.os-icon__badge {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
 	/* Same derivation as the dock badge, sized off the wallpaper icon
 	 * rather than the dock icon. The default resolves to 18px / 11px —
 	 * exactly the old values. */
-	--desktop-mode-icon-badge-computed-size: var(
-		--desktop-mode-icon-badge-size,
-		calc( var( --desktop-mode-icon-image-size, 48px ) * 0.375 )
+	--os-icon-badge-computed-size: var(
+		--os-icon-badge-size,
+		calc( var( --os-icon-image-size, 48px ) * 0.375 )
 	);
-	min-width: var( --desktop-mode-icon-badge-computed-size );
-	height: var( --desktop-mode-icon-badge-computed-size );
+	min-width: var( --os-icon-badge-computed-size );
+	height: var( --os-icon-badge-computed-size );
 	padding: 0 var(
-		--desktop-mode-icon-badge-padding,
-		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.28 )
+		--os-icon-badge-padding,
+		calc( var( --os-icon-badge-computed-size ) * 0.28 )
 	);
 	box-sizing: border-box;
 	border-radius: 999px;
 	background: var(
-		--desktop-mode-icon-badge-bg,
-		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+		--os-icon-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --os-ui-danger, #d63638 ) 100% )
 	);
-	color: var( --desktop-mode-icon-badge-fg, var( --wpd-fg-on-accent, #fff ) );
+	color: var( --os-icon-badge-fg, var( --os-ui-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	font-size: var(
-		--desktop-mode-icon-badge-font-size,
-		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.611 )
+		--os-icon-badge-font-size,
+		calc( var( --os-icon-badge-computed-size ) * 0.611 )
 	);
-	font-weight: var( --desktop-mode-icon-badge-font-weight, 700 );
+	font-weight: var( --os-icon-badge-font-weight, 700 );
 	line-height: 1;
 	font-variant-numeric: tabular-nums;
 	box-shadow:
@@ -614,7 +785,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	pointer-events: none;
 }
 
-.desktop-mode-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .desktop-mode-icon__badge {
+.os-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .os-icon__badge {
 	/*
 	 * The bin's count is tucked ONTO the lid rather than floating off
 	 * the corner, so it gets its own smaller geometry. Every value
@@ -627,26 +798,26 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	 * → the derivation. All three resolve to the historical 15px / 9px
 	 * at the default 48px icon.
 	 */
-	--desktop-mode-recycle-badge-computed-size: var(
-		--desktop-mode-recycle-badge-size,
+	--os-recycle-badge-computed-size: var(
+		--os-recycle-badge-size,
 		var(
-			--desktop-mode-icon-badge-size,
-			calc( var( --desktop-mode-icon-image-size, 48px ) * 0.3125 )
+			--os-icon-badge-size,
+			calc( var( --os-icon-image-size, 48px ) * 0.3125 )
 		)
 	);
-	top: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.8125 );
-	inset-inline-end: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.4167 );
-	min-width: var( --desktop-mode-recycle-badge-computed-size );
-	height: var( --desktop-mode-recycle-badge-computed-size );
-	padding: 0 calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.267 );
+	top: calc( var( --os-icon-image-size, 48px ) * 0.8125 );
+	inset-inline-end: calc( var( --os-icon-image-size, 48px ) * 0.4167 );
+	min-width: var( --os-recycle-badge-computed-size );
+	height: var( --os-recycle-badge-computed-size );
+	padding: 0 calc( var( --os-recycle-badge-computed-size ) * 0.267 );
 	border-radius: 999px;
-	background: var( --desktop-mode-recycle-badge-bg, rgba( 29, 35, 39, 0.74 ) );
-	color: var( --desktop-mode-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
+	background: var( --os-recycle-badge-bg, rgba( 29, 35, 39, 0.74 ) );
+	color: var( --os-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
 	font-size: var(
-		--desktop-mode-recycle-badge-font-size,
+		--os-recycle-badge-font-size,
 		var(
-			--desktop-mode-icon-badge-font-size,
-			calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.6 )
+			--os-icon-badge-font-size,
+			calc( var( --os-recycle-badge-computed-size ) * 0.6 )
 		)
 	);
 	font-weight: 700;
@@ -656,8 +827,8 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		0 1px 2px rgba( 0, 0, 0, 0.28 );
 }
 
-.desktop-mode-icon:hover,
-.desktop-mode-icon:focus-visible {
+.os-icon:hover,
+.os-icon:focus-visible {
 	/* background-COLOR, not the shorthand: the shorthand would reset
 	 * the ICON_TILE texture declared above, so a themed tile would
 	 * vanish on hover. */
@@ -665,29 +836,29 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	outline: none;
 }
 
-.desktop-mode-icon:focus-visible {
+.os-icon:focus-visible {
 	box-shadow: 0 0 0 2px var(--wp-admin-theme-color, #2271b1);
 }
 
-.desktop-mode-icon__image {
+.os-icon__image {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	/* Tokenized so a theme can scale wallpaper icons — and so the
 	 * badge above has something to derive its own size from. */
-	width: var( --desktop-mode-icon-image-size, 48px );
-	height: var( --desktop-mode-icon-image-size, 48px );
-	font-size: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.667 );
+	width: var( --os-icon-image-size, 48px );
+	height: var( --os-icon-image-size, 48px );
+	font-size: calc( var( --os-icon-image-size, 48px ) * 0.667 );
 	line-height: 1;
 }
 
-.desktop-mode-icon__image img {
+.os-icon__image img {
 	max-width: 48px;
 	max-height: 48px;
 	object-fit: contain;
 }
 
-.desktop-mode-icon__label {
+.os-icon__label {
 	font-size: 12px;
 	text-align: center;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
@@ -702,7 +873,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * chrome.
  * --------------------------------------------------------------- */
 
-.desktop-mode-sticky-notes {
+.os-sticky-notes {
 	position: absolute;
 	inset: 0;
 	z-index: 2;
@@ -712,13 +883,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-.desktop-mode-area--overview .desktop-mode-sticky-notes {
+.os-area--overview .os-sticky-notes {
 	opacity: 0;
 	transform: translateY( 12px );
 	pointer-events: none;
 }
 
-.desktop-mode-sticky-note {
+.os-sticky-note {
 	position: absolute;
 	display: flex;
 	flex-direction: column;
@@ -735,13 +906,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	resize: both;
 }
 
-.desktop-mode-sticky-note--dragging {
+.os-sticky-note--dragging {
 	opacity: 0.92;
 	resize: none;
 	user-select: none;
 }
 
-.desktop-mode-sticky-note__header {
+.os-sticky-note__header {
 	display: flex;
 	align-items: center;
 	gap: 5px;
@@ -754,11 +925,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	user-select: none;
 }
 
-.desktop-mode-sticky-note--dragging .desktop-mode-sticky-note__header {
+.os-sticky-note--dragging .os-sticky-note__header {
 	cursor: grabbing;
 }
 
-.desktop-mode-sticky-note__grip {
+.os-sticky-note__grip {
 	flex: 0 0 auto;
 	width: 8px;
 	height: 14px;
@@ -773,7 +944,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	opacity: 0.42;
 }
 
-.desktop-mode-sticky-note__title {
+.os-sticky-note__title {
 	flex: 1;
 	min-width: 0;
 	font-size: 11px;
@@ -783,31 +954,31 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	white-space: nowrap;
 }
 
-.desktop-mode-sticky-note__status {
+.os-sticky-note__status {
 	flex: 0 0 auto;
 }
 
-.desktop-mode-sticky-note wpd-window-button {
-	--wpd-btn-color: rgba( 42, 37, 19, 0.7 );
-	--wpd-btn-color-hover: #2a2513;
-	--wpd-btn-bg-hover: rgba( 42, 37, 19, 0.1 );
-	--wpd-btn-bg-active: rgba( 42, 37, 19, 0.16 );
-	--wpd-btn-danger-hover: rgba( 214, 54, 56, 0.18 );
-	--wpd-btn-outline: var( --wp-admin-theme-color, #2271b1 );
+.os-sticky-note os-window-button {
+	--os-ui-btn-color: rgba( 42, 37, 19, 0.7 );
+	--os-ui-btn-color-hover: #2a2513;
+	--os-ui-btn-bg-hover: rgba( 42, 37, 19, 0.1 );
+	--os-ui-btn-bg-active: rgba( 42, 37, 19, 0.16 );
+	--os-ui-btn-danger-hover: rgba( 214, 54, 56, 0.18 );
+	--os-ui-btn-outline: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-sticky-note__open.is-disabled {
+.os-sticky-note__open.is-disabled {
 	opacity: 0.34;
 	pointer-events: none;
 }
 
-.desktop-mode-sticky-note__editor {
+.os-sticky-note__editor {
 	flex: 1;
 	min-height: 0;
-	--desktop-mode-window-bg: transparent;
-	--wpd-border: transparent;
-	--wpd-fg: #2a2513;
-	--wpd-fg-muted: rgba( 42, 37, 19, 0.62 );
+	--os-window-bg: transparent;
+	--os-ui-border: transparent;
+	--os-ui-fg: #2a2513;
+	--os-ui-fg-muted: rgba( 42, 37, 19, 0.62 );
 	font-family:
 		-apple-system,
 		BlinkMacSystemFont,
@@ -815,7 +986,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		sans-serif;
 }
 
-.desktop-mode-sticky-note__editor::part(textarea) {
+.os-sticky-note__editor::part(textarea) {
 	height: 100%;
 	min-height: 100%;
 	padding: 10px 12px 12px;
@@ -829,8 +1000,8 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	resize: none;
 }
 
-.desktop-mode-sticky-note__editor::part(textarea):hover,
-.desktop-mode-sticky-note__editor::part(textarea):focus-visible {
+.os-sticky-note__editor::part(textarea):hover,
+.os-sticky-note__editor::part(textarea):focus-visible {
 	border-color: transparent;
 	box-shadow: none;
 }
@@ -843,7 +1014,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * drag / resize / click-through behaviour is unaffected.
  * --------------------------------------------------------------- */
 
-.desktop-mode-widgets {
+.os-widgets {
 	border-radius: 14px;
 	position: absolute;
 	top: 16px;
@@ -869,7 +1040,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-.desktop-mode-area--overview .desktop-mode-widgets {
+.os-area--overview .os-widgets {
 	opacity: 0;
 	/* Slight slide-off-right so the fade reads as "the column is
 	 * stepping back out of the way" rather than flat-dimming. */
@@ -877,7 +1048,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	pointer-events: none;
 }
 
-.desktop-mode-widgets__list {
+.os-widgets__list {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -891,7 +1062,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * pointer-transparent so a drag that grazes the column's margin
  * falls through to the window beneath.
  */
-.desktop-mode-widgets__card {
+.os-widgets__card {
 	position: relative;
 	padding: 0;
 	/* Column layout so the body can flex-shrink and scroll when the
@@ -906,15 +1077,15 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	 * WIDGET texture slot — layered over the frosted card colour, so a
 	 * translucent texture still gets the blur underneath.
 	 */
-	background-image: var( --desktop-mode-widget-image, none );
-	background-repeat: var( --desktop-mode-widget-image-repeat, repeat );
-	background-size: var( --desktop-mode-widget-image-size, auto );
-	background-position: var( --desktop-mode-widget-image-position, center );
+	background-image: var( --os-widget-image, none );
+	background-repeat: var( --os-widget-image-repeat, repeat );
+	background-size: var( --os-widget-image-size, auto );
+	background-position: var( --os-widget-image-position, center );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
 	border-radius: 14px;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	box-shadow:
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
@@ -926,13 +1097,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 /* Hover feedback is shadow-only — no transform. Cards must feel
  * anchored; a hover nudge reads as the widget drifting under the
  * pointer (and fought the user's chosen position on floating cards). */
-.desktop-mode-widgets__card:hover {
+.os-widgets__card:hover {
 	box-shadow:
 		0 12px 36px rgba( 0, 0, 0, 0.45 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-widgets__card-body {
+.os-widgets__card-body {
 	padding: 16px;
 	min-height: 48px;
 	flex: 1 1 auto;
@@ -941,7 +1112,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	scrollbar-width: thin;
 }
 
-.desktop-mode-widgets__card-close {
+.os-widgets__card-close {
 	position: absolute;
 	top: 6px;
 	inset-inline-end: 6px;
@@ -952,7 +1123,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	cursor: pointer;
@@ -963,14 +1134,14 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		color 0.15s ease;
 }
 
-.desktop-mode-widgets__card:hover .desktop-mode-widgets__card-close,
-.desktop-mode-widgets__card-close:focus-visible {
+.os-widgets__card:hover .os-widgets__card-close,
+.os-widgets__card-close:focus-visible {
 	opacity: 1;
 }
 
-.desktop-mode-widgets__card-close:hover {
-	background: var( --wpd-danger, #d63638 );
-	color: var( --wpd-fg-on-accent, #fff );
+.os-widgets__card-close:hover {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
 /*
@@ -980,7 +1151,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * remain clickable as normal). Non-movable widgets keep today's
  * corner-× layout unchanged.
  */
-.desktop-mode-widgets__chrome {
+.os-widgets__chrome {
 	display: flex;
 	flex-shrink: 0;
 	align-items: center;
@@ -993,11 +1164,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	touch-action: none;
 }
 
-.desktop-mode-widgets__card--dragging .desktop-mode-widgets__chrome {
+.os-widgets__card--dragging .os-widgets__chrome {
 	cursor: grabbing;
 }
 
-.desktop-mode-widgets__grip {
+.os-widgets__grip {
 	flex-shrink: 0;
 	width: 10px;
 	height: 16px;
@@ -1013,11 +1184,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	transition: opacity 0.12s ease;
 }
 
-.desktop-mode-widgets__card:hover .desktop-mode-widgets__grip {
+.os-widgets__card:hover .os-widgets__grip {
 	opacity: 0.85;
 }
 
-.desktop-mode-widgets__title {
+.os-widgets__title {
 	flex: 1;
 	font-size: 12px;
 	font-weight: 500;
@@ -1030,15 +1201,15 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 
 /* When the close button sits inside the chrome it's inline, not
    corner-absolute — reset position + always-visible opacity. */
-.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close {
+.os-widgets__chrome .os-widgets__card-close {
 	position: static;
 	opacity: 0.7;
 	width: 20px;
 	height: 20px;
 }
 
-.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close:hover,
-.desktop-mode-widgets__chrome .desktop-mode-widgets__card-close:focus-visible {
+.os-widgets__chrome .os-widgets__card-close:hover,
+.os-widgets__chrome .os-widgets__card-close:focus-visible {
 	opacity: 1;
 }
 
@@ -1054,13 +1225,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * dimmed by default, full-opacity on hover / focus. Distinct hover
  * color (theme accent, not red) signals "put back" vs. "remove."
  */
-.desktop-mode-widgets__card-redock {
+.os-widgets__card-redock {
 	display: none;
 	align-items: center;
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	width: 20px;
@@ -1073,28 +1244,28 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		color 0.15s ease;
 }
 
-.desktop-mode-widgets__card--floating .desktop-mode-widgets__card-redock {
+.os-widgets__card--floating .os-widgets__card-redock {
 	display: flex;
 }
 
-.desktop-mode-widgets__card-redock:hover,
-.desktop-mode-widgets__card-redock:focus-visible {
+.os-widgets__card-redock:hover,
+.os-widgets__card-redock:focus-visible {
 	opacity: 1;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
 /*
  * Floating widgets — absolute-positioned, inline top/left/width/height
  * written by the frame.
  */
-.desktop-mode-widgets__card--floating {
+.os-widgets__card--floating {
 	position: absolute;
 	margin: 0;
 }
 
-.desktop-mode-widgets__card--dragging,
-.desktop-mode-widgets__card--resizing {
+.os-widgets__card--dragging,
+.os-widgets__card--resizing {
 	transition: none;
 	z-index: 2;
 }
@@ -1107,12 +1278,12 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * `s` (bottom-edge, height-only) handle at the pointer layer, so we
  * visually hide the mismatched handles via the modifier class.
  */
-.desktop-mode-widgets__resize {
+.os-widgets__resize {
 	position: absolute;
 	z-index: 1;
 }
 
-.desktop-mode-widgets__resize--n {
+.os-widgets__resize--n {
 	top: -3px;
 	left: 8px;
 	right: 8px;
@@ -1120,7 +1291,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: ns-resize;
 }
 
-.desktop-mode-widgets__resize--s {
+.os-widgets__resize--s {
 	bottom: -3px;
 	left: 8px;
 	right: 8px;
@@ -1128,7 +1299,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: ns-resize;
 }
 
-.desktop-mode-widgets__resize--e {
+.os-widgets__resize--e {
 	top: 8px;
 	bottom: 8px;
 	right: -3px;
@@ -1136,7 +1307,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: ew-resize;
 }
 
-.desktop-mode-widgets__resize--w {
+.os-widgets__resize--w {
 	top: 8px;
 	bottom: 8px;
 	left: -3px;
@@ -1144,7 +1315,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: ew-resize;
 }
 
-.desktop-mode-widgets__resize--ne {
+.os-widgets__resize--ne {
 	top: -4px;
 	right: -4px;
 	width: 12px;
@@ -1152,7 +1323,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: nesw-resize;
 }
 
-.desktop-mode-widgets__resize--nw {
+.os-widgets__resize--nw {
 	top: -4px;
 	left: -4px;
 	width: 12px;
@@ -1160,7 +1331,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: nwse-resize;
 }
 
-.desktop-mode-widgets__resize--se {
+.os-widgets__resize--se {
 	bottom: -4px;
 	right: -4px;
 	width: 12px;
@@ -1168,7 +1339,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	cursor: nwse-resize;
 }
 
-.desktop-mode-widgets__resize--sw {
+.os-widgets__resize--sw {
 	bottom: -4px;
 	left: -4px;
 	width: 12px;
@@ -1183,7 +1354,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * direction while docked), so hide all handles except the bottom
  * edge and the cursor never lies about what's interactive.
  */
-.desktop-mode-widgets__card--resizable:not( .desktop-mode-widgets__card--floating ) .desktop-mode-widgets__resize:not( .desktop-mode-widgets__resize--s ) {
+.os-widgets__card--resizable:not( .os-widgets__card--floating ) .os-widgets__resize:not( .os-widgets__resize--s ) {
 	display: none;
 }
 
@@ -1193,7 +1364,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * when the column is otherwise empty so first-run users see a
  * friendly target rather than an empty strip.
  */
-.desktop-mode-widgets__add {
+.os-widgets__add {
 	margin-top: auto;
 	padding: 14px 12px;
 	display: flex;
@@ -1214,30 +1385,30 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		color 0.15s ease;
 }
 
-.desktop-mode-widgets__add:hover {
+.os-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.06 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.desktop-mode-widgets__add:focus-visible {
+.os-widgets__add:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-widgets__add-plus {
+.os-widgets__add-plus {
 	font-size: 20px;
 	line-height: 1;
 	font-weight: 200;
 }
 
-.desktop-mode-widgets__add-label {
+.os-widgets__add-label {
 	font-size: 13px;
 	letter-spacing: 0.02em;
 }
 
 /* Built-in clock widget */
-.desktop-mode-widget-clock {
+.os-widget-clock {
 	text-align: center;
 	/* The time + date are passive glyphs, not content users would
 	 * ever reasonably select — turning it off avoids the accidental-
@@ -1246,7 +1417,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	-webkit-user-select: none;
 }
 
-.desktop-mode-widget-clock__time {
+.os-widget-clock__time {
 	font-size: 34px;
 	font-weight: 600;
 	line-height: 1.1;
@@ -1254,7 +1425,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	letter-spacing: 0.01em;
 }
 
-.desktop-mode-widget-clock__date {
+.os-widget-clock__date {
 	margin-top: 4px;
 	font-size: 13px;
 	color: rgba( 255, 255, 255, 0.75 );
@@ -1267,7 +1438,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * the desktop-area clip.
  * --------------------------------------------------------------- */
 
-.desktop-mode-widget-picker {
+.os-widget-picker {
 	position: fixed;
 	width: 320px;
 	max-height: 60vh;
@@ -1279,19 +1450,19 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	-webkit-backdrop-filter: blur( 22px ) saturate( 160% );
 	border: 1px solid rgba( 255, 255, 255, 0.1 );
 	box-shadow: 0 18px 54px rgba( 0, 0, 0, 0.55 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	z-index: 9999;
-	animation: desktop-mode-widget-picker-in 0.14s ease-out;
+	animation: os-widget-picker-in 0.14s ease-out;
 }
 
-@keyframes desktop-mode-widget-picker-in {
+@keyframes os-widget-picker-in {
 	from {
 		opacity: 0;
 		transform: translateY( 4px );
 	}
 }
 
-.desktop-mode-widget-picker__title {
+.os-widget-picker__title {
 	padding: 4px 8px 8px;
 	font-size: 11px;
 	font-weight: 600;
@@ -1300,13 +1471,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	color: rgba( 255, 255, 255, 0.55 );
 }
 
-.desktop-mode-widget-picker__list {
+.os-widget-picker__list {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.desktop-mode-widget-picker__entry {
+.os-widget-picker__entry {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -1314,28 +1485,28 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	background: transparent;
 	border: 0;
 	border-radius: 10px;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	cursor: pointer;
 	text-align: start;
 	font: inherit;
 	transition: background-color 0.12s ease;
 }
 
-.desktop-mode-widget-picker__entry:hover:not( :disabled ) {
+.os-widget-picker__entry:hover:not( :disabled ) {
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-widget-picker__entry:focus-visible {
+.os-widget-picker__entry:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 1px;
 }
 
-.desktop-mode-widget-picker__entry--added {
+.os-widget-picker__entry--added {
 	opacity: 0.55;
 	cursor: default;
 }
 
-.desktop-mode-widget-picker__entry-icon {
+.os-widget-picker__entry-icon {
 	flex-shrink: 0;
 	font-size: 20px;
 	width: 20px;
@@ -1343,7 +1514,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	line-height: 1;
 }
 
-.desktop-mode-widget-picker__entry-text {
+.os-widget-picker__entry-text {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -1351,7 +1522,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	min-width: 0;
 }
 
-.desktop-mode-widget-picker__entry-label {
+.os-widget-picker__entry-label {
 	font-size: 13px;
 	font-weight: 500;
 	white-space: nowrap;
@@ -1359,14 +1530,14 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-widget-picker__entry-description {
+.os-widget-picker__entry-description {
 	font-size: 11px;
 	color: rgba( 255, 255, 255, 0.6 );
 	line-height: 1.35;
 	white-space: normal;
 }
 
-.desktop-mode-widget-picker__entry-status {
+.os-widget-picker__entry-status {
 	flex-shrink: 0;
 	font-size: 11px;
 	color: rgba( 255, 255, 255, 0.5 );
@@ -1374,7 +1545,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	letter-spacing: 0.08em;
 }
 
-.desktop-mode-widget-picker__empty {
+.os-widget-picker__empty {
 	padding: 12px 8px;
 	font-size: 12px;
 	color: rgba( 255, 255, 255, 0.6 );
@@ -1385,10 +1556,10 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * Chromeless mode: pages loaded inside iframes.
  * Remove all shell chrome and let content fill the frame.
  */
-.desktop-mode-chromeless {
+.os-chromeless {
 	margin: 0;
 	padding: 0;
-	background: var(--desktop-mode-window-bg);
+	background: var(--os-window-bg);
 }
 
 /*
@@ -1398,7 +1569,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 
 /*
  * Hide WordPress core's built-in command palette (`@wordpress/commands`).
- * Desktop mode force-enqueues `wp_enqueue_command_palette_assets()` so
+ * OpenStation force-enqueues `wp_enqueue_command_palette_assets()` so
  * the `core/commands` data store is populated for our shell harvester
  * (see `src/commands/shell-harvester.ts`); the side effect is that WP
  * also mounts its own `<CommandPalette>` to the document body. We
@@ -1411,4 +1582,39 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .commands-command-menu,
 .commands-command-menu__overlay {
 	display: none !important;
+}
+
+/*
+ * ---- Links slotted into <os-notice> ---------------------------
+ *
+ * `<os-notice>` styles its slotted links from inside its shadow root,
+ * through `::slotted( a )` and the `--os-ui-notice-link` tokens. That
+ * rule cannot win here, and no amount of specificity on it would help.
+ *
+ * A slotted element lives in the DOCUMENT tree; the shadow root only
+ * borrows it for rendering. When declarations from two trees collide,
+ * CSS Scoping resolves normal (non-`!important`) ones in favour of the
+ * OUTER tree regardless of specificity — so `wp-admin/css/common.css`,
+ * which sets `a { color: #2271b1 }` and `a:hover { color: #135e96 }` on
+ * every anchor in the admin, beats `::slotted( a )` every time. The
+ * shell renders inside wp-admin, so it always loses: the link painted
+ * WordPress Blue at rest and a darker blue on hover, the second of
+ * which is close to illegible on a notice's dark wash.
+ *
+ * Hence a document-tree rule. It reads the same tokens the component
+ * documents, so a theme still restyles the link by setting them; this
+ * only moves the declaration into a tree that can win. `a:hover` is
+ * (0,1,1), so the hover selector has to carry its own pseudo-class to
+ * outrank it — matching `os-notice a` alone would lose the hover state
+ * while winning the base one, which is exactly the inert-looking link
+ * the component's own styles already went out of their way to avoid.
+ */
+os-notice a {
+	color: var(--os-ui-notice-link, #ec9bff);
+}
+
+os-notice a:hover,
+os-notice a:focus,
+os-notice a:active {
+	color: var(--os-ui-notice-link-hover, #fffbff);
 }

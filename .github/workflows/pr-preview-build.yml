@@ -40,4 +40,4 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: built-plugin
-          path: desktop-mode.zip
+          path: openstation.zip

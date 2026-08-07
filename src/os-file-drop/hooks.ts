@@ -16,7 +16,7 @@ export const FILE_DROP_HOOKS = {
 	 * Signature: `(files: File[], ctx: DropContext) => File[]`.
 	 * Return an empty array to abort the drop silently.
 	 */
-	FILES_DETECTED: 'desktop-mode.drop.files-detected',
+	FILES_DETECTED: 'os.drop.files-detected',
 
 	/**
 	 * Action — fires after the mime / size filter has rejected
@@ -25,7 +25,7 @@ export const FILE_DROP_HOOKS = {
 	 * subscribers can surface a custom UX (a side panel with the
 	 * list, an analytics call).
 	 */
-	FILES_REJECTED: 'desktop-mode.drop.files-rejected',
+	FILES_REJECTED: 'os.drop.files-rejected',
 
 	/**
 	 * Filter — fires per file before the upload dialog renders.
@@ -36,7 +36,7 @@ export const FILE_DROP_HOOKS = {
 	 * Signature: `(entry: DropFileEntry, ctx: DropContext)
 	 *             => DropFileEntry`.
 	 */
-	DIALOG_FIELDS: 'desktop-mode.drop.dialog-fields',
+	DIALOG_FIELDS: 'os.drop.dialog-fields',
 
 	/**
 	 * Filter — last call before the manager `POST`s to
@@ -47,7 +47,7 @@ export const FILE_DROP_HOOKS = {
 	 *
 	 * Signature: `(payload, ctx: DropContext) => payload | null`.
 	 */
-	BEFORE_UPLOAD: 'desktop-mode.drop.before-upload',
+	BEFORE_UPLOAD: 'os.drop.before-upload',
 
 	/**
 	 * Action — fires once `BEFORE_UPLOAD` has cleared and the XHR
@@ -60,7 +60,7 @@ export const FILE_DROP_HOOKS = {
 	 * Pair with `UPLOAD_PROGRESS` to drive a progress UI; pair with
 	 * `AFTER_UPLOAD` / `UPLOAD_FAILED` to know when the upload ends.
 	 */
-	UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
+	UPLOAD_STARTED: 'os.drop.upload-started',
 
 	/**
 	 * Action — fires for every `XMLHttpRequestUpload.progress` event.
@@ -75,7 +75,7 @@ export const FILE_DROP_HOOKS = {
 	 * stream emits `load` so a HUD can show a definite "wrapping up"
 	 * state while the server finishes the response.
 	 */
-	UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
+	UPLOAD_PROGRESS: 'os.drop.upload-progress',
 
 	/**
 	 * Action — fires after a successful upload. Payload:
@@ -93,7 +93,7 @@ export const FILE_DROP_HOOKS = {
 	 *
 	 * that destructured `{ result, fields, context }` keeps working.
 	 */
-	AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
+	AFTER_UPLOAD: 'os.drop.after-upload',
 
 	/**
 	 * Action — fires after an upload fails. Payload:
@@ -110,5 +110,5 @@ export const FILE_DROP_HOOKS = {
 	 * "running" after a failure when a `BEFORE_UPLOAD` filter
 	 * replaced the file.
 	 */
-	UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
+	UPLOAD_FAILED: 'os.drop.upload-failed',
 } as const;

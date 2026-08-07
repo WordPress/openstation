@@ -7,10 +7,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-agents
+ * @group openstation
+ * @group os-agents
  */
-class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
+class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -24,7 +24,7 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 	}
 
 	private function create_agent( array $overrides = array() ) {
-		$user = desktop_mode_agent_create(
+		$user = openstation_agent_create(
 			array_merge(
 				array(
 					'name'         => 'Test Agent',
@@ -41,43 +41,43 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_create
+	 * @covers ::openstation_agent_create
 	 */
 	public function test_create_writes_definition_meta() {
 		$user = $this->create_agent();
 
-		$this->assertTrue( desktop_mode_agent_is_agent( $user ) );
-		$this->assertSame( 'Reviews drafts.', desktop_mode_agent_get_description( $user->ID ) );
+		$this->assertTrue( openstation_agent_is_agent( $user ) );
+		$this->assertSame( 'Reviews drafts.', openstation_agent_get_description( $user->ID ) );
 		$this->assertSame(
 			'You review drafts and tighten headings.',
-			desktop_mode_agent_get_instructions( $user->ID )
+			openstation_agent_get_instructions( $user->ID )
 		);
-		$this->assertSame( array( 'desktop-mode/get-post' ), desktop_mode_agent_get_abilities( $user->ID ) );
+		$this->assertSame( array( 'desktop-mode/get-post' ), openstation_agent_get_abilities( $user->ID ) );
 		$this->assertSame(
 			self::$admin_id,
-			(int) get_user_meta( $user->ID, DESKTOP_MODE_AGENT_CREATED_BY_META, true )
+			(int) get_user_meta( $user->ID, OPENSTATION_AGENT_CREATED_BY_META, true )
 		);
 	}
 
 	/**
 	 * Abilities land on disk as a JSON string, not a PHP-serialized array.
 	 *
-	 * @covers ::desktop_mode_agent_create
+	 * @covers ::openstation_agent_create
 	 */
 	public function test_abilities_meta_is_json_encoded() {
 		$user = $this->create_agent();
-		$raw  = get_user_meta( $user->ID, DESKTOP_MODE_AGENT_ABILITIES_META, true );
+		$raw  = get_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, true );
 		$this->assertIsString( $raw );
 		$this->assertSame( array( 'desktop-mode/get-post' ), json_decode( $raw, true ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_create
+	 * @covers ::openstation_agent_create
 	 */
 	public function test_create_fires_created_action() {
 		$captured = array();
 		add_action(
-			'desktop_mode_agent_created',
+			'openstation_agent_created',
 			static function ( $user_id, $args, $actor_id ) use ( &$captured ) {
 				$captured = array( $user_id, $args, $actor_id );
 			},
@@ -94,28 +94,28 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_create
+	 * @covers ::openstation_agent_create
 	 */
 	public function test_create_rejects_role_outside_whitelist() {
-		$result = desktop_mode_agent_create(
+		$result = openstation_agent_create(
 			array(
 				'name' => 'Sneaky',
 				'role' => 'subscriber',
 			)
 		);
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_agent_invalid_role', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_invalid_role', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_update
+	 * @covers ::openstation_agent_update
 	 */
 	public function test_update_applies_fields_and_fires_audit_action() {
 		$user = $this->create_agent();
 
 		$captured = null;
 		add_action(
-			'desktop_mode_agent_updated',
+			'openstation_agent_updated',
 			static function ( $user_id, $changed, $actor_id ) use ( &$captured ) {
 				$captured = array( $user_id, $changed, $actor_id );
 			},
@@ -123,7 +123,7 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 			3
 		);
 
-		$result = desktop_mode_agent_update(
+		$result = openstation_agent_update(
 			$user->ID,
 			array(
 				'instructions' => 'New prompt.',
@@ -133,8 +133,8 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 		);
 		$this->assertTrue( $result );
 
-		$this->assertSame( 'New prompt.', desktop_mode_agent_get_instructions( $user->ID ) );
-		$this->assertSame( 5, desktop_mode_agent_get_rate_limit( $user->ID ) );
+		$this->assertSame( 'New prompt.', openstation_agent_get_instructions( $user->ID ) );
+		$this->assertSame( 5, openstation_agent_get_rate_limit( $user->ID ) );
 		$fresh = get_userdata( $user->ID );
 		$this->assertContains( 'editor', (array) $fresh->roles );
 
@@ -151,36 +151,36 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 	/**
 	 * A no-op update (same values) must not fire the audit action.
 	 *
-	 * @covers ::desktop_mode_agent_update
+	 * @covers ::openstation_agent_update
 	 */
 	public function test_noop_update_fires_no_action() {
 		$user  = $this->create_agent();
 		$fired = 0;
 		add_action(
-			'desktop_mode_agent_updated',
+			'openstation_agent_updated',
 			static function () use ( &$fired ) {
 				++$fired;
 			}
 		);
 
-		desktop_mode_agent_update( $user->ID, array( 'description' => 'Reviews drafts.' ) );
+		openstation_agent_update( $user->ID, array( 'description' => 'Reviews drafts.' ) );
 		$this->assertSame( 0, $fired );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_update
+	 * @covers ::openstation_agent_update
 	 */
 	public function test_update_rejects_non_agent_user() {
-		$result = desktop_mode_agent_update( self::$admin_id, array( 'name' => 'Nope' ) );
+		$result = openstation_agent_update( self::$admin_id, array( 'name' => 'Nope' ) );
 		$this->assertWPError( $result );
-		$this->assertSame( 'desktop_mode_agent_not_found', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_not_found', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_sanitize_triggers
+	 * @covers ::openstation_agent_sanitize_triggers
 	 */
 	public function test_sanitize_triggers_drops_unknown_kinds_and_keeps_camel_case() {
-		$clean = desktop_mode_agent_sanitize_triggers(
+		$clean = openstation_agent_sanitize_triggers(
 			array(
 				array(
 					'kind'   => 'send-to',
@@ -200,11 +200,11 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_get_triggers
+	 * @covers ::openstation_agent_get_triggers
 	 */
 	public function test_triggers_round_trip_through_update() {
 		$user = $this->create_agent();
-		desktop_mode_agent_update(
+		openstation_agent_update(
 			$user->ID,
 			array(
 				'triggers' => array(
@@ -216,53 +216,53 @@ class Tests_DesktopMode_AgentsStore extends WP_UnitTestCase {
 			)
 		);
 
-		$triggers = desktop_mode_agent_get_triggers( $user->ID );
+		$triggers = openstation_agent_get_triggers( $user->ID );
 		$this->assertCount( 1, $triggers );
 		$this->assertSame( 'chat', $triggers[0]['kind'] );
 		$this->assertSame( 'edit_posts', $triggers[0]['config']['capability'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_sanitize_ability_slugs
+	 * @covers ::openstation_agents_sanitize_ability_slugs
 	 */
 	public function test_ability_slugs_are_deduped_and_stripped() {
 		$this->assertSame(
 			array( 'a/b', 'c/d' ),
-			desktop_mode_agents_sanitize_ability_slugs( array( 'a/b', 'a/b', '', 42, 'c/d' ) )
+			openstation_agents_sanitize_ability_slugs( array( 'a/b', 'a/b', '', 42, 'c/d' ) )
 		);
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_allowed_roles
+	 * @covers ::openstation_agent_allowed_roles
 	 */
 	public function test_allowed_roles_whitelist() {
-		$roles = desktop_mode_agent_allowed_roles();
+		$roles = openstation_agent_allowed_roles();
 		$this->assertContains( 'author', $roles );
 		$this->assertContains( 'editor', $roles );
 		$this->assertNotContains( 'subscriber', $roles );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agent_get_agents
+	 * @covers ::openstation_agent_get_agents
 	 */
 	public function test_get_agents_lists_only_agents() {
 		$a = $this->create_agent( array( 'name' => 'Alpha' ) );
 		$b = $this->create_agent( array( 'name' => 'Beta' ) );
 
-		$ids = wp_list_pluck( desktop_mode_agent_get_agents(), 'ID' );
+		$ids = wp_list_pluck( openstation_agent_get_agents(), 'ID' );
 		$this->assertContains( $a->ID, $ids );
 		$this->assertContains( $b->ID, $ids );
 		$this->assertNotContains( self::$admin_id, $ids );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_enabled
+	 * @covers ::openstation_agents_enabled
 	 */
 	public function test_enabled_reads_extended_option() {
-		remove_filter( 'desktop_mode_agents_enabled', '__return_true' );
-		$this->assertFalse( desktop_mode_agents_enabled() );
+		remove_filter( 'openstation_agents_enabled', '__return_true' );
+		$this->assertFalse( openstation_agents_enabled() );
 
-		desktop_mode_save_extended_options( array( 'agents' => true ) );
-		$this->assertTrue( desktop_mode_agents_enabled() );
+		openstation_save_extended_options( array( 'agents' => true ) );
+		$this->assertTrue( openstation_agents_enabled() );
 	}
 }

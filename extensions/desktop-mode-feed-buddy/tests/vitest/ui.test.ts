@@ -144,19 +144,19 @@ async function mountManager( url: string ): Promise< {
 	const container = document.createElement( 'div' );
 	container.innerHTML = `
 		<div data-feed-buddy-reader>
-			<wpd-select data-feed-buddy-feed-select></wpd-select>
+			<os-select data-feed-buddy-feed-select></os-select>
 			<div data-feed-buddy-empty hidden>
 				<h2 data-feed-buddy-empty-title></h2>
 				<p data-feed-buddy-empty-copy></p>
-				<wpd-button data-feed-buddy-add-first></wpd-button>
+				<os-button data-feed-buddy-add-first></os-button>
 			</div>
 			<ol data-feed-buddy-items></ol>
 			<div data-feed-buddy-loading hidden></div>
 			<aside data-feed-buddy-manager hidden>
 				<form data-feed-buddy-add-form>
-					<wpd-text-field name="url"${ url ? ` value="${ url }"` : '' }></wpd-text-field>
-					<wpd-text-field name="group" value="NEWS"></wpd-text-field>
-					<wpd-button type="submit" data-feed-buddy-add-submit>Add buddy</wpd-button>
+					<os-text-field name="url"${ url ? ` value="${ url }"` : '' }></os-text-field>
+					<os-text-field name="group" value="NEWS"></os-text-field>
+					<os-button type="submit" data-feed-buddy-add-submit>Add buddy</os-button>
 				</form>
 				<div data-feed-buddy-manager-list></div>
 			</aside>
@@ -211,7 +211,7 @@ beforeAll( () => {
 		},
 	};
 	window.wp = {
-		desktop: api,
+		os: api,
 		i18n: {
 			__: ( text ) => text,
 			sprintf: ( format, ...values ) =>
@@ -277,7 +277,7 @@ describe( 'SOL Inbound Monologue UI', () => {
 			<div data-feed-buddy-empty>
 				<h2 data-feed-buddy-empty-title></h2>
 				<p data-feed-buddy-empty-copy></p>
-				<wpd-button data-feed-buddy-add-first></wpd-button>
+				<os-button data-feed-buddy-add-first></os-button>
 			</div>
 			<ol data-feed-buddy-items></ol>
 			<div data-feed-buddy-loading></div>
@@ -303,7 +303,7 @@ describe( 'SOL Inbound Monologue UI', () => {
 			<div data-feed-buddy-empty>
 				<h2 data-feed-buddy-empty-title></h2>
 				<p data-feed-buddy-empty-copy></p>
-				<wpd-button data-feed-buddy-add-first></wpd-button>
+				<os-button data-feed-buddy-add-first></os-button>
 			</div>
 			<ol data-feed-buddy-items></ol>
 			<div data-feed-buddy-loading></div>
@@ -386,12 +386,12 @@ describe( 'SOL Inbound Monologue UI', () => {
 		const container = document.createElement( 'div' );
 		container.innerHTML = `
 			<div data-feed-buddy-reader>
-				<wpd-button data-feed-buddy-about>About</wpd-button>
-				<wpd-select data-feed-buddy-feed-select></wpd-select>
+				<os-button data-feed-buddy-about>About</os-button>
+				<os-select data-feed-buddy-feed-select></os-select>
 				<div data-feed-buddy-empty hidden>
 					<h2 data-feed-buddy-empty-title></h2>
 					<p data-feed-buddy-empty-copy></p>
-					<wpd-button data-feed-buddy-add-first></wpd-button>
+					<os-button data-feed-buddy-add-first></os-button>
 				</div>
 				<ol data-feed-buddy-items></ol>
 				<div data-feed-buddy-loading hidden></div>
@@ -432,8 +432,8 @@ describe( 'SOL Inbound Monologue UI', () => {
 			'feed-buddy-reader',
 			expect.objectContaining( {
 				tokens: expect.objectContaining( {
-					'--desktop-mode-titlebar-image': 'none',
-					'--desktop-mode-titlebar-image-focused': 'none',
+					'--os-titlebar-image': 'none',
+					'--os-titlebar-image-focused': 'none',
 				} ),
 			} ),
 		);
@@ -460,10 +460,10 @@ describe( 'SOL Inbound Monologue UI', () => {
 		);
 	} );
 
-	// `<wpd-button>` and `<wpd-text-field>` keep their native controls
+	// `<os-button>` and `<os-text-field>` keep their native controls
 	// in a shadow root, so the surrounding `<form>` never receives a
 	// native `submit` event. Adding a feed has to be driven by the
-	// button's click and the field's `wpd-submit` event instead.
+	// button's click and the field's `os-submit` event instead.
 	it.each( [
 		{
 			label: 'the Add buddy button click',
@@ -480,7 +480,7 @@ describe( 'SOL Inbound Monologue UI', () => {
 				form
 					.querySelector< HTMLElement >( '[name="url"]' )!
 					.dispatchEvent(
-						new CustomEvent( 'wpd-submit', {
+						new CustomEvent( 'os-submit', {
 							bubbles: true,
 							composed: true,
 						} ),

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window chrome.
+ * OpenStation — Window chrome.
  *
  * Everything that renders the base window frame: title bar, icon +
  * title text, control buttons, focused / unfocused colour variants,
@@ -13,14 +13,14 @@
  */
 
 /* Base window. */
-.desktop-mode-window {
+.os-window {
 	/*
 	 * border-box sizing is essential for pixel-perfect maximize.
 	 * `Window.maximize()` sets inline `width = parent.clientWidth`,
 	 * which is the area's inner width. Under content-box sizing, the
 	 * window's 1px border would add 2 extra pixels to the rendered
 	 * element, pushing its right + bottom borders past the
-	 * overflow-hidden boundary of `.desktop-mode-area` and making them
+	 * overflow-hidden boundary of `.os-area` and making them
 	 * look clipped/offscreen. With border-box, width/height INCLUDE
 	 * the border, so `width = clientWidth` fits exactly.
 	 *
@@ -34,23 +34,23 @@
 	position: absolute;
 	display: flex;
 	flex-direction: column;
-	background: var(--desktop-mode-window-bg);
-	border: 1px solid var(--desktop-mode-window-border);
-	border-radius: var(--desktop-mode-window-radius);
-	box-shadow: var(--desktop-mode-window-shadow);
+	background: var(--os-window-bg);
+	border: 1px solid var(--os-window-border);
+	border-radius: var(--os-window-radius);
+	box-shadow: var(--os-window-shadow);
 	/*
 	 * Desktop-theme window frame (WINDOW_FRAME texture slot). All
 	 * four properties default to their CSS initial value via the
 	 * `var( …, fallback )` second argument, so with no theme active
 	 * this costs nothing and the 1px border above stays in charge.
-	 * A theme that sets `--desktop-mode-window-border-image-source`
+	 * A theme that sets `--os-window-border-image-source`
 	 * takes the frame over entirely — border-image paints on top of
 	 * (and visually replaces) the border. See docs/desktop-themes.md.
 	 */
-	border-image-source: var(--desktop-mode-window-border-image-source, none);
-	border-image-slice: var(--desktop-mode-window-border-image-slice, 100%);
-	border-image-width: var(--desktop-mode-window-border-image-width, 1);
-	border-image-repeat: var(--desktop-mode-window-border-image-repeat, stretch);
+	border-image-source: var(--os-window-border-image-source, none);
+	border-image-slice: var(--os-window-border-image-slice, 100%);
+	border-image-width: var(--os-window-border-image-width, 1);
+	border-image-repeat: var(--os-window-border-image-repeat, stretch);
 	overflow: hidden;
 	min-width: 320px;
 	min-height: 200px;
@@ -69,7 +69,7 @@
 		 * treatment fades both ways as focus moves between windows.
 		 * Duration is a custom property (default in `effects.css`) so
 		 * the blur/darken ramp can be tuned without editing this list. */
-		filter var( --desktop-mode-fx-transition-duration, 0.5s ) ease-in-out;
+		filter var( --os-fx-transition-duration, 0.5s ) ease-in-out;
 }
 
 /*
@@ -83,9 +83,9 @@
  * viewport the whole time. The class is added by
  * `reflowStatefulWindows` and cleared ~140 ms after the last tick.
  */
-.desktop-mode-window--dragging,
-.desktop-mode-window--resizing,
-.desktop-mode-window--reflowing {
+.os-window--dragging,
+.os-window--resizing,
+.os-window--reflowing {
 	transition: none;
 }
 
@@ -98,7 +98,7 @@
  * (90 ms) so the window still feels glued to the cursor — anything
  * longer reads as lag.
  */
-.desktop-mode-window--snap-drag {
+.os-window--snap-drag {
 	transition:
 		left 0.09s ease-out,
 		top 0.09s ease-out,
@@ -107,8 +107,8 @@
 }
 
 /* Focused window gets elevated shadow and distinct title bar. */
-.desktop-mode-window--focused {
-	box-shadow: var(--desktop-mode-window-shadow-focused);
+.os-window--focused {
+	box-shadow: var(--os-window-shadow-focused);
 	/*
 	 * WINDOW_FRAME_FOCUSED texture slot. Each property falls through
 	 * the unfocused WINDOW_FRAME value before reaching its initial, so
@@ -117,25 +117,25 @@
 	 * fallback chain TITLEBAR_FOCUSED uses.
 	 */
 	border-image-source: var(
-		--desktop-mode-window-border-image-focused-source,
-		var(--desktop-mode-window-border-image-source, none)
+		--os-window-border-image-focused-source,
+		var(--os-window-border-image-source, none)
 	);
 	border-image-slice: var(
-		--desktop-mode-window-border-image-focused-slice,
-		var(--desktop-mode-window-border-image-slice, 100%)
+		--os-window-border-image-focused-slice,
+		var(--os-window-border-image-slice, 100%)
 	);
 	border-image-width: var(
-		--desktop-mode-window-border-image-focused-width,
-		var(--desktop-mode-window-border-image-width, 1)
+		--os-window-border-image-focused-width,
+		var(--os-window-border-image-width, 1)
 	);
 	border-image-repeat: var(
-		--desktop-mode-window-border-image-focused-repeat,
-		var(--desktop-mode-window-border-image-repeat, stretch)
+		--os-window-border-image-focused-repeat,
+		var(--os-window-border-image-repeat, stretch)
 	);
 }
 
 /* Title bar. */
-.desktop-mode-window__titlebar {
+.os-window__titlebar {
 	position: relative;
 	/* Promote the titlebar into its own stacking context above the
 	 * body. Without this, the body (which comes later in source order
@@ -146,9 +146,9 @@
 	z-index: 21;
 	display: flex;
 	align-items: center;
-	height: var(--desktop-mode-titlebar-height);
+	height: var(--os-titlebar-height);
 	padding: 0 8px;
-	background-color: var(--desktop-mode-titlebar-bg);
+	background-color: var(--os-titlebar-bg);
 	/*
 	 * Desktop-theme title-bar texture (TITLEBAR slot). `none` when
 	 * unset, so the background-color above is the whole story for
@@ -157,11 +157,11 @@
 	 * fallbacks — cheaper than a second selector and it keeps the
 	 * shorthand from resetting them.
 	 */
-	background-image: var(--desktop-mode-titlebar-image, none);
-	background-repeat: var(--desktop-mode-titlebar-image-repeat, repeat);
-	background-size: var(--desktop-mode-titlebar-image-size, auto);
-	background-position: var(--desktop-mode-titlebar-image-position, center);
-	color: var(--desktop-mode-titlebar-color);
+	background-image: var(--os-titlebar-image, none);
+	background-repeat: var(--os-titlebar-image-repeat, repeat);
+	background-size: var(--os-titlebar-image-size, auto);
+	background-position: var(--os-titlebar-image-position, center);
+	color: var(--os-titlebar-color);
 	/*
 	 * Title bars can carry their own face — a display typeface here
 	 * with a text face in the body is the classic desktop split. Two
@@ -170,8 +170,8 @@
 	 * would have computed to anyway. Unthemed shells are unchanged.
 	 */
 	font-family: var(
-		--desktop-mode-titlebar-font,
-		var(--desktop-mode-font, inherit)
+		--os-titlebar-font,
+		var(--os-font, inherit)
 	);
 	cursor: default;
 	user-select: none;
@@ -179,22 +179,22 @@
 	gap: 8px;
 }
 
-.desktop-mode-window--focused .desktop-mode-window__titlebar {
-	background-color: var(--desktop-mode-titlebar-bg-focused);
+.os-window--focused .os-window__titlebar {
+	background-color: var(--os-titlebar-bg-focused);
 	/*
 	 * TITLEBAR_FOCUSED slot. Falls back through the unfocused
 	 * TITLEBAR image before reaching `none`, so a theme that ships
 	 * only one title-bar texture gets it on both states for free.
 	 */
 	background-image: var(
-		--desktop-mode-titlebar-image-focused,
-		var(--desktop-mode-titlebar-image, none)
+		--os-titlebar-image-focused,
+		var(--os-titlebar-image, none)
 	);
-	color: var(--desktop-mode-titlebar-color-focused);
+	color: var(--os-titlebar-color-focused);
 }
 
 /* Window icon in title bar. */
-.desktop-mode-window__icon {
+.os-window__icon {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
@@ -203,19 +203,19 @@
 
 /* Letter-badge fallback (unrecognized icon values) — shrink the
  * one-/two-letter monogram so it fits the 18px icon box. */
-.desktop-mode-window__icon.desktop-mode-icon-letter {
+.os-window__icon.os-icon-letter {
 	font-size: 9px;
 }
 
 /* Activity indicator slot — sits between the icon and the title.
  * Reserves a fixed width so the indicator's blink animation can't
- * shift the title text horizontally. The inner `<wpd-save-status>`
+ * shift the title text horizontally. The inner `<os-save-status>`
  * paints a 12px modem-style dot (always visible, accent-colored).
  *
  * `--wp-admin-theme-color` is forwarded as `color` on the host so
  * the inner shadow-DOM stylesheet's `currentColor` references
  * (used in the box-shadow glow) resolve to the live accent. */
-.desktop-mode-window__activity {
+.os-window__activity {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -228,14 +228,14 @@
 }
 
 /* Window title text. */
-.desktop-mode-window__title {
+.os-window__title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: 14px;
 	font-weight: 500;
-	line-height: var(--desktop-mode-titlebar-height);
+	line-height: var(--os-titlebar-height);
 }
 
 /*
@@ -246,7 +246,7 @@
  * buttons float on the artwork rather than sitting on a plate. Every
  * property below resolves to exactly that when unset.
  *
- * A theme that wants a plate instead sets `--desktop-mode-titlebar-
+ * A theme that wants a plate instead sets `--os-titlebar-
  * controls-bg` (and optionally the TITLEBAR_CONTROLS texture slot,
  * a radius, and some inline padding) — the classic "the controls live
  * in their own well" look, without the framework picking it for
@@ -257,18 +257,18 @@
  *
  * @since 0.9.8
  */
-.desktop-mode-window__controls {
+.os-window__controls {
 	display: flex;
-	gap: var( --desktop-mode-titlebar-controls-gap, 4px );
+	gap: var( --os-titlebar-controls-gap, 4px );
 	align-items: center;
 	flex-shrink: 0;
-	padding-inline: var( --desktop-mode-titlebar-controls-padding, 0 );
-	border-radius: var( --desktop-mode-titlebar-controls-radius, 0 );
-	background-color: var( --desktop-mode-titlebar-controls-bg, transparent );
-	background-image: var( --desktop-mode-titlebar-controls-image, none );
-	background-repeat: var( --desktop-mode-titlebar-controls-image-repeat, repeat );
-	background-size: var( --desktop-mode-titlebar-controls-image-size, auto );
-	background-position: var( --desktop-mode-titlebar-controls-image-position, center );
+	padding-inline: var( --os-titlebar-controls-padding, 0 );
+	border-radius: var( --os-titlebar-controls-radius, 0 );
+	background-color: var( --os-titlebar-controls-bg, transparent );
+	background-image: var( --os-titlebar-controls-image, none );
+	background-repeat: var( --os-titlebar-controls-image-repeat, repeat );
+	background-size: var( --os-titlebar-controls-image-size, auto );
+	background-position: var( --os-titlebar-controls-image-position, center );
 }
 
 /*
@@ -277,16 +277,16 @@
  * Falls through to the controls tokens, so setting the pair above is
  * enough for both.
  */
-.desktop-mode-window__screen-meta {
+.os-window__screen-meta {
 	border-radius: var(
-		--desktop-mode-titlebar-meta-radius,
-		var( --desktop-mode-titlebar-controls-radius, 0 )
+		--os-titlebar-meta-radius,
+		var( --os-titlebar-controls-radius, 0 )
 	);
-	background-color: var( --desktop-mode-titlebar-meta-bg, transparent );
-	background-image: var( --desktop-mode-titlebar-meta-image, none );
-	background-repeat: var( --desktop-mode-titlebar-meta-image-repeat, repeat );
-	background-size: var( --desktop-mode-titlebar-meta-image-size, auto );
-	background-position: var( --desktop-mode-titlebar-meta-image-position, center );
+	background-color: var( --os-titlebar-meta-bg, transparent );
+	background-image: var( --os-titlebar-meta-image, none );
+	background-repeat: var( --os-titlebar-meta-image-repeat, repeat );
+	background-size: var( --os-titlebar-meta-image-size, auto );
+	background-position: var( --os-titlebar-meta-image-position, center );
 }
 
 /*
@@ -307,21 +307,21 @@
  * nested flex.
  *
  * before/after-titlebar slots are flex-column children of
- * `.desktop-mode-window` (siblings of the title bar). They're real
+ * `.os-window` (siblings of the title bar). They're real
  * boxes — plugins can paint backgrounds, padding, borders. Empty
  * hosts collapse via `:empty` so they take no space until populated.
  *
  * @since 0.6.0
  */
-.desktop-mode-window__slot--before-icon,
-.desktop-mode-window__slot--icon,
-.desktop-mode-window__slot--after-title,
-.desktop-mode-window__slot--before-controls,
-.desktop-mode-window__slot--after-controls {
+.os-window__slot--before-icon,
+.os-window__slot--icon,
+.os-window__slot--after-title,
+.os-window__slot--before-controls,
+.os-window__slot--after-controls {
 	display: contents;
 }
 
-.desktop-mode-window__slot--title {
+.os-window__slot--title {
 	flex: 1;
 	min-width: 0;
 	display: flex;
@@ -329,14 +329,14 @@
 	overflow: hidden;
 }
 
-.desktop-mode-window__slot--before-titlebar,
-.desktop-mode-window__slot--after-titlebar {
+.os-window__slot--before-titlebar,
+.os-window__slot--after-titlebar {
 	display: block;
 	flex-shrink: 0;
 }
 
-.desktop-mode-window__slot--before-titlebar:empty,
-.desktop-mode-window__slot--after-titlebar:empty {
+.os-window__slot--before-titlebar:empty,
+.os-window__slot--after-titlebar:empty {
 	display: none;
 }
 
@@ -354,46 +354,46 @@
  * for semantic signal.
  * --------------------------------------------------------------- */
 /*
- * Title-bar chrome buttons render as `<wpd-window-button>`.
+ * Title-bar chrome buttons render as `<os-window-button>`.
  * Shadow DOM can't reach across the window's focus class, so we
  * drive the coloring via custom properties that inherit through
- * the boundary. The component reads `--wpd-btn-color`,
- * `--wpd-btn-bg-hover`, etc. and paints accordingly.
+ * the boundary. The component reads `--os-ui-btn-color`,
+ * `--os-ui-btn-bg-hover`, etc. and paints accordingly.
  *
  * Focused control glyphs are white at 70% — correct against the
  * default focused title bar, which is the admin theme colour and so
  * always a mid-to-dark fill, and invisible against a pale one. A
  * theme could not reach them: these declarations land on the WINDOW
- * element, so a `--wpd-btn-color` set at the shell root loses to
+ * element, so a `--os-ui-btn-color` set at the shell root loses to
  * them, and the same names also drive buttons outside the title bar
  * (sticky notes, the desk chrome) that a theme usually does not want
  * to move in the same stroke.
  *
- * `--desktop-mode-titlebar-btn-focused-*` mirrors the unfocused set
+ * `--os-titlebar-btn-focused-*` mirrors the unfocused set
  * below, name for name, so the two halves of the title bar are
  * addressed the same way. Every one is UNDECLARED and falls back to
  * the literal it replaced, so an unthemed shell paints exactly what
  * it painted before.
  *
  * There is no `-danger-hover` twin: destructive red is semantic, not
- * chrome, and both halves already resolve it through `--wpd-danger`.
+ * chrome, and both halves already resolve it through `--os-ui-danger`.
  */
-.desktop-mode-window--focused {
-	--wpd-btn-color: var( --desktop-mode-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
-	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-focused-color-hover, #fff );
-	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
-	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
-	--wpd-btn-outline: var( --desktop-mode-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
-	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
+.os-window--focused {
+	--os-ui-btn-color: var( --os-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
+	--os-ui-btn-color-hover: var( --os-titlebar-btn-focused-color-hover, #fff );
+	--os-ui-btn-bg-hover: var( --os-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
+	--os-ui-btn-bg-active: var( --os-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
+	--os-ui-btn-outline: var( --os-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
+	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
 }
 
-.desktop-mode-window:not( .desktop-mode-window--focused ) {
-	--wpd-btn-color: var( --desktop-mode-titlebar-btn-color, rgba( 0, 0, 0, 0.45 ) );
-	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-color-hover, rgba( 0, 0, 0, 0.85 ) );
-	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
-	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
-	--wpd-btn-outline: var( --wp-admin-theme-color, #2271b1 );
-	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
+.os-window:not( .os-window--focused ) {
+	--os-ui-btn-color: var( --os-titlebar-btn-color, rgba( 0, 0, 0, 0.45 ) );
+	--os-ui-btn-color-hover: var( --os-titlebar-btn-color-hover, rgba( 0, 0, 0, 0.85 ) );
+	--os-ui-btn-bg-hover: var( --os-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
+	--os-ui-btn-bg-active: var( --os-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
+	--os-ui-btn-outline: var( --wp-admin-theme-color, #2271b1 );
+	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
 }
 
 /*
@@ -406,40 +406,40 @@
  * the title bar's own text colour, not the window body's.
  *
  * Deriving it with `color-mix` means a theme gets legible unfocused
- * controls for free from the `--desktop-mode-titlebar-color` it was
+ * controls for free from the `--os-titlebar-color` it was
  * already setting — no extra tokens to discover. The four
- * `--desktop-mode-titlebar-btn-*` overrides above still win when an
+ * `--os-titlebar-btn-*` overrides above still win when an
  * author wants exact control.
  *
- * Scoped to `[data-desktop-mode-desktop-theme]` on purpose: the
+ * Scoped to `[data-os-desktop-theme]` on purpose: the
  * default title-bar colour is `#50575e`, so applying this
  * unconditionally would lighten the unfocused glyphs on every
  * unthemed shell. No theme, no change.
  */
-.desktop-mode-shell[ data-desktop-mode-desktop-theme ]
-	.desktop-mode-window:not( .desktop-mode-window--focused ) {
-	--wpd-btn-color: var(
-		--desktop-mode-titlebar-btn-color,
-		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 72%, transparent )
+.os-shell[ data-os-desktop-theme ]
+	.os-window:not( .os-window--focused ) {
+	--os-ui-btn-color: var(
+		--os-titlebar-btn-color,
+		color-mix( in srgb, var( --os-titlebar-color, #50575e ) 72%, transparent )
 	);
-	--wpd-btn-color-hover: var(
-		--desktop-mode-titlebar-btn-color-hover,
-		var( --desktop-mode-titlebar-color, #50575e )
+	--os-ui-btn-color-hover: var(
+		--os-titlebar-btn-color-hover,
+		var( --os-titlebar-color, #50575e )
 	);
-	--wpd-btn-bg-hover: var(
-		--desktop-mode-titlebar-btn-bg-hover,
-		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 18%, transparent )
+	--os-ui-btn-bg-hover: var(
+		--os-titlebar-btn-bg-hover,
+		color-mix( in srgb, var( --os-titlebar-color, #50575e ) 18%, transparent )
 	);
-	--wpd-btn-bg-active: var(
-		--desktop-mode-titlebar-btn-bg-active,
-		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 26%, transparent )
+	--os-ui-btn-bg-active: var(
+		--os-titlebar-btn-bg-active,
+		color-mix( in srgb, var( --os-titlebar-color, #50575e ) 26%, transparent )
 	);
 }
 
 /* ---------------------------------------------------------------
  * Title-bar actions menu (leading edge, before icon + title).
  *
- * Trigger is a standard `.desktop-mode-window__btn` — inherits focused /
+ * Trigger is a standard `.os-window__btn` — inherits focused /
  * unfocused coloring from the existing control-button rules. The only
  * bespoke rule is margin: it sits at the leading edge so a small trailing
  * gap separates it from the icon without affecting overall title-bar gap.
@@ -457,24 +457,24 @@
  * single clean line always sits between page chrome and window
  * chrome regardless of which combination is visible.
  */
-.desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__screen-meta {
+.os-window__titlebar:has(.os-window__menu-btn) .os-window__screen-meta {
 	margin-inline-end: 0;
 	padding-inline-end: 0;
 	border-inline-end: none;
 }
 
-.desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
+.os-window__titlebar:has(.os-window__menu-btn) .os-window__controls {
 	margin-inline-start: 8px;
 	padding-inline-start: 8px;
 	/* Tokenized so a theme can retint it — or set `transparent` and
 	 * let its own title-bar artwork carry the separation. */
 	border-inline-start: 1px solid
-		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
+		var( --os-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
-.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
+.os-window:not(.os-window--focused) .os-window__titlebar:has(.os-window__menu-btn) .os-window__controls {
 	border-inline-start-color: var(
-		--desktop-mode-titlebar-divider-unfocused,
+		--os-titlebar-divider-unfocused,
 		rgba(0, 0, 0, 0.1)
 	);
 }
@@ -483,11 +483,11 @@
  * Menu popover lives inside the title bar's absolute-positioned
  * coordinate system — positioning is caller-specific and stays
  * outer. Background, border, items, checkbox styling all moved
- * into `<wpd-menu>` / `<wpd-menu-item>`.
+ * into `<os-menu>` / `<os-menu-item>`.
  */
-.desktop-mode-window__menu-panel {
+.os-window__menu-panel {
 	position: absolute;
-	top: calc( var( --desktop-mode-titlebar-height ) + 2px );
+	top: calc( var( --os-titlebar-height ) + 2px );
 	inset-inline-end: 60px;
 	z-index: 2;
 }
@@ -495,29 +495,29 @@
 /*
  * "Related" dropdown — opened by the related-entities title-bar
  * button (`src/related-entities/`). The panel ALSO carries
- * `.desktop-mode-window__menu-panel` (positioning + the drag-tracker
+ * `.os-window__menu-panel` (positioning + the drag-tracker
  * exclusion come from there); this class only layers the related-menu
  * extras: an internal scroll cap for media-heavy posts and a sane
  * minimum width.
  */
-.desktop-mode-window__related-panel {
+.os-window__related-panel {
 	max-height: min( 60vh, 420px );
 	overflow-y: auto;
 	min-width: 180px;
 }
 
 /* Section header inside the Related dropdown ("Categories", "Media"). */
-.desktop-mode-window__related-group {
+.os-window__related-group {
 	padding: 6px 12px 2px;
 	font-size: 11px;
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	opacity: 0.6;
-	color: var( --wpd-fg );
+	color: var( --os-ui-fg );
 }
 
-.desktop-mode-window__related-group:not(:first-child) {
+.os-window__related-group:not(:first-child) {
 	margin-block-start: 4px;
 	border-block-start: 1px solid rgba( 128, 128, 128, 0.25 );
 	padding-block-start: 8px;
@@ -529,7 +529,7 @@
  * the close / maximize / minimize cluster by a subtle divider.
  * Sized to meet WCAG 2.2 target size (24x24 minimum).
  * --------------------------------------------------------------- */
-.desktop-mode-window__screen-meta {
+.os-window__screen-meta {
 	display: flex;
 	gap: 4px;
 	align-items: center;
@@ -537,15 +537,15 @@
 	margin-inline-end: 8px;
 	padding-inline-end: 8px;
 	border-inline-end: 1px solid
-		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
+		var( --os-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
 /* Hide the divider when there are no screen-meta buttons. */
-.desktop-mode-window__screen-meta:empty {
+.os-window__screen-meta:empty {
 	display: none;
 }
 
-.desktop-mode-window__meta-btn {
+.os-window__meta-btn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -559,7 +559,7 @@
 	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.desktop-mode-window__meta-btn .dashicons {
+.os-window__meta-btn .dashicons {
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
@@ -573,48 +573,55 @@
 
 /* Focused window: meta buttons visible.
  *
- * Screen-meta buttons are not `<wpd-window-button>` — they are plain
+ * Screen-meta buttons are not `<os-window-button>` — they are plain
  * buttons in the light DOM, so they paint themselves instead of
- * reading the `--wpd-btn-*` bridge. They sit in the same title bar
+ * reading the `--os-ui-btn-*` bridge. They sit in the same title bar
  * against the same fill, so they take the same
- * `--desktop-mode-titlebar-btn-focused-*` tokens, each keeping its own
+ * `--os-titlebar-btn-focused-*` tokens, each keeping its own
  * literal as the fallback: unthemed they stay a touch dimmer at rest
  * than the window controls (0.65 vs 0.7), themed they move together
  * rather than one cluster going legible and the other staying white. */
-.desktop-mode-window--focused .desktop-mode-window__meta-btn {
-	color: var( --desktop-mode-titlebar-btn-focused-color, rgba(255, 255, 255, 0.65) );
+.os-window--focused .os-window__meta-btn {
+	color: var( --os-titlebar-btn-focused-color, rgba(255, 255, 255, 0.65) );
 }
-.desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
-	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
-	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+.os-window--focused .os-window__meta-btn:hover {
+	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
+	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
-.desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
-	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
-	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
-	outline: 2px solid var( --desktop-mode-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
+.os-window--focused .os-window__meta-btn:focus-visible {
+	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
+	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	outline: 2px solid var( --os-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
-.desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
-	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
-	background: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
+.os-window--focused .os-window__meta-btn--active {
+	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
+	background: var( --os-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
-.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__screen-meta {
+.os-window:not(.os-window--focused) .os-window__screen-meta {
 	border-inline-end-color: var(
-		--desktop-mode-titlebar-divider-unfocused,
+		--os-titlebar-divider-unfocused,
 		rgba(0, 0, 0, 0.1)
 	);
 }
-.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn {
-	color: rgba(0, 0, 0, 0.3);
+/*
+ * Screen Options / Help on an UNFOCUSED title bar. These read the same
+ * two tokens as the window controls beside them rather than their own
+ * literals — a black glyph is invisible on a dark title bar, and these
+ * buttons sit in the same strip as controls that were already themable.
+ * The literals are unchanged, so an unthemed bar looks as it always did.
+ */
+.os-window:not(.os-window--focused) .os-window__meta-btn {
+	color: var( --os-titlebar-btn-color, rgba(0, 0, 0, 0.3) );
 }
-.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn:hover {
-	color: rgba(0, 0, 0, 0.6);
-	background: var( --wpd-hover, rgba(0, 0, 0, 0.08) );
+.os-window:not(.os-window--focused) .os-window__meta-btn:hover {
+	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
+	background: var( --os-ui-hover, rgba(0, 0, 0, 0.08) );
 }
-.desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn--active {
-	color: rgba(0, 0, 0, 0.6);
+.os-window:not(.os-window--focused) .os-window__meta-btn--active {
+	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
 	background: rgba(0, 0, 0, 0.12);
 }
 
@@ -624,30 +631,67 @@
  * new window opens. Horizontally scrollable on narrow windows so the
  * same component works on tablet and mobile shells unchanged.
  * --------------------------------------------------------------- */
-.desktop-mode-window__tabs {
+.os-window__tabs {
 	display: flex;
 	flex-shrink: 0;
 	gap: 2px;
 	padding: 0 8px;
-	background-color: var( --desktop-mode-tabs-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	/* TABBAR texture slot — layered over the strip's own colour. */
-	background-image: var( --desktop-mode-tabs-image, none );
-	background-repeat: var( --desktop-mode-tabs-image-repeat, repeat );
-	background-size: var( --desktop-mode-tabs-image-size, auto );
-	background-position: var( --desktop-mode-tabs-image-position, center );
-	border-bottom: 1px solid var(--desktop-mode-window-border);
+	background-image: var( --os-tabs-image, none );
+	background-repeat: var( --os-tabs-image-repeat, repeat );
+	background-size: var( --os-tabs-image-size, auto );
+	background-position: var( --os-tabs-image-position, center );
+	border-bottom: 1px solid var(--os-window-border);
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: thin;
 	/*
-	 * Soft edge fades so overflowing tabs tell the user "scroll for
-	 * more." The mask is always applied — when the strip doesn't
-	 * overflow, the faded ends are empty area beyond the last tab so
-	 * the cosmetic is invisible. When it DOES overflow, the last-
-	 * visible tab fades under the mask, creating the affordance.
 	 * `overscroll-behavior-x: contain` keeps horizontal trackpad
 	 * swipes inside the strip instead of triggering browser back.
 	 */
+	overscroll-behavior-x: contain;
+}
+
+/*
+ * Soft edge fades so overflowing tabs tell the user "scroll for more."
+ *
+ * Each fade is painted ONLY on an edge that is actually hiding a tab.
+ * `observeTabOverflow()` in `src/window/tabs.ts` stamps `data-overflow`
+ * with the physical edges currently covered — `left`, `right`, `both`,
+ * or the attribute dropped when the strip fits — and re-measures on
+ * scroll, on resize, and when tabs are added or removed.
+ *
+ * This used to be one unconditional mask on both ends. The reasoning
+ * was that on a strip that fits, the faded ends land past the last tab
+ * and so fade nothing. That held on the pre-brand light strip, where
+ * the tab bar and the title bar above it were near enough the same
+ * near-white that a mask over empty area was invisible. It stopped
+ * holding on the station: the strip is Obsidian over a darker window
+ * edge, so masking its ends to transparent punches two grey smudges
+ * into every window's submenu, whether or not there is anything to
+ * scroll to. A permanent affordance for a state that is usually false
+ * is not an affordance — it is decoration that lies.
+ */
+.os-window__tabs[ data-overflow='left' ] {
+	mask-image: linear-gradient( to right, transparent 0, #000 16px );
+	-webkit-mask-image: linear-gradient( to right, transparent 0, #000 16px );
+}
+
+.os-window__tabs[ data-overflow='right' ] {
+	mask-image: linear-gradient(
+		to right,
+		#000 calc(100% - 16px),
+		transparent 100%
+	);
+	-webkit-mask-image: linear-gradient(
+		to right,
+		#000 calc(100% - 16px),
+		transparent 100%
+	);
+}
+
+.os-window__tabs[ data-overflow='both' ] {
 	mask-image: linear-gradient(
 		to right,
 		transparent 0,
@@ -662,17 +706,9 @@
 		#000 calc(100% - 16px),
 		transparent 100%
 	);
-	overscroll-behavior-x: contain;
 }
 
-/*
- * When JS assigns the --has-overflow marker (future enhancement), the
- * mask is stronger. For now the CSS-only mask is subtle enough to be
- * invisible on non-overflowing strips — mask cut-offs land outside the
- * flex content.
- */
-
-.desktop-mode-window__tab {
+.os-window__tab {
 	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
@@ -680,7 +716,7 @@
 	padding: 0 12px;
 	border: none;
 	background: transparent;
-	color: var( --desktop-mode-tabs-color, var( --wpd-fg-muted, #50575e ) );
+	color: var( --os-tabs-color, var( --os-ui-fg-muted, #50575e ) );
 	font: inherit;
 	font-size: 12px;
 	line-height: 1;
@@ -691,17 +727,17 @@
 	transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.desktop-mode-window__tab:hover {
+.os-window__tab:hover {
 	color: var(--wp-admin-theme-color, #2271b1);
-	background: var( --wpd-hover, rgba(0, 0, 0, 0.03) );
+	background: var( --os-ui-hover, rgba(0, 0, 0, 0.03) );
 }
 
-.desktop-mode-window__tab:focus-visible {
+.os-window__tab:focus-visible {
 	outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 	outline-offset: -2px;
 }
 
-.desktop-mode-window__tab--active {
+.os-window__tab--active {
 	color: var(--wp-admin-theme-color, #2271b1);
 	border-bottom-color: var(--wp-admin-theme-color, #2271b1);
 	font-weight: 600;
@@ -714,7 +750,7 @@
  * pain for a11y). The tab's click handler routes chip clicks via
  * the `data-tab-action` dataset attribute.
  */
-.desktop-mode-window__tab--external {
+.os-window__tab--external {
 	/* Slightly wider gap between the label and the chip cluster, and
 	 * more breathing room at the trailing edge so the chips aren't
 	 * flush against the tab boundary. */
@@ -722,22 +758,22 @@
 	padding-inline-end: 4px;
 }
 
-.desktop-mode-window__tab-label {
+.os-window__tab-label {
 	max-width: 180px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-/* External-tab action chips moved to `<wpd-tab-chip>`. Spacing
+/* External-tab action chips moved to `<os-tab-chip>`. Spacing
  * between chips handled by a single host-level rule since the
  * component doesn't know about its siblings. */
-wpd-tab-chip + wpd-tab-chip {
+os-tab-chip + os-tab-chip {
 	margin-inline-start: 4px;
 }
 
 /* Window body: contains the iframe. */
-.desktop-mode-window__body {
+.os-window__body {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
@@ -748,25 +784,25 @@ wpd-tab-chip + wpd-tab-chip {
 	 * is why a theme wanting texture everywhere reaches for DESKTOP
 	 * and the chrome slots instead.
 	 */
-	background-image: var( --desktop-mode-window-body-image, none );
-	background-repeat: var( --desktop-mode-window-body-image-repeat, repeat );
-	background-size: var( --desktop-mode-window-body-image-size, auto );
-	background-position: var( --desktop-mode-window-body-image-position, center );
+	background-image: var( --os-window-body-image, none );
+	background-repeat: var( --os-window-body-image-repeat, repeat );
+	background-size: var( --os-window-body-image-size, auto );
+	background-position: var( --os-window-body-image-position, center );
 	/*
-	 * Body typeface. `--wpd-font` is the component kit's own token, so
-	 * one declaration here reaches every `<wpd-*>` element inside the
+	 * Body typeface. `--os-ui-font` is the component kit's own token, so
+	 * one declaration here reaches every `<os-*>` element inside the
 	 * window: shadow DOM inherits `font-family` through the boundary.
 	 */
-	font-family: var( --wpd-font, inherit );
+	font-family: var( --os-ui-font, inherit );
 }
 
 /* Iframe fills the window body. */
-.desktop-mode-window__iframe {
+.os-window__iframe {
 	width: 100%;
 	height: 100%;
 	border: none;
 	display: block;
-	background: var(--desktop-mode-window-bg);
+	background: var(--os-window-bg);
 	opacity: 1;
 	transition: opacity 0.25s ease;
 }
@@ -778,7 +814,7 @@ wpd-tab-chip + wpd-tab-chip {
  * BARE ELEMENT selectors — `h1 { color: #1d2327 }` and
  * `h2, h3 { color: #1d2327 }`. Native windows render in the parent
  * shell rather than in an iframe, so those rules reach straight into
- * our light-DOM window content: an `<h3>` in a `<wpd-card>` came out
+ * our light-DOM window content: an `<h3>` in a `<os-card>` came out
  * near-black on a dark theme while every sibling paragraph correctly
  * followed the palette.
  *
@@ -787,20 +823,20 @@ wpd-tab-chip + wpd-tab-chip {
  *
  *   core `h3`                                        (0,0,1)  must lose
  *   THIS rule                                        (0,0,1)  wins on source order
- *   `.desktop-mode-my-wordpress__user-section h3`    (0,1,1)  must still win
+ *   `.os-my-wordpress__user-section h3`    (0,1,1)  must still win
  *
  * `:where()` contributes zero specificity, so the selector below
  * weighs the same as core's bare `h3` and beats it only because our
  * stylesheet prints later — while any of our own class-scoped heading
  * rules continue to override it. Raising this to a plain
- * `.desktop-mode-window__body h3` would tie with those and break them
+ * `.os-window__body h3` would tie with those and break them
  * depending on file order.
  *
  * The `#1d2327` fallback is core's own value, so with no theme active
  * the computed colour is unchanged.
  */
-:where( .desktop-mode-window__body ) :is( h1, h2, h3, h4, h5, h6 ) {
-	color: var( --wpd-fg, #1d2327 );
+:where( .os-window__body ) :is( h1, h2, h3, h4, h5, h6 ) {
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 /*
@@ -816,17 +852,17 @@ wpd-tab-chip + wpd-tab-chip {
  *
  * Form controls (`input`, `textarea`, `select`) are deliberately NOT
  * included: core styles those through attribute selectors that carry
- * real specificity, native windows overwhelmingly use the `<wpd-*>`
+ * real specificity, native windows overwhelmingly use the `<os-*>`
  * components instead, and a half-applied override there would look
  * worse than leaving them alone.
  */
-:where( .desktop-mode-window__body ) a {
-	color: var( --wpd-accent, #2271b1 );
+:where( .os-window__body ) a {
+	color: var( --os-ui-accent, #2271b1 );
 }
 
-:where( .desktop-mode-window__body ) code {
-	background: var( --wpd-surface-sunken, #f0f0f1 );
-	color: var( --wpd-fg, inherit );
+:where( .os-window__body ) code {
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	color: var( --os-ui-fg, inherit );
 }
 
 /*
@@ -837,16 +873,16 @@ wpd-tab-chip + wpd-tab-chip {
  * color: #1e1e1e; border: 1px solid #949494 }` — which weighs
  * (0,1,1). That beats a plain class selector, so a control our own
  * CSS had already tokenized (My WordPress's search box reads
- * `background: var( --wpd-surface, #fff )` and has done all along)
+ * `background: var( --os-ui-surface, #fff )` and has done all along)
  * still came out white: core simply outranked it.
  *
- * Hence `.desktop-mode-window__body` + `:is( input[type], … )`, which
- * weighs (0,2,1) and wins. `<wpd-*>` form components are untouched —
+ * Hence `.os-window__body` + `:is( input[type], … )`, which
+ * weighs (0,2,1) and wins. `<os-*>` form components are untouched —
  * they live in shadow DOM, where none of this reaches.
  *
  * Fallbacks are core's own values, so an unthemed shell is unchanged.
  */
-.desktop-mode-window__body
+.os-window__body
 	:is(
 		input[ type="text" ],
 		input[ type="search" ],
@@ -863,13 +899,13 @@ wpd-tab-chip + wpd-tab-chip {
 		select,
 		textarea
 	) {
-	background-color: var( --wpd-surface, #fff );
-	color: var( --wpd-fg, #1e1e1e );
-	border-color: var( --wpd-border-strong, #949494 );
+	background-color: var( --os-ui-surface, #fff );
+	color: var( --os-ui-fg, #1e1e1e );
+	border-color: var( --os-ui-border-strong, #949494 );
 }
 
-.desktop-mode-window__body :is( input, textarea )::placeholder {
-	color: var( --wpd-fg-muted, #646970 );
+.os-window__body :is( input, textarea )::placeholder {
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* Cross-window drag drop-overlay rules currently live in windows.css.
@@ -883,7 +919,7 @@ wpd-tab-chip + wpd-tab-chip {
 /*
  * Loading-state overlay — painted by `src/window/dom.ts` into
  * every window's body and removed once the body's content reports
- * ready. The `<wpd-spinner>` inside is sized responsively against
+ * ready. The `<os-spinner>` inside is sized responsively against
  * the window's width via `clamp(96px, 14vw, 192px)` so a tiny
  * popover gets a small spinner and a maximized window gets a big
  * one. Placed above the body content (iframe / native render
@@ -897,14 +933,14 @@ wpd-tab-chip + wpd-tab-chip {
  * fast local-dev loads while still covering the slow production
  * iframe boots that motivated it.
  */
-.desktop-mode-window__loading {
+.os-window__loading {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	pointer-events: none;
-	background: var(--desktop-mode-window-bg);
+	background: var(--os-window-bg);
 	opacity: 0;
 	/* Default (loaded → loading-removed) — fade out immediately. */
 	transition: opacity 0.25s ease;
@@ -921,14 +957,14 @@ wpd-tab-chip + wpd-tab-chip {
  * alongside the spinner overlay: it is chrome, not content, and fading
  * it to transparent would show the very content it exists to cover.
  */
-.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-.desktop-mode-window__body--loading
-	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+.os-window__body--loading > .os-window__iframe,
+.os-window__body--loading
+	> :not(.os-window__loading):not(.os-window__reveal) {
 	opacity: 0;
 	transition: opacity 0.25s ease;
 }
 
-.desktop-mode-window__body--loading > .desktop-mode-window__loading {
+.os-window__body--loading > .os-window__loading {
 	opacity: 1;
 	/* Entry transition with a small delay — loads that finish in
 	 * under ~120ms never paint the spinner, so fast local-dev /
@@ -938,11 +974,11 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-window__iframe,
-	.desktop-mode-window__loading,
-	.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-	.desktop-mode-window__body--loading
-		> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+	.os-window__iframe,
+	.os-window__loading,
+	.os-window__body--loading > .os-window__iframe,
+	.os-window__body--loading
+		> :not(.os-window__loading):not(.os-window__reveal) {
 		transition: none;
 	}
 }
@@ -960,7 +996,7 @@ wpd-tab-chip + wpd-tab-chip {
  * uncovering. Native window content gets the identical treatment for
  * the same reason.
  *
- * `--desktop-mode-window-reveal-surface` is a theme token, white by
+ * `--os-window-reveal-surface` is a theme token, white by
  * default — the surface has to be opaque or there is nothing to reveal
  * from. The EDGE token is `transparent` by default instead, since an
  * edge is an accent rather than the effect itself. Either layer that
@@ -974,11 +1010,11 @@ wpd-tab-chip + wpd-tab-chip {
  * CSS transition cannot express. Reduced motion is handled JS-side by
  * removing the layers instead of animating them.
  */
-.desktop-mode-window__reveal {
+.os-window__reveal {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	background: var( --desktop-mode-window-reveal-surface, #fff );
+	background: var( --os-window-reveal-surface, #fff );
 	z-index: 3;
 }
 
@@ -991,15 +1027,15 @@ wpd-tab-chip + wpd-tab-chip {
  *
  * Behind the surface, still above the content.
  *
- * `--desktop-mode-window-reveal-edge` is `transparent` by default, and
+ * `--os-window-reveal-edge` is `transparent` by default, and
  * the shell drops the layer entirely while it computes that way — so
  * the default costs no element and no animation. Give the token a
  * colour (or a gradient) to turn the edge on across every reveal at
- * once. `--desktop-mode-window-reveal-edge-thickness` tunes how wide
+ * once. `--os-window-reveal-edge-thickness` tunes how wide
  * the band is; `edgeLag: 0` on a def opts a single reveal out.
  */
-.desktop-mode-window__reveal--edge {
-	background: var( --desktop-mode-window-reveal-edge, transparent );
+.os-window__reveal--edge {
+	background: var( --os-window-reveal-edge, transparent );
 	z-index: 2;
 }
 
@@ -1011,7 +1047,7 @@ wpd-tab-chip + wpd-tab-chip {
  * animation would play against a flat colour and the real content
  * would only appear when the layer is finally removed.
  */
-.desktop-mode-window__reveal--custom {
+.os-window__reveal--custom {
 	background: none;
 }
 
@@ -1020,11 +1056,11 @@ wpd-tab-chip + wpd-tab-chip {
  * transition. Dropping `--loading` normally starts a 250 ms content
  * fade-in; a reveal running over that fade would show a
  * half-transparent strip along its leading edge. Beats the base
- * `.desktop-mode-window__iframe` rule on specificity, so no
+ * `.os-window__iframe` rule on specificity, so no
  * `!important` is needed.
  */
-.desktop-mode-window__body--revealing
-	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+.os-window__body--revealing
+	> :not(.os-window__loading):not(.os-window__reveal) {
 	opacity: 1;
 	transition: none;
 }
@@ -1036,7 +1072,7 @@ wpd-tab-chip + wpd-tab-chip {
  * primary iframe around when added to the DOM; `display: none` on
  * inactive iframes is set inline by the JS.
  */
-.desktop-mode-window__iframe--external {
+.os-window__iframe--external {
 	position: absolute;
 	inset: 0;
 }
@@ -1059,13 +1095,13 @@ wpd-tab-chip + wpd-tab-chip {
  * twin in the same compositor frame. At no point is unpainted
  * content the only thing on screen.
  */
-.desktop-mode-window__iframe--buffer {
+.os-window__iframe--buffer {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
 }
 
-.desktop-mode-window__iframe--swap-front {
+.os-window__iframe--swap-front {
 	position: relative;
 	z-index: 1;
 }
@@ -1076,15 +1112,15 @@ wpd-tab-chip + wpd-tab-chip {
  * controls its own scroll; native bodies render real document content
  * that needs the parent to manage overflow.
  */
-.desktop-mode-window__body--native {
+.os-window__body--native {
 	overflow: auto;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	/* background-COLOR, not the shorthand. This is a modifier on the
-	 * SAME element as `.desktop-mode-window__body`, at the same
+	 * SAME element as `.os-window__body`, at the same
 	 * specificity and later in source order — the shorthand would
 	 * reset the WINDOW_BODY texture declared there, which is exactly
 	 * the surface native windows exist to show. */
-	background-color: var(--desktop-mode-window-bg);
+	background-color: var(--os-window-bg);
 }
 
 /*
@@ -1118,10 +1154,10 @@ wpd-tab-chip + wpd-tab-chip {
  * present, they sit inline next to the title (left slot) or just
  * before the window controls (right slot).
  */
-.desktop-mode-window__custom-buttons {
+.os-window__custom-buttons {
 	display: contents;
 }
-.desktop-mode-window__btn--custom {
+.os-window__btn--custom {
 	margin: 0 2px;
 }
 /*
@@ -1145,7 +1181,7 @@ wpd-tab-chip + wpd-tab-chip {
  * a bare `<svg>` would otherwise size to its viewBox or default
  * to 300×150 (the spec default) and overflow the button.
  */
-.desktop-mode-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
+.os-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
 	width: 18px;
 	height: 18px;
 	display: block;
@@ -1158,12 +1194,12 @@ wpd-tab-chip + wpd-tab-chip {
  * Driven by `aria-busy="true"` + this class, both set by the button's
  * render callback.
  */
-.desktop-mode-window__btn--busy {
-	animation: desktop-mode-btn-busy-pulse 1s ease-in-out infinite;
+.os-window__btn--busy {
+	animation: os-btn-busy-pulse 1s ease-in-out infinite;
 	pointer-events: none;
 }
 
-@keyframes desktop-mode-btn-busy-pulse {
+@keyframes os-btn-busy-pulse {
 	0%,
 	100% {
 		opacity: 1;
@@ -1175,7 +1211,7 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.desktop-mode-window__btn--busy {
+	.os-window__btn--busy {
 		animation: none;
 		opacity: 0.6;
 	}
@@ -1188,7 +1224,7 @@ wpd-tab-chip + wpd-tab-chip {
  * pointer events so its explanatory tooltip/toast still works;
  * `aria-disabled` carries the semantics.
  */
-.desktop-mode-window__btn--disabled {
+.os-window__btn--disabled {
 	opacity: 0.4;
 	cursor: default;
 }
@@ -1197,10 +1233,10 @@ wpd-tab-chip + wpd-tab-chip {
  * Custom-chrome marker — hides every framework-shipped titlebar
  * child while a plugin's chrome is mounted.
  *
- * The window gets the `desktop-mode-window--custom-chrome` class the
+ * The window gets the `os-window--custom-chrome` class the
  * moment `mountWindowChrome` succeeds (BEFORE the plugin's
  * `render()` runs). Default children carry the
- * `data-desktop-mode-default-chrome` attribute stamped at element-
+ * `data-os-default-chrome` attribute stamped at element-
  * creation time. The combination is a load-bearing guarantee:
  * even if the plugin's render() doesn't clear `titlebar.innerHTML`,
  * even if a plugin's destroy() leaks the standard chrome back into
@@ -1216,9 +1252,9 @@ wpd-tab-chip + wpd-tab-chip {
  * @since 0.18.0
  * ---------------------------------------------------------------- */
 
-.desktop-mode-window--custom-chrome
-	> .desktop-mode-window__titlebar
-	> [ data-desktop-mode-default-chrome ] {
+.os-window--custom-chrome
+	> .os-window__titlebar
+	> [ data-os-default-chrome ] {
 	display: none !important;
 }
 
@@ -1236,7 +1272,7 @@ wpd-tab-chip + wpd-tab-chip {
  *
  *   2. While the window body is in the `--loading` state (set by
  *      `markContentLoading()` and cleared on the iframe's
- *      `desktop-mode-ready` postMessage), the button is dimmed and
+ *      `os-ready` postMessage), the button is dimmed and
  *      non-interactive so a second click can't desync the
  *      chromeless bridge's loading handshake.
  *
@@ -1246,8 +1282,8 @@ wpd-tab-chip + wpd-tab-chip {
  * fall back to a static dimmed button — feature, not bug.
  * --------------------------------------------------------------- */
 
-.desktop-mode-window:has( .desktop-mode-window__body--loading )
-	.desktop-mode-window__btn--reload {
+.os-window:has( .os-window__body--loading )
+	.os-window__btn--reload {
 	pointer-events: none;
 	opacity: 0.55;
 }
@@ -1262,11 +1298,11 @@ wpd-tab-chip + wpd-tab-chip {
  * duration is short enough to never block the user but long enough
  * that the deceleration is legible.
  */
-.desktop-mode-window__btn--reload.desktop-mode-window__btn--spinning {
-	animation: wpd-reload-spin-once 0.6s cubic-bezier( 0.05, 0.7, 0.1, 1 );
+.os-window__btn--reload.os-window__btn--spinning {
+	animation: os-reload-spin-once 0.6s cubic-bezier( 0.05, 0.7, 0.1, 1 );
 }
 
-@keyframes wpd-reload-spin-once {
+@keyframes os-reload-spin-once {
 	from {
 		transform: rotate( 0deg );
 	}
@@ -1276,7 +1312,7 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-window__btn--reload.desktop-mode-window__btn--spinning {
+	.os-window__btn--reload.os-window__btn--spinning {
 		animation: none;
 	}
 }

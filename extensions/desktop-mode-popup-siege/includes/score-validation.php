@@ -2,7 +2,7 @@
 /**
  * Server-side plausibility checks for Popup Siege scores.
  *
- * @package DesktopModePopupSiege
+ * @package OpenStationPopupSiege
  */
 
 defined( 'ABSPATH' ) || exit;

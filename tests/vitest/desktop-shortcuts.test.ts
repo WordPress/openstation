@@ -130,12 +130,12 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-right',
+					'os-area--sliding-from-right',
 				),
 			).toBe( true );
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-left',
+					'os-area--sliding-from-left',
 				),
 			).toBe( false );
 		} );
@@ -148,12 +148,12 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-left',
+					'os-area--sliding-from-left',
 				),
 			).toBe( true );
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-right',
+					'os-area--sliding-from-right',
 				),
 			).toBe( false );
 		} );
@@ -168,7 +168,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-right',
+					'os-area--sliding-from-right',
 				),
 			).toBe( true );
 		} );
@@ -181,12 +181,12 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-right',
+					'os-area--sliding-from-right',
 				),
 			).toBe( false );
 			expect(
 				desktopArea.classList.contains(
-					'desktop-mode-area--sliding-from-left',
+					'os-area--sliding-from-left',
 				),
 			).toBe( false );
 		} );
@@ -380,12 +380,12 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			cycleOverviewCursor( manager, 'next' ); // D1 → +
 
 			const addTile = manager._overviewTopBar!.querySelector< HTMLElement >(
-				'.desktop-mode-overview-top-bar__tile--add',
+				'.os-overview-top-bar__tile--add',
 			);
 			expect( addTile ).not.toBeNull();
 			expect(
 				addTile!.classList.contains(
-					'desktop-mode-overview-top-bar__tile--cursor',
+					'os-overview-top-bar__tile--cursor',
 				),
 			).toBe( true );
 		} );
@@ -399,7 +399,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			expect( manager._overviewAddTileFocused ).toBe( true );
 
 			const activeTiles = manager._overviewTopBar!.querySelectorAll(
-				'.desktop-mode-overview-top-bar__tile--active',
+				'.os-overview-top-bar__tile--active',
 			);
 			// No desktop tile should still be highlighted — only the
 			// "+" carries the keyboard cursor's visual weight.
@@ -414,7 +414,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			cycleOverviewCursor( manager, 'next' ); // + → D1 (wrap)
 
 			const activeTile = manager._overviewTopBar!.querySelector< HTMLElement >(
-				'.desktop-mode-overview-top-bar__tile--active',
+				'.os-overview-top-bar__tile--active',
 			);
 			expect( activeTile?.dataset.desktopId ).toBe( 'desktop-1' );
 		} );
@@ -471,7 +471,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			manager.enterOverview();
 			expect(
-				a.element.classList.contains( 'desktop-mode-window--overview' ),
+				a.element.classList.contains( 'os-window--overview' ),
 			).toBe( true );
 			expect( b.element.style.display ).toBe( 'none' );
 
@@ -481,11 +481,11 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			// New active desktop's window has the overview class; the
 			// previous one has been cleared and hidden.
 			expect(
-				b.element.classList.contains( 'desktop-mode-window--overview' ),
+				b.element.classList.contains( 'os-window--overview' ),
 			).toBe( true );
 			expect( a.element.style.display ).toBe( 'none' );
 			expect(
-				a.element.classList.contains( 'desktop-mode-window--overview' ),
+				a.element.classList.contains( 'os-window--overview' ),
 			).toBe( false );
 		} );
 
@@ -496,7 +496,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			const bar = manager._overviewTopBar!;
 			expect( bar ).not.toBeNull();
 			const activeBefore = bar.querySelector< HTMLElement >(
-				'.desktop-mode-overview-top-bar__tile--active',
+				'.os-overview-top-bar__tile--active',
 			);
 			expect( activeBefore?.dataset.desktopId ).toBe( 'desktop-1' );
 
@@ -505,7 +505,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			// Bar was re-rendered in place — fetch the new node.
 			const refreshed = manager._overviewTopBar!;
 			const activeAfter = refreshed.querySelector< HTMLElement >(
-				'.desktop-mode-overview-top-bar__tile--active',
+				'.os-overview-top-bar__tile--active',
 			);
 			expect( activeAfter?.dataset.desktopId ).toBe( 'desktop-2' );
 		} );

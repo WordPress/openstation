@@ -1,13 +1,13 @@
 <?php
 /**
- * Desktop Mode — Pinned notes bootstrap.
+ * OpenStation — Pinned notes bootstrap.
  *
  * Wires the pinned-notes feature: the `wpd_note` CPT, the REST
  * controller, and the Heartbeat delta sync. The Note Pad widget that
  * creates notes registers separately in
  * `includes/widgets/widget-notes.php`.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

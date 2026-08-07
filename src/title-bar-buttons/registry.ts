@@ -30,8 +30,8 @@ export interface TitleBarButtonDef {
 	 * Unique id matching `/^[a-z0-9_/-]+$/` (lower-case alphanum +
 	 * hyphen + underscore + slash). Slashes are accepted so plugin
 	 * authors can use the same `vendor/sub-id` namespacing
-	 * convention as `desktop_mode_register_window( 'wpglp/preview' )`,
-	 * `desktop_mode_register_widget( 'myplugin/stats' )`, etc.
+	 * convention as `openstation_register_window( 'wpglp/preview' )`,
+	 * `openstation_register_widget( 'myplugin/stats' )`, etc.
 	 *
 	 * Same shape every other JS-side registry now uses
 	 * (`registerCommand`, etc.) — slugs are routinely namespaced
@@ -54,7 +54,7 @@ export interface TitleBarButtonDef {
 	 *     not sanitise the SVG.
 	 *   - **Built-in key** — `'minimize'` / `'maximize'` /
 	 *     `'fullscreen'` / `'fullscreen-exit'` / `'detach'` /
-	 *     `'close'` / `'menu'`. Forwarded as the `<wpd-window-button>`
+	 *     `'close'` / `'menu'`. Forwarded as the `<os-window-button>`
 	 *     `icon` attribute, which paints the corresponding inline
 	 *     SVG from the component's built-in icon map.
 	 *
@@ -77,8 +77,8 @@ export interface TitleBarButtonDef {
 	match: ( window: DesktopWindow ) => boolean;
 	/**
 	 * Click handler. Called **exactly once per user activation** —
-	 * the registry wires it to the `<wpd-window-button>`'s
-	 * `wpd-button-activate` CustomEvent rather than raw `click`,
+	 * the registry wires it to the `<os-window-button>`'s
+	 * `os-button-activate` CustomEvent rather than raw `click`,
 	 * which means no double-firing if you also bind `pointerup` for
 	 * unrelated reasons, no swallowed clicks when the title-bar's
 	 * drag tracker captured the pointer, no racing.
@@ -89,19 +89,19 @@ export interface TitleBarButtonDef {
 	 *
 	 * The `ev` parameter is typed as `MouseEvent` for ergonomics
 	 * (existing plugin code that probes `ev.metaKey` / `ev.shiftKey`
-	 * keeps working) but at runtime it's a `wpd-button-activate`
+	 * keeps working) but at runtime it's a `os-button-activate`
 	 * CustomEvent — the original click's modifier keys aren't
 	 * preserved. If you need them, use `render` and listen to
 	 * native `click` directly.
 	 */
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
 	/**
-	 * Custom render. Receives the host element (a `<wpd-window-button>`)
+	 * Custom render. Receives the host element (a `<os-window-button>`)
 	 * and the window. Use for buttons that own their own DOM.
 	 *
 	 * When defined, `onClick` is ignored — your handler binds directly
 	 * to the host. The host already carries the icon, label, and the
-	 * `desktop-mode-window__btn` class; you typically only need to add
+	 * `os-window__btn` class; you typically only need to add
 	 * a click listener for a popover anchor.
 	 */
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
@@ -118,7 +118,7 @@ export interface TitleBarButtonDef {
  * Cross-bundle shared backing store. The lazy
  * `window-system[.min].js` bundle constructs/reads from this
  * registry while main writes to it via `registerBuiltIn*` and
- * `wp.desktop.register*` — each bundle would otherwise see its
+ * `wp.os.register*` — each bundle would otherwise see its
  * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
  * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
  * pattern.
@@ -267,7 +267,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] title-bar-button registry listener threw:',
+					'[openstation] title-bar-button registry listener threw:',
 					err,
 				);
 			}

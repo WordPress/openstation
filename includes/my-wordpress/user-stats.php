@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-user stats endpoint.
+ * OpenStation — My WordPress: per-user stats endpoint.
  *
  * `GET /desktop-mode/v1/user-stats/<id>` returns an aggregated
  * profile + activity blob for the requested user. The right
@@ -15,7 +15,7 @@
  * published-only counts and recent posts). Sensitive fields
  * (email, registered date, role) are gated on the cap.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,13 +23,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function desktop_mode_my_wordpress_register_user_stats_route() {
+function openstation_my_wordpress_register_user_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/user-stats/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'desktop_mode_my_wordpress_user_stats_callback',
+			'callback'            => 'openstation_my_wordpress_user_stats_callback',
 			'permission_callback' => static function () {
 				// Logged-in users only — author archives are public,
 				// but the dossier mixes counts that aren't.
@@ -45,7 +45,7 @@ function desktop_mode_my_wordpress_register_user_stats_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_route' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_user_stats_route' );
 
 /**
  * Aggregator callback. Returns the dossier shape (see file
@@ -54,13 +54,13 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_rout
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function desktop_mode_my_wordpress_user_stats_callback( $request ) {
+function openstation_my_wordpress_user_stats_callback( $request ) {
 	global $wpdb;
 	$user_id = (int) $request->get_param( 'id' );
 	$user    = get_userdata( $user_id );
 	if ( ! $user ) {
 		return new WP_Error(
-			'desktop_mode_user_not_found',
+			'openstation_user_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -109,7 +109,7 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$post_counts = array(
+	$post_counts      = array(
 		'publish' => 0,
 		'draft'   => 0,
 		'pending' => 0,
@@ -118,9 +118,9 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		'total'   => 0,
 	);
 	foreach ( (array) $post_status_rows as $row ) {
-		$status                 = (string) $row['post_status'];
-		$n                      = (int) $row['n'];
-		$post_counts['total']  += $n;
+		$status                = (string) $row['post_status'];
+		$n                     = (int) $row['n'];
+		$post_counts['total'] += $n;
 		if ( isset( $post_counts[ $status ] ) ) {
 			$post_counts[ $status ] = $n;
 		}
@@ -139,15 +139,15 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$page_counts = array(
+	$page_counts      = array(
 		'publish' => 0,
 		'draft'   => 0,
 		'total'   => 0,
 	);
 	foreach ( (array) $page_status_rows as $row ) {
-		$status                 = (string) $row['post_status'];
-		$n                      = (int) $row['n'];
-		$page_counts['total']  += $n;
+		$status                = (string) $row['post_status'];
+		$n                     = (int) $row['n'];
+		$page_counts['total'] += $n;
 		if ( isset( $page_counts[ $status ] ) ) {
 			$page_counts[ $status ] = $n;
 		}
@@ -237,7 +237,7 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 			'suppress_filters' => false,
 		)
 	);
-	$recent = array();
+	$recent       = array();
 	foreach ( (array) $recent_posts as $p ) {
 		if ( ! ( $p instanceof WP_Post ) ) {
 			continue;
@@ -271,7 +271,7 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$top_terms = array();
+	$top_terms     = array();
 	foreach ( (array) $top_term_rows as $row ) {
 		$top_terms[] = array(
 			'id'       => (int) $row['term_id'],
@@ -299,7 +299,7 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$activity = array();
+	$activity      = array();
 	foreach ( (array) $activity_rows as $row ) {
 		$activity[] = array(
 			'ym'    => (string) $row['ym'],
@@ -316,7 +316,7 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 			$user_id
 		)
 	);
-	$last_post = $wpdb->get_var(
+	$last_post  = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX(post_date_gmt) FROM {$wpdb->posts}
 			WHERE post_author = %d AND post_type IN ( 'post', 'page' ) AND post_status = 'publish'",
@@ -346,5 +346,5 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 	 * @param array $payload Stats payload.
 	 * @param int   $user_id Subject user id.
 	 */
-	return apply_filters( 'desktop_mode_my_wordpress_user_stats', $payload, $user_id );
+	return apply_filters( 'openstation_my_wordpress_user_stats', $payload, $user_id );
 }

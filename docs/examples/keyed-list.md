@@ -33,7 +33,7 @@ or removed. Listeners attached when a node was first built survive
 every subsequent re-render.
 
 ```ts
-import { renderKeyedList } from 'desktop-mode';
+import { renderKeyedList } from 'openstation';
 
 const host = document.querySelector( '#my-list' )!;
 
@@ -115,4 +115,4 @@ function clearKeyedList( host: HTMLElement ): void;
 ## Related
 
 - [`docs/javascript-reference.md`](../javascript-reference.md) — the
-  `wp.desktop.renderKeyedList()` / `clearKeyedList()` API reference.
+  `wp.os.renderKeyedList()` / `clearKeyedList()` API reference.

@@ -1,35 +1,65 @@
 <?php
 /**
- * Desktop Mode — Session Persistence.
+ * OpenStation — Session Persistence.
  *
  * Persists each user's open desktop windows — URLs, positions, sizes,
  * states, and which window was focused — to user meta so a session can
- * be restored across page loads and, via the `/desktop-mode` portal,
+ * be restored across page loads and, via the `/openstation` portal,
  * across devices. Cross-device viewport adaptation (a window that sat
  * in the far-right corner of a 3440px ultrawide landing sanely on a
  * 1280px laptop) happens client-side on restore.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** User meta key holding the serialized desktop session. */
-const DESKTOP_MODE_SESSION_META_KEY = 'desktop_mode_session';
+/**
+ * User meta key holding the serialized desktop session.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_SESSION_META_KEY = 'desktop_mode_session';
 
 /** Hard cap on persisted windows — guards against runaway meta size. */
-const DESKTOP_MODE_SESSION_MAX_WINDOWS = 32;
+const OPENSTATION_SESSION_MAX_WINDOWS = 32;
+
+/**
+ * Hard cap on a native window's persisted open-time params. These are
+ * "which user / which customer / which tab" — a handful of scalars,
+ * never a payload. The cap is what stops a careless (or hostile)
+ * client turning the session blob into a data store.
+ */
+const OPENSTATION_SESSION_MAX_PARAMS = 12;
 
 /** Hard cap on persisted desktops ("Spaces"). Generous — power-users
  * with 8+ desktops are vanishingly rare, and we'd rather drop tail
  * desktops than balloon user meta. */
-const DESKTOP_MODE_SESSION_MAX_DESKTOPS = 16;
+const OPENSTATION_SESSION_MAX_DESKTOPS = 16;
 
 /** Allowed values for a window's state field. */
-const DESKTOP_MODE_SESSION_STATES = array( 'normal', 'minimized', 'maximized', 'fullscreen' );
+const OPENSTATION_SESSION_STATES = array( 'normal', 'minimized', 'maximized', 'fullscreen' );
+
+/**
+ * Current time as epoch milliseconds.
+ *
+ * The session's `updated` field is the ordering key for the
+ * stale-write guard and the client stamps it with `Date.now()`.
+ * Server-side fallbacks have to speak the same unit — see
+ * {@see openstation_save_session()} for why the resolution matters.
+ *
+ * @return int Epoch milliseconds.
+ */
+function openstation_session_now_ms() {
+	return (int) round( microtime( true ) * 1000 );
+}
 
 /** Default desktop entry seeded into empty / corrupt sessions. */
-function desktop_mode_default_desktop() {
+function openstation_default_desktop() {
 	return array(
 		'id'    => 'desktop-1',
 		'label' => 'Desktop 1',
@@ -45,10 +75,10 @@ function desktop_mode_default_desktop() {
  *
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
-function desktop_mode_empty_session() {
+function openstation_empty_session() {
 	return array(
 		'windows'       => array(),
-		'desktops'      => array( desktop_mode_default_desktop() ),
+		'desktops'      => array( openstation_default_desktop() ),
 		'activeDesktop' => 'desktop-1',
 		'focused'       => '',
 		'updated'       => 0,
@@ -64,24 +94,24 @@ function desktop_mode_empty_session() {
  * @param int $user_id The user ID.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
-function desktop_mode_get_session( $user_id ) {
+function openstation_get_session( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
-		return desktop_mode_empty_session();
+		return openstation_empty_session();
 	}
 
-	$raw = get_user_meta( $user_id, DESKTOP_MODE_SESSION_META_KEY, true );
+	$raw = get_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, true );
 	if ( ! is_array( $raw ) ) {
-		return desktop_mode_empty_session();
+		return openstation_empty_session();
 	}
 
 	// Desktops + activeDesktop are post-0.4.0 additions. Sessions
 	// saved before they existed don't carry either field — fall back
 	// to the single default desktop so older sessions degrade
 	// gracefully rather than booting into a zero-desktop limbo.
-	$desktops      = isset( $raw['desktops'] ) && is_array( $raw['desktops'] )
+	$desktops       = isset( $raw['desktops'] ) && is_array( $raw['desktops'] )
 		? array_values( $raw['desktops'] )
-		: array( desktop_mode_default_desktop() );
+		: array( openstation_default_desktop() );
 	$active_desktop = isset( $raw['activeDesktop'] ) ? (string) $raw['activeDesktop'] : 'desktop-1';
 
 	return array(
@@ -99,18 +129,31 @@ function desktop_mode_get_session( $user_id ) {
  * Rejects writes whose `updated` timestamp is older than what's
  * already on file — a simple last-write-wins guard that prevents two
  * tabs open on the same user from clobbering each other. The client
- * stamps `updated` with `Math.floor(Date.now() / 1000)` at snapshot
- * time (see `WindowManager.snapshot`), so this comparison lines up
- * with real wall-clock ordering on same-machine multi-tab setups.
+ * stamps `updated` with `Date.now()` — epoch MILLISECONDS — at
+ * snapshot time (see `WindowManager.snapshot`), so this comparison
+ * lines up with real wall-clock ordering on same-machine multi-tab
+ * setups.
  *
- * Equal timestamps (two writes in the same second) are accepted —
- * that's a tie and whichever the server processes first wins.
+ * Millisecond resolution is load-bearing, not cosmetic. The two
+ * writes that race hardest are a `keepalive` fetch still in flight
+ * and the `pagehide` beacon that supersedes it; at second resolution
+ * they tie, and the tie rule below hands the win to whichever the
+ * server processes last — which can be the stale one, reinstating a
+ * window the user just closed.
+ *
+ * Sessions written before the switch carry a seconds value. Those are
+ * ~1000x smaller than any millisecond stamp, so the first write after
+ * an upgrade always wins — which is the correct outcome for a stamp
+ * that is genuinely older.
+ *
+ * Equal timestamps are still accepted — that's a tie and whichever the
+ * server processes first wins.
  *
  * @param int   $user_id The user ID.
  * @param array $session Raw session payload (will be sanitized).
  * @return bool True on success, false when stale / invalid / failed.
  */
-function desktop_mode_save_session( $user_id, $session ) {
+function openstation_save_session( $user_id, $session ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
@@ -119,7 +162,7 @@ function desktop_mode_save_session( $user_id, $session ) {
 	if ( is_array( $session ) && isset( $session['updated'] ) ) {
 		$incoming = (int) $session['updated'];
 		if ( $incoming > 0 ) {
-			$existing = desktop_mode_get_session( $user_id );
+			$existing = openstation_get_session( $user_id );
 			$stored   = isset( $existing['updated'] ) ? (int) $existing['updated'] : 0;
 			if ( $incoming < $stored ) {
 				// Stale write — another tab saved a newer snapshot
@@ -130,9 +173,9 @@ function desktop_mode_save_session( $user_id, $session ) {
 		}
 	}
 
-	$clean = desktop_mode_sanitize_session( $session );
+	$clean = openstation_sanitize_session( $session );
 
-	return false !== update_user_meta( $user_id, DESKTOP_MODE_SESSION_META_KEY, $clean );
+	return false !== update_user_meta( $user_id, OPENSTATION_SESSION_META_KEY, $clean );
 }
 
 /**
@@ -141,12 +184,12 @@ function desktop_mode_save_session( $user_id, $session ) {
  * @param int $user_id The user ID.
  * @return bool True on success.
  */
-function desktop_mode_clear_session( $user_id ) {
+function openstation_clear_session( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return (bool) delete_user_meta( $user_id, DESKTOP_MODE_SESSION_META_KEY );
+	return (bool) delete_user_meta( $user_id, OPENSTATION_SESSION_META_KEY );
 }
 
 /**
@@ -154,24 +197,27 @@ function desktop_mode_clear_session( $user_id ) {
  *
  * Rejects windows whose `url` isn't a same-origin admin URL, clamps
  * geometry to sane integer ranges, and normalizes the state enum.
- * Windows beyond {@see DESKTOP_MODE_SESSION_MAX_WINDOWS} are dropped.
+ * Windows beyond {@see OPENSTATION_SESSION_MAX_WINDOWS} are dropped.
  *
  * @param mixed $session Raw session data from the client.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
-function desktop_mode_sanitize_session( $session ) {
-	$clean = desktop_mode_empty_session();
+function openstation_sanitize_session( $session ) {
+	$clean = openstation_empty_session();
 
 	if ( ! is_array( $session ) ) {
-		$clean['updated'] = time();
+		$clean['updated'] = openstation_session_now_ms();
 		return $clean;
 	}
 
 	// Preserve the client's `updated` timestamp so the stale-write guard
-	// in desktop_mode_save_session compares client-to-client (not client-to-server
-	// wallclock) — two saves landing in the same second must tie, not lose.
+	// in openstation_save_session compares client-to-client (not client-to-server
+	// wallclock) — two saves landing in the same millisecond must tie, not lose.
+	// The fallback matches the client's unit (epoch milliseconds); mixing
+	// units here would store a seconds value that every later comparison
+	// treats as ancient, quietly disabling the guard.
 	$incoming_updated = isset( $session['updated'] ) ? (int) $session['updated'] : 0;
-	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : time();
+	$clean['updated'] = $incoming_updated > 0 ? $incoming_updated : openstation_session_now_ms();
 
 	if ( isset( $session['focused'] ) && is_string( $session['focused'] ) ) {
 		$clean['focused'] = sanitize_key( $session['focused'] );
@@ -207,8 +253,8 @@ function desktop_mode_sanitize_session( $session ) {
 				'id'    => $d_id,
 				'label' => $d_label,
 			);
-			$desktop_ids[] = $d_id;
-			if ( count( $clean_desktops ) >= DESKTOP_MODE_SESSION_MAX_DESKTOPS ) {
+			$desktop_ids[]    = $d_id;
+			if ( count( $clean_desktops ) >= OPENSTATION_SESSION_MAX_DESKTOPS ) {
 				break;
 			}
 		}
@@ -220,7 +266,7 @@ function desktop_mode_sanitize_session( $session ) {
 	// against a client clearing every desktop and saving an empty
 	// list, or omitting the key entirely.
 	if ( empty( $clean['desktops'] ) ) {
-		$clean['desktops'] = array( desktop_mode_default_desktop() );
+		$clean['desktops'] = array( openstation_default_desktop() );
 	}
 	if ( empty( $desktop_ids ) ) {
 		// Rebuild ids from the authoritative desktops list so the
@@ -247,11 +293,11 @@ function desktop_mode_sanitize_session( $session ) {
 			$clean['activeDesktop'] = $candidate;
 		}
 	}
-	// Fallback: first valid desktop. Already true via desktop_mode_empty_session
+	// Fallback: first valid desktop. Already true via openstation_empty_session
 	// when the client passed nothing, but guards the case where
 	// activeDesktop named a desktop that didn't survive sanitization.
 	if ( ! in_array( $clean['activeDesktop'], $desktop_ids, true ) ) {
-		$clean['activeDesktop'] = $desktop_ids[ 0 ];
+		$clean['activeDesktop'] = $desktop_ids[0];
 	}
 
 	if ( isset( $session['windows'] ) && is_array( $session['windows'] ) ) {
@@ -275,7 +321,7 @@ function desktop_mode_sanitize_session( $session ) {
 			}
 
 			// Native windows (OS Settings, Bug Report, anything from
-			// `desktop_mode_register_window()`) carry no admin URL —
+			// `openstation_register_window()`) carry no admin URL —
 			// the shell reconstructs them from the registry by id. Their
 			// `url` is a `#slug` marker, which would fail the same-admin
 			// check below and drop the window from the session entirely.
@@ -294,21 +340,21 @@ function desktop_mode_sanitize_session( $session ) {
 				// and a guarantee the restore path won't try to iframe a
 				// cross-origin page. Host+path parsing rejects tricks like
 				// `//evil.com/wp-admin/…` that a raw prefix check would miss.
-				if ( '' === $url || ! desktop_mode_url_is_same_admin( $url ) ) {
+				if ( '' === $url || ! openstation_url_is_same_admin( $url ) ) {
 					continue;
 				}
 				// Strip transient/routing flags before storage. The chromeless
-				// `desktop_mode_chromeless` flag is an iframe-only concern and must never
+				// `openstation_chromeless` flag is an iframe-only concern and must never
 				// end up in a top-level URL (e.g., the portal's entry URL);
 				// the portal and classic flags only live on a single request.
 				$url = remove_query_arg(
-					array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
+					array( 'openstation_chromeless', OPENSTATION_PORTAL_FLAG, OPENSTATION_CLASSIC_FLAG ),
 					$url
 				);
 			}
 
 			$state = isset( $win['state'] ) ? (string) $win['state'] : 'normal';
-			if ( ! in_array( $state, DESKTOP_MODE_SESSION_STATES, true ) ) {
+			if ( ! in_array( $state, OPENSTATION_SESSION_STATES, true ) ) {
 				$state = 'normal';
 			}
 
@@ -330,10 +376,10 @@ function desktop_mode_sanitize_session( $session ) {
 				'title'     => isset( $win['title'] ) ? wp_strip_all_tags( (string) $win['title'] ) : '',
 				'icon'      => isset( $win['icon'] ) ? sanitize_html_class( (string) $win['icon'] ) : 'dashicons-admin-generic',
 				'state'     => $state,
-				'x'         => desktop_mode_sanitize_session_dimension( $win['x'] ?? 0, -10000, 10000 ),
-				'y'         => desktop_mode_sanitize_session_dimension( $win['y'] ?? 0, -10000, 10000 ),
-				'width'     => desktop_mode_sanitize_session_dimension( $win['width'] ?? 800, 0, 20000 ),
-				'height'    => desktop_mode_sanitize_session_dimension( $win['height'] ?? 600, 0, 20000 ),
+				'x'         => openstation_sanitize_session_dimension( $win['x'] ?? 0, -10000, 10000 ),
+				'y'         => openstation_sanitize_session_dimension( $win['y'] ?? 0, -10000, 10000 ),
+				'width'     => openstation_sanitize_session_dimension( $win['width'] ?? 800, 0, 20000 ),
+				'height'    => openstation_sanitize_session_dimension( $win['height'] ?? 600, 0, 20000 ),
 			);
 
 			// Marks the entry for the shell's restore path: native
@@ -342,6 +388,25 @@ function desktop_mode_sanitize_session( $session ) {
 			// sessions of plain admin windows keep their existing shape.
 			if ( $is_native ) {
 				$entry['native'] = true;
+
+				// A native window's open-time arguments: WHAT it is
+				// showing, as opposed to what it is. A native window
+				// is addressed by id, and its id is its identity
+				// (`desktop-mode-user-edit` is "the profile editor",
+				// not "the profile editor for user 12"), so a
+				// singleton that retargets has nowhere else to record
+				// its subject. Drop these and the window restores onto
+				// its default — the profile window comes back showing
+				// whoever is logged in, the customer window comes back
+				// empty.
+				//
+				// Only for native entries: an iframe window's URL
+				// already says what it shows, and it round-trips on
+				// its own.
+				$params = openstation_sanitize_session_params( $win['params'] ?? null );
+				if ( ! empty( $params ) ) {
+					$entry['params'] = $params;
+				}
 			}
 
 			// Sanitize external sub-tabs. Each entry carries a URL
@@ -389,7 +454,7 @@ function desktop_mode_sanitize_session( $session ) {
 
 			$clean['windows'][] = $entry;
 
-			if ( count( $clean['windows'] ) >= DESKTOP_MODE_SESSION_MAX_WINDOWS ) {
+			if ( count( $clean['windows'] ) >= OPENSTATION_SESSION_MAX_WINDOWS ) {
 				break;
 			}
 		}
@@ -418,7 +483,7 @@ function desktop_mode_sanitize_session( $session ) {
  * @param int   $max   Maximum allowed value.
  * @return int The clamped integer.
  */
-function desktop_mode_sanitize_session_dimension( $value, $min, $max ) {
+function openstation_sanitize_session_dimension( $value, $min, $max ) {
 	if ( is_string( $value ) ) {
 		$value = trim( $value );
 	}
@@ -436,23 +501,83 @@ function desktop_mode_sanitize_session_dimension( $value, $min, $max ) {
 }
 
 /**
+ * Sanitize a native window's open-time params.
+ *
+ * These say WHAT a native window is showing (`{ userId: 12 }`,
+ * `{ customerId: 7 }`) as opposed to what it is — see
+ * `WindowConfig.params` on the JS side. They come from the client, so
+ * they are untrusted, unbounded, and arbitrarily nested unless this
+ * says otherwise.
+ *
+ * The rules mirror the client's own sanitizer so both ends agree on
+ * what survives: scalar values only (string, finite number, bool),
+ * and hard caps on both the number of keys and the length of a string
+ * value. Anything else is dropped rather than rejected — one careless
+ * value from a plugin must not cost the user every window's geometry.
+ *
+ * Keys are filtered to `[A-Za-z0-9_-]` rather than passed through
+ * `sanitize_key()`, which **lowercases**. Every param name in the
+ * shell is camelCase (`customerId`, `userId`), so lowercasing would
+ * store `customerid` and the client's `params.customerId` would read
+ * `undefined` — a window that restores blank, with the data sitting
+ * right there under a name nobody looks up.
+ *
+ * @param mixed $params Raw params from the payload.
+ * @return array Sanitized params, possibly empty.
+ */
+function openstation_sanitize_session_params( $params ) {
+	if ( ! is_array( $params ) ) {
+		return array();
+	}
+
+	$clean = array();
+	foreach ( $params as $key => $value ) {
+		if ( count( $clean ) >= OPENSTATION_SESSION_MAX_PARAMS ) {
+			break;
+		}
+		$key = substr( preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $key ), 0, 64 );
+		if ( '' === $key ) {
+			continue;
+		}
+		if ( is_bool( $value ) ) {
+			$clean[ $key ] = $value;
+			continue;
+		}
+		if ( is_int( $value ) || is_float( $value ) ) {
+			if ( is_finite( (float) $value ) ) {
+				$clean[ $key ] = $value + 0;
+			}
+			continue;
+		}
+		if ( is_string( $value ) ) {
+			// A window param is an id, a slug or a short label. The
+			// cap keeps a runaway client from pushing megabytes into
+			// user meta, the same way the external-tab URL cap does.
+			$clean[ $key ] = substr( sanitize_text_field( $value ), 0, 256 );
+		}
+	}
+
+	return $clean;
+}
+
+/**
  * Registers the REST routes used by the desktop shell to load and save
  * the current user's session.
  */
-function desktop_mode_register_session_rest_routes() {
+function openstation_register_session_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/session',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'desktop_mode_rest_get_session',
-				'permission_callback' => 'desktop_mode_rest_session_permission',
+				'callback'            => 'openstation_rest_get_session',
+				'permission_callback' => 'openstation_rest_session_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'desktop_mode_rest_save_session',
-				'permission_callback' => 'desktop_mode_rest_session_permission',
+				'callback'            => 'openstation_rest_save_session',
+				'permission_callback' => 'openstation_rest_session_permission',
 				'args'                => array(
 					'session' => array(
 						'required' => true,
@@ -462,23 +587,23 @@ function desktop_mode_register_session_rest_routes() {
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => 'desktop_mode_rest_clear_session',
-				'permission_callback' => 'desktop_mode_rest_session_permission',
+				'callback'            => 'openstation_rest_clear_session',
+				'permission_callback' => 'openstation_rest_session_permission',
 			),
 		)
 	);
 }
-add_action( 'rest_api_init', 'desktop_mode_register_session_rest_routes' );
+add_action( 'rest_api_init', 'openstation_register_session_rest_routes' );
 
 /**
  * Permission gate for the session REST routes: logged-in users who have
- * desktop mode enabled. See {@see desktop_mode_rest_require_enabled()}
+ * OpenStation enabled. See {@see openstation_rest_require_enabled()}
  * for why `read` alone is insufficient.
  *
  * @return true|WP_Error
  */
-function desktop_mode_rest_session_permission() {
-	return desktop_mode_rest_require_enabled();
+function openstation_rest_session_permission() {
+	return openstation_rest_require_enabled();
 }
 
 /**
@@ -486,8 +611,8 @@ function desktop_mode_rest_session_permission() {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_rest_get_session() {
-	return rest_ensure_response( desktop_mode_get_session( get_current_user_id() ) );
+function openstation_rest_get_session() {
+	return rest_ensure_response( openstation_get_session( get_current_user_id() ) );
 }
 
 /**
@@ -496,11 +621,11 @@ function desktop_mode_rest_get_session() {
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The stored session (after sanitization).
  */
-function desktop_mode_rest_save_session( WP_REST_Request $request ) {
+function openstation_rest_save_session( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'session' );
-	desktop_mode_save_session( $user_id, $payload );
-	return rest_ensure_response( desktop_mode_get_session( $user_id ) );
+	openstation_save_session( $user_id, $payload );
+	return rest_ensure_response( openstation_get_session( $user_id ) );
 }
 
 /**
@@ -508,7 +633,7 @@ function desktop_mode_rest_save_session( WP_REST_Request $request ) {
  *
  * @return WP_REST_Response
  */
-function desktop_mode_rest_clear_session() {
-	desktop_mode_clear_session( get_current_user_id() );
-	return rest_ensure_response( desktop_mode_empty_session() );
+function openstation_rest_clear_session() {
+	openstation_clear_session( get_current_user_id() );
+	return rest_ensure_response( openstation_empty_session() );
 }

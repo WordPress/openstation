@@ -76,7 +76,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const containers = host.querySelectorAll( '.desktop-mode-files-layer' );
+		const containers = host.querySelectorAll( '.os-files-layer' );
 		expect( containers.length ).toBe( 1 );
 		expect( containers[ 0 ].getAttribute( 'data-folder-id' ) ).toBe( '0' );
 		handle.dispose();
@@ -92,7 +92,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const tiles = host.querySelectorAll( '.desktop-mode-file-tile' );
+		const tiles = host.querySelectorAll( '.os-file-tile' );
 		expect( tiles.length ).toBe( 2 );
 		const [ first, second ] = tiles;
 		expect( first.getAttribute( 'data-placement-id' ) ).toBe( '1' );
@@ -112,7 +112,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' );
+		const tile = host.querySelector< HTMLElement >( '.os-file-tile' );
 		expect( tile?.style.left ).toBe( '100px' );
 		expect( tile?.style.top ).toBe( '200px' );
 		handle.dispose();
@@ -160,16 +160,16 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		expect( host.querySelector( '.desktop-mode-files-layer' ) ).not.toBeNull();
+		expect( host.querySelector( '.os-files-layer' ) ).not.toBeNull();
 		handle.dispose();
-		expect( host.querySelector( '.desktop-mode-files-layer' ) ).toBeNull();
+		expect( host.querySelector( '.os-files-layer' ) ).toBeNull();
 
 		// Subsequent store mutation should not touch the host DOM.
 		store.setFolderPlacements( 0, [ placement( 99 ) ] );
-		expect( host.querySelector( '.desktop-mode-file-tile' ) ).toBeNull();
+		expect( host.querySelector( '.os-file-tile' ) ).toBeNull();
 	} );
 
-	test( 'desktop-mode.files.grid-rendered fires on paint', async () => {
+	test( 'os.files.grid-rendered fires on paint', async () => {
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -180,7 +180,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		expect( stub.didAction( 'desktop-mode.files.grid-rendered' ) ).toBeGreaterThanOrEqual( 1 );
+		expect( stub.didAction( 'os.files.grid-rendered' ) ).toBeGreaterThanOrEqual( 1 );
 		handle.dispose();
 	} );
 
@@ -231,7 +231,7 @@ describe( 'FilesLayer', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		const tiles = host.querySelectorAll< HTMLElement >( '.desktop-mode-file-tile' );
+		const tiles = host.querySelectorAll< HTMLElement >( '.os-file-tile' );
 		expect( tiles.length ).toBe( 1 );
 		expect( tiles[ 0 ].getAttribute( 'data-placement-id' ) ).toBe( '100' );
 		handle.dispose();
@@ -258,7 +258,7 @@ describe( 'FilesLayer', () => {
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 7 );
 		expect(
-			host.querySelectorAll( '.desktop-mode-file-tile' ).length,
+			host.querySelectorAll( '.os-file-tile' ).length,
 		).toBe( 1 );
 
 		// Heartbeat tick: owner just dropped a new link into folder 7.
@@ -271,7 +271,7 @@ describe( 'FilesLayer', () => {
 
 		// The open layer must have repainted: the new placement's
 		// tile should now be in the DOM.
-		const tiles = host.querySelectorAll< HTMLElement >( '.desktop-mode-file-tile' );
+		const tiles = host.querySelectorAll< HTMLElement >( '.os-file-tile' );
 		expect( tiles.length ).toBe( 2 );
 		const ids = Array.from( tiles ).map(
 			( t ) => t.getAttribute( 'data-placement-id' ),
@@ -306,9 +306,9 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		const tile = host.querySelector< HTMLElement >( '.os-file-tile' )!;
 		expect(
-			tile.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+			tile.querySelector( '.os-file-tile__label' )?.textContent,
 		).toBe( 'Old name' );
 		// Mark the node so we can prove DOM identity survived — the
 		// rename must patch in place, not wholesale-rebuild.
@@ -318,11 +318,11 @@ describe( 'FilesLayer', () => {
 		// REST roundtrip resolves.
 		store.upsertPlacement( placement( 1, { file: folderFile( 'New name' ) } ) );
 
-		const after = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		const after = host.querySelector< HTMLElement >( '.os-file-tile' )!;
 		expect( after.dataset.testMark ).toBe( 'kept' );
 		expect( after.getAttribute( 'label' ) ).toBe( 'New name' );
 		expect(
-			after.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+			after.querySelector( '.os-file-tile__label' )?.textContent,
 		).toBe( 'New name' );
 		expect( after.getAttribute( 'aria-label' ) ).toBe( 'New name' );
 		handle.dispose();
@@ -348,7 +348,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		const tile = host.querySelector< HTMLElement >( '.os-file-tile' )!;
 		tile.dataset.testMark = 'kept';
 
 		// One delta: the folder was renamed AND a sibling was added —
@@ -363,10 +363,10 @@ describe( 'FilesLayer', () => {
 		)!;
 		expect( renamed.dataset.testMark ).toBe( 'kept' );
 		expect(
-			renamed.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+			renamed.querySelector( '.os-file-tile__label' )?.textContent,
 		).toBe( 'New name' );
 		expect(
-			host.querySelectorAll( '.desktop-mode-file-tile' ).length,
+			host.querySelectorAll( '.os-file-tile' ).length,
 		).toBe( 2 );
 		handle.dispose();
 	} );
@@ -381,7 +381,7 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
-		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		const tile = host.querySelector< HTMLElement >( '.os-file-tile' )!;
 		// Decorate the tile manually — a plugin would do this on
 		// the `tile-rendered` action. The fingerprint cache should
 		// preserve our marker across no-op store notifications.
@@ -390,7 +390,7 @@ describe( 'FilesLayer', () => {
 		// Re-set the same payload — fingerprint identical.
 		store.setFolderPlacements( 0, [ placement( 1 ) ] );
 		expect(
-			host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )?.dataset.testMark,
+			host.querySelector< HTMLElement >( '.os-file-tile' )?.dataset.testMark,
 		).toBe( 'x' );
 		handle.dispose();
 	} );

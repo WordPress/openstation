@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — "New folder" inline dialog.
+ * OpenStation — "New folder" inline dialog.
  *
  * Replaces the placeholder `window.prompt` from the wallpaper
  * context menu's "Create folder" item. Mounts a small modal
@@ -8,17 +8,31 @@
  * top-level overlay that traps clicks and dims the rest of
  * the desktop with a backdrop.
  *
- * The dialog is intentionally framework-free — vanilla DOM, no
- * Web Component dependency — so it works as a building block
- * before the Phase-6 share dialog UI lands. Plugins that want
- * a richer affordance can replace it via the
- * `desktop-mode.files.create-folder.dialog` filter (returns
- * `false` to suppress the built-in dialog and own the flow).
+ * The overlay + surface are vanilla DOM; the controls inside it are
+ * `<os-text-field>` and `<os-button>`, same as the sibling
+ * `url-dialog`. That is not a stylistic preference — a raw
+ * `<input type="text">` in the parent shell is reachable by core's
+ * `forms.css`, whose `input[type="text"] { background-color: #fff;
+ * color: #1e1e1e }` weighs (0,1,1) and outranks any single class of
+ * ours. The rename field came out as a white core-chrome box on the
+ * dialog's dark surface, and because the dialog pre-selects the name
+ * on open, the selected text was painted by the shell's
+ * `::selection` — near-white ink on a pale lavender wash over white,
+ * i.e. all but unreadable at the exact moment the user is meant to
+ * read it. Shadow DOM ends both problems structurally: core's sheet
+ * cannot reach in, and the field resolves the palette instead.
+ *
+ * Plugins that want a richer affordance can replace it via the
+ * `os.files.create-folder.dialog` filter (returns `false` to
+ * suppress the built-in dialog and own the flow).
  */
 
 import { applyFilters, doAction } from '../hooks';
+// Registered globally by the lazy shell-overlays bundle — see
+// src/shell-overlays/entry.ts.
+import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
-const ROOT_CLASS = 'desktop-mode-create-folder-dialog';
+const ROOT_CLASS = 'os-create-folder-dialog';
 
 export interface CreateFolderDialogOptions {
 	/** Initial value of the input. Default `'Untitled folder'`. */
@@ -60,7 +74,7 @@ export function closeCreateFolderDialog(): void {
 	active.dispatchEvent( new CustomEvent( 'create-folder-dialog-closed' ) );
 	active.remove();
 	active = null;
-	doAction( 'desktop-mode.files.create-folder.closed', {} );
+	doAction( 'os.files.create-folder.closed', {} );
 }
 
 /**
@@ -74,7 +88,7 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	// UX by registering a filter that returns `false`. Any other
 	// return value is ignored — the contract is presence-based.
 	const decision = applyFilters< unknown, [ CreateFolderDialogOptions ] >(
-		'desktop-mode.files.create-folder.dialog',
+		'os.files.create-folder.dialog',
 		null,
 		options,
 	);
@@ -100,20 +114,19 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	title.textContent = options.title ?? 'New folder';
 	dialog.appendChild( title );
 
-	const label = document.createElement( 'label' );
-	label.className = `${ ROOT_CLASS }__label`;
-	label.htmlFor = `${ ROOT_CLASS }-input`;
-	label.textContent = options.label ?? 'Folder name';
-	dialog.appendChild( label );
-
-	const input = document.createElement( 'input' );
-	input.type = 'text';
-	input.id = `${ ROOT_CLASS }-input`;
-	input.className = `${ ROOT_CLASS }__input`;
-	input.value = initial;
-	input.setAttribute( 'autocomplete', 'off' );
-	input.setAttribute( 'spellcheck', 'false' );
-	dialog.appendChild( input );
+	// The field carries its own label, so there is no sibling
+	// `<label for>` — the component pairs them inside its shadow root.
+	const field = document.createElement( 'os-text-field' );
+	field.className = `${ ROOT_CLASS }__field`;
+	field.id = `${ ROOT_CLASS }-input`;
+	field.setAttribute( 'label', options.label ?? 'Folder name' );
+	field.setAttribute( 'value', initial );
+	field.setAttribute( 'autocomplete', 'off' );
+	// `spellcheck` is an inherited content attribute, so declaring it
+	// on the host reaches the input inside the shadow root — a folder
+	// name is not prose and should not get a red squiggle.
+	field.setAttribute( 'spellcheck', 'false' );
+	dialog.appendChild( field );
 
 	const error = document.createElement( 'p' );
 	error.className = `${ ROOT_CLASS }__error`;
@@ -124,14 +137,14 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	const actions = document.createElement( 'div' );
 	actions.className = `${ ROOT_CLASS }__actions`;
 
-	const cancel = document.createElement( 'button' );
-	cancel.type = 'button';
+	const cancel = document.createElement( 'os-button' );
 	cancel.className = `${ ROOT_CLASS }__btn ${ ROOT_CLASS }__btn--secondary`;
+	cancel.setAttribute( 'variant', 'ghost' );
 	cancel.textContent = 'Cancel';
 
-	const submit = document.createElement( 'button' );
-	submit.type = 'button';
+	const submit = document.createElement( 'os-button' );
 	submit.className = `${ ROOT_CLASS }__btn ${ ROOT_CLASS }__btn--primary`;
+	submit.setAttribute( 'variant', 'primary' );
 	submit.textContent = options.submitLabel ?? 'Create';
 
 	actions.appendChild( cancel );
@@ -145,15 +158,14 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	// Focus and select the initial name so the user can type
 	// straight over it — same pattern as macOS Finder's
 	// "untitled folder" affordance.
-	input.focus();
-	input.select();
+	focusField( field );
 
-	doAction( 'desktop-mode.files.create-folder.opened', {} );
+	doAction( 'os.files.create-folder.opened', {} );
 
 	const setBusy = ( busy: boolean ): void => {
-		input.disabled = busy;
-		cancel.disabled = busy;
-		submit.disabled = busy;
+		setControlDisabled( field, busy );
+		setControlDisabled( cancel, busy );
+		setControlDisabled( submit, busy );
 		dialog.classList.toggle( `${ ROOT_CLASS }--busy`, busy );
 	};
 
@@ -168,10 +180,10 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	};
 
 	const doSubmit = async (): Promise< void > => {
-		const name = input.value.trim();
+		const name = readFieldValue( field ).trim();
 		if ( ! name ) {
 			showError( 'Please enter a name.' );
-			input.focus();
+			focusField( field );
 			return;
 		}
 		error.hidden = true;
@@ -186,8 +198,7 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 					? err.message
 					: 'Could not create the folder.',
 			);
-			input.focus();
-			input.select();
+			focusField( field );
 		}
 	};
 

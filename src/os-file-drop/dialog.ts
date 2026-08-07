@@ -1,7 +1,7 @@
 /**
  * OS-file drop manager — upload confirmation dialog.
  *
- * Renders a `<wpd-modal>` with one editable form per dropped
+ * Renders a `<os-modal>` with one editable form per dropped
  * file. Every field arrives pre-filled with a sensible default
  * (see `defaultFields()` in `manager.ts`) but is fully editable.
  *
@@ -11,11 +11,11 @@
  * stateless between drops).
  */
 
-import '../ui/components/wpd-modal/wpd-modal';
-import '../ui/components/wpd-text-field/wpd-text-field';
-import '../ui/components/wpd-textarea/wpd-textarea';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-segmented/wpd-segmented';
+import '../ui/components/os-modal/os-modal';
+import '../ui/components/os-text-field/os-text-field';
+import '../ui/components/os-textarea/os-textarea';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-segmented/os-segmented';
 import { showToast } from '../toast';
 import { formatBytes } from './format-bytes';
 import {
@@ -147,7 +147,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		mimes: args.entries.map( ( e ) => e.mime ),
 	} );
 
-	const modal = document.createElement( 'wpd-modal' );
+	const modal = document.createElement( 'os-modal' );
 	modal.setAttribute( 'open', '' );
 	modal.setAttribute( 'size', 'md' );
 	document.body.appendChild( modal );
@@ -190,19 +190,19 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			destLabel.style.cssText = 'font-weight:600;';
 			destWrap.appendChild( destLabel );
 
-			const segmented = document.createElement( 'wpd-segmented' );
+			const segmented = document.createElement( 'os-segmented' );
 			segmented.setAttribute( 'value', destination );
 			segmented.setAttribute( 'label', 'Destination' );
-			segmented.style.setProperty( '--wpd-segmented-bg', 'rgba(255,255,255,0.06)' );
-			const segDesktop = document.createElement( 'wpd-segment' );
+			segmented.style.setProperty( '--os-ui-segmented-bg', 'rgba(255,255,255,0.06)' );
+			const segDesktop = document.createElement( 'os-segment' );
 			segDesktop.setAttribute( 'value', 'desktop' );
 			segDesktop.textContent = 'Desktop';
 			segmented.appendChild( segDesktop );
-			const segMedia = document.createElement( 'wpd-segment' );
+			const segMedia = document.createElement( 'os-segment' );
 			segMedia.setAttribute( 'value', 'media' );
 			segMedia.textContent = 'Media Library';
 			segmented.appendChild( segMedia );
-			segmented.addEventListener( 'wpd-pick', ( e ) => {
+			segmented.addEventListener( 'os-pick', ( e ) => {
 				const detail = ( e as CustomEvent< { value: Destination } > ).detail;
 				destination = detail.value;
 				syncTitle();
@@ -227,7 +227,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				: args.mediaMaxBytes ?? 0;
 		if ( maxBytes > 0 ) {
 			const cap = document.createElement( 'div' );
-			cap.className = 'desktop-mode-upload-dialog__max-size';
+			cap.className = 'os-upload-dialog__max-size';
 			cap.style.cssText = 'opacity:0.6;font-size:12px;margin-bottom:14px;';
 			cap.textContent = `Maximum file size: ${ formatBytes( maxBytes ) }`;
 			modal.appendChild( cap );
@@ -245,14 +245,14 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		footer.setAttribute( 'slot', 'footer' );
 		footer.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
 
-		const cancel = document.createElement( 'wpd-button' );
+		const cancel = document.createElement( 'os-button' );
 		cancel.setAttribute( 'variant', 'secondary' );
 		cancel.textContent = 'Cancel';
 		cancel.addEventListener( 'click', () => {
 			modal.remove();
 		} );
 
-		const upload = document.createElement( 'wpd-button' );
+		const upload = document.createElement( 'os-button' );
 		upload.setAttribute( 'variant', 'primary' );
 		if ( args.entries.length === 0 ) {
 			upload.textContent = 'Create folders'; // Pure empty-dirs tree drop.
@@ -499,7 +499,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			}
 			resolve();
 		};
-		modal.addEventListener( 'wpd-modal-cancel', () => {
+		modal.addEventListener( 'os-modal-cancel', () => {
 			modal.remove();
 			finish();
 		} );
@@ -519,7 +519,7 @@ function textField(
 	value: string,
 	onChange: ( v: string ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-text-field' );
+	const el = document.createElement( 'os-text-field' );
 	el.setAttribute( 'label', label );
 	el.setAttribute( 'value', value );
 	el.addEventListener( 'input', () => {
@@ -536,7 +536,7 @@ function textareaField(
 	value: string,
 	onChange: ( v: string ) => void,
 ): HTMLElement {
-	const el = document.createElement( 'wpd-textarea' );
+	const el = document.createElement( 'os-textarea' );
 	el.setAttribute( 'label', label );
 	el.setAttribute( 'value', value );
 	el.setAttribute( 'rows', '3' );

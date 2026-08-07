@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Challenges shared store.
+ * OpenStation — Challenges shared store.
  *
  * Holds every challenge row the Heartbeat channel (or a REST
  * resync) has delivered this session, plus the `challengesVersion`
@@ -74,7 +74,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] challenges store listener threw:',
+					'[openstation] challenges store listener threw:',
 					err,
 				);
 			}

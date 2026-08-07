@@ -3,13 +3,13 @@
  *
  * Mirrors `src/commands/server-sync.ts` and the rest of the
  * server-sync family. Plugins opt in server-side via
- * `desktop_mode_register_window_theme_script()` (and optionally
- * `desktop_mode_register_window_theme()` for token-only themes); this
+ * `openstation_register_window_theme_script()` (and optionally
+ * `openstation_register_window_theme()` for token-only themes); this
  * module receives the resolved script URL list on every live refresh
  * and:
  *
  *   - Loads each newly-arrived `scriptUrl` via `loadVendorScript`. The
- *     plugin's JS runs and calls `wp.desktop.registerWindowTheme()`
+ *     plugin's JS runs and calls `wp.os.registerWindowTheme()`
  *     as normal. The theme registry's `subscribeWindowThemes` fan-out
  *     repaints any open window the theme matches.
  *   - On deactivation (a previously-seen `handle` is missing from the
@@ -19,7 +19,7 @@
  *          `registerWindowTheme({ …, owner: 'my-script-handle' })`.
  *       2. The id↔handle mapping captured from the *previous*
  *          `serverWindowThemes` payload — themes declared via
- *          `desktop_mode_register_window_theme()` with a `script` arg
+ *          `openstation_register_window_theme()` with a `script` arg
  *          get this for free.
  *
  *     Themes registered via JS without an `owner` survive past

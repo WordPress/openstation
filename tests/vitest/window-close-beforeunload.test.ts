@@ -2,8 +2,8 @@
  * Pre-close "unsaved changes" query for iframe windows.
  *
  * Before destroying an iframe-backed (non-native) window, `close()`
- * posts `desktop-mode-bridge-beforeunload-query` to the iframe and
- * waits for `desktop-mode-bridge-beforeunload-response` before
+ * posts `os-bridge-beforeunload-query` to the iframe and
+ * waits for `os-bridge-beforeunload-response` before
  * proceeding — giving Gutenberg-style `beforeunload` guards a chance
  * to veto the close. A 500ms safety timer forces the close through
  * if the iframe never answers. Native windows are untouched — they
@@ -50,7 +50,7 @@ function markBridgeReady( win: { id: string; iframe: HTMLIFrameElement | null } 
 	handleWindowMessage(
 		win as never,
 		new MessageEvent( 'message', {
-			data: { type: 'desktop-mode-ready' },
+			data: { type: 'os-ready' },
 			origin: window.location.origin,
 			source: win.iframe?.contentWindow,
 		} ),
@@ -65,7 +65,7 @@ function respondBeforeunload(
 	handleWindowMessage(
 		win as never,
 		new MessageEvent( 'message', {
-			data: { type: 'desktop-mode-bridge-beforeunload-response', ...response },
+			data: { type: 'os-bridge-beforeunload-response', ...response },
 			origin: window.location.origin,
 			source: win.iframe?.contentWindow,
 		} ),
@@ -100,7 +100,7 @@ describe( 'Window.close() — iframe pre-close beforeunload query', () => {
 
 		expect(
 			postSpy.mock.calls.some(
-				( call ) => ( call[ 0 ] as { type?: string } )?.type === 'desktop-mode-bridge-beforeunload-query',
+				( call ) => ( call[ 0 ] as { type?: string } )?.type === 'os-bridge-beforeunload-query',
 			),
 		).toBe( false );
 		expect( win._isDestroyed ).toBe( true );
@@ -114,7 +114,7 @@ describe( 'Window.close() — iframe pre-close beforeunload query', () => {
 		win.close();
 
 		expect( postSpy ).toHaveBeenCalledWith(
-			{ type: 'desktop-mode-bridge-beforeunload-query' },
+			{ type: 'os-bridge-beforeunload-query' },
 			window.location.origin,
 		);
 		expect( win._isDestroyed ).toBe( false );
@@ -148,7 +148,7 @@ describe( 'Window.close() — iframe pre-close beforeunload query', () => {
 		expect( win._isDestroyed ).toBe( false );
 		expect(
 			postSpy.mock.calls.filter(
-				( call ) => ( call[ 0 ] as { type?: string } )?.type === 'desktop-mode-bridge-beforeunload-query',
+				( call ) => ( call[ 0 ] as { type?: string } )?.type === 'os-bridge-beforeunload-query',
 			),
 		).toHaveLength( 1 );
 

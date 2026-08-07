@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
 import { __resetRecoveryForTests } from '../../src/drag/recovery';
+import { GRID_CELL_H, GRID_PADDING } from '../../src/desktop-files/grid';
 
 type LayerModule = typeof import( '../../src/desktop-files/layer' );
 type StoreModule = typeof import( '../../src/desktop-files/store' );
@@ -99,12 +100,12 @@ function setupRestStub() {
 
 function installManagerOnWindow(): DragManager {
 	const manager = new DragManager();
-	( window as unknown as { wp: { desktop: { dragManager: DragManager } } } ).wp = (
-		window as unknown as { wp?: { desktop?: unknown } }
+	( window as unknown as { wp: { os: { dragManager: DragManager } } } ).wp = (
+		window as unknown as { wp?: { os?: unknown } }
 	).wp ?? { hooks: {} };
-	const wp = ( window as unknown as { wp: { desktop?: unknown; hooks?: unknown } } ).wp;
-	wp.desktop = ( wp.desktop as Record< string, unknown > | undefined ) ?? {};
-	( wp.desktop as { dragManager: DragManager } ).dragManager = manager;
+	const wp = ( window as unknown as { wp: { os?: unknown; hooks?: unknown } } ).wp;
+	wp.os = ( wp.os as Record< string, unknown > | undefined ) ?? {};
+	( wp.os as { dragManager: DragManager } ).dragManager = manager;
 	return manager;
 }
 
@@ -158,7 +159,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 
 		// Capture the layer container's bbox lookup. Container is
 		// inside host so its bbox is also (0,0,1024,768) in our setup.
-		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = host.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,
@@ -212,7 +213,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
 		const tile = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
-		expect( tile?.classList.contains( 'desktop-mode-file-tile--pinned' ) ).toBe( true );
+		expect( tile?.classList.contains( 'os-file-tile--pinned' ) ).toBe( true );
 		// `aria-disabled` and the pre-emptive tooltip both went away
 		// — clicking the tile still opens the window, so
 		// painting it as "disabled" was misleading.
@@ -221,7 +222,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 
 		tile!.dispatchEvent( pointerEvent( 'pointerdown', 50, 50, tile! ) );
 
-		expect( tile?.classList.contains( 'desktop-mode-file-tile--bump' ) ).toBe( false );
+		expect( tile?.classList.contains( 'os-file-tile--bump' ) ).toBe( false );
 		expect( manager.getActive() ).toBeNull();
 
 		handle.dispose();
@@ -262,7 +263,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		} );
 		const handle = layer.mountFilesLayer( host, 0 );
 		const tile = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
-		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = host.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,
@@ -288,8 +289,8 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
 
 		// After rollback, no orphaned `--dragging` class anywhere.
-		expect( document.querySelectorAll( '.desktop-mode-file-tile--dragging' ).length ).toBe( 0 );
-		expect( document.querySelector( '.desktop-mode-drag-ghost' ) ).toBeNull();
+		expect( document.querySelectorAll( '.os-file-tile--dragging' ).length ).toBe( 0 );
+		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 
 		handle.dispose();
 	} );
@@ -343,7 +344,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const target = manager
 			.debug()
 			.listTargets()
-			.find( ( t ) => t.id === 'desktop-mode-files-tile-100-reject' );
+			.find( ( t ) => t.id === 'os-files-tile-100-reject' );
 		expect( target ).toBeDefined();
 		expect( target!.element ).toBe( myWpTile );
 		expect(
@@ -393,7 +394,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const rejected = manager
 			.debug()
 			.listTargets()
-			.find( ( t ) => t.id === 'desktop-mode-files-tile-99-reject' );
+			.find( ( t ) => t.id === 'os-files-tile-99-reject' );
 		expect( rejected ).toBeUndefined();
 
 		handle.dispose();
@@ -451,7 +452,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const handle = layer.mountFilesLayer( host, 0 );
 		const tileB = host.querySelector< HTMLElement >( '[data-placement-id="201"]' );
 		expect( tileB ).not.toBeNull();
-		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = host.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,
@@ -491,9 +492,11 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 			( patch![ 1 ] as RequestInit ).body as string,
 		) as { x: number; y: number; parentId: number };
 		// Critical assertion: the snapped cell is (0, 1) — NOT (0, 0)
-		// which is My WordPress's pinned slot.
-		expect( body.x ).toBe( 16 );
-		expect( body.y ).toBe( 126 );
+		// which is My WordPress's pinned slot. Derived from the grid
+		// constants rather than spelled out, so retuning the gap
+		// doesn't read as this test failing.
+		expect( body.x ).toBe( GRID_PADDING );
+		expect( body.y ).toBe( GRID_PADDING + GRID_CELL_H );
 
 		handle.dispose();
 	} );
@@ -592,7 +595,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		expect( tileBefore ).not.toBeNull();
 		expect( peerBefore ).not.toBeNull();
 
-		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = host.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,
@@ -632,7 +635,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		// (OS Settings → Apps & Icons) used to fire a PATCH against a
 		// negative id, which the REST regex `(?P<id>\d+)` rejects → WP
 		// returns `rest_no_route` 404 → the user sees a scary
-		// `[desktop-mode] files: drag persist failed` in the console
+		// `[openstation] files: drag persist failed` in the console
 		// every time they nudge a promoted icon.
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
@@ -643,9 +646,9 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		// Spy on the OS-Settings persistence facade — the layer should
 		// route the new position through here for synth placements.
 		const updateOsSettings = vi.fn();
-		const wp = ( window as unknown as { wp: { desktop: Record< string, unknown > } } ).wp;
-		wp.desktop.getOsSettings = () => ( { dockPromotedPositions: {} } );
-		wp.desktop.updateOsSettings = updateOsSettings;
+		const wp = ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp;
+		wp.os.getOsSettings = () => ( { dockPromotedPositions: {} } );
+		wp.os.updateOsSettings = updateOsSettings;
 
 		// Synthetic placement: negative id + `__synthFromDockItem`
 		// meta marker (the shape `settings/desktop-shortcuts-sync.ts`
@@ -685,7 +688,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 				width: 88, height: 96, x: 100, y: 100, toJSON: () => ( {} ),
 			} ) as DOMRect,
 		} );
-		const container = host.querySelector< HTMLElement >( '.desktop-mode-files-layer' );
+		const container = host.querySelector< HTMLElement >( '.os-files-layer' );
 		Object.defineProperty( container!, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,

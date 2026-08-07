@@ -18,10 +18,10 @@ import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
 	isNoticeDismissed,
 	markNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
+} from './ui/components/os-notice/storage';
 import { __, sprintf } from './i18n';
 
-/** What the lazy bundle publishes on `window.desktopModeReleaseCard`. */
+/** What the lazy bundle publishes on `window.openStationReleaseCard`. */
 interface ReleaseCardApi {
 	showReleaseCard: ( opts: ReleaseCardOptions ) => unknown;
 	resolveReleaseArt: ( branch: string ) => Promise< ReleaseArt | null >;
@@ -35,13 +35,13 @@ interface ReleaseCardApi {
  */
 async function loadReleaseCardApi(): Promise< ReleaseCardApi | null > {
 	const w = window as unknown as {
-		desktopModeReleaseCard?: ReleaseCardApi;
-		desktopModeConfig?: { releaseCardBundleUrl?: string };
+		openStationReleaseCard?: ReleaseCardApi;
+		openStationConfig?: { releaseCardBundleUrl?: string };
 	};
-	if ( w.desktopModeReleaseCard ) {
-		return w.desktopModeReleaseCard;
+	if ( w.openStationReleaseCard ) {
+		return w.openStationReleaseCard;
 	}
-	const url = w.desktopModeConfig?.releaseCardBundleUrl ?? '';
+	const url = w.openStationConfig?.releaseCardBundleUrl ?? '';
 	if ( ! url ) {
 		return null;
 	}
@@ -50,7 +50,7 @@ async function loadReleaseCardApi(): Promise< ReleaseCardApi | null > {
 	} catch {
 		return null;
 	}
-	return w.desktopModeReleaseCard ?? null;
+	return w.openStationReleaseCard ?? null;
 }
 
 /** Compact core-update descriptor shipped in the shell config. */

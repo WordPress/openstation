@@ -1,10 +1,10 @@
 /**
- * Desktop Mode — editor-autosave request/response correlation.
+ * OpenStation — editor-autosave request/response correlation.
  *
  * The parent-side half of the editor-autosave bridge query: posts
- * `desktop-mode-editor-autosave-request` into an editor window's
+ * `os-editor-autosave-request` into an editor window's
  * iframe and resolves with the matching
- * `desktop-mode-editor-autosave-response` (or a timeout). The
+ * `os-editor-autosave-response` (or a timeout). The
  * iframe-side answerer lives in `src/iframe-bridge-standalone.ts` —
  * see `installEditorAutosaveHandler()` there and
  * `docs/bridge-protocol.md` for the message contract.
@@ -57,7 +57,8 @@ export function sameOriginUrl( value: unknown ): string | undefined {
 
 /**
  * Ask an editor window's iframe to autosave, so the front-end preview
- * about to open reflects on-screen content.
+ * companion — which opens in parallel — ends up reflecting on-screen
+ * content.
  *
  * Never rejects — every failure mode resolves with a status the
  * caller can degrade on (`timeout` when the iframe stays silent,
@@ -83,7 +84,7 @@ export function requestEditorAutosave(
 	}
 
 	requestCounter += 1;
-	const requestId = `desktop-mode-editor-preview-${ Date.now() }-${ requestCounter }`;
+	const requestId = `os-editor-preview-${ Date.now() }-${ requestCounter }`;
 
 	return new Promise< AutosaveResult >( ( resolve ) => {
 		let timer: number | null = null;
@@ -114,7 +115,7 @@ export function requestEditorAutosave(
 			if (
 				! data ||
 				typeof data !== 'object' ||
-				data.type !== 'desktop-mode-editor-autosave-response' ||
+				data.type !== 'os-editor-autosave-response' ||
 				data.requestId !== requestId
 			) {
 				return;
@@ -136,7 +137,7 @@ export function requestEditorAutosave(
 
 		try {
 			target.postMessage(
-				{ type: 'desktop-mode-editor-autosave-request', requestId },
+				{ type: 'os-editor-autosave-request', requestId },
 				window.location.origin,
 			);
 		} catch {

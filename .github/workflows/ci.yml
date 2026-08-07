@@ -95,6 +95,12 @@ jobs:
       - name: Run PHPUnit
         run: npm run test:php
 
+      # Errors gate; the ~800 advisory warnings still report on a local
+      # `npm run lint:php:all` but never fail the build. See phpcs.xml.dist
+      # for which sniffs were downgraded and why.
+      - name: Check plugin coding standards
+        run: npm run lint:php
+
       - name: Run Popup Siege registration smoke test
         run: php extensions/desktop-mode-popup-siege/tests/registration-smoke.php
 
@@ -148,7 +154,7 @@ jobs:
         run: npm run package
 
       - name: Unzip release into build dir
-        run: unzip -q desktop-mode.zip -d plugin-check-build
+        run: unzip -q openstation.zip -d plugin-check-build
 
       - name: Package Popup Siege extension
         run: |

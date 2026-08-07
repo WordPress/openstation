@@ -72,12 +72,12 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 800,
 			height: 600,
 		} );
-		const body = el.querySelector( '.desktop-mode-window__body' );
+		const body = el.querySelector( '.os-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
-		const overlay = el.querySelector( '.desktop-mode-window__loading' );
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe( true );
+		const overlay = el.querySelector( '.os-window__loading' );
 		expect( overlay ).not.toBeNull();
-		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay!.querySelector( 'os-spinner' ) ).not.toBeNull();
 	} );
 
 	test( 'native windows mount with the same overlay', async () => {
@@ -92,11 +92,11 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 400,
 			height: 320,
 		} );
-		const body = el.querySelector( '.desktop-mode-window__body' );
+		const body = el.querySelector( '.os-window__body' );
 		expect( body ).not.toBeNull();
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe( true );
-		expect( body!.classList.contains( 'desktop-mode-window__body--native' ) ).toBe( true );
-		expect( el.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe( true );
+		expect( body!.classList.contains( 'os-window__body--native' ) ).toBe( true );
+		expect( el.querySelector( 'os-spinner' ) ).not.toBeNull();
 	} );
 
 	test( 'construction marks the window as loading', async () => {
@@ -124,7 +124,7 @@ describe( 'createWindowElement — loading overlay', async () => {
 			width: 400,
 			height: 320,
 		} );
-		const spinner = el.querySelector( 'wpd-spinner' );
+		const spinner = el.querySelector( 'os-spinner' );
 		expect( spinner!.getAttribute( 'size' ) ).toBe( 'clamp(96px, 14vw, 192px)' );
 	} );
 } );
@@ -150,7 +150,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'desktop-mode-window-content-loading',
+			'os-window-content-loading',
 			eventSpy as EventListener,
 		);
 
@@ -162,7 +162,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		expect( detail ).toEqual( { windowId: 'win-1' } );
 
 		document.removeEventListener(
-			'desktop-mode-window-content-loading',
+			'os-window-content-loading',
 			eventSpy as EventListener,
 		);
 	} );
@@ -192,7 +192,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		);
 		const eventSpy = vi.fn();
 		document.addEventListener(
-			'desktop-mode-window-content-loaded',
+			'os-window-content-loaded',
 			eventSpy as EventListener,
 		);
 
@@ -205,7 +205,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 		expect( detail ).toEqual( { windowId: 'win-3' } );
 
 		document.removeEventListener(
-			'desktop-mode-window-content-loaded',
+			'os-window-content-loaded',
 			eventSpy as EventListener,
 		);
 	} );
@@ -270,15 +270,15 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 			title: 'Visual 1',
 		} );
 		const body = document.querySelector(
-			'#wp-window-visual-1 .desktop-mode-window__body',
+			'#wp-window-visual-1 .os-window__body',
 		);
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		markWindowContentReady( 'visual-1' );
 
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 	} );
@@ -291,21 +291,21 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 		} );
 		markWindowContentReady( 'visual-2' );
 		const body = document.querySelector(
-			'#wp-window-visual-2 .desktop-mode-window__body',
+			'#wp-window-visual-2 .os-window__body',
 		);
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		markWindowContentLoading( 'visual-2' );
 
-		expect( body!.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 		// Overlay is still in the DOM at this moment — the
 		// fade-out timer hasn't fired yet (default jsdom timing).
 		// Either way, `ensureLoadingOverlay` paints a fresh one.
-		const overlays = body!.querySelectorAll( '.desktop-mode-window__loading' );
+		const overlays = body!.querySelectorAll( '.os-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
 	} );
 } );
@@ -449,7 +449,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 
 describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async () => {
 	// `ctx.window.markLoading/markReady` are only wired in the
-	// `wp.desktop.registerWindow` path (createRegisterWindow). The
+	// `wp.os.registerWindow` path (createRegisterWindow). The
 	// raw `manager.open` path tested above doesn't receive them —
 	// plugins that want toggling there can call
 	// `Window.markContentLoading()` / `Window.markContentLoaded()`
@@ -483,21 +483,21 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async
 		} );
 		// Initial body class — every window starts in loading.
 		const body = win.element.querySelector(
-			'.desktop-mode-window__body',
+			'.os-window__body',
 		)!;
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 
 		// Manual fade-in.
 		win.markContentLoaded();
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 
 		// Manual re-arm.
 		win.markContentLoading();
-		expect( body.classList.contains( 'desktop-mode-window__body--loading' ) ).toBe(
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
 	} );
@@ -538,9 +538,9 @@ describe( 'Loading overlay customization', async () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
-		expect( overlay.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay.querySelector( 'os-spinner' ) ).not.toBeNull();
 		expect( overlay.querySelector( '.my-loading-status' )!.textContent ).toBe(
 			'Fetching things…',
 		);
@@ -561,9 +561,9 @@ describe( 'Loading overlay customization', async () => {
 			},
 		} );
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
-		expect( overlay.querySelector( 'wpd-spinner' ) ).toBeNull();
+		expect( overlay.querySelector( 'os-spinner' ) ).toBeNull();
 		expect( overlay.querySelector( '.my-custom-loader' )!.textContent ).toBe(
 			'BRAND LOADER',
 		);
@@ -591,7 +591,7 @@ describe( 'Loading overlay customization', async () => {
 
 		expect( seenCtx ).toEqual( [ { windowId: 'filtered' } ] );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'true' );
 	} );
@@ -615,7 +615,7 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		);
 		// Even when a filter returns a totally different element,
 		// the framework re-adds the marker class so CSS positioning
@@ -667,10 +667,10 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		const overlay = win.element.querySelector(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		);
 		expect( overlay ).not.toBeNull();
-		expect( overlay!.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( overlay!.querySelector( 'os-spinner' ) ).not.toBeNull();
 		errSpy.mockRestore();
 	} );
 
@@ -683,7 +683,7 @@ describe( 'Loading overlay customization', async () => {
 			title: 'Late Filter',
 		} );
 		const overlay = () => win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay().dataset.skinned ).toBeUndefined();
 
@@ -720,7 +720,7 @@ describe( 'Loading overlay customization', async () => {
 		} );
 
 		// Plugin filter lands AFTER construction (typical
-		// `wp.desktop.whenReady( () => addFilter(...) )` shape that
+		// `wp.os.whenReady( () => addFilter(...) )` shape that
 		// fires during HOOKS.INIT).
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
@@ -738,7 +738,7 @@ describe( 'Loading overlay customization', async () => {
 		await Promise.resolve();
 
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.skinned ).toBe( 'f5' );
 	} );
@@ -780,13 +780,13 @@ describe( 'Loading overlay customization', async () => {
 		// — we simulate the after-fade state by manually removing.)
 		win.markContentLoaded();
 		win.element
-			.querySelector( '.desktop-mode-window__loading' )
+			.querySelector( '.os-window__loading' )
 			?.remove();
 		win.markContentLoading();
 
 		expect( renderCalls ).toBe( 2 );
 		const overlay = win.element.querySelector< HTMLElement >(
-			'.desktop-mode-window__loading',
+			'.os-window__loading',
 		)!;
 		expect( overlay.dataset.renderCount ).toBe( '2' );
 	} );

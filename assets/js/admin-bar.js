@@ -1,9 +1,9 @@
 ( function() {
-	var toggle = document.getElementById( 'wp-admin-bar-desktop-mode-toggle' );
+	var toggle = document.getElementById( 'wp-admin-bar-os-toggle' );
 	if ( ! toggle ) {
 		return;
 	}
-	var cfg = window.desktopModeAdminBar || {};
+	var cfg = window.openStationAdminBar || {};
 	toggle.addEventListener( 'click', function( e ) {
 		e.preventDefault();
 		var isActive = !! cfg.active;
@@ -27,7 +27,7 @@
 			}
 		}
 		var body = new URLSearchParams();
-		body.set( 'action', 'save-desktop-mode' );
+		body.set( 'action', 'save-openstation' );
 		body.set( 'nonce', cfg.nonce );
 		body.set( 'enabled', newValue );
 		var xhr = new XMLHttpRequest();
@@ -65,7 +65,7 @@
 
 	function paintSnapCheckbox( enabled ) {
 		var node = document.querySelector(
-			'#wp-admin-bar-desktop-layout-snap .desktop-mode-layout-checkbox'
+			'#wp-admin-bar-desktop-layout-snap .os-layout-checkbox'
 		);
 		if ( ! node ) return;
 		node.textContent = enabled ? '☑' : '☐'; // ☑ / ☐
@@ -77,17 +77,33 @@
 	}
 
 	function getManager() {
-		return window.wp && window.wp.desktop && window.wp.desktop.windowManager;
+		return window.wp && window.wp.os && window.wp.os.windowManager;
 	}
 
 	// Initial paint — wait for the shell to publish the manager,
 	// then mirror the persisted snap preference. Polled rather than
 	// hooked because the inline script ships with the admin bar
 	// (loads early) and the shell's WindowManager arrives later.
+	//
+	// Bounded, because a poll with no exit is a timer that runs for
+	// the life of the page. The manager lands within a frame or two of
+	// the shell bundle executing; if it has not arrived in ten seconds
+	// it is not coming — the shell failed to boot, or a plugin
+	// surfaced this admin bar somewhere the shell never loads — and
+	// repainting one checkbox does not justify waking the event loop
+	// sixteen times a second until the tab closes. Giving up leaves
+	// the server-rendered box exactly as it is, which is what polling
+	// forever achieves anyway.
+	var SNAP_POLL_INTERVAL_MS = 60;
+	var SNAP_POLL_TIMEOUT_MS = 10000;
+	var snapPollWaited = 0;
 	function initFromManager() {
 		var wm = getManager();
 		if ( ! wm || typeof wm.isSnapEnabled !== 'function' ) {
-			window.setTimeout( initFromManager, 60 );
+			snapPollWaited += SNAP_POLL_INTERVAL_MS;
+			if ( snapPollWaited < SNAP_POLL_TIMEOUT_MS ) {
+				window.setTimeout( initFromManager, SNAP_POLL_INTERVAL_MS );
+			}
 			return;
 		}
 		paintSnapCheckbox( wm.isSnapEnabled() );
@@ -98,7 +114,7 @@
 		var t = e.target;
 		if ( ! t || ! t.closest ) return;
 
-		var snapItem = t.closest( '.desktop-mode-layout-snap' );
+		var snapItem = t.closest( '.os-layout-snap' );
 		if ( snapItem ) {
 			// Stop propagation so WP's own "click closes submenu"
 			// chain never fires. preventDefault keeps the `#` href
@@ -113,7 +129,7 @@
 			return;
 		}
 
-		var actionLink = t.closest( '.desktop-mode-layout-action > .ab-item, .desktop-mode-layout-action' );
+		var actionLink = t.closest( '.os-layout-action > .ab-item, .os-layout-action' );
 		if ( ! actionLink ) return;
 		e.preventDefault();
 		var id = actionLink.closest( '[id^="wp-admin-bar-desktop-layout-"]' );
@@ -130,11 +146,11 @@
 			// Plugin-registered custom item. Strip the shared prefix to
 			// recover the `id` the plugin supplied via the PHP filter,
 			// then dispatch the public JS action. Plugins subscribe
-			// via wp.hooks.addAction( 'desktop-mode.arrange.custom-action', ... ).
+			// via wp.hooks.addAction( 'os.arrange.custom-action', ... ).
 			var customId = id.id.replace( 'wp-admin-bar-desktop-layout-custom-', '' );
 			var hooks = window.wp && window.wp.hooks;
 			if ( hooks && typeof hooks.doAction === 'function' ) {
-				hooks.doAction( 'desktop-mode.arrange.custom-action', { id: customId } );
+				hooks.doAction( 'os.arrange.custom-action', { id: customId } );
 			}
 		}
 		// After running an action, dismiss the submenu so the user
@@ -180,15 +196,15 @@
 			// in browser fullscreen — the OS / browser intercept clicks
 			// in those bands. Hiding them shifts the Fullscreen button
 			// further from the right edge so its own click lands.
-			document.body.classList.toggle( 'desktop-mode-browser-fs', !! on );
+			document.body.classList.toggle( 'os-browser-fs', !! on );
 			if ( on ) {
 				fsBtn.classList.add( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.exitFullscreen || 'Exit fullscreen';
-				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.exitTitle || 'Exit fullscreen' );
+				repaintLabel( fsLink, fsI18n.exitTitle || 'Exit fullscreen' );
 			} else {
 				fsBtn.classList.remove( 'is-fullscreen' );
 				if ( fsLabel ) fsLabel.textContent = fsI18n.enterFullscreen || 'Fullscreen';
-				if ( fsLink ) fsLink.setAttribute( 'title', fsI18n.enterTitle || 'Enter fullscreen' );
+				repaintLabel( fsLink, fsI18n.enterTitle || 'Enter fullscreen' );
 			}
 		}
 		fsBtn.addEventListener( 'click', function( e ) {
@@ -227,13 +243,13 @@
 	}
 
 	// Bug Report button — same decoupling pattern as Ask AI. Dispatches
-	// `desktop-mode-open-bug-report`; the shell answers by opening the
+	// `os-open-bug-report`; the shell answers by opening the
 	// Bug Report native window. Wired in `src/desktop.ts`.
 	var bugBtn = document.getElementById( 'wp-admin-bar-desktop-bug-report' );
 	if ( bugBtn ) {
 		bugBtn.addEventListener( 'click', function( e ) {
 			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-bug-report' ) );
+			document.dispatchEvent( new CustomEvent( 'os-open-bug-report' ) );
 		} );
 	}
 
@@ -258,8 +274,8 @@
 	 * Re-anchors a native `title` attribute to a `data-desktop-tooltip`
 	 * data attribute on the same node, plus mirrors it to `aria-label`
 	 * so assistive tech keeps the description. Pure-CSS tooltip then
-	 * renders from the data attribute via the `[data-desktop-tooltip]
-	 * .ab-item::after` rule in admin-bar.php.
+	 * renders from the data attribute via the
+	 * `.ab-item[ data-desktop-tooltip ]::after` rule in admin-bar.php.
 	 */
 	function wireTooltipsFor( ids ) {
 		for ( var i = 0; i < ids.length; i++ ) {
@@ -275,6 +291,30 @@
 				link.setAttribute( 'aria-label', label );
 			}
 		}
+	}
+
+	/**
+	 * Relabels a button whose action changed under it (today: Fullscreen,
+	 * which flips between enter and exit). Writing only `title` is wrong
+	 * once `wireTooltipsFor()` has run: the visible tooltip renders from
+	 * `data-desktop-tooltip` and the accessible name comes from
+	 * `aria-label`, so a stale pair describes the opposite action while
+	 * the freshly re-added `title` brings the native OS tooltip back on
+	 * top of ours (GH#493).
+	 *
+	 * `title` is only touched when the node is still wearing one, which
+	 * makes this safe to call before wiring as well — the label lands on
+	 * `title` and `wireTooltipsFor()` re-anchors it from there.
+	 */
+	function repaintLabel( link, label ) {
+		if ( ! link ) return;
+		if ( link.hasAttribute( 'title' ) ) {
+			link.setAttribute( 'title', label );
+		}
+		if ( link.hasAttribute( 'data-desktop-tooltip' ) ) {
+			link.setAttribute( 'data-desktop-tooltip', label );
+		}
+		link.setAttribute( 'aria-label', label );
 	}
 
 	function wireShortcutsPopover( btn, data ) {
@@ -331,7 +371,7 @@
 
 	function buildShortcutsPopover( data ) {
 		var root = document.createElement( 'div' );
-		root.className = 'desktop-mode-shortcuts-popover';
+		root.className = 'os-shortcuts-popover';
 		root.setAttribute( 'role', 'dialog' );
 		if ( data.title ) {
 			root.setAttribute( 'aria-label', data.title );
@@ -348,17 +388,17 @@
 
 	function buildShortcutsTable( section ) {
 		var wrap = document.createElement( 'section' );
-		wrap.className = 'desktop-mode-shortcuts-popover__section';
+		wrap.className = 'os-shortcuts-popover__section';
 
 		if ( section.heading ) {
 			var h = document.createElement( 'h3' );
-			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.className = 'os-shortcuts-popover__heading';
 			h.textContent = section.heading;
 			wrap.appendChild( h );
 		}
 
 		var table = document.createElement( 'table' );
-		table.className = 'desktop-mode-shortcuts-popover__table';
+		table.className = 'os-shortcuts-popover__table';
 
 		var thead = document.createElement( 'thead' );
 		var headRow = document.createElement( 'tr' );
@@ -376,11 +416,11 @@
 			var tr = document.createElement( 'tr' );
 
 			var keyCell = document.createElement( 'td' );
-			keyCell.className = 'desktop-mode-shortcuts-popover__key-cell';
+			keyCell.className = 'os-shortcuts-popover__key-cell';
 			keyCell.appendChild( renderKeys( row.keys || [] ) );
 			if ( row.note ) {
 				var note = document.createElement( 'span' );
-				note.className = 'desktop-mode-shortcuts-popover__note';
+				note.className = 'os-shortcuts-popover__note';
 				note.textContent = ' ' + row.note;
 				keyCell.appendChild( note );
 			}
@@ -402,23 +442,23 @@
 
 	function buildShortcutsList( section ) {
 		var wrap = document.createElement( 'section' );
-		wrap.className = 'desktop-mode-shortcuts-popover__section';
+		wrap.className = 'os-shortcuts-popover__section';
 
 		if ( section.heading ) {
 			var h = document.createElement( 'h3' );
-			h.className = 'desktop-mode-shortcuts-popover__heading';
+			h.className = 'os-shortcuts-popover__heading';
 			h.textContent = section.heading;
 			wrap.appendChild( h );
 		}
 
 		var list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-shortcuts-popover__list';
+		list.className = 'os-shortcuts-popover__list';
 		( section.items || [] ).forEach( function( item ) {
 			var li = document.createElement( 'li' );
-			li.className = 'desktop-mode-shortcuts-popover__item';
+			li.className = 'os-shortcuts-popover__item';
 			li.appendChild( renderKeys( item.keys || [] ) );
 			var desc = document.createElement( 'span' );
-			desc.className = 'desktop-mode-shortcuts-popover__description';
+			desc.className = 'os-shortcuts-popover__description';
 			desc.textContent = item.description || '';
 			li.appendChild( desc );
 			list.appendChild( li );
@@ -430,17 +470,17 @@
 
 	function renderKeys( keys ) {
 		var span = document.createElement( 'span' );
-		span.className = 'desktop-mode-shortcuts-popover__keys';
+		span.className = 'os-shortcuts-popover__keys';
 		keys.forEach( function( key, idx ) {
 			if ( idx > 0 ) {
 				var plus = document.createElement( 'span' );
-				plus.className = 'desktop-mode-shortcuts-popover__plus';
+				plus.className = 'os-shortcuts-popover__plus';
 				plus.textContent = '+';
 				plus.setAttribute( 'aria-hidden', 'true' );
 				span.appendChild( plus );
 			}
 			var kbd = document.createElement( 'kbd' );
-			kbd.className = 'desktop-mode-shortcuts-popover__kbd';
+			kbd.className = 'os-shortcuts-popover__kbd';
 			kbd.textContent = key;
 			span.appendChild( kbd );
 		} );

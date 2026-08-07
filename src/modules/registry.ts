@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Module registry.
+ * OpenStation — Module registry.
  *
  * Shared vendor-library system. A "module" is a named bundle (typically
  * a runtime library like PixiJS, Three.js, confetti) that ships at a
@@ -51,14 +51,14 @@ const registry = new Map<string, ModuleDef>();
 export function registerModule( def: ModuleDef ): void {
 	if ( ! def || typeof def.id !== 'string' || def.id === '' ) {
 		if ( typeof console !== 'undefined' ) {
-			console.warn( '[desktop-mode] Ignored invalid module registration:', def );
+			console.warn( '[openstation] Ignored invalid module registration:', def );
 		}
 		return;
 	}
 	if ( typeof def.url !== 'string' || def.url === '' ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				`[desktop-mode] Module "${ def.id }" has no url; ignored.`,
+				`[openstation] Module "${ def.id }" has no url; ignored.`,
 			);
 		}
 		return;
@@ -93,7 +93,7 @@ export async function loadModules( ids: string[] ): Promise<void> {
 	const unknown = ids.filter( ( id ) => ! registry.has( id ) );
 	if ( unknown.length > 0 ) {
 		throw new Error(
-			`[desktop-mode] Unknown module(s) in needs: ${ unknown
+			`[openstation] Unknown module(s) in needs: ${ unknown
 				.map( ( id ) => `"${ id }"` )
 				.join( ', ' ) }. Known modules: ${ moduleIds().join( ', ' ) || '(none)' }.`,
 		);

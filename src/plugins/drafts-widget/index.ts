@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Drafts Widget (lazy bundle).
+ * OpenStation — Drafts Widget (lazy bundle).
  *
  * A quick list of your unfinished posts: the most recently edited
  * drafts, each a click away from reopening in the editor. Add it from
@@ -14,9 +14,9 @@
  * native window.
  */
 import './styles.css';
-import '../../ui/components/wpd-button/wpd-button';
-import '../../ui/components/wpd-notice/wpd-notice';
-import '../../ui/components/wpd-spinner/wpd-spinner';
+import '../../ui/components/os-button/os-button';
+import '../../ui/components/os-notice/os-notice';
+import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
@@ -34,8 +34,8 @@ interface DesktopApi {
 }
 
 function desktopApi(): DesktopApi | undefined {
-	return ( window as unknown as { wp?: { desktop?: DesktopApi } } ).wp
-		?.desktop;
+	return ( window as unknown as { wp?: { os?: DesktopApi } } ).wp
+		?.os;
 }
 
 function restRoot(): string {
@@ -51,8 +51,8 @@ function restRoot(): string {
  */
 function currentUserId(): number {
 	const desktop = ( window as unknown as {
-		wp?: { desktop?: { config?: { currentUserId?: number } } };
-	} ).wp?.desktop;
+		wp?: { os?: { config?: { currentUserId?: number } } };
+	} ).wp?.os;
 	return Number( desktop?.config?.currentUserId ) || 0;
 }
 
@@ -80,11 +80,11 @@ const PANEL_CLASS = 'dm-drafts__suggest';
 /** True when an AI provider is configured (Settings → Connectors). */
 function aiAvailable(): boolean {
 	const win = window as unknown as {
-		desktopModeConfig?: {
+		openStationConfig?: {
 			aiAssistant?: { providerConfigured?: boolean };
 		};
 	};
-	return win.desktopModeConfig?.aiAssistant?.providerConfigured === true;
+	return win.openStationConfig?.aiAssistant?.providerConfigured === true;
 }
 
 async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
@@ -183,7 +183,7 @@ function loadingState(): HTMLElement {
 	// `inline` rather than the default mark-and-rings artwork: at this
 	// size the WordPress mark is an unreadable smudge. The inline arc
 	// also inherits `currentColor`, so it tints itself from the panel.
-	const spinner = document.createElement( 'wpd-spinner' );
+	const spinner = document.createElement( 'os-spinner' );
 	spinner.setAttribute( 'preset', 'inline' );
 	spinner.setAttribute( 'size', '14' );
 	wrap.appendChild( spinner );
@@ -196,14 +196,14 @@ function loadingState(): HTMLElement {
 }
 
 /**
- * A dismissal-free `<wpd-notice>` sized for the panel.
+ * A dismissal-free `<os-notice>` sized for the panel.
  *
  * `dm-drafts__notice` re-points the component's color surface at
  * `currentColor` — its light-surface defaults are unreadable on a dark
  * glass widget card. See the class in `styles.css`.
  */
 function notice( tone: string, message?: string, icon?: string ): HTMLElement {
-	const el = document.createElement( 'wpd-notice' );
+	const el = document.createElement( 'os-notice' );
 	el.className = 'dm-drafts__notice';
 	el.setAttribute( 'tone', tone );
 	el.setAttribute( 'not-dismissible', '' );
@@ -236,7 +236,7 @@ async function loadSuggestions(
 }
 
 /**
- * Build one tap-to-apply suggestion as a `<wpd-button>`.
+ * Build one tap-to-apply suggestion as a `<os-button>`.
  *
  * `busy` while the write is in flight (the component disables itself and
  * paints its own spinner), then `is-applied` + `aria-disabled` once it
@@ -256,7 +256,7 @@ function applyButton(
 	fields: ApplyFields,
 	onOk?: () => void,
 ): HTMLElement {
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.setAttribute( 'variant', 'ghost' );
 	btn.className = variantClass;
 	btn.textContent = text;
@@ -285,7 +285,7 @@ function applyButton(
 	return btn;
 }
 
-/** Readiness verdict as a tone-coded `<wpd-notice>`. */
+/** Readiness verdict as a tone-coded `<os-notice>`. */
 function readinessNotice( readiness: DraftSuggestions[ 'readiness' ] ): HTMLElement {
 	const missing = readiness.missing ?? [];
 	const ready = missing.length === 0;
@@ -424,8 +424,8 @@ interface DraftRow {
 /** Base admin URL, e.g. `http://site/wp-admin/` (trailing slash). */
 function adminUrl(): string {
 	const desktop = ( window as unknown as {
-		wp?: { desktop?: { config?: { adminUrl?: string } } };
-	} ).wp?.desktop;
+		wp?: { os?: { config?: { adminUrl?: string } } };
+	} ).wp?.os;
 	return desktop?.config?.adminUrl || '/wp-admin/';
 }
 
@@ -500,7 +500,7 @@ function draftTitle( row: DraftRow ): string {
 /**
  * One hover-revealed, icon-only action at the end of a draft row.
  *
- * `<wpd-button>` rather than a bare `<button>`: the component carries the
+ * `<os-button>` rather than a bare `<button>`: the component carries the
  * framework's focus ring, disabled semantics and theming tokens, and keeps
  * the two row actions visually identical. The Dashicon is slotted as a
  * light-DOM child because the global icon font can't cross the component's
@@ -511,7 +511,7 @@ function rowAction(
 	dashicon: string,
 	label: string,
 ): HTMLElement {
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.className = className;
 	btn.setAttribute( 'variant', 'ghost' );
 	btn.title = label;
@@ -627,7 +627,7 @@ async function onTrash(
 ): Promise< void > {
 	const api = desktopApi();
 	// No confirm dialog available means we can't get consent — refuse
-	// rather than trashing unprompted. `wp.desktop.confirm` is a stable
+	// rather than trashing unprompted. `wp.os.confirm` is a stable
 	// part of the shell API, so this only trips outside the shell.
 	if ( ! api?.confirm ) {
 		return;
@@ -707,8 +707,8 @@ const mount = async (
 			void refresh();
 		}, 600 );
 	};
-	document.addEventListener( 'desktop-mode-window-closed', nudge );
-	document.addEventListener( 'desktop-mode-window-blurred', nudge );
+	document.addEventListener( 'os-window-closed', nudge );
+	document.addEventListener( 'os-window-blurred', nudge );
 
 	return () => {
 		destroyed = true;
@@ -716,13 +716,13 @@ const mount = async (
 		if ( nudgeTimer !== null ) {
 			clearTimeout( nudgeTimer );
 		}
-		document.removeEventListener( 'desktop-mode-window-closed', nudge );
-		document.removeEventListener( 'desktop-mode-window-blurred', nudge );
+		document.removeEventListener( 'os-window-closed', nudge );
+		document.removeEventListener( 'os-window-blurred', nudge );
 	};
 };
 
 const w = window as unknown as {
-	desktopModeWidgets?: Record< string, typeof mount >;
+	openStationWidgets?: Record< string, typeof mount >;
 };
-w.desktopModeWidgets = w.desktopModeWidgets ?? {};
-w.desktopModeWidgets[ WIDGET_ID ] = mount;
+w.openStationWidgets = w.openStationWidgets ?? {};
+w.openStationWidgets[ WIDGET_ID ] = mount;

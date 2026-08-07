@@ -1,5 +1,5 @@
 /**
- * wpd-ui — public barrel for the whole UI kit.
+ * os-ui — public barrel for the whole UI kit.
  *
  * Import once from the shell entry so every component upgrades
  * before anything else renders:

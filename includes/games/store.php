@@ -1,19 +1,19 @@
 <?php
 /**
- * Desktop Mode — Games store.
+ * OpenStation — Games store.
  *
  * CRUD for the two games tables. Scores are client-asserted (arcade
  * trust model): the server clamps and sanitizes what it can — the
  * game must be server-registered, the score is a non-negative int,
  * the meta blob is a bounded flat scalar map — and exposes the
- * `desktop_mode_game_score_pre_save` filter for plugins that want
+ * `openstation_game_score_pre_save` filter for plugins that want
  * stricter validation.
  *
  * The challenge state machine is enforced HERE, not in REST:
  * `pending → accepted | declined`, `accepted → completed`. Every
  * mutation bumps `updated_at_ms`, the Heartbeat high-water mark.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * @param mixed $meta Raw caller input.
  * @return array Sanitized flat map.
  */
-function desktop_mode_games_sanitize_score_meta( $meta ) {
+function openstation_games_sanitize_score_meta( $meta ) {
 	if ( ! is_array( $meta ) ) {
 		return array();
 	}
@@ -61,24 +61,24 @@ function desktop_mode_games_sanitize_score_meta( $meta ) {
  *                        `score_columns`).
  * @return int|WP_Error Row id on success.
  */
-function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array() ) {
+function openstation_games_save_score( $game, $user_id, $score, $meta = array() ) {
 	global $wpdb;
 
 	$game    = sanitize_key( (string) $game );
 	$user_id = (int) $user_id;
 	$score   = max( 0, (int) $score );
-	$meta    = desktop_mode_games_sanitize_score_meta( $meta );
+	$meta    = openstation_games_sanitize_score_meta( $meta );
 
-	if ( ! desktop_mode_games_is_registered( $game ) ) {
+	if ( ! openstation_games_is_registered( $game ) ) {
 		return new WP_Error(
-			'desktop_mode_unknown_game',
+			'openstation_unknown_game',
 			__( 'Unknown game.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( $user_id <= 0 ) {
 		return new WP_Error(
-			'desktop_mode_invalid_user',
+			'openstation_invalid_user',
 			__( 'A valid user is required to save a score.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -96,12 +96,12 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 	 * @param int           $score   Clamped score.
 	 * @param array         $meta    Sanitized meta map.
 	 */
-	$pre = apply_filters( 'desktop_mode_game_score_pre_save', null, $game, $user_id, $score, $meta );
+	$pre = apply_filters( 'openstation_game_score_pre_save', null, $game, $user_id, $score, $meta );
 	if ( is_wp_error( $pre ) ) {
 		return $pre;
 	}
 
-	$tables = desktop_mode_games_table_names();
+	$tables = openstation_games_table_names();
 	$ok     = $wpdb->insert(
 		$tables['scores'],
 		array(
@@ -109,13 +109,13 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 			'user_id'       => $user_id,
 			'score'         => $score,
 			'meta'          => wp_json_encode( $meta ),
-			'created_at_ms' => desktop_mode_games_now_ms(),
+			'created_at_ms' => openstation_games_now_ms(),
 		),
 		array( '%s', '%d', '%d', '%s', '%d' )
 	);
 	if ( false === $ok ) {
 		return new WP_Error(
-			'desktop_mode_score_save_failed',
+			'openstation_score_save_failed',
 			__( 'Could not save the score.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -131,7 +131,7 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 	 * @param int    $score   Saved score.
 	 * @param array  $meta    Saved meta map.
 	 */
-	do_action( 'desktop_mode_game_score_saved', $id, $game, $user_id, $score, $meta );
+	do_action( 'openstation_game_score_saved', $id, $game, $user_id, $score, $meta );
 
 	return $id;
 }
@@ -149,7 +149,7 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
  * }
  * @return array{ rows: array[], total: int }
  */
-function desktop_mode_games_get_scores( $game, $args = array() ) {
+function openstation_games_get_scores( $game, $args = array() ) {
 	global $wpdb;
 
 	$game     = sanitize_key( (string) $game );
@@ -159,7 +159,7 @@ function desktop_mode_games_get_scores( $game, $args = array() ) {
 	$order    = ( 'asc' === strtolower( (string) ( $args['order'] ?? 'desc' ) ) ) ? 'ASC' : 'DESC';
 	$user_id  = (int) ( $args['user_id'] ?? 0 );
 
-	$tables = desktop_mode_games_table_names();
+	$tables = openstation_games_table_names();
 	$where  = 'game = %s';
 	$params = array( $game );
 	if ( $user_id > 0 ) {
@@ -189,7 +189,7 @@ function desktop_mode_games_get_scores( $game, $args = array() ) {
 	);
 
 	return array(
-		'rows'  => array_map( 'desktop_mode_games_shape_score', (array) $rows ),
+		'rows'  => array_map( 'openstation_games_shape_score', (array) $rows ),
 		'total' => $total,
 	);
 }
@@ -201,7 +201,7 @@ function desktop_mode_games_get_scores( $game, $args = array() ) {
  * @param array $row Raw table row.
  * @return array
  */
-function desktop_mode_games_shape_score( $row ) {
+function openstation_games_shape_score( $row ) {
 	$user_id = (int) $row['user_id'];
 	$user    = get_userdata( $user_id );
 	$meta    = json_decode( (string) ( $row['meta'] ?? '' ), true );
@@ -227,37 +227,37 @@ function desktop_mode_games_shape_score( $row ) {
  * @param array  $score_meta    The challenger's score meta map.
  * @return int|WP_Error Challenge id on success.
  */
-function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_id, $score_to_beat, $score_meta = array() ) {
+function openstation_games_create_challenge( $game, $challenger_id, $recipient_id, $score_to_beat, $score_meta = array() ) {
 	global $wpdb;
 
 	$game          = sanitize_key( (string) $game );
 	$challenger_id = (int) $challenger_id;
 	$recipient_id  = (int) $recipient_id;
 
-	if ( ! desktop_mode_games_is_registered( $game ) ) {
+	if ( ! openstation_games_is_registered( $game ) ) {
 		return new WP_Error(
-			'desktop_mode_unknown_game',
+			'openstation_unknown_game',
 			__( 'Unknown game.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( $recipient_id <= 0 || ! get_userdata( $recipient_id ) ) {
 		return new WP_Error(
-			'desktop_mode_invalid_recipient',
+			'openstation_invalid_recipient',
 			__( 'The challenged user does not exist.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( $recipient_id === $challenger_id ) {
 		return new WP_Error(
-			'desktop_mode_self_challenge',
+			'openstation_self_challenge',
 			__( 'You cannot challenge yourself.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$now    = desktop_mode_games_now_ms();
-	$tables = desktop_mode_games_table_names();
+	$now    = openstation_games_now_ms();
+	$tables = openstation_games_table_names();
 	$ok     = $wpdb->insert(
 		$tables['challenges'],
 		array(
@@ -265,7 +265,7 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
 			'challenger_id' => $challenger_id,
 			'recipient_id'  => $recipient_id,
 			'score_to_beat' => max( 0, (int) $score_to_beat ),
-			'score_meta'    => wp_json_encode( desktop_mode_games_sanitize_score_meta( $score_meta ) ),
+			'score_meta'    => wp_json_encode( openstation_games_sanitize_score_meta( $score_meta ) ),
 			'state'         => 'pending',
 			'created_at_ms' => $now,
 			'updated_at_ms' => $now,
@@ -274,7 +274,7 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
 	);
 	if ( false === $ok ) {
 		return new WP_Error(
-			'desktop_mode_challenge_create_failed',
+			'openstation_challenge_create_failed',
 			__( 'Could not create the challenge.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -287,7 +287,7 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
 	 * @param int   $id  Challenge id.
 	 * @param array $row The challenge row.
 	 */
-	do_action( 'desktop_mode_game_challenge_created', $id, desktop_mode_games_get_challenge( $id ) );
+	do_action( 'openstation_game_challenge_created', $id, openstation_games_get_challenge( $id ) );
 
 	return $id;
 }
@@ -298,9 +298,9 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
  * @param int $id Challenge id.
  * @return array|null Raw table row.
  */
-function desktop_mode_games_get_challenge( $id ) {
+function openstation_games_get_challenge( $id ) {
 	global $wpdb;
-	$tables = desktop_mode_games_table_names();
+	$tables = openstation_games_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare( "SELECT * FROM {$tables['challenges']} WHERE id = %d", (int) $id ),
 		ARRAY_A
@@ -316,27 +316,27 @@ function desktop_mode_games_get_challenge( $id ) {
  * @param string $state 'accepted' | 'declined'.
  * @return true|WP_Error
  */
-function desktop_mode_games_set_challenge_state( $id, $state ) {
+function openstation_games_set_challenge_state( $id, $state ) {
 	global $wpdb;
 
 	if ( ! in_array( $state, array( 'accepted', 'declined' ), true ) ) {
 		return new WP_Error(
-			'desktop_mode_invalid_challenge_state',
+			'openstation_invalid_challenge_state',
 			__( 'Invalid challenge state.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
-	$row = desktop_mode_games_get_challenge( $id );
+	$row = openstation_games_get_challenge( $id );
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_challenge_not_found',
+			'openstation_challenge_not_found',
 			__( 'Challenge not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( 'pending' !== $row['state'] ) {
 		return new WP_Error(
-			'desktop_mode_challenge_state_conflict',
+			'openstation_challenge_state_conflict',
 			__( 'This challenge has already been decided.', 'desktop-mode' ),
 			array( 'status' => 409 )
 		);
@@ -345,8 +345,8 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 	// Monotonic bump: a transition landing in the same millisecond as
 	// the previous write must still move `updated_at_ms` forward, or
 	// version-gated Heartbeat clients would never see the change.
-	$now    = max( desktop_mode_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
-	$tables = desktop_mode_games_table_names();
+	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
+	$tables = openstation_games_table_names();
 	$wpdb->update(
 		$tables['challenges'],
 		array(
@@ -366,7 +366,7 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 		 * @param int   $id  Challenge id.
 		 * @param array $row The (pre-transition) challenge row.
 		 */
-		do_action( 'desktop_mode_game_challenge_accepted', (int) $id, $row );
+		do_action( 'openstation_game_challenge_accepted', (int) $id, $row );
 	} else {
 		/**
 		 * Fires after a challenge is declined by its recipient.
@@ -374,7 +374,7 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 		 * @param int   $id  Challenge id.
 		 * @param array $row The (pre-transition) challenge row.
 		 */
-		do_action( 'desktop_mode_game_challenge_declined', (int) $id, $row );
+		do_action( 'openstation_game_challenge_declined', (int) $id, $row );
 	}
 
 	return true;
@@ -389,40 +389,40 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
  * @param array $meta  The recipient's score meta map.
  * @return array|WP_Error The updated challenge row.
  */
-function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
+function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
 	global $wpdb;
 
-	$row = desktop_mode_games_get_challenge( $id );
+	$row = openstation_games_get_challenge( $id );
 	if ( ! $row ) {
 		return new WP_Error(
-			'desktop_mode_challenge_not_found',
+			'openstation_challenge_not_found',
 			__( 'Challenge not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( 'accepted' !== $row['state'] ) {
 		return new WP_Error(
-			'desktop_mode_challenge_state_conflict',
+			'openstation_challenge_state_conflict',
 			__( 'Only an accepted challenge can be completed.', 'desktop-mode' ),
 			array( 'status' => 409 )
 		);
 	}
 
 	$score  = max( 0, (int) $score );
-	$meta   = desktop_mode_games_sanitize_score_meta( $meta );
+	$meta   = openstation_games_sanitize_score_meta( $meta );
 	$result = $score > (int) $row['score_to_beat'] ? 'beaten' : 'not_beaten';
 
 	// The run also lands on the leaderboard — a challenge game is a
 	// real game. A veto from the pre-save filter aborts the whole
 	// completion so the two writes can't diverge.
-	$score_id = desktop_mode_games_save_score( $row['game'], (int) $row['recipient_id'], $score, $meta );
+	$score_id = openstation_games_save_score( $row['game'], (int) $row['recipient_id'], $score, $meta );
 	if ( is_wp_error( $score_id ) ) {
 		return $score_id;
 	}
 
 	// Same monotonic-bump rule as `set_challenge_state()` — see there.
-	$now    = max( desktop_mode_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
-	$tables = desktop_mode_games_table_names();
+	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
+	$tables = openstation_games_table_names();
 	$wpdb->update(
 		$tables['challenges'],
 		array(
@@ -438,7 +438,7 @@ function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
 		array( '%d' )
 	);
 
-	$updated = desktop_mode_games_get_challenge( $id );
+	$updated = openstation_games_get_challenge( $id );
 
 	/**
 	 * Fires after a challenge run is completed.
@@ -447,7 +447,7 @@ function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
 	 * @param string $result 'beaten' | 'not_beaten'.
 	 * @param array  $row    The updated challenge row.
 	 */
-	do_action( 'desktop_mode_game_challenge_completed', (int) $id, $result, $updated );
+	do_action( 'openstation_game_challenge_completed', (int) $id, $result, $updated );
 
 	return $updated;
 }
@@ -462,9 +462,9 @@ function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
  * @param int $cap      Row cap.
  * @return array[] Raw rows, oldest change first.
  */
-function desktop_mode_games_get_challenges_for_user( $user_id, $since_ms = 0, $cap = 50 ) {
+function openstation_games_get_challenges_for_user( $user_id, $since_ms = 0, $cap = 50 ) {
 	global $wpdb;
-	$tables = desktop_mode_games_table_names();
+	$tables = openstation_games_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['challenges']}
@@ -489,10 +489,10 @@ function desktop_mode_games_get_challenges_for_user( $user_id, $since_ms = 0, $c
  * @param array $row Raw table row.
  * @return array
  */
-function desktop_mode_games_shape_challenge( $row ) {
-	$challenger = get_userdata( (int) $row['challenger_id'] );
-	$recipient  = get_userdata( (int) $row['recipient_id'] );
-	$score_meta = json_decode( (string) ( $row['score_meta'] ?? '' ), true );
+function openstation_games_shape_challenge( $row ) {
+	$challenger  = get_userdata( (int) $row['challenger_id'] );
+	$recipient   = get_userdata( (int) $row['recipient_id'] );
+	$score_meta  = json_decode( (string) ( $row['score_meta'] ?? '' ), true );
 	$result_meta = json_decode( (string) ( $row['result_meta'] ?? '' ), true );
 	return array(
 		'id'               => (int) $row['id'],

@@ -2,7 +2,7 @@
  * Desktop-theme types shared across the shell bundle.
  *
  * Deliberately dependency-free so `src/desktop-themes/` can stay a
- * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<wpd-*>`
+ * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<os-*>`
  * imports — the heavy picker UI lives in the lazy OS Settings panel
  * bundle instead.
  */
@@ -20,7 +20,7 @@
  * same theme.
  *
  * Sanitized by PHP against
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()` and
+ * `openstation_desktop_theme_recommended_os_settings_schema()` and
  * re-checked in {@link normalizeEntry} — the payload passes through a
  * filter after sanitization, so the shell never treats it as trusted.
  *
@@ -62,6 +62,20 @@ export interface RecommendedOsSettings {
 	 * alone.
 	 */
 	windowRevealDuration?: number;
+	/**
+	 * Accent swatch id (OS Settings → Appearance). Same runtime-
+	 * validity story as {@link dockRailRenderer}: the list is
+	 * filterable in PHP, so the apply pass drops the key when the site
+	 * offers no swatch under that id.
+	 *
+	 * This is the one recommendation a theme cannot express any other
+	 * way. The accent is written as an inline style on the shell
+	 * document, which outranks every stylesheet — so a palette can
+	 * restyle the entire OS and still find WordPress blue on every
+	 * focus ring and tab underline. Recommending it is how a theme
+	 * says "and this hue with it".
+	 */
+	accent?: string;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * `wp.desktop.ai.ask( query, opts? )` — programmatic access to the
+ * `wp.os.ai.ask( query, opts? )` — programmatic access to the
  * AI Copilot, the same endpoint the built-in overlay talks to.
  *
  * Three jobs:
@@ -103,7 +103,7 @@ export interface AskOptions {
 	 *
 	 * Server-side, `mode: 'replace'` is gated on a capability that
 	 * defaults to `manage_options` and is filterable via
-	 * `desktop_mode_ai_system_prompt_replace_capability`. Non-admin
+	 * `openstation_ai_system_prompt_replace_capability`. Non-admin
 	 * callers sending `replace` get a silent downgrade to `append`.
 	 */
 	systemPrompt?:
@@ -275,7 +275,7 @@ export function createAsk( deps: AskDeps ) {
 		const nonce = config.restNonce ?? '';
 		if ( ! url || ! nonce ) {
 			throw new Error(
-				'[desktop-mode] wp.desktop.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
+				'[openstation] wp.os.ai.ask: aiSearchUrl / restNonce missing from config. AI Copilot may not be enabled.',
 			);
 		}
 		try {
@@ -298,7 +298,7 @@ export function createAsk( deps: AskDeps ) {
 				throw err;
 			}
 			throw new Error(
-				`[desktop-mode] wp.desktop.ai.ask: network error — ${ String(
+				`[openstation] wp.os.ai.ask: network error — ${ String(
 					( err as Error )?.message ?? err,
 				) }`,
 			);
@@ -426,7 +426,7 @@ export function createAsk( deps: AskDeps ) {
 				opts.commandContext !== undefined;
 			if ( hasMeaningfulOpts ) {
 				throw new Error(
-					'[desktop-mode] wp.desktop.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
+					'[openstation] wp.os.ai.ask: empty query passed with non-default options — likely a caller bug. Provide a query or call without options.',
 				);
 			}
 			return {
@@ -466,7 +466,7 @@ export function createAsk( deps: AskDeps ) {
 				.json()
 				.catch( () => ( { message: res.statusText } ) );
 			throw new Error(
-				`[desktop-mode] wp.desktop.ai.ask: HTTP ${ res.status } — ${
+				`[openstation] wp.os.ai.ask: HTTP ${ res.status } — ${
 					( detail as { message?: string } ).message ?? res.statusText
 				}`,
 			);

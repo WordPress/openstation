@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window external-tab lifecycle.
+ * OpenStation — Window external-tab lifecycle.
  *
  * "External tabs" are plugin- and user-initiated sub-tabs that embed an
  * external URL in a secondary iframe inside an iframe-backed window.
@@ -77,7 +77,7 @@ function findPageOwnerTab(
 		let contradicted = false;
 		for ( const [ key, value ] of parsed.searchParams ) {
 			if (
-				key === 'desktop_mode_chromeless' ||
+				key === 'openstation_chromeless' ||
 				key === 'desktop_mode_portal'
 			) {
 				continue;
@@ -112,7 +112,7 @@ function findPageOwnerTab(
  */
 export function syncActiveTab( win: Window, currentUrl: string ): void {
 	const submenuTabs = win.element.querySelectorAll<HTMLElement>(
-		'.desktop-mode-window__tab[data-kind="submenu"]',
+		'.os-window__tab[data-kind="submenu"]',
 	);
 	if ( ! submenuTabs.length ) {
 		return;
@@ -122,7 +122,7 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	// looking at.
 	if ( win._activeTabId !== 'primary' ) {
 		for ( const tab of submenuTabs ) {
-			tab.classList.remove( 'desktop-mode-window__tab--active' );
+			tab.classList.remove( 'os-window__tab--active' );
 			tab.setAttribute( 'aria-selected', 'false' );
 		}
 		return;
@@ -141,7 +141,7 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	}
 	for ( const tab of submenuTabs ) {
 		const isActive = tab === active;
-		tab.classList.toggle( 'desktop-mode-window__tab--active', isActive );
+		tab.classList.toggle( 'os-window__tab--active', isActive );
 		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	}
 }
@@ -174,10 +174,10 @@ export function addExternalTab(
 		return;
 	}
 	const tabStrip = win.element.querySelector<HTMLElement>(
-		'.desktop-mode-window__tabs',
+		'.os-window__tabs',
 	);
 	const body = win.element.querySelector<HTMLElement>(
-		'.desktop-mode-window__body',
+		'.os-window__body',
 	);
 	if ( ! tabStrip || ! body ) {
 		return;
@@ -189,7 +189,7 @@ export function addExternalTab(
 
 	// Build the tab element with label + detach + close chips.
 	const tabEl = document.createElement( 'button' );
-	tabEl.className = 'desktop-mode-window__tab desktop-mode-window__tab--external';
+	tabEl.className = 'os-window__tab os-window__tab--external';
 	tabEl.dataset.kind = 'external';
 	tabEl.dataset.tabId = tabId;
 	tabEl.setAttribute( 'type', 'button' );
@@ -198,11 +198,11 @@ export function addExternalTab(
 	tabEl.title = url;
 
 	const labelEl = document.createElement( 'span' );
-	labelEl.className = 'desktop-mode-window__tab-label';
+	labelEl.className = 'os-window__tab-label';
 	labelEl.textContent = label;
 	tabEl.appendChild( labelEl );
 
-	const detachBtn = document.createElement( 'wpd-tab-chip' );
+	const detachBtn = document.createElement( 'os-tab-chip' );
 	detachBtn.setAttribute( 'variant', 'detach' );
 	detachBtn.dataset.tabAction = 'detach';
 	detachBtn.dataset.tabId = tabId;
@@ -210,7 +210,7 @@ export function addExternalTab(
 	detachBtn.title = __( 'Open in a new browser tab' );
 	tabEl.appendChild( detachBtn );
 
-	const closeBtn = document.createElement( 'wpd-tab-chip' );
+	const closeBtn = document.createElement( 'os-tab-chip' );
 	closeBtn.setAttribute( 'variant', 'close' );
 	closeBtn.dataset.tabAction = 'close';
 	closeBtn.dataset.tabId = tabId;
@@ -225,7 +225,7 @@ export function addExternalTab(
 	// forms, and same-origin cookies to function. The iframe is
 	// cross-origin anyway so the site can't reach our shell DOM.
 	const iframe = document.createElement( 'iframe' );
-	iframe.className = 'desktop-mode-window__iframe desktop-mode-window__iframe--external';
+	iframe.className = 'os-window__iframe os-window__iframe--external';
 	iframe.dataset.tabId = tabId;
 	iframe.style.display = 'none';
 	iframe.src = url;
@@ -266,7 +266,7 @@ export function addExternalTab(
 	switchToTab( win, tabId );
 	tabEl.scrollIntoView( { behavior: 'smooth', inline: 'end', block: 'nearest' } );
 	// Trigger the session saver so this tab survives a reload. The
-	// saver subscribes to `desktop-mode-window-changed`, which emitChange
+	// saver subscribes to `os-window-changed`, which emitChange
 	// already dispatches for the debounce layer; reuse the 'state'
 	// reason — the tab list is part of window state as far as
 	// persistence is concerned.
@@ -288,7 +288,7 @@ function ensureMainTab( win: Window, tabStrip: HTMLElement ): void {
 		return;
 	}
 	const main = document.createElement( 'button' );
-	main.className = 'desktop-mode-window__tab desktop-mode-window__tab--main desktop-mode-window__tab--active';
+	main.className = 'os-window__tab os-window__tab--main os-window__tab--active';
 	main.dataset.kind = 'main';
 	main.setAttribute( 'type', 'button' );
 	main.setAttribute( 'role', 'tab' );
@@ -320,7 +320,7 @@ export function switchToTab( win: Window, tabId: 'primary' | string ): void {
 
 	// Tab active-state.
 	const tabEls = win.element.querySelectorAll<HTMLElement>(
-		'.desktop-mode-window__tab',
+		'.os-window__tab',
 	);
 	tabEls.forEach( ( t ) => {
 		let isActive: boolean;
@@ -336,9 +336,9 @@ export function switchToTab( win: Window, tabId: 'primary' | string ): void {
 			// deactivates all submenu tabs.
 			isActive =
 				tabId === 'primary' &&
-				t.classList.contains( 'desktop-mode-window__tab--active' );
+				t.classList.contains( 'os-window__tab--active' );
 		}
-		t.classList.toggle( 'desktop-mode-window__tab--active', isActive );
+		t.classList.toggle( 'os-window__tab--active', isActive );
 		t.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	} );
 }
@@ -360,7 +360,7 @@ export function closeExternalTab( win: Window, tabId: string ): void {
 	// remove it — returning the window to its pre-external state.
 	if ( win._externalTabs.size === 0 ) {
 		const main = win.element.querySelector(
-			'.desktop-mode-window__tab--main',
+			'.os-window__tab--main',
 		);
 		main?.remove();
 	}
@@ -487,7 +487,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		return;
 	}
 
-	const tab = target.closest<HTMLElement>( '.desktop-mode-window__tab' );
+	const tab = target.closest<HTMLElement>( '.os-window__tab' );
 	if ( ! tab ) {
 		return;
 	}
@@ -509,7 +509,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		const next = withChromelessParam( tab.dataset.url );
 		if ( next && win.iframe ) {
 			// Arm the loading overlay before re-pointing the iframe.
-			// The chromeless bridge clears it via `desktop-mode-ready`
+			// The chromeless bridge clears it via `os-ready`
 			// once the next page hydrates (and the iframe `load`
 			// event is the floor signal). Without this, in-place
 			// submenu navigation showed no spinner — visible only
@@ -521,4 +521,144 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		}
 		switchToTab( win, 'primary' );
 	}
+}
+
+/* ---------------------------------------------------------------
+ * Tab-strip overflow affordance
+ * --------------------------------------------------------------- */
+
+/**
+ * Slack, in pixels, when comparing scroll offsets against their
+ * bounds. Sub-pixel layout (fractional `clientWidth` under a zoomed
+ * page or a fractional device pixel ratio) leaves `scrollLeft` a
+ * hair short of its maximum at the true end of the strip, which
+ * without a tolerance paints an "there is more this way" fade over
+ * the last tab forever.
+ */
+const OVERFLOW_EPSILON = 1;
+
+/**
+ * Stamp `data-overflow` on a tab strip to describe which of its
+ * physical edges is currently hiding content.
+ *
+ * Values: `left`, `right`, `both`, or the attribute removed when the
+ * strip fits. The edge fades in `window-chrome.css` key off this, so
+ * a fade only ever appears where scrolling would actually reveal
+ * another tab — the whole point of the affordance. Previously the
+ * mask was unconditional, which on the pre-brand light strip was
+ * invisible (it faded empty area past the last tab) and on the
+ * station's dark one reads as two grey smudges bracketing every
+ * window's submenu.
+ *
+ * Direction-aware: `scrollLeft` runs `[0, max]` in LTR and `[-max, 0]`
+ * in RTL, so the distance travelled from the inline start is the
+ * absolute value in both, and which *physical* edge that leaves
+ * covered is what flips.
+ */
+export function updateTabOverflow(
+	strip: HTMLElement,
+	knownRtl?: boolean,
+): void {
+	const max = Math.max( 0, strip.scrollWidth - strip.clientWidth );
+	if ( max <= OVERFLOW_EPSILON ) {
+		delete strip.dataset.overflow;
+		return;
+	}
+
+	const travelled = Math.abs( strip.scrollLeft );
+	const atStart = travelled <= OVERFLOW_EPSILON;
+	const atEnd = travelled >= max - OVERFLOW_EPSILON;
+
+	// `direction` decides which PHYSICAL edge a given scroll position
+	// leaves covered, so it has to be read rather than assumed for an
+	// RTL admin to get the fades on the correct sides. Callers that
+	// measure repeatedly pass it in: a strip does not change direction
+	// between two scroll frames, and `getComputedStyle` forces a style
+	// recalc every time it is asked.
+	const rtl =
+		knownRtl ?? window.getComputedStyle( strip ).direction === 'rtl';
+	const hiddenLeft = rtl ? ! atEnd : ! atStart;
+	const hiddenRight = rtl ? ! atStart : ! atEnd;
+
+	if ( hiddenLeft && hiddenRight ) {
+		strip.dataset.overflow = 'both';
+	} else if ( hiddenLeft ) {
+		strip.dataset.overflow = 'left';
+	} else if ( hiddenRight ) {
+		strip.dataset.overflow = 'right';
+	} else {
+		delete strip.dataset.overflow;
+	}
+}
+
+/**
+ * Keep {@link updateTabOverflow} in step with everything that can
+ * change the answer, and hand back a teardown.
+ *
+ * Three sources, because a strip can start overflowing without the
+ * user touching it: scrolling (the obvious one), the strip being
+ * resized (the window narrows, or the shell reflows), and tabs being
+ * added or removed (`addExternalTab`, `removeExternalTab`). Missing
+ * any of the three leaves a stale fade — the failure mode being
+ * fixed here, so it is worth covering all of them.
+ *
+ * Measurement is deferred to an animation frame: the first call
+ * lands while the window is still being assembled, before layout has
+ * run, when every scroll dimension reads 0.
+ */
+export function observeTabOverflow( strip: HTMLElement ): () => void {
+	// Cached across scroll frames and re-read only when the strip is
+	// resized or its children change, which are the moments a direction
+	// flip could plausibly ride along with. Scrolling cannot change it,
+	// and `getComputedStyle` on every frame of a flick is a style
+	// recalc for an answer that is already known.
+	let rtl: boolean | null = null;
+
+	let frame: number | null = null;
+	const schedule = (): void => {
+		if ( frame !== null ) {
+			return;
+		}
+		frame = window.requestAnimationFrame( () => {
+			frame = null;
+			if ( rtl === null ) {
+				rtl = window.getComputedStyle( strip ).direction === 'rtl';
+			}
+			updateTabOverflow( strip, rtl );
+		} );
+	};
+
+	/** Re-measure, and re-read the direction while we are at it. */
+	const scheduleWithDirection = (): void => {
+		rtl = null;
+		schedule();
+	};
+
+	strip.addEventListener( 'scroll', schedule, { passive: true } );
+
+	// jsdom without a shim has neither observer; the strip simply
+	// keeps whatever the initial measure decided.
+	const resizeObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver( scheduleWithDirection );
+	resizeObserver?.observe( strip );
+
+	const mutationObserver =
+		typeof MutationObserver === 'undefined'
+			? null
+			: new MutationObserver( scheduleWithDirection );
+	mutationObserver?.observe( strip, { childList: true, subtree: true } );
+
+	schedule();
+
+	return () => {
+		strip.removeEventListener( 'scroll', schedule );
+		resizeObserver?.disconnect();
+		mutationObserver?.disconnect();
+		if ( frame !== null ) {
+			window.cancelAnimationFrame( frame );
+			frame = null;
+		}
+	};
 }

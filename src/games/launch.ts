@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Game launcher.
+ * OpenStation — Game launcher.
  *
  * `launchGame( id )` is the single path every game opens through:
- * the Games window's launcher tiles, `wp.desktop.games.launch()`,
+ * the Games window's launcher tiles, `wp.os.games.launch()`,
  * and the challenge-accept flow all land here. It
  *
  *   1. upgrades a metadata stub to a full def by lazily loading the
@@ -10,7 +10,7 @@
  *   2. suspends the wallpaper (refcounted; the reason is unique per
  *      hosting window) so the game's canvas doesn't compete with
  *      the wallpaper's ticker,
- *   3. opens the native window `desktop-mode-game-<id>` and hands
+ *   3. opens the native window `os-game-<id>` and hands
  *      the game its {@link GameLaunchContext},
  *   4. tracks the player's active time (paused while minimized) and
  *      flushes it to the play-time endpoint, and
@@ -18,15 +18,20 @@
  *      stops — on EVERY close path: normal close, crash inside
  *      render, failed script load.
  *
- * Uses the `wp.desktop` public surface (registerWindow, wallpaper,
- * onWindow, loadVendorScript) rather than direct imports so the
- * behavior is identical whether this module is compiled into the
- * main bundle or the games bundle.
+ * A finished run also publishes `os/game-score-recorded`
+ * on the activity bus so the Games hub's scoreboard (a different
+ * window) can refresh itself.
+ *
+ * Uses the `wp.os` public surface (registerWindow, wallpaper,
+ * onWindow, loadVendorScript, activity) rather than direct imports
+ * so the behavior is identical whether this module is compiled into
+ * the main bundle or the games bundle.
  */
 
 import * as registry from './registry';
 import { startPlaytimeTracker } from './playtime';
 import type { PlaytimeTracker } from './playtime';
+import { ingestChallenges } from './challenges-store';
 import { completeChallenge, submitScore } from './rest';
 import type {
 	GameChallengeContext,
@@ -76,6 +81,9 @@ interface DesktopGlobal {
 		getActiveDesktopId?: () => string;
 		switchDesktop?: ( id: string ) => void;
 	};
+	activity?: {
+		publish: ( channel: string, payload?: unknown ) => void;
+	};
 }
 
 interface GameWindowLike {
@@ -85,7 +93,7 @@ interface GameWindowLike {
 
 function desktopGlobal(): DesktopGlobal {
 	return (
-		( window.wp as { desktop?: DesktopGlobal } | undefined )?.desktop ?? {}
+		( window.wp as { os?: DesktopGlobal } | undefined )?.os ?? {}
 	);
 }
 
@@ -96,7 +104,7 @@ const DEFAULT_GAME_MIN_HEIGHT = 380;
 
 /**
  * Load a stub entry's script and read the full def the script
- * published on `window.desktopModeGames[ id ]`. The upgraded entry
+ * published on `window.openStationGames[ id ]`. The upgraded entry
  * (server metadata + JS render) replaces the stub in the registry.
  *
  * Exported for the server-sync module's tests; `launchGame` is the
@@ -111,7 +119,7 @@ export async function ensureGameRender(
 	const loadVendorScript = desktopGlobal().loadVendorScript;
 	if ( ! entry.scriptUrl || typeof loadVendorScript !== 'function' ) {
 		throw new Error(
-			`[desktop-mode] Game "${ entry.id }" has no render callback and no loadable script.`,
+			`[openstation] Game "${ entry.id }" has no render callback and no loadable script.`,
 		);
 	}
 	await loadVendorScript( entry.scriptUrl, {
@@ -121,10 +129,10 @@ export async function ensureGameRender(
 		after: entry.scriptAfter,
 	} );
 	const globals = window as unknown as GamesGlobals;
-	const def: GameDef | undefined = globals.desktopModeGames?.[ entry.id ];
+	const def: GameDef | undefined = globals.openStationGames?.[ entry.id ];
 	if ( ! def || typeof def.render !== 'function' ) {
 		throw new Error(
-			`[desktop-mode] No game def on window.desktopModeGames["${ entry.id }"]. ` +
+			`[openstation] No game def on window.openStationGames["${ entry.id }"]. ` +
 				"Script loaded but didn't publish a def — check the plugin's global assignment.",
 		);
 	}
@@ -152,22 +160,22 @@ export async function launchGame(
 	const desktop = desktopGlobal();
 	let entry = registry.get( id );
 	if ( ! entry ) {
-		throw new Error( `[desktop-mode] Unknown game "${ id }".` );
+		throw new Error( `[openstation] Unknown game "${ id }".` );
 	}
 	entry = await ensureGameRender( entry );
 	const render = entry.render;
 	if ( typeof render !== 'function' ) {
 		throw new Error(
-			`[desktop-mode] Game "${ id }" did not provide a render callback.`,
+			`[openstation] Game "${ id }" did not provide a render callback.`,
 		);
 	}
 	if ( typeof desktop.registerWindow !== 'function' ) {
 		throw new Error(
-			'[desktop-mode] wp.desktop.registerWindow is missing — the shell must boot before launching games.',
+			'[openstation] wp.os.registerWindow is missing — the shell must boot before launching games.',
 		);
 	}
 
-	const windowId = `desktop-mode-game-${ id }`;
+	const windowId = `os-game-${ id }`;
 	const suspendReason = `game:${ windowId }`;
 
 	// Refcounted + reason-scoped, so re-launching an already-open
@@ -182,7 +190,7 @@ export async function launchGame(
 		// `manager.open()` only reuses a window on the ACTIVE desktop
 		// (`getByBaseIdOnActiveDesktop`); if the running instance
 		// lives on another Space, calling registerWindow from here
-		// would mint a blank `desktop-mode-game-<id>-2` copy with the
+		// would mint a blank `os-game-<id>-2` copy with the
 		// no-op render below and no suspend wiring. Switch to the
 		// instance's desktop first so the focus path is the one that
 		// runs.
@@ -234,14 +242,39 @@ export async function launchGame(
 		restored: () => tracker?.resume(),
 	} );
 
+	// The run finished in THIS window; the Games hub is a different
+	// window (and may be a different bundle) holding a leaderboard
+	// that just went stale. Announce on the activity bus rather than
+	// reaching into the hub. The framework is the transport, the hub
+	// owns what it does about it.
+	const announce = (
+		result: GameScoreSubmission,
+		challengeId?: number,
+	): void => {
+		desktop.activity?.publish( 'os/game-score-recorded', {
+			game: id,
+			score: result.score,
+			meta: result.meta ?? {},
+			windowId,
+			challengeId,
+		} );
+	};
+
 	const submit = ( result: GameScoreSubmission ): Promise< void > => {
 		if ( opts.challenge ) {
-			return completeChallenge( opts.challenge.id, result, {
+			const challengeId = opts.challenge.id;
+			return completeChallenge( challengeId, result, {
 				windowId,
-			} ).then( () => undefined );
+			} ).then( ( { challenge } ) => {
+				// The completion response is the authoritative updated
+				// row, so feed the shared store now rather than
+				// waiting for the next Heartbeat delta to carry it.
+				ingestChallenges( [ challenge ] );
+				announce( result, challengeId );
+			} );
 		}
-		return submitScore( id, result, { windowId } ).then(
-			() => undefined,
+		return submitScore( id, result, { windowId } ).then( () =>
+			announce( result ),
 		);
 	};
 

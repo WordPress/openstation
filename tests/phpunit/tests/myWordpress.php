@@ -1,15 +1,15 @@
 <?php
 /**
- * Tests for the pinned virtual site folder (module slug
- * `my-wordpress`; the window is titled after the site itself).
+ * Tests for the pinned WP Explorer window (module slug `my-wordpress`;
+ * the display name is the only thing the rename moved).
  *
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  * @group desktop-mode-my-wordpress
  */
-class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
+class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
@@ -25,23 +25,23 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_my_wordpress_user_can_use' );
-		remove_all_filters( 'desktop_mode_my_wordpress_window_args' );
-		remove_all_filters( 'desktop_mode_my_wordpress_icon_args' );
-		remove_all_filters( 'desktop_mode_my_wordpress_entities' );
-		remove_all_filters( 'desktop_mode_site_title' );
+		remove_all_filters( 'openstation_my_wordpress_user_can_use' );
+		remove_all_filters( 'openstation_my_wordpress_window_args' );
+		remove_all_filters( 'openstation_my_wordpress_icon_args' );
+		remove_all_filters( 'openstation_my_wordpress_entities' );
+		remove_all_filters( 'openstation_site_title' );
 		parent::tear_down();
 	}
 
 	/**
 	 * `init` registers both a native window and a pinned desktop icon.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_registers_pinned_icon() {
-		desktop_mode_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$icon = desktop_mode_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$icon = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 		$this->assertIsArray( $icon );
 		$this->assertTrue( $icon['pinned'] );
 		$this->assertSame( -1, $icon['position'] );
@@ -49,12 +49,12 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_registers_native_window_with_config() {
-		desktop_mode_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'desktop-mode-my-wordpress', $entry['script'] );
 		$this->assertArrayHasKey( 'config', $entry );
@@ -66,61 +66,87 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The folder is named after the site, not after the software
-	 * running it — the window title, the pinned icon, and the
-	 * `siteName` config the bundle uses for its breadcrumb root all
-	 * come from `desktop_mode_site_title()`.
+	 * The app is named after what it does; the site name labels the
+	 * root folder it opens on. The window title and the pinned icon
+	 * carry "WP Explorer" and do NOT move with `blogname` — only the
+	 * `siteName` config, which is the bundle's breadcrumb root, does.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
-	public function test_window_and_icon_are_titled_after_the_site() {
+	public function test_window_and_icon_are_titled_after_the_app() {
 		$original = get_option( 'blogname' );
 		update_option( 'blogname', "Izzi's Gym" );
 
-		desktop_mode_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
-		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 
 		update_option( 'blogname', $original );
 
-		$this->assertSame( "Izzi's Gym", $entry['title'] );
+		$this->assertSame( 'WP Explorer', $entry['title'] );
+		$this->assertSame( 'WP Explorer', $icon['title'] );
 		$this->assertSame( "Izzi's Gym", $entry['config']['siteName'] );
-		$this->assertSame( "Izzi's Gym", $icon['title'] );
 	}
 
 	/**
-	 * Retitling via `desktop_mode_site_title` reaches the window, the
-	 * icon, and the bundle config in one hook.
+	 * Retitling via `openstation_site_title` reaches the breadcrumb
+	 * root the bundle paints, and leaves the app's own name alone.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
-	public function test_site_title_filter_retitles_the_folder() {
+	public function test_site_title_filter_retitles_the_root_folder_only() {
 		add_filter(
-			'desktop_mode_site_title',
+			'openstation_site_title',
 			static function () {
 				return 'Workspace';
 			}
 		);
 
-		desktop_mode_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
-		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 
-		$this->assertSame( 'Workspace', $entry['title'] );
 		$this->assertSame( 'Workspace', $entry['config']['siteName'] );
-		$this->assertSame( 'Workspace', $icon['title'] );
+		$this->assertSame( 'WP Explorer', $entry['title'] );
+		$this->assertSame( 'WP Explorer', $icon['title'] );
+	}
+
+	/**
+	 * The window and the pinned icon wear the same folder-with-mark
+	 * art, drawn in `currentColor` so both painters mask it rather
+	 * than pasting it as a background image.
+	 *
+	 * @covers ::openstation_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_icon_svg
+	 */
+	public function test_window_and_icon_wear_the_folder_mark() {
+		openstation_my_wordpress_register_window();
+
+		$entry    = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon     = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$expected = 'data:image/svg+xml;base64,' . base64_encode( openstation_my_wordpress_icon_svg() );
+
+		$this->assertSame( $expected, $entry['icon'] );
+		$this->assertSame( $expected, $icon['icon'] );
+		$this->assertStringContainsString( 'currentColor', openstation_my_wordpress_icon_svg() );
+		$this->assertStringNotContainsString( 'fill="#', openstation_my_wordpress_icon_svg() );
+
+		// The dock-icon sanitizer is the gate that would silently drop
+		// the art — a rejected icon falls back to a letter badge, which
+		// looks like a styling bug rather than a validation failure.
+		$this->assertSame( $expected, openstation_sanitize_dock_icon( $expected ) );
 	}
 
 	/**
 	 * Default entities are Posts, Pages, and Users; the filter is
 	 * the extension point for additional kinds.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_entities
+	 * @covers ::openstation_my_wordpress_entities
 	 */
 	public function test_default_entities_are_posts_pages_and_users() {
-		$entities = desktop_mode_my_wordpress_entities();
+		$entities = openstation_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 		$this->assertContains( 'posts', $ids );
 		$this->assertContains( 'pages', $ids );
@@ -147,10 +173,10 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_entities
+	 * @covers ::openstation_my_wordpress_entities
 	 */
 	public function test_entities_filter_can_extend() {
-		add_filter( 'desktop_mode_my_wordpress_entities', static function ( $entities ) {
+		add_filter( 'openstation_my_wordpress_entities', static function ( $entities ) {
 			$entities[] = array(
 				'id'       => 'comments',
 				'label'    => 'Comments',
@@ -160,42 +186,42 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 			return $entities;
 		} );
 
-		$entities = desktop_mode_my_wordpress_entities();
+		$entities = openstation_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 		$this->assertContains( 'comments', $ids );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_user_can_use
+	 * @covers ::openstation_my_wordpress_user_can_use
 	 */
 	public function test_subscriber_cannot_use_by_default() {
 		wp_set_current_user( self::$subscriber_id );
-		$this->assertFalse( desktop_mode_my_wordpress_user_can_use() );
+		$this->assertFalse( openstation_my_wordpress_user_can_use() );
 	}
 
 	/**
-	 * @covers ::desktop_mode_my_wordpress_user_can_use
+	 * @covers ::openstation_my_wordpress_user_can_use
 	 */
 	public function test_can_use_filter_overrides_default() {
 		wp_set_current_user( self::$subscriber_id );
-		add_filter( 'desktop_mode_my_wordpress_user_can_use', '__return_true' );
-		$this->assertTrue( desktop_mode_my_wordpress_user_can_use() );
+		add_filter( 'openstation_my_wordpress_user_can_use', '__return_true' );
+		$this->assertTrue( openstation_my_wordpress_user_can_use() );
 	}
 
 	/**
 	 * Window-args filter wins over the defaults.
 	 *
-	 * @covers ::desktop_mode_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_window_args_filter_can_override_size() {
-		add_filter( 'desktop_mode_my_wordpress_window_args', static function ( $args ) {
+		add_filter( 'openstation_my_wordpress_window_args', static function ( $args ) {
 			$args['width']  = 1280;
 			$args['height'] = 800;
 			return $args;
 		} );
 
-		desktop_mode_my_wordpress_register_window();
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		openstation_my_wordpress_register_window();
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
 		$this->assertSame( 1280, $entry['width'] );
 		$this->assertSame( 800, $entry['height'] );
 	}

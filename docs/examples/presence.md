@@ -1,9 +1,9 @@
-# Track who's around — `wp.desktop.presence`
+# Track who's around — `wp.os.presence`
 
 **Stable.**
 
 The framework keeps a running map of who's currently in the
-desktop-mode WP-Admin. Three states — `online`, `inactive`,
+OpenStation WP-Admin. Three states — `online`, `inactive`,
 `offline` — derived from the WordPress Heartbeat plus a
 mousedown / keydown listener. Storage is server-side
 (`_desktop_mode_presence` option) so every tab in every browser
@@ -20,13 +20,13 @@ to show the pattern. Drop it into a plugin file:
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+    if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
         return;
     }
     wp_register_script(
         'whos-online-widget',
         plugins_url( 'whos-online.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0',
         true
     );
@@ -35,9 +35,9 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Surface the user's display name on every presence record so
 // the JS can render names without a follow-up REST call.
-add_filter( 'desktop_mode_shell_config', function ( $config ) {
+add_filter( 'openstation_shell_config', function ( $config ) {
     $names = array();
-    foreach ( desktop_mode_presence_get_all() as $uid => $_ ) {
+    foreach ( openstation_presence_get_all() as $uid => $_ ) {
         $u = get_userdata( (int) $uid );
         if ( $u ) {
             $names[ (string) $uid ] = $u->display_name;
@@ -51,7 +51,7 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 ```js
 // whos-online.js
 ( function () {
-    wp.desktop.ready( () => {
+    wp.os.ready( () => {
         const root = document.createElement( 'div' );
         root.id = 'whos-online-widget';
         root.style.cssText =
@@ -60,10 +60,10 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
             'font:12px sans-serif;z-index:9999';
         document.body.appendChild( root );
 
-        const names = wp.desktop.config?.whosOnlineNames ?? {};
+        const names = wp.os.config?.whosOnlineNames ?? {};
 
         function render() {
-            const map = wp.desktop.presence.getAll();
+            const map = wp.os.presence.getAll();
             const lines = [ '<strong>Who\'s online</strong>' ];
             for ( const [ userId, entry ] of map ) {
                 if ( entry.status === 'offline' ) continue;
@@ -76,11 +76,11 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 
         // Initial paint + every heartbeat tick that lands a snapshot.
         render();
-        wp.desktop.presence.subscribe( render );
+        wp.os.presence.subscribe( render );
 
         // Per-transition CustomEvent when you want one-shot reactions
         // (toast on come-online, sound on go-offline, …).
-        document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+        document.addEventListener( 'os-presence-changed', ( e ) => {
             const { userId, oldStatus, newStatus } = e.detail;
             if ( oldStatus !== 'online' && newStatus === 'online' ) {
                 console.log( names[ userId ], 'came online' );
@@ -94,25 +94,25 @@ add_filter( 'desktop_mode_shell_config', function ( $config ) {
 
 ```js
 // Synchronous read for one user.
-wp.desktop.presence.getStatus( userId );    // 'online' | 'inactive' | 'offline'
+wp.os.presence.getStatus( userId );    // 'online' | 'inactive' | 'offline'
 
 // Full snapshot — clone, safe to iterate.
-wp.desktop.presence.getAll();                // Map<number, { status, lastSeenMs, lastActiveMs }>
+wp.os.presence.getAll();                // Map<number, { status, lastSeenMs, lastActiveMs }>
 
 // One user's full record or null.
-wp.desktop.presence.getEntry( userId );
+wp.os.presence.getEntry( userId );
 
 // React to changes — fires every tick that lands a snapshot.
-const off = wp.desktop.presence.subscribe( ( state ) => { … } );
+const off = wp.os.presence.subscribe( ( state ) => { … } );
 
 // Transition-only events.
-document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+document.addEventListener( 'os-presence-changed', ( e ) => {
     e.detail; // { userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }
 } );
 
 // Force the next heartbeat tick to flag the current user as active
 // (e.g. after a modal-driven interaction the input listeners can't see).
-wp.desktop.presence.markActive();
+wp.os.presence.markActive();
 ```
 
 ## State machine
@@ -127,20 +127,20 @@ wp.desktop.presence.markActive();
 
 ```php
 // Read.
-desktop_mode_presence_status_for_user( $user_id );    // 'online' | 'inactive' | 'offline'
-desktop_mode_presence_get_all();                       // raw map
-desktop_mode_presence_snapshot();                      // computed snapshot
-desktop_mode_presence_snapshot( array( $user_id ) );   // narrowed
+openstation_presence_status_for_user( $user_id );    // 'online' | 'inactive' | 'offline'
+openstation_presence_get_all();                       // raw map
+openstation_presence_snapshot();                      // computed snapshot
+openstation_presence_snapshot( array( $user_id ) );   // narrowed
 
 // Write — usually you don't, the heartbeat does it for you.
-desktop_mode_presence_record( $user_id, $active = true );
+openstation_presence_record( $user_id, $active = true );
 
 // Tune thresholds (seconds).
-add_filter( 'desktop_mode_presence_inactive_after', fn () => 600 );  // 10 min
-add_filter( 'desktop_mode_presence_offline_after',  fn () => 300 );  // 5 min
+add_filter( 'openstation_presence_inactive_after', fn () => 600 );  // 10 min
+add_filter( 'openstation_presence_offline_after',  fn () => 300 );  // 5 min
 
 // Per-user veto.
-add_filter( 'desktop_mode_presence_can_track', function ( $can, $user_id ) {
+add_filter( 'openstation_presence_can_track', function ( $can, $user_id ) {
     if ( get_user_meta( $user_id, 'invisible_mode', true ) ) {
         return false;
     }
@@ -148,7 +148,7 @@ add_filter( 'desktop_mode_presence_can_track', function ( $can, $user_id ) {
 }, 10, 2 );
 
 // Privacy gate — narrow the visible-users set per viewer.
-add_filter( 'desktop_mode_presence_visible_users', function ( $ids, $viewer_id ) {
+add_filter( 'openstation_presence_visible_users', function ( $ids, $viewer_id ) {
     if ( ! user_can( $viewer_id, 'manage_options' ) ) {
         // Non-admins only see other non-admins.
         return array_filter( $ids, fn ( $uid ) => ! user_can( $uid, 'manage_options' ) );
@@ -157,12 +157,12 @@ add_filter( 'desktop_mode_presence_visible_users', function ( $ids, $viewer_id )
 }, 10, 2 );
 
 // React to transitions.
-add_action( 'desktop_mode_presence_changed', function ( $user_id, $new, $old ) {
+add_action( 'openstation_presence_changed', function ( $user_id, $new, $old ) {
     error_log( "User {$user_id} went from {$old} to {$new}" );
 }, 10, 3 );
 
 // Per-tick fan-out (every Heartbeat — be cheap here).
-add_action( 'desktop_mode_presence_recorded', function ( $user_id, $record ) {
+add_action( 'openstation_presence_recorded', function ( $user_id, $record ) {
     // …
 }, 10, 2 );
 ```
@@ -179,5 +179,5 @@ POST /wp-json/desktop-mode/v1/presence    body: { active: true }
 ## Related
 
 - [`docs/javascript-reference.md#presence`](../javascript-reference.md#presence--stable) — full JS API surface.
-- [`docs/javascript-reference.md#desktop-mode-presence-changed`](../javascript-reference.md#desktop-mode-presence-changed--stable) — transition CustomEvent.
+- [`docs/javascript-reference.md#os-presence-changed`](../javascript-reference.md#os-presence-changed--stable) — transition CustomEvent.
 - [`docs/hooks-reference.md`](../hooks-reference.md) — full PHP filter / action signatures.

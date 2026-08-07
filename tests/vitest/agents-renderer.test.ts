@@ -36,7 +36,7 @@ const AGENT: Agent = {
 type FetchMock = ReturnType< typeof vi.fn >;
 
 function installConfig( overrides: Record< string, unknown > = {} ): void {
-	( window as unknown as Record< string, unknown > ).desktopModeWindowConfig = {
+	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
 		[ WINDOW_ID ]: {
 			restRoot: 'https://example.test/wp-json/',
 			restNonce: 'test-nonce',
@@ -93,7 +93,7 @@ afterEach( () => {
 	vi.restoreAllMocks();
 	document.body.replaceChildren();
 	delete ( window as unknown as Record< string, unknown > )
-		.desktopModeWindowConfig;
+		.openStationWindowConfig;
 } );
 
 describe( 'agents entity kind', () => {
@@ -131,7 +131,7 @@ describe( 'agents entity kind', () => {
 		).map( ( el ) => el.textContent?.trim() );
 		expect( tabs ).toEqual( [ 'Define', 'Tools', 'Triggers' ] );
 
-		const nameField = host.body.querySelector( 'wpd-text-field' );
+		const nameField = host.body.querySelector( 'os-text-field' );
 		expect( nameField?.getAttribute( 'value' ) ).toBe( 'Audit Agent' );
 	} );
 
@@ -142,7 +142,7 @@ describe( 'agents entity kind', () => {
 		getEntityRenderer( 'agent' )!( host, ENTITY );
 		await flush();
 
-		expect( host.body.querySelector( 'wpd-empty-state' ) ).not.toBeNull();
+		expect( host.body.querySelector( 'os-empty-state' ) ).not.toBeNull();
 		const create = host.body.querySelector( '.dm-agents__create' );
 		expect( create ).not.toBeNull();
 	} );
@@ -165,7 +165,7 @@ describe( 'agents entity kind', () => {
 		getEntityRenderer( 'agent' )!( host, ENTITY );
 		await flush();
 
-		const notice = host.body.querySelector( 'wpd-notice' );
+		const notice = host.body.querySelector( 'os-notice' );
 		expect( notice ).not.toBeNull();
 		expect( notice!.textContent ).toContain( 'AI Client' );
 	} );
@@ -181,7 +181,7 @@ describe( 'agents entity kind', () => {
 		}
 		const targets: StubTarget[] = [];
 		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: {
+			os: {
 				dragManager: {
 					registerDropTarget: ( target: StubTarget ) => {
 						targets.push( target );
@@ -239,7 +239,7 @@ describe( 'agents entity kind', () => {
 	test( 'agent rows are draggable out as user shortcuts', async () => {
 		const started: Array< Record< string, unknown > > = [];
 		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: {
+			os: {
 				dragManager: {
 					registerDropTarget: () => () => void 0,
 					start: ( session: Record< string, unknown > ) => {

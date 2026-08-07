@@ -1,7 +1,7 @@
 /**
  * Cross-bundle reactive state primitive.
  *
- * **The problem this solves.** The Desktop Mode build pipeline ships
+ * **The problem this solves.** The OpenStation build pipeline ships
  * each feature as an independent Vite IIFE bundle (the main shell,
  * the code editor, the recycle bin, third-party plugin bundles, …).
  * Each bundle is a closed module graph: if two bundles both
@@ -35,7 +35,7 @@
  *
  * @example
  * ```ts
- * import { createSharedStore } from 'desktop-mode/shared-store';
+ * import { createSharedStore } from 'openstation/shared-store';
  *
  * interface MyState { counter: number; user: string | null }
  * const store = createSharedStore< MyState >( 'my-plugin/state', () => ( {
@@ -135,7 +135,7 @@ interface InternalRecord< T > {
 /**
  * Window-level slot map. One namespace, many keys.
  */
-const SHARED_STORES_SLOT = '__desktopModeSharedStores';
+const SHARED_STORES_SLOT = '__openStationSharedStores';
 
 interface SharedStoresWindow {
 	[ SHARED_STORES_SLOT ]?: Map< string, InternalRecord< unknown > >;

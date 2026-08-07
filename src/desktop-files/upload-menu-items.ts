@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — stored-upload entry points (DESKMOD-45).
+ * OpenStation — stored-upload entry points (DESKMOD-45).
  *
  * Wires the real-file-storage feature into the existing menu
  * surfaces, all through the public hook bus:
@@ -26,11 +26,11 @@ import {
 	type RestPlacementShape,
 } from './rest';
 import { removePlacement, setFolderPlacements } from './store';
-import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import type { TileMenuItem } from './tile-menu';
 
 function viewerId(): number {
-	return Number( window.desktopModeConfig?.currentUserId ?? 0 );
+	return Number( window.openStationConfig?.currentUserId ?? 0 );
 }
 
 interface StorageConfigShape {
@@ -40,7 +40,7 @@ interface StorageConfigShape {
 
 function storageConfig(): StorageConfigShape {
 	return (
-		( window.desktopModeConfig as { desktopStorage?: StorageConfigShape } | undefined )
+		( window.openStationConfig as { desktopStorage?: StorageConfigShape } | undefined )
 			?.desktopStorage ?? {}
 	);
 }
@@ -48,8 +48,8 @@ function storageConfig(): StorageConfigShape {
 /** Mirrors the folder-share kill-switch read in share-menu-items. */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
-		wp?: { desktop?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
-	} ).wp?.desktop?.getOsSettings?.();
+		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
+	} ).wp?.os?.getOsSettings?.();
 	if ( ! settings ) {
 		return true;
 	}
@@ -69,7 +69,7 @@ function uploadFileId( placement: RestPlacementShape ): number | null {
  */
 export function installUploadMenuItems(): void {
 	addFilter(
-		'desktop-mode.files.tile-menu',
+		'os.files.tile-menu',
 		'desktop-mode/uploads',
 		(
 			items: TileMenuItem[],
@@ -137,7 +137,7 @@ export function installUploadMenuItems(): void {
 					sort: 80,
 					danger: true,
 					onClick: async () => {
-						const ok = await wpdConfirm( {
+						const ok = await osConfirm( {
 							title: 'Leave this shared file?',
 							message:
 								'The file will be removed from your desktop. The owner keeps the original.',
@@ -172,7 +172,7 @@ export function installUploadMenuItems(): void {
 	// Wallpaper context menu — explicit pickers next to the
 	// drag-and-drop path.
 	addFilter(
-		'desktop-mode.wallpaper-context-menu',
+		'os.wallpaper-context-menu',
 		'desktop-mode/uploads',
 		( items: Array< Record< string, unknown > > ) => {
 			if ( ! storageConfig().canUpload ) {
@@ -225,7 +225,7 @@ function openFilePicker( directory: boolean ): void {
 }
 
 async function routePickedFiles( files: File[], directory: boolean ): Promise< void > {
-	const config = window.desktopModeConfig;
+	const config = window.openStationConfig;
 	const dropConfig = config?.dropConfig ?? {
 		enabled: false,
 		allowedMimes: [],

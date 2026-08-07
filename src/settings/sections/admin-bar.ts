@@ -1,13 +1,13 @@
 /**
  * Admin-bar section — segmented control (Static / Dynamic / Hidden)
  * bound to `state.adminBarMode`. The pick is written as a
- * `desktop-mode-admin-bar-<mode>` body class by `ctx.apply()`, which
+ * `os-admin-bar-<mode>` body class by `ctx.apply()`, which
  * is what `desktop.css` keys off to place, auto-hide, or remove the
  * WordPress admin bar above the shell.
  *
  * `Hidden` takes away the admin bar's "Switch to Classic Admin"
  * toggle, so the description names the replacement route out — the
- * "Exit Desktop Mode" tile on the dock (`src/exit-desktop-mode.ts`),
+ * "Exit OpenStation" tile on the dock (`src/exit-os.ts`),
  * which is always present on the core rail.
  */
 
@@ -26,7 +26,7 @@ function describe( id: AdminBarModeId ): string {
 			);
 		case 'hidden':
 			return __(
-				'The admin bar is never shown. Use the Exit Desktop Mode tile on the dock to get back to the classic admin.',
+				'The admin bar is never shown. Use the Exit OpenStation tile on the dock to get back to the classic admin.',
 			);
 		default:
 			return __( 'The admin bar is always visible above the desktop.' );
@@ -49,25 +49,25 @@ export function buildAdminBarSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Admin bar' ) }
 					description=${ describe( ctx.state.adminBarMode ) }
 				>
-					<wpd-segmented
+					<os-segmented
 						value=${ ctx.state.adminBarMode }
 						label=${ __( 'Admin bar' ) }
-						@wpd-pick=${ onPick }
+						@os-pick=${ onPick }
 					>
 						${ ADMIN_BAR_MODES.map(
-		( m ) => html`<wpd-segment value=${ m.id }
+		( m ) => html`<os-segment value=${ m.id }
 								>${ translateAdminBarModeLabel(
 			m.id,
 			m.label,
-		) }</wpd-segment
+		) }</os-segment
 							>`,
 	) }
-					</wpd-segmented>
-				</wpd-section>
+					</os-segmented>
+				</os-section>
 			`,
 			wrapper,
 		);

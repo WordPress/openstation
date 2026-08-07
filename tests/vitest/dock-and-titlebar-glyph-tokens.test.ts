@@ -3,10 +3,10 @@
  *
  * Two clusters of shell chrome painted themselves white with no name
  * a desktop theme could aim at: the dock glyphs (rest, hover, hover
- * wash, focus ring) and the focused window controls (the `--wpd-btn-*`
+ * wash, focus ring) and the focused window controls (the `--os-ui-btn-*`
  * bridge plus the screen-meta buttons beside it). Both sit on a
- * surface a theme CAN repaint — `--desktop-mode-dock-bg`,
- * `--desktop-mode-titlebar-bg-focused` — so a pale choice there left
+ * surface a theme CAN repaint — `--os-dock-bg`,
+ * `--os-titlebar-bg-focused` — so a pale choice there left
  * the marks on top invisible.
  *
  * Three things have to stay true for the new tokens to be worth
@@ -44,7 +44,7 @@ function flat( text: string ): string {
  * Body of the rule whose head ends with `selector` and whose
  * declarations mention `marker`.
  *
- * The marker disambiguates: `.desktop-mode-window--focused` heads two
+ * The marker disambiguates: `.os-window--focused` heads two
  * separate rules in window-chrome.css (the frame, then the button
  * colour bridge), and a plain "first match" helper would read the
  * wrong one.
@@ -72,60 +72,83 @@ function ruleBody( css: string, selector: string, marker: string ): string {
  * existed. Changing one is a default drift, and that is the point of
  * spelling them out here rather than reading them back off the file. */
 const GLYPH_REST = 'rgba( 255, 255, 255, 0.7 )';
-const GLYPH_HOVER = 'var( --wpd-fg-on-accent, #fff )';
+const GLYPH_HOVER = 'var( --os-ui-fg-on-accent, #fff )';
 const TILE_WASH = 'rgba( 255, 255, 255, 0.15 )';
 
 describe( 'dock glyph tokens', () => {
-	test( 'the tile glyph reads --desktop-mode-dock-icon-color at rest', () => {
+	test( 'the tile glyph reads --os-dock-icon-color at rest', () => {
 		const body = ruleBody(
 			readCss( 'dock.css' ),
-			'.desktop-mode-dock__item-primary',
-			'--desktop-mode-dock-icon-color'
+			'.os-dock__item-primary',
+			'--os-dock-icon-color'
 		);
 
 		expect( body ).toContain(
-			`color: var( --desktop-mode-dock-icon-color, ${ GLYPH_REST } );`
+			`color: var( --os-dock-icon-color, ${ GLYPH_REST } );`
 		);
 	} );
 
 	test( 'hover reads the glyph-hover and tile-wash tokens', () => {
 		const body = ruleBody(
 			readCss( 'dock.css' ),
-			'.desktop-mode-dock__item-primary:hover',
-			'--desktop-mode-dock-icon-color-hover'
+			'.os-dock__item-primary:hover',
+			'--os-dock-icon-color-hover'
 		);
 
 		expect( body ).toContain(
-			`background-color: var( --desktop-mode-dock-item-bg-hover, ${ TILE_WASH } );`
+			`background-color: var( --os-dock-item-bg-hover, ${ TILE_WASH } );`
 		);
 		expect( body ).toContain(
-			`color: var( --desktop-mode-dock-icon-color-hover, ${ GLYPH_HOVER } );`
+			`color: var( --os-dock-icon-color-hover, ${ GLYPH_HOVER } );`
 		);
 	} );
 
-	test( 'the focus ring reads --desktop-mode-dock-item-outline', () => {
+	test( 'the focus ring reads --os-dock-item-outline', () => {
 		const body = ruleBody(
 			readCss( 'dock.css' ),
-			'.desktop-mode-dock__item-primary:focus-visible',
-			'--desktop-mode-dock-item-outline'
+			'.os-dock__item-primary:focus-visible',
+			'--os-dock-item-outline'
 		);
 
 		expect( body ).toContain(
-			`outline: 2px solid var( --desktop-mode-dock-item-outline, ${ GLYPH_REST } );`
+			`outline: 2px solid var( --os-dock-item-outline, ${ GLYPH_REST } );`
 		);
+	} );
+
+	test( 'the active-tile indicator family reads --os-dock-item-outline on all three placements', () => {
+		// The status dot / pill under the running and focused tile,
+		// plus the hollow ring under a tile whose windows are all
+		// minimized, were painted from `--os-ui-surface` and a
+		// hardcoded white — the dot resolved to the dock's own dark
+		// glass once the brand palette declared it, and the ring
+		// stayed unreachable by themes. Both now share the
+		// focus-ring token, so the accent paints them on the station
+		// and a theme's ring colour paints them everywhere else.
+		const css = readCss( 'dock.css' );
+
+		expect(
+			css.match(
+				/background: var\( --os-dock-item-outline, #fff \);/g
+			)
+		).toHaveLength( 3 );
+		expect(
+			css.match(
+				/border: 1px solid var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \);/g
+			)
+		).toHaveLength( 3 );
 	} );
 
 	test( 'system tiles follow the same token, keeping their brighter literal', () => {
 		const body = ruleBody(
 			readCss( 'dock.css' ),
-			'.desktop-mode-dock__item--system .desktop-mode-dock__item-primary',
-			'--desktop-mode-dock-icon-color'
+			'.os-dock__item--system .os-dock__item-primary',
+			'--os-dock-icon-color'
 		);
 
 		// Same token as a menu tile — one colour covers the dock — but
 		// the 0.8 fallback preserves the unthemed prominence notch.
 		expect( body ).toContain(
-			'color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );'
+			'color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );'
 		);
 	} );
 
@@ -135,45 +158,45 @@ describe( 'dock glyph tokens', () => {
 		// to white glyphs on first hover.
 		const body = ruleBody(
 			readCss( 'dock-peek.css' ),
-			'.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary',
-			'--desktop-mode-dock-icon-color-hover'
+			'.os-dock__item[data-peek-active] .os-dock__item-primary',
+			'--os-dock-icon-color-hover'
 		);
 
 		// `background-color`, not the `background` shorthand: the
 		// shorthand also reset `background-image`, erasing a theme's
 		// DOCK_ITEM tile texture from under the cursor.
 		expect( body ).toContain(
-			`background-color: var( --desktop-mode-dock-item-bg-hover, ${ TILE_WASH } );`
+			`background-color: var( --os-dock-item-bg-hover, ${ TILE_WASH } );`
 		);
 		expect( body ).not.toContain( 'background: ' );
 		expect( body ).toContain(
-			`color: var( --desktop-mode-dock-icon-color-hover, ${ GLYPH_HOVER } );`
+			`color: var( --os-dock-icon-color-hover, ${ GLYPH_HOVER } );`
 		);
 	} );
 } );
 
 describe( 'focused title-bar control tokens', () => {
-	test( 'the --wpd-btn-* bridge reads the focused tokens', () => {
+	test( 'the --os-ui-btn-* bridge reads the focused tokens', () => {
 		const body = ruleBody(
 			readCss( 'window-chrome.css' ),
-			'.desktop-mode-window--focused',
-			'--wpd-btn-color:'
+			'.os-window--focused',
+			'--os-ui-btn-color:'
 		);
 
 		expect( body ).toContain(
-			`--wpd-btn-color: var( --desktop-mode-titlebar-btn-focused-color, ${ GLYPH_REST } );`
+			`--os-ui-btn-color: var( --os-titlebar-btn-focused-color, ${ GLYPH_REST } );`
 		);
 		expect( body ).toContain(
-			'--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-focused-color-hover, #fff );'
+			'--os-ui-btn-color-hover: var( --os-titlebar-btn-focused-color-hover, #fff );'
 		);
 		expect( body ).toContain(
-			'--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );'
+			'--os-ui-btn-bg-hover: var( --os-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );'
 		);
 		expect( body ).toContain(
-			'--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );'
+			'--os-ui-btn-bg-active: var( --os-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );'
 		);
 		expect( body ).toContain(
-			'--wpd-btn-outline: var( --desktop-mode-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );'
+			'--os-ui-btn-outline: var( --os-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );'
 		);
 	} );
 
@@ -183,7 +206,7 @@ describe( 'focused title-bar control tokens', () => {
 		// Deliberately NOT a `-focused-` token: destructive red is
 		// signal, not chrome. Both halves resolve it the same way.
 		expect(
-			css.match( /--wpd-btn-danger-hover: var\( --wpd-danger, #d63638 \);/g )
+			css.match( /--os-ui-btn-danger-hover: var\( --os-ui-danger, #d63638 \);/g )
 		).toHaveLength( 2 );
 	} );
 
@@ -197,26 +220,26 @@ describe( 'focused title-bar control tokens', () => {
 			'bg-active',
 		] ) {
 			expect(
-				css.includes( `--desktop-mode-titlebar-btn-${ suffix },` ),
-				`unfocused --desktop-mode-titlebar-btn-${ suffix } is unread`
+				css.includes( `--os-titlebar-btn-${ suffix },` ),
+				`unfocused --os-titlebar-btn-${ suffix } is unread`
 			).toBe( true );
 			expect(
-				css.includes( `--desktop-mode-titlebar-btn-focused-${ suffix },` ),
-				`focused --desktop-mode-titlebar-btn-focused-${ suffix } is unread`
+				css.includes( `--os-titlebar-btn-focused-${ suffix },` ),
+				`focused --os-titlebar-btn-focused-${ suffix } is unread`
 			).toBe( true );
 		}
 	} );
 
 	test.each( [
-		[ 'rest', '.desktop-mode-window--focused .desktop-mode-window__meta-btn', '--desktop-mode-titlebar-btn-focused-color,' ],
-		[ 'hover', '.desktop-mode-window--focused .desktop-mode-window__meta-btn:hover', '--desktop-mode-titlebar-btn-focused-bg-hover' ],
-		[ 'focus ring', '.desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible', '--desktop-mode-titlebar-btn-focused-outline' ],
-		[ 'active', '.desktop-mode-window--focused .desktop-mode-window__meta-btn--active', '--desktop-mode-titlebar-btn-focused-bg-active' ],
+		[ 'rest', '.os-window--focused .os-window__meta-btn', '--os-titlebar-btn-focused-color,' ],
+		[ 'hover', '.os-window--focused .os-window__meta-btn:hover', '--os-titlebar-btn-focused-bg-hover' ],
+		[ 'focus ring', '.os-window--focused .os-window__meta-btn:focus-visible', '--os-titlebar-btn-focused-outline' ],
+		[ 'active', '.os-window--focused .os-window__meta-btn--active', '--os-titlebar-btn-focused-bg-active' ],
 	] )(
 		'screen-meta buttons take the same tokens (%s)',
 		( _label, selector, token ) => {
 			// They are plain light-DOM buttons, so they paint
-			// themselves instead of reading the `--wpd-btn-*` bridge —
+			// themselves instead of reading the `--os-ui-btn-*` bridge —
 			// but they sit in the same bar, so they answer to the same
 			// names. Otherwise one cluster goes legible and the other
 			// stays white.
@@ -231,24 +254,28 @@ describe( 'focused title-bar control tokens', () => {
 	);
 } );
 
-describe( 'no default drift', () => {
+describe( 'one palette owns them', () => {
 	const TOKENS = [
-		'--desktop-mode-dock-icon-color',
-		'--desktop-mode-dock-icon-color-hover',
-		'--desktop-mode-dock-item-bg-hover',
-		'--desktop-mode-dock-item-outline',
-		'--desktop-mode-titlebar-btn-focused-color',
-		'--desktop-mode-titlebar-btn-focused-color-hover',
-		'--desktop-mode-titlebar-btn-focused-bg-hover',
-		'--desktop-mode-titlebar-btn-focused-bg-active',
-		'--desktop-mode-titlebar-btn-focused-outline',
+		'--os-dock-icon-color',
+		'--os-dock-icon-color-hover',
+		'--os-dock-item-bg-hover',
+		'--os-dock-item-outline',
+		'--os-titlebar-btn-focused-color',
+		'--os-titlebar-btn-focused-color-hover',
+		'--os-titlebar-btn-focused-bg-hover',
+		'--os-titlebar-btn-focused-bg-active',
+		'--os-titlebar-btn-focused-outline',
 	];
 
-	test( 'none of the tokens is declared in any shell stylesheet', () => {
-		// A declaration is `--name:`; a read is `var( --name,`. Only
-		// the former would pin a value and defeat the fallbacks above.
-		const sheets = readdirSync( CSS_DIR ).filter( ( f ) =>
-			f.endsWith( '.css' )
+	test( 'only variables.css declares them', () => {
+		// A declaration is `--name:`; a read is `var( --name,`. The
+		// brand palette declares these once, in variables.css; a
+		// second declaration in a consuming sheet would pin that one
+		// surface and put it out of reach of the palette and of every
+		// desktop theme (including Legacy, the way back to the
+		// pre-brand look).
+		const sheets = readdirSync( CSS_DIR ).filter(
+			( f ) => f.endsWith( '.css' ) && f !== 'variables.css'
 		);
 
 		for ( const sheet of sheets ) {
@@ -260,6 +287,17 @@ describe( 'no default drift', () => {
 					`${ sheet } declares ${ token }`
 				).toBe( false );
 			}
+		}
+	} );
+
+	test( 'variables.css declares every one of them', () => {
+		const css = readCss( 'variables.css' );
+
+		for ( const token of TOKENS ) {
+			expect(
+				new RegExp( `\\n\\t${ token }:` ).test( css ),
+				`${ token } is not declared in the palette`
+			).toBe( true );
 		}
 	} );
 

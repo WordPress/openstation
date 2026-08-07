@@ -6,10 +6,10 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-agents
+ * @group openstation
+ * @group os-agents
  */
-class Tests_DesktopMode_AgentsDefaults extends WP_UnitTestCase {
+class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 
 	protected static $admin_id;
 
@@ -20,14 +20,14 @@ class Tests_DesktopMode_AgentsDefaults extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-		delete_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION );
+		delete_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION );
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_default_definitions
+	 * @covers ::openstation_agents_default_definitions
 	 */
 	public function test_definitions_are_complete() {
-		$defs  = desktop_mode_agents_default_definitions();
+		$defs  = openstation_agents_default_definitions();
 		$names = wp_list_pluck( $defs, 'name' );
 		$this->assertSame(
 			array( 'tl;dr', 'Comment Concierge', 'Localizer', 'SEO Medic', 'Alt Text Librarian' ),
@@ -44,15 +44,15 @@ class Tests_DesktopMode_AgentsDefaults extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_agents_seed_defaults
+	 * @covers ::openstation_agents_seed_defaults
 	 */
 	public function test_seeds_on_an_agentless_site_once() {
-		$this->assertCount( 0, desktop_mode_agent_get_agents() );
+		$this->assertCount( 0, openstation_agent_get_agents() );
 
-		desktop_mode_agents_seed_defaults();
-		$agents = desktop_mode_agent_get_agents();
+		openstation_agents_seed_defaults();
+		$agents = openstation_agent_get_agents();
 		$this->assertCount( 5, $agents );
-		$this->assertSame( '1', get_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION ) );
+		$this->assertSame( '1', get_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION ) );
 
 		// Triggers landed on the user rows, not just in the definitions.
 		$names = array();
@@ -68,18 +68,18 @@ class Tests_DesktopMode_AgentsDefaults extends WP_UnitTestCase {
 		);
 
 		// Idempotent: a second run creates nothing.
-		desktop_mode_agents_seed_defaults();
-		$this->assertCount( 5, desktop_mode_agent_get_agents() );
+		openstation_agents_seed_defaults();
+		$this->assertCount( 5, openstation_agent_get_agents() );
 	}
 
 	/**
 	 * A site that already built its own roster is never touched — the
 	 * flag is set without creating anything.
 	 *
-	 * @covers ::desktop_mode_agents_seed_defaults
+	 * @covers ::openstation_agents_seed_defaults
 	 */
 	public function test_never_seeds_into_an_existing_roster() {
-		$own = desktop_mode_agent_create(
+		$own = openstation_agent_create(
 			array(
 				'name'         => 'Homegrown',
 				'role'         => 'author',
@@ -88,10 +88,10 @@ class Tests_DesktopMode_AgentsDefaults extends WP_UnitTestCase {
 		);
 		$this->assertNotWPError( $own );
 
-		desktop_mode_agents_seed_defaults();
-		$agents = desktop_mode_agent_get_agents();
+		openstation_agents_seed_defaults();
+		$agents = openstation_agent_get_agents();
 		$this->assertCount( 1, $agents );
 		$this->assertSame( 'Homegrown', $agents[0]->display_name );
-		$this->assertSame( '1', get_option( DESKTOP_MODE_AGENTS_DEFAULTS_SEEDED_OPTION ) );
+		$this->assertSame( '1', get_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION ) );
 	}
 }

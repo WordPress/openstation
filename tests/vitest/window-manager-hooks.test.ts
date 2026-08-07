@@ -2,10 +2,10 @@
  * Hook-firing tests for {@link WindowManager}.
  *
  * Covers the actions the manager is responsible for emitting:
- *   - desktop-mode.window.opened
- *   - desktop-mode.window.focused
- *   - desktop-mode.window.closed
- *   - desktop-mode.arrange.cascade.starting / applied
+ *   - os.window.opened
+ *   - os.window.focused
+ *   - os.window.closed
+ *   - os.arrange.cascade.starting / applied
  *
  * Window-owned hooks (minimized, maximized, fullscreen, title, …)
  * are covered in `window-lifecycle-hooks.test.ts`.
@@ -21,11 +21,11 @@ import {
 } from './helpers/hooks-stub';
 
 const MANAGER_HOOKS = [
-	'desktop-mode.window.opened',
-	'desktop-mode.window.focused',
-	'desktop-mode.window.closed',
-	'desktop-mode.arrange.cascade.starting',
-	'desktop-mode.arrange.cascade.applied',
+	'os.window.opened',
+	'os.window.focused',
+	'os.window.closed',
+	'os.arrange.cascade.starting',
+	'os.arrange.cascade.applied',
 ] as const;
 
 function openConfig( id: string, overrides: Partial<{ url: string; title: string; icon: string; multi: boolean }> = {} ) {
@@ -46,7 +46,7 @@ describe( 'WindowManager — hook firing', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
-		desktop.id = 'desktop-mode-area';
+		desktop.id = 'os-area';
 		// Give the desktop a non-zero bounding box so cascade math
 		// doesn't divide-by-zero or cascade windows into nowhere.
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -84,7 +84,7 @@ describe( 'WindowManager — hook firing', async () => {
 
 		await manager.open( openConfig( 'posts', { url: 'http://example.test/edit.php', title: 'Posts' } ) );
 
-		const opened = log.find( ( e ) => e.name === 'desktop-mode.window.opened' );
+		const opened = log.find( ( e ) => e.name === 'os.window.opened' );
 		expect( opened ).toBeDefined();
 		const payload = opened!.args[ 0 ] as {
 			windowId: string;
@@ -104,8 +104,8 @@ describe( 'WindowManager — hook firing', async () => {
 		await manager.open( openConfig( 'posts' ) );
 
 		const names = log.map( ( e ) => e.name );
-		const openedIdx = names.indexOf( 'desktop-mode.window.opened' );
-		const focusedIdx = names.indexOf( 'desktop-mode.window.focused' );
+		const openedIdx = names.indexOf( 'os.window.opened' );
+		const focusedIdx = names.indexOf( 'os.window.focused' );
 		expect( openedIdx ).toBeGreaterThanOrEqual( 0 );
 		expect( focusedIdx ).toBeGreaterThanOrEqual( 0 );
 		// `createWindow` calls `focus()` before emitting `opened`, so
@@ -120,7 +120,7 @@ describe( 'WindowManager — hook firing', async () => {
 		await manager.open( openConfig( 'pages' ) );
 
 		const focuses = log.filter(
-			( e ) => e.name === 'desktop-mode.window.focused',
+			( e ) => e.name === 'os.window.focused',
 		);
 		expect( focuses.length ).toBeGreaterThanOrEqual( 1 );
 		const last = focuses[ focuses.length - 1 ].args[ 0 ] as {
@@ -137,7 +137,7 @@ describe( 'WindowManager — hook firing', async () => {
 		manager.focus( b );
 
 		const focuses = log.filter(
-			( e ) => e.name === 'desktop-mode.window.focused',
+			( e ) => e.name === 'os.window.focused',
 		);
 		expect( focuses.length ).toBe( 1 );
 		expect(
@@ -151,7 +151,7 @@ describe( 'WindowManager — hook firing', async () => {
 
 		win.close();
 
-		const closed = log.find( ( e ) => e.name === 'desktop-mode.window.closed' );
+		const closed = log.find( ( e ) => e.name === 'os.window.closed' );
 		expect( closed ).toBeDefined();
 		expect(
 			( closed!.args[ 0 ] as { windowId: string } ).windowId,
@@ -167,7 +167,7 @@ describe( 'WindowManager — hook firing', async () => {
 		// manager must NOT synthesize a focused event for a
 		// nonexistent window.
 		const focuses = log.filter(
-			( e ) => e.name === 'desktop-mode.window.focused',
+			( e ) => e.name === 'os.window.focused',
 		);
 		expect( focuses ).toHaveLength( 0 );
 	} );
@@ -181,7 +181,7 @@ describe( 'WindowManager — hook firing', async () => {
 
 		// `a` wasn't on top; `b` keeps focus — one focused action fires.
 		const focuses = log.filter(
-			( e ) => e.name === 'desktop-mode.window.focused',
+			( e ) => e.name === 'os.window.focused',
 		);
 		expect( focuses ).toHaveLength( 1 );
 		expect(
@@ -198,14 +198,14 @@ describe( 'WindowManager — hook firing', async () => {
 		manager.cascade();
 
 		const cascadeEvents = log
-			.filter( ( e ) => e.name.startsWith( 'desktop-mode.arrange.cascade.' ) )
+			.filter( ( e ) => e.name.startsWith( 'os.arrange.cascade.' ) )
 			.map( ( e ) => ( {
 				name: e.name,
 				payload: e.args[ 0 ] as { windowCount: number },
 			} ) );
 		expect( cascadeEvents.map( ( e ) => e.name ) ).toEqual( [
-			'desktop-mode.arrange.cascade.starting',
-			'desktop-mode.arrange.cascade.applied',
+			'os.arrange.cascade.starting',
+			'os.arrange.cascade.applied',
 		] );
 		expect( cascadeEvents[ 0 ].payload.windowCount ).toBe( 3 );
 		expect( cascadeEvents[ 1 ].payload.windowCount ).toBe( 3 );
@@ -217,7 +217,7 @@ describe( 'WindowManager — hook firing', async () => {
 		manager.cascade();
 
 		const cascadeEvents = log.filter( ( e ) =>
-			e.name.startsWith( 'desktop-mode.arrange.cascade.' ),
+			e.name.startsWith( 'os.arrange.cascade.' ),
 		);
 		expect( cascadeEvents ).toHaveLength( 0 );
 	} );
@@ -406,7 +406,7 @@ describe( 'WindowManager — hook firing', async () => {
 		);
 		const errors: unknown[] = [];
 		hooks.addAction(
-			'desktop-mode.shell.error',
+			'os.shell.error',
 			'vitest/shell-error',
 			( ...args: unknown[] ) => {
 				errors.push( args[ 0 ] );
