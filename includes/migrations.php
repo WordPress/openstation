@@ -323,29 +323,21 @@ function openstation_should_show_rebrand_notice() {
  * @return void
  */
 function openstation_migrate_brand_defaults() {
-	/**
-	 * Filters the pre-brand => brand value map the rebrand migration
-	 * applies, keyed by OS-settings field. Return an empty array to skip
-	 * the migration entirely and leave every stored preference alone.
-	 *
-	 * @param array $map Map of setting key => array( 'from' => old, 'to' => new ).
-	 */
-	$map = (array) apply_filters(
-		'openstation_brand_migration_map',
-		array(
-			'accent'    => array(
-				'from' => 'wp-blue',
-				'to'   => 'pulse',
-			),
-			'wallpaper' => array(
-				'from' => 'dark',
-				'to'   => 'galaxy',
-			),
-		)
+	// The pre-brand => brand value map, keyed by OS-settings field.
+	// Deliberately not filterable: this runs once, against one release's
+	// stored defaults, and a third party rewriting which values get
+	// migrated would leave desks in a state no later migration accounts
+	// for.
+	$map = array(
+		'accent'    => array(
+			'from' => 'wp-blue',
+			'to'   => 'pulse',
+		),
+		'wallpaper' => array(
+			'from' => 'dark',
+			'to'   => 'galaxy',
+		),
 	);
-	if ( empty( $map ) ) {
-		return;
-	}
 
 	$user_ids = get_users(
 		array(

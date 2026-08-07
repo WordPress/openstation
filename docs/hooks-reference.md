@@ -1034,20 +1034,6 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
-### `openstation_brand_migration_map` — Experimental
-
-The pre-brand to brand value map the one-time rebrand migration applies, keyed by OS-settings field. Each entry is `array( 'from' => <old default>, 'to' => <new default> )`. The default map moves `accent` from `wp-blue` to `pulse`, and `wallpaper` from `dark` to `galaxy`.
-
-```php
-apply_filters( 'openstation_brand_migration_map', array $map );
-```
-
-The migration exists because the stored OS-settings snapshot outranks the shipped default, so changing the default alone reaches new accounts and nobody else. Only a value still equal to its `from` entry is rewritten: a user who picked Indigo, or the Snow wallpaper, expressed a preference and keeps it, and users with no stored settings are skipped entirely because they already read the new defaults.
-
-Return an empty array to skip the migration and leave every stored preference alone. Adding entries is how a plugin that shipped its own pre-brand defaults can ride the same pass.
-
----
-
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
