@@ -27,13 +27,13 @@ import {
 } from '../../src/window/loading';
 import {
 	LOADING_HANDOFF_BODY_CLASS,
-	LOADING_OVERLAY_VISIBLE_CLASS,
 	LOADING_STARTED_ATTR,
 } from '../../src/window/dom';
 import {
 	LOADING_CONTENT_FADE_IN_MS,
 	LOADING_OVERLAY_FADE_OUT_MS,
 	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
 } from '../../src/window/constants';
 
 const tick = (): Promise< void > => Promise.resolve();
@@ -539,6 +539,70 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
+	} );
+
+	test( "a second cycle's hold survives the first cycle's timers", async () => {
+		await manager.open( {
+			id: 'twocycle',
+			url: '#twocycle',
+			title: 'Two cycles',
+		} );
+		paintSpinner( 'twocycle' );
+		const body = bodyOf( 'twocycle' );
+
+		vi.useFakeTimers();
+
+		// Cycle A: ready with a painted spinner. Its teardown timers are
+		// now pending at FADE_OUT_MS and FADE_OUT_MS + FADE_IN_MS.
+		markWindowContentReady( 'twocycle' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Cycle B starts before either fires. The title-bar reload path
+		// allows this: its guard only blocks while `--loading` is set,
+		// and cycle A dropped that on ready.
+		vi.advanceTimersByTime( 50 );
+		markWindowContentLoading( 'twocycle' );
+		paintSpinner( 'twocycle' );
+
+		// Cycle B lands, opening its own hold.
+		vi.advanceTimersByTime( 350 );
+		markWindowContentReady( 'twocycle' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Advance past cycle A's teardown timers but not yet to cycle
+		// B's. Scoped to their own cycle they are no-ops here; unscoped,
+		// A's second timer strips B's hold mid fade-out and puts the
+		// content back on screen under a spinner that is still fading.
+		vi.advanceTimersByTime( 150 );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+	} );
+
+	test( 'a detached overlay never gets promoted to visible', async () => {
+		await manager.open( {
+			id: 'detached',
+			url: '#detached',
+			title: 'Detached',
+		} );
+		const body = bodyOf( 'detached' );
+		const overlay = body.querySelector< HTMLElement >(
+			'.os-window__loading',
+		)!;
+
+		vi.useFakeTimers();
+		// Tear the window down mid-load, then let the show delay pass.
+		overlay.remove();
+		vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS + 1 );
+
+		expect(
+			overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+		).toBe( false );
 	} );
 } );
 

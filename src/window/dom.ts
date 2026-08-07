@@ -24,7 +24,11 @@ import {
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
 import { createRevealLayers } from '../reveals/surface';
-import { LOADING_OVERLAY_SHOW_DELAY_MS } from './constants';
+import {
+	LOADING_OVERLAY_CLASS,
+	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from './constants';
 
 /**
  * Body modifier while a window's content is loading.
@@ -43,14 +47,6 @@ export const LOADING_BODY_CLASS = 'os-window__body--loading';
 export const LOADING_HANDOFF_BODY_CLASS = 'os-window__body--loading-out';
 
 /**
- * Marks a spinner as on screen. The loaded edge reads it to decide
- * whether there is a fade-out to wait for.
- *
- * @internal
- */
-export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
-
-/**
  * When the body entered the loading state, in ms. Kept on the element
  * so it dies with the window, and so repainting the overlay mid-load
  * resumes the clock instead of restarting it.
@@ -60,12 +56,35 @@ export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
 export const LOADING_STARTED_ATTR = 'data-os-loading-at';
 
 /**
- * Record when a body entered the loading state.
+ * Which load cycle the body is on. Bumped on every loading edge so a
+ * hand-off timer left over from an earlier cycle can tell it is stale
+ * and bail, instead of stripping a later cycle's state.
+ *
+ * @internal
+ */
+export const LOADING_CYCLE_ATTR = 'data-os-loading-cycle';
+
+/**
+ * The body's current load-cycle token. Capture it when scheduling a
+ * timer, compare it when the timer fires.
+ *
+ * @internal
+ */
+export function loadingCycle( body: HTMLElement ): string {
+	return body.getAttribute( LOADING_CYCLE_ATTR ) ?? '0';
+}
+
+/**
+ * Record when a body entered the loading state, and open a new cycle.
  *
  * @internal
  */
 export function stampLoadingStart( body: HTMLElement ): void {
 	body.setAttribute( LOADING_STARTED_ATTR, String( Date.now() ) );
+	body.setAttribute(
+		LOADING_CYCLE_ATTR,
+		String( Number( loadingCycle( body ) ) + 1 ),
+	);
 }
 
 /**
@@ -192,7 +211,7 @@ export function updateFullscreenBodyClass(): void {
  */
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
-	overlay.className = 'os-window__loading';
+	overlay.className = LOADING_OVERLAY_CLASS;
 	// `aria-hidden` so screen readers don't announce the spinner —
 	// the window's title bar already has a `role="dialog"` + label,
 	// and the spinner's own `<svg role="img" aria-label="Loading">`
@@ -277,8 +296,8 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 	// replacing children. Re-add it so the CSS rules that drive
 	// the fade transition + positioning still apply. The class is
 	// what `os-window__body--loading` selectors depend on.
-	if ( overlay && ! overlay.classList.contains( 'os-window__loading' ) ) {
-		overlay.classList.add( 'os-window__loading' );
+	if ( overlay && ! overlay.classList.contains( LOADING_OVERLAY_CLASS ) ) {
+		overlay.classList.add( LOADING_OVERLAY_CLASS );
 	}
 	return overlay;
 }

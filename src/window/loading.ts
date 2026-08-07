@@ -28,13 +28,15 @@ import { HOOKS, addAction } from './../hooks';
 import { armWindowReveal, playWindowReveal } from '../reveals/surface';
 import {
 	LOADING_CONTENT_FADE_IN_MS,
+	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_FADE_OUT_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
 } from './constants';
 import {
 	ensureLoadingOverlay,
+	loadingCycle,
 	LOADING_BODY_CLASS,
 	LOADING_HANDOFF_BODY_CLASS,
-	LOADING_OVERLAY_VISIBLE_CLASS,
 	LOADING_STARTED_ATTR,
 	removeLoadingOverlay,
 	stampLoadingStart,
@@ -145,7 +147,7 @@ function _installSubscriptions(): void {
 			// Only a spinner that actually painted has a fade to
 			// sequence the content behind.
 			const spinnerWasVisible = !! body
-				.querySelector( ':scope .os-window__loading' )
+				.querySelector( `:scope .${ LOADING_OVERLAY_CLASS }` )
 				?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
 
 			body.classList.remove( LOADING_BODY_CLASS );
@@ -162,6 +164,11 @@ function _installSubscriptions(): void {
 			// Hold the content transparent through the overlay's
 			// fade-out, then fade it in. The CSS rule owns both.
 			body.classList.add( LOADING_HANDOFF_BODY_CLASS );
+			// Both timers below belong to THIS cycle. A load that
+			// starts before they fire opens a new one, and a stale
+			// timer that stripped the new cycle's hold would put the
+			// content back on screen mid fade-out.
+			const cycle = loadingCycle( body );
 			// Start the reveal in the SAME tick the loading modifier is
 			// dropped. `playWindowReveal` adds the `--revealing` class,
 			// whose rule pins the content to full opacity with no
@@ -174,6 +181,9 @@ function _installSubscriptions(): void {
 			// same frame the modifier flips off and the spinner
 			// pops out of view instead of fading.
 			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
 				// Re-check the DOM — the user might have triggered
 				// `markContentLoading()` again in the interim, in
 				// which case the overlay should stay.
@@ -184,6 +194,9 @@ function _installSubscriptions(): void {
 			// Drop the modifier once the content's fade has landed, so
 			// its delayed transition does not linger.
 			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
 				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
 					body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
 				}

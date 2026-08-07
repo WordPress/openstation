@@ -69,8 +69,9 @@
  */
 
 import {
+	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_FADE_OUT_MS,
-	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
 } from '../window/constants';
 import { createSharedStore } from '../shared-store';
 import { getActiveWindowReveal, getActiveWindowRevealDuration } from './engine';
@@ -627,14 +628,19 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		return;
 	}
 
-	const armedAt = Number( surface.getAttribute( ARMED_AT_ATTR ) );
-	const elapsed = Number.isFinite( armedAt ) ? Date.now() - armedAt : 0;
-	// The spinner overlay only becomes visible once its entry delay has
-	// passed. When it did appear, hold the surface still until its
+	// When a spinner actually painted, hold the surface still until its
 	// fade-out has settled so the two transitions read as one sequence
 	// rather than as a cross-fade.
-	const delay =
-		elapsed >= LOADING_OVERLAY_SHOW_DELAY_MS ? LOADING_OVERLAY_FADE_OUT_MS : 0;
+	//
+	// Read the overlay's own class rather than re-deriving it from a
+	// clock. The loaded edge in `src/window/loading.ts` decides from
+	// this same signal, and a second guess drifts from it: a load
+	// landing either side of the show delay, or an overlay inherited
+	// from a previous cycle, made the two disagree.
+	const spinnerVisible = !! body
+		.querySelector( `:scope .${ LOADING_OVERLAY_CLASS }` )
+		?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
+	const delay = spinnerVisible ? LOADING_OVERLAY_FADE_OUT_MS : 0;
 
 	const { duration, edgeLag } = resolveTiming( body, def );
 	const easingValue = def.easing ?? DEFAULT_REVEAL_EASING;
