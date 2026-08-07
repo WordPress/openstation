@@ -2471,7 +2471,7 @@ whose chromeless footer emits the same topics for any admin request
 that trashed, restored, deleted — or **created / updated** — content.
 The recycle bin learns instantly when a list-table trashes
 something, list iframes refresh when the bin restores something,
-and (0.9.7+) list windows also refresh when content is saved in
+and list windows also refresh when content is saved in
 another window.
 
 Topic format: **`os.<type>.changed`** — the literal

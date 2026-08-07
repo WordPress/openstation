@@ -789,8 +789,6 @@ function openstation_ai_normalize_tool_schema( $schema ) {
  * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
  * (which are kept — only the TOP level of the tool schema strips combinators).
  *
- * @since 0.9.8
- *
  * @param array $schema A tool parameters (sub)schema.
  * @return array The schema without WP-only keys, at any depth.
  */

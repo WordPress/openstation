@@ -889,7 +889,7 @@ interface Window {
     readonly element: HTMLElement; // outer .os-window node
     state: 'normal' | 'minimized' | 'maximized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
 
-    // State predicates — added 0.6.0; equivalent to `state === '…'`
+    // State predicates — equivalent to `state === '…'`
     // but easier to discover and harder to misspell at the call site.
     isMinimized():  boolean;
     isMaximized():  boolean;
@@ -1942,7 +1942,7 @@ wp.os.subscribe( 'posts/updated', ( { id } ) => {
 
 **Mirror onto activity** — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-iframe fan-out stays the broadcast bus's job.
 
-**The `os.<type>.changed` topic family** *(extended 0.9.7)* — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
+**The `os.<type>.changed` topic family** — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
 
 ```typescript
 {

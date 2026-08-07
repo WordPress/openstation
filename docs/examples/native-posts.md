@@ -305,7 +305,7 @@ const unsub = wp.os.subscribe( 'os.post.changed', ( payload ) => {
 
 The recycle bin window is already a subscriber — that's how trashing 12 posts here makes the bin tile's badge tick up to 12 without a refresh.
 
-## Hooks reference (Experimental, 0.8.0)
+## Hooks reference (Experimental)
 
 PHP:
 - `openstation_posts_window_user_can_register( $can, $user_id )` — the registration gate. Default: `edit_posts`. Returning `false` skips registration entirely, so every click falls through to the chromeless `edit.php` iframe.
