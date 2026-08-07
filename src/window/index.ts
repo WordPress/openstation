@@ -2570,10 +2570,11 @@ export class Window {
 	 *
 	 * The shell:
 	 *   - Adds the `os-window__body--loading` modifier to
-	 *     the body (CSS fades the content out, fades the overlay
-	 *     in).
+	 *     the body (CSS fades the content out).
 	 *   - Re-attaches the overlay element if it was already torn
-	 *     down by a prior `markContentLoaded` call.
+	 *     down by a prior `markContentLoaded` call, and fades the
+	 *     spinner in only once the work has run past the show delay
+	 *     — a refetch that lands quickly never paints one.
 	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
 	 *     dispatches `os-window-content-loading` on
 	 *     `document` (idempotent — no re-fire when already
@@ -2587,8 +2588,11 @@ export class Window {
 
 	/**
 	 * Tell the shell this window's body content is ready — fades
-	 * the spinner overlay out, fades the content in, removes the
-	 * overlay element after the transition lands.
+	 * the spinner overlay out, then fades the content in, and removes
+	 * the overlay element once the transition lands. The two run back
+	 * to back, never together. A spinner that never painted (the work
+	 * finished inside the show delay) is dropped in the same tick and
+	 * the content appears with no wait at all.
 	 *
 	 * Iframe windows mark themselves ready automatically on the
 	 * `os-ready` postMessage from the chromeless bridge.

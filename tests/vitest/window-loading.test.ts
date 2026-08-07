@@ -25,6 +25,16 @@ import {
 	installWindowLoadingTransitions,
 	repaintLoadingOverlays,
 } from '../../src/window/loading';
+import {
+	LOADING_HANDOFF_BODY_CLASS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+	LOADING_STARTED_ATTR,
+} from '../../src/window/dom';
+import {
+	LOADING_CONTENT_FADE_IN_MS,
+	LOADING_OVERLAY_FADE_OUT_MS,
+	LOADING_OVERLAY_SHOW_DELAY_MS,
+} from '../../src/window/constants';
 
 const tick = (): Promise< void > => Promise.resolve();
 const raf = (): Promise< void > =>
@@ -126,6 +136,63 @@ describe( 'createWindowElement — loading overlay', async () => {
 		} );
 		const spinner = el.querySelector( 'os-spinner' );
 		expect( spinner!.getAttribute( 'size' ) ).toBe( 'clamp(96px, 14vw, 192px)' );
+	} );
+
+	test( 'the overlay mounts INVISIBLE and only shows past the delay', async () => {
+		vi.useFakeTimers();
+		try {
+			const el = createWindowElement( {
+				id: 'probe-delay',
+				url: '#probe-delay',
+				title: 'Probe',
+				icon: 'dashicons-admin-post',
+				x: 0,
+				y: 0,
+				width: 400,
+				height: 320,
+			} );
+			document.body.appendChild( el );
+			const overlay = el.querySelector( '.os-window__loading' )!;
+
+			// The whole point: a body built with the loading modifier
+			// already on it gives its overlay no before-change style to
+			// transition from, so the visible state has to be withheld
+			// by JS rather than delayed by CSS.
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( false );
+
+			vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS - 1 );
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( false );
+
+			vi.advanceTimersByTime( 1 );
+			expect(
+				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
+			).toBe( true );
+
+			el.remove();
+		} finally {
+			vi.useRealTimers();
+		}
+	} );
+
+	test( 'construction stamps the show-delay clock on the body', async () => {
+		const el = createWindowElement( {
+			id: 'probe-stamp',
+			url: '#probe-stamp',
+			title: 'Probe',
+			icon: 'dashicons-admin-post',
+			x: 0,
+			y: 0,
+			width: 400,
+			height: 320,
+		} );
+		const body = el.querySelector< HTMLElement >( '.os-window__body' )!;
+		expect( Number( body.getAttribute( LOADING_STARTED_ATTR ) ) ).toBeGreaterThan(
+			0,
+		);
 	} );
 } );
 
@@ -302,11 +369,176 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
-		// Overlay is still in the DOM at this moment — the
-		// fade-out timer hasn't fired yet (default jsdom timing).
-		// Either way, `ensureLoadingOverlay` paints a fresh one.
+		// The previous overlay never became visible, so the ready
+		// edge dropped it in the same tick; `ensureLoadingOverlay`
+		// paints a fresh one for the re-arm.
 		const overlays = body!.querySelectorAll( '.os-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
+	} );
+} );
+
+/**
+ * The spinner and the content must never be on screen together. Two
+ * cases, and the visible-modifier on the overlay is what tells them
+ * apart: a load that finished inside the show delay has no spinner to
+ * clear, and a load that painted one owes it an uninterrupted fade-out
+ * before the content underneath may appear.
+ */
+describe( 'loading → ready hand-off — the spinner never overlaps content', async () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	const bodyOf = ( id: string ): HTMLElement =>
+		document.querySelector< HTMLElement >(
+			`#wp-window-${ id } .os-window__body`,
+		)!;
+
+	/**
+	 * Put a still-loading window in the state it would be in after the
+	 * show delay elapsed: back-date the body's clock and repaint, which
+	 * promotes the overlay synchronously instead of waiting on a timer
+	 * registered before the fake clock was installed.
+	 */
+	const paintSpinner = ( id: string ): HTMLElement => {
+		const body = bodyOf( id );
+		body.setAttribute(
+			LOADING_STARTED_ATTR,
+			String( Date.now() - LOADING_OVERLAY_SHOW_DELAY_MS - 1 ),
+		);
+		repaintLoadingOverlays();
+		return body.querySelector< HTMLElement >( '.os-window__loading' )!;
+	};
+
+	beforeEach( async () => {
+		installHooksStub();
+		desktop = makeDesktop();
+		manager = new WindowManager( desktop );
+		installWindowLoadingTransitions();
+	} );
+	afterEach( async () => {
+		vi.useRealTimers();
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+		_resetWindowChannelsForTests();
+		_resetWindowLoadingTransitionsForTests();
+	} );
+
+	test( 'a repaint mid-load resumes the clock instead of restarting it', async () => {
+		await manager.open( {
+			id: 'resume',
+			url: '#resume',
+			title: 'Resume',
+		} );
+		const overlay = paintSpinner( 'resume' );
+		expect( overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ) ).toBe(
+			true,
+		);
+	} );
+
+	test( 'a spinner that never painted is dropped in the same tick', async () => {
+		await manager.open( {
+			id: 'fast',
+			url: '#fast',
+			title: 'Fast',
+		} );
+		const body = bodyOf( 'fast' );
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+
+		markWindowContentReady( 'fast' );
+
+		// No fade to wait out: the overlay is gone before the content
+		// is uncovered, so the two are never both on screen.
+		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
+		// And no hand-off, because there is nothing to hand off from.
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+		expect( body.hasAttribute( LOADING_STARTED_ATTR ) ).toBe( false );
+	} );
+
+	test( 'a painted spinner keeps the content back for its fade-out', async () => {
+		await manager.open( {
+			id: 'slow',
+			url: '#slow',
+			title: 'Slow',
+		} );
+		paintSpinner( 'slow' );
+		const body = bodyOf( 'slow' );
+
+		vi.useFakeTimers();
+		markWindowContentReady( 'slow' );
+
+		// The loading modifier is off, but the content is still held
+		// transparent by the hand-off while the spinner fades.
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			false,
+		);
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+
+		// One tick short of the fade-out: the overlay is still there,
+		// so the content must still be held.
+		vi.advanceTimersByTime( LOADING_OVERLAY_FADE_OUT_MS - 1 );
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Fade-out done — the overlay leaves, the content fades in.
+		vi.advanceTimersByTime( 1 );
+		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		// Content fade-in done — the hand-off modifier retires with it
+		// rather than leaving a delayed transition on the body.
+		vi.advanceTimersByTime( LOADING_CONTENT_FADE_IN_MS );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+	} );
+
+	test( 'a re-arm during the hand-off cancels it', async () => {
+		await manager.open( {
+			id: 'rearm',
+			url: '#rearm',
+			title: 'Re-arm',
+		} );
+		paintSpinner( 'rearm' );
+		const body = bodyOf( 'rearm' );
+
+		vi.useFakeTimers();
+		markWindowContentReady( 'rearm' );
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			true,
+		);
+
+		markWindowContentLoading( 'rearm' );
+
+		// The content is about to be covered again — a delayed fade-in
+		// of it would be stale.
+		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
+			false,
+		);
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			true,
+		);
+
+		// The pending teardown timers must not strip the re-armed
+		// overlay or the fresh loading state.
+		vi.advanceTimersByTime(
+			LOADING_OVERLAY_FADE_OUT_MS + LOADING_CONTENT_FADE_IN_MS,
+		);
+		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
+		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
+			true,
+		);
 	} );
 } );
 

@@ -55,12 +55,33 @@ export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 export const LOADING_OVERLAY_FADE_OUT_MS = 250;
 
 /**
- * Entry delay before the loading overlay fades IN. Must match the
- * `transition-delay` on `.os-window__body--loading >
- * .os-window__loading` in `assets/css/window-chrome.css`.
+ * Entry delay before the loading overlay may fade IN. Owned by JS:
+ * `ensureLoadingOverlay` waits this long before adding the
+ * `os-window__loading--visible` modifier that the CSS rule keys off.
+ *
+ * It cannot be a `transition-delay` on the overlay itself. The overlay
+ * is appended into a body that ALREADY carries `os-window__body--loading`,
+ * so its very first computed style is the visible one — there is no
+ * before-change value for a transition to run from, and the delay is
+ * skipped entirely. That made the spinner reach full strength on every
+ * open regardless of how fast the content landed.
  *
  * Loads that finish inside this window never paint a spinner at all,
  * which is what the reveal surface checks to decide whether it has a
  * fade-out to wait for.
  */
 export const LOADING_OVERLAY_SHOW_DELAY_MS = 120;
+
+/**
+ * How long the body content takes to fade in once the loading overlay
+ * has finished fading out. Must match the `transition` duration on
+ * `.os-window__body--loading-out > …` in
+ * `assets/css/window-chrome.css`; the shell waits
+ * {@link LOADING_OVERLAY_FADE_OUT_MS} plus this span before dropping
+ * the hand-off modifier.
+ *
+ * The two spans are sequential, never concurrent: a spinner fading out
+ * over content that has already painted puts both layers on screen at
+ * once, which is the flash this hand-off exists to prevent.
+ */
+export const LOADING_CONTENT_FADE_IN_MS = 250;

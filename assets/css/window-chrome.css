@@ -926,12 +926,15 @@ os-tab-chip + os-tab-chip {
  * output) and kept aria-hidden so the spinner's own SR-label is
  * the only loading announcement.
  *
- * `transition-delay` on the overlay's fade-in means a render
- * that lands within ~120ms never paints the spinner — the
- * overlay only becomes visible when there's actually a wait
- * worth surfacing. This keeps the affordance from flashing on
- * fast local-dev loads while still covering the slow production
- * iframe boots that motivated it.
+ * The `--visible` modifier is what turns the overlay on, and JS adds
+ * it ~120ms into the load (`LOADING_OVERLAY_SHOW_DELAY_MS`), so a
+ * render that lands inside that window never paints the spinner at
+ * all. The delay cannot live here as a `transition-delay`: the
+ * overlay is appended into a body that already carries `--loading`,
+ * so its first computed style would be the visible one and there is
+ * no before-change value for a transition to run from. Keeping the
+ * affordance off entirely on fast loads is the point — it still
+ * covers the slow production iframe boots that motivated it.
  */
 .os-window__loading {
 	position: absolute;
@@ -964,13 +967,37 @@ os-tab-chip + os-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
-.os-window__body--loading > .os-window__loading {
+.os-window__body--loading > .os-window__loading--visible {
 	opacity: 1;
-	/* Entry transition with a small delay — loads that finish in
-	 * under ~120ms never paint the spinner, so fast local-dev /
-	 * hot-cache fires don't flash. Slow production iframe boots
-	 * still see the spinner. */
-	transition-delay: 0.12s;
+}
+
+/*
+ * Content hand-off. `--loading` drops the instant the content reports
+ * ready, but the overlay sitting above it still needs its 250ms to
+ * fade out — and a spinner dissolving over text that has already
+ * painted is both layers on screen at once, which reads as a flash of
+ * overlapping artwork rather than as a transition.
+ *
+ * This modifier keeps the content exactly where `--loading` left it
+ * (transparent) for the length of that fade, then fades it in. The
+ * delay in the shorthand is what does the holding: the content's
+ * before-change opacity is 0, so nothing moves until the delay is up.
+ *
+ * Only added when the spinner ACTUALLY painted. A load that finishes
+ * inside the show delay never reached `--visible`, so the shell drops
+ * the overlay in the same tick and the content appears with nothing
+ * to wait for.
+ *
+ * `--revealing` declares the same selector at the same specificity
+ * and comes later in the file, so a window playing a reveal keeps its
+ * content pinned to full opacity under the opaque reveal surface —
+ * which is that layer's job, not this one's.
+ */
+.os-window__body--loading-out > .os-window__iframe,
+.os-window__body--loading-out
+	> :not(.os-window__loading):not(.os-window__reveal) {
+	opacity: 1;
+	transition: opacity 0.25s ease 0.25s;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
@@ -978,6 +1005,9 @@ os-tab-chip + os-tab-chip {
 	.os-window__loading,
 	.os-window__body--loading > .os-window__iframe,
 	.os-window__body--loading
+		> :not(.os-window__loading):not(.os-window__reveal),
+	.os-window__body--loading-out > .os-window__iframe,
+	.os-window__body--loading-out
 		> :not(.os-window__loading):not(.os-window__reveal) {
 		transition: none;
 	}

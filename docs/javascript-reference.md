@@ -110,6 +110,8 @@ Fires every time a window enters the **loading** state — at construction (ever
 
 The shell paints a `<os-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
 
+The overlay element is attached immediately (so `config.loading.render` and the `WINDOW_LOADING_OVERLAY` filter always have a host) but stays **invisible for the first 120 ms**. A load that finishes inside that window never paints a spinner at all.
+
 **Edge-triggered.** Idempotent calls don't re-fire — a plugin that calls `markLoading()` twice in a row sees the event exactly once.
 
 ```javascript
@@ -129,6 +131,8 @@ Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`os.window.content-
 ### `os-window-content-loaded` — Stable
 
 Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `os-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
+
+**The overlay and the content are never on screen together.** If the spinner never painted (the load finished inside the 120 ms show delay), the overlay is removed in the same tick and the content appears with no wait. If it did paint, it gets its 250 ms fade-out to itself and the content fades in after that, not underneath it.
 
 **Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `os.iframe.ready`, which fires alongside this event for iframe windows.
 
@@ -2843,11 +2847,13 @@ w.markContentLoading();
 await refetchData();
 w.appendBody( renderTable( data ) );
 
-// Hide the spinner, fade the content in.
+// Hide the spinner, then fade the content in.
 w.markContentLoaded();
 ```
 
 Idempotent: calling `markContentLoading()` twice in a row only fires `WINDOW_CONTENT_LOADING` once; the same edge-trigger logic applies to `markContentLoaded()`.
+
+A refetch that resolves inside the 120 ms show delay never paints a spinner, so the pair is cheap to reach for on work that is usually fast. When one does paint, the content waits for its fade-out rather than appearing under it.
 
 The framework calls `markContentLoaded()` automatically when:
 - An iframe window's chromeless bridge posts `os-ready`.
