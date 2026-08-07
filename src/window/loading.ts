@@ -8,16 +8,12 @@
  * the spinner overlay, and swallow strays from windows that have
  * already torn down.
  *
- * ## The loading indicator never shares the screen with content
+ * ## The spinner and the content never share the screen
  *
- * Two rules, both enforced here:
- *
- *   - A spinner that never became visible (the load finished inside
- *     `LOADING_OVERLAY_SHOW_DELAY_MS`) is removed in the same tick the
- *     content is uncovered. There is nothing to fade.
- *   - A spinner that DID paint gets its fade-out to itself: the
- *     `--loading-out` modifier holds the content transparent for that
- *     span and then fades it in, so the two never overlap.
+ *   - Spinner never became visible: drop it in the same tick, there is
+ *     nothing to fade.
+ *   - Spinner did paint: hold the content transparent through its
+ *     fade-out, then fade the content in.
  *
  * A single global `addAction` per edge (loading + loaded) reads
  * the window id from the payload and looks up the element via
@@ -115,13 +111,11 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-			// A re-arm cancels any hand-off still running from the
-			// previous load — the content is about to be covered
-			// again, so a delayed fade-in of it is stale.
+			// Cancel any hand-off still running: the content is about
+			// to be covered again, so fading it in is stale.
 			body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
 			body.classList.add( LOADING_BODY_CLASS );
-			// Stamp before painting: `ensureLoadingOverlay` reads the
-			// clock to decide how much of the show delay is left.
+			// Stamp first: `ensureLoadingOverlay` reads the clock.
 			stampLoadingStart( body );
 			ensureLoadingOverlay( el );
 			// Re-arm the reveal surface. The FIRST arm happens in
@@ -148,12 +142,8 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-			// Whether there is anything on screen to fade. An overlay
-			// that never reached the `--visible` modifier is a
-			// zero-opacity element: fading it out would be 250 ms of
-			// nothing, and letting the content paint underneath it in
-			// the meantime is what put a half-faded spinner over
-			// finished text on every fast open.
+			// Only a spinner that actually painted has a fade to
+			// sequence the content behind.
 			const spinnerWasVisible = !! body
 				.querySelector( ':scope .os-window__loading' )
 				?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
@@ -162,21 +152,15 @@ function _installSubscriptions(): void {
 			body.removeAttribute( LOADING_STARTED_ATTR );
 
 			if ( ! spinnerWasVisible ) {
-				// Nothing painted, nothing to sequence: drop the
-				// overlay in the same tick so it can never be on
-				// screen at the same time as the content it covers.
+				// Nothing painted, nothing to sequence.
 				removeLoadingOverlay( el );
-				// Same-tick reveal — see the note below; it applies to
-				// both branches.
+				// Same-tick reveal, for the reason noted below.
 				playWindowReveal( el );
 				return;
 			}
 
-			// The spinner is on screen. Hold the content transparent
-			// for the length of the overlay's fade-out, then fade it
-			// in — the two transitions run back to back rather than on
-			// top of each other. The CSS rule for this modifier owns
-			// both the hold and the fade.
+			// Hold the content transparent through the overlay's
+			// fade-out, then fade it in. The CSS rule owns both.
 			body.classList.add( LOADING_HANDOFF_BODY_CLASS );
 			// Start the reveal in the SAME tick the loading modifier is
 			// dropped. `playWindowReveal` adds the `--revealing` class,
@@ -197,9 +181,8 @@ function _installSubscriptions(): void {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
-			// Drop the hand-off modifier once the content's own fade
-			// has landed, so the delayed transition it declares does
-			// not linger on a window that is done loading.
+			// Drop the modifier once the content's fade has landed, so
+			// its delayed transition does not linger.
 			window.setTimeout( () => {
 				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
 					body.classList.remove( LOADING_HANDOFF_BODY_CLASS );

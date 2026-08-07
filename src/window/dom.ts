@@ -27,49 +27,40 @@ import { createRevealLayers } from '../reveals/surface';
 import { LOADING_OVERLAY_SHOW_DELAY_MS } from './constants';
 
 /**
- * Body modifier while a window's content is loading. The overlay's
- * visibility, the content's hidden state and the re-arm sweep all key
- * off this one class.
+ * Body modifier while a window's content is loading.
  *
  * @internal
  */
 export const LOADING_BODY_CLASS = 'os-window__body--loading';
 
 /**
- * Body modifier during the hand-off from a PAINTED spinner to the
- * content underneath it: the content stays transparent while the
- * overlay fades out, then fades in. Never added when the spinner
- * stayed invisible — that load has nothing to hand off from.
+ * Body modifier while a painted spinner hands off to the content: the
+ * content stays transparent through the overlay's fade-out, then fades
+ * in. Not used when the spinner never became visible.
  *
  * @internal
  */
 export const LOADING_HANDOFF_BODY_CLASS = 'os-window__body--loading-out';
 
 /**
- * Overlay modifier meaning "this spinner is on screen". Added by
- * {@link scheduleLoadingOverlayShow} once the show delay has
- * elapsed, and read on the loaded edge to decide whether there is a
- * fade-out to sequence the content behind.
+ * Marks a spinner as on screen. The loaded edge reads it to decide
+ * whether there is a fade-out to wait for.
  *
  * @internal
  */
 export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
 
 /**
- * Wall-clock stamp (ms) of when the body entered the loading state.
- * Lives on the body element rather than in a side map so it is torn
- * down with the window, and so a repaint of the overlay mid-load can
- * resume the same clock instead of restarting it (which would blink a
- * spinner that was already on screen).
+ * When the body entered the loading state, in ms. Kept on the element
+ * so it dies with the window, and so repainting the overlay mid-load
+ * resumes the clock instead of restarting it.
  *
  * @internal
  */
 export const LOADING_STARTED_ATTR = 'data-os-loading-at';
 
 /**
- * Stamp the moment a body entered the loading state. Called wherever
- * {@link LOADING_BODY_CLASS} is added — construction here, the
- * `WINDOW_CONTENT_LOADING` edge in `./loading.ts`.
+ * Record when a body entered the loading state.
  *
  * @internal
  */
@@ -78,18 +69,9 @@ export function stampLoadingStart( body: HTMLElement ): void {
 }
 
 /**
- * Turn an overlay visible once the show delay has elapsed, so a load
- * that finishes inside that delay never paints a spinner.
- *
- * The delay is owned here rather than by a CSS `transition-delay`
- * because the overlay is appended into a body that already carries
- * `--loading`: its first computed style is the visible one, no
- * transition runs, and the delay is skipped. The result was a spinner
- * at full strength on every window open, cross-fading out over content
- * that had already painted.
- *
- * Resumes the body's existing clock, so `repaintLoadingOverlays()`
- * mid-load hands the replacement overlay straight back to visible.
+ * Make the overlay visible once the show delay has passed, so a fast
+ * load never paints a spinner. Resumes the body's existing clock, so a
+ * mid-load repaint does not restart the delay.
  *
  * @internal
  */
@@ -105,10 +87,8 @@ export function scheduleLoadingOverlayShow(
 		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
 		return;
 	}
-	// No cancellation bookkeeping: the two conditions that make the
-	// promotion wrong (overlay torn down, window no longer loading)
-	// are both readable at fire time, and a stray timer on a closed
-	// window costs one no-op.
+	// No cancel bookkeeping: both reasons to skip (overlay gone,
+	// window no longer loading) are readable at fire time.
 	window.setTimeout( () => {
 		if ( ! overlay.isConnected ) {
 			return;
@@ -306,12 +286,10 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 /**
  * Remove the loading overlay element from a window's body.
  *
- * Call it in the same tick when the overlay never reached
- * {@link LOADING_OVERLAY_VISIBLE_CLASS} — there is no fade to
- * interrupt, and leaving an invisible element to "fade" is what let
- * the spinner and the content share the screen. Otherwise wait out the
- * fade-out (`LOADING_OVERLAY_FADE_OUT_MS`, the same duration the
- * matching CSS rule transitions over) so the spinner doesn't pop.
+ * Call in the same tick if the overlay never became visible: there is
+ * no fade to wait for. Otherwise wait `LOADING_OVERLAY_FADE_OUT_MS`,
+ * the duration the matching CSS rule transitions over, so the spinner
+ * does not pop.
  *
  * Idempotent — a window whose overlay was already removed (e.g.
  * because `markContentLoaded` was called twice in a row) silently

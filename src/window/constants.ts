@@ -55,33 +55,22 @@ export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 export const LOADING_OVERLAY_FADE_OUT_MS = 250;
 
 /**
- * Entry delay before the loading overlay may fade IN. Owned by JS:
- * `ensureLoadingOverlay` waits this long before adding the
- * `os-window__loading--visible` modifier that the CSS rule keys off.
+ * How long to wait before the loading overlay may fade in. A load that
+ * finishes inside this window never paints a spinner at all.
  *
- * It cannot be a `transition-delay` on the overlay itself. The overlay
- * is appended into a body that ALREADY carries `os-window__body--loading`,
- * so its very first computed style is the visible one — there is no
- * before-change value for a transition to run from, and the delay is
- * skipped entirely. That made the spinner reach full strength on every
- * open regardless of how fast the content landed.
- *
- * Loads that finish inside this window never paint a spinner at all,
- * which is what the reveal surface checks to decide whether it has a
- * fade-out to wait for.
+ * Owned by JS, not a CSS `transition-delay`: the overlay is appended
+ * into a body that already carries `os-window__body--loading`, so its
+ * first computed style is the visible one and the transition never
+ * runs.
  */
 export const LOADING_OVERLAY_SHOW_DELAY_MS = 120;
 
 /**
- * How long the body content takes to fade in once the loading overlay
- * has finished fading out. Must match the `transition` duration on
- * `.os-window__body--loading-out > …` in
- * `assets/css/window-chrome.css`; the shell waits
- * {@link LOADING_OVERLAY_FADE_OUT_MS} plus this span before dropping
- * the hand-off modifier.
+ * How long the content takes to fade in after the overlay has faded
+ * out. Must match the `transition` on `.os-window__body--loading-out`
+ * in `assets/css/window-chrome.css`.
  *
- * The two spans are sequential, never concurrent: a spinner fading out
- * over content that has already painted puts both layers on screen at
- * once, which is the flash this hand-off exists to prevent.
+ * The two fades run back to back, never together, so the spinner and
+ * the content are never both on screen.
  */
 export const LOADING_CONTENT_FADE_IN_MS = 250;
