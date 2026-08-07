@@ -1034,6 +1034,20 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
+### `openstation_brand_migration_map` — Experimental
+
+The pre-brand to brand value map the one-time rebrand migration applies, keyed by OS-settings field. Each entry is `array( 'from' => <old default>, 'to' => <new default> )`. The default map moves `accent` from `wp-blue` to `pulse`, and `wallpaper` from `dark` to `galaxy`.
+
+```php
+apply_filters( 'openstation_brand_migration_map', array $map );
+```
+
+The migration exists because the stored OS-settings snapshot outranks the shipped default, so changing the default alone reaches new accounts and nobody else. Only a value still equal to its `from` entry is rewritten: a user who picked Indigo, or the Snow wallpaper, expressed a preference and keeps it, and users with no stored settings are skipped entirely because they already read the new defaults.
+
+Return an empty array to skip the migration and leave every stored preference alone. Adding entries is how a plugin that shipped its own pre-brand defaults can ride the same pass.
+
+---
+
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
@@ -1632,6 +1646,20 @@ The list of plugin files to cascade-deactivate when OpenStation itself is deacti
 ```php
 apply_filters( 'openstation_cascade_deactivate_dependents', string[] $dependents, string $slug );
 ```
+
+---
+
+### `openstation_track_type_registrants` — Experimental
+
+Whether this request records which plugin, mu-plugin or theme registered each non-builtin post type and taxonomy. Defaults to `is_admin()`.
+
+```php
+apply_filters( 'openstation_track_type_registrants', bool $track );
+```
+
+The recorded map is what lets the dock offer `Deactivate <plugin>` on a menu item, and what files a custom post type under its plugin's folder in WP Explorer (see [`openstation_my_wordpress_post_type_group`](#openstation_my_wordpress_post_type_group--experimental-filter)). Both consumers are admin-side, so the gate is admin-side too.
+
+Recording costs one bounded `debug_backtrace()` per non-builtin type registration, and a front-end page view registers exactly the same types (WooCommerce alone brings several) for a map nothing there reads. Return `true` on the front end only if something there does read it.
 
 ---
 
@@ -3219,6 +3247,32 @@ Active only when WooCommerce is. See
 [Plugin compat layer](./plugin-compat-layer.md#the-site-window-side-woocommerce)
 for what the integration does and why.
 
+Every filter here is Experimental. The integration is young and its
+payload shapes are still moving, so treat the argument lists as
+liable to grow. Index, in the order they are documented below:
+
+| Filter | Shapes |
+|---|---|
+| `openstation_my_wordpress_woo_order_args` | the `wc_get_orders()` args behind the Orders section |
+| `openstation_my_wordpress_woo_summary` | the merchant summary rendered in the right pane |
+| `openstation_my_wordpress_woo_summary_type` | the summary payload for a type the plugin doesn't know |
+| `openstation_my_wordpress_woo_summary_capability` | who may read a summary of that type |
+| `openstation_my_wordpress_woo_store` | the store headline numbers on the Woo folder |
+| `openstation_my_wordpress_woo_order_bands` | the status bands the Orders section groups by |
+| `openstation_my_wordpress_woo_product_bands` | the stock / category bands the Products section groups by |
+| `openstation_my_wordpress_woo_coupon_bands` | the bands the Coupons section groups by |
+| `openstation_my_wordpress_woo_section_icons` | post type slug to dashicon for the Woo sections |
+| `openstation_my_wordpress_woo_customer_spend_map` | the per-customer order aggregate the Customers section is built from |
+| `openstation_my_wordpress_woo_customer_bands` | the bands the Customers section groups by |
+| `openstation_my_wordpress_woo_customer_band` | which band one aggregate lands in |
+| `openstation_my_wordpress_woo_vip_threshold` | the spend a customer clears to count as VIP |
+| `openstation_my_wordpress_woo_customer_lapse_days` | how long since the last order counts as lapsed |
+| `openstation_my_wordpress_woo_customer_ids` | the candidate set the Customers section draws from |
+| `openstation_my_wordpress_woo_customer_query_args` | the `WP_User_Query` args behind the customers route |
+| `openstation_my_wordpress_woo_customer_facts` | the fact payload carried on every customer row |
+| `openstation_my_wordpress_woo_customer_window_template_html` | the Customer window's static template body |
+| `openstation_my_wordpress_woo_customer_window_args` | the Customer window's registration args |
+
 ```php
 apply_filters( 'openstation_my_wordpress_woo_order_args', array $args, WP_REST_Request $request ): array
 ```
@@ -3288,6 +3342,20 @@ uncategorised catch-all. Each entry declares `id`, `label`, `order`,
 and one matcher — `stock` (a stock-status slug) or `category` (a term
 slug). Stock bands win over category bands, so an empty shelf surfaces
 wherever the product is filed.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_coupon_bands', array[] $bands ): array[]
+```
+
+The bands the Coupons section groups tiles into, ordered so the codes
+still worth handing out come first: `coupon:active`,
+`coupon:expiring`, `coupon:used-up`, `coupon:expired`. Each entry
+declares `id`, `label`, `order`, and an optional `tone` (`warn` on
+expiring, `danger` on a code that has hit its usage limit).
+
+Membership is not filterable, unlike the customer bands: a coupon is
+expiring within 30 days of its expiry date, used-up once its usage
+count reaches its usage limit, and expired once the date has passed.
 
 ```php
 apply_filters( 'openstation_my_wordpress_woo_section_icons', array $icons ): array
