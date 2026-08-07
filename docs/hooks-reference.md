@@ -1034,28 +1034,6 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
-### `openstation_install_predates_rebrand` — Stable
-
-Decides whether this install is treated as one that was already running when the plugin was called Desktop Mode. When it is, the shell shows each user a one-off announcement explaining the rename to OpenStation.
-
-```php
-apply_filters( 'openstation_install_predates_rebrand', bool $predates, int $from );
-```
-
-Fires once, from the one-time migration runner (`includes/migrations.php`, migration 5). `$from` is the highest migration version that had already been applied before this run, which is the signal the default answer is derived from: `1`–`3` means the install ran under the old name, `0` means a fresh install that has only ever known OpenStation, and `4` means the rebrand migration had already landed here.
-
-Passing that gate is necessary but not sufficient. The migration then flags **individual users** who carry proof of having used the plugin before the rename — either `desktop_mode_mode` (the per-user opt-in) or a saved `desktop_mode_os_settings` blob — by writing `desktop_mode_rebrand_notice` user meta. Someone who joins an old site after the rename and enables OpenStation for the first time is never flagged, and never sees the announcement.
-
-Because the filter runs inside a migration, it is consulted exactly once per install. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete the `desktop_mode_rebrand_notice` user meta.
-
-Return `false` to suppress the announcement for every user on the site — useful for a host rolling OpenStation out to fleet sites that never saw the old name, or an agency that would rather brief its clients itself.
-
-The announcement itself only exists inside the shell: it is drawn by the desktop bundle, which is not enqueued in the classic admin or inside a chromeless iframe.
-
-Dismissal is per-user, through the `openstation-rebrand` slug in the shared seen-intros registry (`desktop_mode_seen_intros` user meta). One admin dismissing the announcement does not silence it for their editors, and "Reset what's-new dialogs" in OpenStation Preferences → Features brings it back alongside every other intro.
-
----
-
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
@@ -1654,6 +1632,20 @@ The list of plugin files to cascade-deactivate when OpenStation itself is deacti
 ```php
 apply_filters( 'openstation_cascade_deactivate_dependents', string[] $dependents, string $slug );
 ```
+
+---
+
+### `openstation_track_type_registrants` — Experimental
+
+Whether this request records which plugin, mu-plugin or theme registered each non-builtin post type and taxonomy. Defaults to `is_admin()`.
+
+```php
+apply_filters( 'openstation_track_type_registrants', bool $track );
+```
+
+The recorded map is what lets the dock offer `Deactivate <plugin>` on a menu item, and what files a custom post type under its plugin's folder in WP Explorer (see [`openstation_my_wordpress_post_type_group`](#openstation_my_wordpress_post_type_group--experimental-filter)). Both consumers are admin-side, so the gate is admin-side too.
+
+Recording costs one bounded `debug_backtrace()` per non-builtin type registration, and a front-end page view registers exactly the same types (WooCommerce alone brings several) for a map nothing there reads. Return `true` on the front end only if something there does read it.
 
 ---
 
@@ -2493,7 +2485,7 @@ whose chromeless footer emits the same topics for any admin request
 that trashed, restored, deleted — or **created / updated** — content.
 The recycle bin learns instantly when a list-table trashes
 something, list iframes refresh when the bin restores something,
-and (0.9.7+) list windows also refresh when content is saved in
+and list windows also refresh when content is saved in
 another window.
 
 Topic format: **`os.<type>.changed`** — the literal
@@ -3241,6 +3233,32 @@ Active only when WooCommerce is. See
 [Plugin compat layer](./plugin-compat-layer.md#the-site-window-side-woocommerce)
 for what the integration does and why.
 
+Every filter here is Experimental. The integration is young and its
+payload shapes are still moving, so treat the argument lists as
+liable to grow. Index, in the order they are documented below:
+
+| Filter | Shapes |
+|---|---|
+| `openstation_my_wordpress_woo_order_args` | the `wc_get_orders()` args behind the Orders section |
+| `openstation_my_wordpress_woo_summary` | the merchant summary rendered in the right pane |
+| `openstation_my_wordpress_woo_summary_type` | the summary payload for a type the plugin doesn't know |
+| `openstation_my_wordpress_woo_summary_capability` | who may read a summary of that type |
+| `openstation_my_wordpress_woo_store` | the store headline numbers on the Woo folder |
+| `openstation_my_wordpress_woo_order_bands` | the status bands the Orders section groups by |
+| `openstation_my_wordpress_woo_product_bands` | the stock / category bands the Products section groups by |
+| `openstation_my_wordpress_woo_coupon_bands` | the bands the Coupons section groups by |
+| `openstation_my_wordpress_woo_section_icons` | post type slug to dashicon for the Woo sections |
+| `openstation_my_wordpress_woo_customer_spend_map` | the per-customer order aggregate the Customers section is built from |
+| `openstation_my_wordpress_woo_customer_bands` | the bands the Customers section groups by |
+| `openstation_my_wordpress_woo_customer_band` | which band one aggregate lands in |
+| `openstation_my_wordpress_woo_vip_threshold` | the spend a customer clears to count as VIP |
+| `openstation_my_wordpress_woo_customer_lapse_days` | how long since the last order counts as lapsed |
+| `openstation_my_wordpress_woo_customer_ids` | the candidate set the Customers section draws from |
+| `openstation_my_wordpress_woo_customer_query_args` | the `WP_User_Query` args behind the customers route |
+| `openstation_my_wordpress_woo_customer_facts` | the fact payload carried on every customer row |
+| `openstation_my_wordpress_woo_customer_window_template_html` | the Customer window's static template body |
+| `openstation_my_wordpress_woo_customer_window_args` | the Customer window's registration args |
+
 ```php
 apply_filters( 'openstation_my_wordpress_woo_order_args', array $args, WP_REST_Request $request ): array
 ```
@@ -3310,6 +3328,20 @@ uncategorised catch-all. Each entry declares `id`, `label`, `order`,
 and one matcher — `stock` (a stock-status slug) or `category` (a term
 slug). Stock bands win over category bands, so an empty shelf surfaces
 wherever the product is filed.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_coupon_bands', array[] $bands ): array[]
+```
+
+The bands the Coupons section groups tiles into, ordered so the codes
+still worth handing out come first: `coupon:active`,
+`coupon:expiring`, `coupon:used-up`, `coupon:expired`. Each entry
+declares `id`, `label`, `order`, and an optional `tone` (`warn` on
+expiring, `danger` on a code that has hit its usage limit).
+
+Membership is not filterable, unlike the customer bands: a coupon is
+expiring within 30 days of its expiry date, used-up once its usage
+count reaches its usage limit, and expired once the date has passed.
 
 ```php
 apply_filters( 'openstation_my_wordpress_woo_section_icons', array $icons ): array

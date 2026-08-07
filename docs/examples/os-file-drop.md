@@ -1,6 +1,6 @@
 # OS-file drop
 
-**Status:** Experimental · **Since:** 0.8.6
+**Status:** Experimental
 
 OpenStation catches files dragged from the host operating system
 (macOS Finder, Windows Explorer, Linux Nautilus) onto **any**

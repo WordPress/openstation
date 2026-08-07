@@ -1,6 +1,6 @@
 # Register a desktop theme from a plugin
 
-**Status:** Experimental · **Since:** 0.9.7
+**Status:** Experimental
 
 A [desktop theme](../desktop-themes.md) reskins the whole shell. Site
 admins normally install one by uploading a ZIP in OpenStation Preferences →

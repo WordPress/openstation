@@ -24,6 +24,100 @@ import {
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
 import { createRevealLayers } from '../reveals/surface';
+import {
+	LOADING_OVERLAY_CLASS,
+	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from './constants';
+
+/**
+ * Body modifier while a window's content is loading.
+ *
+ * @internal
+ */
+export const LOADING_BODY_CLASS = 'os-window__body--loading';
+
+/**
+ * Body modifier while a painted spinner hands off to the content: the
+ * content stays transparent through the overlay's fade-out, then fades
+ * in. Not used when the spinner never became visible.
+ *
+ * @internal
+ */
+export const LOADING_HANDOFF_BODY_CLASS = 'os-window__body--loading-out';
+
+/**
+ * When the body entered the loading state, in ms. Kept on the element
+ * so it dies with the window, and so repainting the overlay mid-load
+ * resumes the clock instead of restarting it.
+ *
+ * @internal
+ */
+export const LOADING_STARTED_ATTR = 'data-os-loading-at';
+
+/**
+ * Which load cycle the body is on. Bumped on every loading edge so a
+ * hand-off timer left over from an earlier cycle can tell it is stale
+ * and bail, instead of stripping a later cycle's state.
+ *
+ * @internal
+ */
+export const LOADING_CYCLE_ATTR = 'data-os-loading-cycle';
+
+/**
+ * The body's current load-cycle token. Capture it when scheduling a
+ * timer, compare it when the timer fires.
+ *
+ * @internal
+ */
+export function loadingCycle( body: HTMLElement ): string {
+	return body.getAttribute( LOADING_CYCLE_ATTR ) ?? '0';
+}
+
+/**
+ * Record when a body entered the loading state, and open a new cycle.
+ *
+ * @internal
+ */
+export function stampLoadingStart( body: HTMLElement ): void {
+	body.setAttribute( LOADING_STARTED_ATTR, String( Date.now() ) );
+	body.setAttribute(
+		LOADING_CYCLE_ATTR,
+		String( Number( loadingCycle( body ) ) + 1 ),
+	);
+}
+
+/**
+ * Make the overlay visible once the show delay has passed, so a fast
+ * load never paints a spinner. Resumes the body's existing clock, so a
+ * mid-load repaint does not restart the delay.
+ *
+ * @internal
+ */
+export function scheduleLoadingOverlayShow(
+	body: HTMLElement,
+	overlay: HTMLElement,
+): void {
+	const startedAt = Number( body.getAttribute( LOADING_STARTED_ATTR ) );
+	const elapsed =
+		Number.isFinite( startedAt ) && startedAt > 0 ? Date.now() - startedAt : 0;
+	const remaining = LOADING_OVERLAY_SHOW_DELAY_MS - elapsed;
+	if ( remaining <= 0 ) {
+		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
+		return;
+	}
+	// No cancel bookkeeping: both reasons to skip (overlay gone,
+	// window no longer loading) are readable at fire time.
+	window.setTimeout( () => {
+		if ( ! overlay.isConnected ) {
+			return;
+		}
+		if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
+			return;
+		}
+		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
+	}, remaining );
+}
 
 /**
  * Carrier symbol used to stash a window's config on its outer
@@ -117,7 +211,7 @@ export function updateFullscreenBodyClass(): void {
  */
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
-	overlay.className = 'os-window__loading';
+	overlay.className = LOADING_OVERLAY_CLASS;
 	// `aria-hidden` so screen readers don't announce the spinner —
 	// the window's title bar already has a `role="dialog"` + label,
 	// and the spinner's own `<svg role="img" aria-label="Loading">`
@@ -202,18 +296,19 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 	// replacing children. Re-add it so the CSS rules that drive
 	// the fade transition + positioning still apply. The class is
 	// what `os-window__body--loading` selectors depend on.
-	if ( overlay && ! overlay.classList.contains( 'os-window__loading' ) ) {
-		overlay.classList.add( 'os-window__loading' );
+	if ( overlay && ! overlay.classList.contains( LOADING_OVERLAY_CLASS ) ) {
+		overlay.classList.add( LOADING_OVERLAY_CLASS );
 	}
 	return overlay;
 }
 
 /**
- * Remove the loading overlay element from a window's body. Call
- * AFTER the fade-out transition has settled so the spinner doesn't
- * pop. The matching CSS rule sets `transition: opacity` on the
- * overlay; the Window class waits the same duration before
- * invoking this helper.
+ * Remove the loading overlay element from a window's body.
+ *
+ * Call in the same tick if the overlay never became visible: there is
+ * no fade to wait for. Otherwise wait `LOADING_OVERLAY_FADE_OUT_MS`,
+ * the duration the matching CSS rule transitions over, so the spinner
+ * does not pop.
  *
  * Idempotent — a window whose overlay was already removed (e.g.
  * because `markContentLoaded` was called twice in a row) silently
@@ -253,7 +348,11 @@ export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
 		return;
 	}
 	const config = getWindowConfigFromElement( windowEl );
-	body.appendChild( config ? createLoadingOverlay( config ) : buildDefaultLoadingOverlay() );
+	const overlay = config
+		? createLoadingOverlay( config )
+		: buildDefaultLoadingOverlay();
+	body.appendChild( overlay );
+	scheduleLoadingOverlayShow( body, overlay );
 }
 
 /**
@@ -540,7 +639,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	}
 
 	const body = document.createElement( 'div' );
-	body.className = 'os-window__body os-window__body--loading';
+	body.className = `os-window__body ${ LOADING_BODY_CLASS }`;
+	// Start the show-delay clock here, not when the overlay is
+	// appended: `repaintLoadingOverlays()` replaces the overlay
+	// element mid-load and must resume this clock rather than restart
+	// it.
+	stampLoadingStart( body );
 
 	// Native windows own the body contents via {@link WindowConfig.render}
 	// — called from the Window constructor after mount. Skip the iframe
@@ -579,16 +683,20 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 	// Loading overlay — sits above the body content (iframe or native
 	// render output) until the window's content reports ready. The
-	// shell drives the visibility via the `--loading` body modifier;
-	// the overlay element itself is removed once the fade-out
-	// transition lands so it doesn't intercept pointer events on a
-	// "ready" window. Painted unconditionally for every window type so
-	// production lag (slow iframe boot, async native data fetch)
-	// always has the same affordance. Customization is plumbed via
+	// element is built for every window type so production lag (slow
+	// iframe boot, async native data fetch) always has the same
+	// affordance, but it stays INVISIBLE until
+	// `scheduleLoadingOverlayShow` promotes it: a load that lands
+	// inside the show delay never paints a spinner, and therefore
+	// never has one to fade out over its own content. The element is
+	// removed once the fade-out lands so it doesn't intercept pointer
+	// events on a "ready" window. Customization is plumbed via
 	// `config.loading.render` (per-window) and the
 	// `WINDOW_LOADING_OVERLAY` filter (global) — see
 	// `createLoadingOverlay` above.
-	body.appendChild( createLoadingOverlay( config ) );
+	const loadingOverlay = createLoadingOverlay( config );
+	body.appendChild( loadingOverlay );
+	scheduleLoadingOverlayShow( body, loadingOverlay );
 
 	// Reveal layers — the opaque surface the window's content is
 	// uncovered from once it reports ready, plus its trailing edge.

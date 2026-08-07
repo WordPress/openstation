@@ -193,6 +193,19 @@ shared-store + registries. Index:
 | `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
 | `agent` WP Explorer entity kind | `registerEntityKind()` seam | Experimental |
 
+### WooCommerce integration *(Experimental — inert unless WooCommerce is active)*
+
+No `wp.os.woo` namespace. The surface is PHP filters + REST + a
+native window, all hanging off WP Explorer. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| What the integration renders, and why | [`plugin-compat-layer.md`](./plugin-compat-layer.md#the-site-window-side-woocommerce) | Experimental |
+| `openstation_my_wordpress_woo_*` filters (orders, products, coupons, store, summaries, customers) | [`hooks-reference.md`](./hooks-reference.md#woocommerce-integration--experimental-filters) | Experimental |
+| `desktop-mode/v1/woocommerce/{orders, store, summary/<type>/<id>, customers, customers/<id>}` | `includes/my-wordpress/integrations/` | Experimental |
+| `openstation_woo_customer` REST field on the core `user` resource | [`hooks-reference.md`](./hooks-reference.md#customers) | Experimental |
+| `desktop-mode-woo-customer` native window *(retargetable singleton, `customerId` param)* | [`hooks-reference.md`](./hooks-reference.md#the-customer-window) | Experimental |
+
 ## CustomEvents on `document`
 
 Every event bubbles from `document`. See [`javascript-reference.md`](./javascript-reference.md#1-customevents) for `detail` shapes.
