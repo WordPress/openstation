@@ -1413,6 +1413,31 @@ function openstation_chromeless_bridge_script() {
 			return;
 		}
 		/*
+		 * Same story as `aria-button-if-js` above, minus the marker
+		 * class: `plugin-install.php`'s "Upload Plugin" href is a
+		 * no-JS fallback, and plugin-install.js binds a bubble-phase
+		 * handler that opens the drop zone in place above the plugin
+		 * cards. Our capture handler used to win and navigate to
+		 * `?tab=upload`, which shows the uploader with no cards.
+		 *
+		 * On that page core skips the binding on purpose ("let the
+		 * link behave like a link"), flagged by
+		 * `plugin-install-tab-upload` on the wrap. There the href is
+		 * the real navigation, so we route it as usual.
+		 *
+		 * `theme-install.php`'s Upload Theme is a `<button>`, so it
+		 * never reaches this handler.
+		 */
+		if ( link.classList.contains( 'upload-view-toggle' ) ) {
+			var uploadWrap = link.closest( '.wrap' );
+			if (
+				! uploadWrap ||
+				! uploadWrap.classList.contains( 'plugin-install-tab-upload' )
+			) {
+				return;
+			}
+		}
+		/*
 		 * WordPress core's wp-admin/js/updates.js owns the click on these
 		 * AJAX-driven plugin/theme management buttons — it binds in bubble
 		 * phase and calls preventDefault to take over with an in-place

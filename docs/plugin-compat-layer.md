@@ -130,9 +130,54 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.
 
-**Fix**: `openstation_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `openstation_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. An explicit per-page rule in `assets/css/chromeless.css` (`.os-chromeless.themes-php .wrap > .page-title-action { display: none; }`) hides the in-page button on `themes.php` — the tab is the canonical entry point, while the global rule keeping `.page-title-action` visible on other pages stays intact.
+**Fix**: `openstation_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `openstation_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php?browse=popular }` to the Appearance dock item's submenu when the current user has `install_themes`. An explicit per-page rule in `assets/css/chromeless.css` (`.os-chromeless.themes-php .wrap > .page-title-action { display: none; }`) hides the in-page button on `themes.php` — the tab is the canonical entry point. The generic de-duplication below can't cover this one, because the injected tab carries `?browse=popular` and the in-page button points at plain `theme-install.php`.
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
+
+### In-page "Add New" buttons that duplicate a window tab
+
+**File**: `includes/render/chromeless-title-actions.php`.
+
+WordPress renders a `.page-title-action` button beside the page `<h1>` on most list screens. Inside a window the same destination is usually already a tab in the submenu strip a few pixels above it, so the button is a second copy of a control the user is looking straight at.
+
+**Fix**: on chromeless requests the module walks `$submenu[ $parent_file ]`, resolves each entry through `openstation_menu_item_url()`, and adds one inline rule per URL to the `os-chromeless` stylesheet:
+
+```css
+.os-chromeless .wrap > .page-title-action[href="https://example.com/wp-admin/post-new.php"],
+.os-chromeless .wrap > .page-title-action[href="post-new.php"] {
+    display: none;
+}
+```
+
+Both spellings, because a CSS attribute selector compares the attribute as authored: core writes the absolute URL, plenty of plugins hand-write the admin-relative one. Inline CSS rather than a DOM pass so the rule is in `<head>` before first paint (no button that appears and then vanishes) and the element stays in the DOM for the core scripts that toggle it.
+
+**Matching is on the exact href**, and that is the entire design. What the rule does *not* hide:
+
+| Screen | Button | Nearest tab | Result |
+|---|---|---|---|
+| `plugin-install.php` | Upload Plugin (`plugin-install.php?tab=upload`) | Add Plugin (`plugin-install.php`) | kept |
+| WooCommerce Orders | Add order (`admin.php?page=wc-orders&action=new`) | Orders (`admin.php?page=wc-orders`) | kept |
+| Any screen with no submenu strip | anything | — | kept |
+| Plugin screens (`admin.php?page=…`) | anything | — | kept; core hasn't resolved `$parent_file` this early, so there are no URLs to match against |
+
+A missed match leaves a redundant button on screen. A loose match takes away the user's only route to a page. An earlier attempt at this compared pathnames and treated everything else as equal, which is what swallowed Upload Plugin.
+
+**In-page toggles are excluded by class**, because on those the href is not where the button goes — an in-page script preventDefaults the click and the href is only the no-JS fallback. Every selector carries `:not( .aria-button-if-js ):not( .upload-view-toggle )`:
+
+- `aria-button-if-js` is core's own marker. On `upload.php` in grid mode it sits on "Add Media File", where media-grid.js expands a drop zone above the grid instead of leaving for `media-new.php`. The list-mode copy of that button carries no marker, so it *is* de-duplicated.
+- `upload-view-toggle` is `plugin-install.php`'s "Upload Plugin", which plugin-install.js flips into "Browse Plugins" and back. Its href always points at the state it is *not* in, so on `?tab=upload` it reads `plugin-install.php` — byte-identical to the Add Plugin tab.
+
+### `plugin-install.php`'s Upload Plugin toggle
+
+Core binds a bubble-phase handler to `.upload-view-toggle` that preventDefaults and opens the drop zone in place, above the plugin cards, with a second click closing it. It does **not** stamp `aria-button-if-js` on that anchor, so the chromeless bridge's capture-phase interceptor won the click and navigated to `?tab=upload` — a page that renders the uploader alone, with the cards gone and the toggle turned into a "Browse Plugins" link.
+
+**Fix**: the interceptor yields clicks on `.upload-view-toggle`, except when the anchor's `.wrap` carries `plugin-install-tab-upload`. That is core's own condition ("when we're in this page, let the link behave like a link"), so on the upload page the href really is the navigation and the shell routes it normally. `theme-install.php`'s Upload Theme twin needs nothing: core renders that one as a `<button>`, which never reaches the link handler.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
+
+Sites that want the button hidden somewhere the rule deliberately doesn't reach can add their own via the `openstation_chromeless_styles` action.
+
+**Test**: `tests/phpunit/tests/openStationChromelessTitleActions.php`.
 
 ## The script side: dependency repairs
 
