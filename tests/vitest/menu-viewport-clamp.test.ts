@@ -173,6 +173,33 @@ describe( 'floating menus clamp to the viewport', () => {
 		).toBeLessThanOrEqual( window.innerHeight );
 	} );
 
+	test( 'the shared selection menu opened near the bottom edge ends up on screen', async () => {
+		vi.resetModules();
+		const { openActionMenu } = await import( '../../src/selection/menu' );
+		const clickY = window.innerHeight - 60;
+
+		openActionMenu(
+			{ x: 20, y: clickY },
+			{
+				scope: 'test',
+				actions: [
+					{ id: 'open', label: 'Open', run: () => {} },
+					{ id: 'rename', label: 'Rename', run: () => {} },
+					{ id: 'trash', label: 'Trash', run: () => {} },
+				],
+			},
+		);
+
+		const menu = document.querySelector< HTMLElement >( 'os-context-menu' )!;
+		expect( menu ).not.toBeNull();
+
+		await renderAndFrame();
+
+		expect(
+			parseFloat( menu.style.top ) + MENU_HEIGHT,
+		).toBeLessThanOrEqual( window.innerHeight );
+	} );
+
 	test( 'a submenu opened against a low anchor rides up into view', async () => {
 		vi.resetModules();
 		const { positionFlyout } = await import(

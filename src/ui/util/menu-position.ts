@@ -22,6 +22,13 @@
  * `<os-context-menu>` carries a `min-width`: the empty box still
  * measured ~180px wide. That is luck, not correctness, and it stops
  * holding the moment a menu is wider than its minimum.
+ *
+ * Not to be confused with the `clampToViewport` in
+ * `src/dock-peek/index.ts`. That one is already frame-deferred and
+ * correct, but it places by `translate` rather than by `left` / `top`,
+ * is orientation-aware, and keeps its own 12px margin. The two are not
+ * interchangeable; leave them separate unless the peek moves to the
+ * same placement model.
  */
 
 /** Gap kept between a placed menu and the viewport edge. */
@@ -93,6 +100,12 @@ export function positionFlyout( fly: HTMLElement, anchor: HTMLElement ): void {
 	fly.style.top = `${ ar.top }px`;
 	placeAfterRender( fly, ( rect ) => {
 		if ( rect.right > window.innerWidth ) {
+			// No MARGIN here, unlike the vertical branch below: the flip
+			// is anchor-relative, not viewport-relative. The flyout's
+			// right edge sits flush against the anchor's left edge, and
+			// a margin would open a gap between a submenu and the option
+			// that owns it. `Math.max` is only a floor against negative
+			// left on a very wide flyout.
 			fly.style.left = `${ Math.max( 0, ar.left - rect.width ) }px`;
 		}
 		if ( rect.bottom > window.innerHeight ) {

@@ -310,9 +310,10 @@ function openItemVisibilityMenuImmediate(
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
+	// `placeAfterRender` owns the hiding, so no `visibility` here:
+	// one invariant, one owner.
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
-	menu.style.visibility = 'hidden';
 	// Must sit above the dock-peek popover (z-index: 999999 in
 	// assets/css/dock-peek.css). The peek is still visible when the
 	// user right-clicks a tile, so without this the menu opens
