@@ -256,17 +256,6 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 		);
 	} );
 
-	test( 'stamps both layers with the same arm time', async () => {
-		vi.useFakeTimers();
-		vi.setSystemTime( 1_700_000_000_000 );
-		const { surface, engine } = await load();
-		engine.setActiveWindowRevealId( 'sweep' );
-		for ( const layer of surface.createRevealLayers() ) {
-			expect( layer.getAttribute( 'data-os-reveal-armed' ) ).toBe(
-				'1700000000000',
-			);
-		}
-	} );
 } );
 
 describe( 'reveals/surface.ts — armWindowReveal', () => {

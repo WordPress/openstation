@@ -122,16 +122,6 @@ export const REVEAL_CUSTOM_CLASS = 'os-window__reveal--custom';
 export const REVEALING_BODY_CLASS = 'os-window__body--revealing';
 
 /**
- * Timestamp (ms) when the surface was armed, stamped on the element
- * itself rather than held in a side map — the element is the thing
- * whose lifetime the value tracks, and a window torn down mid-load
- * takes its stamp with it instead of leaking an entry.
- *
- * @internal
- */
-const ARMED_AT_ATTR = 'data-os-reveal-armed';
-
-/**
  * Id of the reveal that armed this surface. Read back at play time so a
  * user who switches reveals while a window is mid-load still gets a
  * matched `from` / `to` pair — animating from the OLD shape to the NEW
@@ -450,7 +440,7 @@ function findLayers( body: HTMLElement ): HTMLElement[] {
 
 /**
  * Build one reveal layer, clipped to the reveal's `from` shape and
- * stamped with the reveal id + arm time.
+ * stamped with the reveal id.
  *
  * @internal
  */
@@ -458,7 +448,6 @@ function createLayer(
 	def: WindowRevealDef,
 	pair: WindowRevealLayer,
 	index: number,
-	armedAt: number,
 	edge: boolean,
 ): HTMLElement {
 	const layer = document.createElement( 'div' );
@@ -478,7 +467,6 @@ function createLayer(
 	layer.setAttribute( 'aria-hidden', 'true' );
 	layer.setAttribute( REVEAL_ID_ATTR, def.id );
 	layer.setAttribute( LAYER_INDEX_ATTR, String( index ) );
-	layer.setAttribute( ARMED_AT_ATTR, String( armedAt ) );
 	layer.style.clipPath = pair.from;
 	return layer;
 }
@@ -534,7 +522,6 @@ export function createRevealLayers(): HTMLElement[] {
 		host.setAttribute( 'aria-hidden', 'true' );
 		host.setAttribute( REVEAL_ID_ATTR, def.id );
 		host.setAttribute( LAYER_INDEX_ATTR, '0' );
-		host.setAttribute( ARMED_AT_ATTR, String( Date.now() ) );
 		rendered.set( host, built.play );
 		return [ host ];
 	}
@@ -543,7 +530,6 @@ export function createRevealLayers(): HTMLElement[] {
 	if ( pairs.length === 0 ) {
 		return [];
 	}
-	const armedAt = Date.now();
 	const layers: HTMLElement[] = [];
 	// Every edge first, then every surface: the two classes carry their
 	// own `z-index`, and keeping the groups contiguous means one
@@ -551,11 +537,11 @@ export function createRevealLayers(): HTMLElement[] {
 	// face.
 	if ( clampRevealEdgeLag( def.edgeLag ) > 0 ) {
 		pairs.forEach( ( pair, i ) =>
-			layers.push( createLayer( def, pair, i, armedAt, true ) ),
+			layers.push( createLayer( def, pair, i, true ) ),
 		);
 	}
 	pairs.forEach( ( pair, i ) =>
-		layers.push( createLayer( def, pair, i, armedAt, false ) ),
+		layers.push( createLayer( def, pair, i, false ) ),
 	);
 	return layers;
 }
