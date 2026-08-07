@@ -53,6 +53,9 @@ export function getActiveDesktopId( mgr: WindowManager ): string {
 export function applyDesktopVisibility( mgr: WindowManager, win: Window ): void {
 	const visible = win.config.desktopId === mgr._activeDesktopId;
 	win.element.style.display = visible ? '' : 'none';
+	if ( visible && ! mgr._overviewActive ) {
+		restoreWindowAfterOverviewLayout( win );
+	}
 }
 
 /**
@@ -297,7 +300,10 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 			w.element.style.transform = snap.transform;
 			w.element.style.transition = snap.transition;
 			w.element.classList.remove( 'os-window--overview' );
-			restoreWindowAfterOverviewLayout( w );
+			restoreWindowAfterOverviewLayout(
+				w,
+				w.config.desktopId === mgr._activeDesktopId,
+			);
 		}
 	}
 	for ( const label of mgr._overviewLabels.values() ) {

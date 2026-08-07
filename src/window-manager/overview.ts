@@ -21,6 +21,7 @@ import { computeOverviewLayout, type OverviewLayoutItem } from './geometry';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
 import { closeDesktop, createDesktop, switchDesktop } from './desktops';
 import type { Window } from '../window';
+import { updateFullscreenBodyClass } from '../window/dom';
 import type { WindowManager } from './index';
 
 /**
@@ -45,10 +46,19 @@ const OVERVIEW_INERT_ELEMENTS = [
 const OVERVIEW_FULLSCREEN_DATA_KEY = 'osHadFullscreenBeforeOverview';
 
 /**
- * Make a minimized window usable as an overview thumbnail without
- * changing its logical minimized state.
+ * Make a window usable as an overview thumbnail without changing its
+ * logical state. Fullscreen styling and minimized render suppression
+ * are restored when the window returns to its desktop layout.
  */
 export function prepareWindowForOverviewLayout( w: Window ): void {
+	if (
+		w.state === 'fullscreen' ||
+		w.element.classList.contains( 'os-window--fullscreen' )
+	) {
+		w.element.classList.remove( 'os-window--fullscreen' );
+		w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ] = 'true';
+		updateFullscreenBodyClass();
+	}
 	if ( w.state !== 'minimized' ) {
 		return;
 	}
@@ -56,23 +66,30 @@ export function prepareWindowForOverviewLayout( w: Window ): void {
 	if ( w.iframe ) {
 		w.iframe.style.visibility = '';
 	}
-	if ( w.element.classList.contains( 'os-window--fullscreen' ) ) {
-		w.element.classList.remove( 'os-window--fullscreen' );
-		w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ] = 'true';
-	}
 }
 
-function restoreOverviewFullscreenClass( w: Window ): void {
+function restoreOverviewFullscreenState( w: Window ): void {
 	if ( w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ] !== 'true' ) {
+		return;
+	}
+	if ( w.state !== 'fullscreen' && w.state !== 'minimized' ) {
+		delete w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ];
+		updateFullscreenBodyClass();
 		return;
 	}
 	w.element.classList.add( 'os-window--fullscreen' );
 	delete w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ];
+	updateFullscreenBodyClass();
 }
 
 /** Restore any render-suppression / state-class changes made for overview. */
-export function restoreWindowAfterOverviewLayout( w: Window ): void {
-	restoreOverviewFullscreenClass( w );
+export function restoreWindowAfterOverviewLayout(
+	w: Window,
+	restoreFullscreen = true,
+): void {
+	if ( restoreFullscreen ) {
+		restoreOverviewFullscreenState( w );
+	}
 	if ( w.state === 'minimized' ) {
 		w.element.style.setProperty( 'content-visibility', 'hidden' );
 		if ( w.iframe ) {
@@ -162,12 +179,10 @@ export function enterOverview( mgr: WindowManager ): void {
 	}
 
 	// Fullscreen-state windows escape the shell's stacking context;
-	// bring them back into the normal flow before computing layout
-	// so the transform math stays consistent.
+	// suspend their visual class before computing layout so the
+	// transform math stays consistent without changing their logical
+	// state or saved geometry.
 	for ( const w of eligible ) {
-		if ( w.state === 'fullscreen' ) {
-			w.toggleFullscreen();
-		}
 		prepareWindowForOverviewLayout( w );
 	}
 
@@ -720,12 +735,11 @@ export function exitOverview(
 		}
 		w.element.style.transform = snap.transform;
 	}
-
 	if ( selected ) {
 		// Restore minimized windows before focusing so the user lands
 		// on a visible window, not an invisible-but-focused one.
 		if ( selected.state === 'minimized' ) {
-			restoreOverviewFullscreenClass( selected );
+			restoreOverviewFullscreenState( selected );
 			selected.restore();
 		}
 		// Focus first so z-index and focused-class are right from the
@@ -773,7 +787,10 @@ export function exitOverview(
 		mgr._overviewExitTimeoutId = null;
 		for ( const w of mgr._stack ) {
 			w.element.classList.remove( 'os-window--overview' );
-			restoreWindowAfterOverviewLayout( w );
+			restoreWindowAfterOverviewLayout(
+				w,
+				w.config.desktopId === mgr._activeDesktopId,
+			);
 		}
 		for ( const label of mgr._overviewLabels.values() ) {
 			label.remove();
