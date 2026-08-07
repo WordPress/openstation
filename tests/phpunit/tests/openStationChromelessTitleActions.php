@@ -15,7 +15,7 @@
  *
  * @covers ::openstation_chromeless_submenu_tab_urls
  * @covers ::openstation_chromeless_title_action_css
- * @covers ::openstation_css_string_escape
+ * @covers ::openstation_chromeless_css_attr_value
  */
 class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 
@@ -57,6 +57,40 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 		return openstation_chromeless_title_action_css(
 			openstation_chromeless_submenu_tab_urls()
 		);
+	}
+
+	/**
+	 * The emitted selectors, parsed.
+	 *
+	 * The CSS is built entirely from tab URLs, so asserting on the raw
+	 * string can only ever say what we put in. What decides whether a
+	 * button survives is the `[href]` value plus the operator matching
+	 * it, so tests assert on those.
+	 *
+	 * @return array[] One `{ operator, href }` per selector.
+	 */
+	private function selectors( $css ) {
+		$parsed = array();
+
+		foreach ( explode( ',', trim( strtok( $css, '{' ) ) ) as $selector ) {
+			if ( preg_match( '/\[href([~^$*|]?=)"(.*)"\]/', trim( $selector ), $match ) ) {
+				$parsed[] = array(
+					'operator' => $match[1],
+					'href'     => $match[2],
+				);
+			}
+		}
+
+		return $parsed;
+	}
+
+	/**
+	 * The set of hrefs a rendered button would have to carry to be
+	 * hidden. Only meaningful alongside an operator assertion: with
+	 * `=` this is exactly the hidden set, with `^=` or `*=` it isn't.
+	 */
+	private function hidden_hrefs( $css ) {
+		return wp_list_pluck( $this->selectors( $css ), 'href' );
 	}
 
 	/**
@@ -110,10 +144,14 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 	 *
 	 * On `plugin-install.php` the parent menu is `plugins.php`, whose
 	 * tabs include `plugin-install.php` ("Add Plugin"). The in-page
-	 * button on that screen is "Upload Plugin" —
-	 * `plugin-install.php?tab=upload`, a different destination that
-	 * has no tab of its own. Comparing pathnames instead of full URLs
-	 * is what removed it.
+	 * button there is "Upload Plugin", pointing at
+	 * `plugin-install.php?tab=upload`: same path, different
+	 * destination, no tab of its own. A pathname compare removed it.
+	 *
+	 * The operator assertion is what makes this bite. The button's
+	 * href never appears in the CSS whatever the matching strategy,
+	 * so only "every selector matches with `=`" rules out the prefix
+	 * and substring operators that would swallow it.
 	 */
 	public function test_keeps_upload_plugin_button() {
 		$this->set_menu(
@@ -127,28 +165,61 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 
 		$css = $this->css();
 
-		$this->assertStringNotContainsString( 'tab=upload', $css );
-		$this->assertStringContainsString(
-			'.page-title-action[href="' . admin_url( 'plugin-install.php' ) . '"]',
-			$css
-		);
+		$this->assertNotEmpty( $this->selectors( $css ) );
+		foreach ( $this->selectors( $css ) as $selector ) {
+			$this->assertSame(
+				'=',
+				$selector['operator'],
+				'A prefix or substring match on href would hide Upload Plugin.'
+			);
+		}
+
+		$hidden = $this->hidden_hrefs( $css );
+
+		$this->assertContains( admin_url( 'plugin-install.php' ), $hidden );
+		$this->assertNotContains( admin_url( 'plugin-install.php?tab=upload' ), $hidden );
+		$this->assertNotContains( 'plugin-install.php?tab=upload', $hidden );
 	}
 
 	/**
-	 * WooCommerce Orders: "Add order" carries `&action=new`, the tab
+	 * WooCommerce Orders: "Add order" carries `action=new`, the tab
 	 * doesn't. Same page, different destination, button stays.
 	 */
 	public function test_keeps_button_whose_query_differs_from_the_tab() {
 		$this->set_menu(
 			'woocommerce',
 			array(
-				array( 'Orders', 'edit_shop_orders', 'wc-orders' ),
+				array( 'Orders', 'manage_options', 'wc-orders' ),
 			)
 		);
 
-		$css = $this->css();
+		$hidden = $this->hidden_hrefs( $this->css() );
 
-		$this->assertStringNotContainsString( 'action=new', $css );
+		$this->assertContains( admin_url( 'admin.php?page=wc-orders' ), $hidden );
+		$this->assertNotContains( admin_url( 'admin.php?page=wc-orders&action=new' ), $hidden );
+	}
+
+	/**
+	 * A row with no usable title is dropped from the tab strip by
+	 * `openstation_build_dock_items()` (WooCommerce's `wc-addons`
+	 * registers `menu_title => null`). If it still produced a hide
+	 * rule, the button would go with no tab taking its place.
+	 */
+	public function test_skips_tabs_with_no_title() {
+		$this->set_menu(
+			'plugins.php',
+			array(
+				array( 'Add Plugin', 'manage_options', 'plugin-install.php' ),
+				array( null, 'manage_options', 'admin.php?page=hidden-row' ),
+				array( '<span class="update-count">3</span>', 'manage_options', 'admin.php?page=badge-only' ),
+			)
+		);
+
+		$hidden = $this->hidden_hrefs( $this->css() );
+
+		$this->assertContains( admin_url( 'plugin-install.php' ), $hidden );
+		$this->assertNotContains( admin_url( 'admin.php?page=hidden-row' ), $hidden );
+		$this->assertNotContains( admin_url( 'admin.php?page=badge-only' ), $hidden );
 	}
 
 	/**
@@ -227,7 +298,7 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 	 * element it lands in.
 	 */
 	public function test_escapes_css_string_delimiters() {
-		$escaped = openstation_css_string_escape( 'admin.php?page=a"b</style>c\\d' );
+		$escaped = openstation_chromeless_css_attr_value( 'admin.php?page=a"b</style>c\\d' );
 
 		$this->assertStringNotContainsString( '<', $escaped );
 		$this->assertStringNotContainsString( '>', $escaped );

@@ -35,12 +35,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Collects the tab URLs the current window's submenu strip exposes.
  *
- * Same `$submenu` global, capability check and
- * `openstation_menu_item_url()` call as
- * {@see openstation_build_dock_items()}, but for one parent menu
- * only. A full dock rebuild would run `get_plugins()` and walk every
- * other menu, which is a lot of work for an iframe load that needs
- * one menu's children.
+ * Repeats the submenu filtering {@see openstation_build_dock_items()}
+ * does (capability, empty title, `openstation_menu_item_url()`) for
+ * one parent menu only. A full dock rebuild would run `get_plugins()`
+ * and walk every other menu, which is a lot of work for an iframe
+ * load that needs one menu's children.
  *
  * WordPress auto-prepends a self-link to every parent menu and we
  * keep it, because the shell shows it as the "back to parent" tab.
@@ -49,6 +48,16 @@ defined( 'ABSPATH' ) || exit;
  * includes `admin-header.php`. Plugin screens (`admin.php?page=…`)
  * don't have one this early, so they return no URLs and nothing gets
  * hidden. That's the outcome we want there anyway.
+ *
+ * Two cases this still can't see, both of which end with a button
+ * hidden and no tab replacing it. Start here if someone reports that:
+ *
+ *   - `openstation_dock_item` can add or remove submenu entries, and
+ *     `includes/themes-tabs.php` uses it in-tree. Firing it would
+ *     mean inventing a dock item to pass through it, so we don't.
+ *   - A window whose URL matches no dock entry gets no tab strip at
+ *     all (`findDockEntry` feeds `config.submenu` in
+ *     `src/window/dom.ts`), while `$parent_file` still resolves here.
  *
  * @return string[] Absolute admin URLs, empty when the current screen
  *                  has no resolvable submenu strip.
@@ -69,6 +78,11 @@ function openstation_chromeless_submenu_tab_urls() {
 			continue;
 		}
 		if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
+			continue;
+		}
+		// A row with no usable label never becomes a tab, so it can't
+		// be duplicating one either.
+		if ( '' === openstation_menu_item_title( $sub_item[0] ?? '' ) ) {
 			continue;
 		}
 
@@ -113,7 +127,7 @@ function openstation_chromeless_title_action_toggle_classes() {
  * @param string $url URL to escape.
  * @return string Escaped value, without the surrounding quotes.
  */
-function openstation_css_string_escape( $url ) {
+function openstation_chromeless_css_attr_value( $url ) {
 	$url = preg_replace( '/[\r\n<>]/', '', (string) $url );
 
 	return str_replace( array( '\\', '"' ), array( '\\\\', '\\"' ), $url );
@@ -122,10 +136,11 @@ function openstation_css_string_escape( $url ) {
 /**
  * Builds the de-duplication CSS for the current chromeless screen.
  *
- * Two selectors per URL: CSS attribute selectors compare the
- * attribute as authored, not the resolved URL, so we need both the
- * absolute form core renders and the admin-relative form some
- * plugins hand-write (`href="post-new.php"`).
+ * Two selectors per URL: a CSS attribute selector compares the
+ * attribute's parsed value, which is entity-decoded but NOT resolved
+ * against the document URL. So we need both the absolute form core
+ * renders and the admin-relative form some plugins hand-write
+ * (`href="post-new.php"`).
  *
  * The `:not()` guards come from
  * {@see openstation_chromeless_title_action_toggle_classes()}.
@@ -158,7 +173,7 @@ function openstation_chromeless_title_action_css( $tab_urls ) {
 
 		foreach ( $hrefs as $href ) {
 			$selectors[] = '.os-chromeless .wrap > .page-title-action[href="'
-				. openstation_css_string_escape( $href ) . '"]' . $exclusions;
+				. openstation_chromeless_css_attr_value( $href ) . '"]' . $exclusions;
 		}
 	}
 

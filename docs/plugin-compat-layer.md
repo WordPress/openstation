@@ -149,7 +149,7 @@ WordPress renders a `.page-title-action` button beside the page `<h1>` on most l
 }
 ```
 
-Both spellings, because a CSS attribute selector compares the attribute as authored: core writes the absolute URL, plenty of plugins hand-write the admin-relative one. Inline CSS rather than a DOM pass so the rule is in `<head>` before first paint (no button that appears and then vanishes) and the element stays in the DOM for the core scripts that toggle it.
+Both spellings, because a CSS attribute selector compares the attribute's parsed value, which is entity-decoded but not resolved against the document URL: core writes the absolute URL, plenty of plugins hand-write the admin-relative one. Inline CSS rather than a DOM pass so the rule is in `<head>` before first paint (no button that appears and then vanishes) and the element stays in the DOM for the core scripts that toggle it.
 
 **Matching is on the exact href**, and that is the entire design. What the rule does *not* hide:
 
@@ -167,6 +167,15 @@ A missed match leaves a redundant button on screen. A loose match takes away the
 - `aria-button-if-js` is core's own marker. On `upload.php` in grid mode it sits on "Add Media File", where media-grid.js expands a drop zone above the grid instead of leaving for `media-new.php`. The list-mode copy of that button carries no marker, so it *is* de-duplicated.
 - `upload-view-toggle` is `plugin-install.php`'s "Upload Plugin", which plugin-install.js flips into "Browse Plugins" and back. Its href always points at the state it is *not* in, so on `?tab=upload` it reads `plugin-install.php` — byte-identical to the Add Plugin tab.
 
+**Two ways the URL set can still disagree with the tab strip the shell renders**, both ending with a hidden button and no tab replacing it. Start here if that gets reported:
+
+- `openstation_dock_item` can add or remove submenu entries, and `includes/themes-tabs.php` uses it in-tree. Firing that filter here would mean inventing a dock item to pass through it, so the module doesn't.
+- A window whose URL matches no dock entry gets no tab strip at all, while `$parent_file` still resolves inside the iframe.
+
+Sites that want the button hidden somewhere the rule deliberately doesn't reach can add their own via the `openstation_chromeless_styles` action.
+
+**Test**: `tests/phpunit/tests/openStationChromelessTitleActions.php`.
+
 ### `plugin-install.php`'s Upload Plugin toggle
 
 Core binds a bubble-phase handler to `.upload-view-toggle` that preventDefaults and opens the drop zone in place, above the plugin cards, with a second click closing it. It does **not** stamp `aria-button-if-js` on that anchor, so the chromeless bridge's capture-phase interceptor won the click and navigated to `?tab=upload` — a page that renders the uploader alone, with the cards gone and the toggle turned into a "Browse Plugins" link.
@@ -174,10 +183,6 @@ Core binds a bubble-phase handler to `.upload-view-toggle` that preventDefaults 
 **Fix**: the interceptor yields clicks on `.upload-view-toggle`, except when the anchor's `.wrap` carries `plugin-install-tab-upload`. That is core's own condition ("when we're in this page, let the link behave like a link"), so on the upload page the href really is the navigation and the shell routes it normally. `theme-install.php`'s Upload Theme twin needs nothing: core renders that one as a `<button>`, which never reaches the link handler.
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
-
-Sites that want the button hidden somewhere the rule deliberately doesn't reach can add their own via the `openstation_chromeless_styles` action.
-
-**Test**: `tests/phpunit/tests/openStationChromelessTitleActions.php`.
 
 ## The script side: dependency repairs
 

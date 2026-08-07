@@ -167,9 +167,13 @@ html.wp-toolbar:has( body.os-chromeless ) {
  *
  * Sites that want to hide it somewhere that rule deliberately
  * doesn't reach can add their own via the
- * `openstation_chromeless_styles` action — e.g.:
+ * `openstation_chromeless_styles` action — e.g. WooCommerce's "Add
+ * order", which we keep because it points at `&action=new` and the
+ * Orders tab doesn't:
  *
- *     body.edit-php .wrap > .page-title-action { display: none; }
+ *     body.woocommerce_page_wc-orders .wrap > .page-title-action {
+ *         display: none;
+ *     }
  *
  * --------------------------------------------------------------- */
 .os-chromeless .wrap > h1,
