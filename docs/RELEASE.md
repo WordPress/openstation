@@ -24,6 +24,8 @@ Requires the `gh` CLI authenticated (`gh auth status`).
 
 The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the step is gated on the tag having no hyphen.
 
+Two of the action's inputs default off a GitHub context that is only correct for a tag push, so the workflow sets both explicitly rather than leaving them implicit — `SLUG` (below) and `VERSION`, which the action derives from `GITHUB_REF` and which would resolve to the *branch* ref on a manual dispatch, producing an SVN tag called `refs/heads/trunk`. `VERSION` is exported from the version-gate step, so the deploy publishes the string that was just verified against all four version locations.
+
 **`SLUG` is set explicitly to `desktop-mode` and must stay that way.** It is the published plugin's SVN path (`plugins.svn.wordpress.org/desktop-mode/`) and its install directory, so it is frozen for the same reason as every other `desktop_mode_*` value in [AGENTS.md](../AGENTS.md): changing it doesn't migrate anything, it points the deploy at a repository that doesn't exist and orphans every installed copy's update check. The action defaults `SLUG` to the GitHub repository name when unset — that default silently matched while the repo was named `desktop-mode`, and broke the moment it was renamed to `openstation`. Never rely on it.
 
 Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.

@@ -64,6 +64,12 @@ jobs:
             echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header OPENSTATION_VERSION=$constant readme.txt Stable tag=$stable"
             exit 1
           fi
+          # The deploy action derives VERSION from GITHUB_REF, which is only a
+          # tag ref on a tag push — on a dispatch it resolves to the branch ref
+          # and the SVN tag copy becomes `tags/refs/heads/trunk`. Publish the
+          # version that was just checked against all four locations, so the
+          # deploy uses a verified value however the workflow was triggered.
+          echo "VERSION=$tag" >> "$GITHUB_ENV"
 
       - name: Build
         run: npm run build
@@ -107,3 +113,6 @@ jobs:
           # doing so when this repo was renamed to `openstation`.
           SLUG: desktop-mode
           BUILD_DIR: ./build/desktop-mode
+          # VERSION comes from the verify step via $GITHUB_ENV — see the note
+          # there. Both it and SLUG default off a GitHub context that is only
+          # correct for a tag push, so neither is left implicit.
