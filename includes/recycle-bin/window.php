@@ -55,7 +55,14 @@ function openstation_recycle_bin_icon_svg() {
 		. '<rect x="10" y="19" width="44" height="5" rx="2.5" fill="currentColor"/>'
 		// The body, tapered towards the base the way a real bin is, which
 		// is also what separates it from a plain bucket.
-		. '<path d="M15.5 28.5h33l-2.7 20.6a4 4 0 0 1-4 3.4H22.2a4 4 0 0 1-4-3.4z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+		//
+		// 27 units tall, narrowing to 71% of its top width. It was 24
+		// tall at 59%, which drew a shallower, more conical tub than a
+		// bin actually is — and left an interior too cramped to hold
+		// anything. Taken further, to a bottom much past 75%, the walls
+		// go vertical and the mark reads as a bucket; this sits at the
+		// edge of that.
+		. '<path d="M15.5 28.5h33l-1.2 24a3.5 3.5 0 0 1-3.5 3H20.2a3.5 3.5 0 0 1-3.5-3z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
 		. '</svg>';
 }
 
