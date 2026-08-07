@@ -397,6 +397,54 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A soft reload swaps the CONTENTS of `#wpbody-content` and then
+	 * re-runs Core's list-table init entry points. Both halves are
+	 * load-bearing and both are invisible until a user clicks:
+	 * Core's inline editors delegate on `#the-list` /
+	 * `#the-comment-list`, inside the swapped subtree, so a
+	 * `replaceWith` of the container (or a missing re-init) leaves
+	 * Quick Edit and Bulk Edit rendering, focusable, and dead.
+	 *
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
+	public function test_bridge_script_reinits_list_tables_after_soft_reload() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['openstation_chromeless'] = '1';
+
+		ob_start();
+		openstation_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The container node survives; only its children are swapped.
+		$this->assertStringContainsString( 'live.replaceChildren.apply', $output );
+		$this->assertStringNotContainsString( 'live.replaceWith', $output );
+
+		// …and the re-init runs before `os-soft-reloaded` listeners.
+		$this->assertStringContainsString( '_openstationReinitListTables();', $output );
+		$this->assertStringContainsString( 'window.inlineEditPost.init()', $output );
+		$this->assertStringContainsString( 'window.inlineEditTax.init()', $output );
+		$this->assertStringContainsString( 'window.commentReply.init()', $output );
+
+		/*
+		 * `setCommentsList()` must stay out. It re-runs `wpList`,
+		 * which binds on `document` — a node the swap does not
+		 * replace — so every call stacks another set of comment
+		 * row-action handlers and one Approve click fires N
+		 * moderation requests. Those handlers survive the swap on
+		 * their own and never needed re-running.
+		 *
+		 * Matched on the call form, not the bare name: the comment
+		 * above the re-init names it too, and should keep saying why.
+		 */
+		$this->assertStringNotContainsString( 'window.setCommentsList(', $output );
+		$this->assertLessThan(
+			strpos( $output, "new CustomEvent( 'os-soft-reloaded' )" ),
+			strpos( $output, '_openstationReinitListTables();' ),
+			'Core re-init must run before the os-soft-reloaded listeners it exists to unblock.'
+		);
+	}
+
+	/**
 	 * Link interceptor must be inside the bridge script so stray clicks on
 	 * `<a href="/wp-admin/...">` don't kick the iframe out of chromeless mode.
 	 *

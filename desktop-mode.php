@@ -100,6 +100,18 @@ require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
 require_once OPENSTATION_DIR . 'includes/seen-intros.php';
+// One-time data migrations. After os-settings.php and seen-intros.php,
+// whose meta-key constants and helpers the migrations call.
+//
+// Unconditional, unlike the rest of the admin-only set below, because
+// its activation hook has to be registered on ANY request that can
+// dispatch activation. `activate_plugin()` includes the plugin file and
+// fires `activate_<basename>` in whatever context it was called from,
+// and a programmatic activation (a Playground Blueprint, a provisioning
+// script) need not look like an admin request at all. Registering the
+// runner's `admin_init` hook on a frontend request costs nothing: it
+// never fires there.
+require_once OPENSTATION_DIR . 'includes/migrations.php';
 require_once OPENSTATION_DIR . 'includes/portal.php';
 require_once OPENSTATION_DIR . 'includes/default-window.php';
 require_once OPENSTATION_DIR . 'includes/themes-tabs.php';
@@ -164,9 +176,6 @@ require_once OPENSTATION_DIR . 'includes/compat/divi.php';
 // order preserved from the historical unconditional list.
 if ( openstation_request_needs_admin_modules() ) {
 	require_once OPENSTATION_DIR . 'includes/ajax.php';
-	// One-time data migrations. After os-settings.php so the meta-key
-	// constant and save/sanitize helpers the migrations call already exist.
-	require_once OPENSTATION_DIR . 'includes/migrations.php';
 	require_once OPENSTATION_DIR . 'includes/welcome-dialog.php';
 	require_once OPENSTATION_DIR . 'includes/update-notice.php';
 	require_once OPENSTATION_DIR . 'includes/core-notices.php';

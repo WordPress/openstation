@@ -825,7 +825,7 @@ export const HOOKS = {
 	 * and the dock/taskbar `os-dock-item-badge-changed` CustomEvent
 	 * — the icon rail's lifecycle hook for badge transitions.
 	 *
-	 * Mirrors `desktop-mode/badge-changed` on the activity bus with
+	 * Mirrors `os/badge-changed` on the activity bus with
 	 * `rail: 'icon'`. Subscribe to whichever surface fits — the
 	 * activity channel composes across rails for global widgets,
 	 * this hook fires only for icon-rail badges with the previous

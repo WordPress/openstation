@@ -17,11 +17,6 @@
  */
 class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 
-	public function tear_down() {
-		remove_all_filters( 'openstation_install_predates_rebrand' );
-		parent::tear_down();
-	}
-
 	/** A user who was using Desktop Mode when the rename landed. */
 	private function make_prior_user() {
 		$user_id = self::factory()->user->create();
@@ -175,20 +170,6 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 			$this->is_flagged( $user_id ),
 			'Migration 4 having run means the rebrand already landed here.'
 		);
-	}
-
-	/**
-	 * The filter can opt a site out wholesale.
-	 *
-	 * @covers ::openstation_migrate_flag_rebrand_notice
-	 */
-	public function test_filter_can_suppress_the_flag() {
-		$user_id = $this->make_prior_user();
-		add_filter( 'openstation_install_predates_rebrand', '__return_false' );
-
-		openstation_migrate_flag_rebrand_notice( 3 );
-
-		$this->assertFalse( $this->is_flagged( $user_id ) );
 	}
 
 	/**

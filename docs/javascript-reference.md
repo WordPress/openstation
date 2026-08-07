@@ -989,12 +989,12 @@ Goes through the same canonical opener as the dock click + the wallpaper-icon cl
 
 > **Render-callback registry — `window.openStationNativeWindows`.** A PHP-registered native window pairs its `<template>` with an optional JS render callback the plugin's `script` registers at `window.openStationNativeWindows[ <id> ]`; the shell looks it up by id and invokes it with the window body. `window.openStationNativeWindows` is a **deprecated compat alias** for bundles built before the rename — the shell merges both bags at read time when opening a native window, with the canonical `openStationNativeWindows` winning on id collisions. New code must register on `openStationNativeWindows`.
 
-**`opts.source`** — optional string identifying who triggered the open. The framework publishes `desktop-mode/open-requested` on the activity bus *before* the open is processed, so analytics, do-not-disturb modes, and audit subscribers can observe the user's intent independently of the outcome:
+**`opts.source`** — optional string identifying who triggered the open. The framework publishes `os/open-requested` on the activity bus *before* the open is processed, so analytics, do-not-disturb modes, and audit subscribers can observe the user's intent independently of the outcome:
 
 ```javascript
 wp.os.openWindow( 'my-plugin/inbox', { source: 'global-search' } );
 
-wp.os.activity.subscribe( 'desktop-mode/open-requested', ( { windowId, source } ) => {
+wp.os.activity.subscribe( 'os/open-requested', ( { windowId, source } ) => {
     track( 'window.open.requested', { windowId, source } );
 } );
 ```
@@ -1056,7 +1056,7 @@ wp.os.openNewWindow(
 
 Returns `true` when the registry matched the id (a fresh window with id `<base>-2` / `-3` / … is now mounted), `false` when no native window is registered with that id.
 
-Powers the dock-peek "+" button for native windows so they behave like iframe windows do: every "+" yields a duplicate. `opts.source` carries the same semantics as `openWindow`'s — it tags the `desktop-mode/open-requested` activity-bus publish.
+Powers the dock-peek "+" button for native windows so they behave like iframe windows do: every "+" yields a duplicate. `opts.source` carries the same semantics as `openWindow`'s — it tags the `os/open-requested` activity-bus publish.
 
 ---
 
@@ -1283,7 +1283,7 @@ The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't i
 - **Unified** — every menu, core and plugin alike, sharing one rail.
 - **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
-`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `desktop-mode/badge-changed` on the activity bus with the rail discriminator — `rail: 'taskbar'` for this bottom primary rail, `rail: 'dock'` for the Classic-layout side rail (`sideDock`). `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator — `rail: 'taskbar'` for this bottom primary rail, `rail: 'dock'` for the Classic-layout side rail (`sideDock`). `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
 > **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OpenStation Preferences → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
 
@@ -1331,7 +1331,7 @@ setOrdersBadge( 0 );  // clear
 
 Three calls; the rail that owns the id paints, the others bow out silently. Each call:
 
-- **Idempotent on the icon rail** — same count twice = no DOM mutation, no re-emit. The two Dock rails currently re-paint and re-publish `desktop-mode/badge-changed` on every call, so avoid hot-looping `setBadge` with an unchanged count.
+- **Idempotent on the icon rail** — same count twice = no DOM mutation, no re-emit. The two Dock rails currently re-paint and re-publish `os/badge-changed` on every call, so avoid hot-looping `setBadge` with an unchanged count.
 - **`0` clears** — and on the two Dock rails it also drops the client-side override so the server-declared `item.badge` resumes ownership on the next live menu refresh.
 - **`> 99` renders as `99+`**.
 - **Silent no-op when the id isn't on this rail** — keeps the fan-to-all-rails pattern from triple-emitting.
@@ -1339,7 +1339,7 @@ Three calls; the rail that owns the id paints, the others bow out silently. Each
 
 Every applied change publishes on:
 
-- `desktop-mode/badge-changed` activity channel with `{ itemId, count, rail: 'dock' | 'taskbar' | 'icon' }`.
+- `os/badge-changed` activity channel with `{ itemId, count, rail: 'dock' | 'taskbar' | 'icon' }`.
 - `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }` *(icon rail only)*.
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
@@ -1685,23 +1685,26 @@ interface ActivityApi {
 }
 ```
 
-**Built-in channels** — every framework primitive that publishes mirrors here:
+**Built-in channels** — every framework primitive that publishes mirrors here. The `os/` namespace is the shell's own: subscribe and filter freely, but publish your own events under your plugin's slug.
 
 | Channel | Direction | Payload | Filterable? |
 |---|---|---|---|
-| `desktop-mode/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, persistent?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action`/`persistent` to rewrite. |
-| `desktop-mode/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
-| `desktop-mode/window-attention-requested` | Pre-attention — `Window.requestAttention()` runs through this filter, then routes the filtered result to the rails' `setAttention()`; direct `dock.setAttention()` / `taskbar.setAttention()` calls bypass it. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
-| `desktop-mode/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail)* | No. |
-| `desktop-mode/open-requested` | Fire-and-forget — `wp.os.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
-| `desktop-mode/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
-| `desktop-mode/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
-| `desktop-mode/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
+| `os/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, persistent?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action`/`persistent` to rewrite. |
+| `os/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
+| `os/window-attention-requested` | Pre-attention — `Window.requestAttention()` runs through this filter, then routes the filtered result to the rails' `setAttention()`; direct `dock.setAttention()` / `taskbar.setAttention()` calls bypass it. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
+| `os/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail)* | No. |
+| `os/open-requested` | Fire-and-forget — `wp.os.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
+| `os/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
+| `os/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
+| `os/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
+| `os/upload-hud-complete` | Fire-and-forget. Fires when a file dropped on the shell finishes uploading. Published by the progress HUD rather than the uploader — the upload runs on XHR (the only transport reporting determinate progress) and never routes through `wp.os.fetch`. | `{ filename, attachmentId }` | No. |
 
 **Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:
 
 ```ts
-declare module 'desktop-mode/activity' {
+import type {} from 'openstation/activity';
+
+declare module 'openstation/activity' {
     interface ActivityChannelMap {
         'my-plugin/something-happened': { id: number; reason: string };
     }
@@ -1896,7 +1899,7 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
 
-**Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `desktop-mode/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
+**Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `os/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
 **Framework config keys**. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `openstation_games_words_url` in [hooks-reference.md](./hooks-reference.md).
 
@@ -1994,7 +1997,7 @@ const clear = wp.os.showToast( {
 
 A `persistent` toast has no auto-dismiss timer — clear it via the action button (which dismisses on click), the close (×) button when `dismissible` is set, or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
-Routes through the `desktop-mode/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
+Routes through the `os/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
 ---
 
@@ -4908,7 +4911,7 @@ JS filter: `os.window.attention( mode, { windowId, opts } )`
 — return `null` to mute the request (Do Not Disturb integration).
 
 All three rails (`dock`, `sideDock`, `icons`) emit on the
-activity bus channel `desktop-mode/badge-changed` with payload
+activity bus channel `os/badge-changed` with payload
 `{ itemId, count, rail }`. The icon rail also fires
 `HOOKS.ICON_BADGE_CHANGED` on the hook bus with
 `{ iconId, count, previousCount }` for callers that only care
@@ -4945,7 +4948,7 @@ wp.os.icons.getBadge(   'os-messages' ); // → 0 (after clear)
 
 Every applied change publishes on:
 
-- `desktop-mode/badge-changed` activity channel with
+- `os/badge-changed` activity channel with
   `{ itemId, count, rail: 'icon' }`.
 - `HOOKS.ICON_BADGE_CHANGED` action with
   `{ iconId, count, previousCount }`.
@@ -5149,8 +5152,8 @@ wp.os.notify( {
 ```
 
 Routes through the activity-bus filter
-`desktop-mode/notification-requested` (return `cancel: true` to
-suppress) and broadcasts on `desktop-mode/notification-shown` after
+`os/notification-requested` (return `cancel: true` to
+suppress) and broadcasts on `os/notification-shown` after
 rendering.
 
 ### `wp.os.pwa.*` — programmatic install + permission control

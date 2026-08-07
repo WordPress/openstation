@@ -80,7 +80,7 @@ describe( 'wp.os.icons.setBadge', () => {
 	test( 'is idempotent — same count does not emit twice', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		setIconBadge( 'os-messages', 5 );
 		setIconBadge( 'os-messages', 5 );
 		expect( cb ).toHaveBeenCalledTimes( 1 );
@@ -104,17 +104,17 @@ describe( 'wp.os.icons.setBadge', () => {
 	test( 'silent no-op when the id is not on the rail', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		setIconBadge( 'never-registered', 5 );
 		expect( cb ).not.toHaveBeenCalled();
 		expect( getIconBadge( 'never-registered' ) ).toBe( 0 );
 		off();
 	} );
 
-	test( 'publishes desktop-mode/badge-changed with rail: "icon"', () => {
+	test( 'publishes os/badge-changed with rail: "icon"', () => {
 		mountGrid( [ makeIcon() ] );
 		const cb = vi.fn();
-		const off = activity.subscribe( 'desktop-mode/badge-changed', cb );
+		const off = activity.subscribe( 'os/badge-changed', cb );
 		setIconBadge( 'os-messages', 7 );
 		expect( cb ).toHaveBeenCalledWith( {
 			itemId: 'os-messages',

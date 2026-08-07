@@ -108,7 +108,6 @@ function openstation_render_welcome_dialog() {
 	$cta      = __( 'Got it', 'desktop-mode' );
 	$enable   = __( 'Enable it now', 'desktop-mode' );
 	$enabling = __( 'Enabling…', 'desktop-mode' );
-	$close_a  = __( 'Close', 'desktop-mode' );
 
 	$features = array(
 		array(
@@ -179,7 +178,7 @@ function openstation_render_welcome_dialog() {
 	}
 	@keyframes os-welcome-shimmer {
 		0%   { background-position: 0% 50%; }
-		100% { background-position: 200% 50%; }
+		100% { background-position: 100% 50%; }
 	}
 	.os-welcome__card {
 		position: relative;
@@ -459,33 +458,6 @@ function openstation_render_welcome_dialog() {
 		opacity: 0.65;
 		cursor: progress;
 	}
-	.os-welcome__close {
-		position: absolute;
-		top: 14px;
-		right: 14px;
-		width: 32px;
-		height: 32px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-		background: rgba( 255, 255, 255, 0.18 );
-		color: #fff;
-		border: 1px solid rgba( 255, 255, 255, 0.25 );
-		border-radius: 50%;
-		cursor: pointer;
-		font-size: 18px;
-		line-height: 1;
-		transition: background 120ms ease, transform 120ms ease;
-	}
-	.os-welcome__close:hover {
-		background: rgba( 255, 255, 255, 0.32 );
-		transform: rotate( 90deg );
-	}
-	.os-welcome__close:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
-	}
 	body.os-welcome-open {
 		overflow: hidden;
 	}
@@ -532,12 +504,6 @@ function openstation_render_welcome_dialog() {
 	data-slug="<?php echo esc_attr( $slug ); ?>"
 >
 	<div class="os-welcome__card">
-		<button
-			type="button"
-			class="os-welcome__close"
-			aria-label="<?php echo esc_attr( $close_a ); ?>"
-			data-os-welcome-dismiss
-		>&times;</button>
 		<div class="os-welcome__hero">
 			<span class="os-welcome__eyebrow">
 				<span class="os-welcome__eyebrow-dot" aria-hidden="true"></span>
@@ -761,8 +727,7 @@ function openstation_render_welcome_dialog() {
 			enableNow( enableBtn );
 			return;
 		}
-		if ( target.closest( '[data-os-welcome-dismiss]' ) ||
-			target.closest( '[data-os-welcome-cta]' ) ) {
+		if ( target.closest( '[data-os-welcome-cta]' ) ) {
 			event.preventDefault();
 			dismiss();
 			return;

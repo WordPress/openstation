@@ -25,8 +25,9 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 13. **[Progressive Web App (PWA)](./pwa.md)** — *Stable.* Web app manifest, service worker (root-scope, narrow fetch handler), install affordance, and `wp.os.notify()` for local notifications. Phase-4 Web Push wiring lands later without breaking the v1 call surface.
 14. **[Migration 0.7 → 0.8.1](./migration-0.7-to-0.8.1.md)** — what landed in the architecture-0.8.1 refactor: the `@core` / `@api` / `@protocol` / `@layout` / `@ui` path aliases, the registry / server-sync / api-client primitives, the public-API facade home, and the PHP slicing of `helpers.php` / `components.php` / `render.php`. Read once before adopting any of the new modules in your plugin.
 15. **[Migration — AI comment-only + native search (0.11.0)](./migration-ai-comment-only.md)** — the AI Copilot is scoped to comment spam scoring; post/term auto-analysis and its hooks are removed, the assistant now finds content with native keyword search, and the bulk `/ai/reindex` endpoint is gone. Read if you depended on any `openstation_ai_*post*` / `*term*` hook or the reindex route.
-16. **[Register a widget — polling, storage, canvas charts](./register-widget.md)**
-17. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
+16. **[Migration — activity channels move to `os/` (0.9.9)](./migration-activity-channels.md)** — the ten framework-published activity channels drop the pre-rebrand `desktop-mode/` prefix. No alias ships: a subscriber left on an old slug stops firing silently. Read if you subscribe to or filter any built-in channel.
+17. **[Register a widget — polling, storage, canvas charts](./register-widget.md)**
+18. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
 
 ## Conventions used in this docs folder
 

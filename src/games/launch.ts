@@ -18,7 +18,7 @@
  *      stops — on EVERY close path: normal close, crash inside
  *      render, failed script load.
  *
- * A finished run also publishes `desktop-mode/game-score-recorded`
+ * A finished run also publishes `os/game-score-recorded`
  * on the activity bus so the Games hub's scoreboard (a different
  * window) can refresh itself.
  *
@@ -251,7 +251,7 @@ export async function launchGame(
 		result: GameScoreSubmission,
 		challengeId?: number,
 	): void => {
-		desktop.activity?.publish( 'desktop-mode/game-score-recorded', {
+		desktop.activity?.publish( 'os/game-score-recorded', {
 			game: id,
 			score: result.score,
 			meta: result.meta ?? {},

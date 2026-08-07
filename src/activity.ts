@@ -40,7 +40,9 @@ import {
  * Type-extension hook for plugin authors. Augment via:
  *
  * ```ts
- * declare module 'desktop-mode/activity' {
+ * import type {} from 'openstation/activity';
+ *
+ * declare module 'openstation/activity' {
  *     interface ActivityChannelMap {
  *         'my-plugin/something-happened': { id: number; reason: string };
  *     }
@@ -63,7 +65,7 @@ export interface ActivityChannelMap {
 	 * BEFORE the toast appears in the DOM; subscribers shouldn't
 	 * use this for "show another toast" or you'll loop.
 	 */
-	'desktop-mode/toast-requested': {
+	'os/toast-requested': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -76,7 +78,7 @@ export interface ActivityChannelMap {
 	 * for audit / aggregation widgets. Filtering this is a no-op —
 	 * by the time it fires, the toast is on screen.
 	 */
-	'desktop-mode/toast-shown': {
+	'os/toast-shown': {
 		message: string;
 		action?: { label: string; onClick: () => void };
 		duration?: number;
@@ -89,7 +91,7 @@ export interface ActivityChannelMap {
 	 * (`cancel: true`), mutate fields, or audit before the
 	 * Notification surface (or its toast fallback) is rendered.
 	 */
-	'desktop-mode/notification-requested': {
+	'os/notification-requested': {
 		title: string;
 		body?: string;
 		icon?: string;
@@ -106,7 +108,7 @@ export interface ActivityChannelMap {
 	 * from "user explicitly hides nothing." `fallback: null` means
 	 * a real OS-level notification went up.
 	 */
-	'desktop-mode/notification-shown': {
+	'os/notification-shown': {
 		title: string;
 		body?: string;
 		icon?: string;
@@ -124,7 +126,7 @@ export interface ActivityChannelMap {
 	 * reduced-motion, mutate `mode` / `durationMs` / `intensity`
 	 * to scale the animation, or audit.
 	 */
-	'desktop-mode/window-attention-requested': {
+	'os/window-attention-requested': {
 		windowId: string;
 		mode: 'pulse' | 'shake' | 'bounce' | null;
 		durationMs?: number;
@@ -144,7 +146,7 @@ export interface ActivityChannelMap {
 	 * compose a unified count without duplicating logic per
 	 * surface.
 	 */
-	'desktop-mode/badge-changed': {
+	'os/badge-changed': {
 		itemId: string;
 		count: number;
 		/** Which rail painted the change. */
@@ -162,7 +164,7 @@ export interface ActivityChannelMap {
 	 * Useful for analytics + DND that want "user requested" rather
 	 * than "framework completed".
 	 */
-	'desktop-mode/open-requested': {
+	'os/open-requested': {
 		windowId: string;
 		source: string;
 	};
@@ -171,7 +173,7 @@ export interface ActivityChannelMap {
 	 * `os-presence-changed` CustomEvent on the activity
 	 * bus so plugins can subscribe through the unified API.
 	 */
-	'desktop-mode/presence-changed': {
+	'os/presence-changed': {
 		userId: number;
 		oldStatus: 'online' | 'inactive' | 'offline' | null;
 		newStatus: 'online' | 'inactive' | 'offline';
@@ -185,7 +187,7 @@ export interface ActivityChannelMap {
 	 * everything that depends on presence" callers that don't
 	 * need per-user granularity.
 	 */
-	'desktop-mode/presence-snapshot-applied': {
+	'os/presence-snapshot-applied': {
 		applied: number;
 		transitions: number;
 	};
@@ -201,12 +203,24 @@ export interface ActivityChannelMap {
 	 * completion (completing a challenge writes a leaderboard row
 	 * too). `challengeId` is set only on the latter.
 	 */
-	'desktop-mode/game-score-recorded': {
+	'os/game-score-recorded': {
 		game: string;
 		score: number;
 		meta: Record< string, string | number >;
 		windowId: string;
 		challengeId?: number;
+	};
+	/**
+	 * Framework: a file dropped on the shell finished uploading.
+	 * Published by the floating progress HUD rather than by the
+	 * uploader — the upload itself runs on XHR (the only transport
+	 * that reports determinate progress) and so never routes
+	 * through `wp.os.fetch`, which makes this the activity bus's
+	 * only view of a completed drop.
+	 */
+	'os/upload-hud-complete': {
+		filename: string;
+		attachmentId: number;
 	};
 	// Plugin channels go here. The catch-all index signature lets
 	// third-party plugins fall through without explicit type
@@ -288,7 +302,7 @@ export const activity: ActivityApi = {
 		doAction( hookName( channel ), payload );
 	},
 	subscribe( channel, cb ) {
-		const ns = `desktop-mode/activity-sub/${ ++subscribeSeq }`;
+		const ns = `os/activity-sub/${ ++subscribeSeq }`;
 		const hook = hookName( channel );
 		addAction( hook, ns, ( payload: unknown ) =>
 			( cb as ( p: unknown ) => void )( payload ),

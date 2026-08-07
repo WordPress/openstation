@@ -392,7 +392,7 @@ function openstation_enqueue_assets() {
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
-	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin. Suppress site-wide with the `openstation_install_predates_rebrand` filter.
+	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin.
 	 * }
 	 */
 	$config = apply_filters(

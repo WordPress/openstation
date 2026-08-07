@@ -1034,28 +1034,6 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
-### `openstation_install_predates_rebrand` — Stable
-
-Decides whether this install is treated as one that was already running when the plugin was called Desktop Mode. When it is, the shell shows each user a one-off announcement explaining the rename to OpenStation.
-
-```php
-apply_filters( 'openstation_install_predates_rebrand', bool $predates, int $from );
-```
-
-Fires once, from the one-time migration runner (`includes/migrations.php`, migration 5). `$from` is the highest migration version that had already been applied before this run, which is the signal the default answer is derived from: `1`–`3` means the install ran under the old name, `0` means a fresh install that has only ever known OpenStation, and `4` means the rebrand migration had already landed here.
-
-Passing that gate is necessary but not sufficient. The migration then flags **individual users** who carry proof of having used the plugin before the rename — either `desktop_mode_mode` (the per-user opt-in) or a saved `desktop_mode_os_settings` blob — by writing `desktop_mode_rebrand_notice` user meta. Someone who joins an old site after the rename and enables OpenStation for the first time is never flagged, and never sees the announcement.
-
-Because the filter runs inside a migration, it is consulted exactly once per install. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete the `desktop_mode_rebrand_notice` user meta.
-
-Return `false` to suppress the announcement for every user on the site — useful for a host rolling OpenStation out to fleet sites that never saw the old name, or an agency that would rather brief its clients itself.
-
-The announcement itself only exists inside the shell: it is drawn by the desktop bundle, which is not enqueued in the classic admin or inside a chromeless iframe.
-
-Dismissal is per-user, through the `openstation-rebrand` slug in the shared seen-intros registry (`desktop_mode_seen_intros` user meta). One admin dismissing the announcement does not silence it for their editors, and "Reset what's-new dialogs" in OpenStation Preferences → Features brings it back alongside every other intro.
-
----
-
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.
@@ -2517,11 +2495,12 @@ emitters identifying themselves for echo suppression).
 **Iframe-side default behaviour: soft reload.** The chromeless
 bridge installs a built-in subscriber that, when the topic
 matches the iframe's current page, *fetches the URL it's already
-on* and replaces `#wpbody-content` in place. The user sees the
-list update — restored post appears, trashed media disappears —
-without the WP loading spinner that `location.reload()` would
-show. Matching is generic: the page's list type is
-derived from the URL and compared to the `<type>` in the topic —
+on* and replaces the contents of `#wpbody-content` in place. The
+user sees the list update — restored post appears, trashed media
+disappears — without the WP loading spinner that
+`location.reload()` would show. Matching is generic: the page's
+list type is derived from the URL and compared to the `<type>` in
+the topic —
 
 | List page | Reacts to |
 |---|---|
@@ -2542,10 +2521,30 @@ destroy unsaved editor state. Plugins wanting specific behaviour
 for those pages subscribe to the same topic themselves and decide
 how to react.
 
-After every successful soft-reload the bridge dispatches
-`os-soft-reloaded` on the iframe's `document` so plugins
-that need to re-bind state (e.g. their own custom widgets in the
-list table) have a single signal to listen for.
+**What survives the swap, and what the bridge re-binds.** The
+`#wpbody-content` element itself is kept and only its children are
+replaced, so anything delegated on `document`, `body` or
+`#wpbody-content` keeps working untouched — that covers wp-lists,
+`updates.js`, and Core's select-all checkboxes and row-actions
+focus reveal. Handlers bound to elements *inside* it do not
+survive, and Core's inline editors are bound that way
+(`$( '#the-list' ).on( 'click', '.editinline', … )` and friends).
+The bridge therefore re-runs Core's own init entry points after
+each swap — `inlineEditPost.init()`, `inlineEditTax.init()`,
+`commentReply.init()` — which restores Quick Edit, Bulk Edit and
+comment Quick Edit / Reply. Custom list tables that enqueue
+`inline-edit-post` get this for free.
+
+Only an init whose every binding lands inside the replaced subtree
+is safe to re-run. `setCommentsList()` is not, and is deliberately
+left out: it re-runs `wpList`, which binds on `document`, so each
+call would stack another set of comment row-action handlers.
+
+If your own code binds to an element inside the list table, bind
+it on `document` (best), or re-bind on `os-soft-reloaded`, which
+the bridge dispatches on the iframe's `document` after every
+successful soft-reload — and after the Core re-init above, so a
+listener always sees a working list table.
 
 **Plugin extension.** Subscribers from anywhere (parent shell,
 native windows, iframes) can use the bus directly:

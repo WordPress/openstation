@@ -630,7 +630,7 @@ sits *on* it:
 | `--os-dock-icon-color` | The glyph at rest |
 | `--os-dock-icon-color-hover` | The glyph on hover / peek |
 | `--os-dock-item-bg-hover` | The wash behind a hovered tile |
-| `--os-dock-item-outline` | The keyboard focus ring |
+| `--os-dock-item-outline` | The keyboard focus ring and the tile status indicator (active dot, all-minimized ring) |
 
 ```json
 "tokens": {
@@ -644,10 +644,13 @@ sits *on* it:
 
 **Set them whenever your dock is pale.** The four literals behind
 these tokens are all white — a glyph at 70%, brightening to full on
-hover, over a 15% white wash, with a 70% white focus ring. That reads
-against the default translucent-black strip and disappears the moment
-you give the dock a light background. Recolouring the strip alone is
-the most common way a first theme ends up with an invisible dock.
+hover, over a 15% white wash, with a 70% white focus ring, which also
+paints the status marks on the tile: the solid dot under the running
+or focused tile and the hollow ring under one whose windows are all
+minimized. That reads against the default translucent-black strip and
+disappears the moment you give the dock a light background.
+Recolouring the strip alone is the most common way a first theme ends
+up with an invisible dock.
 
 `--os-dock-icon-color` is a **colour**, not a fill, which
 matters if your iconset uses

@@ -633,7 +633,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-ui-surface, #fff );
+	background: var( --os-dock-item-outline, #fff );
 }
 
 .os-dock[ data-os-dock-placement="left" ]
@@ -659,7 +659,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid rgba( 255, 255, 255, 0.85 );
+	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
 /* Right dock: indicator on the opposite edge (inside-facing). */
@@ -673,7 +673,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-ui-surface, #fff );
+	background: var( --os-dock-item-outline, #fff );
 }
 
 .os-dock[ data-os-dock-placement="right" ]
@@ -689,7 +689,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid rgba( 255, 255, 255, 0.85 );
+	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
 /* "Open another" chip — left: right of tile; right: left of tile. */
@@ -908,7 +908,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-ui-surface, #fff );
+	background: var( --os-dock-item-outline, #fff );
 }
 
 .os-dock[ data-os-dock-placement="bottom" ]
@@ -929,7 +929,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid rgba( 255, 255, 255, 0.85 );
+	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
 /*

@@ -238,7 +238,7 @@ function onComplete(
 	r.lingerTimer = setTimeout( () => dismissRow( r ), 2500 );
 	updateHeader();
 
-	activity.publish( 'desktop-mode/upload-hud-complete', {
+	activity.publish( 'os/upload-hud-complete', {
 		filename: fields.filename || result.filename,
 		attachmentId: result.id,
 	} );

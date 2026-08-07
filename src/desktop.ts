@@ -454,7 +454,7 @@ export interface OpenStationPublicApi {
 	 * wp.os.icons.setBadge( 'os-messages', 0 );  // clear
 	 * ```
 	 *
-	 * Every change publishes `desktop-mode/badge-changed` on the
+	 * Every change publishes `os/badge-changed` on the
 	 * activity bus with `rail: 'icon'` (the same channel the dock
 	 * publishes to with `rail: 'dock'`), and fires
 	 * {@link HOOKS.ICON_BADGE_CHANGED} on the hook bus with
@@ -1616,7 +1616,7 @@ export interface OpenStationPublicApi {
 	 * was reporting changes (e.g. dismiss inbound-message toasts the
 	 * moment the chat window mounts).
 	 *
-	 * Routes through the `desktop-mode/toast-requested` activity filter
+	 * Routes through the `os/toast-requested` activity filter
 	 * before painting; plugins can mutate or cancel the payload.
 	 */
 	showToast: ( opts: ToastOptions ) => () => void;
@@ -1701,9 +1701,9 @@ export interface OpenStationPublicApi {
 	/**
 	 * Show a system notification (or fall back to a toast when
 	 * permission is denied / unsupported). Returns a dismiss
-	 * callback. Routes through `desktop-mode/notification-requested`
+	 * callback. Routes through `os/notification-requested`
 	 * (filterable) and broadcasts on
-	 * `desktop-mode/notification-shown` after rendering. v1 is
+	 * `os/notification-shown` after rendering. v1 is
 	 * page-scoped local notifications only — phase 4 will extend
 	 * this to Web Push without breaking the call surface.
 	 */

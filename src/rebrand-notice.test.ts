@@ -119,14 +119,6 @@ describe( 'maybeShowRebrandNotice — dismissal', () => {
 		expect( dialog() ).toBeNull();
 	} );
 
-	test( 'the close chip records it too', async () => {
-		await show( config() );
-		document.querySelector< HTMLElement >( '.os-announce__close' )?.click();
-
-		expect( trackedFetch ).toHaveBeenCalledTimes( 1 );
-		expect( dialog() ).toBeNull();
-	} );
-
 	test( 'Escape records it too', async () => {
 		// Leaving this unhandled would bring the dialog back on the
 		// next boot for anyone who dismisses with the keyboard.
@@ -207,47 +199,97 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		expect( focused() ).toBe( opener );
 	} );
 
-	test( 'Tab wraps from the last control back to the first', async () => {
+	test( 'Tab keeps focus inside the dialog', async () => {
 		await show( config() );
 		const items = Array.from(
 			document.querySelectorAll< HTMLElement >( '.os-announce button' ),
 		);
-		// Close chip and "Got it" — the trap has to wrap between them.
-		expect( items ).toHaveLength( 2 );
-		items[ items.length - 1 ].focus();
+		// "Got it" on its own. The trap still has to hold: with one
+		// control it is both ends of the wrap, and Tab must not walk out
+		// into the desk behind the dialog.
+		expect( items ).toHaveLength( 1 );
+		items[ 0 ].focus();
 
 		press( 'Tab' );
 		expect( focused() ).toBe( items[ 0 ] );
 
 		press( 'Tab', true );
-		expect( focused() ).toBe( items[ items.length - 1 ] );
+		expect( focused() ).toBe( items[ 0 ] );
+	} );
+
+	test( 'Tab pulls focus back in when it is on neither end', async () => {
+		// Selecting text inside the card leaves `activeElement` on
+		// `<body>`, which the backdrop handler deliberately allows. A
+		// forward Tab from there matches neither end of the trap, so
+		// without the containment check the browser walks focus into the
+		// desk behind the scrim.
+		const behind = document.createElement( 'button' );
+		document.body.appendChild( behind );
+
+		await show( config() );
+		( focused() as HTMLElement | null )?.blur();
+		expect( focused() ).toBe( document.body );
+
+		press( 'Tab' );
+		expect( focused() ).toBe( primary() );
 	} );
 } );
 
 describe( 'the announcement copy', () => {
-	test( 'the sign-off is its own paragraph, after the explanation', async () => {
+	test( 'the theme note is its own paragraph, after the explanation', async () => {
 		await show( config() );
 		const paras = Array.from(
 			document.querySelectorAll< HTMLElement >( '.os-announce__body p' ),
 		).map( ( p ) => p.textContent ?? '' );
 
 		expect( paras ).toHaveLength( 3 );
-		expect( paras[ 0 ] ).toContain( 'request-desktop-site toggle' );
-		expect( paras[ 0 ] ).not.toContain( 'Welcome to OpenStation' );
-		expect( paras[ 1 ] ).toBe( 'Welcome to OpenStation.' );
+		expect( paras[ 0 ] ).toContain( 'Why OpenStation?' );
+		// Two separate pieces of news. Folded together, a translator
+		// would have to guess where the rename ends and the theme
+		// begins.
+		expect( paras[ 0 ] ).not.toContain( 'default theme' );
+		expect( paras[ 1 ] ).toContain( 'new default theme' );
 	} );
 
-	test( 'the described-by target is the explanation, not the sign-off', async () => {
-		// A screen reader reading "Welcome to OpenStation." as the
-		// dialog's description would say nothing about the rename.
+	test( 'the reassurance line is the last thing in the body', async () => {
+		// It answers "did my install change?", which only lands once the
+		// rename itself has been explained.
+		await show( config() );
+		const paras = Array.from(
+			document.querySelectorAll< HTMLElement >( '.os-announce__body p' ),
+		);
+
+		expect( paras[ paras.length - 1 ]?.className ).toBe(
+			'os-announce__fine',
+		);
+	} );
+
+	test( 'the hero opens on the eyebrow pill, not a logomark', async () => {
+		// The headline is where the new name gets said; a mark above it
+		// says it a beat early and buries the sentence that explains it.
+		await show( config() );
+		const hero = document.querySelector( '.os-announce__hero' );
+
+		expect( hero?.firstElementChild?.className ).toBe(
+			'os-announce__eyebrow',
+		);
+		expect( hero?.querySelector( 'svg' ) ).toBeNull();
+		expect(
+			hero?.querySelector( '.os-announce__eyebrow' )?.textContent,
+		).toBe( 'New name' );
+	} );
+
+	test( 'the described-by target is the explanation, not the theme note', async () => {
+		// A screen reader reading the theme note as the dialog's
+		// description would say nothing about the rename.
 		await show( config() );
 		const describedBy =
 			document
 				.querySelector( '.os-announce' )
 				?.getAttribute( 'aria-describedby' ) ?? '';
 
-		expect(
-			document.getElementById( describedBy )?.textContent,
-		).toContain( 'request-desktop-site toggle' );
+		expect( document.getElementById( describedBy )?.textContent ).toContain(
+			'Why OpenStation?',
+		);
 	} );
 } );

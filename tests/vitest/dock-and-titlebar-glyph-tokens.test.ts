@@ -115,6 +115,29 @@ describe( 'dock glyph tokens', () => {
 		);
 	} );
 
+	test( 'the active-tile indicator family reads --os-dock-item-outline on all three placements', () => {
+		// The status dot / pill under the running and focused tile,
+		// plus the hollow ring under a tile whose windows are all
+		// minimized, were painted from `--os-ui-surface` and a
+		// hardcoded white — the dot resolved to the dock's own dark
+		// glass once the brand palette declared it, and the ring
+		// stayed unreachable by themes. Both now share the
+		// focus-ring token, so the accent paints them on the station
+		// and a theme's ring colour paints them everywhere else.
+		const css = readCss( 'dock.css' );
+
+		expect(
+			css.match(
+				/background: var\( --os-dock-item-outline, #fff \);/g
+			)
+		).toHaveLength( 3 );
+		expect(
+			css.match(
+				/border: 1px solid var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \);/g
+			)
+		).toHaveLength( 3 );
+	} );
+
 	test( 'system tiles follow the same token, keeping their brighter literal', () => {
 		const body = ruleBody(
 			readCss( 'dock.css' ),
