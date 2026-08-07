@@ -1034,30 +1034,6 @@ Return `false` to suppress the dialog — useful for managed-host onboarding flo
 
 ---
 
-### `openstation_install_predates_rebrand` — Stable
-
-Decides whether this install is treated as one that was already running when the plugin was called Desktop Mode. When it is, the shell shows each user a one-off announcement explaining the rename to OpenStation.
-
-```php
-apply_filters( 'openstation_install_predates_rebrand', bool $predates, int $from );
-```
-
-Fires once, from the one-time migration runner (`includes/migrations.php`, migration 5). `$from` is the highest migration version that had already been applied before this run, and the default answer is `$from < 4`: `1`–`3` means the install ran under the old name, `4` means the rebrand migration had already landed here, and `0` means the install predates the migration runner itself, which is a site old enough to have missed several releases rather than a new one.
-
-A site created after the rebrand normally never gets here at all. Activating the plugin records the shipped migration version — but only on an install where no user carries prior-use meta yet, so that a pre-0.9.1 site being reactivated still runs its migrations — and with the version recorded there is no pending migration left to consult the filter from. That is what stops the announcement reaching a site whose first admin request arrives through `/openstation/`: the portal auto-enables the shell and writes the per-user opt-in on the front end, which would otherwise look to the migration exactly like proof of use predating the rename.
-
-Passing that gate is necessary but not sufficient. The migration then flags **individual users** who carry proof of having used the plugin before the rename — either `desktop_mode_mode` (the per-user opt-in) or a saved `desktop_mode_os_settings` blob — by writing `desktop_mode_rebrand_notice` user meta. Someone who joins an old site after the rename and enables OpenStation for the first time is never flagged, and never sees the announcement.
-
-Because the filter runs inside a migration, it is consulted exactly once per install. A late `add_filter()` (one registered after the migration has run) has no effect; to suppress the announcement on a site that has already been flagged, delete the `desktop_mode_rebrand_notice` user meta.
-
-Return `false` to suppress the announcement for every user on the site — useful for a host rolling OpenStation out to fleet sites that never saw the old name, or an agency that would rather brief its clients itself.
-
-The announcement itself only exists inside the shell: it is drawn by the desktop bundle, which is not enqueued in the classic admin or inside a chromeless iframe.
-
-Dismissal is per-user, through the `openstation-rebrand` slug in the shared seen-intros registry (`desktop_mode_seen_intros` user meta). One admin dismissing the announcement does not silence it for their editors, and "Reset what's-new dialogs" in OpenStation Preferences → Features brings it back alongside every other intro.
-
----
-
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.

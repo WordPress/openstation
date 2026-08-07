@@ -247,26 +247,7 @@ function openstation_users_with_prior_desktop_use() {
  * @return void
  */
 function openstation_migrate_flag_rebrand_notice( $from ) {
-	$from = (int) $from;
-
-	/**
-	 * Filters whether this install is treated as predating the rebrand.
-	 *
-	 * The one chance to opt a site out wholesale — a host rolling
-	 * OpenStation out to fleet sites that never saw the old name, or an
-	 * agency that would rather brief its clients itself. Returning false
-	 * suppresses the announcement for every user on the site.
-	 *
-	 * @param bool $predates Whether the install predates the rebrand.
-	 * @param int  $from     The highest migration version already applied.
-	 */
-	$predates = (bool) apply_filters(
-		'openstation_install_predates_rebrand',
-		$from < 4,
-		$from
-	);
-
-	if ( ! $predates ) {
+	if ( (int) $from >= 4 ) {
 		return;
 	}
 
