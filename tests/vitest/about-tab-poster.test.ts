@@ -1,5 +1,5 @@
 /**
- * About tab: the poster that stands in for the PixiJS scene.
+ * About tab — the poster that stands in for the PixiJS scene.
  *
  * The scene is gated on the PixiJS vendor bundle, the about-scene
  * bundle and the logotype PNG, so there is a real window where the
@@ -17,7 +17,7 @@ vi.mock( '../../src/settings/sections/about-scene-loader', () => ( {
 		mountAboutSceneLazy( ...args ),
 } ) );
 
-/** Sized-element getters. jsdom reports every box as 0x0. */
+/** Sized-element getters — jsdom reports every box as 0×0. */
 let sizeSpies: Array< () => void > = [];
 
 function stubLayoutBoxes( width: number, height: number ): void {
@@ -100,7 +100,7 @@ describe( 'About tab poster', () => {
 		mountAboutSceneLazy.mockReturnValue( new Promise( () => {} ) );
 		const el = await buildSection();
 
-		// Synchronous, no awaiting and no rAF: this is the first frame.
+		// Synchronous — no awaiting, no rAF: this is the first frame.
 		const poster = el.querySelector( '[data-about-poster]' );
 		expect( poster ).not.toBeNull();
 		expect( poster?.textContent ).toContain( 'Crafted with curiosity' );

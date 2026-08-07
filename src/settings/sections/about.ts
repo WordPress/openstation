@@ -23,8 +23,8 @@
  *
  * ## Why a poster and not just a spinner
  *
- * Every word on this tab (the product name, the credit line, the
- * plugin version) is painted inside the WebGL canvas, so all of it
+ * Every word on this tab — the product name, the credit line, the
+ * plugin version — is painted inside the WebGL canvas, so all of it
  * used to be gated on three separate network round-trips (the PixiJS
  * vendor bundle, the about-scene bundle, the logotype PNG) plus a
  * pixel-sampling pass over that PNG. The poster is plain HTML with
@@ -33,7 +33,7 @@
  * and the canvas cross-fades in over it once it is live.
  *
  * The poster is never removed from the DOM and never gets
- * `visibility: hidden`. It fades to `opacity: 0` and stays
+ * `visibility: hidden` — it fades to `opacity: 0` and stays
  * `pointer-events: none`. The canvas exposes no text to assistive
  * technology, so the faded poster is the only accessible copy of
  * what this tab says. It also means a scene that fails to load (no
