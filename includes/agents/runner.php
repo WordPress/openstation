@@ -523,9 +523,18 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			: array();
 
 		if ( empty( $function_calls ) ) {
-			$answer = openstation_agent_parse_answer(
-				isset( $generated['text'] ) && is_string( $generated['text'] ) ? $generated['text'] : ''
-			);
+			// Belt-and-braces behind the same check in
+			// openstation_ai_client_generate(): a final turn with no
+			// extractable text is a failed generation, never a valid
+			// empty answer — without this, the run reports success and
+			// the chat renders nothing.
+			$text = isset( $generated['text'] ) && is_string( $generated['text'] ) ? $generated['text'] : '';
+			if ( '' === trim( $text ) ) {
+				return openstation_agent_humanize_generate_error(
+					openstation_ai_empty_answer_error( 'The generation produced neither function calls nor answer text.' )
+				);
+			}
+			$answer = openstation_agent_parse_answer( $text );
 			return array(
 				'text'          => $answer['text'],
 				'callToActions' => $answer['callToActions'],
@@ -884,6 +893,17 @@ function openstation_agent_humanize_generate_error( WP_Error $error ) {
 			array(
 				'status' => 502,
 				'detail' => $error->get_error_message(),
+			)
+		);
+	}
+	if ( 'openstation_ai_empty_answer' === $error->get_error_code() ) {
+		$data = $error->get_error_data();
+		return new WP_Error(
+			'openstation_agent_empty_answer',
+			__( 'The model ran out of room before writing its answer — it most likely spent the whole output budget reasoning. Try a narrower request, or try again.', 'desktop-mode' ),
+			array(
+				'status' => 502,
+				'detail' => is_array( $data ) && isset( $data['detail'] ) ? (string) $data['detail'] : '',
 			)
 		);
 	}

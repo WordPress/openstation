@@ -120,6 +120,30 @@ function openstation_ai_strip_thought_parts( Message $message ) {
 }
 
 /**
+ * Builds the error for a final turn that produced no answer text.
+ *
+ * Observed live with the Anthropic provider under agent runs: a hard task
+ * spends the entire `max_tokens` budget inside a thinking block
+ * (`stop_reason: "max_tokens"`, a single text-less thought part), so the
+ * turn carries neither function calls nor extractable text. Callers that
+ * can meaningfully degrade instead (the command follow-up turn) match on
+ * this code and keep their own fallback.
+ *
+ * @param string $detail Underlying extraction failure, preserved for logs.
+ * @return WP_Error
+ */
+function openstation_ai_empty_answer_error( $detail ) {
+	return new WP_Error(
+		'openstation_ai_empty_answer',
+		__( 'The AI provider returned no answer text.', 'desktop-mode' ),
+		array(
+			'status' => 502,
+			'detail' => (string) $detail,
+		)
+	);
+}
+
+/**
  * Runs one generation turn through the AI Client.
  *
  * Rebuilds the prompt from the full ordered message list each turn (the
@@ -186,10 +210,17 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 
 	$text = null;
 	if ( empty( $function_calls ) ) {
+		// A turn with no function calls IS the final answer, so failing to
+		// extract its text is a failed generation, not a valid empty one.
+		// Swallowing it here used to surface as a "successful" run with an
+		// empty answer, invisible to the retry and error paths alike.
 		try {
 			$text = $result->toText();
 		} catch ( \Throwable $e ) {
-			$text = null;
+			return openstation_ai_empty_answer_error( $e->getMessage() );
+		}
+		if ( ! is_string( $text ) || '' === trim( $text ) ) {
+			return openstation_ai_empty_answer_error( 'The provider response contains no text part.' );
 		}
 	}
 

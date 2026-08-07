@@ -1021,4 +1021,72 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 2, $calls );
 	}
+
+	/**
+	 * A final turn with neither function calls nor text is a failed
+	 * generation, not a successful empty answer — the run must surface
+	 * an error instead of rendering an empty chat bubble.
+	 *
+	 * @covers ::openstation_agent_invoke
+	 */
+	public function test_textless_final_turn_is_an_error_not_an_empty_success() {
+		$agent = $this->create_agent();
+		$this->stub_generate(
+			static function () {
+				return array(
+					'text'           => null,
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'Do the thing.' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'openstation_agent_empty_answer', $result->get_error_code() );
+		$this->assertNotSame( '', trim( $result->get_error_message() ) );
+	}
+
+	/**
+	 * Whitespace-only text is the same failure — trim decides, not isset.
+	 *
+	 * @covers ::openstation_agent_invoke
+	 */
+	public function test_whitespace_only_final_turn_is_an_error() {
+		$agent = $this->create_agent();
+		$this->stub_generate(
+			static function () {
+				return array(
+					'text'           => "  \n\t",
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'Do the thing.' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'openstation_agent_empty_answer', $result->get_error_code() );
+	}
+
+	/**
+	 * The client's empty-answer error is humanized for the chat, with the
+	 * underlying extraction detail preserved for debugging.
+	 *
+	 * @covers ::openstation_agent_humanize_generate_error
+	 * @covers ::openstation_ai_empty_answer_error
+	 */
+	public function test_humanize_maps_empty_answer_to_actionable_message() {
+		$raw = openstation_ai_empty_answer_error( 'The provider response contains no text part.' );
+		$this->assertWPError( $raw );
+		$this->assertSame( 'openstation_ai_empty_answer', $raw->get_error_code() );
+
+		$human = openstation_agent_humanize_generate_error( $raw );
+		$this->assertSame( 'openstation_agent_empty_answer', $human->get_error_code() );
+		$this->assertStringContainsString( 'output budget', $human->get_error_message() );
+		$this->assertSame(
+			'The provider response contains no text part.',
+			$human->get_error_data()['detail']
+		);
+	}
 }
