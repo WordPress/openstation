@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — cross-window broadcast bus.
+ * OpenStation — cross-window broadcast bus.
  *
  * Generic pub/sub primitive. Any module can call
- * `wp.desktop.broadcast( topic, payload )`; every subscriber on the
+ * `wp.os.broadcast( topic, payload )`; every subscriber on the
  * topic — whether in the parent shell, in a native window's render
  * callback, or inside any open iframe — receives the payload.
  *
@@ -10,23 +10,23 @@
  * "I want to talk to *that* window." This module is fan-out:
  * "something happened, anyone who cares about <topic> should
  * react." First use case: the Recycle Bin publishes
- * `desktop-mode.data-changed` whenever it restores or permanently
+ * `os.data-changed` whenever it restores or permanently
  * deletes an item, so the Posts list, Media Library, etc. can
  * repaint themselves without polling.
  *
  * Wire model:
  *   - **In-shell delivery:** `document.dispatchEvent` on the
- *     parent document with `CustomEvent( 'desktop-mode-broadcast',
+ *     parent document with `CustomEvent( 'os-broadcast',
  *     { detail: { topic, payload } } )`. Cheap, synchronous.
  *   - **To iframes:** the parent walks every open window's
  *     `iframe.contentWindow` and posts `{ type:
- *     'desktop-mode-broadcast', topic, payload }`. Same-origin
+ *     'os-broadcast', topic, payload }`. Same-origin
  *     check on the receive side.
  *   - **From iframes:** the chromeless bridge in `render.php`
- *     listens for incoming `desktop-mode-broadcast` messages and
+ *     listens for incoming `os-broadcast` messages and
  *     re-dispatches the CustomEvent on the iframe's own
  *     `document`. Iframe-side admin pages subscribe with
- *     `document.addEventListener( 'desktop-mode-broadcast', … )`.
+ *     `document.addEventListener( 'os-broadcast', … )`.
  *
  * @public
  */
@@ -35,8 +35,8 @@ import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
 
-const EVENT_NAME = 'desktop-mode-broadcast';
-const POSTMESSAGE_TYPE = 'desktop-mode-broadcast';
+const EVENT_NAME = 'os-broadcast';
+const POSTMESSAGE_TYPE = 'os-broadcast';
 const ORIGIN = window.location.origin;
 
 export interface BroadcastDetail< T = unknown > {
@@ -72,23 +72,23 @@ export function attachBroadcastBus( manager: WindowManager ): void {
  * subscriber is invoked before this returns; iframes receive the
  * payload one tick later (postMessage is always async).
  *
- * The topic is filterable via `desktop-mode.broadcast.topic` and the
- * payload via `desktop-mode.broadcast.payload`, so plugins can
+ * The topic is filterable via `os.broadcast.topic` and the
+ * payload via `os.broadcast.payload`, so plugins can
  * mute / rewrite traffic without forking the source.
  *
  * @public
  *
  * @param topic   Slash- or dot-separated identifier (e.g.
- *                `desktop-mode.data-changed`). Subscribers match by
+ *                `os.data-changed`). Subscribers match by
  *                exact string OR by the wildcard `'*'`.
  * @param payload Anything structured-clone-safe.
  */
 export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	const filteredTopic = String(
-		applyFilters( 'desktop-mode.broadcast.topic', topic, { payload } ) ?? topic,
+		applyFilters( 'os.broadcast.topic', topic, { payload } ) ?? topic,
 	);
 	const filteredPayload = applyFilters(
-		'desktop-mode.broadcast.payload',
+		'os.broadcast.payload',
 		payload,
 		{ topic: filteredTopic },
 	) as T;
@@ -103,7 +103,7 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	doAction( HOOKS.BROADCAST, detail );
 
 	// Mirror onto the framework activity bus so in-tab consumers
-	// can subscribe via the unified `wp.desktop.activity.subscribe`
+	// can subscribe via the unified `wp.os.activity.subscribe`
 	// surface instead of having to know about the broadcast bus.
 	// The cross-iframe postMessage fanout below stays the broadcast
 	// module's job — activity is in-tab only by design.
@@ -150,9 +150,9 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
  * Works identically inside an iframe (the chromeless bridge
  * re-dispatches incoming broadcasts as the same CustomEvent on
  * the iframe document) — iframe-side admin pages can call this
- * via `wp.desktop.subscribe(...)` if they enqueue
- * `desktop-mode-iframe-bridge`, or they can listen on `document`
- * directly for `desktop-mode-broadcast`.
+ * via `wp.os.subscribe(...)` if they enqueue
+ * `os-iframe-bridge`, or they can listen on `document`
+ * directly for `os-broadcast`.
  *
  * @public
  *

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Appearance window tab adaptations.
+ * OpenStation — Appearance window tab adaptations.
  *
  * The Appearance dock item opens an iframe of `themes.php` and uses
  * the in-window submenu strip (built from the WP `$submenu` global)
@@ -12,12 +12,12 @@
  * iframe's visible area on first paint, leaving no entry point to
  * the install flow — see assets/css/chromeless.css). This file
  * compensates by injecting an "Add Theme" tab at the front of the
- * Appearance window's submenu strip via the `desktop_mode_dock_item`
+ * Appearance window's submenu strip via the `openstation_dock_item`
  * filter.
  *
  * Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
  *
- * @package Desktop_Mode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Prepends an "Add Theme" entry to the Appearance dock item's submenu.
  *
- * Called once per dock item via {@see desktop_mode_build_dock_items()}.
+ * Called once per dock item via {@see openstation_build_dock_items()}.
  * Skipped for every menu other than `themes.php` and for users who
  * lack the `install_themes` capability — matching what classic
  * admin's "Add Theme" page-title-action enforces.
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  * @param string $menu_slug The menu slug — e.g. `themes.php`.
  * @return array Filtered dock item.
  */
-function desktop_mode_inject_appearance_tabs( $dock_item, $menu_slug ) {
+function openstation_inject_appearance_tabs( $dock_item, $menu_slug ) {
 	if ( 'themes.php' !== $menu_slug ) {
 		return $dock_item;
 	}
@@ -72,7 +72,7 @@ function desktop_mode_inject_appearance_tabs( $dock_item, $menu_slug ) {
 
 	return $dock_item;
 }
-add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10, 2 );
+add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
 
 /**
  * Fixes the visible "active tab" state inside chromeless
@@ -81,8 +81,8 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * Background: WP's installer JS uses a Backbone router whose pattern
  * `theme-install.php?browse=:sort` greedy-captures everything past
  * `browse=` ([^/?]+ matches `&` too). Inside chromeless the URL also
- * carries `desktop_mode_chromeless=1`, so `:sort` ends up as
- * `popular&desktop_mode_chromeless=1`. WP's `view.sort()` then runs
+ * carries `openstation_chromeless=1`, so `:sort` ends up as
+ * `popular&openstation_chromeless=1`. WP's `view.sort()` then runs
  * with that polluted value and the `[data-sort]` selector finds
  * nothing — leaving every tab in the unselected state even though
  * the popular themes ARE the rendered listing.
@@ -94,14 +94,14 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * chrome on next paint).
  *
  * The minimum-viable shim: inline JS that reads the real `browse`
- * value via URLSearchParams, finds the matching `[data-sort]` tab,
- * and sets `current` + `aria-current` on it. A MutationObserver on
- * `.filter-links` keeps the tab synced if WP's router fires again
- * (e.g. the user picks Latest, then comes back to Popular via the
- * route's pushState).
+ * value dynamically via URLSearchParams on every check, finds the
+ * matching `[data-sort]` tab, and sets `current` + `aria-current` on it.
+ * A MutationObserver on `.filter-links` keeps the tab synced when WP's
+ * router fires or state changes (e.g. switching tabs to Latest or
+ * returning via pushState).
  */
-function desktop_mode_theme_install_active_tab_script() {
-	if ( ! desktop_mode_is_chromeless_request() ) {
+function openstation_theme_install_active_tab_script() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	if ( ! isset( $GLOBALS['pagenow'] ) || 'theme-install.php' !== $GLOBALS['pagenow'] ) {
@@ -110,11 +110,17 @@ function desktop_mode_theme_install_active_tab_script() {
 
 	$js = <<<'JS'
 ( function () {
-    var browseParam = new URLSearchParams( window.location.search ).get( 'browse' );
-    if ( ! browseParam ) {
+    function getBrowseParam() {
+        return new URLSearchParams( window.location.search ).get( 'browse' );
+    }
+    if ( ! getBrowseParam() ) {
         return;
     }
     function applyActiveTab() {
+        var browseParam = getBrowseParam();
+        if ( ! browseParam ) {
+            return true;
+        }
         var match = document.querySelector(
             '.filter-links li > a[data-sort="' + browseParam + '"]'
         );
@@ -174,4 +180,4 @@ JS;
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'desktop_mode_theme_install_active_tab_script', 100 );
+add_action( 'admin_footer', 'openstation_theme_install_active_tab_script', 100 );

@@ -1,6 +1,6 @@
 # Native Windows & Framework Interop
 
-**Status:** Historical RFC — kept for the design rationale. The API has since shipped — `desktop_mode_register_window()` and `desktop_mode_register_window_tab()` are the public PHP API; `wp.desktop.registerWindow()` is the JS counterpart — but the shipped argument surface differs from this proposal: a required `template` callback plus singular `script` / `style` handles replaced the `custom_element` / `render` / `module` authoring paths and the `scripts` / `styles` arrays; a `capabilities` array replaced `capability`; `placement` (`'dock'` / `'none'`) replaced `show_in_dock`; and the size defaults are 520×400 with a 280×220 minimum, not 420×320 / 320×200. The shipped docs are authoritative: see [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
+**Status:** Historical RFC — kept for the design rationale. The API has since shipped — `openstation_register_window()` and `openstation_register_window_tab()` are the public PHP API; `wp.os.registerWindow()` is the JS counterpart — but the shipped argument surface differs from this proposal: a required `template` callback plus singular `script` / `style` handles replaced the `custom_element` / `render` / `module` authoring paths and the `scripts` / `styles` arrays; a `capabilities` array replaced `capability`; `placement` (`'dock'` / `'none'`) replaced `show_in_dock`; and the size defaults are 520×400 with a 280×220 minimum, not 420×320 / 320×200. The shipped docs are authoritative: see [`examples/native-windows.md`](./examples/native-windows.md) and [`examples/native-window-with-tabs.md`](./examples/native-window-with-tabs.md) for working recipes.
 
 This document describes the public contract for **native desktop windows** — windows whose content renders directly in the parent DOM instead of through an iframe — and the story for how plugins written with React, Vue, Svelte, Lit, or plain custom elements plug in without the shell taking a framework dependency.
 
@@ -8,31 +8,31 @@ The goal is to make one decision up front: **the shell's extension contract is t
 
 ## Goals
 
-- A single PHP registration API for native windows: `desktop_mode_register_window()`.
-- A single JS registration API for runtime-defined windows: `wp.desktop.registerWindow()`.
+- A single PHP registration API for native windows: `openstation_register_window()`.
+- A single JS registration API for runtime-defined windows: `wp.os.registerWindow()`.
 - Web Components as a **first-class authoring path**, on equal footing with a render callback. No framework gets special treatment.
 - Zero bundled UI framework in the shell. A plugin that wants React pays React's cost; a plugin that ships a custom element pays nothing extra.
 - A clean lifecycle contract: `mount → visible → hidden → unmount`, driven by the existing window manager.
 
 ## Non-goals
 
-- Migrating the shell itself (drag, resize, z-order, dock, pointer capture) to Web Components or any framework. The shell is imperative by nature; a reconciler or shadow-DOM lifecycle would add overhead and actively fight the global CSS-variable theming the OS Settings panel depends on.
+- Migrating the shell itself (drag, resize, z-order, dock, pointer capture) to Web Components or any framework. The shell is imperative by nature; a reconciler or shadow-DOM lifecycle would add overhead and actively fight the global CSS-variable theming the OpenStation Preferences panel depends on.
 - Bundling React, Vue, or Lit. WordPress Core already ships React; plugins that want it already use it. Anything else the plugin brings itself.
 - Replacing iframe windows. Every existing admin page continues to render through the iframe path — native windows are additive, not a migration.
 
 ## The API
 
-### PHP: `desktop_mode_register_window()`
+### PHP: `openstation_register_window()`
 
 > **As shipped, the signature differs** — see the status note at the top and [`examples/native-windows.md`](./examples/native-windows.md) for the real argument list. The proposal-era shape:
 
 ```php
-desktop_mode_register_window( 'jorvy', array(
+openstation_register_window( 'jorvy', array(
     // Required. Human-readable label for the title bar, dock tooltip, a11y.
     'title'          => __( 'Jorvy', 'jorvy' ),
 
     // Required. Dashicons class, data-URI, or image URL — same rules as
-    // `desktop_mode_sanitize_dock_icon()` uses for menu-item icons today.
+    // `openstation_sanitize_dock_icon()` uses for menu-item icons today.
     'icon'           => 'dashicons-star-filled',
 
     // Pick exactly one of the three authoring paths below.
@@ -66,7 +66,7 @@ desktop_mode_register_window( 'jorvy', array(
     // user opens this window. From then on, the shell remembers
     // the last size, position, AND maximize state the user left
     // the window in (per baseId, in localStorage under
-    // `desktop-mode-native-window-geometry`) and replays them on
+    // `os-native-window-geometry`) and replays them on
     // the next fresh open. The same persistence covers classic
     // iframe-backed windows opened from a dock click or desktop
     // icon. Size is clamped to `min_width` / `min_height` so
@@ -90,20 +90,20 @@ desktop_mode_register_window( 'jorvy', array(
     'capability'     => 'read',
 
     // Optional. When true, adds a dock icon automatically. When false,
-    // the window is only reachable via wp.desktop.openWindow() — for
+    // the window is only reachable via wp.os.openWindow() — for
     // plugins that prefer to surface it from a button on another page.
     'show_in_dock'   => true,
 ) );
 ```
 
-Behind the scenes this populates a registry exposed to the shell via `desktop_mode_shell_config` → `nativeWindows`. There is no registry-level filter; the shipped extension points are the `desktop_mode_native_window_registered` action (fires after every successful registration) and the `desktop_mode_native_window_allowed_html` filter (the kses allowlist used to escape `<template>` payloads).
+Behind the scenes this populates a registry exposed to the shell via `openstation_shell_config` → `nativeWindows`. There is no registry-level filter; the shipped extension points are the `openstation_native_window_registered` action (fires after every successful registration) and the `openstation_native_window_allowed_html` filter (the kses allowlist used to escape `<template>` payloads).
 
 #### Shipping config to the bundle
 
 Use the `'config'` arg for any session-bound data the bundle needs — REST URLs, nonces, capability flags:
 
 ```php
-desktop_mode_register_window( 'my/window', array(
+openstation_register_window( 'my/window', array(
     /* … */
     'script' => 'my-script-handle',
     'config' => array(
@@ -116,25 +116,25 @@ desktop_mode_register_window( 'my/window', array(
 Read it from JS:
 
 ```js
-const cfg = wp.desktop.getWindowConfig( 'my/window' );
+const cfg = wp.os.getWindowConfig( 'my/window' );
 ```
 
 Why this matters: native-window scripts may be loaded **eagerly** (via `wp_enqueue_script` at boot) or **lazily** (the shell appends a `<script>` after a payload-refresh, e.g. mid-session plugin activation). The lazy path bypasses `wp_print_scripts()` entirely. Without the `'config'` arg's delivery path, any data attached via `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` would be silently dropped on the lazy path.
 
 The shell harvests that `extra` data into the payload and re-injects it inline alongside the lazy `<script>` tag, so existing `wp_localize_script` callers continue to work — but the `'config'` arg is the discoverable, supported way and is recommended for new windows. See [`examples/window-with-config.md`](./examples/window-with-config.md).
 
-For diagnostics, `wp.desktop.debug.window( id )` (read-only) reports the load path, whether the tag is in the DOM, and whether the config global landed.
+For diagnostics, `wp.os.debug.window( id )` (read-only) reports the load path, whether the tag is in the DOM, and whether the config global landed.
 
-### JS: `wp.desktop.registerWindow()`
+### JS: `wp.os.registerWindow()`
 
-For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OS Settings):
+For windows whose definition is easier to express in JS than in PHP (or for shell-internal modules like OpenStation Preferences):
 
 ```js
 // Shipped shape: a single def object (including `id`); returns a
 // Promise that resolves to the opened DesktopWindow — registering
 // also opens the window. There is no `customElement` option:
 // create and append your element inside `render()` instead.
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id:     'jorvy',
     title:  'Jorvy',
     icon:   'dashicons-star-filled',
@@ -150,9 +150,9 @@ The PHP and JS registries merge at shell boot — JS wins on conflict, so a plug
 
 ## Three authoring paths, one contract
 
-> **As shipped, only one path exists** — closest to Path B: a PHP `template` callback (cloned into the window body) plus an optional JS render callback the plugin's `script` registers at `window.desktopModeNativeWindows[ <id> ]`. The `custom_element` and `module` args below were never shipped; a plugin can still use a custom element or a dynamic `import()` *inside* its render callback.
+> **As shipped, only one path exists** — closest to Path B: a PHP `template` callback (cloned into the window body) plus an optional JS render callback the plugin's `script` registers at `window.openStationNativeWindows[ <id> ]`. The `custom_element` and `module` args below were never shipped; a plugin can still use a custom element or a dynamic `import()` *inside* its render callback.
 >
-> The shell also consults the legacy `window.wpDesktopNativeWindows` bag for backwards compatibility — it merges both at read time, with the canonical `desktopModeNativeWindows` winning on id collisions. New code registers on `desktopModeNativeWindows`.
+> The shell also consults the legacy `window.openStationNativeWindows` bag for backwards compatibility — it merges both at read time, with the canonical `openStationNativeWindows` winning on id collisions. New code registers on `openStationNativeWindows`.
 
 Each path reduces to: *the shell gives you an empty HTML element, you fill it, you get lifecycle callbacks.*
 
@@ -225,25 +225,25 @@ Every native window sees the same shipped lifecycle surface, delivered through t
 | Event | When | Shipped surface |
 |---|---|---|
 | **mount** | Window opens. | The render callback is invoked after the registered template is cloned into the body. |
-| **focus** | Window gains focus. | `desktop-mode-window-focused` CustomEvent on `document` (hook: `desktop-mode.window.focused`). |
-| **blur** | Loses focus. | `desktop-mode-window-blurred` CustomEvent on `document` (hook: `desktop-mode.window.blurred`). |
+| **focus** | Window gains focus. | `os-window-focused` CustomEvent on `document` (hook: `os.window.focused`). |
+| **blur** | Loses focus. | `os-window-blurred` CustomEvent on `document` (hook: `os.window.blurred`). |
 | **resize** | Geometry changes. | `ctx.onResize( ( width, height ) => { … } )`. |
 | **hidden** | Window minimized. | `ctx.onHide( fn )`. |
 | **visible** | Window restored. | `ctx.onShow( fn )`. |
 | **unmount** | Window closed. | `ctx.signal` (an `AbortSignal`) aborts, then the teardown function returned from render is called. |
 
-The `ctx` object also exposes the window-scoped channel pair (`ctx.window.send` / `ctx.window.on`) and the loading-overlay controls (`ctx.markLoading()` / `ctx.markReady()`). To rename a window after data loads, use the window handle: `wp.desktop.windowManager.getById( id ).setTitle( title )`. See [`examples/render-ctx.md`](./examples/render-ctx.md) for the full contract.
+The `ctx` object also exposes the window-scoped channel pair (`ctx.window.send` / `ctx.window.on`) and the loading-overlay controls (`ctx.markLoading()` / `ctx.markReady()`). To rename a window after data loads, use the window handle: `wp.os.windowManager.getById( id ).setTitle( title )`. See [`examples/render-ctx.md`](./examples/render-ctx.md) for the full contract.
 
 ## Security & sandboxing
 
 - **Same origin, same realm.** Native window code executes in the parent shell's JS realm — there is no iframe boundary. This is the point: direct DOM access, shared state, cross-window coordination. But it means a misbehaving plugin can reach the rest of the shell. Treat this like any other `wp_enqueue_script` — it's a plugin author surface, not an end-user one.
-- **Capability checks stay server-side.** `desktop_mode_register_window()` enforces the `capabilities` array (every listed capability must match — fail closed) before storing the registration. A user without the caps never sees the icon and cannot open the window via `wp.desktop.openWindow()`.
-- **No eval, no Function constructors.** The shipped render callback is a function the plugin's own script registers at `window.desktopModeNativeWindows[ <id> ]` — the shell looks it up by id and invokes it; no strings are ever evaluated as code. (The legacy `window.wpDesktopNativeWindows` bag is also consulted for backwards compatibility — the shell merges both at read time, canonical wins on id collisions.) Template HTML is escaped through the `desktop_mode_native_window_allowed_html` kses allowlist before it is emitted.
+- **Capability checks stay server-side.** `openstation_register_window()` enforces the `capabilities` array (every listed capability must match — fail closed) before storing the registration. A user without the caps never sees the icon and cannot open the window via `wp.os.openWindow()`.
+- **No eval, no Function constructors.** The shipped render callback is a function the plugin's own script registers at `window.openStationNativeWindows[ <id> ]` — the shell looks it up by id and invokes it; no strings are ever evaluated as code. (The legacy `window.openStationNativeWindows` bag is also consulted for backwards compatibility — the shell merges both at read time, canonical wins on id collisions.) Template HTML is escaped through the `openstation_native_window_allowed_html` kses allowlist before it is emitted.
 - **Nonces for server interaction** are the plugin's responsibility; the shell doesn't wrap fetch calls.
 
 ## Why not just…
 
-**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OS Settings flips `--wp-admin-theme-color` on `#desktop-mode-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
+**…migrate the shell itself to Web Components?** The shell does imperative work — pointer capture, z-order math, drag coordination, focus trapping — that doesn't benefit from a reactive lifecycle. Shadow DOM would also break the CSS-variable theming (OpenStation Preferences flips `--wp-admin-theme-color` on `#os-shell` and every descendant inherits it; shadow roots don't inherit that without explicit opt-in per element). Staying vanilla is a feature, not debt.
 
 **…ship a React-first API?** React is already available everywhere in WP, so plugins that want React can use it — inside a Web Component, inside a render callback, inside a dynamic module. Making the shell itself React-first would force every non-React plugin to ship a reconciler they don't need. The DOM is the common denominator; standardize on it.
 
@@ -266,7 +266,7 @@ add_action( 'init', function () {
         true
     );
 
-    desktop_mode_register_window( 'jorvy', array(
+    openstation_register_window( 'jorvy', array(
         'title'          => 'Jorvy',
         'icon'           => 'dashicons-star-filled',
         'custom_element' => 'jorvy-panel',
@@ -338,11 +338,11 @@ export default function mount( container ) {
 }
 ```
 
-Same window, same dock icon, same OS Settings theming — different authoring style. The shell never learns the difference.
+Same window, same dock icon, same OpenStation Preferences theming — different authoring style. The shell never learns the difference.
 
 ## Migration plan for what already exists
 
-*(Proposal-era section.)* When this was written, the only native-window content was the **OS Settings** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Recycle Bin, My WordPress, Content Graph, and user-edit windows — all registered via `desktop_mode_register_window()`. The original plan for OS Settings:
+*(Proposal-era section.)* When this was written, the only native-window content was the **OpenStation Preferences** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Trash, WP Explorer, Corkboard, and user-edit windows — all registered via `openstation_register_window()`. The original plan for OpenStation Preferences:
 
 1. Stay a render callback (it's shell-internal, no reason to register it through the public registry).
 2. Gain the same `ctx` lifecycle wiring other plugins get — currently it does nothing on focus / blur / resize; with `ctx` it can, e.g., re-check `matchMedia` on resize if we ever add a "follow system dark mode" toggle.
@@ -355,7 +355,7 @@ Nothing else migrates. Iframe windows stay iframe windows — that's the whole p
 2. **Async mounts.** Should `render` / `module` be allowed to return a Promise, and the shell shows a spinner until it resolves? Leaning: yes, but keep the spinner opt-in via `ctx.setLoading( true )` rather than implicit.
 3. **Multi-instance native windows.** The iframe side has `multi: true`; native windows currently don't. Jorvy doesn't need it, but a "Quick Note" native window probably does. Low risk to add the flag now even if no shipping caller uses it.
 4. **Persistence.** Native windows are currently skipped from session snapshot because `render` is a closure. With a registry, we can serialize by id and rehydrate — at the cost of requiring every plugin to either be idempotent on re-mount or opt out. Leaning: opt-in per registration (`'persist' => true`, default false).
-5. **Dock registration vs. separate `desktop_mode_register_icon()`.** The CLAUDE.md vision has both dock items and wallpaper icons. Should `desktop_mode_register_window()` be orthogonal to `desktop_mode_register_icon()`, or should the window registration produce both when `show_in_dock` / `show_on_desktop` are set? Leaning: orthogonal — windows and icons are different concepts, even if most plugins use them together.
+5. **Dock registration vs. separate `openstation_register_icon()`.** The CLAUDE.md vision has both dock items and wallpaper icons. Should `openstation_register_window()` be orthogonal to `openstation_register_icon()`, or should the window registration produce both when `show_in_dock` / `show_on_desktop` are set? Leaning: orthogonal — windows and icons are different concepts, even if most plugins use them together.
 
 ## Next steps
 

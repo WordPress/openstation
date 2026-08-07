@@ -11,18 +11,18 @@ The default chrome id is `'core/standard'`. Choosing it (or omitting `appearance
 ## The contract
 
 ```ts
-wp.desktop.registerWindowChrome( {
+wp.os.registerWindowChrome( {
     id:    'my-plugin/macos',
     label: 'macOS-style chrome',
     match: ( win ) => true,
     render: ( host, ctx ) => {
-        // host: the outer .desktop-mode-window element. It already
-        //       contains .desktop-mode-window__body and the resize
+        // host: the outer .os-window element. It already
+        //       contains .os-window__body and the resize
         //       handles — leave those alone.
         // ctx.window — the Window instance.
         // ctx.state  — { title, icon, focused, state } at first paint.
 
-        const titleBar = host.querySelector( '.desktop-mode-window__titlebar' );
+        const titleBar = host.querySelector( '.os-window__titlebar' );
         // Replace its contents with whatever DOM you want.
         titleBar.innerHTML = '';
         const close = document.createElement( 'button' );
@@ -47,14 +47,14 @@ wp.desktop.registerWindowChrome( {
 
 `render` MUST return `{ destroy }`; `update` is optional.
 
-The framework keeps the standard `.desktop-mode-window__titlebar` element for you — pointer-down drag is bound on it, and removing/replacing the element entirely would break window dragging. Mutate its children instead.
+The framework keeps the standard `.os-window__titlebar` element for you — pointer-down drag is bound on it, and removing/replacing the element entirely would break window dragging. Mutate its children instead.
 
 ---
 
 ## Recipe — Pick a chrome at registration time
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id:     'my-plugin/widget',
     title:  'Widget',
     icon:   'dashicons-admin-customizer',
@@ -68,20 +68,20 @@ wp.desktop.registerWindow( {
 ## Recipe — Swap chrome at runtime
 
 ```js
-wp.desktop.applyWindowChrome( 'edit-post', 'my-plugin/macos' );
+wp.os.applyWindowChrome( 'edit-post', 'my-plugin/macos' );
 
 // Fall back to the standard chrome:
-wp.desktop.applyWindowChrome( 'edit-post', null );
+wp.os.applyWindowChrome( 'edit-post', null );
 ```
 
 ---
 
 ## What you do NOT control
 
-- The outer `.desktop-mode-window` element
+- The outer `.os-window` element
 - The body element + iframe / native render content
 - The 4 corner resize handles
-- The `desktop-mode-window--focused` class toggle (the framework toggles it; you can read it via `ctx.state.focused`)
+- The `os-window--focused` class toggle (the framework toggles it; you can read it via `ctx.state.focused`)
 - The position persistence + drag pointer math
 
 ---
@@ -92,15 +92,15 @@ wp.desktop.applyWindowChrome( 'edit-post', null );
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop_mode_window_chrome_script_registered` | action | `( string $handle )` | Fires after `desktop_mode_register_window_chrome_script()` succeeds. |
-| `desktop_mode_window_chrome_registered` | action | `( string $id, array $entry )` | Fires after `desktop_mode_register_window_chrome()` stores metadata. |
+| `openstation_window_chrome_script_registered` | action | `( string $handle )` | Fires after `openstation_register_window_chrome_script()` succeeds. |
+| `openstation_window_chrome_registered` | action | `( string $id, array $entry )` | Fires after `openstation_register_window_chrome()` stores metadata. |
 
 ### JavaScript
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop-mode.window.chrome.render` | filter | `( chromeId, { windowId, config } ) => chromeId` | Mutate the resolved chrome id per window. **Experimental.** |
-| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer, chromeId? } )` | Fires with `layer: 'chrome'` after a successful chrome mount. |
+| `os.window.chrome.render` | filter | `( chromeId, { windowId, config } ) => chromeId` | Mutate the resolved chrome id per window. **Experimental.** |
+| `os.window.chrome.applied` | action | `( { windowId, layer, chromeId? } )` | Fires with `layer: 'chrome'` after a successful chrome mount. |
 
 ---
 
@@ -108,8 +108,8 @@ wp.desktop.applyWindowChrome( 'edit-post', null );
 
 | Function | Purpose |
 |----------|---------|
-| `wp.desktop.registerWindowChrome( def )` | Register a chrome implementation. |
-| `wp.desktop.unregisterWindowChrome( id )` | Drop by id; windows fall back to `'core/standard'` on next paint. |
-| `wp.desktop.listWindowChromes()` | Snapshot of registered chromes. |
-| `wp.desktop.applyWindowChrome( windowId, chromeId )` | Set / clear at runtime. |
+| `wp.os.registerWindowChrome( def )` | Register a chrome implementation. |
+| `wp.os.unregisterWindowChrome( id )` | Drop by id; windows fall back to `'core/standard'` on next paint. |
+| `wp.os.listWindowChromes()` | Snapshot of registered chromes. |
+| `wp.os.applyWindowChrome( windowId, chromeId )` | Set / clear at runtime. |
 | `WindowConfig.appearance.chrome` | Pick at window-registration time. |

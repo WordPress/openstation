@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Virtual desktops ("Spaces").
+ * OpenStation — Virtual desktops ("Spaces").
  *
  * Each desktop owns its own set of windows. Switching desktops hides
  * the previous group and shows the new one without destroying
@@ -12,7 +12,12 @@ import { __, sprintf } from '../i18n';
 import type { Desktop } from '../types';
 import type { Window } from '../window';
 import { computeOverviewLayout } from './geometry';
-import { createOverviewLabel, refreshOverviewTopBar } from './overview';
+import {
+	createOverviewLabel,
+	prepareWindowForOverviewLayout,
+	refreshOverviewTopBar,
+	restoreWindowAfterOverviewLayout,
+} from './overview';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
 import type { WindowManager } from './index';
 
@@ -82,7 +87,7 @@ export function createDesktop( mgr: WindowManager ): Desktop {
 
 /**
  * Switch the active desktop. No-op if `id` is already active or
- * doesn't exist. Fires `desktop-mode.desktop.switched` with both the
+ * doesn't exist. Fires `os.os.switched` with both the
  * leaving and entering desktop ids so plugins can sync per-desktop
  * state (active-desktop-aware indicators, custom widgets, etc.).
  */
@@ -166,7 +171,7 @@ export function switchDesktop(
 
 /**
  * Play the one-shot slide-in animation on the desktop area itself.
- * The wallpaper layer is a sibling under `.desktop-mode-shell`, not
+ * The wallpaper layer is a sibling under `.os-shell`, not
  * a child of `_desktop`, so sliding `_desktop` reveals the wallpaper
  * as a backdrop on the leading edge — no black gap, no flash.
  *
@@ -186,16 +191,16 @@ function animateDesktopSwitch(
 	const el = mgr._desktop;
 	const cls =
 		direction === 'next'
-			? 'desktop-mode-area--sliding-from-right'
-			: 'desktop-mode-area--sliding-from-left';
+			? 'os-area--sliding-from-right'
+			: 'os-area--sliding-from-left';
 	el.classList.remove(
-		'desktop-mode-area--sliding-from-right',
-		'desktop-mode-area--sliding-from-left',
+		'os-area--sliding-from-right',
+		'os-area--sliding-from-left',
 	);
 	void el.offsetWidth;
 	el.classList.add( cls );
 	const onEnd = ( e: AnimationEvent ): void => {
-		if ( ! e.animationName.startsWith( 'desktop-mode-area-slide-from-' ) ) {
+		if ( ! e.animationName.startsWith( 'os-area-slide-from-' ) ) {
 			return;
 		}
 		el.classList.remove( cls );
@@ -291,7 +296,8 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 		if ( w ) {
 			w.element.style.transform = snap.transform;
 			w.element.style.transition = snap.transition;
-			w.element.classList.remove( 'desktop-mode-window--overview' );
+			w.element.classList.remove( 'os-window--overview' );
+			restoreWindowAfterOverviewLayout( w );
 		}
 	}
 	for ( const label of mgr._overviewLabels.values() ) {
@@ -309,7 +315,6 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 	//    they're windows with content, nothing special.
 	const eligible = mgr._stack.filter(
 		( w ) =>
-			w.state !== 'minimized' &&
 			w.config.desktopId === mgr._activeDesktopId,
 	);
 	if ( eligible.length === 0 ) {
@@ -321,6 +326,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 			transform: w.element.style.transform || '',
 			transition: w.element.style.transition || '',
 		} );
+		prepareWindowForOverviewLayout( w );
 	}
 
 	// At this point the dock has already collapsed (we're mid-
@@ -337,7 +343,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 	);
 	for ( const item of layout ) {
 		const el = item.win.element;
-		el.classList.add( 'desktop-mode-window--overview' );
+		el.classList.add( 'os-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
 		el.style.transform = `translate(${ dx }px, ${ dy }px) scale(${ item.scale })`;

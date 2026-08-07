@@ -5,7 +5,7 @@
  * loads on demand the same way the JS does.
  */
 
-.desktop-mode-widget-heartbeat {
+.os-widget-heartbeat {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -26,14 +26,14 @@
  * of the widget container — any vertical slack accumulates as
  * extra breathing room around the heart, not as dead space
  * below the progress bar. */
-.desktop-mode-widget-heartbeat__meta {
+.os-widget-heartbeat__meta {
 	margin-top: auto;
 }
 
 /* Override the framework card-body's default `padding: 16px` —
  * the heartbeat widget owns its own layout and that padding
  * eats real estate the progress bar needs. */
-.desktop-mode-widgets__card-body.desktop-mode-widget-heartbeat {
+.os-widgets__card-body.os-widget-heartbeat {
 	padding: 8px;
 	min-height: 0;
 	flex: 1 1 auto;
@@ -41,13 +41,13 @@
 
 /* Card-level flex so the body fills the card cleanly. Scoped to
  * cards hosting this widget so others keep their block layout. */
-.desktop-mode-widgets__card.desktop-mode-widgets__card--heartbeat {
+.os-widgets__card.os-widgets__card--heartbeat {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
 }
 
-.desktop-mode-widget-heartbeat__stage {
+.os-widget-heartbeat__stage {
 	position: relative;
 	display: block;
 	/* Stage height matches the available vertical room exactly so
@@ -75,7 +75,7 @@
 	overflow: hidden;
 	contain: strict;
 }
-.desktop-mode-widget-heartbeat__stage canvas {
+.os-widget-heartbeat__stage canvas {
 	display: block;
 	width: 100% !important;
 	height: 100% !important;
@@ -83,7 +83,7 @@
 	max-height: 100%;
 }
 
-.desktop-mode-widget-heartbeat__meta {
+.os-widget-heartbeat__meta {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
@@ -94,11 +94,11 @@
 	padding: 0 2px;
 }
 
-.desktop-mode-widget-heartbeat__label {
+.os-widget-heartbeat__label {
 	font-weight: 600;
 }
 
-.desktop-mode-widget-heartbeat__remaining {
+.os-widget-heartbeat__remaining {
 	font-variant-numeric: tabular-nums;
 	font-size: 13px;
 	color: #ff8ba3;
@@ -107,7 +107,7 @@
 	font-weight: 600;
 }
 
-.desktop-mode-widget-heartbeat__bar {
+.os-widget-heartbeat__bar {
 	position: relative;
 	height: 10px;
 	border-radius: 5px;
@@ -118,7 +118,7 @@
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
 }
 
-.desktop-mode-widget-heartbeat__bar-fill {
+.os-widget-heartbeat__bar-fill {
 	position: absolute;
 	left: 0;
 	top: 0;
@@ -138,14 +138,14 @@
 }
 
 /* Compact mode — right-click → "Show heart" toggled off. */
-.desktop-mode-widget-heartbeat--no-heart .desktop-mode-widget-heartbeat__stage {
+.os-widget-heartbeat--no-heart .os-widget-heartbeat__stage {
 	display: none;
 }
-.desktop-mode-widget-heartbeat--no-heart {
+.os-widget-heartbeat--no-heart {
 	justify-content: center;
 }
 
-.desktop-mode-widget-heartbeat--fallback .desktop-mode-widget-heartbeat__fallback {
+.os-widget-heartbeat--fallback .os-widget-heartbeat__fallback {
 	display: flex;
 	align-items: center;
 	justify-content: center;

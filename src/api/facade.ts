@@ -1,10 +1,10 @@
 /**
- * Public API facade — `wp.desktop.*` assembly.
+ * Public API facade — `wp.os.*` assembly.
  *
  * **Why this exists.** The runtime side of the public API used to
  * be assembled inline inside `init()` as a single ~280-LOC object
  * literal. Plugin authors who wanted to know "what's available on
- * `wp.desktop`?" had to scroll through `desktop.ts` looking for
+ * `wp.os`?" had to scroll through `desktop.ts` looking for
  * the literal. Phase 5 of the architecture-0.8.1 boot
  * decomposition pulls the literal out: `init()` builds a
  * dependency bag and calls `buildPublicApi(deps)`; this module
@@ -12,9 +12,9 @@
  * merge-onto-shim assignment.
  *
  * **Backwards compatibility.** Everything attached to
- * `window.wp.desktop` before the extraction is still attached
+ * `window.wp.os` before the extraction is still attached
  * after — same names, same shapes, same semantics. Tests
- * exercising `wp.desktop.*` continue to pass unchanged.
+ * exercising `wp.os.*` continue to pass unchanged.
  */
 
 import {
@@ -40,8 +40,9 @@ import { showToast } from '../toast';
 import { activity } from '../activity';
 import { heartbeat } from '../heartbeat';
 import { presenceApi } from '../presence';
+import { selectionApi } from '../selection';
 import { createSharedStore } from '../shared-store';
-import { wpdConfirm } from '../wpd-confirm';
+import { osConfirm } from '../os-confirm';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { collectWallpaperSurfaces } from '../wallpapers/surfaces';
 import { renderKeyedList, clearKeyedList } from '../ui/util/keyed-list';
@@ -86,6 +87,11 @@ import {
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import {
+	listWindowReveals,
+	registerWindowReveal,
+	unregisterWindowReveal,
+} from '../reveals/registry';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -138,7 +144,7 @@ import { trackedFetch } from '../boot/tracked-fetch';
 
 import type {
 	DesktopDebugWindow,
-	WpDesktopPublicApi,
+	OpenStationPublicApi,
 } from '../desktop';
 import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
@@ -154,6 +160,7 @@ import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
+import type { MioApi } from '../mio/controller';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
 import {
@@ -169,13 +176,13 @@ import { applyThemeRecommendations } from '../settings/theme-recommendations';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
- * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
+ * Built-in keys on `wp.os` that `registerNamespace()` refuses
  * to overwrite. The runtime check inside `registerNamespace`
  * consults this allowlist; keep it in sync with
- * {@link WpDesktopPublicApi}.
+ * {@link OpenStationPublicApi}.
  *
  * Lives here (not in `desktop.ts`) because the facade is the one
- * place that owns the assembly of `wp.desktop.*`. A new public
+ * place that owns the assembly of `wp.os.*`. A new public
  * key SHOULD be added here in the same change that adds the
  * field to the interface.
  */
@@ -206,6 +213,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
+	'registerWindowReveal', 'unregisterWindowReveal', 'listWindowReveals',
 	'relations',
 	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
 	'listWindowLinkRenderers',
@@ -222,7 +230,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'connect', 'getConnection',
 	'broadcast', 'subscribe', 'registerPalette', 'unregisterPalette',
 	'listPalettes', 'openPalette', 'devtools', 'createSharedStore',
-	'presence', 'activity', 'heartbeat', 'showToast', 'renderKeyedList',
+	'presence', 'selection', 'activity', 'heartbeat', 'showToast',
+	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
 	'getWindowConfig', 'debug',
@@ -244,8 +253,20 @@ export interface BuildPublicApiDeps {
 	saveSession: () => void;
 	widgetLayer: WidgetLayer | null;
 	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
-	openWindowById: ( id: string, opts?: { source?: string } ) => boolean;
-	openNewWindowById: ( id: string, opts?: { source?: string } ) => boolean;
+	openWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
+	openNewWindowById: (
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	) => boolean;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -256,18 +277,19 @@ export interface BuildPublicApiDeps {
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
+	mio: MioApi;
 	config: DesktopConfig;
 }
 
 /**
- * Build the `wp.desktop.*` public API object.
+ * Build the `wp.os.*` public API object.
  *
- * Pure: no side effects, no mutation of `window.wp.desktop`. The
+ * Pure: no side effects, no mutation of `window.wp.os`. The
  * caller (init in `desktop.ts`) is responsible for merging the
  * returned object onto the early-shim slot — see
  * {@link installPublicApi}.
  */
-export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
+export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi {
 	const {
 		manager,
 		dock,
@@ -290,21 +312,22 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		connect,
 		getConnection,
 		wallpaperSuspend,
+		mio,
 		config,
 	} = deps;
 
-	const desktopApi: WpDesktopPublicApi = {
+	const desktopApi: OpenStationPublicApi = {
 		windowManager: manager,
 		dock,
 		sideDock: layoutDispatcher?.getSide() ?? null,
 		desktopLayout: osSettings.getOsSettingsSnapshot().desktopLayout,
 		icons: iconsApi,
 		files: filesApi,
-		confirm: wpdConfirm,
+		confirm: osConfirm,
 		saveSession,
 		hooks: rawHooks(),
 		HOOKS,
-		isActive: () => !! document.getElementById( 'desktop-mode-shell' ),
+		isActive: () => !! document.getElementById( 'os-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			wallpaperRegistry.register( def );
 			// Re-apply so a plugin that registers its own wallpaper
@@ -319,7 +342,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// user explicitly enabled, so adding a new def just
 			// makes it available in the next picker open. Plugins
 			// wanting to force a widget on can call
-			// `wp.desktop.widgetLayer.add(id)` /
+			// `wp.os.widgetLayer.add(id)` /
 			// `ensureMounted(id)` — exposed below.
 		},
 		widgetLayer,
@@ -331,6 +354,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		wallpaper: wallpaperSuspend,
+		mio,
 		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,
@@ -397,6 +421,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.windowRadius =
 					patch.windowRadius as typeof osSettings.state.windowRadius;
 			}
+			if ( typeof patch.adminBarMode === 'string' ) {
+				osSettings.state.adminBarMode =
+					patch.adminBarMode as typeof osSettings.state.adminBarMode;
+			}
 			if ( typeof patch.desktopLayout === 'string' ) {
 				osSettings.state.desktopLayout =
 					patch.desktopLayout as typeof osSettings.state.desktopLayout;
@@ -409,6 +437,13 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			if ( typeof patch.unfocusEffect === 'string' ) {
 				osSettings.state.unfocusEffect = patch.unfocusEffect;
+			}
+			if ( typeof patch.windowReveal === 'string' ) {
+				osSettings.state.windowReveal = patch.windowReveal;
+			}
+			if ( typeof patch.windowRevealDuration === 'number' ) {
+				osSettings.state.windowRevealDuration =
+					patch.windowRevealDuration;
 			}
 			if ( typeof patch.dockRailRenderer === 'string' ) {
 				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
@@ -555,11 +590,15 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// `apply()` knows nothing about it. The unfocus engine
 			// listens on `subscribeOsSettings`, which `save()` above
 			// already fired, so that key repaints on its own.
+			// `windowReveal` is absent for the same reason: the reveal
+			// engine reads it off the same subscription, and it only
+			// takes effect on the NEXT window load either way.
 			if (
 				typeof patch.wallpaper === 'string' ||
 				typeof patch.accent === 'string' ||
 				typeof patch.dockSize === 'string' ||
 				typeof patch.windowRadius === 'string' ||
+				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
@@ -600,6 +639,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,
+		registerWindowReveal,
+		unregisterWindowReveal,
+		listWindowReveals,
 		relations: relationsApi,
 		registerWindowLinkRenderer,
 		unregisterWindowLinkRenderer,
@@ -688,6 +730,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		devtools,
 		createSharedStore,
 		presence: presenceApi,
+		selection: selectionApi,
 		activity,
 		heartbeat,
 		showToast,
@@ -706,21 +749,21 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof name !== 'string' || name === '' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					'[desktop-mode] registerNamespace: name must be a non-empty string',
+					'[openstation] registerNamespace: name must be a non-empty string',
 				);
 				return;
 			}
 			if ( ! api || typeof api !== 'object' ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): api must be an object`,
+					`[openstation] registerNamespace("${ name }"): api must be an object`,
 				);
 				return;
 			}
 			if ( RESERVED_NAMESPACE_KEYS.has( name ) ) {
 				// eslint-disable-next-line no-console
 				console.warn(
-					`[desktop-mode] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
+					`[openstation] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
 				);
 				return;
 			}
@@ -729,7 +772,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		getWindowConfig: < T = Record< string, unknown > >(
 			id: string,
 		): T | undefined => {
-			const store = window.desktopModeWindowConfig;
+			const store = window.openStationWindowConfig;
 			if ( ! store || typeof store !== 'object' ) {
 				return undefined;
 			}
@@ -749,7 +792,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				let tagInDom = false;
 				if ( url ) {
 					const lazyTag = document.querySelector(
-						`script[data-desktop-mode-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
+						`script[data-os-vendor="${ url.replace( /"/g, '\\"' ) }"]`,
 					);
 					if ( lazyTag ) {
 						loadPath = 'lazy';
@@ -769,7 +812,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 						}
 					}
 				}
-				const cfgStore = window.desktopModeWindowConfig;
+				const cfgStore = window.openStationWindowConfig;
 				const configPresent = !! (
 					cfgStore &&
 					typeof cfgStore === 'object' &&
@@ -798,7 +841,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 
 /**
  * Merge a built API onto the early-shim object on
- * `window.wp.desktop` (or set it directly if the shim is
+ * `window.wp.os` (or set it directly if the shim is
  * missing — degraded path that should never trigger in
  * production because the IIFE at the top of `desktop.ts`
  * installs the shim before `init()` runs).
@@ -810,16 +853,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
  * never fire. `Object.assign` overwrites `whenReady` / `ready` /
  * `isReady` with the canonical versions from `src/hooks.ts`.
  */
-export function installPublicApi( api: WpDesktopPublicApi ): void {
+export function installPublicApi( api: OpenStationPublicApi ): void {
 	if ( ! window.wp ) {
 		window.wp = {};
 	}
-	if ( ! window.wp.desktop ) {
-		window.wp.desktop = api;
+	if ( ! window.wp.os ) {
+		window.wp.os = api;
 		return;
 	}
 	Object.assign(
-		window.wp.desktop as unknown as Record< string, unknown >,
+		window.wp.os as unknown as Record< string, unknown >,
 		api as unknown as Record< string, unknown >,
 	);
 }

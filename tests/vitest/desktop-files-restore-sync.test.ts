@@ -2,7 +2,7 @@
  * Restore-from-bin sync tests.
  *
  * The recycle-bin window emits
- * `desktop-mode.{placement,shortcut,folder}.changed` with
+ * `os.{placement,shortcut,folder}.changed` with
  * `action: 'untrashed'` after a successful restore. This module's
  * subscriber must refetch `listFolders()` once and `listPlacements()`
  * for every still-hydrated folder so the local store catches up
@@ -90,7 +90,7 @@ describe( 'files restore-sync', () => {
 		vi.stubGlobal( 'fetch', spy );
 
 		rs.startFilesRestoreSync();
-		bc.broadcast( 'desktop-mode.folder.changed', {
+		bc.broadcast( 'os.folder.changed', {
 			source: 'recycle-bin',
 			action: 'untrashed',
 			ids: [ 5 ],
@@ -112,12 +112,12 @@ describe( 'files restore-sync', () => {
 		vi.stubGlobal( 'fetch', spy );
 
 		rs.startFilesRestoreSync();
-		bc.broadcast( 'desktop-mode.placement.changed', {
+		bc.broadcast( 'os.placement.changed', {
 			source: 'recycle-bin',
 			action: 'trashed',
 			ids: [ 1 ],
 		} );
-		bc.broadcast( 'desktop-mode.placement.changed', {
+		bc.broadcast( 'os.placement.changed', {
 			source: 'recycle-bin',
 			action: 'deleted',
 			ids: [ 1 ],
@@ -166,7 +166,7 @@ describe( 'files restore-sync', () => {
 		vi.stubGlobal( 'fetch', spy );
 
 		rs.startFilesRestoreSync();
-		bc.broadcast( 'desktop-mode.folder.changed', {
+		bc.broadcast( 'os.folder.changed', {
 			source: 'recycle-bin',
 			action: 'untrashed',
 			ids: [ 7 ],
@@ -199,17 +199,17 @@ describe( 'files restore-sync', () => {
 		vi.stubGlobal( 'fetch', spy );
 
 		rs.startFilesRestoreSync();
-		bc.broadcast( 'desktop-mode.placement.changed', {
+		bc.broadcast( 'os.placement.changed', {
 			source: 'recycle-bin',
 			action: 'untrashed',
 			ids: [ 1 ],
 		} );
-		bc.broadcast( 'desktop-mode.shortcut.changed', {
+		bc.broadcast( 'os.shortcut.changed', {
 			source: 'recycle-bin',
 			action: 'untrashed',
 			ids: [ 2 ],
 		} );
-		bc.broadcast( 'desktop-mode.folder.changed', {
+		bc.broadcast( 'os.folder.changed', {
 			source: 'recycle-bin',
 			action: 'untrashed',
 			ids: [ 3 ],

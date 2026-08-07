@@ -1,12 +1,12 @@
-# `wp.desktop.ai.ask()` — programmatic AI Copilot
+# `wp.os.ai.ask()` — programmatic AI Copilot
 
 Five-minute tour of the three shapes plugin authors reach for.
 
 ## 1. Just ask
 
 ```javascript
-wp.desktop.ready( async () => {
-    const res = await wp.desktop.ai.ask( 'where do I manage categories?' );
+wp.os.ready( async () => {
+    const res = await wp.os.ai.ask( 'where do I manage categories?' );
     console.log( res.answer_type );  // 'navigation'
     console.log( res.message );      // e.g. "Here's where you'll find them — Posts → Categories."
     console.log( res.admin_links );  // [ { title, url, description, icon }, … ]
@@ -22,8 +22,8 @@ Same endpoint the built-in overlay uses. No JS framework required — plain `awa
 ### Register the command with `aiCallable: true`
 
 ```javascript
-wp.desktop.ready( () => {
-    wp.desktop.registerCommand( {
+wp.os.ready( () => {
+    wp.os.registerCommand( {
         slug:        'turn_lights',
         label:       'Turn lights on/off',
         description: 'Toggle smart lights connected to Home Assistant.',
@@ -49,7 +49,7 @@ wp.desktop.ready( () => {
 ### Ask with tools enabled
 
 ```javascript
-const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
+const res = await wp.os.ai.ask( 'hey turn on the lights', {
     tools: 'aiCallable',
 } );
 
@@ -63,7 +63,7 @@ const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
 Add `followUp: true`:
 
 ```javascript
-const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
+const res = await wp.os.ai.ask( 'hey turn on the lights', {
     tools:    'aiCallable',
     followUp: true,
 } );
@@ -84,12 +84,12 @@ Pass an array of slugs or a predicate if you want only a subset offered to the m
 
 ```javascript
 // Only these three:
-await wp.desktop.ai.ask( prompt, {
+await wp.os.ai.ask( prompt, {
     tools: [ 'turn_lights', 'set_thermostat', 'play_music' ],
 } );
 
 // Or a predicate:
-await wp.desktop.ai.ask( prompt, {
+await wp.os.ai.ask( prompt, {
     tools: ( slug ) => slug.startsWith( 'ha_' ) && ! slug.endsWith( '_delete' ),
 } );
 ```
@@ -101,7 +101,7 @@ Only commands with `aiCallable: true` are visible regardless — the option can 
 Give the AI domain context without touching PHP:
 
 ```javascript
-await wp.desktop.ai.ask( 'is the kitchen light on?', {
+await wp.os.ai.ask( 'is the kitchen light on?', {
     tools: 'aiCallable',
     systemPrompt:
         'You control a smart home. Rooms: kitchen, living room, bedroom, garage. ' +
@@ -113,7 +113,7 @@ await wp.desktop.ai.ask( 'is the kitchen light on?', {
 String = append. For a full replace (admin-only by default):
 
 ```javascript
-await wp.desktop.ai.ask( 'status?', {
+await wp.os.ai.ask( 'status?', {
     systemPrompt: { mode: 'replace', text: 'Only reply in a single short sentence.' },
 } );
 ```
@@ -129,7 +129,7 @@ add_action( 'wp_abilities_api_init', function () {
     wp_register_ability( 'my-plugin/list-recent-orders', array(
         'label'               => __( 'List recent orders', 'my-plugin' ),
         'description'         => 'Return the N most recent WooCommerce orders, newest first.',
-        'category'            => 'desktop-mode', // or your own registered category
+        'category'            => 'openstation', // or your own registered category
         'input_schema'        => array(
             'type'                 => 'object',
             'additionalProperties' => false,
@@ -173,23 +173,23 @@ No JS required, and no opt-in step. The agent loop advertises the ability to the
 Every call is trace-able via three actions that share a `request_id`:
 
 ```php
-add_action( 'desktop_mode_ai_search_started', function ( $ctx ) {
+add_action( 'openstation_ai_search_started', function ( $ctx ) {
     // { query, user_id, request_id }
     my_logger()->info( 'ai.started', $ctx );
 } );
 
-add_action( 'desktop_mode_ai_tool_called', function ( $ctx ) {
+add_action( 'openstation_ai_tool_called', function ( $ctx ) {
     // { tool_name, args, user_id, request_id }
     my_logger()->debug( 'ai.tool', $ctx );
 } );
 
-add_action( 'desktop_mode_ai_search_completed', function ( $ctx ) {
+add_action( 'openstation_ai_search_completed', function ( $ctx ) {
     // { query, user_id, request_id, answer_type, iterations, usage, model }
     // usage = { prompt, completion, total } tokens; model = { id, name } (or null).
     my_logger()->info( 'ai.completed', $ctx );
 } );
 
-add_action( 'desktop_mode_ai_search_error', function ( $err ) {
+add_action( 'openstation_ai_search_error', function ( $err ) {
     my_logger()->error( 'ai.error', $err );
 } );
 ```
@@ -201,7 +201,7 @@ const controller = new AbortController();
 const timeout = setTimeout( () => controller.abort(), 8000 );
 
 try {
-    const res = await wp.desktop.ai.ask( prompt, { signal: controller.signal } );
+    const res = await wp.os.ai.ask( prompt, { signal: controller.signal } );
     console.log( res.message );
 } catch ( err ) {
     if ( err instanceof DOMException && err.name === 'AbortError' ) {

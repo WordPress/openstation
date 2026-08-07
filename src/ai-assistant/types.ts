@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — AI Assistant shared types.
+ * OpenStation — AI Assistant shared types.
  *
  * Lives in its own file so the main-bundle stub can import the
  * interface without dragging the full `impl.ts` (38 kB) along with
@@ -11,7 +11,7 @@ import type { AskFn } from '../ai/ask';
 
 /**
  * Public contract of the AI Assistant — what plugins reach through
- * `wp.desktop.ai`. Implemented by both the lazy stub (main bundle)
+ * `wp.os.ai`. Implemented by both the lazy stub (main bundle)
  * and the real `AiAssistant` class (in the lazy-loaded
  * `ai-assistant` bundle).
  */
@@ -63,7 +63,7 @@ export interface AiAssistantConfig {
 
 /**
  * Factory exported by the impl bundle on
- * `window.desktopModeCreateAiAssistant`. The stub awaits the script
+ * `window.openStationCreateAiAssistant`. The stub awaits the script
  * load, then calls this to materialise the real assistant.
  */
 export type AiAssistantFactory = ( config: AiAssistantConfig ) => AiAssistantApi & {

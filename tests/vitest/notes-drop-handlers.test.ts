@@ -137,7 +137,7 @@ describe( 'note drop handlers', () => {
 		expect( handled ).toBe( true );
 
 		// Optimistic controller mounted immediately.
-		const optimistic = document.querySelector( '.desktop-mode-pinned-note' );
+		const optimistic = document.querySelector( '.os-pinned-note' );
 		expect( optimistic ).not.toBeNull();
 
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
@@ -171,9 +171,9 @@ describe( 'note drop handlers', () => {
 			{ clientX: 300, clientY: 100 },
 			{ folderId: 0, host: layer.host },
 		);
-		expect( document.querySelector( '.desktop-mode-pinned-note' ) ).not.toBeNull();
+		expect( document.querySelector( '.os-pinned-note' ) ).not.toBeNull();
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
-		expect( document.querySelector( '.desktop-mode-pinned-note' ) ).toBeNull();
+		expect( document.querySelector( '.os-pinned-note' ) ).toBeNull();
 	} );
 
 	test( 'note drop repositions an existing note and PATCHes', async () => {

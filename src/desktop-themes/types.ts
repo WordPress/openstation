@@ -2,7 +2,7 @@
  * Desktop-theme types shared across the shell bundle.
  *
  * Deliberately dependency-free so `src/desktop-themes/` can stay a
- * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<wpd-*>`
+ * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<os-*>`
  * imports — the heavy picker UI lives in the lazy OS Settings panel
  * bundle instead.
  */
@@ -20,7 +20,7 @@
  * same theme.
  *
  * Sanitized by PHP against
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()` and
+ * `openstation_desktop_theme_recommended_os_settings_schema()` and
  * re-checked in {@link normalizeEntry} — the payload passes through a
  * filter after sanitization, so the shell never treats it as trusted.
  *
@@ -34,12 +34,48 @@ export interface RecommendedOsSettings {
 	/** `sharp` | `default` | `round`. */
 	windowRadius?: string;
 	/**
-	 * Dock rail-renderer id. Unlike the three enums above, validity is
+	 * `static` | `dynamic` | `hidden` — how the WordPress admin bar
+	 * presents above the shell. A theme that wants an edge-to-edge
+	 * desk recommends `dynamic` (auto-hide, reveals on hover) or
+	 * `hidden`.
+	 */
+	adminBarMode?: string;
+	/**
+	 * Dock rail-renderer id. Unlike the enums above, validity is
 	 * only knowable at runtime — the apply pass drops this key when no
 	 * renderer is registered under the id, rather than writing an
 	 * unresolvable value into the user's settings.
 	 */
 	dockRailRenderer?: string;
+	/**
+	 * Window-reveal id — the transition that uncovers a window's
+	 * content once it has loaded. Same runtime-validity story as
+	 * {@link dockRailRenderer}: the apply pass drops the key when no
+	 * reveal is registered under the id. `'none'` is always valid; it
+	 * is the "no reveal" sentinel rather than a registration.
+	 */
+	windowReveal?: string;
+	/**
+	 * Global reveal duration in ms, overriding each reveal's own
+	 * timing. The one numeric recommendation — clamped to 80–4000.
+	 * Omit it (rather than recommending `0`) to leave the user's speed
+	 * alone.
+	 */
+	windowRevealDuration?: number;
+	/**
+	 * Accent swatch id (OS Settings → Appearance). Same runtime-
+	 * validity story as {@link dockRailRenderer}: the list is
+	 * filterable in PHP, so the apply pass drops the key when the site
+	 * offers no swatch under that id.
+	 *
+	 * This is the one recommendation a theme cannot express any other
+	 * way. The accent is written as an inline style on the shell
+	 * document, which outranks every stylesheet — so a palette can
+	 * restyle the entire OS and still find WordPress blue on every
+	 * focus ring and tab underline. Recommending it is how a theme
+	 * says "and this hue with it".
+	 */
+	accent?: string;
 }
 
 /**

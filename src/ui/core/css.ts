@@ -1,5 +1,5 @@
 /**
- * wpd-ui — CSS tagged template.
+ * os-ui — CSS tagged template.
  *
  * Returns a `CSSStyleSheet` when the browser supports
  * constructable stylesheets (every evergreen, including Safari
@@ -54,7 +54,7 @@ export function css(
 			// injection vector for CSS tagged templates. The
 			// error is clearer than a silent malformed sheet.
 			throw new TypeError(
-				'[wpd-ui] css`` interpolations must be strings, numbers, or other css`` results. Got: ' +
+				'[os-ui] css`` interpolations must be strings, numbers, or other css`` results. Got: ' +
 					typeof v,
 			);
 		}

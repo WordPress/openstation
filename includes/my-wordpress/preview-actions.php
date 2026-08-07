@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — My WordPress: server-side preview-action descriptors.
+ * OpenStation — My WordPress: server-side preview-action descriptors.
  *
  * Plugins register action buttons that appear in the right-pane of
  * any My WordPress section (posts, pages, users, media, plugin-
@@ -27,7 +27,7 @@
  *     'script'     => 'my-plugin-actions',         // optional handle
  *   ]
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,7 +38,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array[]
  */
-function desktop_mode_my_wordpress_collect_preview_actions() {
+function openstation_my_wordpress_collect_preview_actions() {
 	/**
 	 * Filter the list of preview-action descriptors that appear in
 	 * the right-pane of any My WordPress section.
@@ -49,7 +49,7 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
 	 *
 	 * @param array[] $actions Default: empty array.
 	 */
-	$actions = (array) apply_filters( 'desktop_mode_my_wordpress_preview_actions', array() );
+	$actions = (array) apply_filters( 'openstation_my_wordpress_preview_actions', array() );
 
 	$out = array();
 	foreach ( $actions as $action ) {
@@ -88,15 +88,15 @@ function desktop_mode_my_wordpress_collect_preview_actions() {
  * descriptors. Called from the bundle's `admin_enqueue_scripts`
  * hook so the handlers are wired before the bundle paints.
  */
-function desktop_mode_my_wordpress_enqueue_preview_action_scripts() {
-	if ( ! function_exists( 'desktop_mode_my_wordpress_user_can_use' ) || ! desktop_mode_my_wordpress_user_can_use() ) {
+function openstation_my_wordpress_enqueue_preview_action_scripts() {
+	if ( ! function_exists( 'openstation_my_wordpress_user_can_use' ) || ! openstation_my_wordpress_user_can_use() ) {
 		return;
 	}
-	$actions = desktop_mode_my_wordpress_collect_preview_actions();
+	$actions = openstation_my_wordpress_collect_preview_actions();
 	foreach ( $actions as $action ) {
 		if ( ! empty( $action['script'] ) && wp_script_is( (string) $action['script'], 'registered' ) ) {
 			wp_enqueue_script( (string) $action['script'] );
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'desktop_mode_my_wordpress_enqueue_preview_action_scripts', 40 );
+add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_enqueue_preview_action_scripts', 40 );

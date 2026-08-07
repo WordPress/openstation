@@ -56,7 +56,7 @@ afterEach( () => {
 		}
 	}
 	document.body.innerHTML = '';
-	delete ( window as { desktopModeWallpapers?: unknown } ).desktopModeWallpapers;
+	delete ( window as { openStationWallpapers?: unknown } ).openStationWallpapers;
 	clearHooksStub();
 } );
 
@@ -76,7 +76,7 @@ describe( 'wallpaper description card', () => {
 		expect( slot.dataset.expanded ).toBe( 'true' );
 		expect( slot.textContent ).toContain( 'Dusk' );
 		expect( slot.textContent ).toContain( 'A quiet dusk gradient' );
-		expect( slot.querySelector( 'wpd-icon' ) ).not.toBeNull();
+		expect( slot.querySelector( 'os-icon' ) ).not.toBeNull();
 	} );
 
 	test( 'collapses when the selected wallpaper has no description', () => {
@@ -122,8 +122,8 @@ describe( 'wallpaper description server overlay', () => {
 
 	test( 'a script-published canvas def inherits the server description when it has none', async () => {
 		( window as {
-			desktopModeWallpapers?: Record< string, unknown >;
-		} ).desktopModeWallpapers = {
+			openStationWallpapers?: Record< string, unknown >;
+		} ).openStationWallpapers = {
 			'test-canvas': {
 				id: 'test-canvas',
 				label: 'Canvas',
@@ -148,8 +148,8 @@ describe( 'wallpaper description server overlay', () => {
 
 	test( 'a def that sets its own description wins over the server value', async () => {
 		( window as {
-			desktopModeWallpapers?: Record< string, unknown >;
-		} ).desktopModeWallpapers = {
+			openStationWallpapers?: Record< string, unknown >;
+		} ).openStationWallpapers = {
 			'test-canvas': {
 				id: 'test-canvas',
 				label: 'Canvas',

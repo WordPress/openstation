@@ -133,9 +133,9 @@ describe( 'svg-splines renderer', () => {
 		const svg = h.container.querySelector( 'svg' );
 		expect( svg ).not.toBeNull();
 		expect(
-			svg!.querySelectorAll( 'g.desktop-mode-window-link' ),
+			svg!.querySelectorAll( 'g.os-window-link' ),
 		).toHaveLength( 2 );
-		const path = svg!.querySelector( '.desktop-mode-window-link__path' )!;
+		const path = svg!.querySelector( '.os-window-link__path' )!;
 		expect( path.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
 		// Single-direction edge: large dot at the root end, small port
 		// at the source end.
@@ -159,7 +159,7 @@ describe( 'svg-splines renderer', () => {
 		);
 
 		const path = h.container.querySelector(
-			'.desktop-mode-window-link__path',
+			'.os-window-link__path',
 		)!;
 		expect( path.getAttribute( 'marker-end' ) ).toMatch( /-dot\)$/ );
 		expect( path.getAttribute( 'marker-start' ) ).toBe(
@@ -170,7 +170,7 @@ describe( 'svg-splines renderer', () => {
 	test( 'reuses the same elements across frames — only `d` changes', async () => {
 		const h = await mount( frameWith( [ edge() ] ) );
 		const svg = h.container.querySelector( 'svg' )!;
-		const before = svg.querySelector( '.desktop-mode-window-link__path' )!;
+		const before = svg.querySelector( '.os-window-link__path' )!;
 		const dBefore = before.getAttribute( 'd' );
 
 		h.emit(
@@ -179,7 +179,7 @@ describe( 'svg-splines renderer', () => {
 			] ),
 		);
 
-		const after = svg.querySelector( '.desktop-mode-window-link__path' )!;
+		const after = svg.querySelector( '.os-window-link__path' )!;
 		expect( after ).toBe( before );
 		expect( after.getAttribute( 'd' ) ).not.toBe( dBefore );
 	} );
@@ -196,7 +196,7 @@ describe( 'svg-splines renderer', () => {
 		);
 
 		expect(
-			h.container.querySelectorAll( 'g.desktop-mode-window-link' ),
+			h.container.querySelectorAll( 'g.os-window-link' ),
 		).toHaveLength( 1 );
 	} );
 
@@ -214,7 +214,7 @@ describe( 'svg-splines renderer', () => {
 		h.emit( frameWith( [ edge() ] ) );
 
 		expect(
-			h.container.querySelectorAll( 'g.desktop-mode-window-link' ),
+			h.container.querySelectorAll( 'g.os-window-link' ),
 		).toHaveLength( 1 );
 	} );
 
@@ -222,7 +222,7 @@ describe( 'svg-splines renderer', () => {
 		const h = await mount( frameWith( [ edge( { focused: true } ) ] ) );
 
 		const active = h.container.querySelector(
-			'.desktop-mode-window-link--active .desktop-mode-window-link__path',
+			'.os-window-link--active .os-window-link__path',
 		)!;
 		expect( active ).not.toBeNull();
 		expect( active.getAttribute( 'marker-end' ) ).toMatch( /dot-active/ );
@@ -232,11 +232,11 @@ describe( 'svg-splines renderer', () => {
 
 		h.emit( frameWith( [ edge( { focused: false } ) ] ) );
 		expect(
-			h.container.querySelector( '.desktop-mode-window-link--active' ),
+			h.container.querySelector( '.os-window-link--active' ),
 		).toBeNull();
 		expect(
 			h.container
-				.querySelector( '.desktop-mode-window-link__path' )!
+				.querySelector( '.os-window-link__path' )!
 				.getAttribute( 'marker-end' ),
 		).not.toMatch( /dot-active/ );
 	} );
@@ -261,7 +261,7 @@ describe( 'svg-splines renderer', () => {
 		);
 
 		const d = h.container
-			.querySelector( '.desktop-mode-window-link__path' )!
+			.querySelector( '.os-window-link__path' )!
 			.getAttribute( 'd' )!;
 		// Visible right-border stretch is y∈[370,400] → midpoint 385.
 		expect( d.startsWith( 'M 400 385' ) ).toBe( true );
@@ -281,7 +281,7 @@ describe( 'svg-splines renderer', () => {
 		);
 
 		const d = h.container
-			.querySelector( '.desktop-mode-window-link__path' )!
+			.querySelector( '.os-window-link__path' )!
 			.getAttribute( 'd' )!;
 		expect( d.startsWith( 'M 400 370' ) ).toBe( true );
 		expect( d.endsWith( '600 370' ) ).toBe( true );
@@ -305,7 +305,7 @@ describe( 'svg-splines renderer', () => {
 		);
 
 		const d = h.container
-			.querySelector( '.desktop-mode-window-link__path' )!
+			.querySelector( '.os-window-link__path' )!
 			.getAttribute( 'd' )!;
 		// Source: shortest (400,350) occluded → visible stretch midpoint
 		// (400,385). Target: shortest (600,350) visible → kept.
@@ -318,22 +318,22 @@ describe( 'svg-splines renderer', () => {
 
 		expect(
 			h.elevatedContainer.querySelectorAll(
-				'.desktop-mode-window-link__path',
+				'.os-window-link__path',
 			),
 		).toHaveLength( 1 );
 		expect(
-			h.container.querySelectorAll( '.desktop-mode-window-link__path' ),
+			h.container.querySelectorAll( '.os-window-link__path' ),
 		).toHaveLength( 0 );
 
 		// Focus moved away — the edge migrates to the base surface.
 		h.emit( frameWith( [ edge( { elevated: false } ) ] ) );
 		expect(
 			h.elevatedContainer.querySelectorAll(
-				'.desktop-mode-window-link__path',
+				'.os-window-link__path',
 			),
 		).toHaveLength( 0 );
 		expect(
-			h.container.querySelectorAll( '.desktop-mode-window-link__path' ),
+			h.container.querySelectorAll( '.os-window-link__path' ),
 		).toHaveLength( 1 );
 	} );
 

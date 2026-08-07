@@ -178,8 +178,8 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 			expect( isTextEntryFocus( document ) ).toBe( false );
 		} );
 
-		test( 'returns true when a text INPUT inside an open shadow root is focused (wpd-* host)', async () => {
-			// All <wpd-*> components attach an open shadow root, so when
+		test( 'returns true when a text INPUT inside an open shadow root is focused (os-* host)', async () => {
+			// All <os-*> components attach an open shadow root, so when
 			// the inner <input> takes focus, `document.activeElement`
 			// reports the HOST, not the input. The gate must walk into
 			// the shadow root so it still classifies the focus as text.

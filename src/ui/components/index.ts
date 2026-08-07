@@ -1,101 +1,102 @@
 /**
- * wpd-ui components barrel.
+ * os-ui components barrel.
  *
  * Importing this file side-effect-registers every component in the
  * first batch with `customElements.define()`. After this import,
- * any `<wpd-*>` tag in the DOM upgrades automatically.
+ * any `<os-*>` tag in the DOM upgrades automatically.
  *
  * Each component lives in its own folder with co-located styles
  * (`*.styles.ts`) and tests (`*.test.ts`), so a future refactor of
  * one component doesn't require touching any shared file.
  */
 
-export { WpdSection } from './wpd-section/wpd-section';
-export { WpdButton } from './wpd-button/wpd-button';
-export { WpdSwatch } from './wpd-swatch/wpd-swatch';
-export { WpdSwatchGrid } from './wpd-swatch-grid/wpd-swatch-grid';
-export { WpdSegmented, WpdSegment } from './wpd-segmented/wpd-segmented';
-export { WpdSelect, WpdOption } from './wpd-select/wpd-select';
-export { WpdMultiselect } from './wpd-multiselect/wpd-multiselect';
-export { WpdColorField } from './wpd-color-field/wpd-color-field';
-export { WpdRangeField } from './wpd-range-field/wpd-range-field';
-export { WpdTextField } from './wpd-text-field/wpd-text-field';
-export { WpdNumberField } from './wpd-number-field/wpd-number-field';
-export { WpdCheckbox } from './wpd-checkbox/wpd-checkbox';
-export { WpdCheckboxLabel } from './wpd-checkbox-label/wpd-checkbox-label';
-export { WpdToast, WpdToastContainer } from './wpd-toast/wpd-toast';
-export { WpdTabs, WpdTab, WpdTabPanel } from './wpd-tabs/wpd-tabs';
-export { WpdWindowButton } from './wpd-window-button/wpd-window-button';
-export { WpdMenu, WpdMenuItem } from './wpd-menu/wpd-menu';
-export { WpdContextMenu, WpdContextMenuOption } from './wpd-context-menu/wpd-context-menu';
-export { WpdConfirmDialog, wpdConfirm } from './wpd-confirm-dialog/wpd-confirm-dialog';
-export { WpdModal } from './wpd-modal/wpd-modal';
-export { WpdUserSearch } from './wpd-user-search/wpd-user-search';
-export { WpdRolePicker } from './wpd-role-picker/wpd-role-picker';
-export { WpdFlyout } from './wpd-flyout/wpd-flyout';
-export type { WpdFlyoutPlacement } from './wpd-flyout/wpd-flyout';
-export { WpdTabChip } from './wpd-tab-chip/wpd-tab-chip';
-export { WpdStack } from './wpd-stack/wpd-stack';
-export { WpdCluster } from './wpd-cluster/wpd-cluster';
-export { WpdIcon } from './wpd-icon/wpd-icon';
-export { WpdBody } from './wpd-body/wpd-body';
-export { WpdPanel } from './wpd-panel/wpd-panel';
-export { WpdRow } from './wpd-row/wpd-row';
-export { WpdGrid } from './wpd-grid/wpd-grid';
-export { WpdDisplay } from './wpd-display/wpd-display';
-export { WpdEmptyState } from './wpd-empty-state/wpd-empty-state';
-export { WpdKey } from './wpd-key/wpd-key';
-export { WpdCode } from './wpd-code/wpd-code';
-export { WpdBadge } from './wpd-badge/wpd-badge';
-export type { WpdBadgeTone } from './wpd-badge/wpd-badge';
-export { WpdRibbon } from './wpd-ribbon/wpd-ribbon';
-export type { WpdRibbonPlacement, WpdRibbonTone } from './wpd-ribbon/wpd-ribbon';
-export { WpdTile } from './wpd-tile/wpd-tile';
-export { WpdLog } from './wpd-log/wpd-log';
-export type { WpdLogRowRenderer } from './wpd-log/wpd-log';
-export { WpdSteps, WpdStep } from './wpd-steps/wpd-steps';
-export { WpdTable } from './wpd-table/wpd-table';
+export { OsSection } from './os-section/os-section';
+export { OsButton } from './os-button/os-button';
+export { OsSwatch } from './os-swatch/os-swatch';
+export { OsSwatchGrid } from './os-swatch-grid/os-swatch-grid';
+export { OsSegmented, OsSegment } from './os-segmented/os-segmented';
+export { OsSelect, OsOption } from './os-select/os-select';
+export { OsMultiselect } from './os-multiselect/os-multiselect';
+export { OsColorField } from './os-color-field/os-color-field';
+export { OsRangeField } from './os-range-field/os-range-field';
+export { OsTextField } from './os-text-field/os-text-field';
+export { OsNumberField } from './os-number-field/os-number-field';
+export { OsCheckbox } from './os-checkbox/os-checkbox';
+export { OsCheckboxLabel } from './os-checkbox-label/os-checkbox-label';
+export { OsSwitch } from './os-switch/os-switch';
+export { OsToast, OsToastContainer } from './os-toast/os-toast';
+export { OsTabs, OsTab, OsTabPanel } from './os-tabs/os-tabs';
+export { OsWindowButton } from './os-window-button/os-window-button';
+export { OsMenu, OsMenuItem } from './os-menu/os-menu';
+export { OsContextMenu, OsContextMenuOption } from './os-context-menu/os-context-menu';
+export { OsConfirmDialog, osConfirm } from './os-confirm-dialog/os-confirm-dialog';
+export { OsModal } from './os-modal/os-modal';
+export { OsUserSearch } from './os-user-search/os-user-search';
+export { OsRolePicker } from './os-role-picker/os-role-picker';
+export { OsFlyout } from './os-flyout/os-flyout';
+export type { OsFlyoutPlacement } from './os-flyout/os-flyout';
+export { OsTabChip } from './os-tab-chip/os-tab-chip';
+export { OsStack } from './os-stack/os-stack';
+export { OsCluster } from './os-cluster/os-cluster';
+export { OsIcon } from './os-icon/os-icon';
+export { OsBody } from './os-body/os-body';
+export { OsPanel } from './os-panel/os-panel';
+export { OsRow } from './os-row/os-row';
+export { OsGrid } from './os-grid/os-grid';
+export { OsDisplay } from './os-display/os-display';
+export { OsEmptyState } from './os-empty-state/os-empty-state';
+export { OsKey } from './os-key/os-key';
+export { OsCode } from './os-code/os-code';
+export { OsBadge } from './os-badge/os-badge';
+export type { OsBadgeTone } from './os-badge/os-badge';
+export { OsRibbon } from './os-ribbon/os-ribbon';
+export type { OsRibbonPlacement, OsRibbonTone } from './os-ribbon/os-ribbon';
+export { OsTile } from './os-tile/os-tile';
+export { OsLog } from './os-log/os-log';
+export type { OsLogRowRenderer } from './os-log/os-log';
+export { OsSteps, OsStep } from './os-steps/os-steps';
+export { OsTable } from './os-table/os-table';
 export type {
-	WpdTableColumn,
-	WpdTableFilters,
-	WpdTableGetRowId,
-	WpdTableRowId,
-	WpdTableSort,
-	WpdTableSubTableFn,
-	WpdTableSubTableResult,
-} from './wpd-table/wpd-table';
-export { WpdSpinner, WPD_SPINNER_PRESETS } from './wpd-spinner/wpd-spinner';
+	OsTableColumn,
+	OsTableFilters,
+	OsTableGetRowId,
+	OsTableRowId,
+	OsTableSort,
+	OsTableSubTableFn,
+	OsTableSubTableResult,
+} from './os-table/os-table';
+export { OsSpinner, OS_SPINNER_PRESETS } from './os-spinner/os-spinner';
 export type {
-	WpdSpinnerConfig,
-	WpdSpinnerPreset,
-	WpdSpinnerPulse,
-} from './wpd-spinner/wpd-spinner';
-export { WpdRelativeTime } from './wpd-relative-time/wpd-relative-time';
-export { WpdAvatar } from './wpd-avatar/wpd-avatar';
-export type { WpdAvatarPresence } from './wpd-avatar/wpd-avatar';
-export { WpdTextarea } from './wpd-textarea/wpd-textarea';
-export { WpdChip } from './wpd-chip/wpd-chip';
-export type { WpdChipTone, WpdChipSize } from './wpd-chip/wpd-chip';
-export { WpdTagInput } from './wpd-tag-input/wpd-tag-input';
-export type { WpdTagItem } from './wpd-tag-input/wpd-tag-input';
-export { WpdForm } from './wpd-form/wpd-form';
-export { WpdSaveStatus } from './wpd-save-status/wpd-save-status';
+	OsSpinnerConfig,
+	OsSpinnerPreset,
+	OsSpinnerPulse,
+} from './os-spinner/os-spinner';
+export { OsRelativeTime } from './os-relative-time/os-relative-time';
+export { OsAvatar } from './os-avatar/os-avatar';
+export type { OsAvatarPresence } from './os-avatar/os-avatar';
+export { OsTextarea } from './os-textarea/os-textarea';
+export { OsChip } from './os-chip/os-chip';
+export type { OsChipTone, OsChipSize } from './os-chip/os-chip';
+export { OsTagInput } from './os-tag-input/os-tag-input';
+export type { OsTagItem } from './os-tag-input/os-tag-input';
+export { OsForm } from './os-form/os-form';
+export { OsSaveStatus } from './os-save-status/os-save-status';
 export type {
-	WpdSaveStatusPhase,
-	WpdSaveStatusMode,
-	WpdSaveStatusLifecycleDetail,
-} from './wpd-save-status/wpd-save-status';
-export { WpdCategoryPicker } from './wpd-category-picker/wpd-category-picker';
-export type { WpdCategoryItem } from './wpd-category-picker/wpd-category-picker';
-export { WpdCrumbChain } from './wpd-crumb-chain/wpd-crumb-chain';
-export type { WpdCrumbSegment } from './wpd-crumb-chain/wpd-crumb-chain';
-export { WpdCard } from './wpd-card/wpd-card';
-export { WpdRatingSummary } from './wpd-rating-summary/wpd-rating-summary';
-export type { WpdRatingBuckets } from './wpd-rating-summary/wpd-rating-summary';
-export { WpdNotice } from './wpd-notice/wpd-notice';
-export type { WpdNoticeTone } from './wpd-notice/wpd-notice';
-export { WpdProgressBar } from './wpd-progress-bar/wpd-progress-bar';
-export type { WpdProgressTone } from './wpd-progress-bar/wpd-progress-bar';
+	OsSaveStatusPhase,
+	OsSaveStatusMode,
+	OsSaveStatusLifecycleDetail,
+} from './os-save-status/os-save-status';
+export { OsCategoryPicker } from './os-category-picker/os-category-picker';
+export type { OsCategoryItem } from './os-category-picker/os-category-picker';
+export { OsCrumbChain } from './os-crumb-chain/os-crumb-chain';
+export type { OsCrumbSegment } from './os-crumb-chain/os-crumb-chain';
+export { OsCard } from './os-card/os-card';
+export { OsRatingSummary } from './os-rating-summary/os-rating-summary';
+export type { OsRatingBuckets } from './os-rating-summary/os-rating-summary';
+export { OsNotice } from './os-notice/os-notice';
+export type { OsNoticeTone } from './os-notice/os-notice';
+export { OsProgressBar } from './os-progress-bar/os-progress-bar';
+export type { OsProgressTone } from './os-progress-bar/os-progress-bar';
 
 // List of tags registered by this barrel. Defined in `./tags`
 // (the single source of truth, kept side-effect-free so tag-only
@@ -103,6 +104,6 @@ export type { WpdProgressTone } from './wpd-progress-bar/wpd-progress-bar';
 // and re-exported here for convenience. `doAction(
 // COMPONENTS_REGISTERED, { tags } )` fires once from
 // `src/desktop.ts` after the module graph settles, so
-// subscribers needing to defer work until every `<wpd-*>` is
+// subscribers needing to defer work until every `<os-*>` is
 // callable have a single signal to latch onto.
-export { WPD_COMPONENT_TAGS } from './tags';
+export { OS_COMPONENT_TAGS } from './tags';

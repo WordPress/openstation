@@ -61,15 +61,15 @@ export type SystemTileAffinity = 'core' | 'plugin';
 
 /** External wiring the dispatcher needs from the shell boot path. */
 export interface LayoutDispatcherDeps {
-	/** Outermost shell root — receives `data-desktop-mode-layout`. */
+	/** Outermost shell root — receives `data-os-layout`. */
 	shellRoot: HTMLElement;
 	/**
-	 * `.desktop-mode-shell__body` flex row that hosts the side dock and
+	 * `.os-shell__body` flex row that hosts the side dock and
 	 * the desktop area. The side dock (Classic) is inserted as the
 	 * first child here so its CSS `order: -1` paints it on the left.
 	 */
 	shellBody: HTMLElement;
-	/** Existing `#desktop-mode-dock` element from the PHP shell template. */
+	/** Existing `#os-dock` element from the PHP shell template. */
 	bottomDockEl: HTMLElement;
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
@@ -110,7 +110,7 @@ export interface LayoutDispatcher {
 	 * the OS Settings tile, repaints the wallpaper-icon grid.
 	 *
 	 * Idempotent: passing the current layout is a no-op. Plugins that
-	 * cache `wp.desktop.dock` should listen for `desktop-mode-layout-
+	 * cache `wp.os.dock` should listen for `os-layout-
 	 * changed` on `document` and refresh their reference.
 	 */
 	setLayout( layout: DesktopLayoutId ): void;
@@ -160,6 +160,8 @@ export interface LayoutDispatcher {
 		title: string;
 		icon: string;
 		affinity: SystemTileAffinity;
+		/** Whether the tile opts into the Apps & Icons list. */
+		placeable: boolean;
 	} >;
 	/**
 	 * Look up a system tile by id. Returns the underlying
@@ -185,7 +187,7 @@ export interface LayoutDispatcher {
 	destroy(): void;
 }
 
-const SIDE_DOCK_ID = 'desktop-mode-side-dock';
+const SIDE_DOCK_ID = 'os-side-dock';
 
 /**
  * Convert a core menu item into the icon-entry shape `renderDesktopIcons`
@@ -221,8 +223,8 @@ export function createLayoutDispatcher(
 	// Two-tier storage: controllers drive every live update (built
 	// from `renderer.mount()`), and the unwrapped Dock instances are
 	// kept alongside ONLY when the active renderer is the built-in
-	// `'default'`. The Dock references back the public `wp.desktop.dock`
-	// / `wp.desktop.sideDock` API surface unchanged; custom-renderer
+	// `'default'`. The Dock references back the public `wp.os.dock`
+	// / `wp.os.sideDock` API surface unchanged; custom-renderer
 	// controllers expose null there. Plugin authors who want renderer-
 	// agnostic access reach for the controller via the dispatcher.
 	let primary: DockRailController | null = null;
@@ -263,10 +265,10 @@ export function createLayoutDispatcher(
 		}
 		const el = document.createElement( 'nav' );
 		el.id = SIDE_DOCK_ID;
-		el.className = 'desktop-mode-dock';
+		el.className = 'os-dock';
 		el.setAttribute( 'role', 'toolbar' );
 		el.setAttribute( 'aria-label', 'Core admin navigation' );
-		// Insert as the first child of `.desktop-mode-shell__body` so
+		// Insert as the first child of `.os-shell__body` so
 		// the existing `order: -1` left-placement CSS paints it on
 		// the leading edge regardless of source order in the markup.
 		deps.shellBody.insertBefore( el, deps.shellBody.firstChild );
@@ -389,7 +391,7 @@ export function createLayoutDispatcher(
 		// the wallpaper would create two paths to the same screen.
 		//
 		// NOTE: on shells where the files layer is mounted (0.9.0+),
-		// `.desktop-mode-icons` — the container `deps.renderIcons()`
+		// `.os-icons` — the container `deps.renderIcons()`
 		// paints into — is hidden by CSS (see `desktop-files.css`'s
 		// `:has(...)` rule), since the files layer is the actual
 		// visible wallpaper surface. The synthesis below still runs
@@ -634,11 +636,11 @@ export function createLayoutDispatcher(
 				return;
 			}
 			layout = next;
-			deps.shellRoot.setAttribute( 'data-desktop-mode-layout', next );
+			deps.shellRoot.setAttribute( 'data-os-layout', next );
 			buildDocksForCurrentLayout();
 			repaintIcons();
 			document.dispatchEvent(
-				new CustomEvent( 'desktop-mode-layout-changed', {
+				new CustomEvent( 'os-layout-changed', {
 					detail: {
 						layout: next,
 						primary: primaryDock,
@@ -702,6 +704,7 @@ export function createLayoutDispatcher(
 				title: entry.item.title,
 				icon: entry.item.icon,
 				affinity: entry.affinity,
+				placeable: entry.item.placeable === true,
 			} ) ),
 		getSystemTile: ( id: string ): SystemDockItem | null =>
 			systemTiles.get( id )?.item ?? null,
@@ -731,7 +734,7 @@ export function createLayoutDispatcher(
 	// Initial paint — set the shell attribute, build the docks, and
 	// emit the icon list now so the user lands on a fully-rendered
 	// shell before the first frame.
-	deps.shellRoot.setAttribute( 'data-desktop-mode-layout', layout );
+	deps.shellRoot.setAttribute( 'data-os-layout', layout );
 	buildDocksForCurrentLayout();
 	repaintIcons();
 
@@ -750,7 +753,7 @@ export function createLayoutDispatcher(
 		buildDocksForCurrentLayout();
 		repaintIcons();
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-layout-changed', {
+			new CustomEvent( 'os-layout-changed', {
 				detail: {
 					layout,
 					primary: primaryDock,

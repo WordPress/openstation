@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Dock Peek.
+ * OpenStation — Dock Peek.
  *
  * On pointerenter of a multi-capable dock tile that has at least one
  * open window, fan out a stack of "peek cards" anchored to the tile:
@@ -198,9 +198,9 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		popover = buildPopover( deps, () => tearDown(), previewByWindowId );
 		document.body.appendChild( popover );
 		// Inherit the user's WP color-scheme variables. The popover is
-		// body-attached (outside `.desktop-mode-shell`), so the scheme
+		// body-attached (outside `.os-shell`), so the scheme
 		// overrides scoped to the shell — e.g. midnight's
-		// `--desktop-mode-titlebar-bg-focused: #1e1e1e` — never cascade
+		// `--os-titlebar-bg-focused: #1e1e1e` — never cascade
 		// here. Copy the resolved values onto the popover root so the
 		// card titlebars match the live windows.
 		inheritShellSchemeVars( popover );
@@ -210,7 +210,7 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		// initial frame's `transform` from CSS is the start of the
 		// transition (not the end of it).
 		requestAnimationFrame( () => {
-			popover?.classList.add( 'desktop-mode-dock-peek--open' );
+			popover?.classList.add( 'os-dock-peek--open' );
 		} );
 
 		popover.addEventListener( 'pointerenter', () => {
@@ -254,7 +254,7 @@ function buildPopover(
 	previewByWindowId: Map< string, PreviewEntry >,
 ): HTMLElement {
 	const root = document.createElement( 'div' );
-	root.className = 'desktop-mode-dock-peek';
+	root.className = 'os-dock-peek';
 	root.setAttribute( 'role', 'menu' );
 	root.setAttribute( 'aria-label', sprintf(
 		// translators: %s is the dock item's admin-page title (e.g., "Posts")
@@ -263,7 +263,7 @@ function buildPopover(
 	) );
 
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-dock-peek__cards';
+	cards.className = 'os-dock-peek__cards';
 	root.appendChild( cards );
 
 	const instances = deps.getInstances();
@@ -323,7 +323,7 @@ function buildInstanceCard(
 	card.type = 'button';
 	card.setAttribute( 'role', 'menuitem' );
 	card.className =
-		'desktop-mode-dock-peek__card desktop-mode-dock-peek__card--instance';
+		'os-dock-peek__card os-dock-peek__card--instance';
 	card.style.setProperty( '--peek-card-index', String( index ) );
 	card.style.setProperty(
 		'--peek-card-delay',
@@ -341,14 +341,14 @@ function buildInstanceCard(
 	// after the click so a subsequent peek doesn't dangle a stale name.
 	card.style.setProperty(
 		'--peek-card-vt-name',
-		`desktop-mode-peek-card-${ win.id }`,
+		`os-peek-card-${ win.id }`,
 	);
 
 	const titlebar = document.createElement( 'span' );
-	titlebar.className = 'desktop-mode-dock-peek__card-titlebar';
+	titlebar.className = 'os-dock-peek__card-titlebar';
 
 	const dots = document.createElement( 'span' );
-	dots.className = 'desktop-mode-dock-peek__card-dots';
+	dots.className = 'os-dock-peek__card-dots';
 	dots.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 3; i++ ) {
 		dots.appendChild( document.createElement( 'i' ) );
@@ -356,7 +356,7 @@ function buildInstanceCard(
 	titlebar.appendChild( dots );
 
 	const iconHost = document.createElement( 'span' );
-	iconHost.className = 'desktop-mode-dock-peek__card-icon';
+	iconHost.className = 'os-dock-peek__card-icon';
 	iconHost.setAttribute( 'aria-hidden', 'true' );
 	const iconCls = win.config.icon || deps.item.icon;
 	if ( iconCls.startsWith( 'dashicons-' ) ) {
@@ -367,7 +367,7 @@ function buildInstanceCard(
 	titlebar.appendChild( iconHost );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-dock-peek__card-label';
+	label.className = 'os-dock-peek__card-label';
 	label.textContent = title;
 	titlebar.appendChild( label );
 
@@ -376,14 +376,14 @@ function buildInstanceCard(
 	// Body — tinted "page" surface with three ghost content lines.
 	// Pure decoration by default; readers can't infer page state.
 	// Plugins can swap the body wholesale (or mutate it) by hooking
-	// `desktop-mode.dock.peek-card-content` — that's how a window can
+	// `os.dock.peek-card-content` — that's how a window can
 	// render a real thumbnail, a status panel, a chart, etc.
 	const defaultBody = document.createElement( 'span' );
-	defaultBody.className = 'desktop-mode-dock-peek__card-body';
+	defaultBody.className = 'os-dock-peek__card-body';
 	defaultBody.setAttribute( 'aria-hidden', 'true' );
 	for ( let i = 0; i < 3; i++ ) {
 		const line = document.createElement( 'span' );
-		line.className = 'desktop-mode-dock-peek__card-line';
+		line.className = 'os-dock-peek__card-line';
 		defaultBody.appendChild( line );
 	}
 	const ctx: DockPeekCardContext = { window: win, item: deps.item };
@@ -395,7 +395,7 @@ function buildInstanceCard(
 	// Mark plugin-customized bodies so CSS can opt out of the default
 	// padding / gradient when a plugin wants pixel control.
 	if ( body !== defaultBody ) {
-		body.classList.add( 'desktop-mode-dock-peek__card-body--custom' );
+		body.classList.add( 'os-dock-peek__card-body--custom' );
 	}
 	card.appendChild( body );
 
@@ -508,7 +508,7 @@ function spawnFocusViewTransition(
 	const doc = document as Document & {
 		startViewTransition?: ( cb: () => void ) => unknown;
 	};
-	const vtName = `desktop-mode-peek-card-${ win.id }`;
+	const vtName = `os-peek-card-${ win.id }`;
 	const focus = (): void => {
 		dismiss();
 		restoreIfMinimized( win, card );
@@ -549,7 +549,7 @@ function buildGhostCard(
 	card.type = 'button';
 	card.setAttribute( 'role', 'menuitem' );
 	card.className =
-		'desktop-mode-dock-peek__card desktop-mode-dock-peek__card--ghost';
+		'os-dock-peek__card os-dock-peek__card--ghost';
 	card.style.setProperty( '--peek-card-index', String( index ) );
 	card.style.setProperty(
 		'--peek-card-delay',
@@ -559,13 +559,13 @@ function buildGhostCard(
 	// Ghost label uses a phrase, not a glyph. The "+" sits beside it
 	// at quarter opacity — decoration, not the affordance itself.
 	const plus = document.createElement( 'span' );
-	plus.className = 'desktop-mode-dock-peek__card-plus';
+	plus.className = 'os-dock-peek__card-plus';
 	plus.setAttribute( 'aria-hidden', 'true' );
 	plus.textContent = '+';
 	card.appendChild( plus );
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-dock-peek__card-label';
+	label.className = 'os-dock-peek__card-label';
 	label.textContent = sprintf(
 		// translators: %s is the admin-page title (e.g., "Posts")
 		__( 'New %s' ),
@@ -609,10 +609,10 @@ const VIEWPORT_MARGIN_PX = 12;
 
 /**
  * CSS custom properties whose resolved value must be copied from the
- * `.desktop-mode-shell` element onto the body-attached peek popover.
+ * `.os-shell` element onto the body-attached peek popover.
  *
  * The desktop shell scopes per-color-scheme overrides to itself
- * (`.desktop-mode-shell[data-desktop-mode-scheme=…] { --x: … }`) — so a
+ * (`.os-shell[data-os-scheme=…] { --x: … }`) — so a
  * popover appended to `document.body` gets the `:root` defaults
  * instead of the user's selected scheme. Inheriting these by hand
  * keeps the card chrome a faithful shrink of the real window
@@ -620,14 +620,14 @@ const VIEWPORT_MARGIN_PX = 12;
  */
 const SHELL_SCHEME_VARS = [
 	'--wp-admin-theme-color',
-	'--desktop-mode-titlebar-bg',
-	'--desktop-mode-titlebar-bg-focused',
-	'--desktop-mode-titlebar-color',
-	'--desktop-mode-titlebar-color-focused',
+	'--os-titlebar-bg',
+	'--os-titlebar-bg-focused',
+	'--os-titlebar-color',
+	'--os-titlebar-color-focused',
 ] as const;
 
 function inheritShellSchemeVars( popover: HTMLElement ): void {
-	const shell = document.querySelector< HTMLElement >( '.desktop-mode-shell' );
+	const shell = document.querySelector< HTMLElement >( '.os-shell' );
 	if ( ! shell ) {
 		return;
 	}
@@ -713,7 +713,7 @@ function clampToViewport(
 	// custom property the CSS reads inside `translate(...)`.
 	popover.style.setProperty( '--peek-clamp-x', `${ dx }px` );
 	popover.style.setProperty( '--peek-clamp-y', `${ dy }px` );
-	popover.classList.add( 'desktop-mode-dock-peek--clamped' );
+	popover.classList.add( 'os-dock-peek--clamped' );
 	// Suppress orientation/clamp variables for `bottom`'s horizontal
 	// case on left/right docks — handled in CSS via the data attribute.
 	void orientation;

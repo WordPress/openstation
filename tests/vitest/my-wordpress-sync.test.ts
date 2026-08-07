@@ -5,21 +5,21 @@ import * as bc from '../../src/broadcast';
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 interface NativeWindowsGlobal {
-	desktopModeNativeWindows?: Record<
+	openStationNativeWindows?: Record<
 		string,
 		( ( body: HTMLElement ) => void | ( () => void ) ) | undefined
 	>;
-	desktopModeWindowConfig?: Record< string, unknown >;
+	openStationWindowConfig?: Record< string, unknown >;
 }
 
 function installTemplateMarkup( host: HTMLElement ): void {
 	host.innerHTML = `
-		<div class="desktop-mode-my-wordpress" data-desktop-mode-my-wordpress-root>
-			<header data-desktop-mode-my-wordpress-breadcrumbs></header>
-			<div class="desktop-mode-my-wordpress__body" data-desktop-mode-my-wordpress-body>
-				<div class="desktop-mode-my-wordpress__loading" data-desktop-mode-my-wordpress-loading hidden></div>
+		<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
+			<header data-os-my-wordpress-breadcrumbs></header>
+			<div class="os-my-wordpress__body" data-os-my-wordpress-body>
+				<div class="os-my-wordpress__loading" data-os-my-wordpress-loading hidden></div>
 			</div>
-			<div class="desktop-mode-folder-status-bar" data-desktop-mode-my-wordpress-status></div>
+			<div class="os-folder-status-bar" data-os-my-wordpress-status></div>
 		</div>
 	`;
 }
@@ -31,19 +31,19 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 		installHooksStub();
 		vi.useFakeTimers();
 
-		// Set up window.wp.desktop with mock subscription capabilities
+		// Set up window.wp.os with mock subscription capabilities
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
-			desktop: {
-				...( ( w.wp?.desktop as Record< string, unknown > | undefined ) ?? {} ),
+			os: {
+				...( ( w.wp?.os as Record< string, unknown > | undefined ) ?? {} ),
 				subscribe: bc.subscribe,
 				broadcast: bc.broadcast,
 			},
 		};
 
 		// Stub the shell config the bundle reads via `getConfig()`.
-		( window as unknown as NativeWindowsGlobal ).desktopModeWindowConfig = {
+		( window as unknown as NativeWindowsGlobal ).openStationWindowConfig = {
 			[ WINDOW_ID ]: {
 				restRoot: 'http://example.test/wp-json/',
 				restNonce: 'nonce',
@@ -94,28 +94,28 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 		vi.unstubAllGlobals();
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		if ( w.wp ) {
-			delete w.wp.desktop;
+			delete w.wp.os;
 		}
 	} );
 
 	test( 'subscribes to events for entities with post_type but not for others', () => {
 		const render = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		expect( typeof render ).toBe( 'function' );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-window__body';
+		body.className = 'os-window__body';
 		installTemplateMarkup( body );
 		document.body.appendChild( body );
 
-		const subscribeSpy = vi.spyOn( window.wp.desktop, 'subscribe' );
+		const subscribeSpy = vi.spyOn( window.wp.os, 'subscribe' );
 
 		const teardown = render!( body );
 
 		// Should subscribe to post topic
-		expect( subscribeSpy ).toHaveBeenCalledWith( 'desktop-mode.post.changed', expect.any( Function ) );
+		expect( subscribeSpy ).toHaveBeenCalledWith( 'os.post.changed', expect.any( Function ) );
 		// Should NOT subscribe to users topic (since no post_type mapped)
-		expect( subscribeSpy ).not.toHaveBeenCalledWith( 'desktop-mode.users.changed', expect.any( Function ) );
+		expect( subscribeSpy ).not.toHaveBeenCalledWith( 'os.users.changed', expect.any( Function ) );
 
 		if ( typeof teardown === 'function' ) {
 			teardown();
@@ -124,9 +124,9 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 
 	test( 'refreshes active list when receiving external broadcast matching entity topic', async () => {
 		const render = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-window__body';
+		body.className = 'os-window__body';
 		installTemplateMarkup( body );
 		document.body.appendChild( body );
 
@@ -142,7 +142,7 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 		expect( initialFetchCalls ).toBeGreaterThan( 0 );
 
 		// Simulate external broadcast
-		bc.broadcast( 'desktop-mode.post.changed', { source: 'recycle-bin', action: 'untrashed' } );
+		bc.broadcast( 'os.post.changed', { source: 'recycle-bin', action: 'untrashed' } );
 
 		// Advance timers past 150ms debounce
 		vi.advanceTimersByTime( 150 );
@@ -158,9 +158,9 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 
 	test( 'does NOT refresh when broadcast source is my-wordpress itself', async () => {
 		const render = ( window as unknown as NativeWindowsGlobal )
-			.desktopModeNativeWindows?.[ WINDOW_ID ];
+			.openStationNativeWindows?.[ WINDOW_ID ];
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-window__body';
+		body.className = 'os-window__body';
 		installTemplateMarkup( body );
 		document.body.appendChild( body );
 
@@ -175,7 +175,7 @@ describe( 'my-wordpress — cross-window sync reactiveness', () => {
 		const initialFetchCalls = fetchSpy.mock.calls.length;
 
 		// Simulate broadcast from my-wordpress itself
-		bc.broadcast( 'desktop-mode.post.changed', { source: 'my-wordpress', action: 'trashed' } );
+		bc.broadcast( 'os.post.changed', { source: 'my-wordpress', action: 'trashed' } );
 
 		vi.advanceTimersByTime( 150 );
 		await vi.runOnlyPendingTimersAsync();

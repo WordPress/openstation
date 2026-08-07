@@ -1,7 +1,7 @@
 /**
  * Type guards for the bridge protocol.
  *
- * Intended to replace the ~20 inline `data?.type === 'desktop-mode-*'`
+ * Intended to replace the ~20 inline `data?.type === 'os-*'`
  * checks spread across the iframe bridge, the connection bridge,
  * the commands harvester, the recycle-bin realtime channel, the
  * drag-bridge, and the various extension consumers. Adoption is
@@ -27,7 +27,7 @@ interface MessageLike {
 	type?: unknown;
 }
 
-/** True if the value is a `desktop-mode-*` bridge message of any direction. */
+/** True if the value is a `os-*` bridge message of any direction. */
 export function isBridgeEvent( data: unknown ): data is BridgeEvent {
 	if ( typeof data !== 'object' || data === null ) {
 		return false;
@@ -40,8 +40,8 @@ export function isBridgeEvent( data: unknown ): data is BridgeEvent {
  * True if the value is a bridge message in the iframe→parent
  * direction. The boundary checks the `type` against the union but
  * cannot disambiguate iframe→parent from parent→iframe variants
- * that share a name (`desktop-mode-bridge-publish` /
- * `desktop-mode-bridge-disconnect`); those names appear in both
+ * that share a name (`os-bridge-publish` /
+ * `os-bridge-disconnect`); those names appear in both
  * directions and are treated as iframe→parent here for safety —
  * routing logic sits in the shell which owns the disambiguation
  * via posting source.

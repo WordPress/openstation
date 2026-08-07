@@ -1,24 +1,82 @@
 /**
- * Desktop Mode — Files grid snapping.
+ * OpenStation — the icon grid.
  *
  * Tiles align to a column-major grid (top-to-bottom, then
  * left-to-right) so the desktop reads as one tidy surface
  * instead of arbitrary pointer-position coordinates.
  *
- * Geometry:
+ * **This module is the one place the grid's shape is expressed in
+ * TypeScript, for every surface that lays out placements** — the
+ * wallpaper, folder windows, and each canvas in WP Explorer.
+ * They used to disagree: the desktop ran a 96×110 pitch and the site
+ * folder a 108×112 one, so the same three icons had 8px between them
+ * in one window and 20px in another. Worse, the desktop's 8px was a
+ * fiction — the tile's own horizontal padding was added on top of
+ * its width, filling the cell exactly, and icons touched.
  *
- *   - GRID_PADDING — gutter from the edge of the host (top + left).
- *   - GRID_CELL_W  — column width  (88px tile + 8px gap).
- *   - GRID_CELL_H  — row height    (~96px tile + 14px gap).
+ * The declaration lives in `assets/css/variables.css`, because that
+ * is where this codebase keeps design tokens and because a desktop
+ * theme can then retune the grid. Layout maths can't read CSS, so
+ * the numbers are mirrored here — and
+ * `tests/vitest/grid-metrics.test.ts` parses the stylesheet to prove
+ * the mirror is faithful. Change one, that test names the other.
  *
- * The same numbers are baked into `assets/css/desktop-files.css`
- * (the tile width / icon size). Anyone changing one must change
- * the other.
+ * The CELL is derived, never declared. A gap you can see is the
+ * thing worth tuning; the pitch is just tile + gap.
  */
 
+/** Gutter from the top / inline-start edge of an icon canvas. */
 export const GRID_PADDING = 16;
-export const GRID_CELL_W = 96;
-export const GRID_CELL_H = 110;
+
+/**
+ * Tile box, and the air around it. Mirrors `--os-tile-*` /
+ * `--os-grid-gap-*`.
+ *
+ * `TILE_H` is a FIXED height, not a minimum: the tile box is what
+ * the selection ring is drawn around, so a box that grew with its
+ * label would give a row of selected icons a ragged top edge.
+ */
+export const TILE_W = 88;
+export const TILE_H = 104;
+export const GRID_GAP_X = 20;
+export const GRID_GAP_Y = 16;
+
+/** Image-led sections (`tileSize: 'large'`). Same gaps, bigger tile. */
+export const TILE_W_LARGE = 132;
+export const TILE_H_LARGE = 160;
+
+export const GRID_CELL_W = TILE_W + GRID_GAP_X;
+export const GRID_CELL_H = TILE_H + GRID_GAP_Y;
+
+export const GRID_CELL_W_LARGE = TILE_W_LARGE + GRID_GAP_X;
+export const GRID_CELL_H_LARGE = TILE_H_LARGE + GRID_GAP_Y;
+
+/**
+ * Cell pitch for an icon canvas, in the shape WP Explorer's
+ * layout engine consumes. Exported so that surface reads the same
+ * numbers rather than declaring its own.
+ *
+ * @public
+ */
+export interface GridMetrics {
+	w: number;
+	h: number;
+	pad: number;
+}
+
+/** @public */
+export const GRID_METRICS: GridMetrics = {
+	w: GRID_CELL_W,
+	h: GRID_CELL_H,
+	pad: GRID_PADDING,
+};
+
+/** @public */
+export const GRID_METRICS_LARGE: GridMetrics = {
+	w: GRID_CELL_W_LARGE,
+	h: GRID_CELL_H_LARGE,
+	pad: GRID_PADDING,
+};
 
 export interface GridPos {
 	col: number;

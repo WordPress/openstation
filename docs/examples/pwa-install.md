@@ -3,7 +3,7 @@
 Stable.
 
 The framework already registers a persistent "Install" tile on the
-dock (`id: 'desktop-mode-pwa-install'`). Clicking it dispatches the
+dock (`id: 'os-pwa-install'`). Clicking it dispatches the
 browser's install prompt or shows a contextual toast when install
 isn't currently possible. If you want to add a redundant entry point
 (a button in your own settings tab, a header in your plugin's
@@ -12,8 +12,8 @@ window), use the public PWA surface.
 ## Add an "Install as App" button to a settings tab
 
 ```js
-wp.desktop.ready( () => {
-    wp.desktop.registerSettingsTab( {
+wp.os.ready( () => {
+    wp.os.registerSettingsTab( {
         id: 'my-plugin/app',
         label: 'App',
         order: 50,
@@ -22,22 +22,22 @@ wp.desktop.ready( () => {
             btn.type = 'button';
             btn.textContent = 'Install as app';
             btn.addEventListener( 'click', async () => {
-                const choice = await wp.desktop.pwa.promptInstall();
+                const choice = await wp.os.pwa.promptInstall();
                 if ( choice === 'unavailable' ) {
-                    wp.desktop.showToast( {
+                    wp.os.showToast( {
                         message: 'Already installed, or the browser doesn\'t support installing this site.',
                     } );
                     return;
                 }
                 if ( choice === 'accepted' ) {
-                    wp.desktop.showToast( { message: 'Installed!' } );
+                    wp.os.showToast( { message: 'Installed!' } );
                 }
             } );
             host.appendChild( btn );
 
             // Show a "reset" link if the user has dismissed the
             // built-in pill — re-surface it on demand.
-            wp.desktop.pwa.subscribe( ( state ) => {
+            wp.os.pwa.subscribe( ( state ) => {
                 btn.disabled = ! state || ! window.matchMedia(
                     '(display-mode: standalone)'
                 ).matches === false;
@@ -50,7 +50,7 @@ wp.desktop.ready( () => {
 ## Read install state
 
 ```js
-const state = wp.desktop.pwa.getState();
+const state = wp.os.pwa.getState();
 // { installHintDismissed: boolean, notificationsEnabled: boolean }
 
 if ( state.installHintDismissed ) {
@@ -86,10 +86,10 @@ the listener above still fires before the framework's handler runs.
 
 Default icons come from the WordPress Site Icon when set, falling back
 to the plugin's bundled logo. Override completely via
-`desktop_mode_pwa_manifest`:
+`openstation_pwa_manifest`:
 
 ```php
-add_filter( 'desktop_mode_pwa_manifest', static function ( array $manifest ) {
+add_filter( 'openstation_pwa_manifest', static function ( array $manifest ) {
     $manifest['name']        = 'Acme Console';
     $manifest['short_name']  = 'Acme';
     $manifest['theme_color'] = '#7e22ce';

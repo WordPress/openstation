@@ -10,7 +10,7 @@ import { showToast } from './toast';
 import {
 	isNoticeDismissed,
 	markNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
+} from './ui/components/os-notice/storage';
 
 /** A single notice descriptor from `config.coreNotices` / `config.pluginNotices`. */
 export interface ShellNotice {

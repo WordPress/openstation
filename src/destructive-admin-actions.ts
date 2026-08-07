@@ -35,7 +35,7 @@
  * where plugins typically run their `register*` calls — so a plain
  * module-level array would give each bundle its own private copy and
  * silently drop every registration. See `AGENTS.md` §
- * "Cross-bundle state — `wp.desktop.createSharedStore`".
+ * "Cross-bundle state — `wp.os.createSharedStore`".
  */
 
 import { createSharedStore } from './shared-store';
@@ -89,7 +89,7 @@ const store = createSharedStore< RegistryState >(
  *
  * @example
  * ```ts
- * wp.desktop.registerDestructiveAdminAction( {
+ * wp.os.registerDestructiveAdminAction( {
  *     id: 'woocommerce/trash-order',
  *     matches: ( _url, parsed ) =>
  *         parsed.pathname.endsWith( '/admin.php' ) &&
@@ -172,7 +172,7 @@ export function matchDestructiveAdminAction(
 			// keep walking.
 			// eslint-disable-next-line no-console
 			console.warn(
-				`[desktop-mode] destructive-action predicate threw for "${ entry.id }":`,
+				`[openstation] destructive-action predicate threw for "${ entry.id }":`,
 				err,
 			);
 		}

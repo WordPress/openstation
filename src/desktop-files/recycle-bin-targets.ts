@@ -1,11 +1,11 @@
 /**
- * Desktop Mode — Recycle bin drop targets.
+ * OpenStation — Recycle bin drop targets.
  *
  * Registers the cross-window drop zones that accept a soft-trash
  * gesture from a desktop file tile:
  *
  *   1. The recycle-bin tile on the wallpaper. The bin is registered
- *      via `desktop_mode_register_icon()` and surfaces in the unified
+ *      via `openstation_register_icon()` and surfaces in the unified
  *      files layer as a `'shortcut'` placement carrying
  *      `data-file-ref="desktop-mode-recycle-bin"`. We also accept the
  *      legacy desktop-icon rail (`[data-icon-id]`) and any dock-side
@@ -13,7 +13,7 @@
  *      future layout shifts.
  *
  *   2. The recycle-bin native window's body
- *      (`[data-desktop-mode-recycle-bin-root]`). Registered on
+ *      (`[data-os-recycle-bin-root]`). Registered on
  *      `WINDOW_OPENED`, deregistered on `WINDOW_CLOSED`.
  *
  * Both targets accept payloads of type `'desktop-file'`. On drop they
@@ -23,7 +23,7 @@
  *
  * Re-discovery: the wallpaper's bin tile is rebuilt on every store
  * change (the FilesLayer's wholesale repaint). We listen for
- * `desktop-mode-files-changed` (store mutations),
+ * `os-files-changed` (store mutations),
  * `HOOKS.DESKTOP_ICONS_RENDERED` (legacy icon-rail rebuild), and
  * `HOOKS.DOCK_AFTER_RENDER` (legacy dock rebuild), plus a
  * `MutationObserver` on the wallpaper area as a belt-and-braces
@@ -34,17 +34,23 @@
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
 import type { DragManagerApi, DragSession } from '../drag';
-import { trashByFileType } from './trash';
+import { trashManyWithUndo } from './trash';
+import { showToast } from '../toast';
 import {
 	recycleBinPayloadAccepts,
 	recycleBinPayloadDrop,
 } from './recycle-bin-payloads';
 import type { RestPlacementShape } from './rest';
-import type { ShortcutDragData } from './drag-payloads';
+import {
+	dragPlacements,
+	dragShortcutItems,
+	type DesktopFileDragData,
+	type ShortcutDragData,
+} from './drag-payloads';
 
 /**
  * My WordPress entity kinds the recycle bin knows how to trash via
- * the cross-bundle `wp.desktop.myWordpress.trashEntity()` API. `kind`
+ * the cross-bundle `wp.os.myWordpress.trashEntity()` API. `kind`
  * here is the abstract drag-payload kind (matches `ShortcutDragData
  * .kind`), not the entity id — both posts and pages drag as
  * `'post'`. The `entityId` field on the payload disambiguates which
@@ -64,20 +70,20 @@ interface MyWordpressTrashApi {
 function getMyWordpressTrashApi(): MyWordpressTrashApi | null {
 	const api = (
 		window as unknown as {
-			wp?: { desktop?: { myWordpress?: MyWordpressTrashApi } };
+			wp?: { os?: { myWordpress?: MyWordpressTrashApi } };
 		}
-	).wp?.desktop?.myWordpress;
+	).wp?.os?.myWordpress;
 	return api && typeof api.trashEntity === 'function' ? api : null;
 }
 
-const TRASH_DROP_ACTIVE_ATTR = 'data-desktop-mode-trash-drop-active';
+const TRASH_DROP_ACTIVE_ATTR = 'data-os-trash-drop-active';
 const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
 
 /**
  * Selectors that all match the recycle bin tile, in order of
  * preference. The first matching element wins.
  *
- *   - `.desktop-mode-file-tile[data-file-ref="…"]` — the unified
+ *   - `.os-file-tile[data-file-ref="…"]` — the unified
  *     files layer's representation (current default).
  *   - `[data-icon-id="…"]` — legacy desktop-icons rail
  *     (`src/desktop-icons.ts`), still rendered when the files
@@ -85,7 +91,7 @@ const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
  *   - `[data-system-id="…"]` — any dock-side system-tile bridge.
  */
 const BIN_TILE_SELECTORS = [
-	`.desktop-mode-file-tile[data-file-ref="${ RECYCLE_BIN_WINDOW_ID }"]`,
+	`.os-file-tile[data-file-ref="${ RECYCLE_BIN_WINDOW_ID }"]`,
 	`[data-icon-id="${ RECYCLE_BIN_WINDOW_ID }"]`,
 	`[data-system-id="${ RECYCLE_BIN_WINDOW_ID }"]`,
 ];
@@ -172,6 +178,20 @@ function registerOn(
 				if ( ! placement ) {
 					return false;
 				}
+				// A multi-drag is accepted only when EVERY item can be
+				// trashed. Half-trashing a set the user dropped as one
+				// gesture is the kind of partial success that reads as
+				// total success.
+				const set = dragPlacements(
+					data as unknown as DesktopFileDragData,
+				);
+				if ( set.length > 1 ) {
+					return set.every(
+						( p ) =>
+							p.file?.ref !== RECYCLE_BIN_WINDOW_ID &&
+							p.canTrash !== false,
+					);
+				}
 				// Never trash the recycle bin into itself. Both drop
 				// surfaces (the bin's wallpaper tile + the bin window
 				// body) share this `accept`, so dragging the bin onto
@@ -194,12 +214,15 @@ function registerOn(
 			// `'shortcut'` payloads originate from My WordPress entity
 			// tiles (and any plugin that builds the same shape). The
 			// recycle bin accepts those whose `kind` we know how to
-			// trash via the cross-bundle `wp.desktop.myWordpress
+			// trash via the cross-bundle `wp.os.myWordpress
 			// .trashEntity()` API. Mirrors the right-click "Move to
 			// Trash" CMO so both gestures end at the same REST call.
 			if ( payload.type === 'shortcut' ) {
 				const data = payload.data as Partial< ShortcutDragData >;
-				return isTrashableShortcut( data );
+				const set = dragShortcutItems( data as ShortcutDragData );
+				return (
+					set.length > 0 && set.every( ( i ) => isTrashableShortcut( i ) )
+				);
 			}
 			// Payload types this module doesn't own (the pinned-notes
 			// `'note'` drag today) can be claimed by a registered bin
@@ -217,8 +240,15 @@ function registerOn(
 		onDrop: ( session, ev ) => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 			if ( isDesktopFilePayload( session ) ) {
-				const placement = session.payload.data.placement;
-				void trashByFileType( placement );
+				// One gesture, one trash operation: `trashManyWithUndo`
+				// collapses a set into a single toast whose Undo brings
+				// all of them back. It routes a single item straight to
+				// the per-item helper, so this covers both.
+				void trashManyWithUndo(
+					dragPlacements(
+						session.payload.data as unknown as DesktopFileDragData,
+					),
+				);
 				return;
 			}
 			if (
@@ -228,24 +258,50 @@ function registerOn(
 				return;
 			}
 			if ( isShortcutPayload( session ) ) {
-				const data = session.payload.data;
 				const api = getMyWordpressTrashApi();
-				if ( ! api?.trashEntity || ! data.entityId ) {
+				if ( ! api?.trashEntity ) {
 					return;
 				}
-				const numericRef = Number.parseInt( data.ref, 10 );
-				if ( ! Number.isFinite( numericRef ) || numericRef <= 0 ) {
+				const trashEntity = api.trashEntity;
+				const set = dragShortcutItems( session.payload.data );
+				const trashing = set
+					.map( ( item ) => ( {
+						entityId: item.entityId,
+						ref: Number.parseInt( item.ref, 10 ),
+					} ) )
+					.filter(
+						( t ): t is { entityId: string; ref: number } =>
+							!! t.entityId &&
+							Number.isFinite( t.ref ) &&
+							t.ref > 0,
+					);
+				if ( trashing.length === 0 ) {
 					return;
 				}
-				void api.trashEntity( data.entityId, numericRef ).catch(
-					( err: unknown ) => {
+				void Promise.allSettled(
+					trashing.map( ( t ) => trashEntity( t.entityId, t.ref ) ),
+				).then( ( results ) => {
+					const failed = results.filter(
+						( r ) => r.status === 'rejected',
+					);
+					for ( const failure of failed ) {
 						// eslint-disable-next-line no-console
 						console.error(
-							'[desktop-mode] recycle-bin: shortcut trash failed:',
-							err,
+							'[openstation] recycle-bin: shortcut trash failed:',
+							( failure as PromiseRejectedResult ).reason,
 						);
-					},
-				);
+					}
+					const moved = trashing.length - failed.length;
+					if ( moved > 1 || failed.length > 0 ) {
+						showToast( {
+							message:
+								failed.length > 0
+									? `${ moved } moved to Trash · ${ failed.length } could not be moved`
+									: `${ moved } items moved to Trash`,
+							duration: failed.length > 0 ? 6000 : 4000,
+						} );
+					}
+				} );
 			}
 		},
 	} );
@@ -263,7 +319,7 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 
 	// Re-register the bin TILE drop target whenever the wallpaper
 	// might have rebuilt it. The unified files layer rebuilds tile
-	// DOM on every store change (`desktop-mode-files-changed`); the
+	// DOM on every store change (`os-files-changed`); the
 	// legacy icon rail rebuilds on `DESKTOP_ICONS_RENDERED`; the
 	// legacy dock rail rebuilds on `DOCK_AFTER_RENDER`. We listen to
 	// all three and re-discover via `findBinTile()`. Idempotent
@@ -294,7 +350,7 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	// Files-layer rebuild signal. Fires after every placement
 	// upsert/remove that flips the layer's fingerprint. The bin's
 	// tile DOM is replaced wholesale, so re-discover and re-register.
-	document.addEventListener( 'desktop-mode-files-changed', reprobeTile );
+	document.addEventListener( 'os-files-changed', reprobeTile );
 
 	// Legacy desktop-icons rail rebuild signal — `renderDesktopIcons`
 	// fires this hook action on each render that changed the DOM.
@@ -318,7 +374,7 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 			reprobeTile();
 		} );
 		const desktopArea =
-			document.getElementById( 'desktop-mode-area' ) ?? document.body;
+			document.getElementById( 'os-area' ) ?? document.body;
 		_binMutationObserver.observe( desktopArea, {
 			childList: true,
 			subtree: true,
@@ -336,7 +392,7 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 			_windowDeregister?.();
 			_windowDeregister = null;
 			const el = document.querySelector(
-				'[data-desktop-mode-recycle-bin-root]',
+				'[data-os-recycle-bin-root]',
 			);
 			if ( el instanceof HTMLElement ) {
 				_windowDeregister = registerOn(

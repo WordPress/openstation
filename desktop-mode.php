@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Desktop Mode
- * Plugin URI:        https://github.com/WordPress/desktop-mode
+ * Plugin Name:       OpenStation
+ * Plugin URI:        https://github.com/WordPress/openstation
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
- * Version:           0.9.7
+ * Version:           0.9.8
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
@@ -12,15 +12,15 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_VERSION', '0.9.7' );
-define( 'DESKTOP_MODE_FILE', __FILE__ );
-define( 'DESKTOP_MODE_DIR', plugin_dir_path( __FILE__ ) );
-define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
+define( 'OPENSTATION_VERSION', '0.9.8' );
+define( 'OPENSTATION_FILE', __FILE__ );
+define( 'OPENSTATION_DIR', plugin_dir_path( __FILE__ ) );
+define( 'OPENSTATION_URL', plugin_dir_url( __FILE__ ) );
 
 /**
  * Whether the current request needs the admin-rendering modules.
@@ -28,7 +28,7 @@ define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
  * Most of the plugin must load on every request — feature modules
  * register REST routes, record content mutations that can originate
  * on the frontend (comment submission, WooCommerce orders, plugin-
- * driven post saves), and expose `desktop_mode_register_*()` APIs
+ * driven post saves), and expose `openstation_register_*()` APIs
  * that third-party plugins call from their own `init` hooks in any
  * context. But the admin *rendering* layer (shell markup, asset
  * enqueues, the chromeless bridge, admin notices, migrations, the
@@ -44,7 +44,7 @@ define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
  *
  * @return bool True to load the admin-rendering modules.
  */
-function desktop_mode_request_needs_admin_modules() {
+function openstation_request_needs_admin_modules() {
 	$needs = is_admin()
 		|| wp_doing_cron()
 		|| ( defined( 'WP_CLI' ) && WP_CLI )
@@ -56,7 +56,7 @@ function desktop_mode_request_needs_admin_modules() {
 		// code (safe direction); plain-permalink REST is covered by
 		// the `rest_route` query var.
 		$rest_prefix = function_exists( 'rest_get_url_prefix' ) ? rest_get_url_prefix() : 'wp-json';
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- request-shape sniff only, no data is read.
 		if ( ( '' !== $rest_prefix && false !== strpos( $request_uri, '/' . $rest_prefix ) ) || isset( $_GET['rest_route'] ) ) {
 			$needs = true;
@@ -74,114 +74,125 @@ function desktop_mode_request_needs_admin_modules() {
 	 * @param bool $needs Whether the current request loads the
 	 *                    admin-rendering module set.
 	 */
-	return (bool) apply_filters( 'desktop_mode_load_admin_modules', $needs );
+	return (bool) apply_filters( 'openstation_load_admin_modules', $needs );
 }
 
 // Foundation primitives — must load before anything that consumes them.
-require_once DESKTOP_MODE_DIR . 'includes/core/registry-factory.php';
+require_once OPENSTATION_DIR . 'includes/core/registry-factory.php';
 
 // Routing helpers register filters at file-load time but call
 // chromeless / classic detection helpers (still in helpers.php)
 // at hook-fire time — both files load before any hook fires, so
 // the order is strict-but-flexible. Routing first because it is
 // the smaller, more isolated piece.
-require_once DESKTOP_MODE_DIR . 'includes/core/routing.php';
+require_once OPENSTATION_DIR . 'includes/core/routing.php';
 
-require_once DESKTOP_MODE_DIR . 'includes/helpers.php';
+require_once OPENSTATION_DIR . 'includes/helpers.php';
 
 // Dock + payload assembly. Loaded right after helpers.php so the
-// foundational `desktop_mode_is_enabled()` etc. exist by the time
+// foundational `openstation_is_enabled()` etc. exist by the time
 // any payload function is invoked at hook-fire time.
-require_once DESKTOP_MODE_DIR . 'includes/core/payload.php';
-require_once DESKTOP_MODE_DIR . 'includes/assets.php';
-require_once DESKTOP_MODE_DIR . 'includes/admin-bar.php';
-require_once DESKTOP_MODE_DIR . 'includes/session.php';
-require_once DESKTOP_MODE_DIR . 'includes/presence.php';
-require_once DESKTOP_MODE_DIR . 'includes/nonce-refresh.php';
-require_once DESKTOP_MODE_DIR . 'includes/sticky-notes/heartbeat.php';
-require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
-require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
-require_once DESKTOP_MODE_DIR . 'includes/portal.php';
-require_once DESKTOP_MODE_DIR . 'includes/default-window.php';
-require_once DESKTOP_MODE_DIR . 'includes/themes-tabs.php';
-require_once DESKTOP_MODE_DIR . 'includes/media-query.php';
-require_once DESKTOP_MODE_DIR . 'includes/accents.php';
-require_once DESKTOP_MODE_DIR . 'includes/toast-types.php';
-require_once DESKTOP_MODE_DIR . 'includes/registries/native-windows.php';
-require_once DESKTOP_MODE_DIR . 'includes/registries/window-tabs.php';
-require_once DESKTOP_MODE_DIR . 'includes/registries/icons.php';
-require_once DESKTOP_MODE_DIR . 'includes/registries/wallpapers.php';
-require_once DESKTOP_MODE_DIR . 'includes/registries/widgets.php';
-require_once DESKTOP_MODE_DIR . 'includes/components.php';
-require_once DESKTOP_MODE_DIR . 'includes/commands.php';
-require_once DESKTOP_MODE_DIR . 'includes/settings-tabs.php';
-require_once DESKTOP_MODE_DIR . 'includes/dock-rail-renderer.php';
-require_once DESKTOP_MODE_DIR . 'includes/title-bar-buttons.php';
-require_once DESKTOP_MODE_DIR . 'includes/unfocus-effects.php';
-require_once DESKTOP_MODE_DIR . 'includes/window-links.php';
-require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
-require_once DESKTOP_MODE_DIR . 'includes/window-notices.php';
-require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/heartbeat.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-comments.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-post-stats.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-site-views.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-jazz-quote.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-starter.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-notes.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-drafts.php';
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-focus-timer.php';
-require_once DESKTOP_MODE_DIR . 'includes/extended-options.php';
-require_once DESKTOP_MODE_DIR . 'includes/oauth-relay.php';
-require_once DESKTOP_MODE_DIR . 'includes/ai-copilot/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/core/payload.php';
+require_once OPENSTATION_DIR . 'includes/assets.php';
+require_once OPENSTATION_DIR . 'includes/admin-bar.php';
+require_once OPENSTATION_DIR . 'includes/session.php';
+require_once OPENSTATION_DIR . 'includes/presence.php';
+require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
+require_once OPENSTATION_DIR . 'includes/sticky-notes/heartbeat.php';
+require_once OPENSTATION_DIR . 'includes/os-settings.php';
+require_once OPENSTATION_DIR . 'includes/seen-intros.php';
+// One-time data migrations. After os-settings.php and seen-intros.php,
+// whose meta-key constants and helpers the migrations call.
+//
+// Unconditional, unlike the rest of the admin-only set below, because
+// its activation hook has to be registered on ANY request that can
+// dispatch activation. `activate_plugin()` includes the plugin file and
+// fires `activate_<basename>` in whatever context it was called from,
+// and a programmatic activation (a Playground Blueprint, a provisioning
+// script) need not look like an admin request at all. Registering the
+// runner's `admin_init` hook on a frontend request costs nothing: it
+// never fires there.
+require_once OPENSTATION_DIR . 'includes/migrations.php';
+require_once OPENSTATION_DIR . 'includes/portal.php';
+require_once OPENSTATION_DIR . 'includes/default-window.php';
+require_once OPENSTATION_DIR . 'includes/themes-tabs.php';
+require_once OPENSTATION_DIR . 'includes/media-query.php';
+require_once OPENSTATION_DIR . 'includes/accents.php';
+require_once OPENSTATION_DIR . 'includes/toast-types.php';
+require_once OPENSTATION_DIR . 'includes/registries/native-windows.php';
+require_once OPENSTATION_DIR . 'includes/registries/window-tabs.php';
+require_once OPENSTATION_DIR . 'includes/registries/icons.php';
+require_once OPENSTATION_DIR . 'includes/registries/wallpapers.php';
+require_once OPENSTATION_DIR . 'includes/registries/widgets.php';
+require_once OPENSTATION_DIR . 'includes/components.php';
+require_once OPENSTATION_DIR . 'includes/commands.php';
+require_once OPENSTATION_DIR . 'includes/settings-tabs.php';
+require_once OPENSTATION_DIR . 'includes/dock-rail-renderer.php';
+require_once OPENSTATION_DIR . 'includes/title-bar-buttons.php';
+require_once OPENSTATION_DIR . 'includes/unfocus-effects.php';
+require_once OPENSTATION_DIR . 'includes/window-links.php';
+require_once OPENSTATION_DIR . 'includes/window-chrome.php';
+require_once OPENSTATION_DIR . 'includes/window-notices.php';
+require_once OPENSTATION_DIR . 'includes/wallpapers.php';
+require_once OPENSTATION_DIR . 'includes/mio.php';
+require_once OPENSTATION_DIR . 'includes/widgets/heartbeat.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-comments.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-post-stats.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-site-views.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-jazz-quote.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-starter.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-notes.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-drafts.php';
+require_once OPENSTATION_DIR . 'includes/widgets/widget-focus-timer.php';
+require_once OPENSTATION_DIR . 'includes/extended-options.php';
+require_once OPENSTATION_DIR . 'includes/oauth-relay.php';
+require_once OPENSTATION_DIR . 'includes/ai-copilot/bootstrap.php';
 // Content-changes must load before the recycle bin — the bin's
 // changelog delegates into the generic recorder.
-require_once DESKTOP_MODE_DIR . 'includes/content-changes.php';
-require_once DESKTOP_MODE_DIR . 'includes/recycle-bin/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-files/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/notes/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/posts-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/pages-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/users-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/user-edit-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/plugins-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/comments-window/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/my-wordpress/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/content-graph/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/living-tree/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/games/bootstrap.php';
-require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
-require_once DESKTOP_MODE_DIR . 'includes/compat/divi.php';
+require_once OPENSTATION_DIR . 'includes/content-changes.php';
+require_once OPENSTATION_DIR . 'includes/recycle-bin/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/desktop-files/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/notes/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/posts-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/pages-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/users-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/user-edit-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/plugins-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/living-tree/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/games/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/agents/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/pwa.php';
+require_once OPENSTATION_DIR . 'includes/compat/divi.php';
 
 // Admin-rendering modules — every hook these register (`admin_init`,
 // `admin_enqueue_scripts`, `in_admin_header`, `admin_head`,
 // `admin_footer`, `admin_body_class`, `wp_ajax_*`) only fires inside
 // wp-admin, so pure frontend page views skip them entirely. REST,
 // cron, WP-CLI, admin-ajax, and the PHPUnit environment all load
-// them (see desktop_mode_request_needs_admin_modules()). Relative
+// them (see openstation_request_needs_admin_modules()). Relative
 // order preserved from the historical unconditional list.
-if ( desktop_mode_request_needs_admin_modules() ) {
-	require_once DESKTOP_MODE_DIR . 'includes/ajax.php';
-	// One-time data migrations. After os-settings.php so the meta-key
-	// constant and save/sanitize helpers the migrations call already exist.
-	require_once DESKTOP_MODE_DIR . 'includes/migrations.php';
-	require_once DESKTOP_MODE_DIR . 'includes/welcome-dialog.php';
-	require_once DESKTOP_MODE_DIR . 'includes/update-notice.php';
-	require_once DESKTOP_MODE_DIR . 'includes/core-notices.php';
-	require_once DESKTOP_MODE_DIR . 'includes/plugin-notices.php';
-	require_once DESKTOP_MODE_DIR . 'includes/render.php';
-	require_once DESKTOP_MODE_DIR . 'includes/devtools.php';
+if ( openstation_request_needs_admin_modules() ) {
+	require_once OPENSTATION_DIR . 'includes/ajax.php';
+	require_once OPENSTATION_DIR . 'includes/welcome-dialog.php';
+	require_once OPENSTATION_DIR . 'includes/update-notice.php';
+	require_once OPENSTATION_DIR . 'includes/core-notices.php';
+	require_once OPENSTATION_DIR . 'includes/plugin-notices.php';
+	require_once OPENSTATION_DIR . 'includes/render.php';
+	require_once OPENSTATION_DIR . 'includes/devtools.php';
 }
 
 /**
  * Cascade-deactivate plugins that declare `Requires Plugins: desktop-mode`
- * when Desktop Mode itself is being deactivated.
+ * when OpenStation itself is being deactivated.
  *
- * Without this, a third-party plugin like `wp-desktop-messages` keeps
- * its `init` hook armed after Desktop Mode is turned off — the next
+ * Without this, a third-party plugin like `os-messages` keeps
+ * its `init` hook armed after OpenStation is turned off — the next
  * admin page load fires `init`, the hook calls
- * `desktop_mode_register_window()`, and the request fatals because the
+ * `openstation_register_window()`, and the request fatals because the
  * function lives in the plugin we just deactivated. The user lands on
  * a white screen instead of the classic admin we redirected them to.
  *
@@ -190,7 +201,7 @@ if ( desktop_mode_request_needs_admin_modules() ) {
  * does NOT auto-deactivate dependents when their requirement is
  * deactivated through any path — the user is expected to do that
  * themselves. The classic plugins.php list shows a warning; the REST
- * controller (`PUT /wp/v2/plugins/desktop-mode/desktop-mode`) we route
+ * controller (`PUT /wp/v2/plugins/desktop-mode/openstation`) we route
  * through has no such gate. So we cascade ourselves.
  *
  * Timing: `deactivate_plugins()` writes `active_plugins` to the DB
@@ -205,22 +216,22 @@ if ( desktop_mode_request_needs_admin_modules() ) {
  * our own directory slug (`dirname( plugin_basename( __FILE__ ) )`),
  * which is the same string the dependent's `Requires Plugins` header
  * resolves against. The filter below lets sites widen or narrow the
- * cascade — e.g. add a plugin that wraps `desktop_mode_*` calls in
+ * cascade — e.g. add a plugin that wraps `openstation_*` calls in
  * `function_exists` guards and shouldn't be torn down with us.
  *
  * Silent deactivation (`$silent = true`) skips the dependent
  * plugins' own deactivation hooks. Those callbacks routinely call
- * `desktop_mode_*` helpers expecting Desktop Mode to be wired up;
+ * `openstation_*` helpers expecting OpenStation to be wired up;
  * firing them mid-cascade can trigger the same fatal we're trying
  * to prevent. Skipping them is the safer default.
  */
-function desktop_mode_cascade_deactivate_dependents() {
+function openstation_cascade_deactivate_dependents() {
 	// Defer to `shutdown` so we run AFTER the outer
 	// `deactivate_plugins()` has flushed its own option update.
 	// Inline cascade gets clobbered by the outer's write-back.
-	add_action( 'shutdown', 'desktop_mode_do_cascade_deactivate', 0 );
+	add_action( 'shutdown', 'openstation_do_cascade_deactivate', 0 );
 }
-register_deactivation_hook( DESKTOP_MODE_FILE, 'desktop_mode_cascade_deactivate_dependents' );
+register_deactivation_hook( OPENSTATION_FILE, 'openstation_cascade_deactivate_dependents' );
 
 /**
  * The deferred cascade body — runs on `shutdown` after the
@@ -228,10 +239,10 @@ register_deactivation_hook( DESKTOP_MODE_FILE, 'desktop_mode_cascade_deactivate_
  *
  * Split out from the `register_deactivation_hook` callback because
  * that callback must register, not execute, the cascade. See
- * {@see desktop_mode_cascade_deactivate_dependents} for the timing
+ * {@see openstation_cascade_deactivate_dependents} for the timing
  * rationale.
  */
-function desktop_mode_do_cascade_deactivate() {
+function openstation_do_cascade_deactivate() {
 	if ( ! class_exists( 'WP_Plugin_Dependencies' ) ) {
 		// Pre-6.5 — no native dependency tracking. Sites running an
 		// old Core won't have dependents declared via the header
@@ -241,7 +252,7 @@ function desktop_mode_do_cascade_deactivate() {
 
 	WP_Plugin_Dependencies::initialize();
 
-	$slug = dirname( plugin_basename( DESKTOP_MODE_FILE ) );
+	$slug = dirname( plugin_basename( OPENSTATION_FILE ) );
 	if ( '' === $slug || '.' === $slug ) {
 		return;
 	}
@@ -250,14 +261,14 @@ function desktop_mode_do_cascade_deactivate() {
 
 	/**
 	 * Filter the list of plugin files to cascade-deactivate when
-	 * Desktop Mode is deactivated. Defaults to every plugin whose
+	 * OpenStation is deactivated. Defaults to every plugin whose
 	 * `Requires Plugins` header lists our directory slug.
 	 *
 	 * @param string[] $dependents Plugin files (e.g. "foo/foo.php").
-	 * @param string   $slug       Desktop Mode's directory slug.
+	 * @param string   $slug       OpenStation's directory slug.
 	 */
 	$dependents = (array) apply_filters(
-		'desktop_mode_cascade_deactivate_dependents',
+		'openstation_cascade_deactivate_dependents',
 		$dependents,
 		$slug
 	);

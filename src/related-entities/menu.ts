@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Related-entities menu construction.
+ * OpenStation — Related-entities menu construction.
  *
- * Builds the `<wpd-menu>` panel the title bar's "Related" button
+ * Builds the `<os-menu>` panel the title bar's "Related" button
  * opens: one section per group (Comments, per-taxonomy terms, Media,
- * then vendor-defined groups), one `<wpd-menu-item>` per related
+ * then vendor-defined groups), one `<os-menu-item>` per related
  * entity. Pure DOM construction — open/close lifecycle and dismissal
  * live in `index.ts`, mirroring how `src/window/menus.ts` owns the ⋯
  * menu's state while `src/window/dom.ts` builds it.
@@ -42,7 +42,7 @@ function groupRank( group: string ): number {
  * @param opts        Options bag.
  * @param opts.items  Resolved related-entity items (non-empty).
  * @param opts.onPick Called with the picked item.
- * @return The `<wpd-menu>` element, ready to append.
+ * @return The `<os-menu>` element, ready to append.
  */
 export function buildRelatedMenu( {
 	items,
@@ -51,7 +51,7 @@ export function buildRelatedMenu( {
 	items: RelatedEntityItem[];
 	onPick: ( item: RelatedEntityItem ) => void;
 } ): HTMLElement {
-	const panel = document.createElement( 'wpd-menu' );
+	const panel = document.createElement( 'os-menu' );
 	// BOTH classes, deliberately. `menu-panel` is the load-bearing one:
 	// it carries the absolute dropdown positioning in window-chrome.css
 	// AND it's in the title-bar drag tracker's exclusion list
@@ -59,8 +59,8 @@ export function buildRelatedMenu( {
 	// item starts a window drag whose pointer capture swallows the
 	// click. `related-panel` layers the related-menu extras (scroll
 	// cap, section headers) on top.
-	panel.classList.add( 'desktop-mode-window__menu-panel' );
-	panel.classList.add( 'desktop-mode-window__related-panel' );
+	panel.classList.add( 'os-window__menu-panel' );
+	panel.classList.add( 'os-window__related-panel' );
 
 	// Partition by group, preserving arrival order.
 	const groups = new Map< string, RelatedEntityItem[] >();
@@ -83,14 +83,14 @@ export function buildRelatedMenu( {
 		)?.groupLabel;
 		if ( groupLabel ) {
 			const header = document.createElement( 'div' );
-			header.className = 'desktop-mode-window__related-group';
+			header.className = 'os-window__related-group';
 			header.setAttribute( 'role', 'presentation' );
 			header.textContent = groupLabel;
 			panel.appendChild( header );
 		}
 
 		for ( const item of groupItems ) {
-			const row = document.createElement( 'wpd-menu-item' );
+			const row = document.createElement( 'os-menu-item' );
 			row.setAttribute( 'role', 'menuitem' );
 			row.setAttribute( 'value', item.id );
 			// Focusable host — the component's shadow root doesn't
@@ -101,12 +101,12 @@ export function buildRelatedMenu( {
 			if ( item.icon ) {
 				row.setAttribute( 'icon', item.icon );
 			}
-			row.classList.add( 'desktop-mode-window__related-item' );
+			row.classList.add( 'os-window__related-item' );
 			row.textContent =
 				typeof item.count === 'number'
 					? `${ item.label } (${ item.count })`
 					: item.label;
-			row.addEventListener( 'wpd-menu-item-click', ( e: Event ) => {
+			row.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 				e.stopPropagation();
 				onPick( item );
 			} );
@@ -146,7 +146,7 @@ export function buildRelatedMenu( {
 				// Same event the row's pointer path emits — one
 				// activation contract for both input methods.
 				row.dispatchEvent(
-					new CustomEvent( 'wpd-menu-item-click', {
+					new CustomEvent( 'os-menu-item-click', {
 						bubbles: true,
 					} ),
 				);

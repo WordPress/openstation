@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window styles (entry point).
+ * OpenStation — Window styles (entry point).
  *
  * The window stylesheet used to be 1,500 lines of chrome, states,
  * overview, and OS Settings mixed together. It is now split into
@@ -25,7 +25,7 @@
  * They used to be `@import url( … )`ed from this file, and that was a
  * standing cache bug. An `@import` URL carries no `?ver=`, so when a
  * sub-sheet changed there was no URL anywhere for the browser to
- * notice. `desktop_mode_css_subtree_version()` stamped THIS file with
+ * notice. `openstation_css_subtree_version()` stamped THIS file with
  * the max mtime of the whole subtree, which made the browser re-fetch
  * and re-parse `windows.css` — and then request the sub-sheet at a
  * completely unchanged URL, free to serve it from its heuristic
@@ -44,7 +44,7 @@
  *
  * The last two sit AFTER this file and load **deferred** (the
  * `media="print"` + onload swap driven by
- * `desktop_mode_deferred_styles`): the UI they style is lazy-loaded
+ * `openstation_deferred_styles`): the UI they style is lazy-loaded
  * JS that can never be on screen at first paint, so ~47 KB of CSS has
  * no business blocking render.
  *
@@ -73,16 +73,16 @@
  * JavaScript by `src/drag/iframe-drop-targets.ts` — on drag
  * START with a shortcut payload, every iframe element gets an
  * inline `style.pointerEvents = 'none'` so pointer events fall
- * through to the iframe's parent (`.desktop-mode-window__body`),
+ * through to the iframe's parent (`.os-window__body`),
  * which is registered as the drop target. No CSS rule is needed
  * to make the routing work — this stylesheet only paints the
  * visual feedback for whichever window is currently the active
  * drop target.
  */
-.desktop-mode-window__body[data-desktop-mode-iframe-drop-active] {
-	outline: 2px dashed var(--wpd-accent, #2271b1);
+.os-window__body[data-os-iframe-drop-active] {
+	outline: 2px dashed var(--os-ui-accent, #2271b1);
 	outline-offset: -6px;
-	background: color-mix(in srgb, var(--wpd-accent, #2271b1) 8%, transparent);
+	background: color-mix(in srgb, var(--os-ui-accent, #2271b1) 8%, transparent);
 }
 
 /*
@@ -97,7 +97,7 @@
  * Also here for the old cache reason rather than a styling one —
  * see the note above; it can move back to `window-chrome.css`.
  */
-.desktop-mode-window__meta-btn .dashicons {
+.os-window__meta-btn .dashicons {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;

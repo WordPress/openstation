@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for `desktop_mode_sanitize_os_settings()` — the gatekeeper
+ * Tests for `openstation_sanitize_os_settings()` — the gatekeeper
  * between the JS layer and user meta. A field that's not in the
  * sanitizer's allow-list silently disappears on every round-trip,
  * which is the bug class this file is meant to catch.
@@ -8,43 +8,83 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-os-settings
+ * @group openstation
+ * @group os-settings
  */
-class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
+class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_desktop_layout() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'desktopLayout', $defaults );
 		$this->assertSame( 'classic', $defaults['desktopLayout'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_admin_bar_mode_is_static() {
+		$defaults = openstation_default_os_settings();
+		$this->assertArrayHasKey( 'adminBarMode', $defaults );
+		$this->assertSame( 'static', $defaults['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_known_admin_bar_mode() {
+		foreach ( OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES as $mode ) {
+			$clean = openstation_sanitize_os_settings( array( 'adminBarMode' => $mode ) );
+			$this->assertSame( $mode, $clean['adminBarMode'], "mode '{$mode}' should round-trip" );
+		}
+	}
+
+	/**
+	 * An unusable value must not survive into user meta — the shell
+	 * would emit `os-admin-bar-<junk>`, which matches no
+	 * rule, and the bar would silently render static while the
+	 * picker showed something else.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_to_default_for_unknown_admin_bar_mode() {
+		$clean = openstation_sanitize_os_settings( array( 'adminBarMode' => 'peekaboo' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_when_admin_bar_mode_missing() {
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_known_layout_value() {
 		foreach ( array( 'classic', 'unified', 'spatial' ) as $layout ) {
-			$clean = desktop_mode_sanitize_os_settings( array( 'desktopLayout' => $layout ) );
+			$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => $layout ) );
 			$this->assertSame( $layout, $clean['desktopLayout'], "layout '{$layout}' should round-trip" );
 		}
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_falls_back_to_default_for_unknown_layout() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'desktopLayout' => 'invalid-mode' ) );
+		$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => 'invalid-mode' ) );
 		$this->assertSame( 'classic', $clean['desktopLayout'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_falls_back_when_layout_missing() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
 		$this->assertSame( 'classic', $clean['desktopLayout'] );
 	}
 
@@ -55,19 +95,19 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * silently re-defaulting to `classic` on refresh because the
 	 * sanitizer was dropping the field.
 	 *
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_desktop_layout() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array(
 				'wallpaper'     => 'dark',
 				'desktopLayout' => 'spatial',
 			)
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertSame( 'spatial', $loaded['desktopLayout'] );
 	}
 
@@ -79,61 +119,61 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	// ----------------------------------------------------------
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_dock_rail_renderer() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'dockRailRenderer', $defaults );
 		$this->assertSame( 'default', $defaults['dockRailRenderer'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_well_formed_dock_rail_renderer() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'dockRailRenderer' => 'my-ring' )
 		);
 		$this->assertSame( 'my-ring', $clean['dockRailRenderer'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_dock_rail_renderer() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array( 'dockRailRenderer' => 'fan' )
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertSame( 'fan', $loaded['dockRailRenderer'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_ai_assistant_is_opt_in() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertFalse( $defaults['ai']['enabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_ai_enabled_toggle() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'ai' => array( 'enabled' => true ) )
 		);
 		$this->assertTrue( $clean['ai']['enabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_legacy_ai_credential_and_preference_fields() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'ai' => array(
 					'enabled'   => true,
@@ -159,19 +199,19 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_empty_dock_promoted_positions() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'dockPromotedPositions', $defaults );
 		$this->assertSame( array(), $defaults['dockPromotedPositions'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_well_formed_dock_promoted_positions() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockPromotedPositions' => array(
 					'edit-php'    => array( 'x' => 200, 'y' => 150 ),
@@ -192,10 +232,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * blob with spaces / uppercase get normalized rather than passed
 	 * through verbatim.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_normalizes_dock_promoted_position_keys() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockPromotedPositions' => array(
 					'Edit Php' => array( 'x' => 10, 'y' => 20 ),
@@ -210,10 +250,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * Non-numeric / missing coords are dropped — the JS shouldn't
 	 * receive a half-shaped position that would crash the synthesizer.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_malformed_dock_promoted_position_values() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockPromotedPositions' => array(
 					'a' => array( 'x' => 'not-a-number', 'y' => 0 ),
@@ -234,10 +274,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * coords of ±10^9 shouldn't make it into user meta where it could
 	 * later inflate a screen-position math expression.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_absurd_dock_promoted_position_coords() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockPromotedPositions' => array(
 					'huge'    => array( 'x' => 999999999, 'y' => 0 ),
@@ -255,14 +295,14 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	/**
 	 * Cap-at-256 prevents an evil blob from ballooning user meta.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_caps_dock_promoted_positions_at_256() {
 		$input = array();
 		for ( $i = 0; $i < 300; $i++ ) {
 			$input[ 'item-' . $i ] = array( 'x' => $i, 'y' => $i );
 		}
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'dockPromotedPositions' => $input )
 		);
 		$this->assertCount( 256, $clean['dockPromotedPositions'] );
@@ -275,10 +315,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * break the JS order match (and risk an id collision) on reload, so
 	 * the sanitizer must preserve it.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_preserves_rail_prefix_colon_in_dock_order() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockOrder' => array( 'desktop:my-icon', 'edit-php', 'dock:woocommerce' ),
 			)
@@ -295,10 +335,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * is stripped — so an evil blob can't smuggle anything unexpected
 	 * into the persisted order.
 	 *
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_normalizes_dock_order_ids() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'dockOrder' => array( 'Edit Php', '<script>x', 'desktop:My-Icon' ),
 			)
@@ -316,42 +356,205 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_developer_mode_is_off() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'developerModeEnabled', $defaults );
 		$this->assertFalse( $defaults['developerModeEnabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_developer_mode_enabled_true() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'developerModeEnabled' => true ) );
+		$clean = openstation_sanitize_os_settings( array( 'developerModeEnabled' => true ) );
 		$this->assertTrue( $clean['developerModeEnabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_falls_back_to_default_when_developer_mode_missing() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
 		$this->assertFalse( $clean['developerModeEnabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_developer_mode_enabled() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array( 'developerModeEnabled' => true )
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertTrue( $loaded['developerModeEnabled'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// windowReveal — the clip-path transition that uncovers a window's
+	// content once it finishes loading. Ids follow the JS registry
+	// charset (slashes for vendor/sub-id) and are deliberately NOT
+	// allow-listed: the JS surface resolves at play time and treats an
+	// unknown id as "no reveal", so a reveal belonging to a
+	// temporarily-deactivated plugin survives the round-trip.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_window_reveal_is_off() {
+		$defaults = openstation_default_os_settings();
+		// A reveal plays on every window load, so it is the user's to
+		// opt into rather than something the shell turns on for them.
+		$this->assertSame( 'none', $defaults['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_namespaced_window_reveal() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowReveal' => 'vendor/shutter' )
+		);
+		$this->assertSame( 'vendor/shutter', $clean['windowReveal'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowReveal' => 'none' )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_every_built_in_window_reveal() {
+		$built_ins = array(
+			'sweep',
+			'rise',
+			'diagonal',
+			'iris',
+			'diamond',
+			'curtain',
+			'shutter',
+			'blinds',
+			'slats',
+			'mosaic',
+			'radar',
+			'obturator',
+		);
+		foreach ( $built_ins as $id ) {
+			$clean = openstation_sanitize_os_settings(
+				array( 'windowReveal' => $id )
+			);
+			$this->assertSame( $id, $clean['windowReveal'] );
+		}
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_strips_bad_window_reveal_chars() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowReveal' => 'Iris Wipe!<script>' )
+		);
+		// Uppercase folds, everything outside [a-z0-9_/-] drops.
+		$this->assertSame( 'iriswipescript', $clean['windowReveal'] );
+
+		// Nothing left after stripping falls back to the default rather
+		// than persisting an empty id.
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowReveal' => '!!!' )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_rejects_non_string() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowReveal' => array( 'iris' ) )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_window_reveal_duration_is_per_reveal() {
+		$defaults = openstation_default_os_settings();
+		// 0 is the "no override" sentinel — every reveal keeps the
+		// duration its own def asked for.
+		$this->assertSame( 0, $defaults['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_clamps_into_range() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => 700 )
+		);
+		$this->assertSame( 700, $clean['windowRevealDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => 999999 )
+		);
+		$this->assertSame( 4000, $clean['windowRevealDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => 5 )
+		);
+		$this->assertSame( 80, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_keeps_the_zero_sentinel() {
+		// 0 is a real value, not a missing one: it means "per reveal".
+		// Clamping it up to the minimum would silently take the choice
+		// away from anyone who picked "Default".
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => 0 )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => -40 )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_rejects_non_numeric() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowRevealDuration' => 'fast' )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * The setting has to survive a save → load round-trip through user
+	 * meta, since that is the path the shell actually reads at boot.
+	 *
+	 * @covers ::openstation_get_os_settings
+	 */
+	public function test_window_reveal_round_trips_through_user_meta() {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		update_user_meta(
+			$user_id,
+			'desktop_mode_os_settings',
+			openstation_sanitize_os_settings( array( 'windowReveal' => 'blinds' ) )
+		);
+		$loaded = openstation_get_os_settings( $user_id );
+		$this->assertSame( 'blinds', $loaded['windowReveal'] );
 	}
 
 	// ────────────────────────────────────────────────────────────────
@@ -362,91 +565,91 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_window_link_settings() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertSame( 'svg-splines', $defaults['windowLinkRenderer'] );
 		$this->assertSame( 'always', $defaults['windowLinkVisibility'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_namespaced_window_link_renderer() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'windowLinkRenderer' => 'vendor/pixi-lasers' )
 		);
 		$this->assertSame( 'vendor/pixi-lasers', $clean['windowLinkRenderer'] );
 
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'windowLinkRenderer' => 'none' )
 		);
 		$this->assertSame( 'none', $clean['windowLinkRenderer'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_strips_bad_window_link_renderer_chars() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'windowLinkRenderer' => 'SVG Splines!<script>' )
 		);
 		// Uppercase folds, everything outside [a-z0-9_/-] drops.
 		$this->assertSame( 'svgsplinesscript', $clean['windowLinkRenderer'] );
 
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'windowLinkRenderer' => '!!!' )
 		);
 		$this->assertSame( 'svg-splines', $clean['windowLinkRenderer'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_window_link_visibility_is_allow_listed() {
 		foreach ( array( 'focus', 'always', 'off' ) as $mode ) {
-			$clean = desktop_mode_sanitize_os_settings(
+			$clean = openstation_sanitize_os_settings(
 				array( 'windowLinkVisibility' => $mode )
 			);
 			$this->assertSame( $mode, $clean['windowLinkVisibility'] );
 		}
 
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'windowLinkVisibility' => 'sometimes' )
 		);
 		$this->assertSame( 'always', $clean['windowLinkVisibility'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_window_link_settings() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array(
 				'windowLinkRenderer'   => 'vendor/pixi-lasers',
 				'windowLinkVisibility' => 'always',
 			)
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertSame( 'vendor/pixi-lasers', $loaded['windowLinkRenderer'] );
 		$this->assertSame( 'always', $loaded['windowLinkVisibility'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_default_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_window_links_feature_switches_default_on_and_sanitize() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertTrue( $defaults['windowLinksEnabled'] );
 		$this->assertTrue( $defaults['windowLinkRaiseOnFocus'] );
 		$this->assertTrue( $defaults['windowLinkHighlight'] );
 
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'windowLinksEnabled'     => false,
 				'windowLinkRaiseOnFocus' => 0,
@@ -458,43 +661,43 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertTrue( $clean['windowLinkHighlight'] );
 
 		// Missing keys fall back to defaults.
-		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
 		$this->assertTrue( $clean['windowLinksEnabled'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_window_links_feature_switches() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array(
 				'windowLinksEnabled'     => false,
 				'windowLinkRaiseOnFocus' => false,
 			)
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertFalse( $loaded['windowLinksEnabled'] );
 		$this->assertFalse( $loaded['windowLinkRaiseOnFocus'] );
 		$this->assertTrue( $loaded['windowLinkHighlight'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_empty_wallpaper_settings() {
-		$defaults = desktop_mode_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'wallpaperSettings', $defaults );
 		$this->assertSame( array(), $defaults['wallpaperSettings'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_well_formed_wallpaper_settings() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'wallpaperSettings' => array(
 					'wp-snow'         => array(
@@ -518,10 +721,10 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_drops_malformed_wallpaper_settings() {
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'wallpaperSettings' => array(
 					// Non-scalar values are dropped; the bag survives if
@@ -547,16 +750,16 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertCount( 2, $clean['wallpaperSettings'] );
 
 		// Non-array payload falls back to the default empty map.
-		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaperSettings' => 'bogus' ) );
+		$clean = openstation_sanitize_os_settings( array( 'wallpaperSettings' => 'bogus' ) );
 		$this->assertSame( array(), $clean['wallpaperSettings'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_caps_and_trims_wallpaper_settings() {
 		// String values are length-capped at 256 characters.
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'wallpaperSettings' => array(
 					'wp-snow' => array( 'label' => str_repeat( 'a', 300 ) ),
@@ -570,7 +773,7 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		for ( $i = 0; $i < 70; $i++ ) {
 			$many[ 'wp-' . $i ] = array( 'x' => $i );
 		}
-		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaperSettings' => $many ) );
+		$clean = openstation_sanitize_os_settings( array( 'wallpaperSettings' => $many ) );
 		$this->assertCount( 64, $clean['wallpaperSettings'] );
 
 		// Keys per bag cap at 32.
@@ -578,19 +781,19 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		for ( $i = 0; $i < 40; $i++ ) {
 			$bag[ 'k' . $i ] = $i;
 		}
-		$clean = desktop_mode_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array( 'wallpaperSettings' => array( 'wp-snow' => $bag ) )
 		);
 		$this->assertCount( 32, $clean['wallpaperSettings']['wp-snow'] );
 	}
 
 	/**
-	 * @covers ::desktop_mode_save_os_settings
-	 * @covers ::desktop_mode_get_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_user_meta_round_trip_keeps_wallpaper_settings() {
 		$user_id = self::factory()->user->create();
-		desktop_mode_save_os_settings(
+		openstation_save_os_settings(
 			$user_id,
 			array(
 				'wallpaperSettings' => array(
@@ -601,7 +804,7 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 				),
 			)
 		);
-		$loaded = desktop_mode_get_os_settings( $user_id );
+		$loaded = openstation_get_os_settings( $user_id );
 		$this->assertSame( 55, $loaded['wallpaperSettings']['wp-snow']['wind'] );
 		$this->assertSame( '#0c1a36', $loaded['wallpaperSettings']['wp-snow']['background'] );
 	}

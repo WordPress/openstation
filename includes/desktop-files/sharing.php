@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Folder sharing visibility logic.
+ * OpenStation — Folder sharing visibility logic.
  *
  * Computes which folders a viewer can see from each folder's
  * `share_mode` plus the shares / decisions tables:
@@ -11,14 +11,14 @@
  *     additionally require a per-user accepted row in the decisions
  *     table). The folders row's `share_meta` column is
  *     diagnostic-only and is never consulted for visibility.
- *   - `all`     — every desktop-mode user on the site.
+ *   - `all`     — every openstation user on the site.
  *
- * Hooked at priority 5 on `desktop_mode_files_visible_folders`
+ * Hooked at priority 5 on `openstation_files_visible_folders`
  * so plugins layering custom share modes (registered via
- * `desktop_mode_files_share_modes`) can run later in the chain
+ * `openstation_files_share_modes`) can run later in the chain
  * without competing for the early slot.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -31,14 +31,14 @@ defined( 'ABSPATH' ) || exit;
  * @param int   $user_id Viewer.
  * @return array
  */
-function desktop_mode_files_compute_visible_folders( $owned, $user_id ) {
+function openstation_files_compute_visible_folders( $owned, $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return is_array( $owned ) ? $owned : array();
 	}
 
-	$tables = desktop_mode_files_table_names();
+	$tables = openstation_files_table_names();
 	$user   = get_userdata( $user_id );
 	$roles  = $user ? array_values( (array) $user->roles ) : array();
 
@@ -81,7 +81,7 @@ function desktop_mode_files_compute_visible_folders( $owned, $user_id ) {
 	// every member of the role — that would be a "first to click
 	// decides for all" bug). The per-user acceptance lives in the
 	// decisions table, mirroring the resolution logic in
-	// `desktop_mode_folder_share_user_capability`.
+	// `openstation_folder_share_user_capability`.
 	//
 	// Without this join the role recipient could see the folder via
 	// REST `list_placements` (which routes through
@@ -120,19 +120,19 @@ function desktop_mode_files_compute_visible_folders( $owned, $user_id ) {
 		$seen_ids[ (int) $row['id'] ] = true;
 	}
 	foreach ( array_merge( (array) $all_rows, (array) $share_rows ) as $raw ) {
-		$row = desktop_mode_files_normalize_folder_row( $raw );
+		$row = openstation_files_normalize_folder_row( $raw );
 		$id  = (int) $row['id'];
 		if ( isset( $seen_ids[ $id ] ) ) {
 			continue;
 		}
-		if ( desktop_mode_files_user_can_see_folder( $row, $user_id, $roles ) ) {
-			$visible[] = $row;
+		if ( openstation_files_user_can_see_folder( $row, $user_id, $roles ) ) {
+			$visible[]       = $row;
 			$seen_ids[ $id ] = true;
 		}
 	}
 	return $visible;
 }
-add_filter( 'desktop_mode_files_visible_folders', 'desktop_mode_files_compute_visible_folders', 5, 2 );
+add_filter( 'openstation_files_visible_folders', 'openstation_files_compute_visible_folders', 5, 2 );
 
 /**
  * Whether the viewer's identity satisfies a folder's share rules.
@@ -142,7 +142,7 @@ add_filter( 'desktop_mode_files_visible_folders', 'desktop_mode_files_compute_vi
  * @param string[] $user_roles  Viewer's roles.
  * @return bool
  */
-function desktop_mode_files_user_can_see_folder( $folder, $user_id, $user_roles ) {
+function openstation_files_user_can_see_folder( $folder, $user_id, $user_roles ) {
 	$mode = (string) $folder['share_mode'];
 
 	// Owner always sees the folder.
@@ -158,7 +158,7 @@ function desktop_mode_files_user_can_see_folder( $folder, $user_id, $user_roles 
 		// to revoked recipients; reviewer caught the
 		// revocation-bypass and we dropped the fallback before
 		// the feature shipped.)
-		$cap = desktop_mode_folder_share_user_capability( (int) $folder['id'], (int) $user_id );
+		$cap = openstation_folder_share_user_capability( (int) $folder['id'], (int) $user_id );
 		$can = 'none' !== $cap;
 	}
 
@@ -172,5 +172,5 @@ function desktop_mode_files_user_can_see_folder( $folder, $user_id, $user_roles 
 	 * @param int      $user_id Viewer.
 	 * @param string[] $roles   Viewer's roles.
 	 */
-	return (bool) apply_filters( 'desktop_mode_files_user_can_see_folder', $can, $folder, $user_id, $user_roles );
+	return (bool) apply_filters( 'openstation_files_user_can_see_folder', $can, $folder, $user_id, $user_roles );
 }

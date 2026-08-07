@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files REST client.
+ * OpenStation — Files REST client.
  *
  * Thin wrapper around `fetch` that adds the WP nonce and the
  * desktop's REST base URL. Returns parsed JSON; throws on
@@ -37,7 +37,7 @@ export interface RestPlacementShape {
 	accessGated?: boolean;
 	/**
 	 * Server's "can this viewer trash this placement?" answer. Set
-	 * from `desktop_mode_files_user_can_trash_placement` at shape
+	 * from `openstation_files_user_can_trash_placement` at shape
 	 * time so the client can suppress trash affordances upfront —
 	 * hiding the "Move to recycle bin" tile-menu entry AND making
 	 * the trash drop target reject the drag — instead of letting
@@ -46,7 +46,7 @@ export interface RestPlacementShape {
 	 *
 	 * Always `true` for placements the viewer owns; falsy for
 	 * placements inside a shared folder where the viewer lacks
-	 * write capability, plus anything a `desktop_mode_files_user_can_trash_placement`
+	 * write capability, plus anything a `openstation_files_user_can_trash_placement`
 	 * filter customisation has vetoed.
 	 */
 	canTrash?: boolean;
@@ -67,7 +67,7 @@ export interface RestFolderShape {
 	 * `shared` is viewer-agnostic, but `recipientCount` is
 	 * owner-scoped: the server returns the real count only when
 	 * the viewer can manage the folder's shares (per
-	 * `desktop_mode_files_share_can_manage`) and `0` for every
+	 * `openstation_files_share_can_manage`) and `0` for every
 	 * other viewer, keeping the wire shape stable.
 	 */
 	shareSummary?: { shared: boolean; recipientCount: number };
@@ -117,7 +117,7 @@ export function installRestDeps( next: FilesRestDeps ): void {
 
 function ensureDeps(): FilesRestDeps {
 	if ( ! deps ) {
-		throw new Error( '[desktop-mode] files REST client called before installRestDeps().' );
+		throw new Error( '[openstation] files REST client called before installRestDeps().' );
 	}
 	return deps;
 }
@@ -190,7 +190,7 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 		}
 		const err = body as { code?: string; message?: string } | null;
 		throw new Error(
-			`[desktop-mode] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
+			`[openstation] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
 		);
 	}
 	// A 2xx with an empty or unparseable body is something the
@@ -198,7 +198,7 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 	// this module returns a shaped object). Two sources in
 	// practice:
 	//
-	//   - Desktop Mode replacing itself live (REST routes
+	//   - OpenStation replacing itself live (REST routes
 	//     briefly re-register, a redirect to wp-login HTML can
 	//     sneak through) — `text` is non-empty but not JSON.
 	//   - A genuinely empty 200 body (rare; usually a server
@@ -216,12 +216,12 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 		if ( parseError && text ) {
 			const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
 			throw new Error(
-				`[desktop-mode] files REST ${ res.status } returned non-JSON body — ` +
+				`[openstation] files REST ${ res.status } returned non-JSON body — ` +
 					`${ parseError.message }. First 120 chars: ${ head }`,
 			);
 		}
 		throw new Error(
-			`[desktop-mode] files REST ${ res.status }: empty or unparseable body.`,
+			`[openstation] files REST ${ res.status }: empty or unparseable body.`,
 		);
 	}
 	return body as T;
@@ -274,8 +274,8 @@ export function deletePlacement( id: number ): Promise< { deleted: true } > {
  * Restore a soft-trashed placement (or folder) via the
  * recycle-bin REST endpoint. The `type` field routes to the
  * correct trash module on the server side
- * (`desktop_mode_files_restore_placement` /
- * `desktop_mode_files_restore_folder`).
+ * (`openstation_files_restore_placement` /
+ * `openstation_files_restore_folder`).
  */
 export async function restoreTrashedItem(
 	id: number,
@@ -301,7 +301,7 @@ export async function restoreTrashedItem(
 		{ source: 'desktop-mode/files' },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `[desktop-mode] restore ${ res.status }` );
+		throw new Error( `[openstation] restore ${ res.status }` );
 	}
 	return ( await res.json() ) as { ok: number[]; errors: unknown[] };
 }

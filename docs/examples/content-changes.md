@@ -3,7 +3,7 @@
 The framework ships a generic content-change realtime
 layer: any create / update / trash of a post, page, `show_ui` CPT,
 comment, or WooCommerce order is broadcast to every window as
-`desktop-mode.<type>.changed`, and windows listing that type refresh
+`os.<type>.changed`, and windows listing that type refresh
 themselves — iframe list pages via the built-in soft reload, native
 windows via their own subscriptions. This recipe shows what (little)
 a third-party plugin needs to do to join in, on both sides.
@@ -27,9 +27,9 @@ mutations explicitly. One call per mutation:
  * After my plugin writes a row.
  */
 function myplugin_after_save_item( $item_id, $is_new ) {
-	if ( function_exists( 'desktop_mode_content_changes_record' ) ) {
-		desktop_mode_content_changes_record(
-			'myplugin_item',                    // becomes desktop-mode.myplugin_item.changed
+	if ( function_exists( 'openstation_content_changes_record' ) ) {
+		openstation_content_changes_record(
+			'myplugin_item',                    // becomes os.myplugin_item.changed
 			$item_id,
 			$is_new ? 'created' : 'updated'     // or trashed / untrashed / deleted
 		);
@@ -49,9 +49,9 @@ The generic soft-reload matcher only understands `edit.php` /
 `admin.php?page=myplugin-items`, declare it:
 
 ```php
-add_filter( 'desktop_mode_soft_reload_rules', function ( $rules ) {
+add_filter( 'openstation_soft_reload_rules', function ( $rules ) {
 	$rules[] = array(
-		'topic'       => 'desktop-mode.myplugin_item.changed',
+		'topic'       => 'os.myplugin_item.changed',
 		'path'        => 'admin.php',
 		'query'       => array( 'page' => 'myplugin-items' ),
 		// Keep the single-item editor out — a background body swap
@@ -62,14 +62,14 @@ add_filter( 'desktop_mode_soft_reload_rules', function ( $rules ) {
 } );
 ```
 
-Now any `desktop-mode.myplugin_item.changed` broadcast makes an open
+Now any `os.myplugin_item.changed` broadcast makes an open
 `admin.php?page=myplugin-items` iframe refetch its own URL and swap
 `#wpbody-content` in place — no spinner, no scroll jump. Re-bind any
-custom JS after the swap by listening for `desktop-mode-soft-reloaded`
+custom JS after the swap by listening for `os-soft-reloaded`
 on the iframe's `document`.
 
 (This is exactly how the built-in WooCommerce HPOS orders rule works:
-`admin.php?page=wc-orders` reacts to `desktop-mode.shop_order.changed`,
+`admin.php?page=wc-orders` reacts to `os.shop_order.changed`,
 with `queryAbsent: [ 'action' ]` protecting the order editor.)
 
 ## Consumer — a native window
@@ -78,8 +78,8 @@ Subscribe on the broadcast bus and refetch. Skip your own emissions
 by `source` if your window also publishes:
 
 ```js
-const unsubscribe = wp.desktop.subscribe(
-	'desktop-mode.myplugin_item.changed',
+const unsubscribe = wp.os.subscribe(
+	'os.myplugin_item.changed',
 	( { source, action, ids } ) => {
 		if ( source === 'myplugin-window' ) {
 			return; // our own mutation already refreshed the table
@@ -99,12 +99,12 @@ refreshes must be idempotent), or a client emitter's own id.
 
 ```php
 // Keep a high-churn internal type out of the realtime system.
-add_filter( 'desktop_mode_content_changes_should_record', function ( $record, $type ) {
+add_filter( 'openstation_content_changes_should_record', function ( $record, $type ) {
 	return 'myplugin_log_entry' === $type ? false : $record;
 }, 10, 2 );
 
 // Mirror every recorded change into your own realtime channel (SSE, websocket).
-add_action( 'desktop_mode_content_change_recorded', function ( $type, $id, $action ) {
+add_action( 'openstation_content_change_recorded', function ( $type, $id, $action ) {
 	myplugin_sse_push( compact( 'type', 'id', 'action' ) );
 }, 10, 3 );
 ```

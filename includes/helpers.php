@@ -1,8 +1,8 @@
 <?php
 /**
- * Desktop Mode helper functions.
+ * OpenStation helper functions.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -16,13 +16,13 @@ defined( 'ABSPATH' ) || exit;
  * bundles only (the ~4–5 MB of dev bundles are a source-checkout
  * artifact — see bin/package.sh), so a production site that happens
  * to define SCRIPT_DEBUG would otherwise request dev files that
- * don't exist and 404 every desktop-mode script. Probe one
+ * don't exist and 404 every openstation script. Probe one
  * canonical dev bundle; if it's absent, this is a minified-only
  * install and `.min` is the only truth available.
  *
  * @return string `'.min'` or `''`.
  */
-function desktop_mode_asset_suffix() {
+function openstation_asset_suffix() {
 	static $suffix = null;
 	if ( null !== $suffix ) {
 		return $suffix;
@@ -31,18 +31,18 @@ function desktop_mode_asset_suffix() {
 		$suffix = '.min';
 		return $suffix;
 	}
-	$suffix = file_exists( DESKTOP_MODE_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
+	$suffix = file_exists( OPENSTATION_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
 	return $suffix;
 }
 
 /**
- * Checks whether a user has desktop mode enabled.
+ * Checks whether a user has OpenStation enabled.
  *
  * Two gates, both must pass:
  *
  * 1. The user's `desktop_mode_mode` user-meta is `'1'` (the per-user
  *    opt-in toggle the admin-bar button writes via the AJAX endpoint).
- * 2. The `desktop_mode_mode_enabled` filter returns truthy for that user.
+ * 2. The `openstation_mode_enabled` filter returns truthy for that user.
  *
  * Centralising the filter check here means render-time gates (chromeless
  * detection, payload generation, REST permission callbacks) can rely on
@@ -53,9 +53,9 @@ function desktop_mode_asset_suffix() {
  *
  * @param int $user_id Optional. User ID to check. Defaults to the
  *                     current user.
- * @return bool True if the user has desktop mode active.
+ * @return bool True if the user has OpenStation active.
  */
-function desktop_mode_is_enabled( $user_id = 0 ) {
+function openstation_is_enabled( $user_id = 0 ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		if ( ! is_user_logged_in() ) {
@@ -69,43 +69,43 @@ function desktop_mode_is_enabled( $user_id = 0 ) {
 	}
 
 	/**
-	 * Filters whether desktop mode is available for this user.
+	 * Filters whether OpenStation is available for this user.
 	 *
-	 * See `docs/hooks-reference.md` (`desktop_mode_mode_enabled`) for the
+	 * See `docs/hooks-reference.md` (`openstation_mode_enabled`) for the
 	 * full contract. Returning `false` here makes the helper return
 	 * `false` for the user even when their meta is set, which propagates
 	 * to every render-time gate that consults the helper.
 	 *
-	 * @param bool $enabled Whether desktop mode is enabled. Default true.
+	 * @param bool $enabled Whether OpenStation is enabled. Default true.
 	 * @param int  $user_id The user ID being checked.
 	 */
-	return (bool) apply_filters( 'desktop_mode_mode_enabled', true, $user_id );
+	return (bool) apply_filters( 'openstation_mode_enabled', true, $user_id );
 }
 
 /**
- * Shared REST permission gate for Desktop Mode's per-user endpoints.
+ * Shared REST permission gate for OpenStation's per-user endpoints.
  *
  * Routes that only ever read or write the *current* user's own Desktop
  * Mode state (OS settings, session, default-window, seen-intros, PWA
  * state, presence) must not be reachable by accounts that haven't
- * actually entered Desktop Mode.
+ * actually entered OpenStation.
  *
  * `current_user_can( 'read' )` alone is too loose: every authenticated
  * role — Subscriber included — carries `read`, so the old gate let any
- * logged-in user touch these routes without ever enabling Desktop Mode.
- * We gate on {@see desktop_mode_is_enabled()} instead (the same opt-in +
- * `desktop_mode_mode_enabled` filter the shell itself uses) and return
+ * logged-in user touch these routes without ever enabling OpenStation.
+ * We gate on {@see openstation_is_enabled()} instead (the same opt-in +
+ * `openstation_mode_enabled` filter the shell itself uses) and return
  * the conventional 401/403 split so REST clients can tell "log in" from
  * "not allowed".
  *
- * This is the canonical gate; `desktop_mode_presence_rest_permission()`
+ * This is the canonical gate; `openstation_presence_rest_permission()`
  * pioneered the shape and now delegates here.
  *
  * @return true|WP_Error True when allowed; a `rest_forbidden` WP_Error
- *                       (401 when logged out, 403 when desktop mode is
+ *                       (401 when logged out, 403 when OpenStation is
  *                       not enabled for the account) otherwise.
  */
-function desktop_mode_rest_require_enabled() {
+function openstation_rest_require_enabled() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'rest_forbidden',
@@ -114,10 +114,10 @@ function desktop_mode_rest_require_enabled() {
 		);
 	}
 
-	if ( ! desktop_mode_is_enabled() ) {
+	if ( ! openstation_is_enabled() ) {
 		return new WP_Error(
 			'rest_forbidden',
-			__( 'Desktop mode is not enabled for your account.', 'desktop-mode' ),
+			__( 'OpenStation is not enabled for your account.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -129,13 +129,13 @@ function desktop_mode_rest_require_enabled() {
 // flag-preservation filter pair were moved to
 // `includes/core/routing.php`. The functions and the
 // add_filter / add_action hookings live there now; this file
-// remains the home of `desktop_mode_is_enabled()` (called from the
+// remains the home of `openstation_is_enabled()` (called from the
 // routing helpers at hook-fire time, after every include has
 // loaded), which is why `desktop-mode.php` can safely require
 // routing.php BEFORE helpers.php.
 
 /**
- * `desktop_mode_is_chromeless_request()` and `desktop_mode_is_classic_request()`
+ * `openstation_is_chromeless_request()` and `openstation_is_classic_request()`
  * were moved to `includes/core/routing.php` — see that
  * file for the canonical definitions. The function names didn't
  * change; PHP looks them up by name at call time, so every
@@ -151,25 +151,25 @@ function desktop_mode_rest_require_enabled() {
  * without forking the TS build.
  *
  * ```php
- * add_filter( 'desktop_mode_default_wallpaper', function () {
+ * add_filter( 'openstation_default_wallpaper', function () {
  *     return 'my-plugin/brand';
  * } );
  * ```
  *
  * The returned string is passed through `sanitize_key()` so a filter
  * that returns an invalid slug degrades to the empty string (and the
- * shell falls back to its hard-coded `'dark'` preset).
+ * shell falls back to its hard-coded default preset).
  *
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
  */
-function desktop_mode_get_default_wallpaper() {
+function openstation_get_default_wallpaper() {
 	/**
 	 * Filters the wallpaper id loaded on first boot / new user.
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
-	$id = apply_filters( 'desktop_mode_default_wallpaper', 'dark' );
+	$id = apply_filters( 'openstation_default_wallpaper', 'galaxy' );
 	if ( ! is_string( $id ) ) {
 		return '';
 	}
@@ -177,19 +177,63 @@ function desktop_mode_get_default_wallpaper() {
 }
 
 /**
- * Build a `WP_Error` for a desktop-mode registration failure.
+ * The site's own name, ready to use as a window / icon title.
+ *
+ * The desktop shows objects, not the software running it — so the
+ * *root folder* of a site's content is named after the site itself
+ * ("Izzi's Gym"), not after WordPress. That is the breadcrumb root and
+ * the Content Graph's site label; the app that browses it is called WP
+ * Explorer, which is a different string (see
+ * `openstation_my_wordpress_app_title()`). This is the single source
+ * for the site one.
+ *
+ * `get_bloginfo( 'name' )` returns the display-filtered option, which
+ * carries HTML entities (`&amp;`, `&#039;`). Titles land in
+ * `title=` attributes and JS-rendered text nodes, so the entities are
+ * decoded here — leaving them encoded would render a literal
+ * `Ben &amp; Jerry` on the desktop.
+ *
+ * @return string Decoded site title. Falls back to `WordPress` when
+ *                the site has no name set.
+ */
+function openstation_site_title() {
+	$title = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+	$title = trim( $title );
+
+	if ( '' === $title ) {
+		$title = __( 'WordPress', 'desktop-mode' );
+	}
+
+	/**
+	 * Filters the site title used for openstation window and icon
+	 * titles — WP Explorer's breadcrumb root, the Content Graph's site
+	 * label, and any "Open in <site>" action.
+	 *
+	 * Return a different string to label the desktop objects after
+	 * something other than `blogname` (a brand, a network name, a
+	 * per-user workspace label).
+	 *
+	 * @param string $title Decoded site title, never empty.
+	 */
+	$filtered = apply_filters( 'openstation_site_title', $title );
+
+	return is_string( $filtered ) && '' !== trim( $filtered ) ? $filtered : $title;
+}
+
+/**
+ * Build a `WP_Error` for a openstation registration failure.
  *
  * Centralises the error-code vocabulary used by every
- * `desktop_mode_register_*()` function so plugin authors see a
+ * `openstation_register_*()` function so plugin authors see a
  * consistent contract. The canonical error-code list lives in
  * `docs/hooks-reference.md`.
  *
- * @param string $code    Short error slug (e.g. `desktop_mode_missing_title`).
+ * @param string $code    Short error slug (e.g. `openstation_missing_title`).
  * @param string $message Human-readable message. Should be translated.
  * @param array  $data    Optional extra context attached to the error.
  * @return WP_Error
  */
-function desktop_mode_registration_error( $code, $message, $data = array() ) {
+function openstation_registration_error( $code, $message, $data = array() ) {
 	return new WP_Error(
 		(string) $code,
 		(string) $message,
@@ -197,9 +241,9 @@ function desktop_mode_registration_error( $code, $message, $data = array() ) {
 	);
 }
 
-// `desktop_mode_url_is_same_admin()`,
-// `desktop_mode_resolve_admin_target()` and
-// `desktop_mode_admin_target_allowlist()` were moved to
+// `openstation_url_is_same_admin()`,
+// `openstation_resolve_admin_target()` and
+// `openstation_admin_target_allowlist()` were moved to
 // `includes/core/routing.php` — see that file for the
 // canonical definitions. Function names didn't change; PHP's
 // runtime resolution finds them across the module split.
@@ -210,5 +254,5 @@ function desktop_mode_registration_error( $code, $message, $data = array() ) {
 // `includes/core/payload.php`. Function names didn't
 // change; existing callers find them via PHP's runtime function
 // resolution. desktop-mode.php loads payload.php right after
-// helpers.php so the foundational helpers (desktop_mode_is_enabled
+// helpers.php so the foundational helpers (openstation_is_enabled
 // etc.) are present when payload functions are invoked.

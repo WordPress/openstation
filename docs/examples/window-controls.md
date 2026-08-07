@@ -11,7 +11,7 @@ This is **Layer 2** of the four-layer window-chrome customization framework. See
 Move the close button to the leftmost position on a specific native window:
 
 ```js
-wp.desktop.registerWindow( {
+wp.os.registerWindow( {
     id:     'my-plugin/dashboard',
     title:  'Dashboard',
     icon:   'dashicons-dashboard',
@@ -31,7 +31,7 @@ Controls listed in `order` render in that order; controls not listed keep their 
 ## Recipe 2 — Hide a built-in for one window
 
 ```js
-wp.desktop.applyWindowControls( 'edit-post', {
+wp.os.applyWindowControls( 'edit-post', {
     hide: [ 'core/focus-tab' ],
 } );
 ```
@@ -43,7 +43,7 @@ Other windows retain the full set. Pass `null` to clear the override.
 A control declared inline never enters the global registry — it lives only on this window:
 
 ```js
-wp.desktop.applyWindowControls( 'edit-post', {
+wp.os.applyWindowControls( 'edit-post', {
     custom: [
         {
             id:    'my-plugin/star',
@@ -63,7 +63,7 @@ wp.desktop.applyWindowControls( 'edit-post', {
 
 ## Recipe 4 — Register a control globally (cross-window)
 
-When the same control should appear in many windows, register it via `wp.desktop.registerWindowControl()` with a `match` predicate:
+When the same control should appear in many windows, register it via `wp.os.registerWindowControl()` with a `match` predicate:
 
 **plugin.php**
 
@@ -72,19 +72,19 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-controls',
         plugins_url( 'controls.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0', true
     );
     wp_enqueue_script( 'my-plugin-controls' );
 } );
-desktop_mode_register_window_control_script( 'my-plugin-controls' );
+openstation_register_window_control_script( 'my-plugin-controls' );
 ```
 
 **controls.js**
 
 ```js
-wp.desktop.whenReady( () => {
-    wp.desktop.registerWindowControl( {
+wp.os.whenReady( () => {
+    wp.os.registerWindowControl( {
         id:    'my-plugin/info',
         label: 'Info',
         icon:  'dashicons-info',
@@ -104,7 +104,7 @@ The `owner` field is the WP script handle. Deactivation drops every control with
 ## Recipe 5 — Hide a built-in globally
 
 ```js
-wp.desktop.unregisterWindowControl( 'core/focus-tab' );
+wp.os.unregisterWindowControl( 'core/focus-tab' );
 ```
 
 Re-register at any time to bring it back; the registry is a Map and entries replace by id.
@@ -112,20 +112,20 @@ Re-register at any time to bring it back; the registry is a Map and entries repl
 ## Recipe 6 — Move the controls cluster to the left edge
 
 ```js
-wp.desktop.applyWindowControls( 'my-plugin/dashboard', {
+wp.os.applyWindowControls( 'my-plugin/dashboard', {
     placement: 'left',
 } );
 ```
 
-Sets the `desktop-mode-window__controls--left` class on the cluster — your CSS theme can react to that for the actual layout flip.
+Sets the `os-window__controls--left` class on the cluster — your CSS theme can react to that for the actual layout flip.
 
 ## Recipe 7 — Mutate the resolved list with a filter
 
-When you don't want to register or unregister, use the `desktop-mode.window.chrome.controls` filter to mutate the list at paint time:
+When you don't want to register or unregister, use the `os.window.chrome.controls` filter to mutate the list at paint time:
 
 ```js
 wp.hooks.addFilter(
-    'desktop-mode.window.chrome.controls',
+    'os.window.chrome.controls',
     'my-plugin/never-close-the-shop',
     ( controls, ctx ) => {
         if ( ctx.placement !== 'controls' ) return controls;
@@ -146,15 +146,15 @@ wp.hooks.addFilter(
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop_mode_window_control_script_registered` | action | `( string $handle )` | Fires after `desktop_mode_register_window_control_script()` succeeds. |
-| `desktop_mode_window_control_registered` | action | `( string $id, array $entry )` | Fires after `desktop_mode_register_window_control()` stores metadata. |
+| `openstation_window_control_script_registered` | action | `( string $handle )` | Fires after `openstation_register_window_control_script()` succeeds. |
+| `openstation_window_control_registered` | action | `( string $id, array $entry )` | Fires after `openstation_register_window_control()` stores metadata. |
 
 ### JavaScript
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `desktop-mode.window.chrome.controls` | filter | `( controls, { windowId, config, placement } ) => controls` | Mutate the resolved per-placement control list. Stable. |
-| `desktop-mode.window.chrome.applied` | action | `( { windowId, layer } )` | Fires after a paint completes. `layer` is `'controls'` for this layer. Stable. |
+| `os.window.chrome.controls` | filter | `( controls, { windowId, config, placement } ) => controls` | Mutate the resolved per-placement control list. Stable. |
+| `os.window.chrome.applied` | action | `( { windowId, layer } )` | Fires after a paint completes. `layer` is `'controls'` for this layer. Stable. |
 
 ---
 
@@ -162,8 +162,8 @@ wp.hooks.addFilter(
 
 | Function | Purpose |
 |----------|---------|
-| `wp.desktop.registerWindowControl( def )` | Register a global control. Throws on validation failure. |
-| `wp.desktop.unregisterWindowControl( id )` | Drop by id. No-op if not registered. |
-| `wp.desktop.listWindowControls()` | Snapshot for tooling / inspectors. |
-| `wp.desktop.applyWindowControls( windowId, override )` | Per-window mutation at runtime. Pass `null` to clear. |
+| `wp.os.registerWindowControl( def )` | Register a global control. Throws on validation failure. |
+| `wp.os.unregisterWindowControl( id )` | Drop by id. No-op if not registered. |
+| `wp.os.listWindowControls()` | Snapshot for tooling / inspectors. |
+| `wp.os.applyWindowControls( windowId, override )` | Per-window mutation at runtime. Pass `null` to clear. |
 | `WindowConfig.appearance.controls` | Per-window declaration at registration time. |

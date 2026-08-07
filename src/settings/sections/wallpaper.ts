@@ -18,8 +18,8 @@ import type {
 	WallpaperDef,
 	WallpaperTeardown,
 } from '../../wallpapers/types';
-import '../../ui/components/wpd-modal/wpd-modal';
-import '../../ui/components/wpd-button/wpd-button';
+import '../../ui/components/os-modal/os-modal';
+import '../../ui/components/os-button/os-button';
 import {
 	CUSTOM_GRADIENT_ID,
 	CUSTOM_IMAGE_ID,
@@ -124,13 +124,13 @@ export function selectWallpaper(
 	ctx.apply();
 	refreshWallpaperPressedState( ctx, body );
 	const slot = body.querySelector<HTMLElement>(
-		'.desktop-mode-os-settings__wallpaper-description-slot',
+		'.os-settings__wallpaper-description-slot',
 	);
 	if ( slot ) {
 		syncWallpaperDescription( ctx, slot );
 	}
 	const configSlot = body.querySelector<HTMLElement>(
-		'.desktop-mode-os-settings__wallpaper-config-slot',
+		'.os-settings__wallpaper-config-slot',
 	);
 	if ( configSlot ) {
 		syncWallpaperConfigButton( ctx, configSlot );
@@ -165,14 +165,14 @@ export function syncWallpaperConfigButton(
 	slot.style.marginTop = '12px';
 	render(
 		html`
-			<div class="desktop-mode-os-settings__wallpaper-config">
-				<wpd-button
+			<div class="os-settings__wallpaper-config">
+				<os-button
 					variant="secondary"
 					@click=${ () => openWallpaperConfigDialog( ctx, def ) }
 				>
-					<wpd-icon name="admin-generic"></wpd-icon>
+					<os-icon name="admin-generic"></os-icon>
 					${ __( 'Wallpaper settings' ) }
-				</wpd-button>
+				</os-button>
 			</div>
 		`,
 		inner,
@@ -181,7 +181,7 @@ export function syncWallpaperConfigButton(
 }
 
 /**
- * Open the wallpaper's settings dialog: a `<wpd-modal>` on
+ * Open the wallpaper's settings dialog: a `<os-modal>` on
  * `document.body` whose body is handed to the def's `renderConfig`.
  * The shell owns the chrome (title, focus trap, Done button, ESC /
  * click-outside); the wallpaper owns the form.
@@ -189,7 +189,7 @@ export function syncWallpaperConfigButton(
  * The config context's `setSettings` merges into the persisted
  * per-wallpaper bag, saves through the normal OS Settings pipeline,
  * and publishes to the shared store — which fires
- * `desktop-mode.wallpaper.settings-changed` so a mounted instance of
+ * `os.wallpaper.settings-changed` so a mounted instance of
  * the wallpaper live-applies without a remount.
  */
 export function openWallpaperConfigDialog(
@@ -200,7 +200,7 @@ export function openWallpaperConfigDialog(
 		return;
 	}
 
-	const modal = document.createElement( 'wpd-modal' );
+	const modal = document.createElement( 'os-modal' );
 	modal.setAttribute( 'size', 'sm' );
 	modal.setAttribute(
 		'title',
@@ -212,7 +212,7 @@ export function openWallpaperConfigDialog(
 	);
 
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-os-settings__wallpaper-config-form';
+	body.className = 'os-settings__wallpaper-config-form';
 	// Same class exists in os-settings.css, but the dialog opens from
 	// lazy-loaded JS in sessions whose stylesheet may predate this
 	// surface — without the column layout the fields flow inline and
@@ -223,7 +223,7 @@ export function openWallpaperConfigDialog(
 	body.style.gap = '14px';
 	modal.appendChild( body );
 
-	const done = document.createElement( 'wpd-button' );
+	const done = document.createElement( 'os-button' );
 	done.setAttribute( 'slot', 'footer' );
 	done.setAttribute( 'variant', 'primary' );
 	done.textContent = __( 'Done' );
@@ -242,7 +242,7 @@ export function openWallpaperConfigDialog(
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
-						`[desktop-mode] Wallpaper "${ def.id }" config teardown threw:`,
+						`[openstation] Wallpaper "${ def.id }" config teardown threw:`,
 						err,
 					);
 				}
@@ -252,7 +252,7 @@ export function openWallpaperConfigDialog(
 		modal.remove();
 	};
 	done.addEventListener( 'click', close );
-	modal.addEventListener( 'wpd-modal-cancel', close );
+	modal.addEventListener( 'os-modal-cancel', close );
 
 	const configCtx: WallpaperConfigContext = {
 		id: def.id,
@@ -298,7 +298,7 @@ export function openWallpaperConfigDialog(
 	} catch ( err ) {
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[desktop-mode] Wallpaper "${ def.id }" renderConfig threw:`,
+				`[openstation] Wallpaper "${ def.id }" renderConfig threw:`,
 				err,
 			);
 		}
@@ -312,8 +312,8 @@ export function openWallpaperConfigDialog(
  * selection carries no description; expands with the same
  * grid-template-rows animation the editor slot uses.
  *
- * The card is `<wpd-*>`-built: an icon column beside the wallpaper's
- * name and its story, on a `wpd-panel`-rhythm surface.
+ * The card is `<os-*>`-built: an icon column beside the wallpaper's
+ * name and its story, on a `os-panel`-rhythm surface.
  */
 export function syncWallpaperDescription(
 	ctx: SettingsCtx,
@@ -331,12 +331,12 @@ export function syncWallpaperDescription(
 	}
 	render(
 		html`
-			<div class="desktop-mode-os-settings__wallpaper-description">
-				<div class="desktop-mode-os-settings__wallpaper-description-header">
-					<wpd-icon
-						class="desktop-mode-os-settings__wallpaper-description-icon"
+			<div class="os-settings__wallpaper-description">
+				<div class="os-settings__wallpaper-description-header">
+					<os-icon
+						class="os-settings__wallpaper-description-icon"
 						name=${ def.type === 'canvas' ? 'star-filled' : 'art' }
-					></wpd-icon>
+					></os-icon>
 					<strong>${ def.label }</strong>
 				</div>
 				<p>${ text }</p>
@@ -359,7 +359,7 @@ export function refreshWallpaperPressedState(
 ): void {
 	body.querySelectorAll<HTMLElement>( '[data-wallpaper-id]' ).forEach( ( el ) => {
 		const selected = el.dataset.wallpaperId === ctx.state.wallpaper;
-		// `<wpd-swatch>` drives its inner aria-pressed from the
+		// `<os-swatch>` drives its inner aria-pressed from the
 		// `selected` host attribute; upload-tile (still hand-rolled
 		// for the drag/drop surface) uses aria-pressed directly, so
 		// we set both — whichever the element cares about applies.
@@ -394,7 +394,7 @@ export function syncEditorSlot(
 ): void {
 	teardownEditor( ctx );
 	const inner = document.createElement( 'div' );
-	inner.className = 'desktop-mode-os-settings__editor-slot-inner';
+	inner.className = 'os-settings__editor-slot-inner';
 	slot.textContent = '';
 	slot.appendChild( inner );
 
@@ -425,7 +425,7 @@ export function syncEditorSlot(
 	} catch ( err ) {
 		if ( typeof console !== 'undefined' ) {
 			console.error(
-				`[desktop-mode] Wallpaper "${ def.id }" renderEditor threw:`,
+				`[openstation] Wallpaper "${ def.id }" renderEditor threw:`,
 				err,
 			);
 		}
@@ -441,7 +441,7 @@ export function teardownEditor( ctx: SettingsCtx ): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] Wallpaper editor teardown threw:',
+					'[openstation] Wallpaper editor teardown threw:',
 					err,
 				);
 			}
@@ -459,7 +459,7 @@ export function renderCustomGradientEditor(
 	ctx: SettingsCtx,
 	container: HTMLElement,
 ): WallpaperTeardown {
-	container.classList.add( 'desktop-mode-os-settings__gradient-editor-inner' );
+	container.classList.add( 'os-settings__gradient-editor-inner' );
 
 	const onFrom = ( e: Event ): void => {
 		ctx.state.customGradient.from = ( e as CustomEvent ).detail.value;
@@ -483,29 +483,29 @@ export function renderCustomGradientEditor(
 	const paint = (): void =>
 		render(
 			html`
-				<div class="desktop-mode-os-settings__gradient-row">
-					<wpd-color-field
+				<div class="os-settings__gradient-row">
+					<os-color-field
 						variant="block"
 						label=${ __( 'From' ) }
 						value=${ ctx.state.customGradient.from }
-						@wpd-color-change=${ onFrom }
-					></wpd-color-field>
-					<wpd-color-field
+						@os-color-change=${ onFrom }
+					></os-color-field>
+					<os-color-field
 						variant="block"
 						label=${ __( 'To' ) }
 						value=${ ctx.state.customGradient.to }
-						@wpd-color-change=${ onTo }
-					></wpd-color-field>
+						@os-color-change=${ onTo }
+					></os-color-field>
 				</div>
-				<wpd-range-field
+				<os-range-field
 					label=${ __( 'Angle' ) }
 					min="0"
 					max="360"
 					step="1"
 					suffix="°"
 					value=${ String( ctx.state.customGradient.angle ) }
-					@wpd-range-change=${ onAngle }
-				></wpd-range-field>
+					@os-range-change=${ onAngle }
+				></os-range-field>
 			`,
 			container,
 		);
@@ -522,12 +522,12 @@ function syncGradientPreviewSwatch(
 	ctx: SettingsCtx,
 	editorEl: HTMLElement,
 ): void {
-	// The gradient editor is mounted inside the wallpaper `<wpd-section>`'s
-	// slot, alongside the swatch grid. Walking up to the wpd-section and
+	// The gradient editor is mounted inside the wallpaper `<os-section>`'s
+	// slot, alongside the swatch grid. Walking up to the os-section and
 	// querying for the custom-gradient swatch finds it regardless of DOM
 	// shuffles from a future refactor of the wallpaper section's
 	// internals.
-	const section = editorEl.closest( 'wpd-section' );
+	const section = editorEl.closest( 'os-section' );
 	const preview = section?.querySelector<HTMLElement>(
 		`[data-wallpaper-id="${ CUSTOM_GRADIENT_ID }"]`,
 	);
@@ -559,32 +559,32 @@ export function buildWallpaperSection(
 	// element on every mount; this initial one just keeps the collapsed
 	// slot's grid row populated until the first sync.
 	const editorSlot = document.createElement( 'div' );
-	editorSlot.className = 'desktop-mode-os-settings__editor-slot';
+	editorSlot.className = 'os-settings__editor-slot';
 	editorSlot.dataset.expanded = 'false';
 	const editorInner = document.createElement( 'div' );
-	editorInner.className = 'desktop-mode-os-settings__editor-slot-inner';
+	editorInner.className = 'os-settings__editor-slot-inner';
 	editorSlot.appendChild( editorInner );
 
 	// Description slot: same collapsing pattern, hosting the selected
 	// wallpaper's description card (see syncWallpaperDescription).
 	const descriptionSlot = document.createElement( 'div' );
 	descriptionSlot.className =
-		'desktop-mode-os-settings__wallpaper-description-slot';
+		'os-settings__wallpaper-description-slot';
 	descriptionSlot.dataset.expanded = 'false';
 	const descriptionInner = document.createElement( 'div' );
 	descriptionInner.className =
-		'desktop-mode-os-settings__wallpaper-description-slot-inner';
+		'os-settings__wallpaper-description-slot-inner';
 	descriptionSlot.appendChild( descriptionInner );
 
 	// Config slot: same collapsing pattern, hosting the "Wallpaper
 	// settings" button when the selected wallpaper ships a
 	// `renderConfig` dialog (see syncWallpaperConfigButton).
 	const configSlot = document.createElement( 'div' );
-	configSlot.className = 'desktop-mode-os-settings__wallpaper-config-slot';
+	configSlot.className = 'os-settings__wallpaper-config-slot';
 	configSlot.dataset.expanded = 'false';
 	const configInner = document.createElement( 'div' );
 	configInner.className =
-		'desktop-mode-os-settings__wallpaper-config-slot-inner';
+		'os-settings__wallpaper-config-slot-inner';
 	configSlot.appendChild( configInner );
 
 	const onPick = ( e: Event ): void => {
@@ -612,21 +612,21 @@ export function buildWallpaperSection(
 	const paint = (): void =>
 		render(
 			html`
-				<wpd-section
+				<os-section
 					heading=${ __( 'Wallpaper' ) }
 					description=${ __(
 		'The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image.',
 	) }
 				>
 					<div
-						class="desktop-mode-os-settings__grid desktop-mode-os-settings__grid--wallpapers"
-						@wpd-pick=${ onPick }
+						class="os-settings__grid os-settings__grid--wallpapers"
+						@os-pick=${ onPick }
 					>
 						${ registry
 		.all()
 		.filter( ( def ) => def.id !== CUSTOM_IMAGE_ID )
 		.map(
-			( def ) => html`<wpd-swatch
+			( def ) => html`<os-swatch
 									value=${ def.id }
 									label=${ def.label }
 									preview=${ def.preview }
@@ -634,15 +634,15 @@ export function buildWallpaperSection(
 									data-wallpaper-id=${ def.id }
 									?selected=${ ctx.state.wallpaper === def.id }
 								>
-									<span class="desktop-mode-os-settings__swatch-label"
+									<span class="os-settings__swatch-label"
 										>${ def.label }</span
 									>
-								</wpd-swatch>`,
+								</os-swatch>`,
 		) }
 					</div>
 					${ descriptionSlot } ${ configSlot } ${ editorSlot }
 					${ customImageSection }
-				</wpd-section>
+				</os-section>
 			`,
 			wrapper,
 		);
@@ -661,7 +661,7 @@ export function buildWallpaperSection(
 
 	// Live-update when plugins register or unregister wallpapers
 	// mid-session. The server-sync module fires register()/unregister()
-	// when `desktop-mode-plugins-changed` arrives from a plugins.php
+	// when `os-plugins-changed` arrives from a plugins.php
 	// iframe; we re-paint so the swatch grid reflects reality without
 	// the user having to close and re-open the settings window.
 	//

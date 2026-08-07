@@ -1,6 +1,6 @@
 /**
  * Recommended OS settings — the shell-side mirror of PHP's
- * `desktop_mode_desktop_theme_recommended_os_settings_schema()`.
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
  *
  * Two responsibilities, and they are deliberately separate:
  *
@@ -15,14 +15,23 @@
  *     sit forever looking like a deliberate choice.
  *
  * Keep the enums equal to `DOCK_SIZES` / `DESKTOP_LAYOUTS` /
- * `WINDOW_RADII` in `src/settings/constants.ts` and to the
- * `DESKTOP_MODE_OS_SETTINGS_*` constants in `includes/os-settings.php`.
+ * `WINDOW_RADII` / `ADMIN_BAR_MODES` in `src/settings/constants.ts`
+ * and to the `OPENSTATION_OS_SETTINGS_*` constants in
+ * `includes/os-settings.php`.
  * They are duplicated rather than imported because this module is a
  * leaf of the always-on shell bundle and must not pull the settings
  * module in behind it.
  */
 
 import { get as getDockRailRenderer } from '../dock-rail/registry';
+import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
+// The one import from the settings module, and a deliberate exception
+// to the note above: `constants.ts` is itself a leaf — everything it
+// imports is type-only — so this pulls in the accent list and nothing
+// else. Duplicating the swatch ids here would defeat the point, since
+// the list is filterable and the whole check is "does the site still
+// offer this one?".
+import { getAccents } from '../settings/constants';
 import type { RecommendedOsSettings } from './types';
 
 /** Closed enums, keyed by the OS-settings field they belong to. */
@@ -30,24 +39,39 @@ const ENUMS: Record< string, readonly string[] > = {
 	dockSize: [ 'compact', 'default', 'large' ],
 	desktopLayout: [ 'classic', 'unified', 'spatial' ],
 	windowRadius: [ 'sharp', 'default', 'round' ],
+	adminBarMode: [ 'static', 'dynamic', 'hidden' ],
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */
-const SLUG_FIELDS = [ 'dockRailRenderer' ] as const;
+const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal', 'accent' ] as const;
+
+/**
+ * Numeric fields, with the range the sanitizer clamps into. Mirrors
+ * the `int` grammar in
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
+ *
+ * Values are clamped rather than dropped: a theme asking for a reveal
+ * slower than the shell will play is expressing "slow", and the honest
+ * reading of that is the slowest we do play.
+ */
+const INT_FIELDS: Record< string, { min: number; max: number } > = {
+	windowRevealDuration: { min: 80, max: 4000 },
+};
 
 /** Slug charset — mirrors PHP's `sanitize_key()`. */
 const SLUG_PATTERN = /^[a-z0-9_-]+$/;
 
 /**
  * Every OS-settings key a theme may recommend, in a stable order.
- * Exported so a UI can describe what an "Apply recommended layout"
- * action is about to touch.
+ * Exported so a UI can describe what an "Apply recommended layout and
+ * effects" action is about to touch.
  *
  * @public
  */
 export const RECOMMENDED_OS_SETTINGS_KEYS: readonly string[] = [
 	...Object.keys( ENUMS ),
 	...SLUG_FIELDS,
+	...Object.keys( INT_FIELDS ),
 ];
 
 /**
@@ -65,6 +89,7 @@ export function sanitizeRecommendedOsSettings(
 	}
 	const source = raw as Record< string, unknown >;
 	const out: Record< string, string > = {};
+	const ints: Record< string, number > = {};
 
 	for ( const [ key, allowed ] of Object.entries( ENUMS ) ) {
 		const value = source[ key ];
@@ -78,8 +103,17 @@ export function sanitizeRecommendedOsSettings(
 			out[ key ] = value;
 		}
 	}
+	for ( const [ key, range ] of Object.entries( INT_FIELDS ) ) {
+		const value = source[ key ];
+		if ( typeof value === 'number' && Number.isFinite( value ) ) {
+			ints[ key ] = Math.min(
+				range.max,
+				Math.max( range.min, Math.round( value ) ),
+			);
+		}
+	}
 
-	return out as RecommendedOsSettings;
+	return { ...out, ...ints } as RecommendedOsSettings;
 }
 
 /**
@@ -105,6 +139,24 @@ export function resolveRecommendedOsSettings(
 		getDockRailRenderer( clean.dockRailRenderer ) === undefined
 	) {
 		delete clean.dockRailRenderer;
+	}
+	// `'none'` is the reveal selector's "no reveal" sentinel, not a
+	// registration — a theme recommending a deliberately plain shell
+	// must survive this check.
+	if (
+		typeof clean.windowReveal === 'string' &&
+		clean.windowReveal !== WINDOW_REVEAL_NONE &&
+		! hasWindowReveal( clean.windowReveal )
+	) {
+		delete clean.windowReveal;
+	}
+	// The accent list is filterable in PHP, so a swatch id only means
+	// something if the site still offers it.
+	if (
+		typeof clean.accent === 'string' &&
+		! getAccents().some( ( a ) => a.id === clean.accent )
+	) {
+		delete clean.accent;
 	}
 	return clean;
 }

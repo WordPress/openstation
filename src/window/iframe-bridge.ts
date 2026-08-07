@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window iframe postMessage bridge.
+ * OpenStation — Window iframe postMessage bridge.
  *
  * Handles the parent → chromeless-iframe → parent message bus. The
  * iframe sends title changes, focus requests, external-link intents,
@@ -79,6 +79,7 @@ interface AdminLinkDispatchDeps {
 		url: string;
 		parentUrl?: string;
 		title: string;
+		titleFromPage?: boolean;
 		icon: string;
 		submenu?: { title: string; url: string }[];
 		multi?: boolean;
@@ -100,7 +101,7 @@ interface AdminLinkDispatchDeps {
 // set the main bundle's copy while `handleWindowMessage` reads the
 // window-system bundle's still-null copy, and every cross-page admin-
 // link click would silently no-op. See `AGENTS.md` § "Cross-bundle
-// state — `wp.desktop.createSharedStore`".
+// state — `wp.os.createSharedStore`".
 interface AdminLinkDepsState {
 	deps: AdminLinkDispatchDeps | null;
 }
@@ -141,7 +142,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		return;
 	}
 
-	if ( data.type === 'desktop-mode-title-change' && typeof data.title === 'string' ) {
+	if ( data.type === 'os-title-change' && typeof data.title === 'string' ) {
 		win.setTitle( data.title );
 	}
 
@@ -150,41 +151,41 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// server-side in real admin context. `identity: null` is meaningful
 	// (navigation away from an identified screen clears the stale ref),
 	// so forward it verbatim; the engine validates and no-ops repeats.
-	if ( data.type === 'desktop-mode-content-identity' ) {
+	if ( data.type === 'os-content-identity' ) {
 		setWindowContent( win.id, data.identity ?? null, {
 			source: 'bridge',
 		} );
 	}
 
 	// Unified window-channel publish. Iframe content called
-	// `wp.desktop.send( channel, payload )` (installed by the
+	// `wp.os.send( channel, payload )` (installed by the
 	// iframe-bridge) and we forward to the parent-side subscriber
 	// registry so `Window.on( channel, cb )` callbacks fire — same
 	// shape as native windows reaching for `windowApi.send()`.
 	if (
-		data.type === 'desktop-mode-window-publish' &&
+		data.type === 'os-window-publish' &&
 		typeof data.channel === 'string' &&
 		data.channel !== ''
 	) {
 		dispatchFromWindow( win.id, data.channel, data.payload );
 	}
 
-	// Cross-window connection bridge — route any `desktop-mode-bridge-*`
+	// Cross-window connection bridge — route any `os-bridge-*`
 	// message to the parent-side connection registry. The bridge is
 	// installed on `window` by `desktop.ts` so individual Window
 	// instances don't need to know about it; null-check guards
 	// startup ordering (the listener runs before `init()` in tests).
-	if ( typeof data.type === 'string' && data.type.startsWith( 'desktop-mode-bridge-' ) ) {
+	if ( typeof data.type === 'string' && data.type.startsWith( 'os-bridge-' ) ) {
 		const bridge = (
 			window as unknown as {
-				__desktopModeConnectionBridge?: {
+				__openStationConnectionBridge?: {
 					routeIncomingFromIframe(
 						msg: unknown,
 						fromWindowId?: string,
 					): void;
 				};
 			}
-		).__desktopModeConnectionBridge;
+		).__openStationConnectionBridge;
 		bridge?.routeIncomingFromIframe( data, win.id );
 	}
 
@@ -194,7 +195,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// "safe to talk to this iframe" signal (the browser's native
 	// `load` event fires BEFORE our bridge attaches, which makes
 	// listener-timing a known footgun otherwise).
-	if ( data.type === 'desktop-mode-ready' ) {
+	if ( data.type === 'os-ready' ) {
 		win._iframeBridgeReady = true;
 		// Bridge announced — anything queued via `Window.send()`
 		// before this point flushes now in FIFO order.
@@ -203,7 +204,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	// Response to the parent's pre-close query for unsaved changes.
-	if ( data.type === 'desktop-mode-bridge-beforeunload-response' ) {
+	if ( data.type === 'os-bridge-beforeunload-response' ) {
 		if ( win._isDestroyed ) {
 			return;
 		}
@@ -213,9 +214,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 			win._iframeCloseTimeout = null;
 		}
 		if ( data.prevent ) {
-			import( '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog' )
-				.then( ( { wpdConfirm } ) =>
-					wpdConfirm( {
+			import( '../ui/components/os-confirm-dialog/os-confirm-dialog' )
+				.then( ( { osConfirm } ) =>
+					osConfirm( {
 						title: typeof data.message === 'string' && data.message ? data.message : __( 'Unsaved changes' ),
 						message: __( 'You have unsaved changes. Are you sure you want to close this window?' ),
 						confirmLabel: __( 'Close window' ),
@@ -243,7 +244,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// before we act on it — cross-origin navigations are silently
 	// refused so the iframe can't break itself out of the shell.
 	if (
-		data.type === 'desktop-mode-navigate' &&
+		data.type === 'os-navigate' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -268,7 +269,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	//   2. Same-page slug → drive the source iframe's
 	//      `location.assign()` so the in-place navigation matches the
 	//      user's intent. Pagination, list filters, and tab strips
-	//      hang off this branch.
+	//      hang off this branch. "Same page" means the target matches
+	//      the window's opening slug (`baseId`) OR the slug its iframe
+	//      is currently showing — the two diverge once the submenu tab
+	//      strip re-points the iframe (Appearance → Menus keeps
+	//      `baseId: themes-php` while displaying `nav-menus.php`).
 	//
 	//   3. Different slug → open a NEW window for the destination and
 	//      leave the source iframe untouched. The user keeps the
@@ -280,7 +285,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// or pre-boot; we bail out without navigating so the user sees a
 	// dropped click instead of a broken iframe state.
 	if (
-		data.type === 'desktop-mode-iframe-admin-link' &&
+		data.type === 'os-iframe-admin-link' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -290,7 +295,13 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		} else if ( deps ) {
 			const linkLabel =
 				typeof data.label === 'string' ? data.label : '';
-			handleCrossPageAdminLink( win, data.url, linkLabel, deps );
+			handleCrossPageAdminLink(
+				win,
+				data.url,
+				linkLabel,
+				deps,
+				data.newContext === true,
+			);
 		}
 	}
 
@@ -307,7 +318,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// from under the click would be hostile, so the source window is
 	// left untouched.
 	if (
-		data.type === 'desktop-mode-open-user-footprint' &&
+		data.type === 'os-open-user-footprint' &&
 		typeof data.userId === 'number' &&
 		data.userId > 0
 	) {
@@ -321,7 +332,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// to raise persistent user-visible feedback — a "Settings saved"
 	// toast stays visible even after the iframe closes.
 	if (
-		data.type === 'desktop-mode-notification' &&
+		data.type === 'os-notification' &&
 		typeof data.title === 'string' &&
 		data.title !== ''
 	) {
@@ -331,22 +342,22 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		);
 	}
 
-	if ( data.type === 'desktop-mode-focus-request' ) {
+	if ( data.type === 'os-focus-request' ) {
 		// Sent from the chromeless bridge on every pointerdown inside
 		// the iframe — covers the "click inside iframe should focus
 		// this window" UX that isn't reachable via parent-side
 		// listeners (the click doesn't cross the browsing-context
 		// boundary).
-		if ( ! win.element.classList.contains( 'desktop-mode-window--overview' ) ) {
+		if ( ! win.element.classList.contains( 'os-window--overview' ) ) {
 			win.onFocusRequest?.( win );
 		}
 	}
 
-	if ( data.type === 'desktop-mode-screen-meta' && Array.isArray( data.panels ) ) {
+	if ( data.type === 'os-screen-meta' && Array.isArray( data.panels ) ) {
 		addScreenMetaButtons( win, data.panels as string[] );
 	}
 
-	if ( data.type === 'desktop-mode-screen-meta-state' ) {
+	if ( data.type === 'os-screen-meta-state' ) {
 		setActiveScreenMetaPanel(
 			win,
 			typeof data.open === 'string' ? data.open : null,
@@ -354,7 +365,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	if (
-		data.type === 'desktop-mode-external-link' &&
+		data.type === 'os-external-link' &&
 		typeof data.url === 'string' &&
 		data.url !== ''
 	) {
@@ -365,11 +376,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	// Iframe error relay — the chromeless bridge posts
-	// `desktop-mode-iframe-error` from inside the iframe's error +
+	// `os-iframe-error` from inside the iframe's error +
 	// unhandledrejection handlers. We annotate with the owning
 	// windowId and dispatch the hook, where monitor widgets pick it
 	// up. Shape matches `HOOKS.IFRAME_ERROR`.
-	if ( data.type === 'desktop-mode-iframe-error' ) {
+	if ( data.type === 'os-iframe-error' ) {
 		doAction( HOOKS.IFRAME_ERROR, {
 			windowId: win.id,
 			kind: data.kind === 'unhandledrejection'
@@ -387,7 +398,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
 	// validates inline overrides match the framework's shape.
 	if (
-		data.type === 'desktop-mode-chrome-theme' &&
+		data.type === 'os-chrome-theme' &&
 		data.tokens &&
 		typeof data.tokens === 'object'
 	) {
@@ -407,7 +418,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// Layer-2 controls — iframe can reorder / hide / inject controls
 	// for its own window.
 	if (
-		data.type === 'desktop-mode-chrome-controls' &&
+		data.type === 'os-chrome-controls' &&
 		data.config &&
 		typeof data.config === 'object'
 	) {
@@ -430,7 +441,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// shell). Plugins that need rich slot markup register a parent-
 	// side `WindowSlotDef.render` callback instead.
 	if (
-		data.type === 'desktop-mode-chrome-slot' &&
+		data.type === 'os-chrome-slot' &&
 		typeof data.slot === 'string' &&
 		typeof data.html === 'string'
 	) {
@@ -455,7 +466,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// pre-computed inside the iframe (by the chromeless bridge's
 	// fetch/XHR wrappers) so subscribers don't have to re-derive
 	// the success / 4xx / 5xx / network boundary.
-	if ( data.type === 'desktop-mode-iframe-network' ) {
+	if ( data.type === 'os-iframe-network' ) {
 		const networkPayload: Record< string, unknown > = {
 			windowId: win.id,
 			method: typeof data.method === 'string' ? data.method : 'GET',
@@ -466,7 +477,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		};
 		// `requestHeaders` / `responseHeaders` only ride along when
 		// devtools have asked the iframe to observe (via
-		// `wp.desktop.devtools.onRequest( id, cb, { observe: true } )`).
+		// `wp.os.devtools.onRequest( id, cb, { observe: true } )`).
 		// Default deliveries stay summary-only for privacy.
 		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
 			networkPayload.requestHeaders = data.requestHeaders;
@@ -479,7 +490,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 }
 
 /**
- * Handle a `desktop-mode-navigate` message.
+ * Handle a `os-navigate` message.
  *
  * Validates the URL against the origin snapshot taken at module
  * load, then either opens a new tab (with `noopener,noreferrer`)
@@ -549,7 +560,7 @@ function handleDesktopNavigate(
  * but ARE genuine cross-page navigations the user wants in a window.
  *
  * Extension point: plugins register their own predicates via
- * `wp.desktop.registerDestructiveAdminAction({ id, matches })` —
+ * `wp.os.registerDestructiveAdminAction({ id, matches })` —
  * see `src/destructive-admin-actions.ts`. Built-in Core action
  * names are pinned in this set for zero-config behavior; the
  * plugin registry is consulted AFTER the built-in check.
@@ -662,10 +673,10 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 		// passes the result downstream to logic that builds the
 		// next redirect, and a chromeless-flagged referer would loop
 		// the flag into places it doesn't belong. The post-redirect
-		// preserve filter (`desktop_mode_chromeless_preserve_redirect`)
+		// preserve filter (`openstation_chromeless_preserve_redirect`)
 		// reattaches the flag where needed.
 		const cleaned = new URL( sourceUrl.href );
-		cleaned.searchParams.delete( 'desktop_mode_chromeless' );
+		cleaned.searchParams.delete( 'openstation_chromeless' );
 		out.searchParams.set(
 			'_wp_http_referer',
 			cleaned.pathname + ( cleaned.search ? cleaned.search : '' ),
@@ -676,11 +687,76 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 	}
 }
 
+/**
+ * The slug a window's iframe is *actually* showing right now, or an
+ * empty string when it can't be read (native window, torn-down
+ * iframe, `about:blank`, cross-origin).
+ *
+ * Distinct from `config.baseId`, which records the page the window
+ * was OPENED on and never moves. The two diverge as soon as the
+ * iframe navigates in place — most visibly via the submenu tab strip,
+ * where e.g. the Appearance window (`baseId: themes-php`) is pointed
+ * at `nav-menus.php` while keeping its original id.
+ */
+function readLiveSlug( win: Window, deps: AdminLinkDispatchDeps ): string {
+	let href = '';
+	try {
+		// Optional-call: `Window` mocks in tests (and any future
+		// window-like object) may not implement the getter.
+		href = win.getCurrentUrl?.() ?? '';
+	} catch {
+		return '';
+	}
+	if ( ! href || href.startsWith( '#' ) || href === 'about:blank' ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( href, deps.adminUrl );
+		if ( parsed.origin !== INITIAL_ORIGIN ) {
+			return '';
+		}
+		return deps.deriveSlug( parsed.toString() );
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * True when a clicked admin link lands on the page the source window
+ * is already showing — i.e. the click is in-page navigation, not a
+ * jump to a different admin screen.
+ *
+ * A window counts as "on" two slugs: the one it was opened at
+ * (`baseId`) and the one its iframe currently displays. They're the
+ * same for a freshly-opened window and diverge after any in-place
+ * navigation — chiefly the submenu tab strip, which re-points the
+ * iframe without minting a new window.
+ *
+ * Matching against BOTH (rather than swapping `baseId` out for the
+ * live slug) is deliberate: it can only ever turn a would-be
+ * new-window open into an in-place navigation, never the reverse. A
+ * window that navigated from `admin.php?page=foo` to
+ * `admin.php?page=foo&path=/bar` still treats a link back to the
+ * landing page as in-page.
+ */
+function isSamePageSlug(
+	win: Window,
+	targetSlug: string,
+	deps: AdminLinkDispatchDeps,
+): boolean {
+	if ( targetSlug === ( win.config.baseId || win.id ) ) {
+		return true;
+	}
+	const liveSlug = readLiveSlug( win, deps );
+	return liveSlug !== '' && liveSlug === targetSlug;
+}
+
 function handleCrossPageAdminLink(
 	win: Window,
 	rawUrl: string,
 	linkLabel: string,
 	deps: AdminLinkDispatchDeps,
+	newContext = false,
 ): void {
 	let url: URL;
 	try {
@@ -691,10 +767,20 @@ function handleCrossPageAdminLink(
 	if ( url.origin !== INITIAL_ORIGIN ) {
 		return;
 	}
-	const absolute = url.toString();
+	// The link named another browsing context (`target="_blank"`), so
+	// the one thing it asked for is that the page it was clicked on
+	// survives. Neither in-place branch below can honour that, and the
+	// destructive one fires on a slug MISMATCH — the same shape a
+	// `_blank` reaches us with — so both are skipped rather than
+	// guarded individually.
+	if ( newContext ) {
+		openAdminUrlInOwnWindow( win, url, linkLabel, deps );
+		return;
+	}
 
+	const absolute = url.toString();
 	const targetSlug = deps.deriveSlug( absolute );
-	const sourceSlug = win.config.baseId || win.id;
+	const samePage = isSamePageSlug( win, targetSlug, deps );
 
 	// Destructive row actions (Trash, Untrash, Delete on posts;
 	// spam / approve / trash on comments) navigate the SOURCE iframe
@@ -705,7 +791,7 @@ function handleCrossPageAdminLink(
 	// `post.php?post=N&action=trash` it happens to be, but the
 	// landing page after WP's 302 is the list the user already has
 	// open — the in-place branch reaches that exact state.
-	if ( targetSlug !== sourceSlug && isDestructiveActionUrl( url ) ) {
+	if ( ! samePage && isDestructiveActionUrl( url ) ) {
 		// Inject `_wp_http_referer` so WP's trash/untrash/delete
 		// handlers resolve `wp_get_referer()` to the source page
 		// regardless of what the browser's `Referer` header carries
@@ -732,7 +818,7 @@ function handleCrossPageAdminLink(
 		return;
 	}
 
-	if ( targetSlug === sourceSlug ) {
+	if ( samePage ) {
 		const inner = win.iframe?.contentWindow;
 		if ( inner ) {
 			try {
@@ -751,22 +837,39 @@ function handleCrossPageAdminLink(
 
 	// Different slug — the user clicked into a different admin page.
 	// Open a fresh window for the destination and leave the source
-	// iframe where it is.
-	//
-	// Title resolution (best → worst):
-	//   1. Dock entry's `title` — recognises canonical pages.
-	//   2. `linkLabel` — the visible text of the link the user just
-	//      clicked. Catches in-app sub-pages (e.g. an Action Scheduler
-	//      tab whose URL has no dock tile but whose link text is
-	//      meaningful: "Scheduler", "Logs", "Settings").
-	//   3. The slug itself — last-resort fallback so a missing label
-	//      surfaces an ugly-but-stable id rather than an empty title
-	//      bar.
-	//
-	// The iframe-side bridge does not auto-emit `title-change` after
-	// load, so this single resolution is what the user sees for the
-	// lifetime of the window unless the destination's own JS reaches
-	// for `wp.desktop.send` / `setTitle`.
+	// iframe where it is, so the user keeps both contexts.
+	openAdminUrlInOwnWindow( win, url, linkLabel, deps );
+}
+
+/**
+ * Give an admin URL its own window: the destination's slug decides
+ * which window owns it, so an already-open window for that slug is
+ * focused and navigated rather than duplicated.
+ *
+ * Title resolution (best → worst):
+ *   1. Dock entry's `title` — recognises canonical pages.
+ *   2. `linkLabel` — the visible text of the link the user just
+ *      clicked. Catches in-app sub-pages (e.g. an Action Scheduler
+ *      tab whose URL has no dock tile but whose link text is
+ *      meaningful: "Scheduler", "Logs", "Settings").
+ *   3. The slug itself — last-resort fallback so a missing label
+ *      surfaces an ugly-but-stable id rather than an empty title bar.
+ *
+ * Only the dock entry is a name the shell *knows*; 2 and 3 are
+ * guesses, so they ship with `titleFromPage` and the window swaps
+ * them for the destination page's own screen name once its iframe
+ * loads. Link text is written for someone already on the page it
+ * sits on and reads badly as a window name — the classic editor's
+ * revisions link says "Browse".
+ */
+function openAdminUrlInOwnWindow(
+	win: Window,
+	url: URL,
+	linkLabel: string,
+	deps: AdminLinkDispatchDeps,
+): void {
+	const absolute = url.toString();
+	const targetSlug = deps.deriveSlug( absolute );
 	const entry = deps.findDockEntry( absolute );
 	const trimmedLabel = linkLabel.trim();
 	const title =
@@ -783,6 +886,7 @@ function handleCrossPageAdminLink(
 		url: urlWithReferer.toString(),
 		parentUrl: entry?.url ?? absolute,
 		title,
+		titleFromPage: ! entry,
 		icon: entry?.icon ?? 'dashicons-admin-generic',
 		submenu: entry?.submenu,
 		multi: entry?.multi,
@@ -790,7 +894,158 @@ function handleCrossPageAdminLink(
 }
 
 /**
- * Handle a `desktop-mode-notification` message.
+ * The wp-admin filename a URL points at (`revision.php`), or an empty
+ * string when it isn't an admin URL we can read.
+ */
+function adminFileName( url: string ): string {
+	if ( ! url || url.startsWith( '#' ) ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( url, INITIAL_ORIGIN );
+		if ( parsed.origin !== INITIAL_ORIGIN ) {
+			return '';
+		}
+		return parsed.pathname.split( '/' ).pop() ?? '';
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * Admin screens that exist to run one action and then send the user
+ * back to the page they came from.
+ */
+const HANDOFF_SCREENS: ReadonlySet< string > = new Set( [ 'revision.php' ] );
+
+/**
+ * The URL a frame actually navigated to, which by the time a `load`
+ * listener runs is no longer what `location` says.
+ *
+ * `wp-admin/js/common.js` strips WP's "removable" query args —
+ * `message`, `settings-updated`, `trashed`, `revision`, … — with
+ * `replaceState` on DOM ready, and DOM ready is before load. Those
+ * args are precisely the ones that carry what just happened, so
+ * forwarding `location.href` hands the destination on without its
+ * outcome: a restored revision arriving in the editor window with no
+ * "Post restored to revision from …" notice, which in classic
+ * wp-admin is the only confirmation the restore worked.
+ *
+ * Navigation timing records the URL as fetched — after redirects,
+ * before any history rewriting — so it still has them. Falls back to
+ * `href`, and ignores an entry pointing at a different admin file
+ * than the one that just loaded (a stale entry must never be able to
+ * redirect the handoff somewhere else).
+ */
+function navigatedUrl( win: Window, href: string ): string {
+	try {
+		const timing = win.iframe?.contentWindow?.performance
+			?.getEntriesByType?.( 'navigation' );
+		const name = timing?.[ 0 ]?.name ?? '';
+		if ( name && adminFileName( name ) === adminFileName( href ) ) {
+			return name;
+		}
+	} catch {
+		// No navigation-timing support, or a torn-down frame.
+	}
+	return href;
+}
+
+/**
+ * Close a {@link HANDOFF_SCREENS} window that has navigated itself
+ * off its own screen, and route where it landed through the normal
+ * window-owns-a-slug rules — which focuses the editor window the user
+ * already had open and points it at the restored post.
+ *
+ * Returns true when it claimed the navigation, so the caller skips
+ * the per-load work that only makes sense for a window that is
+ * staying open.
+ *
+ * Deliberately NOT a general "any window that crosses slugs hands
+ * off" rule: the submenu tab strip re-points a window across slugs on
+ * purpose (Appearance → Menus), and closing the window out from under
+ * that click would be hostile. A screen is on this list only when
+ * leaving it means the screen is finished.
+ */
+export function handleFinishedScreenHandoff(
+	win: Window,
+	href: string,
+): boolean {
+	const opened = adminFileName( win.config.url ?? '' );
+	if ( ! opened || ! HANDOFF_SCREENS.has( opened ) ) {
+		return false;
+	}
+	const landed = adminFileName( href );
+	if ( ! landed || landed === opened ) {
+		return false;
+	}
+	if ( tryNativeUrlRemap( href ) ) {
+		win.close();
+		return true;
+	}
+	const deps = adminLinkDepsStore.state.deps;
+	if ( ! deps ) {
+		// Unbound deps should only happen in tests or pre-boot. Leave
+		// the window alone rather than closing it onto nothing.
+		return false;
+	}
+	let url: URL;
+	try {
+		url = new URL( navigatedUrl( win, href ), deps.adminUrl );
+	} catch {
+		return false;
+	}
+	if ( url.origin !== INITIAL_ORIGIN ) {
+		return false;
+	}
+	// The label is empty on purpose: nothing was clicked, so there is
+	// no link text to name the destination with. A dock entry names
+	// it, and failing that `titleFromPage` picks the name up off the
+	// page itself.
+	openAdminUrlInOwnWindow( win, url, '', deps );
+	win.close();
+	return true;
+}
+
+/**
+ * Replace a guessed window title with the screen name the destination
+ * page gives itself. No-op unless the window was opened with
+ * {@link WindowConfig.titleFromPage}.
+ */
+export function adoptPageTitle( win: Window ): void {
+	if ( ! win.config.titleFromPage ) {
+		return;
+	}
+	let documentTitle = '';
+	try {
+		documentTitle = win.iframe?.contentDocument?.title ?? '';
+	} catch {
+		// Cross-origin or torn-down frame — keep what we have.
+		return;
+	}
+	const name = adminScreenName( documentTitle );
+	if ( name !== '' && name !== win.config.title ) {
+		win.setTitle( name );
+	}
+}
+
+/**
+ * The screen name out of a wp-admin document title.
+ *
+ * `wp-admin/admin-header.php` prints `%1$s &lsaquo; %2$s &#8212;
+ * WordPress`, so "Revisions ‹ My Site — WordPress" is the shape.
+ * Both the format and its separator are translatable, so a locale
+ * that re-punctuates it falls through to the whole string — a long
+ * title beats a title cut in the wrong place.
+ */
+function adminScreenName( documentTitle: string ): string {
+	const trimmed = documentTitle.trim();
+	const cut = trimmed.indexOf( ' ‹ ' );
+	return ( cut > 0 ? trimmed.slice( 0, cut ) : trimmed ).trim();
+}
+
+/**
+ * Handle a `os-notification` message.
  *
  * The payload lives at the parent-shell level (surviving the
  * iframe's lifecycle), which is the whole reason an iframe reaches
@@ -812,7 +1067,7 @@ function handleDesktopNotification( title: string, body: string ): void {
  * each navigation, and different pages expose different panels.
  */
 export function addScreenMetaButtons( win: Window, panels: string[] ): void {
-	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
+	const container = win.element.querySelector( '.os-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
@@ -830,7 +1085,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		}
 
 		const btn = document.createElement( 'button' );
-		btn.className = 'desktop-mode-window__meta-btn';
+		btn.className = 'os-window__meta-btn';
 		btn.setAttribute( 'type', 'button' );
 		btn.setAttribute( 'aria-label', cfg.label );
 		btn.setAttribute( 'aria-pressed', 'false' );
@@ -843,7 +1098,7 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
 		btn.addEventListener( 'click', ( e: Event ) => {
 			e.stopPropagation();
 			win.iframe?.contentWindow?.postMessage(
-				{ type: 'desktop-mode-toggle-panel', panel },
+				{ type: 'os-toggle-panel', panel },
 				INITIAL_ORIGIN,
 			);
 		} );
@@ -857,13 +1112,13 @@ export function addScreenMetaButtons( win: Window, panels: string[] ): void {
  * title-bar buttons. At most one button is active at a time.
  */
 export function setActiveScreenMetaPanel( win: Window, panel: string | null ): void {
-	const container = win.element.querySelector( '.desktop-mode-window__screen-meta' );
+	const container = win.element.querySelector( '.os-window__screen-meta' );
 	if ( ! container ) {
 		return;
 	}
-	container.querySelectorAll<HTMLElement>( '.desktop-mode-window__meta-btn' ).forEach( ( btn ) => {
+	container.querySelectorAll<HTMLElement>( '.os-window__meta-btn' ).forEach( ( btn ) => {
 		const isActive = btn.dataset.panel === panel;
-		btn.classList.toggle( 'desktop-mode-window__meta-btn--active', isActive );
+		btn.classList.toggle( 'os-window__meta-btn--active', isActive );
 		btn.setAttribute( 'aria-pressed', isActive ? 'true' : 'false' );
 	} );
 }

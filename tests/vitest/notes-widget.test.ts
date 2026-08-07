@@ -8,7 +8,7 @@ import type { WidgetContext } from '../../src/widgets/types';
 import { NOTE_CREATED_EVENT, NOTE_DRAFT_PAYLOAD_TYPE } from '../../src/notes/types';
 import type { StartOpts } from '../../src/drag/types';
 
-// Import for the side effect: registers window.desktopModeWidgets['desktop-mode/notes'].
+// Import for the side effect: registers window.openStationWidgets['desktop-mode/notes'].
 import '../../src/plugins/notes-widget/index';
 
 type MountFn = (
@@ -18,9 +18,9 @@ type MountFn = (
 
 function getMount(): MountFn {
 	const w = window as unknown as {
-		desktopModeWidgets?: Record< string, MountFn >;
+		openStationWidgets?: Record< string, MountFn >;
 	};
-	const mount = w.desktopModeWidgets?.[ 'desktop-mode/notes' ];
+	const mount = w.openStationWidgets?.[ 'desktop-mode/notes' ];
 	if ( ! mount ) {
 		throw new Error( 'notes widget did not register its mount' );
 	}
@@ -54,7 +54,7 @@ function pointerDown( target: HTMLElement, x = 10, y = 10 ): void {
 function typeInEditor( container: HTMLElement, value: string ): void {
 	const editor = container.querySelector( '.dm-notes-pad__editor' ) as HTMLElement;
 	editor.dispatchEvent(
-		new CustomEvent( 'wpd-input-change', { detail: { value }, bubbles: false } ),
+		new CustomEvent( 'os-input-change', { detail: { value }, bubbles: false } ),
 	);
 }
 
@@ -65,13 +65,13 @@ describe( 'note pad widget', () => {
 	let fetchSpy: ReturnType< typeof vi.fn >;
 
 	beforeEach( async () => {
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			notesUrl: 'https://example.test/wp-json/desktop-mode/v1/notes',
 			restNonce: 'nonce-9',
 		};
 		dragStart = vi.fn( () => null );
-		const wp = ( window as unknown as { wp?: { desktop?: Record< string, unknown > } } ).wp ?? {};
-		wp.desktop = { ...( wp.desktop ?? {} ), dragManager: { start: dragStart } };
+		const wp = ( window as unknown as { wp?: { os?: Record< string, unknown > } } ).wp ?? {};
+		wp.os = { ...( wp.os ?? {} ), dragManager: { start: dragStart } };
 		( window as unknown as { wp: typeof wp } ).wp = wp;
 
 		fetchSpy = vi.fn( async () =>
@@ -105,7 +105,7 @@ describe( 'note pad widget', () => {
 		teardown = null;
 		document.body.innerHTML = '';
 		vi.unstubAllGlobals();
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 	} );
 
 	test( 'renders the pad: sheet, peek sheets, six swatches, footer', () => {
@@ -143,7 +143,7 @@ describe( 'note pad widget', () => {
 		expect( opts.payload.ghost?.offsetY ).toBe( 10 );
 		expect(
 			opts.payload.ghost?.element?.classList.contains(
-				'desktop-mode-pinned-note-ghost',
+				'os-pinned-note-ghost',
 			),
 		).toBe( true );
 	} );

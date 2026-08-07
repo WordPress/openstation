@@ -19,13 +19,13 @@ const SHELL_RESIZE_DEBOUNCE_MS = 120;
  * Wire the session saver to every window-lifecycle event that
  * should end up persisted. Close/focus come from the manager;
  * moved/resized/state come from individual windows via
- * `desktop-mode-window-changed`.
+ * `os-window-changed`.
  */
 export function wireSessionEvents( save: () => void ): void {
-	document.addEventListener( 'desktop-mode-window-opened', save );
-	document.addEventListener( 'desktop-mode-window-closed', save );
-	document.addEventListener( 'desktop-mode-window-focused', save );
-	document.addEventListener( 'desktop-mode-window-changed', save );
+	document.addEventListener( 'os-window-opened', save );
+	document.addEventListener( 'os-window-closed', save );
+	document.addEventListener( 'os-window-focused', save );
+	document.addEventListener( 'os-window-changed', save );
 	addAction( HOOKS.DESKTOP_CREATED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_CLOSED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/session-save', save );
@@ -33,13 +33,13 @@ export function wireSessionEvents( save: () => void ): void {
 
 /**
  * Wire browser-resize and document-visibility into
- * `desktop-mode.shell.*` actions. Resize is debounced so a
+ * `os.shell.*` actions. Resize is debounced so a
  * drag-to-resize storm collapses to a single hook fire;
  * visibility is edge-triggered (fires exactly once per state
  * change).
  */
 export function bindShellLifecycle(): void {
-	const shellEl = document.getElementById( 'desktop-mode-shell' );
+	const shellEl = document.getElementById( 'os-shell' );
 
 	let resizeTimer: number | null = null;
 	const fireShellResize = (): void => {

@@ -1,7 +1,7 @@
 /**
  * Right-click context menu for hiding / moving a dock tile or
  * desktop icon. Mutates the user's `itemVisibility` map via the
- * public `wp.desktop.updateOsSettings` writer; the layout dispatcher's
+ * public `wp.os.updateOsSettings` writer; the layout dispatcher's
  * settings subscription handles the live re-paint.
  *
  * Two callers:
@@ -27,14 +27,14 @@ import {
 	resolvePlacement,
 	type NativeRail,
 } from './settings/item-placement';
-import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
 import type { ItemVisibility } from './settings/types';
 import type { OsSettingsSnapshot } from './settings/registry';
 
-interface WpDesktopShim {
+interface OpenStationShim {
 	getOsSettings?: () => OsSettingsSnapshot;
 	updateOsSettings?: (
 		patch: Partial< OsSettingsSnapshot >,
@@ -43,9 +43,9 @@ interface WpDesktopShim {
 	openOsSettings?: ( opts?: { tabId?: string } ) => void;
 }
 
-function getApi(): WpDesktopShim | null {
-	const w = window as unknown as { wp?: { desktop?: WpDesktopShim } };
-	return w.wp?.desktop ?? null;
+function getApi(): OpenStationShim | null {
+	const w = window as unknown as { wp?: { os?: OpenStationShim } };
+	return w.wp?.os ?? null;
 }
 
 let activeMenu: HTMLElement | null = null;
@@ -167,7 +167,7 @@ let openGeneration = 0;
  * a second call closes the previous menu before opening a fresh one.
  *
  * Construction is deferred behind `openWithShellOverlays` so the
- * `<wpd-context-menu>` / `<wpd-context-menu-option>` classes ship
+ * `<os-context-menu>` / `<os-context-menu-option>` classes ship
  * in the lazy `shell-overlays[.min].js` bundle rather than in
  * `desktop.min.js`.
  */
@@ -281,8 +281,8 @@ function openItemVisibilityMenuImmediate(
 
 	// When the tile is owned by an active, deactivatable plugin, surface
 	// a danger action at the bottom. `pluginFile` is `null` for core
-	// menus, mu-plugins, drop-ins, and Desktop Mode itself — see
-	// `desktop_mode_resolve_menu_plugin_file()`.
+	// menus, mu-plugins, drop-ins, and OpenStation itself — see
+	// `openstation_resolve_menu_plugin_file()`.
 	if ( opts.pluginFile ) {
 		const pluginFile = opts.pluginFile;
 		// Prefer the owning plugin's display name so a sub-page tile
@@ -303,9 +303,9 @@ function openItemVisibilityMenuImmediate(
 		} );
 	}
 
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-item-visibility-menu' );
+	menu.classList.add( 'os-item-visibility-menu' );
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
@@ -326,15 +326,15 @@ function openItemVisibilityMenuImmediate(
 			// Pull the separator color from a CSS variable so light-mode
 			// docks and theme overrides can re-color it without touching
 			// JS. Fallback matches the dark dock chrome the rest of
-			// `<wpd-context-menu>` is built against.
+			// `<os-context-menu>` is built against.
 			hr.style.cssText =
-				'border: 0; border-top: 1px solid var( --wpd-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
+				'border: 0; border-top: 1px solid var( --os-ui-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
 			menu.appendChild( hr );
 			continue;
 		}
 		byKey.set( opt.id, opt );
-		const node = document.createElement( 'wpd-context-menu-option' );
-		// `<wpd-context-menu-option>` emits `detail.id` from
+		const node = document.createElement( 'os-context-menu-option' );
+		// `<os-context-menu-option>` emits `detail.id` from
 		// `dataset.menuItemId` (falling back to the element's `id`
 		// attribute). Set it so the pick listener can route by our
 		// opt.id; the `value` attr stays for compatibility with code
@@ -351,7 +351,7 @@ function openItemVisibilityMenuImmediate(
 		menu.appendChild( node );
 	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
 		// Prefer `detail.id` (the option's `dataset.menuItemId`) but
 		// fall back to `detail.value` for robustness — both carry our
@@ -433,17 +433,17 @@ function openItemVisibilityMenuImmediate(
 
 /**
  * Confirm + deactivate a plugin by file path. On success the dock
- * auto-refreshes via the existing `desktop-mode-plugins-changed`
+ * auto-refreshes via the existing `os-plugins-changed`
  * postMessage path that the chromeless bridge fires when WP repaints
  * the admin menu — but the user right-clicked from the shell, not
- * from `plugins.php`, so we additionally call `wp.desktop.refreshMenu()`
+ * from `plugins.php`, so we additionally call `wp.os.refreshMenu()`
  * (when available) to trigger the hidden-iframe probe.
  */
 async function confirmAndDeactivatePlugin(
 	pluginFile: string,
 	title: string,
 ): Promise< void > {
-	const confirmed = await wpdConfirm( {
+	const confirmed = await osConfirm( {
 		/* translators: %s: plugin title. */
 		title: sprintf( __( 'Deactivate %s?' ), title ),
 		message: __(
@@ -459,8 +459,8 @@ async function confirmAndDeactivatePlugin(
 
 	type ConfigShape = { restRoot?: string; restNonce?: string };
 	const cfg =
-		( window as unknown as { desktopModeConfig?: ConfigShape } )
-			.desktopModeConfig ?? {};
+		( window as unknown as { openStationConfig?: ConfigShape } )
+			.openStationConfig ?? {};
 	const restRoot =
 		typeof cfg.restRoot === 'string' && cfg.restRoot
 			? cfg.restRoot
@@ -515,7 +515,7 @@ async function confirmAndDeactivatePlugin(
 		// Surface for debugging — the activity-bus already logged the
 		// failed fetch through trackedFetch.
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] deactivate plugin failed', err );
+		console.error( '[openstation] deactivate plugin failed', err );
 		return;
 	}
 
@@ -543,12 +543,12 @@ async function confirmAndDeactivatePlugin(
 	showToast( { message: deactivatedMsg, duration: 3000 } );
 
 	// Ask the shell to repaint the dock from a fresh menu probe. The
-	// dock's own `desktop-mode-plugins-changed` listener will pick up
+	// dock's own `os-plugins-changed` listener will pick up
 	// the new $menu shape and remove the now-inactive plugin's tile.
 	const w = window as unknown as {
-		wp?: { desktop?: { refreshMenu?: () => void } };
+		wp?: { os?: { refreshMenu?: () => void } };
 	};
-	w.wp?.desktop?.refreshMenu?.();
+	w.wp?.os?.refreshMenu?.();
 }
 
 /**
@@ -557,7 +557,7 @@ async function confirmAndDeactivatePlugin(
  *
  * Lookup pathway:
  *
- *   1. Read the current dock items via `wp.desktop.getMenuItems()`.
+ *   1. Read the current dock items via `wp.os.getMenuItems()`.
  *      Each item carries the `pluginFile` resolved server-side.
  *   2. For each matching item, derive the window `baseId` from its
  *      url and close every instance under that base (`getAllByBaseId`)
@@ -587,8 +587,8 @@ function closeWindowsForPlugin( pluginFile: string ): string[] {
 			getAll?: () => WindowLike[];
 		};
 	}
-	const api = ( window as unknown as { wp?: { desktop?: ShellShim } } )
-		.wp?.desktop;
+	const api = ( window as unknown as { wp?: { os?: ShellShim } } )
+		.wp?.os;
 	if ( ! api?.windowManager?.getAll ) {
 		return [];
 	}

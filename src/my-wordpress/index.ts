@@ -8,7 +8,7 @@
  * one drills into a two-pane infinite-scroll list with a rendered
  * HTML preview on the right.
  *
- * The `<wpd-*>` web components are defined by the main desktop
+ * The `<os-*>` web components are defined by the main desktop
  * bundle; this module only consumes them.
  *
  * @public
@@ -24,7 +24,24 @@ import {
 	renderStatusBarSegments,
 	type StatusBarSegment,
 } from '../desktop-files/folder-status-bar';
-import { attachTileDragOut, buildTileFromSpec } from '../desktop-files/tile-spec';
+import {
+	attachTileDragOut,
+	buildTileFromSpec,
+	type TileDragOutPayload,
+} from '../desktop-files/tile-spec';
+import {
+	attachSelection,
+	closeActionMenu,
+	openActionMenu,
+	resolveCommonActions,
+	type SelectionAction,
+	type SelectionHandle,
+} from '../selection';
+import {
+	copyLinksAction,
+	entityBulkActions,
+	userBulkActions,
+} from './bulk-actions';
 import { getDragManager, stripTags } from './dom-utils';
 import {
 	getEntityRenderer,
@@ -42,9 +59,19 @@ import {
 	subscribeFootprintTarget,
 } from './footprint-target';
 import {
+	AGENTS_ENTITY_ID,
+	readAgentEditorTarget,
+	subscribeAgentEditorTarget,
+} from '../agents-editor-target';
+import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
 } from '../desktop-files/breadcrumbs';
+import {
+	GRID_METRICS,
+	GRID_METRICS_LARGE,
+	type GridMetrics,
+} from '../desktop-files/grid';
 import {
 	buildEditUrl,
 	buildEditUserUrl,
@@ -68,6 +95,7 @@ import {
 	type UserStats,
 	getConfig,
 	getEntity,
+	getSiteName,
 	trashEntity,
 	type RelatedComment,
 	type RelatedMedia,
@@ -80,30 +108,38 @@ import type {
 	ContributorRef,
 	EntityDetail,
 	EntityListItem,
+	MediaPreviewSlot,
+	MyWordPressConfig,
 	MyWordPressEntity,
+	MyWordPressGroup,
 	Route,
 	SubRelation,
 	UserFootprint,
 	UserListItem,
 } from './types';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-context-menu/wpd-context-menu';
-import '../ui/components/wpd-spinner/wpd-spinner';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-context-menu/os-context-menu';
+import '../ui/components/os-spinner/os-spinner';
+// Self-registers the `agent` entity kind (Agents section). The server
+// only ships the entity when the agents extended option is on, so the
+// registration is inert on sites with the flag off.
+import './agents-renderer';
+import { registerSendToMenuFilter } from './agents-send-to';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 
 declare global {
 	interface Window {
-		desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+		openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	}
 }
 
 const WINDOW_ID = 'desktop-mode-my-wordpress';
 
-const ROOT_SEL = '[data-desktop-mode-my-wordpress-root]';
-const BREADCRUMBS_SEL = '[data-desktop-mode-my-wordpress-breadcrumbs]';
-const BODY_SEL = '[data-desktop-mode-my-wordpress-body]';
-const STATUS_SEL = '[data-desktop-mode-my-wordpress-status]';
+const ROOT_SEL = '[data-os-my-wordpress-root]';
+const BREADCRUMBS_SEL = '[data-os-my-wordpress-breadcrumbs]';
+const BODY_SEL = '[data-os-my-wordpress-body]';
+const STATUS_SEL = '[data-os-my-wordpress-status]';
 
 interface ConfirmOptions {
 	title?: string;
@@ -113,18 +149,18 @@ interface ConfirmOptions {
 	danger?: boolean;
 }
 
-function wpdConfirmGlobal(
+function osConfirmGlobal(
 	options: ConfirmOptions,
 ): Promise< boolean > {
 	const fn = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						confirm?: ( o: ConfirmOptions ) => Promise< boolean >;
 					};
 			}
 			| undefined
-	)?.desktop?.confirm;
+	)?.os?.confirm;
 	if ( typeof fn !== 'function' ) {
 		return Promise.resolve( false );
 	}
@@ -142,7 +178,7 @@ function openIframeWindow( opts: OpenWindowOptions ): void {
 	const manager = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						windowManager?: {
 							open: ( args: {
 								id?: string;
@@ -154,7 +190,7 @@ function openIframeWindow( opts: OpenWindowOptions ): void {
 					};
 			}
 			| undefined
-	)?.desktop?.windowManager;
+	)?.os?.windowManager;
 	if ( ! manager || typeof manager.open !== 'function' ) {
 		return;
 	}
@@ -198,12 +234,18 @@ interface RenderState {
 }
 
 interface StatusContext {
-	view: 'root' | 'list' | 'detail' | 'sub-list' | 'user-footprint';
+	view:
+		| 'root'
+		| 'group'
+		| 'list'
+		| 'detail'
+		| 'sub-list'
+		| 'user-footprint';
 	entityId?: string;
 	postId?: number;
 	/**
 	 * Target user id. Only set on the `'user-footprint'` view — kept
-	 * distinct from `postId` so `desktop-mode.my-wordpress.status-bar`
+	 * distinct from `postId` so `os.my-wordpress.status-bar`
 	 * filters can tell a user surface apart from a post surface
 	 * instead of mistaking a user id for a post id.
 	 */
@@ -214,9 +256,9 @@ interface StatusContext {
 /**
  * Paint the My WordPress status bar with the supplied segments.
  * Same DOM + CSS as the file-system folder window
- * (`desktop-mode-folder-status-bar`), just sourced from REST data
+ * (`os-folder-status-bar`), just sourced from REST data
  * and the active route. Plugins can extend the rail via
- * `desktop-mode.my-wordpress.status-bar` (mirrors the file-system
+ * `os.my-wordpress.status-bar` (mirrors the file-system
  * filter, scoped to this surface).
  */
 function paintStatus(
@@ -228,7 +270,7 @@ function paintStatus(
 		StatusBarSegment[],
 		[ StatusContext ]
 	>(
-		'desktop-mode.my-wordpress.status-bar',
+		'os.my-wordpress.status-bar',
 		baseSegments,
 		ctx,
 	);
@@ -266,6 +308,11 @@ function navigate(
 	state.body.replaceChildren();
 	if ( route.kind === 'root' ) {
 		renderRoot( state );
+		return;
+	}
+	// Group folders carry no entity id — dispatch before the lookup.
+	if ( route.kind === 'group' ) {
+		renderGroup( state, route.groupId );
 		return;
 	}
 	const entity = getEntity( route.entityId );
@@ -344,6 +391,8 @@ function routesEqual( a: Route, b: Route ): boolean {
 	switch ( a.kind ) {
 		case 'root':
 			return true;
+		case 'group':
+			return a.groupId === ( b as { groupId: string } ).groupId;
 		case 'list':
 			return a.entityId === ( b as { entityId: string } ).entityId;
 		case 'detail': {
@@ -371,12 +420,26 @@ function routesEqual( a: Route, b: Route ): boolean {
 	}
 }
 
+/**
+ * The route that shows a section's own folder tile — its group when it
+ * belongs to one, the root otherwise. Sections drill back out to where
+ * the user found them, not always to the root.
+ */
+function sectionParentRoute( entityId: string ): Route {
+	const entity = getEntity( entityId );
+	return entity?.group
+		? { kind: 'group', groupId: entity.group }
+		: { kind: 'root' };
+}
+
 function parentRoute( route: Route ): Route {
 	switch ( route.kind ) {
 		case 'root':
 			return route;
-		case 'list':
+		case 'group':
 			return { kind: 'root' };
+		case 'list':
+			return sectionParentRoute( route.entityId );
 		case 'detail':
 			return { kind: 'list', entityId: route.entityId };
 		case 'sub-list':
@@ -415,16 +478,41 @@ function updateBreadcrumbs( state: RenderState ): void {
 	// to the visual lands in one place.
 	const segments: BreadcrumbSegment[] = [];
 	const isRoot = route.kind === 'root';
+	const rootLabel = getSiteName();
 	segments.push(
 		isRoot
-			? { label: __( 'My WordPress', 'desktop-mode' ) }
+			? { label: rootLabel }
 			: {
-				label: __( 'My WordPress', 'desktop-mode' ),
+				label: rootLabel,
 				onClick: () => navigate( state, { kind: 'root' } ),
 			},
 	);
 
-	if ( route.kind !== 'root' ) {
+	// The plugin / theme folder, when the current section lives in one.
+	// Present for the group view itself and for everything below a
+	// grouped section, so `Site › WooCommerce › Products › …` stays
+	// navigable at every depth.
+	let groupId: string | null | undefined = null;
+	if ( route.kind === 'group' ) {
+		groupId = route.groupId;
+	} else if ( route.kind !== 'root' ) {
+		groupId = getEntity( route.entityId )?.group;
+	}
+	if ( groupId ) {
+		const group = getGroup( groupId );
+		const groupLabel = group ? group.label : groupId;
+		segments.push(
+			route.kind === 'group'
+				? { label: groupLabel }
+				: {
+					label: groupLabel,
+					onClick: () =>
+						navigate( state, { kind: 'group', groupId } ),
+				},
+		);
+	}
+
+	if ( route.kind !== 'root' && route.kind !== 'group' ) {
 		const entity = getEntity( route.entityId );
 		const label = entity ? entity.label : route.entityId;
 		segments.push(
@@ -520,69 +608,186 @@ function subRelationLabel( relation: SubRelation ): string {
 	}
 }
 
-function renderRoot( state: RenderState ): void {
-	const cfg = getConfig();
+/**
+ * One folder tile in a folder grid — either a section (Posts, Media,
+ * Products) or a group folder standing in for a plugin or theme.
+ */
+interface FolderTileSpec {
+	/** Stable key for the persisted tile layout. */
+	key: string;
+	label: string;
+	icon: string;
+	/** Set on the tile as `data-entity-id` for section tiles. */
+	entityId?: string;
+	/** Set on the tile as `data-group-id` for group folders. */
+	groupId?: string;
+	/** Where a double-click goes. */
+	route: Route;
+	/**
+	 * Section to poll for a live "· 142" suffix. Group folders pass
+	 * `staticSuffix` instead — a count of their members, which needs
+	 * no request.
+	 */
+	countEntity?: MyWordPressEntity;
+	staticSuffix?: string;
+}
+
+/**
+ * Resolve the root-level folders. Prefers the server-shipped list
+ * (which carries the `openstation_my_wordpress_post_type_groups`
+ * ordering) and falls back to deriving them from the entity list, so a
+ * plugin that appends sections through the JS API alone still groups.
+ */
+function getGroups( cfg: MyWordPressConfig ): MyWordPressGroup[] {
+	// Server-declared groups keep the order PHP gave them — the
+	// `openstation_my_wordpress_post_type_groups` filter can reorder
+	// them, and re-sorting here would undo that.
+	const merged: MyWordPressGroup[] = Array.isArray( cfg.groups )
+		? [ ...cfg.groups ]
+		: [];
+	const known = new Set( merged.map( ( group ) => group.id ) );
+
+	// Derive anything an entity references that the server didn't
+	// ship. This is per-group, not all-or-nothing: a section appended
+	// from JS carries its own group fields, and on a site that also
+	// has PHP-registered groups it would otherwise be filtered out of
+	// the root tiles (it has a `group`) without any folder collecting
+	// it (its group isn't in the server list) — the section would
+	// simply disappear.
+	cfg.entities.forEach( ( entity ) => {
+		if ( ! entity.group || known.has( entity.group ) ) {
+			return;
+		}
+		known.add( entity.group );
+		const derived: MyWordPressGroup = {
+			id: entity.group,
+			label: entity.groupLabel || entity.group,
+			icon: entity.groupIcon || 'dashicons-admin-plugins',
+			order: entity.groupOrder ?? 20,
+		};
+		// Slot it by `order` among the groups already present rather
+		// than appending, so a late-registered folder still lands
+		// where its weight says it should.
+		const at = merged.findIndex( ( group ) => group.order > derived.order );
+		if ( at === -1 ) {
+			merged.push( derived );
+		} else {
+			merged.splice( at, 0, derived );
+		}
+	} );
+
+	return merged;
+}
+
+/** Sections belonging to a group, in registry order. */
+function getGroupEntities(
+	cfg: MyWordPressConfig,
+	groupId: string,
+): MyWordPressEntity[] {
+	return cfg.entities.filter( ( entity ) => entity.group === groupId );
+}
+
+/**
+ * Render a canvas of folder tiles. Shared by the root view and the
+ * per-group view so the tile chrome, the live count suffix, the
+ * broadcast-driven refresh, and the sort menu behave identically at
+ * every level.
+ *
+ * @param state  Render state.
+ * @param specs  Folder tiles to place, in registry order.
+ * @param scope  Layout / context-menu scope key. Distinct per view so
+ *               each folder remembers its own icon arrangement.
+ * @param atView Route kind this grid belongs to — stale count paints
+ *               are dropped once the user has navigated away.
+ */
+function renderFolderGrid(
+	state: RenderState,
+	specs: FolderTileSpec[],
+	scope: string,
+	atView: 'root' | 'group',
+): void {
 	const grid = document.createElement( 'div' );
 	grid.className =
-		'desktop-mode-my-wordpress__grid desktop-mode-my-wordpress__canvas';
+		'os-my-wordpress__grid os-my-wordpress__canvas';
 	grid.setAttribute( 'role', 'list' );
 
-	const layout = createTileLayout( grid, 'root' );
-	const select = createTileSelector();
+	const layout = createTileLayout( grid, scope );
+	// Folder tiles are navigation, not data — a multi-selection of
+	// them has nothing to act on, so the controller runs in
+	// single-select mode (no marquee) purely for the highlight.
+	const selection = attachSelection( grid, {
+		background: grid,
+		marquee: false,
+		surface: 'my-wordpress',
+		scope,
+		keyOf: ( el ) => el.dataset.tileKey ?? null,
+	} );
+	state.teardown.push( () => selection.destroy() );
 
-	const tilesByEntity = new Map< string, HTMLElement >();
+	const tilesByKey = new Map< string, HTMLElement >();
 
-	cfg.entities.forEach( ( entity, idx ) => {
+	specs.forEach( ( spec, idx ) => {
 		const tile = buildIconTile( {
 			role: 'folder',
-			icon: entity.icon,
-			label: entity.label,
+			icon: spec.icon,
+			label: spec.staticSuffix
+				? `${ spec.label } · ${ spec.staticSuffix }`
+				: spec.label,
 		} );
-		tile.dataset.entityId = entity.id;
-		tilesByEntity.set( entity.id, tile );
-		const tileKey = `entity:${ entity.id }`;
+		if ( spec.entityId ) {
+			tile.dataset.entityId = spec.entityId;
+		}
+		if ( spec.groupId ) {
+			tile.dataset.groupId = spec.groupId;
+		}
+		tile.dataset.tileKey = spec.key;
+		tilesByKey.set( spec.key, tile );
 		// Folders have no real "date" — synthesize one from registry
 		// order so date-sort still produces a deterministic outcome.
 		const synthDate = new Date( 2020, 0, 1 + idx ).toISOString();
-		layout.place( tile, tileKey, {
-			name: entity.label,
+		layout.place( tile, spec.key, {
+			name: spec.label,
 			date: synthDate,
 		} );
 		// Folder tiles use Finder-style semantics: single click
 		// selects (visual highlight only — no navigation, so a fast
 		// double-click can't race the tile out of the DOM), double
-		// click navigates. No drag-out: folder tiles aren't filed as
-		// shortcuts — only entity tiles are.
-		tile.addEventListener( 'click', () => select( tile ) );
+		// click navigates. Selection is the controller's job now. No
+		// drag-out: folder tiles aren't filed as shortcuts — only
+		// entity tiles are.
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
-			navigate( state, { kind: 'list', entityId: entity.id } );
+			navigate( state, spec.route );
 		} );
 		grid.appendChild( tile );
 	} );
 
-	// Fire one cheap count ping per entity in parallel so the root
-	// folder tiles can show "Posts · 142" / "Pages · 18". Each ping
-	// is `?per_page=1&_fields=id` — payload size of one id, total
-	// served via `X-WP-Total`. Failures fall through silently
-	// (the bare label is still useful).
-	cfg.entities.forEach( ( entity ) => {
+	// Fire one cheap count ping per section in parallel so the folder
+	// tiles can show "Posts · 142" / "Pages · 18". Each ping is
+	// `?per_page=1&_fields=id` — payload size of one id, total served
+	// via `X-WP-Total`. Failures fall through silently (the bare label
+	// is still useful).
+	specs.forEach( ( spec ) => {
+		const entity = spec.countEntity;
+		if ( ! entity ) {
+			return;
+		}
 		let fetchTimer: number | null = null;
 		const updateCount = () => {
 			void fetchEntityTotal( entity )
 				.then( ( total ) => {
-					if ( state.route.kind !== 'root' ) {
+					if ( state.route.kind !== atView ) {
 						return; // Navigated away — don't paint stale.
 					}
-					const tile = tilesByEntity.get( entity.id );
+					const tile = tilesByKey.get( spec.key );
 					if ( ! tile ) {
 						return;
 					}
 					const label = tile.querySelector< HTMLElement >(
-						'.desktop-mode-file-tile__label',
+						'.os-file-tile__label',
 					);
 					if ( label ) {
-						label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+						label.textContent = `${ spec.label } · ${ total.toLocaleString() }`;
 					}
 				} )
 				.catch( () => {
@@ -591,11 +796,12 @@ function renderRoot( state: RenderState ): void {
 		};
 		updateCount();
 
-		// Subscribe to cross-window broadcast change signals so the root
-		// folder counters refresh reactively when items are mutated elsewhere.
+		// Subscribe to cross-window broadcast change signals so the
+		// folder counters refresh reactively when items are mutated
+		// elsewhere.
 		const topic = getBroadcastTopicForEntity( entity );
 		if ( topic ) {
-			const api = window.wp?.desktop;
+			const api = window.wp?.os;
 			if ( api && typeof api.subscribe === 'function' ) {
 				const unsub = api.subscribe( topic, ( payload: unknown ) => {
 					const detail = payload as { source?: string } | null;
@@ -608,7 +814,7 @@ function renderRoot( state: RenderState ): void {
 					}
 					fetchTimer = window.setTimeout( () => {
 						fetchTimer = null;
-						if ( state.route.kind === 'root' ) {
+						if ( state.route.kind === atView ) {
 							updateCount();
 						}
 					}, 150 );
@@ -625,7 +831,7 @@ function renderRoot( state: RenderState ): void {
 
 	state.body.appendChild( grid );
 	const menu = attachIconCanvasMenu( grid, {
-		scope: 'my-wordpress:root',
+		scope,
 		onSort: ( mode ) => layout.sort( mode ),
 	} );
 	state.teardown.push( () => menu.dispose() );
@@ -636,18 +842,97 @@ function renderRoot( state: RenderState ): void {
 		[
 			{
 				id: 'count',
-				label: pluralLabel( cfg.entities.length, 'folder', 'folders' ),
+				label: pluralLabel( specs.length, 'folder', 'folders' ),
 				align: 'start',
 				sort: 10,
 			},
 		],
-		{ view: 'root' },
+		{ view: atView },
 	);
+}
+
+/** Folder tile spec for a section. */
+function sectionFolderSpec( entity: MyWordPressEntity ): FolderTileSpec {
+	return {
+		key: `entity:${ entity.id }`,
+		label: entity.label,
+		icon: entity.icon,
+		entityId: entity.id,
+		route: { kind: 'list', entityId: entity.id },
+		countEntity: entity,
+	};
+}
+
+function renderRoot( state: RenderState ): void {
+	const cfg = getConfig();
+
+	// Grouped sections collapse into one folder per plugin / theme;
+	// everything else keeps its own root tile.
+	const groups = getGroups( cfg );
+	const specs: FolderTileSpec[] = cfg.entities
+		.filter( ( entity ) => ! entity.group )
+		.map( sectionFolderSpec );
+
+	groups.forEach( ( group ) => {
+		const members = getGroupEntities( cfg, group.id );
+		if ( members.length === 0 ) {
+			return;
+		}
+		specs.push( {
+			key: `group:${ group.id }`,
+			label: group.label,
+			icon: group.icon,
+			groupId: group.id,
+			route: { kind: 'group', groupId: group.id },
+			staticSuffix: String( members.length ),
+		} );
+	} );
+
+	renderFolderGrid( state, specs, 'my-wordpress:root', 'root' );
+}
+
+function renderGroup( state: RenderState, groupId: string ): void {
+	const cfg = getConfig();
+	const members = getGroupEntities( cfg, groupId );
+
+	if ( members.length === 0 ) {
+		renderError(
+			state,
+			__( 'That folder is empty.', 'desktop-mode' ),
+		);
+		return;
+	}
+
+	// `group-extras` slot — a panel above the folder tiles, for
+	// whole-folder context a plugin wants shown before the user picks
+	// a section (store totals on a shop folder, sync status on an
+	// importer's). Appended empty when nothing subscribes.
+	const extras = document.createElement( 'div' );
+	extras.className = 'os-my-wordpress__group-extras';
+	doAction( 'os.my-wordpress.group-extras', {
+		container: extras,
+		groupId,
+		group: getGroup( groupId ),
+		entityIds: members.map( ( entity ) => entity.id ),
+	} );
+	state.body.appendChild( extras );
+
+	renderFolderGrid(
+		state,
+		members.map( sectionFolderSpec ),
+		`my-wordpress:group:${ groupId }`,
+		'group',
+	);
+}
+
+/** Group descriptor for a group id, or null when unknown. */
+function getGroup( groupId: string ): MyWordPressGroup | null {
+	return getGroups( getConfig() ).find( ( g ) => g.id === groupId ) ?? null;
 }
 
 /**
  * Build a tile that visually matches the wallpaper file tiles
- * (`.desktop-mode-file-tile`) — same fixed 88px width, same icon /
+ * (`.os-file-tile`) — same fixed 88px width, same icon /
  * label composition, same hover/focus chrome. Adopting the live
  * class keeps the My WordPress window visually consistent with the
  * desktop without forking the look-and-feel rules.
@@ -656,6 +941,12 @@ function buildIconTile( spec: {
 	role: 'folder' | 'entry';
 	icon: string;
 	label: string;
+	/**
+	 * Preview image URL. `<os-tile>` renders it in place of `icon`
+	 * when set — the featured image for a post-kind entry, the
+	 * attachment thumbnail for media.
+	 */
+	thumbnail?: string;
 } ): HTMLElement {
 	// Adapter onto the canonical `buildTileFromSpec` — same visual
 	// chrome the desktop / folder windows use. The My WordPress
@@ -666,20 +957,27 @@ function buildIconTile( spec: {
 		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
 		ref: spec.label,
 		label: spec.label,
-		icon: sanitizeClass( spec.icon ),
+		// `<os-tile>` accepts a dashicon class, a URL, or a data URI.
+		// Only class-shaped icons go through the class sanitizer — a
+		// URL would be mangled into an invalid class and fall back to
+		// the letter badge (the Agents entity's bot SVG hit this).
+		icon: /^(https?:|data:)/.test( spec.icon )
+			? spec.icon
+			: sanitizeClass( spec.icon ),
+		thumbnail: spec.thumbnail || undefined,
 		role: spec.role,
 		extraClasses: [
-			'desktop-mode-my-wordpress__tile',
+			'os-my-wordpress__tile',
 			spec.role === 'folder'
-				? 'desktop-mode-my-wordpress__tile--folder'
-				: 'desktop-mode-my-wordpress__tile--entry',
+				? 'os-my-wordpress__tile--folder'
+				: 'os-my-wordpress__tile--entry',
 		],
 	} );
 }
 
 function renderError( state: RenderState, message: string ): void {
 	const empty = document.createElement( 'div' );
-	empty.className = 'desktop-mode-my-wordpress__empty';
+	empty.className = 'os-my-wordpress__empty';
 	empty.textContent = message;
 	state.body.appendChild( empty );
 }
@@ -694,8 +992,22 @@ interface ListContext {
 	tiles: HTMLElement;
 	sentinel: HTMLElement;
 	preview: HTMLElement;
+	/**
+	 * Id of the ONE selected entry, or null for none / several. The
+	 * async preview guards compare against it to drop a response whose
+	 * selection has moved on, so it has to mean "what the preview pane
+	 * is about" — which a set isn't.
+	 */
 	selectedId: number | null;
 	selectedTile: HTMLElement | null;
+	/** Multi-selection controller for this section's canvas(es). */
+	selection: SelectionHandle | null;
+	/**
+	 * Every rendered list item, by id. A context menu opened on a
+	 * multi-selection needs the item shapes for tiles it never had a
+	 * closure over.
+	 */
+	itemsById: Map< number, EntityListItem >;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
 	/**
@@ -720,6 +1032,80 @@ interface ListContext {
  * the user-facing rationale for that in the plan.
  */
 const lastQueryByEntity = new Map< string, string >();
+
+/**
+ * Optional banding for a section's list view: tiles are split into
+ * labelled bands instead of one flat canvas.
+ *
+ * Supplied by the `os.my-wordpress.list-bands` filter. The
+ * WooCommerce Orders section uses it to keep orders needing attention
+ * apart from — and above — the settled ones.
+ *
+ * @public
+ */
+export interface ListBanding {
+	/**
+	 * Bands in render order. Lower `order` sorts first. `tone` tints
+	 * the band heading so a band that carries work to do reads
+	 * differently from one that's just an archive.
+	 */
+	bands: Array< {
+		id: string;
+		label: string;
+		order?: number;
+		tone?: 'warn' | 'danger';
+		/**
+		 * Rows this band is expected to hold. Bands with a positive
+		 * count are laid out before the first page arrives, so they
+		 * fill in place instead of appearing mid-scroll and shoving
+		 * whatever the user is reading down the page. Omit when the
+		 * count isn't cheaply knowable — the band then appears when
+		 * its first row lands.
+		 */
+		count?: number;
+	} >;
+	/**
+	 * Which band a row belongs to. Return null (or an id not in
+	 * `bands`) to drop the row into an unlabelled band at the end.
+	 */
+	assign: ( item: EntityListItem ) => string | null;
+}
+
+/**
+ * One rendered band: its own heading, canvas, and tile layout, so a
+ * band remembers its own icon arrangement independently.
+ */
+interface RenderedBand {
+	host: HTMLElement;
+	canvas: HTMLElement;
+	layout: TileLayout;
+	count: number;
+	countEl: HTMLElement;
+	order: number;
+}
+
+/**
+ * Resolve the banding for a section, or null when its tiles should
+ * render as one flat canvas (the default for every built-in section).
+ */
+function resolveBanding(
+	entity: MyWordPressEntity,
+): ListBanding | null {
+	const banding = applyFilters< ListBanding | null, [ MyWordPressEntity ] >(
+		'os.my-wordpress.list-bands',
+		null,
+		entity,
+	);
+	if (
+		! banding ||
+		! Array.isArray( banding.bands ) ||
+		banding.bands.length === 0 ||
+		typeof banding.assign !== 'function'
+	) {
+		return null;
+	}
+	return banding;
+}
 
 function renderEntityList(
 	state: RenderState,
@@ -749,25 +1135,25 @@ function renderEntityList(
 	state.teardown.push( () => toolbar.destroy() );
 
 	const split = document.createElement( 'div' );
-	split.className = 'desktop-mode-my-wordpress__split';
+	split.className = 'os-my-wordpress__split';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list';
+	left.className = 'os-my-wordpress__list';
 	const tiles = document.createElement( 'div' );
 	tiles.className =
-		'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas';
+		'os-my-wordpress__tiles os-my-wordpress__canvas';
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
 	const sentinel = document.createElement( 'div' );
-	sentinel.className = 'desktop-mode-my-wordpress__sentinel';
+	sentinel.className = 'os-my-wordpress__sentinel';
 	sentinel.setAttribute( 'aria-hidden', 'true' );
 	left.appendChild( sentinel );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 	const previewEmpty = document.createElement( 'div' );
-	previewEmpty.className = 'desktop-mode-my-wordpress__preview-empty';
+	previewEmpty.className = 'os-my-wordpress__preview-empty';
 	previewEmpty.textContent = __(
 		'Select an entry to preview it here.',
 		'desktop-mode',
@@ -778,12 +1164,166 @@ function renderEntityList(
 	split.appendChild( right );
 	state.body.appendChild( split );
 
-	const tileLayout = createTileLayout( tiles, `entity:${ entity.id }` );
+	const banding = resolveBanding( entity );
+	const isLarge = entity.tileSize === 'large';
+	const tileMetrics = isLarge ? TILE_METRICS_LARGE : TILE_METRICS;
+	if ( isLarge ) {
+		// Drives the CSS side of the size step. The cell pitch above
+		// and this class have to agree — a wider tile in a cell that
+		// didn't grow overlaps its neighbour.
+		tiles.classList.add( 'os-my-wordpress__tiles--large' );
+	}
+	const tileLayout = createTileLayout(
+		tiles,
+		`entity:${ entity.id }`,
+		tileMetrics,
+	);
 	const menu = attachIconCanvasMenu( tiles, {
 		scope: `my-wordpress:${ entity.id }`,
 		onSort: ( mode ) => tileLayout.sort( mode ),
 	} );
 	state.teardown.push( () => menu.dispose() );
+
+	if ( banding ) {
+		// When banded, the root container becomes a plain stack of
+		// band sections — each band owns its own positioned canvas.
+		tiles.classList.add( 'os-my-wordpress__tiles--banded' );
+	}
+
+	/** Band sections, keyed by band id. */
+	const bands = new Map< string, RenderedBand >();
+
+	/**
+	 * Build a band section. Called up front for bands whose row count
+	 * the server could tell us, and on demand for the rest.
+	 */
+	const createBand = ( def: {
+		id: string;
+		label: string;
+		order?: number;
+		tone?: 'warn' | 'danger';
+	} ): RenderedBand => {
+		const host = document.createElement( 'section' );
+		host.className = 'os-my-wordpress__band';
+		host.dataset.bandId = def.id;
+
+		const heading = document.createElement( 'h3' );
+		heading.className = 'os-my-wordpress__band-title';
+		if ( def.tone ) {
+			heading.classList.add(
+				`os-my-wordpress__band-title--${ def.tone }`,
+			);
+		}
+		const label = document.createElement( 'span' );
+		label.textContent = def.label;
+		const countEl = document.createElement( 'span' );
+		countEl.className = 'os-my-wordpress__band-count';
+		heading.append( label, countEl );
+		host.appendChild( heading );
+
+		const canvas = document.createElement( 'div' );
+		canvas.className =
+			'os-my-wordpress__tiles os-my-wordpress__canvas';
+		if ( isLarge ) {
+			canvas.classList.add( 'os-my-wordpress__tiles--large' );
+		}
+		canvas.setAttribute( 'role', 'list' );
+		host.appendChild( canvas );
+
+		const layout = createTileLayout(
+			canvas,
+			`entity:${ entity.id }:band:${ def.id }`,
+			tileMetrics,
+		);
+
+		const rendered: RenderedBand = {
+			host,
+			canvas,
+			layout,
+			count: 0,
+			countEl,
+			order: def.order ?? 0,
+		};
+		bands.set( def.id, rendered );
+
+		// Insert in band order rather than arrival order.
+		const after = [ ...bands.values() ]
+			.filter( ( b ) => b !== rendered && b.order > rendered.order )
+			.sort( ( a, b ) => a.order - b.order )[ 0 ];
+		if ( after ) {
+			tiles.insertBefore( host, after.host );
+		} else {
+			tiles.appendChild( host );
+		}
+
+		// Empty until its first row arrives — the heading would
+		// otherwise read as a band with nothing in it.
+		host.classList.add( 'os-my-wordpress__band--empty' );
+
+		return rendered;
+	};
+
+	/**
+	 * Lay out every band the server could count, in order, before the
+	 * first page lands. Bands then fill in place; none appears late
+	 * and pushes content the user is already reading.
+	 */
+	const seedBands = (): void => {
+		if ( ! banding ) {
+			return;
+		}
+		banding.bands
+			.filter( ( def ) => ( def.count ?? 0 ) > 0 )
+			.forEach( ( def ) => createBand( def ) );
+	};
+
+	/**
+	 * Tear the bands down and re-seed them.
+	 *
+	 * A search replaces the result set wholesale, and the caller does
+	 * that by emptying the root container. That detaches the band
+	 * sections but leaves this map pointing at them — so the next page
+	 * of results was appended into orphaned canvases whose layouts
+	 * still held the previous rows' occupied cells, and the grid came
+	 * back overlapping and unscrollable.
+	 */
+	const resetBands = (): void => {
+		bands.forEach( ( band ) => {
+			band.layout.dispose();
+			band.host.remove();
+		} );
+		bands.clear();
+		seedBands();
+	};
+
+	seedBands();
+	// One teardown for however many bands exist at the time, rather
+	// than one per band ever created — a search re-seeds them.
+	state.teardown.push( () => {
+		bands.forEach( ( band ) => band.layout.dispose() );
+		bands.clear();
+	} );
+
+	/**
+	 * Get (or create) the band a row belongs to. A band appears the
+	 * moment its first row lands, in its `order` position, so bands
+	 * with nothing in them never take up space.
+	 */
+	const bandFor = ( item: EntityListItem ): RenderedBand | null => {
+		if ( ! banding ) {
+			return null;
+		}
+		let id: string | null = null;
+		try {
+			id = banding.assign( item );
+		} catch {
+			id = null;
+		}
+		const def =
+			banding.bands.find( ( b ) => b.id === id ) ??
+			banding.bands[ banding.bands.length - 1 ];
+		return bands.get( def.id ) ?? createBand( def );
+	};
 
 	const ctx: ListContext = {
 		page: 0,
@@ -797,11 +1337,45 @@ function renderEntityList(
 		preview: right,
 		selectedId: null,
 		selectedTile: null,
+		selection: null,
+		itemsById: new Map(),
 		observer: null,
 		layout: tileLayout,
 		query: initialQuery,
 		abort: null,
 	};
+
+	// One controller for the whole section — `tiles` is the root even
+	// when banding splits it into several canvases, so a Shift+click
+	// range can run across bands.
+	ctx.selection = attachSelection( tiles, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: entity.id,
+		keyOf: ( el ) =>
+			el.dataset.entryId ? el.dataset.entryId : null,
+		onChange: ( keys ) => {
+			const ids = keys
+				.map( ( k ) => parseInt( k, 10 ) )
+				.filter( ( n ) => Number.isFinite( n ) );
+			ctx.selectedId = ids.length === 1 ? ids[ 0 ] : null;
+			ctx.selectedTile =
+				ids.length === 1
+					? ctx.selection?.elementFor( String( ids[ 0 ] ) ) ?? null
+					: null;
+			if ( ids.length === 0 ) {
+				renderPreviewPlaceholder( ctx );
+			} else if ( ids.length > 1 ) {
+				ctx.preview.replaceChildren(
+					renderEntitySelectionSummary( ctx, ids ),
+				);
+			} else {
+				void renderPreview( state, ctx, entity, ids[ 0 ] );
+			}
+			repaintListStatus();
+		},
+	} );
+	state.teardown.push( () => ctx.selection?.destroy() );
 	state.teardown.push( () => tileLayout.dispose() );
 	// Cancel any in-flight page fetch on teardown — keeps the
 	// activity bus / loading spinner from showing a never-resolving
@@ -833,6 +1407,21 @@ function renderEntityList(
 		const segments: StatusBarSegment[] = [
 			{ id: 'count', label: itemLabel, align: 'start', sort: 10 },
 		];
+		// Only while there IS a selection — a permanent "0 selected"
+		// is noise on a bar whose whole job is to be glanceable.
+		const selectedCount = ctx.selection?.keys().length ?? 0;
+		if ( selectedCount > 0 ) {
+			segments.push( {
+				id: 'selection',
+				label: sprintf(
+					// translators: %d: number of selected entries.
+					__( '%d selected', 'desktop-mode' ),
+					selectedCount,
+				),
+				align: 'end',
+				sort: 5,
+			} );
+		}
 		if ( ctx.totalPages > 1 ) {
 			segments.push( {
 				id: 'page',
@@ -906,7 +1495,37 @@ function renderEntityList(
 				return;
 			}
 			for ( const item of result.items ) {
-				tiles.appendChild( buildEntityTile( state, ctx, entity, item ) );
+				const band = bandFor( item );
+				const tile = buildEntityTile(
+					state,
+					ctx,
+					entity,
+					item,
+					band?.layout,
+				);
+				if ( band ) {
+					band.canvas.appendChild( tile );
+					band.count += 1;
+					band.countEl.textContent = String( band.count );
+					band.host.classList.remove(
+						'os-my-wordpress__band--empty',
+					);
+				} else {
+					tiles.appendChild( tile );
+				}
+				// Tile decoration seam. Fired *after* the tile is in
+				// the DOM, because `<os-tile>` paints on connect and
+				// its paint clears any `<os-ribbon>` it finds — a
+				// decoration added before that is wiped on arrival.
+				// Subscribers that add a ribbon should also listen for
+				// `os.tile.rendered` to survive re-paints
+				// (selection re-renders the tile).
+				doAction( 'os.my-wordpress.list-tile', {
+					tile,
+					entityId: entity.id,
+					kind: entity.kind ?? 'post',
+					item,
+				} );
 				ctx.loaded += 1;
 			}
 			if ( ctx.page >= ctx.totalPages ) {
@@ -961,7 +1580,7 @@ function renderEntityList(
 		// visible), do the fetch, then atomically swap when the new
 		// page lands.
 		tiles.classList.add(
-			'desktop-mode-my-wordpress__tiles--searching',
+			'os-my-wordpress__tiles--searching',
 		);
 		hideLoadingSkeleton( tiles );
 
@@ -986,8 +1605,9 @@ function renderEntityList(
 			// replace it with the new one in one frame.
 			tiles.replaceChildren();
 			ctx.layout.clear();
+			resetBands();
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__tiles--searching',
+				'os-my-wordpress__tiles--searching',
 			);
 
 			ctx.page = 1;
@@ -1000,7 +1620,7 @@ function renderEntityList(
 			ctx.preview.replaceChildren();
 			const emptyPreview = document.createElement( 'div' );
 			emptyPreview.className =
-				'desktop-mode-my-wordpress__preview-empty';
+				'os-my-wordpress__preview-empty';
 			emptyPreview.textContent = __(
 				'Select an entry to preview it here.',
 				'desktop-mode',
@@ -1012,9 +1632,30 @@ function renderEntityList(
 				ctx.done = true;
 			} else {
 				for ( const item of result.items ) {
-					tiles.appendChild(
-						buildEntityTile( state, ctx, entity, item ),
+					const band = bandFor( item );
+					const tile = buildEntityTile(
+						state,
+						ctx,
+						entity,
+						item,
+						band?.layout,
 					);
+					if ( band ) {
+						band.canvas.appendChild( tile );
+						band.count += 1;
+						band.countEl.textContent = String( band.count );
+						band.host.classList.remove(
+							'os-my-wordpress__band--empty',
+						);
+					} else {
+						tiles.appendChild( tile );
+					}
+					doAction( 'os.my-wordpress.list-tile', {
+						tile,
+						entityId: entity.id,
+						kind: entity.kind ?? 'post',
+						item,
+					} );
 					ctx.loaded += 1;
 				}
 			}
@@ -1024,10 +1665,11 @@ function renderEntityList(
 				return;
 			}
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__tiles--searching',
+				'os-my-wordpress__tiles--searching',
 			);
 			tiles.replaceChildren();
 			ctx.layout.clear();
+			resetBands();
 			const msg =
 				err instanceof Error
 					? err.message
@@ -1075,13 +1717,86 @@ function isAbortError( err: unknown ): boolean {
 	return err instanceof DOMException && err.name === 'AbortError';
 }
 
+/**
+ * Drag payloads for the current selection, or an empty array when
+ * fewer than two things are selected.
+ *
+ * The empty array is the signal `attachTileDragOut` reads as "this is
+ * an ordinary one-tile drag" — so a surface only ever opts into a
+ * multi-drag when there is genuinely a set to carry.
+ */
+function selectedDragPayloads< T extends { id: number } >(
+	ctx: { selection: SelectionHandle | null; itemsById: Map< number, T > },
+	toPayload: ( item: T ) => TileDragOutPayload,
+): TileDragOutPayload[] {
+	const keys = ctx.selection?.keys() ?? [];
+	if ( keys.length < 2 ) {
+		return [];
+	}
+	return keys
+		.map( ( key ) => ctx.itemsById.get( Number( key ) ) )
+		.filter( ( item ): item is T => !! item )
+		.map( toPayload );
+}
+
+/** The right pane's "nothing selected" state. */
+function renderPreviewPlaceholder( ctx: ListContext ): void {
+	ctx.preview.replaceChildren();
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent = __(
+		'Select an entry to preview it here.',
+		'desktop-mode',
+	);
+	ctx.preview.appendChild( empty );
+}
+
+/**
+ * The right pane's multi-selection state. Previewing one arbitrary
+ * member of a set reads as "this is what you picked" when it isn't,
+ * so the pane says what the set IS instead — count, and the status
+ * breakdown, which is what decides whether a bulk action applies.
+ */
+function renderEntitySelectionSummary(
+	ctx: ListContext,
+	ids: number[],
+): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'os-my-wordpress__preview-empty';
+
+	const heading = document.createElement( 'strong' );
+	heading.textContent = sprintf(
+		// translators: %d: number of selected entries.
+		__( '%d items selected', 'desktop-mode' ),
+		ids.length,
+	);
+	wrap.appendChild( heading );
+
+	const counts = new Map< string, number >();
+	for ( const id of ids ) {
+		const status = ctx.itemsById.get( id )?.status || 'publish';
+		counts.set( status, ( counts.get( status ) ?? 0 ) + 1 );
+	}
+	const breakdown = Array.from( counts.entries() )
+		.sort( ( a, b ) => b[ 1 ] - a[ 1 ] || a[ 0 ].localeCompare( b[ 0 ] ) )
+		.map( ( [ status, n ] ) => `${ n } × ${ status }` )
+		.join( ' · ' );
+	if ( breakdown ) {
+		const detail = document.createElement( 'div' );
+		detail.className = 'os-my-wordpress__preview-selection-breakdown';
+		detail.textContent = breakdown;
+		wrap.appendChild( detail );
+	}
+	return wrap;
+}
+
 function renderListEmpty(
 	host: HTMLElement,
 	entity: MyWordPressEntity,
 	query?: string,
 ): void {
 	const empty = document.createElement( 'div' );
-	empty.className = 'desktop-mode-my-wordpress__empty';
+	empty.className = 'os-my-wordpress__empty';
 	if ( query ) {
 		empty.textContent = sprintf(
 			// translators: 1: search query, 2: lowercased entity-type label.
@@ -1101,28 +1816,28 @@ function renderListEmpty(
 
 function renderListError( host: HTMLElement, message: string ): void {
 	const err = document.createElement( 'div' );
-	err.className = 'desktop-mode-my-wordpress__error';
+	err.className = 'os-my-wordpress__error';
 	err.textContent = message;
 	host.appendChild( err );
 }
 
 /**
  * Build a single placeholder tile that mirrors the real
- * `.desktop-mode-file-tile` silhouette (icon block + label rect).
+ * `.os-file-tile` silhouette (icon block + label rect).
  * The icon and label fill animate as a shimmering gradient — see
- * `desktop-mode-my-wordpress-skeleton-shimmer` in
+ * `os-my-wordpress-skeleton-shimmer` in
  * `assets/css/my-wordpress.css`.
  */
 function buildSkeletonTile( variant: 'first' | 'more' ): HTMLElement {
 	const tile = document.createElement( 'div' );
-	tile.className = 'desktop-mode-my-wordpress__skeleton-tile';
+	tile.className = 'os-my-wordpress__skeleton-tile';
 	tile.dataset.loadingSkeleton = variant;
 	tile.setAttribute( 'aria-hidden', 'true' );
 	const icon = document.createElement( 'div' );
-	icon.className = 'desktop-mode-my-wordpress__skeleton-icon';
+	icon.className = 'os-my-wordpress__skeleton-icon';
 	tile.appendChild( icon );
 	const label = document.createElement( 'div' );
-	label.className = 'desktop-mode-my-wordpress__skeleton-label';
+	label.className = 'os-my-wordpress__skeleton-label';
 	tile.appendChild( label );
 	return tile;
 }
@@ -1170,11 +1885,11 @@ function showLoadingSkeleton(
 		tile.style.left = `${ cell.x }px`;
 		tile.style.top = `${ cell.y }px`;
 		tile.style.setProperty(
-			'--desktop-mode-skeleton-delay',
+			'--os-skeleton-delay',
 			`${ SKELETON_DELAY_STEPS[ i % SKELETON_DELAY_STEPS.length ] }s`,
 		);
 		const label = tile.querySelector< HTMLElement >(
-			'.desktop-mode-my-wordpress__skeleton-label',
+			'.os-my-wordpress__skeleton-label',
 		);
 		if ( label ) {
 			label.style.width = `${
@@ -1182,9 +1897,9 @@ function showLoadingSkeleton(
 			}%`;
 		}
 		host.appendChild( tile );
-		maxBottom = Math.max( maxBottom, cell.y + TILE_H );
+		maxBottom = Math.max( maxBottom, cell.y + layout.metrics.h );
 	} );
-	host.style.minHeight = `${ maxBottom + TILE_PAD }px`;
+	host.style.minHeight = `${ maxBottom + layout.metrics.pad }px`;
 }
 
 function hideLoadingSkeleton( host: HTMLElement ): void {
@@ -1198,18 +1913,34 @@ function buildEntityTile(
 	ctx: ListContext,
 	entity: MyWordPressEntity,
 	item: EntityListItem,
+	/**
+	 * Layout to place the tile in. Banded sections pass their band's
+	 * own layout so each band keeps a separate icon arrangement;
+	 * everything else uses the section's single canvas.
+	 */
+	layout: TileLayout = ctx.layout,
 ): HTMLElement {
 	const titleText =
-		stripTags( item.title.rendered ) || __( '(no title)', 'desktop-mode' );
+		stripTags( item.title?.rendered ?? '' ) ||
+		__( '(no title)', 'desktop-mode' );
+	// The featured image reads better than a uniform dashicon wherever
+	// there is one — decisively so for image-led types like products.
+	// `fetchEntityList` already asks for `_embed=wp:featuredmedia`, so
+	// this costs no extra request. Sections can opt out with
+	// `thumbnails: false`; entries without a featured image fall back
+	// to the section icon.
+	const thumbnail =
+		entity.thumbnails === false ? '' : getThumbnail( item );
 	const tile = buildIconTile( {
 		role: 'entry',
 		icon: entity.icon,
 		label: titleText,
+		thumbnail,
 	} );
 	tile.dataset.entryId = String( item.id );
 	if ( item.status ) {
-		// `<wpd-tile>` reads the `status` attribute and slots a
-		// `<wpd-ribbon>` for non-publish values, honoring the
+		// `<os-tile>` reads the `status` attribute and slots a
+		// `<os-ribbon>` for non-publish values, honoring the
 		// `showPostStatusRibbons` OS-setting.
 		tile.setAttribute( 'status', item.status );
 	}
@@ -1245,18 +1976,42 @@ function buildEntityTile(
 			},
 		},
 		() => hideTooltip(),
+		{
+			// Multi-drag: when this tile is part of the selection, the
+			// gesture carries the whole set — drop three posts on a
+			// folder and three shortcuts are filed.
+			resolveSet: () =>
+				selectedDragPayloads( ctx, ( selected ) => ( {
+					kind: 'post',
+					ref: String( selected.id ),
+					title:
+						stripTags( selected.title?.rendered ?? '' ) ||
+						__( '(no title)', 'desktop-mode' ),
+					icon: entity.icon,
+					entityId: entity.id,
+					bridgePayload: {
+						kind: 'post',
+						id: selected.id,
+						postType: entity.id,
+						url: selected.link ?? '',
+						title:
+							stripTags( selected.title?.rendered ?? '' ) ||
+							__( '(no title)', 'desktop-mode' ),
+					},
+				} ) ),
+		},
 	);
 
 	// If another user is editing right now, surface that on the
 	// tile itself (overlay lock badge + class for styling) so the
 	// user can see at a glance which posts to skip — and tooltip
 	// adds the locking user's name.
-	const lock = item.desktop_mode_lock ?? null;
+	const lock = item.openstation_lock ?? null;
 	if ( lock ) {
-		tile.classList.add( 'desktop-mode-my-wordpress__tile--locked' );
+		tile.classList.add( 'os-my-wordpress__tile--locked' );
 		const badge = document.createElement( 'span' );
 		badge.className =
-			'desktop-mode-my-wordpress__tile-lock dashicons dashicons-lock';
+			'os-my-wordpress__tile-lock dashicons dashicons-lock';
 		badge.setAttribute( 'aria-hidden', 'true' );
 		tile.appendChild( badge );
 		// translators: 1: post title, 2: name of the user who has the post locked.
@@ -1295,30 +2050,34 @@ function buildEntityTile(
 	state.teardown.push( hideTooltip );
 
 	const tileKey = `entry:${ item.id }`;
-	ctx.layout.place( tile, tileKey, {
+	layout.place( tile, tileKey, {
 		name: titleText,
 		date: item.date || new Date( 0 ).toISOString(),
 	} );
-	// Click-to-select. The pointerdown handler above already routes
-	// drags through the DragManager, so a sub-threshold gesture
-	// (pointer-down, no movement, pointer-up) flows naturally:
-	// pointerdown fires manager.start(); manager treats it as a
-	// click on pointerup; the browser dispatches `click`; this
-	// listener selects.
-	tile.addEventListener( 'click', () => {
-		selectTile( state, ctx, tile, entity, item.id );
-	} );
+	// Selection (plain click, Ctrl/Cmd, Shift, marquee) is owned by
+	// the section's selection controller, which listens on the tile
+	// container — no per-tile click handler here. The preview pane
+	// repaints from that controller's `onChange`.
+	ctx.itemsById.set( item.id, item );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		hideTooltip();
-		openEditor( entity, item.id, titleText );
+		openEditor( entity, item.id, titleText, item.editUrl );
 	} );
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
 		e.preventDefault();
+		e.stopPropagation();
 		hideTooltip();
-		openTileMenu( state, ctx, entity, item, titleText, {
+		// Right-clicking a tile that isn't selected replaces the
+		// selection with it, the way Finder and Explorer do; one that
+		// IS selected leaves the set alone so the menu acts on all of
+		// it.
+		if ( ! ctx.selection?.model.has( String( item.id ) ) ) {
+			ctx.selection?.model.set( [ String( item.id ) ] );
+		}
+		openTileMenu( state, ctx, entity, item, {
 			x: e.clientX,
 			y: e.clientY,
 		} );
@@ -1329,18 +2088,18 @@ function buildEntityTile(
 
 function buildTooltip( title: string, item: EntityListItem ): HTMLElement {
 	const tip = document.createElement( 'div' );
-	tip.className = 'desktop-mode-my-wordpress__tooltip';
+	tip.className = 'os-my-wordpress__tooltip';
 	tip.setAttribute( 'role', 'tooltip' );
 
 	const heading = document.createElement( 'div' );
-	heading.className = 'desktop-mode-my-wordpress__tooltip-title';
+	heading.className = 'os-my-wordpress__tooltip-title';
 	heading.textContent = title;
 	tip.appendChild( heading );
 
-	const lock = item.desktop_mode_lock ?? null;
+	const lock = item.openstation_lock ?? null;
 	if ( lock ) {
 		const banner = document.createElement( 'div' );
-		banner.className = 'desktop-mode-my-wordpress__tooltip-lock';
+		banner.className = 'os-my-wordpress__tooltip-lock';
 		const icon = document.createElement( 'span' );
 		icon.className = 'dashicons dashicons-lock';
 		icon.setAttribute( 'aria-hidden', 'true' );
@@ -1358,7 +2117,7 @@ function buildTooltip( title: string, item: EntityListItem ): HTMLElement {
 	const thumb = getThumbnail( item );
 	if ( thumb ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__tooltip-thumb';
+		img.className = 'os-my-wordpress__tooltip-thumb';
 		img.src = thumb;
 		img.alt = '';
 		tip.appendChild( img );
@@ -1367,7 +2126,7 @@ function buildTooltip( title: string, item: EntityListItem ): HTMLElement {
 	const excerpt = stripTags( item.excerpt?.rendered ?? '' );
 	if ( excerpt ) {
 		const p = document.createElement( 'p' );
-		p.className = 'desktop-mode-my-wordpress__tooltip-excerpt';
+		p.className = 'os-my-wordpress__tooltip-excerpt';
 		p.textContent =
 			excerpt.length > 240 ? excerpt.slice( 0, 237 ) + '…' : excerpt;
 		tip.appendChild( p );
@@ -1389,24 +2148,6 @@ function positionTooltip( tip: HTMLElement, ev: MouseEvent ): void {
 	}
 	tip.style.left = `${ x }px`;
 	tip.style.top = `${ y }px`;
-}
-
-function selectTile(
-	state: RenderState,
-	ctx: ListContext,
-	tile: HTMLElement,
-	entity: MyWordPressEntity,
-	id: number,
-): void {
-	if ( ctx.selectedTile ) {
-		ctx.selectedTile.classList.remove(
-			'desktop-mode-file-tile--selected',
-		);
-	}
-	tile.classList.add( 'desktop-mode-file-tile--selected' );
-	ctx.selectedTile = tile;
-	ctx.selectedId = id;
-	void renderPreview( state, ctx, entity, id );
 }
 
 async function renderPreview(
@@ -1440,7 +2181,7 @@ async function renderPreview(
 				kind: 'detail',
 				entityId: entity.id,
 				postId: detail.id,
-				postTitle: stripTags( detail.title.rendered ),
+				postTitle: stripTags( detail.title?.rendered ?? '' ),
 			} );
 		},
 	} );
@@ -1451,16 +2192,16 @@ async function renderPreview(
  * Reused by every code path that fetches preview data
  * (post select, sub-list selection, detail-view post hydration).
  *
- * Size is driven by the `--wpd-spinner-size` custom property on
- * `.desktop-mode-my-wordpress__preview-loading wpd-spinner` (see
+ * Size is driven by the `--os-ui-spinner-size` custom property on
+ * `.os-my-wordpress__preview-loading os-spinner` (see
  * `assets/css/my-wordpress.css`) so a single CSS knob retunes
  * every preview spinner without rebuilding the JS bundle.
  */
 function showPreviewLoading( host: HTMLElement ): void {
 	host.replaceChildren();
 	const loading = document.createElement( 'div' );
-	loading.className = 'desktop-mode-my-wordpress__preview-loading';
-	const spinner = document.createElement( 'wpd-spinner' );
+	loading.className = 'os-my-wordpress__preview-loading';
+	const spinner = document.createElement( 'os-spinner' );
 	loading.appendChild( spinner );
 	host.appendChild( loading );
 }
@@ -1468,7 +2209,7 @@ function showPreviewLoading( host: HTMLElement ): void {
 function showPreviewError( host: HTMLElement, err: unknown ): void {
 	host.replaceChildren();
 	const box = document.createElement( 'div' );
-	box.className = 'desktop-mode-my-wordpress__error';
+	box.className = 'os-my-wordpress__error';
 	box.textContent =
 		err instanceof Error ? err.message : __( 'Unknown error.', 'desktop-mode' );
 	host.appendChild( box );
@@ -1493,11 +2234,13 @@ function appendPostArticle(
 ): void {
 	host.replaceChildren();
 	const article = document.createElement( 'article' );
-	article.className = 'desktop-mode-my-wordpress__article';
+	article.className = 'os-my-wordpress__article';
 
 	const heading = document.createElement( 'h2' );
-	heading.className = 'desktop-mode-my-wordpress__article-title';
-	heading.textContent = stripTags( detail.title.rendered );
+	heading.className = 'os-my-wordpress__article-title';
+	heading.textContent =
+		stripTags( detail.title?.rendered ?? '' ) ||
+		__( '(no title)', 'desktop-mode' );
 	article.appendChild( heading );
 
 	const meta = buildPostMetaLine( detail );
@@ -1505,27 +2248,44 @@ function appendPostArticle(
 		article.appendChild( meta );
 	}
 
+	// `header` slot — above the hero image and the rendered content.
+	// Where a plugin puts the facts that matter more than the prose
+	// (a product's price and stock, an order's total).
+	article.appendChild( postArticleSlot( 'header', detail, entity ) );
+
 	const thumb = getThumbnail( detail );
 	if ( thumb ) {
 		const img = document.createElement( 'img' );
-		img.className = 'desktop-mode-my-wordpress__article-hero';
+		img.className = 'os-my-wordpress__article-hero';
 		img.src = thumb;
 		img.alt = '';
 		article.appendChild( img );
 	}
 
-	const content = document.createElement( 'div' );
-	content.className = 'desktop-mode-my-wordpress__article-content';
-	// `content.rendered` is sanitised server-side by core's
-	// `the_content` pipeline before it reaches the REST response.
-	content.innerHTML = detail.content.rendered;
-	article.appendChild( content );
+	// A post type that doesn't `supports` the editor has no `content`
+	// field in its REST response at all — WooCommerce's `shop_coupon`
+	// supports only `title`. Reading `.rendered` off the missing key
+	// threw before the article was ever appended, so the whole pane
+	// rendered blank. Fall back to the excerpt, then to nothing.
+	const contentHtml =
+		detail.content?.rendered ?? detail.excerpt?.rendered ?? '';
+	if ( contentHtml ) {
+		const content = document.createElement( 'div' );
+		content.className = 'os-my-wordpress__article-content';
+		// Sanitised server-side by core's `the_content` pipeline
+		// before it reaches the REST response.
+		content.innerHTML = contentHtml;
+		article.appendChild( content );
+	}
+
+	// `meta` slot — after the content, before the action row.
+	article.appendChild( postArticleSlot( 'meta', detail, entity ) );
 
 	const footer = document.createElement( 'footer' );
-	footer.className = 'desktop-mode-my-wordpress__article-footer';
+	footer.className = 'os-my-wordpress__article-footer';
 
 	if ( opts.onExplore ) {
-		const exploreBtn = document.createElement( 'wpd-button' );
+		const exploreBtn = document.createElement( 'os-button' );
 		exploreBtn.setAttribute( 'variant', 'secondary' );
 		exploreBtn.textContent = __( 'Explore details', 'desktop-mode' );
 		exploreBtn.title = __(
@@ -1538,17 +2298,60 @@ function appendPostArticle(
 		footer.appendChild( exploreBtn );
 	}
 
-	const editBtn = document.createElement( 'wpd-button' );
+	const editBtn = document.createElement( 'os-button' );
 	editBtn.setAttribute( 'variant', 'primary' );
 	editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
 	editBtn.addEventListener( 'click', () => {
-		openEditor( entity, detail.id, stripTags( detail.title.rendered ) );
+		openEditor(
+			entity,
+			detail.id,
+			stripTags( detail.title?.rendered ?? '' ),
+			detail.editUrl,
+		);
 	} );
 	footer.appendChild( editBtn );
 
 	article.appendChild( footer );
 
+	// `footer` slot — below the action row.
+	article.appendChild( postArticleSlot( 'footer', detail, entity ) );
+
 	host.appendChild( article );
+}
+
+/**
+ * Build a slot container and fire
+ * `os.my-wordpress.preview-extras` against it, so plugins
+ * can append arbitrary DOM to a post-kind preview pane.
+ *
+ * Same action name and payload shape the media pane uses
+ * (`src/my-wordpress/media-preview.ts`) — one contract covers every
+ * section, so a subscriber written for media works here by checking
+ * `kind` / `entityId`. The container is always appended, empty or
+ * not: an empty `<div>` costs nothing and keeps slot order stable
+ * when several subscribers paint asynchronously.
+ *
+ * @param slot   Slot identifier.
+ * @param detail The post being previewed.
+ * @param entity The section it belongs to.
+ * @return The slot container.
+ */
+function postArticleSlot(
+	slot: MediaPreviewSlot,
+	detail: EntityDetail,
+	entity: MyWordPressEntity,
+): HTMLElement {
+	const host = document.createElement( 'div' );
+	host.className = `os-my-wordpress__article-slot os-my-wordpress__article-slot--${ slot }`;
+	host.dataset.slot = slot;
+	doAction( 'os.my-wordpress.preview-extras', {
+		slot,
+		container: host,
+		entityId: entity.id,
+		kind: entity.kind ?? 'post',
+		item: detail as unknown as Record< string, unknown >,
+	} );
+	return host;
 }
 
 function buildPostMetaLine( detail: EntityDetail ): HTMLElement | null {
@@ -1577,7 +2380,7 @@ function buildPostMetaLine( detail: EntityDetail ): HTMLElement | null {
 		return null;
 	}
 	const line = document.createElement( 'p' );
-	line.className = 'desktop-mode-my-wordpress__article-meta';
+	line.className = 'os-my-wordpress__article-meta';
 	line.textContent = parts.join( ' · ' );
 	return line;
 }
@@ -1600,18 +2403,18 @@ function renderDetail(
 	postTitle: string,
 ): void {
 	const split = document.createElement( 'div' );
-	split.className = 'desktop-mode-my-wordpress__split';
+	split.className = 'os-my-wordpress__split';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list';
+	left.className = 'os-my-wordpress__list';
 	const tiles = document.createElement( 'div' );
 	tiles.className =
-		'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas';
+		'os-my-wordpress__tiles os-my-wordpress__canvas';
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 	showPreviewLoading( right );
 
 	split.appendChild( left );
@@ -1694,9 +2497,9 @@ function renderDetail(
 
 		// Contributors — additional users beyond the post_author,
 		// sourced server-side from Co-Authors Plus + the
-		// `desktop_mode_my_wordpress_post_contributors` filter.
+		// `openstation_my_wordpress_post_contributors` filter.
 		// Hide the folder when no extras exist.
-		const contributors = detail.desktop_mode_contributors ?? [];
+		const contributors = detail.openstation_contributors ?? [];
 		if ( contributors.length > 0 ) {
 			subFolders.push( {
 				relation: 'contributors',
@@ -1898,20 +2701,20 @@ function renderSubList(
 	relation: SubRelation,
 ): void {
 	const split = document.createElement( 'div' );
-	split.className = 'desktop-mode-my-wordpress__split';
+	split.className = 'os-my-wordpress__split';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list';
+	left.className = 'os-my-wordpress__list';
 	const tiles = document.createElement( 'div' );
 	tiles.className =
-		'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas';
+		'os-my-wordpress__tiles os-my-wordpress__canvas';
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 	const previewEmpty = document.createElement( 'div' );
-	previewEmpty.className = 'desktop-mode-my-wordpress__preview-empty';
+	previewEmpty.className = 'os-my-wordpress__preview-empty';
 	previewEmpty.textContent = __(
 		'Select an item to preview it here.',
 		'desktop-mode',
@@ -2002,8 +2805,56 @@ function renderSubList(
 			return;
 		}
 
-		let selectedKey: string | null = null;
-		let selectedTile: HTMLElement | null = null;
+		const itemsById = new Map< string, SubItemView >();
+
+		// Selection lives on the controller here too, so a drill-in
+		// list behaves like every other canvas — Ctrl/Cmd, Shift, and
+		// marquee all work. There are no bulk actions on a dossier
+		// list (these rows are relations, not records you can act on),
+		// so a multi-selection is highlight-only and the preview says
+		// how many are held.
+		const selection = attachSelection( tiles, {
+			background: left,
+			surface: 'my-wordpress',
+			scope: `sub-list:${ entity.id }:${ postId }:${ relation }`,
+			keyOf: ( el ) =>
+				el.dataset.subItemId ? `sub:${ el.dataset.subItemId }` : null,
+			onChange: ( keys ) => {
+				if ( keys.length === 0 ) {
+					right.replaceChildren( renderSubListPreviewEmpty( 0 ) );
+					return;
+				}
+				if ( keys.length > 1 ) {
+					right.replaceChildren(
+						renderSubListPreviewEmpty( keys.length ),
+					);
+					return;
+				}
+				const key = keys[ 0 ];
+				const item = itemsById.get( key );
+				if ( ! item ) {
+					return;
+				}
+				showPreviewLoading( right );
+				Promise.resolve( item.preview() )
+					.then( ( node ) => {
+						// Selection may have moved on while the preview
+						// was resolving — compare against the live set,
+						// not the key we started with.
+						if ( selection.keys()[ 0 ] !== key ) {
+							return;
+						}
+						right.replaceChildren( node );
+					} )
+					.catch( ( err ) => {
+						if ( selection.keys()[ 0 ] !== key ) {
+							return;
+						}
+						showPreviewError( right, err );
+					} );
+			},
+		} );
+		state.teardown.push( () => selection.destroy() );
 
 		for ( const item of items ) {
 			const tile = buildIconTile( {
@@ -2013,36 +2864,10 @@ function renderSubList(
 			} );
 			tile.dataset.subItemId = item.id;
 			const tileKey = `sub:${ item.id }`;
+			itemsById.set( tileKey, item );
 			layout.place( tile, tileKey, {
 				name: item.label,
 				date: item.date,
-			} );
-			tile.addEventListener( 'click', () => {
-				if ( selectedTile ) {
-					selectedTile.classList.remove(
-						'desktop-mode-file-tile--selected',
-					);
-				}
-				tile.classList.add(
-					'desktop-mode-file-tile--selected',
-				);
-				selectedTile = tile;
-				selectedKey = tileKey;
-
-				showPreviewLoading( right );
-				Promise.resolve( item.preview() )
-					.then( ( node ) => {
-						if ( selectedKey !== tileKey ) {
-							return; // Selection moved on.
-						}
-						right.replaceChildren( node );
-					} )
-					.catch( ( err ) => {
-						if ( selectedKey !== tileKey ) {
-							return;
-						}
-						showPreviewError( right, err );
-					} );
 			} );
 			tiles.appendChild( tile );
 		}
@@ -2054,12 +2879,31 @@ function renderSubList(
 	void postTitle;
 }
 
+/**
+ * Right pane of a drill-in list with nothing — or several things —
+ * selected. These rows are relations rather than records, so a set
+ * has no useful preview beyond its size.
+ */
+function renderSubListPreviewEmpty( selectedCount: number ): HTMLElement {
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent =
+		selectedCount > 1
+			? sprintf(
+				// translators: %d: number of selected items.
+				__( '%d items selected', 'desktop-mode' ),
+				selectedCount,
+			)
+			: __( 'Select an item to preview it here.', 'desktop-mode' );
+	return empty;
+}
+
 function renderListEmptyMessage(
 	host: HTMLElement,
 	message: string,
 ): void {
 	const empty = document.createElement( 'div' );
-	empty.className = 'desktop-mode-my-wordpress__empty';
+	empty.className = 'os-my-wordpress__empty';
 	empty.textContent = message;
 	host.appendChild( empty );
 }
@@ -2123,7 +2967,7 @@ async function loadSubItems(
 		// images inserted via the cross-window drag-bridge or other
 		// paths that emit raw `<img>` without `wp-image-N` classes.
 		// Fall back to the client-side regex on older API responses.
-		const serverList = detail.desktop_mode_attached_media;
+		const serverList = detail.openstation_attached_media;
 		if ( Array.isArray( serverList ) && serverList.length > 0 ) {
 			for ( const id of serverList ) {
 				if ( typeof id === 'number' && id > 0 ) {
@@ -2196,7 +3040,7 @@ async function loadSubItems(
 		// On a sub-item click we still upgrade to a full user fetch
 		// for the rich preview (bio, link) — see `contributorToView`.
 		const detail = await fetchEntityDetail( entity, postId );
-		const contribs = detail.desktop_mode_contributors ?? [];
+		const contribs = detail.openstation_contributors ?? [];
 		return contribs.map( contributorToView );
 	}
 	if ( relation === 'revisions' ) {
@@ -2244,7 +3088,7 @@ async function renderCommentDossier(
 
 	const wrap = document.createElement( 'div' );
 	wrap.className =
-		'desktop-mode-my-wordpress__article desktop-mode-my-wordpress__comment';
+		'os-my-wordpress__article os-my-wordpress__comment';
 
 	if ( ! stats ) {
 		// Fall back to the listing payload — at least we have the
@@ -2263,7 +3107,7 @@ async function renderCommentDossier(
 		} );
 		const body = document.createElement( 'div' );
 		body.className =
-			'desktop-mode-my-wordpress__article-content desktop-mode-my-wordpress__comment-body';
+			'os-my-wordpress__article-content os-my-wordpress__comment-body';
 		body.innerHTML = c.content.rendered;
 		wrap.appendChild( body );
 		return wrap;
@@ -2288,9 +3132,9 @@ async function renderCommentDossier(
 	// Parent comment quote (when this is a reply).
 	if ( parent ) {
 		const quote = document.createElement( 'blockquote' );
-		quote.className = 'desktop-mode-my-wordpress__comment-quote';
+		quote.className = 'os-my-wordpress__comment-quote';
 		const lead = document.createElement( 'div' );
-		lead.className = 'desktop-mode-my-wordpress__comment-quote-lead';
+		lead.className = 'os-my-wordpress__comment-quote-lead';
 		lead.textContent = sprintf(
 			// translators: %s is the parent comment's author name.
 			__( 'In reply to %s', 'desktop-mode' ),
@@ -2306,7 +3150,7 @@ async function renderCommentDossier(
 	// The comment body itself.
 	const body = document.createElement( 'div' );
 	body.className =
-		'desktop-mode-my-wordpress__article-content desktop-mode-my-wordpress__comment-body';
+		'os-my-wordpress__article-content os-my-wordpress__comment-body';
 	// `comment.rendered` is run server-side through the standard
 	// `comment_text` filter chain, which is the same trust model
 	// the public site uses to render comments.
@@ -2316,21 +3160,21 @@ async function renderCommentDossier(
 	// Parent post card.
 	if ( post ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = __( 'On post', 'desktop-mode' );
 		section.appendChild( h );
 		const card = document.createElement( 'div' );
-		card.className = 'desktop-mode-my-wordpress__comment-post';
+		card.className = 'os-my-wordpress__comment-post';
 		const titleEl = document.createElement( 'a' );
-		titleEl.className = 'desktop-mode-my-wordpress__comment-post-title';
+		titleEl.className = 'os-my-wordpress__comment-post-title';
 		titleEl.href = post.link;
 		titleEl.target = '_blank';
 		titleEl.rel = 'noopener noreferrer';
 		titleEl.textContent = post.title || `#${ post.id }`;
 		card.appendChild( titleEl );
 		const meta = document.createElement( 'div' );
-		meta.className = 'desktop-mode-my-wordpress__comment-post-meta';
+		meta.className = 'os-my-wordpress__comment-post-meta';
 		const parts: string[] = [];
 		parts.push( formatDate( post.date ) );
 		if ( post.author?.name ) {
@@ -2348,7 +3192,7 @@ async function renderCommentDossier(
 	// Replies thread.
 	if ( replies.length > 0 ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = sprintf(
 			// translators: %d is the number of direct replies to a comment.
@@ -2357,33 +3201,33 @@ async function renderCommentDossier(
 		);
 		section.appendChild( h );
 		const list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-my-wordpress__comment-replies';
+		list.className = 'os-my-wordpress__comment-replies';
 		for ( const r of replies ) {
 			const li = document.createElement( 'li' );
-			li.className = 'desktop-mode-my-wordpress__comment-reply';
+			li.className = 'os-my-wordpress__comment-reply';
 			if ( r.avatarUrl ) {
 				const img = document.createElement( 'img' );
 				img.src = r.avatarUrl;
 				img.alt = '';
 				img.className =
-					'desktop-mode-my-wordpress__comment-reply-avatar';
+					'os-my-wordpress__comment-reply-avatar';
 				li.appendChild( img );
 			}
 			const txt = document.createElement( 'div' );
-			txt.className = 'desktop-mode-my-wordpress__comment-reply-text';
+			txt.className = 'os-my-wordpress__comment-reply-text';
 			const head = document.createElement( 'div' );
-			head.className = 'desktop-mode-my-wordpress__comment-reply-head';
+			head.className = 'os-my-wordpress__comment-reply-head';
 			const who = document.createElement( 'span' );
-			who.className = 'desktop-mode-my-wordpress__comment-reply-name';
+			who.className = 'os-my-wordpress__comment-reply-name';
 			who.textContent = r.authorName || __( 'Anonymous', 'desktop-mode' );
 			head.appendChild( who );
 			const when = document.createElement( 'span' );
-			when.className = 'desktop-mode-my-wordpress__comment-reply-when';
+			when.className = 'os-my-wordpress__comment-reply-when';
 			when.textContent = formatDate( r.date );
 			head.appendChild( when );
 			txt.appendChild( head );
 			const ex = document.createElement( 'p' );
-			ex.className = 'desktop-mode-my-wordpress__comment-reply-excerpt';
+			ex.className = 'os-my-wordpress__comment-reply-excerpt';
 			ex.textContent = r.excerpt || '';
 			txt.appendChild( ex );
 			li.appendChild( txt );
@@ -2397,7 +3241,7 @@ async function renderCommentDossier(
 	// `moderate_comments` (the server doesn't ship these otherwise).
 	if ( comment.ip || comment.userAgent ) {
 		const dl = document.createElement( 'dl' );
-		dl.className = 'desktop-mode-my-wordpress__user-milestones';
+		dl.className = 'os-my-wordpress__user-milestones';
 		if ( comment.ip ) {
 			const dt = document.createElement( 'dt' );
 			dt.textContent = __( 'IP', 'desktop-mode' );
@@ -2434,40 +3278,40 @@ function appendCommentHeader(
 	},
 ): void {
 	const wrap = document.createElement( 'header' );
-	wrap.className = 'desktop-mode-my-wordpress__user-header';
+	wrap.className = 'os-my-wordpress__user-header';
 
 	if ( header.avatarUrl ) {
 		const img = document.createElement( 'img' );
 		img.src = header.avatarUrl;
 		img.alt = '';
-		img.className = 'desktop-mode-my-wordpress__user-avatar';
+		img.className = 'os-my-wordpress__user-avatar';
 		wrap.appendChild( img );
 	}
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__user-headline';
+	right.className = 'os-my-wordpress__user-headline';
 
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = header.authorName;
 	right.appendChild( h );
 
 	const badges = document.createElement( 'div' );
-	badges.className = 'desktop-mode-my-wordpress__user-roles';
+	badges.className = 'os-my-wordpress__user-roles';
 	const status = document.createElement( 'span' );
 	status.className =
-		'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__comment-status--' +
+		'os-my-wordpress__user-role os-my-wordpress__comment-status--' +
 		( header.status || 'approved' );
 	status.textContent = header.status || 'approved';
 	badges.appendChild( status );
 	const dateBadge = document.createElement( 'span' );
 	dateBadge.className =
-		'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__comment-date-badge';
+		'os-my-wordpress__user-role os-my-wordpress__comment-date-badge';
 	dateBadge.textContent = formatDate( header.date );
 	badges.appendChild( dateBadge );
 	if ( header.totalApproved > 1 ) {
 		const totalBadge = document.createElement( 'span' );
-		totalBadge.className = 'desktop-mode-my-wordpress__user-role';
+		totalBadge.className = 'os-my-wordpress__user-role';
 		totalBadge.textContent = sprintf(
 			// translators: %d is a comment count for a particular author.
 			_n(
@@ -2482,7 +3326,7 @@ function appendCommentHeader(
 	right.appendChild( badges );
 
 	const links = document.createElement( 'div' );
-	links.className = 'desktop-mode-my-wordpress__user-links';
+	links.className = 'os-my-wordpress__user-links';
 	if ( header.authorLink ) {
 		const a = document.createElement( 'a' );
 		a.href = header.authorLink;
@@ -2536,7 +3380,7 @@ function userToView( u: RelatedUser ): SubItemView {
 
 /**
  * Build a SubItemView from the compact `ContributorRef` shape that
- * the `desktop_mode_contributors` REST field returns. The tile +
+ * the `openstation_contributors` REST field returns. The tile +
  * basic preview come from the embedded payload — no extra round-
  * trip for the tile. Clicking the tile fires the rich user-stats
  * endpoint for the dossier, falling back to the compact shape +
@@ -2567,12 +3411,96 @@ function contributorToView( c: ContributorRef ): SubItemView {
  * top categories + activity sparkline. On permission errors we
  * fall through to the compact `/wp/v2/users/<id>` view.
  */
+/**
+ * The optional blocks a user dossier is made of, in render order.
+ * The identity header is not in the list — a dossier without a name
+ * and a face is not a dossier.
+ *
+ * @public
+ */
+export type UserDossierSection =
+	| 'bio'
+	| 'stats'
+	| 'activity'
+	| 'milestones'
+	| 'recent'
+	| 'terms';
+
+const USER_DOSSIER_SECTIONS: UserDossierSection[] = [
+	'bio',
+	'stats',
+	'activity',
+	'milestones',
+	'recent',
+	'terms',
+];
+
+/**
+ * Which blocks a dossier renders, for the section showing it.
+ *
+ * The built-in dossier answers "what has this person written" —
+ * post and page counts, a publishing sparkline, recent posts. That is
+ * the right answer in the Users folder and the wrong one in a shop's
+ * Customers folder, where the person has never written anything and
+ * the counts are four zeroes above the number you actually came for.
+ *
+ * Plugins drop what doesn't apply by returning a shorter list.
+ *
+ * @param entityId Section the dossier is being rendered in.
+ * @param kind     The section's entity kind.
+ * @param userId   The person.
+ * @return Sections to render, in order.
+ */
+function resolveDossierSections(
+	entityId: string,
+	kind: string,
+	userId: number,
+): UserDossierSection[] {
+	const resolved = applyFilters<
+		UserDossierSection[],
+		[ { entityId: string; kind: string; userId: number } ]
+	>( 'os.my-wordpress.user-dossier-sections', USER_DOSSIER_SECTIONS, {
+		entityId,
+		kind,
+		userId,
+	} );
+	return Array.isArray( resolved ) ? resolved : USER_DOSSIER_SECTIONS;
+}
+
 async function renderUserDossier( opts: {
 	userId: number;
 	fallbackName: string;
 	fallbackAvatar: string;
 	fallbackDescription: string;
+	/**
+	 * The section this dossier is being rendered in, when it has one.
+	 * Drives `os.my-wordpress.user-dossier-sections`; omitted (the
+	 * author / contributor sub-folders) means every section renders,
+	 * which is the historical behaviour.
+	 */
+	context?: { entityId: string; kind: string };
 } ): Promise< HTMLElement > {
+	const sections = resolveDossierSections(
+		opts.context?.entityId ?? '',
+		opts.context?.kind ?? 'user',
+		opts.userId,
+	);
+	const shows = ( section: UserDossierSection ): boolean =>
+		sections.includes( section );
+
+	/**
+	 * The `meta` slot anchor — sits directly under the identity
+	 * header and the bio, so a plugin's facts about this person read
+	 * where a reader is already looking, rather than above their name.
+	 */
+	const metaSlot = (): HTMLElement => {
+		const host = document.createElement( 'div' );
+		host.className =
+			'os-my-wordpress__article-slot os-my-wordpress__article-slot--meta';
+		host.dataset.slot = 'meta';
+		host.dataset.userSlot = 'meta';
+		return host;
+	};
 	let stats: UserStats | null = null;
 	try {
 		stats = await fetchUserStats( opts.userId );
@@ -2582,7 +3510,7 @@ async function renderUserDossier( opts: {
 
 	const wrap = document.createElement( 'div' );
 	wrap.className =
-		'desktop-mode-my-wordpress__article desktop-mode-my-wordpress__user';
+		'os-my-wordpress__article os-my-wordpress__user';
 
 	if ( ! stats ) {
 		// Permission denied / network error — fall back to the
@@ -2602,12 +3530,13 @@ async function renderUserDossier( opts: {
 			link: basic?.link ?? '',
 		} );
 		const desc = basic?.description ?? opts.fallbackDescription;
-		if ( desc ) {
+		if ( desc && shows( 'bio' ) ) {
 			const bio = document.createElement( 'div' );
-			bio.className = 'desktop-mode-my-wordpress__user-bio';
+			bio.className = 'os-my-wordpress__user-bio';
 			bio.textContent = desc;
 			wrap.appendChild( bio );
 		}
+		wrap.appendChild( metaSlot() );
 		return wrap;
 	}
 
@@ -2621,16 +3550,18 @@ async function renderUserDossier( opts: {
 		link: profile.link,
 	} );
 
-	if ( profile.description ) {
+	if ( profile.description && shows( 'bio' ) ) {
 		const bio = document.createElement( 'div' );
-		bio.className = 'desktop-mode-my-wordpress__user-bio';
+		bio.className = 'os-my-wordpress__user-bio';
 		bio.textContent = profile.description;
 		wrap.appendChild( bio );
 	}
 
+	wrap.appendChild( metaSlot() );
+
 	// Stat cards row.
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-my-wordpress__user-stats';
+	cards.className = 'os-my-wordpress__user-stats';
 	cards.appendChild(
 		buildStatCard(
 			counts.posts.total.toLocaleString(),
@@ -2671,29 +3602,33 @@ async function renderUserDossier( opts: {
 			'',
 		),
 	);
-	wrap.appendChild( cards );
+	if ( shows( 'stats' ) ) {
+		wrap.appendChild( cards );
+	}
 
 	// Activity sparkline (12-month publishing rhythm).
-	const spark = buildActivitySparkline( activity );
+	const spark = shows( 'activity' ) ? buildActivitySparkline( activity ) : null;
 	if ( spark ) {
 		wrap.appendChild( spark );
 	}
 
 	// Milestones row.
-	const milestoneRow = buildMilestonesRow( profile, milestones );
+	const milestoneRow = shows( 'milestones' )
+		? buildMilestonesRow( profile, milestones )
+		: null;
 	if ( milestoneRow ) {
 		wrap.appendChild( milestoneRow );
 	}
 
 	// Recent activity list.
-	if ( recent.length > 0 ) {
+	if ( recent.length > 0 && shows( 'recent' ) ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = __( 'Recent posts', 'desktop-mode' );
 		section.appendChild( h );
 		const ul = document.createElement( 'ul' );
-		ul.className = 'desktop-mode-my-wordpress__user-recent';
+		ul.className = 'os-my-wordpress__user-recent';
 		for ( const r of recent ) {
 			const li = document.createElement( 'li' );
 			const a = document.createElement( 'a' );
@@ -2703,7 +3638,7 @@ async function renderUserDossier( opts: {
 			a.textContent = r.title || `#${ r.id }`;
 			li.appendChild( a );
 			const meta = document.createElement( 'span' );
-			meta.className = 'desktop-mode-my-wordpress__user-recent-meta';
+			meta.className = 'os-my-wordpress__user-recent-meta';
 			meta.textContent = `${ formatDate( r.date ) } · ${ r.status }`;
 			li.appendChild( meta );
 			ul.appendChild( li );
@@ -2713,26 +3648,26 @@ async function renderUserDossier( opts: {
 	}
 
 	// Top categories / tags as chips.
-	if ( topTerms.length > 0 ) {
+	if ( topTerms.length > 0 && shows( 'terms' ) ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = __( 'Top categories & tags', 'desktop-mode' );
 		section.appendChild( h );
 		const chips = document.createElement( 'div' );
-		chips.className = 'desktop-mode-my-wordpress__user-chips';
+		chips.className = 'os-my-wordpress__user-chips';
 		for ( const t of topTerms ) {
 			const chip = document.createElement( 'span' );
 			chip.className =
-				'desktop-mode-my-wordpress__user-chip ' +
+				'os-my-wordpress__user-chip ' +
 				( t.taxonomy === 'post_tag'
-					? 'desktop-mode-my-wordpress__user-chip--tag'
-					: 'desktop-mode-my-wordpress__user-chip--category' );
+					? 'os-my-wordpress__user-chip--tag'
+					: 'os-my-wordpress__user-chip--category' );
 			const name = document.createElement( 'span' );
 			name.textContent = t.name;
 			chip.appendChild( name );
 			const count = document.createElement( 'span' );
-			count.className = 'desktop-mode-my-wordpress__user-chip-count';
+			count.className = 'os-my-wordpress__user-chip-count';
 			count.textContent = String( t.count );
 			chip.appendChild( count );
 			chips.appendChild( chip );
@@ -2755,29 +3690,29 @@ function appendUserHeader(
 	},
 ): void {
 	const wrap = document.createElement( 'header' );
-	wrap.className = 'desktop-mode-my-wordpress__user-header';
+	wrap.className = 'os-my-wordpress__user-header';
 
 	if ( header.avatarUrl ) {
 		const img = document.createElement( 'img' );
 		img.src = header.avatarUrl;
 		img.alt = '';
-		img.className = 'desktop-mode-my-wordpress__user-avatar';
+		img.className = 'os-my-wordpress__user-avatar';
 		wrap.appendChild( img );
 	}
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__user-headline';
+	right.className = 'os-my-wordpress__user-headline';
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = header.name;
 	right.appendChild( h );
 
 	if ( header.roles.length > 0 ) {
 		const rolesRow = document.createElement( 'div' );
-		rolesRow.className = 'desktop-mode-my-wordpress__user-roles';
+		rolesRow.className = 'os-my-wordpress__user-roles';
 		for ( const r of header.roles ) {
 			const badge = document.createElement( 'span' );
-			badge.className = 'desktop-mode-my-wordpress__user-role';
+			badge.className = 'os-my-wordpress__user-role';
 			badge.textContent = r;
 			rolesRow.appendChild( badge );
 		}
@@ -2785,7 +3720,7 @@ function appendUserHeader(
 	}
 
 	const links = document.createElement( 'div' );
-	links.className = 'desktop-mode-my-wordpress__user-links';
+	links.className = 'os-my-wordpress__user-links';
 	if ( header.link ) {
 		const a = document.createElement( 'a' );
 		a.href = header.link;
@@ -2816,18 +3751,18 @@ function buildStatCard(
 	caption: string,
 ): HTMLElement {
 	const card = document.createElement( 'div' );
-	card.className = 'desktop-mode-my-wordpress__user-stat';
+	card.className = 'os-my-wordpress__user-stat';
 	const v = document.createElement( 'span' );
-	v.className = 'desktop-mode-my-wordpress__user-stat-value';
+	v.className = 'os-my-wordpress__user-stat-value';
 	v.textContent = value;
 	card.appendChild( v );
 	const l = document.createElement( 'span' );
-	l.className = 'desktop-mode-my-wordpress__user-stat-label';
+	l.className = 'os-my-wordpress__user-stat-label';
 	l.textContent = label;
 	card.appendChild( l );
 	if ( caption ) {
 		const c = document.createElement( 'span' );
-		c.className = 'desktop-mode-my-wordpress__user-stat-caption';
+		c.className = 'os-my-wordpress__user-stat-caption';
 		c.textContent = caption;
 		card.appendChild( c );
 	}
@@ -2863,18 +3798,18 @@ function buildActivitySparkline(
 
 	const wrap = document.createElement( 'section' );
 	wrap.className =
-		'desktop-mode-my-wordpress__user-section desktop-mode-my-wordpress__user-spark';
+		'os-my-wordpress__user-section os-my-wordpress__user-spark';
 	const h = document.createElement( 'h3' );
 	h.textContent = __( 'Activity (last 12 months)', 'desktop-mode' );
 	wrap.appendChild( h );
 
 	const chart = document.createElement( 'div' );
-	chart.className = 'desktop-mode-my-wordpress__user-spark-chart';
+	chart.className = 'os-my-wordpress__user-spark-chart';
 	for ( const m of months ) {
 		const col = document.createElement( 'div' );
-		col.className = 'desktop-mode-my-wordpress__user-spark-col';
+		col.className = 'os-my-wordpress__user-spark-col';
 		const bar = document.createElement( 'div' );
-		bar.className = 'desktop-mode-my-wordpress__user-spark-bar';
+		bar.className = 'os-my-wordpress__user-spark-bar';
 		bar.style.height = `${ Math.round( ( m.count / max ) * 100 ) }%`;
 		bar.title = sprintf(
 			// translators: 1: month label, 2: post count.
@@ -2883,11 +3818,11 @@ function buildActivitySparkline(
 			m.count,
 		);
 		if ( m.count === 0 ) {
-			bar.classList.add( 'desktop-mode-my-wordpress__user-spark-bar--empty' );
+			bar.classList.add( 'os-my-wordpress__user-spark-bar--empty' );
 		}
 		col.appendChild( bar );
 		const lbl = document.createElement( 'span' );
-		lbl.className = 'desktop-mode-my-wordpress__user-spark-label';
+		lbl.className = 'os-my-wordpress__user-spark-label';
 		lbl.textContent = m.label;
 		col.appendChild( lbl );
 		chart.appendChild( col );
@@ -2923,7 +3858,7 @@ function buildMilestonesRow(
 		return null;
 	}
 	const dl = document.createElement( 'dl' );
-	dl.className = 'desktop-mode-my-wordpress__user-milestones';
+	dl.className = 'os-my-wordpress__user-milestones';
 	for ( const item of items ) {
 		const dt = document.createElement( 'dt' );
 		dt.textContent = item.label;
@@ -2980,7 +3915,7 @@ function termToView( t: RelatedTerm ): SubItemView {
  * cards (Posts / Comments / Distinct authors), 12-month activity
  * sparkline, milestones, recent posts (with author avatars), top
  * authors as cards, and co-occurring terms as chips. Source of
- * truth is the new `desktop_mode/v1/term-stats/<tax>/<id>`
+ * truth is the new `openstation/v1/term-stats/<tax>/<id>`
  * endpoint — single round-trip per selection.
  */
 async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
@@ -2993,7 +3928,7 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 
 	const wrap = document.createElement( 'div' );
 	wrap.className =
-		'desktop-mode-my-wordpress__article desktop-mode-my-wordpress__term';
+		'os-my-wordpress__article os-my-wordpress__term';
 
 	if ( ! stats ) {
 		// Permission denied / unknown taxonomy — fall back to the
@@ -3008,7 +3943,7 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 		} );
 		if ( t.description ) {
 			const body = document.createElement( 'div' );
-			body.className = 'desktop-mode-my-wordpress__user-bio';
+			body.className = 'os-my-wordpress__user-bio';
 			body.innerHTML = t.description;
 			wrap.appendChild( body );
 		}
@@ -3029,14 +3964,14 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 
 	if ( profile.description ) {
 		const bio = document.createElement( 'div' );
-		bio.className = 'desktop-mode-my-wordpress__user-bio';
+		bio.className = 'os-my-wordpress__user-bio';
 		bio.innerHTML = profile.description;
 		wrap.appendChild( bio );
 	}
 
 	// Stat cards.
 	const cards = document.createElement( 'div' );
-	cards.className = 'desktop-mode-my-wordpress__user-stats';
+	cards.className = 'os-my-wordpress__user-stats';
 	cards.appendChild(
 		buildStatCard(
 			counts.posts.total.toLocaleString(),
@@ -3083,30 +4018,30 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 	// Top authors row — cards with avatar + name + count.
 	if ( topAuthors.length > 0 ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = __( 'Top contributors', 'desktop-mode' );
 		section.appendChild( h );
 		const grid = document.createElement( 'div' );
-		grid.className = 'desktop-mode-my-wordpress__term-authors';
+		grid.className = 'os-my-wordpress__term-authors';
 		for ( const a of topAuthors ) {
 			const card = document.createElement( 'div' );
-			card.className = 'desktop-mode-my-wordpress__term-author';
+			card.className = 'os-my-wordpress__term-author';
 			if ( a.userAvatarUrl ) {
 				const img = document.createElement( 'img' );
 				img.src = a.userAvatarUrl;
 				img.alt = '';
-				img.className = 'desktop-mode-my-wordpress__term-author-avatar';
+				img.className = 'os-my-wordpress__term-author-avatar';
 				card.appendChild( img );
 			}
 			const text = document.createElement( 'div' );
-			text.className = 'desktop-mode-my-wordpress__term-author-text';
+			text.className = 'os-my-wordpress__term-author-text';
 			const name = document.createElement( 'span' );
-			name.className = 'desktop-mode-my-wordpress__term-author-name';
+			name.className = 'os-my-wordpress__term-author-name';
 			name.textContent = a.userName;
 			text.appendChild( name );
 			const count = document.createElement( 'span' );
-			count.className = 'desktop-mode-my-wordpress__term-author-count';
+			count.className = 'os-my-wordpress__term-author-count';
 			count.textContent = sprintf(
 				// translators: %d is a post count.
 				_n( '%d post', '%d posts', a.count ),
@@ -3124,12 +4059,12 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 	// inline author avatar.
 	if ( recent.length > 0 ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent = __( 'Recent posts', 'desktop-mode' );
 		section.appendChild( h );
 		const ul = document.createElement( 'ul' );
-		ul.className = 'desktop-mode-my-wordpress__user-recent';
+		ul.className = 'os-my-wordpress__user-recent';
 		for ( const r of recent ) {
 			const li = document.createElement( 'li' );
 			const a = document.createElement( 'a' );
@@ -3139,7 +4074,7 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 			a.textContent = r.title || `#${ r.id }`;
 			li.appendChild( a );
 			const meta = document.createElement( 'span' );
-			meta.className = 'desktop-mode-my-wordpress__user-recent-meta';
+			meta.className = 'os-my-wordpress__user-recent-meta';
 			meta.textContent = `${ formatDate( r.date ) } · ${ r.status }${
 				r.author?.name ? ' · ' + r.author.name : ''
 			}`;
@@ -3153,7 +4088,7 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 	// Co-occurring terms ("Often paired with…") — chips.
 	if ( coTerms.length > 0 ) {
 		const section = document.createElement( 'section' );
-		section.className = 'desktop-mode-my-wordpress__user-section';
+		section.className = 'os-my-wordpress__user-section';
 		const h = document.createElement( 'h3' );
 		h.textContent =
 			profile.taxonomy === 'post_tag'
@@ -3161,19 +4096,19 @@ async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
 				: __( 'Often paired categories', 'desktop-mode' );
 		section.appendChild( h );
 		const chips = document.createElement( 'div' );
-		chips.className = 'desktop-mode-my-wordpress__user-chips';
+		chips.className = 'os-my-wordpress__user-chips';
 		for ( const co of coTerms ) {
 			const chip = document.createElement( 'span' );
 			chip.className =
-				'desktop-mode-my-wordpress__user-chip ' +
+				'os-my-wordpress__user-chip ' +
 				( profile.taxonomy === 'post_tag'
-					? 'desktop-mode-my-wordpress__user-chip--tag'
-					: 'desktop-mode-my-wordpress__user-chip--category' );
+					? 'os-my-wordpress__user-chip--tag'
+					: 'os-my-wordpress__user-chip--category' );
 			const name = document.createElement( 'span' );
 			name.textContent = co.name;
 			chip.appendChild( name );
 			const count = document.createElement( 'span' );
-			count.className = 'desktop-mode-my-wordpress__user-chip-count';
+			count.className = 'os-my-wordpress__user-chip-count';
 			count.textContent = String( co.count );
 			chip.appendChild( count );
 			chips.appendChild( chip );
@@ -3197,14 +4132,14 @@ function appendTermHeader(
 	},
 ): void {
 	const wrap = document.createElement( 'header' );
-	wrap.className = 'desktop-mode-my-wordpress__term-header';
+	wrap.className = 'os-my-wordpress__term-header';
 
 	const iconHost = document.createElement( 'span' );
 	iconHost.className =
-		'desktop-mode-my-wordpress__term-icon ' +
+		'os-my-wordpress__term-icon ' +
 		( header.isTag
-			? 'desktop-mode-my-wordpress__term-icon--tag'
-			: 'desktop-mode-my-wordpress__term-icon--category' );
+			? 'os-my-wordpress__term-icon--tag'
+			: 'os-my-wordpress__term-icon--category' );
 	const iconGlyph = document.createElement( 'span' );
 	iconGlyph.style.cssText =
 		'font-family:dashicons;font-size:32px;line-height:1;display:inline-block;';
@@ -3214,26 +4149,26 @@ function appendTermHeader(
 	wrap.appendChild( iconHost );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__user-headline';
+	right.className = 'os-my-wordpress__user-headline';
 
 	const h = document.createElement( 'h2' );
-	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.className = 'os-my-wordpress__article-title';
 	h.textContent = header.name;
 	right.appendChild( h );
 
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-my-wordpress__user-roles';
+	meta.className = 'os-my-wordpress__user-roles';
 	const taxBadge = document.createElement( 'span' );
 	taxBadge.className =
-		'desktop-mode-my-wordpress__user-role ' +
+		'os-my-wordpress__user-role ' +
 		( header.isTag
-			? 'desktop-mode-my-wordpress__user-role--tag'
-			: 'desktop-mode-my-wordpress__user-role--category' );
+			? 'os-my-wordpress__user-role--tag'
+			: 'os-my-wordpress__user-role--category' );
 	taxBadge.textContent = header.taxonomyLabel;
 	meta.appendChild( taxBadge );
 	if ( header.parentName ) {
 		const parent = document.createElement( 'span' );
-		parent.className = 'desktop-mode-my-wordpress__user-role';
+		parent.className = 'os-my-wordpress__user-role';
 		parent.textContent = sprintf(
 			// translators: %s is the name of the parent category.
 			__( 'in %s', 'desktop-mode' ),
@@ -3245,7 +4180,7 @@ function appendTermHeader(
 
 	if ( header.link ) {
 		const links = document.createElement( 'div' );
-		links.className = 'desktop-mode-my-wordpress__user-links';
+		links.className = 'os-my-wordpress__user-links';
 		const a = document.createElement( 'a' );
 		a.href = header.link;
 		a.target = '_blank';
@@ -3279,7 +4214,7 @@ function buildTermMilestonesRow(
 		return null;
 	}
 	const dl = document.createElement( 'dl' );
-	dl.className = 'desktop-mode-my-wordpress__user-milestones';
+	dl.className = 'os-my-wordpress__user-milestones';
 	for ( const item of items ) {
 		const dt = document.createElement( 'dt' );
 		dt.textContent = item.label;
@@ -3300,18 +4235,18 @@ function mediaToView( m: RelatedMedia ): SubItemView {
 		date: m.date,
 		preview: () => {
 			const wrap = document.createElement( 'div' );
-			wrap.className = 'desktop-mode-my-wordpress__article';
+			wrap.className = 'os-my-wordpress__article';
 			const h = document.createElement( 'h2' );
-			h.className = 'desktop-mode-my-wordpress__article-title';
+			h.className = 'os-my-wordpress__article-title';
 			h.textContent = stripTags( m.title.rendered ) || `#${ m.id }`;
 			wrap.appendChild( h );
 			const meta = document.createElement( 'p' );
-			meta.className = 'desktop-mode-my-wordpress__article-meta';
+			meta.className = 'os-my-wordpress__article-meta';
 			meta.textContent = `${ m.mime_type } · ${ formatDate( m.date ) }`;
 			wrap.appendChild( meta );
 			if ( isImage ) {
 				const img = document.createElement( 'img' );
-				img.className = 'desktop-mode-my-wordpress__article-hero';
+				img.className = 'os-my-wordpress__article-hero';
 				const sizes = m.media_details?.sizes;
 				img.src =
 					sizes?.large?.source_url ??
@@ -3357,17 +4292,17 @@ function revisionToView(
 			}
 
 			const wrap = document.createElement( 'article' );
-			wrap.className = 'desktop-mode-my-wordpress__article';
+			wrap.className = 'os-my-wordpress__article';
 
 			const h = document.createElement( 'h2' );
-			h.className = 'desktop-mode-my-wordpress__article-title';
+			h.className = 'os-my-wordpress__article-title';
 			h.textContent =
 				stripTags( detail?.title?.rendered ?? r.title?.rendered ?? '' ) ||
 				label;
 			wrap.appendChild( h );
 
 			const meta = document.createElement( 'p' );
-			meta.className = 'desktop-mode-my-wordpress__article-meta';
+			meta.className = 'os-my-wordpress__article-meta';
 			meta.textContent = sprintf(
 				// translators: %s is a formatted date.
 				__( 'Saved %s', 'desktop-mode' ),
@@ -3379,7 +4314,7 @@ function revisionToView(
 			if ( html ) {
 				const content = document.createElement( 'div' );
 				content.className =
-					'desktop-mode-my-wordpress__article-content';
+					'os-my-wordpress__article-content';
 				// `content.rendered` is sanitised server-side by
 				// core's `the_content` pipeline before it reaches
 				// the REST response.
@@ -3387,7 +4322,7 @@ function revisionToView(
 				wrap.appendChild( content );
 			} else {
 				const empty = document.createElement( 'p' );
-				empty.className = 'desktop-mode-my-wordpress__article-meta';
+				empty.className = 'os-my-wordpress__article-meta';
 				empty.textContent = detail
 					? __( 'This revision has no rendered content.', 'desktop-mode' )
 					: __(
@@ -3412,12 +4347,32 @@ function formatDate( iso: string ): string {
 	}
 }
 
+/**
+ * Open a row's editor as its own window.
+ *
+ * `editUrl` on the row wins when present. `buildEditUrl()` assumes
+ * `post.php?post=<id>` — true for anything stored in `wp_posts`, and
+ * wrong for a section whose rows live somewhere else: a WooCommerce
+ * order under High-Performance Order Storage edits at
+ * `admin.php?page=wc-orders&action=edit&id=N`, and the guessed URL
+ * lands on a 404. A section serving rows from its own route declares
+ * `editUrl` in `listFields` and puts the real one there.
+ *
+ * @param entity  The section the row belongs to.
+ * @param id      Row id.
+ * @param title   Window title.
+ * @param editUrl Explicit editor URL from the row, when it has one.
+ */
 function openEditor(
 	entity: MyWordPressEntity,
 	id: number,
 	title: string,
+	editUrl?: unknown,
 ): void {
-	const url = buildEditUrl( id );
+	const url =
+		typeof editUrl === 'string' && editUrl !== ''
+			? editUrl
+			: buildEditUrl( id );
 	openIframeWindow( {
 		id: `${ entity.id }-edit-${ id }`,
 		url,
@@ -3426,190 +4381,332 @@ function openEditor(
 	} );
 }
 
-function openTileMenu(
+/**
+ * One entry in an entity tile's context menu.
+ *
+ * Plugin-added entries must supply `onSelect`; the built-ins carry
+ * their own `onClick`. The multi-selection fields (`multi`,
+ * `bulkLabel`, `bulk`) are opt-in, so an entry written for one item
+ * keeps appearing only when one item is selected.
+ */
+interface TileMenuOption {
+	id: string;
+	label: string;
+	icon: string;
+	danger?: boolean;
+	/**
+	 * Lower sorts first. Only consulted for a multi-selection — a
+	 * single-item menu renders in the order the builder (and the
+	 * filter after it) left them, which is the order plugin authors
+	 * have been arranging for. The built-ins use the same 10/20/90
+	 * scale as the file-tile menu so destructive entries stay at the
+	 * bottom of both.
+	 */
+	sort?: number;
+	multi?: boolean;
+	bulkLabel?: ( count: number ) => string;
+	onSelect?: ( () => void ) | null;
+}
+
+/**
+ * Actions for ONE entry, with the `os.my-wordpress.tile-context-menu`
+ * filter applied. `resolveCommonActions` calls this once per selected
+ * tile and intersects the results.
+ *
+ * The filter's argument shape is unchanged — plugins have been adding
+ * entries to it since it shipped.
+ */
+function buildEntityActions(
 	state: RenderState,
 	ctx: ListContext,
 	entity: MyWordPressEntity,
 	item: EntityListItem,
 	title: string,
-	pos: { x: number; y: number },
-): void {
-	closeAnyTileMenu();
-
-	const menu = document.createElement( 'wpd-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
-
-	const addOption = (
-		id: string,
-		label: string,
-		icon: string,
-		danger = false,
-	) => {
-		const opt = document.createElement( 'wpd-context-menu-option' );
-		// `wpd-context-menu-option` emits the pick event with
-		// `detail.id = dataset.menuItemId ?? this.id ?? ''`. We MUST
-		// set `dataset.menuItemId` (the `value` attribute alone shows
-		// up under `detail.value`, which the handler below doesn't
-		// inspect). Forgetting this gave us the silent "Navigate
-		// into doesn't work" bug.
-		( opt as HTMLElement ).dataset.menuItemId = id;
-		opt.setAttribute( 'value', id );
-		opt.setAttribute( 'icon', sanitizeClass( icon ) );
-		if ( danger ) {
-			opt.setAttribute( 'danger', '' );
-		}
-		opt.textContent = label;
-		menu.appendChild( opt );
-	};
-
-	interface TileMenuOption {
-		id: string;
-		label: string;
-		icon: string;
-		danger?: boolean;
-		/**
-		 * Plugin-supplied click handler. Built-ins set this to null
-		 * so the static `wpd-context-menu-pick` switch below routes
-		 * them — keeps the existing semantics.
-		 */
-		onSelect?: ( () => void ) | null;
-	}
-
+): SelectionAction< EntityListItem >[] {
 	const baseOptions: TileMenuOption[] = [
 		{
 			id: 'open',
 			label: __( 'Open in editor', 'desktop-mode' ),
 			icon: 'dashicons-edit',
+			sort: 10,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected entries.
+					__( 'Open %d items in the editor', 'desktop-mode' ),
+					n,
+				),
 		},
 		{
 			id: 'navigate-into',
 			label: __( 'Navigate into', 'desktop-mode' ),
 			icon: 'dashicons-category',
+			sort: 20,
 		},
 		{
 			id: 'trash',
 			label: __( 'Move to Trash', 'desktop-mode' ),
 			icon: 'dashicons-trash',
+			sort: 90,
 			danger: true,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected entries.
+					__( 'Move %d items to Trash', 'desktop-mode' ),
+					n,
+				),
 		},
 	];
 
-	/**
-	 * Let plugins add / remove / reorder context-menu entries
-	 * uniformly across every section. Plugin-added entries must
-	 * supply an `onSelect` handler (built-ins are dispatched by
-	 * the static switch below).
-	 */
 	const ctxFilter = {
 		entityId: entity.id,
 		kind: entity.kind ?? 'post',
 		item: item as unknown as Record< string, unknown >,
 	};
-	const options = applyFilters<
-		TileMenuOption[],
-		[ typeof ctxFilter ]
-	>(
-		'desktop-mode.my-wordpress.tile-context-menu',
+	const options = applyFilters< TileMenuOption[], [ typeof ctxFilter ] >(
+		'os.my-wordpress.tile-context-menu',
 		baseOptions,
 		ctxFilter,
 	);
 	const finalOptions = Array.isArray( options ) ? options : baseOptions;
-	for ( const o of finalOptions ) {
-		addOption( o.id, o.label, o.icon, o.danger );
-	}
 
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeAnyTileMenu();
-		if ( detail.id === 'open' ) {
-			openEditor( entity, item.id, title );
-			return;
+	// wp-admin's own bulk actions and row actions — Edit… (the bulk
+	// edit modal), Publish, Switch to Draft, Copy link. They're built
+	// separately from `finalOptions` because they carry closures and
+	// batched runners rather than the flat descriptor shape the
+	// `tile-context-menu` filter passes around.
+	const extras: SelectionAction< EntityListItem >[] = [
+		...entityBulkActions(
+			{
+				entity,
+				onChanged: ( ids ) => {
+					if ( ids.length > 0 ) {
+						refreshAfterBulk( state, entity, ids );
+					}
+				},
+			},
+			item,
+		),
+		copyLinksAction( item, ( i ) => i.link ?? '' ),
+	];
+
+	const mapped = finalOptions.map( ( option ) => {
+		const action: SelectionAction< EntityListItem > = {
+			id: option.id,
+			label: option.label,
+			icon: option.icon,
+			sort: option.sort,
+			danger: option.danger,
+			multi: option.multi,
+			bulkLabel: option.bulkLabel,
+			onClick: () => {
+				if ( option.id === 'open' ) {
+					openEditor( entity, item.id, title, item.editUrl );
+					return;
+				}
+				if ( option.id === 'navigate-into' ) {
+					navigate( state, {
+						kind: 'detail',
+						entityId: entity.id,
+						postId: item.id,
+						postTitle: title,
+					} );
+					return;
+				}
+				if ( option.id === 'trash' ) {
+					void confirmTrash( state, ctx, entity, item.id, title );
+					return;
+				}
+				if ( typeof option.onSelect === 'function' ) {
+					try {
+						option.onSelect();
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							`[my-wordpress] tile-context-menu '${ option.id }' onSelect threw:`,
+							err,
+						);
+					}
+				}
+			},
+		};
+		// Trash gets a batched runner: one confirm for the set, one
+		// broadcast, one repaint. Fanning the single-item handler out
+		// would ask the user N times and emit N cross-window events.
+		if ( option.id === 'trash' ) {
+			action.bulk = ( items ) => trashManyEntities( ctx, entity, items );
 		}
-		if ( detail.id === 'navigate-into' ) {
-			navigate( state, {
-				kind: 'detail',
-				entityId: entity.id,
-				postId: item.id,
-				postTitle: title,
-			} );
-			return;
-		}
-		if ( detail.id === 'trash' ) {
-			void confirmTrash( state, ctx, entity, item.id, title );
-			return;
-		}
-		// Plugin-supplied entry — dispatch its `onSelect`.
-		const match = finalOptions.find( ( o ) => o.id === detail.id );
-		if ( match && typeof match.onSelect === 'function' ) {
-			try {
-				match.onSelect();
-			} catch ( err ) {
-				// eslint-disable-next-line no-console
-				console.error(
-					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
-					err,
-				);
-			}
-		}
+		return action;
 	} );
 
-	document.body.appendChild( menu );
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
+	// Slot the extras in by `sort` — "Edit…" lands after "Open in
+	// editor", the status actions after that, Trash stays last.
+	return [ ...mapped, ...extras ].sort( ( a, b ) => {
+		const sa = typeof a.sort === 'number' ? a.sort : 100;
+		const sb = typeof b.sort === 'number' ? b.sort : 100;
+		return sa - sb;
+	} );
+}
 
-	// Outside-click + Escape dismissers. Until now the only thing
-	// that closed the tile menu was a pick or another right-click —
-	// so a left-click on a *different* tile (which selects + previews)
-	// left the menu hovering. The dismissers run on the next
-	// microtask so the click that opened the menu doesn't immediately
-	// close it when the event bubbles up to document.
-	queueMicrotask( () => {
-		const onDocPointerDown = ( ev: PointerEvent ) => {
-			const target = ev.target;
-			if ( target instanceof Node && menu.contains( target ) ) {
-				return;
-			}
-			closeAnyTileMenu();
-		};
-		const onDocKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeAnyTileMenu();
-			}
-		};
-		document.addEventListener( 'pointerdown', onDocPointerDown, true );
-		document.addEventListener( 'keydown', onDocKey );
-		menu.addEventListener( 'tile-menu-closed', () => {
-			document.removeEventListener(
-				'pointerdown',
-				onDocPointerDown,
-				true,
-			);
-			document.removeEventListener( 'keydown', onDocKey );
+/**
+ * Re-read the current page after a bulk write so tiles show the new
+ * truth (a changed status flips the ribbon; a changed author changes
+ * nothing visible but the preview pane) — and tell the rest of the
+ * shell, so the Recycle Bin badge and any other window listening on
+ * the entity's topic catch up too.
+ */
+function refreshAfterBulk(
+	state: RenderState,
+	entity: MyWordPressEntity,
+	changedIds: readonly number[],
+): void {
+	const topic = getBroadcastTopicForEntity( entity );
+	if ( topic && changedIds.length > 0 ) {
+		// Only what actually changed. Subscribers delta by `ids`, so
+		// announcing the whole page would have every other window
+		// re-reading rows nothing touched.
+		window.wp?.os?.broadcast( topic, {
+			source: 'my-wordpress',
+			action: 'updated',
+			ids: changedIds.slice(),
 		} );
+	}
+	// Re-render the section from scratch. Cheaper options exist
+	// (patch each tile in place), but a bulk edit can change status,
+	// author, terms and stickiness at once, and half of that is
+	// invisible until the row is re-read.
+	navigate( state, { kind: 'list', entityId: entity.id } );
+}
+
+function openTileMenu(
+	state: RenderState,
+	ctx: ListContext,
+	entity: MyWordPressEntity,
+	item: EntityListItem,
+	pos: { x: number; y: number },
+): void {
+	closeAnyTileMenu();
+
+	const selectedIds = ( ctx.selection?.keys() ?? [] )
+		.map( ( k ) => parseInt( k, 10 ) )
+		.filter( ( n ) => Number.isFinite( n ) );
+	const targets = selectedIds
+		.map( ( id ) => ctx.itemsById.get( id ) )
+		.filter( ( i ): i is EntityListItem => !! i );
+	const items = targets.length > 0 ? targets : [ item ];
+
+	const actions = resolveCommonActions( items, ( listItem ) =>
+		buildEntityActions(
+			state,
+			ctx,
+			entity,
+			listItem,
+			stripTags( listItem.title?.rendered ?? '' ) ||
+				__( '(no title)', 'desktop-mode' ),
+		),
+	);
+
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.tile',
+		dataset: { entryIds: items.map( ( i ) => i.id ).join( ',' ) },
 	} );
 }
 
 function closeAnyTileMenu(): void {
+	closeActionMenu();
+	// Belt and braces for menus this module didn't open (a plugin
+	// building its own with the shared class), which the shared
+	// closer doesn't track.
 	document
-		.querySelectorAll( 'wpd-context-menu.desktop-mode-my-wordpress__menu' )
+		.querySelectorAll( 'os-context-menu.os-my-wordpress__menu' )
 		.forEach( ( n ) => {
 			n.dispatchEvent( new CustomEvent( 'tile-menu-closed' ) );
 			n.remove();
 		} );
+}
+
+/**
+ * Move several entries to Trash as one action: one confirm, parallel
+ * REST, one toast, one broadcast. Looping the single-item path would
+ * ask the user N times and emit N cross-window events for what they
+ * experienced as a single decision.
+ */
+async function trashManyEntities(
+	ctx: ListContext,
+	entity: MyWordPressEntity,
+	items: readonly EntityListItem[],
+): Promise< void > {
+	const ok = await osConfirmGlobal( {
+		title: __( 'Move to Trash', 'desktop-mode' ),
+		message: sprintf(
+			// translators: %d: number of selected entries.
+			__( 'Move %d items to Trash?', 'desktop-mode' ),
+			items.length,
+		),
+		confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
+		cancelLabel: __( 'Cancel', 'desktop-mode' ),
+		danger: true,
+	} );
+	if ( ! ok ) {
+		return;
+	}
+
+	const results = await Promise.allSettled(
+		items.map( ( item ) => trashEntity( entity, item.id ) ),
+	);
+	const trashed: number[] = [];
+	let failed = 0;
+	results.forEach( ( result, index ) => {
+		if ( result.status === 'fulfilled' ) {
+			trashed.push( items[ index ].id );
+		} else {
+			failed += 1;
+		}
+	} );
+
+	for ( const id of trashed ) {
+		ctx.tiles
+			.querySelector< HTMLElement >( `[data-entry-id="${ id }"]` )
+			?.remove();
+		ctx.itemsById.delete( id );
+	}
+	ctx.selection?.refresh();
+	if ( ctx.selection?.keys().length === 0 ) {
+		renderPreviewPlaceholder( ctx );
+	}
+
+	if ( trashed.length > 0 ) {
+		const topic = getBroadcastTopicForEntity( entity );
+		if ( topic ) {
+			window.wp?.os?.broadcast( topic, {
+				source: 'my-wordpress',
+				action: 'trashed',
+				ids: trashed,
+			} );
+		}
+		showToast(
+			failed > 0
+				? sprintf(
+					// translators: 1: number moved to trash, 2: number that failed.
+					__(
+						'%1$d items moved to Trash · %2$d could not be moved',
+						'desktop-mode',
+					),
+					trashed.length,
+					failed,
+				)
+				: sprintf(
+					// translators: %d: number of entries moved to trash.
+					__( '%d items moved to Trash', 'desktop-mode' ),
+					trashed.length,
+				),
+		);
+	} else {
+		showToast( __( 'Nothing could be moved to Trash.', 'desktop-mode' ) );
+	}
 }
 
 /**
@@ -3624,7 +4721,7 @@ function closeAnyTileMenu(): void {
  */
 function getBroadcastTopicForEntity( entity: MyWordPressEntity ): string | null {
 	if ( entity.post_type ) {
-		return `desktop-mode.${ entity.post_type }.changed`;
+		return `os.${ entity.post_type }.changed`;
 	}
 	return null;
 }
@@ -3632,7 +4729,7 @@ function getBroadcastTopicForEntity( entity: MyWordPressEntity ): string | null 
 /**
  * Programmatic trash entry-point. Looks up the entity by id from the
  * shell config, calls the REST DELETE, and broadcasts
- * `desktop-mode-my-wordpress-entity-trashed` so every live list view
+ * `os-my-wordpress-entity-trashed` so every live list view
  * can drop the tile reactively. Does NOT show a confirm dialog — that
  * UX layer belongs to the caller (the right-click `confirmTrash` adds
  * its own; the recycle-bin drag-to-trash doesn't, matching macOS).
@@ -3640,7 +4737,7 @@ function getBroadcastTopicForEntity( entity: MyWordPressEntity ): string | null 
  * Also broadcasts to the cross-window bus so external subscribers
  * (like the Recycle Bin) can refresh immediately.
  *
- * Exposed on `wp.desktop.myWordpress.trashEntity(entityId, id)` so
+ * Exposed on `wp.os.myWordpress.trashEntity(entityId, id)` so
  * cross-bundle drop targets (notably the recycle bin) can trash an
  * entity without depending on this bundle's internals.
  *
@@ -3656,14 +4753,14 @@ async function trashEntityById(
 		throw new Error(
 			sprintf(
 				// translators: %s is the entity id (e.g. 'posts').
-				__( 'Unknown My WordPress entity: %s', 'desktop-mode' ),
+				__( 'Unknown entity: %s', 'desktop-mode' ),
 				entityId,
 			),
 		);
 	}
 	await trashEntity( entity, id );
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-my-wordpress-entity-trashed', {
+		new CustomEvent( 'os-my-wordpress-entity-trashed', {
 			detail: { entityId, id },
 		} ),
 	);
@@ -3672,7 +4769,7 @@ async function trashEntityById(
 	// (like the Recycle Bin and the dock badge) refresh reactively.
 	const topic = getBroadcastTopicForEntity( entity );
 	if ( topic ) {
-		window.wp?.desktop?.broadcast( topic, {
+		window.wp?.os?.broadcast( topic, {
 			source: 'my-wordpress',
 			action: 'trashed',
 			ids: [ id ],
@@ -3687,7 +4784,7 @@ async function confirmTrash(
 	id: number,
 	title: string,
 ): Promise< void > {
-	const ok = await wpdConfirmGlobal( {
+	const ok = await osConfirmGlobal( {
 		title: __( 'Move to Trash', 'desktop-mode' ),
 		message: sprintf(
 			// translators: %s is the entry title.
@@ -3718,7 +4815,7 @@ async function confirmTrash(
 		ctx.selectedTile = null;
 		ctx.preview.replaceChildren();
 		const empty = document.createElement( 'div' );
-		empty.className = 'desktop-mode-my-wordpress__preview-empty';
+		empty.className = 'os-my-wordpress__preview-empty';
 		empty.textContent = __(
 			'Select an entry to preview it here.',
 			'desktop-mode',
@@ -3734,12 +4831,12 @@ function showToast( message: string ): void {
 	const toast = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						toast?: ( o: { message: string } ) => void;
 					};
 			}
 			| undefined
-	)?.desktop?.toast;
+	)?.os?.toast;
 	if ( typeof toast === 'function' ) {
 		toast( { message } );
 		return;
@@ -3771,8 +4868,13 @@ interface UserListContext {
 	tiles: HTMLElement;
 	sentinel: HTMLElement;
 	preview: HTMLElement;
+	/** Id of the ONE selected user, or null for none / several. */
 	selectedId: number | null;
 	selectedTile: HTMLElement | null;
+	/** Multi-selection controller for the users canvas. */
+	selection: SelectionHandle | null;
+	/** Every rendered user, by id — the menu builds actions from these. */
+	itemsById: Map< number, UserListItem >;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
 	query: string;
@@ -3799,25 +4901,25 @@ function renderUserEntityList(
 	state.teardown.push( () => toolbar.destroy() );
 
 	const split = document.createElement( 'div' );
-	split.className = 'desktop-mode-my-wordpress__split';
+	split.className = 'os-my-wordpress__split';
 
 	const left = document.createElement( 'div' );
-	left.className = 'desktop-mode-my-wordpress__list';
+	left.className = 'os-my-wordpress__list';
 	const tiles = document.createElement( 'div' );
 	tiles.className =
-		'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas desktop-mode-my-wordpress__canvas--users';
+		'os-my-wordpress__tiles os-my-wordpress__canvas os-my-wordpress__canvas--users';
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
 	const sentinel = document.createElement( 'div' );
-	sentinel.className = 'desktop-mode-my-wordpress__sentinel';
+	sentinel.className = 'os-my-wordpress__sentinel';
 	sentinel.setAttribute( 'aria-hidden', 'true' );
 	left.appendChild( sentinel );
 
 	const right = document.createElement( 'div' );
-	right.className = 'desktop-mode-my-wordpress__preview';
+	right.className = 'os-my-wordpress__preview';
 	const previewEmpty = document.createElement( 'div' );
-	previewEmpty.className = 'desktop-mode-my-wordpress__preview-empty';
+	previewEmpty.className = 'os-my-wordpress__preview-empty';
 	previewEmpty.textContent = __(
 		'Select a user to see their profile here.',
 		'desktop-mode',
@@ -3847,11 +4949,40 @@ function renderUserEntityList(
 		preview: right,
 		selectedId: null,
 		selectedTile: null,
+		selection: null,
+		itemsById: new Map(),
 		observer: null,
 		layout: tileLayout,
 		query: initialQuery,
 		abort: null,
 	};
+
+	ctx.selection = attachSelection( tiles, {
+		background: left,
+		surface: 'my-wordpress',
+		scope: entity.id,
+		keyOf: ( el ) => ( el.dataset.entryId ? el.dataset.entryId : null ),
+		onChange: ( keys ) => {
+			const ids = keys
+				.map( ( k ) => parseInt( k, 10 ) )
+				.filter( ( n ) => Number.isFinite( n ) );
+			ctx.selectedId = ids.length === 1 ? ids[ 0 ] : null;
+			ctx.selectedTile =
+				ids.length === 1
+					? ctx.selection?.elementFor( String( ids[ 0 ] ) ) ?? null
+					: null;
+			if ( ids.length === 1 ) {
+				const item = ctx.itemsById.get( ids[ 0 ] );
+				if ( item ) {
+					void renderUserPreviewPane( state, ctx, entity, item );
+				}
+			} else {
+				ctx.preview.replaceChildren( renderUserPreviewEmpty( ids.length ) );
+			}
+			repaintListStatus();
+		},
+	} );
+	state.teardown.push( () => ctx.selection?.destroy() );
 	state.teardown.push( () => tileLayout.dispose() );
 	state.teardown.push( () => ctx.abort?.abort() );
 
@@ -3876,6 +5007,21 @@ function renderUserEntityList(
 		const segments: StatusBarSegment[] = [
 			{ id: 'count', label: itemLabel, align: 'start', sort: 10 },
 		];
+		// Only while there IS a selection — a permanent "0 selected"
+		// is noise on a bar whose whole job is to be glanceable.
+		const selectedCount = ctx.selection?.keys().length ?? 0;
+		if ( selectedCount > 0 ) {
+			segments.push( {
+				id: 'selection',
+				label: sprintf(
+					// translators: %d: number of selected entries.
+					__( '%d selected', 'desktop-mode' ),
+					selectedCount,
+				),
+				align: 'end',
+				sort: 5,
+			} );
+		}
 		if ( ctx.totalPages > 1 ) {
 			segments.push( {
 				id: 'page',
@@ -3989,7 +5135,7 @@ function renderUserEntityList(
 		ctx.query = q;
 
 		tiles.classList.add(
-			'desktop-mode-my-wordpress__tiles--searching',
+			'os-my-wordpress__tiles--searching',
 		);
 		hideLoadingSkeleton( tiles );
 
@@ -4011,7 +5157,7 @@ function renderUserEntityList(
 			tiles.replaceChildren();
 			ctx.layout.clear();
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__tiles--searching',
+				'os-my-wordpress__tiles--searching',
 			);
 
 			ctx.page = 1;
@@ -4024,7 +5170,7 @@ function renderUserEntityList(
 			ctx.preview.replaceChildren();
 			const emptyPreview = document.createElement( 'div' );
 			emptyPreview.className =
-				'desktop-mode-my-wordpress__preview-empty';
+				'os-my-wordpress__preview-empty';
 			emptyPreview.textContent = __(
 				'Select a user to see their profile here.',
 				'desktop-mode',
@@ -4057,7 +5203,7 @@ function renderUserEntityList(
 				return;
 			}
 			tiles.classList.remove(
-				'desktop-mode-my-wordpress__tiles--searching',
+				'os-my-wordpress__tiles--searching',
 			);
 			tiles.replaceChildren();
 			ctx.layout.clear();
@@ -4104,16 +5250,21 @@ function renderUserEntityList(
 /**
  * Build a user tile — same canvas-friendly element as the post tile
  * but with an avatar image where the post tile shows a dashicon.
- * The class list keeps `desktop-mode-file-tile` so the existing
+ * The class list keeps `os-file-tile` so the existing
  * selection + canvas pointer plumbing applies unchanged.
  */
+/** Label for a user tile / menu — the same rule everywhere. */
+function userDisplayName( item: UserListItem ): string {
+	return item.name || item.slug || `#${ item.id }`;
+}
+
 function buildUserTile(
 	state: RenderState,
 	ctx: UserListContext,
 	entity: MyWordPressEntity,
 	item: UserListItem,
 ): HTMLElement {
-	const displayName = item.name || item.slug || `#${ item.id }`;
+	const displayName = userDisplayName( item );
 
 	const avatarUrl = pickAvatar( item.avatar_urls ) ?? '';
 	const tile = buildTileFromSpec( {
@@ -4128,8 +5279,8 @@ function buildUserTile(
 		role: 'entry',
 		dataset: { userId: item.id, role: 'user' },
 		extraClasses: [
-			'desktop-mode-my-wordpress__tile',
-			'desktop-mode-my-wordpress__tile--user',
+			'os-my-wordpress__tile',
+			'os-my-wordpress__tile--user',
 		],
 	} );
 
@@ -4138,23 +5289,23 @@ function buildUserTile(
 		// with the user's initials so the tile reads as a person,
 		// not "any user".
 		const iconHost = tile.querySelector(
-			'.desktop-mode-file-tile__visual',
+			'.os-file-tile__visual',
 		);
 		if ( iconHost ) {
 			iconHost.replaceChildren();
 			const initials = document.createElement( 'span' );
-			initials.className = 'desktop-mode-my-wordpress__user-tile-initials';
+			initials.className = 'os-my-wordpress__user-tile-initials';
 			initials.textContent = initialsOf( displayName );
 			iconHost.appendChild( initials );
 		}
 	}
 
-	const summary = item.desktop_mode_summary;
+	const summary = item.openstation_summary;
 	const postCount = summary?.postCount ?? 0;
 	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ] ?? '';
 	if ( roleLabel || postCount > 0 ) {
 		const sub = document.createElement( 'span' );
-		sub.className = 'desktop-mode-my-wordpress__user-tile-sub';
+		sub.className = 'os-my-wordpress__user-tile-sub';
 		const parts: string[] = [];
 		if ( roleLabel ) {
 			parts.push( roleLabel );
@@ -4198,7 +5349,7 @@ function buildUserTile(
 
 	// Drag-out via the shared `attachTileDragOut`. The `'user'`
 	// file type's resolver + opener are already registered
-	// server-side (`Desktop_Mode_User_File`), so a drop on any
+	// server-side (`OpenStation_User_File`), so a drop on any
 	// FilesLayer target POSTs a placement carrying
 	// `kind: 'user', ref: '<id>'` — no extra wiring needed here.
 	attachTileDragOut(
@@ -4221,6 +5372,22 @@ function buildUserTile(
 			},
 		},
 		() => hideTooltip(),
+		{
+			resolveSet: () =>
+				selectedDragPayloads( ctx, ( selected ) => ( {
+					kind: 'user',
+					ref: String( selected.id ),
+					title: userDisplayName( selected ),
+					icon: 'dashicons-admin-users',
+					entityId: entity.id,
+					bridgePayload: {
+						kind: 'user',
+						id: selected.id,
+						url: selected.link ?? '',
+						title: userDisplayName( selected ),
+					},
+				} ) ),
+		},
 	);
 
 	const tileKey = `entry:${ item.id }`;
@@ -4235,13 +5402,17 @@ function buildUserTile(
 			: new Date( 0 ).toISOString(),
 	} );
 
-	tile.addEventListener( 'click', () => {
-		selectUserTile( state, ctx, tile, item );
-	} );
+	// Selection is owned by the list's selection controller; the tile
+	// only needs to be findable by id and to register its item shape
+	// so a multi-selection menu can build actions for it.
+	ctx.itemsById.set( item.id, item );
 
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		hideTooltip();
+		if ( activateUserTile( entity, item ) ) {
+			return;
+		}
 		// Double-click on a user opens the activity footprint — the
 		// at-a-glance surface we want users to land on first. The
 		// classic profile editor is one click away from the preview
@@ -4256,11 +5427,27 @@ function buildUserTile(
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
 		e.preventDefault();
+		e.stopPropagation();
 		hideTooltip();
-		openUserTileMenu( state, entity, item, displayName, {
+		if ( ! ctx.selection?.model.has( String( item.id ) ) ) {
+			ctx.selection?.model.set( [ String( item.id ) ] );
+		}
+		openUserTileMenu( state, ctx, entity, item, {
 			x: e.clientX,
 			y: e.clientY,
 		} );
+	} );
+
+	// Same per-tile decoration seam the post and media grids fire, so
+	// a subscriber written for one kind of tile works on all three.
+	// A user tile's stock sub-line is "role · N posts", which is the
+	// wrong sentence about a customer — a subscriber can say
+	// something truer here.
+	doAction( 'os.my-wordpress.list-tile', {
+		tile,
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
 	} );
 
 	return tile;
@@ -4271,15 +5458,15 @@ function buildUserTooltip(
 	item: UserListItem,
 ): HTMLElement {
 	const tip = document.createElement( 'div' );
-	tip.className = 'desktop-mode-my-wordpress__tooltip';
+	tip.className = 'os-my-wordpress__tooltip';
 	tip.setAttribute( 'role', 'tooltip' );
 
 	const heading = document.createElement( 'div' );
-	heading.className = 'desktop-mode-my-wordpress__tooltip-title';
+	heading.className = 'os-my-wordpress__tooltip-title';
 	heading.textContent = name;
 	tip.appendChild( heading );
 
-	const summary = item.desktop_mode_summary;
+	const summary = item.openstation_summary;
 	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ];
 	const postCount = summary?.postCount ?? 0;
 	const lastActive = summary?.lastActive ?? '';
@@ -4307,7 +5494,7 @@ function buildUserTooltip(
 	}
 	for ( const ln of lines ) {
 		const p = document.createElement( 'p' );
-		p.className = 'desktop-mode-my-wordpress__tooltip-excerpt';
+		p.className = 'os-my-wordpress__tooltip-excerpt';
 		p.textContent = ln;
 		tip.appendChild( p );
 	}
@@ -4315,7 +5502,7 @@ function buildUserTooltip(
 	const bio = ( item.description ?? '' ).trim();
 	if ( bio ) {
 		const p = document.createElement( 'p' );
-		p.className = 'desktop-mode-my-wordpress__tooltip-excerpt';
+		p.className = 'os-my-wordpress__tooltip-excerpt';
 		p.textContent =
 			bio.length > 200 ? bio.slice( 0, 197 ) + '…' : bio;
 		tip.appendChild( p );
@@ -4323,26 +5510,113 @@ function buildUserTooltip(
 	return tip;
 }
 
-function selectUserTile(
-	state: RenderState,
-	ctx: UserListContext,
-	tile: HTMLElement,
+/**
+ * Give a plugin the chance to claim "the user opened this person".
+ *
+ * The built-in answer is the activity footprint — right for the Users
+ * folder, where a person is someone who writes, and wrong for any
+ * section where they aren't. A shop's Customers folder wants the
+ * customer window; a CRM's contacts folder wants its own.
+ *
+ * A subscriber returns `true` to say it handled the activation; the
+ * built-in navigation is then skipped. Anything else falls through,
+ * so a filter that returns nothing can't accidentally make
+ * double-click do nothing at all.
+ *
+ * @param entity The section the tile belongs to.
+ * @param item   The user row.
+ * @return true when a plugin handled it.
+ */
+function activateUserTile(
+	entity: MyWordPressEntity,
 	item: UserListItem,
-): void {
-	if ( ctx.selectedTile ) {
-		ctx.selectedTile.classList.remove(
-			'desktop-mode-file-tile--selected',
-		);
-	}
-	tile.classList.add( 'desktop-mode-file-tile--selected' );
-	ctx.selectedTile = tile;
-	ctx.selectedId = item.id;
-	void renderUserPreviewPane( state, ctx, item );
+): boolean {
+	const handled = applyFilters<
+		boolean,
+		[ { entityId: string; kind: string; item: Record< string, unknown > } ]
+	>( 'os.my-wordpress.user-activate', false, {
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
+	} );
+	return handled === true;
+}
+
+/**
+ * Right pane when the users list has nothing — or several things —
+ * selected. A profile dossier is about one person, so a set gets a
+ * count instead of one arbitrary member's face.
+ */
+function renderUserPreviewEmpty( selectedCount: number ): HTMLElement {
+	const empty = document.createElement( 'div' );
+	empty.className = 'os-my-wordpress__preview-empty';
+	empty.textContent =
+		selectedCount > 1
+			? sprintf(
+				// translators: %d: number of selected users.
+				__( '%d users selected', 'desktop-mode' ),
+				selectedCount,
+			)
+			: __( 'Select a user to see their profile here.', 'desktop-mode' );
+	return empty;
+}
+
+/**
+ * Build a slot container and fire
+ * `os.my-wordpress.preview-extras` against it, so plugins can append
+ * arbitrary DOM to a user-kind preview pane.
+ *
+ * Same action, same payload shape as the post and media panes — one
+ * contract covers every section, and `kind: 'user'` is what a
+ * subscriber checks. Without this the user pane was the only preview
+ * a plugin could not reach, which is exactly where a store's
+ * lifetime-spend panel belongs.
+ *
+ * @param slot   Slot identifier.
+ * @param item   The user being previewed.
+ * @param entity The section they belong to.
+ * @return The slot container.
+ */
+function userArticleSlot(
+	slot: MediaPreviewSlot,
+	item: UserListItem,
+	entity: MyWordPressEntity,
+): HTMLElement {
+	const host = document.createElement( 'div' );
+	host.className = `os-my-wordpress__article-slot os-my-wordpress__article-slot--${ slot }`;
+	host.dataset.slot = slot;
+	doAction( 'os.my-wordpress.preview-extras', {
+		slot,
+		container: host,
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
+	} );
+	return host;
+}
+
+/**
+ * One button in the user preview pane's action row.
+ *
+ * The built-ins are "View activity footprint" and "Show profile" —
+ * both about a person who writes. A section serving people who buy
+ * drops the first and adds its own; the filter is
+ * `os.my-wordpress.user-preview-actions`.
+ *
+ * @public
+ */
+export interface UserPreviewAction {
+	id: string;
+	label: string;
+	title?: string;
+	variant?: 'primary' | 'secondary';
+	onSelect: () => void;
 }
 
 async function renderUserPreviewPane(
 	state: RenderState,
 	ctx: UserListContext,
+	entity: MyWordPressEntity,
 	item: UserListItem,
 ): Promise< void > {
 	const fallbackName = item.name || item.slug || `#${ item.id }`;
@@ -4358,6 +5632,7 @@ async function renderUserPreviewPane(
 			fallbackName,
 			fallbackAvatar,
 			fallbackDescription: item.description ?? '',
+			context: { entityId: entity.id, kind: entity.kind ?? 'user' },
 		} );
 	} catch ( err ) {
 		if ( ctx.selectedId !== userId ) {
@@ -4371,158 +5646,267 @@ async function renderUserPreviewPane(
 		return;
 	}
 
-	// Append "open profile" / "view footprint" actions so the
-	// preview pane doubles as the launch point for both deep
-	// actions. The dossier itself doesn't carry these because it's
-	// also reused inside post-detail sub-folders (author / contrib).
+	// `header` slot — above everything, for a subscriber that wants to
+	// speak before the identity header does. Rare: a person's name and
+	// face are what a reader looks for first, so the interesting slot
+	// for facts ABOUT them is `meta`, below.
+	node.prepend( userArticleSlot( 'header', item, entity ) );
+
+	// `meta` slot — the anchor the dossier left directly under the
+	// identity header and bio. This is where a plugin's summary of the
+	// person belongs: you read who they are, then what they are worth.
+	const metaAnchor = node.querySelector< HTMLElement >(
+		'[data-user-slot="meta"]',
+	);
+	if ( metaAnchor ) {
+		doAction( 'os.my-wordpress.preview-extras', {
+			slot: 'meta',
+			container: metaAnchor,
+			entityId: entity.id,
+			kind: entity.kind ?? 'user',
+			item: item as unknown as Record< string, unknown >,
+		} );
+	}
+
+	// Action row, so the preview pane doubles as the launch point for
+	// the deep surfaces. The dossier itself doesn't carry these
+	// because it's also reused inside post-detail sub-folders (author
+	// / contrib).
 	const footer = document.createElement( 'footer' );
-	footer.className = 'desktop-mode-my-wordpress__article-footer';
+	footer.className = 'os-my-wordpress__article-footer';
 
 	// Primary action matches the double-click affordance — activity
 	// footprint first, the classic profile editor demoted to a
 	// secondary button.
-	const footprintBtn = document.createElement( 'wpd-button' );
-	footprintBtn.setAttribute( 'variant', 'primary' );
-	footprintBtn.textContent = __( 'View activity footprint', 'desktop-mode' );
-	footprintBtn.title = __(
-		'Open the full activity footprint surface for this user.',
-		'desktop-mode',
-	);
-	footprintBtn.addEventListener( 'click', () => {
-		navigate( state, {
-			kind: 'user-footprint',
-			entityId: 'users',
-			userId,
-			userName: fallbackName,
-		} );
-	} );
-	footer.appendChild( footprintBtn );
+	const actions: UserPreviewAction[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint', 'desktop-mode' ),
+			title: __(
+				'Open the full activity footprint surface for this user.',
+				'desktop-mode',
+			),
+			variant: 'primary',
+			onSelect: () =>
+				navigate( state, {
+					kind: 'user-footprint',
+					entityId: 'users',
+					userId,
+					userName: fallbackName,
+				} ),
+		},
+		{
+			id: 'open-profile',
+			label: __( 'Show profile', 'desktop-mode' ),
+			title: __(
+				'Open this user’s profile editor in a new window.',
+				'desktop-mode',
+			),
+			variant: 'secondary',
+			onSelect: () => openUserEditWindow( userId ),
+		},
+	];
 
-	const editBtn = document.createElement( 'wpd-button' );
-	editBtn.setAttribute( 'variant', 'secondary' );
-	editBtn.textContent = __( 'Show profile', 'desktop-mode' );
-	editBtn.title = __(
-		'Open this user’s profile editor in a new window.',
-		'desktop-mode',
-	);
-	editBtn.addEventListener( 'click', () => {
-		openUserEditWindow( userId );
+	const finalActions = applyFilters<
+		UserPreviewAction[],
+		[ { entityId: string; kind: string; item: Record< string, unknown > } ]
+	>( 'os.my-wordpress.user-preview-actions', actions, {
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
 	} );
-	footer.appendChild( editBtn );
 
-	node.appendChild( footer );
+	for ( const action of Array.isArray( finalActions )
+		? finalActions
+		: actions ) {
+		if ( ! action || typeof action.onSelect !== 'function' ) {
+			continue;
+		}
+		const btn = document.createElement( 'os-button' );
+		btn.setAttribute( 'variant', action.variant ?? 'secondary' );
+		btn.textContent = action.label;
+		if ( action.title ) {
+			btn.title = action.title;
+		}
+		btn.addEventListener( 'click', () => action.onSelect() );
+		footer.appendChild( btn );
+	}
+
+	if ( footer.childElementCount > 0 ) {
+		node.appendChild( footer );
+	}
+
+	// `footer` slot — below the action row.
+	node.appendChild( userArticleSlot( 'footer', item, entity ) );
 
 	ctx.preview.replaceChildren( node );
 }
 
-function openUserTileMenu(
+/**
+ * Actions for ONE user, with the shared
+ * `os.my-wordpress.tile-context-menu` filter applied (kind `'user'`).
+ *
+ * "Show profile" and "View author archive" are marked multi-safe —
+ * both open one window per user, which is what someone selecting
+ * three authors and asking for their profiles wants. "View activity
+ * footprint" is not: the footprint view replaces the window body, so
+ * three of them would be three fights over the same surface.
+ */
+function buildUserActions(
 	state: RenderState,
 	entity: MyWordPressEntity,
 	item: UserListItem,
 	name: string,
+): SelectionAction< UserListItem >[] {
+	// Same option shape the post/media grids use — one contract for
+	// the `os.my-wordpress.tile-context-menu` filter across kinds.
+	// Footprint is the primary (double-click) action; profile is the
+	// classic editor, demoted to "Show profile" to mirror the preview
+	// pane's button labels.
+	const baseOptions: TileMenuOption[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint', 'desktop-mode' ),
+			icon: 'dashicons-chart-area',
+			sort: 10,
+		},
+		{
+			id: 'open-profile',
+			label: __( 'Show profile', 'desktop-mode' ),
+			icon: 'dashicons-id-alt',
+			sort: 20,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected users.
+					__( 'Show %d profiles', 'desktop-mode' ),
+					n,
+				),
+		},
+	];
+	if ( item.link ) {
+		baseOptions.push( {
+			id: 'author-archive',
+			label: __( 'View author archive', 'desktop-mode' ),
+			icon: 'dashicons-external',
+			sort: 30,
+			multi: true,
+			bulkLabel: ( n ) =>
+				sprintf(
+					// translators: %d: number of selected users.
+					__( 'View %d author archives', 'desktop-mode' ),
+					n,
+				),
+		} );
+	}
+
+	// Same plugin seam the posts/media grids run — kind 'user'.
+	const ctxFilter = {
+		entityId: entity.id,
+		kind: 'user',
+		item: item as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters< TileMenuOption[], [ typeof ctxFilter ] >(
+		'os.my-wordpress.tile-context-menu',
+		baseOptions,
+		ctxFilter,
+	);
+	const finalOptions = Array.isArray( options ) ? options : baseOptions;
+
+	return finalOptions.map( ( option ) => ( {
+		id: option.id,
+		label: option.label,
+		icon: option.icon,
+		sort: option.sort,
+		danger: option.danger,
+		multi: option.multi,
+		bulkLabel: option.bulkLabel,
+		onClick: () => {
+			if ( option.id === 'footprint' ) {
+				navigate( state, {
+					kind: 'user-footprint',
+					entityId: entity.id,
+					userId: item.id,
+					userName: name,
+				} );
+				return;
+			}
+			if ( option.id === 'open-profile' ) {
+				openUserEditWindow( item.id );
+				return;
+			}
+			if ( option.id === 'author-archive' && item.link ) {
+				window.open( item.link, '_blank', 'noopener,noreferrer' );
+				return;
+			}
+			if ( typeof option.onSelect === 'function' ) {
+				try {
+					option.onSelect();
+				} catch ( err ) {
+					// eslint-disable-next-line no-console
+					console.error(
+						`[my-wordpress] tile-context-menu '${ option.id }' onSelect threw:`,
+						err,
+					);
+				}
+			}
+		},
+	} ) );
+}
+
+function openUserTileMenu(
+	state: RenderState,
+	ctx: UserListContext,
+	entity: MyWordPressEntity,
+	item: UserListItem,
 	pos: { x: number; y: number },
 ): void {
 	closeAnyTileMenu();
 
-	const menu = document.createElement( 'wpd-context-menu' );
-	menu.setAttribute( 'open', '' );
-	menu.classList.add( 'desktop-mode-my-wordpress__menu' );
-	( menu as HTMLElement ).style.left = `${ pos.x }px`;
-	( menu as HTMLElement ).style.top = `${ pos.y }px`;
+	const ids = ( ctx.selection?.keys() ?? [] )
+		.map( ( k ) => parseInt( k, 10 ) )
+		.filter( ( n ) => Number.isFinite( n ) );
+	const targets = ids
+		.map( ( id ) => ctx.itemsById.get( id ) )
+		.filter( ( u ): u is UserListItem => !! u );
+	const items = targets.length > 0 ? targets : [ item ];
 
-	const addOption = (
-		id: string,
-		label: string,
-		icon: string,
-	) => {
-		const opt = document.createElement( 'wpd-context-menu-option' );
-		( opt as HTMLElement ).dataset.menuItemId = id;
-		opt.setAttribute( 'value', id );
-		opt.setAttribute( 'icon', sanitizeClass( icon ) );
-		opt.textContent = label;
-		menu.appendChild( opt );
-	};
+	const actions = resolveCommonActions( items, ( user ) => [
+		...buildUserActions( state, entity, user, userDisplayName( user ) ),
+		// wp-admin's Users bulk actions: change role, delete (with the
+		// same "what happens to their content" question core asks).
+		...userBulkActions(
+			{
+				onChanged: () =>
+					navigate( state, { kind: 'list', entityId: entity.id } ),
+				onRemoved: ( removedIds ) => {
+					for ( const id of removedIds ) {
+						ctx.tiles
+							.querySelector< HTMLElement >(
+								`[data-entry-id="${ id }"]`,
+							)
+							?.remove();
+						ctx.itemsById.delete( id );
+					}
+					ctx.selection?.refresh();
+					ctx.loaded = Math.max( 0, ctx.loaded - removedIds.length );
+					ctx.total = Math.max( 0, ctx.total - removedIds.length );
+				},
+			},
+			user,
+		),
+		copyLinksAction(
+			user,
+			( u ) => u.link ?? '',
+			__( 'Copy author archive link', 'desktop-mode' ),
+		),
+	] );
 
-	// Footprint is the primary (double-click) action; profile is the
-	// classic editor, demoted to "Show profile" to mirror the preview
-	// pane's button labels.
-	addOption(
-		'footprint',
-		__( 'View activity footprint', 'desktop-mode' ),
-		'dashicons-chart-area',
-	);
-	addOption(
-		'open-profile',
-		__( 'Show profile', 'desktop-mode' ),
-		'dashicons-id-alt',
-	);
-	if ( item.link ) {
-		addOption(
-			'author-archive',
-			__( 'View author archive', 'desktop-mode' ),
-			'dashicons-external',
-		);
-	}
-
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
-		const detail = ( e as CustomEvent< { id: string } > ).detail;
-		closeAnyTileMenu();
-		if ( detail.id === 'footprint' ) {
-			navigate( state, {
-				kind: 'user-footprint',
-				entityId: entity.id,
-				userId: item.id,
-				userName: name,
-			} );
-			return;
-		}
-		if ( detail.id === 'open-profile' ) {
-			openUserEditWindow( item.id );
-			return;
-		}
-		if ( detail.id === 'author-archive' && item.link ) {
-			window.open( item.link, '_blank', 'noopener,noreferrer' );
-		}
-	} );
-
-	document.body.appendChild( menu );
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		( menu as HTMLElement ).style.left = `${ Math.max(
-			0,
-			window.innerWidth - rect.width - 8,
-		) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		( menu as HTMLElement ).style.top = `${ Math.max(
-			0,
-			window.innerHeight - rect.height - 8,
-		) }px`;
-	}
-
-	queueMicrotask( () => {
-		const onDocPointerDown = ( ev: PointerEvent ) => {
-			const target = ev.target;
-			if ( target instanceof Node && menu.contains( target ) ) {
-				return;
-			}
-			closeAnyTileMenu();
-		};
-		const onDocKey = ( ev: KeyboardEvent ) => {
-			if ( ev.key === 'Escape' ) {
-				closeAnyTileMenu();
-			}
-		};
-		document.addEventListener( 'pointerdown', onDocPointerDown, true );
-		document.addEventListener( 'keydown', onDocKey );
-		menu.addEventListener( 'tile-menu-closed', () => {
-			document.removeEventListener(
-				'pointerdown',
-				onDocPointerDown,
-				true,
-			);
-			document.removeEventListener( 'keydown', onDocKey );
-		} );
+	openActionMenu( pos, {
+		actions,
+		className: 'os-my-wordpress__menu',
+		scope: 'my-wordpress.user-tile',
+		dataset: { entryIds: items.map( ( u ) => u.id ).join( ',' ) },
 	} );
 }
 
@@ -4554,8 +5938,17 @@ function openUserEditWindow( userId: number ): void {
 		) => SharedStoreApi< T >;
 		openWindow?: (
 			id: string,
-			opts?: { source?: string },
+			opts?: {
+				source?: string;
+				params?: Record< string, string | number | boolean >;
+			},
 		) => boolean | undefined;
+		relations?: {
+			set?: (
+				windowId: string,
+				ref: { type: string; id: number | string; label?: string } | null,
+			) => void;
+		};
 	}
 	interface UserEditTarget {
 		userId: number | null;
@@ -4564,8 +5957,8 @@ function openUserEditWindow( userId: number ): void {
 	}
 
 	const desktop = (
-		window.wp as { desktop?: DesktopFacade } | undefined
-	)?.desktop;
+		window.wp as { os?: DesktopFacade } | undefined
+	)?.os;
 
 	const createSharedStore = desktop?.createSharedStore;
 	if ( typeof createSharedStore === 'function' ) {
@@ -4581,9 +5974,26 @@ function openUserEditWindow( userId: number ): void {
 
 	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
 		source: 'my-wordpress/user-tile',
+		// Persisted with the session, so a reload brings the window
+		// back on this person. The shared store above only lives as
+		// long as the page does.
+		params: { userId },
 	} );
 
-	if ( ! opened ) {
+	if ( opened ) {
+		// Announce who the window is now showing. The profile window
+		// is a singleton that retargets through the shared store, so
+		// nothing else can tell the relations engine its identity
+		// changed — and without this a window opened onto a customer
+		// draws no tie to the order that sent you there.
+		//
+		// Matches the `user` identity the chromeless bridge announces
+		// for `user-edit.php`, so both paths join the same group.
+		desktop?.relations?.set?.( 'desktop-mode-user-edit', {
+			type: 'user',
+			id: userId,
+		} );
+	} else {
 		// Native window not registered — open the classic admin
 		// user-edit page in an iframe window. Same shape as the
 		// post fallback in `openEditor()`.
@@ -4637,7 +6047,7 @@ function renderUserFootprint(
 	userName: string,
 ): void {
 	const host = document.createElement( 'div' );
-	host.className = 'desktop-mode-my-wordpress__footprint';
+	host.className = 'os-my-wordpress__footprint';
 	state.body.appendChild( host );
 
 	// Spinner while the payload lands.
@@ -4738,10 +6148,10 @@ function renderUserFootprint(
 
 function buildFootprintHero( payload: UserFootprint ): HTMLElement {
 	const hero = document.createElement( 'header' );
-	hero.className = 'desktop-mode-my-wordpress__footprint-hero';
+	hero.className = 'os-my-wordpress__footprint-hero';
 
 	const avatar = document.createElement( 'div' );
-	avatar.className = 'desktop-mode-my-wordpress__footprint-avatar';
+	avatar.className = 'os-my-wordpress__footprint-avatar';
 	if ( payload.profile.avatarUrl ) {
 		const img = document.createElement( 'img' );
 		img.src = payload.profile.avatarUrl;
@@ -4749,34 +6159,34 @@ function buildFootprintHero( payload: UserFootprint ): HTMLElement {
 		avatar.appendChild( img );
 	} else {
 		const span = document.createElement( 'span' );
-		span.className = 'desktop-mode-my-wordpress__user-tile-initials';
+		span.className = 'os-my-wordpress__user-tile-initials';
 		span.textContent = initialsOf( payload.profile.name );
 		avatar.appendChild( span );
 	}
 	hero.appendChild( avatar );
 
 	const text = document.createElement( 'div' );
-	text.className = 'desktop-mode-my-wordpress__footprint-headline';
+	text.className = 'os-my-wordpress__footprint-headline';
 
 	const h = document.createElement( 'h1' );
-	h.className = 'desktop-mode-my-wordpress__footprint-title';
+	h.className = 'os-my-wordpress__footprint-title';
 	h.textContent = payload.profile.name;
 	text.appendChild( h );
 
 	const meta = document.createElement( 'div' );
-	meta.className = 'desktop-mode-my-wordpress__footprint-meta';
+	meta.className = 'os-my-wordpress__footprint-meta';
 
 	const roles = payload.profile.roleLabels ?? [];
 	for ( const r of roles ) {
 		const chip = document.createElement( 'span' );
-		chip.className = 'desktop-mode-my-wordpress__user-role';
+		chip.className = 'os-my-wordpress__user-role';
 		chip.textContent = r;
 		meta.appendChild( chip );
 	}
 	if ( payload.profile.registered ) {
 		const since = document.createElement( 'span' );
 		since.className =
-			'desktop-mode-my-wordpress__user-role desktop-mode-my-wordpress__footprint-since';
+			'os-my-wordpress__user-role os-my-wordpress__footprint-since';
 		since.textContent = sprintf(
 			// translators: %s is a year-month label like "January 2023".
 			__( 'Member since %s', 'desktop-mode' ),
@@ -4788,7 +6198,7 @@ function buildFootprintHero( payload: UserFootprint ): HTMLElement {
 
 	if ( payload.profile.link ) {
 		const links = document.createElement( 'div' );
-		links.className = 'desktop-mode-my-wordpress__user-links';
+		links.className = 'os-my-wordpress__user-links';
 		const a = document.createElement( 'a' );
 		a.href = payload.profile.link;
 		a.target = '_blank';
@@ -4807,7 +6217,7 @@ function buildFootprintHeadlineStats(
 ): HTMLElement {
 	const wrap = document.createElement( 'section' );
 	wrap.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-stats-row';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-stats-row';
 
 	const totalContent = payload.totals.posts + payload.totals.pages;
 	wrap.appendChild(
@@ -4904,14 +6314,14 @@ function buildFootprintCalendar(
 ): HTMLElement {
 	const section = document.createElement( 'section' );
 	section.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-calendar-section';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-calendar-section';
 
 	const h = document.createElement( 'h3' );
 	h.textContent = __( 'A year of activity', 'desktop-mode' );
 	section.appendChild( h );
 
 	const calendar = document.createElement( 'div' );
-	calendar.className = 'desktop-mode-my-wordpress__footprint-calendar';
+	calendar.className = 'os-my-wordpress__footprint-calendar';
 
 	// Bucket each day by intensity. Max intensity in the window
 	// drives the scale so a sparse poster's pattern still reads.
@@ -4948,7 +6358,7 @@ function buildFootprintCalendar(
 	const dates = payload.daily.map( ( d ) => new Date( d.date + 'T00:00:00Z' ) );
 	if ( dates.length === 0 ) {
 		const empty = document.createElement( 'p' );
-		empty.className = 'desktop-mode-my-wordpress__article-meta';
+		empty.className = 'os-my-wordpress__article-meta';
 		empty.textContent = __(
 			'No activity recorded in the last year.',
 			'desktop-mode',
@@ -4961,7 +6371,7 @@ function buildFootprintCalendar(
 	// the weekday rows aligned the way GitHub does it.
 	const firstDow = dates[ 0 ].getUTCDay(); // 0..6 (Sun..Sat)
 	const grid = document.createElement( 'div' );
-	grid.className = 'desktop-mode-my-wordpress__footprint-grid';
+	grid.className = 'os-my-wordpress__footprint-grid';
 
 	// The grid has two non-cell tracks reserved at the start:
 	//   - row 1 holds month labels above the data,
@@ -4993,7 +6403,7 @@ function buildFootprintCalendar(
 	const weekdayRows = [ 2, 4, 6 ]; // Mon=row 3, Wed=row 5, Fri=row 7 (1-indexed + header)
 	for ( let i = 0; i < weekdaySource.length; i += 1 ) {
 		const lbl = document.createElement( 'span' );
-		lbl.className = 'desktop-mode-my-wordpress__footprint-weekday';
+		lbl.className = 'os-my-wordpress__footprint-weekday';
 		lbl.textContent = weekdaySource[ i ].toLocaleDateString( undefined, {
 			weekday: 'short',
 		} );
@@ -5008,7 +6418,7 @@ function buildFootprintCalendar(
 	for ( let i = 0; i < firstDow; i += 1 ) {
 		const blank = document.createElement( 'span' );
 		blank.className =
-			'desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--pad';
+			'os-my-wordpress__footprint-cell os-my-wordpress__footprint-cell--pad';
 		blank.setAttribute( 'aria-hidden', 'true' );
 		placeCell( blank, i );
 		grid.appendChild( blank );
@@ -5034,7 +6444,7 @@ function buildFootprintCalendar(
 			continue;
 		}
 		const lbl = document.createElement( 'span' );
-		lbl.className = 'desktop-mode-my-wordpress__footprint-month';
+		lbl.className = 'os-my-wordpress__footprint-month';
 		lbl.textContent = d.toLocaleDateString( undefined, { month: 'short' } );
 		lbl.style.gridRow = '1';
 		lbl.style.gridColumn = String( week + 2 );
@@ -5044,7 +6454,7 @@ function buildFootprintCalendar(
 		const d = payload.daily[ i ];
 		const intensity = bucketize( dayIntensity( d ) );
 		const cell = document.createElement( 'span' );
-		cell.className = `desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--l${ intensity }`;
+		cell.className = `os-my-wordpress__footprint-cell os-my-wordpress__footprint-cell--l${ intensity }`;
 		cell.title = sprintf(
 			// translators: 1: date, 2: post count, 3: comment count, 4: update (re-save) count.
 			__(
@@ -5064,18 +6474,18 @@ function buildFootprintCalendar(
 
 	// Legend.
 	const legend = document.createElement( 'div' );
-	legend.className = 'desktop-mode-my-wordpress__footprint-legend';
+	legend.className = 'os-my-wordpress__footprint-legend';
 	const less = document.createElement( 'span' );
-	less.className = 'desktop-mode-my-wordpress__footprint-legend-label';
+	less.className = 'os-my-wordpress__footprint-legend-label';
 	less.textContent = __( 'Less', 'desktop-mode' );
 	legend.appendChild( less );
 	for ( let i = 0; i <= 4; i += 1 ) {
 		const sw = document.createElement( 'span' );
-		sw.className = `desktop-mode-my-wordpress__footprint-cell desktop-mode-my-wordpress__footprint-cell--l${ i }`;
+		sw.className = `os-my-wordpress__footprint-cell os-my-wordpress__footprint-cell--l${ i }`;
 		legend.appendChild( sw );
 	}
 	const more = document.createElement( 'span' );
-	more.className = 'desktop-mode-my-wordpress__footprint-legend-label';
+	more.className = 'os-my-wordpress__footprint-legend-label';
 	more.textContent = __( 'More', 'desktop-mode' );
 	legend.appendChild( more );
 	calendar.appendChild( legend );
@@ -5087,20 +6497,20 @@ function buildFootprintCalendar(
 function buildFootprintRhythm( payload: UserFootprint ): HTMLElement {
 	const section = document.createElement( 'section' );
 	section.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-rhythm';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-rhythm';
 
 	const h = document.createElement( 'h3' );
 	h.textContent = __( 'Publishing rhythm', 'desktop-mode' );
 	section.appendChild( h );
 
 	const grid = document.createElement( 'div' );
-	grid.className = 'desktop-mode-my-wordpress__footprint-rhythm-grid';
+	grid.className = 'os-my-wordpress__footprint-rhythm-grid';
 
 	// Weekday chart.
 	const weekdayWrap = document.createElement( 'div' );
-	weekdayWrap.className = 'desktop-mode-my-wordpress__footprint-chart';
+	weekdayWrap.className = 'os-my-wordpress__footprint-chart';
 	const weekdayCap = document.createElement( 'div' );
-	weekdayCap.className = 'desktop-mode-my-wordpress__footprint-chart-caption';
+	weekdayCap.className = 'os-my-wordpress__footprint-chart-caption';
 	weekdayCap.textContent = __( 'By weekday', 'desktop-mode' );
 	weekdayWrap.appendChild( weekdayCap );
 	const weekdayLabels = [
@@ -5128,9 +6538,9 @@ function buildFootprintRhythm( payload: UserFootprint ): HTMLElement {
 
 	// Hour chart.
 	const hourWrap = document.createElement( 'div' );
-	hourWrap.className = 'desktop-mode-my-wordpress__footprint-chart';
+	hourWrap.className = 'os-my-wordpress__footprint-chart';
 	const hourCap = document.createElement( 'div' );
-	hourCap.className = 'desktop-mode-my-wordpress__footprint-chart-caption';
+	hourCap.className = 'os-my-wordpress__footprint-chart-caption';
 	hourCap.textContent = __( 'By hour of day (site time)', 'desktop-mode' );
 	hourWrap.appendChild( hourCap );
 	const hourLabels = [
@@ -5181,13 +6591,13 @@ function buildBarChart(
 	titles: string[],
 ): HTMLElement {
 	const chart = document.createElement( 'div' );
-	chart.className = 'desktop-mode-my-wordpress__footprint-bars';
+	chart.className = 'os-my-wordpress__footprint-bars';
 	const max = Math.max( 1, ...values );
 	values.forEach( ( v, i ) => {
 		const col = document.createElement( 'div' );
-		col.className = 'desktop-mode-my-wordpress__footprint-bar-col';
+		col.className = 'os-my-wordpress__footprint-bar-col';
 		const bar = document.createElement( 'div' );
-		bar.className = 'desktop-mode-my-wordpress__footprint-bar';
+		bar.className = 'os-my-wordpress__footprint-bar';
 		bar.style.height = `${ Math.round( ( v / max ) * 100 ) }%`;
 		bar.title = sprintf(
 			// translators: 1: bucket label, 2: count.
@@ -5200,12 +6610,12 @@ function buildBarChart(
 		);
 		if ( v === 0 ) {
 			bar.classList.add(
-				'desktop-mode-my-wordpress__footprint-bar--empty',
+				'os-my-wordpress__footprint-bar--empty',
 			);
 		}
 		col.appendChild( bar );
 		const lbl = document.createElement( 'span' );
-		lbl.className = 'desktop-mode-my-wordpress__footprint-bar-label';
+		lbl.className = 'os-my-wordpress__footprint-bar-label';
 		lbl.textContent = labels[ i ] ?? '';
 		col.appendChild( lbl );
 		chart.appendChild( col );
@@ -5222,20 +6632,20 @@ function buildFootprintMonthCallout(
 	}
 	const section = document.createElement( 'section' );
 	section.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-callout';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-callout';
 
 	const label = document.createElement( 'span' );
-	label.className = 'desktop-mode-my-wordpress__footprint-callout-label';
+	label.className = 'os-my-wordpress__footprint-callout-label';
 	label.textContent = __( 'Most prolific month', 'desktop-mode' );
 	section.appendChild( label );
 
 	const value = document.createElement( 'h3' );
-	value.className = 'desktop-mode-my-wordpress__footprint-callout-value';
+	value.className = 'os-my-wordpress__footprint-callout-value';
 	value.textContent = formatYearMonth( m.ym + '-01T00:00:00Z' );
 	section.appendChild( value );
 
 	const detail = document.createElement( 'p' );
-	detail.className = 'desktop-mode-my-wordpress__footprint-callout-detail';
+	detail.className = 'os-my-wordpress__footprint-callout-detail';
 	detail.textContent = sprintf(
 		// translators: %d is a post count.
 		_n(
@@ -5255,7 +6665,7 @@ function buildFootprintTimeline(
 ): HTMLElement {
 	const section = document.createElement( 'section' );
 	section.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-timeline-section';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-timeline-section';
 
 	const h = document.createElement( 'h3' );
 	h.textContent = __( 'Recent activity', 'desktop-mode' );
@@ -5263,21 +6673,21 @@ function buildFootprintTimeline(
 
 	if ( payload.timeline.length === 0 ) {
 		const empty = document.createElement( 'p' );
-		empty.className = 'desktop-mode-my-wordpress__article-meta';
+		empty.className = 'os-my-wordpress__article-meta';
 		empty.textContent = __( 'Nothing to show yet.', 'desktop-mode' );
 		section.appendChild( empty );
 		return section;
 	}
 
 	const list = document.createElement( 'ul' );
-	list.className = 'desktop-mode-my-wordpress__footprint-timeline';
+	list.className = 'os-my-wordpress__footprint-timeline';
 
 	for ( const ev of payload.timeline ) {
 		const li = document.createElement( 'li' );
-		li.className = `desktop-mode-my-wordpress__footprint-event desktop-mode-my-wordpress__footprint-event--${ ev.kind }`;
+		li.className = `os-my-wordpress__footprint-event os-my-wordpress__footprint-event--${ ev.kind }`;
 
 		const dot = document.createElement( 'span' );
-		dot.className = 'desktop-mode-my-wordpress__footprint-dot';
+		dot.className = 'os-my-wordpress__footprint-dot';
 		const icon = document.createElement( 'span' );
 		let iconClass = 'dashicons-admin-post';
 		if ( ev.kind === 'comment' ) {
@@ -5291,14 +6701,14 @@ function buildFootprintTimeline(
 		li.appendChild( dot );
 
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-my-wordpress__footprint-event-body';
+		body.className = 'os-my-wordpress__footprint-event-body';
 
 		const title = ev.title || __( '(no title)', 'desktop-mode' );
 		const titleNode: HTMLElement = ev.link
 			? document.createElement( 'a' )
 			: document.createElement( 'span' );
 		titleNode.className =
-			'desktop-mode-my-wordpress__footprint-event-title';
+			'os-my-wordpress__footprint-event-title';
 		if ( ev.kind === 'comment' ) {
 			titleNode.textContent = sprintf(
 				// translators: %s is a post title the user commented on.
@@ -5322,7 +6732,7 @@ function buildFootprintTimeline(
 		body.appendChild( titleNode );
 
 		const meta = document.createElement( 'span' );
-		meta.className = 'desktop-mode-my-wordpress__footprint-event-meta';
+		meta.className = 'os-my-wordpress__footprint-event-meta';
 		const parts: string[] = [ formatLongDate( ev.date ) ];
 		if ( ev.status && ev.status !== 'publish' && ev.status !== 'approved' ) {
 			parts.push( ev.status );
@@ -5344,9 +6754,9 @@ function buildFootprintFooter(
 ): HTMLElement {
 	const footer = document.createElement( 'footer' );
 	footer.className =
-		'desktop-mode-my-wordpress__footprint-section desktop-mode-my-wordpress__footprint-footer';
+		'os-my-wordpress__footprint-section os-my-wordpress__footprint-footer';
 
-	const archiveBtn = document.createElement( 'wpd-button' );
+	const archiveBtn = document.createElement( 'os-button' );
 	archiveBtn.setAttribute( 'variant', 'ghost' );
 	archiveBtn.textContent = __( 'View author archive', 'desktop-mode' );
 	archiveBtn.addEventListener( 'click', () => {
@@ -5359,7 +6769,7 @@ function buildFootprintFooter(
 	}
 	footer.appendChild( archiveBtn );
 
-	const editBtn = document.createElement( 'wpd-button' );
+	const editBtn = document.createElement( 'os-button' );
 	editBtn.setAttribute( 'variant', 'primary' );
 	editBtn.textContent = __( 'Show profile', 'desktop-mode' );
 	editBtn.addEventListener( 'click', () => {
@@ -5465,10 +6875,10 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 		}
 		if ( selected ) {
 			selected.classList.remove(
-				'desktop-mode-file-tile--selected',
+				'os-file-tile--selected',
 			);
 		}
-		tile.classList.add( 'desktop-mode-file-tile--selected' );
+		tile.classList.add( 'os-file-tile--selected' );
 		selected = tile;
 	};
 }
@@ -5485,20 +6895,25 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
  *  click-vs-drag threshold, `--dragging` class).
  * ------------------------------------------------------------------ */
 
-// Cell pitch for the in-window absolute-positioned tile canvas used
-// by Posts / Pages / users / plugin sections. Tile visual is 88px
-// wide; the previous 96×92 cell pitch left only ~4px per side
-// between neighbours, so the selected tile's background ring abutted
-// adjacent corner ribbons and read as "spillover" (regression
-// surfaced once `<wpd-ribbon>` started rendering DRAFT/PENDING
-// banners). Widen the cell so the selection ring has
-// breathing room — and so wrapped 2-line labels don't push the next
-// row's tile into the cell above. Tile label is clamped to 2 lines
-// via CSS in `my-wordpress.css`; if you change that clamp, raise
-// `TILE_H` to match.
-const TILE_W = 108;
-const TILE_H = 112;
-const TILE_PAD = 16;
+/*
+ * Cell pitch for the in-window absolute-positioned tile canvas used
+ * by Posts / Pages / Users / plugin sections.
+ *
+ * These are NOT this module's numbers. There is one icon grid in the
+ * shell and it is declared in `assets/css/variables.css` and mirrored
+ * in `src/desktop-files/grid.ts`; a canvas here lays out on the same
+ * pitch as one in a folder window, because to the user they are the
+ * same grid seen through two windows.
+ *
+ * Image-led sections opt into the large metrics with
+ * `tileSize: 'large'` — a shop's products read as a catalogue rather
+ * than a file list, and at 48px the picture is a thumbnail of a
+ * thumbnail. Same gaps, bigger tile.
+ */
+type TileMetrics = GridMetrics;
+
+const TILE_METRICS: TileMetrics = GRID_METRICS;
+const TILE_METRICS_LARGE: TileMetrics = GRID_METRICS_LARGE;
 
 export interface TileSortable {
 	/** Used by `name-asc` / `name-desc`. Compared with `localeCompare`. */
@@ -5523,6 +6938,8 @@ interface TileEntry {
 interface TileLayout {
 	host: HTMLElement;
 	scope: string;
+	/** Cell pitch this canvas was built with. */
+	metrics: TileMetrics;
 	place: (
 		tile: HTMLElement,
 		key: string,
@@ -5551,7 +6968,14 @@ interface TileLayout {
 	dispose: () => void;
 }
 
-function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
+function createTileLayout(
+	host: HTMLElement,
+	scope: string,
+	metrics: TileMetrics = TILE_METRICS,
+): TileLayout {
+	// Shadowed so the cell math below reads unchanged whichever
+	// metrics the section asked for.
+	const { w: TILE_W, h: TILE_H, pad: TILE_PAD } = metrics;
 	const positions = loadPositions( scope );
 	const entries: TileEntry[] = [];
 	/**
@@ -5564,7 +6988,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	 */
 	const occupied = new Set< string >();
 
-	host.classList.add( 'desktop-mode-my-wordpress__canvas--positioned' );
+	host.classList.add( 'os-my-wordpress__canvas--positioned' );
 
 	const cellOf = ( x: number, y: number ): { col: number; row: number } => ( {
 		col: Math.max( 0, Math.round( ( x - TILE_PAD ) / TILE_W ) ),
@@ -5584,15 +7008,16 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	const recomputeHostHeight = () => {
 		// Grow host so absolute tiles aren't clipped by the parent
 		// scroller. We track the lowest tile bottom edge.
+		//
+		// Measured from `entries`, not `host.children`: `place()` runs
+		// while the tile is still detached (the caller appends it
+		// afterwards), so a DOM walk misses whatever was just placed
+		// and the height stays a batch behind. On a banded list that
+		// showed up as the last, partially-filled row spilling out of
+		// its band and landing on top of the next band's heading.
 		let maxBottom = 0;
-		for ( const child of Array.from( host.children ) ) {
-			if ( ! ( child instanceof HTMLElement ) ) {
-				continue;
-			}
-			if ( ! child.classList.contains( 'desktop-mode-file-tile' ) ) {
-				continue;
-			}
-			const top = parseFloat( child.style.top || '0' );
+		for ( const entry of entries ) {
+			const top = parseFloat( entry.tile.style.top || '0' );
 			maxBottom = Math.max( maxBottom, top + TILE_H );
 		}
 		host.style.minHeight = `${ Math.max( 0, maxBottom + TILE_PAD ) }px`;
@@ -5688,7 +7113,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	 * dragged icons.
 	 *
 	 * Called by the ResizeObserver below on every canvas-width change
-	 * AND surfaced as an action (`desktop-mode.icon-canvas.reflow`)
+	 * AND surfaced as an action (`os.icon-canvas.reflow`)
 	 * so plugin authors can react.
 	 */
 	const reflow = (): void => {
@@ -5748,7 +7173,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 			autoCount += 1;
 		}
 		recomputeHostHeight();
-		doAction( 'desktop-mode.icon-canvas.reflow', {
+		doAction( 'os.icon-canvas.reflow', {
 			scope,
 			cols,
 			autoCount,
@@ -5883,6 +7308,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	return {
 		host,
 		scope,
+		metrics,
 		place,
 		commit,
 		sort,
@@ -5951,11 +7377,11 @@ function storageKey( scope: string ): string {
 /**
  * The most-recently-mounted My WordPress window's `RenderState`, or
  * `null` when none is open. Used by the public
- * `wp.desktop.myWordpress.openDetail()` API so any other shell
+ * `wp.os.myWordpress.openDetail()` API so any other shell
  * surface (folder window CMO, plugin code) can route the My
  * WordPress window directly into a post's detail dossier without
  * duplicating the per-relation rendering. When multiple instances
- * are open (a duplicate spawned via `wp.desktop.openNewWindow`, or a
+ * are open (a duplicate spawned via `wp.os.openNewWindow`, or a
  * second copy on another virtual desktop) this points at the
  * latest mount — that's the one the user just acted on, so a
  * fresh `openDetail()` navigates it in place rather than spawning
@@ -6071,7 +7497,13 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// because it lives in a shared store rather than this module's
 	// `pendingRoute`. Consume + clear so a later plain open lands on
 	// root.
+	// A pending agent-editor target (set cross-bundle by an avatar
+	// click in the Agent chat window) routes to the Agents section the
+	// same way. The section renderer — not this router — consumes and
+	// clears the target, because it needs the agent id to preselect
+	// the row and runs synchronously inside `navigate()`.
 	const footprint = readFootprintTarget();
+	const agentEditor = readAgentEditorTarget();
 	let initialRoute: Route;
 	if ( footprint.userId && footprint.userId > 0 ) {
 		initialRoute = footprintRouteFor(
@@ -6079,6 +7511,8 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 			footprint.userName,
 		);
 		clearFootprintTarget();
+	} else if ( agentEditor.agentId && agentEditor.agentId > 0 ) {
+		initialRoute = { kind: 'list', entityId: AGENTS_ENTITY_ID };
 	} else {
 		initialRoute = pendingRoute ?? { kind: 'root' };
 	}
@@ -6088,7 +7522,7 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// Subscribe to cross-window broadcast change signals so the list
 	// refreshes reactively when any post, page, media, or CPT is mutated
 	// elsewhere in the shell (like the Recycle Bin).
-	const api = window.wp?.desktop;
+	const api = window.wp?.os;
 	if ( api && typeof api.subscribe === 'function' ) {
 		let domainRefreshTimer: number | null = null;
 		const onDomainChanged = ( payload: unknown, meta: { topic: string } ): void => {
@@ -6137,7 +7571,7 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// window closes. The framework wires it to the per-window
 	// lifecycle (see `Window.hydrateNative`), so a duplicate
 	// instance closing only tears down its OWN state — the previous
-	// implementation listened for `desktop-mode-window-closed`
+	// implementation listened for `os-window-closed`
 	// globally and matched on the base WINDOW_ID, which fired for
 	// every sibling's close event and clobbered live instances.
 	return () => {
@@ -6173,11 +7607,16 @@ const callback: RenderCallback = ( body ) => {
 	}
 };
 
-window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
-window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
+window.openStationNativeWindows = window.openStationNativeWindows || {};
+window.openStationNativeWindows[ WINDOW_ID ] = callback;
+
+// "Send to <agent>" entries in the tile context menus (posts, pages,
+// media, users) — registered here, at bundle load, so the entries are
+// available before the Agents section is ever opened.
+registerSendToMenuFilter();
 
 // Built-in entity-kind renderers. Third-party plugins can register
-// their own via `wp.desktop.myWordpress.registerEntityKind()`.
+// their own via `wp.os.myWordpress.registerEntityKind()`.
 registerEntityKind( 'post', ( host, entity ) => {
 	renderEntityList( asRenderState( host ), entity );
 } );
@@ -6217,7 +7656,7 @@ function asRenderState( host: EntityRenderHost ): RenderState {
 }
 
 /* ------------------------------------------------------------------ *
- *  Public API — `wp.desktop.myWordpress.openDetail( … )`.
+ *  Public API — `wp.os.myWordpress.openDetail( … )`.
  *
  *  Routes the My WordPress window directly into a post's detail
  *  dossier (Author / Comments / Tags / Categories / Attached
@@ -6270,7 +7709,7 @@ function openDetail( args: OpenDetailArgs ): void {
 	const desktop = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						openWindow?: (
 							id: string,
 							opts?: { source?: string },
@@ -6278,7 +7717,7 @@ function openDetail( args: OpenDetailArgs ): void {
 					};
 			}
 			| undefined
-	)?.desktop;
+	)?.os;
 	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-detail' } );
 }
 
@@ -6308,7 +7747,7 @@ function openMedia( args: OpenMediaArgs ): void {
 	const desktop = (
 		window.wp as
 			| {
-					desktop?: {
+					os?: {
 						openWindow?: (
 							id: string,
 							opts?: { source?: string },
@@ -6316,7 +7755,7 @@ function openMedia( args: OpenMediaArgs ): void {
 					};
 			}
 			| undefined
-	)?.desktop;
+	)?.os;
 	desktop?.openWindow?.( WINDOW_ID, { source: 'my-wordpress/open-media' } );
 }
 
@@ -6350,7 +7789,7 @@ interface MyWordpressApi {
 	 * Trash an entity by its My WordPress entity id (`'posts'`,
 	 * `'pages'`, `'users'`, plugin-defined). Returns a Promise that
 	 * resolves when the REST DELETE succeeds and broadcasts
-	 * `desktop-mode-my-wordpress-entity-trashed` so every live list
+	 * `os-my-wordpress-entity-trashed` so every live list
 	 * view drops the tile reactively.
 	 *
 	 * Does NOT show a confirm dialog — UX layer is the caller's
@@ -6370,13 +7809,13 @@ interface PendingEntry {
 
 const desktopGlobal = (
 	window.wp as
-		| { desktop?: Record< string, unknown > & {
+		| { os?: Record< string, unknown > & {
 				myWordpress?: MyWordpressApi & {
 					__pendingKinds?: PendingEntry[];
 				};
 			} }
 		| undefined
-)?.desktop;
+)?.os;
 if ( desktopGlobal ) {
 	// Drain the early-registration queue installed by
 	// `src/my-wordpress/early-api.ts` (which ships in the main
@@ -6430,6 +7869,17 @@ if ( desktopGlobal ) {
 		clearFootprintTarget();
 	} );
 
+	// Warm re-target for the Agents section — same cold/warm split as
+	// the footprint above. The section renderer clears the target as
+	// it consumes it, and its own clear notifies with a null id, which
+	// this guard drops.
+	subscribeAgentEditorTarget( ( next ) => {
+		if ( ! next.agentId || next.agentId <= 0 || ! activeState ) {
+			return;
+		}
+		navigate( activeState, { kind: 'list', entityId: AGENTS_ENTITY_ID } );
+	} );
+
 	// Live-tile pruning on trash. Every live My WordPress list body
 	// listens for the broadcast — `trashEntityById` fires this after
 	// a successful REST DELETE; the right-click `confirmTrash` path
@@ -6437,7 +7887,7 @@ if ( desktopGlobal ) {
 	// and no-ops. Lets the drag-to-trash flow share the same UI
 	// cleanup as the CMO without duplicating the tile-removal logic.
 	document.addEventListener(
-		'desktop-mode-my-wordpress-entity-trashed',
+		'os-my-wordpress-entity-trashed',
 		( e: Event ) => {
 			const detail = (
 				e as CustomEvent< { entityId: string; id: number } >

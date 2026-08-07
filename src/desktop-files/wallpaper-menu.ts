@@ -1,20 +1,20 @@
 /**
- * Desktop Mode — Wallpaper context menu (CMO).
+ * OpenStation — Wallpaper context menu (CMO).
  *
  * Clicking empty wallpaper used to call `manager.toggleShowDesktop()`
  * directly. Phase 4 replaces that with a small floating menu —
  * the desktop-OS equivalent of the right-click "Create folder /
  * New URL / Sort by / Show desktop / OS Settings" affordance.
  *
- * Plugins extend the menu via the `desktop-mode.wallpaper-context-menu`
- * filter (JS) or the `desktop_mode_wallpaper_context_menu_items`
+ * Plugins extend the menu via the `os.wallpaper-context-menu`
+ * filter (JS) or the `openstation_wallpaper_context_menu_items`
  * filter (PHP, carried in the shell payload as
  * `serverWallpaperMenuItems`). Both lists are merged at click time.
  */
 
 import { applyFilters, doAction } from '../hooks';
-// Side-effect import: registers `<wpd-context-menu>` +
-// `<wpd-context-menu-option>` so the menu DOM upgrades.
+// Side-effect import: registers `<os-context-menu>` +
+// `<os-context-menu-option>` so the menu DOM upgrades.
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { attachDismissable } from './dismissable';
 
@@ -64,7 +64,7 @@ export interface ServerWallpaperMenuItem {
 	callbackId?: string;
 }
 
-const MENU_CLASS = 'desktop-mode-wallpaper-menu';
+const MENU_CLASS = 'os-wallpaper-menu';
 
 let activeMenu: HTMLElement | null = null;
 
@@ -97,7 +97,7 @@ let openGeneration = 0;
  * The menu is dismissed on outside click or on Escape.
  *
  * Construction is deferred behind the shell-overlays loader so
- * the `<wpd-context-menu>` class ships in the lazy bundle.
+ * the `<os-context-menu>` class ships in the lazy bundle.
  */
 export function openWallpaperMenu(
 	host: HTMLElement,
@@ -132,9 +132,9 @@ function openWallpaperMenuImmediate(
 		return a.label.localeCompare( b.label );
 	} );
 
-	// Use the framework's `<wpd-context-menu>` component for the
+	// Use the framework's `<os-context-menu>` component for the
 	// host so styling + roles come from the shared primitive.
-	const menu = document.createElement( 'wpd-context-menu' );
+	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( MENU_CLASS );
 	menu.style.left = `${ pos.x }px`;
@@ -153,7 +153,7 @@ function openWallpaperMenuImmediate(
 
 	for ( const item of items ) {
 		itemById.set( item.id, item );
-		const opt = document.createElement( 'wpd-context-menu-option' );
+		const opt = document.createElement( 'os-context-menu-option' );
 		opt.dataset.menuItemId = item.id;
 		opt.setAttribute( 'value', item.id );
 		if ( item.heading ) {
@@ -180,9 +180,9 @@ function openWallpaperMenuImmediate(
 		menu.appendChild( opt );
 	}
 
-	// One delegated `wpd-context-menu-pick` listener handles every
+	// One delegated `os-context-menu-pick` listener handles every
 	// option in the parent menu (and its flyout — events bubble).
-	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
 		const item = itemById.get( detail.id ) ?? null;
 		if ( ! item ) {
@@ -209,7 +209,7 @@ function openWallpaperMenuImmediate(
 
 	function openFlyout( parent: WallpaperMenuItem, anchor: HTMLElement ): void {
 		closeActiveFlyout();
-		const fly = document.createElement( 'wpd-context-menu' );
+		const fly = document.createElement( 'os-context-menu' );
 		fly.setAttribute( 'open', '' );
 		fly.classList.add( MENU_CLASS, `${ MENU_CLASS }--flyout` );
 		( fly as HTMLElement ).dataset.parentId = parent.id;
@@ -224,7 +224,7 @@ function openWallpaperMenuImmediate(
 		} );
 
 		for ( const child of sortedKids ) {
-			const kopt = document.createElement( 'wpd-context-menu-option' );
+			const kopt = document.createElement( 'os-context-menu-option' );
 			kopt.dataset.menuItemId = child.id;
 			kopt.setAttribute( 'value', child.id );
 			if ( child.icon ) {
@@ -237,7 +237,7 @@ function openWallpaperMenuImmediate(
 				kopt.setAttribute( 'checked', '' );
 			}
 			kopt.textContent = child.label;
-			kopt.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
+			kopt.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 				e.stopPropagation();
 				closeWallpaperMenu();
 				void child.onClick( new MouseEvent( 'click' ) );
@@ -285,7 +285,7 @@ function openWallpaperMenuImmediate(
 	} );
 	menu.addEventListener( 'wallpaper-menu-closed', detach );
 
-	doAction( 'desktop-mode.wallpaper-menu.opened', { items: items.map( ( i ) => i.id ) } );
+	doAction( 'os.wallpaper-menu.opened', { items: items.map( ( i ) => i.id ) } );
 }
 
 /** Close the active menu (no-op when nothing is open). */
@@ -300,7 +300,7 @@ export function closeWallpaperMenu(): void {
 	activeMenu.dispatchEvent( new CustomEvent( 'wallpaper-menu-closed' ) );
 	activeMenu.remove();
 	activeMenu = null;
-	doAction( 'desktop-mode.wallpaper-menu.closed', {} );
+	doAction( 'os.wallpaper-menu.closed', {} );
 }
 
 /**
@@ -387,7 +387,7 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 
 	const merged = [ ...builtIn, ...serverItems ];
 	const filtered = applyFilters< WallpaperMenuItem[], [] >(
-		'desktop-mode.wallpaper-context-menu',
+		'os.wallpaper-context-menu',
 		merged,
 	);
 	return Array.isArray( filtered ) ? filtered : merged;
@@ -412,7 +412,7 @@ function serverItemToMenuItem(
 			}
 			// Plugins that didn't ship a JS callback fall through to
 			// a doAction so they can subscribe in their own bundle.
-			doAction( 'desktop-mode.wallpaper-context-menu.activated', {
+			doAction( 'os.wallpaper-context-menu.activated', {
 				id: server.id,
 				callbackId: server.callbackId ?? '',
 			} );

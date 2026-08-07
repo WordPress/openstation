@@ -6,7 +6,7 @@
  * just toggle visibility. Click on a folder row toggles. Click on
  * a file row fires the host's `onOpen( path )` callback.
  *
- * No dedicated `<wpd-tree>` primitive yet — this is rolled here so
+ * No dedicated `<os-tree>` primitive yet — this is rolled here so
  * the editor isn't blocked on a component-kit addition. If a third
  * plugin needs the same shape, promote.
  *
@@ -66,7 +66,7 @@ function iconFor( entry: TreeEntry, expanded: boolean ): string {
 export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 	const { mount, onOpen } = opts;
 
-	mount.classList.add( 'wpdc-tree' );
+	mount.classList.add( 'osc-tree' );
 	mount.replaceChildren();
 
 	// Map of path → its child <ul> so collapse-then-re-expand doesn't
@@ -81,30 +81,30 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 
 	const renderRow = ( entry: TreeEntry ): HTMLLIElement => {
 		const li = document.createElement( 'li' );
-		li.className = `wpdc-tree__row wpdc-tree__row--${ entry.type }`;
+		li.className = `osc-tree__row osc-tree__row--${ entry.type }`;
 		if ( ! entry.allowed && entry.type === 'file' ) {
-			li.classList.add( 'wpdc-tree__row--disabled' );
+			li.classList.add( 'osc-tree__row--disabled' );
 		}
 		li.dataset.path = entry.path;
 
 		const button = document.createElement( 'button' );
 		button.type = 'button';
-		button.className = 'wpdc-tree__btn';
+		button.className = 'osc-tree__btn';
 		if ( ! entry.allowed && entry.type === 'file' ) {
 			button.disabled = true;
 			button.title = 'File extension is not in the editor allowlist.';
 		}
 
 		const caret = document.createElement( 'span' );
-		caret.className = 'wpdc-tree__caret';
+		caret.className = 'osc-tree__caret';
 		caret.textContent = entry.type === 'dir' ? '▸' : '';
 
 		const icon = document.createElement( 'span' );
-		icon.className = `wpdc-tree__icon dashicons ${ iconFor( entry, false ) }`;
+		icon.className = `osc-tree__icon dashicons ${ iconFor( entry, false ) }`;
 		icon.setAttribute( 'aria-hidden', 'true' );
 
 		const label = document.createElement( 'span' );
-		label.className = 'wpdc-tree__label';
+		label.className = 'osc-tree__label';
 		label.textContent = entry.name;
 
 		button.append( caret, icon, label );
@@ -118,11 +118,11 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 				// Visual selection — single-select, light enough we
 				// don't need a separate state machine.
 				mount
-					.querySelectorAll< HTMLElement >( '.wpdc-tree__row--active' )
+					.querySelectorAll< HTMLElement >( '.osc-tree__row--active' )
 					.forEach( ( el ) =>
-						el.classList.remove( 'wpdc-tree__row--active' ),
+						el.classList.remove( 'osc-tree__row--active' ),
 					);
-				li.classList.add( 'wpdc-tree__row--active' );
+				li.classList.add( 'osc-tree__row--active' );
 				onOpen( entry.path );
 			} );
 			return li;
@@ -130,13 +130,13 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 
 		// Directory.
 		const childUl = document.createElement( 'ul' );
-		childUl.className = 'wpdc-tree__children';
+		childUl.className = 'osc-tree__children';
 		childUl.hidden = true;
 		li.append( childUl );
 
 		const setExpanded = ( open: boolean ): void => {
 			caret.textContent = open ? '▾' : '▸';
-			icon.className = `wpdc-tree__icon dashicons ${ iconFor( entry, open ) }`;
+			icon.className = `osc-tree__icon dashicons ${ iconFor( entry, open ) }`;
 			childUl.hidden = ! open;
 			button.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
 		};
@@ -162,7 +162,7 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 
 			try {
 				const placeholder = document.createElement( 'li' );
-				placeholder.className = 'wpdc-tree__loading';
+				placeholder.className = 'osc-tree__loading';
 				placeholder.textContent = 'Loading…';
 				childUl.append( placeholder );
 
@@ -178,7 +178,7 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 				}
 				childUl.replaceChildren();
 				const errorRow = document.createElement( 'li' );
-				errorRow.className = 'wpdc-tree__error';
+				errorRow.className = 'osc-tree__error';
 				errorRow.textContent =
 					err instanceof Error ? err.message : 'Failed to load';
 				childUl.append( errorRow );
@@ -192,11 +192,11 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 	};
 
 	const rootUl = document.createElement( 'ul' );
-	rootUl.className = 'wpdc-tree__root';
+	rootUl.className = 'osc-tree__root';
 	mount.append( rootUl );
 
 	const loading = document.createElement( 'li' );
-	loading.className = 'wpdc-tree__loading';
+	loading.className = 'osc-tree__loading';
 	loading.textContent = 'Loading workspace…';
 	rootUl.append( loading );
 
@@ -214,7 +214,7 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 			}
 			rootUl.replaceChildren();
 			const errorRow = document.createElement( 'li' );
-			errorRow.className = 'wpdc-tree__error';
+			errorRow.className = 'osc-tree__error';
 			errorRow.textContent =
 				err instanceof Error ? err.message : 'Failed to load workspace';
 			rootUl.append( errorRow );

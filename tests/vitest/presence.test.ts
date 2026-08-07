@@ -2,7 +2,7 @@
  * Unit tests for the framework presence client.
  *
  * After the 0.5.5 event-driven refactor, the presence module
- * routes through `wp.desktop.heartbeat.{contribute,subscribe}`
+ * routes through `wp.os.heartbeat.{contribute,subscribe}`
  * (which itself wraps jQuery's heartbeat events). Tests drive
  * the flow at the bus layer rather than mocking jQuery.
  */
@@ -70,14 +70,14 @@ describe( 'presence', () => {
 		expect( getStatus( 99 ) ).toBe( 'offline' );
 	} );
 
-	test( 'heartbeat-send adds desktop_mode_presence_active flag via the bus', async () => {
+	test( 'heartbeat-send adds openstation_presence_active flag via the bus', async () => {
 		const handlers = installFakeJQuery();
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]?.( {}, data );
-		expect( data.desktop_mode_presence_active ).toBe( true );
-		expect( typeof data.desktop_mode_user_active ).toBe( 'boolean' );
+		expect( data.openstation_presence_active ).toBe( true );
+		expect( typeof data.openstation_user_active ).toBe( 'boolean' );
 	} );
 
 	test( 'heartbeat-tick applies the snapshot to the shared store', async () => {
@@ -87,7 +87,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 1234,
 					snapshot: {
 						'42': { status: 'online', lastSeenMs: 100, lastActiveMs: 100 },
@@ -110,7 +110,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '1': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -120,12 +120,12 @@ describe( 'presence', () => {
 		off();
 	} );
 
-	test( 'desktop-mode-presence-changed fires on status transitions', async () => {
+	test( 'os-presence-changed fires on status transitions', async () => {
 		const handlers = installFakeJQuery();
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		const events: Array< { userId: number; oldStatus: string | null; newStatus: string } > = [];
-		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+		document.addEventListener( 'os-presence-changed', ( e ) => {
 			const detail = ( e as CustomEvent ).detail;
 			events.push( {
 				userId: detail.userId,
@@ -137,7 +137,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '42': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -147,7 +147,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 2,
 					snapshot: { '42': { status: 'online', lastSeenMs: 2, lastActiveMs: 2 } },
 				},
@@ -157,7 +157,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 3,
 					snapshot: {
 						'42': { status: 'inactive', lastSeenMs: 3, lastActiveMs: 0 },
@@ -178,7 +178,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				desktop_mode_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '7': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -207,12 +207,12 @@ describe( 'presence', () => {
 		markActive();
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]?.( {}, data );
-		expect( data.desktop_mode_user_active ).toBe( true );
+		expect( data.openstation_user_active ).toBe( true );
 	} );
 
 	test( 'applyPresenceBatch publishes status transition events', () => {
 		const events: Array< unknown > = [];
-		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+		document.addEventListener( 'os-presence-changed', ( e ) => {
 			events.push( ( e as CustomEvent ).detail );
 		} );
 		applyPresenceBatch( [
@@ -224,12 +224,12 @@ describe( 'presence', () => {
 
 	test( 'public presenceApi exposes applyBatch as the canonical entry', () => {
 		// `applyBatch` is the public name for `applyPresenceBatch` —
-		// what plugins call as `wp.desktop.presence.applyBatch( … )`
+		// what plugins call as `wp.os.presence.applyBatch( … )`
 		// after the messages-port DX work.
 		expect( typeof presenceApi.applyBatch ).toBe( 'function' );
 
 		const events: Array< unknown > = [];
-		document.addEventListener( 'desktop-mode-presence-changed', ( e ) => {
+		document.addEventListener( 'os-presence-changed', ( e ) => {
 			events.push( ( e as CustomEvent ).detail );
 		} );
 		presenceApi.applyBatch( [ { userId: 11, status: 'online' } ] );

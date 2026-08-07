@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Iframe-window drop targets.
+ * OpenStation — Iframe-window drop targets.
  *
  * Cross-iframe pointer routing for shell-side shortcut drags. The
  * problem: when a DragManager session runs in the parent shell and
@@ -15,12 +15,12 @@
  *
  *   - On `DRAG_EVENTS.START` with a `'shortcut'` payload that
  *     carries a `bridgePayload`:
- *       1. Walk every `iframe.desktop-mode-window__iframe` in the
+ *       1. Walk every `iframe.os-window__iframe` in the
  *          document, save its current inline `pointer-events`, and
  *          set it to `'none'`. The iframe stops capturing pointer
  *          events. The browser routes the move to whatever is
  *          behind it — typically the iframe's parent
- *          (`.desktop-mode-window__body`).
+ *          (`.os-window__body`).
  *       2. Register that parent as a drop target via the
  *          DragManager. `elementFromPoint` returns the parent, the
  *          registry's deepest-ancestor walk finds the registered
@@ -61,8 +61,8 @@ import {
 import { findWindowRootAtPoint } from './window-at-point';
 
 const TARGET_ID_PREFIX = 'desktop-mode-iframe-drop-';
-const IFRAME_SELECTOR = 'iframe.desktop-mode-window__iframe';
-const DROP_ACTIVE_ATTR = 'data-desktop-mode-iframe-drop-active';
+const IFRAME_SELECTOR = 'iframe.os-window__iframe';
+const DROP_ACTIVE_ATTR = 'data-os-iframe-drop-active';
 
 let _installed = false;
 let _dragManager: DragManagerApi | null = null;
@@ -102,7 +102,7 @@ function restoreIframePointerEvents(): void {
  * Find the iframe-window that contains the cursor at the given
  * client coords. With iframe pointer-events suppressed during a
  * bridge session, `elementFromPoint` returns the body div *inside*
- * an iframe-window; walking up to `.desktop-mode-window` and back
+ * an iframe-window; walking up to `.os-window` and back
  * down to the iframe child is the reliable resolution path.
  */
 function findIframeAtCursor(
@@ -131,13 +131,13 @@ const onBridgeDragOver = ( e: DragEvent ): void => {
 	}
 	if ( _lastHoveredBridgeIframe ) {
 		postIntoIframe( _lastHoveredBridgeIframe, {
-			type: 'desktop-mode-drag-leave',
+			type: 'os-drag-leave',
 		} );
 	}
 	_lastHoveredBridgeIframe = iframe;
 	if ( iframe ) {
 		postIntoIframe( iframe, {
-			type: 'desktop-mode-drag-over',
+			type: 'os-drag-over',
 			payload: _bridgeInterceptPayload,
 		} );
 	}
@@ -160,7 +160,7 @@ const onBridgeDrop = ( e: DragEvent ): void => {
 	}
 	const rect = iframe.getBoundingClientRect();
 	postIntoIframe( iframe, {
-		type: 'desktop-mode-drop',
+		type: 'os-drop',
 		payload,
 		position: {
 			x: e.clientX - rect.left,
@@ -192,7 +192,7 @@ function stopBridgeIntercept(): void {
 	_bridgeInterceptPayload = null;
 	if ( _lastHoveredBridgeIframe ) {
 		postIntoIframe( _lastHoveredBridgeIframe, {
-			type: 'desktop-mode-drag-leave',
+			type: 'os-drag-leave',
 		} );
 		_lastHoveredBridgeIframe = null;
 	}
@@ -259,13 +259,13 @@ function registerDropTargetFor(
 			}
 			target.setAttribute( DROP_ACTIVE_ATTR, '' );
 			postIntoIframe( iframe, {
-				type: 'desktop-mode-drag-over',
+				type: 'os-drag-over',
 				payload: bridge,
 			} );
 		},
 		onLeave: () => {
 			target.removeAttribute( DROP_ACTIVE_ATTR );
-			postIntoIframe( iframe, { type: 'desktop-mode-drag-leave' } );
+			postIntoIframe( iframe, { type: 'os-drag-leave' } );
 		},
 		onDrop: ( session, ev ) => {
 			target.removeAttribute( DROP_ACTIVE_ATTR );
@@ -275,7 +275,7 @@ function registerDropTargetFor(
 			}
 			const rect = iframe.getBoundingClientRect();
 			postIntoIframe( iframe, {
-				type: 'desktop-mode-drop',
+				type: 'os-drop',
 				payload: bridge,
 				position: {
 					x: ev.clientX - rect.left,
@@ -320,7 +320,7 @@ function onDragStart( payload: unknown ): void {
 	// regression bubbles up. `console.info` is in the lint
 	// allowlist; `console.log` would need an inline disable.
 	console.info(
-		'[desktop-mode] drag-start: suppressing %d iframe(s); bridgeable=%s',
+		'[openstation] drag-start: suppressing %d iframe(s); bridgeable=%s',
 		iframes.length,
 		isBridgeable,
 		payload,
@@ -388,7 +388,7 @@ function onDragEnd(): void {
  * Install the cross-window iframe drop-target machinery. Idempotent.
  * Bind ONCE at shell boot; the rest is driven by drag events.
  *
- * Also exposes `window.__desktopModeIframeDropDebug` returning the
+ * Also exposes `window.__openStationIframeDropDebug` returning the
  * live state of the registration map, so users hitting a regression
  * can paste that into DevTools and report exactly which side of the
  * wiring is broken.
@@ -426,7 +426,7 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	// session is in flight, suppress `pointer-events` on every
 	// iframe-window. Drag events then fall through to the parent
 	// document, where we can identify which iframe-window the
-	// cursor is over and postMessage `desktop-mode-drop` to its
+	// cursor is over and postMessage `os-drop` to its
 	// content window — the same protocol the Gutenberg receiver
 	// already implements for shell-side DragManager drops.
 	document.addEventListener( DRAG_BRIDGE_EVENTS.START, ( e ) => {
@@ -473,8 +473,8 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		},
 	);
 
-	type DesktopModeIframeDropDebugWindow = Window & {
-		__desktopModeIframeDropDebug?: () => {
+	type OpenStationIframeDropDebugWindow = Window & {
+		__openStationIframeDropDebug?: () => {
 			installed: boolean;
 			iframesInDom: number;
 			suppressedCount: number;
@@ -482,7 +482,7 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 			suppressedIframeIds: string[];
 		};
 	};
-	( window as DesktopModeIframeDropDebugWindow ).__desktopModeIframeDropDebug = () => ( {
+	( window as OpenStationIframeDropDebugWindow ).__openStationIframeDropDebug = () => ( {
 		installed: _installed,
 		iframesInDom: document.querySelectorAll( IFRAME_SELECTOR ).length,
 		suppressedCount: _suppressedIframes.size,

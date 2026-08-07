@@ -2,7 +2,7 @@
  * Vitest global setup — runs once per test file before any
  * `describe` / `test` block.
  *
- * Pre-registers every `<wpd-*>` component class that production
+ * Pre-registers every `<os-*>` component class that production
  * code loads lazily via the `shell-overlays[.min].js` bundle, so
  * unit tests that exercise menu / dialog / toast call paths see
  * upgraded custom elements without each test needing its own leaf
@@ -32,9 +32,13 @@ if ( typeof window !== 'undefined' && ! window.localStorage ) {
 	} );
 }
 
-import '../../src/ui/components/wpd-toast/wpd-toast';
-import '../../src/ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
-import '../../src/ui/components/wpd-context-menu/wpd-context-menu';
+import '../../src/ui/components/os-toast/os-toast';
+import '../../src/ui/components/os-confirm-dialog/os-confirm-dialog';
+import '../../src/ui/components/os-context-menu/os-context-menu';
+// The shell's built-in modals (create-folder / rename, web link)
+// slot these two for their controls.
+import '../../src/ui/components/os-button/os-button';
+import '../../src/ui/components/os-text-field/os-text-field';
 
 /**
  * Pre-register the lazy `window-system[.min].js` factory.
@@ -52,8 +56,8 @@ import '../../src/ui/components/wpd-context-menu/wpd-context-menu';
  */
 import { Window as DesktopWindow } from '../../src/window';
 ( window as unknown as {
-	desktopModeWindowSystem?: { createWindow: ( cfg: unknown ) => unknown };
-} ).desktopModeWindowSystem = {
+	openStationWindowSystem?: { createWindow: ( cfg: unknown ) => unknown };
+} ).openStationWindowSystem = {
 	createWindow: ( cfg: unknown ) =>
 		new DesktopWindow( cfg as ConstructorParameters< typeof DesktopWindow >[ 0 ] ),
 };

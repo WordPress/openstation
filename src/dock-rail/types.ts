@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Dock rail renderer interfaces.
+ * OpenStation — Dock rail renderer interfaces.
  *
  * Public contract for the radical customization registry: how plugin
  * authors REPLACE the entire dock rail. The default `'default'`
@@ -34,7 +34,7 @@ import type { WindowManager } from '../window-manager';
  *   - `items` — the menu-derived tile list at boot. Live updates
  *     come through the controller's `replaceItems()`.
  *   - `orientation` — `'left' | 'right' | 'bottom'`. Reflected on
- *     the container's `data-desktop-mode-dock-placement` attribute
+ *     the container's `data-os-dock-placement` attribute
  *     by the shell before `mount()` runs.
  *
  * **Routing callbacks** (renderers MUST call these instead of

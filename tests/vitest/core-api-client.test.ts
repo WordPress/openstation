@@ -6,7 +6,7 @@ let fetchMock: ReturnType< typeof vi.fn >;
 beforeEach( () => {
 	fetchMock = vi.fn();
 	( window as unknown as { wp?: unknown } ).wp = {
-		desktop: { fetch: fetchMock },
+		os: { fetch: fetchMock },
 	};
 } );
 

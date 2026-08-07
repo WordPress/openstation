@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Dock Peek.
+ * OpenStation — Dock Peek.
  *
  * Hover-reveal popover that fans out from a multi-instance dock tile.
  * Each card is styled as a miniature window — faux titlebar with
@@ -27,24 +27,41 @@
    peek to show).
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock__item-primary {
+.os-dock__item-primary {
 	transition:
 		transform 240ms cubic-bezier( 0.34, 1.56, 0.64, 1 ),
 		filter 240ms ease-out;
 }
 
-.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
-.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
-	background: rgba( 255, 255, 255, 0.15 );
-	color: var( --wpd-fg-on-accent, #fff );
+/* Same two glyph/wash tokens as the base hover rule in dock.css —
+ * this sheet re-states hover to add the lift and the drop shadow, and
+ * it wins on specificity, so a theme that only reached the base rule
+ * would see its colour vanish the moment the peek sheet loaded.
+ *
+ * `background-color`, not the `background` shorthand it used to be:
+ * the shorthand also reset `background-image`, which erased the
+ * DOCK_ITEM texture from under the cursor on any theme that ships
+ * one. dock.css sets the resting wash as a colour for exactly this
+ * reason — "so it composes with the texture rather than erasing it" —
+ * and this rule quietly undid it on hover. */
+.os-dock__item:hover .os-dock__item-primary,
+.os-dock__item[data-peek-active] .os-dock__item-primary {
+	background-color: var(
+		--os-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--os-dock-icon-color-hover,
+		var( --os-ui-fg-on-accent, #fff )
+	);
 	transform: scale( 1.08 );
 	filter: drop-shadow( 0 4px 8px rgba( 0, 0, 0, 0.18 ) );
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
+	.os-dock__item-primary,
+	.os-dock__item:hover .os-dock__item-primary,
+	.os-dock__item[data-peek-active] .os-dock__item-primary {
 		transition: none;
 		transform: none;
 	}
@@ -54,12 +71,12 @@
    Popover surface — glass material, body-attached.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek {
+.os-dock-peek {
 	position: fixed;
 	z-index: 999999;
 	padding: 10px;
 	border-radius: 16px;
-	background: color-mix( in srgb, var( --desktop-mode-bg, #1d2327 ) 76%, transparent );
+	background: color-mix( in srgb, var( --os-bg, #1d2327 ) 76%, transparent );
 	backdrop-filter: blur( 28px ) saturate( 180% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 180% );
 	border: 1px solid rgba( 255, 255, 255, 0.12 );
@@ -67,7 +84,7 @@
 		0 1px 0 rgba( 255, 255, 255, 0.08 ) inset,
 		0 16px 40px -10px rgba( 0, 0, 0, 0.55 ),
 		0 6px 16px -4px rgba( 0, 0, 0, 0.36 );
-	color: var( --desktop-mode-fg, #fff );
+	color: var( --os-fg, #fff );
 	pointer-events: auto;
 	opacity: 0;
 	display: flex;
@@ -83,12 +100,12 @@
    caps in WIDTH instead of height, and the cards container scrolls
    horizontally. Visually mirrors how taskbar-style docks work — a
    row of mini-windows above the icon, not a stack. */
-.desktop-mode-dock-peek[ data-orientation = "bottom" ] {
+.os-dock-peek[ data-orientation = "bottom" ] {
 	max-height: none;
 	max-width: min( 92vw, 920px );
 }
 
-.desktop-mode-dock-peek--open {
+.os-dock-peek--open {
 	opacity: 1;
 }
 
@@ -103,21 +120,21 @@
    when minimized cards expand. The old vertical-centre
    anchor pushed the top edge into the browser's bar on growth.
    Bottom dock: stays above the tile, growing upward. */
-.desktop-mode-dock-peek[ data-orientation = "left" ] {
+.os-dock-peek[ data-orientation = "left" ] {
 	transform:
 		translate(
 			var( --peek-clamp-x, 0 ),
 			var( --peek-clamp-y, 0 )
 		);
 }
-.desktop-mode-dock-peek[ data-orientation = "right" ] {
+.os-dock-peek[ data-orientation = "right" ] {
 	transform:
 		translate(
 			calc( -100% + var( --peek-clamp-x, 0px ) ),
 			var( --peek-clamp-y, 0 )
 		);
 }
-.desktop-mode-dock-peek[ data-orientation = "bottom" ] {
+.os-dock-peek[ data-orientation = "bottom" ] {
 	transform:
 		translate(
 			calc( -50% + var( --peek-clamp-x, 0px ) ),
@@ -129,7 +146,7 @@
    Cards.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__cards {
+.os-dock-peek__cards {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -152,7 +169,7 @@
 
 /* Bottom dock: cards lay out as a horizontal reel and scroll on the
    X-axis instead of Y. */
-.desktop-mode-dock-peek[ data-orientation = "bottom" ] .desktop-mode-dock-peek__cards {
+.os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__cards {
 	flex-direction: row;
 	min-width: 0;
 	overflow-x: auto;
@@ -160,7 +177,7 @@
 	max-width: 100%;
 }
 
-.desktop-mode-dock-peek[ data-orientation = "bottom" ] .desktop-mode-dock-peek__card {
+.os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__card {
 	/* Bottom-dock cards are narrower than left/right dock cards —
 	   a horizontal reel reads better with thumbnail-shaped tiles
 	   (Mission Control / Stage Manager) than with full-width
@@ -175,35 +192,35 @@
 	transform: translateY( 10px ) scale( 0.96 );
 }
 
-.desktop-mode-dock-peek[ data-orientation = "bottom" ] .desktop-mode-dock-peek__card--ghost {
+.os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__card--ghost {
 	width: 200px;
 	min-height: 116px;
 }
 
-.desktop-mode-dock-peek[ data-orientation = "bottom" ].desktop-mode-dock-peek--open
-	.desktop-mode-dock-peek__card {
+.os-dock-peek[ data-orientation = "bottom" ].os-dock-peek--open
+	.os-dock-peek__card {
 	transform: translateY( 0 ) scale( 1 );
 }
 
-.desktop-mode-dock-peek__cards::-webkit-scrollbar {
+.os-dock-peek__cards::-webkit-scrollbar {
 	width: 8px;
 	height: 8px;
 }
-.desktop-mode-dock-peek__cards::-webkit-scrollbar-track {
+.os-dock-peek__cards::-webkit-scrollbar-track {
 	background: transparent;
 }
-.desktop-mode-dock-peek__cards::-webkit-scrollbar-thumb {
+.os-dock-peek__cards::-webkit-scrollbar-thumb {
 	background: rgba( 255, 255, 255, 0.18 );
 	border-radius: 8px;
 	border: 2px solid transparent;
 	background-clip: padding-box;
 }
-.desktop-mode-dock-peek__cards::-webkit-scrollbar-thumb:hover {
+.os-dock-peek__cards::-webkit-scrollbar-thumb:hover {
 	background: rgba( 255, 255, 255, 0.32 );
 	background-clip: padding-box;
 }
 
-.desktop-mode-dock-peek__card {
+.os-dock-peek__card {
 	/* Card frame — looks like a tiny window. */
 	display: flex;
 	flex-direction: column;
@@ -231,22 +248,22 @@
 		box-shadow 180ms ease-out;
 }
 
-.desktop-mode-dock-peek--open .desktop-mode-dock-peek__card {
+.os-dock-peek--open .os-dock-peek__card {
 	opacity: 1;
 	transform: translateX( 0 ) scale( 1 );
 }
 
 /* Aero Peek hover: accent border + glow on every previewed card, not
    just minimumzd ones.*/
-.desktop-mode-dock-peek__card--instance:hover {
-	border-color: var( --desktop-mode-accent, #2271b1 );
+.os-dock-peek__card--instance:hover {
+	border-color: var( --os-accent, #2271b1 );
 	box-shadow:
-		0 0 14px -2px var( --desktop-mode-accent, #2271b1 ),
+		0 0 14px -2px var( --os-accent, #2271b1 ),
 		0 4px 14px -4px rgba( 0, 0, 0, 0.4 );
 }
 
-.desktop-mode-dock-peek__card:focus-visible {
-	outline: 2px solid var( --wpd-accent, #2271b1 );
+.os-dock-peek__card:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
 	outline-offset: 2px;
 }
 
@@ -254,7 +271,7 @@
    Mini-window chrome — instance card faux titlebar.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__card-titlebar {
+.os-dock-peek__card-titlebar {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -264,7 +281,7 @@
 	   neutral translucent gradient when the variable isn't set (early
 	   load, theme without the token, tests). */
 	background: var(
-		--desktop-mode-titlebar-bg-focused,
+		--os-titlebar-bg-focused,
 		linear-gradient(
 			to bottom,
 			rgba( 255, 255, 255, 0.10 ),
@@ -272,38 +289,38 @@
 		)
 	);
 	color: var(
-		--desktop-mode-titlebar-color-focused,
-		var( --desktop-mode-fg, #fff )
+		--os-titlebar-color-focused,
+		var( --os-fg, #fff )
 	);
 	border-bottom: 1px solid rgba( 0, 0, 0, 0.12 );
 	font-size: 12px;
 	line-height: 1.2;
 }
 
-.desktop-mode-dock-peek__card-dots {
+.os-dock-peek__card-dots {
 	display: inline-flex;
 	gap: 4px;
 	flex: 0 0 auto;
 }
 
-.desktop-mode-dock-peek__card-dots i {
+.os-dock-peek__card-dots i {
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
 	background: rgba( 255, 255, 255, 0.22 );
 }
 
-.desktop-mode-dock-peek__card-dots i:nth-child( 1 ) {
+.os-dock-peek__card-dots i:nth-child( 1 ) {
 	background: #ff5f57;
 }
-.desktop-mode-dock-peek__card-dots i:nth-child( 2 ) {
+.os-dock-peek__card-dots i:nth-child( 2 ) {
 	background: #febc2e;
 }
-.desktop-mode-dock-peek__card-dots i:nth-child( 3 ) {
+.os-dock-peek__card-dots i:nth-child( 3 ) {
 	background: #28c840;
 }
 
-.desktop-mode-dock-peek__card-icon {
+.os-dock-peek__card-icon {
 	flex: 0 0 auto;
 	width: 14px;
 	height: 14px;
@@ -312,7 +329,7 @@
 	opacity: 0.92;
 }
 
-.desktop-mode-dock-peek__card-label {
+.os-dock-peek__card-label {
 	flex: 1 1 auto;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -328,7 +345,7 @@
    visually distinct without us having to invent unique colors.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__card-body {
+.os-dock-peek__card-body {
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
@@ -342,20 +359,20 @@
 		);
 }
 
-.desktop-mode-dock-peek__card-line {
+.os-dock-peek__card-line {
 	display: block;
 	height: 6px;
 	border-radius: 3px;
 	background: rgba( 255, 255, 255, 0.16 );
 }
 
-.desktop-mode-dock-peek__card-line:nth-child( 1 ) {
+.os-dock-peek__card-line:nth-child( 1 ) {
 	width: 80%;
 }
-.desktop-mode-dock-peek__card-line:nth-child( 2 ) {
+.os-dock-peek__card-line:nth-child( 2 ) {
 	width: 60%;
 }
-.desktop-mode-dock-peek__card-line:nth-child( 3 ) {
+.os-dock-peek__card-line:nth-child( 3 ) {
 	width: 70%;
 }
 
@@ -363,7 +380,7 @@
    ghost-line padding so the plugin's own markup gets a clean canvas.
    Plugins that want the tinted look back can re-add their own
    background; otherwise they get a transparent flex container. */
-.desktop-mode-dock-peek__card-body--custom {
+.os-dock-peek__card-body--custom {
 	background: transparent;
 	padding: 0;
 	gap: 0;
@@ -378,7 +395,7 @@
    color scheme.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__card-body--os-settings {
+.os-dock-peek__card-body--os-settings {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -390,10 +407,10 @@
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 65%, #1d2327 ) 0%,
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 35%, #1d2327 ) 100%
 	);
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-.desktop-mode-dock-peek__os-hero {
+.os-dock-peek__os-hero {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
@@ -402,7 +419,7 @@
 	filter: drop-shadow( 0 1px 2px rgba( 0, 0, 0, 0.4 ) );
 }
 
-.desktop-mode-dock-peek__os-subtitle {
+.os-dock-peek__os-subtitle {
 	font-size: 11px;
 	font-weight: 500;
 	letter-spacing: 0.04em;
@@ -411,13 +428,13 @@
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.3 );
 }
 
-.desktop-mode-dock-peek__os-tabs {
+.os-dock-peek__os-tabs {
 	display: flex;
 	gap: 6px;
 	margin-top: 2px;
 }
 
-.desktop-mode-dock-peek__os-tab {
+.os-dock-peek__os-tab {
 	width: 18px;
 	height: 18px;
 	font-size: 13px;
@@ -436,7 +453,7 @@
    corner. The `data-empty` attribute toggles between the two.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__card-body--recycle-bin {
+.os-dock-peek__card-body--recycle-bin {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -451,7 +468,7 @@
 	color: rgba( 255, 255, 255, 0.92 );
 }
 
-.desktop-mode-dock-peek__bin-stage {
+.os-dock-peek__bin-stage {
 	position: relative;
 	width: 44px;
 	height: 44px;
@@ -460,7 +477,7 @@
 	justify-content: center;
 }
 
-.desktop-mode-dock-peek__bin-icon {
+.os-dock-peek__bin-icon {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
@@ -470,7 +487,7 @@
 	z-index: 1;
 }
 
-.desktop-mode-dock-peek__bin-stack {
+.os-dock-peek__bin-stack {
 	position: absolute;
 	inset: 0;
 	display: flex;
@@ -481,12 +498,12 @@
 	transition: opacity 200ms ease-out;
 }
 
-.desktop-mode-dock-peek__card-body--recycle-bin[ data-empty = "false" ]
-	.desktop-mode-dock-peek__bin-stack {
+.os-dock-peek__card-body--recycle-bin[ data-empty = "false" ]
+	.os-dock-peek__bin-stack {
 	opacity: 1;
 }
 
-.desktop-mode-dock-peek__bin-slip {
+.os-dock-peek__bin-slip {
 	position: absolute;
 	width: 22px;
 	height: 4px;
@@ -495,28 +512,28 @@
 	bottom: 6px;
 }
 
-.desktop-mode-dock-peek__bin-slip:nth-child( 1 ) {
+.os-dock-peek__bin-slip:nth-child( 1 ) {
 	transform: translate( -10px, -16px ) rotate( -8deg );
 	background: rgba( 255, 255, 255, 0.45 );
 }
-.desktop-mode-dock-peek__bin-slip:nth-child( 2 ) {
+.os-dock-peek__bin-slip:nth-child( 2 ) {
 	transform: translate( 8px, -20px ) rotate( 6deg );
 	background: rgba( 255, 255, 255, 0.5 );
 }
-.desktop-mode-dock-peek__bin-slip:nth-child( 3 ) {
+.os-dock-peek__bin-slip:nth-child( 3 ) {
 	transform: translate( -2px, -22px ) rotate( -2deg );
 	background: rgba( 255, 255, 255, 0.6 );
 }
 
-.desktop-mode-dock-peek__bin-label {
+.os-dock-peek__bin-label {
 	font-size: 11px;
 	font-weight: 500;
 	letter-spacing: 0.02em;
 	color: rgba( 255, 255, 255, 0.78 );
 }
 
-.desktop-mode-dock-peek__card-body--recycle-bin[ data-empty = "false" ]
-	.desktop-mode-dock-peek__bin-label {
+.os-dock-peek__card-body--recycle-bin[ data-empty = "false" ]
+	.os-dock-peek__bin-label {
 	color: var( --wp-admin-theme-color, #4f9cff );
 	font-weight: 600;
 }
@@ -535,7 +552,7 @@
    visual weight as an instance card.
    ────────────────────────────────────────────────────────────────── */
 
-.desktop-mode-dock-peek__card--ghost {
+.os-dock-peek__card--ghost {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -547,28 +564,28 @@
 	border-color: rgba( 255, 255, 255, 0.34 );
 	/* A self-contained dark translucent fill so the white label
 	   reads on light wallpapers / light color schemes too. The
-	   popover's parent surface uses `color-mix(--desktop-mode-bg)`,
+	   popover's parent surface uses `color-mix(--os-bg)`,
 	   which goes near-white on light themes — without our own
 	   backdrop the Ghost Card was white-on-white. */
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
+	color: var( --os-ui-fg-on-accent, #fff );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
 	font-size: 13px;
 	font-weight: 500;
-	animation: desktop-mode-dock-peek-breathe 2400ms ease-in-out infinite;
+	animation: os-dock-peek-breathe 2400ms ease-in-out infinite;
 }
 
-.desktop-mode-dock-peek__card--ghost:hover {
+.os-dock-peek__card--ghost:hover {
 	border-style: solid;
 	border-color: rgba( 255, 255, 255, 0.55 );
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	color: var( --os-ui-fg-on-accent, #fff );
 	animation: none;
 	transform: scale( 1.02 );
 	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.5 );
 }
 
-.desktop-mode-dock-peek__card-plus {
+.os-dock-peek__card-plus {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -587,11 +604,11 @@
 	transition: color 160ms ease-out;
 }
 
-.desktop-mode-dock-peek__card--ghost:hover .desktop-mode-dock-peek__card-plus {
-	color: var( --wpd-accent, #4f9cff );
+.os-dock-peek__card--ghost:hover .os-dock-peek__card-plus {
+	color: var( --os-ui-accent, #4f9cff );
 }
 
-@keyframes desktop-mode-dock-peek-breathe {
+@keyframes os-dock-peek-breathe {
 	0%, 100% {
 		opacity: 0.74;
 		transform: scale( 1 );
@@ -603,14 +620,14 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-dock-peek,
-	.desktop-mode-dock-peek__card,
-	.desktop-mode-dock-peek__card--ghost {
+	.os-dock-peek,
+	.os-dock-peek__card,
+	.os-dock-peek__card--ghost {
 		transition: opacity 80ms linear;
 		animation: none !important;
 		transform: none !important;
 	}
-	.desktop-mode-dock-peek--open .desktop-mode-dock-peek__card {
+	.os-dock-peek--open .os-dock-peek__card {
 		transform: none;
 	}
 }
@@ -632,10 +649,10 @@
 }
 
 /* Collapse minimized cards to just the titlebar. */
-.desktop-mode-dock-peek__card[data-state="minimized"] {
+.os-dock-peek__card[data-state="minimized"] {
 	min-height: 0;
 	opacity: 0.85;
 }
-.desktop-mode-dock-peek__card[data-state="minimized"] > :not(.desktop-mode-dock-peek__card-titlebar) {
+.os-dock-peek__card[data-state="minimized"] > :not(.os-dock-peek__card-titlebar) {
 	display: none;
 }

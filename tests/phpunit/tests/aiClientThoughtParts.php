@@ -5,14 +5,14 @@
  * The agentic loop appends each assistant turn back into the conversation
  * history. Providers can't round-trip reasoning blocks (the Anthropic
  * provider drops the `signature` a replayed `thinking` block must carry),
- * so `desktop_mode_ai_strip_thought_parts()` removes thought parts before
+ * so `openstation_ai_strip_thought_parts()` removes thought parts before
  * the message re-enters history.
  *
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
- * @group desktop-mode-ai
+ * @group openstation
+ * @group os-ai
  */
 
 use WordPress\AiClient\Messages\DTO\Message;
@@ -21,7 +21,7 @@ use WordPress\AiClient\Messages\Enums\MessagePartChannelEnum;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
 use WordPress\AiClient\Tools\DTO\FunctionCall;
 
-class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
+class Tests_OpenStation_AiClientThoughtParts extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
@@ -33,7 +33,7 @@ class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
 	/**
 	 * Thought parts are removed; text and function-call parts survive in order.
 	 *
-	 * @covers ::desktop_mode_ai_strip_thought_parts
+	 * @covers ::openstation_ai_strip_thought_parts
 	 */
 	public function test_strips_thought_parts_and_keeps_the_rest() {
 		$message = new Message(
@@ -45,7 +45,7 @@ class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
 			)
 		);
 
-		$stripped = desktop_mode_ai_strip_thought_parts( $message );
+		$stripped = openstation_ai_strip_thought_parts( $message );
 		$parts    = $stripped->getParts();
 
 		$this->assertCount( 2, $parts, 'Only the thought part should be removed.' );
@@ -59,7 +59,7 @@ class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
 	/**
 	 * A message without thought parts is returned untouched (same instance).
 	 *
-	 * @covers ::desktop_mode_ai_strip_thought_parts
+	 * @covers ::openstation_ai_strip_thought_parts
 	 */
 	public function test_message_without_thought_parts_is_returned_unchanged() {
 		$message = new Message(
@@ -69,14 +69,14 @@ class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( $message, desktop_mode_ai_strip_thought_parts( $message ) );
+		$this->assertSame( $message, openstation_ai_strip_thought_parts( $message ) );
 	}
 
 	/**
 	 * A message that is ALL thought parts is not emptied — an empty parts
 	 * list would be a worse (invalid) message than the original.
 	 *
-	 * @covers ::desktop_mode_ai_strip_thought_parts
+	 * @covers ::openstation_ai_strip_thought_parts
 	 */
 	public function test_thought_only_message_is_not_emptied() {
 		$message = new Message(
@@ -86,6 +86,6 @@ class Tests_DesktopMode_AiClientThoughtParts extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( $message, desktop_mode_ai_strip_thought_parts( $message ) );
+		$this->assertSame( $message, openstation_ai_strip_thought_parts( $message ) );
 	}
 }

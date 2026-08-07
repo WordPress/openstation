@@ -43,6 +43,21 @@ jobs:
       - name: Vitest
         run: npm run test:js
 
+      - name: Popup Siege extension checks
+        run: |
+          npm --prefix extensions/desktop-mode-popup-siege run check
+          node --test extensions/desktop-mode-popup-siege/tests/*.test.js
+          git diff --exit-code -- \
+            extensions/desktop-mode-popup-siege/games/popup-breaker/assets/popup-siege-runtime-0.7.0.js
+
+      - name: SOL extension checks
+        run: |
+          npm --prefix extensions/desktop-mode-feed-buddy run lint
+          npm --prefix extensions/desktop-mode-feed-buddy run typecheck
+          npm --prefix extensions/desktop-mode-feed-buddy run test
+          npm --prefix extensions/desktop-mode-feed-buddy run build
+          git diff --exit-code -- extensions/desktop-mode-feed-buddy/assets/js
+
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
@@ -80,6 +95,37 @@ jobs:
       - name: Run PHPUnit
         run: npm run test:php
 
+      # Errors gate; the ~800 advisory warnings still report on a local
+      # `npm run lint:php:all` but never fail the build. See phpcs.xml.dist
+      # for which sniffs were downgraded and why.
+      - name: Check plugin coding standards
+        run: npm run lint:php
+
+      - name: Run Popup Siege registration smoke test
+        run: php extensions/desktop-mode-popup-siege/tests/registration-smoke.php
+
+      - name: Check Popup Siege coding standards
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpcs \
+            --standard=extensions/desktop-mode-popup-siege/phpcs.xml.dist
+
+      - name: Run SOL extension PHPUnit
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist \
+            extensions/desktop-mode-feed-buddy/tests/phpunit
+
+      - name: Check SOL extension coding standards
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpcs \
+            --standard=extensions/desktop-mode-feed-buddy/phpcs.xml.dist \
+            extensions/desktop-mode-feed-buddy
+
   plugin-check:
     name: Plugin Check
     runs-on: ubuntu-latest
@@ -108,7 +154,13 @@ jobs:
         run: npm run package
 
       - name: Unzip release into build dir
-        run: unzip -q desktop-mode.zip -d plugin-check-build
+        run: unzip -q openstation.zip -d plugin-check-build
+
+      - name: Package Popup Siege extension
+        run: |
+          ./bin/package-extensions.sh popup-siege-check-build desktop-mode-popup-siege
+          unzip -q popup-siege-check-build/desktop-mode-popup-siege.zip \
+            -d popup-siege-check-plugin
 
       # wordpress/plugin-check-action@v1 generates its own .wp-env.json that
       # pulls the Plugin Check plugin from a zip source. On current GitHub
@@ -123,7 +175,10 @@ jobs:
           {
           "core": null,
           "plugins": [],
-          "mappings": { "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode" },
+          "mappings": {
+            "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode",
+            "wp-content/plugins/desktop-mode-popup-siege": "./popup-siege-check-plugin/desktop-mode-popup-siege"
+          },
           "testsEnvironment": false
           }
           JSON
@@ -155,7 +210,7 @@ jobs:
           echo "wp plugin check exit code: $rc"
           echo "::group::wp-env run stderr"; cat pc-stderr.log || true; echo "::endgroup::"
           echo "::group::Plugin Check raw stdout"; cat pc-results.json || true; echo; echo "::endgroup::"
-          findings=$(grep -v '^FILE:' pc-results.json | jq -s 'add // [] | length' 2>/dev/null || echo "PARSE_ERROR")
+          findings=$({ grep '^\[' pc-results.json || true; } | jq -s 'add // [] | length' 2>/dev/null || echo "PARSE_ERROR")
           if [ "$findings" = "PARSE_ERROR" ]; then
             echo "::error::Could not parse Plugin Check output (see raw stdout above)"
             exit 1
@@ -163,7 +218,30 @@ jobs:
           echo "Plugin Check error findings: $findings"
           if [ "$findings" != "0" ]; then
             echo "::error::Plugin Check reported $findings error finding(s)"
-            grep -v '^FILE:' pc-results.json | jq -s -r 'add // [] | .[] | "[\(.code)] line \(.line // "?"): \(.message)"' || true
+            { grep '^\[' pc-results.json || true; } | jq -s -r 'add // [] | .[] | "[\(.code)] line \(.line // "?"): \(.message)"' || true
             exit 1
           fi
           echo "Plugin Check passed (no errors)."
+
+      - name: Run Plugin Check for Popup Siege
+        run: |
+          set +e
+          npx wp-env run --config .wp-env.plugin-check.json cli \
+            wp plugin check desktop-mode-popup-siege --format=json --ignore-warnings \
+            > popup-siege-pc-results.json 2> popup-siege-pc-stderr.log
+          rc=$?
+          set -e
+          echo "wp plugin check exit code: $rc"
+          echo "::group::wp-env run stderr"; cat popup-siege-pc-stderr.log || true; echo "::endgroup::"
+          echo "::group::Plugin Check raw stdout"; cat popup-siege-pc-results.json || true; echo; echo "::endgroup::"
+          findings=$({ grep '^\[' popup-siege-pc-results.json || true; } | jq -s 'add // [] | length' 2>/dev/null || echo "PARSE_ERROR")
+          if [ "$findings" = "PARSE_ERROR" ]; then
+            echo "::error::Could not parse Popup Siege Plugin Check output"
+            exit 1
+          fi
+          echo "Popup Siege Plugin Check error findings: $findings"
+          if [ "$findings" != "0" ]; then
+            { grep '^\[' popup-siege-pc-results.json || true; } | jq -s -r 'add // [] | .[] | "[\(.code)] line \(.line // "?"): \(.message)"' || true
+            exit 1
+          fi
+          echo "Popup Siege Plugin Check passed (no errors)."

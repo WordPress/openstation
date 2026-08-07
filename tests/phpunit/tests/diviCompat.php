@@ -13,17 +13,17 @@
  * @package WordPress
  * @subpackage UnitTests
  *
- * @group desktop-mode
+ * @group openstation
  *
- * @covers ::desktop_mode_compat_divi_fix_gutenberg_deps
+ * @covers ::openstation_compat_divi_fix_gutenberg_deps
  */
-class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
+class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 	private $chromeless_user_id = 0;
 
 	public function tear_down() {
 		wp_deregister_script( 'et-builder-gutenberg' );
-		unset( $_GET['desktop_mode_chromeless'], $_GET['app_window'] );
+		unset( $_GET['openstation_chromeless'], $_GET['app_window'] );
 		if ( $this->chromeless_user_id > 0 ) {
 			delete_user_meta( $this->chromeless_user_id, 'desktop_mode_mode' );
 			$this->chromeless_user_id = 0;
@@ -33,11 +33,11 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 	/**
 	 * Helper: simulate a chromeless request by priming the query
-	 * arg + user meta that `desktop_mode_is_chromeless_request()`
+	 * arg + user meta that `openstation_is_chromeless_request()`
 	 * checks. `tear_down()` resets the state.
 	 */
 	private function force_chromeless() {
-		$_GET['desktop_mode_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 		$this->chromeless_user_id        = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
@@ -158,12 +158,12 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	 */
 	private function capture_vb_signal_output() {
 		ob_start();
-		desktop_mode_compat_divi_vb_iframe_signal();
+		openstation_compat_divi_vb_iframe_signal();
 		return ob_get_clean();
 	}
 
 	/**
-	 * Front-end (`! is_admin()`) with a desktop-mode-enabled user
+	 * Front-end (`! is_admin()`) with a os-enabled user
 	 * must emit the inline script that conditionally sets
 	 * `__Cypress__` on the parent shell.
 	 */
@@ -175,7 +175,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 		$out = $this->capture_vb_signal_output();
 
-		$this->assertStringContainsString( 'desktop-mode-compat-divi-vb', $out );
+		$this->assertStringContainsString( 'os-compat-divi-vb', $out );
 		$this->assertStringContainsString( '__Cypress__', $out );
 		$this->assertStringContainsString( 'window.top === window', $out );
 	}
@@ -199,11 +199,11 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Guard: no output for visitors who don't have desktop mode
+	 * Guard: no output for visitors who don't have OpenStation
 	 * enabled. The shim only matters when our shell is what
 	 * `window.top` points at.
 	 */
-	public function test_vb_iframe_signal_skips_when_desktop_mode_disabled() {
+	public function test_vb_iframe_signal_skips_when_openstation_disabled() {
 		wp_set_current_user( 0 );
 
 		$out = $this->capture_vb_signal_output();
@@ -262,7 +262,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	 * there, Divi's frame-helpers picks the wrong top_window and
 	 * the inner builder iframe never finishes mounting — VB
 	 * preloader hangs forever for users on top-level Divi with
-	 * Desktop Mode enabled but the chromeless flag stripped.
+	 * OpenStation enabled but the chromeless flag stripped.
 	 *
 	 * Pin the bail guard so the bug can't regress.
 	 */
@@ -295,13 +295,13 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 	private function capture_iframe_patch_output() {
 		ob_start();
-		desktop_mode_compat_divi_eject_iframe_patch();
+		openstation_compat_divi_eject_iframe_patch();
 		return ob_get_clean();
 	}
 
 	private function capture_parent_listener_output() {
 		ob_start();
-		desktop_mode_compat_divi_eject_parent_listener();
+		openstation_compat_divi_eject_parent_listener();
 		return ob_get_clean();
 	}
 
@@ -309,7 +309,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	 * Iframe-side hijack: emitted only inside chromeless requests
 	 * for users on Divi. The script must install a capture-phase
 	 * click listener that matches by VB button text and emit our
-	 * `desktop-mode-divi-vb-handoff` message.
+	 * `os-divi-vb-handoff` message.
 	 */
 	public function test_iframe_patch_emits_in_chromeless_for_divi() {
 		$this->force_chromeless();
@@ -317,8 +317,8 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 		$out = $this->capture_iframe_patch_output();
 
-		$this->assertStringContainsString( 'desktop-mode-compat-divi-vb-handoff', $out );
-		$this->assertStringContainsString( 'desktop-mode-divi-vb-handoff', $out );
+		$this->assertStringContainsString( 'os-compat-divi-vb-handoff', $out );
+		$this->assertStringContainsString( 'os-divi-vb-handoff', $out );
 		// Button-text matcher — the load-bearing detection.
 		$this->assertStringContainsString( 'use divi builder', $out );
 		$this->assertStringContainsString( 'edit with the divi builder', $out );
@@ -355,7 +355,7 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 	/**
 	 * Parent-shell listener: emitted on the shell admin page when
-	 * desktop mode is on, the request is not chromeless / classic,
+	 * OpenStation is on, the request is not chromeless / classic,
 	 * AND Divi is active. Listens for the message and navigates
 	 * `window.top.location.href` to the URL.
 	 */
@@ -367,13 +367,13 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 
 		$out = $this->capture_parent_listener_output();
 
-		$this->assertStringContainsString( 'desktop-mode-compat-divi-vb-handoff-parent', $out );
-		$this->assertStringContainsString( 'desktop-mode-divi-vb-handoff', $out );
+		$this->assertStringContainsString( 'os-compat-divi-vb-handoff-parent', $out );
+		$this->assertStringContainsString( 'os-divi-vb-handoff', $out );
 		$this->assertStringContainsString( 'window.top.location.href', $out );
 		// Origin guard prevents foreign frames from triggering nav.
 		$this->assertStringContainsString( 'ev.origin !== window.location.origin', $out );
 		// Confirm dialog is the load-bearing UX explicit step.
-		$this->assertStringContainsString( 'wp.desktop.confirm', $out );
+		$this->assertStringContainsString( 'wp.os.confirm', $out );
 		$this->assertStringContainsString( 'Open Divi in this tab', $out );
 		// No "stay" button — the dialog explains there is no other
 		// path and offers only Open + an X to dismiss.
@@ -381,8 +381,8 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dismissable: true', $out );
 		// URL transform: strip chromeless flag, add classic flag.
 		// Without this, top-level navigation hits the iframe URL's
-		// `desktop_mode_chromeless=1` and renders headless again.
-		$this->assertStringContainsString( "searchParams.delete( 'desktop_mode_chromeless' )", $out );
+		// `openstation_chromeless=1` and renders headless again.
+		$this->assertStringContainsString( "searchParams.delete( 'openstation_chromeless' )", $out );
 		$this->assertStringContainsString( "searchParams.set( 'desktop_mode_classic', '1' )", $out );
 	}
 
@@ -400,9 +400,9 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Visitors without desktop mode enabled get nothing.
+	 * Visitors without OpenStation enabled get nothing.
 	 */
-	public function test_parent_listener_skips_when_desktop_mode_disabled() {
+	public function test_parent_listener_skips_when_openstation_disabled() {
 		wp_set_current_user( 0 );
 		$this->activate_divi_theme();
 
@@ -429,13 +429,13 @@ class Tests_DesktopMode_DiviCompat extends WP_UnitTestCase {
 	 */
 	public function test_is_active_true_for_divi_theme() {
 		$this->activate_divi_theme();
-		$this->assertTrue( desktop_mode_compat_divi_is_active() );
+		$this->assertTrue( openstation_compat_divi_is_active() );
 	}
 
 	/**
 	 * Divi-active detector: arbitrary other theme.
 	 */
 	public function test_is_active_false_for_other_theme() {
-		$this->assertFalse( desktop_mode_compat_divi_is_active() );
+		$this->assertFalse( openstation_compat_divi_is_active() );
 	}
 }

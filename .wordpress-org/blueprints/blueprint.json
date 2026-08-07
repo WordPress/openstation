@@ -1,5 +1,16 @@
 {
-  "landingPage": "/desktop-mode/",
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/openstation/",
+  "preferredVersions": {
+    "php": "8.3",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "siteOptions": {
+    "blogname": "OpenStation"
+  },
   "steps": [
     {
       "step": "login",
@@ -10,9 +21,11 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://github.com/WordPress/desktop-mode/releases/latest/download/desktop-mode.zip"
+        "url": "https://github.com/WordPress/openstation/releases/latest/download/openstation.zip"
       },
-      "options": { "activate": true }
+      "options": {
+        "activate": true
+      }
     }
   ]
 }

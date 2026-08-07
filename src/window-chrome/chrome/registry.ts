@@ -109,7 +109,7 @@ export interface WindowChromeDef {
 	match: ( window: DesktopWindow ) => boolean;
 	/**
 	 * Render callback. Receives the chrome's host element (the
-	 * `<div class="desktop-mode-window">` outer element with body
+	 * `<div class="os-window">` outer element with body
 	 * already created) and a context object. The implementation
 	 * mounts its title-bar DOM into the host, returns a handle whose
 	 * `update()` re-paints on state change and `destroy()` tears
@@ -131,7 +131,7 @@ export interface WindowChromeDef {
  * Cross-bundle shared backing store. The lazy
  * `window-system[.min].js` bundle constructs/reads from this
  * registry while main writes to it via `registerBuiltIn*` and
- * `wp.desktop.register*` — each bundle would otherwise see its
+ * `wp.os.register*` — each bundle would otherwise see its
  * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
  * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
  * pattern.
@@ -249,7 +249,7 @@ function notify(): void {
 			if ( typeof console !== 'undefined' ) {
 				// eslint-disable-next-line no-console
 				console.error(
-					'[desktop-mode] window-chrome registry listener threw:',
+					'[openstation] window-chrome registry listener threw:',
 					err,
 				);
 			}

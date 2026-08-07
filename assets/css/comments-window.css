@@ -1,616 +1,561 @@
 /*
- * Native Comments window — base styles.
+ * Native Comments window — two-pane conversation view.
  *
- * Mirrors the structural class set of `posts-window.css` adapted for
- * the comments surface. Variables come from `variables.css`; this
- * file just maps them onto the comments-specific markup so the
- * window picks up theme + color-scheme changes for free.
- *
- * @since 0.19.0
+ * Thread rail (left) + nested conversation (right) + composer.
+ * Variables come from `variables.css`; this file just maps them onto
+ * the comments-specific markup so the window picks up theme +
+ * color-scheme changes for free. Controls that have a `<os-*>`
+ * component are styled through that component's documented custom
+ * properties rather than re-implemented here.
  */
 
 .desktop-mode-comments {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-	padding: 12px;
 	/*
 	 * `block-size` (not `min-block-size`) — pins the container to the
 	 * window body's exact height so the inner flex column has a fixed
-	 * frame to distribute against. With `min-block-size` the table
-	 * body grew past the frame and pushed the pager off the bottom
-	 * edge of the window. `box-sizing: border-box` keeps the 12px
-	 * padding inside the 100% box.
+	 * frame to distribute against. With `min-block-size` the scrolling
+	 * panes grew past the frame and pushed the composer off the bottom
+	 * edge of the window. `box-sizing: border-box` keeps any padding
+	 * inside the 100% box.
 	 */
 	box-sizing: border-box;
 	block-size: 100%;
 	inline-size: 100%;
 	overflow: hidden;
 	position: relative;
-	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 }
 
 /*
  * Any element inside the comments window that opts into HTML's
  * `hidden` attribute is hidden — full stop. Without this rule the
- * `display: flex` / `display: inline-flex` rules on
- * `__panel` / `__new-pill` / `__toolbar-right` would win against the
- * UA stylesheet's `[hidden] { display: none }` (class selector beats
- * the bare `[hidden]` selector), and EVERY `<wpd-tabpanel>` would
- * render at once, the realtime "N new" pill would show empty, and
- * the bulk-action bar would render its `<wpd-button>` placeholders
- * before any row is selected. Authoritative single override.
+ * `display: flex` on `__msg-actions` would win against the UA
+ * stylesheet's bare `[hidden]` selector (class beats element), and
+ * the action row would stay on screen underneath the inline comment
+ * editor that just replaced it. Authoritative single override.
  */
 .desktop-mode-comments [hidden] {
 	display: none !important;
 }
 
-.desktop-mode-comments__tabs {
+/*
+ * Local fallback for core's visually-hidden helper. wp-admin defines
+ * `.screen-reader-text` and the shell renders inside wp-admin, but the
+ * status dots and link hints below are meaningless without it — worth
+ * not depending on load order for.
+ */
+.desktop-mode-comments .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ── Tab strip ───────────────────────────────────────────────── */
+/*
+ * `<os-tabs>` brings its own chrome, roving tabindex and focus ring.
+ * All that's needed here is the strip's place in the column and the
+ * count chip slotted into each `<os-tab>` (light DOM, so a plain
+ * descendant selector reaches it).
+ */
+.os-comments__tabrow {
+	flex: 0 0 auto;
+	padding-inline: 12px;
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+}
+
+/* `<os-badge no-dot>` owns the pill — this is spacing only. */
+.os-comments__tab-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 11px/1.4 var( --os-font, system-ui );
+	margin-inline-start: 6px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── Split ───────────────────────────────────────────────────── */
+.os-comments__split {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	display: grid;
+	grid-template-columns: 306px 1fr;
+	overflow: hidden;
+}
+
+/* ── Left rail ───────────────────────────────────────────────── */
+.os-comments__rail {
+	border-inline-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+	display: flex;
+	flex-direction: column;
+	min-block-size: 0;
+	background: var( --os-ui-surface-sunken, #fbfbfc );
+}
+
+.os-comments__search {
+	padding: 12px;
 	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__panel {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	flex: 1 1 auto;
-	/*
-	 * `min-block-size: 0` is REQUIRED — flex items default to
-	 * `min-block-size: auto` which is the content-min-size, so a tall
-	 * table inside would prevent this panel from shrinking and push
-	 * the pager out of the parent's frame. Forcing 0 lets the panel
-	 * actually shrink to fit its parent.
-	 */
-	min-block-size: 0;
-	overflow: hidden;
-}
-
-.desktop-mode-comments__toolbar {
-	display: flex;
-	gap: 12px;
-	align-items: center;
-	flex-wrap: wrap;
-}
-
-.desktop-mode-comments__toolbar-left {
-	flex: 1 1 auto;
-	min-inline-size: 240px;
-}
-
-.desktop-mode-comments__toolbar-right {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-}
-
-.desktop-mode-comments__toolbar-trailing {
-	display: flex;
-	gap: 6px;
-	align-items: center;
-}
-
-.desktop-mode-comments__count {
-	font-weight: 600;
-}
-
-.desktop-mode-comments__bulk-actions {
-	display: inline-flex;
-	gap: 4px;
-}
-
-.desktop-mode-comments__body {
-	flex: 1 1 auto;
-	/*
-	 * Same flex-min-size dance as the panel — needs to be able to
-	 * shrink, otherwise the table's intrinsic height pushes siblings
-	 * (the pager) out of frame.
-	 */
-	min-block-size: 0;
-	display: flex;
-	overflow: hidden;
-}
-
-.desktop-mode-comments__body wpd-table {
-	flex: 1 1 auto;
-	min-inline-size: 0;
-	/*
-	 * `sticky-header` requires the table to own its own scroll
-	 * container — without `--wpd-table-max-height` the table grows to
-	 * fit its rows and the header has nothing to stick to. Tie it to
-	 * the body's height so the header pins as soon as the row list
-	 * overflows the panel.
-	 */
-	--wpd-table-max-height: 100%;
-	min-block-size: 0;
-}
-
-.desktop-mode-comments__empty {
-	text-align: center;
-	padding: 40px 20px;
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
-}
-
-.desktop-mode-comments__empty .dashicons {
-	font-size: 36px;
-	width: 36px;
-	height: 36px;
-}
-
-/* --- Cells --- */
-
-.desktop-mode-comments__author {
-	display: flex;
-	gap: 10px;
-	align-items: flex-start;
-}
-
-.desktop-mode-comments__avatar-btn {
-	border: 0;
-	background: transparent;
-	padding: 0;
-	cursor: pointer;
-	border-radius: 50%;
-}
-
-.desktop-mode-comments__avatar-btn img {
-	border-radius: 50%;
+.os-comments__search os-text-field {
 	display: block;
-}
-
-.desktop-mode-comments__author-meta {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	min-inline-size: 0;
-}
-
-.desktop-mode-comments__author-meta strong {
-	font-weight: 600;
-}
-
-.desktop-mode-comments__author-meta small {
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
-	font-size: 12px;
-}
-
-.desktop-mode-comments__content {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.desktop-mode-comments__content-body {
-	line-height: 1.45;
-	overflow-wrap: anywhere;
-}
-
-.desktop-mode-comments__replies-toggle {
-	align-self: flex-start;
-	background: transparent;
-	border: 0;
-	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
-	cursor: pointer;
-	font-size: 12px;
-	padding: 0;
-}
-
-.desktop-mode-comments__replies {
-	margin-block-start: 8px;
-	border-inline-start: 2px solid var( --wp-desktop-border-color, var( --wpd-border, #ddd ) );
-	padding-inline-start: 10px;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.desktop-mode-comments__reply-row {
-	font-size: 12.5px;
-	line-height: 1.45;
-}
-
-/* --- Spam chip --- */
-
-.desktop-mode-comments__spam-chip {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-inline-size: 36px;
-	padding: 2px 8px;
-	border-radius: 999px;
-	font-weight: 700;
-	font-size: 12px;
-	font-variant-numeric: tabular-nums;
-	color: var( --wpd-fg-on-accent, #fff );
-}
-
-.desktop-mode-comments__spam-chip[ data-tone='low' ] {
-	background: #2da44e;
-}
-.desktop-mode-comments__spam-chip[ data-tone='medium' ] {
-	background: #d97706;
-}
-.desktop-mode-comments__spam-chip[ data-tone='high' ] {
-	background: #b91c1c;
-}
-
-/*
- * Halo ring on chips whose score was informed by an AI verdict —
- * a subtle outer ring + sparkle glyph differentiate "heuristic-only"
- * from "AI-scored" without changing the underlying tone color.
- */
-.desktop-mode-comments__spam-chip[ data-ai='1' ] {
-	box-shadow: 0 0 0 2px rgba( 99, 102, 241, 0.5 );
-	position: relative;
-}
-
-.desktop-mode-comments__spam-chip[ data-ai='1' ]::after {
-	content: '';
-	position: absolute;
-	top: -3px;
-	inset-inline-end: -3px;
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: linear-gradient( 135deg, #818cf8, #6366f1 );
-	box-shadow: 0 0 0 2px var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
-}
-
-/* --- Inline reply / edit --- */
-
-.desktop-mode-comments__inline-host {
-	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
-	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	border-radius: 6px;
-	padding: 8px;
-	margin: 4px 0 12px;
-}
-
-.desktop-mode-comments__reply {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.desktop-mode-comments__reply-toolbar {
-	display: inline-flex;
-	gap: 2px;
-}
-
-.desktop-mode-comments__reply-tool {
-	border: 0;
-	background: transparent;
-	cursor: pointer;
-	padding: 4px 6px;
-	border-radius: 4px;
-}
-
-.desktop-mode-comments__reply-tool:hover {
-	background: var( --wp-desktop-hover-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
-}
-
-.desktop-mode-comments__reply-input {
-	min-block-size: 80px;
-	padding: 8px 10px;
-	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	border-radius: 4px;
-	background: var( --wp-desktop-input-bg, var( --wpd-surface, #fff ) );
-	outline: none;
-	font: inherit;
 	width: 100%;
 }
 
-.desktop-mode-comments__reply-input:focus {
-	border-color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
-	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.18 );
+.os-comments__list {
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
 }
 
-.desktop-mode-comments__reply-input[ contenteditable='true' ]:empty::before {
-	content: attr( data-placeholder );
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
-}
-
-.desktop-mode-comments__inline-actions {
+/* "Scoped to one post" banner at the top of the rail. */
+.os-comments__rail-filter {
 	display: flex;
-	gap: 6px;
-	justify-content: flex-end;
-	margin-block-start: 6px;
-}
-
-/* --- Pager --- */
-
-.desktop-mode-comments__pager {
-	display: flex;
+	align-items: center;
 	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
-	font-size: 13px;
-	/* Don't let the pager get crushed when the panel runs out of space. */
-	flex: 0 0 auto;
-}
-
-.desktop-mode-comments__pager-nav {
-	display: inline-flex;
-	gap: 6px;
-	align-items: center;
-}
-
-.desktop-mode-comments__pager-perpage {
-	display: inline-flex;
-	gap: 4px;
-	align-items: center;
-}
-
-/* --- Realtime "N new" pill --- */
-
-.desktop-mode-comments__new-pill {
-	position: absolute;
-	top: 56px;
-	left: 50%;
-	transform: translateX( -50% );
-	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
-	color: var( --wpd-fg-on-accent, #fff );
-	border-radius: 999px;
-	padding: 4px 12px;
-	display: inline-flex;
 	gap: 8px;
-	align-items: center;
-	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.18 );
-	z-index: 10;
+	padding: 8px 14px;
+	font-size: 12px;
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
 }
-
-.desktop-mode-comments__new-pill button {
-	background: rgba( 255, 255, 255, 0.18 );
-	color: var( --wpd-fg-on-accent, #fff );
-	border: 0;
-	border-radius: 999px;
-	padding: 2px 10px;
-	cursor: pointer;
+.os-comments__rail-filter-label {
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
 	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
-
-/* --- Author insights flyover ---
- *
- * Slides in from the inline-end edge of the window body with a
- * spring transition. The TS side toggles `data-open` on the host
- * AFTER injecting content so the first paint catches the
- * pre-open transform, then the next frame flips to `data-open="true"`
- * and the transition animates the entrance. A semi-opaque backdrop
- * (`.desktop-mode-comments__drawer-backdrop`) fades in behind the
- * panel; click-outside closes via a TS listener.
- */
-.desktop-mode-comments__drawer-backdrop {
-	position: absolute;
-	inset: 0;
-	background: rgba( 15, 23, 42, 0.36 );
-	-webkit-backdrop-filter: blur( 3px ) saturate( 0.85 );
-	backdrop-filter: blur( 3px ) saturate( 0.85 );
-	/*
-	 * Stacking chain we must beat:
-	 *   - window title bar           (z:21, set by window-chrome.css)
-	 *   - <wpd-table> sticky body    (z:20)
-	 *   - <wpd-table> sticky header  (z:30)
-	 *   - <wpd-table> sticky corner  (z:40)  ← the corner cell of a
-	 *     sticky-header + sticky-column table is the worst offender
-	 *     and was the "stupid header" the dim couldn't cover.
-	 * 50 sits comfortably above every framework surface in the window.
-	 */
-	z-index: 50;
-	opacity: 0;
-	pointer-events: none;
-	transition:
-		opacity 240ms cubic-bezier( 0.2, 0.8, 0.2, 1 ),
-		backdrop-filter 240ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
-}
-.desktop-mode-comments__drawer-backdrop[ data-open='true' ] {
-	opacity: 1;
-	pointer-events: auto;
-}
-
-.desktop-mode-comments__drawer {
-	position: absolute;
-	top: 12px;
-	inset-inline-end: 12px;
-	width: 340px;
-	max-block-size: calc( 100% - 24px );
-	overflow: auto;
-	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
-	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	border-radius: 12px;
-	padding: 18px;
-	box-shadow:
-		0 1px 2px rgba( 0, 0, 0, 0.04 ),
-		0 12px 36px rgba( 0, 0, 0, 0.22 );
-	/*
-	 * Drawer must outrank the dim backdrop (z:50) which itself sits
-	 * above the framework's title bar AND the table's sticky corner
-	 * cell (z:40). 60 gives the flyover a comfortable lead over all.
-	 */
-	z-index: 60;
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-
-	/* Default pose: parked off-screen to the right, slightly
-	 * scaled down + transparent. The TS side flips `data-open` to
-	 * trigger the transition into place. */
-	transform: translateX( calc( 100% + 24px ) ) scale( 0.96 );
-	opacity: 0;
-	transition:
-		transform 360ms cubic-bezier( 0.22, 1, 0.36, 1 ),
-		opacity 240ms ease-out;
-	will-change: transform, opacity;
-}
-.desktop-mode-comments__drawer[ data-open='true' ] {
-	transform: translateX( 0 ) scale( 1 );
-	opacity: 1;
-}
-
-/* Staggered fade-up for the drawer's inner blocks once it's open.
- * Each direct child animates in 60ms after the previous one — gives
- * the flyover a layered "popping in" feel rather than a flat
- * single-element slide. */
-.desktop-mode-comments__drawer[ data-open='true' ] > * {
-	animation: wpd-comments-drawer-enter 380ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
-}
-.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 1 ) { animation-delay: 80ms; }
-.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 2 ) { animation-delay: 140ms; }
-.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 3 ) { animation-delay: 200ms; }
-.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 4 ) { animation-delay: 260ms; }
-.desktop-mode-comments__drawer[ data-open='true' ] > *:nth-child( 5 ) { animation-delay: 320ms; }
-
-@keyframes wpd-comments-drawer-enter {
-	from {
-		opacity: 0;
-		transform: translateY( 12px );
-	}
-	to {
-		opacity: 1;
-		transform: translateY( 0 );
-	}
-}
-
-@media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-comments__drawer {
-		transition: opacity 120ms;
-		transform: none;
-	}
-	.desktop-mode-comments__drawer[ data-open='true' ] > * {
-		animation: none;
-	}
-}
-
-.desktop-mode-comments__drawer-header {
-	display: flex;
-	gap: 12px;
-	align-items: center;
-}
-
-.desktop-mode-comments__drawer-avatar {
-	border-radius: 50%;
-}
-
-.desktop-mode-comments__drawer-sub {
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
-	margin: 0;
+.os-comments__rail-filter-clear {
+	flex: 0 0 auto;
+	--os-ui-button-padding: 0;
 	font-size: 12px;
 }
 
-.desktop-mode-comments__drawer-meter {
+/* `role="listitem"` wrapper — the row itself has to stay a button. */
+.os-comments__thread-slot {
+	display: block;
+}
+
+.os-comments__thread {
+	display: grid;
+	grid-template-columns: 36px 1fr auto;
+	gap: 10px;
+	padding: 12px 14px;
+	cursor: pointer;
+	border-block-end: 1px solid color-mix( in srgb, currentColor 6%, transparent );
+	position: relative;
+	text-align: start;
+	appearance: none;
+	background: transparent;
+	border-inline: 0;
+	border-block-start: 0;
+	font: inherit;
+	color: inherit;
+	width: 100%;
+}
+
+.os-comments__thread:hover {
+	background: var( --wp-desktop-hover-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.045 ) ) );
+}
+
+.os-comments__thread:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	outline-offset: -2px;
+}
+
+.os-comments__thread.is-selected {
+	background: color-mix( in srgb, var( --os-ui-accent, #2271b1 ) 8%, transparent );
+}
+
+.os-comments__thread.is-selected::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: 0;
+	inset-block: 0;
+	width: 3px;
+	background: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+}
+
+/* In-flight moderation on this conversation. */
+.os-comments__thread.is-busy {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+/*
+ * Avatar. `<os-avatar>` owns the circle, the hue, the initials
+ * fallback and its own sizing (via the `size` attribute) — anything
+ * set here would be a light-DOM author style overriding the
+ * component's `:host` rules, so this stays to layout only.
+ */
+.os-comments__disc {
+	flex: 0 0 auto;
+}
+
+.os-comments__thread-main {
+	min-width: 0;
+}
+
+.os-comments__thread-name {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.os-comments__thread-snip {
+	font-size: 12.5px;
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
+	margin-block-start: 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-comments__thread-post {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	margin-block-start: 3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-comments__thread-meta {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	align-items: flex-end;
+	gap: 6px;
+	flex: 0 0 auto;
 }
 
-.desktop-mode-comments__drawer-bar {
-	height: 8px;
-	background: var( --wp-desktop-track-bg, var( --wpd-surface-sunken, #e6e6e6 ) );
-	border-radius: 4px;
-	position: relative;
-	overflow: hidden;
-}
-
-.desktop-mode-comments__drawer-bar::after {
-	content: '';
-	position: absolute;
-	inset: 0;
-	inline-size: var( --value, 0% );
-	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
-	transition: inline-size 0.4s ease;
-}
-
-.desktop-mode-comments__drawer-stats {
-	display: grid;
-	grid-template-columns: 1fr auto;
-	gap: 4px 12px;
-	font-size: 13px;
-}
-
-.desktop-mode-comments__drawer-stats dt {
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
-}
-
-.desktop-mode-comments__drawer-stats dd {
-	margin: 0;
-	text-align: end;
+.os-comments__thread-time {
+	font-size: 11px;
+	color: var( --os-ui-fg-faint, #787c82 );
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/*
+ * Rail status: a `<os-badge>` with no room for its label, so the pill
+ * collapses to the tone dot the component already paints. Driven
+ * through the badge's own variable surface rather than by overriding
+ * its `:host` rules from the light DOM — the tone palette still owns
+ * the colour. The label rides along as slotted screen-reader text, so
+ * the hue is never the only carrier of the meaning.
+ */
+.os-comments__status {
+	--os-ui-badge-padding: 0;
+	--os-ui-badge-bg: transparent;
+	--os-ui-badge-border: 0;
+	--os-ui-badge-gap: 0;
+	flex: 0 0 auto;
+	position: relative;
+}
+
+.os-comments__reply-count {
+	--os-ui-badge-padding: 1px 6px;
+	--os-ui-badge-font: 500 10.5px/1.4 var( --os-font, system-ui );
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	position: relative;
+}
+
+.os-comments__list-loading {
+	display: flex;
+	justify-content: center;
+	padding: 28px 16px;
+}
+
+.os-comments__load-more {
+	display: flex;
+	justify-content: center;
+	padding: 12px;
+}
+
+/* ── Right pane: conversation ────────────────────────────────── */
+.os-comments__convo {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-block-size: 0;
+	background: var( --wp-desktop-window-bg, var( --os-ui-surface, #fff ) );
+}
+
+/* `<os-empty-state>` owns the icon + copy; this is placement only. */
+.os-comments__placeholder {
+	margin: auto;
+	padding: 40px 24px;
+	display: block;
+}
+
+.os-comments__convo-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 18px;
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+	flex: 0 0 auto;
+}
+.os-comments__convo-context {
+	min-width: 0;
+}
+.os-comments__convo-kicker {
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-faint, #787c82 );
 	font-weight: 600;
 }
-
-.desktop-mode-comments__drawer-close {
-	margin-block-start: 4px;
-	align-self: flex-end;
-	background: transparent;
-	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	border-radius: 4px;
-	padding: 4px 12px;
-	cursor: pointer;
+.os-comments__convo-post {
+	font-size: 15px;
+	font-weight: 600;
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
+	margin-block-start: 2px;
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-/* --- Keyboard help dialog --- */
-
-.desktop-mode-comments__shortcuts {
-	position: absolute;
-	inset: 50% 50% auto auto;
-	transform: translate( 50%, -50% );
-	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
-	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
-	border-radius: 10px;
-	padding: 20px 28px;
-	box-shadow: 0 18px 50px rgba( 0, 0, 0, 0.28 );
-	z-index: 30;
-	min-inline-size: 320px;
+/*
+ * The post title doubles as the "edit this post" affordance. The
+ * pencil sits at 55% opacity so the title reads as interactive at
+ * rest — a hover-only hint would be invisible to anyone who never
+ * hovers, and invisible on touch entirely.
+ */
+a.os-comments__convo-post--editable {
+	text-decoration: none;
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
+}
+.os-comments__convo-post-pencil {
+	margin-inline-start: 6px;
+	vertical-align: -2px;
+	opacity: 0.55;
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
+}
+a.os-comments__convo-post--editable:hover,
+a.os-comments__convo-post--editable:focus-visible {
+	color: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	text-decoration: underline;
+}
+a.os-comments__convo-post--editable:hover .os-comments__convo-post-pencil,
+a.os-comments__convo-post--editable:focus-visible .os-comments__convo-post-pencil {
+	opacity: 1;
+	color: inherit;
+}
+a.os-comments__convo-post--editable:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	outline-offset: 2px;
+	border-radius: 3px;
 }
 
-.desktop-mode-comments__shortcuts dl {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 6px 18px;
-	margin: 12px 0 16px;
-}
-
-.desktop-mode-comments__shortcuts dt {
-	font-family: var( --wpd-font-mono, ui-monospace, SFMono-Regular, monospace );
-	font-weight: 700;
-	background: var( --wp-desktop-track-bg, var( --wpd-surface-sunken, #f0f0f1 ) );
-	border-radius: 4px;
-	padding: 1px 8px;
-	justify-self: start;
-}
-
-/* --- Intro dialog cards --- */
-
-.wpd-intro--comments .wpd-intro__grid {
-	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 220px, 1fr ) );
-	gap: 12px;
-	margin: 16px 0;
-}
-
-.wpd-intro--comments .wpd-intro__card {
-	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
-	border-radius: 8px;
-	padding: 12px 14px;
+.os-comments__convo-head-actions {
 	display: flex;
-	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+}
+.os-comments__convo-link {
+	color: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	font-size: 12.5px;
+	text-decoration: none;
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
 	gap: 4px;
 }
-
-.wpd-intro--comments .wpd-intro__card-icon {
-	font-size: 22px;
-	width: 22px;
-	height: 22px;
-	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+.os-comments__convo-link:hover { text-decoration: underline; }
+.os-comments__convo-link:focus-visible {
+	outline: 2px solid var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	outline-offset: 2px;
+	border-radius: 3px;
 }
 
-.wpd-intro--comments .wpd-intro__card-title {
-	margin: 0;
-	font-size: 14px;
-	font-weight: 700;
+/* The block editor's `external` glyph — inherits the link colour. */
+.os-comments__ext-icon {
+	width: 18px;
+	height: 18px;
+	fill: currentColor;
+	flex: 0 0 auto;
 }
 
-.wpd-intro--comments .wpd-intro__card-body {
-	margin: 0;
-	font-size: 13px;
-	line-height: 1.45;
-	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+.os-comments__thread-scroll {
+	padding: 18px 18px 6px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* A message + its nested children */
+.os-comments__msg {
+	display: grid;
+	grid-template-columns: 34px 1fr;
+	gap: 12px;
+}
+.os-comments__msg-rail {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.os-comments__msg-line {
+	flex: 1 1 auto;
+	width: 2px;
+	background: var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+	margin-block-start: 6px;
+	border-radius: 2px;
+}
+.os-comments__msg-body {
+	min-width: 0;
+	padding-block-end: 12px;
+}
+.os-comments__msg-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.os-comments__msg-name {
+	font-weight: 600;
+	font-size: 13.5px;
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
+}
+.os-comments__msg-you {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
+}
+.os-comments__msg-time {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Status chip on any message that isn't approved. A pending reply
+ * buried in an approved thread is exactly what a moderator is
+ * looking for — the tint alone doesn't carry that.
+ */
+/* Tone + pill come from `<os-badge>`; only the metrics are ours. */
+.os-comments__msg-status {
+	--os-ui-badge-padding: 0 5px;
+	--os-ui-badge-font: 600 10.5px/1.4 var( --os-font, system-ui );
+}
+
+.os-comments__msg[ data-status="spam" ] .os-comments__msg-text,
+.os-comments__msg[ data-status="trash" ] .os-comments__msg-text {
+	opacity: 0.65;
+}
+
+.os-comments__msg-text {
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #2c3338 ) );
+	margin-block-start: 4px;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Per-message inline actions — always visible, the whole point.
+ *
+ * Styled as wp-admin's own comment row actions: chrome-less links
+ * separated by pipes (`Approve | Reply | Edit | Spam | Trash`) rather
+ * than a row of buttons. The pipe is a CSS separator on every action
+ * but the first, so it never lands on a hidden-by-capability action
+ * and never needs a DOM node of its own.
+ */
+.os-comments__msg-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-block-start: 8px;
+	flex-wrap: wrap;
+	font-size: 12.5px;
+}
+
+.os-comments__act {
+	--os-ui-button-padding: 0;
+	--os-ui-button-fg: var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );
+	font-size: 12.5px;
+	line-height: 1.4;
+}
+
+/*
+ * The separator belongs to the row, not to either link — so it stays
+ * out of the underline, out of both hit targets, and (via
+ * `aria-hidden`) out of the accessibility tree.
+ */
+.os-comments__act-sep {
+	color: var( --os-ui-fg-faint, #c3c4c7 );
+	user-select: none;
+	pointer-events: none;
+}
+
+.os-comments__act.is-danger {
+	--os-ui-button-fg: var( --os-ui-danger, #b32d2e );
+}
+
+.os-comments__nested {
+	margin-block-start: 12px;
+}
+
+/* ── Composer ────────────────────────────────────────────────── */
+.os-comments__composer {
+	border-block-start: 1px solid var( --wp-desktop-border-color, var( --os-ui-border, #dcdcde ) );
+	background: var( --wp-desktop-elevated-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
+	padding: 12px 18px 16px;
+	flex: 0 0 auto;
+}
+.os-comments__composer.is-empty {
+	display: none;
+}
+.os-comments__composer-to {
+	font-size: 12px;
+	color: var( --wp-desktop-muted-text-color, var( --os-ui-fg-muted, #50575e ) );
+	margin-block-end: 8px;
+}
+.os-comments__composer-to b {
+	color: var( --wp-desktop-text-color, var( --os-ui-fg, #1d2327 ) );
+}
+.os-comments__composer-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 10px;
+}
+.os-comments__composer-hint {
+	font-size: 11.5px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	margin-inline-end: auto;
+}
+
+.os-comments__reply-input {
+	display: block;
+	width: 100%;
+}
+
+.os-comments__fatal {
+	padding: 24px;
+	color: var( --os-ui-fg-faint, #787c82 );
+}
+
+/* Cursor override: the shell forces `cursor: default !important`. */
+body.os-active .os-comments__thread,
+body.os-active .os-comments__convo-link,
+body.os-active a.os-comments__convo-post--editable {
+	cursor: pointer !important;
+}
+
+@media ( max-width: 720px ) {
+	.os-comments__split { grid-template-columns: 1fr; }
+	.os-comments__rail { display: none; }
 }

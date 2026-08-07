@@ -19,6 +19,7 @@ import { normalizeEntry, setDesktopThemes } from '../../src/desktop-themes/regis
 import {
 	applyThemeRecommendations,
 	hasApplicableThemeRecommendations,
+	SYSTEM_DEFAULT_THEME,
 } from '../../src/settings/theme-recommendations';
 import { structuredDefaults } from '../../src/settings/state';
 import {
@@ -72,14 +73,33 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 				dockSize: 'large',
 				desktopLayout: 'unified',
 				windowRadius: 'round',
+				adminBarMode: 'dynamic',
 				dockRailRenderer: 'default',
 			} ),
 		).toEqual( {
 			dockSize: 'large',
 			desktopLayout: 'unified',
 			windowRadius: 'round',
+			adminBarMode: 'dynamic',
 			dockRailRenderer: 'default',
 		} );
+	} );
+
+	test( 'every admin-bar mode is accepted', () => {
+		for ( const mode of [ 'static', 'dynamic', 'hidden' ] ) {
+			expect( sanitizeRecommendedOsSettings( { adminBarMode: mode } ) ).toEqual(
+				{ adminBarMode: mode },
+			);
+		}
+	} );
+
+	test( 'an unknown admin-bar mode drops', () => {
+		expect(
+			sanitizeRecommendedOsSettings( {
+				adminBarMode: 'peekaboo',
+				dockSize: 'large',
+			} ),
+		).toEqual( { dockSize: 'large' } );
 	} );
 
 	test( 'out-of-enum values drop and the rest survive', () => {
@@ -92,7 +112,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 	} );
 
 	test( 'keys outside the schema are dropped', () => {
-		// The payload passes through the `desktop_mode_desktop_themes`
+		// The payload passes through the `openstation_desktop_themes`
 		// PHP filter AFTER sanitization, so the shell must not treat it
 		// as trusted. A theme must never reach a feature switch.
 		expect(
@@ -128,8 +148,44 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'dockSize',
 			'desktopLayout',
 			'windowRadius',
+			'adminBarMode',
 			'dockRailRenderer',
+			'windowReveal',
+			// The accent is a slug field for the same reason the two
+			// above it are: the swatch list is filterable in PHP, so
+			// validity is a runtime lookup rather than an enum.
+			'accent',
+			'windowRevealDuration',
 		] );
+	} );
+
+	test( 'keeps a window-reveal id on the slug charset', () => {
+		expect(
+			sanitizeRecommendedOsSettings( { windowReveal: 'iris' } ),
+		).toEqual( { windowReveal: 'iris' } );
+	} );
+
+	test( 'clamps a reveal duration instead of dropping it', () => {
+		// A theme asking for something outside the playable range is
+		// still expressing a direction; the nearest playable duration
+		// is the honest reading of it.
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 99_999 } ),
+		).toEqual( { windowRevealDuration: 4000 } );
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 1 } ),
+		).toEqual( { windowRevealDuration: 80 } );
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 512.6 } ),
+		).toEqual( { windowRevealDuration: 513 } );
+	} );
+
+	test( 'drops a non-numeric reveal duration', () => {
+		expect(
+			sanitizeRecommendedOsSettings( {
+				windowRevealDuration: '700' as unknown as number,
+			} ),
+		).toEqual( {} );
 	} );
 } );
 
@@ -150,6 +206,27 @@ describe( 'resolveRecommendedOsSettings', () => {
 				dockRailRenderer: 'orbit-rail',
 			} ),
 		).toEqual( { dockSize: 'large' } );
+	} );
+
+	test( 'keeps a registered window reveal, and `none`', () => {
+		expect( resolveRecommendedOsSettings( { windowReveal: 'iris' } ) ).toEqual(
+			{ windowReveal: 'iris' },
+		);
+		// `none` is the selector's "no reveal" sentinel rather than a
+		// registration, so a theme recommending a deliberately plain
+		// shell must survive the registry check.
+		expect( resolveRecommendedOsSettings( { windowReveal: 'none' } ) ).toEqual(
+			{ windowReveal: 'none' },
+		);
+	} );
+
+	test( 'drops an unregistered reveal, keeping every other key', () => {
+		expect(
+			resolveRecommendedOsSettings( {
+				windowRevealDuration: 700,
+				windowReveal: 'ghost-reveal',
+			} ),
+		).toEqual( { windowRevealDuration: 700 } );
 	} );
 
 	test( 'the renderer survives once its plugin registers it', () => {
@@ -197,7 +274,7 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'seeds windowRadius — the corner preset a theme asks for', () => {
-		// The path that replaced pinning `--desktop-mode-window-radius`
+		// The path that replaced pinning `--os-window-radius`
 		// as a token: a token cannot beat the preset's inline write, a
 		// recommendation sets the preset itself.
 		seedLibrary( { windowRadius: 'round' } );
@@ -337,5 +414,64 @@ describe( 'hasApplicableThemeRecommendations', () => {
 	test( 'false for an unknown theme', () => {
 		seedLibrary( { dockSize: 'large' } );
 		expect( hasApplicableThemeRecommendations( 'not-installed' ) ).toBe( false );
+	} );
+
+	test( 'true for the system default, which recommends its own accent', () => {
+		// The "no theme" card is a palette like any other and gets the
+		// same "Apply …'s recommended layout and effects" button. It
+		// has no manifest to declare that in, so its recommendation is
+		// spelled out in `theme-recommendations.ts`.
+		expect( hasApplicableThemeRecommendations( SYSTEM_DEFAULT_THEME ) ).toBe(
+			true,
+		);
+	} );
+} );
+
+describe( 'the system default recommends the brand accent', () => {
+	test( 'seeds Pulse and the classic layout, under its own ledger key', () => {
+		const state = structuredDefaults();
+		state.accent = 'wp-blue';
+		state.desktopLayout = 'spatial';
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
+		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		expect( state.accent ).toBe( 'pulse' );
+		expect( state.desktopLayout ).toBe( 'classic' );
+		// Not the empty string: the ledger is a list of theme slugs and
+		// `''` would read as "no theme" rather than as an entry.
+		expect( state.appliedThemeRecommendations ).toEqual( [
+			'system-default',
+		] );
+	} );
+
+	test( 'does not re-seed once offered, unless forced by the button', () => {
+		const state = structuredDefaults();
+		applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME );
+		state.accent = 'emerald';
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
+		).toEqual( {} );
+		expect( state.accent ).toBe( 'emerald' );
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME, {
+				force: true,
+			} ),
+		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		expect( state.accent ).toBe( 'pulse' );
+	} );
+
+	test( 'an accent the site no longer offers is dropped, not written', () => {
+		// The swatch list is filterable in PHP, so validity is a runtime
+		// lookup — an unresolvable id would otherwise sit in user meta
+		// looking like a deliberate choice.
+		expect(
+			resolveRecommendedOsSettings( { accent: 'not-a-swatch' } ),
+		).toEqual( {} );
+		expect( resolveRecommendedOsSettings( { accent: 'pulse' } ) ).toEqual( {
+			accent: 'pulse',
+		} );
 	} );
 } );

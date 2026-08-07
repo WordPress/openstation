@@ -7,7 +7,7 @@
 # This script is the "step 1" of the i18n pipeline. The full chain is:
 #
 #   bin/extract-i18n.sh   -> regenerates languages/desktop-mode.pot
-#                            and updates languages/desktop-mode-<locale>.po
+#                            and updates languages/os-<locale>.po
 #   (translate the .po files in your editor / GlotPress / etc.)
 #   bin/build-i18n.sh     -> compiles each .po into per-handle JSON files
 #                            that wp_set_script_translations() can load
@@ -48,7 +48,7 @@ mkdir -p "$LANG_DIR"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-js_pot="$tmp_dir/desktop-mode-js.pot"
+js_pot="$tmp_dir/os-js.pot"
 js_segments="$tmp_dir/js-segments"
 
 # 1. Extract JS/TS strings via Automattic's Babel-based extractor.

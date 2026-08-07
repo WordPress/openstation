@@ -31,20 +31,20 @@ import {
 	type UserEditRecord,
 	type UserInsightsPayload,
 } from './user-edit-rest';
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
-import '../ui/components/wpd-form/wpd-form';
-import '../ui/components/wpd-icon/wpd-icon';
-import '../ui/components/wpd-select/wpd-select';
-import '../ui/components/wpd-text-field/wpd-text-field';
-import '../ui/components/wpd-textarea/wpd-textarea';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-checkbox-label/os-checkbox-label';
+import '../ui/components/os-form/os-form';
+import '../ui/components/os-icon/os-icon';
+import '../ui/components/os-select/os-select';
+import '../ui/components/os-text-field/os-text-field';
+import '../ui/components/os-textarea/os-textarea';
 
 /**
  * Resolve a {@link UserEditClient} from whichever window happens to
  * host the user-edit surface right now.
  *
- * `<wpd-user-profile>` mounts in two contexts: the dedicated
+ * `<os-user-profile>` mounts in two contexts: the dedicated
  * `desktop-mode-user-edit` window AND the Users window's Profile
  * sub-tab (viewer's own profile). Both windows ship a compatible
  * config blob (`restRoot` / `restNonce` / `usersUrl` /
@@ -57,9 +57,9 @@ import '../ui/components/wpd-textarea/wpd-textarea';
 function resolveUserEditClient(): UserEditClient {
 	const store = (
 		window as unknown as {
-			desktopModeWindowConfig?: Record< string, unknown >;
+			openStationWindowConfig?: Record< string, unknown >;
 		}
-	).desktopModeWindowConfig;
+	).openStationWindowConfig;
 	if ( store?.[ 'desktop-mode-user-edit' ] ) {
 		return createUserEditClient( 'desktop-mode-user-edit' );
 	}
@@ -80,7 +80,7 @@ interface ShellToastApi {
 
 /**
  * Surface a transient notice at the desktop level using the
- * shell's `<wpd-toast-container>` (`wp.desktop.showToast`). The
+ * shell's `<os-toast-container>` (`wp.os.showToast`). The
  * shell handles stacking + auto-dismiss; we just hand it the
  * message and an optional duration override. `kind` is accepted
  * for source compatibility but the underlying toast doesn't yet
@@ -92,8 +92,8 @@ function notifyToast(
 	kind: 'success' | 'error' | 'info' = 'info',
 ): void {
 	void kind;
-	const api = ( window as unknown as { wp?: { desktop?: ShellToastApi } } ).wp
-		?.desktop;
+	const api = ( window as unknown as { wp?: { os?: ShellToastApi } } ).wp
+		?.os;
 	if ( api?.showToast ) {
 		// 5s for success, 8s for error so the user has time to
 		// read the failure reason. Pass through the default for
@@ -111,7 +111,7 @@ function notifyToast(
 	console.info( '[user-edit-window]', body );
 }
 
-interface WpdFormElement extends HTMLElement {
+interface OsFormElement extends HTMLElement {
 	getValues(): Record< string, unknown >;
 	setValues( patch: Record< string, unknown > ): void;
 	setBusy( busy: boolean ): void;
@@ -124,7 +124,7 @@ interface WpdFormElement extends HTMLElement {
 	clearErrors(): void;
 }
 
-interface WpdSelectElement extends HTMLElement {
+interface OsSelectElement extends HTMLElement {
 	items: ReadonlyArray< { value: string; label: string } >;
 	value: string;
 }
@@ -194,9 +194,9 @@ async function loadAndMountProfile(
 	host.replaceChildren();
 
 	const skeleton = document.createElement( 'div' );
-	skeleton.className = 'desktop-mode-user-edit__skeleton';
+	skeleton.className = 'os-user-edit__skeleton';
 	skeleton.style.cssText =
-		'display:flex;align-items:center;justify-content:center;padding:48px;color:var(--wpd-fg-muted, #50575e);font-size:13px;';
+		'display:flex;align-items:center;justify-content:center;padding:48px;color:var(--os-ui-fg-muted, #50575e);font-size:13px;';
 	skeleton.textContent = __( 'Loading profile…' );
 	host.appendChild( skeleton );
 
@@ -225,7 +225,7 @@ async function loadAndMountProfile(
 /**
  * Merged config bag for the user-edit form.
  *
- * `<wpd-user-profile>` mounts in either the user-edit window or
+ * `<os-user-profile>` mounts in either the user-edit window or
  * the Users window's Profile sub-tab. Sibling-window configs
  * (Posts, Pages, …) carry `restRoot` / `restNonce` but lack
  * profile-specific keys (`allRoles`, `assignableRoles`,
@@ -236,11 +236,11 @@ async function loadAndMountProfile(
  */
 function resolveProfileConfig(): Record< string, unknown > {
 	const store = ( window as unknown as {
-		desktopModeWindowConfig?: Record<
+		openStationWindowConfig?: Record<
 			string,
 			Record< string, unknown >
 		>;
-	} ).desktopModeWindowConfig;
+	} ).openStationWindowConfig;
 	const userEdit = store?.[ 'desktop-mode-user-edit' ];
 	const users = store?.[ 'desktop-mode-users' ];
 	return {
@@ -258,9 +258,9 @@ function mountProfileForm(
 		currentUserId?: number;
 	};
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-user-edit__profile';
+	wrap.className = 'os-user-edit__profile';
 
-	const form = document.createElement( 'wpd-form' ) as WpdFormElement;
+	const form = document.createElement( 'os-form' ) as OsFormElement;
 	form.setAttribute( 'submit-label', __( 'Save changes' ) );
 	form.setAttribute( 'reset-label', __( 'Revert' ) );
 	form.setAttribute( 'columns', 'auto' );
@@ -289,7 +289,7 @@ function mountProfileForm(
 	);
 
 	// Display name — populated with WP-style candidate combinations.
-	const displaySelect = document.createElement( 'wpd-select' ) as WpdSelectElement;
+	const displaySelect = document.createElement( 'os-select' ) as OsSelectElement;
 	displaySelect.setAttribute( 'name', 'name' );
 	displaySelect.setAttribute( 'label', __( 'Display name publicly as' ) );
 	displaySelect.items = displayNameCandidates( user );
@@ -325,7 +325,7 @@ function mountProfileForm(
 	}
 
 	// — Bio —
-	const bio = document.createElement( 'wpd-textarea' );
+	const bio = document.createElement( 'os-textarea' );
 	bio.setAttribute( 'name', 'description' );
 	bio.setAttribute( 'label', __( 'Biographical info' ) );
 	bio.setAttribute(
@@ -339,7 +339,7 @@ function mountProfileForm(
 	form.appendChild( bio );
 
 	// — Account —
-	const localeSelect = document.createElement( 'wpd-select' ) as WpdSelectElement;
+	const localeSelect = document.createElement( 'os-select' ) as OsSelectElement;
 	localeSelect.setAttribute( 'name', 'locale' );
 	localeSelect.setAttribute( 'label', __( 'Language' ) );
 	const locales =
@@ -386,7 +386,7 @@ function mountProfileForm(
 		);
 	} )();
 	if ( ! isSelfEdit ) {
-		const roleSelect = document.createElement( 'wpd-select' ) as WpdSelectElement;
+		const roleSelect = document.createElement( 'os-select' ) as OsSelectElement;
 		roleSelect.setAttribute( 'name', 'roles[0]' );
 		roleSelect.setAttribute( 'label', __( 'Role' ) );
 		roleSelect.items = Object.entries( roleMap ).map( ( [ value, label ] ) => ( {
@@ -413,7 +413,7 @@ function mountProfileForm(
 		optsHeading.setAttribute( 'full-width', '' );
 		optsHeading.textContent = __( 'Personal options' );
 		optsHeading.style.cssText =
-			'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
+			'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
 		form.appendChild( optsHeading );
 
 		const meta = ( user.meta ?? {} ) as Record< string, unknown >;
@@ -459,7 +459,7 @@ function mountProfileForm(
 		// matching WP core's profile.php picker. Each option shows
 		// the scheme name + 3 swatches (its colour tuple). Selected
 		// scheme is reflected on a hidden `meta.admin_color` field
-		// the form auto-collects, so the wpd-form pipeline picks it
+		// the form auto-collects, so the os-form pipeline picks it
 		// up without special-casing. On self-edit, picking a tile
 		// also live-previews the scheme in the shell (matches
 		// `wp-admin/js/user-profile.js`'s `#color-picker .color-option`
@@ -489,14 +489,14 @@ function mountProfileForm(
 	pwdHeading.setAttribute( 'full-width', '' );
 	pwdHeading.textContent = __( 'Account management' );
 	pwdHeading.style.cssText =
-		'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
+		'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
 	form.appendChild( pwdHeading );
 
 	const pwdRow = document.createElement( 'div' );
 	pwdRow.setAttribute( 'full-width', '' );
 	pwdRow.style.cssText =
 		'display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;';
-	const pwd = document.createElement( 'wpd-text-field' ) as HTMLElement & {
+	const pwd = document.createElement( 'os-text-field' ) as HTMLElement & {
 		value?: string;
 	};
 	pwd.setAttribute( 'name', 'password' );
@@ -511,10 +511,10 @@ function mountProfileForm(
 	pwd.style.flex = '1 1 280px';
 	pwdRow.appendChild( pwd );
 
-	const genBtn = document.createElement( 'wpd-button' );
+	const genBtn = document.createElement( 'os-button' );
 	genBtn.setAttribute( 'variant', 'ghost' );
 	genBtn.setAttribute( 'type', 'button' );
-	const genIcon = document.createElement( 'wpd-icon' );
+	const genIcon = document.createElement( 'os-icon' );
 	genIcon.setAttribute( 'name', 'randomize' );
 	genIcon.setAttribute( 'size', '14' );
 	genBtn.appendChild( genIcon );
@@ -525,7 +525,7 @@ function mountProfileForm(
 		pwd.value = next;
 		pwd.setAttribute( 'value', next );
 		const pwdConfirmEl = form.querySelector(
-			'wpd-text-field[name="password_confirm"]',
+			'os-text-field[name="password_confirm"]',
 		) as ( HTMLElement & { value?: string } ) | null;
 		if ( pwdConfirmEl ) {
 			pwdConfirmEl.value = next;
@@ -540,7 +540,7 @@ function mountProfileForm(
 	// Confirm-password field — matches WP core's pass1/pass2 pair.
 	// Non-required (the form treats blank password as "no change");
 	// validated against `password` at submit time.
-	const pwdConfirm = document.createElement( 'wpd-text-field' ) as HTMLElement & {
+	const pwdConfirm = document.createElement( 'os-text-field' ) as HTMLElement & {
 		value?: string;
 	};
 	pwdConfirm.setAttribute( 'name', 'password_confirm' );
@@ -586,7 +586,7 @@ function mountProfileForm(
 
 	// Submit handler.
 	let pending = false;
-	form.addEventListener( 'wpd-form-submit', ( e ) => {
+	form.addEventListener( 'os-form-submit', ( e ) => {
 		const detail = ( e as CustomEvent< { values: Record< string, unknown > } > )
 			.detail;
 		void onSubmit( detail.values );
@@ -634,8 +634,8 @@ function mountProfileForm(
 		// keys (rich_editing, syntax_highlighting, admin_color,
 		// comment_shortcuts, show_admin_bar_front).
 		//
-		// `wpd-form`'s value harvest reads `field.checked` (boolean)
-		// for `<wpd-checkbox-label>`, but core stores the matching
+		// `os-form`'s value harvest reads `field.checked` (boolean)
+		// for `<os-checkbox-label>`, but core stores the matching
 		// user-meta keys as STRING `'true'` / `'false'`. Sending a
 		// boolean trips the REST schema check (`meta.rich_editing
 		// is not of type string`). The `checkboxField` helper already
@@ -689,11 +689,11 @@ function mountProfileForm(
 
 		// Broadcast so the Users window (and any other live listener)
 		// can refresh its row for this user without an F5. Mirrors the
-		// `desktop-mode.post.changed` pattern used by Posts.
+		// `os.post.changed` pattern used by Posts.
 		const broadcastApi = (
 			window as unknown as {
 				wp?: {
-					desktop?: {
+					os?: {
 						broadcast?: (
 							channel: string,
 							payload: unknown,
@@ -701,8 +701,8 @@ function mountProfileForm(
 					};
 				};
 			}
-		).wp?.desktop;
-		broadcastApi?.broadcast?.( 'desktop-mode.user.changed', {
+		).wp?.os;
+		broadcastApi?.broadcast?.( 'os.user.changed', {
 			source: 'user-edit-window',
 			action: 'updated',
 			ids: [ userId ],
@@ -728,7 +728,7 @@ function mountProfileForm(
 			profileHeader.replaceWith( next );
 			profileHeader = next;
 			const aside = host.ownerDocument?.querySelector< HTMLElement >(
-				'[data-wpd-user-profile-aside]',
+				'[data-os-user-profile-aside]',
 			);
 			if ( aside ) {
 				void mountProfileAsideAt( aside, userId, true );
@@ -744,14 +744,14 @@ function mountProfileForm(
 
 function buildProfileHeader( user: UserEditRecord ): HTMLElement {
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-user-edit__header';
+	wrap.className = 'os-user-edit__header';
 	wrap.style.cssText =
 		'display:flex;align-items:center;gap:16px;margin:0 0 12px;';
 
-	// `<wpd-avatar>` with the shared Gravatar probe — initials when
+	// `<os-avatar>` with the shared Gravatar probe — initials when
 	// the user has no registered avatar, real image otherwise. The
 	// 3D hover lift gives the profile header a touch of physicality.
-	const avatar = document.createElement( 'wpd-avatar' );
+	const avatar = document.createElement( 'os-avatar' );
 	avatar.setAttribute( 'size', '64' );
 	if ( user.name || user.username ) {
 		avatar.setAttribute( 'name', user.name || user.username || '' );
@@ -776,7 +776,7 @@ function buildProfileHeader( user: UserEditRecord ): HTMLElement {
 
 	const sub = document.createElement( 'div' );
 	sub.style.cssText =
-		'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--wpd-fg-muted, #50575e);flex-wrap:wrap;';
+		'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--os-ui-fg-muted, #50575e);flex-wrap:wrap;';
 	const handle = document.createElement( 'span' );
 	handle.textContent = `@${ user.username }`;
 	sub.appendChild( handle );
@@ -808,7 +808,7 @@ async function loadInsightsInto(
 	host.replaceChildren();
 	const skeleton = document.createElement( 'div' );
 	skeleton.style.cssText =
-		'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--wpd-fg-muted, #50575e);font-size:13px;';
+		'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--os-ui-fg-muted, #50575e);font-size:13px;';
 	skeleton.textContent = __( 'Loading insights…' );
 	host.appendChild( skeleton );
 	try {
@@ -866,11 +866,11 @@ async function renderInsightsActivity(
 	}
 	host.replaceChildren();
 	const wrap = document.createElement( 'div' );
-	wrap.className = 'desktop-mode-user-edit__activity';
+	wrap.className = 'os-user-edit__activity';
 	const heading = document.createElement( 'h3' );
 	heading.textContent = __( 'Recent activity' );
 	heading.style.cssText =
-		'margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
+		'margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
 	wrap.appendChild( heading );
 	wrap.appendChild( buildRecentLists( data ) );
 	wrap.appendChild( buildSecurityPanel( data ) );
@@ -887,7 +887,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		'text-align:center',
 		'gap:6px',
 		'padding:16px',
-		'border:1px solid var(--wpd-border, #dcdcde)',
+		'border:1px solid var(--os-ui-border, #dcdcde)',
 		'border-radius:12px',
 		'background:var(--wp-admin-theme-bg-elevated, #f6f7f7)',
 	].join( ';' );
@@ -925,7 +925,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		const noRole = document.createElement( 'span' );
 		noRole.textContent = __( 'No role' );
 		noRole.style.cssText =
-			'font-size:11px;color:var(--wpd-fg-muted, #8c8f94);';
+			'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);';
 		roles.appendChild( noRole );
 	}
 	card.appendChild( roles );
@@ -938,7 +938,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 			'display:flex;flex-direction:column;gap:4px;width:100%;margin-top:6px;';
 		const top = document.createElement( 'div' );
 		top.style.cssText =
-			'display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--wpd-fg-muted, #50575e);';
+			'display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--os-ui-fg-muted, #50575e);';
 		const lbl = document.createElement( 'span' );
 		lbl.textContent = __( 'Profile completeness' );
 		const pct = document.createElement( 'span' );
@@ -984,7 +984,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	const tile = ( label: string, value: string, sub?: string ): HTMLElement => {
 		const card = document.createElement( 'div' );
 		card.style.cssText = [
-			'border:1px solid var(--wpd-border, #dcdcde)',
+			'border:1px solid var(--os-ui-border, #dcdcde)',
 			'border-radius:8px',
 			'padding:8px 10px',
 			'display:flex',
@@ -994,7 +994,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		].join( ';' );
 		const lbl = document.createElement( 'div' );
 		lbl.style.cssText =
-			'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);font-weight:600;';
+			'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);font-weight:600;';
 		lbl.textContent = label;
 		const val = document.createElement( 'div' );
 		val.style.cssText =
@@ -1005,7 +1005,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		if ( sub ) {
 			const subEl = document.createElement( 'div' );
 			subEl.style.cssText =
-				'font-size:10px;color:var(--wpd-fg-muted, #8c8f94);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+				'font-size:10px;color:var(--os-ui-fg-muted, #8c8f94);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 			subEl.title = sub;
 			subEl.textContent = sub;
 			card.appendChild( subEl );
@@ -1068,7 +1068,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.style.cssText = [
-		'border:1px solid var(--wpd-border, #dcdcde)',
+		'border:1px solid var(--os-ui-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 		'margin:0 0 22px',
@@ -1085,7 +1085,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const total = data.contentByMonth.reduce( ( s, m ) => s + m.count, 0 );
 	const sub = document.createElement( 'div' );
 	sub.style.cssText =
-		'font-size:11px;color:var(--wpd-fg-muted, #50575e);';
+		'font-size:11px;color:var(--os-ui-fg-muted, #50575e);';
 	sub.textContent = sprintf(
 		// translators: %d is a count of posts.
 		__( '%d total' ),
@@ -1097,7 +1097,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	if ( data.contentByMonth.length === 0 ) {
 		const empty = document.createElement( 'p' );
 		empty.style.cssText =
-			'margin:0;color:var(--wpd-fg-muted, #50575e);font-size:12px;';
+			'margin:0;color:var(--os-ui-fg-muted, #50575e);font-size:12px;';
 		empty.textContent = __( 'No activity in the last 12 months.' );
 		wrap.appendChild( empty );
 		return wrap;
@@ -1146,7 +1146,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 		'gap:4px',
 		'margin-top:4px',
 		'font-size:10px',
-		'color:var(--wpd-fg-muted, #8c8f94)',
+		'color:var(--os-ui-fg-muted, #8c8f94)',
 		'text-align:center',
 	].join( ';' );
 	for ( const month of data.contentByMonth ) {
@@ -1219,7 +1219,7 @@ function buildRecentList(
 ): HTMLElement {
 	const card = document.createElement( 'div' );
 	card.style.cssText = [
-		'border:1px solid var(--wpd-border, #dcdcde)',
+		'border:1px solid var(--os-ui-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 		'min-width:0',
@@ -1233,7 +1233,7 @@ function buildRecentList(
 	if ( items.length === 0 ) {
 		const empty = document.createElement( 'p' );
 		empty.style.cssText =
-			'margin:0;color:var(--wpd-fg-muted, #50575e);font-size:12px;';
+			'margin:0;color:var(--os-ui-fg-muted, #50575e);font-size:12px;';
 		empty.textContent = emptyText;
 		card.appendChild( empty );
 		return card;
@@ -1264,7 +1264,7 @@ function buildRecentList(
 		if ( item.badge ) {
 			const badge = document.createElement( 'span' );
 			badge.style.cssText =
-				'font-size:11px;color:var(--wpd-fg-muted, #50575e);flex-shrink:0;';
+				'font-size:11px;color:var(--os-ui-fg-muted, #50575e);flex-shrink:0;';
 			badge.textContent = item.badge;
 			top.appendChild( badge );
 		}
@@ -1272,7 +1272,7 @@ function buildRecentList(
 
 		const sub = document.createElement( 'div' );
 		sub.style.cssText =
-			'font-size:11px;color:var(--wpd-fg-muted, #8c8f94);';
+			'font-size:11px;color:var(--os-ui-fg-muted, #8c8f94);';
 		sub.textContent = item.secondary;
 		li.appendChild( sub );
 
@@ -1285,7 +1285,7 @@ function buildRecentList(
 function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 	const card = document.createElement( 'div' );
 	card.style.cssText = [
-		'border:1px solid var(--wpd-border, #dcdcde)',
+		'border:1px solid var(--os-ui-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 	].join( ';' );
@@ -1304,13 +1304,13 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 		'display:flex;flex-direction:column;gap:2px;font-size:12px;';
 	const sessionLabel = document.createElement( 'div' );
 	sessionLabel.style.cssText =
-		'color:var(--wpd-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
+		'color:var(--os-ui-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
 	sessionLabel.textContent = __( 'Active sessions' );
 	const sessionValue = document.createElement( 'div' );
 	sessionValue.style.cssText = 'font-size:18px;font-weight:600;';
 	sessionValue.textContent = String( data.sessions.length );
 	const sessionSub = document.createElement( 'div' );
-	sessionSub.style.cssText = 'color:var(--wpd-fg-muted, #8c8f94);';
+	sessionSub.style.cssText = 'color:var(--os-ui-fg-muted, #8c8f94);';
 	const currentCount = data.sessions.filter( ( s ) => s.current ).length;
 	sessionSub.textContent =
 		currentCount > 0
@@ -1326,13 +1326,13 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 		'display:flex;flex-direction:column;gap:2px;font-size:12px;';
 	const appLabel = document.createElement( 'div' );
 	appLabel.style.cssText =
-		'color:var(--wpd-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
+		'color:var(--os-ui-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
 	appLabel.textContent = __( 'Application passwords' );
 	const appValue = document.createElement( 'div' );
 	appValue.style.cssText = 'font-size:18px;font-weight:600;';
 	appValue.textContent = String( data.applicationPasswords.total );
 	const appSub = document.createElement( 'div' );
-	appSub.style.cssText = 'color:var(--wpd-fg-muted, #8c8f94);';
+	appSub.style.cssText = 'color:var(--os-ui-fg-muted, #8c8f94);';
 	if (
 		data.applicationPasswords.lastUsedAt &&
 		data.applicationPasswords.lastUsedName
@@ -1374,7 +1374,7 @@ function textField(
 	value: string,
 	opts: TextFieldOpts = {},
 ): HTMLElement {
-	const el = document.createElement( 'wpd-text-field' ) as HTMLElement & {
+	const el = document.createElement( 'os-text-field' ) as HTMLElement & {
 		value?: string;
 	};
 	el.setAttribute( 'name', formName );
@@ -1583,16 +1583,16 @@ function applyColorSchemePreview( slug: string, info: ColorSchemeInfo ): void {
 /**
  * Retune the desktop shell's per-scheme CSS variables (accent,
  * titlebar bg, focused titlebar foreground, …) live. variables.css
- * scopes its overrides to `.desktop-mode-shell[data-desktop-mode-scheme=…]`,
+ * scopes its overrides to `.os-shell[data-os-scheme=…]`,
  * so swapping the attribute is enough to re-apply the whole block.
  * Without this, only the WP-generated `colors-css` stylesheet (which
  * the master admin bar reads from) repaints — the rest of the shell
  * keeps the previous scheme until the next full reload.
  */
 function flipShellScheme( slug: string ): void {
-	const shell = document.querySelector< HTMLElement >( '.desktop-mode-shell' );
+	const shell = document.querySelector< HTMLElement >( '.os-shell' );
 	if ( shell ) {
-		shell.setAttribute( 'data-desktop-mode-scheme', slug );
+		shell.setAttribute( 'data-os-scheme', slug );
 	}
 }
 
@@ -1612,8 +1612,8 @@ function flipBodyClass( slug: string ): void {
  * shows the scheme's display name + a strip of 3 mini swatches
  * (its colour tuple) — the WP-core profile.php picker pattern.
  *
- * Emits the chosen slug as a hidden `<wpd-text-field name="meta.admin_color">`
- * so the wpd-form's auto value-collection picks it up unchanged.
+ * Emits the chosen slug as a hidden `<os-text-field name="meta.admin_color">`
+ * so the os-form's auto value-collection picks it up unchanged.
  * Pass `livePreview: true` to flip the shell's stylesheet + body
  * class on every click (matches core's self-edit behavior).
  */
@@ -1629,13 +1629,13 @@ function buildAdminColorPicker(
 
 	const label = document.createElement( 'span' );
 	label.style.cssText =
-		'font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);font-weight:600;';
+		'font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);font-weight:600;';
 	label.textContent = __( 'Admin colour scheme' );
 	wrap.appendChild( label );
 
 	// Hidden value carrier — the form's name-field collector reads
 	// this on submit. Updated when the user clicks a tile.
-	const hidden = document.createElement( 'wpd-text-field' ) as HTMLElement & {
+	const hidden = document.createElement( 'os-text-field' ) as HTMLElement & {
 		value?: string;
 	};
 	hidden.setAttribute( 'name', 'meta.admin_color' );
@@ -1663,7 +1663,7 @@ function buildAdminColorPicker(
 			tile.style.borderColor =
 				v === slug
 					? 'var(--wp-admin-theme-color, #2271b1)'
-					: 'var(--wpd-border, #dcdcde)';
+					: 'var(--os-ui-border, #dcdcde)';
 			tile.style.boxShadow =
 				v === slug
 					? '0 0 0 1px var(--wp-admin-theme-color, #2271b1) inset'
@@ -1680,7 +1680,7 @@ function buildAdminColorPicker(
 		tile.dataset.scheme = slug;
 		tile.style.cssText = [
 			'appearance:none',
-			'border:1px solid var(--wpd-border, #dcdcde)',
+			'border:1px solid var(--os-ui-border, #dcdcde)',
 			'background:var(--wp-admin-theme-bg, #fff)',
 			'color:inherit',
 			'border-radius:8px',
@@ -1734,7 +1734,7 @@ interface CheckboxFieldOpts {
 }
 
 /**
- * Build a `<wpd-checkbox-label>` that emits a string value
+ * Build a `<os-checkbox-label>` that emits a string value
  * (`'true'`/`'false'`) when the form collects values, so it
  * round-trips cleanly through WP's user-meta storage where the
  * personal-options keys are stored as strings.
@@ -1751,7 +1751,7 @@ function checkboxField(
 	if ( opts.fullWidth ) {
 		wrap.setAttribute( 'full-width', '' );
 	}
-	const cb = document.createElement( 'wpd-checkbox-label' ) as HTMLElement & {
+	const cb = document.createElement( 'os-checkbox-label' ) as HTMLElement & {
 		checked?: boolean;
 		value?: string;
 	};
@@ -1762,7 +1762,7 @@ function checkboxField(
 	if ( checked ) {
 		cb.setAttribute( 'checked', '' );
 	}
-	cb.addEventListener( 'wpd-checkbox-change', ( e: Event ) => {
+	cb.addEventListener( 'os-checkbox-change', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { checked: boolean } > ).detail;
 		const v = detail?.checked ? trueValue : falseValue;
 		cb.value = v;
@@ -1784,11 +1784,11 @@ function buildSessionsRow( userId: number, isSelfEdit: boolean ): HTMLElement {
 		'display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
 
 	const label = document.createElement( 'span' );
-	label.style.cssText = 'font-size:13px;color:var(--desktop-mode-fg, inherit);';
+	label.style.cssText = 'font-size:13px;color:var(--os-fg, inherit);';
 	label.textContent = __( 'Active sessions' );
 	wrap.appendChild( label );
 
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.setAttribute( 'variant', 'ghost' );
 	btn.setAttribute( 'type', 'button' );
 	btn.textContent = isSelfEdit
@@ -1853,7 +1853,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
 	wrap.style.cssText =
-		'display:flex;flex-direction:column;gap:8px;border:1px solid var(--wpd-border, #dcdcde);border-radius:8px;padding:12px 14px;';
+		'display:flex;flex-direction:column;gap:8px;border:1px solid var(--os-ui-border, #dcdcde);border-radius:8px;padding:12px 14px;';
 
 	const heading = document.createElement( 'div' );
 	heading.style.cssText =
@@ -1876,7 +1876,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	const createRow = document.createElement( 'div' );
 	createRow.style.cssText =
 		'display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:6px;';
-	const nameInput = document.createElement( 'wpd-text-field' ) as HTMLElement & {
+	const nameInput = document.createElement( 'os-text-field' ) as HTMLElement & {
 		value?: string;
 	};
 	nameInput.setAttribute( 'label', __( 'New application password name' ) );
@@ -1886,7 +1886,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	);
 	nameInput.style.flex = '1 1 220px';
 	createRow.appendChild( nameInput );
-	const createBtn = document.createElement( 'wpd-button' );
+	const createBtn = document.createElement( 'os-button' );
 	createBtn.setAttribute( 'variant', 'primary' );
 	createBtn.setAttribute( 'type', 'button' );
 	createBtn.textContent = __( 'Create' );
@@ -1898,7 +1898,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 		if ( items.length === 0 ) {
 			const empty = document.createElement( 'li' );
 			empty.style.cssText =
-				'font-size:12px;color:var(--wpd-fg-muted, #50575e);';
+				'font-size:12px;color:var(--os-ui-fg-muted, #50575e);';
 			empty.textContent = __( 'No application passwords issued yet.' );
 			list.appendChild( empty );
 			return;
@@ -1913,7 +1913,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 			row.appendChild( nameSpan );
 			const meta = document.createElement( 'span' );
 			meta.style.cssText =
-				'color:var(--wpd-fg-muted, #8c8f94);';
+				'color:var(--os-ui-fg-muted, #8c8f94);';
 			meta.textContent = item.last_used
 				? sprintf(
 					// translators: %s is a relative time.
@@ -1922,7 +1922,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 				)
 				: __( 'never used' );
 			row.appendChild( meta );
-			const revoke = document.createElement( 'wpd-button' );
+			const revoke = document.createElement( 'os-button' );
 			revoke.setAttribute( 'variant', 'ghost' );
 			revoke.setAttribute( 'type', 'button' );
 			revoke.textContent = __( 'Revoke' );

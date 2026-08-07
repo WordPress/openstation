@@ -17,7 +17,7 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 export async function showUsersIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		const backdrop = document.createElement( 'div' );
-		backdrop.className = 'desktop-mode-users-intro__backdrop';
+		backdrop.className = 'os-users-intro__backdrop';
 		backdrop.setAttribute( 'role', 'presentation' );
 		Object.assign( backdrop.style, {
 			position: 'fixed',
@@ -37,9 +37,9 @@ export async function showUsersIntroDialog(): Promise< IntroResult > {
 		dialog.setAttribute( 'aria-modal', 'true' );
 		dialog.setAttribute(
 			'aria-labelledby',
-			'desktop-mode-users-intro-title',
+			'os-users-intro-title',
 		);
-		dialog.className = 'desktop-mode-users-intro';
+		dialog.className = 'os-users-intro';
 		Object.assign( dialog.style, {
 			background: 'var(--wp-admin-theme-bg, #fff)',
 			color: 'var(--wp-admin-theme-fg, #1d2327)',
@@ -121,32 +121,32 @@ function renderDialogMarkup(): string {
 
 	return `
 		<style>
-			.desktop-mode-users-intro h2 {
+			.os-users-intro h2 {
 				margin: 0 0 8px;
 				font-size: 22px;
 				font-weight: 600;
 				letter-spacing: -0.01em;
 			}
-			.desktop-mode-users-intro p.lede {
+			.os-users-intro p.lede {
 				margin: 0 0 20px;
 				color: var(--wp-admin-theme-fg-muted, #50575e);
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-users-intro__list {
+			.os-users-intro__list {
 				list-style: none;
 				margin: 0 0 22px;
 				padding: 0;
 				font-size: 14px;
 				line-height: 1.5;
 			}
-			.desktop-mode-users-intro__list li {
+			.os-users-intro__list li {
 				display: flex;
 				align-items: flex-start;
 				gap: 10px;
 				padding: 6px 0;
 			}
-			.desktop-mode-users-intro__list .dot {
+			.os-users-intro__list .dot {
 				flex: 0 0 auto;
 				width: 6px;
 				height: 6px;
@@ -154,13 +154,13 @@ function renderDialogMarkup(): string {
 				border-radius: 50%;
 				background: var(--wp-admin-theme-color, #2271b1);
 			}
-			.desktop-mode-users-intro__footer {
+			.os-users-intro__footer {
 				display: flex;
 				justify-content: flex-end;
 				gap: 8px;
 				margin-top: 8px;
 			}
-			.desktop-mode-users-intro__footer button {
+			.os-users-intro__footer button {
 				appearance: none;
 				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
 				background: var(--wp-admin-theme-bg, #fff);
@@ -170,22 +170,22 @@ function renderDialogMarkup(): string {
 				font-size: 13px;
 				cursor: pointer;
 			}
-			.desktop-mode-users-intro__footer button.primary {
+			.os-users-intro__footer button.primary {
 				border-color: var(--wp-admin-theme-color, #2271b1);
 				background: var(--wp-admin-theme-color, #2271b1);
 				color: #fff;
 				font-weight: 500;
 			}
-			.desktop-mode-users-intro__footer button:hover { filter: brightness(1.05); }
-			.desktop-mode-users-intro__footer button:focus-visible {
+			.os-users-intro__footer button:hover { filter: brightness(1.05); }
+			.os-users-intro__footer button:focus-visible {
 				outline: 2px solid var(--wp-admin-theme-color, #2271b1);
 				outline-offset: 2px;
 			}
 		</style>
-		<h2 id="desktop-mode-users-intro-title">${ escapeHtml( title ) }</h2>
+		<h2 id="os-users-intro-title">${ escapeHtml( title ) }</h2>
 		<p class="lede">${ escapeHtml( lede ) }</p>
-		<ul class="desktop-mode-users-intro__list">${ li( highlights ) }</ul>
-		<div class="desktop-mode-users-intro__footer">
+		<ul class="os-users-intro__list">${ li( highlights ) }</ul>
+		<div class="os-users-intro__footer">
 			<button type="button" data-action="settings">${ escapeHtml(
 				__( 'Take me to settings' ),
 			) }</button>

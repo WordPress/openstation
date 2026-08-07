@@ -2,7 +2,7 @@
  * Persistence + sanitization for `OsSettingsState`.
  *
  * Source-of-truth hierarchy (highest to lowest):
- *   1. Server — `desktopModeConfig.osSettings` loaded from user meta at
+ *   1. Server — `openStationConfig.osSettings` loaded from user meta at
  *      page boot. Wins over localStorage so a setting changed on another
  *      device/browser is honoured on the next page load.
  *   2. localStorage — fast local cache; written on every change for
@@ -19,6 +19,7 @@
 
 import type { DesktopConfig } from '../types';
 import {
+	ADMIN_BAR_MODES,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -29,6 +30,7 @@ import {
 } from './constants';
 import type {
 	AccentId,
+	AdminBarModeId,
 	AiSettings,
 	CustomGradient,
 	CustomImage,
@@ -38,6 +40,7 @@ import type {
 	WindowRadiusId,
 } from './types';
 import { isHexColor } from './utils';
+import { sanitizeMioLook } from '../mio/look';
 import { trackedFetch } from '../tracked-fetch';
 
 // -----------------------------------------------------------------------
@@ -46,7 +49,7 @@ import { trackedFetch } from '../tracked-fetch';
 
 /**
  * Resolves the initial state. Prefers the server-provided snapshot
- * (`desktopModeConfig.osSettings`) over the localStorage cache so a
+ * (`openStationConfig.osSettings`) over the localStorage cache so a
  * preference changed in another browser shows up on the next page load
  * without the user having to manually refresh.
  *
@@ -81,11 +84,11 @@ export function loadState(): OsSettingsState {
 	return structuredDefaults();
 }
 
-/** Read `desktopModeConfig.osSettings` from the global config. */
+/** Read `openStationConfig.osSettings` from the global config. */
 function _readServerSettings(): Partial<OsSettingsState> | null {
 	const config = ( window as unknown as {
-		desktopModeConfig?: DesktopConfig;
-	} ).desktopModeConfig;
+		openStationConfig?: DesktopConfig;
+	} ).openStationConfig;
 	const raw = config?.osSettings;
 	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
 		return null;
@@ -110,6 +113,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
 			? ( parsed.windowRadius as WindowRadiusId )
 			: DEFAULTS.windowRadius,
+		adminBarMode: ADMIN_BAR_MODES.some(
+			( m ) => m.id === parsed.adminBarMode,
+		)
+			? ( parsed.adminBarMode as AdminBarModeId )
+			: DEFAULTS.adminBarMode,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)
@@ -161,6 +169,22 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
 				? parsed.unfocusEffect
 				: DEFAULTS.unfocusEffect,
+		// Window reveal — same id charset as unfocus effects; the
+		// surface resolves at play time and treats an unknown id as
+		// "no reveal".
+		windowReveal:
+			typeof parsed.windowReveal === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowReveal )
+				? parsed.windowReveal
+				: DEFAULTS.windowReveal,
+		// Reveal duration override — 0 (or anything out of range) means
+		// "use each reveal's own timing"; the surface clamps the rest.
+		windowRevealDuration:
+			typeof parsed.windowRevealDuration === 'number' &&
+			Number.isFinite( parsed.windowRevealDuration ) &&
+			parsed.windowRevealDuration > 0
+				? Math.min( 4000, Math.max( 80, Math.round( parsed.windowRevealDuration ) ) )
+				: DEFAULTS.windowRevealDuration,
 		// Window-link renderer — same id charset as unfocus effects;
 		// the render host resolves at use time and falls back to the
 		// built-in `svg-splines` for unknown ids.
@@ -234,6 +258,14 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		mioEnabled:
+			typeof parsed.mioEnabled === 'boolean'
+				? parsed.mioEnabled
+				: DEFAULTS.mioEnabled,
+		// Shape check only — what a *legal* hue or silhouette is stays
+		// `sanitizeMioConfig`'s call, and it runs on everything headed
+		// for the simulation whatever route it arrived by.
+		mioStyle: sanitizeMioLook( parsed.mioStyle ),
 		showPostStatusRibbons:
 			typeof parsed.showPostStatusRibbons === 'boolean'
 				? parsed.showPostStatusRibbons
@@ -477,6 +509,10 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 			] ),
 		),
 		ai: { ...state.ai },
+		mioStyle: {
+			appearance: { ...state.mioStyle.appearance },
+			physics: { ...state.mioStyle.physics },
+		},
 		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
@@ -540,8 +576,8 @@ let _pendingActivityWindowId: string | null = null;
 
 function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
 	const config = ( window as unknown as {
-		desktopModeConfig?: DesktopConfig;
-	} ).desktopModeConfig;
+		openStationConfig?: DesktopConfig;
+	} ).openStationConfig;
 	const url = config?.osSettingsUrl;
 	const nonce = config?.restNonce;
 	if ( ! url || ! nonce ) {
@@ -554,7 +590,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 	}
 
 	_emitSaveLifecycle( 'saving' );
-	// Prefer `wp.desktop.fetch` so the originating window's title-bar
+	// Prefer `wp.os.fetch` so the originating window's title-bar
 	// activity dot blinks while the save is in flight. The
 	// originating window — passed through from the call site that
 	// triggered the most recent debounce-collapsed save — defaults to
@@ -665,7 +701,7 @@ function _emitSaveLifecycle(
 		detail.rolledBackTo = rolledBackTo;
 	}
 	document.dispatchEvent(
-		new CustomEvent( 'desktop-mode-os-settings-save-lifecycle', { detail } ),
+		new CustomEvent( 'os-settings-save-lifecycle', { detail } ),
 	);
 }
 

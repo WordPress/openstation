@@ -4,7 +4,7 @@
  *
  * Covers: overlay creation only for defs that declare `renderPreview`,
  * visibility-driven mount/teardown, the `previewParams` seed + the
- * `desktop-mode.wallpaper.preview-params` filter, the concurrency cap,
+ * `os.wallpaper.preview-params` filter, the concurrency cap,
  * tile repurposing on grid re-render, the async-mount race guard, and
  * dispose (both direct and via the window-closed self-clean).
  */
@@ -69,7 +69,7 @@ const flush = (): Promise< void > =>
 	new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 
 function makeTile( root: HTMLElement, id: string ): HTMLElement {
-	const tile = document.createElement( 'wpd-swatch' );
+	const tile = document.createElement( 'os-swatch' );
 	tile.dataset.wallpaperId = id;
 	root.appendChild( tile );
 	return tile;
@@ -286,7 +286,7 @@ describe( 'preview params', () => {
 			previewParams: { siteAgeDays: 540 },
 		} );
 		hooks.addFilter(
-			'desktop-mode.wallpaper.preview-params',
+			'os.wallpaper.preview-params',
 			'vitest/override',
 			( ( params: Record< string, unknown >, id: string ) =>
 				id === 'test-live'
@@ -308,7 +308,7 @@ describe( 'preview params', () => {
 			previewParams: { siteAgeDays: 540 },
 		} );
 		hooks.addFilter(
-			'desktop-mode.wallpaper.preview-params',
+			'os.wallpaper.preview-params',
 			'vitest/garbage',
 			( () => undefined ) as ( ...a: unknown[] ) => unknown,
 		);
@@ -501,7 +501,7 @@ describe( 'dispose', () => {
 
 		root.remove(); // panel body torn down with the window
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-closed' ),
+			new CustomEvent( 'os-window-closed' ),
 		);
 
 		expect( a.teardown ).toHaveBeenCalledTimes( 1 );

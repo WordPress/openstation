@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Unfocused-window effect engine.
+ * OpenStation — Unfocused-window effect engine.
  *
  * The framework is a transport, not a UX-policy maker: this engine
  * decides *when* the user's chosen unfocus effect is applied, and to
@@ -9,7 +9,7 @@
  * → Effects on every window that isn't focused.
  *
  * It listens to the existing window-lifecycle CustomEvents
- * (`desktop-mode-window-{opened,closed,focused,blurred,reopened}`),
+ * (`os-window-{opened,closed,focused,blurred,reopened}`),
  * the OS-settings change stream (the selected effect id), and the
  * effect-registry change stream (a plugin's effect arriving / leaving
  * live). On any of those it recomputes from scratch — cheap, since
@@ -163,11 +163,11 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 	};
 
 	for ( const name of [
-		'desktop-mode-window-opened',
-		'desktop-mode-window-reopened',
-		'desktop-mode-window-closed',
-		'desktop-mode-window-focused',
-		'desktop-mode-window-blurred',
+		'os-window-opened',
+		'os-window-reopened',
+		'os-window-closed',
+		'os-window-focused',
+		'os-window-blurred',
 	] ) {
 		document.addEventListener( name, () => recompute() );
 	}

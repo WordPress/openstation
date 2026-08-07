@@ -63,7 +63,7 @@ function tick(
 function postReauthMessage(): void {
 	window.dispatchEvent(
 		new MessageEvent( 'message', {
-			data: { type: 'desktop-mode-reauth-detected' },
+			data: { type: 'os-reauth-detected' },
 			origin: window.location.origin,
 		} ),
 	);
@@ -101,7 +101,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'announces AUTH_LOST once when the flag reports the session gone', () => {
-		const lost = domEventSpy( 'desktop-mode-auth-lost' );
+		const lost = domEventSpy( 'os-auth-lost' );
 		const log = recordActions( hooks, [ HOOKS.AUTH_LOST ] );
 		bootAuthRecovery();
 
@@ -113,7 +113,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'a healthy tick without a prior outage does nothing', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': true } );
@@ -123,7 +123,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'flag flip false → true runs recovery: events + forced tick', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		const log = recordActions( hooks, [
 			HOOKS.AUTH_LOST,
 			HOOKS.AUTH_RESTORED,
@@ -142,7 +142,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'a second outage after recovery announces AUTH_LOST again', () => {
-		const lost = domEventSpy( 'desktop-mode-auth-lost' );
+		const lost = domEventSpy( 'os-auth-lost' );
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': false } );
@@ -153,7 +153,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'iframe reauth message triggers recovery even without a seen outage', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		postReauthMessage();
@@ -163,7 +163,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'racing recovery triggers inside the cooldown collapse into one run', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': false } );
@@ -182,12 +182,12 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'messages from foreign origins are ignored', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
-				data: { type: 'desktop-mode-reauth-detected' },
+				data: { type: 'os-reauth-detected' },
 				origin: 'https://evil.example',
 			} ),
 		);
@@ -196,7 +196,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'nonces_expired outside an outage forces an accelerated tick, debounced', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		tick( handlers, { nonces_expired: true } );
@@ -212,7 +212,7 @@ describe( 'auth-recovery', () => {
 	} );
 
 	test( 'nonces_expired during a known outage IS the re-auth signal', () => {
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': false } );
@@ -297,7 +297,7 @@ describe( 'auth-recovery', () => {
 	test( 'the modal hiding forces a tick but never recovers by itself', () => {
 		document.body.innerHTML =
 			'<div id="wp-auth-check-wrap" class=""></div>';
-		const restored = domEventSpy( 'desktop-mode-auth-restored' );
+		const restored = domEventSpy( 'os-auth-restored' );
 		bootAuthRecovery();
 
 		const wrap = document.getElementById( 'wp-auth-check-wrap' )!;

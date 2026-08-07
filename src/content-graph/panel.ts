@@ -27,6 +27,7 @@ import {
 	fetchCommentStats,
 	fetchTermStats,
 	fetchUserStats,
+	getConfig,
 } from './rest';
 import type {
 	CommentRef,
@@ -126,11 +127,11 @@ export function renderPanel(
 	// state stays flicker-free; subsequent toggles via the class
 	// pick up the slide.
 	host.hidden = false;
-	host.classList.add( 'desktop-mode-content-graph__panel--closed' );
+	host.classList.add( 'os-content-graph__panel--closed' );
 
 	const setPanelOpen = ( open: boolean ): void => {
 		host.classList.toggle(
-			'desktop-mode-content-graph__panel--closed',
+			'os-content-graph__panel--closed',
 			! open,
 		);
 	};
@@ -140,30 +141,30 @@ export function renderPanel(
 	let fetchSeq = 0;
 
 	const frame = document.createElement( 'div' );
-	frame.className = 'desktop-mode-content-graph__panel-frame';
+	frame.className = 'os-content-graph__panel-frame';
 
 	const breadcrumbHost = document.createElement( 'nav' );
-	breadcrumbHost.className = 'desktop-mode-content-graph__panel-breadcrumb';
+	breadcrumbHost.className = 'os-content-graph__panel-breadcrumb';
 	breadcrumbHost.hidden = true;
 
 	const head = document.createElement( 'header' );
-	head.className = 'desktop-mode-content-graph__panel-head';
+	head.className = 'os-content-graph__panel-head';
 
 	const titleWrap = document.createElement( 'div' );
-	titleWrap.className = 'desktop-mode-content-graph__panel-title-wrap';
+	titleWrap.className = 'os-content-graph__panel-title-wrap';
 
 	const title = document.createElement( 'h2' );
-	title.className = 'desktop-mode-content-graph__panel-title';
+	title.className = 'os-content-graph__panel-title';
 
 	const meta = document.createElement( 'p' );
-	meta.className = 'desktop-mode-content-graph__panel-meta';
+	meta.className = 'os-content-graph__panel-meta';
 
 	titleWrap.appendChild( title );
 	titleWrap.appendChild( meta );
 
 	const closeBtn = document.createElement( 'button' );
 	closeBtn.type = 'button';
-	closeBtn.className = 'desktop-mode-content-graph__panel-close';
+	closeBtn.className = 'os-content-graph__panel-close';
 	closeBtn.innerHTML =
 		'<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
 	closeBtn.title = __( 'Close panel' );
@@ -173,7 +174,7 @@ export function renderPanel(
 	head.appendChild( closeBtn );
 
 	const body = document.createElement( 'div' );
-	body.className = 'desktop-mode-content-graph__panel-body';
+	body.className = 'os-content-graph__panel-body';
 
 	frame.appendChild( breadcrumbHost );
 	frame.appendChild( head );
@@ -192,7 +193,7 @@ export function renderPanel(
 
 	function createPage(): HTMLDivElement {
 		const p = document.createElement( 'div' );
-		p.className = 'desktop-mode-content-graph__panel-page';
+		p.className = 'os-content-graph__panel-page';
 		return p;
 	}
 
@@ -212,7 +213,7 @@ export function renderPanel(
 			direction === 'forward' ? 'page-from-right' : 'page-from-left';
 		const exit =
 			direction === 'forward' ? 'page-to-left' : 'page-to-right';
-		next.classList.add( `desktop-mode-content-graph__${ enter }` );
+		next.classList.add( `os-content-graph__${ enter }` );
 		// Force a layout pass so the browser registers the off-screen
 		// position before we strip the modifier and let the transition
 		// run. Without this the new page just appears on screen.
@@ -223,10 +224,10 @@ export function renderPanel(
 				return;
 			}
 			next.classList.remove(
-				`desktop-mode-content-graph__${ enter }`,
+				`os-content-graph__${ enter }`,
 			);
 			prev.classList.add(
-				`desktop-mode-content-graph__${ exit }`,
+				`os-content-graph__${ exit }`,
 			);
 		} );
 		let cleaned = false;
@@ -263,8 +264,8 @@ export function renderPanel(
 	};
 
 	const desktopApi = (): DesktopApi => {
-		const wp = ( window.wp ?? {} ) as { desktop?: DesktopApi };
-		return wp.desktop ?? {};
+		const wp = ( window.wp ?? {} ) as { os?: DesktopApi };
+		return wp.os ?? {};
 	};
 
 	const openAdminUrl = (
@@ -323,14 +324,14 @@ export function renderPanel(
 		breadcrumbHost.hidden = false;
 		const back = document.createElement( 'button' );
 		back.type = 'button';
-		back.className = 'desktop-mode-content-graph__panel-breadcrumb-back';
+		back.className = 'os-content-graph__panel-breadcrumb-back';
 		const arrow = document.createElement( 'span' );
 		arrow.className =
-			'dashicons dashicons-arrow-left-alt2 desktop-mode-content-graph__panel-breadcrumb-arrow';
+			'dashicons dashicons-arrow-left-alt2 os-content-graph__panel-breadcrumb-arrow';
 		arrow.setAttribute( 'aria-hidden', 'true' );
 		const backLabel = document.createElement( 'span' );
 		backLabel.className =
-			'desktop-mode-content-graph__panel-breadcrumb-label';
+			'os-content-graph__panel-breadcrumb-label';
 		backLabel.textContent =
 			currentPost.post.title || `#${ currentPost.post.id }`;
 		back.appendChild( arrow );
@@ -418,26 +419,26 @@ export function renderPanel(
 
 	const renderAuthorBlock = ( detail: PostDetail ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-author';
+		wrap.className = 'os-content-graph__panel-author';
 		if ( ! detail.author ) {
 			wrap.hidden = true;
 			return wrap;
 		}
 		const label = document.createElement( 'span' );
-		label.className = 'desktop-mode-content-graph__panel-section-label';
+		label.className = 'os-content-graph__panel-section-label';
 		label.textContent = __( 'Author' );
 		wrap.appendChild( label );
 		const row = document.createElement( 'div' );
-		row.className = 'desktop-mode-content-graph__panel-author-row';
+		row.className = 'os-content-graph__panel-author-row';
 		if ( detail.author.avatar ) {
 			const img = document.createElement( 'img' );
-			img.className = 'desktop-mode-content-graph__panel-avatar';
+			img.className = 'os-content-graph__panel-avatar';
 			img.src = detail.author.avatar;
 			img.alt = '';
 			row.appendChild( img );
 		}
 		const name = document.createElement( 'span' );
-		name.className = 'desktop-mode-content-graph__panel-author-name';
+		name.className = 'os-content-graph__panel-author-name';
 		name.textContent = detail.author.name;
 		row.appendChild( name );
 		wrap.appendChild( row );
@@ -446,7 +447,7 @@ export function renderPanel(
 
 	const renderDatesBlock = ( detail: PostDetail ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-dates';
+		wrap.className = 'os-content-graph__panel-dates';
 		const items: Array< { label: string; iso: string } > = [];
 		if ( detail.post.date ) {
 			items.push( { label: __( 'Published' ), iso: detail.post.date } );
@@ -466,14 +467,14 @@ export function renderPanel(
 		}
 		for ( const it of items ) {
 			const row = document.createElement( 'div' );
-			row.className = 'desktop-mode-content-graph__panel-date-row';
+			row.className = 'os-content-graph__panel-date-row';
 			const labelEl = document.createElement( 'span' );
 			labelEl.className =
-				'desktop-mode-content-graph__panel-section-label';
+				'os-content-graph__panel-section-label';
 			labelEl.textContent = it.label;
 			const valueEl = document.createElement( 'span' );
 			valueEl.className =
-				'desktop-mode-content-graph__panel-date-value';
+				'os-content-graph__panel-date-value';
 			valueEl.textContent = formatDate( it.iso );
 			row.appendChild( labelEl );
 			row.appendChild( valueEl );
@@ -486,17 +487,17 @@ export function renderPanel(
 		entries: Array< { label: string; value: number | string } >,
 	): HTMLElement => {
 		const ul = document.createElement( 'ul' );
-		ul.className = 'desktop-mode-content-graph__panel-stats';
+		ul.className = 'os-content-graph__panel-stats';
 		for ( const e of entries ) {
 			const li = document.createElement( 'li' );
-			li.className = 'desktop-mode-content-graph__panel-stat';
+			li.className = 'os-content-graph__panel-stat';
 			const num = document.createElement( 'span' );
-			num.className = 'desktop-mode-content-graph__panel-stat-num';
+			num.className = 'os-content-graph__panel-stat-num';
 			num.textContent =
 				typeof e.value === 'number' ? formatNumber( e.value ) : e.value;
 			const labelEl = document.createElement( 'span' );
 			labelEl.className =
-				'desktop-mode-content-graph__panel-stat-label';
+				'os-content-graph__panel-stat-label';
 			labelEl.textContent = e.label;
 			li.appendChild( num );
 			li.appendChild( labelEl );
@@ -507,11 +508,15 @@ export function renderPanel(
 
 	const renderPostActionsBlock = ( detail: PostDetail ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-actions';
+		wrap.className = 'os-content-graph__panel-actions';
 		const api = desktopApi();
 		if ( api.myWordpress ) {
 			const myWp = button( {
-				label: __( 'Open in My WordPress' ),
+				label: sprintf(
+					// translators: %s is the site title.
+					__( 'Open in %s' ),
+					getConfig().siteName?.trim() || __( 'WordPress' ),
+				),
 				icon: 'dashicons-wordpress',
 				primary: true,
 			} );
@@ -570,18 +575,18 @@ export function renderPanel(
 
 		// Header (always shown — works from minimal data)
 		const head2 = document.createElement( 'div' );
-		head2.className = 'desktop-mode-content-graph__panel-detail-head';
+		head2.className = 'os-content-graph__panel-detail-head';
 		const avatar = stats?.profile.avatarUrl || user.avatar;
 		if ( avatar ) {
 			const img = document.createElement( 'img' );
 			img.className =
-				'desktop-mode-content-graph__panel-detail-avatar desktop-mode-content-graph__panel-detail-avatar--lg';
+				'os-content-graph__panel-detail-avatar os-content-graph__panel-detail-avatar--lg';
 			img.src = avatar;
 			img.alt = '';
 			head2.appendChild( img );
 		}
 		const handleEl = document.createElement( 'div' );
-		handleEl.className = 'desktop-mode-content-graph__panel-detail-handle';
+		handleEl.className = 'os-content-graph__panel-detail-handle';
 		handleEl.innerHTML =
 			`<strong>${ escapeHtml( stats?.profile.name ?? user.name ) }</strong>` +
 			`<span>@${ escapeHtml( user.slug ) }</span>`;
@@ -790,16 +795,16 @@ export function renderPanel(
 		const avatar = stats?.author.avatarUrl;
 		if ( avatar ) {
 			const head2 = document.createElement( 'div' );
-			head2.className = 'desktop-mode-content-graph__panel-detail-head';
+			head2.className = 'os-content-graph__panel-detail-head';
 			const img = document.createElement( 'img' );
 			img.className =
-				'desktop-mode-content-graph__panel-detail-avatar desktop-mode-content-graph__panel-detail-avatar--lg';
+				'os-content-graph__panel-detail-avatar os-content-graph__panel-detail-avatar--lg';
 			img.src = avatar;
 			img.alt = '';
 			head2.appendChild( img );
 			const handleEl = document.createElement( 'div' );
 			handleEl.className =
-				'desktop-mode-content-graph__panel-detail-handle';
+				'os-content-graph__panel-detail-handle';
 			handleEl.innerHTML =
 				`<strong>${ escapeHtml( authorName ) }</strong>` +
 				( stats?.author.totalApprovedComments
@@ -825,14 +830,14 @@ export function renderPanel(
 		if ( content ) {
 			const wrap = document.createElement( 'div' );
 			wrap.className =
-				'desktop-mode-content-graph__panel-detail-section';
+				'os-content-graph__panel-detail-section';
 			const label = document.createElement( 'span' );
 			label.className =
-				'desktop-mode-content-graph__panel-section-label';
+				'os-content-graph__panel-section-label';
 			label.textContent = __( 'Comment' );
 			wrap.appendChild( label );
 			const html = document.createElement( 'div' );
-			html.className = 'desktop-mode-content-graph__panel-detail-html';
+			html.className = 'os-content-graph__panel-detail-html';
 			html.innerHTML = content;
 			wrap.appendChild( html );
 			currentPage.appendChild( wrap );
@@ -846,7 +851,7 @@ export function renderPanel(
 		if ( stats?.parent ) {
 			const wrap = document.createElement( 'blockquote' );
 			wrap.className =
-				'desktop-mode-content-graph__panel-detail-quote';
+				'os-content-graph__panel-detail-quote';
 			wrap.innerHTML =
 				`<strong>${ escapeHtml( stats.parent.authorName ) }</strong>` +
 				`<span>${ escapeHtml( stats.parent.excerpt ) }</span>`;
@@ -881,7 +886,7 @@ export function renderPanel(
 		if ( media.thumb ) {
 			const wrap = document.createElement( 'div' );
 			wrap.className =
-				'desktop-mode-content-graph__panel-detail-thumb';
+				'os-content-graph__panel-detail-thumb';
 			const img = document.createElement( 'img' );
 			img.src = media.thumb;
 			img.alt = media.title || '';
@@ -912,18 +917,18 @@ export function renderPanel(
 		if ( revision.author ) {
 			const head2 = document.createElement( 'div' );
 			head2.className =
-				'desktop-mode-content-graph__panel-detail-head';
+				'os-content-graph__panel-detail-head';
 			if ( revision.author.avatar ) {
 				const img = document.createElement( 'img' );
 				img.className =
-					'desktop-mode-content-graph__panel-detail-avatar desktop-mode-content-graph__panel-detail-avatar--lg';
+					'os-content-graph__panel-detail-avatar os-content-graph__panel-detail-avatar--lg';
 				img.src = revision.author.avatar;
 				img.alt = '';
 				head2.appendChild( img );
 			}
 			const handleEl = document.createElement( 'div' );
 			handleEl.className =
-				'desktop-mode-content-graph__panel-detail-handle';
+				'os-content-graph__panel-detail-handle';
 			handleEl.innerHTML =
 				`<strong>${ escapeHtml( revision.author.name ) }</strong>` +
 				`<span>@${ escapeHtml( revision.author.slug ) }</span>`;
@@ -951,13 +956,13 @@ export function renderPanel(
 
 	const renderProse = ( label: string, text: string ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = label;
 		const p = document.createElement( 'p' );
-		p.className = 'desktop-mode-content-graph__panel-detail-prose';
+		p.className = 'os-content-graph__panel-detail-prose';
 		p.textContent = text;
 		wrap.appendChild( labelEl );
 		wrap.appendChild( p );
@@ -970,20 +975,20 @@ export function renderPanel(
 		opts: { accent?: 'blue' | 'green' | 'amber' } = {},
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = label;
 		wrap.appendChild( labelEl );
 		const list = document.createElement( 'div' );
-		list.className = 'desktop-mode-content-graph__panel-badges';
+		list.className = 'os-content-graph__panel-badges';
 		for ( const it of items ) {
 			const badge = document.createElement( 'span' );
 			badge.className =
-				'desktop-mode-content-graph__panel-badge' +
+				'os-content-graph__panel-badge' +
 				( opts.accent
-					? ` desktop-mode-content-graph__panel-badge--${ opts.accent }`
+					? ` os-content-graph__panel-badge--${ opts.accent }`
 					: '' );
 			badge.textContent = it;
 			list.appendChild( badge );
@@ -996,21 +1001,21 @@ export function renderPanel(
 		items: Array< { label: string; value: string } >,
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-inline-meta';
+		wrap.className = 'os-content-graph__panel-inline-meta';
 		for ( const it of items ) {
 			if ( ! it.value ) {
 				continue;
 			}
 			const row = document.createElement( 'div' );
 			row.className =
-				'desktop-mode-content-graph__panel-inline-meta-row';
+				'os-content-graph__panel-inline-meta-row';
 			const labelEl = document.createElement( 'span' );
 			labelEl.className =
-				'desktop-mode-content-graph__panel-section-label';
+				'os-content-graph__panel-section-label';
 			labelEl.textContent = it.label;
 			const valueEl = document.createElement( 'span' );
 			valueEl.className =
-				'desktop-mode-content-graph__panel-date-value';
+				'os-content-graph__panel-date-value';
 			valueEl.textContent = it.value;
 			row.appendChild( labelEl );
 			row.appendChild( valueEl );
@@ -1025,13 +1030,13 @@ export function renderPanel(
 		href: string,
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = label;
 		const link = document.createElement( 'a' );
-		link.className = 'desktop-mode-content-graph__panel-detail-link';
+		link.className = 'os-content-graph__panel-detail-link';
 		link.href = href;
 		link.textContent = text;
 		link.target = '_blank';
@@ -1052,20 +1057,20 @@ export function renderPanel(
 		} >,
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = label;
 		wrap.appendChild( labelEl );
 		const list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-content-graph__panel-chips';
+		list.className = 'os-content-graph__panel-chips';
 		for ( const t of terms.slice( 0, 8 ) ) {
 			const li = document.createElement( 'li' );
-			li.className = 'desktop-mode-content-graph__panel-chip';
+			li.className = 'os-content-graph__panel-chip';
 			li.innerHTML =
 				`<span>${ escapeHtml( t.name ) }</span>` +
-				`<span class="desktop-mode-content-graph__panel-chip-count">${ formatNumber(
+				`<span class="os-content-graph__panel-chip-count">${ formatNumber(
 					t.count,
 				) }</span>`;
 			list.appendChild( li );
@@ -1084,27 +1089,27 @@ export function renderPanel(
 		} >,
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = label;
 		wrap.appendChild( labelEl );
 		const list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-content-graph__panel-author-list';
+		list.className = 'os-content-graph__panel-author-list';
 		for ( const a of authors.slice( 0, 6 ) ) {
 			const li = document.createElement( 'li' );
-			li.className = 'desktop-mode-content-graph__panel-author-list-row';
+			li.className = 'os-content-graph__panel-author-list-row';
 			li.innerHTML =
 				( a.userAvatarUrl
-					? `<img class="desktop-mode-content-graph__panel-avatar" src="${ escapeAttr(
+					? `<img class="os-content-graph__panel-avatar" src="${ escapeAttr(
 							a.userAvatarUrl,
 					) }" alt="" />`
 					: '' ) +
-				`<span class="desktop-mode-content-graph__panel-author-name">${ escapeHtml(
+				`<span class="os-content-graph__panel-author-name">${ escapeHtml(
 					a.userName,
 				) }</span>` +
-				`<span class="desktop-mode-content-graph__panel-chip-count">${ formatNumber(
+				`<span class="os-content-graph__panel-chip-count">${ formatNumber(
 					a.count,
 				) }</span>`;
 			list.appendChild( li );
@@ -1118,26 +1123,26 @@ export function renderPanel(
 	): HTMLElement => {
 		const filtered = entries.filter( ( e ) => e.iso );
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		if ( filtered.length === 0 ) {
 			wrap.hidden = true;
 			return wrap;
 		}
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = __( 'Milestones' );
 		wrap.appendChild( labelEl );
 		const list = document.createElement( 'div' );
-		list.className = 'desktop-mode-content-graph__panel-milestones';
+		list.className = 'os-content-graph__panel-milestones';
 		for ( const e of filtered ) {
 			const row = document.createElement( 'div' );
-			row.className = 'desktop-mode-content-graph__panel-milestone-row';
+			row.className = 'os-content-graph__panel-milestone-row';
 			const k = document.createElement( 'span' );
-			k.className = 'desktop-mode-content-graph__panel-milestone-key';
+			k.className = 'os-content-graph__panel-milestone-key';
 			k.textContent = e.label;
 			const v = document.createElement( 'span' );
-			v.className = 'desktop-mode-content-graph__panel-date-value';
+			v.className = 'os-content-graph__panel-date-value';
 			v.textContent = formatDate( e.iso! );
 			row.appendChild( k );
 			row.appendChild( v );
@@ -1151,10 +1156,10 @@ export function renderPanel(
 		replies: CommentStats[ 'replies' ],
 	): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-detail-section';
+		wrap.className = 'os-content-graph__panel-detail-section';
 		const labelEl = document.createElement( 'span' );
 		labelEl.className =
-			'desktop-mode-content-graph__panel-section-label';
+			'os-content-graph__panel-section-label';
 		labelEl.textContent = sprintf(
 			/* translators: %d: number of comment replies. */
 			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
@@ -1162,10 +1167,10 @@ export function renderPanel(
 		);
 		wrap.appendChild( labelEl );
 		const list = document.createElement( 'ul' );
-		list.className = 'desktop-mode-content-graph__panel-replies';
+		list.className = 'os-content-graph__panel-replies';
 		for ( const r of replies.slice( 0, 5 ) ) {
 			const li = document.createElement( 'li' );
-			li.className = 'desktop-mode-content-graph__panel-reply';
+			li.className = 'os-content-graph__panel-reply';
 			li.innerHTML =
 				`<header><strong>${ escapeHtml( r.authorName ) }</strong>` +
 				`<span>${ formatDate( r.date ) }</span></header>` +
@@ -1178,9 +1183,9 @@ export function renderPanel(
 
 	const renderLoadingRow = (): HTMLElement => {
 		const div = document.createElement( 'div' );
-		div.className = 'desktop-mode-content-graph__panel-detail-loading';
+		div.className = 'os-content-graph__panel-detail-loading';
 		div.innerHTML =
-			`<wpd-spinner></wpd-spinner><span>${ escapeHtml(
+			`<os-spinner></os-spinner><span>${ escapeHtml(
 				__( 'Loading details…' ),
 			) }</span>`;
 		return div;
@@ -1195,7 +1200,7 @@ export function renderPanel(
 		windowKey?: string;
 	} ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
-		wrap.className = 'desktop-mode-content-graph__panel-actions';
+		wrap.className = 'os-content-graph__panel-actions';
 		if ( ! opts.href ) {
 			wrap.hidden = true;
 			return wrap;
@@ -1220,9 +1225,9 @@ export function renderPanel(
 		const btn = document.createElement( 'button' );
 		btn.type = 'button';
 		btn.className =
-			'desktop-mode-content-graph__btn' +
+			'os-content-graph__btn' +
 			( opts.primary
-				? ' desktop-mode-content-graph__btn--primary'
+				? ' os-content-graph__btn--primary'
 				: '' );
 		btn.innerHTML =
 			`<span class="dashicons ${ escapeAttr( opts.icon ) }" aria-hidden="true"></span>` +
@@ -1244,8 +1249,8 @@ export function renderPanel(
 			currentPage = createPage();
 			body.append( currentPage );
 			const loading = document.createElement( 'div' );
-			loading.className = 'desktop-mode-content-graph__panel-loading';
-			loading.innerHTML = '<wpd-spinner></wpd-spinner>';
+			loading.className = 'os-content-graph__panel-loading';
+			loading.innerHTML = '<os-spinner></os-spinner>';
 			currentPage.appendChild( loading );
 			callbacks.onViewChange?.( null );
 		},
@@ -1258,7 +1263,7 @@ export function renderPanel(
 			currentPage = createPage();
 			body.append( currentPage );
 			const empty = document.createElement( 'p' );
-			empty.className = 'desktop-mode-content-graph__panel-empty';
+			empty.className = 'os-content-graph__panel-empty';
 			empty.textContent = message;
 			currentPage.appendChild( empty );
 			callbacks.onViewChange?.( null );

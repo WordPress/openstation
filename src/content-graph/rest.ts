@@ -23,7 +23,7 @@ import type {
 
 declare global {
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
@@ -31,11 +31,11 @@ const WINDOW_ID = 'desktop-mode-content-graph';
 const SOURCE = 'desktop-mode/content-graph';
 
 export function getConfig(): ContentGraphConfig {
-	const map = window.desktopModeWindowConfig ?? {};
+	const map = window.openStationWindowConfig ?? {};
 	const cfg = map[ WINDOW_ID ] as ContentGraphConfig | undefined;
 	if ( ! cfg ) {
 		throw new Error(
-			'Content Graph config missing — desktop_mode_register_window args lost in transit.',
+			'Corkboard config missing — openstation_register_window args lost in transit.',
 		);
 	}
 	return cfg;

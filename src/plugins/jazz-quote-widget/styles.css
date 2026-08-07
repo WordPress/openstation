@@ -29,7 +29,7 @@
 	font-size: clamp( 11px, 1.8vw, 13px );
 	line-height: 1.55;
 	font-style: italic;
-	color: var(--wpd-color-text, #e2e8f0);
+	color: var(--os-ui-color-text, #e2e8f0);
 	animation: dm-jazz-fadein 0.6s ease both;
 }
 
@@ -44,18 +44,18 @@
 	gap: 2px;
 	flex-shrink: 0;
 	padding-top: 8px;
-	border-top: 1px solid var(--wpd-color-border, rgba(255,255,255,0.1));
+	border-top: 1px solid var(--os-ui-color-border, rgba(255,255,255,0.1));
 }
 
 .dm-jazz__musician {
 	font-size: 11px;
 	font-weight: 700;
-	color: var(--wpd-color-text, #e2e8f0);
+	color: var(--os-ui-color-text, #e2e8f0);
 	letter-spacing: 0.02em;
 }
 
 .dm-jazz__version {
 	font-size: 10px;
-	color: var(--wpd-color-text-subtle, #94a3b8);
+	color: var(--os-ui-color-text-subtle, #94a3b8);
 	letter-spacing: 0.04em;
 }

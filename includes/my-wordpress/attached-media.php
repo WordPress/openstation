@@ -1,8 +1,8 @@
 <?php
 /**
- * Desktop Mode — My WordPress: per-post attached-media REST field.
+ * OpenStation — My WordPress: per-post attached-media REST field.
  *
- * Registers `desktop_mode_attached_media` on every public post
+ * Registers `openstation_attached_media` on every public post
  * type. Returns the canonical set of attachment ids referenced by
  * the post — featured image + everything in `post_content` —
  * computed server-side where `attachment_url_to_postid()` is
@@ -21,37 +21,32 @@
  * Server has the full post object + WP core's URL→id resolver, so
  * one round-trip per detail-view fetches an authoritative list.
  *
- * Filterable via `desktop_mode_my_wordpress_attached_media` for
+ * Filterable via `openstation_my_wordpress_attached_media` for
  * plugins (page builders, ACF, custom field handlers) to append
  * their own references.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register `desktop_mode_attached_media` on every public post type.
+ * Register `openstation_attached_media` on every post type the site
+ * window can browse.
  */
-function desktop_mode_my_wordpress_register_attached_media_field() {
-	$types = get_post_types(
-		array(
-			'show_in_rest' => true,
-			'public'       => true,
-		),
-		'names'
-	);
+function openstation_my_wordpress_register_attached_media_field() {
+	$types = openstation_my_wordpress_rest_field_post_types();
 	foreach ( $types as $type ) {
 		if ( 'attachment' === $type ) {
 			continue;
 		}
 		register_rest_field(
 			$type,
-			'desktop_mode_attached_media',
+			'openstation_attached_media',
 			array(
 				'get_callback' => static function ( $post ) {
 					$id = isset( $post['id'] ) ? (int) $post['id'] : 0;
-					return desktop_mode_my_wordpress_post_attached_media( $id );
+					return openstation_my_wordpress_post_attached_media( $id );
 				},
 				'schema'       => array(
 					'description' => __( 'Attachment ids referenced by this post — featured image plus every attachment found in post_content (block-class scan + raw `<img src>` URL resolution).', 'desktop-mode' ),
@@ -64,7 +59,7 @@ function desktop_mode_my_wordpress_register_attached_media_field() {
 		);
 	}
 }
-add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_attached_media_field' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_attached_media_field' );
 
 /**
  * Resolve every attachment referenced by `$post_id`. Featured
@@ -81,7 +76,7 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_attached_media_
  * @param int $post_id Post id.
  * @return int[] Attachment ids, deduped, no order guarantee.
  */
-function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
+function openstation_my_wordpress_post_attached_media( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return array();
@@ -130,7 +125,7 @@ function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
 					continue;
 				}
 				$seen_urls[ $url ] = true;
-				$resolved = desktop_mode_my_wordpress_resolve_attachment_url( $url );
+				$resolved          = openstation_my_wordpress_resolve_attachment_url( $url );
 				if ( $resolved > 0 ) {
 					$ids[ $resolved ] = true;
 				}
@@ -150,7 +145,7 @@ function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
 	 * @param int[] $out      Attachment ids resolved by the core scan.
 	 * @param int   $post_id  Subject post id.
 	 */
-	$filtered = apply_filters( 'desktop_mode_my_wordpress_attached_media', $out, $post_id );
+	$filtered = apply_filters( 'openstation_my_wordpress_attached_media', $out, $post_id );
 
 	if ( ! is_array( $filtered ) ) {
 		return $out;
@@ -175,9 +170,9 @@ function desktop_mode_my_wordpress_post_attached_media( $post_id ) {
  * @param string $url Image URL pulled from `<img src>`.
  * @return int Attachment id, or 0 when no match.
  */
-function desktop_mode_my_wordpress_resolve_attachment_url( $url ) {
+function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	static $cache = array();
-	$url = (string) $url;
+	$url          = (string) $url;
 	if ( '' === $url ) {
 		return 0;
 	}
@@ -187,14 +182,14 @@ function desktop_mode_my_wordpress_resolve_attachment_url( $url ) {
 	// `attachment_url_to_postid()` does a literal `_wp_attached_file`
 	// meta lookup — it doesn't account for WP-generated variants:
 	//
-	//   - Sized intermediates  `image-300x200.jpg` — strip `-WxH`.
-	//   - `-scaled.jpg`        WP autogenerates this for uploads
-	//                          past the big-image threshold and
-	//                          stores it as `_wp_attached_file`,
-	//                          while editors emit the original
-	//                          URL in `<img src>`. Try BOTH the
-	//                          scaled→original strip AND the
-	//                          original→scaled append.
+	// - Sized intermediates  `image-300x200.jpg` — strip `-WxH`.
+	// - `-scaled.jpg`        WP autogenerates this for uploads
+	// past the big-image threshold and
+	// stores it as `_wp_attached_file`,
+	// while editors emit the original
+	// URL in `<img src>`. Try BOTH the
+	// scaled→original strip AND the
+	// original→scaled append.
 	//
 	// Strip query strings from every candidate so cache-buster URLs
 	// (`?ver=…`) still resolve.
@@ -203,7 +198,7 @@ function desktop_mode_my_wordpress_resolve_attachment_url( $url ) {
 		return false === $pos ? $u : substr( $u, 0, $pos );
 	};
 
-	$clean = $strip_query( $url );
+	$clean      = $strip_query( $url );
 	$candidates = array( $clean );
 
 	// `image-300x200.jpg` → `image.jpg`

@@ -2,7 +2,7 @@
  * Third-party OS Settings tab registry.
  *
  * Plugins register additional tabs in the OS Settings window via the
- * public `wp.desktop.registerSettingsTab()` API. Built-in tabs
+ * public `wp.os.registerSettingsTab()` API. Built-in tabs
  * (appearance, ai, apps-icons, features, effects, help,
  * about) live directly in `panel.ts`; this registry extends the panel
  * with externally-contributed tabs without the core module needing to
@@ -32,7 +32,7 @@ export interface OsSettingsSnapshot {
 	dockSize: string;
 	/**
 	 * Window corner-radius preset: `'sharp'` | `'default'` | `'round'`.
-	 * Written to `--desktop-mode-window-radius` by the apply pass, so
+	 * Written to `--os-window-radius` by the apply pass, so
 	 * a change reflows every open window's corners live.
 	 *
 	 * A desktop theme that sets that custom property in its `tokens`
@@ -41,6 +41,18 @@ export interface OsSettingsSnapshot {
 	 * from the `:root` inline style this preset writes.
 	 */
 	windowRadius: string;
+	/**
+	 * How the WordPress admin bar presents above the shell:
+	 * `'static'` | `'dynamic'` | `'hidden'`.
+	 *
+	 * Written as a `os-admin-bar-<mode>` body class by both
+	 * PHP (first paint) and the apply pass (live changes). `dynamic`
+	 * slides the bar off the top edge leaving a peek strip that
+	 * reveals it on hover or keyboard focus; `hidden` removes it
+	 * entirely and leaves the dock's "Exit OpenStation" tile as the
+	 * route back to classic admin.
+	 */
+	adminBarMode: string;
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
@@ -76,6 +88,17 @@ export interface OsSettingsSnapshot {
 	 */
 	unfocusEffect: string;
 	/**
+	 * Active window-reveal id — the `clip-path` transition that
+	 * uncovers a window's content when it finishes loading. `'none'`
+	 * (no transition) is the default: reveals are opt-in.
+	 */
+	windowReveal: string;
+	/**
+	 * Global reveal duration override in ms, or `0` to let each reveal
+	 * use its own tuned timing.
+	 */
+	windowRevealDuration: number;
+	/**
 	 * Active window-link renderer id; `'none'` disables the visuals,
 	 * unknown ids fall back to the built-in `'svg-splines'`.
 	 */
@@ -101,7 +124,7 @@ export interface OsSettingsSnapshot {
 	};
 	/**
 	 * Per-user opt-in for the native Posts window. When true, clicking
-	 * the Posts dock tile opens the `<wpd-table>`-driven native window
+	 * the Posts dock tile opens the `<os-table>`-driven native window
 	 * instead of the chromeless `edit.php` iframe. Default off.
 	 */
 	nativePostsEnabled: boolean;
@@ -114,7 +137,7 @@ export interface OsSettingsSnapshot {
 	/**
 	 * Per-user opt-in for the native Pages window. When true, the Pages
 	 * dock tile / `edit.php?post_type=page` links open the native
-	 * `<wpd-table>` window instead of the chromeless iframe. Default off.
+	 * `<os-table>` window instead of the chromeless iframe. Default off.
 	 */
 	nativePagesEnabled: boolean;
 	/**
@@ -190,7 +213,7 @@ export interface SettingsTabRenderCtx {
 	 *
 	 * Returns a defensive copy — mutating the result does not change
 	 * persisted state. To change settings, call
-	 * `wp.desktop.updateOsSettings( patch )` — the public write path
+	 * `wp.os.updateOsSettings( patch )` — the public write path
 	 * that persists, notifies subscribers, and fires the save
 	 * lifecycle.
 	 */
@@ -202,7 +225,7 @@ export interface SettingsTabRenderCtx {
 	 * Returns an unsubscribe function.
 	 *
 	 * Scope caveat: only fires for local (in-tab) edits — in-panel
-	 * changes or `wp.desktop.updateOsSettings()` calls. Changes made
+	 * changes or `wp.os.updateOsSettings()` calls. Changes made
 	 * on another device/browser (which land via REST on the *next*
 	 * page load) won't trigger this.
 	 */
@@ -266,14 +289,14 @@ export interface DesktopSettingsTab {
  *     calls `registerSettingsTab()` on every plugins-changed
  *     refresh, so live plugin install/activate surfaces the new tab
  *     without a reload.
- *   - `wp.desktop.registerSettingsTab()` — the JS-side public API.
+ *   - `wp.os.registerSettingsTab()` — the JS-side public API.
  *
  * Without `createSharedStore`, the two bundles each get their own
  * compiled copy of this module's top-level `Map` + `Set`. Plugin
  * tabs registered in main never reach the panel, and the panel's
  * own re-renders never wake main's subscribers. The shared store
  * pins both fields to one record on
- * `window.__desktopModeSharedStores` so every bundle sees the same
+ * `window.__openStationSharedStores` so every bundle sees the same
  * Map and the same Set.
  */
 interface SettingsTabRegistryStore {
@@ -309,7 +332,7 @@ export function registerSettingsTab( tab: DesktopSettingsTab ): void {
 	if ( ! /^[a-z0-9_\-]+$/.test( id ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
-				'[desktop-mode] registerSettingsTab: id must be [a-z0-9_-]+, got',
+				'[openstation] registerSettingsTab: id must be [a-z0-9_-]+, got',
 				tab.id,
 			);
 		}
@@ -373,7 +396,7 @@ function notify(): void {
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					'[desktop-mode] settings-tab-registry listener threw:',
+					'[openstation] settings-tab-registry listener threw:',
 					err,
 				);
 			}

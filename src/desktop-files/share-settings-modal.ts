@@ -1,8 +1,8 @@
 /**
- * Desktop Mode — Folder share-settings modal.
+ * OpenStation — Folder share-settings modal.
  *
  * Imperative `openShareSettingsModal( folderId )` — mounts a
- * `<wpd-modal>` on `document.body` configured to manage the
+ * `<os-modal>` on `document.body` configured to manage the
  * folder's share list. Owner-only; the caller is expected to
  * have gated on ownership before calling.
  */
@@ -30,13 +30,13 @@ import { setSharesForFolder, sharesStore, upsertShare, removeShare } from './sha
 // Side-effect-import every component the modal renders so it
 // upgrades the moment the modal is mounted — no waiting on the
 // shell-overlays lazy bundle, no race-y "missing import" warning.
-import '../ui/components/wpd-modal/wpd-modal';
-import '../ui/components/wpd-user-search/wpd-user-search';
-import '../ui/components/wpd-role-picker/wpd-role-picker';
-import '../ui/components/wpd-segmented/wpd-segmented';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-toast/wpd-toast';
-import '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import '../ui/components/os-modal/os-modal';
+import '../ui/components/os-user-search/os-user-search';
+import '../ui/components/os-role-picker/os-role-picker';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-toast/os-toast';
+import '../ui/components/os-confirm-dialog/os-confirm-dialog';
 
 interface OpenOptions {
 	folderId: number;
@@ -60,31 +60,31 @@ function buildCapSegmented(
 	initial: 'read' | 'write',
 	onChange: ( next: 'read' | 'write' ) => void,
 ): HTMLElement {
-	const segmented = document.createElement( 'wpd-segmented' );
+	const segmented = document.createElement( 'os-segmented' );
 	segmented.setAttribute( 'value', initial );
 	segmented.setAttribute( 'label', 'Capability' );
 
 	// Dark-theme CSS-variable overrides. These cascade through the
 	// component's shadow boundary because custom properties inherit.
-	segmented.style.setProperty( '--wpd-segmented-bg', 'rgba(255,255,255,0.06)' );
+	segmented.style.setProperty( '--os-ui-segmented-bg', 'rgba(255,255,255,0.06)' );
 	segmented.style.setProperty(
-		'--desktop-mode-window-bg',
+		'--os-window-bg',
 		'var(--wp-admin-theme-color, #2271b1)',
 	);
-	segmented.style.setProperty( '--wpd-fg', '#fff' );
-	segmented.style.setProperty( '--wpd-fg-muted', 'rgba(255,255,255,0.65)' );
+	segmented.style.setProperty( '--os-ui-fg', '#fff' );
+	segmented.style.setProperty( '--os-ui-fg-muted', 'rgba(255,255,255,0.65)' );
 
-	const segRead = document.createElement( 'wpd-segment' );
+	const segRead = document.createElement( 'os-segment' );
 	segRead.setAttribute( 'value', 'read' );
 	segRead.textContent = 'Read';
 	segmented.appendChild( segRead );
 
-	const segWrite = document.createElement( 'wpd-segment' );
+	const segWrite = document.createElement( 'os-segment' );
 	segWrite.setAttribute( 'value', 'write' );
 	segWrite.textContent = 'Read + Write';
 	segmented.appendChild( segWrite );
 
-	segmented.addEventListener( 'wpd-pick', ( e ) => {
+	segmented.addEventListener( 'os-pick', ( e ) => {
 		const detail = ( e as CustomEvent< { value: 'read' | 'write' } > ).detail;
 		onChange( detail.value );
 	} );
@@ -93,7 +93,7 @@ function buildCapSegmented(
 
 /**
  * Build a small "×" icon button styled for the dark modal. Uses
- * `<wpd-button>` so it inherits the rest of the design system,
+ * `<os-button>` so it inherits the rest of the design system,
  * but with explicit CSS-variable overrides for legibility on
  * the dark surface.
  */
@@ -102,7 +102,7 @@ function buildIconButton(
 	onClick: () => void,
 	opts: { danger?: boolean } = {},
 ): HTMLElement {
-	const btn = document.createElement( 'wpd-button' );
+	const btn = document.createElement( 'os-button' );
 	btn.setAttribute( 'variant', 'ghost' );
 	btn.setAttribute( 'aria-label', opts.danger ? 'Remove' : 'Dismiss' );
 	btn.textContent = label;
@@ -110,13 +110,13 @@ function buildIconButton(
 	const border = opts.danger
 		? '1px solid rgba(255,128,128,0.45)'
 		: '1px solid rgba(255,255,255,0.18)';
-	btn.style.setProperty( '--wpd-button-fg', fg );
-	btn.style.setProperty( '--wpd-button-border', border );
+	btn.style.setProperty( '--os-ui-button-fg', fg );
+	btn.style.setProperty( '--os-ui-button-border', border );
 	// Match the segmented control's vertical metrics (~34px total
 	// height) so the × button doesn't visually float above the row.
-	btn.style.setProperty( '--wpd-button-padding', '6px 12px' );
-	btn.style.setProperty( '--wpd-button-border-radius', '7px' );
-	btn.style.setProperty( '--wpd-button-min-height', '34px' );
+	btn.style.setProperty( '--os-ui-button-padding', '6px 12px' );
+	btn.style.setProperty( '--os-ui-button-border-radius', '7px' );
+	btn.style.setProperty( '--os-ui-button-min-height', '34px' );
 	btn.style.minWidth = '34px';
 	btn.style.fontSize = '18px';
 	btn.style.lineHeight = '1';
@@ -125,7 +125,7 @@ function buildIconButton(
 }
 
 export async function openShareSettingsModal( opts: OpenOptions ): Promise< void > {
-	const modal = document.createElement( 'wpd-modal' );
+	const modal = document.createElement( 'os-modal' );
 	modal.setAttribute( 'open', '' );
 	modal.setAttribute( 'size', 'lg' );
 	modal.setAttribute( 'title', `Share "${ opts.folderName }"` );
@@ -158,14 +158,14 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		addPeopleLabel.style.cssText = 'font-weight:600;';
 		addPeople.appendChild( addPeopleLabel );
 
-		const userSearch = document.createElement( 'wpd-user-search' );
+		const userSearch = document.createElement( 'os-user-search' );
 		const excludedUserIds = shares
 			.filter( ( s ) => s.principalType === 'user' )
 			.map( ( s ) => s.principalRef )
 			.concat( pendingPicks.filter( ( p ) => p.kind === 'user' ).map( ( p ) => p.ref ) );
 		userSearch.setAttribute( 'exclude', excludedUserIds.join( ',' ) );
 		userSearch.setAttribute( 'placeholder', 'Search users…' );
-		userSearch.addEventListener( 'wpd-user-pick', ( e ) => {
+		userSearch.addEventListener( 'os-user-pick', ( e ) => {
 			const detail = ( e as CustomEvent< { user: { id: number; name: string } } > ).detail;
 			pendingPicks.push( {
 				kind: 'user',
@@ -186,7 +186,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		addRolesLabel.style.cssText = 'font-weight:600;';
 		addRoles.appendChild( addRolesLabel );
 
-		const rolePicker = document.createElement( 'wpd-role-picker' );
+		const rolePicker = document.createElement( 'os-role-picker' );
 		const grantedRoles = shares
 			.filter( ( s ) => s.principalType === 'role' )
 			.map( ( s ) => s.principalRef );
@@ -194,7 +194,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			.filter( ( p ) => p.kind === 'role' )
 			.map( ( p ) => p.ref );
 		rolePicker.setAttribute( 'selected', [ ...grantedRoles, ...pickedRoles ].join( ',' ) );
-		rolePicker.addEventListener( 'wpd-role-toggle', ( e ) => {
+		rolePicker.addEventListener( 'os-role-toggle', ( e ) => {
 			const detail = ( e as CustomEvent< { slug: string; selected: boolean } > ).detail;
 			// If the role is already a granted share, treat toggle as a revoke.
 			const existing = shares.find(
@@ -208,7 +208,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			}
 			if ( detail.selected ) {
 				const eligible =
-					( window.desktopModeConfig?.shareEligibleRoles ?? [] ).find(
+					( window.openStationConfig?.shareEligibleRoles ?? [] ).find(
 						( r ) => r.slug === detail.slug,
 					);
 				pendingPicks.push( {
@@ -263,7 +263,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 				pendingBlock.appendChild( row );
 			}
 
-			const sendBtn = document.createElement( 'wpd-button' );
+			const sendBtn = document.createElement( 'os-button' );
 			sendBtn.setAttribute( 'variant', 'primary' );
 			sendBtn.textContent = `Send ${ pendingPicks.length } invite${ pendingPicks.length === 1 ? '' : 's' }`;
 			sendBtn.style.marginTop = '8px';
@@ -389,7 +389,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		footer.style.justifyContent = 'flex-end';
 		footer.style.gap = '10px';
 		footer.style.flexWrap = 'wrap';
-		const doneBtn = document.createElement( 'wpd-button' );
+		const doneBtn = document.createElement( 'os-button' );
 		doneBtn.setAttribute( 'variant', 'secondary' );
 		doneBtn.textContent = 'Done';
 		doneBtn.addEventListener( 'click', () => modal.remove() );
@@ -435,7 +435,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		}
 	};
 
-	modal.addEventListener( 'wpd-modal-cancel', () => modal.remove() );
+	modal.addEventListener( 'os-modal-cancel', () => modal.remove() );
 
 	renderBody();
 	await refresh();
@@ -452,7 +452,7 @@ export async function openFileShareModal( opts: {
 	fileId: number;
 	fileName: string;
 } ): Promise< void > {
-	const modal = document.createElement( 'wpd-modal' );
+	const modal = document.createElement( 'os-modal' );
 	modal.setAttribute( 'open', '' );
 	modal.setAttribute( 'size', 'md' );
 	modal.setAttribute( 'title', `Share "${ opts.fileName }"` );
@@ -486,13 +486,13 @@ export async function openFileShareModal( opts: {
 		addLabel.style.cssText = 'font-weight:600;margin-bottom:6px;';
 		modal.appendChild( addLabel );
 
-		const userSearch = document.createElement( 'wpd-user-search' );
+		const userSearch = document.createElement( 'os-user-search' );
 		userSearch.setAttribute(
 			'exclude',
 			shares.map( ( s ) => s.principalRef ).join( ',' ),
 		);
 		userSearch.setAttribute( 'placeholder', 'Search users…' );
-		userSearch.addEventListener( 'wpd-user-pick', ( e ) => {
+		userSearch.addEventListener( 'os-user-pick', ( e ) => {
 			const detail = ( e as CustomEvent< { user: { id: number; name: string } } > )
 				.detail;
 			void ( async () => {
@@ -572,7 +572,7 @@ export async function openFileShareModal( opts: {
 		footer.setAttribute( 'slot', 'footer' );
 		footer.style.cssText =
 			'display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;';
-		const doneBtn = document.createElement( 'wpd-button' );
+		const doneBtn = document.createElement( 'os-button' );
 		doneBtn.setAttribute( 'variant', 'secondary' );
 		doneBtn.textContent = 'Done';
 		doneBtn.addEventListener( 'click', () => modal.remove() );
@@ -580,7 +580,7 @@ export async function openFileShareModal( opts: {
 		modal.appendChild( footer );
 	};
 
-	modal.addEventListener( 'wpd-modal-cancel', () => modal.remove() );
+	modal.addEventListener( 'os-modal-cancel', () => modal.remove() );
 
 	renderBody();
 	await refresh();
@@ -598,7 +598,7 @@ export function openPendingFileInviteModal( invite: {
 	ownerName?: string;
 } ): Promise< 'accepted' | 'denied' | 'dismissed' > {
 	return new Promise( ( resolve ) => {
-		const modal = document.createElement( 'wpd-modal' );
+		const modal = document.createElement( 'os-modal' );
 		modal.setAttribute( 'open', '' );
 		modal.setAttribute(
 			'title',
@@ -619,7 +619,7 @@ export function openPendingFileInviteModal( invite: {
 		footer.style.cssText =
 			'display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;';
 
-		const laterBtn = document.createElement( 'wpd-button' );
+		const laterBtn = document.createElement( 'os-button' );
 		laterBtn.setAttribute( 'variant', 'secondary' );
 		laterBtn.textContent = 'Decide later';
 		laterBtn.addEventListener( 'click', () => {
@@ -627,7 +627,7 @@ export function openPendingFileInviteModal( invite: {
 			resolve( 'dismissed' );
 		} );
 
-		const denyBtn = document.createElement( 'wpd-button' );
+		const denyBtn = document.createElement( 'os-button' );
 		denyBtn.setAttribute( 'variant', 'danger' );
 		denyBtn.textContent = 'Deny';
 		denyBtn.addEventListener( 'click', async () => {
@@ -648,7 +648,7 @@ export function openPendingFileInviteModal( invite: {
 			}
 		} );
 
-		const acceptBtn = document.createElement( 'wpd-button' );
+		const acceptBtn = document.createElement( 'os-button' );
 		acceptBtn.setAttribute( 'variant', 'primary' );
 		acceptBtn.textContent = 'Accept';
 		acceptBtn.addEventListener( 'click', async () => {
@@ -680,7 +680,7 @@ export function openPendingFileInviteModal( invite: {
 		footer.appendChild( acceptBtn );
 		modal.appendChild( footer );
 
-		modal.addEventListener( 'wpd-modal-cancel', () => {
+		modal.addEventListener( 'os-modal-cancel', () => {
 			modal.remove();
 			resolve( 'dismissed' );
 		} );
@@ -702,7 +702,7 @@ export function openPendingInviteModal( invite: {
 	capability: string;
 } ): Promise< 'accepted' | 'denied' | 'dismissed' > {
 	return new Promise( ( resolve ) => {
-		const modal = document.createElement( 'wpd-modal' );
+		const modal = document.createElement( 'os-modal' );
 		modal.setAttribute( 'open', '' );
 		modal.setAttribute( 'title', invite.folderName
 			? `${ invite.ownerName ?? 'Someone' } shared "${ invite.folderName }" with you`
@@ -726,7 +726,7 @@ export function openPendingInviteModal( invite: {
 		footer.style.gap = '10px';
 		footer.style.flexWrap = 'wrap';
 
-		const laterBtn = document.createElement( 'wpd-button' );
+		const laterBtn = document.createElement( 'os-button' );
 		laterBtn.setAttribute( 'variant', 'secondary' );
 		laterBtn.textContent = 'Decide later';
 		laterBtn.addEventListener( 'click', () => {
@@ -734,7 +734,7 @@ export function openPendingInviteModal( invite: {
 			resolve( 'dismissed' );
 		} );
 
-		const denyBtn = document.createElement( 'wpd-button' );
+		const denyBtn = document.createElement( 'os-button' );
 		denyBtn.setAttribute( 'variant', 'danger' );
 		denyBtn.textContent = 'Deny';
 		denyBtn.addEventListener( 'click', async () => {
@@ -755,7 +755,7 @@ export function openPendingInviteModal( invite: {
 			}
 		} );
 
-		const acceptBtn = document.createElement( 'wpd-button' );
+		const acceptBtn = document.createElement( 'os-button' );
 		acceptBtn.setAttribute( 'variant', 'primary' );
 		acceptBtn.textContent = 'Accept';
 		acceptBtn.addEventListener( 'click', async () => {
@@ -790,7 +790,7 @@ export function openPendingInviteModal( invite: {
 		footer.appendChild( acceptBtn );
 		modal.appendChild( footer );
 
-		modal.addEventListener( 'wpd-modal-cancel', () => {
+		modal.addEventListener( 'os-modal-cancel', () => {
 			modal.remove();
 			resolve( 'dismissed' );
 		} );

@@ -1,15 +1,15 @@
 /**
- * Desktop Mode — AI Assistant lazy-load stub.
+ * OpenStation — AI Assistant lazy-load stub.
  *
  * Lives in the main `desktop.min.js` bundle. Holds the public
  * {@link AiAssistantApi} contract but defers loading of the 38 kB
  * implementation (`ai-assistant.min.js`) until the user actually
  * invokes it: first `open()` / `toggle()` / `ask()` triggers a
  * `<script>` injection, the impl bundle calls
- * `window.desktopModeCreateAiAssistant( config )` to mint a real
+ * `window.openStationCreateAiAssistant( config )` to mint a real
  * instance, and every subsequent call forwards to it.
  *
- * Plugins that call `wp.desktop.ai.open()` or `wp.desktop.ai.ask( … )`
+ * Plugins that call `wp.os.ai.open()` or `wp.os.ai.ask( … )`
  * synchronously after boot see no difference — the stub buffers the
  * constructor config and any late-bound `ask` function injected via
  * {@link attachAsk}, then replays the call once the impl arrives.
@@ -29,7 +29,7 @@ import type {
 
 declare global {
 	interface Window {
-		desktopModeCreateAiAssistant?: AiAssistantFactory;
+		openStationCreateAiAssistant?: AiAssistantFactory;
 	}
 }
 
@@ -42,22 +42,22 @@ type LoadedAi = AiAssistantApi & { attachAsk( fn: AskFn ): void };
  * Re-resolution after load is a synchronous global lookup.
  */
 function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
-	if ( window.desktopModeCreateAiAssistant ) {
-		return Promise.resolve( window.desktopModeCreateAiAssistant );
+	if ( window.openStationCreateAiAssistant ) {
+		return Promise.resolve( window.openStationCreateAiAssistant );
 	}
 	return new Promise( ( resolve, reject ) => {
 		// If a tag with this URL is already in the DOM, hook its load
 		// event rather than appending a duplicate. Matches the
 		// reentrancy guarantee of `customElements.define`.
 		const existing = document.querySelector< HTMLScriptElement >(
-			`script[data-desktop-mode-ai="1"]`,
+			`script[data-os-ai="1"]`,
 		);
 		const finish = (): void => {
-			const factory = window.desktopModeCreateAiAssistant;
+			const factory = window.openStationCreateAiAssistant;
 			if ( ! factory ) {
 				reject(
 					new Error(
-						'[desktop-mode] ai-assistant bundle loaded but did not register desktopModeCreateAiAssistant',
+						'[openstation] ai-assistant bundle loaded but did not register openStationCreateAiAssistant',
 					),
 				);
 				return;
@@ -65,7 +65,7 @@ function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
 			resolve( factory );
 		};
 		if ( existing ) {
-			if ( window.desktopModeCreateAiAssistant ) {
+			if ( window.openStationCreateAiAssistant ) {
 				finish();
 			} else {
 				existing.addEventListener( 'load', finish );
@@ -78,7 +78,7 @@ function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
 		const s = document.createElement( 'script' );
 		s.src = scriptUrl;
 		s.async = true;
-		s.dataset.desktopModeAi = '1';
+		s.dataset.osAi = '1';
 		s.addEventListener( 'load', finish );
 		s.addEventListener( 'error', () =>
 			reject( new Error( 'failed to load ai-assistant bundle' ) ),
@@ -93,7 +93,7 @@ function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
  * Methods that *render* (open / toggle) trigger the impl load and
  * forward once it resolves. Read-only state queries (`isOpen`) and
  * setters that just capture a callback (`attachAsk`) work without
- * loading the impl — important so `wp.desktop.ai.attachAsk( ... )`
+ * loading the impl — important so `wp.os.ai.attachAsk( ... )`
  * during boot doesn't drag the bundle in.
  */
 export class AiAssistantStub implements AiAssistantApi {

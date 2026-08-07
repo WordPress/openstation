@@ -1,4 +1,4 @@
-# Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`
+# Share state across multi-bundle plugins — `wp.os.createSharedStore()`
 
 **Stable.**
 
@@ -10,7 +10,7 @@ one bundle is invisible to the other bundle — same source, different
 runtime objects. Mutations don't propagate. Subscribers don't fire.
 The chat window opens on the placeholder. The badge stays at zero.
 
-`wp.desktop.createSharedStore()` is the framework primitive that
+`wp.os.createSharedStore()` is the framework primitive that
 solves this. One `window`-level slot, keyed by your string;
 mutate-then-notify; subscribers from any bundle fire on any
 mutation.
@@ -36,7 +36,7 @@ type story, no consistent slot naming.
 ## The fix
 
 ```ts
-const store = wp.desktop.createSharedStore< MyState >(
+const store = wp.os.createSharedStore< MyState >(
     'my-plugin/state',                     // any unique string
     () => ( {                              // thunk: runs once per key
         selectedId: null,
@@ -70,14 +70,14 @@ doesn't exist yet — returns the same store. The thunked
 `src/my-plugin/state.ts` (imported by both bundles):
 
 ```ts
-import type { SharedStore } from 'desktop-mode';
+import type { SharedStore } from 'openstation';
 
 interface MyState {
     selectedId: number | null;
     items: { id: number; label: string }[];
 }
 
-const store: SharedStore< MyState > = wp.desktop.createSharedStore(
+const store: SharedStore< MyState > = wp.os.createSharedStore(
     'my-plugin/state',
     () => ( {
         selectedId: null,
@@ -103,7 +103,7 @@ export function setItems( items: MyState[ 'items' ] ) {
 import { setItems, selectItem } from './state';
 
 // Hydrate from REST on boot — runs once per page load.
-wp.desktop.fetch( '/wp-json/my-plugin/v1/items', undefined, { source: 'my-plugin/items' } )
+wp.os.fetch( '/wp-json/my-plugin/v1/items', undefined, { source: 'my-plugin/items' } )
     .then( ( r ) => r.json() )
     .then( ( items ) => setItems( items ) );
 
@@ -159,7 +159,7 @@ interface SharedStore< T > {
                                                              // for object state
 }
 
-wp.desktop.createSharedStore< T >(
+wp.os.createSharedStore< T >(
     key:          string,
     initialState: () => T,
 ): SharedStore< T >;

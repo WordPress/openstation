@@ -30,7 +30,7 @@
  * painter — Layer 2's `paintWindowControls()` owns it. Plugins
  * targeting the controls cluster use the control registry instead.
  *
- * The `desktop-mode.window.chrome.slot` filter fires once per slot
+ * The `os.window.chrome.slot` filter fires once per slot
  * after content has settled, with the host as its value — plugins
  * can mutate the host without owning a registry entry (handy for
  * cross-cutting decorators).
@@ -110,6 +110,26 @@ function restoreDefault(
 }
 
 /**
+ * Re-sync the restored title span with the window's current title.
+ *
+ * The snapshot this slot restores from was cloned at construction, so
+ * it carries the title the window OPENED with. Every other slot's
+ * default is fixed markup and restoring it verbatim is right; the
+ * title's is derived state, and putting the construction-time copy
+ * back silently undid every `setTitle` since. A repaint fires
+ * whenever the window-slot registry mutates, so activating a plugin
+ * that registers a slot was enough to rename every open window back
+ * to whatever it started as — with `config.title` still reporting the
+ * new one.
+ */
+function syncRestoredTitle( host: HTMLElement, title: string ): void {
+	const titleEl = host.querySelector< HTMLElement >( '.os-window__title' );
+	if ( titleEl ) {
+		titleEl.textContent = title;
+	}
+}
+
+/**
  * Paint every slot on a window. Returns a teardown function the
  * Window class invokes on re-paint and on close.
  *
@@ -171,6 +191,9 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		} else {
 			restoreDefault( host, slotDefaults );
+			if ( name === 'title' ) {
+				syncRestoredTitle( host, win.config.title );
+			}
 		}
 
 		// Step 2 — registry entries (skipped when override === null,
@@ -200,7 +223,7 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		}
 
-		// Step 3 — fire the desktop-mode.window.chrome.slot filter so
+		// Step 3 — fire the os.window.chrome.slot filter so
 		// plugins can mutate the host without owning a registry entry.
 		// Filter value is the host element; subscribers may mutate it
 		// in place. We swallow the return value (action-shaped

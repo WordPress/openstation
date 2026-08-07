@@ -1,11 +1,11 @@
 <?php
 /**
- * Desktop Mode — generic content-change realtime layer.
+ * OpenStation — generic content-change realtime layer.
  *
  * Records create/update/trash mutations of posts, pages, CPTs,
  * comments, and WooCommerce orders into a per-request changelog and
  * relays them to the parent shell as cross-window broadcasts
- * (`desktop-mode.<type>.changed`, payload `{ source, action, ids }`),
+ * (`os.<type>.changed`, payload `{ source, action, ids }`),
  * so every window listing that content type can refresh without an F5.
  *
  * Three delivery paths, mirroring the Recycle Bin realtime layer
@@ -14,7 +14,7 @@
  *
  *   1. **Chromeless footer — fast path.** At `admin_footer` on a
  *      chromeless render, one inline script postMessages a
- *      `desktop-mode-broadcast` envelope per `[type][action]` entry
+ *      `os-broadcast` envelope per `[type][action]` entry
  *      to the parent shell. Because the dominant admin mutation flow
  *      is form-POST → 302 → GET (the mutating request renders no
  *      footer), the changelog is buffered across the redirect in a
@@ -33,27 +33,34 @@
  *      Quick Edit, AJAX status flips, other browser tabs, REST and
  *      WP-CLI mutations within one tick (15–60 s).
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const DESKTOP_MODE_CONTENT_CHANGES_LOG_OPTION = '_desktop_mode_content_changes_log';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
+const OPENSTATION_CONTENT_CHANGES_LOG_OPTION = '_desktop_mode_content_changes_log';
 
 /**
  * Milliseconds of heartbeat-changelog history to retain.
  */
-const DESKTOP_MODE_CONTENT_CHANGES_LOG_WINDOW_MS = 300000;
+const OPENSTATION_CONTENT_CHANGES_LOG_WINDOW_MS = 300000;
 
 /**
  * Maximum retained heartbeat-changelog entries.
  */
-const DESKTOP_MODE_CONTENT_CHANGES_LOG_MAX = 100;
+const OPENSTATION_CONTENT_CHANGES_LOG_MAX = 100;
 
 /**
  * TTL for the redirect-surviving per-user changelog buffer.
  */
-const DESKTOP_MODE_CONTENT_CHANGES_BUFFER_TTL = 60;
+const OPENSTATION_CONTENT_CHANGES_BUFFER_TTL = 60;
 
 /**
  * Per-request state shared by the recorder, the footer emitter, and
@@ -71,7 +78,7 @@ const DESKTOP_MODE_CONTENT_CHANGES_BUFFER_TTL = 60;
  *
  * @return array Per-request state, by reference.
  */
-function &desktop_mode_content_changes_state() {
+function &openstation_content_changes_state() {
 	static $state = null;
 	if ( null === $state ) {
 		$state = array(
@@ -89,8 +96,8 @@ function &desktop_mode_content_changes_state() {
  *
  * @internal
  */
-function desktop_mode_content_changes_reset() {
-	$state = &desktop_mode_content_changes_state();
+function openstation_content_changes_reset() {
+	$state = &openstation_content_changes_state();
 	$state = array(
 		'log'     => array(),
 		'seen'    => array(),
@@ -106,7 +113,7 @@ function desktop_mode_content_changes_reset() {
  * own storage (an HPOS-style custom table, a settings screen, …):
  * call it from your mutation path and every open window listing your
  * type refreshes, exactly like core content. Pair it with a
- * `desktop_mode_soft_reload_rules` filter entry if your list screen
+ * `openstation_soft_reload_rules` filter entry if your list screen
  * is not a standard `edit.php?post_type=<type>` page.
  *
  * Dedupe is first-writer-wins per `type:id` within the request: core
@@ -118,13 +125,13 @@ function desktop_mode_content_changes_reset() {
  *
  * @param string $type   Content type slug — a post type, `comment`,
  *                       or `shop_order`. Becomes the broadcast topic
- *                       `desktop-mode.<type>.changed`.
+ *                       `os.<type>.changed`.
  * @param int    $id     Mutated object id.
  * @param string $action One of 'created', 'updated', 'trashed',
  *                       'untrashed', 'deleted'.
  * @return bool Whether the change was recorded.
  */
-function desktop_mode_content_changes_record( $type, $id, $action ) {
+function openstation_content_changes_record( $type, $id, $action ) {
 	$type   = (string) $type;
 	$id     = (int) $id;
 	$action = (string) $action;
@@ -147,11 +154,11 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
 	 * @param int    $id     Mutated object id.
 	 * @param string $action Verb (created/updated/trashed/untrashed/deleted).
 	 */
-	if ( ! apply_filters( 'desktop_mode_content_changes_should_record', true, $type, $id, $action ) ) {
+	if ( ! apply_filters( 'openstation_content_changes_should_record', true, $type, $id, $action ) ) {
 		return false;
 	}
 
-	$state = &desktop_mode_content_changes_state();
+	$state = &openstation_content_changes_state();
 	$key   = $type . ':' . $id;
 	if ( isset( $state['seen'][ $key ] ) ) {
 		return false;
@@ -183,7 +190,7 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
 	 * @param int    $id     Mutated object id.
 	 * @param string $action Verb (created/updated/trashed/untrashed/deleted).
 	 */
-	do_action( 'desktop_mode_content_change_recorded', $type, $id, $action );
+	do_action( 'openstation_content_change_recorded', $type, $id, $action );
 
 	return true;
 }
@@ -193,8 +200,8 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
  *
  * @return array
  */
-function desktop_mode_content_changes_log() {
-	$state = &desktop_mode_content_changes_state();
+function openstation_content_changes_log() {
+	$state = &openstation_content_changes_state();
 	return $state['log'];
 }
 
@@ -206,10 +213,10 @@ function desktop_mode_content_changes_log() {
  * @param array $b Changelog to merge in.
  * @return array
  */
-function desktop_mode_content_changes_merge( $a, $b ) {
+function openstation_content_changes_merge( $a, $b ) {
 	foreach ( (array) $b as $type => $by_action ) {
 		foreach ( (array) $by_action as $action => $ids ) {
-			$existing               = isset( $a[ $type ][ $action ] ) ? (array) $a[ $type ][ $action ] : array();
+			$existing              = isset( $a[ $type ][ $action ] ) ? (array) $a[ $type ][ $action ] : array();
 			$a[ $type ][ $action ] = array_values( array_unique( array_merge( $existing, array_map( 'intval', (array) $ids ) ) ) );
 		}
 	}
@@ -222,8 +229,8 @@ function desktop_mode_content_changes_merge( $a, $b ) {
  * @param int $user_id User id.
  * @return string
  */
-function desktop_mode_content_changes_buffer_key( $user_id ) {
-	return 'desktop_mode_content_buf_' . (int) $user_id;
+function openstation_content_changes_buffer_key( $user_id ) {
+	return 'openstation_content_buf_' . (int) $user_id;
 }
 
 /**
@@ -239,14 +246,14 @@ function desktop_mode_content_changes_buffer_key( $user_id ) {
  * Post types without `show_ui` are skipped: they have no list screen
  * to refresh, and internal types (notes, …) run their own realtime.
  * Plugins that want one tracked anyway can call
- * `desktop_mode_content_changes_record()` from their own hooks.
+ * `openstation_content_changes_record()` from their own hooks.
  *
  * @param int          $post_id     Post id.
  * @param WP_Post      $post        Saved post.
  * @param bool         $update      Whether this is an update.
  * @param WP_Post|null $post_before Pre-save post, null on creation.
  */
-function desktop_mode_content_changes_on_after_insert_post( $post_id, $post, $update, $post_before ) {
+function openstation_content_changes_on_after_insert_post( $post_id, $post, $update, $post_before ) {
 	if ( ! $post instanceof WP_Post ) {
 		return;
 	}
@@ -268,7 +275,7 @@ function desktop_mode_content_changes_on_after_insert_post( $post_id, $post, $up
 	// auto-draft shell `post-new.php` created — report it as created.
 	$is_created = ! $update || ( $post_before instanceof WP_Post && 'auto-draft' === $post_before->post_status );
 
-	desktop_mode_content_changes_record( $post->post_type, (int) $post_id, $is_created ? 'created' : 'updated' );
+	openstation_content_changes_record( $post->post_type, (int) $post_id, $is_created ? 'created' : 'updated' );
 }
 
 /**
@@ -283,14 +290,14 @@ function desktop_mode_content_changes_on_after_insert_post( $post_id, $post, $up
  * @param string     $old_status Old comment status.
  * @param WP_Comment $comment    Comment object.
  */
-function desktop_mode_content_changes_on_comment_transition( $new_status, $old_status, $comment ) {
+function openstation_content_changes_on_comment_transition( $new_status, $old_status, $comment ) {
 	if ( 'trash' === $new_status || 'trash' === $old_status ) {
 		return;
 	}
 	if ( ! $comment instanceof WP_Comment ) {
 		return;
 	}
-	desktop_mode_content_changes_record( 'comment', (int) $comment->comment_ID, 'updated' );
+	openstation_content_changes_record( 'comment', (int) $comment->comment_ID, 'updated' );
 }
 
 /**
@@ -302,36 +309,54 @@ function desktop_mode_content_changes_on_comment_transition( $new_status, $old_s
  * (posts-table) storage the post hooks fire too; the recorder's
  * per-request dedupe collapses the double-fire. The type is always
  * recorded as `shop_order` so one broadcast topic
- * (`desktop-mode.shop_order.changed`) serves both storage modes.
+ * (`os.shop_order.changed`) serves both storage modes.
  *
  * @return bool Whether the hooks were registered.
  */
-function desktop_mode_content_changes_register_wc_hooks() {
+function openstation_content_changes_register_wc_hooks() {
 	if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'wc_get_order' ) ) {
 		return false;
 	}
 
-	add_action( 'woocommerce_new_order', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'created' );
-	} );
-	add_action( 'woocommerce_update_order', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
-	} );
+	add_action(
+		'woocommerce_new_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'created' );
+		}
+	);
+	add_action(
+		'woocommerce_update_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
+		}
+	);
 	// Some AJAX status-flip paths reach `woocommerce_order_status_changed`
 	// without `woocommerce_update_order`; the dedupe set absorbs the
 	// overlap when both fire.
-	add_action( 'woocommerce_order_status_changed', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
-	} );
-	add_action( 'woocommerce_trash_order', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'trashed' );
-	} );
-	add_action( 'woocommerce_untrash_order', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'untrashed' );
-	} );
-	add_action( 'woocommerce_delete_order', function ( $order_id ) {
-		desktop_mode_content_changes_record( 'shop_order', (int) $order_id, 'deleted' );
-	} );
+	add_action(
+		'woocommerce_order_status_changed',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
+		}
+	);
+	add_action(
+		'woocommerce_trash_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'trashed' );
+		}
+	);
+	add_action(
+		'woocommerce_untrash_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'untrashed' );
+		}
+	);
+	add_action(
+		'woocommerce_delete_order',
+		function ( $order_id ) {
+			openstation_content_changes_record( 'shop_order', (int) $order_id, 'deleted' );
+		}
+	);
 
 	return true;
 }
@@ -343,27 +368,27 @@ function desktop_mode_content_changes_register_wc_hooks() {
  * (consumed on read), builds one broadcast envelope per
  * `[ type ][ action ]`, and prints one inline script that postMessages
  * each to the parent shell. The parent's broadcast receiver fans them
- * out as `desktop-mode.<type>.changed` — iframe list pages soft-reload
+ * out as `os.<type>.changed` — iframe list pages soft-reload
  * and native list windows refetch.
  *
  * Runs at `admin_footer` priority 100, same slot as the Recycle Bin's
  * bin-specific ts signal.
  */
-function desktop_mode_content_changes_emit_footer() {
-	if ( ! function_exists( 'desktop_mode_is_chromeless_request' ) || ! desktop_mode_is_chromeless_request() ) {
+function openstation_content_changes_emit_footer() {
+	if ( ! function_exists( 'openstation_is_chromeless_request' ) || ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
-	$state = &desktop_mode_content_changes_state();
+	$state = &openstation_content_changes_state();
 	$log   = $state['log'];
 
 	$user_id = get_current_user_id();
 	if ( $user_id > 0 ) {
-		$key      = desktop_mode_content_changes_buffer_key( $user_id );
+		$key      = openstation_content_changes_buffer_key( $user_id );
 		$buffered = get_transient( $key );
 		if ( is_array( $buffered ) && ! empty( $buffered ) ) {
 			delete_transient( $key );
-			$log = desktop_mode_content_changes_merge( $buffered, $log );
+			$log = openstation_content_changes_merge( $buffered, $log );
 		}
 	}
 
@@ -382,11 +407,11 @@ function desktop_mode_content_changes_emit_footer() {
 			/**
 			 * Filters the broadcast topic for a content-change type.
 			 *
-			 * @param string $topic  Default `desktop-mode.<type>.changed`.
+			 * @param string $topic  Default `os.<type>.changed`.
 			 * @param string $type   Content type slug.
 			 * @param string $action Verb for this envelope.
 			 */
-			$topic = (string) apply_filters( 'desktop_mode_content_change_topic', 'desktop-mode.' . $type . '.changed', $type, $action );
+			$topic = (string) apply_filters( 'openstation_content_change_topic', 'os.' . $type . '.changed', $type, $action );
 
 			$broadcasts[] = array(
 				'topic'   => $topic,
@@ -408,7 +433,7 @@ function desktop_mode_content_changes_emit_footer() {
 	 *
 	 * @param array $broadcasts Broadcast envelopes.
 	 */
-	$broadcasts = (array) apply_filters( 'desktop_mode_content_changes_broadcasts', $broadcasts );
+	$broadcasts = (array) apply_filters( 'openstation_content_changes_broadcasts', $broadcasts );
 	if ( empty( $broadcasts ) ) {
 		return;
 	}
@@ -419,7 +444,7 @@ function desktop_mode_content_changes_emit_footer() {
 	}
 
 	?>
-	<script id="desktop-mode-content-changes-signal">
+	<script id="os-content-changes-signal">
 		( function () {
 			if ( window.parent === window ) {
 				return;
@@ -429,7 +454,7 @@ function desktop_mode_content_changes_emit_footer() {
 			for ( var i = 0; i < broadcasts.length; i++ ) {
 				try {
 					window.parent.postMessage( {
-						type: 'desktop-mode-broadcast',
+						type: 'os-broadcast',
 						topic: broadcasts[ i ].topic,
 						payload: broadcasts[ i ].payload
 					}, origin );
@@ -445,7 +470,7 @@ function desktop_mode_content_changes_emit_footer() {
 	 *
 	 * @param array $broadcasts Emitted broadcast envelopes.
 	 */
-	do_action( 'desktop_mode_content_changes_emitted', $broadcasts );
+	do_action( 'openstation_content_changes_emitted', $broadcasts );
 }
 
 /**
@@ -455,8 +480,8 @@ function desktop_mode_content_changes_emit_footer() {
  * One `update_option` per mutating request; requests that recorded
  * nothing pay a static-array read and return.
  */
-function desktop_mode_content_changes_on_shutdown() {
-	$state = &desktop_mode_content_changes_state();
+function openstation_content_changes_on_shutdown() {
+	$state = &openstation_content_changes_state();
 
 	if ( ! empty( $state['staged'] ) ) {
 		$now = (int) round( microtime( true ) * 1000 );
@@ -467,7 +492,7 @@ function desktop_mode_content_changes_on_shutdown() {
 			$grouped[ $row['type'] . '|' . $row['action'] ][] = (int) $row['id'];
 		}
 
-		$log     = get_option( DESKTOP_MODE_CONTENT_CHANGES_LOG_OPTION, array() );
+		$log     = get_option( OPENSTATION_CONTENT_CHANGES_LOG_OPTION, array() );
 		$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
 
 		foreach ( $grouped as $group_key => $ids ) {
@@ -482,16 +507,21 @@ function desktop_mode_content_changes_on_shutdown() {
 
 		// Prune: drop entries older than the retention window, cap the
 		// tail. The option stays small no matter how chatty the site.
-		$cutoff  = $now - DESKTOP_MODE_CONTENT_CHANGES_LOG_WINDOW_MS;
-		$entries = array_values( array_filter( $entries, function ( $entry ) use ( $cutoff ) {
-			return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
-		} ) );
-		if ( count( $entries ) > DESKTOP_MODE_CONTENT_CHANGES_LOG_MAX ) {
-			$entries = array_slice( $entries, -DESKTOP_MODE_CONTENT_CHANGES_LOG_MAX );
+		$cutoff  = $now - OPENSTATION_CONTENT_CHANGES_LOG_WINDOW_MS;
+		$entries = array_values(
+			array_filter(
+				$entries,
+				function ( $entry ) use ( $cutoff ) {
+					return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
+				}
+			)
+		);
+		if ( count( $entries ) > OPENSTATION_CONTENT_CHANGES_LOG_MAX ) {
+			$entries = array_slice( $entries, -OPENSTATION_CONTENT_CHANGES_LOG_MAX );
 		}
 
 		update_option(
-			DESKTOP_MODE_CONTENT_CHANGES_LOG_OPTION,
+			OPENSTATION_CONTENT_CHANGES_LOG_OPTION,
 			array(
 				'ts'      => $now,
 				'entries' => $entries,
@@ -508,36 +538,36 @@ function desktop_mode_content_changes_on_shutdown() {
 		return;
 	}
 
-	$key      = desktop_mode_content_changes_buffer_key( $user_id );
+	$key      = openstation_content_changes_buffer_key( $user_id );
 	$existing = get_transient( $key );
-	$merged   = desktop_mode_content_changes_merge( is_array( $existing ) ? $existing : array(), $state['log'] );
-	set_transient( $key, $merged, DESKTOP_MODE_CONTENT_CHANGES_BUFFER_TTL );
+	$merged   = openstation_content_changes_merge( is_array( $existing ) ? $existing : array(), $state['log'] );
+	set_transient( $key, $merged, OPENSTATION_CONTENT_CHANGES_BUFFER_TTL );
 }
 
 /**
  * Heartbeat handler — answers "which content changed since you last
  * heard from me?".
  *
- * Opt-in via the client-sent `desktop_mode_content_changes_seen_ts`
+ * Opt-in via the client-sent `openstation_content_changes_seen_ts`
  * key; requests without it early-return so non-desktop tabs pay zero
  * per tick. The response carries the server high-water mark plus the
  * entries newer than the client's seen ts; the shell re-broadcasts
- * each as `desktop-mode.<type>.changed`.
+ * each as `os.<type>.changed`.
  *
  * @param array $response Heartbeat response.
  * @param array $data     Client-sent payload.
  * @return array
  */
-function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
+function openstation_content_changes_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( ! isset( $data['desktop_mode_content_changes_seen_ts'] ) ) {
+	if ( ! isset( $data['openstation_content_changes_seen_ts'] ) ) {
 		return $response;
 	}
 
-	$seen = (int) $data['desktop_mode_content_changes_seen_ts'];
-	$log  = get_option( DESKTOP_MODE_CONTENT_CHANGES_LOG_OPTION, array() );
+	$seen = (int) $data['openstation_content_changes_seen_ts'];
+	$log  = get_option( OPENSTATION_CONTENT_CHANGES_LOG_OPTION, array() );
 
 	$ts      = ( is_array( $log ) && isset( $log['ts'] ) ) ? (int) $log['ts'] : 0;
 	$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
@@ -549,7 +579,7 @@ function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
 		}
 	}
 
-	$response['desktop_mode_content_changes'] = array(
+	$response['openstation_content_changes'] = array(
 		'ts'      => $ts,
 		'entries' => $fresh,
 	);
@@ -560,7 +590,7 @@ function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
 /**
  * Converts a plugin file path to a stable positive integer suitable
  * for use as the `$id` parameter of
- * `desktop_mode_content_changes_record()`.
+ * `openstation_content_changes_record()`.
  *
  * The record function requires a positive integer for its ID slot (used
  * for per-request deduplication keyed as `type:id`). Plugin files are
@@ -572,7 +602,7 @@ function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
  * @param string $plugin_file Plugin file path (relative to plugins dir).
  * @return int Positive integer ID.
  */
-function desktop_mode_content_changes_plugin_id( $plugin_file ) {
+function openstation_content_changes_plugin_id( $plugin_file ) {
 	$hash = abs( crc32( (string) $plugin_file ) );
 	return max( 1, $hash );
 }
@@ -583,85 +613,107 @@ function desktop_mode_content_changes_plugin_id( $plugin_file ) {
  *
  * Every open window listing plugins (native Plugins window Installed tab,
  * classic `plugins.php`) will then refresh via the
- * `desktop-mode.plugin.changed` broadcast — the same mechanism
- * posts/pages use for `desktop-mode.post.changed`.
+ * `os.plugin.changed` broadcast — the same mechanism
+ * posts/pages use for `os.post.changed`.
  */
-function desktop_mode_content_changes_register_plugin_hooks() {
-	add_action( 'activated_plugin', function ( $plugin_file ) {
-		desktop_mode_content_changes_record(
-			'plugin',
-			desktop_mode_content_changes_plugin_id( $plugin_file ),
-			'activated'
-		);
-	} );
-
-	add_action( 'deactivated_plugin', function ( $plugin_file ) {
-		desktop_mode_content_changes_record(
-			'plugin',
-			desktop_mode_content_changes_plugin_id( $plugin_file ),
-			'deactivated'
-		);
-	} );
-
-	add_action( 'deleted_plugin', function ( $plugin_file, $deleted ) {
-		if ( $deleted ) {
-			desktop_mode_content_changes_record(
+function openstation_content_changes_register_plugin_hooks() {
+	add_action(
+		'activated_plugin',
+		function ( $plugin_file ) {
+			openstation_content_changes_record(
 				'plugin',
-				desktop_mode_content_changes_plugin_id( $plugin_file ),
-				'deleted'
+				openstation_content_changes_plugin_id( $plugin_file ),
+				'activated'
 			);
 		}
-	}, 10, 2 );
+	);
+
+	add_action(
+		'deactivated_plugin',
+		function ( $plugin_file ) {
+			openstation_content_changes_record(
+				'plugin',
+				openstation_content_changes_plugin_id( $plugin_file ),
+				'deactivated'
+			);
+		}
+	);
+
+	add_action(
+		'deleted_plugin',
+		function ( $plugin_file, $deleted ) {
+			if ( $deleted ) {
+				openstation_content_changes_record(
+					'plugin',
+					openstation_content_changes_plugin_id( $plugin_file ),
+					'deleted'
+				);
+			}
+		},
+		10,
+		2
+	);
 
 	// `upgrader_process_complete` covers installs from wp-admin/plugin-install.php
 	// (AJAX path, no page navigation) and bulk installs from update.php.
-	add_action( 'upgrader_process_complete', function ( $upgrader, $options ) {
-		if (
+	add_action(
+		'upgrader_process_complete',
+		function ( $upgrader, $options ) {
+			if (
 			! isset( $options['type'], $options['action'] ) ||
 			'plugin' !== $options['type'] ||
 			'install' !== $options['action']
-		) {
-			return;
-		}
-		$plugins = ! empty( $options['plugins'] ) ? (array) $options['plugins'] : array();
-		if ( empty( $plugins ) && is_callable( array( $upgrader, 'plugin_info' ) ) ) {
-			$info = $upgrader->plugin_info();
-			if ( $info ) {
-				$plugins = array( $info );
+			) {
+				return;
 			}
-		}
-		foreach ( $plugins as $plugin_file ) {
-			desktop_mode_content_changes_record(
-				'plugin',
-				desktop_mode_content_changes_plugin_id( (string) $plugin_file ),
-				'installed'
-			);
-		}
-	}, 10, 2 );
+			$plugins = ! empty( $options['plugins'] ) ? (array) $options['plugins'] : array();
+			if ( empty( $plugins ) && is_callable( array( $upgrader, 'plugin_info' ) ) ) {
+				$info = $upgrader->plugin_info();
+				if ( $info ) {
+					$plugins = array( $info );
+				}
+			}
+			foreach ( $plugins as $plugin_file ) {
+				openstation_content_changes_record(
+					'plugin',
+					openstation_content_changes_plugin_id( (string) $plugin_file ),
+					'installed'
+				);
+			}
+		},
+		10,
+		2
+	);
 }
 
 /**
  * Wires every content-change hook.
  *
  * One bootstrap so the wiring is auditable —
- * `grep desktop_mode_content_changes_record` finds every emitter.
+ * `grep openstation_content_changes_record` finds every emitter.
  */
-function desktop_mode_content_changes_register_hooks() {
-	add_action( 'wp_after_insert_post', 'desktop_mode_content_changes_on_after_insert_post', 10, 4 );
+function openstation_content_changes_register_hooks() {
+	add_action( 'wp_after_insert_post', 'openstation_content_changes_on_after_insert_post', 10, 4 );
 
-	add_action( 'wp_insert_comment', function ( $comment_id ) {
-		desktop_mode_content_changes_record( 'comment', (int) $comment_id, 'created' );
-	} );
-	add_action( 'edit_comment', function ( $comment_id ) {
-		desktop_mode_content_changes_record( 'comment', (int) $comment_id, 'updated' );
-	} );
-	add_action( 'transition_comment_status', 'desktop_mode_content_changes_on_comment_transition', 10, 3 );
+	add_action(
+		'wp_insert_comment',
+		function ( $comment_id ) {
+			openstation_content_changes_record( 'comment', (int) $comment_id, 'created' );
+		}
+	);
+	add_action(
+		'edit_comment',
+		function ( $comment_id ) {
+			openstation_content_changes_record( 'comment', (int) $comment_id, 'updated' );
+		}
+	);
+	add_action( 'transition_comment_status', 'openstation_content_changes_on_comment_transition', 10, 3 );
 
-	desktop_mode_content_changes_register_wc_hooks();
-	desktop_mode_content_changes_register_plugin_hooks();
+	openstation_content_changes_register_wc_hooks();
+	openstation_content_changes_register_plugin_hooks();
 
-	add_action( 'admin_footer', 'desktop_mode_content_changes_emit_footer', 100 );
-	add_action( 'shutdown', 'desktop_mode_content_changes_on_shutdown' );
-	add_filter( 'heartbeat_received', 'desktop_mode_content_changes_heartbeat_received', 10, 2 );
+	add_action( 'admin_footer', 'openstation_content_changes_emit_footer', 100 );
+	add_action( 'shutdown', 'openstation_content_changes_on_shutdown' );
+	add_filter( 'heartbeat_received', 'openstation_content_changes_heartbeat_received', 10, 2 );
 }
-add_action( 'init', 'desktop_mode_content_changes_register_hooks', 5 );
+add_action( 'init', 'openstation_content_changes_register_hooks', 5 );

@@ -1,9 +1,9 @@
 /**
- * Desktop Mode — Games REST client.
+ * OpenStation — Games REST client.
  *
  * Thin typed wrappers over the `desktop-mode/v1/games/*` routes.
  * Works from any bundle: the REST root + nonce are read off
- * `wp.desktop.config` at call time and every request routes through
+ * `wp.os.config` at call time and every request routes through
  * `trackedFetch` (activity bus + window spinner attribution).
  */
 
@@ -19,9 +19,9 @@ const SOURCE = 'desktop-mode/games';
 
 function restEnv(): { restUrl: string; restNonce: string } {
 	const wpGlobal = window.wp as
-		| { desktop?: { config?: { restUrl?: string; restNonce?: string } } }
+		| { os?: { config?: { restUrl?: string; restNonce?: string } } }
 		| undefined;
-	const config = wpGlobal?.desktop?.config;
+	const config = wpGlobal?.os?.config;
 	return {
 		restUrl: config?.restUrl || '/wp-json/',
 		restNonce: config?.restNonce || '',

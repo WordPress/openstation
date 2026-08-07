@@ -10,7 +10,7 @@ import { showToast, type ToastOptions } from './toast';
 import {
 	markNoticeDismissed,
 	isNoticeDismissed,
-} from './ui/components/wpd-notice/storage';
+} from './ui/components/os-notice/storage';
 
 vi.mock( './toast', () => ( { showToast: vi.fn() } ) );
 

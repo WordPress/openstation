@@ -7,7 +7,7 @@
  *   - Initial value comes from the shell config
  *     (`config.recycleBinCount`), so the badge is correct on the
  *     first paint, even before the user opens the bin.
- *   - Cross-window broadcasts (`desktop-mode.<type>.changed`) drive
+ *   - Cross-window broadcasts (`os.<type>.changed`) drive
  *     delta updates: a `'trashed'` action with N ids increments
  *     by N, an `'untrashed'` / `'deleted'` action decrements.
  *   - Authoritative resets come from the bin window itself
@@ -24,19 +24,19 @@ import { subscribe } from '../broadcast';
 import { createSharedStore } from '../shared-store';
 
 /* eslint-disable no-console */
-const LOG_PREFIX = '[desktop-mode-bin badge]';
+const LOG_PREFIX = '[os-bin badge]';
 /**
- * Verbose debug trace — silent unless `localStorage.desktopModeBinDebug`
+ * Verbose debug trace — silent unless `localStorage.openStationBinDebug`
  * is set. Useful when this thing breaks again: type
- * `localStorage.desktopModeBinDebug = '1'` in DevTools, reload, and the
+ * `localStorage.openStationBinDebug = '1'` in DevTools, reload, and the
  * full `setRecycleBinBadge` / `paintBadge` / `watchForTargets`
  * trace prints. Cheap when off (one localStorage read per call).
  */
 function log( ...args: unknown[] ): void {
 	// Re-enable verbose tracing by typing
-	// `localStorage.desktopModeBinDebug = '1'` in DevTools, then reload.
+	// `localStorage.openStationBinDebug = '1'` in DevTools, then reload.
 	try {
-		if ( window.localStorage?.getItem( 'desktopModeBinDebug' ) ) {
+		if ( window.localStorage?.getItem( 'openStationBinDebug' ) ) {
 			console.info( LOG_PREFIX, ...args );
 		}
 	} catch {
@@ -51,11 +51,11 @@ const TARGET_ID = 'desktop-mode-recycle-bin';
 // Heartbeat field. `wp.heartbeat`'s `data` object is delivered as
 // `_POST['data'][ <key> ]` server-side; the key IS the field name
 // our `heartbeat_received` filter reads.
-const HEARTBEAT_FIELD = 'desktop_mode_recycle_bin_seen_ts';
+const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 
 /**
- * Narrow shape of `wp.desktop` we depend on here. Pulled in via
- * the loose `window.wp.desktop` lookup rather than a direct
+ * Narrow shape of `wp.os` we depend on here. Pulled in via
+ * the loose `window.wp.os` lookup rather than a direct
  * import: this module loads inside the always-on shell bundle, so
  * the public API is a guaranteed sibling — but typing the lookup
  * keeps us honest about which methods we actually call.
@@ -63,15 +63,15 @@ const HEARTBEAT_FIELD = 'desktop_mode_recycle_bin_seen_ts';
 interface BadgeRails {
 	setBadge?: ( id: string, count: number ) => void;
 }
-interface WpDesktopBadgeRails {
+interface OpenStationBadgeRails {
 	dock?: BadgeRails | null;
 	taskbar?: BadgeRails | null;
 	icons?: BadgeRails;
 	windowManager?: { isActive?: ( id: string ) => boolean; isActiveByBaseId?: ( baseId: string ) => boolean };
 }
-function getDesktopApi(): WpDesktopBadgeRails | undefined {
-	return ( window as unknown as { wp?: { desktop?: WpDesktopBadgeRails } } )
-		.wp?.desktop;
+function getDesktopApi(): OpenStationBadgeRails | undefined {
+	return ( window as unknown as { wp?: { os?: OpenStationBadgeRails } } )
+		.wp?.os;
 }
 
 /**
@@ -177,7 +177,7 @@ function paintBadge( count: number ): void {
 
 /**
  * Window-activeness check — relies on the framework's
- * `wp.desktop.windowManager.isActive()`. Falls back to false when
+ * `wp.os.windowManager.isActive()`. Falls back to false when
  * the manager isn't reachable yet (this module loads inside
  * `desktop.js` so that's rare, but cheap to handle).
  */
@@ -196,9 +196,9 @@ function isBinWindowActive(): boolean {
  *   - Initial value: the shell config (`config.recycleBinCount`),
  *     so the badge is correct on the first paint, even before the
  *     user opens the bin.
- *   - Same-tab broadcast deltas (`desktop-mode.<type>.changed`).
+ *   - Same-tab broadcast deltas (`os.<type>.changed`).
  *   - Cross-iframe `postMessage` fast path (`type:
- *     'desktop-mode-recycle-bin-changed'`) — fires within ~ms of any
+ *     'os-recycle-bin-changed'`) — fires within ~ms of any
  *     chromeless admin request that mutated state.
  *   - Heartbeat catch-all — every tick the server reports the
  *     current count + the latest change-ts. This is the channel
@@ -227,11 +227,11 @@ export function startRecycleBinBadge(
 	// than re-introduce the "badge stuck at 0" bug we just fixed.
 	const initial = Number( initialRaw ) || 0;
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: Record< string, unknown >;
-	} ).desktopModeConfig;
+		openStationConfig?: Record< string, unknown >;
+	} ).openStationConfig;
 	const cfgCount = cfg?.recycleBinCount;
 	const cfgUrl = cfg?.recycleBinCountUrl;
-	const cfgDebug = cfg?.desktopModeBinDebug;
+	const cfgDebug = cfg?.openStationBinDebug;
 	log( 'startRecycleBinBadge entry', {
 		initial,
 		countUrl,
@@ -255,7 +255,7 @@ export function startRecycleBinBadge(
 		Number.isFinite( cfgCountNum );
 	if ( ! cfgCountIsHealthy ) {
 		warn(
-			'desktopModeConfig.recycleBinCount is missing — PHP filter `desktop_mode_shell_config` did not deliver. Check your PHP error log for `[desktop-mode-bin debug]` lines.',
+			'openStationConfig.recycleBinCount is missing — PHP filter `openstation_shell_config` did not deliver. Check your PHP error log for `[os-bin debug]` lines.',
 			{ cfg },
 		);
 	}
@@ -287,7 +287,7 @@ export function startRecycleBinBadge(
  * Re-paint the badge when the bin window's lifecycle changes —
  * focus / blur / minimize / restore / open / close. The
  * `paintBadge` function consults
- * `wp.desktop.windowManager.isActive()` and renders 0 while the
+ * `wp.os.windowManager.isActive()` and renders 0 while the
  * user is looking at the window, so transitions need to trigger
  * a re-paint to apply or undo that suppression. Internal count
  * (`store.state.current`) doesn't change here — only the rendered DOM
@@ -360,8 +360,8 @@ function wireDesktopIconsSignal(): void {
  * post type.
  */
 function wireBroadcastDeltas(): void {
-	// Direct module import instead of `window.wp.desktop.subscribe`
-	// — the latter is assigned to `wp.desktop` AFTER our `start()`
+	// Direct module import instead of `window.wp.os.subscribe`
+	// — the latter is assigned to `wp.os` AFTER our `start()`
 	// runs in the init sequence, so calling it via the public API
 	// silently no-ops at boot. The bus itself is already initialised
 	// before `start()` (see `attachBroadcastBus` + `installBroadcastReceiver`
@@ -389,18 +389,18 @@ function wireBroadcastDeltas(): void {
 	// extras the Recycle Bin always captures. The extras never vary so there
 	// is no PHP filter for them; they live here where their meaning is clear.
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { recycleBinPostTypes?: string[] };
-	} ).desktopModeConfig;
+		openStationConfig?: { recycleBinPostTypes?: string[] };
+	} ).openStationConfig;
 	const postTypes = cfg?.recycleBinPostTypes ?? [ 'post', 'page', 'attachment' ];
 	const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
 	for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
-		subscribe( `desktop-mode.${ slug }.changed`, onDomain );
+		subscribe( `os.${ slug }.changed`, onDomain );
 	}
 }
 
 /**
  * Chromeless-iframe `postMessage` fast path. Every chromeless
- * admin render emits `{ type: 'desktop-mode-recycle-bin-changed',
+ * admin render emits `{ type: 'os-recycle-bin-changed',
  * ts }` to the parent shell. We bump our high-water mark and
  * (when we have the URL) refetch the authoritative count.
  *
@@ -417,7 +417,7 @@ function wirePostMessageFastPath(): void {
 			| { type?: string; ts?: number }
 			| null
 			| undefined;
-		if ( ! data || data.type !== 'desktop-mode-recycle-bin-changed' ) {
+		if ( ! data || data.type !== 'os-recycle-bin-changed' ) {
 			return;
 		}
 		const ts = typeof data.ts === 'number' ? data.ts : Date.now();
@@ -432,8 +432,8 @@ function wirePostMessageFastPath(): void {
 }
 
 /**
- * Heartbeat probe. Sends `desktop_mode_recycle_bin_seen_ts` on every
- * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count? }` off the
+ * Heartbeat probe. Sends `openstation_recycle_bin_seen_ts` on every
+ * outgoing tick; reads `openstation_recycle_bin: { ts, count? }` off the
  * response. The server only attaches `count` when something changed
  * since our high-water mark (an unchanged tick would recompute the
  * same number); when the key is absent the badge keeps its current
@@ -465,13 +465,13 @@ function wireHeartbeatProbe(): void {
 	$( document ).on( 'heartbeat-tick', ( ...args: unknown[] ) => {
 		const response = args[ 1 ] as
 			| {
-				desktop_mode_recycle_bin?: {
+				openstation_recycle_bin?: {
 					ts?: number;
 					count?: number;
 				};
 			}
 			| undefined;
-		const block = response?.desktop_mode_recycle_bin;
+		const block = response?.openstation_recycle_bin;
 		log( 'heartbeat-tick', { hasBlock: !! block, block } );
 		if ( ! block ) {
 			return;

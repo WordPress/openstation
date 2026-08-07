@@ -11,11 +11,11 @@
 	flex-direction: column;
 	width: 100%;
 	height: 100%;
-	background: var( --wpd-surface, #fff );
+	background: var( --os-ui-surface, #fff );
 }
 
-.wpdc-phpmyadmin__loading,
-.wpdc-phpmyadmin__error {
+.osc-phpmyadmin__loading,
+.osc-phpmyadmin__error {
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
@@ -23,22 +23,22 @@
 	justify-content: center;
 	gap: 12px;
 	padding: 24px;
-	color: var( --wpd-text-secondary, #50575e );
+	color: var( --os-ui-text-secondary, #50575e );
 	text-align: center;
 }
 
-.wpdc-phpmyadmin__loading .dashicons {
+.osc-phpmyadmin__loading .dashicons {
 	font-size: 32px;
 	width: 32px;
 	height: 32px;
 	opacity: 0.6;
 }
 
-.wpdc-phpmyadmin__error {
-	color: var( --wpd-text-error, #b32d2e );
+.osc-phpmyadmin__error {
+	color: var( --os-ui-text-error, #b32d2e );
 }
 
-.wpdc-phpmyadmin__frame {
+.osc-phpmyadmin__frame {
 	flex: 1 1 auto;
 	width: 100%;
 	height: 100%;

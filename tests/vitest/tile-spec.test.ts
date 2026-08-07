@@ -1,9 +1,9 @@
 /**
  * Tests for the unified tile renderer + drag-out helper.
  *
- * The renderer is now the `<wpd-tile>` web component (light-DOM,
+ * The renderer is now the `<os-tile>` web component (light-DOM,
  * single source of truth for every tile in the shell).
- * `buildTileFromSpec` is a thin shim that creates a `<wpd-tile>`
+ * `buildTileFromSpec` is a thin shim that creates a `<os-tile>`
  * host with attributes from a `TileSpec`. `attachTileDragOut`
  * remains the imperative helper for callers who already have a
  * tile element.
@@ -67,21 +67,21 @@ describe( 'buildTileFromSpec', () => {
 		vi.unstubAllGlobals();
 	} );
 
-	test( 'host is <wpd-tile> with canonical class + data-* contract', () => {
+	test( 'host is <os-tile> with canonical class + data-* contract', () => {
 		const tile = mount( buildTileFromSpec( {
 			type: 'post',
 			ref: '42',
 			label: 'Hello world',
 			icon: 'dashicons-admin-post',
 		} ) );
-		expect( tile.tagName ).toBe( 'WPD-TILE' );
+		expect( tile.tagName ).toBe( 'OS-TILE' );
 		expect( tile.classList.contains( TILE_CLASS ) ).toBe( true );
 		expect( tile.dataset.fileType ).toBe( 'post' );
 		expect( tile.dataset.fileRef ).toBe( '42' );
 		expect( tile.getAttribute( 'role' ) ).toBe( 'listitem' );
 		expect( tile.getAttribute( 'aria-label' ) ).toBe( 'Hello world' );
 		expect(
-			tile.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+			tile.querySelector( '.os-file-tile__label' )?.textContent,
 		).toBe( 'Hello world' );
 	} );
 
@@ -105,12 +105,12 @@ describe( 'buildTileFromSpec', () => {
 			icon: 'dashicons-format-image',
 		} ) );
 		const img = tile.querySelector< HTMLImageElement >(
-			'.desktop-mode-file-tile__preview',
+			'.os-file-tile__preview',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( 'https://example.test/thumb.jpg' );
 		expect( img!.draggable ).toBe( false );
-		expect( tile.querySelector( '.desktop-mode-file-tile__icon' ) ).toBeNull();
+		expect( tile.querySelector( '.os-file-tile__icon' ) ).toBeNull();
 	} );
 
 	test( 'folder role applies the modifier class', () => {
@@ -142,7 +142,7 @@ describe( 'buildTileFromSpec', () => {
 			tile.classList.contains( `${ TILE_CLASS }--access-gated` ),
 		).toBe( true );
 		expect( tile.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
-		expect( tile.querySelector( '.desktop-mode-file-tile__lock' ) ).not.toBeNull();
+		expect( tile.querySelector( '.os-file-tile__lock' ) ).not.toBeNull();
 	} );
 
 	test( 'extraClasses ride on the host', () => {
@@ -151,34 +151,34 @@ describe( 'buildTileFromSpec', () => {
 			ref: '1',
 			label: 'x',
 			extraClasses: [
-				'desktop-mode-my-wordpress__tile',
-				'desktop-mode-my-wordpress__tile--entry',
+				'os-my-wordpress__tile',
+				'os-my-wordpress__tile--entry',
 			],
 		} ) );
-		expect( tile.classList.contains( 'desktop-mode-my-wordpress__tile' ) ).toBe(
+		expect( tile.classList.contains( 'os-my-wordpress__tile' ) ).toBe(
 			true,
 		);
 		expect(
-			tile.classList.contains( 'desktop-mode-my-wordpress__tile--entry' ),
+			tile.classList.contains( 'os-my-wordpress__tile--entry' ),
 		).toBe( true );
 	} );
 
-	test( 'status ribbon renders a <wpd-ribbon> for non-publish statuses', () => {
+	test( 'status ribbon renders a <os-ribbon> for non-publish statuses', () => {
 		const tile = mount( buildTileFromSpec( {
 			type: 'post',
 			ref: '1',
 			label: 'x',
 			status: 'draft',
 		} ) );
-		const ribbon = tile.querySelector( 'wpd-ribbon' );
+		const ribbon = tile.querySelector( 'os-ribbon' );
 		expect( ribbon ).not.toBeNull();
 		expect( ribbon!.textContent ).toBe( 'Draft' );
 	} );
 
 	test( 'status ribbon is suppressed when OS setting is off', () => {
-		const wp = ( window as unknown as { wp: { desktop?: Record< string, unknown > } } ).wp;
-		wp.desktop = {
-			...( wp.desktop ?? {} ),
+		const wp = ( window as unknown as { wp: { os?: Record< string, unknown > } } ).wp;
+		wp.os = {
+			...( wp.os ?? {} ),
 			getOsSettings: () => ( { showPostStatusRibbons: false } ),
 		};
 		const tile = mount( buildTileFromSpec( {
@@ -187,7 +187,7 @@ describe( 'buildTileFromSpec', () => {
 			label: 'x',
 			status: 'draft',
 		} ) );
-		expect( tile.querySelector( 'wpd-ribbon' ) ).toBeNull();
+		expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 	} );
 
 	test( 'publish status renders no ribbon', () => {
@@ -197,7 +197,7 @@ describe( 'buildTileFromSpec', () => {
 			label: 'x',
 			status: 'publish',
 		} ) );
-		expect( tile.querySelector( 'wpd-ribbon' ) ).toBeNull();
+		expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 	} );
 
 	test( 'absolute positioning when x/y given', () => {
@@ -222,10 +222,10 @@ describe( 'buildTileFromSpec', () => {
 		expect( tile.style.position ).toBe( '' );
 	} );
 
-	test( 'fires desktop-mode.tile.rendered action', () => {
+	test( 'fires os.tile.rendered action', () => {
 		const calls: Array< { tile: HTMLElement } > = [];
 		window.wp!.hooks!.addAction(
-			'desktop-mode.tile.rendered',
+			'os.tile.rendered',
 			'test/observer',
 			( payload: unknown ) => {
 				calls.push( payload as { tile: HTMLElement } );
@@ -256,8 +256,8 @@ describe( 'attachTileDragOut', () => {
 
 	test( 'super-threshold drag emits a shortcut payload to a drop target', () => {
 		const manager = new DragManager();
-		const wp = ( window as unknown as { wp: { desktop?: Record< string, unknown > } } ).wp;
-		wp.desktop = { ...( wp.desktop ?? {} ), dragManager: manager };
+		const wp = ( window as unknown as { wp: { os?: Record< string, unknown > } } ).wp;
+		wp.os = { ...( wp.os ?? {} ), dragManager: manager };
 
 		const tile = mount( buildTileFromSpec( {
 			type: 'post',
@@ -305,8 +305,8 @@ describe( 'attachTileDragOut', () => {
 
 	test( 'sub-threshold gesture fires onClick callback without dropping', () => {
 		const manager = new DragManager();
-		const wp = ( window as unknown as { wp: { desktop?: Record< string, unknown > } } ).wp;
-		wp.desktop = { ...( wp.desktop ?? {} ), dragManager: manager };
+		const wp = ( window as unknown as { wp: { os?: Record< string, unknown > } } ).wp;
+		wp.os = { ...( wp.os ?? {} ), dragManager: manager };
 
 		const tile = mount( buildTileFromSpec( {
 			type: 'user',

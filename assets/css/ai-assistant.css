@@ -1,25 +1,25 @@
 /**
- * Desktop Mode — AI Assistant spotlight overlay.
+ * OpenStation — AI Assistant spotlight overlay.
  *
  * A system-level command palette that floats above the entire shell,
  * including the WP admin bar. Visually modeled on macOS Spotlight and
  * Linear's command menu — frosted-glass backdrop, spring-physics panel
  * entrance, large search input, accent-tinted header.
  *
- * z-index 10000 puts this above --desktop-mode-z-adminbar (9991) so the
+ * z-index 10000 puts this above --os-z-adminbar (9991) so the
  * overlay truly covers the full viewport.
  *
  * ## Desktop-theme awareness
  *
  * The overlay mounts on `document.body`, so it sits inside the
- * `body.desktop-mode-desktop-theme-<slug>` half of a compiled theme's
- * doubled selector and every `--wpd-*` token below resolves against the
- * active theme. Each site reads `var( --wpd-x, <the literal that was
+ * `body.os-desktop-theme-<slug>` half of a compiled theme's
+ * doubled selector and every `--os-ui-*` token below resolves against the
+ * active theme. Each site reads `var( --os-ui-x, <the literal that was
  * always there> )`, so an unthemed shell paints exactly as before.
  *
  * Getting this half-right is worse than not doing it at all: when the
  * text tones followed the theme but the panel stayed hardcoded white,
- * a dark theme's light `--wpd-fg` landed on white and the results were
+ * a dark theme's light `--os-ui-fg` landed on white and the results were
  * unreadable. Any new surface added here MUST take its background,
  * border and text from the palette — not from a literal.
  */
@@ -28,7 +28,7 @@
  * Root overlay — full viewport, fades in/out
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai {
+.os-ai {
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
@@ -51,11 +51,11 @@
 
 /* [hidden] keeps the element out of the a11y tree between sessions.
    Only removed while the overlay is visually visible (open or animating). */
-.desktop-mode-ai[hidden] {
+.os-ai[hidden] {
 	display: none;
 }
 
-.desktop-mode-ai.is-open {
+.os-ai.is-open {
 	opacity: 1;
 	pointer-events: auto;
 }
@@ -64,15 +64,15 @@
  * Backdrop — frosted glass
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__backdrop {
+.os-ai__backdrop {
 	position: absolute;
 	inset: 0;
-	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.36 ) );
+	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.36 ) );
 	/* Desktop-theme SCRIM texture slot: unset resolves to none. */
-	background-image: var( --wpd-scrim-image, none );
-	background-repeat: var( --wpd-scrim-image-repeat, repeat );
-	background-size: var( --wpd-scrim-image-size, auto );
-	background-position: var( --wpd-scrim-image-position, center );
+	background-image: var( --os-ui-scrim-image, none );
+	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
+	background-size: var( --os-ui-scrim-image-size, auto );
+	background-position: var( --os-ui-scrim-image-position, center );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
 	/* Non-interactive: clicks in the dimmed area fall through to the overlay
@@ -84,7 +84,7 @@
  * Panel — the visible card
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__panel {
+.os-ai__panel {
 	position: relative; /* sits above the backdrop */
 	width: 100%;
 	max-width: 600px;
@@ -92,15 +92,15 @@
 	/* Longhand on purpose: the DIALOG texture slot below owns
 	   background-image, and the shorthand would reset it. */
 	background-color: var(
-		--desktop-mode-ai-panel-bg,
-		var( --wpd-surface, rgba( 255, 255, 255, 0.97 ) )
+		--os-ai-panel-bg,
+		var( --os-ui-surface, rgba( 255, 255, 255, 0.97 ) )
 	);
 	/* Desktop-theme DIALOG texture slot: unset resolves to none. */
-	background-image: var( --wpd-dialog-bg-image, none );
-	background-repeat: var( --wpd-dialog-bg-image-repeat, repeat );
-	background-size: var( --wpd-dialog-bg-image-size, auto );
-	background-position: var( --wpd-dialog-bg-image-position, center );
-	color: var( --wpd-fg, #1d2327 );
+	background-image: var( --os-ui-dialog-bg-image, none );
+	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
+	background-size: var( --os-ui-dialog-bg-image-size, auto );
+	background-position: var( --os-ui-dialog-bg-image-position, center );
+	color: var( --os-ui-fg, #1d2327 );
 	border-radius: 16px;
 	overflow: hidden;
 
@@ -109,7 +109,7 @@
 	   atmospheric shadows stay black because they read as depth
 	   against the wallpaper, not as part of the surface. */
 	box-shadow:
-		0 0 0 1px var( --wpd-border, rgba( 0, 0, 0, 0.07 ) ),
+		0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.07 ) ),
 		0 4px 16px rgba( 0, 0, 0, 0.12 ),
 		0 24px 64px rgba( 0, 0, 0, 0.22 );
 
@@ -120,7 +120,7 @@
 	will-change: transform;
 }
 
-.desktop-mode-ai.is-open .desktop-mode-ai__panel {
+.os-ai.is-open .os-ai__panel {
 	transform: scale( 1 ) translateY( 0 );
 }
 
@@ -128,7 +128,7 @@
  * Header — accent-tinted identity strip
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__header {
+.os-ai__header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -137,13 +137,13 @@
 	   on fresh/blue schemes, subtle on light schemes. */
 	background: linear-gradient(
 		to bottom,
-		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) ),
-		var( --wpd-surface, #fff )
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) ),
+		var( --os-ui-surface, #fff )
 	);
-	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
+	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
-.desktop-mode-ai__header-icon {
+.os-ai__header-icon {
 	display: flex;
 	align-items: center;
 	color: var( --wp-admin-theme-color, #2271b1 );
@@ -153,7 +153,7 @@
 	);
 }
 
-.desktop-mode-ai__header-label {
+.os-ai__header-label {
 	flex: 1;
 	font-size: 11px;
 	font-weight: 700;
@@ -164,57 +164,57 @@
 
 /* Mode switch (Commands ↔ AI) — a small segmented pill in the header.
    Shown only when AI is available; replaces the `/` shortcut. */
-.desktop-mode-ai__modes {
+.os-ai__modes {
 	display: inline-flex;
 	gap: 2px;
 	padding: 2px;
 	border-radius: 999px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
 }
 
-.desktop-mode-ai__modes[hidden] {
+.os-ai__modes[hidden] {
 	display: none;
 }
 
-.desktop-mode-ai__mode {
+.os-ai__mode {
 	appearance: none;
 	border: 0;
 	cursor: pointer;
 	padding: 3px 12px;
 	border-radius: 999px;
 	background: transparent;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 11px;
 	font-weight: 600;
 	line-height: 1.6;
 }
 
-.desktop-mode-ai__mode:hover {
-	color: var( --wpd-fg, #1d2327 );
+.os-ai__mode:hover {
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.desktop-mode-ai__mode.is-active {
+.os-ai__mode.is-active {
 	/* Elevated first: the pill sits ON the header, which is already
-	   `--wpd-surface`, so a theme that distinguishes the two keeps the
+	   `--os-ui-surface`, so a theme that distinguishes the two keeps the
 	   active segment readable. Falls through to plain surface, which is
 	   the default look. */
-	background: var( --wpd-surface-elevated, var( --wpd-surface, #fff ) );
+	background: var( --os-ui-surface-elevated, var( --os-ui-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
 }
 
-.desktop-mode-ai__mode:focus-visible {
+.os-ai__mode:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 1px;
 }
 
-/* .desktop-mode-ai__close styles moved to the bottom results section */
+/* .os-ai__close styles moved to the bottom results section */
 
 /* ---------------------------------------------------------------------------
  * Input row — the main interaction surface
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__input-wrap {
+.os-ai__input-wrap {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -224,13 +224,13 @@
 	transition: border-color 0.15s ease;
 }
 
-.desktop-mode-ai__input-wrap:has( .desktop-mode-ai__input:focus ) {
-	border-bottom-color: var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
+.os-ai__input-wrap:has( .os-ai__input:focus ) {
+	border-bottom-color: var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
 /* Input-row sparkle — visible always, tints toward the accent on focus
    so the panel reads as "AI assistant" rather than "search box". */
-.desktop-mode-ai__input-icon {
+.os-ai__input-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -239,7 +239,7 @@
 	transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-mode-ai__input-wrap:has( .desktop-mode-ai__input:focus ) .desktop-mode-ai__input-icon {
+.os-ai__input-wrap:has( .os-ai__input:focus ) .os-ai__input-icon {
 	opacity: 1;
 	transform: scale( 1.08 );
 }
@@ -256,7 +256,7 @@
  *                              box-shadow: 0 0 0 1px #2271b1 }
  *
  * That weighs (0,1,1) — one type selector plus one attribute selector —
- * which beats a bare `.desktop-mode-ai__input` at (0,1,0). The result
+ * which beats a bare `.os-ai__input` at (0,1,0). The result
  * was a bordered white box floating inside the panel: core's chrome,
  * core's text colour, ignoring both the design intent (a chromeless
  * Spotlight-style field) and any active desktop theme.
@@ -264,7 +264,7 @@
  * Scoping to the overlay root takes the selector to (0,2,0) and wins.
  * Same fix as the native-window form-control rule in window-chrome.css.
  */
-.desktop-mode-ai .desktop-mode-ai__input {
+.os-ai .os-ai__input {
 	flex: 1;
 	min-width: 0;
 	appearance: none;
@@ -281,25 +281,25 @@
 	font-size: 17px;
 	font-weight: 400;
 	line-height: 1.4;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 /* Core paints a focus border + ring on the element itself; the focus
    affordance here is the input row's bottom hairline instead. */
-.desktop-mode-ai .desktop-mode-ai__input:focus {
+.os-ai .os-ai__input:focus {
 	border-color: transparent;
 	box-shadow: none;
 	outline: none;
 }
 
-.desktop-mode-ai .desktop-mode-ai__input::placeholder {
-	color: var( --wpd-fg-faint, #c3c4c7 );
+.os-ai .os-ai__input::placeholder {
+	color: var( --os-ui-fg-faint, #c3c4c7 );
 	font-weight: 400;
 }
 
 /* Submit button — hidden until the user types something, then
    springs in via opacity + scale transition. */
-.desktop-mode-ai__submit {
+.os-ai__submit {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -309,7 +309,7 @@
 	border: none;
 	border-radius: 8px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	cursor: pointer;
 	padding: 0;
 	opacity: 0;
@@ -320,21 +320,21 @@
 		transform 0.2s cubic-bezier( 0.34, 1.56, 0.64, 1 );
 }
 
-.desktop-mode-ai__submit.has-value {
+.os-ai__submit.has-value {
 	opacity: 1;
 	transform: scale( 1 );
 	pointer-events: auto;
 }
 
-.desktop-mode-ai__submit:hover {
+.os-ai__submit:hover {
 	filter: brightness( 1.1 );
 }
 
-.desktop-mode-ai__submit:active {
+.os-ai__submit:active {
 	transform: scale( 0.92 );
 }
 
-.desktop-mode-ai__submit:focus-visible {
+.os-ai__submit:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
@@ -343,59 +343,59 @@
  * Footer — hints and keyboard shortcut legend
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__footer {
+.os-ai__footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 8px 16px 10px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.018 ) );
-	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.05 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.018 ) );
+	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.05 ) );
 }
 
-.desktop-mode-ai__footer-hint {
+.os-ai__footer-hint {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #a7aaad );
+	color: var( --os-ui-fg-muted, #a7aaad );
 }
 
 /* ---------------------------------------------------------------------------
  * Admin bar AI button — ⌘K badge + sparkle icon
  * Styles applied via wp_add_inline_style( 'admin-bar', ... ) in PHP.
  * The styles here are for reference; the actual output lives in
- * includes/admin-bar.php :: desktop_mode_enqueue_toggle_assets().
+ * includes/admin-bar.php :: openstation_enqueue_toggle_assets().
  * ------------------------------------------------------------------------- */
 
 /* (The admin-bar button styles are added inline in PHP to keep them
-    on the admin-bar handle so they load even before desktop-mode.js.) */
+    on the admin-bar handle so they load even before os.js.) */
 
 /* ---------------------------------------------------------------------------
  * Close button — × icon, top-right of header
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__close {
+.os-ai__close {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	width: 28px;
 	height: 28px;
 	appearance: none;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.1 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
 	border-radius: 6px;
 	cursor: pointer;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 	padding: 0;
 	flex-shrink: 0;
 	transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
-.desktop-mode-ai__close:hover {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.09 ) );
-	border-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.2 ) );
-	color: var( --wpd-fg, #1d2327 );
+.os-ai__close:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.09 ) );
+	border-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.2 ) );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.desktop-mode-ai__close:focus-visible {
+.os-ai__close:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
@@ -407,8 +407,8 @@
  *   • Response      (assistant bubble + entity card | admin links | nothing)
  * ------------------------------------------------------------------------- */
 
-.desktop-mode-ai__results {
-	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
+.os-ai__results {
+	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 	max-height: 420px;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -422,37 +422,37 @@
  * Suggestion chips (empty state)
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__suggestions-label {
+.os-ai__suggestions-label {
 	margin: 0 0 4px;
 	font-size: 11px;
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: var( --wpd-fg-muted, #8c8f94 );
+	color: var( --os-ui-fg-muted, #8c8f94 );
 }
 
-.desktop-mode-ai__suggestions-list {
+.os-ai__suggestions-list {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.desktop-mode-ai__suggestion {
+.os-ai__suggestion {
 	appearance: none;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.1 ) );
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.02 ) );
 	border-radius: 999px;
 	padding: 5px 12px;
 	font: inherit;
 	font-size: 12px;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	cursor: pointer;
 	transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
-.desktop-mode-ai__suggestion:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --wpd-border, rgba( 0, 0, 0, 0.1 ) ) );
+.os-ai__suggestion:hover {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -460,16 +460,16 @@
  * Thinking / error state
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__state {
+.os-ai__state {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	font-size: 13px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
-.desktop-mode-ai__state--error {
-	color: var( --wpd-danger, #d63638 );
+.os-ai__state--error {
+	color: var( --os-ui-danger, #d63638 );
 	align-items: flex-start;
 }
 
@@ -477,7 +477,7 @@
  * OS Settings on the AI tab. Styled as a link within the surrounding
  * error text, not a standalone button: inherits the error color and
  * flows with the sentence. */
-.desktop-mode-ai__settings-link {
+.os-ai__settings-link {
 	appearance: none;
 	border: 0;
 	margin: 0;
@@ -490,7 +490,7 @@
 	text-underline-offset: 2px;
 }
 
-.desktop-mode-ai__settings-link:hover {
+.os-ai__settings-link:hover {
 	text-decoration: none;
 }
 
@@ -498,18 +498,18 @@
  * surface (see the cursor policy at the top of desktop.css). This
  * recovery link is an explicit, user-approved exception: it keeps a
  * pointer so it reads as the actionable link it is. Scoped under
- * `body.desktop-mode-active` so it out-specifies the policy's
+ * `body.os-active` so it out-specifies the policy's
  * `!important` rule, same trick the resize-handle exceptions use. */
-body.desktop-mode-active .desktop-mode-ai__settings-link {
+body.os-active .os-ai__settings-link {
 	cursor: pointer !important;
 }
 
-@keyframes desktop-mode-spin {
+@keyframes os-spin {
 	to { transform: rotate( 360deg ); }
 }
 
-.desktop-mode-ai__spinner-icon {
-	animation: desktop-mode-spin 0.9s linear infinite;
+.os-ai__spinner-icon {
+	animation: os-spin 0.9s linear infinite;
 	flex-shrink: 0;
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
@@ -518,13 +518,13 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * Assistant message bubble — prefix for every response
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__bubble {
+.os-ai__bubble {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
 }
 
-.desktop-mode-ai__bubble-icon {
+.os-ai__bubble-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -532,15 +532,15 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, var( --wpd-surface, #fff ) );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, var( --os-ui-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-ai__bubble-text {
+.os-ai__bubble-text {
 	padding-top: 3px;
 	font-size: 13px;
 	line-height: 1.5;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	flex: 1;
 	min-width: 0;
 }
@@ -550,63 +550,63 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
    outer paragraphs so single-paragraph replies (the common case)
    don't get top/bottom spacing; list items get the usual disc/decimal
    markers inside a compact indent. */
-.desktop-mode-ai__bubble-text > p,
-.desktop-mode-ai__bubble-text > ul,
-.desktop-mode-ai__bubble-text > ol {
+.os-ai__bubble-text > p,
+.os-ai__bubble-text > ul,
+.os-ai__bubble-text > ol {
 	margin: 0 0 6px;
 }
-.desktop-mode-ai__bubble-text > :last-child {
+.os-ai__bubble-text > :last-child {
 	margin-bottom: 0;
 }
-.desktop-mode-ai__bubble-text ul,
-.desktop-mode-ai__bubble-text ol {
+.os-ai__bubble-text ul,
+.os-ai__bubble-text ol {
 	padding-inline-start: 20px;
 }
-.desktop-mode-ai__bubble-text li {
+.os-ai__bubble-text li {
 	margin-bottom: 2px;
 }
-.desktop-mode-ai__bubble-text code {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+.os-ai__bubble-text code {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
 	padding: 1px 5px;
 	border-radius: 4px;
-	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
 	font-size: 11.5px;
 }
-.desktop-mode-ai__bubble-text a {
+.os-ai__bubble-text a {
 	color: var( --wp-admin-theme-color, #2271b1 );
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
-.desktop-mode-ai__bubble-text a:hover {
+.os-ai__bubble-text a:hover {
 	text-decoration: none;
 }
-.desktop-mode-ai__bubble-text strong {
+.os-ai__bubble-text strong {
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 /* -----------------------------------------------------------------
  * Entity card — shown under the bubble when answer_type=entity
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__entity {
+.os-ai__entity {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	padding: 12px 14px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.02 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 }
 
-.desktop-mode-ai__entity-header {
+.os-ai__entity-header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
 }
 
-.desktop-mode-ai__entity-topic {
+.os-ai__entity-topic {
 	display: inline-block;
 	font-size: 10px;
 	font-weight: 600;
@@ -618,32 +618,32 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	border-radius: 999px;
 }
 
-.desktop-mode-ai__entity-type {
+.os-ai__entity-type {
 	font-size: 10px;
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
-	color: var( --wpd-fg-muted, #8c8f94 );
+	color: var( --os-ui-fg-muted, #8c8f94 );
 }
 
-.desktop-mode-ai__entity-title {
+.os-ai__entity-title {
 	margin: 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 	line-height: 1.35;
 }
 
-.desktop-mode-ai__entity-summary {
+.os-ai__entity-summary {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.5;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 }
 
 /* Primary action — opens the entity in a legacy iframe window inside
    the desktop (wp-admin edit URL). */
-.desktop-mode-ai__entity-open {
+.os-ai__entity-open {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -653,7 +653,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	border: none;
 	border-radius: 8px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;
@@ -661,20 +661,20 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	transition: filter 0.1s, transform 0.1s;
 }
 
-.desktop-mode-ai__entity-open:hover {
+.os-ai__entity-open:hover {
 	filter: brightness( 1.1 );
 }
 
-.desktop-mode-ai__entity-open:active {
+.os-ai__entity-open:active {
 	transform: scale( 0.97 );
 }
 
-.desktop-mode-ai__entity-open:focus-visible {
+.os-ai__entity-open:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-ai__entity-open svg {
+.os-ai__entity-open svg {
 	margin-inline-start: 2px;
 }
 
@@ -682,20 +682,20 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * Admin-links list — shown when answer_type=navigation
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__admin-links {
+.os-ai__admin-links {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 }
 
-.desktop-mode-ai__admin-link {
+.os-ai__admin-link {
 	appearance: none;
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	padding: 10px 12px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.02 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 	cursor: pointer;
 	text-align: start;
@@ -704,21 +704,21 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	transition: background 0.12s, border-color 0.12s, transform 0.08s;
 }
 
-.desktop-mode-ai__admin-link:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
+.os-ai__admin-link:hover {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, var( --os-ui-surface, #fff ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
-.desktop-mode-ai__admin-link:active {
+.os-ai__admin-link:active {
 	transform: scale( 0.99 );
 }
 
-.desktop-mode-ai__admin-link:focus-visible {
+.os-ai__admin-link:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-ai__admin-link-icon {
+.os-ai__admin-link-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -727,11 +727,11 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	height: 32px;
 	font-size: 18px;
 	color: var( --wp-admin-theme-color, #2271b1 );
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --os-ui-surface, #fff ) );
 	border-radius: 8px;
 }
 
-.desktop-mode-ai__admin-link-body {
+.os-ai__admin-link-body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -739,28 +739,28 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	min-width: 0;
 }
 
-.desktop-mode-ai__admin-link-title {
+.os-ai__admin-link-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.desktop-mode-ai__admin-link-desc {
+.os-ai__admin-link-desc {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 	line-height: 1.4;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.desktop-mode-ai__admin-link-arrow {
+.os-ai__admin-link-arrow {
 	flex-shrink: 0;
-	color: var( --wpd-fg-faint, #c3c4c7 );
+	color: var( --os-ui-fg-faint, #c3c4c7 );
 	transition: color 0.12s, transform 0.12s;
 }
 
-.desktop-mode-ai__admin-link:hover .desktop-mode-ai__admin-link-arrow {
+.os-ai__admin-link:hover .os-ai__admin-link-arrow {
 	color: var( --wp-admin-theme-color, #2271b1 );
 	transform: translateX( 2px );
 }
@@ -772,13 +772,13 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * uses a dedicated set of classes so each can evolve independently.
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__cmd-list {
+.os-ai__cmd-list {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.desktop-mode-ai__cmd-item {
+.os-ai__cmd-item {
 	appearance: none;
 	display: flex;
 	align-items: flex-start;
@@ -795,20 +795,20 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 }
 
 /*
- * Single-line rows (no `.desktop-mode-ai__cmd-desc` child) need the
+ * Single-line rows (no `.os-ai__cmd-desc` child) need the
  * icon + label baseline-centered instead of top-aligned, otherwise
  * the label floats to the top of the taller icon tile and reads as
  * misaligned. `:has()` is widely supported in evergreen browsers the
  * desktop shell already targets.
  */
-.desktop-mode-ai__cmd-item:not(:has(.desktop-mode-ai__cmd-desc)) {
+.os-ai__cmd-item:not(:has(.os-ai__cmd-desc)) {
 	align-items: center;
 }
 
-.desktop-mode-ai__cmd-item:hover,
-.desktop-mode-ai__cmd-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
+.os-ai__cmd-item:hover,
+.os-ai__cmd-item.is-selected {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
 /*
@@ -819,21 +819,21 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * from `:hover`. The JS toggles this class on the list container on
  * ArrowUp/Down and clears it on the next real `mousemove`.
  */
-.desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item:hover {
+.os-ai__cmd-list--kb-nav .os-ai__cmd-item:hover {
 	background: transparent;
 	border-color: transparent;
 }
-.desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item.is-selected:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
+.os-ai__cmd-list--kb-nav .os-ai__cmd-item.is-selected:hover {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
-.desktop-mode-ai__cmd-item:focus-visible {
+.os-ai__cmd-item:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-ai__cmd-icon {
+.os-ai__cmd-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -842,7 +842,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	height: 36px;
 	font-size: 20px;
 	color: var( --wp-admin-theme-color, #2271b1 );
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --os-ui-surface, #fff ) );
 	border-radius: 7px;
 }
 
@@ -850,7 +850,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * Dashicons ship at a 20px baseline; the tile was scaled up but
  * dashicons glyphs need explicit sizing to follow.
  */
-.desktop-mode-ai__cmd-icon.dashicons {
+.os-ai__cmd-icon.dashicons {
 	font-size: 22px;
 	width: 36px;
 	height: 36px;
@@ -863,13 +863,13 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * centered inside the tile regardless of the viewBox the source icon
  * shipped with.
  */
-.desktop-mode-ai__cmd-icon--svg svg {
+.os-ai__cmd-icon--svg svg {
 	width: 24px;
 	height: 24px;
 	fill: currentColor;
 }
 
-.desktop-mode-ai__cmd-body {
+.os-ai__cmd-body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -877,24 +877,24 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	min-width: 0;
 }
 
-.desktop-mode-ai__cmd-title {
+.os-ai__cmd-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --wpd-fg, #1d2327 );
-	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
+	color: var( --os-ui-fg, #1d2327 );
+	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
 	letter-spacing: -0.01em;
 }
 
-.desktop-mode-ai__cmd-hint {
+.os-ai__cmd-hint {
 	font-weight: 400;
-	color: var( --wpd-fg-muted, #8c8f94 );
+	color: var( --os-ui-fg-muted, #8c8f94 );
 	font-size: 12px;
 	margin-inline-start: 6px;
 }
 
-.desktop-mode-ai__cmd-desc {
+.os-ai__cmd-desc {
 	font-size: 11.5px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 	line-height: 1.4;
 	font-family: inherit;
 	letter-spacing: 0;
@@ -904,52 +904,52 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
    commands but are navigable destinations, not actions. Use regular font
    (not the monospace used for slash-commands) so they read as content
    search results, matching the classic command palette UX. */
-.desktop-mode-ai__cmd-item.is-entity-result .desktop-mode-ai__cmd-title {
+.os-ai__cmd-item.is-entity-result .os-ai__cmd-title {
 	font-family: inherit;
 	letter-spacing: 0;
 }
 
 /* Args mode — a single row showing the locked-in command. Same
    visual language as the list item but with an "Enter to run" hint. */
-.desktop-mode-ai__cmd-active {
+.os-ai__cmd-active {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 12px;
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
-	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --os-ui-surface, #fff ) );
+	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 	border-radius: 8px;
 }
 
-.desktop-mode-ai__cmd-enter-hint {
+.os-ai__cmd-enter-hint {
 	font-size: 11px;
-	color: var( --wpd-fg-muted, #646970 );
+	color: var( --os-ui-fg-muted, #646970 );
 	margin-top: 2px;
 	font-family: inherit;
 }
 
-.desktop-mode-ai__cmd-enter-hint kbd {
+.os-ai__cmd-enter-hint kbd {
 	font-family: inherit;
 	font-size: 10px;
 	padding: 1px 4px;
-	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.12 ) );
+	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
 	border-radius: 3px;
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
-	color: var( --wpd-fg-muted, #646970 );
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
 /* Suggestion list shown under the locked-in command in args mode.
    Visually identical to the command picker rows but without the
    border-highlight — the "active" glow already lives on the command
    header directly above. */
-.desktop-mode-ai__cmd-suggest-list {
+.os-ai__cmd-suggest-list {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	margin-top: 6px;
 }
 
-.desktop-mode-ai__cmd-suggest-item {
+.os-ai__cmd-suggest-item {
 	appearance: none;
 	display: flex;
 	align-items: flex-start;
@@ -965,21 +965,21 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	transition: background 0.1s, border-color 0.1s;
 }
 
-.desktop-mode-ai__cmd-suggest-item:hover,
-.desktop-mode-ai__cmd-suggest-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
+.os-ai__cmd-suggest-item:hover,
+.os-ai__cmd-suggest-item.is-selected {
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --os-ui-surface, #fff ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
-.desktop-mode-ai__cmd-suggest-label {
+.os-ai__cmd-suggest-label {
 	font-size: 13px;
 	font-weight: 500;
-	color: var( --wpd-fg, #1d2327 );
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 /* Empty / "no matches" state for the palette */
-.desktop-mode-ai__state--empty {
-	color: var( --wpd-fg-muted, #8c8f94 );
+.os-ai__state--empty {
+	color: var( --os-ui-fg-muted, #8c8f94 );
 	font-size: 13px;
 }
 
@@ -987,7 +987,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
  * Continue button (budget-exhausted state)
  * ---------------------------------------------------------------- */
 
-.desktop-mode-ai__continue-btn {
+.os-ai__continue-btn {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
@@ -997,16 +997,16 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	font-size: 12px;
 	font-weight: 500;
 	padding: 6px 12px;
-	border: 1px dashed var( --wpd-border-strong, rgba( 0, 0, 0, 0.2 ) );
+	border: 1px dashed var( --os-ui-border-strong, rgba( 0, 0, 0, 0.2 ) );
 	border-radius: 6px;
 	background: transparent;
-	color: var( --wpd-fg-muted, #50575e );
+	color: var( --os-ui-fg-muted, #50575e );
 	cursor: pointer;
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
-.desktop-mode-ai__continue-btn:hover {
-	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
-	border-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.3 ) );
-	color: var( --wpd-fg, #1d2327 );
+.os-ai__continue-btn:hover {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+	border-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.3 ) );
+	color: var( --os-ui-fg, #1d2327 );
 }

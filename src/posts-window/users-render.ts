@@ -3,7 +3,7 @@
  *
  * Mounted from the bottom of `./index.ts` when the shell opens the
  * `desktop-mode-users` window. Reuses the shared template selectors
- * (`data-desktop-mode-posts-*`) and `<wpd-table>` mount that the
+ * (`data-os-posts-*`) and `<os-table>` mount that the
  * Posts/Pages renderer already binds to, but draws a Users-shaped
  * row set: avatar + name, email, role, content stats, last login +
  * presence, registered date.
@@ -13,7 +13,7 @@
  *
  * Every cap-gated UI affordance reads from
  * `cfg.{canEdit,canPromote,canCreate,canDelete}` AND from the
- * per-row `desktop_mode_can_edit` flag. The flags are UX hints —
+ * per-row `openstation_can_edit` flag. The flags are UX hints —
  * the server re-checks every mutation, so a tampered flag here
  * just lets the user click a button that fails the REST call.
  *
@@ -38,13 +38,13 @@ import { showUsersIntroDialog } from './users-intro-dialog';
 // loses (the read sees `null` and falls back to the viewer's id).
 import { setUserEditTarget } from './user-edit-target';
 import type {
-	WpdTable,
-	WpdTableColumn,
-} from '../ui/components/wpd-table/wpd-table';
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-button/wpd-button';
-import '../ui/components/wpd-icon/wpd-icon';
-import '../ui/components/wpd-segmented/wpd-segmented';
+	OsTable,
+	OsTableColumn,
+} from '../ui/components/os-table/os-table';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-button/os-button';
+import '../ui/components/os-icon/os-icon';
+import '../ui/components/os-segmented/os-segmented';
 
 interface ConfirmOptions {
 	title?: string;
@@ -54,16 +54,16 @@ interface ConfirmOptions {
 	danger?: boolean;
 }
 
-function wpdConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
+function osConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
 	const w = window as unknown as {
-		wp?: { desktop?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } };
+		wp?: { os?: { confirm?: ( o: ConfirmOptions ) => Promise< boolean > } };
 	};
-	const fn = w.wp?.desktop?.confirm;
+	const fn = w.wp?.os?.confirm;
 	if ( typeof fn !== 'function' ) {
 		// Fall back to a synchronous browser confirm so the absence of
-		// the wpd-confirm-dialog wrapper never silently no-ops a
+		// the os-confirm-dialog wrapper never silently no-ops a
 		// destructive action.
-		// eslint-disable-next-line no-restricted-syntax, no-alert -- last-resort fallback when wp.desktop.confirm hasn't booted
+		// eslint-disable-next-line no-restricted-syntax, no-alert -- last-resort fallback when wp.os.confirm hasn't booted
 		return Promise.resolve( window.confirm( options.message ) );
 	}
 	return fn( options );
@@ -75,7 +75,7 @@ function notifyToast(
 ): void {
 	const w = window as unknown as {
 		wp?: {
-			desktop?: {
+			os?: {
 				notify?: ( o: {
 					body: string;
 					kind?: 'success' | 'error' | 'info';
@@ -83,7 +83,7 @@ function notifyToast(
 			};
 		};
 	};
-	const api = w.wp?.desktop;
+	const api = w.wp?.os;
 	if ( api?.notify ) {
 		api.notify( { body, kind: opts.kind } );
 		return;
@@ -103,7 +103,7 @@ function openUserEditWindow( userId: number ): void {
 	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
 		return;
 	}
-	// Synchronous — must commit before `wp.desktop.openWindow` runs,
+	// Synchronous — must commit before `wp.os.openWindow` runs,
 	// because the user-edit registry callback that reads the target
 	// fires synchronously inside `openWindow` → `manager.open` →
 	// `hydrateNative`. An `await import()` here pushes the write
@@ -119,13 +119,19 @@ function openUserEditWindow( userId: number ): void {
 
 	const w = window as unknown as {
 		wp?: {
-			desktop?: {
-				openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
+			os?: {
+				openWindow?: (
+					id: string,
+					opts?: {
+						source?: string;
+						params?: Record< string, string | number | boolean >;
+					},
+				) => boolean;
 			};
 		};
 	};
 
-	// `wp.desktop.openWindow(id)` is the canonical public API for
+	// `wp.os.openWindow(id)` is the canonical public API for
 	// opening a server-registered native window by id (documented
 	// at desktop.ts:418). Earlier attempts called
 	// `openNativeWindow` — that name lives only on an internal
@@ -133,11 +139,11 @@ function openUserEditWindow( userId: number ): void {
 	// at runtime. The error surfaces as "openNativeWindow
 	// unavailable" in the console; the right cure is to use the
 	// documented name.
-	const fn = w.wp?.desktop?.openWindow;
+	const fn = w.wp?.os?.openWindow;
 	if ( typeof fn !== 'function' ) {
 		// eslint-disable-next-line no-console
 		console.error(
-			'[users-window] wp.desktop.openWindow is missing — desktop shell may not be ready.',
+			'[users-window] wp.os.openWindow is missing — desktop shell may not be ready.',
 		);
 		notifyToast(
 			__( 'Could not open profile window — desktop shell unavailable.' ),
@@ -147,6 +153,10 @@ function openUserEditWindow( userId: number ): void {
 	}
 	const opened = fn( 'desktop-mode-user-edit', {
 		source: 'users-window/row-click',
+		// Persisted with the session, so the window comes back on this
+		// person after a reload. The shared store above only carries
+		// the target for this page life.
+		...( userId > 0 ? { params: { userId } } : {} ),
 	} );
 	if ( ! opened ) {
 		// eslint-disable-next-line no-console
@@ -161,19 +171,19 @@ function openUserEditWindow( userId: number ): void {
 }
 
 // ─── Template selectors (shared with Posts/Pages templates) ──────────
-const ROOT = '[data-desktop-mode-posts-root]';
-const STATUS = '[data-desktop-mode-posts-status]';
-const SEARCH = '[data-desktop-mode-posts-search]';
-const REFRESH = '[data-desktop-mode-posts-refresh]';
-const NEW_BTN = '[data-desktop-mode-posts-new]';
-const TABLE = '[data-desktop-mode-posts-table]';
-const BULK = '[data-desktop-mode-posts-bulk]';
-const COUNT = '[data-desktop-mode-posts-count]';
-const PAGE_INDICATOR = '[data-desktop-mode-posts-page-indicator]';
-const PREV = '[data-desktop-mode-posts-prev]';
-const NEXT = '[data-desktop-mode-posts-next]';
-const PER_PAGE = '[data-desktop-mode-posts-per-page]';
-const BULK_ACTIONS_HOST = '[data-desktop-mode-posts-bulk-actions]';
+const ROOT = '[data-os-posts-root]';
+const STATUS = '[data-os-posts-status]';
+const SEARCH = '[data-os-posts-search]';
+const REFRESH = '[data-os-posts-refresh]';
+const NEW_BTN = '[data-os-posts-new]';
+const TABLE = '[data-os-posts-table]';
+const BULK = '[data-os-posts-bulk]';
+const COUNT = '[data-os-posts-count]';
+const PAGE_INDICATOR = '[data-os-posts-page-indicator]';
+const PREV = '[data-os-posts-prev]';
+const NEXT = '[data-os-posts-next]';
+const PER_PAGE = '[data-os-posts-per-page]';
+const BULK_ACTIONS_HOST = '[data-os-posts-bulk-actions]';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -235,9 +245,9 @@ function maybeShowUsersIntro( client: UsersWindowClient ): void {
 			void markUsersIntroSeen( client, cfg );
 			if ( result === 'settings' ) {
 				const w = window as unknown as {
-					wp?: { desktop?: { openOsSettings?: () => void } };
+					wp?: { os?: { openOsSettings?: () => void } };
 				};
-				w.wp?.desktop?.openOsSettings?.();
+				w.wp?.os?.openOsSettings?.();
 			}
 		} )
 		.catch( () => {
@@ -285,11 +295,11 @@ function buildIdentityCell(
 	cell.style.cssText =
 		'display:flex;align-items:center;gap:10px;min-width:0;';
 
-	// `<wpd-avatar>` consolidates the hand-rolled image + presence dot
+	// `<os-avatar>` consolidates the hand-rolled image + presence dot
 	// + initials fallback into one component. The Gravatar probe is
 	// run via the shared `applyAvatarSrc` helper so users without a
 	// registered avatar drop straight to initials.
-	const avatar = document.createElement( 'wpd-avatar' );
+	const avatar = document.createElement( 'os-avatar' );
 	avatar.setAttribute( 'size', '32' );
 	if ( row.name ) {
 		avatar.setAttribute( 'name', row.name );
@@ -298,7 +308,7 @@ function buildIdentityCell(
 	// the per-user heartbeat). Avoid `user-id` auto-subscribe here
 	// since we already have a fresh snapshot — setting both would
 	// race the explicit value against the next heartbeat tick.
-	const presence = row.desktop_mode_presence ?? 'offline';
+	const presence = row.openstation_presence ?? 'offline';
 	avatar.setAttribute( 'presence', presence );
 	const avatars = row.avatar_urls ?? {};
 	const rawAvatar =
@@ -430,7 +440,7 @@ function buildRoleCell(
 }
 
 function buildStatsCell( row: UserListItem ): HTMLElement {
-	const stats = row.desktop_mode_user_stats ?? {
+	const stats = row.openstation_user_stats ?? {
 		posts: 0,
 		pages: 0,
 		comments: 0,
@@ -447,11 +457,11 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 		const span = document.createElement( 'span' );
 		span.style.cssText = 'display:inline-flex;align-items:center;gap:3px;';
 		span.title = label;
-		// `<wpd-icon>` works inside any shadow tree — the
+		// `<os-icon>` works inside any shadow tree — the
 		// table-cell shadow eats the document-level dashicons CSS,
 		// which is why a bare `class="dashicons …"` span was
 		// rendering blank in earlier cuts.
-		const ic = document.createElement( 'wpd-icon' );
+		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
 		ic.setAttribute( 'size', '14' );
 		ic.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
@@ -507,7 +517,7 @@ function relativeTime( ts: number ): string {
 function buildLastLoginCell( row: UserListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'font-size:13px;font-variant-numeric:tabular-nums;';
-	const ts = row.desktop_mode_last_login;
+	const ts = row.openstation_last_login;
 	if ( ! ts || typeof ts !== 'number' ) {
 		cell.textContent = __( 'Never' );
 		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
@@ -554,7 +564,7 @@ function buildActionsCell(
 		'display:inline-flex;gap:4px;align-items:center;';
 
 	const canEditViewer = cfg.canEdit === true;
-	const canEditRow = row.desktop_mode_can_edit === true;
+	const canEditRow = row.openstation_can_edit === true;
 	if ( ! canEditViewer || ! canEditRow ) {
 		cell.textContent = '—';
 		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
@@ -576,7 +586,7 @@ function buildActionsCell(
 			cursor: 'pointer',
 			lineHeight: '1',
 		} as Partial< CSSStyleDeclaration > );
-		const ic = document.createElement( 'wpd-icon' );
+		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
 		ic.setAttribute( 'size', '14' );
 		btn.appendChild( ic );
@@ -592,7 +602,7 @@ function buildActionsCell(
 			__( 'Send password reset' ),
 			'email-alt',
 			async () => {
-				const ok = await wpdConfirmGlobal( {
+				const ok = await osConfirmGlobal( {
 					title: __( 'Send password reset email?' ),
 					message: sprintf(
 						// translators: %s is a user name.
@@ -632,7 +642,7 @@ function buildActionsCell(
 			__( 'Resend welcome email' ),
 			'megaphone',
 			async () => {
-				const ok = await wpdConfirmGlobal( {
+				const ok = await osConfirmGlobal( {
 					title: __( 'Resend welcome email?' ),
 					message: sprintf(
 						// translators: %s is a user name.
@@ -676,8 +686,8 @@ function buildColumns(
 	cache: UserCellCache,
 	cfg: PostsWindowConfig,
 	client: UsersWindowClient,
-): WpdTableColumn< UserListItem >[] {
-	const cols: WpdTableColumn< UserListItem >[] = [
+): OsTableColumn< UserListItem >[] {
+	const cols: OsTableColumn< UserListItem >[] = [
 		{
 			key: 'identity',
 			label: __( 'Name' ),
@@ -710,7 +720,7 @@ function buildColumns(
 			label: __( 'Content' ),
 			width: '160px',
 			sortValue: ( row ) => {
-				const s = row.desktop_mode_user_stats;
+				const s = row.openstation_user_stats;
 				return s ? s.posts + s.pages + s.comments : 0;
 			},
 			render: ( _v, row ) =>
@@ -722,8 +732,8 @@ function buildColumns(
 			width: '140px',
 			sortable: false,
 			sortValue: ( row ) =>
-				typeof row.desktop_mode_last_login === 'number'
-					? row.desktop_mode_last_login
+				typeof row.openstation_last_login === 'number'
+					? row.openstation_last_login
 					: 0,
 			render: ( _v, row ) =>
 				memoUserCell( cache, row.id, 'last_login', () =>
@@ -744,7 +754,7 @@ function buildColumns(
 
 	// Quick actions column — only shown when the viewer has any
 	// edit cap; cell falls back to "—" per-row when the row's
-	// `desktop_mode_can_edit` is false (e.g. self-row, or a higher-
+	// `openstation_can_edit` is false (e.g. self-row, or a higher-
 	// privileged user).
 	if ( cfg.canEdit === true ) {
 		cols.push( {
@@ -782,20 +792,20 @@ function applyClientStatusFilter(
 		return rows;
 	}
 	if ( status === 'online' ) {
-		return rows.filter( ( r ) => r.desktop_mode_presence === 'online' );
+		return rows.filter( ( r ) => r.openstation_presence === 'online' );
 	}
 	if ( status === 'recent' ) {
 		const now = Math.floor( Date.now() / 1000 );
 		return rows.filter( ( r ) => {
-			const ts = r.desktop_mode_last_login;
+			const ts = r.openstation_last_login;
 			return typeof ts === 'number' && ts > 0 && now - ts < 86400 * 30;
 		} );
 	}
 	if ( status === 'never' ) {
 		return rows.filter(
 			( r ) =>
-				! r.desktop_mode_last_login ||
-				typeof r.desktop_mode_last_login !== 'number',
+				! r.openstation_last_login ||
+				typeof r.openstation_last_login !== 'number',
 		);
 	}
 	return rows;
@@ -808,7 +818,7 @@ export async function renderUsersWindow(
 	client: UsersWindowClient,
 ): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT );
-	const table = body.querySelector< WpdTable< UserListItem > >( TABLE );
+	const table = body.querySelector< OsTable< UserListItem > >( TABLE );
 	if ( ! root || ! table ) {
 		return;
 	}
@@ -817,10 +827,10 @@ export async function renderUsersWindow(
 	// native window for THAT user. The Users window's own Profile
 	// tab is reserved for the viewer's own profile and never
 	// changes target, so editing other users gets its own
-	// dedicated window. wpd-table fires `wpd-table-row-click` for
+	// dedicated window. os-table fires `os-table-row-click` for
 	// cell clicks outside `data-noclick` descendants (so the
 	// row-checkbox / quick-action buttons keep their own behavior).
-	table.addEventListener( 'wpd-table-row-click', ( e: Event ) => {
+	table.addEventListener( 'os-table-row-click', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { row: UserListItem } > ).detail;
 		const id = detail?.row?.id;
 		if ( typeof id !== 'number' || id <= 0 ) {
@@ -867,7 +877,7 @@ export async function renderUsersWindow(
 	}
 
 	// A query change (page, search, status, per-page) replaces the
-	// result set, but `<wpd-table>` keeps selected ids across `data`
+	// result set, but `<os-table>` keeps selected ids across `data`
 	// reassignment — and the bulk role apply consumes the raw
 	// selection. Left alone, off-page ids ride silently into the next
 	// bulk action. Called from every query-changing handler.
@@ -887,12 +897,12 @@ export async function renderUsersWindow(
 	if ( statusHost ) {
 		statusHost.replaceChildren();
 		for ( const seg of defaultStatusSegments() ) {
-			const el = document.createElement( 'wpd-segment' );
+			const el = document.createElement( 'os-segment' );
 			el.setAttribute( 'value', seg.value );
 			el.textContent = seg.label;
 			statusHost.appendChild( el );
 		}
-		statusHost.addEventListener( 'wpd-pick', ( e: Event ) => {
+		statusHost.addEventListener( 'os-pick', ( e: Event ) => {
 			const detail = ( e as CustomEvent< { value: string } > ).detail;
 			view.status = detail?.value ?? '';
 			view.page = 1;
@@ -935,7 +945,7 @@ export async function renderUsersWindow(
 			newBtn.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				const tabs = body.querySelector(
-					'[data-desktop-mode-users-tabs]',
+					'[data-os-users-tabs]',
 				) as ( HTMLElement & { value?: string } ) | null;
 				if ( ! tabs ) {
 					return;
@@ -1007,7 +1017,7 @@ export async function renderUsersWindow(
 				roleDropdown.appendChild( opt );
 			}
 
-			const apply = document.createElement( 'wpd-button' );
+			const apply = document.createElement( 'os-button' );
 			apply.setAttribute( 'variant', 'primary' );
 			apply.textContent = __( 'Apply' );
 			apply.addEventListener( 'click', async ( e ) => {
@@ -1029,7 +1039,7 @@ export async function renderUsersWindow(
 				if ( targetIds.length === 0 ) {
 					return;
 				}
-				const ok = await wpdConfirmGlobal( {
+				const ok = await osConfirmGlobal( {
 					title: __( 'Change role for selected users?' ),
 					message: sprintf(
 						// translators: %1$d is a user count, %2$s is a role label.
@@ -1085,7 +1095,7 @@ export async function renderUsersWindow(
 		}
 	};
 
-	table.addEventListener( 'wpd-table-selection-change', renderBulkBar );
+	table.addEventListener( 'os-table-selection-change', renderBulkBar );
 
 	prevBtn?.addEventListener( 'click', () => {
 		if ( view.page > 1 ) {
@@ -1178,7 +1188,7 @@ export async function renderUsersWindow(
 			// Reset the create form and bounce back to the all-users
 			// tab so the new user shows up in the list.
 			const tabs = body.querySelector(
-				'[data-desktop-mode-users-tabs]',
+				'[data-os-users-tabs]',
 			) as ( HTMLElement & { value?: string } ) | null;
 			if ( tabs ) {
 				tabs.value = 'all';
@@ -1195,7 +1205,7 @@ export async function renderUsersWindow(
 	// time a profile is requested.
 	wireProfileSubTab( body, cfg );
 
-	// Live refresh on `desktop-mode.user.changed` — fires when the
+	// Live refresh on `os.user.changed` — fires when the
 	// User-edit window saves a profile. We patch ONLY the affected
 	// rows in place via `fetchOneUser`; a full `refresh()` would
 	// clear the cell cache, reset scroll, and flicker the table for
@@ -1246,7 +1256,7 @@ export async function renderUsersWindow(
 	const subscribeApi = (
 		window as unknown as {
 			wp?: {
-				desktop?: {
+				os?: {
 					subscribe?: (
 						channel: string,
 						handler: ( payload: unknown ) => void,
@@ -1254,9 +1264,9 @@ export async function renderUsersWindow(
 				};
 			};
 		}
-	).wp?.desktop;
+	).wp?.os;
 	const unsubscribe = subscribeApi?.subscribe?.(
-		'desktop-mode.user.changed',
+		'os.user.changed',
 		( payload: unknown ) => {
 			const ids = ( payload as { ids?: unknown } )?.ids;
 			if ( ! Array.isArray( ids ) ) {
@@ -1272,7 +1282,7 @@ export async function renderUsersWindow(
 	);
 	if ( unsubscribe ) {
 		document.addEventListener(
-			'desktop-mode-window-closed',
+			'os-window-closed',
 			( e: Event ) => {
 				const detail = ( e as CustomEvent< { windowId?: string } > )
 					.detail;
@@ -1291,7 +1301,7 @@ export async function renderUsersWindow(
 /**
  * Wire the in-window Profile tab to the viewer's own user id.
  *
- * The tab template is just `<wpd-user-profile>` — set its
+ * The tab template is just `<os-user-profile>` — set its
  * `user-id` attribute once and the component takes it from there
  * (lazy-loads, fetches, mounts the full surface). Editing OTHER
  * users opens a separate `desktop-mode-user-edit` window via
@@ -1302,7 +1312,7 @@ function wireProfileSubTab(
 	cfg: PostsWindowConfig,
 ): void {
 	const profile = body.querySelector(
-		'wpd-user-profile[data-wpd-user-profile-self]',
+		'os-user-profile[data-os-user-profile-self]',
 	) as HTMLElement | null;
 	if ( ! profile ) {
 		return;
@@ -1321,11 +1331,11 @@ interface AddUserFormOpts {
 }
 
 /**
- * `<wpd-form>` element with the public methods we use here. Cast the
+ * `<os-form>` element with the public methods we use here. Cast the
  * raw DOM node to this shape so callers don't need a Component-class
  * import inside this feature module.
  */
-interface WpdFormElement extends HTMLElement {
+interface OsFormElement extends HTMLElement {
 	getValues(): Record< string, unknown >;
 	setBusy( busy: boolean ): void;
 	setError( message: string | null ): void;
@@ -1338,14 +1348,14 @@ interface WpdFormElement extends HTMLElement {
 }
 
 /**
- * Wire up the `<wpd-form>` rendered by `window.php` when the user
+ * Wire up the `<os-form>` rendered by `window.php` when the user
  * has `create_users`. The form does the heavy lifting (validation,
  * value collection, busy state, error banner, responsive layout);
  * this function only:
  *
  *   1. populates the runtime-driven `role` + `locale` selects,
  *   2. wires the bespoke "Generate strong password" button,
- *   3. listens for `wpd-form-submit` and posts to the create
+ *   3. listens for `os-form-submit` and posts to the create
  *      endpoint, mapping common server errors to per-field invalid
  *      flags so the UX is "the email field lights up", not "a
  *      banner says try again."
@@ -1359,19 +1369,19 @@ function mountAddUserForm(
 	opts: AddUserFormOpts,
 ): void {
 	const formNullable = body.querySelector(
-		'[data-desktop-mode-users-add-form]',
-	) as WpdFormElement | null;
+		'[data-os-users-add-form]',
+	) as OsFormElement | null;
 	if ( ! formNullable ) {
 		return;
 	}
 	// Capture as a non-nullable const so closures (mountSelect /
 	// onSubmit / event listeners) keep the narrowed type without
 	// TS losing it across nested function declarations.
-	const form: WpdFormElement = formNullable;
+	const form: OsFormElement = formNullable;
 
 	const defaultRole = cfg.defaultRole ?? 'subscriber';
 
-	// ── Mount the role + locale `<wpd-select>`s. They're built JS-side
+	// ── Mount the role + locale `<os-select>`s. They're built JS-side
 	// because their option lists come from the runtime config blob,
 	// not from PHP literals.
 	const assignableRoles =
@@ -1388,7 +1398,7 @@ function mountAddUserForm(
 	);
 
 	// ── "Generate strong password" — bespoke button, lives outside
-	// the wpd-form's auto-collected fields (it's an action, not data).
+	// the os-form's auto-collected fields (it's an action, not data).
 	const generateBtn = form.querySelector< HTMLElement >(
 		'[data-action="generate-password"]',
 	);
@@ -1397,7 +1407,7 @@ function mountAddUserForm(
 		e.stopPropagation();
 		const pwd = generateStrongPassword( 18 );
 		const pwdField = form.querySelector< HTMLElement & { value?: string } >(
-			'wpd-text-field[name="password"]',
+			'os-text-field[name="password"]',
 		);
 		if ( pwdField ) {
 			pwdField.value = pwd;
@@ -1413,7 +1423,7 @@ function mountAddUserForm(
 	// fields by the time this fires, so we just normalize the payload
 	// and POST.
 	let pending = false;
-	form.addEventListener( 'wpd-form-submit', ( e ) => {
+	form.addEventListener( 'os-form-submit', ( e ) => {
 		const detail = ( e as CustomEvent< { values: Record< string, unknown > } > )
 			.detail;
 		void onSubmit( detail.values );
@@ -1461,13 +1471,13 @@ function mountAddUserForm(
 }
 
 /**
- * Populate a `<wpd-select name=...>` declared in the PHP template
+ * Populate a `<os-select name=...>` declared in the PHP template
  * with options from `optionsMap`. The element itself is rendered
  * server-side so it upgrades alongside the rest of the form; we
  * only inject the runtime-driven option list.
  *
- * Uses the canonical `<wpd-select>.items` setter — appending
- * `<wpd-option>` children manually races the connect-time render
+ * Uses the canonical `<os-select>.items` setter — appending
+ * `<os-option>` children manually races the connect-time render
  * (the component's MutationObserver fires on a later microtask),
  * which is exactly what we hit on the first cut: the dropdown
  * rendered with no options.
@@ -1476,7 +1486,7 @@ function mountAddUserForm(
  * — the PHP template carries the visible label, but reading the
  * intended label at the call site makes the JS easier to follow.
  */
-interface WpdSelectElement extends HTMLElement {
+interface OsSelectElement extends HTMLElement {
 	items: ReadonlyArray< { value: string; label: string } >;
 	value: string;
 }
@@ -1488,8 +1498,8 @@ function mountSelect(
 	optionsMap: Record< string, string >,
 	initialValue: string,
 ): void {
-	const select = form.querySelector< WpdSelectElement >(
-		`wpd-select[name="${ name }"]`,
+	const select = form.querySelector< OsSelectElement >(
+		`os-select[name="${ name }"]`,
 	);
 	if ( ! select ) {
 		return;
@@ -1511,7 +1521,7 @@ function mountSelect(
  * field tells the user where to look.
  */
 function handleCreateError(
-	form: WpdFormElement,
+	form: OsFormElement,
 	code: string | undefined,
 	message: string | undefined,
 	payload: CreateUserBody,
@@ -1519,21 +1529,21 @@ function handleCreateError(
 	let summary = message;
 	if ( ! summary ) {
 		switch ( code ) {
-			case 'desktop_mode_users_username_exists':
+			case 'openstation_users_username_exists':
 			case 'existing_user_login':
 				summary = __( 'That username is already in use.' );
 				break;
-			case 'desktop_mode_users_email_exists':
+			case 'openstation_users_email_exists':
 			case 'existing_user_email':
 				summary = __( 'That email is already in use.' );
 				break;
-			case 'desktop_mode_users_username_invalid':
+			case 'openstation_users_username_invalid':
 				summary = __( 'Username is not valid.' );
 				break;
-			case 'desktop_mode_users_email_invalid':
+			case 'openstation_users_email_invalid':
 				summary = __( 'A valid email address is required.' );
 				break;
-			case 'desktop_mode_users_role_forbidden':
+			case 'openstation_users_role_forbidden':
 				summary = __( 'You are not allowed to assign that role.' );
 				break;
 			default:
@@ -1542,20 +1552,20 @@ function handleCreateError(
 	}
 	form.setError( summary );
 	if (
-		code === 'desktop_mode_users_username_exists' ||
+		code === 'openstation_users_username_exists' ||
 		code === 'existing_user_login' ||
-		code === 'desktop_mode_users_username_invalid'
+		code === 'openstation_users_username_invalid'
 	) {
 		form.setFieldInvalid( 'username' );
 	}
 	if (
-		code === 'desktop_mode_users_email_exists' ||
+		code === 'openstation_users_email_exists' ||
 		code === 'existing_user_email' ||
-		code === 'desktop_mode_users_email_invalid'
+		code === 'openstation_users_email_invalid'
 	) {
 		form.setFieldInvalid( 'email' );
 	}
-	if ( code === 'desktop_mode_users_role_forbidden' ) {
+	if ( code === 'openstation_users_role_forbidden' ) {
 		form.setFieldInvalid( 'role' );
 	}
 	notifyToast( summary, { kind: 'error' } );

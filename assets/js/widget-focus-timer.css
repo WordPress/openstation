@@ -10,12 +10,12 @@
 .dm-focus {
 	--dm-focus-accent: #7c3aed;
 	--dm-focus-accent-2: #2563eb;
-	/* The widget card is dark glass; the wpd-select / wpd-checkbox-label
-	   components default their text to the near-black --wpd-fg,
+	/* The widget card is dark glass; the os-select / os-checkbox-label
+	   components default their text to the near-black --os-ui-fg,
 	   which vanishes here. Override the tokens to light, matching the
 	   Note Pad widget, and tint the accent to the timer's own colour. */
-	--wpd-fg: rgba( 255, 255, 255, 0.9 );
-	--wpd-fg-muted: rgba( 255, 255, 255, 0.6 );
+	--os-ui-fg: rgba( 255, 255, 255, 0.9 );
+	--os-ui-fg-muted: rgba( 255, 255, 255, 0.6 );
 	--wp-admin-theme-color: var( --dm-focus-accent );
 	display: flex;
 	flex-direction: column;
@@ -29,7 +29,7 @@
 
 /* The shell forces `cursor: default !important`; out-specify it so our
    controls feel clickable. */
-body.desktop-mode-active .dm-focus button {
+body.os-active .dm-focus button {
 	cursor: pointer !important;
 }
 

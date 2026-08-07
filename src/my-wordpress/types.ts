@@ -6,7 +6,7 @@
 
 /**
  * Built-in entity render kinds. Plugins can register additional
- * kinds via `wp.desktop.myWordpress.registerEntityKind(...)` —
+ * kinds via `wp.os.myWordpress.registerEntityKind(...)` —
  * any non-empty string is accepted at runtime, this union just
  * documents the in-tree set.
  *
@@ -14,7 +14,7 @@
  */
 /**
  * Plugin-defined kinds register at runtime via
- * `wp.desktop.myWordpress.registerEntityKind()` — the type stays
+ * `wp.os.myWordpress.registerEntityKind()` — the type stays
  * `string` so the union accepts arbitrary slugs without sacrificing
  * IDE autocomplete on the in-tree set.
  */
@@ -34,14 +34,86 @@ export interface MyWordPressEntity {
 	kind?: EntityKind;
 	/**
 	 * Canonical slug for cross-window broadcast events (e.g., 'post', 'page').
-	 * The bundle prefixes 'desktop-mode.' and suffixes '.changed' for subscriptions.
+	 * The bundle prefixes 'os.' and suffixes '.changed' for subscriptions.
 	 */
 	post_type?: string;
+	/**
+	 * Whether tiles in this section show the entity's featured image
+	 * in place of the section icon. Defaults to on — set false to keep
+	 * a uniform icon grid.
+	 */
+	thumbnails?: boolean;
+	/**
+	 * Tile size for this section's list view.
+	 *
+	 * `'large'` roughly doubles the icon well, for sections whose rows
+	 * carry a photograph worth looking at — a shop's products read as
+	 * a catalogue rather than a file list, and a corner ribbon has
+	 * room to be a corner flash instead of covering the subject.
+	 * Defaults to `'regular'`.
+	 */
+	tileSize?: 'regular' | 'large';
+	/**
+	 * Extra REST fields to request for this section's list rows,
+	 * appended to the `_fields` the window always asks for.
+	 *
+	 * The window sends an explicit `_fields` list, so a custom key a
+	 * section's endpoint returns would otherwise be filtered out of
+	 * the response before it reached the bundle. Declare it here to
+	 * keep it — the WooCommerce Orders section uses this to carry the
+	 * order status its tiles are banded by.
+	 */
+	listFields?: string[];
+	/**
+	 * Extra query parameters sent with this section's list requests.
+	 *
+	 * Lets a section mark its own requests so server-side query
+	 * filters can scope themselves to the site window instead of
+	 * rewriting every REST caller's query. The WooCommerce sections
+	 * use it to opt into band ordering, which must not leak into a
+	 * storefront block's `wp/v2/product` request.
+	 */
+	listQuery?: Record< string, string >;
+	/**
+	 * Folder this section nests under at the root of the window.
+	 * Sections registered by the same plugin or theme share a group
+	 * id, so they render as one folder that drills into its members.
+	 * Null / omitted renders the section loose at the root.
+	 */
+	group?: string | null;
+	/** Folder label. Falls back to the group id. */
+	groupLabel?: string | null;
+	/** Folder icon — dashicon class, URL, or data URI. */
+	groupIcon?: string | null;
+	/** Sort weight among folders. Lower sorts first. */
+	groupOrder?: number | null;
+}
+
+/**
+ * Root-level folder grouping sections by the plugin or theme that
+ * registered them. Shipped from PHP via
+ * `openstation_my_wordpress_post_type_groups`; the bundle falls back
+ * to deriving groups from the entity list when absent.
+ *
+ * @public
+ */
+export interface MyWordPressGroup {
+	id: string;
+	label: string;
+	icon: string;
+	order: number;
 }
 
 export interface MyWordPressConfig {
 	restRoot: string;
 	restNonce: string;
+	/**
+	 * The site's own name, used as the window title and the
+	 * breadcrumb root. Sourced from `openstation_site_title()`
+	 * server-side, so it already honours the
+	 * `openstation_site_title` filter and is entity-decoded.
+	 */
+	siteName?: string;
 	editPostUrlBase: string;
 	/**
 	 * Admin URL base for `user-edit.php` — fallback when the
@@ -49,16 +121,21 @@ export interface MyWordPressConfig {
 	 */
 	editUserUrlBase?: string;
 	entities: MyWordPressEntity[];
+	/**
+	 * Ordered root-level folders. Derived from the entity list when
+	 * the server doesn't ship it.
+	 */
+	groups?: MyWordPressGroup[];
 	perPage: number;
 	/**
 	 * Per-page count for the Media grid. Media tiles are denser than
 	 * post tiles, so the default (`48`) is higher than the post
-	 * default. Filterable server-side via `desktop_mode_my_wordpress_window_args`.
+	 * default. Filterable server-side via `openstation_my_wordpress_window_args`.
 	 */
 	mediaPerPage?: number;
 	/**
 	 * Server-declared preview-action descriptors collected via
-	 * `desktop_mode_my_wordpress_preview_actions`. Already capability-
+	 * `openstation_my_wordpress_preview_actions`. Already capability-
 	 * gated — never present here unless the current user can run
 	 * the action.
 	 */
@@ -67,9 +144,9 @@ export interface MyWordPressConfig {
 
 /**
  * Server-declared descriptor for a right-pane action button.
- * Plugins push these via `desktop_mode_my_wordpress_preview_actions`
+ * Plugins push these via `openstation_my_wordpress_preview_actions`
  * (PHP) and complete the JS handler via the
- * `desktop-mode.my-wordpress.preview-actions` filter.
+ * `os.my-wordpress.preview-actions` filter.
  *
  * @public
  */
@@ -85,7 +162,7 @@ export interface MediaPreviewAction {
 	script?: string;
 	/**
 	 * Optional JS handler — wired by the
-	 * `desktop-mode.my-wordpress.preview-actions` JS filter, never
+	 * `os.my-wordpress.preview-actions` JS filter, never
 	 * by the server descriptor.
 	 */
 	onSelect?: ( ctx: MediaPreviewActionContext ) => void | Promise< void >;
@@ -145,7 +222,7 @@ export interface EntityListItem {
 	status?: string;
 	featured_media?: number;
 	link?: string;
-	desktop_mode_lock?: EntityLock | null;
+	openstation_lock?: EntityLock | null;
 	_embedded?: {
 		'wp:featuredmedia'?: Array< {
 			id: number;
@@ -162,7 +239,13 @@ export interface EntityListItem {
 export interface EntityDetail {
 	id: number;
 	title: { rendered: string };
-	content: { rendered: string; protected?: boolean };
+	/**
+	 * Absent when the post type doesn't `supports( 'editor' )` — the
+	 * REST controller omits the field entirely rather than sending an
+	 * empty string. WooCommerce's `shop_coupon` is the in-tree
+	 * example. Always read it optionally.
+	 */
+	content?: { rendered: string; protected?: boolean };
 	excerpt?: { rendered: string };
 	date: string;
 	modified?: string;
@@ -173,16 +256,24 @@ export interface EntityDetail {
 	categories?: number[];
 	tags?: number[];
 	comment_status?: string;
-	desktop_mode_contributors?: ContributorRef[];
+	openstation_contributors?: ContributorRef[];
 	/**
 	 * Authoritative list of attachment ids referenced by this post —
 	 * featured image + every attachment found in `post_content`
 	 * (class scan + raw `<img src>` URL resolution). Computed
-	 * server-side by the `desktop_mode_attached_media` REST field;
+	 * server-side by the `openstation_attached_media` REST field;
 	 * the regex-based `extractContentMediaIds` is a fallback for
 	 * older API responses that don't carry this.
 	 */
-	desktop_mode_attached_media?: number[];
+	openstation_attached_media?: number[];
+	/**
+	 * Explicit editor URL, for a section whose rows don't live in
+	 * `wp_posts` and so can't be edited at `post.php?post=<id>` — a
+	 * WooCommerce order under High-Performance Order Storage is the
+	 * in-tree case. Declare it in the section's `listFields` so
+	 * `_fields` doesn't strip it off the list rows.
+	 */
+	editUrl?: string;
 	_links?: Record< string, Array< { href: string; count?: number } > >;
 	_embedded?: EntityListItem[ '_embedded' ] & {
 		author?: Array< {
@@ -212,7 +303,7 @@ export interface ListResult {
 
 /**
  * Compact user row returned by `/wp/v2/users` plus the
- * `desktop_mode_summary` REST field — enough to paint a rich
+ * `openstation_summary` REST field — enough to paint a rich
  * tile without an extra round-trip per row.
  */
 export interface UserListItem {
@@ -222,7 +313,7 @@ export interface UserListItem {
 	description?: string;
 	link?: string;
 	avatar_urls?: Record< string, string >;
-	desktop_mode_summary?: {
+	openstation_summary?: {
 		postCount: number;
 		roleLabels: string[];
 		registered: string;
@@ -312,7 +403,7 @@ export type SubRelation =
 	| 'revisions';
 
 /**
- * Compact user shape returned by the `desktop_mode_contributors`
+ * Compact user shape returned by the `openstation_contributors`
  * REST field. Enough to paint a tile + tooltip without an extra
  * `/wp/v2/users/<id>` round-trip per row.
  */
@@ -335,6 +426,7 @@ export interface RelatedSummary {
 
 export type Route =
 	| { kind: 'root' }
+	| { kind: 'group'; groupId: string }
 	| { kind: 'list'; entityId: string }
 	| {
 			kind: 'detail';
@@ -378,6 +470,11 @@ export interface MediaListItem {
 	caption?: { rendered: string };
 	description?: { rendered: string };
 	author?: number;
+	/**
+	 * Parent post id — 0 when the file is unattached. Drives the
+	 * Detach action, which is meaningless for a file with no parent.
+	 */
+	post?: number;
 	media_details?: {
 		width?: number;
 		height?: number;

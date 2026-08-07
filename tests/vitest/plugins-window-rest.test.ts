@@ -29,7 +29,7 @@ import type { InstalledPlugin } from '../../src/plugins-window/types';
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
 	interface Window {
-		desktopModeWindowConfig?: Record< string, unknown >;
+		openStationWindowConfig?: Record< string, unknown >;
 	}
 }
 
@@ -55,8 +55,8 @@ function installConfig( over: Partial< PluginsWindowConfig > = {} ): void {
 		introUrl:      'http://example.test/wp-json/desktop-mode/v1/intros/seen',
 		...over,
 	};
-	window.desktopModeWindowConfig = window.desktopModeWindowConfig ?? {};
-	window.desktopModeWindowConfig[ 'desktop-mode-plugins' ] = cfg;
+	window.openStationWindowConfig = window.openStationWindowConfig ?? {};
+	window.openStationWindowConfig[ 'desktop-mode-plugins' ] = cfg;
 }
 
 function jsonResponse( body: unknown, status = 200 ): Response {
@@ -82,13 +82,13 @@ beforeEach( () => {
 } );
 
 afterEach( () => {
-	delete window.desktopModeWindowConfig;
+	delete window.openStationWindowConfig;
 	vi.restoreAllMocks();
 } );
 
 describe( 'getConfig', () => {
 	test( 'throws when the config blob is missing', () => {
-		delete window.desktopModeWindowConfig;
+		delete window.openStationWindowConfig;
 		expect( () => getConfig() ).toThrow( /config blob is missing/ );
 	} );
 
@@ -132,13 +132,13 @@ describe( 'fetchInstalledPlugins', () => {
 		);
 	} );
 
-	test( 'appends ?desktop_mode_force_refresh=1 when force is true', async () => {
+	test( 'appends ?openstation_force_refresh=1 when force is true', async () => {
 		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
 			jsonResponse( [] ) as never,
 		);
 		await fetchInstalledPlugins( { force: true } );
 		const [ url ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
-		expect( url ).toContain( 'desktop_mode_force_refresh=1' );
+		expect( url ).toContain( 'openstation_force_refresh=1' );
 	} );
 
 	test( 'omits the force flag by default', async () => {
@@ -147,7 +147,7 @@ describe( 'fetchInstalledPlugins', () => {
 		);
 		await fetchInstalledPlugins();
 		const [ url ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
-		expect( url ).not.toContain( 'desktop_mode_force_refresh' );
+		expect( url ).not.toContain( 'openstation_force_refresh' );
 	} );
 } );
 
@@ -218,7 +218,7 @@ describe( 'browsePlugins', () => {
 		expect( url ).toBe( AJAX_URL );
 		expect( init.method ).toBe( 'POST' );
 		const body = init.body as URLSearchParams;
-		expect( body.get( 'action' ) ).toBe( 'desktop_mode_plugins_browse' );
+		expect( body.get( 'action' ) ).toBe( 'openstation_plugins_browse' );
 		expect( body.get( '_ajax_nonce' ) ).toBe( 'plugins-window-nonce' );
 		expect( body.get( 'browse' ) ).toBe( 'featured' );
 		expect( body.get( 'per_page' ) ).toBe( '10' );
@@ -270,7 +270,7 @@ describe( 'uploadPluginZip', () => {
 		const init = fetchMock.mock.calls[ 0 ]![ 1 ] as RequestInit;
 		expect( init.method ).toBe( 'POST' );
 		const data = init.body as FormData;
-		expect( data.get( 'action' ) ).toBe( 'desktop_mode_plugins_upload' );
+		expect( data.get( 'action' ) ).toBe( 'openstation_plugins_upload' );
 		expect( data.get( '_ajax_nonce' ) ).toBe( 'plugins-window-nonce' );
 		const submitted = data.get( 'pluginzip' );
 		expect( submitted ).toBeInstanceOf( File );

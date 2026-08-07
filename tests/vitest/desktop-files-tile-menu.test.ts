@@ -49,10 +49,10 @@ describe( 'tile context menu', () => {
 				],
 			},
 		);
-		const menu = document.querySelector< HTMLElement >( 'wpd-context-menu' );
+		const menu = document.querySelector< HTMLElement >( 'os-context-menu' );
 		expect( menu ).not.toBeNull();
 		expect( menu?.dataset.placementId ).toBe( '99' );
-		const opts = menu!.querySelectorAll( 'wpd-context-menu-option' );
+		const opts = menu!.querySelectorAll( 'os-context-menu-option' );
 		expect( opts.length ).toBe( 2 );
 		( opts[ 0 ] as HTMLElement ).click();
 		expect( onClick ).toHaveBeenCalledTimes( 1 );
@@ -73,11 +73,11 @@ describe( 'tile context menu', () => {
 		expect( btn?.hasAttribute( 'danger' ) ).toBe( true );
 	} );
 
-	test( 'desktop-mode.files.tile-menu filter can mutate items', async () => {
+	test( 'os.files.tile-menu filter can mutate items', async () => {
 		const mod = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.files.tile-menu',
+			'os.files.tile-menu',
 			'test/extra',
 			( items ) => [
 				...( items as Array< Record< string, unknown > > ),
@@ -104,6 +104,6 @@ describe( 'tile context menu', () => {
 			},
 		);
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 } );

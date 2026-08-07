@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Overview layout constants.
+ * OpenStation — Overview layout constants.
  *
  * Pulled into a dedicated module so `desktops.ts` and `overview.ts`
  * can both import it without forming an import cycle through either

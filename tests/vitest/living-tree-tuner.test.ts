@@ -102,17 +102,17 @@ describe( 'living-tree developer-mode gate', () => {
 		delete ( window as { wp?: unknown } ).wp;
 	} );
 
-	test( 'off when wp.desktop is absent', () => {
+	test( 'off when wp.os is absent', () => {
 		expect( isDeveloperModeEnabled() ).toBe( false );
 	} );
 
 	test( 'mirrors the OS Settings snapshot flag', () => {
 		( window as { wp?: unknown } ).wp = {
-			desktop: { getOsSettings: () => ( { developerModeEnabled: true } ) },
+			os: { getOsSettings: () => ( { developerModeEnabled: true } ) },
 		};
 		expect( isDeveloperModeEnabled() ).toBe( true );
 		( window as { wp?: unknown } ).wp = {
-			desktop: { getOsSettings: () => ( { developerModeEnabled: false } ) },
+			os: { getOsSettings: () => ( { developerModeEnabled: false } ) },
 		};
 		expect( isDeveloperModeEnabled() ).toBe( false );
 	} );

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Files-on-the-desktop drag payload contracts.
+ * OpenStation — Files-on-the-desktop drag payload contracts.
  *
  * Two payload shapes flow through the DragManager for desktop-files
  * gestures. Drop targets switch on `payload.type` and read the
@@ -23,8 +23,25 @@ import type { RestPlacementShape } from './rest';
 import type { DragBridgePayload } from '../drag-bridge';
 
 export interface DesktopFileDragData {
-	/** The placement being dragged (full record). */
+	/**
+	 * The placement being dragged — the one the user actually grabbed.
+	 *
+	 * Always present, even for a multi-item drag, and always a member
+	 * of {@link DesktopFileDragData.placements}. Every drop target
+	 * written before multi-drag existed reads this field and keeps
+	 * working: it acts on the grabbed tile, which is the one the user
+	 * pointed at.
+	 */
 	placement: RestPlacementShape;
+	/**
+	 * Every placement in the gesture, in visual order.
+	 *
+	 * Absent for a single-item drag. Targets that support sets read
+	 * them through `dragPlacements( data )`, which falls back to
+	 * `[ placement ]` — so "handle one" and "handle many" are the same
+	 * code path with a different array length.
+	 */
+	placements?: RestPlacementShape[];
 	/** Folder the source tile lives in, BEFORE the drop. */
 	sourceFolderId: number;
 	/**
@@ -40,7 +57,12 @@ export interface DesktopFileDragData {
 	bridgePayload?: DragBridgePayload;
 }
 
-export interface ShortcutDragData {
+/**
+ * One entity in a shortcut drag. A single-item drag carries exactly
+ * this shape at the top level; a multi-item drag repeats it in
+ * `ShortcutDragData.items`.
+ */
+export interface ShortcutDragItem {
 	/** File-type slug — `'post'`, `'page'`, `'user'`, plugin-defined. */
 	kind: string;
 	/** Opaque ref the file type resolves (post id as string, etc.). */
@@ -61,14 +83,64 @@ export interface ShortcutDragData {
 	entityId?: string;
 	/**
 	 * Optional cross-frame bridge payload. When present the shell
-	 * fans this into `wp.desktop.dragBridge` at lift time so iframe
+	 * fans this into `wp.os.dragBridge` at lift time so iframe
 	 * receivers (e.g. the Gutenberg drop-receiver) can react to the
 	 * drag — the receiver inserts a block built from this payload on
-	 * `desktop-mode-drop`. Tiles that omit it still drag-out for
+	 * `os-drop`. Tiles that omit it still drag-out for
 	 * placement purposes; they just don't trigger any iframe-side
 	 * drop behavior.
 	 */
 	bridgePayload?: DragBridgePayload;
+}
+
+/**
+ * A shortcut drag. The top-level fields describe the entity the user
+ * grabbed — unchanged, and what every pre-existing drop target reads.
+ * `items` carries the whole set when the drag started from a
+ * multi-selection.
+ */
+export interface ShortcutDragData extends ShortcutDragItem {
+	/**
+	 * Every entity in the gesture, in visual order. Absent for a
+	 * single-item drag; read it through `dragShortcutItems( data )`,
+	 * which falls back to the top-level fields.
+	 */
+	items?: ShortcutDragItem[];
+}
+
+/**
+ * Placements a `'desktop-file'` drop should act on.
+ *
+ * The one call every drop target needs to make to support sets. A
+ * target that keeps reading `data.placement` isn't broken, it just
+ * acts on the grabbed tile alone.
+ *
+ * @public
+ */
+export function dragPlacements(
+	data: DesktopFileDragData,
+): RestPlacementShape[] {
+	const many = data.placements;
+	if ( Array.isArray( many ) && many.length > 0 ) {
+		return many;
+	}
+	return data.placement ? [ data.placement ] : [];
+}
+
+/**
+ * Entities a `'shortcut'` drop should act on. Mirror of
+ * {@link dragPlacements}.
+ *
+ * @public
+ */
+export function dragShortcutItems(
+	data: ShortcutDragData,
+): ShortcutDragItem[] {
+	const many = data.items;
+	if ( Array.isArray( many ) && many.length > 0 ) {
+		return many;
+	}
+	return data.ref ? [ data ] : [];
 }
 
 /** Concrete payload shapes consumed by drop targets. */

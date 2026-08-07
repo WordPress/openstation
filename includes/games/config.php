@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Games framework config.
+ * OpenStation — Games framework config.
  *
  * Framework-level values every game receives on its launch-context
  * `config` (merged in by the `serverGames` payload builder; a game's
@@ -12,7 +12,7 @@
  *                identical for every player, which is what lets
  *                seeded games generate the same puzzle worldwide.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,9 +24,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string The dictionary URL.
  */
-function desktop_mode_games_words_url() {
-	$words_file = DESKTOP_MODE_DIR . 'assets/games/words.txt';
-	$words_url  = DESKTOP_MODE_URL . 'assets/games/words.txt';
+function openstation_games_words_url() {
+	$words_file = OPENSTATION_DIR . 'assets/games/words.txt';
+	$words_url  = OPENSTATION_URL . 'assets/games/words.txt';
 	if ( file_exists( $words_file ) ) {
 		$words_url = add_query_arg( 'ver', (string) filemtime( $words_file ), $words_url );
 	}
@@ -40,7 +40,7 @@ function desktop_mode_games_words_url() {
 	 *
 	 * @param string $words_url The dictionary URL (with `ver` cache-bust).
 	 */
-	return (string) apply_filters( 'desktop_mode_games_words_url', $words_url );
+	return (string) apply_filters( 'openstation_games_words_url', $words_url );
 }
 
 /**
@@ -51,8 +51,8 @@ function desktop_mode_games_words_url() {
  *
  * @return array Framework config keys.
  */
-function desktop_mode_games_framework_config() {
+function openstation_games_framework_config() {
 	return array(
-		'wordsUrl' => esc_url_raw( desktop_mode_games_words_url() ),
+		'wordsUrl' => esc_url_raw( openstation_games_words_url() ),
 	);
 }

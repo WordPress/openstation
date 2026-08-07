@@ -63,7 +63,7 @@ export function createGamesRegistrySync(): (
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
-					`[desktop-mode] Server game "${ entry.id }" failed to register:`,
+					`[openstation] Server game "${ entry.id }" failed to register:`,
 					err,
 				);
 			}

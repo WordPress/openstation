@@ -50,7 +50,7 @@ export function monacoThemeForScheme( scheme: string | undefined | null ): 'vs' 
  */
 export function currentColorScheme(): string {
 	const cfg = ( window as unknown as {
-		wpDesktopConfig?: { colorScheme?: string };
-	} ).wpDesktopConfig;
+		openStationConfig?: { colorScheme?: string };
+	} ).openStationConfig;
 	return cfg?.colorScheme ?? '';
 }

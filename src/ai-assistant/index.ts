@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — AI Assistant public-API barrel.
+ * OpenStation — AI Assistant public-API barrel.
  *
  * Two responsibilities:
  *   1. Re-export the type surface so consumers (api/facade.ts,

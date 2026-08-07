@@ -5,7 +5,7 @@
  * http(s) URLs and Dashicons class strings — anything else fell
  * through to a `dashicons + sanitizeClassName(entry.icon)` glue
  * path. A `data:image/svg+xml;base64,…` icon (the shape produced
- * by `desktop_mode_register_icon( … 'icon_svg' => '<svg…/>' … )`
+ * by `openstation_register_icon( … 'icon_svg' => '<svg…/>' … )`
  * and by any plugin assigning a sanitized data URI) wound up as a
  * malformed Dashicons class name → empty square.
  *
@@ -63,11 +63,11 @@ describe( 'desktop-icons render — data URI handling', () => {
 
 		const tile = host.querySelector< HTMLElement >( '[data-icon-id="svg-icon"]' );
 		expect( tile ).not.toBeNull();
-		const iconEl = tile!.querySelector< HTMLElement >( '.desktop-mode-icon__image' );
+		const iconEl = tile!.querySelector< HTMLElement >( '.os-icon__image' );
 		expect( iconEl ).not.toBeNull();
 
 		// Must NOT be misclassified as Dashicons. Pre-fix, the icon
-		// element had `class="desktop-mode-icon__image dashicons data:image..."`.
+		// element had `class="os-icon__image dashicons data:image..."`.
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( false );
 
 		// MUST paint as a CSS background-image referencing the data URI.
@@ -91,7 +91,7 @@ describe( 'desktop-icons render — data URI handling', () => {
 			{ openWindow: () => true },
 		);
 		const tile = host.querySelector< HTMLElement >( '[data-icon-id="url-icon"]' );
-		const img = tile!.querySelector< HTMLImageElement >( 'img.desktop-mode-icon__image' );
+		const img = tile!.querySelector< HTMLImageElement >( 'img.os-icon__image' );
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( 'https://example.com/icon.png' );
 	} );
@@ -113,7 +113,7 @@ describe( 'desktop-icons render — data URI handling', () => {
 			{ openWindow: () => true },
 		);
 		const tile = host.querySelector< HTMLElement >( '[data-icon-id="dashicon"]' );
-		const iconEl = tile!.querySelector< HTMLElement >( '.desktop-mode-icon__image' );
+		const iconEl = tile!.querySelector< HTMLElement >( '.os-icon__image' );
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( true );
 		expect( iconEl!.classList.contains( 'dashicons-star-filled' ) ).toBe( true );
@@ -145,7 +145,7 @@ describe( 'desktop-icons render — data URI handling', () => {
 		};
 		expect( payload.ids ).toEqual( [ 'a', 'b' ] );
 		expect( payload.container ).toBeInstanceOf( HTMLElement );
-		expect( payload.container.classList.contains( 'desktop-mode-icons' ) ).toBe( true );
+		expect( payload.container.classList.contains( 'os-icons' ) ).toBe( true );
 		expect( payload.tiles.size ).toBe( 2 );
 		expect( payload.tiles.get( 'a' )?.getAttribute( 'data-icon-id' ) ).toBe( 'a' );
 		expect( payload.tiles.get( 'b' )?.getAttribute( 'data-icon-id' ) ).toBe( 'b' );
@@ -170,10 +170,10 @@ describe( 'desktop-icons render — data URI handling', () => {
 			{ openWindow: () => true },
 		);
 		const tile = host.querySelector< HTMLElement >( '[data-icon-id="bogus"]' );
-		const iconEl = tile!.querySelector< HTMLElement >( '.desktop-mode-icon__image' );
+		const iconEl = tile!.querySelector< HTMLElement >( '.os-icon__image' );
 		expect( iconEl ).not.toBeNull();
 		// Letter-badge fallback uses a class on the canonical renderer.
-		expect( iconEl!.classList.contains( 'desktop-mode-icon-letter' ) ).toBe( true );
+		expect( iconEl!.classList.contains( 'os-icon-letter' ) ).toBe( true );
 		// Letters from the title — first letters of each word, uppercased.
 		expect( iconEl!.textContent ).toBe( 'BP' );
 	} );

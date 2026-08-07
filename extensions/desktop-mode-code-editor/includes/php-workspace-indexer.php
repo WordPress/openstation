@@ -5,28 +5,28 @@
  * Phase 5a indexed WP core. This module covers the user's own
  * plugins / themes — functions, classes, interfaces, traits, and
  * locally-declared hooks. The two indexes merge through the
- * `desktop_mode_code_editor_php_index_extra_symbols` filter seam, so
+ * `openstation_code_editor_php_index_extra_symbols` filter seam, so
  * Monaco's existing completion + hover providers light up workspace
  * symbols with zero changes to the JS layer.
  *
- * @package DesktopModeCodeEditor
+ * @package OpenStationCodeEditor
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /** Storage version — bump to force a full rebuild after schema changes. */
-const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_VERSION = 2;
+const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION = 2;
 
 /** Transient key for the workspace index. */
-const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_KEY = 'desktop_mode_code_editor_workspace_index';
+const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY = 'desktop_mode_code_editor_workspace_index';
 
 /** TTL — long, but not forever. Stale entries get refreshed on demand. */
-const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_TTL = 30 * DAY_IN_SECONDS;
+const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_TTL = 30 * DAY_IN_SECONDS;
 
 /**
  * Directory + file-name patterns the workspace walker skips.
  */
-const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
+const OPENSTATION_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
 	'uploads',
 	'cache',
 	'languages',
@@ -45,34 +45,34 @@ const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
  *
  * @return array{ version: int, files: array<string, array> }
  */
-function desktop_mode_code_editor_get_workspace_index() {
-	$cached = get_transient( DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_KEY );
+function openstation_code_editor_get_workspace_index() {
+	$cached = get_transient( OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY );
 	if (
 		is_array( $cached ) &&
 		isset( $cached['version'], $cached['files'] ) &&
-		(int) $cached['version'] === DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_VERSION
+		(int) $cached['version'] === OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION
 	) {
 		return $cached;
 	}
 	return array(
-		'version' => DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_VERSION,
+		'version' => OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION,
 		'files'   => array(),
 	);
 }
 
 /** Persist the index back to its transient. */
-function desktop_mode_code_editor_save_workspace_index( array $index ) {
-	$index['version'] = DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_VERSION;
+function openstation_code_editor_save_workspace_index( array $index ) {
+	$index['version'] = OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION;
 	set_transient(
-		DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_KEY,
+		OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY,
 		$index,
-		DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_TTL
+		OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_TTL
 	);
 }
 
 /** Drop the cache; next read rebuilds. */
-function desktop_mode_code_editor_flush_workspace_index() {
-	delete_transient( DESKTOP_MODE_CODE_EDITOR_WORKSPACE_INDEX_KEY );
+function openstation_code_editor_flush_workspace_index() {
+	delete_transient( OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY );
 }
 
 // ---------------------------------------------------------------------------
@@ -87,8 +87,8 @@ function desktop_mode_code_editor_flush_workspace_index() {
  *
  * @return Generator<string> Absolute paths.
  */
-function desktop_mode_code_editor_iter_workspace_php_files() {
-	$root = desktop_mode_code_editor_workspace_root();
+function openstation_code_editor_iter_workspace_php_files() {
+	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {
 		return;
 	}
@@ -100,8 +100,8 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
 	 * @param string[] $dirs
 	 */
 	$skip_dirs = (array) apply_filters(
-		'desktop_mode_code_editor_workspace_index_skip_dirs',
-		DESKTOP_MODE_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS
+		'openstation_code_editor_workspace_index_skip_dirs',
+		OPENSTATION_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS
 	);
 	$skip_dirs = array_map( 'strval', $skip_dirs );
 
@@ -111,7 +111,7 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
 	 *
 	 * @param string $regex
 	 */
-	$skip_re = (string) apply_filters( 'desktop_mode_code_editor_workspace_index_skip_filename_re', '' );
+	$skip_re = (string) apply_filters( 'openstation_code_editor_workspace_index_skip_filename_re', '' );
 
 	$dir_iter    = new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS );
 	$filter_iter = new RecursiveCallbackFilterIterator(
@@ -157,7 +157,7 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
  * @param string $absolute_path File to scan.
  * @return array[] List of symbol entries.
  */
-function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
+function openstation_code_editor_scan_workspace_file( $absolute_path ) {
 	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$source = @file_get_contents( $absolute_path );
 	if ( false === $source ) {
@@ -168,7 +168,7 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 		return array();
 	}
 
-	$rel_path = desktop_mode_code_editor_path_to_relative( $absolute_path );
+	$rel_path = openstation_code_editor_path_to_relative( $absolute_path );
 	$symbols  = array();
 	$count    = count( $tokens );
 
@@ -200,13 +200,13 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 		}
 
 		if ( is_array( $tok ) && T_NAMESPACE === $tok[0] ) {
-			$ns               = desktop_mode_code_editor_collect_namespace_name( $tokens, $i + 1 );
+			$ns               = openstation_code_editor_collect_namespace_name( $tokens, $i + 1 );
 			$last_doc_comment = '';
 			continue;
 		}
 
 		if ( is_array( $tok ) && in_array( $tok[0], array( T_CLASS, T_INTERFACE, T_TRAIT ), true ) ) {
-			$next = desktop_mode_code_editor_next_significant_token( $tokens, $i + 1 );
+			$next = openstation_code_editor_next_significant_token( $tokens, $i + 1 );
 			if ( null === $next || ! is_array( $tokens[ $next ] ) || T_STRING !== $tokens[ $next ][0] ) {
 				continue;
 			}
@@ -217,8 +217,8 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 				'name'      => $fqn,
 				'kind'      => $kind,
 				'signature' => $kind . ' ' . $fqn,
-				'doc'       => desktop_mode_code_editor_phpdoc_summary( $last_doc_comment ),
-				'since'     => desktop_mode_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
+				'doc'       => openstation_code_editor_phpdoc_summary( $last_doc_comment ),
+				'since'     => openstation_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
 				'file'      => $rel_path,
 				'line'      => is_array( $tok ) ? (int) $tok[2] : 0,
 				'source'    => $rel_path . ':' . ( is_array( $tok ) ? (int) $tok[2] : 0 ),
@@ -235,7 +235,7 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 				$last_doc_comment = '';
 				continue;
 			}
-			$next = desktop_mode_code_editor_next_significant_token( $tokens, $i + 1 );
+			$next = openstation_code_editor_next_significant_token( $tokens, $i + 1 );
 			if ( null === $next ) {
 				continue;
 			}
@@ -254,8 +254,8 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 				'name'      => $fqn,
 				'kind'      => 'function',
 				'signature' => $fqn . '()',
-				'doc'       => desktop_mode_code_editor_phpdoc_summary( $last_doc_comment ),
-				'since'     => desktop_mode_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
+				'doc'       => openstation_code_editor_phpdoc_summary( $last_doc_comment ),
+				'since'     => openstation_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
 				'file'      => $rel_path,
 				'line'      => is_array( $tok ) ? (int) $tok[2] : 0,
 				'source'    => $rel_path . ':' . ( is_array( $tok ) ? (int) $tok[2] : 0 ),
@@ -265,24 +265,24 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
 		}
 
 		if ( is_array( $tok ) && T_STRING === $tok[0] ) {
-			$kind = desktop_mode_code_editor_hook_kind_for_function_name( $tok[1] );
+			$kind = openstation_code_editor_hook_kind_for_function_name( $tok[1] );
 			if ( null !== $kind ) {
-				$paren = desktop_mode_code_editor_next_significant_token( $tokens, $i + 1 );
+				$paren = openstation_code_editor_next_significant_token( $tokens, $i + 1 );
 				if ( null !== $paren && '(' === $tokens[ $paren ] ) {
-					$arg = desktop_mode_code_editor_next_significant_token( $tokens, $paren + 1 );
+					$arg = openstation_code_editor_next_significant_token( $tokens, $paren + 1 );
 					if (
 						null !== $arg &&
 						is_array( $tokens[ $arg ] ) &&
 						T_CONSTANT_ENCAPSED_STRING === $tokens[ $arg ][0]
 					) {
-						$hook = desktop_mode_code_editor_unquote_string( $tokens[ $arg ][1] );
+						$hook = openstation_code_editor_unquote_string( $tokens[ $arg ][1] );
 						if ( '' !== $hook ) {
 							$symbols[] = array(
 								'name'      => $hook,
 								'kind'      => $kind,
 								'signature' => $tok[1] . "( '" . $hook . "', … )",
-								'doc'       => desktop_mode_code_editor_phpdoc_summary( $last_doc_comment ),
-								'since'     => desktop_mode_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
+								'doc'       => openstation_code_editor_phpdoc_summary( $last_doc_comment ),
+								'since'     => openstation_code_editor_phpdoc_tag( $last_doc_comment, 'since' ),
 								'file'      => $rel_path,
 								'line'      => (int) $tok[2],
 								'source'    => $rel_path . ':' . (int) $tok[2],
@@ -308,7 +308,7 @@ function desktop_mode_code_editor_scan_workspace_file( $absolute_path ) {
  *
  * @internal
  */
-function desktop_mode_code_editor_collect_namespace_name( array $tokens, $start ) {
+function openstation_code_editor_collect_namespace_name( array $tokens, $start ) {
 	$count = count( $tokens );
 	$parts = array();
 	for ( $i = $start; $i < $count; $i++ ) {
@@ -348,15 +348,15 @@ function desktop_mode_code_editor_collect_namespace_name( array $tokens, $start 
  * @param int $file_budget Max files to fully scan in this call.
  * @return array Updated index (also persisted).
  */
-function desktop_mode_code_editor_refresh_workspace_index( $file_budget = 200 ) {
-	$index = desktop_mode_code_editor_get_workspace_index();
+function openstation_code_editor_refresh_workspace_index( $file_budget = 200 ) {
+	$index = openstation_code_editor_get_workspace_index();
 	$files = is_array( $index['files'] ) ? $index['files'] : array();
 
 	$seen    = array();
 	$scanned = 0;
 
-	foreach ( desktop_mode_code_editor_iter_workspace_php_files() as $abs ) {
-		$rel          = desktop_mode_code_editor_path_to_relative( $abs );
+	foreach ( openstation_code_editor_iter_workspace_php_files() as $abs ) {
+		$rel          = openstation_code_editor_path_to_relative( $abs );
 		$seen[ $rel ] = true;
 
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -371,7 +371,7 @@ function desktop_mode_code_editor_refresh_workspace_index( $file_budget = 200 ) 
 		}
 		$scanned++;
 
-		$symbols       = desktop_mode_code_editor_scan_workspace_file( $abs );
+		$symbols       = openstation_code_editor_scan_workspace_file( $abs );
 		$files[ $rel ] = array(
 			'mtime'   => $mtime,
 			'symbols' => $symbols,
@@ -385,7 +385,7 @@ function desktop_mode_code_editor_refresh_workspace_index( $file_budget = 200 ) 
 	}
 
 	$index['files'] = $files;
-	desktop_mode_code_editor_save_workspace_index( $index );
+	openstation_code_editor_save_workspace_index( $index );
 	return $index;
 }
 
@@ -394,12 +394,12 @@ function desktop_mode_code_editor_refresh_workspace_index( $file_budget = 200 ) 
  *
  * @param string $absolute_path
  */
-function desktop_mode_code_editor_refresh_workspace_file( $absolute_path ) {
-	$rel = desktop_mode_code_editor_path_to_relative( $absolute_path );
+function openstation_code_editor_refresh_workspace_file( $absolute_path ) {
+	$rel = openstation_code_editor_path_to_relative( $absolute_path );
 	if ( '' === $rel ) {
 		return;
 	}
-	$index = desktop_mode_code_editor_get_workspace_index();
+	$index = openstation_code_editor_get_workspace_index();
 	$files = is_array( $index['files'] ) ? $index['files'] : array();
 
 	if ( ! is_file( $absolute_path ) ) {
@@ -408,12 +408,12 @@ function desktop_mode_code_editor_refresh_workspace_file( $absolute_path ) {
 		$files[ $rel ] = array(
 			// phpcs:ignore WordPress.PHP.NoSilencedErrors
 			'mtime'   => (int) @filemtime( $absolute_path ),
-			'symbols' => desktop_mode_code_editor_scan_workspace_file( $absolute_path ),
+			'symbols' => openstation_code_editor_scan_workspace_file( $absolute_path ),
 		);
 	}
 
 	$index['files'] = $files;
-	desktop_mode_code_editor_save_workspace_index( $index );
+	openstation_code_editor_save_workspace_index( $index );
 }
 
 /**
@@ -422,10 +422,10 @@ function desktop_mode_code_editor_refresh_workspace_file( $absolute_path ) {
  *
  * @param string $abs Absolute path the user just saved.
  */
-function desktop_mode_code_editor_workspace_index_on_save( $abs ) {
-	desktop_mode_code_editor_refresh_workspace_file( $abs );
+function openstation_code_editor_workspace_index_on_save( $abs ) {
+	openstation_code_editor_refresh_workspace_file( $abs );
 }
-add_action( 'desktop_mode_code_editor_after_save', 'desktop_mode_code_editor_workspace_index_on_save', 10, 1 );
+add_action( 'openstation_code_editor_after_save', 'openstation_code_editor_workspace_index_on_save', 10, 1 );
 
 // ---------------------------------------------------------------------------
 // Read-side: feed workspace symbols into the merged php-symbols pool.
@@ -437,11 +437,11 @@ add_action( 'desktop_mode_code_editor_after_save', 'desktop_mode_code_editor_wor
  * @param array $pool Existing pool (from WP core).
  * @return array
  */
-function desktop_mode_code_editor_workspace_extend_symbols( $pool ) {
-	$index = desktop_mode_code_editor_get_workspace_index();
+function openstation_code_editor_workspace_extend_symbols( $pool ) {
+	$index = openstation_code_editor_get_workspace_index();
 
 	if ( empty( $index['files'] ) ) {
-		$index = desktop_mode_code_editor_refresh_workspace_index();
+		$index = openstation_code_editor_refresh_workspace_index();
 	}
 
 	if ( ! is_array( $pool ) ) {
@@ -459,7 +459,7 @@ function desktop_mode_code_editor_workspace_extend_symbols( $pool ) {
 
 	return $pool;
 }
-add_filter( 'desktop_mode_code_editor_php_index_extra_symbols', 'desktop_mode_code_editor_workspace_extend_symbols', 10 );
+add_filter( 'openstation_code_editor_php_index_extra_symbols', 'openstation_code_editor_workspace_extend_symbols', 10 );
 
 /**
  * Look up a workspace symbol by exact name.
@@ -467,8 +467,8 @@ add_filter( 'desktop_mode_code_editor_php_index_extra_symbols', 'desktop_mode_co
  * @param string $name
  * @return array|null
  */
-function desktop_mode_code_editor_get_workspace_symbol( $name ) {
-	$index = desktop_mode_code_editor_get_workspace_index();
+function openstation_code_editor_get_workspace_symbol( $name ) {
+	$index = openstation_code_editor_get_workspace_index();
 	$name  = (string) $name;
 	foreach ( $index['files'] as $entry ) {
 		if ( ! isset( $entry['symbols'] ) ) {

@@ -4,7 +4,7 @@
  * rides in production, minus the iframe bridge:
  *
  *   relations.set → engine notify → host recompute → layer mounted in
- *   #desktop-mode-area → built-in svg-splines mounted → paths drawn
+ *   #os-area → built-in svg-splines mounted → paths drawn
  *   with live rects → visibility class per policy → chrome highlight.
  *
  * jsdom can't lay out, so window elements get their offset* metrics
@@ -36,9 +36,9 @@ function makeWin(
 	focused = false,
 ): FakeWin {
 	const element = document.createElement( 'div' );
-	document.getElementById( 'desktop-mode-area' )!.appendChild( element );
+	document.getElementById( 'os-area' )!.appendChild( element );
 	Object.defineProperty( element, 'offsetParent', {
-		get: () => document.getElementById( 'desktop-mode-area' ),
+		get: () => document.getElementById( 'os-area' ),
 	} );
 	Object.defineProperty( element, 'offsetLeft', { get: () => rect.x } );
 	Object.defineProperty( element, 'offsetTop', { get: () => rect.y } );
@@ -131,9 +131,9 @@ beforeEach( () => {
 		return rafQueue.length;
 	} );
 	document.body.innerHTML =
-		'<div id="desktop-mode-shell">' +
-		'<div id="desktop-mode-area">' +
-		'<aside id="desktop-mode-widgets"></aside>' +
+		'<div id="os-shell">' +
+		'<div id="os-area">' +
+		'<aside id="os-widgets"></aside>' +
 		'</div></div>';
 } );
 afterEach( () => {
@@ -145,10 +145,10 @@ afterEach( () => {
 } );
 
 const BOTH_LAYERS_PATH =
-	'#desktop-mode-window-links .desktop-mode-window-link__path, ' +
-	'#desktop-mode-window-links-elevated .desktop-mode-window-link__path';
+	'#os-window-links .os-window-link__path, ' +
+	'#os-window-links-elevated .os-window-link__path';
 const BOTH_LAYERS_SVG =
-	'#desktop-mode-window-links svg, #desktop-mode-window-links-elevated svg';
+	'#os-window-links svg, #os-window-links-elevated svg';
 
 describe( 'window-link render host — end-to-end (jsdom)', () => {
 	test( 'post + comment identities produce a mounted layer with an arrowed spline', async () => {
@@ -169,7 +169,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		} );
 
 		// Simulate the bridge announcing identities (what
-		// `desktop-mode-content-identity` does in production).
+		// `os-content-identity` does in production).
 		engine.setWindowContent(
 			'post-win',
 			{ type: 'post', id: 1 },
@@ -182,35 +182,33 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		);
 		flushRaf();
 
-		const layer = document.getElementById( 'desktop-mode-window-links' );
+		const layer = document.getElementById( 'os-window-links' );
 		expect( layer ).not.toBeNull();
 		// Behind the windows, inside the desktop area, after widgets.
-		expect( layer!.parentElement!.id ).toBe( 'desktop-mode-area' );
-		expect( layer!.previousElementSibling!.id ).toBe(
-			'desktop-mode-widgets',
-		);
+		expect( layer!.parentElement!.id ).toBe( 'os-area' );
+		expect( layer!.previousElementSibling!.id ).toBe( 'os-widgets' );
 
 		// The edge touches the FOCUSED comment window → it draws on the
 		// elevated sibling layer.
 		const path = document.querySelector( BOTH_LAYERS_PATH );
 		expect( path ).not.toBeNull();
-		expect( path!.closest( '#desktop-mode-window-links-elevated' ) ).not.toBeNull();
+		expect( path!.closest( '#os-window-links-elevated' ) ).not.toBeNull();
 		expect( path!.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
 		// The large endpoint dot sits on the post (edge target).
 		expect( path!.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
 
 		// Focused member → layer visible under the 'focus' policy.
 		expect(
-			layer!.classList.contains( 'desktop-mode-window-links--visible' ),
+			layer!.classList.contains( 'os-window-links--visible' ),
 		).toBe( true );
 
 		// Related-window chrome cue on the OTHER member.
 		expect(
-			postWin.element.classList.contains( 'desktop-mode-window--linked' ),
+			postWin.element.classList.contains( 'os-window--linked' ),
 		).toBe( true );
 		expect(
 			commentWin.element.classList.contains(
-				'desktop-mode-window--linked',
+				'os-window--linked',
 			),
 		).toBe( false );
 	} );
@@ -294,12 +292,12 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		osSettings._update( { windowLinkVisibility: 'always' } );
 		flushRaf();
 
-		const layer = document.getElementById( 'desktop-mode-window-links' )!;
+		const layer = document.getElementById( 'os-window-links' )!;
 		expect(
-			layer.querySelector( '.desktop-mode-window-link__path' ),
+			layer.querySelector( '.os-window-link__path' ),
 		).not.toBeNull();
 		expect(
-			layer.classList.contains( 'desktop-mode-window-links--visible' ),
+			layer.classList.contains( 'os-window-links--visible' ),
 		).toBe( true );
 	} );
 
@@ -397,7 +395,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		// …while the chrome highlight still marks the whole group.
 		expect(
 			siblingWin.element.classList.contains(
-				'desktop-mode-window--linked',
+				'os-window--linked',
 			),
 		).toBe( true );
 	} );
@@ -437,7 +435,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		flushRaf();
 
 		const layer = document.getElementById(
-			'desktop-mode-window-links-elevated',
+			'os-window-links-elevated',
 		)!;
 		// The ELEVATED layer rides at the group's CEILING (comment at
 		// z 102) so the focused window's ties draw over the stranger at
@@ -446,7 +444,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		// layer (equal z, later in the DOM).
 		expect( layer.style.zIndex ).toBe( '102' );
 		expect(
-			document.getElementById( 'desktop-mode-window-links' )!.style
+			document.getElementById( 'os-window-links' )!.style
 				.zIndex,
 		).toBe( '' );
 
@@ -489,7 +487,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		).toBeNull();
 		expect( manager.raise ).not.toHaveBeenCalled();
 		expect(
-			postWin.element.classList.contains( 'desktop-mode-window--linked' ),
+			postWin.element.classList.contains( 'os-window--linked' ),
 		).toBe( false );
 
 		// Flip the master switch back on — mounts without a reload.
@@ -540,7 +538,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'comment-win' } );
 		expect( manager.raise ).not.toHaveBeenCalled();
 		expect(
-			postWin.element.classList.contains( 'desktop-mode-window--linked' ),
+			postWin.element.classList.contains( 'os-window--linked' ),
 		).toBe( false );
 	} );
 
@@ -637,11 +635,11 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		} );
 		flushRaf();
 
-		const layer = document.getElementById( 'desktop-mode-window-links' )!;
+		const layer = document.getElementById( 'os-window-links' )!;
 		const elevated = document.getElementById(
-			'desktop-mode-window-links-elevated',
+			'os-window-links-elevated',
 		)!;
-		const VISIBLE = 'desktop-mode-window-links--visible';
+		const VISIBLE = 'os-window-links--visible';
 		expect( layer.classList.contains( VISIBLE ) ).toBe( true );
 		expect( elevated.classList.contains( VISIBLE ) ).toBe( true );
 

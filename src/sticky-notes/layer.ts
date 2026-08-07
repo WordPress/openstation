@@ -1,8 +1,8 @@
 import { addAction, addFilter, HOOKS } from '../hooks';
 import { __ } from '../i18n';
-import '../ui/components/wpd-save-status/wpd-save-status';
-import '../ui/components/wpd-textarea/wpd-textarea';
-import '../ui/components/wpd-window-button/wpd-window-button';
+import '../ui/components/os-save-status/os-save-status';
+import '../ui/components/os-textarea/os-textarea';
+import '../ui/components/os-window-button/os-window-button';
 import {
 	buildGuidelineEditUrl,
 	fetchStickyNotes,
@@ -44,7 +44,7 @@ interface StickyNotesLayerOptions {
 	onError?: ( message: string ) => void;
 }
 
-type WpdTextareaElement = HTMLElement & {
+type OsTextareaElement = HTMLElement & {
 	focusInput?: () => void;
 };
 
@@ -118,7 +118,7 @@ export class StickyNotesLayer {
 			// make the desktop noisy on boot.
 			if ( error instanceof Error ) {
 				// eslint-disable-next-line no-console
-				console.debug( '[desktop-mode] Sticky notes unavailable:', error.message );
+				console.debug( '[openstation] Sticky notes unavailable:', error.message );
 			}
 		}
 	}
@@ -175,7 +175,7 @@ export class StickyNotesLayer {
 			return this.root;
 		}
 		const root = document.createElement( 'section' );
-		root.className = 'desktop-mode-sticky-notes';
+		root.className = 'os-sticky-notes';
 		root.setAttribute( 'aria-label', __( 'Sticky notes' ) );
 		this.host.appendChild( root );
 		this.root = root;
@@ -188,7 +188,7 @@ export class StickyNotesLayer {
 		}
 		this.contextMenuInstalled = true;
 		addFilter(
-			'desktop-mode.wallpaper-context-menu',
+			'os.wallpaper-context-menu',
 			'desktop-mode/sticky-notes',
 			( items: unknown ) => {
 				if ( ! Array.isArray( items ) || ! this.terms ) {
@@ -510,7 +510,7 @@ class StickyNoteController {
 	private layer: StickyNotesLayer;
 	private index: number;
 	private titleEl: HTMLElement;
-	private editor: WpdTextareaElement;
+	private editor: OsTextareaElement;
 	private statusEl: HTMLElement;
 	private openButton: HTMLElement;
 	private saveTimer: number | null = null;
@@ -529,12 +529,12 @@ class StickyNoteController {
 		this.note = options.note;
 		this.index = options.index;
 		this.element = document.createElement( 'article' );
-		this.element.className = 'desktop-mode-sticky-note';
+		this.element.className = 'os-sticky-note';
 		this.element.dataset.stickyNoteId = noteKey( this.note );
 		this.titleEl = document.createElement( 'span' );
-		this.editor = document.createElement( 'wpd-textarea' ) as WpdTextareaElement;
-		this.statusEl = document.createElement( 'wpd-save-status' );
-		this.openButton = document.createElement( 'wpd-window-button' );
+		this.editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
+		this.statusEl = document.createElement( 'os-save-status' );
+		this.openButton = document.createElement( 'os-window-button' );
 		this.paint();
 		this.applyGeometry( this.layer.geometryForNote( this.note, this.index ) );
 		this.element.addEventListener(
@@ -604,42 +604,42 @@ class StickyNoteController {
 		this.element.style.minHeight = `${ MIN_HEIGHT }px`;
 
 		const header = document.createElement( 'div' );
-		header.className = 'desktop-mode-sticky-note__header';
+		header.className = 'os-sticky-note__header';
 
 		const grip = document.createElement( 'span' );
-		grip.className = 'desktop-mode-sticky-note__grip';
+		grip.className = 'os-sticky-note__grip';
 		grip.setAttribute( 'aria-hidden', 'true' );
 
-		this.titleEl.className = 'desktop-mode-sticky-note__title';
+		this.titleEl.className = 'os-sticky-note__title';
 		this.titleEl.textContent = this.note.title;
 
 		this.statusEl.setAttribute( 'mode', 'icon' );
 		this.statusEl.setAttribute( 'phase', 'idle' );
-		this.statusEl.className = 'desktop-mode-sticky-note__status';
+		this.statusEl.className = 'os-sticky-note__status';
 
 		this.openButton.setAttribute( 'icon', 'detach' );
 		this.openButton.setAttribute( 'title', __( 'Open artifact' ) );
-		this.openButton.className = 'desktop-mode-sticky-note__open';
-		this.openButton.addEventListener( 'wpd-button-activate', () => {
+		this.openButton.className = 'os-sticky-note__open';
+		this.openButton.addEventListener( 'os-button-activate', () => {
 			this.layer.openNoteArtifact( this.note );
 		} );
 
-		const close = document.createElement( 'wpd-window-button' );
+		const close = document.createElement( 'os-window-button' );
 		close.setAttribute( 'icon', 'close' );
 		close.setAttribute( 'danger', '' );
 		close.setAttribute( 'title', __( 'Hide sticky note' ) );
-		close.className = 'desktop-mode-sticky-note__close';
-		close.addEventListener( 'wpd-button-activate', () => this.close() );
+		close.className = 'os-sticky-note__close';
+		close.addEventListener( 'os-button-activate', () => this.close() );
 
 		header.append( grip, this.titleEl, this.statusEl, this.openButton, close );
 		header.addEventListener( 'pointerdown', ( event ) => this.startDrag( event ) );
 
-		this.editor.className = 'desktop-mode-sticky-note__editor';
+		this.editor.className = 'os-sticky-note__editor';
 		this.editor.setAttribute( 'aria-label', __( 'Sticky note text' ) );
 		this.editor.setAttribute( 'rows', '8' );
 		this.editor.setAttribute( 'value', this.note.body );
 		this.installEditorKeyboardGuard();
-		this.editor.addEventListener( 'wpd-input-change', ( event ) => {
+		this.editor.addEventListener( 'os-input-change', ( event ) => {
 			const detail = ( event as CustomEvent< { value: string } > ).detail;
 			this.note.body = detail.value;
 			this.note.title = titleForBody( detail.value );
@@ -647,7 +647,7 @@ class StickyNoteController {
 			this.setPhase( 'pending' );
 			this.scheduleSave();
 		} );
-		this.editor.addEventListener( 'wpd-input-commit', () => this.flushSave() );
+		this.editor.addEventListener( 'os-input-commit', () => this.flushSave() );
 
 		this.element.append( header, this.editor );
 		this.refreshOpenButton();
@@ -787,7 +787,7 @@ class StickyNoteController {
 			return;
 		}
 		const target = event.target as HTMLElement | null;
-		if ( target?.closest( 'wpd-window-button, wpd-save-status' ) ) {
+		if ( target?.closest( 'os-window-button, os-save-status' ) ) {
 			return;
 		}
 		event.preventDefault();
@@ -797,7 +797,7 @@ class StickyNoteController {
 		const startTop = startRect.top - hostRect.top;
 		const startX = event.clientX;
 		const startY = event.clientY;
-		this.element.classList.add( 'desktop-mode-sticky-note--dragging' );
+		this.element.classList.add( 'os-sticky-note--dragging' );
 		this.element.setPointerCapture?.( event.pointerId );
 
 		const move = ( moveEvent: PointerEvent ): void => {
@@ -818,7 +818,7 @@ class StickyNoteController {
 			this.element.style.top = `${ top }px`;
 		};
 		const up = ( upEvent: PointerEvent ): void => {
-			this.element.classList.remove( 'desktop-mode-sticky-note--dragging' );
+			this.element.classList.remove( 'os-sticky-note--dragging' );
 			this.element.releasePointerCapture?.( upEvent.pointerId );
 			document.removeEventListener( 'pointermove', move );
 			document.removeEventListener( 'pointerup', up );

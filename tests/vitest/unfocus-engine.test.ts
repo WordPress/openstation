@@ -15,7 +15,7 @@ import type { OsSettingsSnapshot } from '../../src/settings/registry';
 import type { WindowManager } from '../../src/window-manager';
 import type { Window as DesktopWindow } from '../../src/window';
 
-const DARKEN_CLASS = 'desktop-mode-window--fx-darken';
+const DARKEN_CLASS = 'os-window--fx-darken';
 
 type Engine = typeof import( '../../src/effects/unfocus-engine' );
 type Registry = typeof import( '../../src/effects/registry' );
@@ -37,7 +37,7 @@ interface FakeWin {
 
 function makeWin( id: string, focused: boolean, state = 'normal' ): FakeWin {
 	const element = document.createElement( 'div' );
-	element.className = 'desktop-mode-window';
+	element.className = 'os-window';
 	return { id, element, state, focused };
 }
 
@@ -178,7 +178,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 		a.focused = false;
 		b.focused = true;
 		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-focused', {
+			new CustomEvent( 'os-window-focused', {
 				detail: { windowId: 'b' },
 			} ),
 		);

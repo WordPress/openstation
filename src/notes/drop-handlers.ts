@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes drop handlers.
+ * OpenStation — Pinned notes drop handlers.
  *
  * Wires the note payloads into the desktop-files drop surfaces:
  *
@@ -120,7 +120,7 @@ function handleDraftDrop(
 				__( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 			);
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] notes: create failed:', err );
+			console.error( '[openstation] notes: create failed:', err );
 		} );
 }
 

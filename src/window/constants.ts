@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Window constants.
+ * OpenStation — Window constants.
  *
  * Shared between the `Window` class and its sibling helper modules
  * (drag, resize, tabs, menus, iframe-bridge).
@@ -40,3 +40,27 @@ export const DRAG_THRESHOLD_SQUARED = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
  * opening the URL in a real browser tab.
  */
 export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
+
+/**
+ * Duration of the loading overlay's fade-out before the element is
+ * removed from the DOM. Must match the `transition: opacity` duration
+ * on `.os-window__loading` in
+ * `assets/css/window-chrome.css` — overshooting wastes a frame,
+ * undershooting yanks the spinner mid-fade.
+ *
+ * Also the delay the window-reveal surface waits before it starts
+ * receding, so the spinner's exit and the reveal read as one sequence
+ * instead of a cross-fade.
+ */
+export const LOADING_OVERLAY_FADE_OUT_MS = 250;
+
+/**
+ * Entry delay before the loading overlay fades IN. Must match the
+ * `transition-delay` on `.os-window__body--loading >
+ * .os-window__loading` in `assets/css/window-chrome.css`.
+ *
+ * Loads that finish inside this window never paint a spinner at all,
+ * which is what the reveal surface checks to decide whether it has a
+ * fade-out to wait for.
+ */
+export const LOADING_OVERLAY_SHOW_DELAY_MS = 120;

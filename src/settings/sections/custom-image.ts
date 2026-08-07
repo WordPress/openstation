@@ -22,7 +22,7 @@ import {
 	registerCustomImageIfPresent,
 	selectWallpaper,
 } from './wallpaper';
-// `<wpd-button>` is pre-registered globally by the lazy
+// `<os-button>` is pre-registered globally by the lazy
 // `shell-overlays[.min].js` bundle (Stage 10). Leaving this leaf
 // import in place would re-pull the component class into the main
 // bundle's tree (this module is transitively reachable from main
@@ -36,7 +36,7 @@ export function buildCustomImageSection(
 	type TabKey = 'upload' | 'library';
 	const tabDefs: { key: TabKey; label: string; render: () => void }[] = [];
 	const pane = document.createElement( 'div' );
-	pane.className = 'desktop-mode-os-settings__tab-pane';
+	pane.className = 'os-settings__tab-pane';
 
 	if ( ctx.config.canUpload ) {
 		tabDefs.push( {
@@ -60,22 +60,22 @@ export function buildCustomImageSection(
 	const wrap = document.createElement( 'div' );
 	render(
 		html`
-			<div class="desktop-mode-os-settings__uploader">
-				<h4 class="desktop-mode-os-settings__uploader-heading">
+			<div class="os-settings__uploader">
+				<h4 class="os-settings__uploader-heading">
 					${ __( 'Or use your own image' ) }
 				</h4>
 				${ tabDefs.length > 1
-		? html`<wpd-tabs
+		? html`<os-tabs
 							value=${ initialKey }
 							label=${ __( 'Image source' ) }
-							@wpd-tab-change=${ onTabChange }
+							@os-tab-change=${ onTabChange }
 						>
 							${ tabDefs.map(
-		( def ) => html`<wpd-tab value=${ def.key }
-									>${ def.label }</wpd-tab
+		( def ) => html`<os-tab value=${ def.key }
+									>${ def.label }</os-tab
 								>`,
 	) }
-						</wpd-tabs>`
+						</os-tabs>`
 		: null }
 				${ pane }
 			</div>
@@ -95,7 +95,7 @@ function renderUploadPane(
 	body: HTMLElement,
 ): void {
 	const tile = document.createElement( 'div' );
-	tile.className = 'desktop-mode-os-settings__upload-tile';
+	tile.className = 'os-settings__upload-tile';
 	tile.dataset.wallpaperId = CUSTOM_IMAGE_ID;
 	tile.setAttribute(
 		'aria-pressed',
@@ -105,7 +105,7 @@ function renderUploadPane(
 	const fileInput = document.createElement( 'input' );
 	fileInput.type = 'file';
 	fileInput.accept = 'image/*';
-	fileInput.className = 'desktop-mode-os-settings__file-input';
+	fileInput.className = 'os-settings__file-input';
 	fileInput.addEventListener( 'change', () => {
 		const file = fileInput.files?.[ 0 ];
 		if ( file ) {
@@ -124,14 +124,14 @@ function renderUploadTile(
 	fileInput: HTMLInputElement,
 	body: HTMLElement,
 ): void {
-	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--filled' );
-	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
-	tile.classList.remove( 'desktop-mode-os-settings__upload-tile--busy' );
+	tile.classList.remove( 'os-settings__upload-tile--filled' );
+	tile.classList.remove( 'os-settings__upload-tile--dragover' );
+	tile.classList.remove( 'os-settings__upload-tile--busy' );
 	tile.removeAttribute( 'aria-label' );
 
 	const hasImage = !! ctx.state.customImage;
 	if ( hasImage ) {
-		tile.classList.add( 'desktop-mode-os-settings__upload-tile--filled' );
+		tile.classList.add( 'os-settings__upload-tile--filled' );
 		tile.setAttribute( 'aria-label', __( 'Custom image wallpaper' ) );
 		tile.style.backgroundImage = `url("${ encodeURI( ctx.state.customImage!.url ) }")`;
 	} else {
@@ -158,25 +158,25 @@ function renderUploadTile(
 	render(
 		hasImage
 			? html`
-					<wpd-button
+					<os-button
 						variant="danger"
-						class="desktop-mode-os-settings__upload-remove"
+						class="os-settings__upload-remove"
 						aria-label=${ __( 'Remove custom image' ) }
 						@click=${ onRemove }
-						>${ __( 'Remove' ) }</wpd-button
+						>${ __( 'Remove' ) }</os-button
 					>
 				`
 			: html`
-					<div class="desktop-mode-os-settings__upload-inner">
+					<div class="os-settings__upload-inner">
 						<span
-							class="desktop-mode-os-settings__upload-plus"
+							class="os-settings__upload-plus"
 							aria-hidden="true"
 							>+</span
 						>
-						<span class="desktop-mode-os-settings__upload-prompt"
+						<span class="os-settings__upload-prompt"
 							>${ __( 'Drop an image here, or click to upload' ) }</span
 						>
-						<span class="desktop-mode-os-settings__upload-hint"
+						<span class="os-settings__upload-hint"
 							>${ __(
 		'JPEG, PNG, or WebP · goes straight to your Media Library',
 	) }</span
@@ -187,7 +187,7 @@ function renderUploadTile(
 	);
 
 	tile.onclick = () => {
-		if ( tile.classList.contains( 'desktop-mode-os-settings__upload-tile--busy' ) ) {
+		if ( tile.classList.contains( 'os-settings__upload-tile--busy' ) ) {
 			return;
 		}
 		if ( ctx.state.customImage ) {
@@ -199,14 +199,14 @@ function renderUploadTile(
 
 	tile.ondragover = ( e ) => {
 		e.preventDefault();
-		tile.classList.add( 'desktop-mode-os-settings__upload-tile--dragover' );
+		tile.classList.add( 'os-settings__upload-tile--dragover' );
 	};
 	tile.ondragleave = () => {
-		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
+		tile.classList.remove( 'os-settings__upload-tile--dragover' );
 	};
 	tile.ondrop = ( e ) => {
 		e.preventDefault();
-		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--dragover' );
+		tile.classList.remove( 'os-settings__upload-tile--dragover' );
 		const file = e.dataTransfer?.files?.[ 0 ];
 		if ( file ) {
 			void handleImageFile( ctx, file, tile, body );
@@ -225,16 +225,16 @@ async function handleImageFile(
 		return;
 	}
 
-	tile.classList.add( 'desktop-mode-os-settings__upload-tile--busy' );
+	tile.classList.add( 'os-settings__upload-tile--busy' );
 	render(
-		html`<span class="desktop-mode-os-settings__upload-status"
+		html`<span class="os-settings__upload-status"
 			>${ __( 'Uploading…' ) }</span
 		>`,
 		tile,
 	);
 
 	const fileInput = tile.parentElement?.querySelector<HTMLInputElement>(
-		'.desktop-mode-os-settings__file-input',
+		'.os-settings__file-input',
 	);
 
 	try {
@@ -249,7 +249,7 @@ async function handleImageFile(
 		}
 		refreshWallpaperPressedState( ctx, body );
 	} catch ( err ) {
-		tile.classList.remove( 'desktop-mode-os-settings__upload-tile--busy' );
+		tile.classList.remove( 'os-settings__upload-tile--busy' );
 		if ( fileInput ) {
 			renderUploadTile( ctx, tile, fileInput, body );
 		}
@@ -259,10 +259,10 @@ async function handleImageFile(
 }
 
 function showUploadError( tile: HTMLElement, message: string ): void {
-	let err = tile.querySelector<HTMLElement>( '.desktop-mode-os-settings__upload-error' );
+	let err = tile.querySelector<HTMLElement>( '.os-settings__upload-error' );
 	if ( ! err ) {
 		err = document.createElement( 'span' );
-		err.className = 'desktop-mode-os-settings__upload-error';
+		err.className = 'os-settings__upload-error';
 		err.setAttribute( 'role', 'status' );
 		tile.appendChild( err );
 	}
@@ -287,16 +287,16 @@ function renderLibraryPane(
 	const search = document.createElement( 'input' );
 	search.type = 'search';
 	search.placeholder = __( 'Search your media' );
-	search.className = 'desktop-mode-os-settings__library-search';
+	search.className = 'os-settings__library-search';
 	search.setAttribute( 'aria-label', __( 'Search media' ) );
 
 	const grid = document.createElement( 'div' );
-	grid.className = 'desktop-mode-os-settings__library-grid';
+	grid.className = 'os-settings__library-grid';
 
 	const meta = document.createElement( 'span' );
-	meta.className = 'desktop-mode-os-settings__library-meta';
+	meta.className = 'os-settings__library-meta';
 
-	const loadMore = document.createElement( 'wpd-button' );
+	const loadMore = document.createElement( 'os-button' );
 	loadMore.setAttribute( 'variant', 'ghost' );
 	loadMore.textContent = __( 'Load more' );
 
@@ -315,10 +315,10 @@ function renderLibraryPane(
 
 	render(
 		html`
-			<div class="desktop-mode-os-settings__library">
-				<div class="desktop-mode-os-settings__library-toolbar">
+			<div class="os-settings__library">
+				<div class="os-settings__library-toolbar">
 					${ search }
-					<wpd-checkbox-label
+					<os-checkbox-label
 						label=${ sprintf(
 		// translators: %1$d is the HD minimum width in px, %2$d is the minimum height.
 		__( 'Only HD (≥%1$d×%2$d)' ),
@@ -326,11 +326,11 @@ function renderLibraryPane(
 		HD_MIN_HEIGHT,
 	) }
 						?checked=${ ctx.state.libraryHdOnly }
-						@wpd-checkbox-change=${ onHdToggle }
-					></wpd-checkbox-label>
+						@os-checkbox-change=${ onHdToggle }
+					></os-checkbox-label>
 				</div>
 				${ grid }
-				<div class="desktop-mode-os-settings__library-footer">
+				<div class="os-settings__library-footer">
 					${ meta }${ loadMore }
 				</div>
 			</div>
@@ -351,7 +351,7 @@ function renderLibraryPane(
 			);
 		}
 		meta.textContent = parts.join( ' · ' );
-		// hidden applies to any HTMLElement; `disabled` is a wpd-button
+		// hidden applies to any HTMLElement; `disabled` is a os-button
 		// prop that maps to the inner <button>'s disabled attribute via
 		// the component's render.
 		loadMore.hidden = page >= totalPages;
@@ -368,7 +368,7 @@ function renderLibraryPane(
 
 		if ( visible.length === 0 && ! loading ) {
 			render(
-				html`<p class="desktop-mode-os-settings__library-empty">
+				html`<p class="os-settings__library-empty">
 					${ ctx.state.libraryHdOnly
 		? __(
 			'No HD images found. Try unchecking the filter, or upload a larger image.',
@@ -398,7 +398,7 @@ function renderLibraryPane(
 				html`${ Array.from(
 					{ length: 8 },
 					() => html`<div
-						class="desktop-mode-os-settings__library-tile desktop-mode-os-settings__library-tile--skeleton"
+						class="os-settings__library-tile os-settings__library-tile--skeleton"
 					></div>`,
 				) }`,
 				grid,
@@ -418,7 +418,7 @@ function renderLibraryPane(
 			renderGrid();
 		} catch ( err ) {
 			render(
-				html`<p class="desktop-mode-os-settings__library-error">
+				html`<p class="os-settings__library-error">
 					${ err instanceof Error
 		? sprintf(
 			// translators: %s is the browser-supplied error message.
@@ -513,7 +513,7 @@ function buildLibraryTile(
 				const selected = el.dataset.mediaId === String( item.id );
 				el.setAttribute( 'aria-pressed', selected ? 'true' : 'false' );
 				el.classList.toggle(
-					'desktop-mode-os-settings__library-tile--selected',
+					'os-settings__library-tile--selected',
 					selected,
 				);
 			} );
@@ -526,8 +526,8 @@ function buildLibraryTile(
 			<button
 				type="button"
 				class=${ isSelected
-		? 'desktop-mode-os-settings__library-tile desktop-mode-os-settings__library-tile--selected'
-		: 'desktop-mode-os-settings__library-tile' }
+		? 'os-settings__library-tile os-settings__library-tile--selected'
+		: 'os-settings__library-tile' }
 				data-media-id=${ String( item.id ) }
 				aria-pressed=${ isSelected ? 'true' : 'false' }
 				aria-label=${ altOrTitle }
@@ -535,7 +535,7 @@ function buildLibraryTile(
 				style=${ `background-image: url("${ encodeURI( thumbUrl ) }")` }
 				@click=${ onClick }
 			>
-				<span class="desktop-mode-os-settings__library-tile-dims"
+				<span class="os-settings__library-tile-dims"
 					>${ item.media_details.width }×${ item.media_details.height }</span
 				>
 			</button>

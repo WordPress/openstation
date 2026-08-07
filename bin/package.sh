@@ -20,8 +20,10 @@
 
 set -euo pipefail
 
+# The install directory remains `desktop-mode` for WordPress.org upgrade and
+# dependent-plugin compatibility. Only the public release artifact is renamed.
 prefix="desktop-mode"
-out="${1:-$prefix.zip}"
+out="${1:-openstation.zip}"
 root=$(pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -56,7 +58,7 @@ done
 #
 # Only the MINIFIED bundles ship. The unminified dev builds total
 # ~4-5 MB (desktop.js alone is >1 MB) and never load at runtime on a
-# release install: `desktop_mode_asset_suffix()` (includes/helpers.php)
+# release install: `openstation_asset_suffix()` (includes/helpers.php)
 # probes for `assets/js/desktop.js` and serves `.min` when the dev
 # bundles are absent, so even a SCRIPT_DEBUG site degrades gracefully
 # instead of 404ing.

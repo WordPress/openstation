@@ -6,9 +6,9 @@
  * interaction. This shim keeps the eager bundle down to a few
  * lines: on the first right-click it `<script>`-injects
  * `assets/js/item-visibility-menu[.min].js` (URL from
- * `desktopModeConfig.itemVisibilityMenuBundleUrl`), then forwards
+ * `openStationConfig.itemVisibilityMenuBundleUrl`), then forwards
  * the call to the API the bundle published on
- * `window.desktopModeItemVisibilityMenu`.
+ * `window.openStationItemVisibilityMenu`.
  *
  * Mirrors the shell-overlays loader's generation guard: if the user
  * right-clicks several tiles while the bundle is still in flight,
@@ -27,15 +27,15 @@ let generation = 0;
 
 function loadedApi(): MenuApi | null {
 	const w = window as unknown as {
-		desktopModeItemVisibilityMenu?: MenuApi;
+		openStationItemVisibilityMenu?: MenuApi;
 	};
-	return w.desktopModeItemVisibilityMenu ?? null;
+	return w.openStationItemVisibilityMenu ?? null;
 }
 
 function bundleUrl(): string {
 	const cfg = ( window as unknown as {
-		desktopModeConfig?: { itemVisibilityMenuBundleUrl?: string };
-	} ).desktopModeConfig;
+		openStationConfig?: { itemVisibilityMenuBundleUrl?: string };
+	} ).openStationConfig;
 	return cfg?.itemVisibilityMenuBundleUrl ?? '';
 }
 
@@ -74,7 +74,7 @@ export function openItemVisibilityMenu(
 		.catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.warn(
-					'[desktop-mode] item-visibility-menu bundle failed to load; menu suppressed:',
+					'[openstation] item-visibility-menu bundle failed to load; menu suppressed:',
 					err,
 				);
 			}

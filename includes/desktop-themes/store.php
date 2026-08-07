@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Desktop-theme storage + accessors.
+ * OpenStation — Desktop-theme storage + accessors.
  *
  * Owns the uploads directory, the site option that indexes installed
  * themes, and every filterable knob the rest of the module reads
@@ -14,6 +14,7 @@
  *         <slug>/
  *             theme.json       <- the author's raw manifest
  *             theme.css        <- compiled by us: custom props +
+ *
  *                                 @font-face rules we generated
  *             icons/…  textures/…  fonts/…  preview.png
  *
@@ -25,23 +26,39 @@
  * extension is on the image or font allowlist, so nothing executable
  * lands in the first place.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Site option holding the installed-theme index. Autoload: no. */
-const DESKTOP_MODE_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
+/**
+ * Site option holding the installed-theme index. Autoload: no.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: rows are already
+ * stored under it on live installs, so renaming it would orphan every
+ * one. The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ *
+ * Not to be confused with the `openstation_desktop_themes` filter, which
+ * once shared this string and is now deliberately decoupled.
+ */
+const OPENSTATION_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
 
 /**
  * Absolute path of the desktop-themes base dir (no trailing slash),
  * or of one theme's dir when `$slug` is given. Pure path math —
- * nothing is created; see {@see desktop_mode_desktop_themes_ensure_dir()}.
+ * nothing is created; see {@see openstation_desktop_themes_ensure_dir()}.
+ *
+ * The `desktop-mode-themes` segment is the pre-rebrand spelling and is
+ * frozen: admin-uploaded theme ZIPs already unpack there. Renaming it
+ * points the plugin at an empty directory and every installed theme
+ * vanishes from the picker. The mismatch with the function name is
+ * deliberate.
  *
  * @param string $slug Optional. Theme slug.
  * @return string
  */
-function desktop_mode_desktop_themes_dir( $slug = '' ) {
+function openstation_desktop_themes_dir( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-themes';
 	/**
@@ -52,7 +69,7 @@ function desktop_mode_desktop_themes_dir( $slug = '' ) {
 	 *
 	 * @param string $base Absolute path, no trailing slash.
 	 */
-	$base = (string) apply_filters( 'desktop_mode_desktop_themes_base_dir', $base );
+	$base = (string) apply_filters( 'openstation_desktop_themes_base_dir', $base );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $base . '/' . $slug : $base;
 }
@@ -64,16 +81,16 @@ function desktop_mode_desktop_themes_dir( $slug = '' ) {
  * @param string $slug Optional. Theme slug.
  * @return string
  */
-function desktop_mode_desktop_themes_url( $slug = '' ) {
+function openstation_desktop_themes_url( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$url     = untrailingslashit( $uploads['baseurl'] ) . '/desktop-mode-themes';
 	/**
 	 * Filters the desktop-theme storage base URL. Must resolve to the
-	 * same bytes `desktop_mode_desktop_themes_base_dir` points at.
+	 * same bytes `openstation_desktop_themes_base_dir` points at.
 	 *
 	 * @param string $url Absolute URL, no trailing slash.
 	 */
-	$url  = (string) apply_filters( 'desktop_mode_desktop_themes_base_url', $url );
+	$url  = (string) apply_filters( 'openstation_desktop_themes_base_url', $url );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $url . '/' . $slug : $url;
 }
@@ -84,11 +101,11 @@ function desktop_mode_desktop_themes_url( $slug = '' ) {
  * @return string|WP_Error Base dir path, or `WP_Error` when the
  *                         filesystem refuses.
  */
-function desktop_mode_desktop_themes_ensure_dir() {
-	$base = desktop_mode_desktop_themes_dir();
+function openstation_desktop_themes_ensure_dir() {
+	$base = openstation_desktop_themes_dir();
 	if ( ! wp_mkdir_p( $base ) ) {
 		return new WP_Error(
-			'desktop_mode_desktop_theme_mkdir_failed',
+			'openstation_desktop_theme_mkdir_failed',
 			__( 'Could not create the desktop-themes directory.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -125,8 +142,8 @@ function desktop_mode_desktop_themes_ensure_dir() {
  *
  * @return array<string,array>
  */
-function desktop_mode_desktop_themes_index() {
-	$raw = get_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION, array() );
+function openstation_desktop_themes_index() {
+	$raw = get_option( OPENSTATION_DESKTOP_THEMES_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -150,13 +167,13 @@ function desktop_mode_desktop_themes_index() {
  * @param array<string,array> $index Map of slug => stored entry.
  * @return void
  */
-function desktop_mode_desktop_themes_put_index( $index ) {
+function openstation_desktop_themes_put_index( $index ) {
 	$index = is_array( $index ) ? $index : array();
-	if ( false === get_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION, false ) ) {
-		add_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION, $index, '', 'no' );
+	if ( false === get_option( OPENSTATION_DESKTOP_THEMES_OPTION, false ) ) {
+		add_option( OPENSTATION_DESKTOP_THEMES_OPTION, $index, '', 'no' );
 		return;
 	}
-	update_option( DESKTOP_MODE_DESKTOP_THEMES_OPTION, $index, false );
+	update_option( OPENSTATION_DESKTOP_THEMES_OPTION, $index, false );
 }
 
 /**
@@ -165,9 +182,9 @@ function desktop_mode_desktop_themes_put_index( $index ) {
  * @param string $slug Theme slug.
  * @return array|null Stored entry, or `null` when not installed.
  */
-function desktop_mode_desktop_theme_get( $slug ) {
+function openstation_desktop_theme_get( $slug ) {
 	$slug  = sanitize_key( (string) $slug );
-	$index = desktop_mode_desktop_themes_index();
+	$index = openstation_desktop_themes_index();
 	return isset( $index[ $slug ] ) ? $index[ $slug ] : null;
 }
 
@@ -176,14 +193,14 @@ function desktop_mode_desktop_theme_get( $slug ) {
  *
  * @return string
  */
-function desktop_mode_desktop_theme_upload_capability() {
+function openstation_desktop_theme_upload_capability() {
 	/**
 	 * Filters the capability required to manage the site's desktop
 	 * theme library. Picking a theme is per-user and never gated.
 	 *
 	 * @param string $capability Default `manage_options`.
 	 */
-	return (string) apply_filters( 'desktop_mode_desktop_theme_upload_capability', 'manage_options' );
+	return (string) apply_filters( 'openstation_desktop_theme_upload_capability', 'manage_options' );
 }
 
 /**
@@ -195,7 +212,7 @@ function desktop_mode_desktop_theme_upload_capability() {
  * @param string $id Manifest id.
  * @return string Slug, or `''` when the id yields nothing usable.
  */
-function desktop_mode_desktop_theme_slug_from_id( $id ) {
+function openstation_desktop_theme_slug_from_id( $id ) {
 	return sanitize_key( str_replace( '/', '-', (string) $id ) );
 }
 
@@ -208,9 +225,9 @@ function desktop_mode_desktop_theme_slug_from_id( $id ) {
  *
  * @return string[]
  */
-function desktop_mode_desktop_theme_icon_slots() {
+function openstation_desktop_theme_icon_slots() {
 	$slots = array(
-		// Window controls — one per `<wpd-window-button>` key.
+		// Window controls — one per `<os-window-button>` key.
 		'WINDOW_CONTROL_MINIMIZE',
 		'WINDOW_CONTROL_MAXIMIZE',
 		'WINDOW_CONTROL_FULLSCREEN',
@@ -223,7 +240,7 @@ function desktop_mode_desktop_theme_icon_slots() {
 		'OS_SETTINGS',
 		'RECYCLE_BIN',
 		'BUG_REPORT',
-		'EXIT_DESKTOP_MODE',
+		'EXIT_OPENSTATION',
 		'PWA_INSTALL',
 		// Apps.
 		'DEFAULT_APP_ICON',
@@ -251,7 +268,7 @@ function desktop_mode_desktop_theme_icon_slots() {
 	 *
 	 * @param string[] $slots Slot names.
 	 */
-	return (array) apply_filters( 'desktop_mode_desktop_theme_icon_slots', $slots );
+	return (array) apply_filters( 'openstation_desktop_theme_icon_slots', $slots );
 }
 
 /**
@@ -278,7 +295,7 @@ function desktop_mode_desktop_theme_icon_slots() {
  *                   corners). First declared wins.
  *
  * **The compiler reads this table and nothing else.** That is what
- * makes `desktop_mode_desktop_theme_texture_slots` a complete
+ * makes `openstation_desktop_theme_texture_slots` a complete
  * extension point: a plugin that adds an entry here, and writes one
  * CSS rule consuming `var( <prop>, none )`, has textured a surface
  * the framework never knew about — no core change, no compiler
@@ -286,120 +303,120 @@ function desktop_mode_desktop_theme_icon_slots() {
  *
  * @return array<string,array{type:string,prop:string}>
  */
-function desktop_mode_desktop_theme_texture_slots() {
-	$corner_size = '--desktop-mode-window-corner-size';
+function openstation_desktop_theme_texture_slots() {
+	$corner_size = '--os-window-corner-size';
 	$slots       = array(
 		// --- Window chrome. ---
 		'TITLEBAR'             => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-titlebar-image',
+			'prop' => '--os-titlebar-image',
 		),
 		'TITLEBAR_FOCUSED'     => array(
 			'type'       => 'image',
-			'prop'       => '--desktop-mode-titlebar-image-focused',
+			'prop'       => '--os-titlebar-image-focused',
 			// Shares the base slot's repeat + size; only the image
 			// differs, so a theme shipping one strip gets both states.
 			'companions' => false,
 		),
 		'WINDOW_FRAME'         => array(
 			'type' => 'border-image',
-			'prop' => '--desktop-mode-window-border-image',
+			'prop' => '--os-window-border-image',
 		),
 		'WINDOW_FRAME_FOCUSED' => array(
 			'type' => 'border-image',
-			'prop' => '--desktop-mode-window-border-image-focused',
+			'prop' => '--os-window-border-image-focused',
 		),
 		'WINDOW_CORNER_NE'     => array(
 			'type'      => 'image',
-			'prop'      => '--desktop-mode-window-corner-ne-image',
+			'prop'      => '--os-window-corner-ne-image',
 			'sizeGroup' => $corner_size,
 		),
 		'WINDOW_CORNER_NW'     => array(
 			'type'      => 'image',
-			'prop'      => '--desktop-mode-window-corner-nw-image',
+			'prop'      => '--os-window-corner-nw-image',
 			'sizeGroup' => $corner_size,
 		),
 		'WINDOW_CORNER_SE'     => array(
 			'type'      => 'image',
-			'prop'      => '--desktop-mode-window-corner-se-image',
+			'prop'      => '--os-window-corner-se-image',
 			'sizeGroup' => $corner_size,
 		),
 		'WINDOW_CORNER_SW'     => array(
 			'type'      => 'image',
-			'prop'      => '--desktop-mode-window-corner-sw-image',
+			'prop'      => '--os-window-corner-sw-image',
 			'sizeGroup' => $corner_size,
 		),
 		// The control cluster and the individual control faces. Both
 		// are TRANSPARENT by default, which is what lets a TITLEBAR
 		// texture run edge to edge underneath them. A theme that wants
 		// the controls to sit on a plate paints one here (and usually
-		// sets `--desktop-mode-titlebar-controls-radius` +
+		// sets `--os-titlebar-controls-radius` +
 		// `-padding` to give it a shape).
 		'TITLEBAR_CONTROLS'    => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-titlebar-controls-image',
+			'prop' => '--os-titlebar-controls-image',
 		),
 		'TITLEBAR_BUTTON'      => array(
 			'type' => 'image',
-			'prop' => '--wpd-btn-bg-image',
+			'prop' => '--os-ui-btn-bg-image',
 		),
 		'WINDOW_BODY'          => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-window-body-image',
+			'prop' => '--os-window-body-image',
 		),
 		'TABBAR'               => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-tabs-image',
+			'prop' => '--os-tabs-image',
 		),
 		// --- Shell surfaces. ---
 		'DOCK'                 => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-dock-bg-image',
+			'prop' => '--os-dock-bg-image',
 		),
 		'DOCK_ITEM'            => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-dock-item-image',
+			'prop' => '--os-dock-item-image',
 		),
 		'DESKTOP'              => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-desktop-image',
+			'prop' => '--os-desktop-image',
 		),
 		'ICON_TILE'            => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-tile-image',
+			'prop' => '--os-tile-image',
 		),
 		'WIDGET'               => array(
 			'type' => 'image',
-			'prop' => '--desktop-mode-widget-image',
+			'prop' => '--os-widget-image',
 		),
 		// --- Component-kit surfaces (window bodies + popovers). ---
 		'MENU'                 => array(
 			'type' => 'image',
-			'prop' => '--wpd-menu-bg-image',
+			'prop' => '--os-ui-menu-bg-image',
 		),
 		'DIALOG'               => array(
 			'type' => 'image',
-			'prop' => '--wpd-dialog-bg-image',
+			'prop' => '--os-ui-dialog-bg-image',
 		),
 		'SCRIM'                => array(
 			'type' => 'image',
-			'prop' => '--wpd-scrim-image',
+			'prop' => '--os-ui-scrim-image',
 		),
 		'PANEL'                => array(
 			'type' => 'image',
-			'prop' => '--wpd-panel-bg-image',
+			'prop' => '--os-ui-panel-bg-image',
 		),
 		'TOAST'                => array(
 			'type' => 'image',
-			'prop' => '--wpd-toast-bg-image',
+			'prop' => '--os-ui-toast-bg-image',
 		),
 		'TABLE_HEADER'         => array(
 			'type' => 'image',
-			'prop' => '--wpd-table-header-bg-image',
+			'prop' => '--os-ui-table-header-bg-image',
 		),
 		'BUTTON'               => array(
 			'type' => 'image',
-			'prop' => '--wpd-button-bg-image',
+			'prop' => '--os-ui-button-bg-image',
 		),
 	);
 	/**
@@ -419,7 +436,7 @@ function desktop_mode_desktop_theme_texture_slots() {
 	 *                                   `{ type, prop, companions?,
 	 *                                   sizeGroup? }`.
 	 */
-	return (array) apply_filters( 'desktop_mode_desktop_theme_texture_slots', $slots );
+	return (array) apply_filters( 'openstation_desktop_theme_texture_slots', $slots );
 }
 
 /**
@@ -432,13 +449,19 @@ function desktop_mode_desktop_theme_texture_slots() {
  *               to PHP, so an unknown value is provably wrong and is
  *               dropped here.
  *   - `slug`  — a `sanitize_key()`-clean id whose validity only the
- *               JS registry knows (`dockRailRenderer` resolves against
- *               renderers registered at runtime, by core AND by
- *               plugins). PHP checks the charset; the shell drops the
- *               key at apply time when nothing is registered under
- *               that id, which is the same "resolve at use time"
- *               contract `desktop_mode_sanitize_os_settings()` already
- *               follows for the user's own `dockRailRenderer`.
+ *               JS registry knows (`dockRailRenderer` and
+ *               `windowReveal` resolve against things registered at
+ *               runtime, by core AND by plugins). PHP checks the
+ *               charset; the shell drops the key at apply time when
+ *               nothing is registered under that id, which is the same
+ *               "resolve at use time" contract
+ *               `openstation_sanitize_os_settings()` already follows
+ *               for the user's own `dockRailRenderer`.
+ *   - `int`   — a whole number clamped into `{ min, max }`. Clamped
+ *               rather than dropped: a theme asking for a reveal
+ *               slower than the shell will play is expressing "slow",
+ *               and the honest reading of that is the slowest we do
+ *               play.
  *
  * A key absent from this table is dropped from the manifest. That is
  * the point: a theme RECOMMENDS presentation, so it may only reach
@@ -446,14 +469,38 @@ function desktop_mode_desktop_theme_texture_slots() {
  * theme to arrange for them — never a feature toggle, a capability
  * gate, or anything that changes what the shell can do.
  *
- * @return array<string,array{enum?:string[],slug?:bool}>
+ * @return array<string,array{enum?:string[],slug?:bool,int?:array{min:int,max:int}}>
  */
-function desktop_mode_desktop_theme_recommended_os_settings_schema() {
+function openstation_desktop_theme_recommended_os_settings_schema() {
 	$schema = array(
-		'dockSize'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES ),
-		'desktopLayout'    => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS ),
-		'windowRadius'     => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII ),
-		'dockRailRenderer' => array( 'slug' => true ),
+		'dockSize'             => array( 'enum' => OPENSTATION_OS_SETTINGS_DOCK_SIZES ),
+		'desktopLayout'        => array( 'enum' => OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS ),
+		'windowRadius'         => array( 'enum' => OPENSTATION_OS_SETTINGS_WINDOW_RADII ),
+		'adminBarMode'         => array( 'enum' => OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES ),
+		'dockRailRenderer'     => array( 'slug' => true ),
+		'windowReveal'         => array( 'slug' => true ),
+
+		/*
+		 * The accent swatch id. A registry lookup rather than an enum
+		 * because the list is filterable
+		 * (`openstation_accent_colors`), so the shell resolves the id
+		 * against whatever swatches the site actually offers and skips
+		 * the key when nothing answers to it.
+		 *
+		 * It earns its place here for the same reason the rest do: a
+		 * theme's palette and the accent are one composition, and a
+		 * dark station wearing the WordPress blue it was never drawn
+		 * against is the most visible way that composition comes
+		 * apart. Still a recommendation — applied once, and the user's
+		 * pick afterwards is theirs.
+		 */
+		'accent'               => array( 'slug' => true ),
+		'windowRevealDuration' => array(
+			'int' => array(
+				'min' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
+				'max' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX,
+			),
+		),
 	);
 	/**
 	 * Filters the OS-settings keys a desktop theme may recommend.
@@ -462,7 +509,8 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 	 * Settings can opt it into theme recommendations by adding an
 	 * entry here — `array( 'enum' => array( … ) )` for a closed set,
 	 * `array( 'slug' => true )` for a registry id resolved at apply
-	 * time.
+	 * time, `array( 'int' => array( 'min' => …, 'max' => … ) )` for a
+	 * clamped whole number.
 	 *
 	 * Anything added is written into user meta the first time a user
 	 * activates a theme that recommends it, so keep the list to
@@ -470,10 +518,10 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 	 * do not belong here.
 	 *
 	 * @param array<string,array> $schema Map of settings key =>
-	 *                                    `{ enum }` or `{ slug }`.
+	 *                                    `{ enum }`, `{ slug }`, or `{ int }`.
 	 */
 	$schema = (array) apply_filters(
-		'desktop_mode_desktop_theme_recommended_os_settings_schema',
+		'openstation_desktop_theme_recommended_os_settings_schema',
 		$schema
 	);
 
@@ -496,6 +544,22 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 		}
 		if ( ! empty( $rule['slug'] ) ) {
 			$out[ $key ] = array( 'slug' => true );
+			continue;
+		}
+		if (
+			! empty( $rule['int'] )
+			&& is_array( $rule['int'] )
+			&& isset( $rule['int']['min'], $rule['int']['max'] )
+			&& is_numeric( $rule['int']['min'] )
+			&& is_numeric( $rule['int']['max'] )
+			&& (int) $rule['int']['min'] <= (int) $rule['int']['max']
+		) {
+			$out[ $key ] = array(
+				'int' => array(
+					'min' => (int) $rule['int']['min'],
+					'max' => (int) $rule['int']['max'],
+				),
+			);
 		}
 	}
 	return $out;
@@ -520,7 +584,7 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
  * @param string $kind `'image'` or `'font'`.
  * @return string[] Lowercase extensions, no leading dot.
  */
-function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
+function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 	$kind = strtolower( trim( (string) $kind ) );
 	$map  = array(
 		'image' => array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ),
@@ -537,17 +601,22 @@ function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
 	 * @param string   $kind       `'image'` or `'font'`.
 	 */
 	$extensions = (array) apply_filters(
-		'desktop_mode_desktop_theme_asset_extensions',
+		'openstation_desktop_theme_asset_extensions',
 		isset( $map[ $kind ] ) ? $map[ $kind ] : array(),
 		$kind
 	);
 
-	return array_values( array_filter( array_map(
-		static function ( $ext ) {
-			return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
-		},
-		$extensions
-	), 'strlen' ) );
+	return array_values(
+		array_filter(
+			array_map(
+				static function ( $ext ) {
+					return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
+				},
+				$extensions
+			),
+			'strlen'
+		)
+	);
 }
 
 /**
@@ -556,14 +625,14 @@ function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
  *
  * @return array{max_faces:int,max_sources:int}
  */
-function desktop_mode_desktop_theme_font_caps() {
+function openstation_desktop_theme_font_caps() {
 	/**
 	 * Filters the desktop-theme font caps.
 	 *
 	 * @param array $caps `{ max_faces, max_sources }`.
 	 */
 	$caps = (array) apply_filters(
-		'desktop_mode_desktop_theme_font_caps',
+		'openstation_desktop_theme_font_caps',
 		array(
 			// A UI font at a few weights, a mono, a display face.
 			'max_faces'   => 16,
@@ -583,7 +652,7 @@ function desktop_mode_desktop_theme_font_caps() {
  *
  * @return array{max_entries:int,max_uncompressed:int,max_file:int,extensions:string[]}
  */
-function desktop_mode_desktop_theme_zip_caps() {
+function openstation_desktop_theme_zip_caps() {
 	$caps = array(
 		// Entry count — a theme is a manifest plus a couple of dozen
 		// images; anything past this is a zip bomb or a mistake.
@@ -601,8 +670,8 @@ function desktop_mode_desktop_theme_zip_caps() {
 		// the live directory, and discarded with the staging dir.
 		'extensions'       => array_merge(
 			array( 'json', 'txt', 'md' ),
-			desktop_mode_desktop_theme_asset_extensions( 'image' ),
-			desktop_mode_desktop_theme_asset_extensions( 'font' )
+			openstation_desktop_theme_asset_extensions( 'image' ),
+			openstation_desktop_theme_asset_extensions( 'font' )
 		),
 	);
 	/**
@@ -615,18 +684,23 @@ function desktop_mode_desktop_theme_zip_caps() {
 	 *
 	 * @param array $caps See the return shape above.
 	 */
-	$caps = (array) apply_filters( 'desktop_mode_desktop_theme_zip_caps', $caps );
+	$caps = (array) apply_filters( 'openstation_desktop_theme_zip_caps', $caps );
 
 	return array(
 		'max_entries'      => max( 1, (int) ( $caps['max_entries'] ?? 256 ) ),
 		'max_uncompressed' => max( 1, (int) ( $caps['max_uncompressed'] ?? 33554432 ) ),
 		'max_file'         => max( 1, (int) ( $caps['max_file'] ?? 8388608 ) ),
-		'extensions'       => array_values( array_filter( array_map(
-			static function ( $ext ) {
-				return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
-			},
-			(array) ( $caps['extensions'] ?? array() )
-		), 'strlen' ) ),
+		'extensions'       => array_values(
+			array_filter(
+				array_map(
+					static function ( $ext ) {
+						return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
+					},
+					(array) ( $caps['extensions'] ?? array() )
+				),
+				'strlen'
+			)
+		),
 	);
 }
 
@@ -635,11 +709,11 @@ function desktop_mode_desktop_theme_zip_caps() {
  *
  * @return int
  */
-function desktop_mode_desktop_themes_payload_cap() {
+function openstation_desktop_themes_payload_cap() {
 	/**
 	 * Filters how many desktop themes are announced to the shell.
 	 *
 	 * @param int $cap Default 24.
 	 */
-	return max( 1, (int) apply_filters( 'desktop_mode_desktop_themes_payload_cap', 24 ) );
+	return max( 1, (int) apply_filters( 'openstation_desktop_themes_payload_cap', 24 ) );
 }

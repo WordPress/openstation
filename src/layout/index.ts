@@ -7,7 +7,7 @@
  * snapshot owns the *current* selection. Until 0.8.1 there was no
  * cross-bundle helper for "what layout am I in right now?" — every
  * consumer (a feature bundle, a third-party plugin) had to thread
- * the snapshot in or read `data-desktop-mode-layout` off the shell
+ * the snapshot in or read `data-os-layout` off the shell
  * root.
  *
  * This module is a tiny shared store keyed under
@@ -61,7 +61,7 @@ export function setCurrentLayout( layout: DesktopLayoutId ): void {
  *
  * The callback fires synchronously inside `setCurrentLayout` —
  * after the value has been written. Note the shell publishes here
- * after `desktop-mode-layout-changed` has already been dispatched
+ * after `os-layout-changed` has already been dispatched
  * on `document`.
  */
 export function subscribeLayout(

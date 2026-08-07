@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Focus the hovered window during a drag.
+ * OpenStation — Focus the hovered window during a drag.
  *
  * While a drag is in flight — ANY drag, whatever its source, origin,
  * or payload — the window under the cursor is raised (focused) after
@@ -27,7 +27,7 @@
  *      — but the hovered window IS the iframe's window, so the
  *      chromeless bridge (`includes/render/chromeless-bridge.php`,
  *      mirrored in `iframe-bridge-standalone.ts`) posts a throttled
- *      `desktop-mode-drag-hover` message and the parent resolves the
+ *      `os-drag-hover` message and the parent resolves the
  *      sender to its window id. No coordinates needed.
  *
  * Ends are heterogeneous — `DRAG_EVENTS.END` for channel 1,
@@ -56,7 +56,7 @@
  * cannot trip.
  *
  * Plugins can veto per activation via the
- * `desktop-mode.window.focus-on-drag-hover` filter.
+ * `os.window.focus-on-drag-hover` filter.
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -81,7 +81,7 @@ export const FOCUS_ON_DRAG_HOVER_DWELL_MS = 250;
 export const FOCUS_ON_DRAG_HOVER_WATCHDOG_MS = 1000;
 
 /** Iframe→parent postMessage announcing an in-iframe drag hover. */
-export const DRAG_HOVER_MESSAGE_TYPE = 'desktop-mode-drag-hover';
+export const DRAG_HOVER_MESSAGE_TYPE = 'os-drag-hover';
 
 /** The one window method the dwell activation needs. */
 export interface FocusableWindow {
@@ -155,7 +155,7 @@ function fireFocus( windowId: string, payloadType: string ): void {
 	try {
 		_host?.focus( win );
 	} catch ( err ) {
-		console.error( '[desktop-mode] focus-on-drag-hover focus() threw:', windowId, err );
+		console.error( '[openstation] focus-on-drag-hover focus() threw:', windowId, err );
 	}
 }
 
@@ -257,7 +257,7 @@ const onNativeDragLeave = ( e: DragEvent ): void => {
 
 // ------------------------------------------------------------------
 // Channel 3 — in-iframe drag hovers, forwarded by the chromeless
-// bridge as `desktop-mode-drag-hover` postMessages. The sender iframe
+// bridge as `os-drag-hover` postMessages. The sender iframe
 // IS the hovered window; no coordinates travel.
 // ------------------------------------------------------------------
 

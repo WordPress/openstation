@@ -59,7 +59,7 @@ describe( 'media-preview', () => {
 			previewActions: [],
 		} );
 		const img = host.querySelector< HTMLImageElement >(
-			'.desktop-mode-my-wordpress__media-image',
+			'.os-my-wordpress__media-image',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( 'https://example.test/large.jpg' );
@@ -88,10 +88,10 @@ describe( 'media-preview', () => {
 			{ entityId: 'media', previewActions: [] },
 		);
 		expect(
-			host.querySelector( '.desktop-mode-my-wordpress__media-fallback-icon' ),
+			host.querySelector( '.os-my-wordpress__media-fallback-icon' ),
 		).not.toBeNull();
 		const link = host.querySelector< HTMLAnchorElement >(
-			'.desktop-mode-my-wordpress__media-doc-link',
+			'.os-my-wordpress__media-doc-link',
 		);
 		expect( link?.href ).toBe( 'https://x/doc.pdf' );
 	} );
@@ -135,7 +135,7 @@ describe( 'media-preview', () => {
 		const onSelect = vi.fn();
 		// Attach a filter that wires a handler onto the server descriptor.
 		window.wp!.hooks!.addFilter(
-			'desktop-mode.my-wordpress.preview-actions',
+			'os.my-wordpress.preview-actions',
 			'test/wire',
 			( actions: MediaPreviewAction[] ) =>
 				actions.map( ( a ) =>
@@ -161,7 +161,7 @@ describe( 'media-preview', () => {
 		document.body.appendChild( host );
 		const slots: string[] = [];
 		window.wp!.hooks!.addAction(
-			'desktop-mode.my-wordpress.preview-extras',
+			'os.my-wordpress.preview-extras',
 			'test/extras',
 			( ctx: { slot: string } ) => {
 				slots.push( ctx.slot );

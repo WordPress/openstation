@@ -27,7 +27,7 @@ renderer that ignores the hooks still works), but it's the social
 contract that keeps the ecosystem composable. Plugin authors who
 write a rail renderer get the hook surface for free by emitting
 the same `applyFilters` / `doAction` calls — or by using the
-`wp.desktop.applyTileClasses` / `applyTileElement` /
+`wp.os.applyTileClasses` / `applyTileElement` /
 `applyTileTooltip` / `dispatchTileRendered` helpers.
 
 **Rail renderer is the radical layer.** It owns the rail's
@@ -75,7 +75,7 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'aurora-dock',
         plugin_dir_url( __FILE__ ) . 'aurora-dock.js',
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
@@ -83,16 +83,16 @@ add_action( 'admin_enqueue_scripts', function () {
 } );
 
 // Live-syncs the script on plugin activate / deactivate.
-desktop_mode_register_dock_rail_renderer_script( 'aurora-dock' );
+openstation_register_dock_rail_renderer_script( 'aurora-dock' );
 ```
 
 ```js
 // aurora-dock.js
-wp.desktop.ready( () => {
+wp.os.ready( () => {
     // 1. Decoration: glowing classNames on plugin tiles regardless
     //    of which rail renderer is active.
-    wp.desktop.hooks.addFilter(
-        'desktop-mode.dock.tile-class',
+    wp.os.hooks.addFilter(
+        'os.dock.tile-class',
         'aurora-dock/glow',
         ( classes, ctx ) => {
             if ( ! ctx.isSystem && ! ctx.item.isCore ) {
@@ -103,7 +103,7 @@ wp.desktop.ready( () => {
     );
 
     // 2. Rail renderer: a curved arc.
-    wp.desktop.registerDockRailRenderer( {
+    wp.os.registerDockRailRenderer( {
         id:    'aurora-arc',
         label: 'Aurora Arc',
         owner: 'aurora-dock',  // matches the PHP script handle
@@ -112,7 +112,7 @@ wp.desktop.ready( () => {
 } );
 ```
 
-The user picks `Aurora Arc` in OS Settings → Appearance → Dock
+The user picks `Aurora Arc` in OpenStation Preferences → Appearance → Dock
 style. The glow decoration applies regardless. If the plugin is
 deactivated, the rail renderer sweeps away (matching `owner:
 'aurora-dock'`) and the user falls back to the shipped baseline
@@ -124,11 +124,11 @@ hook bus until the next full page load.
 ## Live registration on plugin activation
 
 Both layers support live registration without an F5. Same pattern
-WordPress plugins already know from commands and OS Settings tabs:
+WordPress plugins already know from commands and OpenStation Preferences tabs:
 
 | Registry | PHP helper |
 |---|---|
-| Dock rail renderer | `desktop_mode_register_dock_rail_renderer_script( $handle )` |
+| Dock rail renderer | `openstation_register_dock_rail_renderer_script( $handle )` |
 | Decoration hooks | None needed — plugins call `wp.hooks.addFilter()` from any boot path; the hook bus is global. |
 
 ```php
@@ -137,20 +137,20 @@ add_action( 'admin_enqueue_scripts', function () {
     wp_register_script(
         'my-plugin-rail',
         plugins_url( 'js/rail.js', __FILE__ ),
-        array( 'desktop-mode' ),
+        array( 'openstation' ),
         '1.0.0',
         true
     );
     wp_enqueue_script( 'my-plugin-rail' );
 } );
-desktop_mode_register_dock_rail_renderer_script( 'my-plugin-rail' );
+openstation_register_dock_rail_renderer_script( 'my-plugin-rail' );
 ```
 
 ```js
 // In the registered script — match `owner` to the script handle so
 // deactivation auto-unregisters the renderer.
-wp.desktop.ready( () => {
-    wp.desktop.registerDockRailRenderer( {
+wp.os.ready( () => {
+    wp.os.registerDockRailRenderer( {
         id:    'my-ring',
         label: 'Ring',
         owner: 'my-plugin-rail',
@@ -191,24 +191,24 @@ to a specific layer reaches for these instead of DOM scraping. All
 
 | API | Returns | Use it for |
 |---|---|---|
-| `wp.desktop.openOsSettings( opts? )` | `void` | Portable opener for the shell's OS Settings window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OS Settings tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
-| `wp.desktop.listSystemTiles()` | `Array<{ id, title, icon, affinity }>` | Enumerate every JS-registered system tile (OS Settings, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
-| `wp.desktop.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
-| `wp.desktop.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
-| `wp.desktop.deriveWindowId( url )` | `string` | The same id the default renderer uses to open a tile. Custom renderers that build their own window configs use this so switching renderer mid-session preserves open windows. |
+| `wp.os.openOsSettings( opts? )` | `void` | Portable opener for the shell's OpenStation Preferences window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OpenStation Preferences tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
+| `wp.os.listSystemTiles()` | `Array<{ id, title, icon, affinity, placeable }>` | Enumerate every JS-registered system tile (OpenStation Preferences, Mio toggle, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
+| `wp.os.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
+| `wp.os.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
+| `wp.os.deriveWindowId( url )` | `string` | The same id the default renderer uses to open a tile. Custom renderers that build their own window configs use this so switching renderer mid-session preserves open windows. |
 
 ```js
 // Open a known system tile from anywhere — no DOM scraping.
-wp.desktop.getSystemTile( 'desktop-mode-os-settings' )?.onOpen();
+wp.os.getSystemTile( 'os-settings' )?.onOpen();
 
-// Or the dedicated entry point for OS Settings:
-wp.desktop.openOsSettings();
+// Or the dedicated entry point for OpenStation Preferences:
+wp.os.openOsSettings();
 
 // Deep-link straight to a specific settings tab:
-wp.desktop.openOsSettings( { tabId: 'ai' } );
+wp.os.openOsSettings( { tabId: 'ai' } );
 
 // Iterate all system tiles for a custom launcher.
-for ( const tile of wp.desktop.listSystemTiles() ) {
+for ( const tile of wp.os.listSystemTiles() ) {
     console.log( tile.id, tile.title );
 }
 ```

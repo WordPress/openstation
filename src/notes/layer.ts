@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Pinned notes layer.
+ * OpenStation — Pinned notes layer.
  *
  * Renders `wpd_note` posts as paper notes pinned to the wallpaper.
  * Modeled on the sticky-notes layer (`src/sticky-notes/layer.ts`) but
@@ -14,11 +14,11 @@
  */
 
 import { __, sprintf } from '../i18n';
-import '../ui/components/wpd-avatar/wpd-avatar';
-import '../ui/components/wpd-save-status/wpd-save-status';
-import '../ui/components/wpd-textarea/wpd-textarea';
-import '../ui/components/wpd-window-button/wpd-window-button';
-import { wpdConfirm } from '../wpd-confirm';
+import '../ui/components/os-avatar/os-avatar';
+import '../ui/components/os-save-status/os-save-status';
+import '../ui/components/os-textarea/os-textarea';
+import '../ui/components/os-window-button/os-window-button';
+import { osConfirm } from '../os-confirm';
 import { DRAG_EVENTS } from '../drag';
 import type { DragManagerApi } from '../drag';
 import { nextNoteColor, sanitizeNoteColorSlug } from './colors';
@@ -55,14 +55,14 @@ const Z_SAVE_DEBOUNCE_MS = 800;
 const KEYBOARD_STEP_PX = 10;
 const KEYBOARD_FINE_STEP_PX = 1;
 
-type WpdTextareaElement = HTMLElement & { focusInput?: () => void };
+type OsTextareaElement = HTMLElement & { focusInput?: () => void };
 
 function getDragManager(): DragManagerApi | null {
 	const api = (
 		window as unknown as {
-			wp?: { desktop?: { dragManager?: DragManagerApi } };
+			wp?: { os?: { dragManager?: DragManagerApi } };
 		}
-	).wp?.desktop?.dragManager;
+	).wp?.os?.dragManager;
 	return api ?? null;
 }
 
@@ -127,7 +127,7 @@ export class NotesLayer {
 			// on the wallpaper; log for the debugging session.
 			if ( error instanceof Error ) {
 				// eslint-disable-next-line no-console
-				console.debug( '[desktop-mode] Pinned notes unavailable:', error.message );
+				console.debug( '[openstation] Pinned notes unavailable:', error.message );
 			}
 		}
 	}
@@ -324,10 +324,10 @@ export class NotesLayer {
 			return this.root;
 		}
 		const root = document.createElement( 'section' );
-		root.className = 'desktop-mode-notes';
+		root.className = 'os-notes';
 		root.setAttribute( 'aria-label', __( 'Pinned notes', 'desktop-mode' ) );
 		const live = document.createElement( 'div' );
-		live.className = 'desktop-mode-notes__live screen-reader-text';
+		live.className = 'os-notes__live screen-reader-text';
 		live.setAttribute( 'aria-live', 'polite' );
 		root.appendChild( live );
 		this.host.appendChild( root );
@@ -350,7 +350,7 @@ export class NoteController {
 	private layer: NotesLayer;
 	private paperEl: HTMLElement;
 	private pinEl: HTMLElement;
-	private editor: WpdTextareaElement | null = null;
+	private editor: OsTextareaElement | null = null;
 	private statusEl: HTMLElement | null = null;
 	private colorDot: HTMLButtonElement | null = null;
 	private visibilityBtn: HTMLElement | null = null;
@@ -391,7 +391,7 @@ export class NoteController {
 
 	private paint(): void {
 		const note = this.note;
-		this.element.className = 'desktop-mode-pinned-note';
+		this.element.className = 'os-pinned-note';
 		this.element.dataset.noteId = String( note.id );
 		this.element.dataset.noteColor = sanitizeNoteColorSlug( note.color );
 		this.element.dataset.owner = note.canEdit ? 'me' : 'other';
@@ -414,7 +414,7 @@ export class NoteController {
 		this.element.style.setProperty( '--dm-pin-rot', `${ this.jitter.pinRotation }deg` );
 
 		// The pin — drag handle for the owner, scenery for viewers.
-		this.pinEl.className = 'desktop-mode-pinned-note__pin';
+		this.pinEl.className = 'os-pinned-note__pin';
 		this.pinEl.appendChild( buildPinImage( this.layer.pluginUrl ) );
 		if ( note.canEdit ) {
 			this.pinEl.setAttribute( 'type', 'button' );
@@ -447,7 +447,7 @@ export class NoteController {
 		}
 
 		// The paper.
-		this.paperEl.className = 'desktop-mode-pinned-note__paper';
+		this.paperEl.className = 'os-pinned-note__paper';
 		if ( note.canEdit ) {
 			this.paintOwnerPaper();
 		} else {
@@ -459,20 +459,20 @@ export class NoteController {
 
 	private paintOwnerPaper(): void {
 		const meta = document.createElement( 'div' );
-		meta.className = 'desktop-mode-pinned-note__meta';
+		meta.className = 'os-pinned-note__meta';
 
 		const colorDot = document.createElement( 'button' );
 		colorDot.type = 'button';
-		colorDot.className = 'desktop-mode-pinned-note__color-dot';
+		colorDot.className = 'os-pinned-note__color-dot';
 		this.colorDot = colorDot;
 		this.refreshColorDot();
 		colorDot.addEventListener( 'click', () => this.cycleColor() );
 
-		const visibility = document.createElement( 'wpd-window-button' );
-		visibility.className = 'desktop-mode-pinned-note__visibility';
+		const visibility = document.createElement( 'os-window-button' );
+		visibility.className = 'os-pinned-note__visibility';
 		this.visibilityBtn = visibility;
 		this.refreshVisibility();
-		visibility.addEventListener( 'wpd-button-activate', () =>
+		visibility.addEventListener( 'os-button-activate', () =>
 			this.togglePublic(),
 		);
 
@@ -483,21 +483,21 @@ export class NoteController {
 		// opens the block editor. The pin can also be dragged onto the
 		// Posts dock tile for the same effect (see posts-drop-target.ts).
 		if ( this.layer.canCreatePosts ) {
-			const convert = document.createElement( 'wpd-window-button' );
-			convert.className = 'desktop-mode-pinned-note__convert';
+			const convert = document.createElement( 'os-window-button' );
+			convert.className = 'os-pinned-note__convert';
 			convert.innerHTML = ICON_POST;
 			const convertLabel = __( 'Convert to a draft post', 'desktop-mode' );
 			convert.setAttribute( 'title', convertLabel );
 			// Icon-only button — give screen readers an accessible name.
 			convert.setAttribute( 'aria-label', convertLabel );
-			convert.addEventListener( 'wpd-button-activate', () =>
+			convert.addEventListener( 'os-button-activate', () =>
 				this.layer.convertNote( this.note ),
 			);
 			meta.append( convert );
 		}
 
-		const editor = document.createElement( 'wpd-textarea' ) as WpdTextareaElement;
-		editor.className = 'desktop-mode-pinned-note__editor';
+		const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
+		editor.className = 'os-pinned-note__editor';
 		editor.setAttribute( 'aria-label', __( 'Note text', 'desktop-mode' ) );
 		editor.setAttribute( 'rows', '5' );
 		editor.setAttribute( 'auto-grow', '' );
@@ -508,21 +508,21 @@ export class NoteController {
 		[ 'keydown', 'keypress', 'keyup' ].forEach( ( eventName ) => {
 			editor.addEventListener( eventName, ( event ) => event.stopPropagation() );
 		} );
-		editor.addEventListener( 'wpd-input-change', ( event ) => {
+		editor.addEventListener( 'os-input-change', ( event ) => {
 			const detail = ( event as CustomEvent< { value: string } > ).detail;
 			this.pendingText = detail.value;
 			this.setPhase( 'pending' );
 			this.scheduleSave();
 		} );
-		editor.addEventListener( 'wpd-input-commit', () => this.flushSave() );
+		editor.addEventListener( 'os-input-commit', () => this.flushSave() );
 		this.editor = editor;
 
 		const footer = document.createElement( 'div' );
-		footer.className = 'desktop-mode-pinned-note__footer';
-		const status = document.createElement( 'wpd-save-status' );
+		footer.className = 'os-pinned-note__footer';
+		const status = document.createElement( 'os-save-status' );
 		status.setAttribute( 'mode', 'icon' );
 		status.setAttribute( 'phase', 'idle' );
-		status.className = 'desktop-mode-pinned-note__status';
+		status.className = 'os-pinned-note__status';
 		this.statusEl = status;
 		footer.appendChild( status );
 
@@ -531,24 +531,24 @@ export class NoteController {
 
 	private paintViewerPaper(): void {
 		const body = document.createElement( 'div' );
-		body.className = 'desktop-mode-pinned-note__body';
+		body.className = 'os-pinned-note__body';
 		body.textContent = this.note.text;
 
 		const chip = document.createElement( 'div' );
-		chip.className = 'desktop-mode-pinned-note__attribution';
+		chip.className = 'os-pinned-note__attribution';
 		chip.title = sprintf(
 			/* translators: %s: note author display name. */
 			__( 'Pinned by %s', 'desktop-mode' ),
 			this.note.ownerName,
 		);
-		const avatar = document.createElement( 'wpd-avatar' );
+		const avatar = document.createElement( 'os-avatar' );
 		avatar.setAttribute( 'size', '20' );
 		avatar.setAttribute( 'name', this.note.ownerName );
 		if ( this.note.ownerAvatar ) {
 			avatar.setAttribute( 'src', this.note.ownerAvatar );
 		}
 		const name = document.createElement( 'span' );
-		name.className = 'desktop-mode-pinned-note__attribution-name';
+		name.className = 'os-pinned-note__attribution-name';
 		name.textContent = this.note.ownerName;
 		chip.append( avatar, name );
 
@@ -637,7 +637,7 @@ export class NoteController {
 			this.refreshVisibility();
 		} else {
 			const body = this.paperEl.querySelector(
-				'.desktop-mode-pinned-note__body',
+				'.os-pinned-note__body',
 			);
 			if ( body ) {
 				body.textContent = note.text;
@@ -839,7 +839,7 @@ export class NoteController {
 				}
 				this.setPhase( 'failed' );
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] notes: save failed:', err );
+				console.error( '[openstation] notes: save failed:', err );
 			}
 		} );
 	}
@@ -924,19 +924,19 @@ export class NoteController {
 		const tipY = pinRect.top - noteRect.top + pinRect.height * PIN_TIP_Y;
 
 		const root = document.createElement( 'div' );
-		root.className = 'desktop-mode-pinned-note-ghost';
+		root.className = 'os-pinned-note-ghost';
 		root.style.width = `${ noteRect.width }px`;
 		root.style.height = `${ noteRect.height }px`;
 
 		const swing = document.createElement( 'div' );
-		swing.className = 'desktop-mode-pinned-note-ghost__swing';
+		swing.className = 'os-pinned-note-ghost__swing';
 		swing.style.transformOrigin = `${ tipX }px ${ tipY }px`;
 
 		const pin = this.pinEl.cloneNode( true ) as HTMLElement;
 		pin.removeAttribute( 'aria-pressed' );
 		pin.setAttribute( 'aria-hidden', 'true' );
 		const paper = this.paperEl.cloneNode( true ) as HTMLElement;
-		paper.classList.add( 'desktop-mode-pinned-note-ghost__paper' );
+		paper.classList.add( 'os-pinned-note-ghost__paper' );
 		// Carry the pastel binding onto the detached clone.
 		swing.dataset.noteColor = this.element.dataset.noteColor ?? '';
 
@@ -969,14 +969,14 @@ export class NoteController {
 		const onEnter = ( ev: Event ): void => {
 			const detail = ( ev as CustomEvent< { targetId?: string } > ).detail;
 			if ( detail?.targetId?.startsWith( 'recycle-bin' ) ) {
-				ghost.root.classList.add( 'desktop-mode-pinned-note-ghost--doom' );
+				ghost.root.classList.add( 'os-pinned-note-ghost--doom' );
 				pendulum?.setBias( 6 );
 			}
 		};
 		const onLeave = ( ev: Event ): void => {
 			const detail = ( ev as CustomEvent< { targetId?: string } > ).detail;
 			if ( detail?.targetId?.startsWith( 'recycle-bin' ) ) {
-				ghost.root.classList.remove( 'desktop-mode-pinned-note-ghost--doom' );
+				ghost.root.classList.remove( 'os-pinned-note-ghost--doom' );
 				pendulum?.setBias( 0 );
 			}
 		};
@@ -1009,7 +1009,7 @@ export class NoteController {
 		// The manager already disposed its ghost — fly a fresh visual
 		// clone home, then re-seat the pin on the real note.
 		const flyback = this.buildGhost();
-		flyback.root.classList.add( 'desktop-mode-pinned-note-ghost--flyback' );
+		flyback.root.classList.add( 'os-pinned-note-ghost--flyback' );
 		flyback.root.style.position = 'fixed';
 		flyback.root.style.left = `${ this.lastPointer.x - flyback.tipX }px`;
 		flyback.root.style.top = `${ this.lastPointer.y - flyback.tipY }px`;
@@ -1032,7 +1032,7 @@ export class NoteController {
 	/** Crumple visual played by the bin drop handler at the release point. */
 	async playCrumpleAt( clientX: number, clientY: number ): Promise< void > {
 		const ghost = this.buildGhost();
-		ghost.root.classList.add( 'desktop-mode-pinned-note-ghost--flyback' );
+		ghost.root.classList.add( 'os-pinned-note-ghost--flyback' );
 		ghost.root.style.position = 'fixed';
 		ghost.root.style.left = `${ clientX - ghost.tipX }px`;
 		ghost.root.style.top = `${ clientY - ghost.tipY }px`;
@@ -1070,11 +1070,11 @@ export class NoteController {
 		}
 		this.moveMode = true;
 		this.moveOrigin = { x: this.note.x, y: this.note.y };
-		this.element.classList.add( 'desktop-mode-pinned-note--move-mode' );
+		this.element.classList.add( 'os-pinned-note--move-mode' );
 		this.pinEl.setAttribute( 'aria-pressed', 'true' );
 		this.layer.announce(
 			__(
-				'Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Recycle Bin.',
+				'Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Trash.',
 				'desktop-mode',
 			),
 		);
@@ -1085,7 +1085,7 @@ export class NoteController {
 			return;
 		}
 		this.moveMode = false;
-		this.element.classList.remove( 'desktop-mode-pinned-note--move-mode' );
+		this.element.classList.remove( 'os-pinned-note--move-mode' );
 		this.pinEl.setAttribute( 'aria-pressed', 'false' );
 		if ( commit ) {
 			this.moveTo( this.note.x, this.note.y );
@@ -1132,9 +1132,9 @@ export class NoteController {
 			case 'Delete':
 			case 'Backspace':
 				this.exitMoveMode( false );
-				void wpdConfirm( {
-					title: __( 'Move note to the Recycle Bin?', 'desktop-mode' ),
-					message: __( 'You can restore it from the Recycle Bin later.', 'desktop-mode' ),
+				void osConfirm( {
+					title: __( 'Move note to the Trash?', 'desktop-mode' ),
+					message: __( 'You can restore it from the Trash later.', 'desktop-mode' ),
 					confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
 					danger: true,
 				} ).then( ( confirmed ) => {

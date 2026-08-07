@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200" role="img" aria-label="Desktop Mode (Legacy)">
+	<!--
+		The theme previewing itself: every colour below is one of the
+		tokens this manifest declares, at the value it declares.
+
+		desk       os-bg
+		dock       os-dock-bg / dock-border / dock-icon-color
+		window     os-window-bg / window-border / window-radius
+		title bar  os-titlebar-bg / titlebar-color
+		controls   os-titlebar-btn-color
+		body       os-fg / os-fg-muted / os-border / os-accent
+
+		XML comments cannot carry a double hyphen, so the token names
+		above are written without their leading dashes.
+	-->
+	<defs>
+		<linearGradient id="desk" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#1d2327"/>
+			<stop offset="50%" stop-color="#2c3338"/>
+			<stop offset="100%" stop-color="#1d2327"/>
+		</linearGradient>
+	</defs>
+
+	<rect width="320" height="200" fill="url(#desk)"/>
+
+	<!-- Dock -->
+	<rect x="0" y="0" width="34" height="200" fill="#000" fill-opacity="0.4"/>
+	<line x1="34.5" y1="0" x2="34.5" y2="200" stroke="#fff" stroke-opacity="0.08"/>
+	<g fill="#fff" fill-opacity="0.7">
+		<rect x="11" y="16" width="12" height="12" rx="2"/>
+		<rect x="11" y="38" width="12" height="12" rx="2"/>
+		<rect x="11" y="60" width="12" height="12" rx="2"/>
+		<rect x="11" y="82" width="12" height="12" rx="2"/>
+	</g>
+
+	<!-- Window -->
+	<g>
+		<rect x="58" y="34" width="230" height="132" rx="8" fill="#fff" stroke="#000" stroke-opacity="0.12"/>
+		<path d="M58 42a8 8 0 0 1 8-8h214a8 8 0 0 1 8 8v18H58z" fill="#f0f0f1"/>
+		<line x1="58" y1="60.5" x2="288" y2="60.5" stroke="#000" stroke-opacity="0.1"/>
+		<g fill="#000" fill-opacity="0.45">
+			<rect x="258" y="45" width="8" height="1.5" rx="0.75"/>
+			<rect x="268" y="42" width="7" height="7" rx="1" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="1.5"/>
+			<path d="M278.5 42.5l6 6m0-6l-6 6" stroke="#000" stroke-opacity="0.45" stroke-width="1.5" fill="none"/>
+		</g>
+		<text x="70" y="51" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#50575e">Desktop Mode (Legacy)</text>
+
+		<!-- Body -->
+		<rect x="70" y="74" width="96" height="9" rx="2" fill="#1d2327"/>
+		<rect x="70" y="92" width="206" height="6" rx="2" fill="#50575e" fill-opacity="0.55"/>
+		<rect x="70" y="105" width="182" height="6" rx="2" fill="#50575e" fill-opacity="0.55"/>
+		<line x1="70" y1="124.5" x2="276" y2="124.5" stroke="#dcdcde"/>
+		<rect x="70" y="136" width="62" height="18" rx="5" fill="#2271b1"/>
+		<rect x="140" y="136" width="62" height="18" rx="5" fill="none" stroke="#dcdcde"/>
+	</g>
+</svg>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Native Users Window: last-login tracker.
+ * OpenStation — Native Users Window: last-login tracker.
  *
  * Hooks `wp_login` to record the timestamp of every successful
  * login as `_desktop_mode_last_login_at` user meta (a UTC unix
@@ -15,7 +15,7 @@
  *
  *   $ts = (int) get_user_meta( $user_id, '_desktop_mode_last_login_at', true );
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,8 +24,14 @@ defined( 'ABSPATH' ) || exit;
  * The user meta key carrying the last successful login's UTC unix
  * timestamp. Public surface — exposed so other plugins can read /
  * sort by it.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
-const DESKTOP_MODE_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
+const OPENSTATION_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
 
 /**
  * Record the login timestamp on every `wp_login` action.
@@ -38,7 +44,7 @@ const DESKTOP_MODE_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
  * @param string  $user_login Login of the user (unused).
  * @param WP_User $user       The user object.
  */
-function desktop_mode_users_window_record_login( $user_login, $user = null ) {
+function openstation_users_window_record_login( $user_login, $user = null ) {
 	$user_id = 0;
 	if ( $user instanceof WP_User ) {
 		$user_id = (int) $user->ID;
@@ -53,7 +59,7 @@ function desktop_mode_users_window_record_login( $user_login, $user = null ) {
 		return;
 	}
 
-	update_user_meta( $user_id, DESKTOP_MODE_LAST_LOGIN_META_KEY, time() );
+	update_user_meta( $user_id, OPENSTATION_LAST_LOGIN_META_KEY, time() );
 
 	/**
 	 * Fires after the last-login meta has been written. Lets plugins
@@ -63,6 +69,6 @@ function desktop_mode_users_window_record_login( $user_login, $user = null ) {
 	 * @param int $user_id   User id whose login was recorded.
 	 * @param int $timestamp Unix timestamp written.
 	 */
-	do_action( 'desktop_mode_users_window_login_recorded', $user_id, time() );
+	do_action( 'openstation_users_window_login_recorded', $user_id, time() );
 }
-add_action( 'wp_login', 'desktop_mode_users_window_record_login', 10, 2 );
+add_action( 'wp_login', 'openstation_users_window_record_login', 10, 2 );

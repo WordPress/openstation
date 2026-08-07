@@ -7,7 +7,7 @@
 > spec wins on any disagreement. The topology-invariance guarantees below
 > are enforced by `tests/vitest/living-tree-invariance.test.ts`.
 
-The Living Tree is an animated desktop wallpaper (Desktop Mode) that renders
+The Living Tree is an animated desktop wallpaper (OpenStation) that renders
 the site as a **living plant organism**. Its shape is the visual fingerprint
 of the site's life: a tree that grows from the ground up, with **leaves**
 (posts), **blossom** (comments), **meadow wildflowers** (categories),
@@ -382,8 +382,8 @@ list. The client turns the snapshot into hormones and never sees
 individual rows.
 
 Permission defaults to `current_user_can( 'read' )`, filterable via
-`desktop_mode_living_tree_user_can_use`. The response is cached in a transient
-(`desktop_mode_living_tree_*`, TTL 6h, keyed by a content signature;
+`openstation_living_tree_user_can_use`. The response is cached in a transient
+(`openstation_living_tree_*`, TTL 6h, keyed by a content signature;
 invalidated on `save_post` / `deleted_post` / `comment_post`).
 
 ---
@@ -429,8 +429,8 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   to read, so PHP serves a healthy 0.7 default — the planned future
   source is aggregating the per-post scores SEO plugins keep in
   post-meta. Both pass through their
-  `desktop_mode_living_tree_seo_health` /
-  `desktop_mode_living_tree_performance` filters so monitoring / SEO
+  `openstation_living_tree_seo_health` /
+  `openstation_living_tree_performance` filters so monitoring / SEO
   plugins can feed real telemetry in.
 - **Time-of-day sky.** The backdrop tracks the viewer's LOCAL clock
   through a 24-hour cycle (`src/plugins/living-tree-wallpaper/sky.ts`):
@@ -440,9 +440,9 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   whole tree at night and brightens it by day; fireflies run the opposite
   way (bright at night, invisible in daylight). `skyForTime()` is pure;
   `new Date()` is read only at the scene boundary. Debug override:
-  `window.desktopModeLivingTreeHourOverride = <0..24>` forces a specific
+  `window.openStationLivingTreeHourOverride = <0..24>` forces a specific
   hour.
-- **Hidden DNA tuner (developer mode only).** With *OS Settings →
+- **Hidden DNA tuner (developer mode only).** With *OpenStation Preferences →
   Features → Enable developer mode* ON, clicking the trunk **20 times**
   (gaps under 2.5 s) opens a slider panel over every snapshot metric —
   age, posts, pages, terms, comments, presence, traffic, health,

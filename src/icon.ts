@@ -12,8 +12,11 @@
  * Recognised shapes (in resolution order):
  *
  *   1. `'dashicons-…'`             → `<span class="dashicons dashicons-…">`
- *   2. `'data:image/svg+xml;base64,…'` → `<span>` with the SVG as a
- *      CSS background-image (the safe path; SVG-as-background can't
+ *   2. `'data:image/svg+xml;base64,…'` → `<span>`. Art drawn in
+ *      `currentColor` is painted as a CSS mask so it takes the
+ *      surface's text colour (white on a dark dock, dark on a light
+ *      title bar); everything else is painted as a CSS
+ *      background-image (the safe path; SVG-as-background can't
  *      execute scripts).
  *   3. `'data:image/(png|jpeg|gif|webp|x-icon|…);base64,…'` → `<img>`.
  *      Used by the favicon resolver to paint a downloaded favicon
@@ -29,6 +32,52 @@
 import { hashTitleToHue } from './ui/util/hash-hue';
 import { resolveThemedIcon, resolveThemedIconColor } from './desktop-themes/icons';
 import { applyIconMask } from './desktop-themes/paint-tinted-icon';
+
+const SVG_URI_PREFIX = 'data:image/svg+xml;base64,';
+
+/**
+ * Memo for {@link isSilhouetteSvg}. Icons re-render on every dock and
+ * wallpaper repaint, and the answer for a given URI never changes.
+ */
+const silhouetteCache = new Map< string, boolean >();
+
+/**
+ * Whether a base64 SVG data URI is a *silhouette* — art drawn in
+ * `currentColor` rather than in fixed colours.
+ *
+ * The art declares its own intent. There is no registration flag to
+ * keep in sync, and no way for the declaration to disagree with the
+ * drawing, because it IS the drawing: an SVG that names
+ * `currentColor` is asking to be filled by whatever surface it lands
+ * on, and the only rendering path that can honour that is the mask.
+ *
+ * Fixed-colour art (the Games icons, a plugin's brand mark) contains
+ * no `currentColor` and keeps the background-image path, unchanged.
+ */
+function isSilhouetteSvg( icon: string ): boolean {
+	const cached = silhouetteCache.get( icon );
+	if ( cached !== undefined ) {
+		return cached;
+	}
+
+	let silhouette = false;
+	try {
+		silhouette = atob( icon.slice( SVG_URI_PREFIX.length ) ).includes(
+			'currentColor',
+		);
+	} catch {
+		// Malformed base64 despite the charset check (bad padding).
+		// Not a silhouette; the caller paints it the ordinary way.
+	}
+
+	// Bound the memo — a site with a long tail of plugin icons should
+	// not grow it without limit. Clearing costs one re-decode.
+	if ( silhouetteCache.size >= 256 ) {
+		silhouetteCache.clear();
+	}
+	silhouetteCache.set( icon, silhouette );
+	return silhouette;
+}
 
 export interface RenderIconOptions {
 	/**
@@ -113,23 +162,34 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 		// value) — fall through and paint it the ordinary way.
 	}
 
-	// 2. Inline SVG data URI — paint as background-image. We re-validate
-	// the base64 payload shape because icons registered from JS skip the
-	// PHP sanitizer.
+	// 2. Inline SVG data URI. Silhouette art paints as a mask, fixed-
+	// colour art as a background-image. We re-validate the base64
+	// payload shape because icons registered from JS skip the PHP
+	// sanitizer.
 	if (
 		typeof icon === 'string' &&
 		icon.startsWith( 'data:image/svg+xml;base64,' )
 	) {
-		const base64Part = icon.slice( 'data:image/svg+xml;base64,'.length );
+		const base64Part = icon.slice( SVG_URI_PREFIX.length );
 		if ( /^[A-Za-z0-9+/=]+$/.test( base64Part ) ) {
 			const el = document.createElement( 'span' );
 			el.className = className;
 			el.setAttribute( 'aria-hidden', 'true' );
+			el.style.display = 'inline-block';
+
+			// A background-image cannot inherit colour, so art drawn in
+			// `currentColor` would paint black — invisible on a dark
+			// dock. Painted as a mask it takes the surface's text
+			// colour instead, which is the only reason to draw it that
+			// way. Falls through if the browser refuses the mask.
+			if ( isSilhouetteSvg( icon ) && applyIconMask( el, icon, 'currentColor' ) ) {
+				return el;
+			}
+
 			el.style.backgroundImage = `url("${ icon }")`;
 			el.style.backgroundRepeat = 'no-repeat';
 			el.style.backgroundPosition = 'center';
 			el.style.backgroundSize = 'contain';
-			el.style.display = 'inline-block';
 			return el;
 		}
 		// Malformed — fall through.
@@ -161,7 +221,7 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 	// 5. Letter-badge fallback. Picks the first two letters of the
 	// title (or the first if the title is one word / one character).
 	const span = document.createElement( 'span' );
-	span.className = `${ className } desktop-mode-icon-letter`.trim();
+	span.className = `${ className } os-icon-letter`.trim();
 	span.setAttribute( 'aria-hidden', 'true' );
 	const letters = letterFromTitle( title );
 	span.textContent = letters;

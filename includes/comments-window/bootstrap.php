@@ -1,28 +1,28 @@
 <?php
 /**
- * Desktop Mode — Native Comments Window module bootstrap.
+ * OpenStation — Native Comments Window module bootstrap.
  *
  * Replaces the classic `edit-comments.php` iframe with a native
- * desktop window driven by `<wpd-table>` and core's `/wp/v2/comments`
+ * desktop window driven by `<os-table>` and core's `/wp/v2/comments`
  * REST endpoint, behind a per-user opt-in
  * (`OsSettingsState.nativeCommentsEnabled`, surfaced as the "Use the
  * native Comments window" toggle in OS Settings → Features).
  *
  * Public PHP surface (all filterable):
  *
- *   - desktop_mode_comments_window_user_can_register
- *   - desktop_mode_comments_window_user_can_use
- *   - desktop_mode_comments_window_args
- *   - desktop_mode_comments_window_template_html
- *   - desktop_mode_comments_window_query_args
- *   - desktop_mode_comments_window_spam_score
- *   - desktop_mode_comments_window_reply_editor
+ *   - openstation_comments_window_user_can_register
+ *   - openstation_comments_window_user_can_use
+ *   - openstation_comments_window_args
+ *   - openstation_comments_window_template_html
+ *   - openstation_comments_window_query_args
+ *   - openstation_comments_window_spam_score
+ *   - openstation_comments_window_reply_editor
  *
  * The URL-remap swap (Comments tile → native window when opt-in is
  * on) is implemented JS-side in `src/desktop.ts` via
  * `registerNativeUrlRemap`.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;

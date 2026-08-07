@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — built-in JS openers for the built-in file types.
+ * OpenStation — built-in JS openers for the built-in file types.
  *
  * Mirrors `includes/desktop-files/built-in-openers.php` — same
  * ids, same labels, same `isDefault` flags. The PHP side ships
@@ -8,15 +8,17 @@
  * any plugin code involved.
  *
  * Built around `adminUrl` from the shell config (read via
- * `wp.desktop.config`). The openers register on bundle boot
+ * `wp.os.config`). The openers register on bundle boot
  * with placeholder URL builders that read `adminUrl` lazily —
- * which means the openers are ready before `wp.desktop.config`
+ * which means the openers are ready before `wp.os.config`
  * exists, and the lookup happens at click time (when the shell
  * is fully booted).
  */
 
+import { __ } from '../i18n';
 import { registerOpener } from './openers';
 import type { DesktopFile } from './file';
+import { openAgentChatWindow } from '../agents-dispatch';
 import { mountFilesLayer } from './layer';
 import { mountFolderStatusBar } from './folder-status-bar';
 import { attachIconCanvasMenu } from '../icon-canvas/menu';
@@ -31,7 +33,11 @@ import {
 	GRID_PADDING,
 	snapToEmptyCell,
 } from './grid';
-import { renderPlacementPreview, renderPreviewEmpty } from './preview';
+import {
+	renderPlacementPreview,
+	renderPreviewEmpty,
+	renderSelectionSummary,
+} from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
 import { findMenuEntryForUrl } from './menu-entry';
@@ -42,7 +48,7 @@ interface ConfigShape {
 }
 
 function adminBase(): string {
-	const cfg = ( window.wp as { desktop?: { config?: ConfigShape } } | undefined )?.desktop?.config;
+	const cfg = ( window.wp as { os?: { config?: ConfigShape } } | undefined )?.os?.config;
 	const url = cfg?.adminUrl ?? '/wp-admin/';
 	return url.endsWith( '/' ) ? url : `${ url }/`;
 }
@@ -97,6 +103,41 @@ export function registerBuiltInFileOpeners(): void {
 			kind: 'url',
 			url: ( file: DesktopFile ) =>
 				`${ adminBase() }post.php?post=${ encodeURIComponent( file.ref() ) }&action=edit`,
+		},
+	} );
+
+	// Agent user tiles open the Agent chat, not the profile — the
+	// per-file predicate keeps this opener invisible to human users
+	// (and to the type-level default-apps settings). Registered
+	// before the profile opener so the default-flag scan (sort
+	// order) picks it for agents.
+	registerOpener( {
+		id: 'agent-chat',
+		label: __( 'Agent chat', 'desktop-mode' ),
+		types: [ 'user' ],
+		isDefault: true,
+		sort: 5,
+		appliesTo: ( file: DesktopFile ) =>
+			( file.shape as { isAgent?: boolean } ).isAgent === true,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const shape = file.shape as {
+					ref: string;
+					title: string;
+					previewUrl?: string;
+					agentDescription?: string;
+				};
+				openAgentChatWindow(
+					{
+						id: Number.parseInt( shape.ref, 10 ),
+						name: shape.title,
+						description: shape.agentDescription ?? '',
+						avatarUrl: shape.previewUrl ?? '',
+					},
+					'agents-open',
+				);
+			},
 		},
 	} );
 
@@ -175,18 +216,18 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! folderId ) {
 					return;
 				}
-				const wm = ( window.wp as { desktop?: { windowManager?: {
+				const wm = ( window.wp as { os?: { windowManager?: {
 					open: ( cfg: Record< string, unknown > ) => unknown;
-				} } } | undefined )?.desktop?.windowManager;
+				} } } | undefined )?.os?.windowManager;
 				if ( ! wm ) {
 					return;
 				}
-				const id = `desktop-mode-folder-${ folderId }`;
+				const id = `os-folder-${ folderId }`;
 				// Visual cue when the viewer is a recipient (not
 				// the folder's owner) — append "· Shared" to the
 				// title so it's clear this folder is collaborative.
 				const folderRow = filesStoreApi.getState().folders.get( folderId );
-				const viewerId = Number( window.desktopModeConfig?.currentUserId ?? 0 );
+				const viewerId = Number( window.openStationConfig?.currentUserId ?? 0 );
 				const isRecipient =
 					!! folderRow && folderRow.ownerId > 0 && folderRow.ownerId !== viewerId;
 				const baseTitle = file.title();
@@ -280,17 +321,17 @@ export function registerBuiltInFileOpeners(): void {
 							// is unified across folder surfaces.
 							const split = document.createElement( 'div' );
 							split.className =
-								'desktop-mode-folder-window__split';
+								'os-folder-window__split';
 							bodyHost.appendChild( split );
 
 							const layerHost = document.createElement( 'div' );
 							layerHost.className =
-								'desktop-mode-folder-window__layer';
+								'os-folder-window__layer';
 							split.appendChild( layerHost );
 
 							const previewPane = document.createElement( 'div' );
 							previewPane.className =
-								'desktop-mode-folder-window__preview';
+								'os-folder-window__preview';
 							previewPane.appendChild( renderPreviewEmpty() );
 							split.appendChild( previewPane );
 
@@ -299,16 +340,26 @@ export function registerBuiltInFileOpeners(): void {
 								layerHost,
 								route.folderId,
 							);
-							const offSelection = layer.onSelectionChange(
-								( placement ) => {
-									if ( ! placement ) {
+							// One subscription for the whole selection —
+							// the pane has three states, not two: empty,
+							// one item (preview it), several (say so and
+							// how they break down by type).
+							const offSelection = layer.onSelectionChanged(
+								( placements ) => {
+									if ( placements.length === 0 ) {
 										previewPane.replaceChildren(
 											renderPreviewEmpty(),
 										);
 										return;
 									}
+									if ( placements.length > 1 ) {
+										previewPane.replaceChildren(
+											renderSelectionSummary( placements ),
+										);
+										return;
+									}
 									renderPlacementPreview(
-										placement,
+										placements[ 0 ],
 										previewPane,
 									);
 								},
@@ -327,7 +378,7 @@ export function registerBuiltInFileOpeners(): void {
 									return;
 								}
 								const tile = e.target.closest< HTMLElement >(
-									'.desktop-mode-file-tile',
+									'.os-file-tile',
 								);
 								if ( ! tile ) {
 									return;
@@ -347,7 +398,7 @@ export function registerBuiltInFileOpeners(): void {
 								e.stopPropagation();
 								const subTitle =
 									tile.querySelector< HTMLElement >(
-										'.desktop-mode-file-tile__label',
+										'.os-file-tile__label',
 									)?.textContent ?? `#${ subId }`;
 								routes.push( {
 									folderId: subId,
@@ -362,14 +413,14 @@ export function registerBuiltInFileOpeners(): void {
 							);
 
 							// Same Sort By menu My WordPress uses — one
-							// `<wpd-context-menu>` recipe across every
+							// `<os-context-menu>` recipe across every
 							// icon canvas in the shell. The folder
 							// window also adds "New folder" as an
 							// extra entry so users can create sub-
 							// folders directly inside the active
 							// folder, matching the wallpaper's CMO.
 							const menu = attachIconCanvasMenu( layerHost, {
-								scope: `desktop-mode-folder:${ route.folderId }`,
+								scope: `os-folder:${ route.folderId }`,
 								onSort: ( mode ) => layer.sort( mode ),
 								extraItems: [
 									{
@@ -422,6 +473,16 @@ export function registerBuiltInFileOpeners(): void {
 							const status = mountFolderStatusBar(
 								bodyHost,
 								route.folderId,
+								{
+									selection: {
+										count: () =>
+											layer.getSelection().length,
+										subscribe: ( cb ) =>
+											layer.onSelectionChanged( () =>
+												cb(),
+											),
+									},
+								},
 							);
 
 							currentDispose = (): void => {
@@ -467,7 +528,7 @@ export function registerBuiltInFileOpeners(): void {
 					shortcutWindow?: string;
 					shortcutUrl?: string;
 				};
-				type WpDesktopShape = {
+				type OpenStationShape = {
 					openWindow?: ( id: string ) => unknown;
 					windowManager?: {
 						open: ( cfg: Record< string, unknown > ) => unknown;
@@ -475,8 +536,8 @@ export function registerBuiltInFileOpeners(): void {
 					config?: { adminUrl?: string };
 				};
 				const wp = ( window.wp as
-					| { desktop?: WpDesktopShape }
-					| undefined )?.desktop;
+					| { os?: OpenStationShape }
+					| undefined )?.os;
 				if ( ! wp ) {
 					return;
 				}

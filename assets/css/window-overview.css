@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Overview.
+ * OpenStation — Overview.
  *
  * Zoom-out grid view: windows transform into thumbnails, floating
  * labels sit above them, and a top bar lists every virtual desktop
@@ -20,14 +20,14 @@
  *
  * @since 6.9.0
  */
-.desktop-mode-area--overview {
+.os-area--overview {
 	/* Darken the backdrop and tint it so windows feel like they're
 	 * floating over a neutral canvas, not the wallpaper. */
-	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
 	transition: background-color 0.28s ease;
 }
 
-.desktop-mode-window--overview {
+.os-window--overview {
 	transform-origin: top left;
 	transition:
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -53,19 +53,27 @@
  * window's root element receives pointer events; our desktop-level
  * pointerdown/pointerup handlers drive selection from there.
  */
-.desktop-mode-window--overview * {
+.os-window--overview * {
 	pointer-events: none;
 }
 
-.desktop-mode-window--overview {
+.os-window--overview {
 	pointer-events: auto;
 }
 
-.desktop-mode-window--overview:hover {
+.os-window--overview:hover {
 	box-shadow:
 		0 14px 38px rgba( 0, 0, 0, 0.45 ),
 		0 0 0 3px var( --wp-admin-theme-color, #2271b1 );
 	z-index: 1;
+}
+
+/*
+ * Minimized windows shown in overview are rendered slightly dimmed
+ * so the user can distinguish them from active windows at a glance.
+ */
+.os-window--overview.os-window--minimized {
+	opacity: 0.6;
 }
 
 /*
@@ -76,8 +84,8 @@
  * Safari 15.4, Firefox 121+); older engines miss the dimming but
  * keep the accent-ring affordance, so it degrades gracefully.
  */
-.desktop-mode-area--overview:has( .desktop-mode-window--overview:hover )
-	.desktop-mode-window--overview:not( :hover ) {
+.os-area--overview:has( .os-window--overview:hover )
+	.os-window--overview:not( :hover ) {
 	opacity: 0.5;
 	filter: brightness( 0.75 );
 	transition:
@@ -100,7 +108,7 @@
  * overview, the dock keeps `overflow: visible` from dock.css so
  * per-tile "+ open another" chips can float past the edge.
  */
-.desktop-mode-dock {
+.os-dock {
 	transition:
 		width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
 		min-width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -114,9 +122,9 @@
  * Spatial layouts alike) when overview is active.
  *
  * The placement-specific width rules in dock.css —
- * `.desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
- *  { width: var( --desktop-mode-dock-width ); }` — share equal
- * specificity with `.desktop-mode-shell--overview .desktop-mode-dock`
+ * `.os-dock[ data-os-dock-placement="left" ]
+ *  { width: var( --os-dock-width ); }` — share equal
+ * specificity with `.os-shell--overview .os-dock`
  * (two classes / class+attr) and load LATER in the cascade, so
  * without `!important` the side rail keeps its placement width
  * and stays visible during overview. The bottom dock happens to
@@ -128,8 +136,8 @@
  * mode-scoped override (overview screen only) of a layout-mode
  * default, and we want it to win unconditionally.
  */
-.desktop-mode-shell--overview .desktop-mode-dock,
-.desktop-mode-shell--overview #desktop-mode-side-dock {
+.os-shell--overview .os-dock,
+.os-shell--overview #os-side-dock {
 	width: 0 !important;
 	min-width: 0 !important;
 	padding-inline: 0 !important;
@@ -147,9 +155,26 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-dock {
+	.os-dock {
 		transition-duration: 0.01ms;
 	}
+}
+
+/*
+ * Desktop shortcut icons & files-layer tiles —
+ * hidden during overview so they don't compete with window
+ * thumbnails or overlap them (especially noticeable with few
+ * windows or Spatial layout). Matches the fade-out pattern
+ * used by widgets and sticky notes. Scoped to DIRECT children
+ * of the desktop area only: folder windows mount their own
+ * files layer inside the window body, and that must stay
+ * visible in its thumbnail.
+ */
+.os-area--overview > .os-icons,
+.os-area--overview > .os-files-layer {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.22s ease;
 }
 
 /* ---------------------------------------------------------------
@@ -164,7 +189,7 @@
  * center-of-thumbnail alignment is handled via the label's
  * own flex + width set in JS to match the scaled thumbnail.
  * --------------------------------------------------------------- */
-.desktop-mode-overview-label {
+.os-overview-label {
 	position: absolute;
 	height: 28px;
 	display: flex;
@@ -172,7 +197,7 @@
 	justify-content: center;
 	gap: 6px;
 	padding: 0 10px;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1;
@@ -194,19 +219,19 @@
  * moving first, so labels appear to "catch up" rather than race
  * ahead of their windows.
  */
-.desktop-mode-area--overview .desktop-mode-overview-label {
+.os-area--overview .os-overview-label {
 	opacity: 1;
 	transform: translateY( 0 );
 }
 
 /* On exit, flip the animation off. */
-.desktop-mode-overview-label--out {
+.os-overview-label--out {
 	opacity: 0 !important;
 	transform: translateY( -4px ) !important;
 	transition-delay: 0s !important;
 }
 
-.desktop-mode-overview-label__icon {
+.os-overview-label__icon {
 	font-size: 16px;
 	width: 16px;
 	height: 16px;
@@ -215,12 +240,12 @@
 	opacity: 0.9;
 }
 
-.desktop-mode-overview-label__title {
+.os-overview-label__title {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-overview-label__meta {
+.os-overview-label__meta {
 	color: rgba( 255, 255, 255, 0.7 );
 	font-weight: 400;
 	flex-shrink: 0;
@@ -233,18 +258,18 @@
  * hovered window and keeps it bright; all other labels fall under
  * the `:has()` rule and dim.
  */
-.desktop-mode-area--overview:has( .desktop-mode-window--overview:hover )
-	.desktop-mode-overview-label {
+.os-area--overview:has( .os-window--overview:hover )
+	.os-overview-label {
 	opacity: 0.45;
 	transform: translateY( 0 );
 }
 
-.desktop-mode-window--overview:hover + .desktop-mode-overview-label {
+.os-window--overview:hover + .os-overview-label {
 	opacity: 1 !important;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-overview-label {
+	.os-overview-label {
 		transition-duration: 0.01ms;
 		transition-delay: 0s;
 	}
@@ -258,8 +283,12 @@
  */
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-area--overview,
-	.desktop-mode-window--overview {
+	.os-area--overview,
+	.os-window--overview {
+		transition-duration: 0.01ms;
+	}
+	.os-area--overview > .os-icons,
+	.os-area--overview > .os-files-layer {
 		transition-duration: 0.01ms;
 	}
 }
@@ -274,7 +303,7 @@
  * one, and per-tile X buttons close.
  * --------------------------------------------------------------- */
 
-.desktop-mode-overview-top-bar {
+.os-overview-top-bar {
 	position: absolute;
 	top: 16px;
 	left: 50%;
@@ -287,25 +316,25 @@
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ) 0.06s;
 }
 
-.desktop-mode-area--overview .desktop-mode-overview-top-bar {
+.os-area--overview .os-overview-top-bar {
 	opacity: 1;
 	pointer-events: auto;
 }
 
-.desktop-mode-overview-top-bar--out {
+.os-overview-top-bar--out {
 	opacity: 0 !important;
 	transform: translateX( -50% ) translateY( -6px ) !important;
 	transition-delay: 0s !important;
 }
 
-.desktop-mode-overview-top-bar__list {
+.os-overview-top-bar__list {
 	display: flex;
 	flex-direction: row;
 	align-items: stretch;
 	gap: 12px;
 	padding: 8px 12px;
 	border-radius: 14px;
-	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
+	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	box-shadow:
@@ -313,7 +342,7 @@
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-overview-top-bar__tile {
+.os-overview-top-bar__tile {
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -325,7 +354,7 @@
 	background: rgba( 255, 255, 255, 0.04 );
 	border: 2px solid rgba( 255, 255, 255, 0.18 );
 	border-radius: 10px;
-	color: var( --wpd-fg-on-accent, #fff );
+	color: var( --os-ui-fg-on-accent, #fff );
 	cursor: pointer;
 	overflow: hidden;
 	transition:
@@ -335,22 +364,22 @@
 	font: inherit;
 }
 
-.desktop-mode-overview-top-bar__tile:hover {
+.os-overview-top-bar__tile:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-overview-top-bar__tile:focus-visible {
+.os-overview-top-bar__tile:focus-visible {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
 
-.desktop-mode-overview-top-bar__tile--active {
+.os-overview-top-bar__tile--active {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
 }
 
-.desktop-mode-overview-top-bar__tile-preview {
+.os-overview-top-bar__tile-preview {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -363,14 +392,14 @@
 	border-bottom: 1px solid rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-overview-top-bar__tile-count {
+.os-overview-top-bar__tile-count {
 	font-size: 18px;
 	font-weight: 600;
 	color: rgba( 255, 255, 255, 0.7 );
 	letter-spacing: 0.02em;
 }
 
-.desktop-mode-overview-top-bar__tile-label {
+.os-overview-top-bar__tile-label {
 	display: block;
 	padding: 6px 10px 8px;
 	text-align: center;
@@ -382,12 +411,12 @@
 	text-overflow: ellipsis;
 }
 
-.desktop-mode-overview-top-bar__tile-wrapper {
+.os-overview-top-bar__tile-wrapper {
 	position: relative;
 	display: inline-block;
 }
 
-.desktop-mode-overview-top-bar__tile-close {
+.os-overview-top-bar__tile-close {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 4px;
@@ -397,7 +426,7 @@
 	align-items: center;
 	justify-content: center;
 	color: rgba( 255, 255, 255, 0.7 );
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
 	border-radius: 50%;
 	cursor: pointer;
 	opacity: 0;
@@ -409,17 +438,17 @@
 	padding: 0;
 }
 
-.desktop-mode-overview-top-bar__tile-wrapper:hover
-	.desktop-mode-overview-top-bar__tile-close,
-.desktop-mode-overview-top-bar__tile-wrapper:focus-within
-	.desktop-mode-overview-top-bar__tile-close,
-.desktop-mode-overview-top-bar__tile-close:focus-visible {
+.os-overview-top-bar__tile-wrapper:hover
+	.os-overview-top-bar__tile-close,
+.os-overview-top-bar__tile-wrapper:focus-within
+	.os-overview-top-bar__tile-close,
+.os-overview-top-bar__tile-close:focus-visible {
 	opacity: 1;
 }
 
-.desktop-mode-overview-top-bar__tile-close:hover {
-	background: var( --wpd-danger, #d63638 );
-	color: var( --wpd-fg-on-accent, #fff );
+.os-overview-top-bar__tile-close:hover {
+	background: var( --os-ui-danger, #d63638 );
+	color: var( --os-ui-fg-on-accent, #fff );
 }
 
 /*
@@ -427,20 +456,20 @@
  * list contains both desktop wrappers AND the trailing "+".
  * So "only one desktop" means exactly one wrapper in the list.
  */
-.desktop-mode-overview-top-bar__list:has(
-		.desktop-mode-overview-top-bar__tile-wrapper:only-of-type
+.os-overview-top-bar__list:has(
+		.os-overview-top-bar__tile-wrapper:only-of-type
 	)
-	.desktop-mode-overview-top-bar__tile-close {
+	.os-overview-top-bar__tile-close {
 	display: none;
 }
 
-.desktop-mode-overview-top-bar__tile--add {
+.os-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
 	border-style: dashed;
 }
 
-.desktop-mode-overview-top-bar__tile--add:hover {
+.os-overview-top-bar__tile--add:hover {
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
@@ -451,14 +480,14 @@
  * flips to solid when the cursor lands, matching the desktop tiles'
  * solid borders.
  */
-.desktop-mode-overview-top-bar__tile--add.desktop-mode-overview-top-bar__tile--cursor {
+.os-overview-top-bar__tile--add.os-overview-top-bar__tile--cursor {
 	border-style: solid;
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-.desktop-mode-overview-top-bar__tile-plus {
+.os-overview-top-bar__tile-plus {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -470,7 +499,7 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.desktop-mode-overview-top-bar {
+	.os-overview-top-bar {
 		transition-duration: 0.01ms;
 	}
 }

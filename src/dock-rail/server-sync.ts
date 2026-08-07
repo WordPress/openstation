@@ -3,13 +3,13 @@
  *
  * Mirrors `src/commands/server-sync.ts` for the rail-renderer
  * registry. Plugins opt in server-side with
- * `desktop_mode_register_dock_rail_renderer_script( $handle )`; this
+ * `openstation_register_dock_rail_renderer_script( $handle )`; this
  * module receives the list of registered script URLs on every live
  * refresh (plugins.php bridge or boot from `config`) and:
  *
  *   - Injects each new `scriptUrl` into the shell page via
  *     `loadVendorScript`. The plugin's JS runs and calls
- *     `wp.desktop.registerDockRailRenderer()`. The registry's
+ *     `wp.os.registerDockRailRenderer()`. The registry's
  *     `subscribeDockRailRenderers` fan-out repaints the OS Settings
  *     picker AND triggers the layout dispatcher to rebuild rails if
  *     the user's pick now resolves to the new renderer.

@@ -1,5 +1,5 @@
 /**
- * `wp.desktop.startOAuth` tests — pin the contract on the popup
+ * `wp.os.startOAuth` tests — pin the contract on the popup
  * orchestration: `/oauth/start` POST, popup open, postMessage
  * resolution, popup-closed-without-callback rejection, origin
  * validation.
@@ -25,8 +25,8 @@ describe( 'startOAuth', () => {
 	let popups: FakePopup[];
 
 	beforeEach( () => {
-		( window as unknown as { wp: { desktop?: unknown } } ).wp = {};
-		( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig = {
+		( window as unknown as { wp: { os?: unknown } } ).wp = {};
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			restRoot: 'https://example.test/wp-json/',
 			restNonce: 'fake-nonce',
 		};
@@ -45,7 +45,7 @@ describe( 'startOAuth', () => {
 	afterEach( () => {
 		window.fetch = originalFetch;
 		window.open = originalOpen;
-		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
 		( window as unknown as { wp?: unknown } ).wp = undefined;
 	} );
 
@@ -91,7 +91,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: { ok: true, service: 'tumblrlike' },
 				},
 			} ),
@@ -112,7 +112,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: { ok: true, service: 'tumblrlike' },
 				},
 			} ),
@@ -140,7 +140,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: failurePayload,
 				},
 			} ),
@@ -165,7 +165,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: 'https://attacker.example',
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: { ok: true },
 				},
 			} ),
@@ -175,7 +175,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: { ok: true, service: 'tumblrlike' },
 				},
 			} ),
@@ -202,7 +202,7 @@ describe( 'startOAuth', () => {
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
 				data: {
-					type: 'desktop-mode-oauth-callback',
+					type: 'os-oauth-callback',
 					payload: { ok: true, service: 'tumblrlike' },
 				},
 			} ),

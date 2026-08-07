@@ -39,7 +39,7 @@ const POSTS_ITEM = {
 
 type WindowWithGlobals = Window & {
 	wp?: unknown;
-	desktopModeConfig?: unknown;
+	openStationConfig?: unknown;
 };
 
 function stubGlobals( {
@@ -52,13 +52,13 @@ function stubGlobals( {
 	const w = window as WindowWithGlobals;
 	w.wp = viaApi
 		? {
-				desktop: {
+				os: {
 					getMenuItems: () => viaApi,
 					config: { adminUrl: ADMIN_URL },
 				},
 		  }
 		: undefined;
-	w.desktopModeConfig = viaConfig
+	w.openStationConfig = viaConfig
 		? { adminUrl: ADMIN_URL, dockItems: viaConfig }
 		: undefined;
 }
@@ -71,7 +71,7 @@ async function load() {
 afterEach( () => {
 	const w = window as WindowWithGlobals;
 	delete w.wp;
-	delete w.desktopModeConfig;
+	delete w.openStationConfig;
 } );
 
 describe( 'findMenuEntryForUrl', () => {
@@ -94,7 +94,7 @@ describe( 'findMenuEntryForUrl', () => {
 		stubGlobals( { viaApi: [ TOOLS_ITEM ] } );
 		const { findMenuEntryForUrl } = await load();
 		const entry = findMenuEntryForUrl(
-			`${ ADMIN_URL }tools.php?desktop_mode_chromeless=1`,
+			`${ ADMIN_URL }tools.php?openstation_chromeless=1`,
 		);
 		expect( entry?.id ).toBe( 'menu-tools' );
 	} );
@@ -130,7 +130,7 @@ describe( 'shortcut opener enrichment', () => {
 		);
 		// installHooksStub REPLACES window.wp — attach `desktop` after.
 		installHooksStub();
-		( window.wp as unknown as Record< string, unknown > ).desktop = {
+		( window.wp as unknown as Record< string, unknown > ).os = {
 			getMenuItems: () => [ POSTS_ITEM, TOOLS_ITEM ],
 			config: { adminUrl: ADMIN_URL },
 			windowManager: { open },
@@ -179,7 +179,7 @@ describe( 'shortcut opener enrichment', () => {
 			'./helpers/hooks-stub'
 		);
 		installHooksStub();
-		( window.wp as unknown as Record< string, unknown > ).desktop = {
+		( window.wp as unknown as Record< string, unknown > ).os = {
 			getMenuItems: () => [ POSTS_ITEM ],
 			config: { adminUrl: ADMIN_URL },
 			windowManager: { open },

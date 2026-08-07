@@ -27,10 +27,10 @@
             "Deleted": [
                 ""
             ],
-            "Empty bin": [
+            "Empty Trash": [
                 ""
             ],
-            "Empty bin?": [
+            "Empty Trash?": [
                 ""
             ],
             "Emptying…": [
@@ -42,7 +42,7 @@
             "Permanently delete %d item(s)? This cannot be undone.": [
                 ""
             ],
-            "Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.": [
+            "Permanently delete ALL items in the Trash? This includes every type and any items hidden by the current filter or search. This cannot be undone.": [
                 ""
             ],
             "Restore": [

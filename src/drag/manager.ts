@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — DragManager.
+ * OpenStation — DragManager.
  *
  * Single source of truth for in-shell drag gestures. Sources call
  * `manager.start()` from a `pointerdown` handler; the manager attaches
@@ -47,9 +47,9 @@ import {
 	type StartOpts,
 } from './types';
 
-const SOURCE_DRAGGING_CLASS = 'desktop-mode-file-tile--dragging';
-const TARGET_DROP_ACTIVE_CLASS = 'desktop-mode-file-tile--drop-target';
-const TRASH_DROP_ACTIVE_ATTR = 'data-desktop-mode-trash-drop-active';
+const SOURCE_DRAGGING_CLASS = 'os-file-tile--dragging';
+const TARGET_DROP_ACTIVE_CLASS = 'os-file-tile--drop-target';
+const TRASH_DROP_ACTIVE_ATTR = 'data-os-trash-drop-active';
 const FILES_DROP_ACTIVE_ATTR = 'data-files-drop-active';
 
 /**
@@ -59,9 +59,9 @@ const FILES_DROP_ACTIVE_ATTR = 'data-files-drop-active';
  * folder tiles, etc.) without each surface having to subscribe to the
  * DragManager's CustomEvents.
  */
-const BODY_DRAGGING_ATTR = 'data-desktop-mode-dragging';
-const BODY_DRAG_TYPE_ATTR = 'data-desktop-mode-drag-type';
-const BODY_DRAG_MODE_ATTR = 'data-desktop-mode-drag-mode';
+const BODY_DRAGGING_ATTR = 'data-os-dragging';
+const BODY_DRAG_TYPE_ATTR = 'data-os-drag-type';
+const BODY_DRAG_MODE_ATTR = 'data-os-drag-mode';
 
 interface InternalSession extends DragSession {
 	_origin: PointerEvent;
@@ -229,7 +229,7 @@ export class DragManager implements DragManagerApi {
 				session._callbacks.onClickOnly?.();
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] drag onClickOnly threw:', err );
+				console.error( '[openstation] drag onClickOnly threw:', err );
 			}
 			return;
 		}
@@ -285,7 +285,7 @@ export class DragManager implements DragManagerApi {
 				accepted = target.accept( session.payload );
 			} catch ( err ) {
 				// eslint-disable-next-line no-console
-				console.error( '[desktop-mode] drop target accept() threw:', target.id, err );
+				console.error( '[openstation] drop target accept() threw:', target.id, err );
 			}
 			return { target, accepted };
 		};
@@ -358,13 +358,13 @@ export class DragManager implements DragManagerApi {
 			void target.onDrop( session, { clientX, clientY } );
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] drop target onDrop threw:', target.id, err );
+			console.error( '[openstation] drop target onDrop threw:', target.id, err );
 		}
 		try {
 			session._callbacks.onCommit?.( target );
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] drag onCommit threw:', err );
+			console.error( '[openstation] drag onCommit threw:', err );
 		}
 		dispatchOnDocument( DRAG_EVENTS.COMMIT, {
 			payload: session.payload,
@@ -401,7 +401,7 @@ export class DragManager implements DragManagerApi {
 			session._callbacks.onCancel?.( reason );
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
-			console.error( '[desktop-mode] drag onCancel threw:', err );
+			console.error( '[openstation] drag onCancel threw:', err );
 		}
 		dispatchOnDocument( DRAG_EVENTS.CANCEL, { payload: session.payload, reason } );
 		dispatchOnDocument( DRAG_EVENTS.END, { payload: session.payload, reason } );
@@ -450,7 +450,7 @@ function fireEnter( target: DropTarget, session: DragSession ): void {
 		target.onEnter?.( session );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] drop target onEnter threw:', target.id, err );
+		console.error( '[openstation] drop target onEnter threw:', target.id, err );
 	}
 	dispatchOnDocument( DRAG_EVENTS.ENTER, {
 		payload: session.payload,
@@ -463,7 +463,7 @@ function fireLeave( target: DropTarget, session: DragSession ): void {
 		target.onLeave?.( session );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
-		console.error( '[desktop-mode] drop target onLeave threw:', target.id, err );
+		console.error( '[openstation] drop target onLeave threw:', target.id, err );
 	}
 	dispatchOnDocument( DRAG_EVENTS.LEAVE, {
 		payload: session.payload,

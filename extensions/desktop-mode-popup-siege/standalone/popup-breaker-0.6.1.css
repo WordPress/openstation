@@ -1,0 +1,85 @@
+/*
+ * Popup Siege UI System 0.6.1
+ *
+ * A legibility patch over the frozen 0.6.0 game. The side console keeps the
+ * generated shell registration and control geometry while its four live type
+ * roles move to readable optical sizes.
+ */
+
+@import url("./popup-breaker-0.6.0.css");
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061 {
+	--siege-ui-type-brand-eyebrow:
+		clamp(0.52rem, 1.45cqh, 0.72rem);
+	--siege-ui-type-hud-label:
+		clamp(0.58rem, 1.6cqh, 0.74rem);
+	--siege-ui-type-hud-value:
+		clamp(0.82rem, 2.25cqh, 1.28rem);
+	--siege-ui-type-control-label:
+		clamp(0.55rem, 1.5cqh, 0.68rem);
+	--siege-ui-type-control-label-long:
+		clamp(0.48rem, 1.25cqh, 0.6rem);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-brand__eyebrow {
+	font-size: var(--siege-ui-type-brand-eyebrow);
+	letter-spacing: 0.15em;
+	text-indent: 0.15em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-hud
+	small {
+	font-size: var(--siege-ui-type-hud-label);
+	letter-spacing: 0.025em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-hud
+	b {
+	font-size: var(--siege-ui-type-hud-value);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-actions
+	button::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-actions__pause-slot::after {
+	font-size: var(--siege-ui-type-control-label);
+	letter-spacing: 0.02em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+	.siege-actions
+	[data-action="pause"][data-control-mode="resume"]::after {
+	font-size: var(--siege-ui-type-control-label-long);
+}
+
+@media (forced-colors: active) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+		.siege-brand__eyebrow,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+		.siege-hud
+		small,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+		.siege-hud
+		b,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--legible-console-061
+		.siege-actions
+		button::after {
+		color: CanvasText;
+		text-shadow: none;
+	}
+}

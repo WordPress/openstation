@@ -3,7 +3,7 @@
  *
  * Catches files dragged from the user's host operating system
  * (macOS Finder, Windows Explorer, Linux Nautilus) onto **any**
- * surface inside Desktop Mode and routes them through a
+ * surface inside OpenStation and routes them through a
  * confirmation dialog before uploading to the Media Library.
  *
  * Coverage:
@@ -22,8 +22,8 @@
  *
  * Filtering: every dropped file is checked against the
  * server-supplied allowed-mime list and the size cap. Rejected
- * files raise a toast + the `desktop-mode.drop.files-rejected`
- * action; accepted files run through the `desktop-mode.drop.*`
+ * files raise a toast + the `os.drop.files-rejected`
+ * action; accepted files run through the `os.drop.*`
  * hook chain (`files-detected` → `dialog-fields` → user confirms
  * → `before-upload` → `after-upload` / `upload-failed`).
  *
@@ -53,7 +53,7 @@ import type {
  * @see AGENTS.md → "Cross-bundle state" rule.
  */
 interface SentinelHost {
-	__desktopModeOsFileDropMounted?: MountedManager;
+	__openStationOsFileDropMounted?: MountedManager;
 }
 
 /**
@@ -115,7 +115,7 @@ export function dragHasFiles( ev: DragEvent ): boolean {
  * `src/window/dom.ts`).
  */
 export function windowIdFromElement( el: Element | null ): string | undefined {
-	const root = el?.closest?.( '.desktop-mode-window' ) as HTMLElement | null;
+	const root = el?.closest?.( '.os-window' ) as HTMLElement | null;
 	if ( ! root ) {
 		return undefined;
 	}
@@ -160,7 +160,7 @@ interface MountOptions {
 	storage?: DesktopStorageConfig;
 	/**
 	 * Dialog opener — the dialog module is lazy-loaded so its
-	 * `<wpd-modal>` import doesn't ship in the boot path for
+	 * `<os-modal>` import doesn't ship in the boot path for
 	 * users who never drop a file. Wired by `index.ts`.
 	 */
 	openDialog: (
@@ -181,8 +181,8 @@ interface MountedManager {
  */
 export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 	const host = window as unknown as SentinelHost;
-	if ( host.__desktopModeOsFileDropMounted ) {
-		return host.__desktopModeOsFileDropMounted;
+	if ( host.__openStationOsFileDropMounted ) {
+		return host.__openStationOsFileDropMounted;
 	}
 	if ( ! opts.config.enabled ) {
 		// User lacks `upload_files` — still mount a no-op so the
@@ -309,7 +309,7 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 					y?: number;
 				}
 			| null;
-		if ( ! data || data.type !== 'desktop-mode-os-file-drop' ) {
+		if ( ! data || data.type !== 'os-file-drop' ) {
 			return;
 		}
 		if ( ! Array.isArray( data.files ) || data.files.length === 0 ) {
@@ -373,10 +373,10 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 			window.removeEventListener( 'message', onIframeMessage );
 			overlayEl.remove();
 			delete ( window as unknown as SentinelHost )
-				.__desktopModeOsFileDropMounted;
+				.__openStationOsFileDropMounted;
 		},
 	};
-	host.__desktopModeOsFileDropMounted = manager;
+	host.__openStationOsFileDropMounted = manager;
 	return manager;
 }
 
@@ -386,12 +386,12 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
  * on top.
  */
 function ensureDropOverlay(): HTMLElement {
-	const existing = document.querySelector( '.desktop-mode-os-drop-overlay' );
+	const existing = document.querySelector( '.os-drop-overlay' );
 	if ( existing ) {
 		return existing as HTMLElement;
 	}
 	const el = document.createElement( 'div' );
-	el.className = 'desktop-mode-os-drop-overlay';
+	el.className = 'os-drop-overlay';
 	el.setAttribute( 'aria-hidden', 'true' );
 	el.style.cssText = [
 		'position:fixed',
@@ -421,7 +421,7 @@ function ensureDropOverlay(): HTMLElement {
 	document.body.appendChild( el );
 	const style = document.createElement( 'style' );
 	style.textContent =
-		'.desktop-mode-os-drop-overlay.is-active{opacity:1!important;}';
+		'.os-drop-overlay.is-active{opacity:1!important;}';
 	document.head.appendChild( style );
 	return el;
 }
@@ -456,17 +456,17 @@ function mountNoOp(): MountedManager {
 		dispose: (): void => {
 			window.removeEventListener( 'dragover', cancel );
 			window.removeEventListener( 'drop', cancel );
-			delete host.__desktopModeOsFileDropMounted;
+			delete host.__openStationOsFileDropMounted;
 		},
 	};
-	host.__desktopModeOsFileDropMounted = manager;
+	host.__openStationOsFileDropMounted = manager;
 	return manager;
 }
 
 /**
  * Classify the drop target. Best-effort — we walk up the DOM
  * looking for known surface markers. Plugins that introduce
- * new surfaces can subscribe to the `desktop-mode.drop.dialog-fields`
+ * new surfaces can subscribe to the `os.drop.dialog-fields`
  * filter and inspect the file themselves; the `surface` label is
  * advisory.
  */
@@ -481,7 +481,7 @@ export function classifyDropTarget( ev: DragEvent ): DropContext {
 		// inside a files layer (whose `data-folder-id` is the
 		// tile's PARENT, not the tile's own folder).
 		if (
-			node.classList.contains( 'desktop-mode-file-tile' ) &&
+			node.classList.contains( 'os-file-tile' ) &&
 			( node as HTMLElement ).dataset.fileType === 'folder'
 		) {
 			const tileRef = Number(
@@ -500,18 +500,18 @@ export function classifyDropTarget( ev: DragEvent ): DropContext {
 			};
 		}
 		if (
-			node.classList.contains( 'desktop-mode-window' ) ||
+			node.classList.contains( 'os-window' ) ||
 			node.hasAttribute( 'data-window-id' )
 		) {
 			const windowId =
 				windowIdFromElement( node ) ??
 				( node.getAttribute( 'data-window-id' ) || undefined );
 			// Folder windows carry a deterministic id
-			// (`desktop-mode-folder-<folderId>`) — recover the folder
+			// (`os-folder-<folderId>`) — recover the folder
 			// even when the drop missed the files-layer element
 			// (empty area below the tiles, preview pane, status bar).
 			const folderMatch = windowId
-				? /^desktop-mode-folder-(\d+)/.exec( windowId )
+				? /^os-folder-(\d+)/.exec( windowId )
 				: null;
 			if ( folderMatch ) {
 				return {
@@ -536,9 +536,9 @@ export function classifyDropTarget( ev: DragEvent ): DropContext {
 			return { surface: 'wallpaper', x, y };
 		}
 		if (
-			node.id === 'desktop-mode-wallpaper' ||
-			node.classList.contains( 'desktop-mode-wallpaper' ) ||
-			node.classList.contains( 'desktop-mode-desktop' )
+			node.id === 'os-wallpaper' ||
+			node.classList.contains( 'os-wallpaper' ) ||
+			node.classList.contains( 'os-desktop' )
 		) {
 			return { surface: 'wallpaper', x, y };
 		}
@@ -618,7 +618,7 @@ export async function handleFiles(
 
 /**
  * Folder-tree drop pipeline: traverse → policy filter → dialog in
- * forced-desktop mode (the Media Library has no tree concept).
+ * forced-OpenStation (the Media Library has no tree concept).
  * Exported for tests.
  */
 export async function handleTreeDrop(
@@ -802,7 +802,7 @@ function extensionOf( name: string ): string {
 
 /**
  * Build the manager's default dialog metadata for a single
- * file. Subscribers to `desktop-mode.drop.dialog-fields` can
+ * file. Subscribers to `os.drop.dialog-fields` can
  * mutate the result before the dialog renders.
  */
 export function defaultFields(

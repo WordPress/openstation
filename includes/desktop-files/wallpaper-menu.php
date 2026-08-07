@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — Wallpaper context-menu server side.
+ * OpenStation — Wallpaper context-menu server side.
  *
  * Builds the array shipped to the shell as
  * `serverWallpaperMenuItems`. Plugins extend the menu by
@@ -13,10 +13,10 @@
  * items take a `callbackId` string the JS bundle resolves in
  * its `serverCallbacks` map; plugins that don't ship a JS
  * callback subscribe via the
- * `desktop-mode.wallpaper-context-menu.activated` action
+ * `os.wallpaper-context-menu.activated` action
  * instead.
  *
- * @package WPDesktopMode
+ * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array[]
  */
-function desktop_mode_build_wallpaper_menu_items() {
+function openstation_build_wallpaper_menu_items() {
 	$items = array();
 
 	/**
@@ -37,7 +37,7 @@ function desktop_mode_build_wallpaper_menu_items() {
 	 *
 	 * @param array[] $items Items list.
 	 */
-	$items = (array) apply_filters( 'desktop_mode_wallpaper_context_menu_items', $items );
+	$items = (array) apply_filters( 'openstation_wallpaper_context_menu_items', $items );
 
 	$out = array();
 	foreach ( $items as $entry ) {

@@ -87,7 +87,7 @@ describe( 'wallpaper context menu', () => {
 			.querySelector< HTMLButtonElement >( '[data-menu-item-id="new-url"]' )!
 			.click();
 		expect( deps.createUrl ).toHaveBeenCalledTimes( 1 );
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'serverItems are merged into the list', async () => {
@@ -101,11 +101,11 @@ describe( 'wallpaper context menu', () => {
 		expect( ids ).toContain( 'change-bg' );
 	} );
 
-	test( 'desktop-mode.wallpaper-context-menu filter can mutate the list', async () => {
+	test( 'os.wallpaper-context-menu filter can mutate the list', async () => {
 		const { buildMenuItems } = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		stub.addFilter(
-			'desktop-mode.wallpaper-context-menu',
+			'os.wallpaper-context-menu',
 			'test/hide-os',
 			( list ) => ( list as Array< { id: string } > ).filter( ( i ) => i.id !== 'os-settings' ),
 		);
@@ -119,7 +119,7 @@ describe( 'wallpaper context menu', () => {
 		const items = buildMenuItems( deps );
 
 		openWallpaperMenu( document.body, { x: 50, y: 60 }, items );
-		const menu = document.querySelector< HTMLElement >( 'wpd-context-menu' );
+		const menu = document.querySelector< HTMLElement >( 'os-context-menu' );
 		expect( menu ).not.toBeNull();
 		expect( menu?.style.left ).toBe( '50px' );
 
@@ -129,22 +129,22 @@ describe( 'wallpaper context menu', () => {
 		showDesktopBtn!.click();
 		expect( deps.toggleShowDesktop ).toHaveBeenCalledTimes( 1 );
 		// Menu closes after activation.
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'closeWallpaperMenu removes the menu', async () => {
 		const { openWallpaperMenu, closeWallpaperMenu, buildMenuItems } = await load();
 		openWallpaperMenu( document.body, { x: 0, y: 0 }, buildMenuItems( stubDeps() ) );
-		expect( document.querySelector( 'wpd-context-menu' ) ).not.toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).not.toBeNull();
 		closeWallpaperMenu();
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'Escape key closes the menu', async () => {
 		const { openWallpaperMenu, buildMenuItems } = await load();
 		openWallpaperMenu( document.body, { x: 0, y: 0 }, buildMenuItems( stubDeps() ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'server callback resolves through serverCallbacks map', async () => {
@@ -161,7 +161,7 @@ describe( 'wallpaper context menu', () => {
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'server item with no callback fires desktop-mode.wallpaper-context-menu.activated', async () => {
+	test( 'server item with no callback fires os.wallpaper-context-menu.activated', async () => {
 		const { buildMenuItems, openWallpaperMenu } = await load();
 		const stub = ( window.wp as { hooks: { didAction: ( n: string ) => number } } ).hooks;
 		const items = buildMenuItems( stubDeps( {
@@ -171,7 +171,7 @@ describe( 'wallpaper context menu', () => {
 		document.querySelector< HTMLButtonElement >(
 			'[data-menu-item-id="plugin"]',
 		)!.click();
-		expect( stub.didAction( 'desktop-mode.wallpaper-context-menu.activated' ) ).toBe( 1 );
+		expect( stub.didAction( 'os.wallpaper-context-menu.activated' ) ).toBe( 1 );
 	} );
 
 	test( 'submenu opens on click of the parent and lists children', async () => {
@@ -184,7 +184,7 @@ describe( 'wallpaper context menu', () => {
 		expect( sortBy ).not.toBeNull();
 		expect( sortBy!.hasAttribute( 'has-children' ) ).toBe( true );
 		sortBy!.click();
-		const flyout = document.querySelector( 'wpd-context-menu.desktop-mode-wallpaper-menu--flyout' );
+		const flyout = document.querySelector( 'os-context-menu.os-wallpaper-menu--flyout' );
 		expect( flyout ).not.toBeNull();
 		expect( flyout!.querySelector( '[data-menu-item-id="sort-name-asc"]' ) ).not.toBeNull();
 	} );
@@ -196,7 +196,7 @@ describe( 'wallpaper context menu', () => {
 		document.querySelector< HTMLButtonElement >( '[data-menu-item-id="sort-by"]' )!.click();
 		document.querySelector< HTMLButtonElement >( '[data-menu-item-id="sort-name-asc"]' )!.click();
 		expect( deps.sortIcons ).toHaveBeenCalledWith( 'name-asc' );
-		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
 	test( 'isWallpaperMenuOpen reflects open / close state', async () => {
