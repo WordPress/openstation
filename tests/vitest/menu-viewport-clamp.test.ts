@@ -183,9 +183,9 @@ describe( 'floating menus clamp to the viewport', () => {
 			{
 				scope: 'test',
 				actions: [
-					{ id: 'open', label: 'Open', run: () => {} },
-					{ id: 'rename', label: 'Rename', run: () => {} },
-					{ id: 'trash', label: 'Trash', run: () => {} },
+					{ id: 'open', label: 'Open', onClick: () => {} },
+					{ id: 'rename', label: 'Rename', onClick: () => {} },
+					{ id: 'trash', label: 'Trash', onClick: () => {} },
 				],
 			},
 		);
