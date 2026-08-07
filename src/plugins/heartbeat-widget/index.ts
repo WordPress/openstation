@@ -23,6 +23,7 @@ import './styles.css';
 import type { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { __ } from '../../i18n';
 import { createSharedStore } from '../../shared-store';
+import { clampToViewport } from '../../ui/util/menu-position';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 /**
@@ -566,14 +567,9 @@ function openHeartbeatMenu(
 	} );
 
 	document.body.appendChild( menu );
-	// Clamp menu to viewport.
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 4, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 4, window.innerHeight - rect.height - 8 ) }px`;
-	}
+	// Clamp menu to viewport, measured a frame later once the
+	// component has rendered. See `src/ui/util/menu-position.ts`.
+	clampToViewport( menu );
 
 	document.addEventListener( 'pointerdown', onOutside, true );
 	document.addEventListener( 'keydown', onKey, true );
