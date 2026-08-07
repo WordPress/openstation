@@ -1235,16 +1235,16 @@
 }
 
 /*
- * The poster — the same copy the scene paints inside the canvas,
+ * The poster. The same copy the scene paints inside the canvas,
  * as plain HTML, on the first frame. Three network round-trips (the
  * PixiJS vendor bundle, the about-scene bundle, the logotype PNG)
  * plus a pixel-sampling pass sit between opening this tab and the
  * canvas having anything on it; this is what the reader looks at
  * meanwhile.
  *
- * Proportions echo `computeLayout()` in about-scene.ts — eyebrow near
+ * Proportions echo `computeLayout()` in about-scene.ts: eyebrow near
  * the top tenth, title under it, then the band the logotype fills,
- * with byline and version stacked below — so the cross-fade lands the
+ * with byline and version stacked below, so the cross-fade lands the
  * text close to where the canvas is about to draw it. Close, not
  * pixel-exact: the scene measures its own text and the fade covers
  * the difference.
@@ -1262,7 +1262,7 @@
 	align-items: center;
 	padding-inline: 24px;
 	text-align: center;
-	/* Never in the way of the swarm — the canvas below owns the
+	/* Never in the way of the swarm. The canvas below owns the
 	 * pointer once it is live. */
 	pointer-events: none;
 	font-family: -apple-system, blinkmacsystemfont, 'Segoe UI', roboto,
@@ -1292,7 +1292,7 @@
 /*
  * Faded, not hidden. `visibility: hidden` or `display: none` would
  * take it out of the accessibility tree, and the canvas exposes no
- * text at all — the poster is the only readable copy of what this
+ * text at all, so the poster is the only readable copy of what this
  * tab says.
  */
 .os-settings__about.is-scene-ready .os-settings__about-poster {
