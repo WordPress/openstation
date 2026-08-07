@@ -73,4 +73,11 @@ jobs:
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # The wp.org slug is frozen at `desktop-mode` (see AGENTS.md) — it is
+          # the published plugin's SVN path and install directory, and renaming
+          # it would orphan every existing install's update check. Set it
+          # explicitly: the action otherwise defaults SLUG to the GitHub repo
+          # name, which used to coincide with the wp.org slug and stopped
+          # doing so when this repo was renamed to `openstation`.
+          SLUG: desktop-mode
           BUILD_DIR: ./build/desktop-mode

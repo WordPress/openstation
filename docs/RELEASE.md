@@ -16,9 +16,17 @@ Flags:
 - `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
-The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached.
+The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached, then — for stable tags only — deploys to WordPress.org.
 
 Requires the `gh` CLI authenticated (`gh auth status`).
+
+## The WordPress.org deploy
+
+The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the step is gated on the tag having no hyphen.
+
+**`SLUG` is set explicitly to `desktop-mode` and must stay that way.** It is the published plugin's SVN path (`plugins.svn.wordpress.org/desktop-mode/`) and its install directory, so it is frozen for the same reason as every other `desktop_mode_*` value in [AGENTS.md](../AGENTS.md): changing it doesn't migrate anything, it points the deploy at a repository that doesn't exist and orphans every installed copy's update check. The action defaults `SLUG` to the GitHub repository name when unset — that default silently matched while the repo was named `desktop-mode`, and broke the moment it was renamed to `openstation`. Never rely on it.
+
+Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.
 
 ## Pre-releases
 
@@ -35,7 +43,7 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`. |
 | `bin/package.sh` | Packages `openstation.zip` from HEAD + current built JS. The ZIP keeps the internal `desktop-mode/` directory so WordPress.org upgrades and dependent plugins continue to resolve the established plugin slug. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any Vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
-| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
+| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release, then deploy stable tags to WordPress.org. |
 
 ## Version locations
 
