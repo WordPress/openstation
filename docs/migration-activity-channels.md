@@ -1,6 +1,6 @@
 # Migration: built-in activity channels move to the `os/` namespace
 
-**Status:** shipped in 0.9.9. Affects plugins that subscribe to, or filter, one of the framework's own activity channels.
+**Status:** shipped in 1.0.0. Affects plugins that subscribe to, or filter, one of the framework's own activity channels.
 
 ## What changed
 
