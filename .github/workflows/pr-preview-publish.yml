@@ -41,20 +41,24 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            // The `pr-meta` artifact is written by the fork-controlled build
-            // run, so its contents are untrusted — a malicious PR could point
-            // the preview comment at any PR. Derive the identity from the
-            // `workflow_run` event instead: GitHub sets `head_sha`,
-            // `head_repository` and `head_branch`, and PR code cannot spoof
-            // any of them.
+            // PR identity is never taken from the build run's artifacts — that
+            // run executes fork-controlled code and can write whatever it
+            // likes, so a malicious PR could aim the preview comment at any
+            // PR. Derive it from the `workflow_run` event instead: GitHub sets
+            // `head_sha`, `head_repository` and `head_branch`, and PR code
+            // cannot spoof any of them.
             //
             // Resolve the PR by head repo + branch. `workflow_run.pull_requests`
             // is empty for fork PRs, and so is
             // `listPullRequestsAssociatedWithCommit` — that endpoint does not
             // resolve commits living in a fork, which left every fork PR
-            // without a preview. The head filter works for both, and the head
-            // SHA must still match before anything is published, so a fork
-            // cannot aim the preview at a PR it doesn't own.
+            // without a preview.
+            //
+            // The `head` filter is server-side and fails open: a value GitHub
+            // does not recognise is ignored rather than rejected, and the call
+            // then returns every PR. Re-check owner, branch and SHA against the
+            // payload below so ownership is an invariant enforced here, not a
+            // bet on that filter's behaviour.
             const run = context.payload.workflow_run;
             const headSha = run.head_sha;
             if (!/^[0-9a-f]{40}$/.test(headSha)) {
@@ -79,7 +83,13 @@ jobs:
               head: `${headOwner}:${headBranch}`,
               per_page: 100,
             });
-            const matches = prs.filter((p) => p.head.sha === headSha);
+            // `head.repo` is null when the head fork has been deleted.
+            const matches = prs.filter(
+              (p) =>
+                p.head.sha === headSha &&
+                p.head.repo?.owner?.login === headOwner &&
+                p.head.ref === headBranch
+            );
             const pr = matches.find((p) => p.state === 'open') ?? matches[0];
             if (!pr) {
               core.setFailed(`No pull request for ${headOwner}:${headBranch} at head SHA ${headSha}; refusing to publish a preview.`);
