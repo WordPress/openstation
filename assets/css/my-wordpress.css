@@ -28,10 +28,22 @@
 		--os-my-wordpress-bg,
 		var( --os-window-bg, #fff )
 	);
-	/* Light-context tile color tokens — same recipe as the folder
-	 * window. Tiles inside My WordPress paint dark-on-light. */
+	/* Tile color tokens — same recipe as the folder window. Both
+	 * chain through the palette so the surface follows the active
+	 * desktop theme, with the pre-brand WordPress-admin literal as
+	 * the floor if no stylesheet declares one.
+	 *
+	 * `--os-tile-fg-muted` used to be the bare literal below, which
+	 * outranked the palette's own value and painted every tile's
+	 * secondary line near-black — invisible on a dark station, while
+	 * the label right beside it followed the theme correctly. A
+	 * colour declared next to the thing it paints is out of reach of
+	 * the palette AND of every desktop theme. */
 	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
-	--os-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--os-tile-fg-muted: var(
+		--os-my-wordpress-fg-muted,
+		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
+	);
 	--os-tile-hover-bg: var(
 		--os-hover,
 		rgba( 0, 0, 0, 0.06 )
