@@ -63,19 +63,43 @@ class OpenStation_User_File extends OpenStation_File {
 		// handler can gate synchronously without an agents REST
 		// roundtrip: null = no drag trigger configured (tile rejects
 		// drops), [] = drag trigger with no filter (accepts every
-		// entity kind). Guarded — the agents module is behind the
-		// `agents` extended option.
+		// entity kind).
+		//
+		// The two guards test DIFFERENT things and both are load-
+		// bearing. `openstation_agent_is_agent()` lives in the agents
+		// guard, which loads unconditionally — being an agent is a
+		// property of the user row, and the row survives the feature
+		// being switched off. The definition getters live in store.php,
+		// which does NOT load then. Turning the `agents` extended
+		// option off while an agent tile sits on someone's desktop
+		// otherwise fatals the whole admin on the next boot payload.
 		if (
 			$user
 			&& function_exists( 'openstation_agent_is_agent' )
 			&& openstation_agent_is_agent( $user->ID )
 		) {
 			$shape['isAgent'] = true;
+
+			// Named one by one rather than probing a single getter as
+			// a proxy for "store.php loaded": the proxy reads as an
+			// unguarded call at every other site, and this is a rule a
+			// test has to be able to check mechanically.
+			$has_definition = function_exists( 'openstation_agent_get_description' )
+				&& function_exists( 'openstation_agent_get_triggers' );
 			// The "when to use" line — the chat window's subtitle when
 			// the tile opener starts a conversation.
-			$shape['agentDescription'] = openstation_agent_get_description( (int) $user->ID );
-			$drag_kinds                = null;
-			foreach ( openstation_agent_get_triggers( (int) $user->ID ) as $trigger ) {
+			$shape['agentDescription'] = $has_definition
+				? openstation_agent_get_description( (int) $user->ID )
+				: '';
+
+			// Null while the framework is off: the tile still reads as
+			// an agent, but rejects every drop, because nothing can run
+			// to receive it.
+			$drag_kinds = null;
+			$triggers   = $has_definition
+				? openstation_agent_get_triggers( (int) $user->ID )
+				: array();
+			foreach ( $triggers as $trigger ) {
 				if ( 'drag' !== ( isset( $trigger['kind'] ) ? $trigger['kind'] : '' ) ) {
 					continue;
 				}

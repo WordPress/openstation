@@ -1,12 +1,14 @@
 <?php
 /**
- * Tests for the agents ↔ WP Explorer integration.
+ * Tests for the agents ↔ WP Explorer integration, and for the wider
+ * contract that a site with the `agents` extended option OFF still
+ * boots.
  *
- * The integration loads regardless of the `agents` extended option so
- * the section is always discoverable; what the flag decides is whether
- * the section arrives live or read-only. Both halves are pinned here,
- * because a regression on either one is invisible until someone opens
- * the window on a site that never turned agents on.
+ * The integration loads regardless of the flag so the section is
+ * always discoverable; what the flag decides is whether the section
+ * arrives live or read-only. Both halves are pinned here, because a
+ * regression on either one is invisible until someone opens the window
+ * on a site that never turned agents on.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -173,6 +175,69 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertStringContainsString(
 			'agent-avatar.svg',
 			openstation_agent_avatar_url()
+		);
+	}
+
+	/**
+	 * Every agents function called from OUTSIDE `includes/agents/` must
+	 * either be declared in a file that loads unconditionally, or be
+	 * wrapped in `function_exists()` at the call site.
+	 *
+	 * This is the one class of agents bug the rest of the suite cannot
+	 * see: the bootstrap forces the framework ON, so a call into
+	 * store.php resolves fine here and fatals only on a real install
+	 * with the option off. It shipped once exactly that way —
+	 * `OpenStation_User_File::serialize()` guarded on
+	 * `openstation_agent_is_agent()` (guard.php, always loaded) and
+	 * then called `openstation_agent_get_description()` (store.php,
+	 * not loaded), so turning agents off with an agent tile on the
+	 * desktop fataled the whole admin.
+	 *
+	 * @coversNothing
+	 */
+	public function test_no_unguarded_agents_calls_from_outside_the_module() {
+		$always_loaded = array( 'guard.php', 'bootstrap.php' );
+		$root          = dirname( __DIR__, 3 ) . '/includes';
+		$files         = new RegexIterator(
+			new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root ) ),
+			'/\.php$/'
+		);
+
+		$unguarded = array();
+		foreach ( $files as $file ) {
+			$path = $file->getPathname();
+			if ( false !== strpos( $path, '/includes/agents/' ) ) {
+				continue;
+			}
+			$source = file_get_contents( $path );
+			if ( ! preg_match_all( '/\b(openstation_agents?_[a-z0-9_]+)\s*\(/', $source, $matches ) ) {
+				continue;
+			}
+
+			foreach ( array_unique( $matches[1] ) as $function ) {
+				if ( ! function_exists( $function ) ) {
+					continue;
+				}
+				$declared_in = basename( ( new ReflectionFunction( $function ) )->getFileName() );
+				if ( in_array( $declared_in, $always_loaded, true ) ) {
+					continue;
+				}
+				// `function_exists( 'name' )` anywhere in the file is
+				// accepted — the call sites are short enough that a
+				// per-file guard is the honest granularity here.
+				if ( false !== strpos( $source, "function_exists( '{$function}' )" ) ) {
+					continue;
+				}
+				$unguarded[] = str_replace( $root, 'includes', $path ) . " → {$function}()";
+			}
+		}
+
+		$this->assertSame(
+			array(),
+			$unguarded,
+			"Agents functions reached from outside the module without a function_exists() guard.\n"
+				. "These fatal on any site with the `agents` extended option off:\n  "
+				. implode( "\n  ", $unguarded )
 		);
 	}
 }
