@@ -644,38 +644,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// -----------------------------------------------------------------
 
 	/**
-	 * Shown in place of every other notice while the framework is off.
-	 * The AI-provider warning below is deliberately suppressed then —
-	 * a connector is the second thing to fix, and stacking both makes
-	 * neither read as the actionable one.
+	 * Silent while the framework is off: a connector is the SECOND
+	 * thing to fix, and the empty state is already saying what the
+	 * first one is. Two warnings and neither reads as the actionable
+	 * one.
 	 */
-	const offNotice = () => {
-		const askAdmin = __(
-			'An administrator can turn it on in OpenStation Preferences → Features.',
-			'desktop-mode',
-		);
-		const enableAction = cfg.canEnable
-			? html`
-					<os-button
-						class="dm-agents__enable"
-						variant="primary"
-						@click=${ () => openAgentsFeatureSetting() }
-					>
-						${ __( 'Turn on Agents', 'desktop-mode' ) }
-					</os-button>
-			  `
-			: html`${ askAdmin }`;
-		return html`
-			<os-notice tone="warning" class="dm-agents__off-notice">
-				${ __(
-					'The Agents framework is turned off, so this section is read-only.',
-					'desktop-mode',
-				) }
-				${ enableAction }
-			</os-notice>
-		`;
-	};
-
 	const aiNotice = () => {
 		if ( off || state.aiReady === true || state.aiReady === null ) {
 			return html``;
@@ -1170,6 +1143,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		const agent = selected();
 		if ( ! agent ) {
+			// The whole off-state message lives here rather than in a
+			// banner above the layout. While the framework is off there
+			// is nothing to list, so this pane always renders — a
+			// banner as well would say the same thing twice, and a
+			// full-window bar carrying one sentence reads as mostly
+			// dead space.
 			if ( off ) {
 				const offDescription = cfg.canEnable
 					? __(
@@ -1185,7 +1164,20 @@ export function renderAgents( host: EntityRenderHost ): void {
 						icon="superhero"
 						heading=${ __( 'Agents are turned off', 'desktop-mode' ) }
 						description=${ offDescription }
-					></os-empty-state>
+					>
+						${ cfg.canEnable
+							? html`
+									<os-button
+										slot="cta"
+										class="dm-agents__enable"
+										variant="primary"
+										@click=${ () => openAgentsFeatureSetting() }
+									>
+										${ __( 'Turn on Agents', 'desktop-mode' ) }
+									</os-button>
+							  `
+							: html`` }
+					</os-empty-state>
 				`;
 			}
 			let emptyDescription = __(
@@ -1300,7 +1292,6 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		render(
 			html`
-				${ off ? offNotice() : html`` }
 				${ aiNotice() }
 				${ state.notice
 					? html`<os-notice class="dm-agents__notice">${ state.notice }</os-notice>`

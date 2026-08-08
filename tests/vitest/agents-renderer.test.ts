@@ -191,7 +191,7 @@ describe( 'agents entity kind', () => {
 			expect( create!.hasAttribute( 'disabled' ) ).toBe( true );
 		} );
 
-		test( 'offers an admin the Features tab, and suppresses the AI notice', async () => {
+		test( 'offers an admin the Features tab from the empty state CTA', async () => {
 			installConfig( { enabled: false } );
 			mockAgentList( [] );
 			const openOsSettings = vi.fn();
@@ -203,19 +203,33 @@ describe( 'agents entity kind', () => {
 			getEntityRenderer( 'agent' )!( host, ENTITY );
 			await flush();
 
-			const notice = host.body.querySelector( '.dm-agents__off-notice' );
-			expect( notice ).not.toBeNull();
-			expect( notice!.textContent ).toContain( 'turned off' );
-			// Only the off notice — the connector warning would compete
-			// with the one action that actually unblocks the user.
-			expect( notice!.textContent ).not.toContain( 'AI Client' );
-
-			host.body
-				.querySelector< HTMLElement >( '.dm-agents__enable' )!
-				.click();
+			const cta = host.body.querySelector< HTMLElement >(
+				'.dm-agents__enable',
+			);
+			expect( cta ).not.toBeNull();
+			expect( cta!.getAttribute( 'slot' ) ).toBe( 'cta' );
+			cta!.click();
 			expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
 
 			delete ( window as unknown as Record< string, unknown > ).wp;
+		} );
+
+		test( 'says it once — no banner duplicating the empty state', async () => {
+			installConfig( { enabled: false } );
+			mockAgentList( [] );
+			const host = makeHost();
+
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			// The pane always renders while off (nothing is fetched, so
+			// the list is always empty), which is exactly why a banner
+			// on top would be the same sentence twice. It also carried
+			// a dismiss button that could not dismiss anything.
+			expect( host.body.querySelector( 'os-notice' ) ).toBeNull();
+			expect( host.body.querySelectorAll( 'os-empty-state' ) ).toHaveLength(
+				1,
+			);
 		} );
 
 		test( 'without manage_options it points at an administrator instead', async () => {
@@ -228,7 +242,9 @@ describe( 'agents entity kind', () => {
 
 			expect( host.body.querySelector( '.dm-agents__enable' ) ).toBeNull();
 			expect(
-				host.body.querySelector( '.dm-agents__off-notice' )!.textContent,
+				host.body
+					.querySelector( 'os-empty-state' )!
+					.getAttribute( 'description' ),
 			).toContain( 'administrator' );
 		} );
 
@@ -244,6 +260,23 @@ describe( 'agents entity kind', () => {
 			expect( empty?.getAttribute( 'heading' ) ).toBe(
 				'Agents are turned off',
 			);
+		} );
+
+		test( 'dims the sidebar but never the way out', async () => {
+			installConfig( { enabled: false } );
+			mockAgentList( [] );
+			const host = makeHost();
+
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			// `.is-disabled` scopes its opacity to the sidebar — a
+			// greyed-out CTA in a greyed-out pane is a dead end.
+			const root = host.body.querySelector( '.dm-agents' );
+			expect( root!.classList.contains( 'is-disabled' ) ).toBe( true );
+			expect(
+				host.body.querySelector( '.dm-agents__detail .dm-agents__enable' ),
+			).not.toBeNull();
 		} );
 	} );
 

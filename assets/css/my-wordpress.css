@@ -2115,20 +2115,13 @@ os-tile[ status='future' ] .os-file-tile__icon {
 }
 
 /* The framework is opt-in but the section is always listed, so with
-   the option off the whole surface paints inert rather than vanishing.
-   The notice above it carries the way to switch it on, which is why
-   the notice itself keeps full opacity. */
-.dm-agents.is-disabled .dm-agents__layout {
+   the option off the surface paints inert rather than vanishing.
+   Only the sidebar dims: the detail pane holds the empty state
+   explaining why, and the one button that undoes it — dimming the way
+   out along with everything else is how a disabled screen becomes a
+   dead end. */
+.dm-agents.is-disabled .dm-agents__sidebar {
 	opacity: 0.6;
-}
-
-/* The button sits inside the notice's label slot, so it lays out
-   inline with the sentence rather than as a flex sibling of the
-   tone icon — hence the alignment here rather than on the host,
-   whose own flex layout the component owns. */
-.dm-agents__off-notice .dm-agents__enable {
-	vertical-align: middle;
-	margin-inline-start: 4px;
 }
 
 /* Section-level loading — same scale curve as the My WordPress
