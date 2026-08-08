@@ -507,7 +507,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( forced !== null ) {
 			// Filter-pinned — render a read-only label, no toggle.
 			const label = document.createElement( 'span' );
-			label.style.cssText = 'color:var(--wp-desktop-text-muted,#666);';
+			label.style.cssText = 'color:var(--os-ui-fg-muted,#50575e);';
 			label.textContent = forced
 				? __( 'Auto-updates enabled', 'desktop-mode' )
 				: __( 'Auto-updates disabled', 'desktop-mode' );
@@ -521,7 +521,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			// Core hides the toggle entirely. Render an em-dash so the
 			// cell isn't blank.
 			const placeholder = document.createElement( 'span' );
-			placeholder.style.cssText = 'color:var(--wp-desktop-text-muted,#9ca3af);';
+			placeholder.style.cssText = 'color:var(--os-ui-fg-faint,#787c82);';
 			placeholder.textContent = '—';
 			placeholder.title = __(
 				'This plugin does not check in with WordPress.org, so automatic updates can\'t be scheduled.',
@@ -539,7 +539,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		link.setAttribute( 'data-wp-action', enabled ? 'disable' : 'enable' );
 		link.style.cssText =
 			'display:inline-flex;align-items:center;gap:6px;' +
-			'color:var( --wp-desktop-accent, var( --os-ui-accent, #2271b1 ) );text-decoration:none;' +
+			'color:var( --os-ui-accent, #2271b1 );text-decoration:none;' +
 			'cursor:pointer;font-size:0.9em;';
 		if ( busy ) {
 			link.style.opacity = '0.6';
@@ -613,7 +613,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			} else {
 				const hint = document.createElement( 'span' );
 				hint.style.cssText =
-					'font-size:0.78em;color:var(--wp-desktop-text-muted,#666);';
+					'font-size:0.78em;color:var(--os-ui-fg-muted,#50575e);';
 				hint.textContent = __( 'Auto-update unavailable', 'desktop-mode' );
 				hint.title = __(
 					'This plugin does not ship a wp.org download package. Update it manually from its source.',
