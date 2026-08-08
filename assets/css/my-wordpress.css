@@ -2114,6 +2114,23 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	box-sizing: border-box;
 }
 
+/* The framework is opt-in but the section is always listed, so with
+   the option off the whole surface paints inert rather than vanishing.
+   The notice above it carries the way to switch it on, which is why
+   the notice itself keeps full opacity. */
+.dm-agents.is-disabled .dm-agents__layout {
+	opacity: 0.6;
+}
+
+/* The button sits inside the notice's label slot, so it lays out
+   inline with the sentence rather than as a flex sibling of the
+   tone icon — hence the alignment here rather than on the host,
+   whose own flex layout the component owns. */
+.dm-agents__off-notice .dm-agents__enable {
+	vertical-align: middle;
+	margin-inline-start: 4px;
+}
+
 /* Section-level loading — same scale curve as the My WordPress
    preview loader and the window-loading overlay, instead of the bare
    48px component default. */

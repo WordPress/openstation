@@ -4515,12 +4515,22 @@ Features → Extended options, admin-only, default off). While the flag
 is off none of these hooks exist — `includes/agents/bootstrap.php`
 skips every module file.
 
-**One exception**: `includes/agents/guard.php` loads unconditionally,
-ahead of the flag. It owns `openstation_agent_is_agent()` and every
-login/session block. Disabling the feature does not delete agent user
-rows, and a row whose blocks unloaded with the feature would accept
-application passwords and password resets again — so the blocks are a
-property of the rows, not of the feature.
+**Two exceptions** load unconditionally, ahead of the flag:
+
+- `includes/agents/guard.php` owns `openstation_agent_is_agent()` and
+  every login/session block. Disabling the feature does not delete
+  agent user rows, and a row whose blocks unloaded with the feature
+  would accept application passwords and password resets again — so
+  the blocks are a property of the rows, not of the feature.
+- `includes/agents/my-wordpress.php` adds the Agents section to WP
+  Explorer, so the section is always listed for anyone who passes
+  `openstation_agents_user_can_read`. While the flag is off the
+  section config carries `enabled => false` and the bundle paints it
+  read-only without issuing a single request — the REST routes below
+  genuinely do not exist then. The three capability filters and
+  `openstation_agent_avatar_url()` live in `bootstrap.php` for the
+  same reason: the section descriptor needs them while `rest.php` and
+  `identity.php` are unloaded.
 
 An agent is a synthetic `wp_users` row (login-blocked) whose entire
 definition lives as user meta on that row: description, instructions
@@ -4786,11 +4796,16 @@ add_filter( 'openstation_agent_http_timeout', fn() => 300 );
 The three permission gates on the REST surface and the UI. Defaults:
 read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
+All three are available even when the agents feature is off
+(bootstrap.php) — `openstation_agents_user_can_read` decides whether
+the always-listed WP Explorer section appears at all.
+
 - **Param** `bool $can`
 
 ### PHP helpers — Experimental
 
 - `openstation_agent_is_agent( $user )` — marker-meta test. Available even when the agents feature is off (guard.php).
+- `openstation_agent_avatar_url()` — the bot avatar file URL. Available even when the agents feature is off (bootstrap.php).
 - `openstation_agent_create( $args )` / `openstation_agent_update( $user_id, $fields )` / `openstation_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `openstation_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.

@@ -1,0 +1,178 @@
+<?php
+/**
+ * Tests for the agents ↔ WP Explorer integration.
+ *
+ * The integration loads regardless of the `agents` extended option so
+ * the section is always discoverable; what the flag decides is whether
+ * the section arrives live or read-only. Both halves are pinned here,
+ * because a regression on either one is invisible until someone opens
+ * the window on a site that never turned agents on.
+ *
+ * @package WordPress
+ * @subpackage UnitTests
+ *
+ * @group openstation
+ * @group os-agents
+ */
+class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
+
+	protected static $admin_id;
+	protected static $editor_id;
+	protected static $subscriber_id;
+
+	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
+		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
+		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+	}
+
+	public function set_up() {
+		parent::set_up();
+		wp_set_current_user( self::$admin_id );
+	}
+
+	/**
+	 * Turn the framework off for the duration of one test. The suite
+	 * bootstrap forces it on; the test framework restores hooks after
+	 * every test, so this only affects the caller.
+	 */
+	private function disable_agents() {
+		remove_all_filters( 'openstation_agents_enabled' );
+		add_filter( 'openstation_agents_enabled', '__return_false' );
+	}
+
+	private function agents_config() {
+		$args = openstation_agents_my_wordpress_window_args( array( 'config' => array() ) );
+		return isset( $args['config']['agents'] ) ? $args['config']['agents'] : null;
+	}
+
+	private function entity_ids() {
+		return wp_list_pluck(
+			openstation_agents_my_wordpress_entity( array() ),
+			'id'
+		);
+	}
+
+	/**
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
+	public function test_entity_is_appended_for_a_reader() {
+		$entities = openstation_agents_my_wordpress_entity( array() );
+
+		$this->assertCount( 1, $entities );
+		$this->assertSame( 'agents', $entities[0]['id'] );
+		$this->assertSame( 'agent', $entities[0]['kind'] );
+		$this->assertSame( 'desktop-mode/v1/agents', $entities[0]['restPath'] );
+		$this->assertNotEmpty( $entities[0]['icon'] );
+	}
+
+	/**
+	 * The whole point of the change: a site that has never enabled the
+	 * framework still lists the section.
+	 *
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
+	public function test_entity_is_listed_while_the_framework_is_off() {
+		$this->disable_agents();
+
+		$this->assertSame( array( 'agents' ), $this->entity_ids() );
+	}
+
+	/**
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
+	public function test_entity_is_withheld_from_users_who_cannot_read_agents() {
+		wp_set_current_user( self::$subscriber_id );
+
+		$this->assertSame( array(), $this->entity_ids() );
+	}
+
+	/**
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 */
+	public function test_window_config_reports_enabled_when_the_flag_is_on() {
+		$config = $this->agents_config();
+
+		$this->assertTrue( $config['enabled'] );
+		$this->assertTrue( $config['canEnable'] );
+		$this->assertTrue( $config['canManage'] );
+		$this->assertTrue( $config['canInvoke'] );
+	}
+
+	/**
+	 * `enabled` is what tells the bundle not to fetch — the REST routes
+	 * are genuinely absent while the flag is off, so a section that
+	 * tried would 404 on every paint.
+	 *
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 */
+	public function test_window_config_reports_disabled_when_the_flag_is_off() {
+		$this->disable_agents();
+		$config = $this->agents_config();
+
+		$this->assertIsArray( $config );
+		$this->assertFalse( $config['enabled'] );
+	}
+
+	/**
+	 * An editor sees the section but cannot flip the option — the
+	 * Extended options section of the Features tab is admin-only.
+	 *
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 */
+	public function test_can_enable_tracks_manage_options() {
+		wp_set_current_user( self::$editor_id );
+		$config = $this->agents_config();
+
+		$this->assertIsArray( $config );
+		$this->assertFalse( $config['canEnable'] );
+		$this->assertFalse( $config['canManage'] );
+		$this->assertTrue( $config['canInvoke'] );
+	}
+
+	/**
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 */
+	public function test_window_config_is_withheld_from_users_who_cannot_read_agents() {
+		wp_set_current_user( self::$subscriber_id );
+
+		$this->assertNull( $this->agents_config() );
+	}
+
+	/**
+	 * The entity descriptor is built from helpers that used to live in
+	 * rest.php / identity.php — neither of which is loaded while the
+	 * flag is off, so moving one back there would fatal the WP Explorer
+	 * window on exactly the sites this change exists for.
+	 *
+	 * The suite bootstrap forces the framework ON, so `function_exists`
+	 * proves nothing here; the declaring file is the real assertion.
+	 *
+	 * @covers ::openstation_agent_avatar_url
+	 * @covers ::openstation_agents_user_can_read
+	 * @covers ::openstation_agents_user_can_manage
+	 * @covers ::openstation_agents_user_can_invoke
+	 */
+	public function test_descriptor_helpers_are_declared_in_the_always_loaded_bootstrap() {
+		$always_loaded = array(
+			'openstation_agent_avatar_url',
+			'openstation_agents_user_can_read',
+			'openstation_agents_user_can_manage',
+			'openstation_agents_user_can_invoke',
+		);
+
+		foreach ( $always_loaded as $function ) {
+			$reflection = new ReflectionFunction( $function );
+			$this->assertSame(
+				'bootstrap.php',
+				basename( $reflection->getFileName() ),
+				"{$function}() must stay in the unconditionally loaded agents bootstrap."
+			);
+		}
+
+		$this->assertStringContainsString(
+			'agent-avatar.svg',
+			openstation_agent_avatar_url()
+		);
+	}
+}

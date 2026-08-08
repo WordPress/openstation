@@ -43,13 +43,19 @@ interface TileMenuCtx {
 let cache: Agent[] | null = null;
 let warming = false;
 
+/**
+ * The section config ships on every WP Explorer window the user may
+ * read agents in — including sites where the framework itself is off,
+ * so the section can render its "turn it on" state. `enabled` is the
+ * half that says whether the REST routes exist; without it the warm-up
+ * below would fetch a 404 on every such site.
+ */
 function agentsConfigured(): boolean {
 	try {
-		return Boolean(
-			( getConfig() as MyWordPressConfig & {
-				agents?: AgentsSectionConfig;
-			} ).agents,
-		);
+		const agents = ( getConfig() as MyWordPressConfig & {
+			agents?: AgentsSectionConfig;
+		} ).agents;
+		return Boolean( agents?.enabled );
 	} catch {
 		return false;
 	}

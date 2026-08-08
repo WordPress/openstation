@@ -19,8 +19,9 @@
  * section inside WP Explorer (my-wordpress.php).
  *
  * The module is opt-in behind the `agents` extended option — while
- * off, no user-meta registration, no REST routes, no window, no
- * WP Explorer entity. The one exception is guard.php: see below.
+ * off, no user-meta registration, no REST routes and no chat window.
+ * Two files load regardless of the flag: guard.php and
+ * my-wordpress.php. See below for why.
  *
  * @package OpenStation
  */
@@ -35,6 +36,72 @@ defined( 'ABSPATH' ) || exit;
  * blocks are a property of the rows, not of the feature.
  */
 require_once OPENSTATION_DIR . 'includes/agents/guard.php';
+
+// ---------------------------------------------------------------------------
+// Always-available helpers
+//
+// The capability helpers and the avatar URL live here rather than in
+// rest.php / identity.php because the WP Explorer integration needs
+// all four to build its entity descriptor, and it now loads while the
+// feature flag is off — when neither of those files is loaded.
+// ---------------------------------------------------------------------------
+
+/**
+ * URL of the bot avatar as a real static file.
+ *
+ * The avatar MUST be a file URL, not the data URI: consumers routinely
+ * run avatar URLs through `esc_url()` (wp-admin's `get_avatar()`, the
+ * desktop user-tile renderer), and `data` is not in
+ * `wp_allowed_protocols()` — the data URI silently becomes an empty
+ * string and the avatar renders broken.
+ *
+ * @return string
+ */
+function openstation_agent_avatar_url() {
+	return OPENSTATION_URL . 'assets/images/agent-avatar.svg';
+}
+
+/**
+ * Whether the current user can see agents.
+ *
+ * @return bool
+ */
+function openstation_agents_user_can_read() {
+	/**
+	 * Filter whether the current user can read OpenStation agents.
+	 *
+	 * @param bool $can Default: `edit_posts` capability.
+	 */
+	return (bool) apply_filters( 'openstation_agents_user_can_read', current_user_can( 'edit_posts' ) );
+}
+
+/**
+ * Whether the current user can create / edit / delete agents.
+ *
+ * @return bool
+ */
+function openstation_agents_user_can_manage() {
+	/**
+	 * Filter whether the current user can manage OpenStation agents.
+	 *
+	 * @param bool $can Default: `edit_users` capability.
+	 */
+	return (bool) apply_filters( 'openstation_agents_user_can_manage', current_user_can( 'edit_users' ) );
+}
+
+/**
+ * Whether the current user can invoke agents.
+ *
+ * @return bool
+ */
+function openstation_agents_user_can_invoke() {
+	/**
+	 * Filter whether the current user can invoke OpenStation agents.
+	 *
+	 * @param bool $can Default: `edit_posts` capability.
+	 */
+	return (bool) apply_filters( 'openstation_agents_user_can_invoke', current_user_can( 'edit_posts' ) );
+}
 
 /**
  * Whether the Agents framework is enabled site-wide.
@@ -61,6 +128,21 @@ function openstation_agents_enabled() {
 }
 
 /**
+ * The WP Explorer integration also loads unconditionally, so the Agents
+ * section is always discoverable: a site that has never turned the
+ * framework on still shows the tile, and the section explains how to
+ * switch it on instead of hiding the feature from the one person who
+ * could enable it. Everything inside renders inert while the flag is
+ * off — `openstation_agents_my_wordpress_window_args()` ships
+ * `enabled => false`, and the renderer disables every control and skips
+ * every fetch (the REST routes genuinely do not exist while off).
+ *
+ * Loaded after the helpers above, which it needs to build the entity
+ * descriptor and the section config.
+ */
+require_once OPENSTATION_DIR . 'includes/agents/my-wordpress.php';
+
+/**
  * Loads the agents module when the framework is enabled.
  *
  * @access private
@@ -79,6 +161,5 @@ function openstation_agents_load() {
 	require_once OPENSTATION_DIR . 'includes/agents/conversations.php';
 	require_once OPENSTATION_DIR . 'includes/agents/privacy.php';
 	require_once OPENSTATION_DIR . 'includes/agents/run-window.php';
-	require_once OPENSTATION_DIR . 'includes/agents/my-wordpress.php';
 }
 add_action( 'plugins_loaded', 'openstation_agents_load', 5 );
