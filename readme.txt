@@ -1,4 +1,4 @@
-=== OpenStation ===
+=== OpenStation — Desktop Windows, Dock & Virtual Desktops for WP Admin ===
 Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
