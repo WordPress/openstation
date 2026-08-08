@@ -2243,6 +2243,16 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	gap: 10px;
 }
 
+/* `<os-empty-state>` owns the icon + copy and centres them within
+   itself; the host is still a flex item that shrinks to its content,
+   so without this it sits at the top of a pane that is mostly empty
+   space. Auto margins on both axes absorb the slack — placement only,
+   same as the comments window. Covers the framework-off state and
+   "No agents yet" alike. */
+.dm-agents__detail > os-empty-state {
+	margin: auto;
+}
+
 .dm-agents__detail-head {
 	display: flex;
 	align-items: center;
