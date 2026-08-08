@@ -4000,12 +4000,14 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
+The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.overview.entering` | action | Stable | `{}` — before the enter animation starts |
 | `os.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
 | `os.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
-| `os.overview.exited` | action | Stable | same payload as `exiting` |
+| `os.overview.exited` | action | Stable | same payload as `exiting` — fires ~280 ms later, once the windows have animated home |
 | `os.overview.window-hover` | action | Stable | `{ windowId }` |
 | `os.overview.window-unhover` | action | Stable | `{ windowId }` |
 | `os.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |

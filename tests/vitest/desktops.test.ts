@@ -512,6 +512,85 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
 	} );
 
+	test( 're-entering overview mid-exit does not re-fullscreen a thumbnail', async () => {
+		// Double-tapping the overview trigger lands the second enter
+		// inside the 280 ms exit animation. The outgoing session's timer
+		// must not survive into the new one — if it does, it fires
+		// mid-session and re-applies `--fullscreen` to a thumbnail that
+		// is currently laid out in the grid, blowing it up to full size
+		// and taking the admin bar with it (the body class hides it).
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+
+		manager.enterOverview();
+		manager.exitOverview();
+		vi.advanceTimersByTime( 100 );
+		manager.enterOverview();
+
+		// The flush settled the first session, so the marker is back on
+		// for the SECOND session's layout — not a leftover of the first.
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBe( 'true' );
+
+		// Past the point the stale timer would have fired.
+		vi.advanceTimersByTime( 280 );
+
+		expect( manager._overviewActive ).toBe( true );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+		// The thumbnail is still laid out as one.
+		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe(
+			true,
+		);
+
+		// And the second session still exits cleanly.
+		manager.exitOverview();
+		vi.advanceTimersByTime( 280 );
+
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( true );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 're-entering overview mid-exit settles the outgoing session first', async () => {
+		vi.useFakeTimers();
+		await manager.open( openConfig( 'a' ) );
+		const log = recordActions( hooks, [
+			HOOKS.OVERVIEW_EXITED,
+			HOOKS.OVERVIEW_ENTERING,
+		] );
+
+		manager.enterOverview();
+		const firstTopBar = manager._overviewTopBar;
+		manager.exitOverview();
+		vi.advanceTimersByTime( 100 );
+		manager.enterOverview();
+
+		// `exited` for session one lands BEFORE `entering` for session
+		// two — the order a listener expects, rather than arriving 180 ms
+		// into a session that is already up.
+		expect( log.map( ( e ) => e.name ) ).toEqual( [
+			HOOKS.OVERVIEW_ENTERING,
+			HOOKS.OVERVIEW_EXITED,
+			HOOKS.OVERVIEW_ENTERING,
+		] );
+		// The first session's top bar was torn down, not orphaned in the
+		// DOM behind the new one.
+		expect( firstTopBar?.isConnected ).toBe( false );
+		expect(
+			desktopArea.querySelectorAll( '.os-overview-top-bar' ),
+		).toHaveLength( 1 );
+
+		// The stale timer is gone — the new session's top bar survives.
+		vi.advanceTimersByTime( 280 );
+		expect( manager._overviewTopBar?.isConnected ).toBe( true );
+	} );
+
 	test( 'Enter key in overview exits without selecting a window', async () => {
 		await manager.open( openConfig( 'a' ) );
 		manager.enterOverview();

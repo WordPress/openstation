@@ -136,6 +136,10 @@ export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
 		return;
 	}
+	// A previous exit may still be mid-animation (the user double-tapped
+	// the trigger). Settle it now so its timer can't fire inside the
+	// session we're about to build. See `flushPendingOverviewExit`.
+	flushPendingOverviewExit( mgr );
 	// Overview shows windows on the active desktop, including minimized
 	// ones. Minimized windows are rendered with a visual indicator
 	// (lower opacity) so the user can see all their work at a glance.
@@ -448,6 +452,33 @@ export function enterOverview( mgr: WindowManager ): void {
 }
 
 /**
+ * Run the pending exit-animation cleanup now, cancelling its timer.
+ *
+ * The timer itself calls this; so does `enterOverview()`, because a
+ * re-entry inside the 280 ms exit window would otherwise leave a live
+ * timer that fires MID-session and undoes the new session's setup —
+ * stripping `os-window--overview` from every thumbnail, re-adding
+ * `os-window--fullscreen` to a window whose class was suspended for
+ * layout (blowing one thumbnail up to fullscreen size and hiding the
+ * admin bar with it), and removing the top bar that enter just built.
+ *
+ * Settling the outgoing session first is what makes double-tapping
+ * the overview trigger safe: `OVERVIEW_EXITED` lands before
+ * `OVERVIEW_ENTERING`, in the order a listener expects.
+ *
+ * No-op when nothing is pending.
+ */
+export function flushPendingOverviewExit( mgr: WindowManager ): void {
+	if ( mgr._overviewExitTimeoutId !== null ) {
+		window.clearTimeout( mgr._overviewExitTimeoutId );
+		mgr._overviewExitTimeoutId = null;
+	}
+	const finalize = mgr._overviewExitFinalizer;
+	mgr._overviewExitFinalizer = null;
+	finalize?.();
+}
+
+/**
  * Cancel any pending overview transition timers without running their
  * callbacks. Called from `WindowManager.destroy()` so a discarded
  * manager can never fire a delayed `doAction()` that reaches for
@@ -462,6 +493,9 @@ export function cancelOverviewTimers( mgr: WindowManager ): void {
 		window.clearTimeout( mgr._overviewExitTimeoutId );
 		mgr._overviewExitTimeoutId = null;
 	}
+	// Dropped, not run — `destroy()` wants the callback gone, and its
+	// `doAction()` would reach for globals this teardown is removing.
+	mgr._overviewExitFinalizer = null;
 }
 
 /** Build the overview top bar — a tile per virtual desktop plus "+". */
@@ -783,8 +817,7 @@ export function exitOverview(
 	// tracked so `destroy()` can cancel it if the manager is
 	// discarded before it fires.
 	const ANIMATION_MS = 280;
-	mgr._overviewExitTimeoutId = window.setTimeout( () => {
-		mgr._overviewExitTimeoutId = null;
+	mgr._overviewExitFinalizer = () => {
 		for ( const w of mgr._stack ) {
 			w.element.classList.remove( 'os-window--overview' );
 			restoreWindowAfterOverviewLayout(
@@ -818,7 +851,11 @@ export function exitOverview(
 			windowId: selected ? selected.id : undefined,
 			reason: selected ? 'select' : 'cancel',
 		} );
-	}, ANIMATION_MS ) as unknown as number;
+	};
+	mgr._overviewExitTimeoutId = window.setTimeout(
+		() => flushPendingOverviewExit( mgr ),
+		ANIMATION_MS,
+	) as unknown as number;
 
 	if ( mgr._overviewPointerDownHandler ) {
 		mgr._desktop.removeEventListener(
