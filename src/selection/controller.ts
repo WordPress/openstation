@@ -128,6 +128,13 @@ function suppressNativeSelection( ref: HTMLElement ): () => void {
 const DEFAULT_MARQUEE_EXCLUDE =
 	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add';
 
+/**
+ * Class the window manager puts on the desktop area for the duration of
+ * Overview. While it is present the area is a click surface, not a
+ * selection canvas — see the guard in `onBackgroundPointerDown`.
+ */
+const OVERVIEW_ACTIVE_CLASS = 'os-area--overview';
+
 export interface SelectionControllerOptions {
 	/** CSS selector for selectable items under `root`. */
 	itemSelector?: string;
@@ -616,6 +623,24 @@ export function attachSelection(
 			return;
 		}
 		if ( ! ( e.target instanceof Element ) ) {
+			return;
+		}
+		// Overview repurposes the whole desktop area as a click surface:
+		// window thumbnails and the desktops top bar are the only live
+		// targets, and the icons / files layers this marquee selects from
+		// are hidden underneath it. Starting a band here is both
+		// meaningless AND destructive — `capturePointer()` retargets the
+		// rest of the gesture (including the compatibility mouse events)
+		// to the canvas, so the synthesized `click` lands on the desktop
+		// area instead of the top-bar tile the user pressed, and
+		// switching desktops from Overview silently does nothing.
+		//
+		// Thumbnails escaped this because Overview's own capture-phase
+		// pointerdown handler stops propagation before the press reaches
+		// this listener; top-bar presses and bare-backdrop presses do not
+		// (the latter share this node, where `stopPropagation()` can't
+		// unregister a same-node sibling listener).
+		if ( background.classList.contains( OVERVIEW_ACTIVE_CLASS ) ) {
 			return;
 		}
 		if ( e.target.closest( itemSelector ) ) {
