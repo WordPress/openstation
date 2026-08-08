@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 function openstation_comments_window_render_template() {
 	ob_start();
 	?>
-	<div class="desktop-mode-comments os-comments--conversation" data-os-comments-root>
+	<div class="os-comments os-comments--conversation" data-os-comments-root>
 		<?php
 		/*
 		 * Tab strip filters the thread rail (Pending / All / Spam /
