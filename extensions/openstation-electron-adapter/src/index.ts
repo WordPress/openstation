@@ -67,6 +67,12 @@ interface ShellApi {
 	};
 	ready( cb: () => void ): void;
 	registerWindowAction( def: unknown ): void;
+	registerNamespace( name: string, api: object ): void;
+	fetch(
+		input: RequestInfo,
+		init?: RequestInit,
+		opts?: { windowId?: string; source?: string; silent?: boolean },
+	): Promise< Response >;
 	electron?: ElectronAdapterApi;
 }
 
@@ -321,8 +327,15 @@ export function boot(
 	 * `wp.os.electron` rather than baked into core's API: a capability
 	 * that arrives with a plugin should be reachable the way a
 	 * plugin's capabilities are.
+	 *
+	 * Published through `registerNamespace()` rather than by assigning
+	 * the property. This file claims to use nothing but OpenStation's
+	 * public API, and `registerNamespace` *is* that API — assignment
+	 * skipped its reserved-key check, so a future core key called
+	 * `electron` would have been silently overwritten, and a second
+	 * plugin claiming the same name would silently win.
 	 */
-	os.electron = api;
+	os.registerNamespace( 'electron', api );
 
 	// Learn who the host is, re-adopt anything already freed, then
 	// introduce ourselves to the server.

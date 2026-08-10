@@ -47,6 +47,11 @@ import type { FreeWindowRequest, FreeWindowResult } from './protocol';
 /** Largest body the agent will read, in bytes. */
 const MAX_BODY = 64 * 1024;
 
+/** A body that exceeded {@link MAX_BODY}, answered with `413`. */
+class BodyTooLargeError extends Error {
+	public readonly bodyTooLarge = true;
+}
+
 /**
  * Compare two secrets without letting the clock describe them.
  *
@@ -235,7 +240,13 @@ export class LocalAgent {
 				}
 			} )
 			.catch( ( err ) => {
-				this.json( res, 400, {
+				const tooLarge = err instanceof BodyTooLargeError;
+				if ( tooLarge ) {
+					// Read the rest of the body? No — but the answer
+					// goes out first, and only then does the socket go.
+					res.once( 'finish', () => req.destroy() );
+				}
+				this.json( res, tooLarge ? 413 : 400, {
 					error: err instanceof Error ? err.message : 'bad request',
 				} );
 			} );
@@ -247,26 +258,56 @@ export class LocalAgent {
 	 */
 	private readBody( req: IncomingMessage ): Promise< unknown > {
 		return new Promise( ( resolve, reject ) => {
-			let raw = '';
-			req.on( 'data', ( chunk ) => {
-				raw += chunk;
-				if ( raw.length > MAX_BODY ) {
-					reject( new Error( 'body too large' ) );
-					req.destroy();
+			// Chunks are collected as Buffers and measured in bytes.
+			// Concatenating into a string measured `.length` in UTF-16
+			// code units instead, which counts a 4-byte emoji as 2 —
+			// so `MAX_BODY` was up to three times looser than it reads
+			// for multi-byte input, and the limit is the whole point.
+			const chunks: Buffer[] = [];
+			let size = 0;
+			let done = false;
+
+			// One settle, one outcome. Destroying the request emits
+			// `error` (and sometimes `end`), and the old code answered
+			// the caller a second time after already rejecting — and
+			// wrote a response onto a socket it had just torn down.
+			const settle = ( fn: () => void ) => {
+				if ( done ) {
+					return;
+				}
+				done = true;
+				fn();
+			};
+
+			req.on( 'data', ( chunk: Buffer ) => {
+				if ( done ) {
+					return;
+				}
+				chunks.push( chunk );
+				size += chunk.length;
+				if ( size > MAX_BODY ) {
+					// Paused rather than destroyed. Tearing the socket
+					// down here raced the refusal onto it, so the caller
+					// got a closed connection instead of an answer;
+					// `handle()` destroys it once the 413 has flushed.
+					settle( () => reject( new BodyTooLargeError( 'body too large' ) ) );
+					req.pause();
 				}
 			} );
 			req.on( 'end', () => {
-				if ( ! raw ) {
-					resolve( {} );
-					return;
-				}
-				try {
-					resolve( JSON.parse( raw ) );
-				} catch {
-					reject( new Error( 'invalid JSON' ) );
-				}
+				settle( () => {
+					if ( ! size ) {
+						resolve( {} );
+						return;
+					}
+					try {
+						resolve( JSON.parse( Buffer.concat( chunks ).toString( 'utf8' ) ) );
+					} catch {
+						reject( new Error( 'invalid JSON' ) );
+					}
+				} );
 			} );
-			req.on( 'error', reject );
+			req.on( 'error', ( err ) => settle( () => reject( err ) ) );
 		} );
 	}
 
@@ -276,6 +317,14 @@ export class LocalAgent {
 	 * @param body   JSON payload.
 	 */
 	private json( res: ServerResponse, status: number, body: unknown ): void {
+		// An over-large body is refused by destroying the request, which
+		// takes the socket with it — so by the time the rejection
+		// reaches the error handler there is nothing left to answer on.
+		// Writing anyway is how a refusal turns into an unhandled
+		// `ERR_STREAM_WRITE_AFTER_END`.
+		if ( res.writableEnded || res.destroyed ) {
+			return;
+		}
 		const payload = JSON.stringify( body );
 		res.writeHead( status, {
 			'Content-Type': 'application/json; charset=utf-8',

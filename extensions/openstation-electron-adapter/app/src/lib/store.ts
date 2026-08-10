@@ -26,8 +26,6 @@ import type { Bounds } from './protocol';
 export interface StoreState {
 	siteUrl: string;
 	hostId: string;
-	/** Bearer token the local agent requires. See `lib/agent.ts`. */
-	agentToken: string;
 	/** How the user chose to open OpenStation: in the app, or in their browser. */
 	openIn: '' | 'app' | 'browser';
 	shellBounds: Bounds | null;
@@ -37,7 +35,6 @@ export interface StoreState {
 const DEFAULTS: StoreState = {
 	siteUrl: '',
 	hostId: '',
-	agentToken: '',
 	openIn: '',
 	shellBounds: null,
 	freedBounds: {},
@@ -46,6 +43,8 @@ const DEFAULTS: StoreState = {
 export class Store {
 	private readonly file: string;
 	private cache: StoreState | null = null;
+	/** Per-launch agent secret. See {@link Store.agentToken}. */
+	private sessionToken = '';
 
 	/**
 	 * @param dir      Directory to keep the state file in.
@@ -126,21 +125,31 @@ export class Store {
 	}
 
 	/**
-	 * Bearer token for the local agent, generated once and reused.
+	 * Bearer token for the local agent — new every launch, never
+	 * written to disk.
 	 *
 	 * Longer than the host id because this one is a capability rather
 	 * than a name: presenting it to the loopback server is what
-	 * authorises opening a window on this machine.
+	 * authorises opening a window on this machine. Unlike the host id,
+	 * nothing needs it to be stable — the agent's port is ephemeral
+	 * already, so both halves of the pairing are re-issued on launch and
+	 * handed to the site on the next handshake. A page holding the
+	 * previous pair simply fails its probe and re-reads the current one
+	 * from the server, which is the path that already covers a restart
+	 * landing on a different port.
+	 *
+	 * A secret that never rotates and lives in a plain JSON file is a
+	 * secret with an indefinite blast radius; one that dies with the
+	 * process costs nothing to replace. An `agentToken` in a state file
+	 * written by an older build is ignored.
 	 *
 	 * @return 64-char hex token.
 	 */
 	agentToken(): string {
-		let token = this.get( 'agentToken' );
-		if ( ! token ) {
-			token = randomBytes( 32 ).toString( 'hex' );
-			this.set( 'agentToken', token );
+		if ( ! this.sessionToken ) {
+			this.sessionToken = randomBytes( 32 ).toString( 'hex' );
 		}
-		return token;
+		return this.sessionToken;
 	}
 
 	/**

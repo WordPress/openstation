@@ -21,6 +21,7 @@ import {
 	registerWindowAction,
 	unregisterWindowAction,
 } from '../../src/window-actions/registry';
+import { Window as DesktopWindowClass } from '../../src/window';
 import type { Window as DesktopWindow } from '../../src/window';
 
 /**
@@ -299,5 +300,49 @@ describe( 'an open menu', () => {
 		} );
 
 		expect( rows( panel ) ).toHaveLength( 0 );
+	} );
+
+	test( 'a window destroyed with its menu open drops the subscription', () => {
+		// A real Window, because the thing under test is `destroy()`.
+		//
+		// `closeActionsMenu()` is the normal exit, and a click-driven
+		// close always reaches it because the document pointerdown
+		// handler closes the menu first. A programmatic `close()` does
+		// not — which left a live registry listener holding the window
+		// and a detached panel it would go on repainting forever.
+		const parent = document.createElement( 'div' );
+		document.body.appendChild( parent );
+		const win = new DesktopWindowClass( {
+			id: 'w-destroy',
+			url: 'http://example.test/wp-admin/edit.php',
+			title: 'Editor',
+			icon: 'dashicons-admin-post',
+			x: 40,
+			y: 40,
+			width: 800,
+			height: 600,
+			minWidth: 320,
+			minHeight: 200,
+		} );
+		parent.appendChild( win.element );
+
+		openActionsMenu( win );
+		expect( win._unsubscribeWindowActions ).toBeTypeOf( 'function' );
+
+		win.destroy();
+
+		expect( win._unsubscribeWindowActions ).toBeNull();
+
+		const panel = win.element.querySelector< HTMLElement >(
+			'.os-window__menu-panel',
+		);
+		registerWindowAction( {
+			id: 'my/after-destroy',
+			label: 'Too late',
+			onSelect: () => {},
+		} );
+
+		expect( panel && rows( panel ) ).toHaveLength( 0 );
+		parent.remove();
 	} );
 } );

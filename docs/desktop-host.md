@@ -99,8 +99,18 @@ paints nothing and logs. There is deliberately no fallback to "some
 other window": solo mode means *this* window, and quietly substituting
 another is worse than an empty surface.
 
-Core's `solo.css` hides the desk — wallpaper, dock, icon rail, widgets,
-Mio, sticky notes — and fills the viewport with the one window. It
+**A second window opened in solo mode has nowhere to go.** The surface
+paints exactly one, and a `window.open()` or a plugin calling
+`openWindow()` from inside it produces a window the user cannot see or
+reach. Under the desktop host that is handled — the adapter forwards
+the request to the app and it becomes a real OS window — but in a plain
+embed or kiosk there is no forwarder, and the failure is silent. If you
+are embedding solo mode, either keep the embedded screen to one window
+or supply your own forwarder for the second.
+
+Core's `solo.css` hides the desk — wallpaper, dock, both icon layouts
+(the Classic grid and the Spatial files layer), widgets, Mio, sticky
+notes — and fills the viewport with the one window. It
 deliberately **keeps the window's title bar**, because a generic
 embedder has no other chrome to offer: no frame, no close button, no
 way to move the thing. An embedder that supplies its own chrome layers
@@ -397,10 +407,23 @@ the new document holding `window.openStationDesktopHost`.
 
 The one exception is the shell window's **first** navigation chain,
 which runs unchecked so a site answering `example.com` with a redirect
-to `www.example.com` still connects; whatever it settles on becomes the
-site, and everything after is held to that. A consequence worth
-knowing: a site that signs in through an **external identity provider**
-sends that hop to the browser rather than following it in the app.
+to `www.example.com` still connects. What it settles on is not taken on
+trust either: adoption is limited to the same registrable name (the
+host, or a subdomain of it, in either direction — scheme and port may
+move, because an HTTPS upgrade is the most ordinary redirect there is).
+A chain that walked somewhere else entirely leaves the configured site
+standing, because whatever settles here becomes the agent's single
+allowed origin as well as the navigation allowlist.
+
+**A site that signs in through an external identity provider will not
+complete that flow in the app.** Jetpack SSO, WordPress.com login and
+off-site 2FA steps all navigate away from the site after settling, so
+the guard sends that hop to the user's browser and the app is left on
+the login screen. Sign in there, or use **Use my browser** and let the
+app serve the browser tab as its agent — the whole feature works that
+way too. Bringing these flows into the app needs a narrow allowance for
+the provider's origin, which is a change to make deliberately rather
+than by widening the guard.
 
 **The REST root is not the page's to choose.** The handshake body
 carries the local agent's URL and bearer token, so the `restUrl` the

@@ -6,7 +6,7 @@
  * more than the happy path.
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -74,6 +74,34 @@ describe( 'hostId', () => {
 		} finally {
 			rmSync( other, { recursive: true, force: true } );
 		}
+	} );
+} );
+
+describe( 'agentToken', () => {
+	// The opposite of `hostId` on purpose. The host id is a *name* and
+	// has to be stable for the site to tell a reconnection from a second
+	// machine. The token is a *capability*, and the agent's port is
+	// re-issued every launch anyway — so a token that outlived the
+	// process would be the only part of the pairing with an indefinite
+	// life, sitting in a plain JSON file.
+	test( 'is stable within a launch', () => {
+		const store = new Store( dir );
+		const first = store.agentToken();
+
+		expect( first ).toMatch( /^[0-9a-f]{64}$/ );
+		expect( store.agentToken() ).toBe( first );
+	} );
+
+	test( 'is new on the next launch, and never written to disk', () => {
+		const store = new Store( dir );
+		const first = store.agentToken();
+		// Force a flush, so the assertion below is "the token is absent
+		// from a file that exists" rather than "no file was written".
+		store.set( 'siteUrl', 'https://example.test' );
+
+		expect( readFileSync( join( dir, 'openstation-desktop.json' ), 'utf8' ) )
+			.not.toContain( first );
+		expect( new Store( dir ).agentToken() ).not.toBe( first );
 	} );
 } );
 

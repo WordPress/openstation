@@ -7,10 +7,15 @@ var openStationElectronAdapter = function(exports) {
       return null;
     }
     try {
-      const response = await fetch(restUrl, {
+      const send = window.wp?.os?.fetch;
+      const init = {
         credentials: "same-origin",
         headers: { "X-WP-Nonce": nonce }
-      });
+      };
+      const response = send ? await send(restUrl, init, {
+        silent: true,
+        source: "openstation-electron/pairing"
+      }) : await fetch(restUrl, init);
       if (!response.ok) {
         return null;
       }
@@ -587,7 +592,7 @@ var openStationElectronAdapter = function(exports) {
       isFreed: (windowId) => freed.has(windowId),
       getConnection: () => connection
     };
-    os.electron = api;
+    os.registerNamespace("electron", api);
     void bridge.getInfo().then((result) => {
       info = result;
       freed.adoptExisting(result?.freedWindows ?? []);

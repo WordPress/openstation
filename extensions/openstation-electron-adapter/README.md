@@ -71,7 +71,15 @@ npm start          # builds the app, launches Electron
 First launch asks for a site address (`http://localhost:8889` for a
 typical local WordPress). After that it opens straight into the
 desktop. You sign in with your normal WordPress account; the app stores
-nothing but the address.
+nothing but the address and — for the length of one launch only — the
+agent's bearer token.
+
+> **The released plugin zip is the adapter, not the app.** `.distignore`
+> keeps `app/`, `tests/`, `scripts/`, the build configs and the lockfile
+> out of it, because a WordPress plugin has no use for an Electron
+> source tree and wp.org has every reason not to carry one. The zip
+> installs the WordPress half; the desktop half comes from this repo
+> (above) or from a packaged build (`npm run dist`).
 
 ### Scripts
 

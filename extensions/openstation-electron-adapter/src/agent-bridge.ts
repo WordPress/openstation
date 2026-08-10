@@ -47,6 +47,12 @@ const PROBE_TIMEOUT_MS = 1500;
  * the baked value points at a port nothing is listening on. The server
  * always has the current one, because the app handshakes on launch.
  *
+ * This one is a **site** request, so it goes through `wp.os.fetch` and
+ * feeds the activity bus like any other. `silent: true` because the
+ * user did not ask for it — it is a background re-read triggered by a
+ * probe that failed, and spinning a window's loading indicator for it
+ * would report activity nobody initiated.
+ *
  * @param restUrl The adapter's `/host` REST URL.
  * @param nonce   The shell's REST nonce.
  * @return The current pairing, or null when the request fails.
@@ -59,10 +65,22 @@ export async function fetchPairing(
 		return null;
 	}
 	try {
-		const response = await fetch( restUrl, {
+		const send = window.wp?.os?.fetch;
+		const init: RequestInit = {
 			credentials: 'same-origin',
 			headers: { 'X-WP-Nonce': nonce },
-		} );
+		};
+		const response = send
+			? await send( restUrl, init, {
+				silent: true,
+				source: 'openstation-electron/pairing',
+			} )
+			// The shell always publishes `wp.os.fetch` before this can
+			// run — `boot()` waits for `wp.os.ready`. Kept as a
+			// fallback rather than a throw because failing to re-read a
+			// port is not worth losing the connection over.
+			// eslint-disable-next-line no-restricted-syntax -- boot-time fallback; see above.
+			: await fetch( restUrl, init );
 		if ( ! response.ok ) {
 			return null;
 		}
@@ -102,6 +120,7 @@ export async function connectToAgent(
 		path: string,
 		init: RequestInit = {},
 	): Promise< Record< string, unknown > > => {
+		// eslint-disable-next-line no-restricted-syntax -- loopback call to the desktop app, not a site request: it has no window to attribute to and must not appear as site activity.
 		const response = await fetch( `${ base }${ path }`, {
 			...init,
 			headers: {
@@ -119,6 +138,7 @@ export async function connectToAgent(
 	try {
 		const controller = new AbortController();
 		const timer = setTimeout( () => controller.abort(), PROBE_TIMEOUT_MS );
+		// eslint-disable-next-line no-restricted-syntax -- loopback reachability probe, not a site request; runs on every menu open and must stay invisible.
 		const ping = await fetch( `${ base }/ping`, {
 			headers,
 			signal: controller.signal,

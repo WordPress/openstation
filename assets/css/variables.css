@@ -1065,6 +1065,24 @@ body.os-active {
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
 	--os-dock-floating-highlight: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
+	/*
+	 * The "Show Desktop" ring — drawn on the dock while every window
+	 * is minimized, so an empty wallpaper does not read the same as a
+	 * desktop that never had anything on it.
+	 *
+	 * A token rather than the bare accent, because that rule asks for a
+	 * "soft theme-color ring" and pre-brand it got one: on the WordPress
+	 * admin blue, a 1px inset hairline is a hint. Repointing
+	 * `--wp-admin-theme-color` at Pulse turned the same declaration into
+	 * a neon magenta outline around the dock — loud enough to be
+	 * reported as a rendering bug. The colour did not change meaning;
+	 * the chain it resolved through did.
+	 *
+	 * Dimmed and dropped to a wash, so it still reads as "your windows
+	 * are down here" without competing with the indicator dots, which
+	 * are the accent at full strength and are meant to be.
+	 */
+	--os-dock-show-desktop-ring: color-mix(in srgb, var(--os-ui-accent-dim) 42%, transparent);
 
 	/*
 	 * ---- Shell surfaces ----------------------------------------

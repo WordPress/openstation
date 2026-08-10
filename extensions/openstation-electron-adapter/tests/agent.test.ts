@@ -277,6 +277,38 @@ describe( 'bad input', () => {
 		expect( free ).not.toHaveBeenCalled();
 	} );
 
+	test( 'measures the body limit in bytes, not UTF-16 code units', async () => {
+		// A 4-byte emoji is 2 code units, so counting `String.length`
+		// let a body up to three times the documented 64 KB through.
+		// Astral characters are the honest test of which is being
+		// counted. Deliberately just over the limit in bytes and
+		// comfortably under it in code units.
+		const emoji = '\u{1F600}'; // 4 bytes, 2 code units.
+		const payload = JSON.stringify( { windowId: emoji.repeat( 17_000 ) } );
+
+		const res = await call( '/free', {
+			method: 'POST',
+			body: payload,
+		} );
+
+		expect( res.status ).toBe( 413 );
+		expect( free ).not.toHaveBeenCalled();
+	} );
+
+	test( 'an over-large body refuses once and stays up', async () => {
+		// The refusal destroys the request, which used to be followed by
+		// a write onto the torn-down socket. If that regresses the
+		// server takes an unhandled stream error; the next call is the
+		// assertion that it did not.
+		await call( '/free', {
+			method: 'POST',
+			body: JSON.stringify( { windowId: 'x'.repeat( 200_000 ) } ),
+		} ).catch( () => undefined );
+
+		const after = await call( '/ping' );
+		expect( after.status ).toBe( 200 );
+	} );
+
 	test( 'rejects an unknown route', async () => {
 		const res = await call( '/wat', { method: 'POST', body: '{}' } );
 		expect( res.status ).toBe( 404 );

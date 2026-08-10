@@ -58,6 +58,26 @@ jobs:
           npm --prefix extensions/desktop-mode-feed-buddy run build
           git diff --exit-code -- extensions/desktop-mode-feed-buddy/assets/js
 
+      - name: Electron adapter extension checks
+        env:
+          # Nothing in this job launches Electron — these are lint,
+          # types, unit tests and the browser-side bundle. Skipping the
+          # ~100 MB binary download keeps the job to what it is actually
+          # checking.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: |
+          npm --prefix extensions/openstation-electron-adapter ci
+          npm --prefix extensions/openstation-electron-adapter run lint
+          npm --prefix extensions/openstation-electron-adapter run typecheck
+          npm --prefix extensions/openstation-electron-adapter run test
+          # `build:shell` rather than `build`: the shell bundle is the
+          # part that is committed, and so the part where a stale
+          # artifact can ship. `build:app` only fills `app/dist`, which
+          # is generated on the developer's machine and never tracked —
+          # and `typecheck` above already covers `app/tsconfig.json`.
+          npm --prefix extensions/openstation-electron-adapter run build:shell
+          git diff --exit-code -- extensions/openstation-electron-adapter/assets/js
+
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest

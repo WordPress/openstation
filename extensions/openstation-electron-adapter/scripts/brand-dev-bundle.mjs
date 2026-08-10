@@ -20,6 +20,20 @@
  * OpenStation icon, so what you see while developing matches what you
  * ship.
  *
+ * ## The plist edit is not sufficient on its own
+ *
+ * The menu-bar title reads the plist when the app launches, so that one
+ * moves as soon as the key is written. **The Dock does not.**
+ * LaunchServices keeps its own database of bundle metadata and answers
+ * from that, so a freshly-renamed bundle still hovers as "Electron" —
+ * which is what the Dock tooltip was reported as saying after this
+ * script claimed to have fixed it.
+ *
+ * Re-registering the bundle with `lsregister -f` is what invalidates
+ * that entry. It is best-effort like everything else here: the binary
+ * lives at a private framework path, and a macOS release that moves it
+ * costs a warning, not a build.
+ *
  * ## Why it is safe to write into node_modules
  *
  * It is the one thing that can work, and it is contained: the file
@@ -99,8 +113,38 @@ if ( existsSync( ours ) ) {
 	}
 }
 
+/**
+ * Tell LaunchServices the bundle changed.
+ *
+ * Without this the Dock keeps answering from its cached metadata and
+ * the tooltip stays "Electron" however many times the plist is
+ * rewritten. See the note at the top of this file.
+ *
+ * @return Whether the re-registration ran.
+ */
+function reregister() {
+	const lsregister =
+		'/System/Library/Frameworks/CoreServices.framework/Frameworks/' +
+		'LaunchServices.framework/Support/lsregister';
+	if ( ! existsSync( lsregister ) ) {
+		return false;
+	}
+	try {
+		execFileSync( lsregister, [ '-f', bundle ], { stdio: 'ignore' } );
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+const registered = changed && reregister();
+
 console.log(
 	changed
-		? `[openstation-electron] dev bundle branded as ${ NAME }.`
+		? `[openstation-electron] dev bundle branded as ${ NAME }${
+			registered
+				? '.'
+				: '; the Dock tooltip may still say "Electron" until you log out.'
+		}`
 		: '[openstation-electron] could not brand the dev bundle; the menu bar will say "Electron".',
 );

@@ -103,6 +103,91 @@ export function isSameSiteUrl( url: string, siteUrl: string ): boolean {
 	return target.host === base.host && target.protocol === base.protocol;
 }
 
+/**
+ * Whether a URL points at this machine.
+ *
+ * Used to decide who gets asked about a bad certificate: self-signed
+ * certificates are ordinary in local development and nowhere else.
+ *
+ * @param url URL to test.
+ * @return True for loopback hosts.
+ */
+export function isLoopbackUrl( url: string ): boolean {
+	let target: URL;
+	try {
+		target = new URL( String( url || '' ) );
+	} catch {
+		return false;
+	}
+	const host = target.hostname.toLowerCase();
+	return (
+		'localhost' === host ||
+		'127.0.0.1' === host ||
+		'[::1]' === host ||
+		'::1' === host ||
+		host.endsWith( '.localhost' )
+	);
+}
+
+/**
+ * Where the shell's first navigation chain is allowed to settle.
+ *
+ * The address someone types is a guess; the server has the final word,
+ * and its answer is often a redirect. `example.com` → `www.example.com`
+ * and `http://` → `https://` are canonicalization, not a change of
+ * destination, and a first load that refused them would not degrade the
+ * feature — it would fail to connect at all. So the shell's opening
+ * chain runs unguarded and whatever it lands on becomes the site.
+ *
+ * That adoption is load-bearing in a way worth being careful about: the
+ * settled origin becomes the local agent's single allowed origin *and*
+ * the allowlist every later navigation is held to. A chain that walked
+ * somewhere else entirely would hand both to whoever it landed on.
+ *
+ * The rule is therefore the narrowest one that still covers real
+ * canonicalization: the landed host must be the configured host, or the
+ * two must be in a subdomain relationship. Scheme and port may move,
+ * because an HTTPS upgrade is the most ordinary redirect there is; the
+ * *name* may not. Deliberately a string relationship rather than a
+ * public-suffix lookup — shipping and refreshing a PSL to decide a
+ * first-run redirect would be a large dependency for a small question,
+ * and "one is a dot-suffix of the other" already refuses the case that
+ * matters (`example.com` never settles onto `example.com.attacker.test`,
+ * which ends in `.attacker.test`).
+ *
+ * @param landedUrl      Where the chain actually ended up.
+ * @param configuredSite The site as configured before it started.
+ * @return The site to adopt, or '' to keep the configured one.
+ */
+export function settledSiteUrl(
+	landedUrl: string,
+	configuredSite: string,
+): string {
+	const landed = normalizeSiteUrl( landedUrl );
+	const configured = normalizeSiteUrl( configuredSite );
+	if ( ! landed || ! configured ) {
+		return '';
+	}
+
+	let a: URL;
+	let b: URL;
+	try {
+		a = new URL( landed );
+		b = new URL( configured );
+	} catch {
+		return '';
+	}
+
+	const from = b.hostname.toLowerCase();
+	const to = a.hostname.toLowerCase();
+	const related =
+		from === to ||
+		to.endsWith( `.${ from }` ) ||
+		from.endsWith( `.${ to }` );
+
+	return related ? landed : '';
+}
+
 /** What to do with a navigation a window we own is about to make. */
 export type NavigationVerdict = 'allow' | 'external' | 'block';
 

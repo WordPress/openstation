@@ -55,9 +55,11 @@ import type {
 } from './lib/protocol';
 import type { FreeWindowHandle } from './lib/free-windows';
 import {
+	isLoopbackUrl,
 	isSameSiteUrl,
 	navigationVerdict,
 	normalizeSiteUrl,
+	settledSiteUrl,
 	shellEntryUrl,
 } from './lib/site-url';
 
@@ -242,6 +244,20 @@ function openShellWindow(): void {
 		},
 	} );
 
+	// The desk is called OpenStation, whatever page happens to be loaded
+	// under it. Electron's default is to adopt `document.title`, so the
+	// window that holds the whole desktop was announcing itself to
+	// Mission Control and the app switcher as `Plugins ‹ Site —
+	// WordPress` — the tab title of one screen inside one of its
+	// windows. Freed windows already refuse that (see `FreeWindows`);
+	// this is the same refusal for the same reason, and the native-
+	// window case there is the exact parallel: the page title belongs to
+	// the page, not to the window hosting it.
+	shellWindow.on( 'page-title-updated', ( event ) => {
+		event.preventDefault();
+		shellWindow?.setTitle( 'OpenStation' );
+	} );
+
 	const remember = () => {
 		if ( shellWindow && ! shellWindow.isDestroyed() && ! shellWindow.isMinimized() ) {
 			store.set( 'shellBounds', shellWindow.getBounds() );
@@ -274,7 +290,11 @@ function openShellWindow(): void {
 	shellWindow.webContents.on( 'did-navigate', ( _event, url ) => {
 		if ( settling ) {
 			settling = false;
-			const landed = normalizeSiteUrl( url );
+			// Only canonicalization is adopted — see `settledSiteUrl()`.
+			// What settles here becomes the agent's allowed origin and
+			// the navigation allowlist, so a chain that wandered off the
+			// name the user typed leaves the configured site standing.
+			const landed = settledSiteUrl( url, store.get( 'siteUrl' ) );
 			if ( landed && landed !== store.get( 'siteUrl' ) ) {
 				store.set( 'siteUrl', landed );
 			}
@@ -423,7 +443,17 @@ function routeNewWindow(
 	}
 
 	const site = store?.get( 'siteUrl' ) ?? '';
-	const wantsBrowser = url.includes( 'desktop_mode_classic=1' );
+
+	// Read as a query parameter, not as a substring of the whole URL.
+	// A post slug, a fragment or an unrelated parameter that merely
+	// contained the text would otherwise be routed to the browser —
+	// the one thing this flag exists to request explicitly.
+	let wantsBrowser = false;
+	try {
+		wantsBrowser = '1' === new URL( url ).searchParams.get( 'desktop_mode_classic' );
+	} catch {
+		wantsBrowser = false;
+	}
 
 	if ( wantsBrowser || ! isSameSiteUrl( url, site ) ) {
 		void shell.openExternal( url );
@@ -921,8 +951,14 @@ app.on( 'certificate-error', ( event, _webContents, url, error, _cert, callback 
 	// test would have offered the user a "continue anyway" button for a
 	// lookalike domain's bad certificate.
 	const isConfiguredSite = isSameSiteUrl( url, site );
-	const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test( url );
-	if ( ! isConfiguredSite && ! isLocal ) {
+	// Loopback earns the prompt only when the site itself is loopback —
+	// a development setup spanning two local ports, which is the case
+	// this allowance was written for. Accepting *any* localhost URL was
+	// wider than the reasoning above it: a page on a real site could
+	// point at `https://localhost:9999` and raise a certificate dialog
+	// the user never went looking for.
+	const isLocalDevelopment = isLoopbackUrl( url ) && isLoopbackUrl( site );
+	if ( ! isConfiguredSite && ! isLocalDevelopment ) {
 		callback( false );
 		return;
 	}

@@ -10,9 +10,11 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+	isLoopbackUrl,
 	isSameSiteUrl,
 	navigationVerdict,
 	normalizeSiteUrl,
+	settledSiteUrl,
 	shellEntryUrl,
 } from '../app/src/lib/site-url';
 
@@ -178,5 +180,80 @@ describe( 'navigationVerdict', () => {
 		expect( navigationVerdict( 'http://example.com/', site ) ).toBe(
 			'external',
 		);
+	} );
+} );
+
+describe( 'settledSiteUrl', () => {
+	// What settles here becomes the agent's single allowed origin and
+	// the allowlist every later navigation is held to, so the rule has
+	// to admit real canonicalization and nothing else.
+	test( 'adopts the www form of the host that was typed', () => {
+		expect(
+			settledSiteUrl( 'https://www.example.com/openstation/', 'https://example.com' ),
+		).toBe( 'https://www.example.com' );
+	} );
+
+	test( 'adopts the apex when a www address redirects down to it', () => {
+		expect(
+			settledSiteUrl( 'https://example.com/openstation/', 'https://www.example.com' ),
+		).toBe( 'https://example.com' );
+	} );
+
+	test( 'adopts an HTTPS upgrade — scheme and port may move, the name may not', () => {
+		expect(
+			settledSiteUrl( 'https://example.com/openstation/', 'http://example.com' ),
+		).toBe( 'https://example.com' );
+		expect(
+			settledSiteUrl( 'https://example.com:8443/openstation/', 'http://example.com:8889' ),
+		).toBe( 'https://example.com:8443' );
+	} );
+
+	test( 'holds a multi-label host together', () => {
+		expect(
+			settledSiteUrl( 'https://www.example.co.uk/', 'https://example.co.uk' ),
+		).toBe( 'https://www.example.co.uk' );
+	} );
+
+	test( 'refuses a chain that walked somewhere else', () => {
+		// The case the whole function exists for: adopting this would
+		// hand the attacker's origin both the agent's allowed origin
+		// and the navigation allowlist.
+		for ( const landed of [
+			'https://attacker.example/openstation/',
+			'https://example.com.attacker.example/',
+			'https://notexample.com/',
+			'file:///etc/passwd',
+			'',
+		] ) {
+			expect( settledSiteUrl( landed, 'https://example.com' ) ).toBe( '' );
+		}
+	} );
+
+	test( 'refuses everything when there was no configured site', () => {
+		expect( settledSiteUrl( 'https://example.com/', '' ) ).toBe( '' );
+	} );
+} );
+
+describe( 'isLoopbackUrl', () => {
+	test( 'recognises this machine by any of its names', () => {
+		for ( const url of [
+			'http://localhost:8889/',
+			'https://127.0.0.1/',
+			'http://[::1]:8080/',
+			'http://openstation.localhost/',
+		] ) {
+			expect( isLoopbackUrl( url ) ).toBe( true );
+		}
+	} );
+
+	test( 'is not fooled by a host that merely mentions it', () => {
+		for ( const url of [
+			'https://localhost.attacker.example/',
+			'https://notlocalhost/',
+			'https://example.com/localhost',
+			'',
+		] ) {
+			expect( isLoopbackUrl( url ) ).toBe( false );
+		}
 	} );
 } );

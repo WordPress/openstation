@@ -33,6 +33,18 @@
 body.os-solo .os-wallpaper,
 body.os-solo .os-dock,
 body.os-solo .os-icons,
+/*
+ * Both icon layouts, not just one. `.os-icons` is the Classic grid;
+ * the Spatial layout paints its `<os-tile>` placements into
+ * `.os-files-layer` instead, and Spatial is what a stock install
+ * actually shows. Missing it left the rail painted under every solo
+ * window — invisible while a window covered it, a flash on every boot
+ * before one landed, and fully on show when the requested window did
+ * not exist. It also kept exactly the three things the `display: none`
+ * above is chosen to deny: a layout box, animation frames, and live
+ * drop targets.
+ */
+body.os-solo .os-files-layer,
 body.os-solo .os-widgets,
 body.os-solo .os-mio,
 body.os-solo .os-mio-panel,

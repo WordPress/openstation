@@ -3388,6 +3388,14 @@ export class Window {
 				true,
 			);
 		}
+		// The ⋯ menu's repaint subscription is normally dropped by
+		// `closeActionsMenu()`, and a click-driven close always gets
+		// there first because the pointerdown capture above closes the
+		// menu. A programmatic `close()` with the menu open does not —
+		// leaving a live registry listener holding this window and the
+		// detached panel it would try to repaint.
+		this._unsubscribeWindowActions?.();
+		this._unsubscribeWindowActions = null;
 		this.element.remove();
 		// If this was the last fullscreen window, drop the body
 		// class so the admin bar and shell top-offset come back

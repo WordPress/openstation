@@ -82,6 +82,24 @@ module.exports = {
 			files: [ 'src/**/*.ts' ],
 			env: { browser: true, es2022: true },
 			rules: {
+				// Same teeth the shell and the other extensions carry.
+				// A site request that skips `wp.os.fetch` is invisible
+				// to the window spinner and the activity bus. The
+				// loopback calls to the desktop app are the documented
+				// exception and carry a disable with the reason.
+				'no-restricted-syntax': [
+					'error',
+					{
+						selector: 'CallExpression[callee.name="fetch"]',
+						message:
+							'Use wp.os.fetch so OpenStation can track the request.',
+					},
+					{
+						selector:
+							'CallExpression[callee.object.name="window"][callee.property.name=/^(confirm|alert|prompt)$/]',
+						message: 'Use a OpenStation dialog or status surface.',
+					},
+				],
 				'no-restricted-imports': [
 					'error',
 					{
