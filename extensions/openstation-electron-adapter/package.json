@@ -15,7 +15,9 @@
 		"build:shell": "vite build --mode development && vite build --mode production",
 		"build:connect": "OPENSTATION_ADAPTER_TARGET=connect vite build --mode production",
 		"build:app": "tsc -p app/tsconfig.json && npm run build:connect && node scripts/copy-renderer.mjs",
-		"start": "npm run build:app && electron .",
+		"start": "npm run brand:dev && npm run build:app && electron .",
+		"brand:dev": "node scripts/brand-dev-bundle.mjs",
+		"postinstall": "node scripts/brand-dev-bundle.mjs",
 		"lint": "eslint \"src/**/*.ts\" \"app/src/**/*.ts\" \"tests/**/*.ts\"",
 		"lint:fix": "npm run lint -- --fix",
 		"typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p app/tsconfig.json",
@@ -48,19 +50,23 @@
 			"app/dist/**/*",
 			"package.json"
 		],
+		"//icons": "build/icon.icns and build/icon.png are generated from .wordpress-org/icon.svg and committed, so packaging never needs a rasteriser installed. electron-builder derives the Windows .ico and the Linux sizes from the 1024px PNG.",
 		"mac": {
 			"category": "public.app-category.productivity",
+			"icon": "build/icon.icns",
 			"target": [
 				"dmg",
 				"zip"
 			]
 		},
 		"win": {
+			"icon": "build/icon.png",
 			"target": [
 				"nsis"
 			]
 		},
 		"linux": {
+			"icon": "build/icon.png",
 			"target": [
 				"AppImage",
 				"deb"

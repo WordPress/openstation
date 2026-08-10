@@ -91,6 +91,33 @@ nothing but the address.
 output, same rule as the main plugin's `assets/js/`. Edit `src/` and
 rebuild.
 
+### Why `npm start` renames your Electron
+
+On macOS the bold title in the menu bar and the name in the Dock come
+from the **running application bundle** — `CFBundleName` in its
+`Info.plist` — not from `app.setName()`. That call fixes "About
+OpenStation", "Hide OpenStation" and "Quit OpenStation", because macOS
+builds those from `app.getName()`, while the title beside them keeps
+saying **Electron**.
+
+In development there is no OpenStation bundle: `electron .` runs
+`node_modules/electron/dist/Electron.app`. A packaged build has no such
+problem — its bundle *is* OpenStation.app.
+
+So `scripts/brand-dev-bundle.mjs` renames that local bundle and swaps
+its icon, on `npm start` and on `postinstall`. It is idempotent,
+macOS-only, and never fatal: skip it and you get an app called
+Electron, which is exactly the status quo. `npm install` regenerates
+the file it edits.
+
+Icons live in `build/`: `icon.icns` and a 1024px `icon.png`, both
+generated from `.wordpress-org/icon.svg` and **committed**, so
+packaging never needs a rasteriser installed. electron-builder derives
+the Windows `.ico` and the Linux sizes from the PNG. The *runtime*
+icon — the Dock, and window icons on Windows and Linux — is a separate
+copy under `app/src/renderer/openstation.png`, because electron-builder
+treats `build/` as packaging resources and leaves it out of the bundle.
+
 ## How it works
 
 ### Detection is one global
@@ -153,6 +180,8 @@ src/                               shell adapter (browser, TypeScript)
   types.ts                           the shell-side contract
 assets/js/electron-adapter*.js     build output — do not edit
 assets/css/solo-host.css           solo mode inside a real OS window
+build/icon.{icns,png}              packaging icons, from .wordpress-org/icon.svg
+scripts/brand-dev-bundle.mjs       names the dev Electron bundle OpenStation
 app/                               the Electron app (TypeScript)
   src/main.ts                        wiring: windows, IPC, menu
   src/lib/protocol.ts                IPC channels, protocol version, types
@@ -163,7 +192,7 @@ app/                               the Electron app (TypeScript)
   src/lib/store.ts                   JSON state in userData
   src/preload/{shell,free,connect}.ts
   src/renderer/connect.{ts,html}     first-run "which site?" screen
-  src/renderer/openstation.svg       the brand mark, from .wordpress-org/
+  src/renderer/openstation.{svg,png} the brand mark, from .wordpress-org/
 tests/                             Vitest, both halves
 ```
 

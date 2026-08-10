@@ -32,6 +32,7 @@ import {
 	app,
 	dialog,
 	ipcMain,
+	nativeImage,
 	net,
 	powerMonitor,
 	shell,
@@ -117,18 +118,51 @@ let freeWindows: FreeWindows;
 let agent: LocalAgent;
 
 /**
+ * The 1024px brand mark, used for the Dock and for window icons.
+ *
+ * Lives inside `app/` rather than in `build/` so a packaged app can
+ * find it too: electron-builder treats `build/` as packaging resources
+ * and leaves it out of the bundle. `build/icon.icns` is for the
+ * packager; this one is for the running process.
+ */
+const ICON_PATH = join( __dirname, 'renderer', 'openstation.png' );
+
+/**
  * The app icon, as a spreadable option bag.
  *
- * macOS reads the icon from the app bundle, so a window-level one does
- * nothing there; Windows and Linux want an explicit path or the window
- * wears Electron's default. Returned as `{}` rather than
+ * macOS reads window icons from the app bundle, so a window-level one
+ * does nothing there; Windows and Linux want an explicit path or the
+ * window wears Electron's default. Returned as `{}` rather than
  * `{ icon: undefined }` because Electron warns on the latter — passing
  * the key at all is a claim that there is an icon.
  */
 function appIconOption(): { icon?: string } {
-	return 'darwin' === process.platform
-		? {}
-		: { icon: join( __dirname, 'renderer', 'openstation-256.png' ) };
+	return 'darwin' === process.platform ? {} : { icon: ICON_PATH };
+}
+
+/**
+ * Put the brand mark in the macOS Dock.
+ *
+ * A packaged build takes its Dock icon from the app bundle and needs
+ * none of this. Development runs Electron's own bundle, so without it
+ * the Dock shows Electron's atom while the app calls itself
+ * OpenStation. `scripts/brand-dev-bundle.mjs` fixes the bundle's name
+ * and icon for the same reason; this covers the running process.
+ */
+function brandDock(): void {
+	if ( 'darwin' !== process.platform || ! app.dock ) {
+		return;
+	}
+	try {
+		const image = nativeImage.createFromPath( ICON_PATH );
+		if ( ! image.isEmpty() ) {
+			app.dock.setIcon( image );
+		}
+	} catch ( err ) {
+		// Cosmetic. An app that refuses to start over its own icon
+		// would be a worse bug than the wrong icon.
+		console.error( '[openstation-desktop] could not set the dock icon:', err );
+	}
 }
 
 /**
@@ -675,6 +709,7 @@ void app.whenReady().then( () => {
 		version: process.versions.electron,
 		copyright: 'GPL-2.0-or-later',
 	} );
+	brandDock();
 
 	store = new Store( app.getPath( 'userData' ) );
 
