@@ -60,22 +60,22 @@ jobs:
 
       - name: Electron adapter extension checks
         env:
-          # Nothing in this job launches Electron — these are lint,
-          # types, unit tests and the browser-side bundle. Skipping the
-          # ~100 MB binary download keeps the job to what it is actually
-          # checking.
+          # Nothing in this job launches Electron — this is lint, types,
+          # unit tests and the bundles. The `electron` package still
+          # installs (its type definitions are what `app/tsconfig.json`
+          # compiles against); only the ~100 MB binary download is
+          # skipped.
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: |
           npm --prefix extensions/openstation-electron-adapter ci
-          npm --prefix extensions/openstation-electron-adapter run lint
-          npm --prefix extensions/openstation-electron-adapter run typecheck
-          npm --prefix extensions/openstation-electron-adapter run test
-          # `build:shell` rather than `build`: the shell bundle is the
-          # part that is committed, and so the part where a stale
-          # artifact can ship. `build:app` only fills `app/dist`, which
-          # is generated on the developer's machine and never tracked —
-          # and `typecheck` above already covers `app/tsconfig.json`.
-          npm --prefix extensions/openstation-electron-adapter run build:shell
+          # The package's own `verify`, rather than a sequence spelled
+          # out again here. It builds BEFORE it tests, and that order is
+          # load-bearing: `connect-bundle.test.ts` asserts against
+          # `app/dist/renderer/connect.js`, so a run that tests first
+          # passes only on a machine that happens to have built already.
+          # Deferring to `verify` also means a developer running it
+          # locally is running what CI runs.
+          npm --prefix extensions/openstation-electron-adapter run verify
           git diff --exit-code -- extensions/openstation-electron-adapter/assets/js
 
   php:
