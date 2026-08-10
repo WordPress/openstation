@@ -274,7 +274,23 @@ openstation_electron_ttl();                  // seconds
 
 ## Running it
 
-Activate **OpenStation — Electron Adapter** alongside OpenStation, then:
+The adapter lives inside the OpenStation plugin directory, and
+WordPress does not look for plugins in nested folders — so it needs a
+symlink into `wp-content/plugins/`, exactly like every other extension
+in this repo:
+
+```bash
+cd /path/to/wp-content/plugins
+ln -sfn desktop-mode/extensions/openstation-electron-adapter openstation-electron-adapter
+wp plugin activate openstation-electron-adapter
+```
+
+Skip that and everything still *works* — the app connects, the desktop
+loads — but no ⋯ menu row appears, because the shell adapter that
+registers it was never enqueued. It is the first thing to check when
+"Send to your Mac" is missing.
+
+Then:
 
 ```bash
 cd extensions/openstation-electron-adapter

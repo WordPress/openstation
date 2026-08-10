@@ -1,5 +1,6 @@
 {
 	"name": "openstation-electron-adapter",
+	"productName": "OpenStation",
 	"version": "1.0.0",
 	"private": true,
 	"//type": "Deliberately CommonJS. Electron's main process and preloads load `app/dist/**` as CJS; declaring the package as an ES module would break them. The build configs carry `.mjs` / `.mts` extensions instead.",

@@ -57,6 +57,24 @@ import { isSameSiteUrl, normalizeSiteUrl, shellEntryUrl } from './lib/site-url';
 /** REST namespace the adapter plugin registers. */
 const REST_NAMESPACE = 'openstation-electron/v1';
 
+/**
+ * What the operating system calls this app.
+ *
+ * Set here, at module scope, rather than left to `package.json` alone.
+ * The npm package is named `openstation-electron-adapter` because that
+ * is what the *extension* is, and unpackaged Electron falls back to
+ * that name — so the macOS menu bar, the dock tooltip and the About
+ * panel all read "openstation-electron-adapter" in development. The
+ * user did not install an adapter; they installed OpenStation.
+ *
+ * It must run before `app.getPath( 'userData' )`, which derives its
+ * directory from the name — hence module scope rather than inside
+ * `whenReady`. One consequence worth knowing: this moves the state
+ * file to an `OpenStation` folder, so a site address entered under the
+ * old name is forgotten once.
+ */
+app.setName( 'OpenStation' );
+
 /** Read from `package.json` at runtime so there is one version to bump. */
 const APP_VERSION: string = ( () => {
 	try {
@@ -504,6 +522,15 @@ function registerIpc(): void {
 }
 
 void app.whenReady().then( () => {
+	// The About panel is the other place the OS shows an app's identity,
+	// and it does not read `app.setName()` on its own.
+	app.setAboutPanelOptions( {
+		applicationName: 'OpenStation',
+		applicationVersion: APP_VERSION,
+		version: process.versions.electron,
+		copyright: 'GPL-2.0-or-later',
+	} );
+
 	store = new Store( app.getPath( 'userData' ) );
 
 	connection = new Connection( {

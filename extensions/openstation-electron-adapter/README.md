@@ -44,8 +44,24 @@ nothing guesses from a user agent.
 
 ## Install and run
 
-Activate **OpenStation** and **OpenStation — Electron Adapter** in
-WordPress, then:
+### 1. Make WordPress see the plugin
+
+This extension lives *inside* the OpenStation plugin directory, and
+WordPress does not look for plugins in nested folders. Like every other
+extension in this repo, it needs a symlink into `wp-content/plugins/`:
+
+```bash
+cd /path/to/wp-content/plugins
+ln -sfn desktop-mode/extensions/openstation-electron-adapter openstation-electron-adapter
+wp plugin activate openstation-electron-adapter
+```
+
+**This step is the whole feature.** Without it the app connects and the
+desktop loads perfectly — and no ⋯ menu row appears, because the shell
+adapter that registers it was never enqueued. If "Send to your Mac" is
+missing, check here first.
+
+### 2. Run the app
 
 ```bash
 npm install
