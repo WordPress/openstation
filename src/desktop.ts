@@ -58,6 +58,7 @@ import {
 } from './hooks';
 import { WallpaperLayer } from './wallpapers/layer';
 import type { WallpaperSuspendApi } from './wallpapers/layer';
+import { gamesApi } from './games/api';
 import type { GamesApi } from './games/api';
 import type { WindowActionDef } from './window-actions/registry';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
@@ -2830,19 +2831,47 @@ function init(): void {
 		// Deferred one tick for the same reason the native
 		// default-window path below defers: the layout dispatcher and
 		// the system tiles have to have finished mounting before
-		// either opener will resolve an id.
+		// any opener will resolve an id.
 		queueMicrotask( () => {
 			if ( openNativeWindowById( soloWindowId ) ) {
 				return;
 			}
-			// Not a native window — an iframe window routed through
-			// solo mode. `openCurrentPage` is right here: the solo URL
-			// carries the admin page in its own query string.
-			void openCurrentPage( manager, config ).catch( ( err ) => {
-				if ( typeof console !== 'undefined' ) {
-					console.error( '[openstation] solo window failed to open:', err );
-				}
-			} );
+
+			// Games are not in the native-window registry: their window
+			// is minted at launch time by `wp.os.games.launch()`, so the
+			// only way to reconstitute `os-game-<id>` is to launch it.
+			// Not a special case sneaking into core — games are a
+			// first-party feature with a first-party registry, and solo
+			// mode's job is to reproduce a window by id whatever minted
+			// it.
+			const gameId = soloWindowId.startsWith( 'os-game-' )
+				? soloWindowId.slice( 'os-game-'.length )
+				: '';
+			if ( gameId ) {
+				void gamesApi.launch( gameId ).catch( ( err ) => {
+					if ( typeof console !== 'undefined' ) {
+						console.error( '[openstation] solo game failed to launch:', err );
+					}
+				} );
+				return;
+			}
+
+			/*
+			 * Nothing recognised the id, and that is where this stops.
+			 *
+			 * Opening something else — the current page, say — looks
+			 * like a graceful fallback and is the opposite: solo mode
+			 * means "paint this one window", so painting a different
+			 * one silently hands the user the wrong thing. Worse, under
+			 * a desktop host the substitute is itself a window the host
+			 * has never seen, which the freed-window forwarder then
+			 * dutifully forwards, and one request becomes two windows.
+			 */
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[openstation] solo window "${ soloWindowId }" is not registered; nothing to paint.`,
+				);
+			}
 		} );
 	}
 

@@ -27,6 +27,33 @@ export const DEFAULT_SIZE = { width: 1100, height: 760 };
 export const MIN_SIZE = { width: 420, height: 320 };
 
 /**
+ * Reduce a WordPress admin document title to the screen's own name.
+ *
+ * WordPress titles admin pages `Screen ‹ Site Name — WordPress`. That
+ * shape is right for a browser tab, where the site is the ambiguous
+ * part, and wrong for an OS window, where the window IS the site and
+ * the screen is all that distinguishes it. "Posts" belongs in the app
+ * switcher; "Posts ‹ Daniel's Blog — WordPress" does not.
+ *
+ * The separator is a single left-pointing angle quotation mark (U+2039)
+ * that Core has used for many years. If a title does not carry it —
+ * a plugin that titles its own screens, a translation that does not
+ * use it — the title is taken whole rather than mangled.
+ *
+ * @param pageTitle Raw `document.title`.
+ * @param fallback  Used when the page supplies nothing.
+ * @return The screen name.
+ */
+export function screenNameFrom( pageTitle: string, fallback: string ): string {
+	const raw = String( pageTitle || '' ).trim();
+	if ( ! raw ) {
+		return fallback;
+	}
+	const head = raw.split( '‹' )[ 0 ]?.trim();
+	return head || raw;
+}
+
+/**
  * The slice of Electron's `BrowserWindow` this registry uses. Narrow
  * on purpose — a fake in a test should be a few lines, not a mock of
  * the whole class.
@@ -159,13 +186,37 @@ export class FreeWindows {
 
 		this.windows.set( windowId, win );
 
-		// The page owns its own title — the admin screen sets it, and
-		// in-window navigation changes it. Let it through rather than
-		// pinning whatever we were handed at free time.
+		/*
+		 * The OS title bar shows the window's OpenStation name — "Trash",
+		 * "Posts", "Dashboard" — not the browser tab title WordPress
+		 * would otherwise supply ("Dashboard ‹ My Site — WordPress").
+		 * The window the user set free should be recognisably the same
+		 * window in Mission Control and the app switcher as it was on
+		 * the desk.
+		 *
+		 * Which means the two window kinds need opposite treatment:
+		 *
+		 *   - **Native windows** run in solo mode, where the document
+		 *     title belongs to the shell page hosting them, not to the
+		 *     window. Trash freed from `index.php` would rename itself
+		 *     "Dashboard" the moment the page settled. So the name is
+		 *     pinned to what the shell handed us.
+		 *   - **Iframe windows** ARE the admin page, and navigating
+		 *     inside one genuinely changes which screen it shows — the
+		 *     in-shell window title tracks that too. So the page title
+		 *     is honoured, minus WordPress's ` ‹ Site — WordPress`
+		 *     suffix, which is the tab's business and not the window's.
+		 */
 		win.on( 'page-title-updated', ( ...args: unknown[] ) => {
 			const event = args[ 0 ] as { preventDefault?: () => void } | undefined;
+			// Always prevent: Electron's default is to adopt the page
+			// title verbatim, which is the thing being overridden.
 			event?.preventDefault?.();
-			win.setTitle( ( args[ 1 ] as string ) || title );
+			if ( req.native ) {
+				win.setTitle( title );
+				return;
+			}
+			win.setTitle( screenNameFrom( args[ 1 ] as string, title ) );
 		} );
 
 		const rememberBounds = () => {

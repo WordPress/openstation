@@ -26,6 +26,10 @@ import type { Bounds } from './protocol';
 export interface StoreState {
 	siteUrl: string;
 	hostId: string;
+	/** Bearer token the local agent requires. See `lib/agent.ts`. */
+	agentToken: string;
+	/** How the user chose to open OpenStation: in the app, or in their browser. */
+	openIn: '' | 'app' | 'browser';
 	shellBounds: Bounds | null;
 	freedBounds: Record< string, Bounds >;
 }
@@ -33,6 +37,8 @@ export interface StoreState {
 const DEFAULTS: StoreState = {
 	siteUrl: '',
 	hostId: '',
+	agentToken: '',
+	openIn: '',
 	shellBounds: null,
 	freedBounds: {},
 };
@@ -117,6 +123,24 @@ export class Store {
 			this.set( 'hostId', id );
 		}
 		return id;
+	}
+
+	/**
+	 * Bearer token for the local agent, generated once and reused.
+	 *
+	 * Longer than the host id because this one is a capability rather
+	 * than a name: presenting it to the loopback server is what
+	 * authorises opening a window on this machine.
+	 *
+	 * @return 64-char hex token.
+	 */
+	agentToken(): string {
+		let token = this.get( 'agentToken' );
+		if ( ! token ) {
+			token = randomBytes( 32 ).toString( 'hex' );
+			this.set( 'agentToken', token );
+		}
+		return token;
 	}
 
 	/**

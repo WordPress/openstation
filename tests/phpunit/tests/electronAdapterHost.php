@@ -327,6 +327,157 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The agent URL is printed back into an admin page for a browser to
+	 * call, so it is validated on the way IN rather than trusted on the
+	 * way out. Loopback, http, no path — the one shape the local agent
+	 * ever advertises.
+	 *
+	 * @covers ::openstation_electron_sanitize_agent_url
+	 * @dataProvider data_agent_urls
+	 *
+	 * @param string $input    Candidate URL.
+	 * @param string $expected Normalized result, or '' when refused.
+	 */
+	public function test_agent_url_validation( $input, $expected ) {
+		$this->assertSame( $expected, openstation_electron_sanitize_agent_url( $input ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public function data_agent_urls() {
+		return array(
+			'loopback v4'          => array( 'http://127.0.0.1:41234', 'http://127.0.0.1:41234' ),
+			'localhost'            => array( 'http://localhost:41234', 'http://localhost:41234' ),
+			'trailing slash'       => array( 'http://127.0.0.1:41234/', 'http://127.0.0.1:41234' ),
+			'no port'              => array( 'http://127.0.0.1', '' ),
+			'remote host'          => array( 'http://evil.test:41234', '' ),
+			'lan address'          => array( 'http://192.168.1.10:41234', '' ),
+			'https'                => array( 'https://127.0.0.1:41234', '' ),
+			'a path'               => array( 'http://127.0.0.1:41234/free', '' ),
+			'javascript'           => array( 'javascript:alert(1)', '' ),
+			'empty'                => array( '', '' ),
+			'nonsense'             => array( 'not a url', '' ),
+		);
+	}
+
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
+	public function test_handshake_stores_the_agent_pairing() {
+		openstation_electron_set_host(
+			self::$admin_id,
+			array(
+				'hostId'     => 'macbook01',
+				'agentUrl'   => 'http://127.0.0.1:41234',
+				'agentToken' => str_repeat( 'a', 64 ),
+			)
+		);
+
+		$record = openstation_electron_get_host( self::$admin_id );
+
+		$this->assertSame( 'http://127.0.0.1:41234', $record['agentUrl'] );
+		$this->assertSame( str_repeat( 'a', 64 ), $record['agentToken'] );
+	}
+
+	/**
+	 * A heartbeat carries nothing but an id. Wiping the pairing on every
+	 * beat would leave a browser able to free windows for exactly one
+	 * interval after each handshake.
+	 *
+	 * @covers ::openstation_electron_set_host
+	 */
+	public function test_a_heartbeat_preserves_the_agent_pairing() {
+		openstation_electron_set_host(
+			self::$admin_id,
+			array(
+				'hostId'     => 'macbook01',
+				'agentUrl'   => 'http://127.0.0.1:41234',
+				'agentToken' => str_repeat( 'a', 64 ),
+			)
+		);
+
+		// Exactly what the heartbeat route passes through.
+		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'macbook01' ) );
+
+		$record = openstation_electron_get_host( self::$admin_id );
+		$this->assertSame( 'http://127.0.0.1:41234', $record['agentUrl'] );
+		$this->assertSame( str_repeat( 'a', 64 ), $record['agentToken'] );
+	}
+
+	/**
+	 * @covers ::openstation_electron_config
+	 */
+	public function test_config_exposes_the_pairing_only_while_a_host_is_live() {
+		wp_set_current_user( self::$admin_id );
+
+		$this->assertFalse( openstation_electron_config()['agent']['hasAgent'] );
+
+		openstation_electron_set_host(
+			self::$admin_id,
+			array(
+				'hostId'     => 'macbook01',
+				'platform'   => 'darwin',
+				'agentUrl'   => 'http://127.0.0.1:41234',
+				'agentToken' => str_repeat( 'a', 64 ),
+			)
+		);
+
+		$agent = openstation_electron_config()['agent'];
+		$this->assertTrue( $agent['hasAgent'] );
+		$this->assertSame( 'http://127.0.0.1:41234', $agent['url'] );
+		$this->assertSame( str_repeat( 'a', 64 ), $agent['token'] );
+		$this->assertSame( 'Mac', $agent['osLabel'] );
+
+		// A host that stopped beating stops being reachable at the same
+		// moment its record expires.
+		$stored             = get_user_meta( self::$admin_id, OPENSTATION_ELECTRON_HOST_META, true );
+		$stored['lastSeen'] = time() - ( openstation_electron_ttl() + 60 );
+		update_user_meta( self::$admin_id, OPENSTATION_ELECTRON_HOST_META, $stored );
+
+		$this->assertFalse( openstation_electron_config()['agent']['hasAgent'] );
+	}
+
+	/**
+	 * `last` is descriptive — "your Mac was here two minutes ago" — and
+	 * read by UI that has no business holding a capability.
+	 *
+	 * @covers ::openstation_electron_config
+	 */
+	public function test_the_descriptive_record_never_carries_the_token() {
+		wp_set_current_user( self::$admin_id );
+		openstation_electron_set_host(
+			self::$admin_id,
+			array(
+				'hostId'     => 'macbook01',
+				'agentUrl'   => 'http://127.0.0.1:41234',
+				'agentToken' => str_repeat( 'a', 64 ),
+			)
+		);
+
+		$config = openstation_electron_config();
+
+		$this->assertArrayNotHasKey( 'agentToken', $config['last'] );
+		$this->assertArrayHasKey( 'token', $config['agent'] );
+	}
+
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
+	public function test_a_non_loopback_agent_url_is_refused_at_the_edge() {
+		openstation_electron_set_host(
+			self::$admin_id,
+			array(
+				'hostId'     => 'macbook01',
+				'agentUrl'   => 'http://evil.test:41234',
+				'agentToken' => str_repeat( 'a', 64 ),
+			)
+		);
+
+		$this->assertSame( '', openstation_electron_get_host( self::$admin_id )['agentUrl'] );
+	}
+
+	/**
 	 * @covers ::openstation_electron_rest_handshake
 	 */
 	public function test_rest_handshake_declines_a_newer_protocol() {

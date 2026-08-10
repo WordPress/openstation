@@ -92,6 +92,13 @@ for a user who has not turned OpenStation on, and every capability
 check on the underlying screen applies exactly as it would anywhere
 else.
 
+The id is resolved against the native-window registry first, then —
+for `os-game-<id>` — by launching that game, because a game's window is
+minted at launch time rather than registered. An id nothing recognises
+paints nothing and logs. There is deliberately no fallback to "some
+other window": solo mode means *this* window, and quietly substituting
+another is worse than an empty surface.
+
 Core's `solo.css` hides the desk — wallpaper, dock, icon rail, widgets,
 Mio, sticky notes — and fills the viewport with the one window. It
 deliberately **keeps the window's title bar**, because a generic
@@ -165,6 +172,32 @@ Get this wrong and the symptom is memorable: the freed window strips
 its own flag a few seconds after opening, bounces through the portal,
 and paints an entire second OpenStation desktop inside a window that
 was meant to hold one screen.
+
+### New windows opened inside a freed window
+
+A freed window runs the shell in solo mode: one window, no dock, no
+taskbar, no desk. That is right for the window the user set free and
+wrong for a second one — solo's CSS stretches every `.os-window` to
+fill the viewport, so a newcomer covers what the user was using with no
+way back to either.
+
+So under a desktop host, **anything that opens another window there
+opens a new native window instead**. Launching a game from a freed
+Games hub gives you the game as its own OS window; the hub keeps
+showing the hub. The same routing applies to `window.open()` from any
+page in the app, with two deliberate exceptions: off-site URLs and
+anything carrying `desktop_mode_classic=1` (the ⋯ menu's "Open in
+browser tab", which asked for the browser by name) go to the browser.
+
+Freed windows are **peers, not a tree**. Closing one says nothing about
+the others.
+
+One consequence for core: solo mode must be able to reconstitute a
+window from its id alone, and a window minted at runtime — a game — is
+not in the native-window registry. `?openstation_solo=os-game-<id>`
+therefore launches the game. If an id resolves to nothing, solo mode
+paints **nothing** and logs; substituting a different window looks
+graceful and silently hands the user the wrong thing.
 
 ### `wp.os.electron`
 

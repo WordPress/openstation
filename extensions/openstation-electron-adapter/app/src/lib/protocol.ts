@@ -40,6 +40,23 @@ export const CHANNELS = {
 	/** Renderer asks to forget the site and show the connect screen. */
 	INVOKE_DISCONNECT: 'openstation:disconnect',
 
+	/**
+	 * A *freed* window asks for another window to open as its own
+	 * native window rather than inside itself.
+	 *
+	 * It does the same thing as `INVOKE_FREE_WINDOW`; what differs is
+	 * who may call it. This one lives on the freed-window preload,
+	 * where nothing else does. A freed window is a single-window
+	 * surface — the shell inside it paints exactly one window and has
+	 * no dock or taskbar — so a second window opened *inside* it stacks
+	 * on the first with no way back to either. Launching a game from a
+	 * freed Games window is exactly that case.
+	 *
+	 * The result is a sibling, not a child: freed windows are peers,
+	 * and closing one says nothing about the others.
+	 */
+	INVOKE_OPEN_WINDOW: 'openstation:open-window',
+
 	/** The connect screen asks the app to remember a site and load it. */
 	INVOKE_CONNECT_SITE: 'openstation:connect-site',
 	/** The connect screen asks for the current site + app description. */

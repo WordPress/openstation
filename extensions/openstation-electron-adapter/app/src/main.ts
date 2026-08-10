@@ -40,6 +40,7 @@ import type { MenuItemConstructorOptions } from 'electron';
 
 import { Connection } from './lib/connection';
 import { FreeWindows } from './lib/free-windows';
+import { LocalAgent } from './lib/agent';
 import { Store } from './lib/store';
 import {
 	CHANNELS,
@@ -113,6 +114,7 @@ let lastConnectError = '';
 let store: Store;
 let connection: Connection;
 let freeWindows: FreeWindows;
+let agent: LocalAgent;
 
 /**
  * The app icon, as a spreadable option bag.
@@ -214,13 +216,19 @@ function openShellWindow(): void {
 		shellWindow = null;
 	} );
 
-	// Anything the desktop opens "in a browser tab" really should go to
-	// the browser — that menu item exists precisely to leave OpenStation.
-	shellWindow.webContents.setWindowOpenHandler( ( { url } ) => {
-		if ( /^https?:/i.test( url ) ) {
-			void shell.openExternal( url );
+	// Same routing as a freed window: a page asking for a new window
+	// gets a real one, unless it asked for the browser by name. See
+	// `routeNewWindow()`.
+	shellWindow.webContents.setWindowOpenHandler( ( { url, frameName } ) =>
+		routeNewWindow( url, frameName ),
+	);
+
+	// Once the user is actually signed in and looking at the desktop,
+	// ask where they want to work. See `askWhereToOpen()`.
+	shellWindow.webContents.on( 'did-navigate', ( _event, url ) => {
+		if ( url.includes( '/wp-admin/' ) ) {
+			void askWhereToOpen();
 		}
-		return { action: 'deny' };
 	} );
 
 	// A site that will not load leaves the user staring at a blank
@@ -249,6 +257,75 @@ function openShellWindow(): void {
 }
 
 /**
+ * Ask where the user wants to work, once — the first time they reach
+ * the desktop signed in.
+ *
+ * Both answers connect. That is the point of asking rather than
+ * assuming: the app is not only a place to view OpenStation, it is the
+ * thing that can hand any window to the operating system, and it can
+ * do that for a browser tab just as well as for its own. Someone who
+ * lives in Chrome should not have to abandon Chrome to get native
+ * windows — they should get a machine that can make them.
+ *
+ * So "Use my browser" is not a decline. It opens the site in the
+ * default browser and keeps this process running as the local agent,
+ * which is what that browser tab will call when the user picks "Send
+ * to your Mac".
+ *
+ * Asked once per installation and remembered; the Station menu has an
+ * item to change it.
+ */
+async function askWhereToOpen(): Promise< void > {
+	if ( store.get( 'openIn' ) ) {
+		return;
+	}
+	if ( ! shellWindow || shellWindow.isDestroyed() ) {
+		return;
+	}
+
+	const { response, checkboxChecked } = await dialog.showMessageBox( shellWindow, {
+		type: 'question',
+		buttons: [ 'Open here', 'Use my browser' ],
+		defaultId: 0,
+		cancelId: 0,
+		title: 'Where would you like to work?',
+		message: 'Open OpenStation here, or in your browser?',
+		detail:
+			'Either way this app stays connected, so any window can be sent ' +
+			'to your desktop as a real window — from here or from your browser.',
+		checkboxLabel: 'Remember my choice',
+		checkboxChecked: true,
+	} );
+
+	const choice = 0 === response ? 'app' : 'browser';
+	if ( checkboxChecked ) {
+		store.set( 'openIn', choice );
+	}
+
+	if ( 'browser' === choice ) {
+		await openInBrowser();
+	}
+}
+
+/**
+ * Hand the session to the user's default browser and step back.
+ *
+ * The window is hidden rather than closed: closing it on Windows and
+ * Linux would quit the app through `window-all-closed`, taking the
+ * local agent with it — and the agent is exactly what the browser tab
+ * they just opened is about to need.
+ */
+async function openInBrowser(): Promise< void > {
+	const entry = shellEntryUrl( store.get( 'siteUrl' ) );
+	if ( entry ) {
+		await shell.openExternal( entry );
+	}
+	if ( shellWindow && ! shellWindow.isDestroyed() ) {
+		shellWindow.hide();
+	}
+}
+
+/**
  * Forget the current site and go back to the connect screen. Freed
  * windows go with it — they belong to the site being left.
  */
@@ -259,6 +336,55 @@ function showConnectScreen(): void {
 		shellWindow = null;
 	}
 	openConnectWindow();
+}
+
+/**
+ * Decide what a `window.open()` from inside the app should do.
+ *
+ * Under a desktop host, "open a new window" should mean a new window
+ * *of the desktop* — that is the whole proposition. So a page asking
+ * for one gets a real one, not a browser tab.
+ *
+ * Two deliberate exceptions:
+ *
+ *   - **Off-site URLs** go to the browser. A link to some other site is
+ *     not an OpenStation window and has no business becoming one.
+ *   - **`desktop_mode_classic=1`** goes to the browser too, because
+ *     that flag is the ⋯ menu's "Open in browser tab" saying so in as
+ *     many words. Opening it here would refuse the one request the user
+ *     made explicitly.
+ *
+ * @param url       Requested URL.
+ * @param frameName `window.open()`'s name argument, used as the window id.
+ * @return An Electron window-open handler verdict.
+ */
+function routeNewWindow(
+	url: string,
+	frameName?: string,
+): { action: 'deny' } {
+	if ( ! /^https?:/i.test( url ) ) {
+		return { action: 'deny' };
+	}
+
+	const site = store?.get( 'siteUrl' ) ?? '';
+	const wantsBrowser = url.includes( 'desktop_mode_classic=1' );
+
+	if ( wantsBrowser || ! isSameSiteUrl( url, site ) ) {
+		void shell.openExternal( url );
+		return { action: 'deny' };
+	}
+
+	// Same site, no explicit browser request: a window of the desktop.
+	// `frameName` is whatever the opener named the window; falling back
+	// to the URL keeps two different pages from colliding on one id.
+	freeWindows?.free( {
+		windowId: frameName || url,
+		url,
+		title: 'OpenStation',
+	} );
+	// Denied either way — Electron's own popup is never what we want;
+	// the registry has already opened a window we control.
+	return { action: 'deny' };
 }
 
 /**
@@ -298,13 +424,16 @@ function createFreedWindow( opts: {
 		title: opts.title,
 		show: false,
 		backgroundColor: '#0c0b0f',
-		// A freed window is a real OS window — it wears the OS frame
-		// rather than OpenStation's own title bar. On macOS the
-		// hidden-inset style keeps the traffic lights without spending
-		// a full title bar on a page that already has a heading.
-		titleBarStyle: 'darwin' === process.platform ? 'hiddenInset' : 'default',
-		trafficLightPosition:
-			'darwin' === process.platform ? { x: 14, y: 14 } : undefined,
+		// The real OS title bar, carrying the window's OpenStation name.
+		//
+		// An earlier version used macOS's `hiddenInset` style to save
+		// the vertical space, which left only floating traffic lights
+		// over the content — the window had no name anywhere the OS
+		// could show it, so Mission Control and the app switcher listed
+		// an anonymous rectangle. The point of setting a window free is
+		// that it becomes a window *of the desktop*, and a window of
+		// the desktop has a name in the title bar like every other one.
+		titleBarStyle: 'default',
 		webPreferences: {
 			preload: join( __dirname, 'preload', 'free.js' ),
 			contextIsolation: true,
@@ -318,15 +447,9 @@ function createFreedWindow( opts: {
 
 	win.once( 'ready-to-show', () => win.show() );
 
-	// Anything the page tries to open in a new window goes to the
-	// user's browser. A freed window is a single screen, not a second
-	// desktop that starts sprouting windows of its own.
-	win.webContents.setWindowOpenHandler( ( { url } ) => {
-		if ( /^https?:/i.test( url ) ) {
-			void shell.openExternal( url );
-		}
-		return { action: 'deny' };
-	} );
+	win.webContents.setWindowOpenHandler( ( { url, frameName } ) =>
+		routeNewWindow( url, frameName ),
+	);
 
 	win.webContents.on( 'did-finish-load', () => {
 		win.webContents.send( CHANNELS.EVENT_FRAME_INIT, {
@@ -394,6 +517,15 @@ function buildMenu(): void {
 						}
 					},
 				},
+				{
+					label: 'Open in my browser',
+					click: () => void openInBrowser(),
+				},
+				{
+					label: 'Ask where to open next time',
+					click: () => store.set( 'openIn', '' ),
+				},
+				{ type: 'separator' },
 				{
 					label: 'Connect to a different site…',
 					click: () => {
@@ -464,6 +596,19 @@ function registerIpc(): void {
 	ipcMain.handle( CHANNELS.INVOKE_LIST_WINDOWS, () => ( {
 		windowIds: freeWindows?.list() ?? [],
 	} ) );
+
+	// From a freed window: open a sibling rather than stacking a second
+	// window inside a surface that paints one. Same registry, same
+	// URL checks — the only difference is which preload can reach it.
+	ipcMain.handle(
+		CHANNELS.INVOKE_OPEN_WINDOW,
+		( _event, req: FreeWindowRequest ) => {
+			connection?.markActive();
+			const result = freeWindows.free( req || {} );
+			connection?.setHasFreedWindows( freeWindows.any() );
+			return result;
+		},
+	);
 
 	ipcMain.handle( CHANNELS.INVOKE_HANDSHAKE, ( _event, args: HandshakeArgs ) =>
 		connection.handshake( args || { restUrl: '', nonce: '' } ),
@@ -554,6 +699,11 @@ void app.whenReady().then( () => {
 			arch: process.arch,
 			appVersion: APP_VERSION,
 			electronVersion: process.versions.electron,
+			// The coordinates a *browser* needs to reach this machine.
+			// They travel on the handshake so the site can hand them to
+			// its own admin pages: that is the entire pairing.
+			agentUrl: agent?.url ?? '',
+			agentToken: agent?.url ? store.agentToken() : '',
 		} ),
 		onChange: ( state ) => toShell( CHANNELS.EVENT_CONNECTION, state ),
 	} );
@@ -574,6 +724,47 @@ void app.whenReady().then( () => {
 			toShell( CHANNELS.EVENT_WINDOW_FREED, { windowId } );
 		},
 		onActivity: () => connection.markActive(),
+	} );
+
+	// The local agent — how a browser tab reaches this machine. Started
+	// before the shell window so its URL is known by the time the shell
+	// handshakes and hands the coordinates to the site.
+	agent = new LocalAgent( {
+		token: store.agentToken(),
+		allowedOrigin: () => {
+			const site = store.get( 'siteUrl' );
+			try {
+				return site ? new URL( site ).origin : '';
+			} catch {
+				return '';
+			}
+		},
+		free: ( req ) => {
+			connection?.markActive();
+			const result = freeWindows.free( req );
+			connection?.setHasFreedWindows( freeWindows.any() );
+			return result;
+		},
+		dock: ( windowId ) => freeWindows.dock( windowId ),
+		focus: ( windowId ) => freeWindows.focus( windowId ),
+		list: () => freeWindows.list(),
+		describe: () => ( {
+			app: 'OpenStation Desktop',
+			appVersion: APP_VERSION,
+			protocol: HOST_PROTOCOL_VERSION,
+			platform: process.platform,
+			osLabel: osLabelFor( process.platform ),
+			hostId: store.hostId(),
+		} ),
+		onActivity: () => connection?.markActive(),
+	} );
+
+	void agent.start().then( ( port ) => {
+		if ( ! port ) {
+			console.error(
+				'[openstation-desktop] local agent could not start; browser tabs will not be able to free windows.',
+			);
+		}
 	} );
 
 	registerIpc();
@@ -597,6 +788,7 @@ app.on( 'window-all-closed', () => {
 
 app.on( 'before-quit', () => {
 	freeWindows?.closeAll();
+	agent?.stop();
 	// Best-effort and deliberately not awaited — see `farewell()`.
 	void connection?.farewell();
 } );

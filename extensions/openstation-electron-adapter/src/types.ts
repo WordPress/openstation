@@ -107,6 +107,29 @@ export interface DesktopFrameBridge {
 	osLabel: string;
 	getWindowId(): string;
 	onReady( cb: ( windowId: string ) => void ): void;
+	/**
+	 * Open another window as its own native window.
+	 *
+	 * A freed window paints exactly one window; a second one opened
+	 * inside it has nowhere to go. Optional because an older host may
+	 * not offer it — callers fall back to leaving the window where it
+	 * is rather than closing it and losing it.
+	 */
+	openWindow?( req: FreeWindowRequest ): Promise< { ok: boolean; error?: string } >;
+}
+
+/**
+ * Coordinates a browser tab uses to reach the desktop app running on
+ * the same machine. Empty unless a host is currently paired.
+ */
+export interface AgentPairing {
+	/** `http://127.0.0.1:<port>`, or '' when nothing is paired. */
+	url: string;
+	/** Bearer token the agent requires. Present only when `hasAgent`. */
+	token?: string;
+	hasAgent: boolean;
+	osLabel?: string;
+	platform?: string;
 }
 
 /** The config blob `includes/assets.php` prints before the bundle. */
@@ -118,6 +141,7 @@ export interface AdapterConfig {
 	interval: number;
 	protocol: number;
 	soloParam: string;
+	agent?: AgentPairing;
 	last: {
 		connected: boolean;
 		hostId: string;

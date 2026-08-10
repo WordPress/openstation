@@ -23,8 +23,11 @@
  * transition directly.
  */
 
+import { connectToAgent } from './agent-bridge';
 import { FreedWindows } from './freed-windows';
 import { freedWindowUrl, getFrameBridge, getHostBridge, sendLabel } from './host';
+import { installSoloForwarder } from './solo-forwarder';
+import type { SoloShellApi } from './solo-forwarder';
 import type {
 	AdapterConfig,
 	ConnectionState,
@@ -402,12 +405,6 @@ export function start(): void {
 		document.addEventListener( 'DOMContentLoaded', markSoloHost );
 	}
 
-	const bridge = getHostBridge();
-	if ( ! bridge ) {
-		// A browser. Register nothing, touch nothing.
-		return;
-	}
-
 	const config = window.openStationElectronConfig;
 	if ( ! config ) {
 		console.error(
@@ -416,16 +413,67 @@ export function start(): void {
 		return;
 	}
 
-	void waitForShell().then( ( os ) => {
+	/*
+	 * Inside a freed window the adapter has exactly one job.
+	 *
+	 * This surface is not a desk: it paints one window, has no dock and
+	 * no taskbar, and its window controls belong to the OS frame. So
+	 * none of `boot()` applies — there is no ⋯ row worth adding (the
+	 * title bar is hidden), and no here-or-there state to keep (there
+	 * is one window, and it is here). What it does need is somewhere to
+	 * put a *second* window, and that somewhere is the desktop.
+	 */
+	const frame = getFrameBridge();
+	if ( frame ) {
+		void waitForShell().then( ( os ) => {
+			if ( os ) {
+				os.ready( () =>
+					installSoloForwarder(
+						frame as Parameters< typeof installSoloForwarder >[ 0 ],
+						os as unknown as SoloShellApi,
+						config,
+					),
+				);
+			}
+		} );
+		return;
+	}
+
+	void ( async () => {
+		/*
+		 * Two ways to reach the desktop, tried in order of directness.
+		 *
+		 * 1. **The preload.** This page is inside the app, so the host
+		 *    is right here: synchronous, no network, no permission to
+		 *    negotiate.
+		 * 2. **The local agent.** This page is in a browser, and the
+		 *    app is running somewhere on the same machine. Costs one
+		 *    loopback request to find out.
+		 *
+		 * The second is why "Send to your Mac" is not an app-only
+		 * feature. The app is the thing that can give you native
+		 * windows; the browser is where most people actually work.
+		 * Making the browser ask the app is what joins those.
+		 *
+		 * Neither available is the ordinary case — a browser with no
+		 * app — and is silent by design.
+		 */
+		const bridge = getHostBridge() ?? ( await connectToAgent( config.agent ) );
+		if ( ! bridge ) {
+			return;
+		}
+
+		const os = await waitForShell();
 		if ( ! os ) {
 			return;
 		}
+
 		// `wp.os.ready` is the shell's own "the API is assembled"
 		// signal. `wp.os` existing only means the early shim is in
 		// place; `ready` is what guarantees the window manager and the
 		// registries behind it are actually wired.
 		os.ready( () => boot( bridge, os, config ) );
-	} );
+	} )();
 }
 
 start();

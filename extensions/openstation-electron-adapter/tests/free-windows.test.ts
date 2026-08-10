@@ -8,7 +8,7 @@
 
 import { describe, expect, test, vi } from 'vitest';
 
-import { FreeWindows, MIN_SIZE } from '../app/src/lib/free-windows';
+import { FreeWindows, MIN_SIZE, screenNameFrom } from '../app/src/lib/free-windows';
 import type { CreateWindowOptions, FreeWindowHandle } from '../app/src/lib/free-windows';
 
 /** A BrowserWindow double that records handlers and lets tests fire them. */
@@ -263,15 +263,37 @@ describe( 'window events', () => {
 		expect( h.onFreed ).toHaveBeenCalledWith( 'edit-php' );
 	} );
 
-	test( 'lets the page own its title', () => {
+	test( 'an iframe window follows the page, minus WordPress’s tab suffix', () => {
+		// The OS title bar names the window, and "Posts ‹ My Site —
+		// WordPress" is a browser tab's name, not a window's.
 		const h = harness();
 		h.registry.free( REQ );
 		const prevented = vi.fn();
 
-		h.handles[ 0 ]!.fire( 'page-title-updated', { preventDefault: prevented }, 'Edit Post' );
+		h.handles[ 0 ]!.fire(
+			'page-title-updated',
+			{ preventDefault: prevented },
+			'Edit Post ‹ My Site — WordPress',
+		);
 
 		expect( prevented ).toHaveBeenCalled();
 		expect( h.handles[ 0 ]!.record.title ).toBe( 'Edit Post' );
+	} );
+
+	test( 'a native window keeps its OpenStation name', () => {
+		// Solo mode renders inside `index.php`, so the document title
+		// belongs to the shell page, not the window. Trash freed from
+		// there would otherwise rename itself "Dashboard".
+		const h = harness();
+		h.registry.free( { ...REQ, windowId: 'os-files', title: 'Trash', native: true } );
+
+		h.handles[ 0 ]!.fire(
+			'page-title-updated',
+			{ preventDefault: () => {} },
+			'Dashboard ‹ My Site — WordPress',
+		);
+
+		expect( h.handles[ 0 ]!.record.title ).toBe( 'Trash' );
 	} );
 
 	test( 'falls back to the given title when the page supplies none', () => {
@@ -290,6 +312,31 @@ describe( 'window events', () => {
 		h.handles[ 0 ]!.fire( 'focus' );
 
 		expect( h.onActivity ).toHaveBeenCalled();
+	} );
+} );
+
+describe( 'screenNameFrom', () => {
+	test( 'keeps only the screen name', () => {
+		expect( screenNameFrom( 'Posts ‹ My Site — WordPress', 'x' ) ).toBe( 'Posts' );
+		expect( screenNameFrom( 'Edit Post ‹ Daniel’s Blog — WordPress', 'x' ) ).toBe(
+			'Edit Post',
+		);
+	} );
+
+	test( 'takes a title without the separator whole rather than mangling it', () => {
+		// A plugin that titles its own screens, or a translation that
+		// does not use Core's separator.
+		expect( screenNameFrom( 'My Plugin Dashboard', 'x' ) ).toBe(
+			'My Plugin Dashboard',
+		);
+	} );
+
+	test( 'falls back when the page supplies nothing', () => {
+		expect( screenNameFrom( '', 'Posts' ) ).toBe( 'Posts' );
+		expect( screenNameFrom( '   ', 'Posts' ) ).toBe( 'Posts' );
+		expect( screenNameFrom( '‹ My Site — WordPress', 'Posts' ) ).toBe(
+			'‹ My Site — WordPress',
+		);
 	} );
 } );
 

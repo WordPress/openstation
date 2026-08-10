@@ -15,11 +15,18 @@
  * the window controls), and which window it is. That is the entire
  * surface here.
  *
- * It deliberately does NOT re-expose the shell bridge. A freed window
- * cannot free further windows: allowing it would turn one clear "this
- * window is out on the desktop" relationship into a tree nobody can
- * reason about, and the shell is the only side that knows how to dock
- * a window back.
+ * It deliberately does NOT re-expose the shell bridge — a freed window
+ * has no business docking its peers back, and the shell is the side
+ * that knows how to.
+ *
+ * It does expose `openWindow`, and that is not a contradiction. A freed
+ * window is a **single-window surface**: the shell inside it paints
+ * exactly one window, with no dock and no taskbar. So anything that
+ * opens a second window there — launching a game from a freed Games
+ * window, opening a post from a freed list — stacks invisibly on the
+ * first with no way back to either. Forwarding the request to the host
+ * turns that dead end into a new window on the desktop. The result is a
+ * sibling, not a child: freed windows are peers.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
@@ -94,5 +101,43 @@ contextBridge.exposeInMainWorld( 'openStationDesktopFrame', {
 			return;
 		}
 		waiting.push( cb );
+	},
+
+	/**
+	 * Open another window as its own native window.
+	 *
+	 * For anything that would otherwise open a second window *inside*
+	 * this one, where there is nowhere for it to go. See the file
+	 * docblock.
+	 *
+	 * @param req          Window to open.
+	 * @param req.windowId
+	 * @param req.url
+	 * @param req.title
+	 * @param req.width
+	 * @param req.height
+	 * @param req.native
+	 * @return Result.
+	 */
+	openWindow: ( req: {
+		windowId: string;
+		url: string;
+		title?: string;
+		width?: number;
+		height?: number;
+		native?: boolean;
+	} ): Promise< { ok: boolean; error?: string } > => {
+		const url = String( req?.url || '' );
+		if ( ! /^https?:\/\//i.test( url ) ) {
+			return Promise.resolve( { ok: false, error: 'url must be http(s)' } );
+		}
+		return ipcRenderer.invoke( CHANNELS.INVOKE_OPEN_WINDOW, {
+			windowId: String( req?.windowId || '' ),
+			url,
+			title: String( req?.title || '' ),
+			width: Number( req?.width || 0 ) || undefined,
+			height: Number( req?.height || 0 ) || undefined,
+			native: !! req?.native,
+		} );
 	},
 } );

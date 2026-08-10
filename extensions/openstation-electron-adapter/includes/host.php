@@ -204,7 +204,48 @@ function openstation_electron_get_host( $user_id = 0 ) {
 		'protocol'    => isset( $raw['protocol'] ) ? (int) $raw['protocol'] : 0,
 		'lastSeen'    => $last_seen,
 		'connectedAt' => isset( $raw['connectedAt'] ) ? (int) $raw['connectedAt'] : $last_seen,
+		'agentUrl'    => isset( $raw['agentUrl'] ) ? (string) $raw['agentUrl'] : '',
+		'agentToken'  => isset( $raw['agentToken'] ) ? (string) $raw['agentToken'] : '',
 	);
+}
+
+/**
+ * Whether a URL is a loopback address this site may hand to a browser.
+ *
+ * The agent URL arrives from the app and is later printed into an admin
+ * page for the browser to call, so it is validated on the way in rather
+ * than trusted on the way out. Loopback only, http only, no path: the
+ * one shape the local agent ever advertises.
+ *
+ * @param string $url Candidate agent URL.
+ * @return string The normalized URL, or '' when it is not one.
+ */
+function openstation_electron_sanitize_agent_url( $url ) {
+	$url = trim( (string) $url );
+	if ( '' === $url ) {
+		return '';
+	}
+
+	$parts = wp_parse_url( $url );
+	if ( ! is_array( $parts ) || empty( $parts['host'] ) || empty( $parts['port'] ) ) {
+		return '';
+	}
+	if ( ! isset( $parts['scheme'] ) || 'http' !== $parts['scheme'] ) {
+		return '';
+	}
+	if ( ! in_array( $parts['host'], array( '127.0.0.1', 'localhost', '[::1]', '::1' ), true ) ) {
+		return '';
+	}
+	if ( ! empty( $parts['path'] ) && '/' !== $parts['path'] ) {
+		return '';
+	}
+
+	$port = (int) $parts['port'];
+	if ( $port < 1 || $port > 65535 ) {
+		return '';
+	}
+
+	return 'http://' . $parts['host'] . ':' . $port;
 }
 
 /**
@@ -243,6 +284,22 @@ function openstation_electron_set_host( $user_id, $args ) {
 		'osLabel'     => openstation_electron_os_label( $platform ),
 		'appVersion'  => isset( $args['appVersion'] ) ? substr( sanitize_text_field( (string) $args['appVersion'] ), 0, 32 ) : '',
 		'protocol'    => isset( $args['protocol'] ) ? (int) $args['protocol'] : 0,
+		/*
+		 * Loopback coordinates a browser tab uses to reach the machine.
+		 * Validated here rather than at print time — this is the edge
+		 * where they arrive from outside.
+		 *
+		 * Absent means "not mentioned", not "cleared": a heartbeat
+		 * carries nothing but an id, and wiping the pairing on every
+		 * beat would leave the browser able to free windows for exactly
+		 * one interval after each handshake.
+		 */
+		'agentUrl'    => array_key_exists( 'agentUrl', $args )
+			? openstation_electron_sanitize_agent_url( $args['agentUrl'] )
+			: ( is_array( $existing ) && isset( $existing['agentUrl'] ) ? (string) $existing['agentUrl'] : '' ),
+		'agentToken'  => array_key_exists( 'agentToken', $args )
+			? (string) preg_replace( '/[^a-f0-9]/', '', (string) $args['agentToken'] )
+			: ( is_array( $existing ) && isset( $existing['agentToken'] ) ? (string) $existing['agentToken'] : '' ),
 		'lastSeen'    => $now,
 		// A reconnect from the same installation keeps its original
 		// connection timestamp, so "how long has this desktop been
@@ -278,6 +335,36 @@ function openstation_electron_clear_host( $user_id ) {
  */
 function openstation_electron_config() {
 	$user_id = get_current_user_id();
+	$record  = openstation_electron_get_host( $user_id );
+
+	/*
+	 * The pairing a browser tab needs to reach the user's machine.
+	 *
+	 * Only ever handed to the user the host belongs to, on their own
+	 * admin page, and only while the record is live — a host that
+	 * stopped beating stops being reachable here at the same moment.
+	 * The token is a capability, so it is emitted at all only when
+	 * there is something to authorise.
+	 *
+	 * The record itself is echoed back WITHOUT the token: `last` is
+	 * descriptive ("your Mac was here two minutes ago") and read by UI
+	 * that has no business holding a credential.
+	 */
+	$agent = array(
+		'url'      => '',
+		'hasAgent' => false,
+	);
+	if ( ! empty( $record['connected'] ) && ! empty( $record['agentUrl'] ) && ! empty( $record['agentToken'] ) ) {
+		$agent = array(
+			'url'      => $record['agentUrl'],
+			'token'    => $record['agentToken'],
+			'hasAgent' => true,
+			'osLabel'  => $record['osLabel'],
+			'platform' => $record['platform'],
+		);
+	}
+
+	unset( $record['agentToken'] );
 
 	$config = array(
 		'enabled'   => openstation_electron_enabled( $user_id ),
@@ -287,7 +374,8 @@ function openstation_electron_config() {
 		'interval'  => openstation_electron_interval() * 1000,
 		'protocol'  => OPENSTATION_ELECTRON_PROTOCOL,
 		'soloParam' => defined( 'OPENSTATION_SOLO_FLAG' ) ? OPENSTATION_SOLO_FLAG : 'openstation_solo',
-		'last'      => openstation_electron_get_host( $user_id ),
+		'agent'     => $agent,
+		'last'      => $record,
 	);
 
 	/**
@@ -361,6 +449,14 @@ function openstation_electron_register_routes() {
 				'protocol'   => array(
 					'type'        => 'integer',
 					'description' => __( 'Host protocol version.', 'openstation-electron-adapter' ),
+				),
+				'agentUrl'   => array(
+					'type'        => 'string',
+					'description' => __( 'Loopback URL of the app\'s local agent, so browser tabs can reach this machine.', 'openstation-electron-adapter' ),
+				),
+				'agentToken' => array(
+					'type'        => 'string',
+					'description' => __( 'Bearer token the local agent requires.', 'openstation-electron-adapter' ),
 				),
 			),
 		)
@@ -451,6 +547,8 @@ function openstation_electron_rest_handshake( $request ) {
 			'platform'   => $request->get_param( 'platform' ),
 			'appVersion' => $request->get_param( 'appVersion' ),
 			'protocol'   => $protocol,
+			'agentUrl'   => (string) $request->get_param( 'agentUrl' ),
+			'agentToken' => (string) $request->get_param( 'agentToken' ),
 		)
 	);
 

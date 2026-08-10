@@ -215,6 +215,14 @@ Renderer → main (`ipcRenderer.invoke`):
 | `openstation:handshake` | `{ restUrl, nonce, siteUrl? }` | connection state |
 | `openstation:connection` | — | connection state |
 | `openstation:disconnect` | — | `{ ok }` |
+| `openstation:open-window` | same as free-window | `{ ok, windowId, reused, error? }` |
+
+`openstation:open-window` is the one channel on the **freed-window**
+preload. It does what `free-window` does; what differs is who may call
+it. A freed window paints exactly one window, so anything opening a
+second one there — a game launched from a freed Games hub — has nowhere
+to go, and forwarding it to the host turns a dead end into a new window
+on the desktop. Siblings, not children.
 
 Main → renderer (`webContents.send`):
 
