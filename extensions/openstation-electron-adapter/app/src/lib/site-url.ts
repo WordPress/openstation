@@ -102,3 +102,37 @@ export function isSameSiteUrl( url: string, siteUrl: string ): boolean {
 	}
 	return target.host === base.host && target.protocol === base.protocol;
 }
+
+/** What to do with a navigation a window we own is about to make. */
+export type NavigationVerdict = 'allow' | 'external' | 'block';
+
+/**
+ * Where a same-tab navigation should end up.
+ *
+ * `setWindowOpenHandler` decides this for `window.open()`; nothing
+ * decided it for an ordinary link, a `location.href =`, or a redirect,
+ * so those went wherever the page said. That mattered more than it
+ * looks: a preload survives navigation, so a window that followed a
+ * link off the site was still holding `window.openStationDesktopHost`
+ * — handing the host bridge to a document nobody paired with.
+ *
+ * The rule is the same one every other URL here is held to. On the
+ * site, it is a window of the desktop and stays. Some other http(s)
+ * address is a link to the wider web and belongs in the browser, the
+ * way `routeNewWindow()` already treats an off-site popup. Anything
+ * else — `file:`, `data:`, a custom scheme — is not a destination this
+ * app has any business following.
+ *
+ * @param url     Where the window wants to go.
+ * @param siteUrl The connected site.
+ * @return The verdict.
+ */
+export function navigationVerdict(
+	url: string,
+	siteUrl: string,
+): NavigationVerdict {
+	if ( isSameSiteUrl( url, siteUrl ) ) {
+		return 'allow';
+	}
+	return /^https?:\/\//i.test( String( url || '' ) ) ? 'external' : 'block';
+}

@@ -381,6 +381,45 @@ the desktop. See the
 [adapter's README](../extensions/openstation-electron-adapter/README.md)
 for the IPC contract, the build layout, and packaging.
 
+## What the app refuses to do
+
+A desktop host is a browser with a preload in it, and a preload is a
+capability that the *page* holds. Everything below follows from taking
+that seriously.
+
+**A window we own stays on the connected site.** Both the shell window
+and every freed window hold `will-navigate` and `will-redirect` to the
+same rule popups already followed: on the site it stays, another
+http(s) address opens in the user's browser, anything else is refused.
+Checking only `window.open()` would not have been enough — a preload
+survives navigation, so an un-`target`ed link off the site would leave
+the new document holding `window.openStationDesktopHost`.
+
+The one exception is the shell window's **first** navigation chain,
+which runs unchecked so a site answering `example.com` with a redirect
+to `www.example.com` still connects; whatever it settles on becomes the
+site, and everything after is held to that. A consequence worth
+knowing: a site that signs in through an **external identity provider**
+sends that hop to the browser rather than following it in the app.
+
+**The REST root is not the page's to choose.** The handshake body
+carries the local agent's URL and bearer token, so the `restUrl` the
+shell hands over is checked against the paired site before anything is
+sent. A mismatch is refused outright and leaves the connection idle —
+it does not fall back to a previously good root.
+
+**The local agent has four gates.** Loopback binding, a
+per-installation bearer token compared in constant time (requiring an
+`Authorization` header also forces a CORS preflight, so a hostile page
+cannot fire a blind request), exactly one allowed origin — the paired
+site — and a re-check of every URL against that site before a window
+opens.
+
+**A bad certificate is a question, not a refusal, only for the site the
+user typed** — self-signed certificates are ordinary in local
+development. The comparison is host-to-host rather than a string
+prefix, so a lookalike domain does not inherit the prompt.
+
 ## Status
 
 **Experimental.** The `wp.os.electron` shape, the REST routes, and the

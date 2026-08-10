@@ -11,6 +11,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	isSameSiteUrl,
+	navigationVerdict,
 	normalizeSiteUrl,
 	shellEntryUrl,
 } from '../app/src/lib/site-url';
@@ -126,6 +127,56 @@ describe( 'isSameSiteUrl', () => {
 	test( 'distinguishes a look-alike host', () => {
 		expect( isSameSiteUrl( 'https://example.com.evil.test/', site ) ).toBe(
 			false,
+		);
+	} );
+} );
+
+describe( 'navigationVerdict', () => {
+	const site = 'https://example.com';
+
+	test( 'lets the window move around its own site', () => {
+		expect(
+			navigationVerdict( 'https://example.com/wp-admin/edit.php', site ),
+		).toBe( 'allow' );
+	} );
+
+	test( 'sends an off-site link to the browser', () => {
+		// The same answer `routeNewWindow()` already gives a popup: a
+		// link to somewhere else is not an OpenStation window, and it is
+		// still a link the user meant to follow.
+		expect( navigationVerdict( 'https://wordpress.org/', site ) ).toBe(
+			'external',
+		);
+	} );
+
+	test( 'refuses to follow a scheme that is not the web', () => {
+		// Nothing to hand the browser and nothing to open here either.
+		for ( const url of [
+			'file:///etc/passwd',
+			'data:text/html,<script>1</script>',
+			'javascript:alert(1)',
+			'about:blank',
+			'',
+		] ) {
+			expect( navigationVerdict( url, site ) ).toBe( 'block' );
+		}
+	} );
+
+	test( 'holds the line before a site is configured', () => {
+		// With no paired site nothing is same-site, so an http(s) target
+		// leaves for the browser rather than loading in a window that
+		// still holds the host bridge.
+		expect( navigationVerdict( 'https://example.com/', '' ) ).toBe(
+			'external',
+		);
+	} );
+
+	test( 'treats a look-alike host and a scheme downgrade as off-site', () => {
+		expect(
+			navigationVerdict( 'https://example.com.evil.test/', site ),
+		).toBe( 'external' );
+		expect( navigationVerdict( 'http://example.com/', site ) ).toBe(
+			'external',
 		);
 	} );
 } );

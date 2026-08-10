@@ -32,9 +32,17 @@ function fakeFetch(
 	return { fetch, calls };
 }
 
-/** Build a Connection with a controllable timer. */
+/**
+ * Build a Connection with a controllable timer.
+ *
+ * @param responses Scripted transport replies.
+ * @param site      The paired site. Every `restUrl` below lives on
+ *                  `https://example.test`, so this is what makes an
+ *                  ordinary handshake pass its origin check.
+ */
 function harness(
 	responses: Array< { status?: number; body?: Record< string, unknown > } >,
+	site = 'https://example.test',
 ) {
 	const { fetch, calls } = fakeFetch( responses );
 	const states: ConnectionState[] = [];
@@ -44,6 +52,7 @@ function harness(
 	const connection = new Connection( {
 		fetch: fetch as never,
 		namespace: 'openstation-electron/v1',
+		siteUrl: () => site,
 		hostId: () => 'host-123',
 		describe: () => ( { platform: 'darwin', appVersion: '1.0.0' } ),
 		onChange: ( state ) => states.push( { ...state } ),
@@ -114,6 +123,67 @@ describe( 'handshake', () => {
 			nonce: 'abc',
 		} );
 		expect( h.connection.getState().interval ).toBe( 30000 );
+	} );
+
+	// The handshake body carries `describe()`, and `describe()` carries
+	// the local agent's bearer token. `restUrl` decides where that goes
+	// and arrives from a renderer, so it is checked against the paired
+	// site — the same rule freed-window URLs and navigations are held to.
+	describe( 'the REST root must be on the paired site', () => {
+		test.each( [
+			[ 'a different host', 'https://attacker.example/wp-json' ],
+			[ 'a lookalike suffix', 'https://example.test.attacker.example/wp-json' ],
+			[ 'a userinfo-prefixed host', 'https://example.test@attacker.example/wp-json' ],
+			[ 'a downgraded scheme', 'http://example.test/wp-json' ],
+			[ 'a non-http scheme', 'file:///etc/passwd' ],
+		] )( 'refuses %s', async ( _label, restUrl ) => {
+			const h = harness( [ {} ] );
+
+			await h.connection.handshake( { restUrl, nonce: 'abc' } );
+
+			// Nothing was sent at all — the check runs before the token
+			// is even read out of `describe()`.
+			expect( h.fetch ).not.toHaveBeenCalled();
+			expect( h.connection.getState().state ).toBe( 'error' );
+		} );
+
+		test( 'a refused handshake does not keep an earlier one alive', async () => {
+			const h = harness( [ { body: { heartbeatInterval: 120000 } } ] );
+			await h.connection.handshake( {
+				restUrl: 'https://example.test/wp-json/',
+				nonce: 'abc',
+			} );
+			expect( h.connection.getState().state ).toBe( 'connected' );
+
+			await h.connection.handshake( {
+				restUrl: 'https://attacker.example/wp-json',
+				nonce: 'abc',
+			} );
+
+			// One call, from the good handshake. The beat that the good
+			// handshake scheduled must not fire against the old root
+			// either: a page that navigated somewhere else does not get
+			// to keep the heartbeat it inherited.
+			expect( h.fetch ).toHaveBeenCalledTimes( 1 );
+			await h.tick();
+			expect( h.fetch ).toHaveBeenCalledTimes( 1 );
+		} );
+
+		test( 'the port is part of the identity, matching or not', async () => {
+			const ok = harness( [ { body: {} } ], 'https://example.test:8443' );
+			await ok.connection.handshake( {
+				restUrl: 'https://example.test:8443/wp-json',
+				nonce: 'abc',
+			} );
+			expect( ok.connection.getState().state ).toBe( 'connected' );
+
+			const wrong = harness( [ { body: {} } ], 'https://example.test:8443' );
+			await wrong.connection.handshake( {
+				restUrl: 'https://example.test:9999/wp-json',
+				nonce: 'abc',
+			} );
+			expect( wrong.fetch ).not.toHaveBeenCalled();
+		} );
 	} );
 } );
 

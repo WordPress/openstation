@@ -28,6 +28,7 @@ import {
 	nextDelay,
 	shouldSkipBeat,
 } from './schedule';
+import { isSameSiteUrl } from './site-url';
 import type { ConnectionState, HandshakeArgs } from './protocol';
 
 /** Minimal `fetch` shape this module needs. */
@@ -51,6 +52,12 @@ export interface ConnectionDeps {
 	fetch: FetchLike;
 	/** REST namespace to post under, e.g. `openstation-electron/v1`. */
 	namespace: string;
+	/**
+	 * The site this app is paired with. Every REST root the shell hands
+	 * over is checked against it before anything is sent — see
+	 * `handshake()`.
+	 */
+	siteUrl: () => string;
 	/** Identity to send. */
 	hostId: () => string;
 	/** App + platform description for the handshake. */
@@ -125,19 +132,53 @@ export class Connection {
 	 * again whenever its REST nonce is refreshed. A repeat handshake
 	 * just refreshes the server record and re-reads the interval.
 	 *
+	 * ## Why the REST root is checked
+	 *
+	 * The handshake body is not a greeting; it carries `describe()`,
+	 * and `describe()` carries the local agent's URL and bearer token —
+	 * the pairing secret, the one thing in this app worth stealing.
+	 * Where that goes is decided entirely by `args.restUrl`, and
+	 * `args.restUrl` arrives from a renderer.
+	 *
+	 * A renderer is not a trusted source of destinations. It is the
+	 * layer an attacker gets a foothold in, and the preload bridge that
+	 * reaches this method survives navigation. So the REST root is held
+	 * to the same rule as every other URL the main process acts on
+	 * (`routeNewWindow`, `FreeWindows.isAllowedUrl`, `guardNavigation`):
+	 * it must be on the site this app is paired with. Somewhere else is
+	 * not a misconfiguration to report — it is a request to post a
+	 * secret to a stranger, and it is refused before `describe()` is
+	 * ever called.
+	 *
 	 * @param args REST coordinates from the shell.
 	 * @return The resulting state.
 	 */
 	async handshake( args: HandshakeArgs ): Promise< ConnectionState > {
-		this.restUrl = String( args.restUrl || '' ).replace( /\/+$/, '' );
-		this.nonce = String( args.nonce || '' );
-		if ( ! this.restUrl || ! this.nonce ) {
+		const restUrl = String( args.restUrl || '' ).replace( /\/+$/, '' );
+		const nonce = String( args.nonce || '' );
+		if ( ! restUrl || ! nonce ) {
 			this.setState( {
 				state: 'error',
 				message: 'Shell did not supply REST coordinates.',
 			} );
 			return this.state;
 		}
+
+		if ( ! isSameSiteUrl( restUrl, this.deps.siteUrl() ) ) {
+			// Left disconnected on purpose: a previously good `restUrl`
+			// is not re-armed by a bad handshake, so a page that
+			// navigated away cannot keep the heartbeat alive either.
+			this.stopTimer();
+			this.restUrl = '';
+			this.setState( {
+				state: 'error',
+				message: 'REST root is not on the connected site.',
+			} );
+			return this.state;
+		}
+
+		this.restUrl = restUrl;
+		this.nonce = nonce;
 
 		this.setState( { state: 'connecting', siteUrl: args.siteUrl } );
 

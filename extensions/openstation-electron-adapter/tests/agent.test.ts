@@ -162,6 +162,47 @@ describe( 'the gates', () => {
 		expect( res.status ).toBe( 401 );
 	} );
 
+	test( 'refuses a token that is only a prefix of the real one', async () => {
+		// The origin gate in front of this is a header, and a header is
+		// something any program on the machine can simply write — so the
+		// token is the real gate here, and it is compared in constant
+		// time. A near-miss must be as uninformative as a wild guess: no
+		// "warmer", nothing to walk a byte at a time.
+		for ( const guess of [
+			'Bearer ',
+			`Bearer ${ TOKEN.slice( 0, 1 ) }`,
+			`Bearer ${ TOKEN.slice( 0, TOKEN.length - 1 ) }`,
+			`Bearer ${ TOKEN }x`,
+			TOKEN,
+		] ) {
+			const res = await call( '/ping', {
+				headers: { Authorization: guess },
+			} );
+			expect( res.status ).toBe( 401 );
+		}
+	} );
+
+	test( 'refuses everything when the app has no token to check against', async () => {
+		// An empty configured token must not collapse into "an empty
+		// header matches" — a constant-time compare that accepts two
+		// zero-length buffers would do exactly that.
+		const open = new LocalAgent( {
+			token: '',
+			allowedOrigin: () => ORIGIN,
+			free: () => ( { ok: true, windowId: 'x', reused: false } ),
+			dock: () => true,
+			focus: () => true,
+			list: () => [],
+			describe: () => ( {} ),
+		} );
+		const port = await open.start();
+		const res = await fetch( `http://127.0.0.1:${ port }/ping`, {
+			headers: { Origin: ORIGIN, Authorization: 'Bearer ' },
+		} );
+		open.stop();
+		expect( res.status ).toBe( 401 );
+	} );
+
 	test( 'refuses another origin even with the right token', async () => {
 		// The token could leak; the origin check is what keeps a leak
 		// from being usable from a hostile page.

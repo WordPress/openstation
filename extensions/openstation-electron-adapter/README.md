@@ -152,6 +152,31 @@ opening a window on it. The preload already checked the scheme; the
 page choosing the URL is exactly the thing an attacker might have a
 foothold in, so the last gate is on the Node side.
 
+### A window we own stays on the site
+
+A preload survives navigation: whatever `contextBridge` exposed stays
+reachable no matter which origin the document now comes from. So it is
+not enough to check where `window.open()` goes — an un-`target`ed link,
+a `location.href =` or a 302 would otherwise hand the host bridge to a
+page nobody paired with.
+
+Every window the app owns therefore holds `will-navigate` and
+`will-redirect` to the same rule its popups already followed
+(`navigationVerdict()` in `app/src/lib/site-url.ts`): on the site it
+stays, another http(s) address opens in the browser, anything else is
+refused. The one exception is the shell window's **first** navigation
+chain, which runs unchecked so that a site answering `example.com` with
+a redirect to `www.example.com` still connects — whatever that chain
+settles on becomes the site, and everything after it is held to that.
+
+A consequence worth knowing: a site that signs in through an **external
+identity provider** will send that hop to the browser rather than
+following it in the app.
+
+And the REST root the shell hands over at handshake is checked the same
+way, because the handshake body carries the agent's bearer token. Where
+a secret goes is not something a renderer gets to choose.
+
 ### Telling the site it is alive
 
 `app/src/lib/connection.ts` registers over REST and beats a slow pulse.

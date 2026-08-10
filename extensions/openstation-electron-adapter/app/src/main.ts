@@ -54,7 +54,12 @@ import type {
 	HostInfo,
 } from './lib/protocol';
 import type { FreeWindowHandle } from './lib/free-windows';
-import { isSameSiteUrl, normalizeSiteUrl, shellEntryUrl } from './lib/site-url';
+import {
+	isSameSiteUrl,
+	navigationVerdict,
+	normalizeSiteUrl,
+	shellEntryUrl,
+} from './lib/site-url';
 
 /** REST namespace the adapter plugin registers. */
 const REST_NAMESPACE = 'openstation-electron/v1';
@@ -257,9 +262,26 @@ function openShellWindow(): void {
 		routeNewWindow( url, frameName ),
 	);
 
-	// Once the user is actually signed in and looking at the desktop,
-	// ask where they want to work. See `askWhereToOpen()`.
+	// The address the user typed is a guess at where their site lives;
+	// the server has the final word. `example.com` answering with a
+	// redirect to `www.example.com` is ordinary canonicalization, and a
+	// guard that refused it would break the connection outright — so the
+	// first navigation chain runs unchecked and whatever it settles on
+	// becomes the site. Every navigation after that is held to it.
+	let settling = true;
+	guardNavigation( shellWindow.webContents, () => settling );
+
 	shellWindow.webContents.on( 'did-navigate', ( _event, url ) => {
+		if ( settling ) {
+			settling = false;
+			const landed = normalizeSiteUrl( url );
+			if ( landed && landed !== store.get( 'siteUrl' ) ) {
+				store.set( 'siteUrl', landed );
+			}
+		}
+
+		// Once the user is actually signed in and looking at the desktop,
+		// ask where they want to work. See `askWhereToOpen()`.
 		if ( url.includes( '/wp-admin/' ) ) {
 			void askWhereToOpen();
 		}
@@ -422,6 +444,57 @@ function routeNewWindow(
 }
 
 /**
+ * Refuse to let a window we own navigate off the connected site.
+ *
+ * `setWindowOpenHandler` covers `window.open()` and nothing else. An
+ * ordinary same-tab navigation — an un-`target`ed link, a
+ * `location.href =`, a meta refresh, a 302 — is a different code path,
+ * and without this it was not checked at all.
+ *
+ * That gap mattered because a preload survives navigation: the window
+ * keeps whatever `contextBridge` exposed to it no matter which origin
+ * the document now comes from. So a single link out of the site handed
+ * `window.openStationDesktopHost` — the host bridge, `handshake()`
+ * included — to a page nobody paired with. A window of the desktop
+ * shows the site it belongs to; anything else belongs in the browser,
+ * which is where this sends it.
+ *
+ * @param contents The window's `webContents`.
+ * @param allowAny Predicate; return true to let a navigation through
+ *                 unchecked. Used only while the shell settles its
+ *                 first load — see `openShellWindow()`.
+ */
+function guardNavigation(
+	contents: Electron.WebContents,
+	allowAny: () => boolean = () => false,
+): void {
+	// Electron ≥25 passes an event object carrying `isMainFrame`; older
+	// signatures pass a bare event and fire for the main frame only.
+	// Reading it defensively means the check behaves the same either way
+	// — and it must stay main-frame-only, because preloads do not run in
+	// sub-frames and a cross-origin iframe is not a bridge holder.
+	const onNavigate = (
+		event: { preventDefault: () => void; isMainFrame?: boolean },
+		url: string,
+	): void => {
+		if ( false === event.isMainFrame || allowAny() ) {
+			return;
+		}
+		const verdict = navigationVerdict( url, store?.get( 'siteUrl' ) ?? '' );
+		if ( 'allow' === verdict ) {
+			return;
+		}
+		event.preventDefault();
+		if ( 'external' === verdict ) {
+			void shell.openExternal( url );
+		}
+	};
+
+	contents.on( 'will-navigate', onNavigate as never );
+	contents.on( 'will-redirect', onNavigate as never );
+}
+
+/**
  * Build one freed window. The registry decides *whether* and *where*;
  * this decides what an Electron window for it looks like.
  *
@@ -484,6 +557,11 @@ function createFreedWindow( opts: {
 	win.webContents.setWindowOpenHandler( ( { url, frameName } ) =>
 		routeNewWindow( url, frameName ),
 	);
+
+	// A freed window is handed a URL the registry already checked, so it
+	// starts on the site and has no settling to do — hold it there from
+	// the first navigation on.
+	guardNavigation( win.webContents );
 
 	win.webContents.on( 'did-finish-load', () => {
 		win.webContents.send( CHANNELS.EVENT_FRAME_INIT, {
@@ -727,6 +805,7 @@ void app.whenReady().then( () => {
 			};
 		},
 		namespace: REST_NAMESPACE,
+		siteUrl: () => store.get( 'siteUrl' ),
 		hostId: () => store.hostId(),
 		describe: () => ( {
 			protocol: HOST_PROTOCOL_VERSION,
@@ -837,7 +916,11 @@ app.on( 'before-quit', () => {
  */
 app.on( 'certificate-error', ( event, _webContents, url, error, _cert, callback ) => {
 	const site = store?.get( 'siteUrl' ) ?? '';
-	const isConfiguredSite = !! site && url.startsWith( site );
+	// Compared host-to-host, not as a string prefix: `https://example.com`
+	// is a prefix of `https://example.com.attacker.example`, so a prefix
+	// test would have offered the user a "continue anyway" button for a
+	// lookalike domain's bad certificate.
+	const isConfiguredSite = isSameSiteUrl( url, site );
 	const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test( url );
 	if ( ! isConfiguredSite && ! isLocal ) {
 		callback( false );

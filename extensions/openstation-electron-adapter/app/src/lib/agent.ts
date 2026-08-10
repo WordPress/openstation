@@ -38,6 +38,7 @@
  * there is no well-known port for anything to probe.
  */
 
+import { timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 
@@ -45,6 +46,32 @@ import type { FreeWindowRequest, FreeWindowResult } from './protocol';
 
 /** Largest body the agent will read, in bytes. */
 const MAX_BODY = 64 * 1024;
+
+/**
+ * Compare two secrets without letting the clock describe them.
+ *
+ * `a !== b` stops at the first differing byte, so the time it takes to
+ * say no is a measurement of how much of the token the caller already
+ * had. The `Origin` gate in front of this is a header, and a header is
+ * something any non-browser caller can simply write — so on this
+ * machine the token is the only real gate, and a gate that leaks itself
+ * one byte at a time is worth closing.
+ *
+ * Lengths are compared first because `timingSafeEqual` throws on a
+ * mismatch; the length of a bearer header is not a secret.
+ *
+ * @param a First value.
+ * @param b Second value.
+ * @return True when equal.
+ */
+function secretEquals( a: string, b: string ): boolean {
+	const left = Buffer.from( String( a || '' ), 'utf8' );
+	const right = Buffer.from( String( b || '' ), 'utf8' );
+	if ( 0 === left.length || left.length !== right.length ) {
+		return false;
+	}
+	return timingSafeEqual( left, right );
+}
 
 export interface AgentDeps {
 	/** Bearer token the caller must present. */
@@ -159,7 +186,7 @@ export class LocalAgent {
 		}
 
 		const auth = String( req.headers.authorization || '' );
-		if ( auth !== `Bearer ${ this.deps.token }` ) {
+		if ( ! secretEquals( auth, `Bearer ${ this.deps.token }` ) ) {
 			this.json( res, 401, { error: 'bad token' } );
 			return;
 		}
