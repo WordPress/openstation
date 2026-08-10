@@ -129,17 +129,91 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The pins are the cue that separates a pinboard from a picture
-	 * frame, and they are the first thing to vanish when the icon is
-	 * painted at 20px in the dock. Guard the count and radius so a
-	 * future tidy-up doesn't shrink them into nothing.
+	 * The nodes are the mark. They are also the first thing to vanish
+	 * when the icon is painted at 20px in the dock, where the 64-unit
+	 * grid is scaled by 0.3125 and a radius of 5 becomes a disc barely
+	 * three pixels across. Guard the floor so a future tidy-up doesn't
+	 * shrink them into nothing.
+	 *
+	 * This replaces a guard on the two `r="3"` pin heads the icon used
+	 * to carry. The pins are gone (a pin-led mark points at pinned
+	 * notes, not at this window), but the property they were protecting
+	 * is the same one, so it is asserted against the discs instead.
 	 *
 	 * @covers ::openstation_content_graph_icon_svg
 	 */
-	public function test_corkboard_svg_keeps_its_pins_legible() {
+	public function test_corkboard_svg_keeps_its_nodes_legible() {
 		$svg = openstation_content_graph_icon_svg();
 
-		$this->assertSame( 2, substr_count( $svg, 'r="3"' ) );
+		preg_match_all( '/r="([0-9.]+)"/', $svg, $matches );
+		$radii = array_map( 'floatval', $matches[1] );
+
+		// One hub plus three satellites.
+		$this->assertCount( 4, $radii );
+
+		// Nothing below the 20px legibility floor.
+		$this->assertGreaterThanOrEqual( 5.0, min( $radii ) );
+
+		// The hub reads as the focused post only while it is strictly
+		// the largest thing on the canvas; discs tied for largest read
+		// as a mesh instead. Popping the top off a sorted list rather
+		// than diffing on the max, so a tie fails here instead of
+		// being quietly filtered away.
+		sort( $radii );
+		$hub = array_pop( $radii );
+		$this->assertGreaterThan( max( $radii ), $hub );
+	}
+
+	/**
+	 * Every icon the shell ships is a silhouette, so none of them may
+	 * carry a literal colour. The Games gamepad was the last holdout:
+	 * fixed colours cannot invert on a light surface, and under a
+	 * desktop theme's icon tint `applyIconMask()` keeps only the alpha,
+	 * which flattened the old art to a featureless blob.
+	 *
+	 * @covers ::openstation_games_icon_svg
+	 * @covers ::openstation_recycle_bin_icon_svg
+	 * @covers ::openstation_my_wordpress_icon_svg
+	 */
+	public function test_built_in_app_icons_are_all_silhouettes() {
+		$icons = array(
+			'games'        => openstation_games_icon_svg(),
+			'recycle-bin'  => openstation_recycle_bin_icon_svg(),
+			'my-wordpress' => openstation_my_wordpress_icon_svg(),
+			'corkboard'    => openstation_content_graph_icon_svg(),
+		);
+
+		foreach ( $icons as $name => $svg ) {
+			$this->assertStringStartsWith( '<svg', $svg, $name );
+			$this->assertStringContainsString( 'viewBox="0 0 64 64"', $svg, $name );
+			$this->assertStringContainsString( 'currentColor', $svg, $name );
+			$this->assertDoesNotMatchRegularExpression( '/(fill|stroke)="#/', $svg, $name );
+
+			// The sanitizer returns the URI untouched when it accepts it,
+			// and a dashicon fallback when it does not.
+			$uri = 'data:image/svg+xml;base64,' . base64_encode( $svg );
+			$this->assertSame( $uri, openstation_sanitize_dock_icon( $uri ), $name );
+		}
+	}
+
+	/**
+	 * The bin ships its own art now rather than falling back to
+	 * `dashicons-trash`, and both surfaces have to agree: a window
+	 * whose title bar disagrees with its tile reads as two apps.
+	 *
+	 * @covers ::openstation_recycle_bin_register_window
+	 */
+	public function test_recycle_bin_uses_its_own_svg_on_both_surfaces() {
+		openstation_recycle_bin_register_window();
+
+		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
+		$icon  = openstation_desktop_icon_registry( 'desktop-mode-recycle-bin' );
+
+		$expected = 'data:image/svg+xml;base64,'
+			. base64_encode( openstation_recycle_bin_icon_svg() );
+
+		$this->assertSame( $expected, $entry['icon'] );
+		$this->assertSame( $expected, $icon['icon'] );
 	}
 
 	/**

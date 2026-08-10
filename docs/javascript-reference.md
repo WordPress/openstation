@@ -1348,6 +1348,35 @@ Every applied change publishes on:
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
+### `setArt` — Stable
+
+The same three rails share `setArt( id, svg )`, for a tile whose icon means something different depending on state rather than counting something. Same unified id space and the same fan-to-all-rails pattern:
+
+```js
+function paintBinState( isFull ) {
+    const art = isFull ? FULL_BIN_URI : EMPTY_BIN_URI;
+    wp.os.dock?.setArt?.(     'my-bin', art );
+    wp.os.sideDock?.setArt?.( 'my-bin', art );
+    wp.os.icons?.setArt?.(    'my-bin', art );
+}
+paintBinState( true );
+wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
+```
+
+`svg` takes the shapes `renderIcon()` accepts: a `data:` URI, an `http(s)` URL, or a dashicon class. Art naming `currentColor` is painted as a mask and follows the tile's own glyph colour; fixed-colour art keeps its own. Each call:
+
+- **Idempotent on the icon rail** — the same art twice is a no-op.
+- **`''` clears** the override and hands the tile back to its registered icon.
+- **Silent no-op when the id isn't on this rail.**
+- **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
+- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+
+Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
+
+`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+
+In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
+
 ### `icons` — Stable
 
 The wallpaper-icon rail. Same `setBadge` shape as `dock` / `sideDock`, plus two read helpers:
@@ -2759,7 +2788,7 @@ Front-end documents carry no chromeless bridge, so the shell wires click-to-focu
 
 The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `os.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
 
-**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat (core still skips the request when nothing changed, so an idle settle never reloads anything). The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat. Because those events also fire for things that are not user edits (TinyMCE adds an undo level on **blur**, and emits `SetContent` on any programmatic write), and because core's own autosave can go out for a post nobody touched (`getPostData()` re-serializes TinyMCE into `#content` as a side effect, which moves core's compare string on its own), both the settle and the refresh nudge are gated on a content fingerprint read directly off the editors. A settle or a completed autosave carrying content the preview already shows is silent; see [`bridge-protocol.md`](bridge-protocol.md) for the full mechanics. The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
 
 **Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )`: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `os.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
 
@@ -3452,7 +3481,7 @@ A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentCo
 Two rules follow:
 
 - **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
-- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before. Full-colour app icons (the Games gamepad) are unchanged.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their title-bar icons resolve to a `background-image` with `mask-image: none`.
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 
@@ -3971,12 +4000,14 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
+The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.overview.entering` | action | Stable | `{}` — before the enter animation starts |
 | `os.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
 | `os.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
-| `os.overview.exited` | action | Stable | same payload as `exiting` |
+| `os.overview.exited` | action | Stable | same payload as `exiting` — fires ~280 ms later, once the windows have animated home |
 | `os.overview.window-hover` | action | Stable | `{ windowId }` |
 | `os.overview.window-unhover` | action | Stable | `{ windowId }` |
 | `os.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |

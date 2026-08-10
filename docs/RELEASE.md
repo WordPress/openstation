@@ -16,9 +16,29 @@ Flags:
 - `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
-The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached.
+The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached, then — for stable tags only — deploys to WordPress.org.
 
 Requires the `gh` CLI authenticated (`gh auth status`).
+
+## The WordPress.org deploy
+
+The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the step is gated on the tag having no hyphen.
+
+Two of the action's inputs default off a GitHub context that is only correct for a tag push, so the workflow sets both explicitly rather than leaving them implicit — `SLUG` (below) and `VERSION`, which the action derives from `GITHUB_REF` and which would resolve to the *branch* ref on a manual dispatch, producing an SVN tag called `refs/heads/trunk`. `VERSION` is exported from the version-gate step, so the deploy publishes the string that was just verified against all four version locations.
+
+**`SLUG` is set explicitly to `desktop-mode` and must stay that way.** It is the published plugin's SVN path (`plugins.svn.wordpress.org/desktop-mode/`) and its install directory, so it is frozen for the same reason as every other `desktop_mode_*` value in [AGENTS.md](../AGENTS.md): changing it doesn't migrate anything, it points the deploy at a repository that doesn't exist and orphans every installed copy's update check. The action defaults `SLUG` to the GitHub repository name when unset — that default silently matched while the repo was named `desktop-mode`, and broke the moment it was renamed to `openstation`. Never rely on it.
+
+Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.
+
+### Re-deploying a published tag
+
+A tag push runs the workflow definition **frozen into that tag's commit**, so a deploy that failed for a workflow-level reason cannot be fixed by re-running it — the re-run replays the same broken definition. Dispatch the workflow from `trunk` instead, which runs the current definition against an existing tag:
+
+```bash
+gh workflow run release.yml --repo WordPress/openstation --ref trunk -f tag=v1.0.0
+```
+
+The GitHub Release is left untouched: `gh release create` is not idempotent, so that step is gated on `github.event_name == 'push'` and skipped on dispatch. Everything else — checkout of the tag, the version gate, build, package, deploy — runs identically. The action itself is idempotent against SVN: a version already published is detected and skipped rather than re-committed.
 
 ## Pre-releases
 
@@ -35,7 +55,7 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`. |
 | `bin/package.sh` | Packages `openstation.zip` from HEAD + current built JS. The ZIP keeps the internal `desktop-mode/` directory so WordPress.org upgrades and dependent plugins continue to resolve the established plugin slug. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any Vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
-| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
+| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release, then deploy stable tags to WordPress.org. |
 
 ## Version locations
 

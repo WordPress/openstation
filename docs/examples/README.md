@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 ## Index
 
 - [Add a dock item with a badge](./dock-badge.md)
+- [Give a tile two icons, one per state](./tile-icon-state.md)
 - [Decorate the dock without forking the renderer](./dock-decoration-hooks.md)
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate OpenStation by role](./gate-by-role.md)

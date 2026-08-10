@@ -142,7 +142,7 @@ ESLint enforces this — raw `fetch( … )` and `window.fetch( … )` calls fail
 
 - The `trackedFetch` wrapper itself (the boot-time fallback before `wp.os` exists).
 - The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.os` global).
-- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/recycle-bin/badge.ts`).
+- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/recycle-bin/icon-state.ts`).
 
 ### Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`
 
@@ -270,7 +270,7 @@ Three layers:
 
 When you're tempted to add a heuristic inside the framework, "do X automatically when Y", stop and turn it into a hook the app can subscribe to. App owns the policy.
 
-Canonical example in-tree: `src/recycle-bin/badge.ts`. Full doc: `docs/event-driven-framework.md`.
+Canonical examples in-tree: `src/recycle-bin/icon-state.ts` (state-driven tile art) and `docs/examples/dock-badge.md` (badge counts). Full doc: `docs/event-driven-framework.md`.
 
 ### Presence — framework-level
 

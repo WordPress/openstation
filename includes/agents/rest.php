@@ -186,49 +186,12 @@ add_action( 'rest_api_init', 'openstation_agents_register_rest_routes' );
 
 // ---------------------------------------------------------------------------
 // Permissions
+//
+// The three capability gates themselves (`openstation_agents_user_can_read`
+// / `_manage` / `_invoke`) live in bootstrap.php: the WP Explorer
+// integration loads while the feature flag is off, and this file does
+// not.
 // ---------------------------------------------------------------------------
-
-/**
- * Whether the current user can see agents.
- *
- * @return bool
- */
-function openstation_agents_user_can_read() {
-	/**
-	 * Filter whether the current user can read OpenStation agents.
-	 *
-	 * @param bool $can Default: `edit_posts` capability.
-	 */
-	return (bool) apply_filters( 'openstation_agents_user_can_read', current_user_can( 'edit_posts' ) );
-}
-
-/**
- * Whether the current user can create / edit / delete agents.
- *
- * @return bool
- */
-function openstation_agents_user_can_manage() {
-	/**
-	 * Filter whether the current user can manage OpenStation agents.
-	 *
-	 * @param bool $can Default: `edit_users` capability.
-	 */
-	return (bool) apply_filters( 'openstation_agents_user_can_manage', current_user_can( 'edit_users' ) );
-}
-
-/**
- * Whether the current user can invoke agents.
- *
- * @return bool
- */
-function openstation_agents_user_can_invoke() {
-	/**
-	 * Filter whether the current user can invoke OpenStation agents.
-	 *
-	 * @param bool $can Default: `edit_posts` capability.
-	 */
-	return (bool) apply_filters( 'openstation_agents_user_can_invoke', current_user_can( 'edit_posts' ) );
-}
 
 /**
  * Read-route permission callback.

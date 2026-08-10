@@ -275,6 +275,17 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _overviewExitTimeoutId: number | null = null;
+	/**
+	 * Cleanup for the exit animation scheduled by `exitOverview()`,
+	 * held so it can be run AHEAD of its timer rather than only by it.
+	 * Re-entering overview inside the 280 ms exit window has to settle
+	 * the outgoing session first — otherwise the stale timer fires
+	 * mid-session and undoes the new one's setup (stripping
+	 * `os-window--overview`, re-applying a suspended fullscreen class,
+	 * removing the freshly-built top bar).
+	 * @internal
+	 */
+	public _overviewExitFinalizer: ( () => void ) | null = null;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 

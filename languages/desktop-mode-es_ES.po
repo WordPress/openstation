@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-08-07T11:20:04+00:00\n"
+"POT-Creation-Date: 2026-08-07T19:55:07+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -134,8 +134,8 @@ msgstr ""
 
 #: src/agents-entity-window.ts:68 src/content-graph/panel.ts:414
 #: src/content-graph/panel.ts:885 includes/desktop-files/built-in-types.php:30
-#: includes/my-wordpress/window.php:153 includes/recycle-bin/store.php:597
-#: includes/recycle-bin/window.php:49 includes/window-links.php:603
+#: includes/my-wordpress/window.php:160 includes/recycle-bin/store.php:597
+#: includes/recycle-bin/window.php:155 includes/window-links.php:603
 msgid "Media"
 msgstr ""
 
@@ -238,7 +238,7 @@ msgstr ""
 #: src/comments-window/conversation.ts:184
 #: src/comments-window/conversation.ts:971 src/posts-window/index.ts:261
 #: src/posts-window/index.ts:1065 includes/comments-window/window.php:38
-#: includes/recycle-bin/window.php:153 includes/recycle-bin/window.php:179
+#: includes/recycle-bin/window.php:262 includes/recycle-bin/window.php:288
 msgid "Trash"
 msgstr ""
 
@@ -459,7 +459,7 @@ msgid "Comment text"
 msgstr "Buscar medios"
 
 #: src/comments-window/conversation.ts:1209 src/games/challenge-dialog.ts:93
-#: src/item-visibility-menu.ts:453 src/my-wordpress/agents-renderer.ts:1110
+#: src/item-visibility-menu.ts:452 src/my-wordpress/agents-renderer.ts:1110
 #: src/my-wordpress/bulk-actions.ts:358 src/my-wordpress/bulk-actions.ts:745
 #: src/my-wordpress/bulk-actions.ts:826 src/my-wordpress/index.ts:4650
 #: src/my-wordpress/index.ts:4795 src/my-wordpress/media-list.ts:510
@@ -554,7 +554,7 @@ msgstr ""
 #: src/my-wordpress/index.ts:597 src/my-wordpress/index.ts:3991
 #: src/posts-window/index.ts:564 src/posts-window/user-edit-render.ts:1037
 #: src/posts-window/users-render.ts:481 includes/comments-window/window.php:99
-#: includes/recycle-bin/window.php:53 includes/window-links.php:523
+#: includes/recycle-bin/window.php:159 includes/window-links.php:523
 #: includes/window-links.php:524
 msgid "Comments"
 msgstr ""
@@ -622,15 +622,15 @@ msgstr ""
 #: src/content-graph/panel.ts:729 src/desktop-files/preview.ts:406
 #: src/desktop-files/preview.ts:481 src/my-wordpress/index.ts:3568
 #: src/my-wordpress/index.ts:3978 src/posts-window/user-edit-render.ts:1026
-#: src/posts-window/users-render.ts:478 includes/my-wordpress/window.php:130
-#: includes/posts-window/window.php:176 includes/recycle-bin/window.php:37
+#: src/posts-window/users-render.ts:478 includes/my-wordpress/window.php:137
+#: includes/posts-window/window.php:176 includes/recycle-bin/window.php:143
 msgid "Posts"
 msgstr ""
 
 #: src/content-graph/panel.ts:628 src/desktop-files/preview.ts:412
 #: src/my-wordpress/index.ts:3581 src/posts-window/users-render.ts:479
-#: includes/my-wordpress/window.php:138 includes/pages-window/window.php:127
-#: includes/recycle-bin/window.php:38
+#: includes/my-wordpress/window.php:145 includes/pages-window/window.php:127
+#: includes/recycle-bin/window.php:144
 msgid "Pages"
 msgstr ""
 
@@ -918,14 +918,14 @@ msgstr "Abrir en una nueva pestaña del navegador"
 msgid "Move to Trash"
 msgstr ""
 
-#: src/desktop-icons.ts:325
+#: src/desktop-icons.ts:436
 #, fuzzy
 msgid "Desktop icons"
 msgstr "Escritorio 1"
 
 #. %d is the number of pending items in a desktop-icon badge.
 #. %d is the number of pending items in a dock badge.
-#: src/desktop-icons.ts:416 src/dock.ts:2343 src/dock.ts:2356
+#: src/desktop-icons.ts:541 src/dock.ts:2493 src/dock.ts:2506
 msgid "%d notification"
 msgid_plural "%d notifications"
 msgstr[0] ""
@@ -954,7 +954,7 @@ msgid "New %s"
 msgstr ""
 
 #. %d is the number of pending updates / items.
-#: src/dock.ts:965
+#: src/dock.ts:1115
 msgid "%d update"
 msgid_plural "%d updates"
 msgstr[0] "%d actualización"
@@ -1564,90 +1564,90 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:174
+#: src/icon-canvas/menu.ts:175
 msgid "Sort by"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:180
+#: src/icon-canvas/menu.ts:181
 msgid "Name (A → Z)"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:186
+#: src/icon-canvas/menu.ts:187
 msgid "Name (Z → A)"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:192
+#: src/icon-canvas/menu.ts:193
 msgid "Newest first"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:198
+#: src/icon-canvas/menu.ts:199
 msgid "Oldest first"
 msgstr ""
 
-#: src/item-visibility-menu.ts:218
+#: src/item-visibility-menu.ts:219
 msgid "Hide from dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:234
+#: src/item-visibility-menu.ts:235
 #, fuzzy
 msgid "Also show on desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:242
+#: src/item-visibility-menu.ts:243
 #, fuzzy
 msgid "Hide from desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:258
+#: src/item-visibility-menu.ts:259
 msgid "Also show on dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:266
+#: src/item-visibility-menu.ts:267
 msgid "Hide everywhere"
 msgstr ""
 
-#: src/item-visibility-menu.ts:274
+#: src/item-visibility-menu.ts:275
 msgid "Apps & Icons settings…"
 msgstr ""
 
 #. %s is the owning plugin's display name.
-#: src/item-visibility-menu.ts:297
+#: src/item-visibility-menu.ts:298
 #, fuzzy
 msgid "Deactivate %s…"
 msgstr "Subiendo…"
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:448
+#: src/item-visibility-menu.ts:447
 #, fuzzy
 msgid "Deactivate %s?"
 msgstr "Error al subir."
 
-#: src/item-visibility-menu.ts:449
+#: src/item-visibility-menu.ts:448
 msgid ""
 "This plugin will stop running on the site. You can re-activate it later from "
 "the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:452 src/plugins-window/flyout-detail.ts:589
+#: src/item-visibility-menu.ts:451 src/plugins-window/flyout-detail.ts:589
 #: src/plugins-window/installed-view.ts:634
 #: src/plugins-window/installed-view.ts:717
 msgid "Deactivate"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:510
+#: src/item-visibility-menu.ts:509
 #, fuzzy
 msgid "Could not deactivate %s."
 msgstr "No se pudieron cargar tus medios: %s"
 
 #. 1: plugin title. 2: number of windows that were closed.
-#: src/item-visibility-menu.ts:534
+#: src/item-visibility-menu.ts:533
 msgid "%1$s deactivated. Closed %2$d window(s)."
 msgstr ""
 
 #. %s: plugin title.
 #. %s: plugin name
-#: src/item-visibility-menu.ts:540 src/plugins-window/flyout-detail.ts:708
+#: src/item-visibility-menu.ts:539 src/plugins-window/flyout-detail.ts:708
 #: src/plugins-window/installed-view.ts:887
 msgid "%s deactivated."
 msgstr ""
@@ -3968,7 +3968,7 @@ msgstr "Color de acento"
 msgid "Public — visible to other desktop users"
 msgstr ""
 
-#: src/plugins/notes-widget/index.ts:168 includes/recycle-bin/window.php:69
+#: src/plugins/notes-widget/index.ts:168 includes/recycle-bin/window.php:175
 #, fuzzy
 msgid "Pin to desktop"
 msgstr "Añadir nuevo escritorio"
@@ -4044,7 +4044,7 @@ msgstr "Subir nueva"
 
 #: src/plugins-window/browse-view.ts:173
 #: src/plugins-window/installed-view.ts:221 includes/pages-window/window.php:43
-#: includes/posts-window/window.php:70 includes/recycle-bin/window.php:77
+#: includes/posts-window/window.php:70 includes/recycle-bin/window.php:183
 #: includes/users-window/window.php:63
 msgid "Refresh"
 msgstr ""
@@ -4515,7 +4515,7 @@ msgstr ""
 
 #: src/plugins-window/installed-view.ts:148 src/posts-window/index.ts:1060
 #: src/posts-window/users-render.ts:780 includes/comments-window/window.php:36
-#: includes/recycle-bin/window.php:36
+#: includes/recycle-bin/window.php:142
 msgid "All"
 msgstr ""
 
@@ -6158,12 +6158,12 @@ msgstr ""
 msgid "By"
 msgstr ""
 
-#: src/recycle-bin/index.ts:347 includes/recycle-bin/window.php:65
+#: src/recycle-bin/index.ts:347 includes/recycle-bin/window.php:171
 msgid "Restore"
 msgstr ""
 
 #: src/recycle-bin/index.ts:355 src/recycle-bin/index.ts:867
-#: includes/recycle-bin/window.php:73
+#: includes/recycle-bin/window.php:179
 msgid "Delete forever"
 msgstr ""
 
@@ -6196,7 +6196,7 @@ msgid ""
 "items hidden by the current filter or search. This cannot be undone."
 msgstr ""
 
-#: src/recycle-bin/index.ts:956 includes/recycle-bin/window.php:82
+#: src/recycle-bin/index.ts:956 includes/recycle-bin/window.php:188
 msgid "Empty Trash"
 msgstr ""
 
@@ -7414,39 +7414,39 @@ msgstr "Maximizar"
 msgid "Enter fullscreen"
 msgstr "Entrar en pantalla completa"
 
-#: src/window/dom.ts:138
+#: src/window/dom.ts:232
 msgid "Loading window content"
 msgstr ""
 
-#: src/window/dom.ts:342
+#: src/window/dom.ts:441
 msgid "Window actions"
 msgstr "Acciones de ventana"
 
-#: src/window/dom.ts:366
+#: src/window/dom.ts:465
 msgid "Open on startup"
 msgstr "Abrir al iniciar"
 
 #. %s is the window's admin-page name (e.g., "Posts")
-#: src/window/dom.ts:380
+#: src/window/dom.ts:479
 msgid "Open another %s"
 msgstr "Abrir otra ventana de %s"
 
-#: src/window/dom.ts:396
+#: src/window/dom.ts:495
 #, fuzzy
 msgid "Open in new window"
 msgstr "Abrir en una nueva pestaña del navegador"
 
-#: src/window/dom.ts:410
+#: src/window/dom.ts:509
 msgid "Reload"
 msgstr ""
 
-#: src/window/dom.ts:423
+#: src/window/dom.ts:522
 #, fuzzy
 msgid "Open in browser tab"
 msgstr "Abrir en una nueva pestaña del navegador"
 
 #. %s is the window's admin-page title (e.g., "Posts")
-#: src/window/dom.ts:647
+#: src/window/dom.ts:755
 msgid "%s sub-pages"
 msgstr "Subpáginas de %s"
 
@@ -8187,7 +8187,7 @@ msgstr ""
 msgid "Insufficient permissions."
 msgstr ""
 
-#: includes/content-graph/window.php:188 includes/content-graph/window.php:229
+#: includes/content-graph/window.php:190 includes/content-graph/window.php:231
 msgid "Corkboard"
 msgstr ""
 
@@ -8264,7 +8264,7 @@ msgid "Go to Themes"
 msgstr ""
 
 #. translators: %s: number of pending updates.
-#: includes/core/payload.php:1243
+#: includes/core/payload.php:1240
 #, php-format
 msgid "%s update available"
 msgid_plural "%s updates available"
@@ -8272,7 +8272,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1557
+#: includes/core/payload.php:1554
 #, php-format
 msgid ""
 "%1$s script handle \"%2$s\" is not registered with WordPress (no "
@@ -9209,8 +9209,8 @@ msgstr ""
 msgid "Only an accepted challenge can be completed."
 msgstr ""
 
-#: includes/games/window.php:66 includes/games/window.php:99
-#: includes/games/window.php:125
+#: includes/games/window.php:92 includes/games/window.php:125
+#: includes/games/window.php:151
 msgid "Games"
 msgstr ""
 
@@ -9506,7 +9506,7 @@ msgstr ""
 msgid "WP Explorer"
 msgstr ""
 
-#: includes/my-wordpress/window.php:146 includes/users-window/window.php:260
+#: includes/my-wordpress/window.php:153 includes/users-window/window.php:260
 msgid "Users"
 msgstr ""
 
@@ -9838,20 +9838,20 @@ msgstr ""
 msgid "Failed to permanently delete comment."
 msgstr ""
 
-#: includes/recycle-bin/window.php:54
+#: includes/recycle-bin/window.php:160
 #, fuzzy
 msgid "Desktop"
 msgstr "Escritorio %d"
 
-#: includes/recycle-bin/window.php:58
+#: includes/recycle-bin/window.php:164
 msgid "Search trash…"
 msgstr ""
 
-#: includes/recycle-bin/window.php:97
+#: includes/recycle-bin/window.php:203
 msgid "The Trash is empty."
 msgstr ""
 
-#: includes/recycle-bin/window.php:99
+#: includes/recycle-bin/window.php:205
 msgid ""
 "Deleted posts, pages, and media show up here. Restoring puts them back where "
 "they were."

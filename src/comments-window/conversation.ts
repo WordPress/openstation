@@ -47,7 +47,16 @@ import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-textarea/os-textarea';
 import '../ui/components/os-tabs/os-tabs';
 
-const NS = 'desktop-mode-comments';
+/**
+ * CSS class prefix for everything this module renders. NOT the window
+ * id — that stays `desktop-mode-comments` (frozen; see AGENTS.md) and
+ * is written out literally at its handful of call sites. The rename to
+ * the `os-` prefix reached the PHP skeleton and the stylesheet but not
+ * this constant, so every JS-rendered node carried a class no selector
+ * matched and the thread rows / conversation pane rendered completely
+ * unstyled inside a correctly-styled shell.
+ */
+const NS = 'os-comments';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 interface Ctx {

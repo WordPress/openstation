@@ -18,49 +18,51 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The Corkboard SVG, shared by the window icon and the desktop icon.
  *
- * Dashicons has no corkboard, and the near misses all fail for the
- * same reason the old "Content Graph" name did: `networking` draws an
- * org chart, `layout` draws a wireframe — diagrams of the data, not a
- * thing on a desk. The pushpin is unavailable too, since
- * `dashicons-admin-post` already owns it for Posts.
+ * The thread is the window's actual subject: the links between pieces
+ * of content. That reading is unchanged and is why this icon exists at
+ * all. What changed is everything drawn around it.
  *
- * So: a cork board with two notes pinned to it, joined by a length of
- * thread. The thread is not decoration — it's the window's actual
- * subject, the links between pieces of content, drawn the way anyone
- * who has ever seen a detective's board already reads it. Without it
- * the icon says "pinboard"; with it, "connections".
+ * The previous version framed two pinned notes with the thread arcing
+ * over them. On a 64-unit grid the arc closed the top of the
+ * silhouette, and a closed top over two rectangles is a bag: at 40px
+ * and below the icon read as a shopping bag rather than a board. The
+ * frame was also spending most of the 20px budget on an outline that
+ * carried no meaning, leaving the notes too small to be notes.
+ *
+ * So the board and the paper are gone and the graph is the whole mark:
+ * one focused post with related ones fanned around it, which is what
+ * the window itself draws now that nodes are discs rather than post-
+ * type glyphs (see `src/content-graph/satellites.ts`). Sizes are
+ * deliberately unequal, so the hierarchy reads without a caption.
+ *
+ * Pin-led marks are deliberately avoided: `assets/images/pushpin.svg`
+ * belongs to pinned notes, and an icon led by a pin would point at
+ * that feature instead of this one.
  *
  * Drawn in `currentColor`, which makes it a silhouette: `renderIcon()`
  * paints it as a CSS mask rather than a background-image, so it takes
  * whatever colour the surface is already using for text. That keeps it
- * legible on the dark dock, on a light title bar, and on hover, with
- * nothing to configure. Fixed colours could not do that — a background
- * image has no colour to inherit.
+ * legible on the dark dock, on a light title bar, and under a desktop
+ * theme's icon tint, with nothing to configure.
  *
- * Hand-placed at 64×64 like the Games icons, the established shape for
- * custom icons here. Held to five elements because it renders as small
- * as 20px in the dock: board, two notes, thread, two pin heads. The
- * thread arcs up through the empty top half rather than running
- * between the notes, where a 5px gap would swallow it.
+ * Hand-placed at 64×64 like the Games icon, the established shape for
+ * custom icons here, and held to five elements because it renders as
+ * small as 20px in the dock.
  *
  * @return string Raw `<svg>` markup.
  */
 function openstation_content_graph_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-		// The board itself — outlined, so it frames rather than fills.
-		. '<rect x="5" y="9" width="54" height="46" rx="4.5" fill="none" stroke="currentColor" stroke-width="4"/>'
-		// Thread first: the pin heads below are drawn over its ends, so
+		// Threads first: the discs below are drawn over their ends, so
 		// the joins stay round instead of showing a stroke cap.
-		. '<path d="M20.5 28Q32 16.5 43.5 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
-		// Notes, each tilted a few degrees — pinned by hand, not laid out.
-		. '<g transform="rotate(-7 20.5 39)">'
-		. '<rect x="12" y="30" width="17" height="18" rx="1.5" fill="currentColor"/></g>'
-		. '<g transform="rotate(7 43.5 39)">'
-		. '<rect x="35" y="30" width="17" height="18" rx="1.5" fill="currentColor"/></g>'
-		// Pin heads, sitting proud of each note's top edge. They are the
-		// cue that separates a pinboard from a picture frame.
-		. '<circle cx="20.5" cy="28" r="3" fill="currentColor"/>'
-		. '<circle cx="43.5" cy="28" r="3" fill="currentColor"/>'
+		. '<path d="M14 16 32 32 52 18M32 32 40 49" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'
+		// The focused post.
+		. '<circle cx="32" cy="32" r="9" fill="currentColor"/>'
+		// Its satellites, sized just under the hub so the eye lands on
+		// the middle first.
+		. '<circle cx="14" cy="16" r="5.5" fill="currentColor"/>'
+		. '<circle cx="52" cy="18" r="5.5" fill="currentColor"/>'
+		. '<circle cx="40" cy="49" r="5" fill="currentColor"/>'
 		. '</svg>';
 }
 

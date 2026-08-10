@@ -171,22 +171,11 @@ function openstation_agent_delete( $user_id, $reassign = null ) {
 
 // ---------------------------------------------------------------------------
 // Identity surface
+//
+// `openstation_agent_avatar_url()` lives in bootstrap.php: the WP
+// Explorer integration needs it for the entity icon and loads while the
+// feature flag is off, when this file does not.
 // ---------------------------------------------------------------------------
-
-/**
- * URL of the bot avatar as a real static file.
- *
- * The avatar MUST be a file URL, not the data URI: consumers routinely
- * run avatar URLs through `esc_url()` (wp-admin's `get_avatar()`, the
- * desktop user-tile renderer), and `data` is not in
- * `wp_allowed_protocols()` — the data URI silently becomes an empty
- * string and the avatar renders broken.
- *
- * @return string
- */
-function openstation_agent_avatar_url() {
-	return OPENSTATION_URL . 'assets/images/agent-avatar.svg';
-}
 
 /**
  * Substitute the bot glyph for agent avatars across the WP admin.

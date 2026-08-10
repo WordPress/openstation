@@ -96,6 +96,15 @@ export interface AgentInvokeResult {
  * `openstation_agents_my_wordpress_window_args()`.
  */
 export interface AgentsSectionConfig {
+	/**
+	 * The `agents` extended option. False means the framework is off:
+	 * the section still renders (and the tile is still listed) but every
+	 * control is disabled and no REST call is attempted, because the
+	 * `/desktop-mode/v1/agents` routes are not registered while off.
+	 */
+	enabled: boolean;
+	/** Whether this user may flip that option (`manage_options`). */
+	canEnable: boolean;
 	canManage: boolean;
 	canInvoke: boolean;
 	aiAvailable: boolean;
