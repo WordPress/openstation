@@ -6694,7 +6694,20 @@ click, the switcher, a plugin calling `openWindow()` — raises the
 
 | Key | Type | Notes |
 |---|---|---|
-| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper or desk, and no session restore. Generic — an embed or a kiosk can use it too. |
+| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+
+### `window.openStationChromelessHost` — *Experimental*
+
+Set this to `true` **before a page's own scripts run** to claim a
+top-level chromeless page as deliberately hosted. Without it, the
+chromeless bridge treats a top-level `?openstation_chromeless=1` page
+as an accident and rescues the user by stripping the flag and reloading
+as classic admin — correct for a stale bookmark, wrong for an embedder
+that put the page there on purpose and provides its own way out.
+
+It must be a global rather than a query flag: a flag is lost on the
+first in-page navigation. See
+[bridge-protocol.md](./bridge-protocol.md#top-frame-escape-hatch--and-how-to-opt-out).
 
 ---
 

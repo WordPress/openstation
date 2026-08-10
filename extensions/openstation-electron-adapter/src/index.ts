@@ -338,7 +338,60 @@ export function boot(
 	return api;
 }
 
-/** Entry point. Runs at parse time, before the shell's own boot. */
+/** How long to keep waiting for `wp.os` before giving up. */
+const SHELL_WAIT_MS = 15000;
+/** Gap between polls while waiting. */
+const SHELL_POLL_MS = 50;
+
+/**
+ * Resolve once the shell's API object exists, or null on timeout.
+ *
+ * A declared script dependency orders the *tags*, not the *execution*:
+ * the shell bundle is deferred, so a classic script runs before it even
+ * though it depends on it. Registering this bundle with a matching
+ * `defer` strategy is the actual fix (see `includes/assets.php`), and
+ * this is the belt to that pair of braces — because the failure mode
+ * was invisible. The adapter simply did nothing, the app connected, the
+ * desktop loaded, and the only evidence was one console line.
+ *
+ * So: never give up on the first look. Waiting costs nothing when the
+ * shell is already there, and a future change to how either script is
+ * enqueued cannot silently switch the feature off again.
+ *
+ * @return The shell API, or null if it never appeared.
+ */
+function waitForShell(): Promise< ShellApi | null > {
+	const ready = () => {
+		const os = window.wp?.os;
+		return os?.ready ? os : null;
+	};
+
+	const now = ready();
+	if ( now ) {
+		return Promise.resolve( now );
+	}
+
+	return new Promise( ( resolve ) => {
+		const deadline = Date.now() + SHELL_WAIT_MS;
+		const timer = setInterval( () => {
+			const os = ready();
+			if ( os ) {
+				clearInterval( timer );
+				resolve( os );
+				return;
+			}
+			if ( Date.now() > deadline ) {
+				clearInterval( timer );
+				console.error(
+					'[openstation-electron] wp.os never appeared — the adapter bundle loaded outside OpenStation.',
+				);
+				resolve( null );
+			}
+		}, SHELL_POLL_MS );
+	} );
+}
+
+/** Entry point. Runs at parse time, possibly before the shell's boot. */
 export function start(): void {
 	// Solo mode is marked whether or not the shell API is up: it is
 	// pure presentation, and the sooner the class lands the less chance
@@ -355,14 +408,6 @@ export function start(): void {
 		return;
 	}
 
-	const os = window.wp?.os;
-	if ( ! os?.ready ) {
-		console.error(
-			'[openstation-electron] wp.os is missing — the adapter bundle loaded outside OpenStation.',
-		);
-		return;
-	}
-
 	const config = window.openStationElectronConfig;
 	if ( ! config ) {
 		console.error(
@@ -371,11 +416,16 @@ export function start(): void {
 		return;
 	}
 
-	// `wp.os.ready` is the shell's own "the API is assembled" signal.
-	// The bundle depends on the `openstation` handle, so `wp.os` exists
-	// by the time this runs — but `ready` is what guarantees the window
-	// manager and the registries behind it are actually wired.
-	os.ready( () => boot( bridge, os, config ) );
+	void waitForShell().then( ( os ) => {
+		if ( ! os ) {
+			return;
+		}
+		// `wp.os.ready` is the shell's own "the API is assembled"
+		// signal. `wp.os` existing only means the early shim is in
+		// place; `ready` is what guarantees the window manager and the
+		// registries behind it are actually wired.
+		os.ready( () => boot( bridge, os, config ) );
+	} );
 }
 
 start();

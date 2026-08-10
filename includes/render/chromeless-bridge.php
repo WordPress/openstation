@@ -302,25 +302,43 @@ function openstation_chromeless_bridge_script() {
 	$js = <<<'JS'
 //# sourceURL=os-chromeless-bridge.js
 ( function() {
-	// Escape hatch: a chromeless page is only meant to live inside a
-	// openstation window iframe. If the top window IS this page, the
-	// user ended up here directly — either bookmarked it, followed a
-	// stale link, or got stranded by a bad portal redirect. Without
-	// an admin bar there's no toggle to turn OpenStation off, so
-	// strip the chromeless flag and reload as classic admin. That
-	// puts the admin bar back and lets the user decide what to do.
+	// Escape hatch: a chromeless page is *normally* only meant to live
+	// inside a openstation window iframe. If the top window IS this
+	// page, the user usually ended up here by accident — bookmarked
+	// it, followed a stale link, or got stranded by a bad portal
+	// redirect. Without an admin bar there's no toggle to turn
+	// OpenStation off, so strip the chromeless flag and reload as
+	// classic admin. That puts the admin bar back and lets the user
+	// decide what to do.
+	//
+	// Unless something is deliberately HOSTING this page top-level.
+	// `window.openStationChromelessHost` is how an embedder says "this
+	// is not an accident, and I provide the way out" — the native
+	// desktop host sets it on windows a user set free, where closing
+	// the OS window is the way back. Rescuing those would strip the
+	// flag, reload as classic, bounce through the portal, and leave a
+	// whole second desktop inside a window that was meant to hold one
+	// screen.
+	//
+	// It has to be a JS global rather than a query flag: a query flag
+	// is lost on the first in-page navigation, and the host would stop
+	// recognising its own window the moment the user clicked a link.
 	if ( ! window.parent || window.parent === window ) {
-		try {
-			var here = new URL( window.location.href );
-			if ( here.searchParams.has( 'openstation_chromeless' ) ) {
-				here.searchParams.delete( 'openstation_chromeless' );
-				here.searchParams.delete( 'desktop_mode_portal' );
-				window.location.replace( here.toString() );
+		if ( ! window.openStationChromelessHost ) {
+			try {
+				var here = new URL( window.location.href );
+				if ( here.searchParams.has( 'openstation_chromeless' ) ) {
+					here.searchParams.delete( 'openstation_chromeless' );
+					here.searchParams.delete( 'desktop_mode_portal' );
+					window.location.replace( here.toString() );
+				}
+			} catch ( err ) {
+				/* URL parse failure — let the broken state stand rather than
+				 * navigate somewhere worse. */
 			}
-		} catch ( err ) {
-			/* URL parse failure — let the broken state stand rather than
-			 * navigate somewhere worse. */
 		}
+		// Either way the rest of the bridge is skipped: every feature
+		// below posts to `window.parent`, and there isn't one.
 		return;
 	}
 

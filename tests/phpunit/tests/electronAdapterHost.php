@@ -26,6 +26,61 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		if ( ! function_exists( 'openstation_electron_get_host' ) ) {
 			require_once dirname( __DIR__, 3 ) . '/extensions/openstation-electron-adapter/includes/host.php';
 		}
+		if ( ! function_exists( 'openstation_electron_register_assets' ) ) {
+			// The asset module reads the plugin's own constants.
+			if ( ! defined( 'OPENSTATION_ELECTRON_DIR' ) ) {
+				define(
+					'OPENSTATION_ELECTRON_DIR',
+					dirname( __DIR__, 3 ) . '/extensions/openstation-electron-adapter/'
+				);
+				define( 'OPENSTATION_ELECTRON_URL', 'http://example.org/electron-adapter/' );
+				define( 'OPENSTATION_ELECTRON_VERSION', '1.0.0' );
+			}
+			require_once dirname( __DIR__, 3 ) . '/extensions/openstation-electron-adapter/includes/assets.php';
+		}
+	}
+
+	/**
+	 * The adapter bundle must be deferred, exactly like the shell handle
+	 * it depends on.
+	 *
+	 * A declared dependency orders the *tags*, not the *execution*. The
+	 * shell bundle is deferred, so it runs after the document is parsed
+	 * — while a classic script runs the moment the parser reaches it.
+	 * Registered without `defer`, the adapter executed BEFORE the thing
+	 * it depends on, found no `window.wp.os`, and gave up: the app
+	 * connected, the desktop loaded, and the ⋯ menu row was silently
+	 * missing. That shipped. This is what catches it coming back.
+	 *
+	 * @covers ::openstation_electron_register_assets
+	 */
+	public function test_adapter_script_defers_like_the_shell_handle_it_depends_on() {
+		openstation_register_assets();
+		openstation_electron_register_assets();
+
+		$scripts = wp_scripts();
+		$adapter = $scripts->registered['openstation-electron-adapter'] ?? null;
+		$shell   = $scripts->registered['openstation'] ?? null;
+
+		$this->assertNotNull( $adapter, 'The adapter script should be registered.' );
+		$this->assertNotNull( $shell, 'The shell script should be registered.' );
+
+		$this->assertContains(
+			'openstation',
+			$adapter->deps,
+			'The adapter must declare the shell handle as a dependency.'
+		);
+		$this->assertSame(
+			'defer',
+			$shell->extra['strategy'] ?? null,
+			'Guard assumption: the shell handle is deferred.'
+		);
+		$this->assertSame(
+			$shell->extra['strategy'] ?? null,
+			$adapter->extra['strategy'] ?? null,
+			'The adapter must use the same loading strategy as the handle it depends on, '
+				. 'or it executes before it and finds no wp.os.'
+		);
 	}
 
 	public function set_up() {

@@ -46,6 +46,26 @@ ipcRenderer.on(
 	},
 );
 
+/*
+ * Claim this page as deliberately hosted.
+ *
+ * A chromeless admin page normally only exists inside an OpenStation
+ * window iframe, so the chromeless bridge treats a *top-level* one as
+ * an accident — a stale bookmark, a bad redirect — and rescues the
+ * user by stripping the flag and reloading as classic admin. A freed
+ * window is the one legitimate exception: it is top-level on purpose,
+ * and closing the OS window is the way back, so it needs no rescue.
+ *
+ * Without this the freed window strips its own flag, reloads, bounces
+ * through the portal, and paints a whole second OpenStation desktop
+ * inside a window that was meant to hold one screen.
+ *
+ * Set from the preload so it lands before the page's own scripts, and
+ * again on every in-window navigation — which a query flag could not
+ * survive.
+ */
+contextBridge.exposeInMainWorld( 'openStationChromelessHost', true );
+
 contextBridge.exposeInMainWorld( 'openStationDesktopFrame', {
 	/** Presence of this object means "you are a freed native window". */
 	isFreedWindow: true,

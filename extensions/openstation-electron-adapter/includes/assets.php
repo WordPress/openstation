@@ -37,7 +37,33 @@ function openstation_electron_register_assets() {
 		OPENSTATION_ELECTRON_URL . $script,
 		array( 'openstation' ),
 		file_exists( $path ) ? (string) filemtime( $path ) : OPENSTATION_ELECTRON_VERSION,
-		true
+		/*
+		 * `strategy => defer` is load-bearing, and matching the
+		 * `openstation` handle's own strategy is the whole point.
+		 *
+		 * Declaring a dependency orders the *tags*, not the
+		 * *execution*. The shell bundle is deferred, so it runs after
+		 * the document is parsed — while a plain classic script runs
+		 * the moment the parser reaches it. Register this one without
+		 * `defer` and it executes BEFORE the thing it depends on,
+		 * `window.wp.os` does not exist yet, and the adapter gives up:
+		 * the app connects, the desktop loads, and the ⋯ menu row is
+		 * silently missing with only a console line to say why.
+		 *
+		 * Deferred scripts run in dependency order, so this is also the
+		 * only spelling that actually honours the dependency above.
+		 * On WP < 6.3 the array collapses to a truthy `$in_footer`,
+		 * exactly as core's own registration does.
+		 *
+		 * `src/index.ts` additionally waits for `wp.os` rather than
+		 * giving up, so a future strategy change cannot resurrect this
+		 * bug. Both halves matter: this one makes it correct, that one
+		 * makes it survivable.
+		 */
+		array(
+			'in_footer' => true,
+			'strategy'  => 'defer',
+		)
 	);
 
 	$style = 'assets/css/solo-host.css';

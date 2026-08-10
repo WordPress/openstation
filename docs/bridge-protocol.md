@@ -305,6 +305,33 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 
 **Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.os.openWindow`. Cold-start safe: the WP Explorer bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.os.myWordpress.openUserFootprint`.
 
+## Top-frame escape hatch — and how to opt out
+
+The inline chromeless bridge runs one check before anything else: is
+this page the top frame? A chromeless page is meant to live inside a
+window iframe, so a top-level one is normally an accident — a stale
+bookmark, a bad portal redirect — and the page has no admin bar, which
+means no way to turn OpenStation off. The bridge rescues it: strip
+`openstation_chromeless`, strip `desktop_mode_portal`, and
+`location.replace()` into classic admin.
+
+An embedder that hosts a top-level chromeless page **on purpose** opts
+out by setting a global before the page's own scripts run:
+
+```js
+window.openStationChromelessHost = true;
+```
+
+The bridge then leaves the URL alone. It still returns early — every
+feature below the check posts to `window.parent`, and there isn't one —
+so a hosted chromeless page gets a plain admin screen and nothing else.
+
+The native desktop host (`extensions/openstation-electron-adapter`)
+sets it from the preload of every window a user sets free. It has to be
+a JS global rather than a query flag: a flag is lost on the first
+in-page navigation, and the rescue would fire the moment the user
+clicked a link inside their own window.
+
 ## Public hooks
 
 | Hook | Kind | Status | Payload |

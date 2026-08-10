@@ -138,6 +138,34 @@ now?" — the same user can have the site open in a browser tab at the
 same moment, so a server-rendered boolean could only ever be wrong
 somewhere.
 
+### `window.openStationChromelessHost` — claiming a top-level chromeless page
+
+A chromeless page (`?openstation_chromeless=1`) is normally only meant
+to exist inside an OpenStation window iframe. So the chromeless bridge
+treats a **top-level** one as an accident — a stale bookmark, a bad
+redirect — and rescues the user: it strips the flag and reloads as
+classic admin, because without an admin bar there is no way to turn
+OpenStation off.
+
+A freed native window is the one legitimate exception. It is top-level
+on purpose, and closing the OS window is the way back.
+
+Any embedder that hosts a chromeless page deliberately sets:
+
+```js
+window.openStationChromelessHost = true;   // before the page's scripts run
+```
+
+The bridge then leaves the page alone (and still skips the rest of
+itself, since there is no parent shell to talk to). The desktop app
+sets it from its freed-window preload, so it survives in-window
+navigation — which a query flag could not.
+
+Get this wrong and the symptom is memorable: the freed window strips
+its own flag a few seconds after opening, bounces through the portal,
+and paints an entire second OpenStation desktop inside a window that
+was meant to hold one screen.
+
 ### `wp.os.electron`
 
 Published by the adapter when a host is present. Absent in a browser,

@@ -325,6 +325,36 @@ var openStationElectronAdapter = function(exports) {
     }).then(handshake);
     return api;
   }
+  const SHELL_WAIT_MS = 15e3;
+  const SHELL_POLL_MS = 50;
+  function waitForShell() {
+    const ready = () => {
+      const os = window.wp?.os;
+      return os?.ready ? os : null;
+    };
+    const now = ready();
+    if (now) {
+      return Promise.resolve(now);
+    }
+    return new Promise((resolve) => {
+      const deadline = Date.now() + SHELL_WAIT_MS;
+      const timer = setInterval(() => {
+        const os = ready();
+        if (os) {
+          clearInterval(timer);
+          resolve(os);
+          return;
+        }
+        if (Date.now() > deadline) {
+          clearInterval(timer);
+          console.error(
+            "[openstation-electron] wp.os never appeared — the adapter bundle loaded outside OpenStation."
+          );
+          resolve(null);
+        }
+      }, SHELL_POLL_MS);
+    });
+  }
   function start() {
     if (document.body) {
       markSoloHost();
@@ -335,13 +365,6 @@ var openStationElectronAdapter = function(exports) {
     if (!bridge) {
       return;
     }
-    const os = window.wp?.os;
-    if (!os?.ready) {
-      console.error(
-        "[openstation-electron] wp.os is missing — the adapter bundle loaded outside OpenStation."
-      );
-      return;
-    }
     const config = window.openStationElectronConfig;
     if (!config) {
       console.error(
@@ -349,7 +372,12 @@ var openStationElectronAdapter = function(exports) {
       );
       return;
     }
-    os.ready(() => boot(bridge, os, config));
+    void waitForShell().then((os) => {
+      if (!os) {
+        return;
+      }
+      os.ready(() => boot(bridge, os, config));
+    });
   }
   start();
   exports.EVENT_CONNECTION = EVENT_CONNECTION;

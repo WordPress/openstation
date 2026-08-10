@@ -42,9 +42,31 @@ body.os-solo .os-dock-peek {
 }
 
 /*
- * The shell fills its viewport. The admin bar is already suppressed
- * for this request, so the usual 32px inset would otherwise leave a
- * dark band along the top.
+ * The admin bar goes too. It is the desk's chrome, not the window's:
+ * in a surface asked to hold exactly one thing, a strip of site-wide
+ * navigation across the top is the desk sneaking back in — and its
+ * "Switch to Classic Admin" link would navigate the embedder's window
+ * clean out of the window it was given.
+ *
+ * `html.wp-toolbar` carries a `padding-top` for a bar that is no
+ * longer painted, and plugins position UI against
+ * `--wp-admin--admin-bar--height`; both are rebound to zero so the
+ * window's own chrome math resolves against what is actually there.
+ * Same treatment `chromeless.css` gives an iframe, for the same reason.
+ */
+body.os-solo #wpadminbar {
+	display: none !important;
+}
+
+html.wp-toolbar:has( body.os-solo ) {
+	padding-top: 0 !important;
+	--wp-admin--admin-bar--height: 0px;
+	--wp-admin--admin-bar--position-offset: 0px;
+}
+
+/*
+ * The shell fills its viewport. With the bar gone the usual 32px inset
+ * would leave a dark band along the top.
  */
 body.os-solo .os-shell {
 	inset-block-start: 0;
