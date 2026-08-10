@@ -9,7 +9,7 @@
 		wrong place to be permissive.
 	-->
 	<meta http-equiv="Content-Security-Policy"
-		content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src data:; form-action 'none';">
+		content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src 'self' data:; form-action 'none';">
 	<title>Connect to your site — OpenStation</title>
 	<style>
 		:root {
@@ -47,13 +47,19 @@
 			max-width: 440px;
 		}
 
+		/*
+		 * The OpenStation mark, straight from `.wordpress-org/icon.svg`
+		 * — the same artwork the plugin ships to WordPress.org, so the
+		 * app and the plugin listing cannot drift apart. The glow is the
+		 * mark's own Pulse, spilled onto the Void behind it.
+		 */
 		.mark {
-			width: 46px;
-			height: 46px;
-			border-radius: 13px;
+			display: block;
+			width: 56px;
+			height: 56px;
 			margin-block-end: 22px;
-			background: linear-gradient( 145deg, var( --pulse ), var( --sirius ) );
-			box-shadow: 0 8px 30px rgba( 242, 82, 252, 0.35 );
+			border-radius: 15px;
+			filter: drop-shadow( 0 8px 30px rgba( 242, 82, 252, 0.35 ) );
 		}
 
 		h1 {
@@ -143,7 +149,7 @@
 </head>
 <body>
 	<main>
-		<div class="mark" aria-hidden="true"></div>
+		<img class="mark" src="openstation.svg" alt="" width="56" height="56">
 		<h1>Connect to your site</h1>
 		<p class="lede">
 			OpenStation runs on your WordPress site. Point this app at it

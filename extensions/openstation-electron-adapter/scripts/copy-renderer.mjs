@@ -1,14 +1,14 @@
 /**
- * Copy the connect screen's HTML next to its compiled script.
+ * Copy the connect screen's static assets next to its compiled script.
  *
- * `tsc` compiles `app/src/renderer/connect.ts` to
- * `app/dist/renderer/connect.js` and, being a TypeScript compiler,
- * ignores the `.html` sitting beside it. The page's CSP is
- * `script-src 'self'`, which over `file://` means "the same directory"
- * in practice — so the HTML has to end up next to the JS rather than
- * reaching back across directories for it.
+ * The page's CSP is `script-src 'self'; img-src 'self' data:`, which
+ * over `file://` means "the same directory" in practice — so the HTML
+ * and the logo have to end up beside the JS rather than reaching back
+ * across directories for them.
  *
- * One file, one copy, no bundler.
+ * Vite compiles `connect.ts` into `app/dist/renderer/`; everything else
+ * in that folder is static and lands here. Three files, one copy loop,
+ * no bundler plugin.
  */
 
 import { cpSync, mkdirSync } from 'node:fs';
@@ -16,10 +16,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname( fileURLToPath( import.meta.url ) );
-const from = join( root, '..', 'app', 'src', 'renderer', 'connect.html' );
-const to = join( root, '..', 'app', 'dist', 'renderer', 'connect.html' );
+const from = join( root, '..', 'app', 'src', 'renderer' );
+const to = join( root, '..', 'app', 'dist', 'renderer' );
 
-mkdirSync( dirname( to ), { recursive: true } );
-cpSync( from, to );
+const ASSETS = [ 'connect.html', 'openstation.svg', 'openstation-256.png' ];
 
-console.log( '[openstation-electron] copied connect.html into app/dist/renderer/' );
+mkdirSync( to, { recursive: true } );
+for ( const name of ASSETS ) {
+	cpSync( join( from, name ), join( to, name ) );
+}
+
+console.log(
+	`[openstation-electron] copied ${ ASSETS.length } connect-screen assets into app/dist/renderer/`,
+);

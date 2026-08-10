@@ -82,9 +82,34 @@ let shellWindow: BrowserWindow | null = null;
  */
 let connectWindow: BrowserWindow | null = null;
 
+/**
+ * Why the last connection attempt failed, shown on the connect screen.
+ *
+ * A site can be unreachable for reasons the address itself cannot
+ * reveal — the server is down, the host is wrong, WordPress is behind a
+ * VPN. Without this the app would sit on a blank shell window with no
+ * way back, which is a worse dead end than a wrong address.
+ */
+let lastConnectError = '';
+
 let store: Store;
 let connection: Connection;
 let freeWindows: FreeWindows;
+
+/**
+ * The app icon, as a spreadable option bag.
+ *
+ * macOS reads the icon from the app bundle, so a window-level one does
+ * nothing there; Windows and Linux want an explicit path or the window
+ * wears Electron's default. Returned as `{}` rather than
+ * `{ icon: undefined }` because Electron warns on the latter — passing
+ * the key at all is a claim that there is an icon.
+ */
+function appIconOption(): { icon?: string } {
+	return 'darwin' === process.platform
+		? {}
+		: { icon: join( __dirname, 'renderer', 'openstation-256.png' ) };
+}
 
 /**
  * Broadcast to the shell renderer, if it is alive.
@@ -106,11 +131,12 @@ function openConnectWindow(): void {
 	}
 	connectWindow = new BrowserWindow( {
 		width: 620,
-		height: 580,
+		height: 620,
 		resizable: false,
 		title: 'Connect to your site',
 		show: false,
 		backgroundColor: '#0c0b0f',
+		...appIconOption(),
 		webPreferences: {
 			preload: join( __dirname, 'preload', 'connect.js' ),
 			contextIsolation: true,
@@ -148,6 +174,7 @@ function openShellWindow(): void {
 		title: 'OpenStation',
 		show: false,
 		backgroundColor: '#0c0b0f',
+		...appIconOption(),
 		webPreferences: {
 			preload: join( __dirname, 'preload', 'shell.js' ),
 			contextIsolation: true,
@@ -177,6 +204,28 @@ function openShellWindow(): void {
 		}
 		return { action: 'deny' };
 	} );
+
+	// A site that will not load leaves the user staring at a blank
+	// window with no way back — the worst possible outcome of a typo.
+	// Send them to the connect screen with the reason instead.
+	//
+	// Only the main frame's own load counts: a failed image or an
+	// aborted subresource inside a working admin page is not a reason
+	// to tear the session down. `-3` is ERR_ABORTED, which Chromium
+	// reports for ordinary interrupted navigations (the user clicking
+	// again mid-load) and is not a failure either.
+	shellWindow.webContents.on(
+		'did-fail-load',
+		( _event, errorCode, errorDescription, _validatedURL, isMainFrame ) => {
+			if ( ! isMainFrame || -3 === errorCode ) {
+				return;
+			}
+			lastConnectError = `Could not reach ${ store.get( 'siteUrl' ) } — ${
+				errorDescription || `error ${ errorCode }`
+			}`;
+			showConnectScreen();
+		},
+	);
 
 	void shellWindow.loadURL( entry );
 }
@@ -420,21 +469,38 @@ function registerIpc(): void {
 			if ( ! site ) {
 				return { ok: false, error: 'That does not look like a site address.' };
 			}
+			lastConnectError = '';
 			store.set( 'siteUrl', site );
 			openShellWindow();
-			if ( connectWindow && ! connectWindow.isDestroyed() ) {
-				connectWindow.destroy();
-				connectWindow = null;
-			}
+
+			// Closed on the next tick, not here: destroying the window
+			// mid-handler kills the renderer before Electron can deliver
+			// this reply, so the caller's `await` never settles and the
+			// button sits on "Connecting…" forever.
+			const closing = connectWindow;
+			connectWindow = null;
+			setImmediate( () => {
+				if ( closing && ! closing.isDestroyed() ) {
+					closing.destroy();
+				}
+			} );
+
 			return { ok: true, siteUrl: site };
 		},
 	);
 
-	ipcMain.handle( CHANNELS.INVOKE_CONNECT_STATE, () => ( {
-		siteUrl: store.get( 'siteUrl' ),
-		appVersion: APP_VERSION,
-		osLabel: osLabelFor( process.platform ),
-	} ) );
+	ipcMain.handle( CHANNELS.INVOKE_CONNECT_STATE, () => {
+		const error = lastConnectError;
+		// Read once. A stale failure shown on a later visit to this
+		// screen would describe a site the user is no longer trying.
+		lastConnectError = '';
+		return {
+			siteUrl: store.get( 'siteUrl' ),
+			appVersion: APP_VERSION,
+			osLabel: osLabelFor( process.platform ),
+			error,
+		};
+	} );
 }
 
 void app.whenReady().then( () => {

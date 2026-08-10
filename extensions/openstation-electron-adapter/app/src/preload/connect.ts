@@ -15,6 +15,8 @@ export interface ConnectState {
 	siteUrl: string;
 	appVersion: string;
 	osLabel: string;
+	/** Why the previous attempt failed, if it did. Read once. */
+	error?: string;
 }
 
 export interface ConnectResult {

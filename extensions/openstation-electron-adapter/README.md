@@ -63,7 +63,7 @@ nothing but the address.
 |---|---|
 | `npm run build` | Both halves: the shell bundle and the Electron app. |
 | `npm run build:shell` | Vite → `assets/js/electron-adapter[.min].js`. |
-| `npm run build:app` | `tsc` → `app/dist/`, plus the connect screen's HTML. |
+| `npm run build:app` | `tsc` (main + preloads) → `app/dist/`, Vite for the connect screen, then its static assets. |
 | `npm start` | Build the app, then launch it. |
 | `npm run lint` / `lint:fix` | ESLint over `src/`, `app/src/`, `tests/`. |
 | `npm run typecheck` | Both tsconfigs. |
@@ -147,8 +147,25 @@ app/                               the Electron app (TypeScript)
   src/lib/store.ts                   JSON state in userData
   src/preload/{shell,free,connect}.ts
   src/renderer/connect.{ts,html}     first-run "which site?" screen
+  src/renderer/openstation.svg       the brand mark, from .wordpress-org/
 tests/                             Vitest, both halves
 ```
+
+### Why the connect screen is bundled, not compiled
+
+The app's `tsconfig` emits **CommonJS**, which is what Electron loads
+main-process and preload code as. A renderer is not that: with
+`nodeIntegration: false` a CommonJS prologue throws `exports is not
+defined` on its first statement, the script dies, and no listener ever
+binds — a Connect button that silently does nothing, with no type
+error and no lint error to warn you. So `app/src/renderer/**` is
+excluded from that tsconfig, bundled to an IIFE by `vite.config.mjs`
+(`OPENSTATION_ADAPTER_TARGET=connect`), and typechecked by the root
+tsconfig with the rest of the browser code. `tests/connect-bundle.test.ts`
+asserts the built artefact stays free of both CommonJS and ESM syntax.
+
+(ESM would be the other fix, but `type="module"` over `file://` is
+blocked by CORS.)
 
 ### Two halves, kept apart on purpose
 

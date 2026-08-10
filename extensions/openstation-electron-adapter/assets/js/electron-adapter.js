@@ -360,4 +360,3 @@ var openStationElectronAdapter = function(exports) {
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
   return exports;
 }({});
-//# sourceMappingURL=electron-adapter.js.map

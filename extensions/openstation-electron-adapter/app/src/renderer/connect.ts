@@ -32,17 +32,26 @@ function showError( message: string ): void {
 }
 
 void ( async () => {
-	const state = await window.openStationConnect.getState();
-	if ( state.siteUrl ) {
-		input.value = state.siteUrl;
-	}
-	const version = document.getElementById( 'version' );
-	const platform = document.getElementById( 'platform' );
-	if ( version ) {
-		version.textContent = `OpenStation Desktop ${ state.appVersion }`;
-	}
-	if ( platform ) {
-		platform.textContent = state.osLabel;
+	try {
+		const state = await window.openStationConnect.getState();
+		if ( state.siteUrl ) {
+			input.value = state.siteUrl;
+		}
+		if ( state.error ) {
+			showError( state.error );
+		}
+		const version = document.getElementById( 'version' );
+		const platform = document.getElementById( 'platform' );
+		if ( version ) {
+			version.textContent = `OpenStation Desktop ${ state.appVersion }`;
+		}
+		if ( platform ) {
+			platform.textContent = state.osLabel;
+		}
+	} catch ( err ) {
+		// Nothing here is required to type an address, so a failed
+		// state read must not stop the form working.
+		console.error( '[openstation-desktop] could not read connect state:', err );
 	}
 	input.focus();
 	input.select();

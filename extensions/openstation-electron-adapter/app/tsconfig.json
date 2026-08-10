@@ -1,5 +1,5 @@
 {
-	"//": "The Electron app: main process, three preloads, one renderer. CommonJS because that is what Electron's main process and preloads load, and mixing module systems across the preload boundary is a class of bug nobody enjoys.",
+	"//": "The Electron app's main process and preloads. CommonJS because that is what Electron loads them as. The renderer is deliberately NOT here — a CommonJS prologue throws `exports is not defined` in a page with nodeIntegration off — so `src/renderer/**` is bundled to an IIFE by vite.config.mjs and typechecked by the root tsconfig instead.",
 	"compilerOptions": {
 		"target": "ES2022",
 		"module": "CommonJS",
@@ -19,5 +19,6 @@
 		"declaration": false,
 		"types": [ "node" ]
 	},
-	"include": [ "src/**/*.ts" ]
+	"include": [ "src/**/*.ts" ],
+	"exclude": [ "src/renderer/**" ]
 }
