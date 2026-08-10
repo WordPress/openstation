@@ -29,13 +29,17 @@
 		"dist:win": "npm run build:app && electron-builder --win",
 		"dist:linux": "npm run build:app && electron-builder --linux"
 	},
+	"//overrides": "`@wordpress/eslint-plugin` pins an old `@typescript-eslint`, which pins a `minimatch` with a ReDoS advisory. Nothing here feeds user input to a glob — the only patterns are our own lint globs — but the fix is a one-line override rather than waiting upstream, so there is no reason to carry it. Drop this once the plugin's own tree moves.",
+	"overrides": {
+		"minimatch": "^10.2.6"
+	},
 	"devDependencies": {
 		"@types/node": "^22.20.1",
 		"@typescript-eslint/eslint-plugin": "^7.18.0",
 		"@typescript-eslint/parser": "^7.18.0",
 		"@wordpress/eslint-plugin": "^21.6.0",
-		"electron": "^33.0.0",
-		"electron-builder": "^25.1.8",
+		"electron": "^43.3.0",
+		"electron-builder": "^26.15.3",
 		"eslint": "^8.57.1",
 		"eslint-import-resolver-typescript": "^4.4.4",
 		"jsdom": "^25.0.1",

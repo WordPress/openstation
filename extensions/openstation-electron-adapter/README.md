@@ -271,6 +271,30 @@ The connect screen has its own window, its own preload, and its own two
 channels. It is the only surface that can point the app at a different
 site, so that channel is never reachable from the WordPress page.
 
+## Dependency advisories
+
+`npm audit` is not expected to be silent here, and the difference
+between the two kinds of finding matters more than the count.
+
+**Electron is kept current**, because it is the only dependency that
+actually ships. Its advisories are real ones against the runtime your
+users execute, so it gets upgraded on its own schedule rather than
+waiting for anything else.
+
+**Everything else in this package is a devDependency** — the packager,
+the bundler, the linter. They run on a developer's machine over inputs
+that developer already controls. That does not make them exempt, and
+most have been cleared (`electron-builder` upgraded; `minimatch` pinned
+through `overrides`). Two remain, both the same root cause:
+
+| Finding | Why it is still here |
+|---|---|
+| `esbuild` ≤0.24.2 (moderate), and `vite` for depending on it | The advisory is that esbuild's **dev server** lets any website read its responses. This package never runs a dev server — `vite build` only — so the vulnerable surface is not reachable. Clearing it means vite 7+, which would diverge from the plugin's own pinned vite 5. It follows the plugin when the plugin moves. |
+
+If you add a dependency here, the question to ask is which of those two
+categories it lands in. Anything that ends up inside the shipped app
+belongs to the first, and is not something to defer.
+
 ## Documentation
 
 Plugin-side contract, hooks, solo mode, and `wp.os.electron`:
