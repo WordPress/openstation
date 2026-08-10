@@ -1083,7 +1083,11 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$human = openstation_agent_humanize_generate_error( $raw );
 		$this->assertSame( 'openstation_agent_empty_answer', $human->get_error_code() );
-		$this->assertStringContainsString( 'output budget', $human->get_error_message() );
+		// The message is copy (and translated) — assert the structural
+		// contract instead: a non-empty human sentence + the 502 the
+		// humanizer stamps, so rewording never breaks the test.
+		$this->assertNotSame( '', trim( $human->get_error_message() ) );
+		$this->assertSame( 502, $human->get_error_data()['status'] );
 		$this->assertSame(
 			'The provider response contains no text part.',
 			$human->get_error_data()['detail']
