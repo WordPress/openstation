@@ -194,6 +194,19 @@ function openstation_register_assets() {
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
+	// The OpenStation desktop layout — the core/plugin seam on the rail
+	// plus the constellation hover-submenu flyout. Both surfaces are
+	// scoped (`[data-os-layout="openstation"]` / `.os-constellation`),
+	// so the sheet is inert in every other layout and is loaded
+	// unconditionally rather than gated on the user's current pick:
+	// the layout is switchable live from OpenStation Preferences, and a
+	// conditional enqueue would leave the first switch unstyled.
+	wp_register_style(
+		'os-openstation-layout',
+		OPENSTATION_URL . 'assets/css/openstation-layout.css',
+		array( 'os-dock' ),
+		$built_version( 'assets/css/openstation-layout.css' )
+	);
 	// `filemtime`-stamped — the chromeless overrides iterate faster
 	// than the plugin-wide version bumps (per-page compat shims and
 	// page-title-action exceptions land in patches), and a stale

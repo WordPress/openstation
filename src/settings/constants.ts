@@ -181,6 +181,7 @@ export const DESKTOP_LAYOUTS = [
 	{ id: 'classic', label: 'Classic' },
 	{ id: 'unified', label: 'Unified' },
 	{ id: 'spatial', label: 'Spatial' },
+	{ id: 'openstation', label: 'OpenStation' },
 ] as const;
 
 export const DEFAULTS: OsSettingsState = {

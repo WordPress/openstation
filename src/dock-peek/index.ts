@@ -29,6 +29,7 @@ import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { applyFilters, HOOKS } from '../hooks';
+import { isConstellationLayoutActive } from '../dock-constellation/active';
 
 /**
  * Detail passed to the {@link HOOKS.DOCK_PEEK_CARD_CONTENT} filter.
@@ -149,6 +150,15 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	const onPointerEnterTile = ( e: PointerEvent ): void => {
 		// Touch / pen → no peek. Mobile shell owns these gestures.
 		if ( e.pointerType !== 'mouse' ) {
+			return;
+		}
+		// The OpenStation layout hands the hover gesture on menu tiles
+		// to the constellation flyout, which already surfaces the open
+		// instances the peek would have shown — plus the submenu the
+		// peek has no way to reach. Two popovers on one tile is a
+		// flicker, not a feature. System tiles have no submenu and keep
+		// the peek in every layout.
+		if ( isConstellationLayoutActive() && tile.dataset.menuSlug ) {
 			return;
 		}
 		// Re-evaluate on every enter — open windows might have changed

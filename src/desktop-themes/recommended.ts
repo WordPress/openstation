@@ -37,7 +37,7 @@ import type { RecommendedOsSettings } from './types';
 /** Closed enums, keyed by the OS-settings field they belong to. */
 const ENUMS: Record< string, readonly string[] > = {
 	dockSize: [ 'compact', 'default', 'large' ],
-	desktopLayout: [ 'classic', 'unified', 'spatial' ],
+	desktopLayout: [ 'classic', 'unified', 'spatial', 'openstation' ],
 	windowRadius: [ 'sharp', 'default', 'round' ],
 	adminBarMode: [ 'static', 'dynamic', 'hidden' ],
 };

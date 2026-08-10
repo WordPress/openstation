@@ -38,7 +38,10 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		// `os-windows` as a dependency, and
 		// `wp_style_is( …, 'enqueued' )` walks queued handles' deps —
 		// a leftover queue entry would report windows as enqueued.
-		foreach ( array( 'openstation', 'os-windows', 'os-window-overview', 'os-settings', 'os-dock', 'os-dock-peek', 'os-chromeless' ) as $handle ) {
+		// Same reason for `os-openstation-layout`, which depends on
+		// `os-dock`: adding a stylesheet that hangs off one of the
+		// handles asserted below means adding it here too.
+		foreach ( array( 'openstation', 'os-windows', 'os-window-overview', 'os-settings', 'os-dock', 'os-dock-peek', 'os-openstation-layout', 'os-chromeless' ) as $handle ) {
 			wp_dequeue_style( $handle );
 			wp_dequeue_script( $handle );
 		}

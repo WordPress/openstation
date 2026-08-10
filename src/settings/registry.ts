@@ -60,8 +60,10 @@ export interface OsSettingsSnapshot {
 	 * - `unified` — single bottom dock with every menu.
 	 * - `spatial` — bottom dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
+	 * - `openstation` — single bottom dock, core cluster then a
+	 *   divider then plugins, with hover-reveal submenu flyouts.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial';
+	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
 	/**
 	 * Active dock rail-renderer id; mirrors the dock-rail registry's
 	 * resolution. `'default'` is the shipped icon-strip renderer.

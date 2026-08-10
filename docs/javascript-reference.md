@@ -322,7 +322,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout: 'classic' | 'unified' | 'spatial',
+    layout: 'classic' | 'unified' | 'spatial' | 'openstation',
     primary: Dock | null,   // bottom dock — always present
     side:    Dock | null,   // left side bar — non-null only in classic
 }
@@ -673,7 +673,7 @@ window.wp.os = {
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
     sideDock:          Dock | null,                            // left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial',
+    desktopLayout:     'classic' | 'unified' | 'spatial' | 'openstation',
     icons:             IconsApi,
     saveSession:       () => void,
 
@@ -865,6 +865,52 @@ window.wp.hooks.addFilter(
     }
 );
 ```
+
+#### The constellation — OpenStation layout only
+
+The `openstation` desktop layout replaces the hover-peek **on menu tiles** with a richer surface: the **constellation**, a flyout that fans a menu's *submenu* out of its tile. Every other layout drops the submenu at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+One panel, up to four sections, top to bottom:
+
+| Section | Class | What it does |
+|---|---|---|
+| Head | `.os-constellation__head` | The menu's own page + a page count. Click = a dock click. |
+| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). |
+| Go to | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
+| New window | `.os-constellation__row--new` | Spawns a fresh instance, same as the peek's Ghost Card. |
+
+Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
+
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile, `Tab` collapses and moves on. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+
+Three hooks:
+
+- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the open transition), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
+- `os.constellation.opened` — **action**, `{ menuSlug, item, instances }`.
+- `os.constellation.closed` — **action**, `{ menuSlug }`.
+
+```javascript
+// Add a "recently edited" row to the Posts flyout.
+window.wp.hooks.addFilter(
+    'os.constellation.panel',
+    'my-plugin/recent',
+    ( panel, { item } ) => {
+        if ( item.id !== 'edit.php' ) {
+            return panel;
+        }
+        const row = document.createElement( 'button' );
+        row.type = 'button';
+        row.className = 'os-constellation__row';
+        row.setAttribute( 'role', 'menuitem' );
+        row.textContent = 'Recently edited';
+        row.addEventListener( 'click', () => openRecent() );
+        panel.querySelector( '.os-constellation__surface' ).append( row );
+        return panel;
+    }
+);
+```
+
+**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
 
 ```javascript
 // Open a second Posts list alongside the first.
@@ -1307,7 +1353,14 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial' | 'openstation'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+
+| Layout | Rails | Where core menus live |
+|---|---|---|
+| `classic` | side + bottom | left side bar (`sideDock`) |
+| `unified` | bottom | the one rail, interleaved with plugins |
+| `spatial` | bottom | wallpaper icons |
+| `openstation` | bottom | the one rail, **grouped first**, then a divider, then plugins |
 
 ```js
 if ( wp.os.desktopLayout === 'spatial' ) {
@@ -1316,6 +1369,8 @@ if ( wp.os.desktopLayout === 'spatial' ) {
 ```
 
 Listen for `os-layout-changed` to react to a switch.
+
+**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. It is also the only layout that fans a menu's submenu out of its tile on hover — see [the constellation](#the-constellation--openstation-layout-only) below.
 
 ---
 
@@ -6321,7 +6376,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | Field | Type | Values |
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
-| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
+| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` \| `openstation` |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |

@@ -98,13 +98,16 @@ Key server-side entry points:
 
 ## Desktop layout modes
 
-OpenStation Preferences → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-os-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
+OpenStation Preferences → Appearance lets the user pick one of four top-level layouts. The shell root reflects the choice in `data-os-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
 
 | Mode | Default? | Bottom dock | Left side dock (`wp.os.sideDock`) | Wallpaper icons |
 |---|---|---|---|---|
 | **Classic** | ✅ | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
 | **Unified** | — | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
 | **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
+| **OpenStation** | — | Every menu, **re-sorted core-first** with one divider on the boundary | — *(no side dock)* | Plugin-registered icons only |
+
+**OpenStation** is Unified plus two commitments. First, the dispatcher re-sorts the rail so every `isCore` tile precedes every plugin tile: `Dock.render()` drops its `.os-dock__separator--group` divider at the first non-core tile, so grouping the list is what makes that one divider land — reliably — on the "WordPress ends here, your plugins begin here" boundary. `partition()` preserves relative order inside each cluster, so drag-to-reorder still holds within a group. Second, it is the only layout that surfaces a menu's **submenu** at the rail: hovering a menu tile fans out the *constellation* (`src/dock-constellation/`), a flyout carrying the menu's own page, its live windows, one row per submenu entry, and a new-window row. `dock-peek` stands down for menu tiles while that layout is active (the shared predicate lives in `src/dock-constellation/active.ts`) so the two hover surfaces never stack; system tiles keep the peek everywhere. Styling for both surfaces is in `assets/css/openstation-layout.css` behind `--os-cn-*` tokens; the JS hooks are `os.constellation.panel` / `.opened` / `.closed`.
 
 A user-meta value (`desktopLayout` inside the OpenStation Preferences JSON blob, REST-synced via the existing `/wp-json/desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
 

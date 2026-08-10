@@ -97,6 +97,7 @@ import { createWindowLinkRendererRegistrySync } from './window-links/server-sync
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
+import { mountDockConstellation } from './dock-constellation';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -439,7 +440,8 @@ export interface OpenStationPublicApi {
 	/**
 	 * Side (left) dock instance — only non-null when the active
 	 * layout is `classic`. Holds core admin menus while the bottom
-	 * dock holds plugin menus. `null` in `unified` and `spatial`.
+	 * dock holds plugin menus. `null` in `unified`, `spatial` and
+	 * `openstation`.
 	 */
 	sideDock: Dock | null;
 	/**
@@ -448,7 +450,7 @@ export interface OpenStationPublicApi {
 	 * `data-os-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial';
+	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
 	/**
 	 * Wallpaper-icon rail — the second badge surface alongside the
 	 * dock. Mirrors `Dock.setBadge` exactly:
@@ -2486,6 +2488,17 @@ function init(): void {
 			config.dockItems,
 			config.desktopIcons,
 		);
+		// Constellation — the hover-submenu flyout. Mounted once and
+		// left mounted: it is a single delegated listener that
+		// self-gates on `data-os-layout`, so a user flipping between
+		// layouts never needs it re-wired, and a user who never picks
+		// the OpenStation layout pays for one `pointerover` handler
+		// that early-returns on its first line.
+		mountDockConstellation( {
+			windowManager: manager,
+			adminUrl: config.adminUrl,
+			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		} );
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
 		// expect a shell-owned affordance) and on the primary rail in

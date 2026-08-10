@@ -12,6 +12,15 @@
  * - **Spatial** — a single bottom `Dock` instance with plugin menus
  *   only. Core menus are synthesized into desktop-icon entries and
  *   handed to `renderDesktopIcons` so they appear on the wallpaper.
+ * - **OpenStation** — a single bottom `Dock` instance holding every
+ *   menu, but *re-sorted* so the WordPress core cluster leads and the
+ *   plugin cluster follows. That sort is what makes the rail's single
+ *   core→plugin divider deterministic: `Dock.render()` drops its
+ *   `--group` separator at the first `isCore === false` tile, so any
+ *   interleaved order (a user drag, a plugin's `dockOrder` filter)
+ *   would otherwise scatter the boundary or lose it entirely. Desktop
+ *   icons behave exactly as they do in Classic/Unified — the wallpaper
+ *   stays available, it just isn't load-bearing.
  *
  * Two surfaces drive this module:
  *
@@ -373,6 +382,23 @@ export function createLayoutDispatcher(
 		return { core, plugin };
 	};
 
+	/**
+	 * The OpenStation rail: every menu on one bottom dock, core
+	 * cluster first, plugin cluster second.
+	 *
+	 * The re-sort is deliberate and is the whole reason the layout's
+	 * divider works. `Dock` inserts its `--group` separator at the
+	 * first tile whose `isCore` is `false`, so it only produces one
+	 * clean boundary when the list is already grouped. `partition()`
+	 * preserves each item's relative order inside its own cluster, so
+	 * a user's drag-to-reorder still holds — it just can't drag a
+	 * plugin into the middle of WordPress.
+	 */
+	const openStationRailItems = (): DockItem[] => {
+		const { core, plugin } = partition();
+		return [ ...core, ...plugin ];
+	};
+
 	const repaintIcons = (): void => {
 		const settings = readSettings();
 		if ( layout !== 'spatial' ) {
@@ -603,6 +629,16 @@ export function createLayoutDispatcher(
 				buildMountDeps( deps.bottomDockEl, effectiveDockItems(), 'bottom' ),
 			);
 			primaryDock = unwrapDefaultDock( primary );
+		} else if ( layout === 'openstation' ) {
+			removeSideDockEl();
+			primary = mountRail(
+				buildMountDeps(
+					deps.bottomDockEl,
+					openStationRailItems(),
+					'bottom',
+				),
+			);
+			primaryDock = unwrapDefaultDock( primary );
 		} else {
 			// Spatial — bottom dock holds plugins; core items are
 			// emitted as wallpaper icons by `repaintIcons()` below.
@@ -657,6 +693,8 @@ export function createLayoutDispatcher(
 				primary?.replaceItems( plugin );
 			} else if ( layout === 'unified' ) {
 				primary?.replaceItems( effectiveDockItems() );
+			} else if ( layout === 'openstation' ) {
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );
 			}
@@ -716,6 +754,8 @@ export function createLayoutDispatcher(
 				primary?.replaceItems( plugin );
 			} else if ( layout === 'unified' ) {
 				primary?.replaceItems( effectiveDockItems() );
+			} else if ( layout === 'openstation' ) {
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );
 			}

@@ -41,7 +41,7 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial', 'openstation' );
 
 /**
  * Playable range for the window-reveal duration override, in ms.
@@ -326,8 +326,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Desktop layout — must be one of the three known values
-	// (`classic`, `unified`, `spatial`). Default `classic`.
+	// Desktop layout — must be one of the known values
+	// (`classic`, `unified`, `spatial`, `openstation`). Default `classic`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
