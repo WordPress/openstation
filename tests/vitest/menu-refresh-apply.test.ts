@@ -69,6 +69,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		commands: ReturnType< typeof vi.fn >;
 		settingsTabs: ReturnType< typeof vi.fn >;
 		titleBarButtons: ReturnType< typeof vi.fn >;
+		windowActions: ReturnType< typeof vi.fn >;
 		games: ReturnType< typeof vi.fn >;
 	};
 	renderIcons: ReturnType< typeof vi.fn >;
@@ -84,6 +85,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		commands: vi.fn().mockResolvedValue( undefined ),
 		settingsTabs: vi.fn().mockResolvedValue( undefined ),
 		titleBarButtons: vi.fn().mockResolvedValue( undefined ),
+		windowActions: vi.fn().mockResolvedValue( undefined ),
 		dockRailRenderers: vi.fn().mockResolvedValue( undefined ),
 		games: vi.fn().mockResolvedValue( undefined ),
 	};
@@ -100,6 +102,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		syncServerCommands: syncs.commands,
 		syncServerSettingsTabs: syncs.settingsTabs,
 		syncServerTitleBarButtons: syncs.titleBarButtons,
+		syncServerWindowActions: syncs.windowActions,
 		syncServerDockRailRenderers: syncs.dockRailRenderers,
 		syncServerGames: syncs.games,
 		renderIcons,
@@ -448,6 +451,25 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 		expect( syncs.titleBarButtons ).toHaveBeenCalledWith( scripts );
 		expect( config.serverTitleBarButtonScripts ).toBe( scripts );
+	} );
+
+	test( 'serverWindowActionScripts: live-refresh contract', () => {
+		// `WindowActionDef.owner` promises the ⋯ row disappears when
+		// the plugin that registered it is deactivated. That promise
+		// is only kept if this key reaches the sync — without it,
+		// `unregisterWindowActionsByOwner()` has no caller and the
+		// documentation describes something no code does.
+		const { deps, syncs, config } = makeDeps();
+		const apply = createApplyPayload( deps );
+
+		const scripts = [ { handle: 'plugin-e', scriptUrl: 'e.js' } ];
+		apply( {
+			dockItems: [ ...MIN_DOCK ],
+			serverWindowActionScripts: scripts,
+		} );
+
+		expect( syncs.windowActions ).toHaveBeenCalledWith( scripts );
+		expect( config.serverWindowActionScripts ).toBe( scripts );
 	} );
 } );
 

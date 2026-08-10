@@ -133,6 +133,7 @@ require_once OPENSTATION_DIR . 'includes/commands.php';
 require_once OPENSTATION_DIR . 'includes/settings-tabs.php';
 require_once OPENSTATION_DIR . 'includes/dock-rail-renderer.php';
 require_once OPENSTATION_DIR . 'includes/title-bar-buttons.php';
+require_once OPENSTATION_DIR . 'includes/window-actions.php';
 require_once OPENSTATION_DIR . 'includes/unfocus-effects.php';
 require_once OPENSTATION_DIR . 'includes/window-links.php';
 require_once OPENSTATION_DIR . 'includes/window-chrome.php';

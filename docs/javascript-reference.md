@@ -6625,10 +6625,22 @@ wp.os.registerWindowAction( {
 | `order` | `number` | Sort order among registered rows. Default `100`. |
 | `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
 | `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
-| `owner` | `string` | Script handle, for live unregistration on deactivation. |
+| `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
 
 Also: `wp.os.unregisterWindowAction( id )` and
 `wp.os.listWindowActions()`.
+
+**Making `owner` mean something.** Pair it with the PHP opt-in
+[`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
+and pass the same handle. That puts your script in the live-refresh
+payload, so activating your plugin loads it — the row is in the next ⋯
+menu that opens, no reload — and deactivating it sweeps every action
+tagged with that handle back out.
+
+Without the PHP call there is nothing to diff, so an `owner` tag is
+inert: the row stays until the next page reload. That is deliberate
+backwards-compat, the same bargain commands and title-bar buttons
+offer, but it does mean `owner` alone is not the whole opt-in.
 
 **Why `label` / `icon` / `isVisible` may be functions.** They are read
 fresh every time the menu opens, not once at registration. That is what

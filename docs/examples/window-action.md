@@ -124,3 +124,41 @@ And to see what is registered:
 ```js
 wp.os.listWindowActions();   // sorted by `order`
 ```
+
+## Going away cleanly when your plugin is deactivated
+
+Registering from JS is enough to get the row on screen. To have it
+*leave* on deactivation — without the user reloading the page — declare
+your script server-side and tag each action with the same handle:
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-window-actions',
+        plugins_url( 'js/window-actions.js', __FILE__ ),
+        array( 'openstation' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-window-actions' );
+} );
+openstation_register_window_action_script( 'my-plugin-window-actions' );
+```
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/pin',
+    label: 'Pin to top',
+    onSelect: ( win ) => pin( win.id ),
+    owner: 'my-plugin-window-actions',   // same handle
+} );
+```
+
+Now the handle rides in the live-refresh payload the shell diffs:
+activating your plugin loads the script and the row appears in the next
+menu that opens, and deactivating it sweeps out every action carrying
+that `owner`.
+
+Skip the PHP call and `owner` has nothing to match against — the row
+stays until the next page reload. Harmless, and the reason a plugin
+written before this existed still behaves.

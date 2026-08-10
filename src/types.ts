@@ -1138,6 +1138,27 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 }
 
 /**
+ * Server-declared window-action script entry. One per
+ * `openstation_register_window_action_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.os.registerWindowAction()` and every ⋯ menu
+ * picks the row up on its next open (an already-open menu repaints
+ * itself through the registry's subscribe fan-out).
+ *
+ * @public
+ */
+export interface DesktopWindowActionScriptServerEntry {
+	/** WordPress script handle — doubles as the action `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared unfocus-effect script entry. One per
  * `openstation_register_unfocus_effect_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
@@ -1681,6 +1702,14 @@ export interface DesktopConfig {
 	 * installed plugins paint their title-bar buttons live.
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `openstation_register_window_action_script()`. Shell injects each
+	 * URL on boot and on mid-session activation so a newly-installed
+	 * plugin's ⋯ menu row appears without an F5. Owner-tagged
+	 * registrations live-unregister on deactivation.
+	 */
+	serverWindowActionScripts?: DesktopWindowActionScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `openstation_register_unfocus_effect_script()`. Shell injects

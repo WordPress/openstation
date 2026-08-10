@@ -81,6 +81,7 @@ import {
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
@@ -3129,6 +3130,16 @@ function init(): void {
 			: [],
 	);
 
+	// Window-action sync — same pattern. Loads opted-in scripts so a
+	// plugin's `registerWindowAction()` row is in the next ⋯ menu that
+	// opens; deactivation drops rows by `owner` tag.
+	const syncServerWindowActions = createWindowActionRegistrySync();
+	void syncServerWindowActions(
+		Array.isArray( config.serverWindowActionScripts )
+			? config.serverWindowActionScripts
+			: [],
+	);
+
 	// Unfocus-effect sync — same pattern. Loads opted-in scripts so a
 	// plugin's `registerUnfocusEffect()` lands and surfaces in
 	// OS Settings → Effects; deactivation drops effects by `owner` tag.
@@ -3479,6 +3490,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,

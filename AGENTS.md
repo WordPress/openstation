@@ -238,6 +238,7 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
   serverDockRailRendererScripts, serverTitleBarButtonScripts,
+  serverWindowActionScripts,
   serverUnfocusEffectScripts, serverWindowLinkRendererScripts,
   serverWindowThemeScripts, serverWindowThemes,
   serverWindowControlScripts, serverWindowControls,

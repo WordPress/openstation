@@ -242,6 +242,9 @@ function openstation_enqueue_assets() {
 	$server_titlebar_button_scripts    = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
 		: array();
+	$server_window_action_scripts      = isset( $menu_payload['serverWindowActionScripts'] )
+		? $menu_payload['serverWindowActionScripts']
+		: array();
 	$server_window_theme_scripts       = isset( $menu_payload['serverWindowThemeScripts'] )
 		? $menu_payload['serverWindowThemeScripts']
 		: array();
@@ -462,6 +465,7 @@ function openstation_enqueue_assets() {
 			'serverSettingsTabs'            => $server_settings_tabs,
 			'serverDockRailRendererScripts' => $server_dock_rail_renderer_scripts,
 			'serverTitleBarButtonScripts'   => $server_titlebar_button_scripts,
+			'serverWindowActionScripts'     => $server_window_action_scripts,
 			'serverWindowThemeScripts'      => $server_window_theme_scripts,
 			'serverWindowThemes'            => $server_window_themes,
 			'serverWindowControlScripts'    => $server_window_control_scripts,
