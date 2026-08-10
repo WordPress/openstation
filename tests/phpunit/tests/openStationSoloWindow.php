@@ -24,12 +24,16 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		// `wp_styles()` is a global registry, and inline styles added by
+		// one test would otherwise be read by the next.
+		$GLOBALS['wp_styles'] = null;
 	}
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		unset( $_GET[ OPENSTATION_SOLO_FLAG ] );
 		remove_all_filters( 'openstation_solo_window_id' );
+		$GLOBALS['wp_styles'] = null;
 		parent::tear_down();
 	}
 
@@ -159,6 +163,57 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'os-files', $config['soloWindow'] );
+	}
+
+	/**
+	 * Solo mode promises one window, and the promise has to hold from
+	 * the first frame.
+	 *
+	 * A second window — a game launched from a freed Games hub — would
+	 * otherwise land on top of the first, because solo's CSS stretches
+	 * every window to fill the viewport. Hiding it from JavaScript is a
+	 * frame too late: the user sees it flash before it is dealt with.
+	 * So the rule is inline CSS with the window's id baked in.
+	 *
+	 * @covers ::openstation_enqueue_assets
+	 */
+	public function test_solo_mode_emits_a_rule_hiding_every_other_window() {
+		wp_set_current_user( self::$admin_id );
+		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-game-inkfall';
+
+		openstation_register_assets();
+		set_current_screen( 'dashboard' );
+		openstation_enqueue_assets();
+
+		$inline = wp_styles()->get_data( 'os-solo', 'after' );
+		$css    = is_array( $inline ) ? implode( '', $inline ) : (string) $inline;
+
+		$this->assertStringContainsString(
+			'.os-window:not(#wp-window-os-game-inkfall)',
+			$css,
+			'Solo mode must hide every window but its own, by id.'
+		);
+		// `visibility`, not `display`: a hidden-but-laid-out window still
+		// has a size, which canvas windows need to initialise without
+		// dividing by zero on the way to being closed.
+		$this->assertStringContainsString( 'visibility:hidden', $css );
+		$this->assertStringNotContainsString( 'display:none', $css );
+	}
+
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
+	public function test_a_normal_shell_gets_no_such_rule() {
+		wp_set_current_user( self::$admin_id );
+
+		openstation_register_assets();
+		set_current_screen( 'dashboard' );
+		openstation_enqueue_assets();
+
+		$inline = wp_styles()->get_data( 'os-solo', 'after' );
+		$css    = is_array( $inline ) ? implode( '', $inline ) : (string) $inline;
+
+		$this->assertStringNotContainsString( '.os-window:not(', $css );
 	}
 
 	/**

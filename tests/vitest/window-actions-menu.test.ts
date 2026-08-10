@@ -8,8 +8,14 @@
  * is a full rebuild — which is what lets a row's label change with the
  * state it describes.
  */
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { paintWindowActions } from '../../src/window/menus';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+	closeActionsMenu,
+	openActionsMenu,
+	paintWindowActions,
+} from '../../src/window/menus';
+import { HOOKS, addAction } from '../../src/hooks';
+import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import {
 	listWindowActions,
 	registerWindowAction,
@@ -218,6 +224,79 @@ describe( 'paintWindowActions', () => {
 
 		unregisterWindowAction( 'my/act' );
 		paintWindowActions( win, panel );
+
+		expect( rows( panel ) ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'an open menu', () => {
+	beforeEach( () => installHooksStub() );
+	afterEach( () => clearHooksStub() );
+
+	test( 'announces itself so a plugin can look something up', () => {
+		const { win, panel } = harness();
+		const seen: Array< { windowId?: string } > = [];
+		addAction( HOOKS.WINDOW_MENU_OPENED, 'test/probe', ( p ) => seen.push( p ) );
+
+		openActionsMenu( win );
+
+		expect( seen ).toHaveLength( 1 );
+		expect( seen[ 0 ].windowId ).toBe( 'edit-php' );
+		closeActionsMenu( win );
+		void panel;
+	} );
+
+	test( 'picks up a row registered while it is open', () => {
+		// This is what lets an async probe — "has the desktop app
+		// started since this page loaded?" — put its row under the
+		// user's pointer instead of on the next open.
+		const { win, panel } = harness();
+
+		openActionsMenu( win );
+		expect( rows( panel ) ).toHaveLength( 0 );
+
+		registerWindowAction( {
+			id: 'my/late',
+			label: 'Arrived late',
+			onSelect: () => {},
+		} );
+
+		expect( rows( panel ).map( ( r ) => r.textContent ) ).toEqual( [
+			'Arrived late',
+		] );
+		closeActionsMenu( win );
+	} );
+
+	test( 'a row registered from the open hook lands immediately', () => {
+		const { win, panel } = harness();
+		addAction( HOOKS.WINDOW_MENU_OPENED, 'test/register', () => {
+			registerWindowAction( {
+				id: 'my/on-open',
+				label: 'Send to your Mac',
+				onSelect: () => {},
+			} );
+		} );
+
+		openActionsMenu( win );
+
+		expect( rows( panel ).map( ( r ) => r.textContent ) ).toEqual( [
+			'Send to your Mac',
+		] );
+		closeActionsMenu( win );
+	} );
+
+	test( 'stops repainting once closed', () => {
+		// A menu nobody is looking at must not keep doing work on every
+		// registry change for the rest of the session.
+		const { win, panel } = harness();
+		openActionsMenu( win );
+		closeActionsMenu( win );
+
+		registerWindowAction( {
+			id: 'my/after-close',
+			label: 'Too late',
+			onSelect: () => {},
+		} );
 
 		expect( rows( panel ) ).toHaveLength( 0 );
 	} );

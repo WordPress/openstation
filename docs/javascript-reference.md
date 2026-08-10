@@ -6647,6 +6647,34 @@ Registering or unregistering repaints menus on their next open;
 `registerWindowAction` throws a `RegistrationError` naming the bad
 field when validation fails.
 
+### `HOOKS.WINDOW_MENU_OPENED` — *Experimental*
+
+Fires when a window's ⋯ actions menu opens, **after** its rows have
+been painted. Payload: `{ windowId: string, element: HTMLElement }`,
+where `element` is the `<os-menu>` panel.
+
+The moment to do work a menu's contents depend on but that is too
+expensive, or too perishable, to do up front — probing the network,
+re-reading a permission, checking whether a companion app has started
+since the page loaded.
+
+**An open menu repaints itself when the registry changes.** So
+registering an action from this hook — even asynchronously — puts the
+row under the user's pointer rather than on their next click:
+
+```js
+wp.os.hooks.addAction( wp.os.HOOKS.WINDOW_MENU_OPENED, 'my-plugin/probe', () => {
+    void probeForCompanionApp().then( ( found ) => {
+        if ( found ) {
+            wp.os.registerWindowAction( { /* … */ } );
+        }
+    } );
+} );
+```
+
+That is why it fires after the paint rather than before. The
+subscription lives only while the menu is open.
+
 ---
 
 ## Native desktop host — `wp.os.electron` *(Experimental)*

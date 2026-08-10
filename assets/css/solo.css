@@ -79,6 +79,15 @@ body.os-solo .os-area {
 }
 
 /*
+ * One more rule lives next to these and is NOT in this file: the one
+ * that hides every window except the one this surface was booted to
+ * paint. Its selector needs that window's id, which is only known per
+ * request, so `includes/render/assets.php` emits it inline. Without it
+ * a second window — a game launched from a freed Games hub — lands on
+ * top of the first, because of the rule directly below.
+ */
+
+/*
  * The single window fills the desk. Positioned rather than laid out,
  * so the window manager's own geometry writes — which still run, this
  * is the real window class — are overridden rather than fought with.

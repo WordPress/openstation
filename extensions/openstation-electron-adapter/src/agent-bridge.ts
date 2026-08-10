@@ -40,6 +40,40 @@ const POLL_MS = 2000;
 const PROBE_TIMEOUT_MS = 1500;
 
 /**
+ * Ask the site for the pairing it currently holds.
+ *
+ * A page bakes the pairing in once, at load, and the app's port is
+ * ephemeral — start the app after the page loaded, or restart it, and
+ * the baked value points at a port nothing is listening on. The server
+ * always has the current one, because the app handshakes on launch.
+ *
+ * @param restUrl The adapter's `/host` REST URL.
+ * @param nonce   The shell's REST nonce.
+ * @return The current pairing, or null when the request fails.
+ */
+export async function fetchPairing(
+	restUrl: string,
+	nonce: string,
+): Promise< AgentPairing | null > {
+	if ( ! restUrl ) {
+		return null;
+	}
+	try {
+		const response = await fetch( restUrl, {
+			credentials: 'same-origin',
+			headers: { 'X-WP-Nonce': nonce },
+		} );
+		if ( ! response.ok ) {
+			return null;
+		}
+		const data = ( await response.json() ) as { agent?: AgentPairing };
+		return data.agent ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Probe the local agent and, if it answers, return a bridge onto it.
  *
  * Returns null for every failure — no agent configured, app not

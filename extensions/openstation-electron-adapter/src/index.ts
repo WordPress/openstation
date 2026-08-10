@@ -23,7 +23,7 @@
  * transition directly.
  */
 
-import { connectToAgent } from './agent-bridge';
+import { connectToAgent, fetchPairing } from './agent-bridge';
 import { FreedWindows } from './freed-windows';
 import { freedWindowUrl, getFrameBridge, getHostBridge, sendLabel } from './host';
 import { installSoloForwarder } from './solo-forwarder';
@@ -347,6 +347,15 @@ const SHELL_WAIT_MS = 15000;
 const SHELL_POLL_MS = 50;
 
 /**
+ * Shortest gap between two attempts to reach the local agent.
+ *
+ * The retry triggers are user actions — a tab focus, a menu open — and
+ * both can arrive in bursts. One loopback request per gesture is fine;
+ * ten is not.
+ */
+const RETRY_MS = 1500;
+
+/**
  * Resolve once the shell's API object exists, or null on timeout.
  *
  * A declared script dependency orders the *tags*, not the *execution*:
@@ -440,6 +449,11 @@ export function start(): void {
 	}
 
 	void ( async () => {
+		const os = await waitForShell();
+		if ( ! os ) {
+			return;
+		}
+
 		/*
 		 * Two ways to reach the desktop, tried in order of directness.
 		 *
@@ -458,21 +472,87 @@ export function start(): void {
 		 * Neither available is the ordinary case — a browser with no
 		 * app — and is silent by design.
 		 */
-		const bridge = getHostBridge() ?? ( await connectToAgent( config.agent ) );
-		if ( ! bridge ) {
+		const preload = getHostBridge();
+		if ( preload ) {
+			// `wp.os.ready` is the shell's own "the API is assembled"
+			// signal. `wp.os` existing only means the early shim is in
+			// place; `ready` is what guarantees the window manager and
+			// the registries behind it are actually wired.
+			os.ready( () => boot( preload, os, config ) );
 			return;
 		}
 
-		const os = await waitForShell();
-		if ( ! os ) {
-			return;
-		}
+		/*
+		 * Note what is NOT checked here: whether a pairing was baked
+		 * into this page. The app may not have been running when the
+		 * page loaded — that is exactly the case worth handling — so
+		 * the absence of one is a reason to look again later, not a
+		 * reason to give up.
+		 */
 
-		// `wp.os.ready` is the shell's own "the API is assembled"
-		// signal. `wp.os` existing only means the early shim is in
-		// place; `ready` is what guarantees the window manager and the
-		// registries behind it are actually wired.
-		os.ready( () => boot( bridge, os, config ) );
+		/*
+		 * The app may not be running *yet*.
+		 *
+		 * Probing once at page load makes starting the app a
+		 * refresh-to-notice affair, which is a poor answer to "I just
+		 * opened it". So the probe is retried at the two moments the
+		 * answer plausibly changed: when the tab regains focus (you
+		 * launched the app and came back), and when a ⋯ menu opens (you
+		 * are about to look for the row). Both are user actions, so
+		 * nothing polls in the background.
+		 *
+		 * The menu repaints itself while open, so a probe that
+		 * succeeds under the pointer puts the row there without a
+		 * second click.
+		 */
+		let connecting = false;
+		let booted = false;
+		let lastTry = 0;
+
+		let pairing = config.agent;
+
+		const tryConnect = async (): Promise< void > => {
+			if ( booted || connecting || Date.now() - lastTry < RETRY_MS ) {
+				return;
+			}
+			connecting = true;
+			lastTry = Date.now();
+			try {
+				let bridge = await connectToAgent( pairing );
+
+				if ( ! bridge ) {
+					// Either nothing was paired when this page loaded,
+					// or the app has restarted onto a different port
+					// since. The server knows the current answer.
+					const fresh = await fetchPairing(
+						config.restUrl,
+						os.config.restNonce,
+					);
+					if ( fresh?.hasAgent && fresh.url !== pairing?.url ) {
+						pairing = fresh;
+						bridge = await connectToAgent( fresh );
+					}
+				}
+
+				if ( bridge && ! booted ) {
+					booted = true;
+					boot( bridge, os, config );
+				}
+			} finally {
+				connecting = false;
+			}
+		};
+
+		os.ready( () => {
+			void tryConnect();
+
+			os.hooks.addAction(
+				os.HOOKS.WINDOW_MENU_OPENED,
+				'openstation-electron/probe',
+				() => void tryConnect(),
+			);
+			window.addEventListener( 'focus', () => void tryConnect() );
+		} );
 	} )();
 }
 

@@ -333,6 +333,37 @@ function openstation_electron_clear_host( $user_id ) {
  *
  * @return array Config.
  */
+/**
+ * The pairing a browser tab needs to reach the user's machine.
+ *
+ * Split out of the config blob because a page bakes this in once, at
+ * load, and the app's port is ephemeral — start the app after the page
+ * loaded, or restart it, and the baked value points at nothing. The
+ * REST surface hands out the current one so a tab can catch up without
+ * a refresh.
+ *
+ * @param int $user_id User the host belongs to.
+ * @return array{url: string, hasAgent: bool, token?: string, osLabel?: string, platform?: string}
+ */
+function openstation_electron_agent_pairing( $user_id ) {
+	$record = openstation_electron_get_host( $user_id );
+
+	if ( empty( $record['connected'] ) || empty( $record['agentUrl'] ) || empty( $record['agentToken'] ) ) {
+		return array(
+			'url'      => '',
+			'hasAgent' => false,
+		);
+	}
+
+	return array(
+		'url'      => $record['agentUrl'],
+		'token'    => $record['agentToken'],
+		'hasAgent' => true,
+		'osLabel'  => $record['osLabel'],
+		'platform' => $record['platform'],
+	);
+}
+
 function openstation_electron_config() {
 	$user_id = get_current_user_id();
 	$record  = openstation_electron_get_host( $user_id );
@@ -350,19 +381,7 @@ function openstation_electron_config() {
 	 * descriptive ("your Mac was here two minutes ago") and read by UI
 	 * that has no business holding a credential.
 	 */
-	$agent = array(
-		'url'      => '',
-		'hasAgent' => false,
-	);
-	if ( ! empty( $record['connected'] ) && ! empty( $record['agentUrl'] ) && ! empty( $record['agentToken'] ) ) {
-		$agent = array(
-			'url'      => $record['agentUrl'],
-			'token'    => $record['agentToken'],
-			'hasAgent' => true,
-			'osLabel'  => $record['osLabel'],
-			'platform' => $record['platform'],
-		);
-	}
+	$agent = openstation_electron_agent_pairing( $user_id );
 
 	unset( $record['agentToken'] );
 
@@ -496,12 +515,22 @@ add_action( 'rest_api_init', 'openstation_electron_register_routes' );
  * @return WP_REST_Response Current record plus the interval a host should use.
  */
 function openstation_electron_rest_get_host() {
+	$user_id = get_current_user_id();
+	$record  = openstation_electron_get_host( $user_id );
+
+	// The pairing lives in its own key, and the record is echoed back
+	// without the token — same split as the shell config, for the same
+	// reason: the record is descriptive, the pairing is a capability.
+	$agent = openstation_electron_agent_pairing( $user_id );
+	unset( $record['agentToken'] );
+
 	return rest_ensure_response(
 		array_merge(
-			openstation_electron_get_host( get_current_user_id() ),
+			$record,
 			array(
 				'heartbeatInterval' => openstation_electron_interval() * 1000,
 				'protocol'          => OPENSTATION_ELECTRON_PROTOCOL,
+				'agent'             => $agent,
 			)
 		)
 	);

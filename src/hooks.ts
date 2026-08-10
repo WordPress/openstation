@@ -493,6 +493,23 @@ export const HOOKS = {
 	 */
 	WINDOW_REOPENED: 'os.window.reopened',
 	/**
+	 * Action, fires when a window's ⋯ actions menu opens, after its
+	 * rows have been painted. Payload:
+	 * `{ windowId: string, element: HTMLElement }` — `element` is the
+	 * `<os-menu>` panel.
+	 *
+	 * The moment to do work a menu's contents depend on but that is
+	 * too expensive, or too perishable, to do up front: probing for
+	 * something on the network, re-reading a permission, checking
+	 * whether a companion app has started since the page loaded.
+	 *
+	 * Registering a window action from here is safe and repaints the
+	 * open menu — the row appears under the pointer rather than on the
+	 * next open. That is the whole reason this fires *after* painting
+	 * rather than before.
+	 */
+	WINDOW_MENU_OPENED: 'os.window.menu-opened',
+	/**
 	 * Action, fires BEFORE the window's element is detached from the
 	 * DOM but AFTER the manager has already removed it from the stack.
 	 * Payload: `{ windowId: string, element: HTMLElement }`.

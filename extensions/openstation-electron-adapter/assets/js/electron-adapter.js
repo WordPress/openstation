@@ -2,6 +2,24 @@ var openStationElectronAdapter = function(exports) {
   "use strict";
   const POLL_MS = 2e3;
   const PROBE_TIMEOUT_MS = 1500;
+  async function fetchPairing(restUrl, nonce) {
+    if (!restUrl) {
+      return null;
+    }
+    try {
+      const response = await fetch(restUrl, {
+        credentials: "same-origin",
+        headers: { "X-WP-Nonce": nonce }
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      return data.agent ?? null;
+    } catch {
+      return null;
+    }
+  }
   async function connectToAgent(config) {
     if (!config?.hasAgent || !config.url || !config.token) {
       return null;
@@ -579,6 +597,7 @@ var openStationElectronAdapter = function(exports) {
   }
   const SHELL_WAIT_MS = 15e3;
   const SHELL_POLL_MS = 50;
+  const RETRY_MS = 1500;
   function waitForShell() {
     const ready = () => {
       const os = window.wp?.os;
@@ -636,15 +655,54 @@ var openStationElectronAdapter = function(exports) {
       return;
     }
     void (async () => {
-      const bridge = getHostBridge() ?? await connectToAgent(config.agent);
-      if (!bridge) {
-        return;
-      }
       const os = await waitForShell();
       if (!os) {
         return;
       }
-      os.ready(() => boot(bridge, os, config));
+      const preload = getHostBridge();
+      if (preload) {
+        os.ready(() => boot(preload, os, config));
+        return;
+      }
+      let connecting = false;
+      let booted = false;
+      let lastTry = 0;
+      let pairing = config.agent;
+      const tryConnect = async () => {
+        if (booted || connecting || Date.now() - lastTry < RETRY_MS) {
+          return;
+        }
+        connecting = true;
+        lastTry = Date.now();
+        try {
+          let bridge = await connectToAgent(pairing);
+          if (!bridge) {
+            const fresh = await fetchPairing(
+              config.restUrl,
+              os.config.restNonce
+            );
+            if (fresh?.hasAgent && fresh.url !== pairing?.url) {
+              pairing = fresh;
+              bridge = await connectToAgent(fresh);
+            }
+          }
+          if (bridge && !booted) {
+            booted = true;
+            boot(bridge, os, config);
+          }
+        } finally {
+          connecting = false;
+        }
+      };
+      os.ready(() => {
+        void tryConnect();
+        os.hooks.addAction(
+          os.HOOKS.WINDOW_MENU_OPENED,
+          "openstation-electron/probe",
+          () => void tryConnect()
+        );
+        window.addEventListener("focus", () => void tryConnect());
+      });
     })();
   }
   start();

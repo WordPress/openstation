@@ -10,12 +10,14 @@
  * Each free function here takes the `Window` instance as its first arg.
  */
 
+import { HOOKS, doAction } from '../hooks';
 import { urlMatchKey } from '../utils';
 import {
 	isActionVisible,
 	listWindowActions,
 	resolveActionIcon,
 	resolveActionLabel,
+	subscribeWindowActions,
 } from '../window-actions/registry';
 import type { Window } from './index';
 
@@ -71,6 +73,32 @@ export function openActionsMenu( win: Window ): void {
 	// see `paintWindowActions()` for why they cannot be built once.
 	paintWindowActions( win, panel );
 
+	/*
+	 * Keep repainting while the menu stays open.
+	 *
+	 * An action registered a moment after the menu opened would
+	 * otherwise not appear until the next open, and "open it twice"
+	 * is a poor answer to "why isn't it there?". This is what lets a
+	 * plugin answer `WINDOW_MENU_OPENED` with something asynchronous —
+	 * a probe, a permission check — and still have its row land under
+	 * the user's pointer.
+	 */
+	win._unsubscribeWindowActions?.();
+	win._unsubscribeWindowActions = subscribeWindowActions( () => {
+		if ( ! panel.hidden ) {
+			paintWindowActions( win, panel );
+		}
+	} );
+
+	/*
+	 * Announced after the paint, so a subscriber that registers an
+	 * action sees the repaint above rather than racing it.
+	 */
+	doAction( HOOKS.WINDOW_MENU_OPENED, {
+		windowId: win.id,
+		element: panel,
+	} );
+
 	if ( ! win._boundOnDocumentPointerDown ) {
 		win._boundOnDocumentPointerDown = ( e: PointerEvent ) => {
 			const target = e.target as Node | null;
@@ -122,6 +150,9 @@ export function closeActionsMenu( win: Window ): void {
 			true,
 		);
 	}
+	// Stop repainting a menu nobody is looking at.
+	win._unsubscribeWindowActions?.();
+	win._unsubscribeWindowActions = null;
 }
 
 /**

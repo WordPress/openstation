@@ -145,6 +145,23 @@ now?" — the same user can have the site open in a browser tab at the
 same moment, so a server-rendered boolean could only ever be wrong
 somewhere.
 
+### Starting the app after the page loaded
+
+A browser tab probes for the agent at load, and the answer can change
+underneath it — you start the app, or restart it. So the probe is
+retried when the tab regains focus and when a ⋯ menu opens: both are
+user actions, so nothing polls in the background, and both are moments
+the answer plausibly just changed.
+
+Because an open menu repaints when the action registry changes
+(`HOOKS.WINDOW_MENU_OPENED`), a probe that succeeds under the pointer
+puts the row there without a second click. **Starting the app never
+requires a refresh.**
+
+The retry re-fetches the pairing from `GET /host` rather than reusing
+the one baked into the page: the agent's port is ephemeral, so a
+restarted app is listening somewhere the page has never heard of.
+
 ### `window.openStationChromelessHost` — claiming a top-level chromeless page
 
 A chromeless page (`?openstation_chromeless=1`) is normally only meant

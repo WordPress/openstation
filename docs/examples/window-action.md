@@ -93,6 +93,26 @@ order: 60,   // earlier than most
   naming the field, at registration time, rather than silently painting
   nothing.
 
+## Deciding when the menu opens
+
+`isVisible` is re-read per open, but it is synchronous — it cannot go
+and ask something. `HOOKS.WINDOW_MENU_OPENED` can:
+
+```js
+wp.os.hooks.addAction( wp.os.HOOKS.WINDOW_MENU_OPENED, 'my-plugin/probe', () => {
+    void isCompanionAppRunning().then( ( running ) => {
+        if ( running ) {
+            wp.os.registerWindowAction( { /* … */ } );
+        }
+    } );
+} );
+```
+
+**An open menu repaints when the registry changes**, so a row
+registered from that callback appears under the user's pointer rather
+than on their next click. This is how the Electron adapter notices an
+app that started after the page loaded — no refresh needed.
+
 ## Removing it
 
 ```js
