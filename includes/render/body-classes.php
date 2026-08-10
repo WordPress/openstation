@@ -39,10 +39,20 @@ function openstation_admin_body_classes( $classes ) {
 	}
 
 	if ( openstation_is_enabled() ) {
-		return ltrim(
+		$classes = ltrim(
 			$classes . ' os-active os-admin-bar-'
 				. openstation_get_admin_bar_mode()
 		);
+
+		// Solo mode — one window freed onto the real desktop by the
+		// native host. Still `os-active`: the palette, every component
+		// and every registry are scoped to that class, and solo mode
+		// is the same shell with everything but one window hidden.
+		if ( openstation_is_solo_request() ) {
+			$classes .= ' os-solo';
+		}
+
+		return $classes;
 	}
 
 	return $classes;

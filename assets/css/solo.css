@@ -1,0 +1,73 @@
+/**
+ * OpenStation — Solo window rendering mode.
+ *
+ * One window, no desk. Loaded only on a `?openstation_solo=` request
+ * (see `includes/solo-window.php`); a normal shell never downloads it.
+ *
+ * ## What this sheet does NOT do
+ *
+ * It does not build a second, simpler window. Every rule here hides a
+ * surface or removes a decoration — the window itself is the same
+ * `.os-window` the desktop paints, wearing the same theme, running the
+ * same render callback, carrying the same title-bar buttons its plugin
+ * registered. That is the whole point of solo mode: what the user gets
+ * is the window they already had, not a lookalike of it.
+ *
+ * ## What this sheet leaves alone
+ *
+ * The title bar. Solo mode is generic — an embed or a kiosk keeps its
+ * title bar, because nothing else on the page offers a way to move,
+ * close or identify the window. An embedder that supplies its own
+ * chrome (the native desktop host does; the OS frame is real chrome
+ * with real traffic lights) layers its own sheet on top and takes ours
+ * away there. Doing that here would leave the generic case chromeless
+ * and stranded.
+ */
+
+/*
+ * Kill the desk. Wallpaper, dock, icon rail, widgets, Mio, sticky
+ * notes: all of them are the *desktop*, and in solo mode there isn't
+ * one. `display: none` rather than `visibility` so nothing keeps a
+ * layout box, an animation frame, or a pointer target.
+ */
+body.os-solo .os-wallpaper,
+body.os-solo .os-dock,
+body.os-solo .os-icons,
+body.os-solo .os-widgets,
+body.os-solo .os-mio,
+body.os-solo .os-mio-panel,
+body.os-solo .os-sticky-notes,
+body.os-solo .os-dock-peek {
+	display: none !important;
+}
+
+/*
+ * The shell fills its viewport. The admin bar is already suppressed
+ * for this request, so the usual 32px inset would otherwise leave a
+ * dark band along the top.
+ */
+body.os-solo .os-shell {
+	inset-block-start: 0;
+	background: var( --os-ui-bg, #1d2327 );
+}
+
+/* No dock at the bottom means no room reserved for one. */
+body.os-solo .os-area {
+	padding-bottom: 0;
+}
+
+/*
+ * The single window fills the desk. Positioned rather than laid out,
+ * so the window manager's own geometry writes — which still run, this
+ * is the real window class — are overridden rather than fought with.
+ */
+body.os-solo .os-window {
+	inset-block-start: 0 !important;
+	inset-inline-start: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	transform: none !important;
+}

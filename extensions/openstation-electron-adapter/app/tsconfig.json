@@ -1,0 +1,23 @@
+{
+	"//": "The Electron app: main process, three preloads, one renderer. CommonJS because that is what Electron's main process and preloads load, and mixing module systems across the preload boundary is a class of bug nobody enjoys.",
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "CommonJS",
+		"moduleResolution": "Node",
+		"lib": [ "ES2022", "DOM" ],
+		"outDir": "dist",
+		"rootDir": "src",
+		"strict": true,
+		"noUncheckedIndexedAccess": false,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"exactOptionalPropertyTypes": false,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"declaration": false,
+		"types": [ "node" ]
+	},
+	"include": [ "src/**/*.ts" ]
+}

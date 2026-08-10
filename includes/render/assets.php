@@ -90,6 +90,12 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
 
+	// Solo mode — a single window freed into a native OS window by the
+	// desktop host. Same shell, everything but that one window hidden.
+	if ( openstation_is_solo_request() ) {
+		wp_enqueue_style( 'os-solo' );
+	}
+
 	// The rebrand announcement paints on one visit per user and never
 	// again, so its stylesheet is only worth sending to the users who
 	// are actually going to see it. Computed once here and reused for
@@ -387,6 +393,7 @@ function openstation_enqueue_assets() {
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
+	 *     @type string $soloWindow   Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); '' otherwise. No dock, taskbar, wallpaper or desk, and no session restore.
 	 *     @type string $portalUrl    Canonical `/openstation/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
@@ -520,6 +527,9 @@ function openstation_enqueue_assets() {
 			// when a core update is actually pending.
 			'releaseCardBundleUrl'          => $lazy_bundle_url( 'release-card' ),
 			'restNonce'                     => wp_create_nonce( 'wp_rest' ),
+			// Non-empty when the shell was asked to paint exactly one
+			// window and nothing else. See `OPENSTATION_SOLO_FLAG`.
+			'soloWindow'                    => openstation_solo_window_id(),
 			'osSettings'                    => openstation_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),

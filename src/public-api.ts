@@ -131,6 +131,15 @@ export type {
 	TitleBarButtonRenderCtx,
 } from './title-bar-buttons/registry';
 
+// ----- Window actions (rows in every window's ⋯ menu) -----
+
+/**
+ * A row in the title-bar ⋯ menu. `label`, `icon` and `isVisible` may
+ * each be a function of the window, re-read on every menu open — the
+ * shape a state-dependent toggle needs.
+ */
+export type { WindowActionDef } from './window-actions/registry';
+
 // ----- Cross-window connection bridge -----
 
 export type { ConnectOptions, WindowConnection } from './connection';

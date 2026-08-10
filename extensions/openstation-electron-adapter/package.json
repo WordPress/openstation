@@ -1,0 +1,69 @@
+{
+	"name": "openstation-electron-adapter",
+	"version": "1.0.0",
+	"private": true,
+	"//type": "Deliberately CommonJS. Electron's main process and preloads load `app/dist/**` as CJS; declaring the package as an ES module would break them. The build configs carry `.mjs` / `.mts` extensions instead.",
+	"description": "Sets OpenStation windows free into real OS windows. A WordPress plugin (shell adapter) plus the Electron host app that opens the windows.",
+	"license": "GPL-2.0-or-later",
+	"main": "app/dist/main.js",
+	"engines": {
+		"node": ">=20"
+	},
+	"scripts": {
+		"build": "npm run build:shell && npm run build:app",
+		"build:shell": "vite build --mode development && vite build --mode production",
+		"build:app": "tsc -p app/tsconfig.json && node scripts/copy-renderer.mjs",
+		"start": "npm run build:app && electron .",
+		"lint": "eslint \"src/**/*.ts\" \"app/src/**/*.ts\" \"tests/**/*.ts\"",
+		"lint:fix": "npm run lint -- --fix",
+		"typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p app/tsconfig.json",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+		"dist": "npm run build:app && electron-builder",
+		"dist:mac": "npm run build:app && electron-builder --mac",
+		"dist:win": "npm run build:app && electron-builder --win",
+		"dist:linux": "npm run build:app && electron-builder --linux"
+	},
+	"devDependencies": {
+		"@types/node": "^22.20.1",
+		"@typescript-eslint/eslint-plugin": "^7.18.0",
+		"@typescript-eslint/parser": "^7.18.0",
+		"@wordpress/eslint-plugin": "^21.6.0",
+		"electron": "^33.0.0",
+		"electron-builder": "^25.1.8",
+		"eslint": "^8.57.1",
+		"eslint-import-resolver-typescript": "^4.4.4",
+		"jsdom": "^25.0.1",
+		"typescript": "5.9.3",
+		"vite": "^5.4.10",
+		"vitest": "^4.1.4"
+	},
+	"build": {
+		"appId": "org.openstation.desktop",
+		"productName": "OpenStation",
+		"files": [
+			"app/dist/**/*",
+			"package.json"
+		],
+		"mac": {
+			"category": "public.app-category.productivity",
+			"target": [
+				"dmg",
+				"zip"
+			]
+		},
+		"win": {
+			"target": [
+				"nsis"
+			]
+		},
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			],
+			"category": "Office"
+		}
+	}
+}

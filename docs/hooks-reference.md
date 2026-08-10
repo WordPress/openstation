@@ -1058,6 +1058,7 @@ array(
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal
     'fromPortalIntent' => bool,     // portal forward resolved from a user-supplied `target` URL — the user expressed navigation intent toward `currentPage`, not just a bare `/openstation/` visit.
+    'soloWindow'       => string,   // window id when the shell was asked to paint exactly one window; '' otherwise
 )
 ```
 
@@ -4817,7 +4818,49 @@ the always-listed WP Explorer section appears at all.
 
 ---
 
+## Solo window rendering mode — Experimental
+
+`?openstation_solo=<window-id>` boots the whole shell and paints exactly
+one window: no dock, taskbar, wallpaper or desk, and no session restore.
+Built for the native desktop host, which uses it to give a *native*
+window — one with no URL of its own — to a real OS window. Nothing about
+it is Electron-specific: an embed, a kiosk screen or a PWA shortcut can
+point at the same flag.
+
+It is a **rendering mode, not an access grant**. The flag is ignored for
+a user who has not turned OpenStation on, and every capability check on
+the underlying screen applies exactly as it would anywhere else.
+
+Full narrative: [Native Desktop Host](./desktop-host.md).
+
+### `openstation_solo_window_id` — Experimental *(filter)*
+
+The window id booted in solo mode. Return `''` to refuse solo mode for
+this request — the hook for gating single-window rendering by role or by
+window.
+
+```php
+apply_filters( 'openstation_solo_window_id', string $id, string $raw );
+```
+
+### PHP helpers — Experimental
+
+- `openstation_solo_window_id()` — `''` unless this is a solo request.
+- `openstation_is_solo_request()`.
+
+Shell config gains one key, `soloWindow`.
+
+### Electron Adapter hooks
+
+The desktop-host contract — handshake, liveness heartbeat, and the
+`openstation_electron_*` filters and actions — lives in the **Electron
+Adapter extension**, not in core. See
+[Native Desktop Host → Adapter hooks](./desktop-host.md#adapter-hooks).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — solo mode, the Electron Adapter extension, and `wp.os.electron`.
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.
 - [Examples](./examples/README.md) — full-plugin recipes.

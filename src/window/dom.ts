@@ -523,6 +523,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		menuPanel.appendChild( openExternal );
 	}
 
+	// Plugin-registered actions (`wp.os.registerWindowAction`) are
+	// appended to the panel on every menu open by `paintWindowActions()`
+	// — not at construction, because both their labels and their
+	// visibility are allowed to depend on state that changes while the
+	// window is alive.
+	//
+	// They go in as direct children rather than inside a container: the
+	// panel is `role="menu"` and each row is `role="menuitem"`, and an
+	// intermediate element breaks that parent-child relationship for
+	// assistive technology. `paintWindowActions()` finds them by class
+	// instead, which is what a container would have bought.
+
 	// Slot host helpers — Layer 3 of the chrome framework. Each
 	// named slot lives inside a `<span>` carrying a `data-slot`
 	// attribute, so `paintWindowSlots()` can target them by selector

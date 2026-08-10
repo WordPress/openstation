@@ -1,0 +1,71 @@
+/**
+ * Electron Adapter — solo mode inside a real OS window.
+ *
+ * Layered on top of core's `solo.css`, and only in the case core
+ * deliberately does not handle: this window has an **operating system
+ * frame** around it, with real traffic lights or a real title bar.
+ *
+ * Core keeps OpenStation's title bar in solo mode because the generic
+ * embedder has nothing else to offer — no frame, no close button, no
+ * way to move the thing. Here there is one, and it is the real one, so
+ * ours steps back to a drag strip.
+ *
+ * ## Two close buttons that disagree
+ *
+ * That is the specific failure this sheet prevents. Closing the native
+ * window docks the window back into OpenStation; OpenStation's own
+ * close button would try to close a window inside a shell nobody is
+ * looking at, leaving a native frame around a dead page. Minimize and
+ * maximize have the same problem in milder form. The OS frame owns all
+ * three now.
+ *
+ * The ⋯ menu stays: everything in it is still meaningful, and nothing
+ * in the OS frame replaces it.
+ */
+
+/*
+ * Collapse our title bar to the strip macOS reserves for its traffic
+ * lights, and keep it draggable so the window can still be moved by
+ * its top edge on every platform.
+ *
+ * `min-height` rather than `height`: a window chrome registered by a
+ * plugin may declare a taller bar, and this sheet has no business
+ * overriding that — it only guarantees a floor.
+ */
+body.os-solo.os-solo--host .os-window__titlebar {
+	min-height: 28px;
+	border-block-end: 0;
+	background: transparent;
+	-webkit-app-region: drag;
+}
+
+/*
+ * Anything interactive inside that strip has to opt back out of the
+ * drag region or it stops taking clicks — a platform quirk, not a
+ * style choice.
+ */
+body.os-solo.os-solo--host .os-window__titlebar button,
+body.os-solo.os-solo--host .os-window__titlebar os-window-button,
+body.os-solo.os-solo--host .os-window__titlebar os-menu,
+body.os-solo.os-solo--host .os-window__titlebar a,
+body.os-solo.os-solo--host .os-window__titlebar input {
+	-webkit-app-region: no-drag;
+}
+
+/* Minimize / maximize / close belong to the OS frame. */
+body.os-solo.os-solo--host .os-window__controls,
+body.os-solo.os-solo--host .os-window__btn--minimize,
+body.os-solo.os-solo--host .os-window__btn--maximize,
+body.os-solo.os-solo--host .os-window__btn--close,
+body.os-solo.os-solo--host .os-window__btn--detach {
+	display: none;
+}
+
+/*
+ * On macOS the traffic lights sit at the window's leading edge, over
+ * whatever the page draws there. Push the title-bar contents clear of
+ * them so the ⋯ button is never underneath a close button.
+ */
+body.os-solo.os-solo--darwin .os-window__titlebar {
+	padding-inline-start: 78px;
+}

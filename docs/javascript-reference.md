@@ -6596,8 +6596,111 @@ maps to `media`, pages are detected via `bridgePayload.postType`) and
 
 ---
 
+## `wp.os.registerWindowAction()` — *Experimental*
+
+Adds a row to the ⋯ actions menu in **every** window's title bar — the
+right surface for an infrequent, wordy, per-window verb that has not
+earned a permanent title-bar button. (For something the user reaches
+for constantly, use
+[`registerTitleBarButton`](#wposregistertitlebarbutton--stable)
+instead.)
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/pin',
+    label: ( win ) => ( isPinned( win.id ) ? 'Unpin' : 'Pin to top' ),
+    icon: 'dashicons-sticky',
+    order: 60,
+    isVisible: ( win ) => ! win.config.native,
+    onSelect: ( win ) => togglePin( win.id ),
+    owner: 'my-plugin-shell',
+} );
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Required. `/^[a-z0-9_/-]+$/`; `vendor/sub-id` namespacing encouraged. |
+| `label` | `string \| ( win ) => string` | Required. A function is re-read on **every menu open**. |
+| `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
+| `order` | `number` | Sort order among registered rows. Default `100`. |
+| `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
+| `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
+| `owner` | `string` | Script handle, for live unregistration on deactivation. |
+
+Also: `wp.os.unregisterWindowAction( id )` and
+`wp.os.listWindowActions()`.
+
+**Why `label` / `icon` / `isVisible` may be functions.** They are read
+fresh every time the menu opens, not once at registration. That is what
+lets one row express a toggle whose meaning depends on state — "Send to
+your Mac" becoming "Bring back into OpenStation" for the same window —
+without the plugin re-registering itself on every transition. A window
+is in one place or the other, so one row that answers "what does this
+do right now?" is the honest shape; two competing rows would
+misdescribe it.
+
+A row whose resolver or handler throws is contained: the row hides (or
+the click is swallowed) and the rest of the menu keeps working. The ⋯
+menu is shared surface, and the user's "Reload" lives there.
+
+Registering or unregistering repaints menus on their next open;
+`registerWindowAction` throws a `RegistrationError` naming the bad
+field when validation fails.
+
+---
+
+## Native desktop host — `wp.os.electron` *(Experimental)*
+
+Published by the **Electron Adapter extension**, not by core, when the
+desktop is being viewed through the OpenStation Desktop app. Absent in
+a browser, so check before use:
+
+```js
+if ( wp.os.electron?.isAvailable() ) {
+    console.log( wp.os.electron.getSendLabel() ); // "Send to your Mac"
+    await wp.os.electron.free( 'edit-php' );
+}
+```
+
+Full narrative, the REST surface, and the adapter's PHP hooks:
+[Native Desktop Host](./desktop-host.md).
+
+| Method | Returns | Notes |
+|---|---|---|
+| `isAvailable()` | `boolean` | Always true when the namespace exists. |
+| `getInfo()` | `HostInfo \| null` | Platform, app version, host id, currently-freed ids. |
+| `getSendLabel()` | `string` | Translated and OS-adapted. |
+| `getDockLabel()` | `string` | "Bring back into OpenStation". |
+| `isFreedWindow()` | `boolean` | Whether *this page* is itself a freed window. |
+| `free( windowId )` | `Promise<boolean>` | Set a window free; focuses it if already free. |
+| `dock( windowId )` | `Promise<boolean>` | Bring a freed window back into the shell. |
+| `listFreed()` | `string[]` | Ids currently out on the desktop. |
+| `isFreed( windowId )` | `boolean` | Whether one specific window is out there. |
+| `getConnection()` | `ConnectionState` | Last liveness-pulse snapshot. |
+
+Anything that would surface a freed window inside the shell — a dock
+click, the switcher, a plugin calling `openWindow()` — raises the
+**native** window instead. Plugin authors get that for free.
+
+### CustomEvents
+
+| Event | `detail` | Fires when |
+|---|---|---|
+| `os-desktop-host-freed` | `{ windowId: string }` | A window went out to the real desktop. |
+| `os-desktop-host-docked` | `{ windowId: string }` | A freed window came back into the shell. |
+| `os-desktop-host-connection` | `ConnectionState` | The connection changed phase. |
+
+### Shell config key
+
+| Key | Type | Notes |
+|---|---|---|
+| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper or desk, and no session restore. Generic — an embed or a kiosk can use it too. |
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — the Electron layer, solo mode, and the liveness pulse.
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
 - [Examples — React to window events](./examples/react-to-window-events.md)
 - [Examples — Add a dock badge](./examples/dock-badge.md)

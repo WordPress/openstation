@@ -1929,6 +1929,15 @@ export interface DesktopConfig {
 	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
 	restNonce: string;
+	/**
+	 * Non-empty when the shell was asked to paint exactly one window
+	 * (`?openstation_solo=<id>`). It boots in full — every registry,
+	 * every render callback — but opens only that window, with no
+	 * dock, taskbar, wallpaper or desk around it, and skips session
+	 * restore. The native desktop host uses this to give a native
+	 * window (which has no URL of its own) to a real OS window.
+	 */
+	soloWindow?: string;
 	/** Canonical `/openstation/` URL — used for history.replaceState. */
 	portalUrl: string;
 	/** True when the shell was reached via the portal redirect. */
