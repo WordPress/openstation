@@ -717,44 +717,47 @@
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
-/* Separator — horizontal hairline between menu tiles and system
- * tiles. With the `__scroll` / `__pinned` split the system separator
- * lives at the top of `__pinned`; flex-flow handles the "system
- * tiles at the bottom" placement, no margin-top: auto needed. The
- * `--group` variant is used inline between core and plugin menu
- * tiles in `__scroll`; it keeps the hairline styling and sits
+/* Separator — the line between two groups of tiles. With the
+ * `__scroll` / `__pinned` split the system separator lives at the top
+ * of `__pinned`; flex-flow handles the "system tiles at the bottom"
+ * placement, no margin-top: auto needed. The `--group` variant is used
+ * inline between core and plugin menu tiles in `__scroll` and sits
  * exactly where it's inserted.
  *
- * The WordPress-to-OpenStation boundary is the one that reads: below
- * it the tiles stop opening admin screens and start acting on the
- * desktop. The core-to-plugin grouping above it is a softer
- * hairline — it mirrors what wp-admin's own menu does, and in a dock
- * holding every menu two equally loud dividers would flatten the
- * distinction that matters into "three arbitrary clusters". */
+ * ONE treatment for every division in the rail. The selector carries
+ * only the base class on purpose: `--group` elements carry it too, so
+ * both boundaries resolve here and cannot drift apart. Two weights in
+ * one short rail read as two unrelated ideas rather than one system,
+ * which is why the earlier loud-plus-hairline pairing is gone.
+ *
+ * A gradient, not a flat fill: the line is brightest where the eye
+ * lands and gone by the time it reaches the rail's padding, so it
+ * never terminates in a visible stub against the glass. The soft glow
+ * around it is what keeps a 2px line from disappearing into the dock
+ * tint; nothing is drawn on the line itself. */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__separator,
 .os-dock[ data-os-dock-placement="right" ]
 	.os-dock__separator {
+	position: relative;
 	width: 60%;
-	height: 1px;
-	margin: 10px auto 6px;
-	background: var(
-		--os-dock-divider,
-		var( --os-dock-border, rgba( 255, 255, 255, 0.22 ) )
+	height: 2px;
+	margin: 12px auto;
+	border-radius: 2px;
+	background: linear-gradient(
+		to right,
+		transparent 0%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
+		transparent 100%
 	);
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
+			transparent
+		);
 	flex-shrink: 0;
-}
-
-.os-dock[ data-os-dock-placement="left" ]
-	.os-dock__separator--group,
-.os-dock[ data-os-dock-placement="right" ]
-	.os-dock__separator--group {
-	width: 40%;
-	margin: 8px auto;
-	background: var(
-		--os-dock-divider-soft,
-		var( --os-dock-border, rgba( 255, 255, 255, 0.1 ) )
-	);
 }
 
 /*
@@ -985,9 +988,19 @@
 /*
  * Bottom-dock inner wrappers — `__scroll` carries the menu tiles and
  * absorbs horizontal overflow; `__pinned` carries the system tiles and
- * stays anchored to the trailing edge. Padding-top on `__scroll` gives
- * the badge (top: -3px on the tile) room so `overflow-y: hidden`
- * doesn't crop it. `min-width: 0` lets the wrapper shrink below its
+ * stays anchored to the trailing edge.
+ *
+ * **The padding around `__scroll` is what keeps badges visible, and it
+ * has to be on both axes.** `overflow-x: auto` below cannot coexist
+ * with `overflow-y: visible`: per spec the visible axis computes to
+ * `auto`, so this wrapper is a scroll container in BOTH directions
+ * however it is authored, and anything a child hangs outside its
+ * padding box is clipped. A badge sits at `top: -3px; right: -3px` on
+ * its tile, and the LAST tile's edge is the wrapper's edge once the
+ * content is wide enough to scroll — which is why this showed up as
+ * "the badge on the last plugin looks cut off" rather than as a
+ * general problem. The inline padding is symmetric so the tile cluster
+ * stays centred in the pill. `min-width: 0` lets the wrapper shrink below its
  * content's natural width, so the dock pill's `max-width` is what
  * decides when scroll kicks in instead of the content forcing the
  * pill wider. `justify-content: center` keeps tiles balanced inside
@@ -1004,7 +1017,14 @@
 	min-width: 0;
 	padding-top: 4px;
 	padding-bottom: 6px;
+	padding-inline: 4px;
 	overflow-x: auto;
+	/*
+	 * Authored `visible`, computed `auto` — see the note above. Kept as
+	 * the honest statement of intent: nothing here wants a vertical
+	 * scrollbar, and `scrollbar-width: none` plus the padding is what
+	 * makes that true in practice.
+	 */
 	overflow-y: visible;
 	scrollbar-width: none;
 }
@@ -1025,55 +1045,41 @@
 	padding-bottom: 6px;
 }
 
-/* Separator — vertical hairline between menu tiles and system tiles.
- * Lives at the leading edge of `__pinned`; flex flow handles the
+/* Separator — the line between two groups of tiles. The system one
+ * lives at the leading edge of `__pinned` (flex flow handles the
  * "pinned at the trailing edge" placement, no margin-inline-start:
- * auto needed. The `--group` variant keeps the hairline styling for
- * the inline core→plugin boundary inside `__scroll` and sits where
- * inserted.
- *
- * This is the WordPress-to-OpenStation boundary and the dock's one
- * structural line: everything after it acts on the desktop rather
- * than opening an admin screen. See the note on the vertical
- * placements above for why the core→plugin grouping is quieter. */
+ * auto needed); the `--group` one sits inline inside `__scroll` where
+ * it was inserted. Both resolve through this single rule — see the
+ * note on the vertical placements above for why there is only one. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator {
-	width: 1px;
+	position: relative;
+	width: 2px;
 	/* Fixed height — `60%` collapses against the floating pill's
-	   intrinsic height, leaving the hairline effectively invisible.
-	   28px matches the dock tile inner glyph area. */
-	height: 28px;
+	   intrinsic height, leaving the line effectively invisible. */
+	height: 34px;
 	/* Symmetric horizontal margin so the divider sits centered in the
 	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
 	 * on the left, `__pinned`'s own gap on the right) plus an equal
 	 * margin per side balances out. An asymmetric margin here nudges the
 	 * divider — and the whole menu cluster with it — off the pill's
-	 * center. A little wider than the tile gap on purpose: this is the
-	 * one boundary in the rail that earns air around it. */
-	margin: auto 8px;
-	background: var(
-		--os-dock-divider,
-		var( --os-dock-border, rgba( 255, 255, 255, 0.22 ) )
+	 * center. Wider than the tile gap on purpose: the clusters need to
+	 * read as groups before the line between them means anything. */
+	margin: auto 14px;
+	border-radius: 2px;
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
+		transparent 100%
 	);
-	flex-shrink: 0;
-}
-
-/*
- * Group separator — sits inline between the core cluster and the
- * plugin cluster. Shorter and quieter than the WordPress-to-
- * OpenStation divider above: it groups things that behave the same
- * way (both open an admin screen), so it should read as a gap with a
- * hairline in it rather than as a second structural break.
- */
-.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__separator--group {
-	width: 1px;
-	height: 18px;
-	margin: auto 8px;
-	background: var(
-		--os-dock-divider-soft,
-		var( --os-dock-border, rgba( 255, 255, 255, 0.1 ) )
-	);
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
+			transparent
+		);
 	flex-shrink: 0;
 }
 

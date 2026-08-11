@@ -30,6 +30,7 @@ import {
 } from 'vitest';
 import { mountDockConstellation } from '../../src/dock-constellation';
 import { isConstellationLayoutActive } from '../../src/dock-constellation/active';
+import { ITEM_MENU_OPENING_EVENT } from '../../src/item-visibility-menu';
 import type { DockItem } from '../../src/dock';
 import type { WindowManager } from '../../src/window-manager';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -455,6 +456,45 @@ describe( 'dock constellation', () => {
 			// at nothing, so this path removes the node outright.
 			expect( ghost() ).toBeNull();
 			expect( panel() ).toBeNull();
+		} );
+
+		test( 'a tile menu opening cuts it, so the two never stack', () => {
+			// Right-click — or any other route into the tile menu — is a
+			// request for a DIFFERENT surface on the same tile. Both
+			// anchor to that tile, so leaving the flyout up paints one
+			// panel over the other.
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			expect( panel() ).not.toBeNull();
+
+			document.dispatchEvent(
+				new CustomEvent( ITEM_MENU_OPENING_EVENT, {
+					detail: { id: 'themes.php', surface: 'dock' },
+				} ),
+			);
+
+			// Cut rather than animated: an exit gliding back into the
+			// rail underneath the menu that replaced it is the same
+			// collision one frame later.
+			expect( panel() ).toBeNull();
+			expect( ghost() ).toBeNull();
+		} );
+
+		test( 'stops listening for tile menus once torn down', () => {
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			teardown();
+
+			// The listener lives on `document`, so a leak keeps firing
+			// into a module nobody is driving any more.
+			document.dispatchEvent(
+				new CustomEvent( ITEM_MENU_OPENING_EVENT, {
+					detail: { id: 'themes.php', surface: 'dock' },
+				} ),
+			);
+			expect( document.querySelector( '.os-constellation' ) ).toBeNull();
 		} );
 
 		test( 'teardown takes an in-flight exit with it', () => {

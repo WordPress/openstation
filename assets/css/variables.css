@@ -993,19 +993,24 @@ body.os-active {
 	 *                   icon-badge token, so "badges are 22px" reaches
 	 *                   the bin too.
 	 *
-	 * The count badges keep their red, and keep it as a LITERAL: a
-	 * badge is a status, not an identity moment, and Pulse next to a
-	 * Pulse-accented dock tile would read as decoration rather than as
-	 * "three things need you". Naming the gradient here also keeps it
-	 * a gradient — both stops used to resolve through `--os-ui-danger`,
-	 * which the palette moved, flattening the badge to one flat red
-	 * and turning its white numerals Void. The bin's neutral badge has
-	 * no such constraint and follows the station.
+	 * The count badges wear Pulse, and wear it as a LITERAL gradient:
+	 * both stops used to resolve through `--os-ui-danger`, which the
+	 * palette moved, flattening the badge to one flat fill and turning
+	 * its numerals Void by accident. Naming the stops here keeps it a
+	 * gradient on purpose. The bin's neutral badge is deliberately not
+	 * part of this: a count of things in the trash is ambient state,
+	 * not something asking for you.
+	 *
+	 * **The numerals are Void, not Starlight, and that is a
+	 * requirement rather than a preference.** Starlight on Pulse is
+	 * 2.9:1, which fails AA for text this small; Void on Pulse is
+	 * 6.8:1. Any future retint of these has to keep the pair legible,
+	 * so check the ratio before swapping the ink back to white.
 	 */
-	--os-dock-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
-	--os-dock-badge-fg: #fffbff;
-	--os-icon-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
-	--os-icon-badge-fg: #fffbff;
+	--os-dock-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
+	--os-dock-badge-fg: #0c0b0f;
+	--os-icon-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
+	--os-icon-badge-fg: #0c0b0f;
 	--os-recycle-badge-bg: rgba(26, 23, 33, 0.85);
 	--os-recycle-badge-fg: rgba(255, 251, 255, 0.96);
 	--os-dock-recycle-badge-bg: rgba(26, 23, 33, 0.85);
@@ -1071,19 +1076,22 @@ body.os-active {
 
 	/*
 	 * The dividers INSIDE the rail, which are a different job from the
-	 * outline around it: they group tiles that behave differently.
+	 * outline around it: they separate tiles that belong to different
+	 * groups — core menus, plugin apps, and OpenStation's own controls.
 	 *
-	 * One dock holds two kinds of thing — the site's admin menus, which
-	 * open windows onto WordPress, and OpenStation's own controls
-	 * (Preferences, the bin, the way out), which act on the desktop
-	 * itself. `--os-dock-divider` marks that boundary and is the one
-	 * worth reading at a glance. `--os-dock-divider-soft` is the
-	 * quieter core-menus-to-plugin-apps grouping inside the WordPress
-	 * half, which mirrors what wp-admin's own menu does and carries no
-	 * change of kind.
+	 * One treatment for all of them. An earlier pass gave the
+	 * WordPress-to-OpenStation boundary Pulse and dropped the
+	 * core-to-plugin one to a hairline, on the theory that only one
+	 * boundary was worth reading. Two weights in one short rail read as
+	 * two unrelated ideas instead of one system, so both are now the
+	 * same line: Pulse at the waist, falling away to nothing at both
+	 * ends, with a soft glow to hold it against the dock tint.
+	 *
+	 * Resolved one step back from the accent through
+	 * `--os-ui-accent-dim`, where every ambient use of Pulse resolves,
+	 * so "tone the station down" stays one edit.
 	 */
-	--os-dock-divider: rgba(255, 251, 255, 0.22);
-	--os-dock-divider-soft: rgba(255, 251, 255, 0.1);
+	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
@@ -1093,15 +1101,11 @@ body.os-active {
 	/*
 	 * ---- The OpenStation layout ---------------------------------
 	 *
-	 * Two surfaces that only exist while `data-os-layout` is
-	 * `openstation`: the seam on the rail, and the constellation — the
-	 * flyout that fans a menu's submenu out of its tile on hover.
-	 *
-	 * The seam is not a hairline. It is the rail's one structural
-	 * claim — "WordPress ends here, OpenStation itself begins here" —
-	 * and a 1px 22%-white rule says that about as loudly as a comma. So
-	 * it gets Pulse at its waist, falling away to nothing at both ends,
-	 * with a diamond node on the centre line.
+	 * The constellation: the flyout that fans a menu's submenu out of
+	 * its tile on hover, and the only surface left that exists solely
+	 * while `data-os-layout` is `openstation`. The rail's divider used
+	 * to live here too; it is shared chrome now and reads through
+	 * `--os-dock-divider`.
 	 *
 	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
 	 * is spent on the row under the pointer and on the head's icon
@@ -1110,8 +1114,6 @@ body.os-active {
 	 * would have nothing left to say when you actually pointed at
 	 * something in it.
 	 */
-	--os-cn-seam: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
-	--os-cn-seam-node: var(--os-ui-accent);
 	--os-cn-surface: rgba(26, 23, 33, 0.82);
 	--os-cn-border: rgba(255, 251, 255, 0.14);
 	--os-cn-shadow: 0 24px 64px rgba(0, 0, 0, 0.62),

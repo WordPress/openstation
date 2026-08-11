@@ -1,17 +1,12 @@
 /**
  * OpenStation — the OpenStation desktop layout.
  *
- * Two surfaces, both scoped so they cost nothing in any other layout:
+ * One surface now, scoped so it costs nothing in any other layout.
+ * The seam this file used to own became shared chrome: every division
+ * in every rail wears the same Pulse line, so it lives in `dock.css`
+ * next to the separator it paints.
  *
- * 1. **The seam.** The rail is one bottom dock holding every menu,
- *    core cluster first, plugins second, with a single divider on the
- *    boundary. The layout dispatcher guarantees the ordering; this
- *    file gives the divider something to say. It is Pulse at the
- *    waist, falling away to nothing at both ends, with a diamond node
- *    on the centre line — a seam in the rail rather than a rule
- *    drawn on it.
- *
- * 2. **The constellation.** The flyout that fans a menu's submenu out
+ * **The constellation.** The flyout that fans a menu's submenu out
  *    of its tile on hover. Body-attached (it has to escape the dock's
  *    stacking context and its `overflow`), so its selectors are
  *    rooted on `.os-constellation` rather than on the shell.
@@ -25,94 +20,15 @@
  */
 
 /* ==================================================================
- * 1. The seam — WordPress ends, OpenStation begins
+ * 1. The rail
+ *
+ * The dividers themselves are NOT here any more. Every division in
+ * every rail wears the same line now — Pulse at the waist, falling
+ * away at both ends — so it lives in `dock.css` next to the separator
+ * it paints, reachable through `--os-dock-divider`.
+ * A copy scoped to this layout would only mean an edit to that token
+ * silently skipped the one layout the line came from.
  * ================================================================== */
-
-/*
- * The seam sits on the rail's ONE boundary where behaviour changes:
- * before it a tile opens an admin screen, after it a tile acts on the
- * desktop itself (Preferences, the bin, the way out). That is the
- * distinction users were missing, so it is the one that gets Pulse.
- *
- * It used to sit on the core-to-plugin boundary. That boundary is
- * provenance — who shipped the menu — and nobody reads a rail thinking
- * "this half is plugins"; they think "this is Yoast". It keeps the
- * quiet hairline from `dock.css` instead, which is what a grouping
- * inside one behaviour looks like.
- *
- * The selector reaches the system separator through `__pinned`, the
- * wrapper `Dock` puts system tiles in. The `--group` divider lives in
- * `__scroll`, so the two can never be confused for one another here.
- *
- * Extra breathing room around the boundary. The clusters need to read
- * as two groups before the divider between them means anything; at
- * the dock's default 6px gap they read as one row with a scratch in
- * it.
- */
-.os-shell[ data-os-layout="openstation" ]
-	.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__pinned
-	.os-dock__separator {
-	position: relative;
-	width: 2px;
-	height: 34px;
-	margin: auto 14px;
-	border-radius: 2px;
-	/*
-	 * A gradient, not a flat fill. The seam is brightest where the eye
-	 * lands (the tiles' own centre line) and gone by the time it
-	 * reaches the pill's padding, so it never terminates in a visible
-	 * stub against the glass.
-	 */
-	background: linear-gradient(
-		to bottom,
-		transparent 0%,
-		var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 28%,
-		var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 72%,
-		transparent 100%
-	);
-	box-shadow: 0 0 10px
-		color-mix(
-			in srgb,
-			var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 45%,
-			transparent
-		);
-	flex-shrink: 0;
-}
-
-/*
- * The node. A 5px diamond on the seam's waist — the one piece of the
- * divider that survives at a glance, and the thing that stops the
- * seam reading as a rendering artefact.
- */
-.os-shell[ data-os-layout="openstation" ]
-	.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__pinned
-	.os-dock__separator::after {
-	content: "";
-	position: absolute;
-	inset-inline-start: 50%;
-	top: 50%;
-	width: 5px;
-	height: 5px;
-	transform: translate( -50%, -50% ) rotate( 45deg );
-	background: var( --os-cn-seam-node, #f252fc );
-	box-shadow: 0 0 8px var( --os-cn-seam-node, #f252fc );
-	animation: os-cn-seam-breathe 4.5s var( --os-ui-ease-loop, ease-in-out )
-		infinite;
-}
-
-@keyframes os-cn-seam-breathe {
-	0%,
-	100% {
-		opacity: 0.55;
-		transform: translate( -50%, -50% ) rotate( 45deg ) scale( 1 );
-	}
-	50% {
-		opacity: 1;
-		transform: translate( -50%, -50% ) rotate( 45deg ) scale( 1.35 );
-	}
-}
 
 /*
  * The rail's own signature. Everything the user can reach lives on
@@ -751,11 +667,4 @@ body.os-constellation-open .os-dock__tooltip {
 		animation: none;
 	}
 
-	.os-shell[ data-os-layout="openstation" ]
-		.os-dock[ data-os-dock-placement="bottom" ]
-		.os-dock__pinned
-		.os-dock__separator::after {
-		animation: none;
-		opacity: 1;
-	}
 }

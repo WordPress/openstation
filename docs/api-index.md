@@ -230,6 +230,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-presence-changed` | Stable |
 | `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
+| `os-item-menu-opening` | Stable |
 | `os-registry-changed` | Stable |
 | `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |
 | `os-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable |

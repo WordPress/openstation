@@ -81,6 +81,7 @@ import type { Window as OsWindow } from '../window';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
 import { isConstellationLayoutActive } from './active';
+import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
 import {
 	openMenuItem,
 	openNewMenuItem,
@@ -501,6 +502,11 @@ export function mountDockConstellation(
 	window.addEventListener( 'resize', onInvalidate );
 	window.addEventListener( 'blur', onInvalidate );
 	document.addEventListener( 'os-layout-changed', onInvalidate );
+	// A tile menu is opening on the same tile this panel is anchored
+	// to. Cut rather than animate: an exit gliding back into the rail
+	// while a menu paints over the same corner is two surfaces
+	// disagreeing about what the user just asked for.
+	document.addEventListener( ITEM_MENU_OPENING_EVENT, onInvalidate );
 	// Capture: a scroll inside the dock's own overflow container never
 	// bubbles to `window`, and that is exactly the scroll that moves
 	// the tile out from under the panel.
@@ -516,6 +522,7 @@ export function mountDockConstellation(
 		}
 		closing.clear();
 		syncBodyFlag();
+		document.removeEventListener( ITEM_MENU_OPENING_EVENT, onInvalidate );
 		document.removeEventListener( 'pointerover', onPointerOver );
 		document.removeEventListener( 'pointerout', onPointerOut );
 		document.removeEventListener( 'keydown', onKeyDown );

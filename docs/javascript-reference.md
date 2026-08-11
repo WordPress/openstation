@@ -333,6 +333,31 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ---
 
+### `os-item-menu-opening` — Stable
+Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
+
+It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the active layout gives it (the constellation flyout in the OpenStation layout, the peek card everywhere else). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
+
+```javascript
+document.addEventListener( 'os-item-menu-opening', ( e ) => {
+    const { id, surface } = e.detail;
+    myHoverCard?.close();
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    id:      string,   // dock item slug, system-tile id, or desktop-icon id
+    surface: 'dock' | 'desktop',
+}
+```
+
+Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
+
+---
+
 ### Drag-and-drop CustomEvents — Stable
 
 Fired on `document` by `wp.os.dragManager` for every in-shell
