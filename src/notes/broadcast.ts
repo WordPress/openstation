@@ -1,9 +1,10 @@
 /**
  * OpenStation — Pinned notes change broadcast.
  *
- * The Recycle Bin badge counts deltas off `os.<post-type>.changed`,
- * one topic per type the bin captures. Notes never published it, so
- * trashing one moved the server's count and left the badge stale.
+ * The Recycle Bin's icon tracks deltas off `os.<post-type>.changed`,
+ * one topic per type the bin captures, to know whether it is holding
+ * anything. Notes never published it, so trashing one moved the
+ * server's count while the bin still looked empty.
  *
  * Payload matches `broadcastFilesChange` in
  * `src/desktop-files/trash.ts`, so one subscriber handles both.

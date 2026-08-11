@@ -45,7 +45,7 @@ export async function trashNoteWithUndo(
 	callbacks.onEvict( note.id );
 	try {
 		await deleteNote( note.id );
-		// The bin gained an item — tell the badge.
+		// The bin gained an item — tell its icon.
 		broadcastNotesChange( 'trashed', [ note.id ] );
 		getToastApi()?.showToast?.( {
 			message: __( 'Note moved to Trash', 'desktop-mode' ),

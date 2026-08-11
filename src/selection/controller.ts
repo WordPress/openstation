@@ -120,13 +120,14 @@ function suppressNativeSelection( ref: HTMLElement ): () => void {
 }
 
 /**
- * Subtrees a marquee never starts from. Windows and widgets are
- * children of the desktop area, so their pointer events bubble to the
- * wallpaper's own listener; without this a drag on a title bar would
- * both move the window and rubber-band the icons behind it.
+ * Subtrees a marquee never starts from. Windows, widgets and pinned
+ * notes are children of the desktop area, so their pointer events
+ * bubble to the wallpaper's own listener; without this a drag on a
+ * title bar would both move the window and rubber-band the icons
+ * behind it.
  */
 const DEFAULT_MARQUEE_EXCLUDE =
-	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add';
+	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add, .os-pinned-note';
 
 /**
  * Class the window manager puts on the desktop area for the duration of
@@ -647,9 +648,15 @@ export function attachSelection(
 			return; // Tile press — the drag manager owns that gesture.
 		}
 		// Floating furniture only counts when it sits INSIDE this
-		// canvas. Windows and widgets are children of the desktop
-		// area, so on the wallpaper this is what stops a title-bar
-		// drag from rubber-banding the icons behind it.
+		// canvas. Windows, widgets and pinned notes are children of
+		// the desktop area, so on the wallpaper this is what stops a
+		// title-bar drag from rubber-banding the icons behind it.
+		//
+		// Skipping a layer here doesn't merely rubber-band behind it —
+		// it makes the layer's own controls unclickable, because
+		// `capturePointer()` retargets the release (and the
+		// synthesized click) to the canvas. That is what happened to
+		// every button on a pinned note.
 		//
 		// A canvas that lives inside a window is the mirror image:
 		// the `.os-window` is an ANCESTOR of the background, and

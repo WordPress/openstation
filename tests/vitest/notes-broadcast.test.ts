@@ -1,6 +1,7 @@
 /**
- * The Recycle Bin badge counts deltas off `os.<type>.changed`. Notes
- * never published it, so the badge went stale on every trash.
+ * The Recycle Bin's icon tracks deltas off `os.<type>.changed` to know
+ * whether it is holding anything. Notes never published it, so the bin
+ * still looked empty after one was trashed.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { trashNoteWithUndo } from '../../src/notes/trash';
@@ -58,7 +59,7 @@ describe( 'notes bin broadcast', () => {
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 
-	test( 'trashing publishes a trashed delta the badge can count', async () => {
+	test( 'trashing publishes a trashed delta the bin can count', async () => {
 		await trashNoteWithUndo( NOTE, { onEvict: () => undefined, onRestore: () => undefined } );
 		expect( broadcast ).toHaveBeenCalledWith(
 			`os.${ NOTES_POST_TYPE }.changed`,
@@ -88,7 +89,7 @@ describe( 'notes bin broadcast', () => {
 	} );
 
 	test( 'the topic matches the slug the bin config ships', () => {
-		// Drift here stops the badge updating, silently.
+		// Drift here stops the bin icon updating, silently.
 		expect( NOTES_POST_TYPE ).toBe( 'wpd_note' );
 	} );
 } );

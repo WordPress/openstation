@@ -306,6 +306,28 @@ describe( 'selection controller', () => {
 		expect( handle.keys() ).toEqual( [] );
 	} );
 
+	test( 'a press on a pinned note never starts a marquee', () => {
+		// Pinned notes are the third floating layer over the canvas,
+		// after windows and widgets. Missing the exclusion did more
+		// than rubber-band behind them: `capturePointer()` retargets
+		// the release and the synthesized click to the canvas, so
+		// every button on a note (colour, lock, convert, trash) was
+		// dead to the mouse.
+		const note = document.createElement( 'article' );
+		note.className = 'os-pinned-note';
+		const button = document.createElement( 'button' );
+		note.appendChild( button );
+		background.appendChild( note );
+		tile( 'a' );
+		withRect( background, { left: 0, top: 0, width: 500, height: 500 } );
+		const handle = attach();
+
+		button.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
+		expect( document.querySelector( '.os-selection-marquee' ) ).toBeNull();
+		expect( handle.keys() ).toEqual( [] );
+	} );
+
 	test( 'no marquee starts while the desktop area is in Overview', () => {
 		// Regression: Overview's desktop tiles stopped switching
 		// desktops. The press fell through to this listener, which
