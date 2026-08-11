@@ -187,6 +187,7 @@ export class OsSettings implements SettingsCtx {
 			windowRadius: this.state.windowRadius,
 			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
+			dockPlacement: this.state.dockPlacement,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:

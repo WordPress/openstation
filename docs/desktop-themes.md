@@ -947,6 +947,7 @@ still apply.
 |---|---|
 | `dockSize` | `compact`, `default`, `large` |
 | `desktopLayout` | `classic`, `unified`, `spatial` |
+| `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Only the one-rail layouts (`unified`, `spatial`) read it; `classic` owns both of its edges and ignores it. |
 | `windowRadius` | `sharp`, `default`, `round` |
 | `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit OpenStation** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |

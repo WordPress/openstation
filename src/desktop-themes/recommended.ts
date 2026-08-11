@@ -38,6 +38,7 @@ import type { RecommendedOsSettings } from './types';
 const ENUMS: Record< string, readonly string[] > = {
 	dockSize: [ 'compact', 'default', 'large' ],
 	desktopLayout: [ 'classic', 'unified', 'spatial' ],
+	dockPlacement: [ 'bottom', 'left', 'right' ],
 	windowRadius: [ 'sharp', 'default', 'round' ],
 	adminBarMode: [ 'static', 'dynamic', 'hidden' ],
 };

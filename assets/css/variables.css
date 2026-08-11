@@ -1060,6 +1060,22 @@ body.os-active {
 	 * back to the shared value above it.
 	 */
 	--os-dock-border: rgba(255, 251, 255, 0.1);
+
+	/*
+	 * The dividers INSIDE the rail, which are a different job from the
+	 * outline around it: they group tiles that behave differently.
+	 *
+	 * One dock holds two kinds of thing — the site's admin menus, which
+	 * open windows onto WordPress, and OpenStation's own controls
+	 * (Preferences, the bin, the way out), which act on the desktop
+	 * itself. `--os-dock-divider` marks that boundary and is the one
+	 * worth reading at a glance. `--os-dock-divider-soft` is the
+	 * quieter core-menus-to-plugin-apps grouping inside the WordPress
+	 * half, which mirrors what wp-admin's own menu does and carries no
+	 * change of kind.
+	 */
+	--os-dock-divider: rgba(255, 251, 255, 0.22);
+	--os-dock-divider-soft: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);

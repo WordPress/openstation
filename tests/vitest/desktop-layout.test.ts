@@ -449,6 +449,176 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( detail!.side ).toBe( dispatcher.getSide() );
 	} );
 
+	describe( 'dock placement', () => {
+		test( 'a one-rail layout mounts on the edge it was given', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+				'left',
+			);
+			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+		} );
+
+		test( 'defaults to the bottom when no placement is given', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			expect( dispatcher.getDockPlacement() ).toBe( 'bottom' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+		} );
+
+		test( 'setDockPlacement rebuilds the rail on the new edge', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			const before = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'right' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'right' );
+			// A rail cannot be re-oriented in place — placement reaches
+			// a renderer through `mount()`, so the instance is new.
+			expect( dispatcher.getPrimary() ).not.toBe( before );
+			// …and the tiles came back with it.
+			expect(
+				document.getElementById( 'os-dock' )!.querySelectorAll(
+					'[data-menu-slug]',
+				).length,
+			).toBe( 2 );
+		} );
+
+		test( 'setDockPlacement: same value is a no-op', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			const events = vi.fn();
+			document.addEventListener( 'os-layout-changed', events );
+			const before = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'bottom' );
+			expect( events ).not.toHaveBeenCalled();
+			expect( dispatcher.getPrimary() ).toBe( before );
+			document.removeEventListener( 'os-layout-changed', events );
+		} );
+
+		test( 'classic keeps both rails and remembers the pick for later', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'classic',
+				[ dashboard, yoast ],
+				[],
+			);
+			const primaryBefore = dispatcher.getPrimary();
+			dispatcher.setDockPlacement( 'left' );
+
+			// The side bar already owns the left edge; honouring the pick
+			// would stack the two rails on top of each other, so the
+			// plugin rail stays on the bottom and nothing is rebuilt.
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+			expect(
+				document
+					.getElementById( 'os-side-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+			expect( dispatcher.getPrimary() ).toBe( primaryBefore );
+
+			// Stored all the same: switching to a one-rail layout lands
+			// on the edge the user chose while wearing Classic.
+			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
+			dispatcher.setLayout( 'unified' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+		} );
+
+		test( 'setDockPlacement emits os-layout-changed with the new edge', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			let detail: {
+				layout: string;
+				placement: string;
+				primary: unknown;
+			} | null = null;
+			document.addEventListener(
+				'os-layout-changed',
+				( e ) => {
+					detail = ( e as CustomEvent ).detail;
+				},
+				{ once: true },
+			);
+			dispatcher.setDockPlacement( 'left' );
+			expect( detail ).not.toBeNull();
+			expect( detail!.layout ).toBe( 'unified' );
+			expect( detail!.placement ).toBe( 'left' );
+			expect( detail!.primary ).toBe( dispatcher.getPrimary() );
+		} );
+
+		test( 'system tiles re-attach after a placement change', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard ],
+				[],
+			);
+			dispatcher.appendSystemTile(
+				{
+					id: 'os-settings',
+					title: 'OpenStation Preferences',
+					icon: 'dashicons-admin-generic',
+					onOpen: () => undefined,
+				},
+				'core',
+			);
+			dispatcher.setDockPlacement( 'left' );
+			const dock = document.getElementById( 'os-dock' )!;
+			expect(
+				dock.querySelectorAll( '.os-dock__item--system' ).length,
+			).toBe( 1 );
+			// The WordPress-to-OpenStation divider comes with them.
+			expect(
+				dock.querySelector( '.os-dock__separator' ),
+			).not.toBeNull();
+		} );
+	} );
+
 	test( 'applyDockItems: classic re-routes a fresh list to the right rails', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(

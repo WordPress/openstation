@@ -19,16 +19,31 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	public function test_default_includes_desktop_layout() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'desktopLayout', $defaults );
-		$this->assertSame( 'classic', $defaults['desktopLayout'] );
+		$this->assertSame( 'unified', $defaults['desktopLayout'] );
 	}
 
 	/**
+	 * The single dock ships on the bottom edge.
+	 *
 	 * @covers ::openstation_default_os_settings
 	 */
-	public function test_default_admin_bar_mode_is_static() {
+	public function test_default_dock_placement_is_bottom() {
+		$defaults = openstation_default_os_settings();
+		$this->assertArrayHasKey( 'dockPlacement', $defaults );
+		$this->assertSame( 'bottom', $defaults['dockPlacement'] );
+	}
+
+	/**
+	 * A desktop whose navigation is consolidated into one dock has no
+	 * second place for navigation to live, so the admin bar ships
+	 * hidden. The dock's Exit tile is the way back to classic admin.
+	 *
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_admin_bar_mode_is_hidden() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'adminBarMode', $defaults );
-		$this->assertSame( 'static', $defaults['adminBarMode'] );
+		$this->assertSame( 'hidden', $defaults['adminBarMode'] );
 	}
 
 	/**
@@ -51,7 +66,7 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 */
 	public function test_sanitize_falls_back_to_default_for_unknown_admin_bar_mode() {
 		$clean = openstation_sanitize_os_settings( array( 'adminBarMode' => 'peekaboo' ) );
-		$this->assertSame( 'static', $clean['adminBarMode'] );
+		$this->assertSame( 'hidden', $clean['adminBarMode'] );
 	}
 
 	/**
@@ -59,7 +74,7 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 */
 	public function test_sanitize_falls_back_when_admin_bar_mode_missing() {
 		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
-		$this->assertSame( 'static', $clean['adminBarMode'] );
+		$this->assertSame( 'hidden', $clean['adminBarMode'] );
 	}
 
 	/**
@@ -77,7 +92,7 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 */
 	public function test_sanitize_falls_back_to_default_for_unknown_layout() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => 'invalid-mode' ) );
-		$this->assertSame( 'classic', $clean['desktopLayout'] );
+		$this->assertSame( 'unified', $clean['desktopLayout'] );
 	}
 
 	/**
@@ -85,14 +100,58 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 */
 	public function test_sanitize_falls_back_when_layout_missing() {
 		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
-		$this->assertSame( 'classic', $clean['desktopLayout'] );
+		$this->assertSame( 'unified', $clean['desktopLayout'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_known_dock_placement() {
+		foreach ( OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS as $placement ) {
+			$clean = openstation_sanitize_os_settings( array( 'dockPlacement' => $placement ) );
+			$this->assertSame(
+				$placement,
+				$clean['dockPlacement'],
+				"placement '{$placement}' should round-trip"
+			);
+		}
+	}
+
+	/**
+	 * An unusable edge must not survive into user meta: the dock writes
+	 * the value straight into `data-os-dock-placement`, which
+	 * matches none of the placement rules, and the rail would render
+	 * unpositioned.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_to_default_for_unknown_dock_placement() {
+		$clean = openstation_sanitize_os_settings( array( 'dockPlacement' => 'ceiling' ) );
+		$this->assertSame( 'bottom', $clean['dockPlacement'] );
+	}
+
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_dock_placement() {
+		$user_id = self::factory()->user->create();
+		openstation_save_os_settings(
+			$user_id,
+			array(
+				'desktopLayout' => 'unified',
+				'dockPlacement' => 'left',
+			)
+		);
+		$loaded = openstation_get_os_settings( $user_id );
+		$this->assertSame( 'left', $loaded['dockPlacement'] );
 	}
 
 	/**
 	 * Round-trip via user meta: a real `update_user_meta` write
 	 * followed by `get_user_meta` must preserve `desktopLayout`.
 	 * This is the regression that drove the fix — the JS layer was
-	 * silently re-defaulting to `classic` on refresh because the
+	 * silently re-defaulting to the shipped layout on refresh because the
 	 * sanitizer was dropping the field.
 	 *
 	 * @covers ::openstation_save_os_settings

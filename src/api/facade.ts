@@ -192,7 +192,8 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  * field to the interface.
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
-	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout', 'icons',
+	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout',
+	'dockPlacement', 'icons',
 	'files', 'confirm', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
@@ -327,6 +328,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		dock,
 		sideDock: layoutDispatcher?.getSide() ?? null,
 		desktopLayout: osSettings.getOsSettingsSnapshot().desktopLayout,
+		dockPlacement:
+			layoutDispatcher?.getDockPlacement() ??
+			osSettings.getOsSettingsSnapshot().dockPlacement,
 		icons: iconsApi,
 		files: filesApi,
 		confirm: osConfirm,
@@ -434,6 +438,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( typeof patch.desktopLayout === 'string' ) {
 				osSettings.state.desktopLayout =
 					patch.desktopLayout as typeof osSettings.state.desktopLayout;
+			}
+			if ( typeof patch.dockPlacement === 'string' ) {
+				osSettings.state.dockPlacement =
+					patch.dockPlacement as typeof osSettings.state.dockPlacement;
 			}
 			// `desktopTheme` accepts `''` — that is the system default,
 			// a real value rather than a missing one, so this is the
@@ -606,6 +614,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				typeof patch.windowRadius === 'string' ||
 				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
+				typeof patch.dockPlacement === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
 			) {

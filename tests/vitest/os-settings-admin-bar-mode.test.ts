@@ -76,13 +76,17 @@ describe( 'apply() — admin bar mode', () => {
 		expect( modeClasses() ).toEqual( [ 'static' ] );
 	} );
 
-	test( 'defaults to static with nothing persisted', () => {
+	test( 'defaults to hidden with nothing persisted', () => {
+		// One dock is the default layout, and it is the only
+		// navigation surface a fresh desktop has: the top bar would be
+		// a second one. The route back to classic admin is the dock's
+		// own Exit tile, not this bar.
 		makeSettings().apply();
 
-		expect( modeClasses() ).toEqual( [ 'static' ] );
+		expect( modeClasses() ).toEqual( [ 'hidden' ] );
 	} );
 
-	test( 'an unknown persisted mode falls back to static', () => {
+	test( 'an unknown persisted mode falls back to the default', () => {
 		window.localStorage.setItem(
 			STORAGE_KEY,
 			JSON.stringify( { adminBarMode: 'peekaboo' } ),
@@ -92,10 +96,10 @@ describe( 'apply() — admin bar mode', () => {
 		// Rejected at deserialization, not just at paint — an
 		// unusable value must never survive into the state the next
 		// save would push back to the server.
-		expect( settings.state.adminBarMode ).toBe( 'static' );
+		expect( settings.state.adminBarMode ).toBe( 'hidden' );
 
 		settings.apply();
-		expect( modeClasses() ).toEqual( [ 'static' ] );
+		expect( modeClasses() ).toEqual( [ 'hidden' ] );
 	} );
 
 	test( 'the mode is exposed on the public settings snapshot', () => {

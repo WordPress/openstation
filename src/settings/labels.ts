@@ -103,9 +103,9 @@ export function translateDesktopLayoutLabel(
 ): string {
 	switch ( id ) {
 		case 'classic':
-			return __( 'Classic' );
+			return __( 'Side bar' );
 		case 'unified':
-			return __( 'Unified' );
+			return __( 'One dock' );
 		case 'spatial':
 			return __( 'Spatial' );
 		default:
@@ -119,11 +119,11 @@ export function translateDesktopLayoutDescription(
 	switch ( id ) {
 		case 'classic':
 			return __(
-				'Side bar with the core admin menus, plus a bottom dock for plugin apps.',
+				'Two rails: a side bar with the core admin menus, plus a bottom dock for plugin apps.',
 			);
 		case 'unified':
 			return __(
-				'Single bottom dock holding every menu — core and plugin apps share one rail.',
+				'One dock holding every menu, with the OpenStation controls grouped behind a divider.',
 			);
 		case 'spatial':
 			return __(

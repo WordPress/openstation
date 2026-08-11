@@ -100,17 +100,21 @@ Key server-side entry points:
 
 OpenStation Preferences → Appearance lets the user pick one of three top-level layouts. The shell root reflects the choice in `data-os-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.
 
-| Mode | Default? | Bottom dock | Left side dock (`wp.os.sideDock`) | Wallpaper icons |
+| Mode | Default? | Primary dock (`wp.os.dock`) | Left side dock (`wp.os.sideDock`) | Wallpaper icons |
 |---|---|---|---|---|
-| **Classic** | ✅ | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
-| **Unified** | — | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
+| **Unified** ("One dock") | ✅ | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
+| **Classic** ("Side bar") | — | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
 | **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
 
-A user-meta value (`desktopLayout` inside the OpenStation Preferences JSON blob, REST-synced via the existing `/wp-json/desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
+Inside a rail, tiles are grouped by what they do rather than by where they came from: the admin menus first, then a divider, then OpenStation's own controls (Preferences, the bin, the way out) — the cohort the dock calls *system tiles*. In Unified a softer hairline also separates core menus from plugin apps, mirroring wp-admin's own menu.
+
+**Dock placement.** The one-rail layouts sit on the edge named by the `dockPlacement` preference (`bottom` — the default — `left`, or `right`), reflected on each rail as `data-os-dock-placement`. Classic ignores it: its side bar already owns the left edge, so honouring the pick would stack both rails on one side. The pick is still remembered while Classic is worn, and applies again the moment the user returns to a one-rail layout. Moving the dock is a full rebuild (placement reaches a renderer through `mount()`), and fires `os-layout-changed` for the same reason a layout switch does.
+
+Both values are user meta (`desktopLayout` and `dockPlacement` inside the OpenStation Preferences JSON blob, REST-synced via the existing `/wp-json/desktop-mode/v1/os-settings` endpoint). The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
 
 **Where Spatial's core icons actually render:** the layout dispatcher's `dock-core:*` synthesis (`src/desktop-layout.ts`) targets the legacy `.os-icons` grid via `deps.renderIcons()`. On shells where the files layer is mounted (`config.filesUrl` set — the modern default), that grid is hidden by CSS (`assets/css/desktop-files.css`'s `#os-area:has( > .os-files-layer )` rule), because the files layer is the actual visible wallpaper surface. The user-visible equivalent lives in `syncShortcutsWithVisibility()` (`src/settings/desktop-shortcuts-sync.ts`): while `desktopLayout === 'spatial'`, every core dock item without an explicit `'hidden'` override gets a synthetic `dock-promoted:<id>` shortcut placement pushed into the files store — the same mechanism used for user-promoted dock items, so drag persistence, positions (`dockPromotedPositions`), and grid collision handling come for free. Leaving Spatial removes these placements but does *not* prune their saved positions, so a rearranged layout survives switching away and back. The legacy `dock-core:*` grid synthesis remains for shells without a files layer.
 
-Listen for `os-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` string plus current `primary`/`side` `Dock` references.
+Listen for `os-layout-changed` on `document` to react to a switch in plugin code — the event detail carries the new `layout` and `placement` strings plus current `primary`/`side` `Dock` references.
 
 ## Dock customization — two registries
 

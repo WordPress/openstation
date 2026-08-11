@@ -723,15 +723,25 @@
  * tiles at the bottom" placement, no margin-top: auto needed. The
  * `--group` variant is used inline between core and plugin menu
  * tiles in `__scroll`; it keeps the hairline styling and sits
- * exactly where it's inserted. */
+ * exactly where it's inserted.
+ *
+ * The WordPress-to-OpenStation boundary is the one that reads: below
+ * it the tiles stop opening admin screens and start acting on the
+ * desktop. The core-to-plugin grouping above it is a softer
+ * hairline — it mirrors what wp-admin's own menu does, and in a dock
+ * holding every menu two equally loud dividers would flatten the
+ * distinction that matters into "three arbitrary clusters". */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__separator,
 .os-dock[ data-os-dock-placement="right" ]
 	.os-dock__separator {
 	width: 60%;
 	height: 1px;
-	margin: 8px auto 4px;
-	background: var( --os-dock-border );
+	margin: 10px auto 6px;
+	background: var(
+		--os-dock-divider,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.22 ) )
+	);
 	flex-shrink: 0;
 }
 
@@ -739,8 +749,12 @@
 	.os-dock__separator--group,
 .os-dock[ data-os-dock-placement="right" ]
 	.os-dock__separator--group {
-	margin: 10px auto;
-	background: rgba( 255, 255, 255, 0.22 );
+	width: 40%;
+	margin: 8px auto;
+	background: var(
+		--os-dock-divider-soft,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.1 ) )
+	);
 }
 
 /*
@@ -1016,7 +1030,12 @@
  * "pinned at the trailing edge" placement, no margin-inline-start:
  * auto needed. The `--group` variant keeps the hairline styling for
  * the inline core→plugin boundary inside `__scroll` and sits where
- * inserted. */
+ * inserted.
+ *
+ * This is the WordPress-to-OpenStation boundary and the dock's one
+ * structural line: everything after it acts on the desktop rather
+ * than opening an admin screen. See the note on the vertical
+ * placements above for why the core→plugin grouping is quieter. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator {
 	width: 1px;
@@ -1026,29 +1045,35 @@
 	height: 28px;
 	/* Symmetric horizontal margin so the divider sits centered in the
 	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
-	 * on the left, `__pinned`'s own gap on the right) plus an equal 6px
+	 * on the left, `__pinned`'s own gap on the right) plus an equal
 	 * margin per side balances out. An asymmetric margin here nudges the
 	 * divider — and the whole menu cluster with it — off the pill's
-	 * center. */
-	margin: auto 6px;
-	background: var( --os-dock-border );
+	 * center. A little wider than the tile gap on purpose: this is the
+	 * one boundary in the rail that earns air around it. */
+	margin: auto 8px;
+	background: var(
+		--os-dock-divider,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.22 ) )
+	);
 	flex-shrink: 0;
 }
 
 /*
  * Group separator — sits inline between the core cluster and the
- * plugin cluster. Brighter than the menu-vs-system separator because
- * it carries user meaning ("this is where your installed apps
- * begin"), and flanked by extra gap so the boundary reads at a
- * glance rather than disappearing into the dock tint.
+ * plugin cluster. Shorter and quieter than the WordPress-to-
+ * OpenStation divider above: it groups things that behave the same
+ * way (both open an admin screen), so it should read as a gap with a
+ * hairline in it rather than as a second structural break.
  */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator--group {
 	width: 1px;
-	height: 60%;
-	margin: auto 10px;
-	margin-inline-start: 10px;
-	background: rgba( 255, 255, 255, 0.22 );
+	height: 18px;
+	margin: auto 8px;
+	background: var(
+		--os-dock-divider-soft,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.1 ) )
+	);
 	flex-shrink: 0;
 }
 

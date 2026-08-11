@@ -450,6 +450,17 @@ export interface OpenStationPublicApi {
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
+	 * Edge the primary dock sits on. Mirrors
+	 * `OsSettingsSnapshot.dockPlacement` for the one-rail layouts;
+	 * reads `'bottom'` under `classic`, which owns both of its edges
+	 * whatever the preference says. The framework writes the same
+	 * value as `data-os-dock-placement` on the rail element.
+	 *
+	 * Replaced on the same terms as {@link dock}: moving the dock is
+	 * a rebuild, and it fires `os-layout-changed`.
+	 */
+	dockPlacement: 'bottom' | 'left' | 'right';
+	/**
 	 * Wallpaper-icon rail — the second badge surface alongside the
 	 * dock. Mirrors `Dock.setBadge` exactly:
 	 *
@@ -2454,7 +2465,9 @@ function init(): void {
 
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'os-area--with-dock' );
-		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
+		const initialSnapshot = osSettings.getOsSettingsSnapshot();
+		const initialLayout = initialSnapshot.desktopLayout;
+		const initialPlacement = initialSnapshot.dockPlacement;
 		const renderIcons = (
 			icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 		): void => {
@@ -2485,6 +2498,7 @@ function init(): void {
 			initialLayout,
 			config.dockItems,
 			config.desktopIcons,
+			initialPlacement,
 		);
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
@@ -3563,19 +3577,29 @@ function init(): void {
 			return;
 		}
 		const prevLayout = layoutDispatcher.getLayout();
+		const prevPlacement = layoutDispatcher.getDockPlacement();
+		// Placement before layout so a save that only moved the dock
+		// rebuilds once. A save carrying BOTH (a theme's recommended
+		// settings, a reset) rebuilds twice — both passes are
+		// idempotent, and it is not a path a user can reach by picking.
+		layoutDispatcher.setDockPlacement( snapshot.dockPlacement );
 		layoutDispatcher.setLayout( snapshot.desktopLayout );
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
+		desktopApi.dockPlacement = layoutDispatcher.getDockPlacement();
 		// Always re-apply per-item placement on every settings save.
-		// `setLayout` already rebuilt from scratch when the layout
-		// itself changed (and reads the latest settings while doing
-		// so), so we skip the explicit refresh in that case to avoid
-		// double-rendering. Otherwise, refresh unconditionally — the
-		// snapshot may carry an item-visibility or dock-order change
-		// that callers (settings tab, context menu, drag-to-reorder)
-		// rely on landing live.
-		if ( prevLayout === snapshot.desktopLayout ) {
+		// `setLayout` / `setDockPlacement` already rebuilt from scratch
+		// when the layout or the edge itself changed (and read the
+		// latest settings while doing so), so we skip the explicit
+		// refresh in that case to avoid double-rendering. Otherwise,
+		// refresh unconditionally — the snapshot may carry an
+		// item-visibility or dock-order change that callers (settings
+		// tab, context menu, drag-to-reorder) rely on landing live.
+		if (
+			prevLayout === snapshot.desktopLayout &&
+			prevPlacement === snapshot.dockPlacement
+		) {
 			layoutDispatcher.refresh();
 		}
 		// Bring the files-layer placements in line with the new

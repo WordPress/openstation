@@ -147,6 +147,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 		expect( RECOMMENDED_OS_SETTINGS_KEYS ).toEqual( [
 			'dockSize',
 			'desktopLayout',
+			'dockPlacement',
 			'windowRadius',
 			'adminBarMode',
 			'dockRailRenderer',
@@ -428,16 +429,22 @@ describe( 'hasApplicableThemeRecommendations', () => {
 } );
 
 describe( 'the system default recommends the brand accent', () => {
-	test( 'seeds Pulse and the classic layout, under its own ledger key', () => {
+	test( 'seeds Pulse and the one-dock layout, under its own ledger key', () => {
 		const state = structuredDefaults();
 		state.accent = 'wp-blue';
 		state.desktopLayout = 'spatial';
+		state.dockPlacement = 'left';
 
 		expect(
 			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
-		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		).toEqual( {
+			accent: 'pulse',
+			desktopLayout: 'unified',
+			dockPlacement: 'bottom',
+		} );
 		expect( state.accent ).toBe( 'pulse' );
-		expect( state.desktopLayout ).toBe( 'classic' );
+		expect( state.desktopLayout ).toBe( 'unified' );
+		expect( state.dockPlacement ).toBe( 'bottom' );
 		// Not the empty string: the ledger is a list of theme slugs and
 		// `''` would read as "no theme" rather than as an entry.
 		expect( state.appliedThemeRecommendations ).toEqual( [
@@ -459,7 +466,11 @@ describe( 'the system default recommends the brand accent', () => {
 			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME, {
 				force: true,
 			} ),
-		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		).toEqual( {
+			accent: 'pulse',
+			desktopLayout: 'unified',
+			dockPlacement: 'bottom',
+		} );
 		expect( state.accent ).toBe( 'pulse' );
 	} );
 
