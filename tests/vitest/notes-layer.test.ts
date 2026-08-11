@@ -290,12 +290,16 @@ describe( 'NotesLayer', () => {
 			el.querySelector( '.os-pinned-note__trash' )?.getAttribute( 'aria-label' ),
 		).toBe( 'Move to Trash' );
 
-		// The meta row keeps the colour dot alone.
+		// The meta row carries the save chip left, colour dot right —
+		// the two positions the pin doesn't cover.
 		expect(
 			[ ...( el.querySelector( '.os-pinned-note__meta' )?.children ?? [] ) ].map(
 				( c ) => c.className,
 			),
-		).toEqual( [ 'os-pinned-note__color-dot' ] );
+		).toEqual( [
+			'os-pinned-note__status',
+			'os-pinned-note__color-dot',
+		] );
 
 		// Viewers get no actions at all; they can't mutate the note.
 		const theirs = layer.upsertNote(

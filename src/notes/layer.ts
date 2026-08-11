@@ -546,6 +546,12 @@ export class NoteController {
 		const meta = document.createElement( 'div' );
 		meta.className = 'os-pinned-note__meta';
 
+		const status = document.createElement( 'os-save-status' );
+		status.setAttribute( 'mode', 'icon' );
+		status.setAttribute( 'phase', 'idle' );
+		status.className = 'os-pinned-note__status';
+		this.statusEl = status;
+
 		const colorDot = document.createElement( 'button' );
 		colorDot.type = 'button';
 		colorDot.className = 'os-pinned-note__color-dot';
@@ -553,7 +559,7 @@ export class NoteController {
 		this.refreshColorDot();
 		colorDot.addEventListener( 'click', () => this.cycleColor() );
 
-		meta.append( colorDot );
+		meta.append( status, colorDot );
 
 		// Every action lives in the footer. The pushpin is painted over
 		// the paper's chrome and covers the middle of the meta row, so
@@ -623,13 +629,6 @@ export class NoteController {
 		const footer = document.createElement( 'div' );
 		footer.className = 'os-pinned-note__footer';
 		footer.appendChild( actions );
-
-		const status = document.createElement( 'os-save-status' );
-		status.setAttribute( 'mode', 'icon' );
-		status.setAttribute( 'phase', 'idle' );
-		status.className = 'os-pinned-note__status';
-		this.statusEl = status;
-		footer.appendChild( status );
 
 		this.paperEl.append( meta, editor, footer );
 	}

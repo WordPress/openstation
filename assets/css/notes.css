@@ -262,6 +262,12 @@
 	opacity: 1;
 }
 
+/* The save chip sits hard left and the colour dot hard right, which
+   keeps both clear of the pushpin painted over the middle of this row. */
+.os-pinned-note__meta .os-pinned-note__color-dot {
+	margin-inline-start: auto;
+}
+
 /* Color dot: painted in the NEXT color — the affordance shows the
    outcome. */
 .os-pinned-note__color-dot {
@@ -391,16 +397,16 @@
 
 /* Every action lives here rather than in the meta row. The pushpin is
    painted over the paper's chrome and covers note-relative x 62–138
-   across its ±10px jitter, which is the middle of that right-aligned
-   row — it only ever had room for two controls clear of the pin, and
-   a third landed underneath where a pointer couldn't reach it.
+   across its ±10px jitter, which is the middle of that row — it only
+   ever had room for two controls clear of the pin, and a third landed
+   underneath where a pointer couldn't reach it.
 
    Fades as a group on hover/focus, the same way the meta row does, so
-   each button keeps its own 0.75 → 1 hover on top. */
+   each button keeps its own 0.75 → 1 hover on top. No gap: each button
+   is a 30px box around a 20px glyph, so its own padding is the spacing. */
 .os-pinned-note__actions {
 	display: flex;
 	align-items: center;
-	gap: 4px;
 	opacity: 0;
 	transition: opacity 150ms ease-out;
 }
@@ -411,7 +417,6 @@
 }
 
 .os-pinned-note__status {
-	margin-inline-start: auto;
 	opacity: 0.6;
 }
 
@@ -429,7 +434,11 @@
 .os-pinned-note__trash svg {
 	width: 20px;
 	height: 20px;
-	fill: currentColor;
+	fill: var(--dm-note-ink, #4d4419);
+}
+
+.os-pinned-note__trash:hover svg {
+	fill: #b32d2e;
 }
 
 /* Author sticker on read-only public notes — always visible. */
