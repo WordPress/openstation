@@ -278,13 +278,17 @@ describe( 'applyThemeRecommendations', () => {
 		// The path that replaced pinning `--os-window-radius`
 		// as a token: a token cannot beat the preset's inline write, a
 		// recommendation sets the preset itself.
-		seedLibrary( { windowRadius: 'round' } );
+		//
+		// `sharp`, deliberately: `round` is the shipped default, so a
+		// theme recommending it would leave the state identical either
+		// way and this would pass without the code doing anything.
+		seedLibrary( { windowRadius: 'sharp' } );
 		const state = structuredDefaults();
 
 		expect( applyThemeRecommendations( state, 'acme-neon' ) ).toEqual( {
-			windowRadius: 'round',
+			windowRadius: 'sharp',
 		} );
-		expect( state.windowRadius ).toBe( 'round' );
+		expect( state.windowRadius ).toBe( 'sharp' );
 	} );
 
 	test( 'a theme already in the ledger does not pick up a NEW recommendation', () => {
@@ -296,15 +300,18 @@ describe( 'applyThemeRecommendations', () => {
 		const state = structuredDefaults();
 		applyThemeRecommendations( state, 'acme-neon' );
 
-		seedLibrary( { dockSize: 'large', windowRadius: 'round' } );
+		// `sharp` rather than `round` for the same reason as above:
+		// `round` is the shipped default, so recommending it would be
+		// indistinguishable from the recommendation being ignored.
+		seedLibrary( { dockSize: 'large', windowRadius: 'sharp' } );
 		expect( applyThemeRecommendations( state, 'acme-neon' ) ).toEqual( {} );
-		expect( state.windowRadius ).toBe( 'default' );
+		expect( state.windowRadius ).toBe( 'round' );
 
 		// …and the button picks it up.
 		expect(
 			applyThemeRecommendations( state, 'acme-neon', { force: true } ),
-		).toEqual( { dockSize: 'large', windowRadius: 'round' } );
-		expect( state.windowRadius ).toBe( 'round' );
+		).toEqual( { dockSize: 'large', windowRadius: 'sharp' } );
+		expect( state.windowRadius ).toBe( 'sharp' );
 	} );
 
 	test( 'does nothing the second time, even after the user changed things', () => {

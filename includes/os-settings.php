@@ -76,7 +76,14 @@ function openstation_default_os_settings() {
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
 		'dockSize'                    => 'default',
-		'windowRadius'                => 'default',
+		// `round` (16px), not the preset id literally named `default`.
+		// Preset ids are stored values and cannot be renamed, so the
+		// option labelled "Default" in the picker is no longer the
+		// shipped default. Must stay in step with `DEFAULTS` in
+		// `src/settings/constants.ts` — PHP seeds the first load and JS
+		// owns every paint after it, so a mismatch shows up as the
+		// corners changing shape a moment after the shell boots.
+		'windowRadius'                => 'round',
 		// How the WordPress admin bar presents above the shell.
 		// `hidden` ships as the default so a fresh desktop has ONE
 		// navigation surface: everything the user can open lives on the

@@ -192,7 +192,19 @@ body.os-active {
 	/* Window chrome — Obsidian body inside a Starlight hairline. */
 	--os-window-bg: #1a1721;
 	--os-window-border: rgba(255, 251, 255, 0.12);
-	--os-window-radius: 8px;
+	/*
+	 * Window corner. Softer than the 8px the shell carried before, so
+	 * a window reads as an object on the desk rather than a panel
+	 * pinned to it.
+	 *
+	 * The tab strip's own radius is deliberately NOT tied to this one.
+	 * A tab is 30px tall, so a corner anywhere near this size eats the
+	 * whole straight edge and turns the tab into a capsule — it stops
+	 * reading as a folder tab attached to the page, which is the one
+	 * thing the tab has to say. `--os-tabs-radius` stays smaller and
+	 * independent on purpose.
+	 */
+	--os-window-radius: 16px;
 	/*
 	 * Shadows stay black and go deeper than they were: on a Void desk
 	 * a soft grey shadow is invisible, and depth is the only thing

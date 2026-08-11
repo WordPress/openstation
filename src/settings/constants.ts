@@ -196,7 +196,11 @@ export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'pulse',
 	dockSize: 'default',
-	windowRadius: 'default',
+	// `round` (16px), not `default` (8px). The preset ids are stored
+	// values and cannot be renamed, so the option labelled "Default"
+	// is no longer the shipped default — the label is cosmetic, the id
+	// is data. See `WINDOW_RADII`.
+	windowRadius: 'round',
 	// Hidden by default. A desktop whose navigation is consolidated
 	// into one dock has no second place left for navigation to live,
 	// and the top bar was the loudest of those second places. The
