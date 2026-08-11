@@ -1046,9 +1046,15 @@ export const HOOKS = {
 	 */
 	CONSTELLATION_OPENED: 'os.constellation.opened',
 	/**
-	 * Action, fires after a flyout is removed. Detail:
-	 * `{ menuSlug: string }` — the menu whose flyout closed, or `''`
-	 * if the anchor tile had already been torn down.
+	 * Action, fires when a flyout is dismissed — not when its node
+	 * leaves the document, which happens once its exit has played.
+	 *
+	 * Detail: `{ menuSlug: string, handoff: boolean }`. `menuSlug` is
+	 * the menu whose flyout closed, or `''` if the anchor tile had
+	 * already been torn down. `handoff` is `true` when another tile is
+	 * already taking over, so a subscriber can tell "the menu closed"
+	 * from "the menu moved" without diffing against the next
+	 * {@link CONSTELLATION_OPENED}.
 	 */
 	CONSTELLATION_CLOSED: 'os.constellation.closed',
 

@@ -238,6 +238,73 @@ body.os-constellation-open .os-dock__tooltip {
 	transition: opacity 90ms ease-in;
 }
 
+/* ---- Hand-off ---------------------------------------------------- */
+
+/*
+ * Moving from one menu to the next is not a close followed by an
+ * open. It is the same menu changing what it is about — which is how
+ * every menu bar since 1984 has behaved, and why a rail of them that
+ * blinks between tiles feels broken rather than fast.
+ *
+ * So both panels wear `--handoff` and share one transition: the new
+ * one is born at the old one's x, both walk to the new anchor on the
+ * same curve, and they cross-fade on the way. The menu never leaves
+ * the screen and the eye tracks one object along the rail instead of
+ * watching two separate events.
+ *
+ * `left` is in the transition list ONLY here. In every other state
+ * the panel is placed, not moved, and animating a placement would
+ * turn each re-position (a clamp, a re-anchor) into a visible glide.
+ */
+.os-constellation.os-constellation--handoff {
+	transition:
+		left var( --os-cn-handoff-ms, 200ms )
+			var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) ),
+		transform var( --os-cn-handoff-ms, 200ms )
+			var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) ),
+		opacity 130ms linear;
+}
+
+/*
+ * Incoming: a cross-fade, with no scale. A panel that springs up from
+ * 0.94 while sliding reads as a second, different menu arriving —
+ * exactly the impression the hand-off exists to avoid.
+ */
+.os-constellation.os-constellation--handoff:not( .os-constellation--open ) {
+	transform: translate( calc( -50% + var( --os-cn-shift, 0px ) ), -100% );
+}
+
+/*
+ * Outgoing: fade while travelling. Overrides `--closing`'s fall — it
+ * is not going back into the rail, it is going with its replacement.
+ */
+.os-constellation.os-constellation--closing.os-constellation--handoff {
+	transform: translate( calc( -50% + var( --os-cn-shift, 0px ) ), -100% );
+	opacity: 0;
+	pointer-events: none;
+}
+
+/*
+ * Rows stay solid on both sides. A staggered entrance inside a 200ms
+ * cross-fade is flicker, not choreography — and the beam stays lit
+ * because the thread to the rail is the one thing that should never
+ * break mid-travel.
+ */
+.os-constellation--handoff .os-constellation__row {
+	opacity: 1;
+	transform: none;
+	transition: none;
+}
+
+.os-constellation--handoff .os-constellation__sheen {
+	animation: none;
+}
+
+.os-constellation--handoff .os-constellation__beam {
+	opacity: 1;
+	transition: none;
+}
+
 /* The panel body. */
 .os-constellation__surface {
 	position: relative;
@@ -685,7 +752,8 @@ body.os-constellation-open .os-dock__tooltip {
 	 */
 	.os-constellation,
 	.os-constellation--open,
-	.os-constellation--closing {
+	.os-constellation--closing,
+	.os-constellation--handoff {
 		transform: translate(
 			calc( -50% + var( --os-cn-shift, 0px ) ),
 			-100%

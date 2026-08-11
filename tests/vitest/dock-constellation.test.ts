@@ -113,12 +113,21 @@ function pointerOver(): Event {
 	return ev;
 }
 
+/**
+ * Hover a tile and let the flyout come up — but NOT long enough for
+ * any exit or hand-off already in flight to finish. Time is advanced
+ * rather than flushed precisely so a test can observe both panels
+ * during a hand-off; `flushExit()` is how you get to "and then it's
+ * gone".
+ */
 function hover( tile: HTMLElement ): void {
 	tile.dispatchEvent( pointerOver() );
-	vi.runOnlyPendingTimers();
-	// The open transition is applied on the next frame; jsdom's rAF is
-	// a timer, so flushing again lands the `--open` class too.
-	vi.runOnlyPendingTimers();
+	// Past the show dwell (130ms), short of the exit (160) and the
+	// hand-off (200).
+	vi.advanceTimersByTime( 140 );
+	// The open class + the slide land on the next frame; jsdom's rAF
+	// is a timer here, so step once more to paint them.
+	vi.advanceTimersByTime( 5 );
 }
 
 /**
@@ -139,16 +148,27 @@ function ghost(): HTMLElement | null {
 	);
 }
 
-/** Let any in-flight exit finish and its node leave the document. */
+/** Let any in-flight exit or hand-off finish and its node leave. */
 function flushExit(): void {
-	vi.runOnlyPendingTimers();
+	vi.advanceTimersByTime( 400 );
+}
+
+/**
+ * Query inside the LIVE panel. Every row query has to be scoped: a
+ * retiring panel is still in the document with a full set of rows,
+ * and an unscoped `querySelectorAll` would collect both.
+ */
+function rows( selector: string ): HTMLElement[] {
+	const live = panel();
+	if ( ! live ) {
+		return [];
+	}
+	return Array.from( live.querySelectorAll< HTMLElement >( selector ) );
 }
 
 function rowLabels(): string[] {
-	return Array.from(
-		document.querySelectorAll< HTMLElement >(
-			'.os-constellation__row--sub .os-constellation__row-label',
-		),
+	return rows(
+		'.os-constellation__row--sub .os-constellation__row-label',
 	).map( ( el ) => el.textContent ?? '' );
 }
 
@@ -176,11 +196,46 @@ describe( 'dock constellation', () => {
 		document.body.className = '';
 	} );
 
-	function mount(): void {
+	function mountWith( items: DockItem[] ): void {
 		teardown = mountDockConstellation( {
 			windowManager: makeManagerStub(),
 			adminUrl: '/wp-admin/',
-			getMenuItems: () => [ appearance ],
+			getMenuItems: () => items,
+		} );
+	}
+
+	function mount(): void {
+		mountWith( [ appearance ] );
+	}
+
+	/** Append a second menu tile to the rail. */
+	function addTile( slug: string ): HTMLElement {
+		const tile = document.createElement( 'div' );
+		tile.className = 'os-dock__item';
+		tile.dataset.menuSlug = slug;
+		tile.appendChild( document.createElement( 'button' ) );
+		document.querySelector( '.os-dock' )!.appendChild( tile );
+		return tile;
+	}
+
+	/**
+	 * jsdom reports a zero rect for every element, which would put two
+	 * adjacent tiles at the same x and make "did the panel travel?"
+	 * unanswerable. Give a tile a real box.
+	 */
+	function placeTile( tile: HTMLElement, left: number ): void {
+		Object.defineProperty( tile, 'getBoundingClientRect', {
+			configurable: true,
+			value: () => ( {
+				left,
+				right: left + 40,
+				top: 600,
+				bottom: 640,
+				width: 40,
+				height: 40,
+				x: left,
+				y: 600,
+			} ),
 		} );
 	}
 
@@ -215,17 +270,13 @@ describe( 'dock constellation', () => {
 		mount();
 		hover( tile );
 
-		document
-			.querySelector< HTMLElement >( '.os-constellation__head' )!
-			.click();
+		rows( '.os-constellation__head' )[ 0 ].click();
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
 		expect( panel() ).toBeNull();
 
+		flushExit();
 		hover( tile );
-		const rows = document.querySelectorAll< HTMLElement >(
-			'.os-constellation__row--sub',
-		);
-		rows[ 1 ].click();
+		rows( '.os-constellation__row--sub' )[ 1 ].click();
 		// `parentUrl` pins to the MENU's landing page, not the child —
 		// otherwise the window's tab strip has no way back to Themes.
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/site-editor.php' );
@@ -236,11 +287,9 @@ describe( 'dock constellation', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
 		hover( tile );
-		const newRow = document.querySelector< HTMLElement >(
-			'.os-constellation__row--new',
-		);
-		expect( newRow?.textContent ).toContain( 'Appearance' );
-		newRow!.click();
+		const newRow = rows( '.os-constellation__row--new' )[ 0 ];
+		expect( newRow.textContent ).toContain( 'Appearance' );
+		newRow.click();
 		expect( opened.at( -1 )?.multi ).toBe( true );
 	} );
 
@@ -254,10 +303,10 @@ describe( 'dock constellation', () => {
 		primary.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'ArrowUp', bubbles: true } ),
 		);
-		vi.runOnlyPendingTimers();
+		vi.advanceTimersByTime( 5 );
 		expect( panel() ).not.toBeNull();
 		expect( document.activeElement ).toBe(
-			document.querySelector( '.os-constellation__row' ),
+			rows( '.os-constellation__row' )[ 0 ],
 		);
 	} );
 
@@ -265,9 +314,7 @@ describe( 'dock constellation', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
 		hover( tile );
-		const row = document.querySelector< HTMLElement >(
-			'.os-constellation__row',
-		)!;
+		const row = rows( '.os-constellation__row' )[ 0 ];
 		row.focus();
 		row.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ),
@@ -287,9 +334,7 @@ describe( 'dock constellation', () => {
 			const tile = setupShell( 'openstation' );
 			mount();
 			hover( tile );
-			document
-				.querySelector< HTMLElement >( '.os-constellation__head' )!
-				.click();
+			rows( '.os-constellation__head' )[ 0 ].click();
 
 			// No longer the live panel, but still painted — marked
 			// `--closing` so CSS can run the exit, and no longer the
@@ -316,9 +361,7 @@ describe( 'dock constellation', () => {
 			const tile = setupShell( 'openstation' );
 			mount();
 			hover( tile );
-			document
-				.querySelector< HTMLElement >( '.os-constellation__head' )!
-				.click();
+			rows( '.os-constellation__head' )[ 0 ].click();
 			// The `--open` class is what drives the per-row staggered
 			// entrance; dropping it without `--closing` taking over
 			// would send every row back through its own exit inside a
@@ -332,34 +375,76 @@ describe( 'dock constellation', () => {
 			).toBe( true );
 		} );
 
-		test( 'a hand-off to another tile cuts instead of fading', () => {
+		/**
+		 * The hand-off is the case a plain close-then-open gets wrong:
+		 * moving along the rail read as the menu blinking out and a
+		 * different one blinking in. It has to read as ONE menu
+		 * travelling and changing contents.
+		 */
+		test( 'a hand-off slides and cross-fades instead of blinking', () => {
 			const tile = setupShell( 'openstation' );
-			const dock = document.querySelector( '.os-dock' )!;
-			const other = document.createElement( 'div' );
-			other.className = 'os-dock__item';
-			other.dataset.menuSlug = 'options-general.php';
-			other.appendChild( document.createElement( 'button' ) );
-			dock.appendChild( other );
-
-			teardown = mountDockConstellation( {
-				windowManager: makeManagerStub(),
-				adminUrl: '/wp-admin/',
-				getMenuItems: () => [ appearance, settings ],
-			} );
+			const other = addTile( 'options-general.php' );
+			placeTile( tile, 100 );
+			placeTile( other, 160 );
+			mountWith( [ appearance, settings ] );
 
 			hover( tile );
 			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 				'Appearance',
 			);
+			const fromX = panel()!.style.left;
+
 			hover( other );
-			// One panel on screen, not two at two different anchors.
+
+			// Both panels are on screen mid-travel: the outgoing one
+			// marked as retiring, the incoming one live and already
+			// showing the new menu.
+			const dying = ghost()!;
+			expect( dying ).not.toBeNull();
+			expect(
+				dying.classList.contains( 'os-constellation--handoff' ),
+			).toBe( true );
+			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
+				'Settings',
+			);
+			expect(
+				panel()?.classList.contains( 'os-constellation--handoff' ),
+			).toBe( true );
+
+			// They travel together: the outgoing panel has been walked
+			// to the incoming one's anchor, so the pair moves as one
+			// object rather than one vanishing beside another.
+			expect( panel()!.style.left ).not.toBe( fromX );
+			expect( dying.style.left ).toBe( panel()!.style.left );
+
+			flushExit();
 			expect( ghost() ).toBeNull();
 			expect(
 				document.querySelectorAll( '.os-constellation' ),
 			).toHaveLength( 1 );
-			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
-				'Settings',
-			);
+			// And once it has landed it stops being a hand-off, so the
+			// NEXT dismissal gets the fall-into-the-rail exit.
+			expect(
+				panel()?.classList.contains( 'os-constellation--handoff' ),
+			).toBe( false );
+		} );
+
+		test( 'the incoming panel is born at the outgoing one’s anchor', () => {
+			const tile = setupShell( 'openstation' );
+			const other = addTile( 'options-general.php' );
+			placeTile( tile, 100 );
+			placeTile( other, 160 );
+			mountWith( [ appearance, settings ] );
+
+			hover( tile );
+			const fromX = panel()!.style.left;
+			expect( fromX ).toBe( '120px' );
+
+			// Step far enough to run the show timer but stop before the
+			// frame that walks the new panel to its own anchor.
+			other.dispatchEvent( pointerOver() );
+			vi.advanceTimersByTime( 0 );
+			expect( panel()!.style.left ).toBe( fromX );
 		} );
 
 		test( 'a stale anchor cuts too — scroll invalidates the position', () => {

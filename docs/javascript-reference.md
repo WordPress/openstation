@@ -887,7 +887,15 @@ Three hooks:
 
 - `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
 - `os.constellation.opened` — **action**, `{ menuSlug, item, instances }`.
-- `os.constellation.closed` — **action**, `{ menuSlug }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until its exit has played. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". Two dismissals skip the exit and remove the node outright — a hand-off to another tile, and anything that invalidated the anchor rect (scroll, resize, layout switch) — as does `prefers-reduced-motion: reduce`.
+- `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
+
+**Leaving, three ways.** Which one runs is most of what makes the rail feel solid:
+
+| | When | What happens |
+|---|---|---|
+| **Exit** | Ordinary dismissal — pointer left, Escape, a row activated | Falls back into the rail: shrinks toward `bottom center` (where the beam meets the tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
+| **Hand-off** | The pointer moved to another menu tile | The panel does **not** close. The incoming panel is born at the outgoing one's x, both walk to the new anchor on the same curve, and they cross-fade — one menu travelling and changing contents, the way a menu bar behaves. Both wear `.os-constellation--handoff`; the class is dropped once the slide lands. |
+| **Cut** | The anchor rect was invalidated (scroll, resize, layout switch), or `prefers-reduced-motion: reduce` | The node is removed outright. A panel gliding away from a tile that has already moved points at nothing. |
 
 ```javascript
 // Add a "recently edited" row to the Posts flyout.
