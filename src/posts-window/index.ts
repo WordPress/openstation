@@ -1074,6 +1074,7 @@ function defaultStatusSegments(): StatusSegment[] {
  * out by id) for read-only views.
  */
 function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
+	const isPages = client.getConfig().mode === 'pages';
 	return [
 		{
 			id: 'trash',
@@ -1081,7 +1082,9 @@ function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
 			icon: 'dashicons-trash',
 			variant: 'danger',
 			/* translators: %d: row count. */
-			confirm: __( 'Move %d post(s) to the trash?' ),
+			confirm: isPages
+				? /* translators: %d: row count. */ __( 'Move %d page(s) to the trash?' )
+				: /* translators: %d: row count. */ __( 'Move %d post(s) to the trash?' ),
 			run: async ( ids, ctx ) => {
 				// Don't try to trash rows already in trash — a `DELETE`
 				// without `force` would hard-delete them.
