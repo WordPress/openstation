@@ -21,7 +21,7 @@
  *   `--group` separator at the first `isCore === false` tile, so any
  *   interleaved order (a user drag, a plugin's `dockOrder` filter)
  *   would otherwise scatter the boundary or lose it entirely. Desktop
- *   icons behave exactly as they do in Classic/Unified: the wallpaper
+ *   icons behave exactly as they do in Classic/Unified — the wallpaper
  *   stays available, it just isn't load-bearing. Bottom-only, unlike
  *   Unified and Spatial — see `primaryOrientation()`.
  *
