@@ -419,18 +419,26 @@ export function createLayoutDispatcher(
 	};
 
 	/**
-	 * The OpenStation rail: every menu on one bottom dock, core
-	 * cluster first, plugin cluster second.
+	 * A one-rail list: every menu on one dock, core cluster first,
+	 * plugin cluster second. Used by Unified and OpenStation, the two
+	 * layouts that put the whole admin menu on a single rail.
 	 *
-	 * The re-sort is deliberate and is the whole reason the layout's
+	 * The re-sort is deliberate and is the whole reason the rail's
 	 * divider works. `Dock` inserts its `--group` separator at the
 	 * first tile whose `isCore` is `false`, so it only produces one
 	 * clean boundary when the list is already grouped. `partition()`
 	 * preserves each item's relative order inside its own cluster, so
 	 * a user's drag-to-reorder still holds — it just can't drag a
 	 * plugin into the middle of WordPress.
+	 *
+	 * Unified took the menu in menu order until it didn't: a plugin
+	 * that registers its menu high up (Yoast, Jetpack) put the divider
+	 * two tiles in, with the rest of WordPress stranded on the plugin
+	 * side of a line that then claimed nothing true. A boundary that
+	 * lands somewhere different on every site teaches nothing, so both
+	 * one-rail layouts group first and draw second.
 	 */
-	const openStationRailItems = (): DockItem[] => {
+	const coreFirstRailItems = (): DockItem[] => {
 		const { core, plugin } = partition();
 		return [ ...core, ...plugin ];
 	};
@@ -683,22 +691,15 @@ export function createLayoutDispatcher(
 				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
 			);
 			primaryDock = unwrapDefaultDock( primary );
-		} else if ( layout === 'unified' ) {
+		} else if ( layout === 'unified' || layout === 'openstation' ) {
+			// One rail, same contents. The two differ in how the rail is
+			// PAINTED (OpenStation brings its own skin, its seam and the
+			// constellation flyout), not in what it holds.
 			removeSideDockEl();
 			primary = mountRail(
 				buildMountDeps(
 					deps.bottomDockEl,
-					effectiveDockItems(),
-					primaryOrientation(),
-				),
-			);
-			primaryDock = unwrapDefaultDock( primary );
-		} else if ( layout === 'openstation' ) {
-			removeSideDockEl();
-			primary = mountRail(
-				buildMountDeps(
-					deps.bottomDockEl,
-					openStationRailItems(),
+					coreFirstRailItems(),
 					primaryOrientation(),
 				),
 			);
@@ -791,9 +792,10 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
-			} else if ( layout === 'openstation' ) {
+			} else if (
+				layout === 'unified' ||
+				layout === 'openstation'
+			) {
 				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );
@@ -852,9 +854,10 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
-			} else if ( layout === 'openstation' ) {
+			} else if (
+				layout === 'unified' ||
+				layout === 'openstation'
+			) {
 				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );

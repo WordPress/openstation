@@ -605,6 +605,106 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( detail!.side ).toBe( dispatcher.getSide() );
 	} );
 
+	describe( 'one rail groups before it draws', () => {
+		/**
+		 * Read the rail in visual order: tile slugs, with the divider
+		 * that `Dock` inserts at the core-to-plugin boundary marked.
+		 */
+		const railOrder = ( dockId: string ): string[] =>
+			Array.from(
+				document
+					.getElementById( dockId )!
+					.querySelectorAll(
+						'[data-menu-slug], .os-dock__separator--group',
+					),
+			).map( ( el ) =>
+				el.classList.contains( 'os-dock__separator--group' )
+					? '|'
+					: ( el as HTMLElement ).dataset.menuSlug ?? '?',
+			);
+
+		test( 'unified: an interleaved menu is sorted, not split', () => {
+			const { deps } = makeDeps();
+			// A plugin that registers its menu high up — Yoast and
+			// Jetpack both do. In menu order the divider would be
+			// dropped right after Dashboard, stranding Posts and
+			// Settings on the plugin side of a line that then claims
+			// nothing true.
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast, posts, woo ],
+				[],
+			);
+
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'index.php',
+				'edit.php',
+				'|',
+				'wpseo_dashboard',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'openstation: same rail, same grouping', () => {
+			const { deps } = makeDeps();
+			createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, yoast, posts, woo ],
+				[],
+			);
+
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'index.php',
+				'edit.php',
+				'|',
+				'wpseo_dashboard',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'the grouping survives a live menu refresh', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, posts ],
+				[],
+			);
+			// A plugin activates mid-session and lands mid-menu.
+			dispatcher.applyDockItems( [ dashboard, woo, posts ] );
+
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'index.php',
+				'edit.php',
+				'|',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'relative order inside each cluster is preserved', () => {
+			const { deps } = makeDeps();
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ woo, posts, yoast, dashboard ],
+				[],
+			);
+
+			// Core keeps Posts-then-Dashboard and plugins keep
+			// Woo-then-Yoast: grouping moves the clusters, never the
+			// tiles within one, so a user's drag-to-reorder still holds.
+			expect( railOrder( 'os-dock' ) ).toEqual( [
+				'edit.php',
+				'index.php',
+				'|',
+				'woocommerce',
+				'wpseo_dashboard',
+			] );
+		} );
+	} );
+
 	describe( 'dock placement', () => {
 		test( 'a one-rail layout mounts on the edge it was given', () => {
 			const { deps } = makeDeps();

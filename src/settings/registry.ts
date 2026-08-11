@@ -56,12 +56,14 @@ export interface OsSettingsSnapshot {
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
-	 * - `unified` — one dock with every menu. The default.
+	 * - `unified` — one dock with every menu, core cluster first. The
+	 *   default.
 	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
 	 * - `spatial` — one dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
-	 * - `openstation` — single bottom dock, core cluster then a
-	 *   divider then plugins, with hover-reveal submenu flyouts.
+	 * - `openstation` — the same one dock, plus its own skin, a
+	 *   luminous seam on the WordPress-to-OpenStation boundary, and
+	 *   hover-reveal submenu flyouts.
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
 	/**

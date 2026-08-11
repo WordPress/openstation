@@ -25,10 +25,25 @@
  */
 
 /* ==================================================================
- * 1. The seam — core ends, plugins begin
+ * 1. The seam — WordPress ends, OpenStation begins
  * ================================================================== */
 
 /*
+ * The seam sits on the rail's ONE boundary where behaviour changes:
+ * before it a tile opens an admin screen, after it a tile acts on the
+ * desktop itself (Preferences, the bin, the way out). That is the
+ * distinction users were missing, so it is the one that gets Pulse.
+ *
+ * It used to sit on the core-to-plugin boundary. That boundary is
+ * provenance — who shipped the menu — and nobody reads a rail thinking
+ * "this half is plugins"; they think "this is Yoast". It keeps the
+ * quiet hairline from `dock.css` instead, which is what a grouping
+ * inside one behaviour looks like.
+ *
+ * The selector reaches the system separator through `__pinned`, the
+ * wrapper `Dock` puts system tiles in. The `--group` divider lives in
+ * `__scroll`, so the two can never be confused for one another here.
+ *
  * Extra breathing room around the boundary. The clusters need to read
  * as two groups before the divider between them means anything; at
  * the dock's default 6px gap they read as one row with a scratch in
@@ -36,12 +51,12 @@
  */
 .os-shell[ data-os-layout="openstation" ]
 	.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__separator--group {
+	.os-dock__pinned
+	.os-dock__separator {
 	position: relative;
 	width: 2px;
 	height: 34px;
 	margin: auto 14px;
-	margin-inline-start: 14px;
 	border-radius: 2px;
 	/*
 	 * A gradient, not a flat fill. The seam is brightest where the eye
@@ -72,7 +87,8 @@
  */
 .os-shell[ data-os-layout="openstation" ]
 	.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__separator--group::after {
+	.os-dock__pinned
+	.os-dock__separator::after {
 	content: "";
 	position: absolute;
 	inset-inline-start: 50%;
@@ -737,7 +753,8 @@ body.os-constellation-open .os-dock__tooltip {
 
 	.os-shell[ data-os-layout="openstation" ]
 		.os-dock[ data-os-dock-placement="bottom" ]
-		.os-dock__separator--group::after {
+		.os-dock__pinned
+		.os-dock__separator::after {
 		animation: none;
 		opacity: 1;
 	}

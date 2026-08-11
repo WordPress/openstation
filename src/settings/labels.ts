@@ -125,7 +125,7 @@ export function translateDesktopLayoutDescription(
 			);
 		case 'unified':
 			return __(
-				'One dock holding every menu, with the OpenStation controls grouped behind a divider.',
+				'One dock: WordPress first, then a divider, then the OpenStation controls.',
 			);
 		case 'spatial':
 			return __(
@@ -133,7 +133,7 @@ export function translateDesktopLayoutDescription(
 			);
 		case 'openstation':
 			return __(
-				'One bottom dock: WordPress first, a divider, then your plugins. Hover any tile to fan its submenu out as a holographic flyout.',
+				'The same one dock, dressed up: a lit divider, and hover any tile to fan its submenu out as a flyout.',
 			);
 		default:
 			return '';

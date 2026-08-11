@@ -1119,3 +1119,123 @@
 .os-dock__item:not( .os-dock__item--system ):active {
 	cursor: grabbing;
 }
+
+/* ------------------------------------------------------------------
+ * The way out — `Exit OpenStation`
+ *
+ * Every other system tile opens something you can close again. This
+ * one leaves the desktop, and with the admin bar hidden by default it
+ * is the only route back to classic admin. Drawn like its neighbours
+ * it read as one more launcher, which is the same "some tiles do a
+ * different kind of thing" confusion the single dock set out to fix,
+ * just moved to the other end of the rail.
+ *
+ * Three signals, none of them colour. Danger red would overstate it
+ * (nothing is destroyed, the session is saved and the desktop is one
+ * click away) and Pulse is already spent on the seam:
+ *
+ *   1. **Last, always.** `order: 1` rather than registration order —
+ *      native-window tiles from plugins sync in after boot and would
+ *      otherwise land behind it.
+ *   2. **Its own gap**, wider than the rail's 6px, so it reads as
+ *      sitting outside the set rather than at the end of it. A second
+ *      divider would have said this too, and would have cost the rail
+ *      the one-structural-line rule it just earned.
+ *   3. **A different silhouette** — a ring rather than a plate. Shape
+ *      survives every theme, every dock texture, greyscale and a
+ *      colour-blind reading of the rail; a tint survives none of them
+ *      reliably.
+ *
+ * And it leans toward the edge it leads to on hover instead of lifting
+ * toward the pointer, because every other tile's lift means "I will
+ * come to you" and this one means the opposite.
+ *
+ * Keyed on the tile id, the same idiom the Recycle Bin badge uses
+ * above. `os-exit` is frozen in `src/exit-openstation.ts`
+ * (`EXIT_OPENSTATION_TILE_ID`) and `dock-exit-tile.test.ts` pins the
+ * attribute this selector depends on.
+ * ------------------------------------------------------------------ */
+
+.os-dock__item[ data-system-id="os-exit" ] {
+	order: 1;
+}
+
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary {
+	border-radius: 50%;
+	background-color: transparent;
+	box-shadow: inset 0 0 0 1px var(
+		--os-dock-exit-ring,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.18 ) )
+	);
+	color: var( --os-dock-exit-icon, rgba( 255, 255, 255, 0.55 ) );
+}
+
+/*
+ * The gap runs along the rail's own axis, so it follows the placement:
+ * inline for the horizontal pill, block for the vertical pillars.
+ */
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item[ data-system-id="os-exit" ] {
+	margin-inline-start: 10px;
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item[ data-system-id="os-exit" ],
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item[ data-system-id="os-exit" ] {
+	margin-block-start: 8px;
+}
+
+/*
+ * Hover: the ring closes up and the tile moves TOWARD its edge. The
+ * generic tile rule scales up by 1.1, so these have to out-specify it
+ * rather than sit alongside it.
+ */
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:hover,
+.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:focus-visible {
+	background-color: transparent;
+	box-shadow: inset 0 0 0 1px var(
+		--os-dock-exit-ring-hover,
+		var( --os-dock-item-outline, rgba( 255, 255, 255, 0.7 ) )
+	);
+	color: var( --os-dock-icon-color-hover, var( --os-ui-fg-on-accent, #fff ) );
+}
+
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateY( 2px );
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateX( -2px );
+}
+
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateX( 2px );
+}
+
+/* The press keeps the shared cue: every tile in the rail dips on
+ * :active, and this one should not feel unresponsive by comparison. */
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:active {
+	transform: scale( 0.95 );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-dock[ data-os-dock-placement="bottom" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover,
+	.os-dock[ data-os-dock-placement="left" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover,
+	.os-dock[ data-os-dock-placement="right" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover {
+		transform: none;
+	}
+}
