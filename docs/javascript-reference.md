@@ -881,7 +881,11 @@ One panel, up to four sections, top to bottom:
 
 Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
 
-Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile, `Tab` collapses and moves on. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+
+**The flyout is one tab stop, not one per row** — the conventional ARIA menu pattern. Every `.os-constellation__row` is given `tabindex="-1"` (including rows a plugin appended through the filter below, which are normalised after it runs), arrow keys do the moving, and `Tab` collapses the panel and returns focus to the tile *without* preventing the default, so the browser then continues from the rail's own place in the document order. Without that a fifteen-child submenu would put fifteen stops between the dock and whatever follows it.
+
+**Vertical sizing.** The panel hangs off the top of the dock and is never nudged downward to fit — that would push it over the rail and under the pointer. Instead the JS writes `--os-cn-max-h` on every placement (the distance from the panel's bottom edge to the top of the viewport, floored at 160px) and the surface reads it as a `max-height`; a menu too tall for the space shrinks and its submenu group takes the scroll, leaving the head and the new-window row pinned. Horizontally it *is* nudged, with `--os-cn-beam-x` keeping the beam pointed at the tile.
 
 Three hooks:
 

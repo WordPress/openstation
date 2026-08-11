@@ -112,6 +112,12 @@ const EXIT_MS = 160;
 const BEAM_GAP_PX = 14;
 /** Keep-out margin from every viewport edge. */
 const VIEWPORT_MARGIN_PX = 12;
+/**
+ * Floor for the vertical cap. Below roughly this, a panel has stopped
+ * being a menu and become a scrollbar with a title on it, so on a
+ * viewport that short we let it overflow slightly instead.
+ */
+const MIN_PANEL_HEIGHT_PX = 160;
 
 /**
  * Body class set while a flyout is open. CSS uses it to mute the dock
@@ -352,6 +358,18 @@ export function mountDockConstellation(
 				resolveBaseId( deps, item ),
 			);
 		panel = buildPanel( deps, item, instances, tile, close );
+		// Roving tabindex: the flyout is ONE tab stop, not one per row.
+		// Arrow keys move between rows and Tab leaves the menu — the
+		// conventional ARIA menu pattern, and the reason it matters
+		// here is that a fifteen-child submenu would otherwise put
+		// fifteen stops between the dock and whatever follows it.
+		//
+		// Applied after the panel filter rather than in each builder so
+		// rows a plugin appended are covered too; `focus()` still works
+		// on a `tabindex="-1"` element, which is all the roving needs.
+		for ( const row of rowsOf( panel ) ) {
+			row.tabIndex = -1;
+		}
 		anchor = tile;
 		anchorSlug = slug;
 		document.body.appendChild( panel );
@@ -445,10 +463,14 @@ export function mountDockConstellation(
 				e.preventDefault();
 				focusRow( panel, rows.length - 1 );
 			} else if ( e.key === 'Tab' ) {
-				// Tab means "leave this menu" — collapse and let the
-				// browser move on rather than trapping focus in a
-				// transient hover surface.
-				close();
+				// Tab means "leave this menu". Collapse it and hand
+				// focus back to the tile WITHOUT preventing the
+				// default, so the browser then tabs onward from the
+				// tile — the rail's own position in the document
+				// order. Closing without restoring focus would drop
+				// the user on `<body>` and restart their traversal
+				// from the top of the page.
+				close( true );
 			}
 			return;
 		}
@@ -887,19 +909,41 @@ function inheritShellVars( panel: HTMLElement ): void {
 }
 
 /**
- * Anchor the panel above the tile, then pull it back inside the
- * viewport and slide the beam to stay pointed at the tile's centre.
+ * Anchor the panel above the tile, cap it to the room actually
+ * available there, then pull it back inside the viewport horizontally
+ * and slide the beam to stay pointed at the tile's centre.
  *
- * The clamp writes `--os-cn-beam-x` rather than moving the beam
- * element: the beam is the only thing tying a panel that has been
- * nudged sideways back to the tile it belongs to, so it has to track
- * the anchor independently of the surface.
+ * The two axes are clamped differently on purpose.
+ *
+ * **Horizontally** the panel is nudged, because sliding it sideways
+ * costs nothing — it still points at its tile, and the beam tracks
+ * the anchor independently via `--os-cn-beam-x` so the thread stays
+ * honest.
+ *
+ * **Vertically it cannot be nudged at all.** The panel hangs off the
+ * top of the dock; moving it down to fit would push it over the rail
+ * and under the pointer, which is worse than the overflow. So the
+ * height is capped instead: `--os-cn-max-h` is the distance from the
+ * panel's bottom edge to the top of the viewport, and the surface
+ * reads it as a `max-height`. A menu too tall for the space shrinks
+ * to fit and its submenu group takes the scroll — which is why the
+ * group is the flex item that shrinks, not the head or the
+ * new-window row.
  */
 function position( panel: HTMLElement, tile: HTMLElement ): void {
 	const rect = tile.getBoundingClientRect();
 	const centre = rect.left + rect.width / 2;
 	panel.style.left = `${ centre }px`;
 	panel.style.top = `${ rect.top - BEAM_GAP_PX }px`;
+
+	// `MIN_PANEL_HEIGHT_PX` is a floor rather than a hard truth: on a
+	// viewport so short that even that doesn't fit, a panel that
+	// overflows slightly beats one collapsed to a sliver.
+	const available = rect.top - BEAM_GAP_PX - VIEWPORT_MARGIN_PX;
+	panel.style.setProperty(
+		'--os-cn-max-h',
+		`${ Math.max( MIN_PANEL_HEIGHT_PX, available ) }px`,
+	);
 
 	requestAnimationFrame( () => {
 		const panelRect = panel.getBoundingClientRect();

@@ -260,6 +260,14 @@ body.os-constellation-open .os-dock__tooltip {
 	min-width: 232px;
 	max-width: min( 340px, calc( 100vw - 24px ) );
 	/*
+	 * The vertical clamp. `--os-cn-max-h` is written by the JS on
+	 * every placement: the distance from this panel's bottom edge up
+	 * to the top of the viewport. The panel cannot be nudged
+	 * downwards to fit — that would push it over the dock — so it is
+	 * capped instead, and the group below takes the scroll.
+	 */
+	max-height: var( --os-cn-max-h, min( 78vh, 620px ) );
+	/*
 	 * The surface itself never scrolls. A long menu (WooCommerce's
 	 * fifteen children, a CPT with every taxonomy under it) puts the
 	 * scroll on its own group instead, which keeps the head and the
@@ -427,6 +435,10 @@ body.os-constellation-open .os-dock__tooltip {
 	align-items: center;
 	gap: 10px;
 	width: 100%;
+	/* The head and the new-window row are direct flex children of a
+	 * height-capped surface; without this they would be squashed
+	 * before the scrollable group in the middle gave way. */
+	flex: 0 0 auto;
 	padding: 8px 10px;
 	border: none;
 	border-radius: 9px;
@@ -593,7 +605,16 @@ body.os-constellation-open .os-dock__tooltip {
 	 * The scroll lives here rather than on the surface, so the head
 	 * and the new-window row stay pinned while a long submenu rolls
 	 * under them.
+	 *
+	 * `min-height: 0` is what lets the surface's `max-height` reach
+	 * this: a flex item's default `min-height: auto` refuses to
+	 * shrink below its content, so without it a tall submenu would
+	 * simply overflow the capped surface instead of scrolling inside
+	 * it. `flex: 0 1 auto` says this is the part that gives — the
+	 * head and the new-window row do not.
 	 */
+	flex: 0 1 auto;
+	min-height: 0;
 	max-height: min( 46vh, 360px );
 	overflow-y: auto;
 	overflow-x: hidden;

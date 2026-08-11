@@ -223,18 +223,22 @@ describe( 'dock constellation', () => {
 	 * adjacent tiles at the same x and make "did the panel travel?"
 	 * unanswerable. Give a tile a real box.
 	 */
-	function placeTile( tile: HTMLElement, left: number ): void {
+	function placeTile(
+		tile: HTMLElement,
+		left: number,
+		top = 600,
+	): void {
 		Object.defineProperty( tile, 'getBoundingClientRect', {
 			configurable: true,
 			value: () => ( {
 				left,
 				right: left + 40,
-				top: 600,
-				bottom: 640,
+				top,
+				bottom: top + 40,
 				width: 40,
 				height: 40,
 				x: left,
-				y: 600,
+				y: top,
 			} ),
 		} );
 	}
@@ -467,6 +471,70 @@ describe( 'dock constellation', () => {
 				document.body.classList.contains( 'os-constellation-open' ),
 			).toBe( false );
 		} );
+	} );
+
+	test( 'is one tab stop, not one per row', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+		// Roving tabindex. Arrow keys move between rows; Tab leaves the
+		// menu. Without this a fifteen-child submenu would put fifteen
+		// stops between the dock and whatever follows it.
+		const all = rows( '.os-constellation__row' );
+		expect( all.length ).toBeGreaterThan( 1 );
+		expect( all.every( ( r ) => r.tabIndex === -1 ) ).toBe( true );
+	} );
+
+	test( 'Tab leaves the menu and puts focus back on the rail', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+		const row = rows( '.os-constellation__row' )[ 0 ];
+		row.focus();
+		const ev = new KeyboardEvent( 'keydown', {
+			key: 'Tab',
+			bubbles: true,
+			cancelable: true,
+		} );
+		row.dispatchEvent( ev );
+
+		expect( panel() ).toBeNull();
+		// Focus lands on the tile, not `<body>` — the browser then
+		// continues tabbing from the rail's own place in the document
+		// rather than restarting at the top of the page. And the
+		// default is NOT prevented, or that onward move never happens.
+		expect( document.activeElement ).toBe(
+			tile.querySelector( '.os-dock__item-primary' ),
+		);
+		expect( ev.defaultPrevented ).toBe( false );
+	} );
+
+	test( 'caps its height to the room above the tile', () => {
+		const tile = setupShell( 'openstation' );
+		// A dock 700px down a viewport: 700 − 14 beam gap − 12 margin.
+		placeTile( tile, 100, 700 );
+		mount();
+		hover( tile );
+		// The panel hangs off the top of the dock and cannot be nudged
+		// downwards to fit — that would push it over the rail — so a
+		// menu too tall for the space is capped and its submenu group
+		// takes the scroll instead.
+		expect(
+			panel()!.style.getPropertyValue( '--os-cn-max-h' ),
+		).toBe( '674px' );
+	} );
+
+	test( 'never caps below a usable height on a short viewport', () => {
+		const tile = setupShell( 'openstation' );
+		// A tile 60px from the top leaves 34px — at which point a panel
+		// has stopped being a menu and become a scrollbar with a title
+		// on it, so the floor wins and it overflows slightly instead.
+		placeTile( tile, 100, 60 );
+		mount();
+		hover( tile );
+		expect(
+			panel()!.style.getPropertyValue( '--os-cn-max-h' ),
+		).toBe( '160px' );
 	} );
 
 	test( 'survives a tile rebuilt under it — the listener is delegated', () => {
