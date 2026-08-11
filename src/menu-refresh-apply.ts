@@ -23,6 +23,7 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopWindowActionScriptServerEntry,
 	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
 	DesktopWindowLinkRendererScriptServerEntry,
@@ -47,6 +48,7 @@ export interface MenuRefreshPayload {
 	serverSettingsTabs?: unknown;
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
+	serverWindowActionScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
 	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
@@ -86,6 +88,9 @@ export interface MenuRefreshDeps {
 	) => Promise< void >;
 	syncServerTitleBarButtons: (
 		scripts: DesktopTitleBarButtonScriptServerEntry[],
+	) => Promise< void >;
+	syncServerWindowActions: (
+		scripts: DesktopWindowActionScriptServerEntry[],
 	) => Promise< void >;
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
@@ -206,6 +211,7 @@ export function createApplyPayload(
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
@@ -226,6 +232,7 @@ export function createApplyPayload(
 		const serverSettingsTabs = payload.serverSettingsTabs;
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
+		const serverWindowActionScripts = payload.serverWindowActionScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
 		const serverWindowLinkRendererScripts =
 			payload.serverWindowLinkRendererScripts;
@@ -371,6 +378,17 @@ export function createApplyPayload(
 			);
 			config.serverTitleBarButtonScripts =
 				serverTitleBarButtonScripts as DesktopConfig[ 'serverTitleBarButtonScripts' ];
+		}
+
+		// Window-action sync — same shape. Loads plugin scripts on
+		// activation so their `registerWindowAction()` row is in the
+		// next ⋯ menu that opens; owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverWindowActionScripts ) ) {
+			void syncServerWindowActions(
+				serverWindowActionScripts as DesktopWindowActionScriptServerEntry[],
+			);
+			config.serverWindowActionScripts =
+				serverWindowActionScripts as DesktopConfig[ 'serverWindowActionScripts' ];
 		}
 
 		// Unfocus-effect sync — same shape. Loads plugin effect scripts

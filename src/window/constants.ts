@@ -55,12 +55,35 @@ export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 export const LOADING_OVERLAY_FADE_OUT_MS = 250;
 
 /**
- * Entry delay before the loading overlay fades IN. Must match the
- * `transition-delay` on `.os-window__body--loading >
- * .os-window__loading` in `assets/css/window-chrome.css`.
+ * How long to wait before the loading overlay may fade in. A load that
+ * finishes inside this window never paints a spinner at all.
  *
- * Loads that finish inside this window never paint a spinner at all,
- * which is what the reveal surface checks to decide whether it has a
- * fade-out to wait for.
+ * Owned by JS, not a CSS `transition-delay`: the overlay is appended
+ * into a body that already carries `os-window__body--loading`, so its
+ * first computed style is the visible one and the transition never
+ * runs.
  */
 export const LOADING_OVERLAY_SHOW_DELAY_MS = 120;
+
+/**
+ * How long the content takes to fade in after the overlay has faded
+ * out. The `transition` on `.os-window__body--loading-out` in
+ * `assets/css/window-chrome.css` encodes both halves of the hand-off:
+ * its duration is this constant, its delay is
+ * {@link LOADING_OVERLAY_FADE_OUT_MS}. Keep all three in step.
+ *
+ * The two fades run back to back, never together, so the spinner and
+ * the content are never both on screen.
+ */
+export const LOADING_CONTENT_FADE_IN_MS = 250;
+
+/** The loading overlay element's own class. */
+export const LOADING_OVERLAY_CLASS = 'os-window__loading';
+
+/**
+ * Marks a spinner as on screen. This is the single answer to "did the
+ * spinner paint?": both the loaded edge in `src/window/loading.ts` and
+ * the reveal surface in `src/reveals/surface.ts` read it, so they
+ * cannot disagree. Do not re-derive it from a clock.
+ */
+export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';

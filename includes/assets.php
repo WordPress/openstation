@@ -173,6 +173,15 @@ function openstation_register_assets() {
 		array( 'os-windows' ),
 		$built_version( 'assets/css/os-settings.css' )
 	);
+	// Solo mode — one window, no desk around it. Loads last so it can
+	// hide surfaces the sheets above declared, and only enqueues on a
+	// solo request, so a normal shell never pays for it.
+	wp_register_style(
+		'os-solo',
+		OPENSTATION_URL . 'assets/css/solo.css',
+		array( 'os-windows' ),
+		$built_version( 'assets/css/solo.css' )
+	);
 	wp_register_style(
 		'os-dock',
 		OPENSTATION_URL . 'assets/css/dock.css',

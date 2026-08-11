@@ -69,8 +69,9 @@
  */
 
 import {
+	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_FADE_OUT_MS,
-	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
 } from '../window/constants';
 import { createSharedStore } from '../shared-store';
 import { getActiveWindowReveal, getActiveWindowRevealDuration } from './engine';
@@ -119,16 +120,6 @@ export const REVEAL_CUSTOM_CLASS = 'os-window__reveal--custom';
  * along its leading edge.
  */
 export const REVEALING_BODY_CLASS = 'os-window__body--revealing';
-
-/**
- * Timestamp (ms) when the surface was armed, stamped on the element
- * itself rather than held in a side map — the element is the thing
- * whose lifetime the value tracks, and a window torn down mid-load
- * takes its stamp with it instead of leaking an entry.
- *
- * @internal
- */
-const ARMED_AT_ATTR = 'data-os-reveal-armed';
 
 /**
  * Id of the reveal that armed this surface. Read back at play time so a
@@ -449,7 +440,7 @@ function findLayers( body: HTMLElement ): HTMLElement[] {
 
 /**
  * Build one reveal layer, clipped to the reveal's `from` shape and
- * stamped with the reveal id + arm time.
+ * stamped with the reveal id.
  *
  * @internal
  */
@@ -457,7 +448,6 @@ function createLayer(
 	def: WindowRevealDef,
 	pair: WindowRevealLayer,
 	index: number,
-	armedAt: number,
 	edge: boolean,
 ): HTMLElement {
 	const layer = document.createElement( 'div' );
@@ -477,7 +467,6 @@ function createLayer(
 	layer.setAttribute( 'aria-hidden', 'true' );
 	layer.setAttribute( REVEAL_ID_ATTR, def.id );
 	layer.setAttribute( LAYER_INDEX_ATTR, String( index ) );
-	layer.setAttribute( ARMED_AT_ATTR, String( armedAt ) );
 	layer.style.clipPath = pair.from;
 	return layer;
 }
@@ -533,7 +522,6 @@ export function createRevealLayers(): HTMLElement[] {
 		host.setAttribute( 'aria-hidden', 'true' );
 		host.setAttribute( REVEAL_ID_ATTR, def.id );
 		host.setAttribute( LAYER_INDEX_ATTR, '0' );
-		host.setAttribute( ARMED_AT_ATTR, String( Date.now() ) );
 		rendered.set( host, built.play );
 		return [ host ];
 	}
@@ -542,7 +530,6 @@ export function createRevealLayers(): HTMLElement[] {
 	if ( pairs.length === 0 ) {
 		return [];
 	}
-	const armedAt = Date.now();
 	const layers: HTMLElement[] = [];
 	// Every edge first, then every surface: the two classes carry their
 	// own `z-index`, and keeping the groups contiguous means one
@@ -550,11 +537,11 @@ export function createRevealLayers(): HTMLElement[] {
 	// face.
 	if ( clampRevealEdgeLag( def.edgeLag ) > 0 ) {
 		pairs.forEach( ( pair, i ) =>
-			layers.push( createLayer( def, pair, i, armedAt, true ) ),
+			layers.push( createLayer( def, pair, i, true ) ),
 		);
 	}
 	pairs.forEach( ( pair, i ) =>
-		layers.push( createLayer( def, pair, i, armedAt, false ) ),
+		layers.push( createLayer( def, pair, i, false ) ),
 	);
 	return layers;
 }
@@ -627,14 +614,19 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		return;
 	}
 
-	const armedAt = Number( surface.getAttribute( ARMED_AT_ATTR ) );
-	const elapsed = Number.isFinite( armedAt ) ? Date.now() - armedAt : 0;
-	// The spinner overlay only becomes visible once its entry delay has
-	// passed. When it did appear, hold the surface still until its
+	// When a spinner actually painted, hold the surface still until its
 	// fade-out has settled so the two transitions read as one sequence
 	// rather than as a cross-fade.
-	const delay =
-		elapsed >= LOADING_OVERLAY_SHOW_DELAY_MS ? LOADING_OVERLAY_FADE_OUT_MS : 0;
+	//
+	// Read the overlay's own class rather than re-deriving it from a
+	// clock. The loaded edge in `src/window/loading.ts` decides from
+	// this same signal, and a second guess drifts from it: a load
+	// landing either side of the show delay, or an overlay inherited
+	// from a previous cycle, made the two disagree.
+	const spinnerVisible = !! body
+		.querySelector( `:scope .${ LOADING_OVERLAY_CLASS }` )
+		?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
+	const delay = spinnerVisible ? LOADING_OVERLAY_FADE_OUT_MS : 0;
 
 	const { duration, edgeLag } = resolveTiming( body, def );
 	const easingValue = def.easing ?? DEFAULT_REVEAL_EASING;

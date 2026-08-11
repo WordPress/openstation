@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<!--
+		Everything inline and same-origin: the CSP below blocks any
+		outbound request this page could be tricked into making. A
+		first-run screen that takes a URL from the user is exactly the
+		wrong place to be permissive.
+	-->
+	<meta http-equiv="Content-Security-Policy"
+		content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src 'self' data:; form-action 'none';">
+	<title>Connect to your site — OpenStation</title>
+	<style>
+		:root {
+			/* Brand palette — Void base, Obsidian surface, Pulse accent. */
+			--void: #0c0b0f;
+			--obsidian: #1a1721;
+			--pulse: #f252fc;
+			--nebula: #ec9bff;
+			--sirius: #c2f1f1;
+			--starlight: #fffbff;
+			--muted: #a89fb3;
+			--line: #2e2939;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 32px;
+			background:
+				radial-gradient( 120% 90% at 12% 0%, rgba( 242, 82, 252, 0.18 ), transparent 62% ),
+				radial-gradient( 90% 70% at 92% 108%, rgba( 194, 241, 241, 0.12 ), transparent 58% ),
+				var( --void );
+			color: var( --starlight );
+			font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+
+		main {
+			width: 100%;
+			max-width: 440px;
+		}
+
+		/*
+		 * The OpenStation mark, straight from `.wordpress-org/icon.svg`
+		 * — the same artwork the plugin ships to WordPress.org, so the
+		 * app and the plugin listing cannot drift apart. The glow is the
+		 * mark's own Pulse, spilled onto the Void behind it.
+		 */
+		.mark {
+			display: block;
+			width: 56px;
+			height: 56px;
+			margin-block-end: 22px;
+			border-radius: 15px;
+			filter: drop-shadow( 0 8px 30px rgba( 242, 82, 252, 0.35 ) );
+		}
+
+		h1 {
+			margin: 0 0 6px;
+			font-size: 25px;
+			font-weight: 620;
+			letter-spacing: -0.02em;
+		}
+
+		p.lede {
+			margin: 0 0 26px;
+			color: var( --muted );
+		}
+
+		label {
+			display: block;
+			margin-block-end: 7px;
+			font-size: 12px;
+			font-weight: 600;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var( --muted );
+		}
+
+		input {
+			width: 100%;
+			padding: 12px 14px;
+			border: 1px solid var( --line );
+			border-radius: 10px;
+			background: var( --obsidian );
+			color: var( --starlight );
+			font: inherit;
+		}
+
+		input:focus {
+			outline: none;
+			border-color: var( --pulse );
+			box-shadow: 0 0 0 3px rgba( 242, 82, 252, 0.22 );
+		}
+
+		button {
+			width: 100%;
+			margin-block-start: 16px;
+			padding: 12px 16px;
+			border: 0;
+			border-radius: 10px;
+			background: var( --pulse );
+			color: var( --void );
+			font: inherit;
+			font-weight: 640;
+			cursor: pointer;
+		}
+
+		button:hover:not( :disabled ) { background: var( --nebula ); }
+		button:disabled { opacity: 0.55; cursor: progress; }
+
+		.hint {
+			margin-block-start: 14px;
+			font-size: 12.5px;
+			color: var( --muted );
+		}
+
+		.error {
+			display: none;
+			margin-block-start: 14px;
+			padding: 10px 12px;
+			border: 1px solid rgba( 242, 82, 252, 0.4 );
+			border-radius: 9px;
+			background: rgba( 242, 82, 252, 0.09 );
+			color: var( --nebula );
+			font-size: 13px;
+		}
+
+		.error[ data-visible='1' ] { display: block; }
+
+		footer {
+			margin-block-start: 30px;
+			padding-block-start: 16px;
+			border-block-start: 1px solid var( --line );
+			font-size: 12px;
+			color: var( --muted );
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<img class="mark" src="openstation.svg" alt="" width="56" height="56">
+		<h1>Connect to your site</h1>
+		<p class="lede">
+			OpenStation runs on your WordPress site. Point this app at it
+			and your desktop comes with you — windows included.
+		</p>
+
+		<form id="connect-form" novalidate>
+			<label for="site">Site address</label>
+			<input
+				id="site"
+				name="site"
+				type="text"
+				autocomplete="url"
+				spellcheck="false"
+				placeholder="http://localhost:8889"
+				aria-describedby="hint">
+			<button id="submit" type="submit">Connect</button>
+		</form>
+
+		<p class="hint" id="hint">
+			You will sign in with your normal WordPress account. Nothing is
+			stored on this machine except the address you type here.
+		</p>
+
+		<div class="error" id="error" role="alert"></div>
+
+		<footer>
+			<span id="version"></span>
+			<span id="platform"></span>
+		</footer>
+	</main>
+	<script src="connect.js"></script>
+</body>
+</html>

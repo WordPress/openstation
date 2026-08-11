@@ -27,6 +27,7 @@
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
 import { openWithShellOverlays } from '../shell-overlays/loader';
+import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 
 export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 
@@ -272,6 +273,8 @@ function openMenu(
 
 	document.body.appendChild( menu );
 	activeMenu = menu;
+	// Measured a frame later, once the component has rendered. See
+	// `src/ui/util/menu-position.ts`.
 	clampToViewport( menu );
 
 	// Outside-click + Escape dismiss. We attach the dismissers
@@ -348,30 +351,6 @@ function openFlyout( parent: IconCanvasMenuItem, anchor: HTMLElement ): void {
 	document.body.appendChild( fly );
 	activeFlyout = fly;
 	positionFlyout( fly, anchor );
-}
-
-function positionFlyout( fly: HTMLElement, anchor: HTMLElement ): void {
-	const ar = anchor.getBoundingClientRect();
-	fly.style.position = 'fixed';
-	fly.style.left = `${ ar.right }px`;
-	fly.style.top = `${ ar.top }px`;
-	const fr = fly.getBoundingClientRect();
-	if ( fr.right > window.innerWidth ) {
-		fly.style.left = `${ Math.max( 0, ar.left - fr.width ) }px`;
-	}
-	if ( fr.bottom > window.innerHeight ) {
-		fly.style.top = `${ Math.max( 0, window.innerHeight - fr.height - 8 ) }px`;
-	}
-}
-
-function clampToViewport( menu: HTMLElement ): void {
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 0, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 0, window.innerHeight - rect.height - 8 ) }px`;
-	}
 }
 
 function hasChildren( item: IconCanvasMenuItem ): boolean {

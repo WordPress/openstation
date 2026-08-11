@@ -8,6 +8,12 @@
  * `openstation_my_wordpress_window_args`). The bundle side registers
  * the `agent` entity-kind renderer.
  *
+ * This file loads regardless of the `agents` extended option (see
+ * bootstrap.php) so the section is always discoverable. While the flag
+ * is off the config carries `enabled => false` and the renderer paints
+ * the section read-only — no REST call is attempted, because the
+ * routes are not registered.
+ *
  * @package OpenStation
  */
 
@@ -39,6 +45,14 @@ add_filter( 'openstation_my_wordpress_entities', 'openstation_agents_my_wordpres
 /**
  * Ship the agents section config on the WP Explorer window config.
  *
+ * `enabled` mirrors the `agents` extended option. When it is false the
+ * section still renders — every control disabled, nothing fetched —
+ * and offers `canEnable` users a way into the Features tab that turns
+ * the framework on. `canManage` / `canInvoke` stay the raw capability
+ * answers so that shell renders the same controls it would when the
+ * flag is on, just inert; the real gate is that the REST routes do not
+ * exist while off.
+ *
  * `aiAvailable` is the cheap structural check (WP 7.0 AI Client +
  * Abilities API present); whether a connector is actually configured
  * is probed live by the renderer against `aiStatusUrl`, mirroring the
@@ -58,6 +72,8 @@ function openstation_agents_my_wordpress_window_args( $window_args ) {
 	}
 
 	$window_args['config']['agents'] = array(
+		'enabled'       => openstation_agents_enabled(),
+		'canEnable'     => current_user_can( 'manage_options' ),
 		'canManage'     => openstation_agents_user_can_manage(),
 		'canInvoke'     => openstation_agents_user_can_invoke(),
 		'aiAvailable'   => function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available(),

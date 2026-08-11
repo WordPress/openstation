@@ -28,6 +28,7 @@ import {
 	type NativeRail,
 } from './settings/item-placement';
 import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
+import { placeAfterRender } from './ui/util/menu-position';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
@@ -309,9 +310,10 @@ function openItemVisibilityMenuImmediate(
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
+	// `placeAfterRender` owns the hiding, so no `visibility` here:
+	// one invariant, one owner.
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
-	menu.style.visibility = 'hidden';
 	// Must sit above the dock-peek popover (z-index: 999999 in
 	// assets/css/dock-peek.css). The peek is still visible when the
 	// user right-clicks a tile, so without this the menu opens
@@ -371,17 +373,16 @@ function openItemVisibilityMenuImmediate(
 	document.body.appendChild( menu );
 	activeMenu = menu;
 
-	// Measure on the next animation frame, AFTER the component has
-	// completed its microtask render. Calling getBoundingClientRect()
+	// `placeAfterRender` measures on the next animation frame, AFTER
+	// the component has completed its microtask render. Measuring
 	// synchronously here returns a near-zero height (shadow DOM not
 	// populated yet) — which made dock right-clicks land the
 	// "anchor-above-cursor" math at `opts.y - 0 - 8 ≈ opts.y`,
 	// pushing the bottom dock's menu off-screen below the viewport.
-	const positionMenu = (): void => {
-		if ( menu !== activeMenu ) {
-			return; // Was closed before we got here.
-		}
-		const rect = menu.getBoundingClientRect();
+	// This menu does its own placement rather than calling
+	// `clampToViewport` because the dock case anchors the menu's
+	// bottom edge at the cursor unconditionally.
+	placeAfterRender( menu, ( rect ) => {
 		const margin = 8;
 		let left = opts.x;
 		let top: number;
@@ -405,9 +406,7 @@ function openItemVisibilityMenuImmediate(
 		}
 		menu.style.left = `${ left }px`;
 		menu.style.top = `${ top }px`;
-		menu.style.visibility = '';
-	};
-	requestAnimationFrame( positionMenu );
+	} );
 
 	// Outside-click + Escape dismisser.
 	const onOutside = ( ev: MouseEvent ): void => {

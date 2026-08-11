@@ -90,6 +90,49 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
 
+	// Solo mode — a single window freed into a native OS window by the
+	// desktop host. Same shell, everything but that one window hidden.
+	$solo_window = openstation_solo_window_id();
+	if ( '' !== $solo_window ) {
+		wp_enqueue_style( 'os-solo' );
+
+		/*
+		 * Hide every window that is not the one this surface was booted
+		 * to paint — from the first frame, before any of them exist.
+		 *
+		 * Solo mode promises one window. Anything that opens a second
+		 * (a game launched from a freed Games hub, a plugin calling
+		 * `openWindow`) would otherwise land on top of the first, and
+		 * solo's CSS stretches every window to fill the viewport, so it
+		 * covers what the user was using.
+		 *
+		 * This has to be CSS rather than JavaScript, and it has to be
+		 * inline. A JS rule can only run once the window exists, which
+		 * is a frame too late — the user sees the newcomer flash before
+		 * it is dealt with. A static stylesheet cannot express it
+		 * either, because the selector depends on which window this is.
+		 * So the rule is emitted with the id baked in, and no window but
+		 * that one is ever painted.
+		 *
+		 * `visibility` rather than `display`: a hidden-but-laid-out
+		 * window still has a size, which canvas-based windows need in
+		 * order to initialise without dividing by zero on the way to
+		 * being closed.
+		 *
+		 * The id is `sanitize_key()`-clean (see `openstation_solo_window_id()`),
+		 * so it is safe in a selector; it is escaped again here because
+		 * the distance between those two facts is exactly where this
+		 * kind of bug lives.
+		 */
+		wp_add_inline_style(
+			'os-solo',
+			sprintf(
+				'body.os-solo .os-window:not(#wp-window-%1$s){visibility:hidden !important;pointer-events:none !important;}',
+				esc_attr( $solo_window )
+			)
+		);
+	}
+
 	// The rebrand announcement paints on one visit per user and never
 	// again, so its stylesheet is only worth sending to the users who
 	// are actually going to see it. Computed once here and reused for
@@ -198,6 +241,9 @@ function openstation_enqueue_assets() {
 		: array();
 	$server_titlebar_button_scripts    = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
+		: array();
+	$server_window_action_scripts      = isset( $menu_payload['serverWindowActionScripts'] )
+		? $menu_payload['serverWindowActionScripts']
 		: array();
 	$server_window_theme_scripts       = isset( $menu_payload['serverWindowThemeScripts'] )
 		? $menu_payload['serverWindowThemeScripts']
@@ -387,6 +433,7 @@ function openstation_enqueue_assets() {
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
+	 *     @type string $soloWindow   Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); '' otherwise. No dock, taskbar, wallpaper or desk, and no session restore.
 	 *     @type string $portalUrl    Canonical `/openstation/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
@@ -418,6 +465,7 @@ function openstation_enqueue_assets() {
 			'serverSettingsTabs'            => $server_settings_tabs,
 			'serverDockRailRendererScripts' => $server_dock_rail_renderer_scripts,
 			'serverTitleBarButtonScripts'   => $server_titlebar_button_scripts,
+			'serverWindowActionScripts'     => $server_window_action_scripts,
 			'serverWindowThemeScripts'      => $server_window_theme_scripts,
 			'serverWindowThemes'            => $server_window_themes,
 			'serverWindowControlScripts'    => $server_window_control_scripts,
@@ -520,6 +568,9 @@ function openstation_enqueue_assets() {
 			// when a core update is actually pending.
 			'releaseCardBundleUrl'          => $lazy_bundle_url( 'release-card' ),
 			'restNonce'                     => wp_create_nonce( 'wp_rest' ),
+			// Non-empty when the shell was asked to paint exactly one
+			// window and nothing else. See `OPENSTATION_SOLO_FLAG`.
+			'soloWindow'                    => openstation_solo_window_id(),
 			'osSettings'                    => openstation_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),

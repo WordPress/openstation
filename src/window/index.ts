@@ -486,6 +486,13 @@ export class Window {
 	public _boundOnDocumentPointerDown: ( ( e: PointerEvent ) => void ) | null = null;
 
 	/**
+	 * Live subscription that repaints the ⋯ menu while it is open, so
+	 * an action registered a moment after opening still appears. Held
+	 * only for the lifetime of one open menu. @internal
+	 */
+	public _unsubscribeWindowActions: ( () => void ) | null = null;
+
+	/**
 	 * ResizeObserver watching the body element. Fires the inline
 	 * `config.onResize` callback AND the `WINDOW_BODY_RESIZED` hook
 	 * on every size change. Null when the environment lacks
@@ -2570,10 +2577,11 @@ export class Window {
 	 *
 	 * The shell:
 	 *   - Adds the `os-window__body--loading` modifier to
-	 *     the body (CSS fades the content out, fades the overlay
-	 *     in).
+	 *     the body (CSS fades the content out).
 	 *   - Re-attaches the overlay element if it was already torn
-	 *     down by a prior `markContentLoaded` call.
+	 *     down by a prior `markContentLoaded` call. The spinner
+	 *     only fades in past the show delay, so a quick refetch
+	 *     never paints one.
 	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
 	 *     dispatches `os-window-content-loading` on
 	 *     `document` (idempotent — no re-fire when already
@@ -2586,9 +2594,11 @@ export class Window {
 	}
 
 	/**
-	 * Tell the shell this window's body content is ready — fades
-	 * the spinner overlay out, fades the content in, removes the
-	 * overlay element after the transition lands.
+	 * Tell the shell this window's body content is ready — fades the
+	 * spinner out, then fades the content in, and removes the overlay
+	 * once the transition lands. The two run back to back, never
+	 * together. A spinner that never painted is dropped in the same
+	 * tick, so the content appears with no wait.
 	 *
 	 * Iframe windows mark themselves ready automatically on the
 	 * `os-ready` postMessage from the chromeless bridge.
@@ -3378,6 +3388,14 @@ export class Window {
 				true,
 			);
 		}
+		// The ⋯ menu's repaint subscription is normally dropped by
+		// `closeActionsMenu()`, and a click-driven close always gets
+		// there first because the pointerdown capture above closes the
+		// menu. A programmatic `close()` with the menu open does not —
+		// leaving a live registry listener holding this window and the
+		// detached panel it would try to repaint.
+		this._unsubscribeWindowActions?.();
+		this._unsubscribeWindowActions = null;
 		this.element.remove();
 		// If this was the last fullscreen window, drop the body
 		// class so the admin bar and shell top-offset come back

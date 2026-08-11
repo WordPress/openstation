@@ -58,7 +58,9 @@ import {
 } from './hooks';
 import { WallpaperLayer } from './wallpapers/layer';
 import type { WallpaperSuspendApi } from './wallpapers/layer';
+import { gamesApi } from './games/api';
 import type { GamesApi } from './games/api';
+import type { WindowActionDef } from './window-actions/registry';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createGamesRegistrySync } from './games/server-sync';
 import { createDesktopThemeSync } from './desktop-themes/server-sync';
@@ -79,6 +81,7 @@ import {
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
@@ -141,7 +144,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,
@@ -1133,6 +1136,33 @@ export interface OpenStationPublicApi {
 	unregisterTitleBarButton: ( id: string ) => void;
 	/** Snapshot of registered title-bar buttons. */
 	listTitleBarButtons: () => TitleBarButtonDef[];
+	/**
+	 * Register (or replace) a row in every window's ⋯ actions menu —
+	 * the right surface for an infrequent, wordy, per-window verb that
+	 * has not earned a permanent title-bar button.
+	 *
+	 * `label`, `icon` and `isVisible` may each be a function of the
+	 * window, re-read every time the menu opens. That is what lets one
+	 * row express a toggle whose meaning depends on state:
+	 *
+	 * ```ts
+	 * wp.os.registerWindowAction( {
+	 *     id: 'my-plugin/pin',
+	 *     label: ( win ) => isPinned( win.id ) ? 'Unpin' : 'Pin to top',
+	 *     icon: 'dashicons-sticky',
+	 *     isVisible: ( win ) => ! win.config.native,
+	 *     onSelect: ( win ) => togglePin( win.id ),
+	 *     owner: 'my-plugin-shell',
+	 * } );
+	 * ```
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 */
+	registerWindowAction: ( def: WindowActionDef ) => void;
+	/** Remove a previously registered window action. */
+	unregisterWindowAction: ( id: string ) => void;
+	/** Snapshot of registered window actions, in `order`. */
+	listWindowActions: () => WindowActionDef[];
 	/**
 	 * Register (or replace) an unfocused-window effect — a visual
 	 * treatment applied to every window that isn't focused, surfaced in
@@ -2778,7 +2808,75 @@ function init(): void {
 		return nativeWindows.openById( nativeId );
 	}
 
-	const sessionRestore = hasSession
+	/*
+	 * Solo mode — the shell booted to paint exactly one window
+	 * (`?openstation_solo=<id>`; see `includes/solo-window.php`).
+	 *
+	 * The whole shell still boots: every registry, every render
+	 * callback, every plugin integration. What changes is that nothing
+	 * *else* opens. Restoring the session would drag the user's entire
+	 * desk into a surface asked to hold one thing, and
+	 * `openCurrentPage` would open the admin home the solo URL happens
+	 * to be built on — neither is the window that was asked for.
+	 *
+	 * Deliberately generic. The native desktop host (the Electron
+	 * adapter in `extensions/`) is the reason it exists — a native
+	 * window has no URL to hand a real OS window, so the only way to
+	 * show the *same* window elsewhere is to bring the framework — but
+	 * nothing here knows about Electron, and an embed, a kiosk or a
+	 * PWA shortcut can use the same flag.
+	 */
+	const soloWindowId =
+		'string' === typeof config.soloWindow ? config.soloWindow : '';
+	if ( soloWindowId ) {
+		// Deferred one tick for the same reason the native
+		// default-window path below defers: the layout dispatcher and
+		// the system tiles have to have finished mounting before
+		// any opener will resolve an id.
+		queueMicrotask( () => {
+			if ( openNativeWindowById( soloWindowId ) ) {
+				return;
+			}
+
+			// Games are not in the native-window registry: their window
+			// is minted at launch time by `wp.os.games.launch()`, so the
+			// only way to reconstitute `os-game-<id>` is to launch it.
+			// Not a special case sneaking into core — games are a
+			// first-party feature with a first-party registry, and solo
+			// mode's job is to reproduce a window by id whatever minted
+			// it.
+			const gameId = soloWindowId.startsWith( 'os-game-' )
+				? soloWindowId.slice( 'os-game-'.length )
+				: '';
+			if ( gameId ) {
+				void gamesApi.launch( gameId ).catch( ( err ) => {
+					if ( typeof console !== 'undefined' ) {
+						console.error( '[openstation] solo game failed to launch:', err );
+					}
+				} );
+				return;
+			}
+
+			/*
+			 * Nothing recognised the id, and that is where this stops.
+			 *
+			 * Opening something else — the current page, say — looks
+			 * like a graceful fallback and is the opposite: solo mode
+			 * means "paint this one window", so painting a different
+			 * one silently hands the user the wrong thing. Worse, under
+			 * a desktop host the substitute is itself a window the host
+			 * has never seen, which the freed-window forwarder then
+			 * dutifully forwards, and one request becomes two windows.
+			 */
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[openstation] solo window "${ soloWindowId }" is not registered; nothing to paint.`,
+				);
+			}
+		} );
+	}
+
+	const sessionRestore = hasSession && ! soloWindowId
 		? restoreSession(
 			manager,
 			config,
@@ -2795,7 +2893,7 @@ function init(): void {
 	const isNativeDefault =
 		typeof defaultUrlEarly === 'string' &&
 		defaultUrlEarly.startsWith( 'native:' );
-	if ( shouldAutoOpenCurrentPage( {
+	if ( ! soloWindowId && shouldAutoOpenCurrentPage( {
 		fromPortal: config.fromPortal,
 		fromPortalIntent: config.fromPortalIntent,
 		hasSession,
@@ -3029,6 +3127,16 @@ function init(): void {
 	void syncServerTitleBarButtons(
 		Array.isArray( config.serverTitleBarButtonScripts )
 			? config.serverTitleBarButtonScripts
+			: [],
+	);
+
+	// Window-action sync — same pattern. Loads opted-in scripts so a
+	// plugin's `registerWindowAction()` row is in the next ⋯ menu that
+	// opens; deactivation drops rows by `owner` tag.
+	const syncServerWindowActions = createWindowActionRegistrySync();
+	void syncServerWindowActions(
+		Array.isArray( config.serverWindowActionScripts )
+			? config.serverWindowActionScripts
 			: [],
 	);
 
@@ -3277,7 +3385,7 @@ function init(): void {
 		recycleBinCountUrl?: string;
 	};
 	const cfgCountRaw = cfgWithBin.recycleBinCount;
-	startRecycleBinBadge(
+	startRecycleBinIconState(
 		Number( cfgCountRaw ) || 0,
 		typeof cfgWithBin.recycleBinCountUrl === 'string'
 			? cfgWithBin.recycleBinCountUrl
@@ -3290,7 +3398,7 @@ function init(): void {
 	// their own thumbnails — this is just the built-in set so the
 	// in-tree windows look like first-class apps.
 	registerBuiltInPeekRenderers( {
-		getRecycleBinCount: _currentRecycleBinBadge,
+		getRecycleBinCount: _currentRecycleBinCount,
 	} );
 
 	// Auto-reload iframes on `os.<post_type>.changed` is
@@ -3382,6 +3490,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,

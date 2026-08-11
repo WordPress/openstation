@@ -390,11 +390,17 @@ export function installEditorAutosaveHandler(): void {
 		// classic autosave snapshots) and every TinyMCE editor — and
 		// each debounced settle forces the server autosave core would
 		// otherwise only run on its ~60 s heartbeat. `triggerSave()`
-		// resets the interval and connects immediately, and core's
-		// own `save()` still bails when nothing changed, so a settle
-		// with nothing new stays silent (no request, no reload).
-		// `after-autosave` announces every completed round-trip —
-		// ours and core's own — as `os-editor-live-saved`.
+		// resets the interval and connects immediately.
+		//
+		// Both the settle and the announcement are gated on a content
+		// FINGERPRINT (core's own title/content/excerpt compare
+		// string), not on the events alone: the bound events fire for
+		// plenty of things that are not user edits, and core keeps
+		// autosaving a post it considers dirty even when the content
+		// hasn't moved. See `contentFingerprint()` below.
+		// `after-autosave` announces every completed round-trip whose
+		// content the preview has NOT already been shown — ours and
+		// core's own alike — as `os-editor-live-saved`.
 		if ( editorWp?.autosave?.server ) {
 			const jqWindow = window as unknown as {
 				jQuery?: ( el: Document ) => {
@@ -415,6 +421,138 @@ export function installEditorAutosaveHandler(): void {
 			// settle that landed mid-save instead of losing it.
 			let inFlight = false;
 
+			// Declared up here because the content fingerprint reads
+			// the live editors, and it runs before the edit-event
+			// bindings further down.
+			interface TinyEditor {
+				on?: ( events: string, cb: () => void ) => void;
+				off?: ( events: string, cb: () => void ) => void;
+				getContent?: () => string;
+				isHidden?: () => boolean;
+			}
+			interface Tiny {
+				editors?: TinyEditor[];
+				get?: ( id: string ) => TinyEditor | null | undefined;
+				on?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+				off?: (
+					name: string,
+					cb: ( e: { editor?: TinyEditor } ) => void,
+				) => void;
+			}
+			const tiny = ( window as unknown as { tinymce?: Tiny } )
+				.tinymce;
+
+			/**
+			 * What the preview currently reflects: the title, the body
+			 * and the excerpt, read STRAIGHT OFF the editors. `null`
+			 * means "no watchable field on this screen" — the gates
+			 * below then fail open and every round-trip announces,
+			 * which is the pre-fingerprint behaviour.
+			 *
+			 * This exists because neither the events we bind nor core's
+			 * own bookkeeping answer "did the user change something".
+			 *
+			 * The events don't: TinyMCE adds an undo level on BLUR and
+			 * emits `change`, and emits `SetContent` on any programmatic
+			 * write (init, a visual↔text switch, a plugin normalizing
+			 * markup). Clicking from the editor into the preview window
+			 * was enough to schedule a settle.
+			 *
+			 * Core's compare string doesn't either, and THAT is the
+			 * subtle one. `wp.autosave.getPostData()` calls
+			 * `editor.save()` as a side effect, which re-serializes the
+			 * TinyMCE DOM into `#content`. On content core didn't write
+			 * (shortcodes, WooCommerce product markup, anything wpautop
+			 * round-trips differently) the re-serialized string differs
+			 * from the stored one, so core's `compareString !==
+			 * lastCompareString` gate passes, the autosave goes out and
+			 * `after-autosave` fires — for a post the user never
+			 * touched. Fingerprinting through `getPostData()` inherits
+			 * exactly that side effect and can never catch it.
+			 *
+			 * `editor.getContent()` is the stable read: it serializes
+			 * the same DOM every time, so an idle blur/focus cycle
+			 * produces an identical string and only a real edit moves
+			 * it. Text mode (or no TinyMCE at all) falls back to the
+			 * raw textarea, which is authoritative there.
+			 *
+			 * NB: read-only by contract — this must never call
+			 * `getPostData()` or `editor.save()`. A fingerprint with a
+			 * side effect is the bug it exists to prevent.
+			 */
+			const fieldValue = ( id: string ): string | null => {
+				const el = document.getElementById( id );
+				if ( ! el || ! ( 'value' in el ) ) {
+					return null;
+				}
+				return String(
+					( el as HTMLInputElement | HTMLTextAreaElement ).value,
+				);
+			};
+
+			const contentFingerprint = (): string | null => {
+				const parts: string[] = [];
+				let found = false;
+				const title = fieldValue( 'title' );
+				if ( title !== null ) {
+					found = true;
+				}
+				parts.push( title ?? '' );
+				for ( const field of [ 'content', 'excerpt' ] ) {
+					let text: string | null = null;
+					try {
+						const ed = tiny?.get?.( field );
+						if ( ed && ! ed.isHidden?.() ) {
+							text = ed.getContent?.() ?? null;
+						}
+					} catch {
+						/* Editor mid-teardown — fall back below. */
+					}
+					if ( text === null ) {
+						text = fieldValue( field );
+					}
+					if ( text !== null ) {
+						found = true;
+					}
+					parts.push( text ?? '' );
+				}
+				// Length-prefixed rather than separator-joined: no
+				// delimiter can occur in post content, so a body
+				// ending where the excerpt begins cannot forge an
+				// unchanged fingerprint.
+				return found
+					? parts.map( ( p ) => `${ p.length }:${ p }` ).join( '' )
+					: null;
+			};
+
+			let announced = contentFingerprint();
+			/** Fingerprint of the save currently on the wire. */
+			let pending: string | null = null;
+			/**
+			 * Whether a real edit event has landed since the last
+			 * announcement.
+			 *
+			 * The fingerprint alone is not enough, because the baseline
+			 * seeded here is taken BEFORE core has ever run
+			 * `getPostData()` on this page — and that call's
+			 * `editor.save()` fires TinyMCE's `SaveContent` /
+			 * `PostProcess`, which WordPress's own `wpview` / wpautop
+			 * handlers use to rewrite the editor DOM. So the first
+			 * autosave of a session serializes differently from the
+			 * seed through no user action at all, announces once, and
+			 * then matches forever after — exactly the "it reloads the
+			 * first time I click back into the editor" symptom.
+			 *
+			 * Requiring an observed edit closes that window, and every
+			 * completed round-trip re-baselines `announced` whether or
+			 * not it announced, so the drift is absorbed once and never
+			 * looked at again.
+			 */
+			let sawEdit = false;
+
 			const save = (): void => {
 				timer = null;
 				if ( stopped ) {
@@ -422,6 +560,16 @@ export function installEditorAutosaveHandler(): void {
 				}
 				if ( inFlight ) {
 					timer = window.setTimeout( save, 1000 );
+					return;
+				}
+				// Settle with nothing new since the last announcement —
+				// a blur, an editor re-init, a paste of identical
+				// markup. Core would answer this `triggerSave()` with
+				// an autosave that writes the same content back, so
+				// skip the request AND the heartbeat interval reset it
+				// would cause.
+				const current = contentFingerprint();
+				if ( current !== null && current === announced ) {
 					return;
 				}
 				try {
@@ -435,6 +583,7 @@ export function installEditorAutosaveHandler(): void {
 				if ( stopped ) {
 					return;
 				}
+				sawEdit = true;
 				if ( timer !== null ) {
 					window.clearTimeout( timer );
 				}
@@ -444,9 +593,34 @@ export function installEditorAutosaveHandler(): void {
 			const ns = `.os-live-${ watchId }`;
 			jq( document ).on( `before-autosave${ ns }`, () => {
 				inFlight = true;
+				// Snapshot at SEND time, not on arrival: a keystroke
+				// landing during the round-trip must still count as
+				// unannounced, or the settle it schedules would find
+				// `announced` already equal to it and go silent.
+				pending = contentFingerprint();
 			} );
 			jq( document ).on( `after-autosave${ ns }`, () => {
 				inFlight = false;
+				const saved = pending;
+				pending = null;
+				const unchanged = saved !== null && saved === announced;
+				// Re-baseline on EVERY completed round-trip, announced
+				// or not: whatever core just wrote is what the preview
+				// will be showing, and adopting it here is what absorbs
+				// the one-time serialization drift described above.
+				if ( saved !== null ) {
+					announced = saved;
+				}
+				// Core's own heartbeat pass over a post it still
+				// considers dirty, writing content the preview already
+				// shows — or the first pass of the session, whose
+				// fingerprint moved only because `editor.save()`
+				// rewrote the DOM. Announcing either would reload the
+				// companion for nothing.
+				if ( unchanged || ! sawEdit ) {
+					return;
+				}
+				sawEdit = false;
 				postToParent( {
 					type: 'os-editor-live-saved',
 					watchId,
@@ -466,24 +640,17 @@ export function installEditorAutosaveHandler(): void {
 			// and never reaches the #content textarea until a save —
 			// bind every current editor, and late arrivals too (a
 			// text↔visual mode switch re-initializes the editor).
-			interface TinyEditor {
-				on?: ( events: string, cb: () => void ) => void;
-				off?: ( events: string, cb: () => void ) => void;
-			}
-			interface Tiny {
-				editors?: TinyEditor[];
-				on?: (
-					name: string,
-					cb: ( e: { editor?: TinyEditor } ) => void,
-				) => void;
-				off?: (
-					name: string,
-					cb: ( e: { editor?: TinyEditor } ) => void,
-				) => void;
-			}
-			const tiny = ( window as unknown as { tinymce?: Tiny } )
-				.tinymce;
-			const tinyEvents = 'keyup input change undo redo SetContent';
+			// `change` is TinyMCE's canonical "content changed" event
+			// and stays bound. Scheduling on it is harmless: the settle
+			// re-reads the content fingerprint and does nothing when it
+			// has not moved, so a `change` fired for bookkeeping rather
+			// than for an edit costs one no-op timer.
+			//
+			// `ExecCommand` is here for toolbar formatting and
+			// paste-as-plain-text, which mutate content without a
+			// keystroke.
+			const tinyEvents =
+				'keyup input change undo redo SetContent ExecCommand';
 			const bound: TinyEditor[] = [];
 			const bindEditor = ( ed: TinyEditor | undefined ): void => {
 				if ( ed?.on ) {
@@ -674,11 +841,31 @@ export function installEditorAutosaveHandler(): void {
 					jq( document ).one( 'after-autosave.os-editor-preview', () =>
 						respond( 'saved' ),
 					);
+					// Core DECLINES to autosave when nothing changed
+					// (`save()` returns early on
+					// `compareString === lastCompareString`): no request
+					// goes out and `after-autosave` never fires. This
+					// backstop used to answer 'saved' anyway, and the
+					// shell dutifully refreshed the companion ~5.4 s
+					// after the eye click — long enough to look like it
+					// was caused by whatever the user clicked next,
+					// which is exactly how it was reported.
+					//
+					// 'not-dirty' is the honest answer: nothing was
+					// written, so the companion's first load is already
+					// current. A save that really is still in flight at
+					// 5 s is not lost either — the live watch's own
+					// `after-autosave` handler announces it when it
+					// lands.
+					window.setTimeout( () => respond( 'not-dirty' ), 5000 );
+				} else {
+					// No jQuery: the round-trip is unobservable from
+					// here, so assume the usual window elapsed and that
+					// something was written. (Classic wp-admin always
+					// ships jQuery — `autosave.js` depends on it — so
+					// this branch is a formality.)
+					window.setTimeout( () => respond( 'saved' ), 5000 );
 				}
-				// Best-effort backstop — classic autosave has no
-				// promise; without jQuery (or if the event never
-				// fires) answer after its usual round-trip window.
-				window.setTimeout( () => respond( 'saved' ), 5000 );
 				triggerSave.call( editorWp?.autosave?.server );
 				return;
 			}

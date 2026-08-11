@@ -25,6 +25,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
+| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu; `label`/`icon`/`isVisible` may be per-window functions)* | Experimental |
+| [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 
 ### HTTP & UI primitives — must-know
 
@@ -239,6 +241,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
 | `os-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
+| `os-desktop-host-freed` / `-docked` / `-connection` *(window set free into a real OS window)* | Experimental |
 
 ---
 

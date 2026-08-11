@@ -110,6 +110,8 @@ Fires every time a window enters the **loading** state — at construction (ever
 
 The shell paints a `<os-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
 
+The overlay element is attached immediately (so `config.loading.render` and the `WINDOW_LOADING_OVERLAY` filter always have a host) but stays **invisible for the first 120 ms**. A load that finishes inside that window never paints a spinner at all.
+
 **Edge-triggered.** Idempotent calls don't re-fire — a plugin that calls `markLoading()` twice in a row sees the event exactly once.
 
 ```javascript
@@ -129,6 +131,8 @@ Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`os.window.content-
 ### `os-window-content-loaded` — Stable
 
 Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `os-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
+
+**The overlay and the content are never on screen together.** If the spinner never painted (the load finished inside the 120 ms show delay), the overlay is removed in the same tick, so nothing is held back. A native body appears immediately; an iframe still fades in over 250 ms via its own base rule. If it did paint, it gets its 250 ms fade-out to itself and the content fades in after that, not underneath it.
 
 **Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `os.iframe.ready`, which fires alongside this event for iframe windows.
 
@@ -1343,6 +1347,35 @@ Every applied change publishes on:
 - `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }` *(icon rail only)*.
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+
+### `setArt` — Stable
+
+The same three rails share `setArt( id, svg )`, for a tile whose icon means something different depending on state rather than counting something. Same unified id space and the same fan-to-all-rails pattern:
+
+```js
+function paintBinState( isFull ) {
+    const art = isFull ? FULL_BIN_URI : EMPTY_BIN_URI;
+    wp.os.dock?.setArt?.(     'my-bin', art );
+    wp.os.sideDock?.setArt?.( 'my-bin', art );
+    wp.os.icons?.setArt?.(    'my-bin', art );
+}
+paintBinState( true );
+wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
+```
+
+`svg` takes the shapes `renderIcon()` accepts: a `data:` URI, an `http(s)` URL, or a dashicon class. Art naming `currentColor` is painted as a mask and follows the tile's own glyph colour; fixed-colour art keeps its own. Each call:
+
+- **Idempotent on the icon rail** — the same art twice is a no-op.
+- **`''` clears** the override and hands the tile back to its registered icon.
+- **Silent no-op when the id isn't on this rail.**
+- **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
+- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+
+Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
+
+`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+
+In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
 ### `icons` — Stable
 
@@ -2755,7 +2788,7 @@ Front-end documents carry no chromeless bridge, so the shell wires click-to-focu
 
 The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `os.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
 
-**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat (core still skips the request when nothing changed, so an idle settle never reloads anything). The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat. Because those events also fire for things that are not user edits (TinyMCE adds an undo level on **blur**, and emits `SetContent` on any programmatic write), and because core's own autosave can go out for a post nobody touched (`getPostData()` re-serializes TinyMCE into `#content` as a side effect, which moves core's compare string on its own), both the settle and the refresh nudge are gated on a content fingerprint read directly off the editors. A settle or a completed autosave carrying content the preview already shows is silent; see [`bridge-protocol.md`](bridge-protocol.md) for the full mechanics. The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
 
 **Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )`: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `os.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
 
@@ -2843,11 +2876,13 @@ w.markContentLoading();
 await refetchData();
 w.appendBody( renderTable( data ) );
 
-// Hide the spinner, fade the content in.
+// Hide the spinner, then fade the content in.
 w.markContentLoaded();
 ```
 
 Idempotent: calling `markContentLoading()` twice in a row only fires `WINDOW_CONTENT_LOADING` once; the same edge-trigger logic applies to `markContentLoaded()`.
+
+A refetch that resolves inside the 120 ms show delay never paints a spinner, so the pair is cheap to reach for on work that is usually fast. When one does paint, the content waits for its fade-out rather than appearing under it.
 
 The framework calls `markContentLoaded()` automatically when:
 - An iframe window's chromeless bridge posts `os-ready`.
@@ -3446,7 +3481,7 @@ A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentCo
 Two rules follow:
 
 - **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
-- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before. Full-colour app icons (the Games gamepad) are unchanged.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their title-bar icons resolve to a `background-image` with `mask-image: none`.
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 
@@ -3965,12 +4000,14 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
+The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.overview.entering` | action | Stable | `{}` — before the enter animation starts |
 | `os.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
 | `os.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
-| `os.overview.exited` | action | Stable | same payload as `exiting` |
+| `os.overview.exited` | action | Stable | same payload as `exiting` — fires ~280 ms later, once the windows have animated home |
 | `os.overview.window-hover` | action | Stable | `{ windowId }` |
 | `os.overview.window-unhover` | action | Stable | `{ windowId }` |
 | `os.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |
@@ -6559,8 +6596,164 @@ maps to `media`, pages are detected via `bridgePayload.postType`) and
 
 ---
 
+## `wp.os.registerWindowAction()` — *Experimental*
+
+Adds a row to the ⋯ actions menu in **every** window's title bar — the
+right surface for an infrequent, wordy, per-window verb that has not
+earned a permanent title-bar button. (For something the user reaches
+for constantly, use
+[`registerTitleBarButton`](#wposregistertitlebarbutton--stable)
+instead.)
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/pin',
+    label: ( win ) => ( isPinned( win.id ) ? 'Unpin' : 'Pin to top' ),
+    icon: 'dashicons-sticky',
+    order: 60,
+    isVisible: ( win ) => ! win.config.native,
+    onSelect: ( win ) => togglePin( win.id ),
+    owner: 'my-plugin-shell',
+} );
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Required. `/^[a-z0-9_/-]+$/`; `vendor/sub-id` namespacing encouraged. |
+| `label` | `string \| ( win ) => string` | Required. A function is re-read on **every menu open**. |
+| `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
+| `order` | `number` | Sort order among registered rows. Default `100`. |
+| `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
+| `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
+| `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
+
+Also: `wp.os.unregisterWindowAction( id )` and
+`wp.os.listWindowActions()`.
+
+**Making `owner` mean something.** Pair it with the PHP opt-in
+[`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
+and pass the same handle. That puts your script in the live-refresh
+payload, so activating your plugin loads it — the row is in the next ⋯
+menu that opens, no reload — and deactivating it sweeps every action
+tagged with that handle back out.
+
+Without the PHP call there is nothing to diff, so an `owner` tag is
+inert: the row stays until the next page reload. That is deliberate
+backwards-compat, the same bargain commands and title-bar buttons
+offer, but it does mean `owner` alone is not the whole opt-in.
+
+**Why `label` / `icon` / `isVisible` may be functions.** They are read
+fresh every time the menu opens, not once at registration. That is what
+lets one row express a toggle whose meaning depends on state — "Send to
+your Mac" becoming "Bring back into OpenStation" for the same window —
+without the plugin re-registering itself on every transition. A window
+is in one place or the other, so one row that answers "what does this
+do right now?" is the honest shape; two competing rows would
+misdescribe it.
+
+A row whose resolver or handler throws is contained: the row hides (or
+the click is swallowed) and the rest of the menu keeps working. The ⋯
+menu is shared surface, and the user's "Reload" lives there.
+
+Registering or unregistering repaints menus on their next open;
+`registerWindowAction` throws a `RegistrationError` naming the bad
+field when validation fails.
+
+### `HOOKS.WINDOW_MENU_OPENED` — *Experimental*
+
+Fires when a window's ⋯ actions menu opens, **after** its rows have
+been painted. Payload: `{ windowId: string, element: HTMLElement }`,
+where `element` is the `<os-menu>` panel.
+
+The moment to do work a menu's contents depend on but that is too
+expensive, or too perishable, to do up front — probing the network,
+re-reading a permission, checking whether a companion app has started
+since the page loaded.
+
+**An open menu repaints itself when the registry changes.** So
+registering an action from this hook — even asynchronously — puts the
+row under the user's pointer rather than on their next click:
+
+```js
+wp.os.hooks.addAction( wp.os.HOOKS.WINDOW_MENU_OPENED, 'my-plugin/probe', () => {
+    void probeForCompanionApp().then( ( found ) => {
+        if ( found ) {
+            wp.os.registerWindowAction( { /* … */ } );
+        }
+    } );
+} );
+```
+
+That is why it fires after the paint rather than before. The
+subscription lives only while the menu is open.
+
+---
+
+## Native desktop host — `wp.os.electron` *(Experimental)*
+
+Published by the **Electron Adapter extension**, not by core, when the
+desktop is being viewed through the OpenStation Desktop app. Absent in
+a browser, so check before use:
+
+```js
+if ( wp.os.electron?.isAvailable() ) {
+    console.log( wp.os.electron.getSendLabel() ); // "Send to your Mac"
+    await wp.os.electron.free( 'edit-php' );
+}
+```
+
+Full narrative, the REST surface, and the adapter's PHP hooks:
+[Native Desktop Host](./desktop-host.md).
+
+| Method | Returns | Notes |
+|---|---|---|
+| `isAvailable()` | `boolean` | Always true when the namespace exists. |
+| `getInfo()` | `HostInfo \| null` | Platform, app version, host id, currently-freed ids. |
+| `getSendLabel()` | `string` | Translated and OS-adapted. |
+| `getDockLabel()` | `string` | "Bring back into OpenStation". |
+| `isFreedWindow()` | `boolean` | Whether *this page* is itself a freed window. |
+| `free( windowId )` | `Promise<boolean>` | Set a window free; focuses it if already free. |
+| `dock( windowId )` | `Promise<boolean>` | Bring a freed window back into the shell. |
+| `listFreed()` | `string[]` | Ids currently out on the desktop. |
+| `isFreed( windowId )` | `boolean` | Whether one specific window is out there. |
+| `getConnection()` | `ConnectionState` | Last liveness-pulse snapshot. |
+
+Anything that would surface a freed window inside the shell — a dock
+click, the switcher, a plugin calling `openWindow()` — raises the
+**native** window instead. Plugin authors get that for free.
+
+### CustomEvents
+
+| Event | `detail` | Fires when |
+|---|---|---|
+| `os-desktop-host-freed` | `{ windowId: string }` | A window went out to the real desktop. |
+| `os-desktop-host-docked` | `{ windowId: string }` | A freed window came back into the shell. |
+| `os-desktop-host-connection` | `ConnectionState` | The connection changed phase. |
+
+### Shell config key
+
+| Key | Type | Notes |
+|---|---|---|
+| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+
+### `window.openStationChromelessHost` — *Experimental*
+
+Set this to `true` **before a page's own scripts run** to claim a
+top-level chromeless page as deliberately hosted. Without it, the
+chromeless bridge treats a top-level `?openstation_chromeless=1` page
+as an accident and rescues the user by stripping the flag and reloading
+as classic admin — correct for a stale bookmark, wrong for an embedder
+that put the page there on purpose and provides its own way out.
+
+It must be a global rather than a query flag: a flag is lost on the
+first in-page navigation. See
+[bridge-protocol.md](./bridge-protocol.md#top-frame-escape-hatch--and-how-to-opt-out).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — the Electron layer, solo mode, and the liveness pulse.
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
 - [Examples — React to window events](./examples/react-to-window-events.md)
 - [Examples — Add a dock badge](./examples/dock-badge.md)

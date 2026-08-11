@@ -168,6 +168,57 @@ The payload builders harvest each registered handle's `extra['data']` (localize)
 
 The `'config'` arg on `openstation_register_window()` ships through the same delivery path and is the recommended way to pass session-bound data to a bundle. See [`docs/examples/window-with-config.md`](./examples/window-with-config.md).
 
+## A third rendering path: solo mode, and the native desktop host
+
+*Experimental. Full narrative: [`docs/desktop-host.md`](./desktop-host.md).*
+
+OpenStation can be hosted by a small Electron app that loads the same site and
+adds real OS windows. **Core knows nothing about it.** The app and everything
+that talks to it ship as an extension
+(`extensions/openstation-electron-adapter/`), a separate WordPress plugin;
+deactivate it and OpenStation is exactly the browser experience it was.
+
+```
+OpenStation core
+├── Window Manager          ← untouched
+├── App Registry            ← untouched
+│
+└── extensions
+      └── Electron Adapter
+            ├── IPC / native windows / OS integration   (app/)
+            ├── Host contract, REST + liveness pulse    (includes/)
+            └── Shell adapter, ⋯ menu row               (src/)
+```
+
+Two generic capabilities were added to core to make it possible, and both
+stand on their own:
+
+- **`wp.os.registerWindowAction()`** (`src/window-actions/registry.ts`) — a
+  registry for rows in every window's ⋯ menu. The menu was the one title-bar
+  surface with no extension point; "Send to your Mac" is the case that made
+  the gap obvious, not the only one that fills it. `label`, `icon` and
+  `isVisible` may each be functions of the window, re-read on every menu open,
+  which is what lets a single row express a state-dependent toggle.
+- **Solo mode** (`includes/solo-window.php`, `assets/css/solo.css`) —
+  `?openstation_solo=<id>` boots the whole shell and paints exactly one
+  window, with no dock, taskbar, wallpaper, desk, or session restore.
+
+Solo mode exists because of the two window types above. An **iframe window**
+can be shown anywhere by loading its chromeless URL. A **native window** has
+no URL at all — it is a render callback painting into the shell's DOM — so the
+only way for it to *be* the same window elsewhere is to bring the framework
+along. Solo mode is that: same registries, same render callback, same theme
+and title-bar buttons, desk removed.
+
+Which shape a freed window gets is decided in the adapter, never in the app;
+the app takes a URL and opens a window on it.
+
+Server-side, the adapter records the attached host on one user-meta row,
+refreshed by a deliberately slow liveness pulse whose interval the *server*
+dictates. The server never claims a host is attached *now* — the same user can
+have a browser tab open at the same moment, so only the client's probe (a
+global the Electron preload injects) can answer that.
+
 ## Session persistence
 
 Every window lifecycle event — open, close, focus, move, resize, state change — plus virtual-desktop create / switch / close is pushed into a debounced writer that `POST`s the full stack to a REST endpoint. On next load, the shell reads the session and rebuilds the stack before the user sees anything (no "flash of default layout"). Clamping logic adapts window coordinates when the viewport shrinks. Desktop-only state still counts: if the user has multiple Spaces but no open windows, the desktop registry and active desktop are restored.

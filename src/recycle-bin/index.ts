@@ -34,7 +34,7 @@ import {
 	resolveThemedIconColor,
 } from '../desktop-themes/icons';
 import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
-import { setRecycleBinBadge } from './badge';
+import { setRecycleBinCount } from './icon-state';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
 import {
@@ -696,7 +696,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// the user is currently viewing. This is the cheapest
 			// way to keep the badge truthful: we already paid for
 			// the round-trip, so we may as well consume the count.
-			setRecycleBinBadge( total );
+			setRecycleBinCount( total );
 		} catch ( err ) {
 			if ( mySeq !== refreshSeq ) {
 				return;
@@ -1000,7 +1000,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			// shows the pre-empty count for ~hundreds of ms after the
 			// bin is empty. refresh() below sets the authoritative value.
 			if ( loop.stoppedBecause === 'empty' ) {
-				setRecycleBinBadge( 0 );
+				setRecycleBinCount( 0 );
 			}
 		} catch ( err ) {
 			console.error( '[recycle-bin] empty failed', err );

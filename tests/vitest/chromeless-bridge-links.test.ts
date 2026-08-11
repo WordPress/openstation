@@ -134,6 +134,37 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 
 		expect( adminLinkMessages() ).toHaveLength( 0 );
 	} );
+
+	// `plugin-install.php`'s Upload Plugin. Core binds a bubble-phase
+	// toggle that opens the drop zone in place above the plugin cards,
+	// but stamps no `aria-button-if-js`, so we used to win the click
+	// and navigate to `?tab=upload` — a page showing the uploader with
+	// no cards and no way back.
+	test( 'the Upload Plugin toggle stays with plugin-install.js', () => {
+		clickLink(
+			'<div class="wrap plugin-install-tab-featured">' +
+				'<a href="/wp-admin/plugin-install.php?tab=upload" class="upload-view-toggle page-title-action">Upload Plugin</a>' +
+				'</div>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
+	// On `?tab=upload` core skips that binding on purpose ("let the
+	// link behave like a link"), so the href IS the navigation and the
+	// shell has to route it like any other admin link.
+	test( 'the same toggle is handed to the shell on the upload page', () => {
+		clickLink(
+			'<div class="wrap plugin-install-tab-upload">' +
+				'<a href="/wp-admin/plugin-install.php" class="upload-view-toggle page-title-action">Browse Plugins</a>' +
+				'</div>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/plugin-install.php'
+		);
+	} );
 } );
 
 describe( 'chromeless bridge: the label a link ships to the shell', () => {

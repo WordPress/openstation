@@ -3,7 +3,7 @@
  * Plugin Name:       OpenStation
  * Plugin URI:        https://github.com/WordPress/openstation
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
- * Version:           0.9.8
+ * Version:           1.0.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPENSTATION_VERSION', '0.9.8' );
+define( 'OPENSTATION_VERSION', '1.0.1' );
 define( 'OPENSTATION_FILE', __FILE__ );
 define( 'OPENSTATION_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OPENSTATION_URL', plugin_dir_url( __FILE__ ) );
@@ -115,6 +115,10 @@ require_once OPENSTATION_DIR . 'includes/seen-intros.php';
 require_once OPENSTATION_DIR . 'includes/migrations.php';
 require_once OPENSTATION_DIR . 'includes/portal.php';
 require_once OPENSTATION_DIR . 'includes/default-window.php';
+// Solo window rendering mode (`?openstation_solo=<id>`). Unconditional
+// because `includes/render/` reads its flag, and because extensions
+// (the Electron adapter) call its helpers from their own hooks.
+require_once OPENSTATION_DIR . 'includes/solo-window.php';
 require_once OPENSTATION_DIR . 'includes/themes-tabs.php';
 require_once OPENSTATION_DIR . 'includes/media-query.php';
 require_once OPENSTATION_DIR . 'includes/accents.php';
@@ -129,6 +133,7 @@ require_once OPENSTATION_DIR . 'includes/commands.php';
 require_once OPENSTATION_DIR . 'includes/settings-tabs.php';
 require_once OPENSTATION_DIR . 'includes/dock-rail-renderer.php';
 require_once OPENSTATION_DIR . 'includes/title-bar-buttons.php';
+require_once OPENSTATION_DIR . 'includes/window-actions.php';
 require_once OPENSTATION_DIR . 'includes/unfocus-effects.php';
 require_once OPENSTATION_DIR . 'includes/window-links.php';
 require_once OPENSTATION_DIR . 'includes/window-chrome.php';

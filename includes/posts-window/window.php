@@ -454,6 +454,15 @@ function openstation_posts_window_register_term_counts_route() {
 }
 add_action( 'rest_api_init', 'openstation_posts_window_register_term_counts_route' );
 
+/**
+ * REST callback: return post counts for a batch of term IDs.
+ *
+ * Uses a cached full-taxonomy map so multiple windows with
+ * different ID subsets share the same transient.
+ *
+ * @param WP_REST_Request $request Request with `taxonomy` and `ids`.
+ * @return array|WP_Error Map of `term_id => count`, or error on bad taxonomy.
+ */
 function openstation_posts_window_term_counts_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
@@ -589,6 +598,14 @@ function openstation_posts_window_register_tag_cooccurrence_route() {
 }
 add_action( 'rest_api_init', 'openstation_posts_window_register_tag_cooccurrence_route' );
 
+/**
+ * REST callback: return tag co-occurrence data for the pixi
+ * cloud. For each tag, returns its top-N most frequently
+ * co-occurring sibling tags with the shared post count.
+ *
+ * @param WP_REST_Request $request Request with `taxonomy` and `limit`.
+ * @return WP_REST_Response|WP_Error
+ */
 function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	global $wpdb;
 

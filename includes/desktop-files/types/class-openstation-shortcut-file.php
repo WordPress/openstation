@@ -23,14 +23,29 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_Shortcut_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'shortcut';
 	}
 
+	/**
+	 * Whether the shortcut's registration entry still exists.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return null !== $this->entry();
 	}
 
+	/**
+	 * Get the shortcut title from the registration entry.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$entry = $this->entry();
 		if ( ! $entry ) {
@@ -39,6 +54,11 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 		return (string) $entry['title'];
 	}
 
+	/**
+	 * Get the Dashicon class from the registration entry.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		$entry = $this->entry();
 		if ( ! $entry ) {
@@ -47,6 +67,13 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 		return (string) $entry['icon'];
 	}
 
+	/**
+	 * Shortcut visibility is determined at registration time;
+	 * if the entry is in the registry for this request, it's visible.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		// Shortcut visibility = registration visibility. The
 		// `openstation_register_icon` capability gate already
@@ -55,6 +82,12 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 		return null !== $this->entry();
 	}
 
+	/**
+	 * Augment the base serialized shape with the open target
+	 * (window id or URL) and pinned flag.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape = parent::serialize();
 		$entry = $this->entry();
@@ -70,6 +103,11 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the registration entry from the icon registry.
+	 *
+	 * @return array|null Null when the entry is gone or the ref is invalid.
+	 */
 	private function entry(): ?array {
 		$id = (string) $this->ref;
 		if ( '' === $id ) {

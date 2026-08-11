@@ -69,6 +69,18 @@ function bodyOf( el: HTMLElement ): HTMLElement {
 	return el.querySelector< HTMLElement >( '.os-window__body' )!;
 }
 
+/**
+ * Put a painted spinner in the window's body. The reveal surface reads
+ * the overlay's own `--visible` class to decide whether it has a
+ * fade-out to wait for, the same signal the loaded edge uses, so the
+ * fixture has to carry it rather than back-date a clock.
+ */
+function paintSpinner( el: HTMLElement ): void {
+	const overlay = document.createElement( 'div' );
+	overlay.className = 'os-window__loading os-window__loading--visible';
+	bodyOf( el ).appendChild( overlay );
+}
+
 /** The covering surface — the reveal layer that is NOT the edge. */
 function surfaceOf( el: HTMLElement ): HTMLElement | null {
 	return el.querySelector< HTMLElement >(
@@ -244,17 +256,6 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 		);
 	} );
 
-	test( 'stamps both layers with the same arm time', async () => {
-		vi.useFakeTimers();
-		vi.setSystemTime( 1_700_000_000_000 );
-		const { surface, engine } = await load();
-		engine.setActiveWindowRevealId( 'sweep' );
-		for ( const layer of surface.createRevealLayers() ) {
-			expect( layer.getAttribute( 'data-os-reveal-armed' ) ).toBe(
-				'1700000000000',
-			);
-		}
-	} );
 } );
 
 describe( 'reveals/surface.ts — armWindowReveal', () => {
@@ -326,6 +327,8 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 
 		surface.armWindowReveal( win );
 		vi.advanceTimersByTime( 40 ); // under the 120 ms spinner delay
+		// No overlay ever reached `--visible`, so there is nothing to
+		// wait for even though time has passed.
 		surface.playWindowReveal( win );
 
 		expect( calls.every( ( c ) => c.options.delay === 0 ) ).toBe( true );
@@ -340,6 +343,7 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 
 		surface.armWindowReveal( win );
 		vi.advanceTimersByTime( 900 ); // a genuinely slow load
+		paintSpinner( win );
 		surface.playWindowReveal( win );
 
 		// Both layers wait together, so the edge does not start peeking

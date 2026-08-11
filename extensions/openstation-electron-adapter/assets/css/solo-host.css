@@ -1,0 +1,44 @@
+/**
+ * Electron Adapter — solo mode inside a real OS window.
+ *
+ * Layered on top of core's `solo.css`, and only in the case core
+ * deliberately does not handle: this window has an **operating system
+ * frame** around it, with a real title bar carrying the window's name.
+ *
+ * Core keeps OpenStation's title bar in solo mode because the generic
+ * embedder has nothing else to offer — no frame, no close button, no
+ * way to move the thing, no name anywhere. Here the OS provides all
+ * four, so ours would be a second title bar saying the same word.
+ *
+ * ## Two close buttons that disagree
+ *
+ * That is the specific failure this prevents. Closing the native window
+ * docks the window back into OpenStation; OpenStation's own close
+ * button would try to close a window inside a shell nobody is looking
+ * at, leaving a native frame around a dead page. Minimize and maximize
+ * have the same problem in milder form. The OS frame owns all three.
+ */
+
+/*
+ * Our title bar goes entirely — the OS draws one above the content,
+ * with the window's OpenStation name in it (see `free-windows.ts`).
+ *
+ * `display: none` rather than a collapsed strip: a zero-height bar
+ * still takes part in the window's flex layout and still answers
+ * pointer queries at its edges, and there is nothing left in it worth
+ * keeping. Everything it held is either provided by the OS frame or
+ * reachable from the shell the window was freed from.
+ */
+body.os-solo.os-solo--host .os-window__titlebar {
+	display: none;
+}
+
+/*
+ * With the title bar gone the window body is the whole window. Core's
+ * `solo.css` already stretched `.os-window` to fill the viewport; this
+ * makes sure the body inside it does too, rather than leaving a gap
+ * where the bar used to be.
+ */
+body.os-solo.os-solo--host .os-window__body {
+	block-size: 100%;
+}

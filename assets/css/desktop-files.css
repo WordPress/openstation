@@ -607,7 +607,15 @@
 	 * a light background. Plugins / themes can override these
 	 * same variables at any scope to retint further. */
 	--os-tile-fg: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
-	--os-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	/* Chains through the palette for the same reason as
+	 * `--os-tile-fg` beside it: a bare literal here outranks the
+	 * palette's own value and pins every tile's secondary line to
+	 * near-black, which disappears the moment the surface is dark.
+	 * The literal stays as the pre-brand floor. */
+	--os-tile-fg-muted: var(
+		--os-folder-window-fg-muted,
+		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
+	);
 	--os-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
 	/* Light-context label rendering — share the same recipe with
 	 * every other light-bg tile surface (My WordPress, future

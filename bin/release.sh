@@ -67,6 +67,18 @@ if ! gh auth status >/dev/null 2>&1; then
 	exit 1
 fi
 
+# gh guesses its "base repo" from the remotes, and that guess is unreliable in
+# a clone that carries contributor forks alongside origin — some subcommands
+# resolve it, others bail with "No default remote repository has been set".
+# Resolve origin once through the API instead (which also follows repository
+# renames, so a stale remote URL still lands on the right slug) and pass
+# --repo explicitly to every gh call below.
+repo=$(gh repo view "$(git remote get-url origin)" --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+if [[ -z "$repo" ]]; then
+	echo "error: could not resolve the GitHub repository behind 'origin'." >&2
+	exit 1
+fi
+
 # Fetches GitHub's auto-generated release notes for the next tag, keeps
 # only bullet lines, strips the trailing "by @user in <PR-URL>" suffix,
 # and drops "first contribution" boilerplate. Echoes the transformed
@@ -80,8 +92,7 @@ generate_changelog_draft() {
 		echo "warning: no previous tag found — skipping changelog draft." >&2
 		return 1
 	fi
-	local repo raw
-	repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+	local raw
 	raw=$(gh api -X POST "repos/$repo/releases/generate-notes" \
 		-f tag_name="$target_tag" \
 		-f previous_tag_name="$prev" \
@@ -428,7 +439,7 @@ echo "Waiting for CI to register a run on ${sha} (polling for up to 5 min)..."
 # CI may take a few minutes to register the run after the push.
 run_id=""
 for i in $(seq 1 100); do
-	run_id=$(gh run list --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+	run_id=$(gh run list --repo "$repo" --branch trunk --workflow ci.yml --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
 	[[ -n "$run_id" ]] && break
 	# Heartbeat every 30 s so the script doesn't look frozen while CI registers.
 	if (( i % 10 == 0 )); then
@@ -442,12 +453,12 @@ if [[ -z "$run_id" ]]; then
 	exit 1
 fi
 
-run_url=$(gh run view "$run_id" --json url -q '.url' 2>/dev/null || true)
+run_url=$(gh run view "$run_id" --repo "$repo" --json url -q '.url' 2>/dev/null || true)
 echo "CI run ${run_id} registered — watching until it finishes (typically 3-5 min)."
 [[ -n "$run_url" ]] && echo "  ${run_url}"
 echo "  (gh run watch is silent until each job completes; this is normal.)"
 
-gh run watch "$run_id" --exit-status
+gh run watch "$run_id" --repo "$repo" --exit-status
 
 echo "CI passed — tagging ${tag} and pushing..."
 
@@ -455,4 +466,4 @@ git tag "$tag"
 git push origin "$tag"
 
 echo "Tagged $tag. Release workflow now building — watch with:"
-echo "  gh run watch \$(gh run list --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+echo "  gh run watch --repo $repo \$(gh run list --repo $repo --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')"
