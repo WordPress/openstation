@@ -29,7 +29,7 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 	};
 }
 
-function makeLayer(): NotesLayer {
+function makeLayer( canCreatePosts = false ): NotesLayer {
 	const host = document.createElement( 'div' );
 	// jsdom has no layout — pin down the geometry the position math reads.
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
@@ -47,7 +47,11 @@ function makeLayer(): NotesLayer {
 			toJSON: () => ( {} ),
 		} ) as DOMRect;
 	document.body.appendChild( host );
-	return new NotesLayer( { host, pluginUrl: 'https://example.test/plugin' } );
+	return new NotesLayer( {
+		host,
+		pluginUrl: 'https://example.test/plugin',
+		canCreatePosts,
+	} );
 }
 
 describe( 'NotesLayer', () => {
@@ -266,21 +270,39 @@ describe( 'NotesLayer', () => {
 	} );
 
 
-	test( 'the footer carries a Move to Trash button that confirms first', async () => {
-		const layer = makeLayer();
-		const controller = layer.upsertNote( makeNote() );
-		const trash = controller.element.querySelector( '.os-pinned-note__trash' );
-		expect( trash ).not.toBeNull();
-		expect( trash?.getAttribute( 'aria-label' ) ).toBe( 'Move to Trash' );
-		// In the footer, clear of the pushpin's band.
-		expect( trash?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
+	test( 'every action sits together in the footer, clear of the pushpin', () => {
+		// The pin is painted over the meta row and covers its middle,
+		// so that row holds the colour dot and nothing else.
+		const layer = makeLayer( true );
+		const el = layer.upsertNote( makeNote() ).element;
 
-		// Viewers get no trash button; they can't mutate the note.
+		const actions = el.querySelector( '.os-pinned-note__actions' );
+		expect( actions ).not.toBeNull();
+		expect( actions?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
+		expect(
+			[ ...( actions?.children ?? [] ) ].map( ( c ) => c.className ),
+		).toEqual( [
+			'os-pinned-note__visibility',
+			'os-pinned-note__convert',
+			'os-pinned-note__trash',
+		] );
+		expect(
+			el.querySelector( '.os-pinned-note__trash' )?.getAttribute( 'aria-label' ),
+		).toBe( 'Move to Trash' );
+
+		// The meta row keeps the colour dot alone.
+		expect(
+			[ ...( el.querySelector( '.os-pinned-note__meta' )?.children ?? [] ) ].map(
+				( c ) => c.className,
+			),
+		).toEqual( [ 'os-pinned-note__color-dot' ] );
+
+		// Viewers get no actions at all; they can't mutate the note.
 		const theirs = layer.upsertNote(
 			makeNote( { id: 2, canEdit: false, public: true } ),
 		);
 		expect(
-			theirs.element.querySelector( '.os-pinned-note__trash' ),
+			theirs.element.querySelector( '.os-pinned-note__actions' ),
 		).toBeNull();
 	} );
 

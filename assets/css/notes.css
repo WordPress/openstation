@@ -257,13 +257,6 @@
 	z-index: 1;
 }
 
-/* Push the color dot to the left edge; the action buttons cluster on
-   the right. Keeps a stable layout whether or not the convert button
-   is present (it's gated on the `edit_posts` capability). */
-.os-pinned-note__meta .os-pinned-note__color-dot {
-	margin-inline-end: auto;
-}
-
 .os-pinned-note:hover .os-pinned-note__meta,
 .os-pinned-note:focus-within .os-pinned-note__meta {
 	opacity: 1;
@@ -396,35 +389,39 @@
 	min-height: 16px;
 }
 
-.os-pinned-note__status {
-	opacity: 0.6;
-}
+/* Every action lives here rather than in the meta row. The pushpin is
+   painted over the paper's chrome and covers note-relative x 62–138
+   across its ±10px jitter, which is the middle of that right-aligned
+   row — it only ever had room for two controls clear of the pin, and
+   a third landed underneath where a pointer couldn't reach it.
 
-/* "Move to Trash" lives in the footer, not the meta row: the pushpin
-   is painted above the paper's chrome and covers note-relative
-   x 62–138 across its ±10px jitter, so a fourth control in the
-   right-aligned meta row lands under it and can't be clicked.
-
-   The hover reveal is repeated here rather than inherited, since the
-   button is outside `.os-pinned-note__meta`. 0.75 is what a meta-row
-   button resolves to (row at 1, button at 0.75 inside it). */
-.os-pinned-note__trash {
-	--os-ui-btn-color: var(--dm-note-ink-soft);
-	margin-inline-end: auto;
+   Fades as a group on hover/focus, the same way the meta row does, so
+   each button keeps its own 0.75 → 1 hover on top. */
+.os-pinned-note__actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
 	opacity: 0;
 	transition: opacity 150ms ease-out;
 }
 
-.os-pinned-note:hover .os-pinned-note__trash,
-.os-pinned-note:focus-within .os-pinned-note__trash {
+.os-pinned-note:hover .os-pinned-note__actions,
+.os-pinned-note:focus-within .os-pinned-note__actions {
+	opacity: 1;
+}
+
+.os-pinned-note__status {
+	margin-inline-start: auto;
+	opacity: 0.6;
+}
+
+/* "Move to Trash" — same treatment as the other two actions. */
+.os-pinned-note__trash {
+	--os-ui-btn-color: var(--dm-note-ink-soft);
 	opacity: 0.75;
 }
 
-/* Scoped through the note so it outranks the reveal rule above —
-   bare `.os-pinned-note__trash:hover` loses to it and never reaches
-   full opacity. */
-.os-pinned-note:hover .os-pinned-note__trash:hover,
-.os-pinned-note:focus-within .os-pinned-note__trash:hover {
+.os-pinned-note__trash:hover {
 	--os-ui-btn-color: #b32d2e;
 	opacity: 1;
 }

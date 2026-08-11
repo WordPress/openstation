@@ -553,6 +553,15 @@ export class NoteController {
 		this.refreshColorDot();
 		colorDot.addEventListener( 'click', () => this.cycleColor() );
 
+		meta.append( colorDot );
+
+		// Every action lives in the footer. The pushpin is painted over
+		// the paper's chrome and covers the middle of the meta row, so
+		// that row only ever had space for two controls to the right of
+		// it — see notes.css.
+		const actions = document.createElement( 'div' );
+		actions.className = 'os-pinned-note__actions';
+
 		const visibility = document.createElement( 'os-window-button' );
 		visibility.className = 'os-pinned-note__visibility';
 		this.visibilityBtn = visibility;
@@ -560,8 +569,7 @@ export class NoteController {
 		visibility.addEventListener( 'os-button-activate', () =>
 			this.togglePublic(),
 		);
-
-		meta.append( colorDot, visibility );
+		actions.appendChild( visibility );
 
 		// "Convert to post" — only for users who can author posts. Drops
 		// the note into a fresh draft (the note itself is trashed) and
@@ -578,8 +586,18 @@ export class NoteController {
 			convert.addEventListener( 'os-button-activate', () =>
 				this.layer.convertNote( this.note ),
 			);
-			meta.append( convert );
+			actions.appendChild( convert );
 		}
+
+		// The pointer/keyboard equivalent of dragging the pin onto the bin.
+		const trash = document.createElement( 'os-window-button' );
+		trash.className = 'os-pinned-note__trash';
+		trash.innerHTML = ICON_TRASH;
+		const trashLabel = __( 'Move to Trash', 'desktop-mode' );
+		trash.setAttribute( 'title', trashLabel );
+		trash.setAttribute( 'aria-label', trashLabel );
+		trash.addEventListener( 'os-button-activate', () => this.confirmTrash() );
+		actions.appendChild( trash );
 
 		const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
 		editor.className = 'os-pinned-note__editor';
@@ -604,19 +622,7 @@ export class NoteController {
 
 		const footer = document.createElement( 'div' );
 		footer.className = 'os-pinned-note__footer';
-
-		// The pointer/keyboard equivalent of dragging the pin onto the
-		// bin. In the footer, not beside the other actions: a fourth
-		// control in the meta row lands under the pushpin (see
-		// notes.css).
-		const trash = document.createElement( 'os-window-button' );
-		trash.className = 'os-pinned-note__trash';
-		trash.innerHTML = ICON_TRASH;
-		const trashLabel = __( 'Move to Trash', 'desktop-mode' );
-		trash.setAttribute( 'title', trashLabel );
-		trash.setAttribute( 'aria-label', trashLabel );
-		trash.addEventListener( 'os-button-activate', () => this.confirmTrash() );
-		footer.appendChild( trash );
+		footer.appendChild( actions );
 
 		const status = document.createElement( 'os-save-status' );
 		status.setAttribute( 'mode', 'icon' );
