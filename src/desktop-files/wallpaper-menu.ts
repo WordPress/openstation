@@ -16,6 +16,7 @@ import { applyFilters, doAction } from '../hooks';
 // Side-effect import: registers `<os-context-menu>` +
 // `<os-context-menu-option>` so the menu DOM upgrades.
 import { openWithShellOverlays } from '../shell-overlays/loader';
+import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 import { attachDismissable } from './dismissable';
 
 /**
@@ -263,33 +264,13 @@ function openWallpaperMenuImmediate(
 		positionFlyout( fly, anchor );
 	}
 
-	function positionFlyout( fly: HTMLElement, anchor: HTMLElement ): void {
-		const ar = anchor.getBoundingClientRect();
-		// Default: open to the right, top-aligned with anchor.
-		fly.style.position = 'fixed';
-		fly.style.left = `${ ar.right }px`;
-		fly.style.top = `${ ar.top }px`;
-		const fr = fly.getBoundingClientRect();
-		if ( fr.right > window.innerWidth ) {
-			fly.style.left = `${ Math.max( 0, ar.left - fr.width ) }px`;
-		}
-		if ( fr.bottom > window.innerHeight ) {
-			fly.style.top = `${ Math.max( 0, window.innerHeight - fr.height - 8 ) }px`;
-		}
-	}
-
 	host.appendChild( menu );
 	activeMenu = menu;
 
 	// Clamp to viewport so a click near the edge doesn't open
-	// half-off-screen.
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 0, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 0, window.innerHeight - rect.height - 8 ) }px`;
-	}
+	// half-off-screen. Measured a frame later, once the component
+	// has rendered. See `src/ui/util/menu-position.ts`.
+	clampToViewport( menu );
 
 	const detach = attachDismissable( menu, {
 		close: () => closeWallpaperMenu(),

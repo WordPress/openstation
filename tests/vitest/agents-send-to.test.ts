@@ -73,7 +73,7 @@ const AGENTS = [
 	} ),
 ];
 
-function installConfig(): void {
+function installConfig( overrides: Record< string, unknown > = {} ): void {
 	( window as unknown as Record< string, unknown > ).openStationWindowConfig = {
 		[ WINDOW_ID ]: {
 			restRoot: 'https://example.test/wp-json/',
@@ -82,12 +82,15 @@ function installConfig(): void {
 			perPage: 24,
 			editPostUrlBase: '',
 			agents: {
+				enabled: true,
+				canEnable: true,
 				canManage: true,
 				canInvoke: true,
 				aiAvailable: true,
 				aiStatusUrl: '',
 				connectorsUrl: '',
 				runWindowId: 'desktop-mode-agent-run',
+				...overrides,
 			},
 		},
 	};
@@ -150,6 +153,20 @@ afterEach( () => {
 } );
 
 describe( 'agents send-to menu', () => {
+	test( 'does not warm while the framework is off', async () => {
+		// The section config now ships even with the `agents` extended
+		// option off, so the tile stays visible — `enabled` is what
+		// says the REST routes exist.
+		installConfig( { enabled: false } );
+		const fetchMock = stubListFetch();
+		sendTo.refreshSendToAgents();
+		await sendTo.warmSendToAgents();
+		await flush();
+
+		expect( fetchMock ).not.toHaveBeenCalled();
+		expect( sendTo.sendToTargetsFor( 'post' ) ).toEqual( [] );
+	} );
+
 	test( 'maps menu contexts onto trigger entity kinds', () => {
 		expect(
 			sendTo.entityKindForMenuCtx( { entityId: 'posts', kind: 'post' } ),

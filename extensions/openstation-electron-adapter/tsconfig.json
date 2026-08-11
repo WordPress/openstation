@@ -1,0 +1,20 @@
+{
+	"//": "The shell adapter bundle — browser code, ES modules, bundled by Vite into an IIFE. The Electron app has its own tsconfig under app/, because main-process code and browser code want different module systems and different lib sets. Node's types are listed here even so, because the tests reach into the app's Node-side lib/ modules; ESLint's no-restricted-imports override is what actually keeps src/** off them.",
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"lib": [ "ES2020", "DOM", "DOM.Iterable" ],
+		"strict": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": [ "vitest/globals", "node" ]
+	},
+	"include": [ "src/**/*.ts", "tests/**/*.ts", "app/src/renderer/**/*.ts" ]
+}

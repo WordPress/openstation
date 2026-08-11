@@ -8,7 +8,7 @@ Maintainer guide. Users install by downloading `/releases/latest/download/openst
 ./bin/release.sh 0.5.0
 ```
 
-Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes, then stops at **a single interactive gate**: it shows the block and requires an explicit `y` to continue — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. Editing `readme.txt` while the prompt waits is supported: the bump commit picks up the file as saved, and the script re-prints the block if it changed. Answering `n` stops the release with nothing committed; fix the block and re-run — leftovers are tolerated, the draft merge is idempotent, and your edits survive, so the re-run lands straight back at the gate. If `readme.txt` already has a `= X.Y.Z =` block (hand-written, or committed by a feature PR), the draft still runs: existing entries are kept, only drafted bullets not already present verbatim are appended, and the appended ones are listed — watch for semantic duplicates. After confirmation it bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if you're not on trunk, local trunk is out of sync with origin, CI fails, or the working tree has changes beyond the script-owned files (`languages/` and `readme.txt` leftovers from an aborted attempt are fine; they're re-reviewed and swept into the bump commit). Resumable — re-running after a mid-flow failure picks up where it left off.
+Bumps all four version locations, refreshes translation files (`npm run i18n`) — in that order, because `wp i18n make-pot` reads `Project-Id-Version` from the plugin header, so extracting first would stamp the catalogues with the *previous* version — drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes, then stops at **a single interactive gate**: it shows the block and requires an explicit `y` to continue — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. Editing `readme.txt` while the prompt waits is supported: the bump commit picks up the file as saved, and the script re-prints the block if it changed. Answering `n` stops the release with nothing committed; fix the block and re-run — leftovers are tolerated, the draft merge is idempotent, and your edits survive, so the re-run lands straight back at the gate. If `readme.txt` already has a `= X.Y.Z =` block (hand-written, or committed by a feature PR), the draft still runs: existing entries are kept, only drafted bullets not already present verbatim are appended, and the appended ones are listed — watch for semantic duplicates. After confirmation it commits the bump and the language churn together, pushes to trunk, **waits for CI green**, tags, pushes the tag. Nothing is committed before the gate, so answering `n` leaves the bumped version files and refreshed catalogues in the working tree only. Aborts cleanly if you're not on trunk, local trunk is out of sync with origin, CI fails, or the working tree has changes beyond the script-owned files (`languages/`, `readme.txt` and the version files from an aborted attempt are fine; `bump-version.sh` rewrites them deterministically and they're swept into the bump commit). Resumable — re-running after a mid-flow failure picks up where it left off. The resume path requires the bump to be **committed**, not merely written: matching version strings in a dirty tree mean an earlier run stopped at the gate, so the re-run redoes the bump and commits it rather than tagging the pre-bump commit.
 
 Flags:
 
@@ -16,9 +16,29 @@ Flags:
 - `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
-The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached.
+The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached, then — for stable tags only — deploys to WordPress.org.
 
 Requires the `gh` CLI authenticated (`gh auth status`).
+
+## The WordPress.org deploy
+
+The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the step is gated on the tag having no hyphen.
+
+Two of the action's inputs default off a GitHub context that is only correct for a tag push, so the workflow sets both explicitly rather than leaving them implicit — `SLUG` (below) and `VERSION`, which the action derives from `GITHUB_REF` and which would resolve to the *branch* ref on a manual dispatch, producing an SVN tag called `refs/heads/trunk`. `VERSION` is exported from the version-gate step, so the deploy publishes the string that was just verified against all four version locations.
+
+**`SLUG` is set explicitly to `desktop-mode` and must stay that way.** It is the published plugin's SVN path (`plugins.svn.wordpress.org/desktop-mode/`) and its install directory, so it is frozen for the same reason as every other `desktop_mode_*` value in [AGENTS.md](../AGENTS.md): changing it doesn't migrate anything, it points the deploy at a repository that doesn't exist and orphans every installed copy's update check. The action defaults `SLUG` to the GitHub repository name when unset — that default silently matched while the repo was named `desktop-mode`, and broke the moment it was renamed to `openstation`. Never rely on it.
+
+Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.
+
+### Re-deploying a published tag
+
+A tag push runs the workflow definition **frozen into that tag's commit**, so a deploy that failed for a workflow-level reason cannot be fixed by re-running it — the re-run replays the same broken definition. Dispatch the workflow from `trunk` instead, which runs the current definition against an existing tag:
+
+```bash
+gh workflow run release.yml --repo WordPress/openstation --ref trunk -f tag=v1.0.0
+```
+
+The GitHub Release is left untouched: `gh release create` is not idempotent, so that step is gated on `github.event_name == 'push'` and skipped on dispatch. Everything else — checkout of the tag, the version gate, build, package, deploy — runs identically. The action itself is idempotent against SVN: a version already published is detected and skipped rather than re-committed.
 
 ## Pre-releases
 
@@ -35,7 +55,7 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`. |
 | `bin/package.sh` | Packages `openstation.zip` from HEAD + current built JS. The ZIP keeps the internal `desktop-mode/` directory so WordPress.org upgrades and dependent plugins continue to resolve the established plugin slug. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any Vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
-| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
+| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release, then deploy stable tags to WordPress.org. |
 
 ## Version locations
 

@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 ## Index
 
 - [Add a dock item with a badge](./dock-badge.md)
+- [Give a tile two icons, one per state](./tile-icon-state.md)
 - [Decorate the dock without forking the renderer](./dock-decoration-hooks.md)
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate OpenStation by role](./gate-by-role.md)
@@ -33,6 +34,8 @@ defined( 'ABSPATH' ) || exit;
 - [Register a custom window reveal (Experimental)](./window-reveal.md)
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Related entities — extend the title bar's "Related" menu (Experimental)](./related-entities.md)
+- [Add a row to a window's ⋯ menu (Experimental)](./window-action.md)
+- [React to a window being set free onto the real desktop (Experimental)](./desktop-host.md)
 - [Inject data into `openStationConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)

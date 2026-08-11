@@ -90,6 +90,7 @@ export interface DesktopIconRenderDeps {
 
 const BADGE_CLASS = 'os-icon__badge';
 const _badges = new Map< string, number >();
+const _art = new Map< string, string >();
 
 /**
  * Coerce a raw badge input to a non-negative integer count.
@@ -198,11 +199,117 @@ export function getIconBadge( iconId: string ): number {
 }
 
 /**
+ * Swap a desktop icon's artwork.
+ *
+ * The counterpart to {@link setIconBadge} for apps whose icon means
+ * something different depending on state rather than counting
+ * something. The Recycle Bin is the in-tree example: empty and
+ * holding-something are two drawings of one object.
+ *
+ * **Covers both desktop layouts.** The Classic layout paints the
+ * `.os-icons` grid; the Spatial layout paints `<os-tile>` placements
+ * in the files layer, and on a stock install that second one is what
+ * the user is actually looking at. A caller asking for "the desktop
+ * icon for id X" means whichever is on screen, so this paints both
+ * and lets the one that exists win. Getting that wrong is invisible
+ * in Classic and total in Spatial, which is the worse way round.
+ *
+ * Same fan-out contract as the badge setters: an id this rail doesn't
+ * own is a silent no-op.
+ *
+ * Survives a grid rebuild — the renderer consults `_art` at build
+ * time, exactly as it does for badges.
+ *
+ * @public
+ *
+ * @param iconId Id passed to `openstation_register_icon()`.
+ * @param svg    Icon string (data URI, URL, or dashicon class), or
+ *               `''` to drop the override.
+ */
+export function setIconArt( iconId: string, svg: string ): void {
+	if ( ! iconId ) {
+		return;
+	}
+	if ( ! svg ) {
+		_art.delete( iconId );
+		return;
+	}
+	if ( _art.get( iconId ) === svg ) {
+		return; // Idempotent — no DOM mutation, no signal storm.
+	}
+	_art.set( iconId, svg );
+	_paintArtNodes( iconId, svg );
+	activity.publish( 'os/art-changed', {
+		itemId: iconId,
+		icon: svg,
+		rail: 'icon',
+	} );
+}
+
+/**
+ * Read the current art override for an icon, or `''` when the
+ * server-declared icon is still in charge.
+ *
+ * @public
+ */
+export function getIconArt( iconId: string ): string {
+	return _art.get( iconId ) ?? '';
+}
+
+/**
+ * Escape a value for use inside a `[attr="…"]` selector.
+ *
+ * `CSS.escape` is the right tool and is used when it exists, but it
+ * is absent in jsdom and in older engines, and an icon id reaching
+ * this function is server-registered rather than user input. Falling
+ * back to escaping the two characters that can terminate the quoted
+ * string keeps the lookup working instead of throwing on load.
+ */
+function _escapeAttr( value: string ): string {
+	if ( typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ) {
+		return CSS.escape( value );
+	}
+	return value.replace( /["\\]/g, '\\$&' );
+}
+
+/**
+ * Paint an art override onto every surface that might be showing
+ * this icon. Both branches are no-ops when their layout isn't the
+ * one rendering, so this is safe to call blind.
+ */
+function _paintArtNodes( iconId: string, svg: string ): void {
+	// Classic layout — the `.os-icons` grid.
+	const tile = _findIconTile( iconId );
+	const img = tile?.querySelector< HTMLElement >( '.os-icon__image' );
+	if ( img ) {
+		const next = renderIcon( svg, {
+			className: 'os-icon__image',
+			title: '',
+		} );
+		img.replaceWith( next );
+	}
+	// Spatial layout — shortcut placements in the files layer.
+	// `icon` is a reactive prop on `<os-tile>`, so setting the
+	// attribute is the component's own supported repaint path
+	// rather than a poke at its internals.
+	document
+		.querySelectorAll< HTMLElement >(
+			`os-tile[data-file-ref="${ _escapeAttr( iconId ) }"]`,
+		)
+		.forEach( ( el ) => el.setAttribute( 'icon', svg ) );
+}
+
+/**
  * Test-only reset — drops every tracked badge. Real code never
  * calls this.
  *
  * @internal
  */
+export function _resetIconArtForTests(): void {
+	_art.clear();
+}
+
+/** @internal */
 export function _resetIconBadgesForTests(): void {
 	_badges.clear();
 	_lastFingerprint = '';
@@ -222,6 +329,8 @@ export interface IconsApi {
 	setBadge: ( iconId: string, count: number ) => void;
 	clearBadge: ( iconId: string ) => void;
 	getBadge: ( iconId: string ) => number;
+	setArt: ( iconId: string, svg: string ) => void;
+	getArt: ( iconId: string ) => string;
 }
 
 /**
@@ -237,6 +346,8 @@ export const iconsApi: IconsApi = {
 	setBadge: setIconBadge,
 	clearBadge: clearIconBadge,
 	getBadge: getIconBadge,
+	setArt: setIconArt,
+	getArt: getIconArt,
 };
 
 /**
@@ -339,6 +450,20 @@ export function renderDesktopIcons(
 		const stored = _badges.get( entry.id ) ?? 0;
 		if ( stored > 0 ) {
 			_paintBadgeNode( tile, stored );
+		}
+		const storedArt = _art.get( entry.id );
+		if ( storedArt ) {
+			const img = tile.querySelector< HTMLElement >(
+				'.os-icon__image',
+			);
+			if ( img ) {
+				img.replaceWith(
+					renderIcon( storedArt, {
+						className: 'os-icon__image',
+						title: '',
+					} ),
+				);
+			}
 		}
 		container.appendChild( tile );
 		tiles.set( entry.id, tile );

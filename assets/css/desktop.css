@@ -785,48 +785,6 @@ body.os-has-fullscreen-window .os-shell {
 	pointer-events: none;
 }
 
-.os-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .os-icon__badge {
-	/*
-	 * The bin's count is tucked ONTO the lid rather than floating off
-	 * the corner, so it gets its own smaller geometry. Every value
-	 * derives from the icon image size, which keeps the badge on the
-	 * lid when a theme scales wallpaper icons — hardcoded offsets slid
-	 * off the artwork entirely.
-	 *
-	 * Override chain: bin-specific token → the generic icon-badge
-	 * token (so a theme that says "badges are 22px" gets the bin too)
-	 * → the derivation. All three resolve to the historical 15px / 9px
-	 * at the default 48px icon.
-	 */
-	--os-recycle-badge-computed-size: var(
-		--os-recycle-badge-size,
-		var(
-			--os-icon-badge-size,
-			calc( var( --os-icon-image-size, 48px ) * 0.3125 )
-		)
-	);
-	top: calc( var( --os-icon-image-size, 48px ) * 0.8125 );
-	inset-inline-end: calc( var( --os-icon-image-size, 48px ) * 0.4167 );
-	min-width: var( --os-recycle-badge-computed-size );
-	height: var( --os-recycle-badge-computed-size );
-	padding: 0 calc( var( --os-recycle-badge-computed-size ) * 0.267 );
-	border-radius: 999px;
-	background: var( --os-recycle-badge-bg, rgba( 29, 35, 39, 0.74 ) );
-	color: var( --os-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
-	font-size: var(
-		--os-recycle-badge-font-size,
-		var(
-			--os-icon-badge-font-size,
-			calc( var( --os-recycle-badge-computed-size ) * 0.6 )
-		)
-	);
-	font-weight: 700;
-	letter-spacing: 0;
-	box-shadow:
-		inset 0 0 0 1px rgba( 255, 255, 255, 0.28 ),
-		0 1px 2px rgba( 0, 0, 0, 0.28 );
-}
-
 .os-icon:hover,
 .os-icon:focus-visible {
 	/* background-COLOR, not the shorthand: the shorthand would reset

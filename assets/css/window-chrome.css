@@ -926,12 +926,12 @@ os-tab-chip + os-tab-chip {
  * output) and kept aria-hidden so the spinner's own SR-label is
  * the only loading announcement.
  *
- * `transition-delay` on the overlay's fade-in means a render
- * that lands within ~120ms never paints the spinner — the
- * overlay only becomes visible when there's actually a wait
- * worth surfacing. This keeps the affordance from flashing on
- * fast local-dev loads while still covering the slow production
- * iframe boots that motivated it.
+ * The `--visible` modifier turns the overlay on. JS adds it ~120ms
+ * into the load (`LOADING_OVERLAY_SHOW_DELAY_MS`), so a fast render
+ * never paints a spinner. The delay cannot be a `transition-delay`
+ * here: the overlay is appended into a body that already carries
+ * `--loading`, so its first computed style is the visible one and the
+ * transition never runs.
  */
 .os-window__loading {
 	position: absolute;
@@ -964,13 +964,31 @@ os-tab-chip + os-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
-.os-window__body--loading > .os-window__loading {
+.os-window__body--loading > .os-window__loading--visible {
 	opacity: 1;
-	/* Entry transition with a small delay — loads that finish in
-	 * under ~120ms never paint the spinner, so fast local-dev /
-	 * hot-cache fires don't flash. Slow production iframe boots
-	 * still see the spinner. */
-	transition-delay: 0.12s;
+}
+
+/*
+ * Content hand-off. `--loading` drops as soon as the content is ready,
+ * but the overlay above it still needs 250ms to fade out. Without this
+ * both layers are on screen at once, which reads as a flash.
+ *
+ * This modifier holds the content transparent for the length of that
+ * fade, then fades it in. The delay in the shorthand does the holding.
+ *
+ * Only added when the spinner actually painted. A load that finishes
+ * inside the show delay never reached `--visible`, so the shell drops
+ * the overlay in the same tick instead.
+ *
+ * `--revealing` declares the same selector at the same specificity and
+ * comes later in the file, so a window playing a reveal keeps its
+ * content opaque under the reveal surface.
+ */
+.os-window__body--loading-out > .os-window__iframe,
+.os-window__body--loading-out
+	> :not(.os-window__loading):not(.os-window__reveal) {
+	opacity: 1;
+	transition: opacity 0.25s ease 0.25s;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
@@ -978,6 +996,9 @@ os-tab-chip + os-tab-chip {
 	.os-window__loading,
 	.os-window__body--loading > .os-window__iframe,
 	.os-window__body--loading
+		> :not(.os-window__loading):not(.os-window__reveal),
+	.os-window__body--loading-out > .os-window__iframe,
+	.os-window__body--loading-out
 		> :not(.os-window__loading):not(.os-window__reveal) {
 		transition: none;
 	}

@@ -503,6 +503,36 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
+### `openstation_window_action_script_registered` — Experimental
+
+Fires after `openstation_register_window_action_script()` stores a window-action script handle.
+
+```php
+do_action( 'openstation_window_action_script_registered', string $handle );
+```
+
+### `openstation_register_window_action_script( $handle )` — Experimental (PHP function)
+
+Declares a WP-registered script handle as a provider of rows in every window's ⋯ actions menu. The shell injects the resolved URL on plugin activation so [`wp.os.registerWindowAction()`](./javascript-reference.md#wposregisterwindowaction--experimental) calls made by the plugin's JS land **without a page reload** — the row is in the next ⋯ menu that opens, and a menu that happens to be open already repaints in place.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-window-actions',
+        plugins_url( 'js/window-actions.js', __FILE__ ),
+        array( 'openstation' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-window-actions' );
+} );
+openstation_register_window_action_script( 'my-plugin-window-actions' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-window-actions'` on each `registerWindowAction` call. Untagged actions survive past deactivation until the next page reload — graceful backwards-compat.
+
+---
+
 ### `openstation_unfocus_effect_script_registered` — Experimental
 
 Fires after `openstation_register_unfocus_effect_script()` stores an unfocus-effect script handle.
@@ -1058,6 +1088,7 @@ array(
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal
     'fromPortalIntent' => bool,     // portal forward resolved from a user-supplied `target` URL — the user expressed navigation intent toward `currentPage`, not just a bare `/openstation/` visit.
+    'soloWindow'       => string,   // window id when the shell was asked to paint exactly one window; '' otherwise
 )
 ```
 
@@ -1632,6 +1663,20 @@ The list of plugin files to cascade-deactivate when OpenStation itself is deacti
 ```php
 apply_filters( 'openstation_cascade_deactivate_dependents', string[] $dependents, string $slug );
 ```
+
+---
+
+### `openstation_track_type_registrants` — Experimental
+
+Whether this request records which plugin, mu-plugin or theme registered each non-builtin post type and taxonomy. Defaults to `is_admin()`.
+
+```php
+apply_filters( 'openstation_track_type_registrants', bool $track );
+```
+
+The recorded map is what lets the dock offer `Deactivate <plugin>` on a menu item, and what files a custom post type under its plugin's folder in WP Explorer (see [`openstation_my_wordpress_post_type_group`](#openstation_my_wordpress_post_type_group--experimental-filter)). Both consumers are admin-side, so the gate is admin-side too.
+
+Recording costs one bounded `debug_backtrace()` per non-builtin type registration, and a front-end page view registers exactly the same types (WooCommerce alone brings several) for a map nothing there reads. Return `true` on the front end only if something there does read it.
 
 ---
 
@@ -2412,7 +2457,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 ### `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args` — Experimental (filter)
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the dashicon, or move the window from the taskbar to the dock.
+Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the icon, or move the window from the taskbar to the dock. The bin ships its own silhouette (`openstation_recycle_bin_icon_svg()`), so the icon args carry `icon_svg` rather than a dashicon class; replace that key, not `icon`, when substituting your own art.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 
@@ -2471,7 +2516,7 @@ whose chromeless footer emits the same topics for any admin request
 that trashed, restored, deleted — or **created / updated** — content.
 The recycle bin learns instantly when a list-table trashes
 something, list iframes refresh when the bin restores something,
-and (0.9.7+) list windows also refresh when content is saved in
+and list windows also refresh when content is saved in
 another window.
 
 Topic format: **`os.<type>.changed`** — the literal
@@ -3219,6 +3264,32 @@ Active only when WooCommerce is. See
 [Plugin compat layer](./plugin-compat-layer.md#the-site-window-side-woocommerce)
 for what the integration does and why.
 
+Every filter here is Experimental. The integration is young and its
+payload shapes are still moving, so treat the argument lists as
+liable to grow. Index, in the order they are documented below:
+
+| Filter | Shapes |
+|---|---|
+| `openstation_my_wordpress_woo_order_args` | the `wc_get_orders()` args behind the Orders section |
+| `openstation_my_wordpress_woo_summary` | the merchant summary rendered in the right pane |
+| `openstation_my_wordpress_woo_summary_type` | the summary payload for a type the plugin doesn't know |
+| `openstation_my_wordpress_woo_summary_capability` | who may read a summary of that type |
+| `openstation_my_wordpress_woo_store` | the store headline numbers on the Woo folder |
+| `openstation_my_wordpress_woo_order_bands` | the status bands the Orders section groups by |
+| `openstation_my_wordpress_woo_product_bands` | the stock / category bands the Products section groups by |
+| `openstation_my_wordpress_woo_coupon_bands` | the bands the Coupons section groups by |
+| `openstation_my_wordpress_woo_section_icons` | post type slug to dashicon for the Woo sections |
+| `openstation_my_wordpress_woo_customer_spend_map` | the per-customer order aggregate the Customers section is built from |
+| `openstation_my_wordpress_woo_customer_bands` | the bands the Customers section groups by |
+| `openstation_my_wordpress_woo_customer_band` | which band one aggregate lands in |
+| `openstation_my_wordpress_woo_vip_threshold` | the spend a customer clears to count as VIP |
+| `openstation_my_wordpress_woo_customer_lapse_days` | how long since the last order counts as lapsed |
+| `openstation_my_wordpress_woo_customer_ids` | the candidate set the Customers section draws from |
+| `openstation_my_wordpress_woo_customer_query_args` | the `WP_User_Query` args behind the customers route |
+| `openstation_my_wordpress_woo_customer_facts` | the fact payload carried on every customer row |
+| `openstation_my_wordpress_woo_customer_window_template_html` | the Customer window's static template body |
+| `openstation_my_wordpress_woo_customer_window_args` | the Customer window's registration args |
+
 ```php
 apply_filters( 'openstation_my_wordpress_woo_order_args', array $args, WP_REST_Request $request ): array
 ```
@@ -3288,6 +3359,20 @@ uncategorised catch-all. Each entry declares `id`, `label`, `order`,
 and one matcher — `stock` (a stock-status slug) or `category` (a term
 slug). Stock bands win over category bands, so an empty shelf surfaces
 wherever the product is filed.
+
+```php
+apply_filters( 'openstation_my_wordpress_woo_coupon_bands', array[] $bands ): array[]
+```
+
+The bands the Coupons section groups tiles into, ordered so the codes
+still worth handing out come first: `coupon:active`,
+`coupon:expiring`, `coupon:used-up`, `coupon:expired`. Each entry
+declares `id`, `label`, `order`, and an optional `tone` (`warn` on
+expiring, `danger` on a code that has hit its usage limit).
+
+Membership is not filterable, unlike the customer bands: a coupon is
+expiring within 30 days of its expiry date, used-up once its usage
+count reaches its usage limit, and expired once the date has passed.
 
 ```php
 apply_filters( 'openstation_my_wordpress_woo_section_icons', array $icons ): array
@@ -4427,12 +4512,22 @@ Features → Extended options, admin-only, default off). While the flag
 is off none of these hooks exist — `includes/agents/bootstrap.php`
 skips every module file.
 
-**One exception**: `includes/agents/guard.php` loads unconditionally,
-ahead of the flag. It owns `openstation_agent_is_agent()` and every
-login/session block. Disabling the feature does not delete agent user
-rows, and a row whose blocks unloaded with the feature would accept
-application passwords and password resets again — so the blocks are a
-property of the rows, not of the feature.
+**Two exceptions** load unconditionally, ahead of the flag:
+
+- `includes/agents/guard.php` owns `openstation_agent_is_agent()` and
+  every login/session block. Disabling the feature does not delete
+  agent user rows, and a row whose blocks unloaded with the feature
+  would accept application passwords and password resets again — so
+  the blocks are a property of the rows, not of the feature.
+- `includes/agents/my-wordpress.php` adds the Agents section to WP
+  Explorer, so the section is always listed for anyone who passes
+  `openstation_agents_user_can_read`. While the flag is off the
+  section config carries `enabled => false` and the bundle paints it
+  read-only without issuing a single request — the REST routes below
+  genuinely do not exist then. The three capability filters and
+  `openstation_agent_avatar_url()` live in `bootstrap.php` for the
+  same reason: the section descriptor needs them while `rest.php` and
+  `identity.php` are unloaded.
 
 An agent is a synthetic `wp_users` row (login-blocked) whose entire
 definition lives as user meta on that row: description, instructions
@@ -4698,11 +4793,16 @@ add_filter( 'openstation_agent_http_timeout', fn() => 300 );
 The three permission gates on the REST surface and the UI. Defaults:
 read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
+All three are available even when the agents feature is off
+(bootstrap.php) — `openstation_agents_user_can_read` decides whether
+the always-listed WP Explorer section appears at all.
+
 - **Param** `bool $can`
 
 ### PHP helpers — Experimental
 
 - `openstation_agent_is_agent( $user )` — marker-meta test. Available even when the agents feature is off (guard.php).
+- `openstation_agent_avatar_url()` — the bot avatar file URL. Available even when the agents feature is off (bootstrap.php).
 - `openstation_agent_create( $args )` / `openstation_agent_update( $user_id, $fields )` / `openstation_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `openstation_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
@@ -4714,7 +4814,49 @@ read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
 ---
 
+## Solo window rendering mode — Experimental
+
+`?openstation_solo=<window-id>` boots the whole shell and paints exactly
+one window: no dock, taskbar, wallpaper or desk, and no session restore.
+Built for the native desktop host, which uses it to give a *native*
+window — one with no URL of its own — to a real OS window. Nothing about
+it is Electron-specific: an embed, a kiosk screen or a PWA shortcut can
+point at the same flag.
+
+It is a **rendering mode, not an access grant**. The flag is ignored for
+a user who has not turned OpenStation on, and every capability check on
+the underlying screen applies exactly as it would anywhere else.
+
+Full narrative: [Native Desktop Host](./desktop-host.md).
+
+### `openstation_solo_window_id` — Experimental *(filter)*
+
+The window id booted in solo mode. Return `''` to refuse solo mode for
+this request — the hook for gating single-window rendering by role or by
+window.
+
+```php
+apply_filters( 'openstation_solo_window_id', string $id, string $raw );
+```
+
+### PHP helpers — Experimental
+
+- `openstation_solo_window_id()` — `''` unless this is a solo request.
+- `openstation_is_solo_request()`.
+
+Shell config gains one key, `soloWindow`.
+
+### Electron Adapter hooks
+
+The desktop-host contract — handshake, liveness heartbeat, and the
+`openstation_electron_*` filters and actions — lives in the **Electron
+Adapter extension**, not in core. See
+[Native Desktop Host → Adapter hooks](./desktop-host.md#adapter-hooks).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — solo mode, the Electron Adapter extension, and `wp.os.electron`.
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.
 - [Examples](./examples/README.md) — full-plugin recipes.

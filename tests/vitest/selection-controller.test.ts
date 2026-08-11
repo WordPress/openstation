@@ -306,6 +306,40 @@ describe( 'selection controller', () => {
 		expect( handle.keys() ).toEqual( [] );
 	} );
 
+	test( 'no marquee starts while the desktop area is in Overview', () => {
+		// Regression: Overview's desktop tiles stopped switching
+		// desktops. The press fell through to this listener, which
+		// captured the pointer on the desktop area — and pointer
+		// capture retargets the compatibility mouse events, so the
+		// synthesized `click` landed on the area instead of the tile
+		// the user pressed, and the tile's own handler never ran.
+		background.classList.add( 'os-area--overview' );
+		const capture = vi.fn();
+		background.setPointerCapture = capture;
+		const bar = document.createElement( 'div' );
+		bar.className = 'os-overview-top-bar';
+		const desktopTile = document.createElement( 'button' );
+		bar.appendChild( desktopTile );
+		background.appendChild( bar );
+		tile( 'a' );
+		withRect( background, { left: 0, top: 0, width: 500, height: 500 } );
+		const handle = attach();
+
+		desktopTile.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
+
+		expect( capture ).not.toHaveBeenCalled();
+		expect( document.querySelector( '.os-selection-marquee' ) ).toBeNull();
+		expect( handle.keys() ).toEqual( [] );
+
+		// The bare backdrop is the same story — it shares this node, so
+		// Overview's own `stopPropagation()` can't reach this listener.
+		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 220, 220 ) );
+		expect( capture ).not.toHaveBeenCalled();
+		expect( document.querySelector( '.os-selection-marquee' ) ).toBeNull();
+	} );
+
 	test( 'a canvas INSIDE a window still marquees', () => {
 		// Regression: the wallpaper exclusion (windows are children of
 		// the desktop area) also matched every canvas that lives

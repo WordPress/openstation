@@ -55,9 +55,7 @@ function openstation_build_dock_items() {
 			continue;
 		}
 
-		// Extract the clean title: strip badge spans first, then strip remaining tags.
-		$raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $item[0] );
-		$title     = trim( wp_strip_all_tags( $raw_title ) );
+		$title = openstation_menu_item_title( $item[0] );
 
 		// Extract badge count from the title HTML.
 		$badge = 0;
@@ -145,14 +143,13 @@ function openstation_build_dock_items() {
 				if ( $sub_url === $parent_url ) {
 					continue;
 				}
-				$sub_raw_title = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $sub_item[0] );
-				$sub_title     = trim( wp_strip_all_tags( $sub_raw_title ) );
 				// Skip entries with no resolvable title. Plugins (e.g.
 				// WooCommerce's `wc-addons` Extensions row) register
 				// `menu_title => null` to hide a row from classic admin's
 				// left menu while keeping the page reachable. Without
 				// this guard the dock renders an empty, label-less tab
 				// that visually duplicates a sibling entry.
+				$sub_title = openstation_menu_item_title( $sub_item[0] );
 				if ( '' === $sub_title ) {
 					continue;
 				}
@@ -1203,6 +1200,7 @@ function openstation_build_menu_payload() {
 		'serverSettingsTabs'              => 'openstation_build_desktop_settings_tabs_payload',
 		'serverDockRailRendererScripts'   => 'openstation_build_dock_rail_renderer_scripts_payload',
 		'serverTitleBarButtonScripts'     => 'openstation_build_desktop_titlebar_button_scripts_payload',
+		'serverWindowActionScripts'       => 'openstation_build_desktop_window_action_scripts_payload',
 		'serverUnfocusEffectScripts'      => 'openstation_build_desktop_unfocus_effect_scripts_payload',
 		'serverWindowLinkRendererScripts' => 'openstation_build_window_link_renderer_scripts_payload',
 		'serverWindowThemeScripts'        => 'openstation_build_window_theme_scripts_payload',
@@ -1574,6 +1572,7 @@ function openstation_flush_script_handle_registries() {
 		'openstation_flush_desktop_settings_tab_script_registry',
 		'openstation_flush_dock_rail_renderer_script_registry',
 		'openstation_flush_desktop_titlebar_button_script_registry',
+		'openstation_flush_desktop_window_action_script_registry',
 		'openstation_flush_desktop_unfocus_effect_script_registry',
 		'openstation_flush_window_link_renderer_script_registry',
 		'openstation_flush_window_theme_script_registry',
@@ -1712,6 +1711,29 @@ function openstation_build_native_windows_payload() {
 	}
 
 	return $out;
+}
+
+/**
+ * Cleans a `$menu` / `$submenu` title for display.
+ *
+ * Strips badge spans first (`<span class="update-plugins count-3">`),
+ * then any remaining markup. An empty result means the entry has no
+ * usable label: plugins register `menu_title => null` to keep a page
+ * reachable while hiding its row from classic admin's left menu, and
+ * those must not become tabs.
+ *
+ * Shared so everything deciding "is this a visible tab?" agrees.
+ * {@see openstation_chromeless_submenu_tab_urls()} hides an in-page
+ * button on the strength of a tab existing, so a divergence here would
+ * hide a button with nothing on screen to replace it.
+ *
+ * @param string $raw_title Raw `$menu[$i][0]` / `$submenu[$p][$i][0]` value.
+ * @return string Cleaned title, empty when there is none.
+ */
+function openstation_menu_item_title( $raw_title ) {
+	$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw_title );
+
+	return trim( wp_strip_all_tags( $stripped ) );
 }
 
 /**

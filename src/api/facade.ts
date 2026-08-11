@@ -83,6 +83,11 @@ import {
 	unregisterTitleBarButton,
 } from '../title-bar-buttons/registry';
 import {
+	listWindowActions,
+	registerWindowAction,
+	unregisterWindowAction,
+} from '../window-actions/registry';
+import {
 	listUnfocusEffects,
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
@@ -212,6 +217,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'isDockElement', 'registerDockSelector',
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
+	'registerWindowAction', 'unregisterWindowAction', 'listWindowActions',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
 	'registerWindowReveal', 'unregisterWindowReveal', 'listWindowReveals',
 	'relations',
@@ -636,6 +642,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerTitleBarButton,
 		unregisterTitleBarButton,
 		listTitleBarButtons,
+		registerWindowAction,
+		unregisterWindowAction,
+		listWindowActions,
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,

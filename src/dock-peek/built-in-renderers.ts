@@ -22,7 +22,7 @@ import type { Window as WPWindow } from '../window';
 /** Window id used by the OS Settings native window. Shared with `desktop.ts`. */
 const OS_SETTINGS_ID = 'desktop-mode-os-settings';
 
-/** Window id used by the Recycle Bin native window. Shared with `recycle-bin/badge.ts`. */
+/** Window id used by the Recycle Bin native window. Shared with `recycle-bin/icon-state.ts`. */
 const RECYCLE_BIN_ID = 'desktop-mode-recycle-bin';
 
 /**
@@ -48,7 +48,7 @@ interface RegisterOpts {
 	/**
 	 * Returns the current recycle-bin count. Called every time the
 	 * peek opens — fresh value, no staleness. The Recycle Bin
-	 * module passes its `_currentRecycleBinBadge` getter.
+	 * module passes its `_currentRecycleBinCount` getter.
 	 */
 	getRecycleBinCount: CountReader;
 }

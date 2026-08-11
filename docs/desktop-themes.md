@@ -1,6 +1,6 @@
 # Desktop themes
 
-**Status:** Experimental · **Since:** 0.9.7
+**Status:** Experimental
 
 A **desktop theme** reskins the whole OpenStation shell at once —
 every design token, the typeface, a texture on any surface the shell

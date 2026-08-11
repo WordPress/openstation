@@ -8,6 +8,13 @@
  * the spinner overlay, and swallow strays from windows that have
  * already torn down.
  *
+ * ## The spinner and the content never share the screen
+ *
+ *   - Spinner never became visible: drop it in the same tick, there is
+ *     nothing to fade.
+ *   - Spinner did paint: hold the content transparent through its
+ *     fade-out, then fade the content in.
+ *
  * A single global `addAction` per edge (loading + loaded) reads
  * the window id from the payload and looks up the element via
  * the canonical `id="wp-window-${ id }"` attribute. Per-window
@@ -19,8 +26,21 @@
 
 import { HOOKS, addAction } from './../hooks';
 import { armWindowReveal, playWindowReveal } from '../reveals/surface';
-import { LOADING_OVERLAY_FADE_OUT_MS } from './constants';
-import { ensureLoadingOverlay, removeLoadingOverlay } from './dom';
+import {
+	LOADING_CONTENT_FADE_IN_MS,
+	LOADING_OVERLAY_CLASS,
+	LOADING_OVERLAY_FADE_OUT_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from './constants';
+import {
+	ensureLoadingOverlay,
+	loadingCycle,
+	LOADING_BODY_CLASS,
+	LOADING_HANDOFF_BODY_CLASS,
+	LOADING_STARTED_ATTR,
+	removeLoadingOverlay,
+	stampLoadingStart,
+} from './dom';
 
 /**
  * Duration of the body-content fade-out before the overlay element is
@@ -93,7 +113,12 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-			body.classList.add( 'os-window__body--loading' );
+			// Cancel any hand-off still running: the content is about
+			// to be covered again, so fading it in is stale.
+			body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
+			body.classList.add( LOADING_BODY_CLASS );
+			// Stamp first: `ensureLoadingOverlay` reads the clock.
+			stampLoadingStart( body );
 			ensureLoadingOverlay( el );
 			// Re-arm the reveal surface. The FIRST arm happens in
 			// `createWindowElement`, because the construction-time
@@ -119,7 +144,31 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-			body.classList.remove( 'os-window__body--loading' );
+			// Only a spinner that actually painted has a fade to
+			// sequence the content behind.
+			const spinnerWasVisible = !! body
+				.querySelector( `:scope .${ LOADING_OVERLAY_CLASS }` )
+				?.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS );
+
+			body.classList.remove( LOADING_BODY_CLASS );
+			body.removeAttribute( LOADING_STARTED_ATTR );
+
+			if ( ! spinnerWasVisible ) {
+				// Nothing painted, nothing to sequence.
+				removeLoadingOverlay( el );
+				// Same-tick reveal, for the reason noted below.
+				playWindowReveal( el );
+				return;
+			}
+
+			// Hold the content transparent through the overlay's
+			// fade-out, then fade it in. The CSS rule owns both.
+			body.classList.add( LOADING_HANDOFF_BODY_CLASS );
+			// Both timers below belong to THIS cycle. A load that
+			// starts before they fire opens a new one, and a stale
+			// timer that stripped the new cycle's hold would put the
+			// content back on screen mid fade-out.
+			const cycle = loadingCycle( body );
 			// Start the reveal in the SAME tick the loading modifier is
 			// dropped. `playWindowReveal` adds the `--revealing` class,
 			// whose rule pins the content to full opacity with no
@@ -132,13 +181,26 @@ function _installSubscriptions(): void {
 			// same frame the modifier flips off and the spinner
 			// pops out of view instead of fading.
 			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
 				// Re-check the DOM — the user might have triggered
 				// `markContentLoading()` again in the interim, in
 				// which case the overlay should stay.
-				if ( ! body.classList.contains( 'os-window__body--loading' ) ) {
+				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
+			// Drop the modifier once the content's fade has landed, so
+			// its delayed transition does not linger.
+			window.setTimeout( () => {
+				if ( loadingCycle( body ) !== cycle ) {
+					return;
+				}
+				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
+					body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
+				}
+			}, FADE_OUT_MS + LOADING_CONTENT_FADE_IN_MS );
 		},
 	);
 
@@ -185,6 +247,10 @@ function _installSubscriptions(): void {
  * in the DOM and re-runs `ensureLoadingOverlay`. Windows whose
  * overlays were already torn down by a `markContentLoaded()` call
  * in the meantime are not affected.
+ *
+ * The replacement overlay resumes the body's show-delay clock rather
+ * than restarting it, so a repaint of a spinner that is already on
+ * screen does not blink it off for another 120 ms.
  *
  * Called automatically by the post-`INIT` sweep above — most
  * plugins never need to invoke this directly.

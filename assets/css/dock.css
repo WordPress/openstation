@@ -933,29 +933,26 @@
 }
 
 /*
- * Global "Show Desktop" indicator — set on `<body>` by the dock when
- * every live window on the active desktop is in the minimized state.
- * The bottom-dock pill picks up a soft theme-color ring so the user
- * has a global cue that the windows haven't disappeared, they're just
- * minimized. ArrowUp / a wallpaper click / clicking any dock tile
- * brings them back; without this the empty wallpaper looks identical
- * to a freshly-loaded desktop with no windows open.
+ * "Show Desktop" — every live window on the active desktop minimized.
+ *
+ * The dock does not change when this happens. It used to: the bottom
+ * pill and the vertical rails each picked up a 1px inset ring, on the
+ * reasoning that an empty wallpaper otherwise looks identical to a
+ * desktop that never had anything on it.
+ *
+ * The reasoning was sound and the ring was still the wrong answer. It
+ * outlined the whole dock — the one surface on screen that is always
+ * present and never the subject — to say something about windows that
+ * are not on the dock at all. Every tile that has minimized windows
+ * already says so, precisely and locally, by swapping its solid
+ * indicator dot for a hollow ring. That is the cue: it points at the
+ * tiles the windows are under, in the place the user will click to get
+ * them back.
+ *
+ * `body.os-show-desktop-active` is still set (see `src/dock.ts`) and
+ * still public, so a theme or plugin that wants a global cue can paint
+ * one. Core does not.
  */
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="bottom" ] {
-	box-shadow:
-		inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) ),
-		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
-		0 10px 32px rgba( 0, 0, 0, 0.45 );
-}
-
-/* Vertical docks get the same treatment along their inner edge. */
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="left" ],
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="right" ] {
-	box-shadow: inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) );
-}
 
 /* "Open another" chip — floats above the tile's top-right corner so
  * it doesn't collide with neighbouring tiles in the horizontal row. */

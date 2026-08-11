@@ -176,10 +176,10 @@ renderers whose version it doesn't speak yet — same pattern WP
 uses for block API versioning. When a future shell ships v2,
 plugins written against v1 keep working until they opt in to v2.
 
-| Surface | API version | Since |
-|---|---|---|
-| Decoration hooks | n/a — hook bus | 0.6.0 |
-| `registerDockRailRenderer` | 1 | 0.6.0 |
+| Surface | API version |
+|---|---|
+| Decoration hooks | n/a — hook bus |
+| `registerDockRailRenderer` | 1 |
 
 ---
 

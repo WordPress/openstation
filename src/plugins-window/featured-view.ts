@@ -15,6 +15,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { decodeHTML } from '../utils';
 import { broadcast, subscribe } from '../broadcast';
 import {
 	buildCard,
@@ -172,7 +173,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( 'Installed %s.', 'desktop-mode' ),
-						plugin.name,
+						decodeHTML( plugin.name ),
 					),
 				);
 				repaintCardCta( card, plugin, state.installed, cardCallbacks );
@@ -213,7 +214,7 @@ export function mountFeaturedView(
 					sprintf(
 						/* translators: %s: plugin name */
 						__( '%s activated.', 'desktop-mode' ),
-						updated.name || updated.plugin,
+						decodeHTML( updated.name || updated.plugin ),
 					),
 				);
 				const plugin = state.plugins.find(

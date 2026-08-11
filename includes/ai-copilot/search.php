@@ -789,8 +789,6 @@ function openstation_ai_normalize_tool_schema( $schema ) {
  * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
  * (which are kept — only the TOP level of the tool schema strips combinators).
  *
- * @since 0.9.8
- *
  * @param array $schema A tool parameters (sub)schema.
  * @return array The schema without WP-only keys, at any depth.
  */
@@ -1219,15 +1217,11 @@ The message field is always a friendly sentence or two shown directly to the use
 					'message' => 'Putting together your answer…',
 				)
 			);
-			$text = $turn['text'] ?? null;
-			if ( ! is_string( $text ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP OpenStation AI] AI Client returned no text in the final turn.' );
-				return new WP_Error(
-					'openstation_ai_empty',
-					'The AI provider returned no text in the final turn.'
-				);
-			}
+			// A toolless turn with no extractable text never reaches here:
+			// openstation_ai_client_generate() returns
+			// `openstation_ai_empty_answer` for that case, handled with the
+			// other generation errors above.
+			$text = (string) ( $turn['text'] ?? '' );
 
 			$answer = json_decode( $text, true );
 			if ( ! is_array( $answer ) ) {
@@ -1770,7 +1764,13 @@ Rules:
 		$instructions
 	);
 
-	if ( is_wp_error( $turn ) ) {
+	// `openstation_ai_empty_answer` is the one generation error this path
+	// deliberately absorbs: the command DID run, so a text-less summary turn
+	// degrades to the generic confirmation below instead of surfacing as a
+	// failure of the command itself.
+	$empty_answer = is_wp_error( $turn ) && 'openstation_ai_empty_answer' === $turn->get_error_code();
+
+	if ( is_wp_error( $turn ) && ! $empty_answer ) {
 		do_action(
 			'openstation_ai_search_error',
 			array(
@@ -1785,7 +1785,7 @@ Rules:
 		return $turn;
 	}
 
-	$text     = $turn['text'] ?? null;
+	$text     = $empty_answer ? null : ( $turn['text'] ?? null );
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if the provider returned nothing usable, fall

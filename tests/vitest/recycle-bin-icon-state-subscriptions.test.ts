@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import * as bc from '../../src/broadcast';
-import { startRecycleBinBadge } from '../../src/recycle-bin/badge';
+import { startRecycleBinIconState } from '../../src/recycle-bin/icon-state';
 
 describe( 'Recycle Bin Badge Subscriptions', () => {
 	beforeEach( () => {
@@ -27,7 +27,7 @@ describe( 'Recycle Bin Badge Subscriptions', () => {
 		};
 		( window as any ).openStationConfig = config;
 
-		startRecycleBinBadge( 0, 'http://localhost/count' );
+		startRecycleBinIconState( 0, 'http://localhost/count' );
 
 		// Should subscribe to the CPTs
 		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.portfolio.changed', expect.any( Function ) );
@@ -50,7 +50,7 @@ describe( 'Recycle Bin Badge Subscriptions', () => {
 		};
 		( window as any ).openStationConfig = config;
 
-		startRecycleBinBadge( 0, 'http://localhost/count' );
+		startRecycleBinIconState( 0, 'http://localhost/count' );
 
 		// Should subscribe to the defaults
 		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.post.changed', expect.any( Function ) );
