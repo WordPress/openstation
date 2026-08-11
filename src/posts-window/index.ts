@@ -120,10 +120,11 @@ function osConfirmGlobal( options: ConfirmOptions ): Promise< boolean > {
 }
 
 /**
- * Window mode, defaulting to `'posts'`. The fallback covers the
- * pre-render call sites (the kebab column-toggle menu mounts from the
- * table descriptor before render) that can reach here before a config
- * blob is available.
+ * Window mode, defaulting to `'posts'`. For the call sites that build
+ * things before render, when the config blob may not exist yet (the
+ * kebab column-toggle menu mounts from the table descriptor). Inside
+ * `renderPostsWindow` read `isPagesMode` instead — the config is
+ * already resolved there, so the fallback would be dead weight.
  */
 function windowMode( client: PostsWindowClient ): 'posts' | 'pages' {
 	try {
@@ -2298,6 +2299,9 @@ export async function renderPostsWindow(
 	}
 
 	const cfg = client.getConfig();
+	// Every mode-dependent string below reads this. `windowMode()` is
+	// for the call sites that have no resolved config to read.
+	const isPagesMode = cfg.mode === 'pages';
 	const view: ViewState = {
 		page: 1,
 		perPage: Math.max( 1, cfg.defaultPerPage || 20 ),
@@ -2372,7 +2376,6 @@ export async function renderPostsWindow(
 	}
 
 	const updatePager = (): void => {
-		const isPagesMode = cfg.mode === 'pages';
 		if ( indicator ) {
 			if ( totalRows === 0 ) {
 				indicator.textContent = isPagesMode
@@ -2574,10 +2577,11 @@ export async function renderPostsWindow(
 			return;
 		}
 		if ( target.closest( NEW_BTN ) ) {
-			const isPages = cfg.mode === 'pages';
 			openAdminUrl( cfg.newPostUrl, {
-				title: isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
-				icon: isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
+				title: isPagesMode ? __( 'Add New Page' ) : __( 'Add New Post' ),
+				icon: isPagesMode
+					? 'dashicons-admin-page'
+					: 'dashicons-admin-post',
 			} );
 			return;
 		}
