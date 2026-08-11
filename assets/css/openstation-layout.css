@@ -1,0 +1,744 @@
+/**
+ * OpenStation — the OpenStation desktop layout.
+ *
+ * Two surfaces, both scoped so they cost nothing in any other layout:
+ *
+ * 1. **The seam.** The rail is one bottom dock holding every menu,
+ *    core cluster first, plugins second, with a single divider on the
+ *    boundary. The layout dispatcher guarantees the ordering; this
+ *    file gives the divider something to say. It is Pulse at the
+ *    waist, falling away to nothing at both ends, with a diamond node
+ *    on the centre line — a seam in the rail rather than a rule
+ *    drawn on it.
+ *
+ * 2. **The constellation.** The flyout that fans a menu's submenu out
+ *    of its tile on hover. Body-attached (it has to escape the dock's
+ *    stacking context and its `overflow`), so its selectors are
+ *    rooted on `.os-constellation` rather than on the shell.
+ *
+ * Colour discipline, per the palette rule: every declaration here
+ * reads `var( --token, <literal> )`, and every literal is a plain
+ * value that stands on its own if `variables.css` never loads. The
+ * mesh appears in exactly two places — the hovered/focused row and
+ * the head's icon halo — because those are the moments the panel is
+ * answering the user. Everywhere else is Obsidian.
+ */
+
+/* ==================================================================
+ * 1. The seam — core ends, plugins begin
+ * ================================================================== */
+
+/*
+ * Extra breathing room around the boundary. The clusters need to read
+ * as two groups before the divider between them means anything; at
+ * the dock's default 6px gap they read as one row with a scratch in
+ * it.
+ */
+.os-shell[ data-os-layout="openstation" ]
+	.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__separator--group {
+	position: relative;
+	width: 2px;
+	height: 34px;
+	margin: auto 14px;
+	margin-inline-start: 14px;
+	border-radius: 2px;
+	/*
+	 * A gradient, not a flat fill. The seam is brightest where the eye
+	 * lands (the tiles' own centre line) and gone by the time it
+	 * reaches the pill's padding, so it never terminates in a visible
+	 * stub against the glass.
+	 */
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 28%,
+		var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 72%,
+		transparent 100%
+	);
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var( --os-cn-seam, rgba( 217, 46, 227, 0.7 ) ) 45%,
+			transparent
+		);
+	flex-shrink: 0;
+}
+
+/*
+ * The node. A 5px diamond on the seam's waist — the one piece of the
+ * divider that survives at a glance, and the thing that stops the
+ * seam reading as a rendering artefact.
+ */
+.os-shell[ data-os-layout="openstation" ]
+	.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__separator--group::after {
+	content: "";
+	position: absolute;
+	inset-inline-start: 50%;
+	top: 50%;
+	width: 5px;
+	height: 5px;
+	transform: translate( -50%, -50% ) rotate( 45deg );
+	background: var( --os-cn-seam-node, #f252fc );
+	box-shadow: 0 0 8px var( --os-cn-seam-node, #f252fc );
+	animation: os-cn-seam-breathe 4.5s var( --os-ui-ease-loop, ease-in-out )
+		infinite;
+}
+
+@keyframes os-cn-seam-breathe {
+	0%,
+	100% {
+		opacity: 0.55;
+		transform: translate( -50%, -50% ) rotate( 45deg ) scale( 1 );
+	}
+	50% {
+		opacity: 1;
+		transform: translate( -50%, -50% ) rotate( 45deg ) scale( 1.35 );
+	}
+}
+
+/*
+ * The rail's own signature. Everything the user can reach lives on
+ * this one pill in this layout, so it earns a little more presence
+ * than the shared chrome gives it: a faint accent bloom under the
+ * glass, and nothing else. A wash, not a border — the pill already
+ * has its hairline from `dock.css`, and a second outline here would
+ * fight it.
+ *
+ * `--os-ui-accent-dim` rather than `--os-ui-accent`: this is ambient,
+ * and ambient uses of the accent all route through the dimmed token
+ * so "tone the station down" stays one edit.
+ */
+.os-shell[ data-os-layout="openstation" ]
+	.os-dock[ data-os-dock-placement="bottom" ] {
+	box-shadow:
+		0 8px 32px rgba( 0, 0, 0, 0.45 ),
+		0 0 26px -6px
+			color-mix(
+				in srgb,
+				var( --os-ui-accent-dim, #d92ee3 ) 28%,
+				transparent
+			);
+}
+
+/*
+ * Tile lift. In this layout a tile is a menu you can open *into*, not
+ * just a page you can open — so hovering one lifts it clear of the
+ * rail rather than just tinting it, and the tile the flyout is
+ * currently anchored to stays lifted for as long as the panel is up.
+ */
+.os-shell[ data-os-layout="openstation" ]
+	.os-dock__item-primary:hover {
+	transform: translateY( -3px ) scale( 1.12 );
+}
+
+.os-shell[ data-os-layout="openstation" ]
+	.os-dock__item[ data-constellation-open ]
+	.os-dock__item-primary {
+	background-color: var(
+		--os-dock-item-bg-hover,
+		rgba( 242, 82, 252, 0.18 )
+	);
+	color: var( --os-dock-icon-color-hover, #fffbff );
+	transform: translateY( -3px ) scale( 1.12 );
+}
+
+/*
+ * The dock tooltip stands down while a flyout is open. The panel's
+ * head carries the same label, larger and attached to the thing it
+ * names; the tooltip on top of it is a second hover surface saying
+ * the same word twice.
+ */
+body.os-constellation-open .os-dock__tooltip {
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* ==================================================================
+ * 2. The constellation
+ * ================================================================== */
+
+.os-constellation {
+	position: fixed;
+	z-index: var( --os-cn-z, 2147483000 );
+	/*
+	 * `--os-cn-shift` is written by the clamp when the panel would
+	 * have overflowed a viewport edge; the beam compensates with
+	 * `--os-cn-beam-x` so it stays pointed at the tile. Both default
+	 * to 0, which is the un-clamped case.
+	 */
+	transform: translate(
+			calc( -50% + var( --os-cn-shift, 0px ) ),
+			-100%
+		)
+		scale( 0.94 );
+	transform-origin: bottom center;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		transform var( --os-ui-motion-slow, 340ms )
+			var( --os-ui-ease-spring, cubic-bezier( 0.32, 1.5, 0.55, 1 ) ),
+		opacity var( --os-ui-motion-fast, 140ms ) ease-out;
+}
+
+.os-constellation.os-constellation--open {
+	transform: translate( calc( -50% + var( --os-cn-shift, 0px ) ), -100% )
+		scale( 1 );
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/*
+ * The exit, and it is NOT the entrance in reverse.
+ *
+ * Arriving is an event and gets a spring that overshoots. Leaving is
+ * the user having already moved on: it eases IN (accelerating away
+ * rather than settling), runs in under half the time, and — because
+ * `transform-origin` is `bottom center`, where the beam meets the
+ * tile — the shrink plus the few pixels of downward travel read as
+ * the panel dropping back into the rail it came out of.
+ *
+ * `pointer-events: none` from the first frame. A panel that is
+ * visibly leaving must not still be clickable, or a fast pointer
+ * lands a row the user has already dismissed.
+ */
+.os-constellation.os-constellation--closing {
+	transform: translate(
+			calc( -50% + var( --os-cn-shift, 0px ) ),
+			calc( -100% + 8px )
+		)
+		scale( 0.96 );
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		transform 160ms var( --os-ui-ease-in, cubic-bezier( 0.4, 0, 1, 1 ) ),
+		opacity 140ms var( --os-ui-ease-in, cubic-bezier( 0.4, 0, 1, 1 ) );
+}
+
+/*
+ * The panel leaves as ONE object. Without this the rows revert to
+ * their pre-entrance state and each plays its own staggered exit
+ * inside a panel that is itself shrinking — two motions at two
+ * speeds, which reads as the menu coming apart rather than closing.
+ */
+.os-constellation--closing .os-constellation__row {
+	opacity: 1;
+	transform: none;
+	transition: none;
+}
+
+/*
+ * The beam goes first, and faster. It is the thread to the tile, so
+ * cutting it a beat before the panel lands sells the panel as
+ * falling rather than fading.
+ */
+.os-constellation--closing .os-constellation__beam {
+	opacity: 0;
+	transition: opacity 90ms ease-in;
+}
+
+/*
+ * A retiring panel never paints over a live one.
+ *
+ * Moving along the rail leaves two panels on screen at once — the one
+ * you left finishing its dismissal above its own tile, the one you
+ * arrived at rising above its. Adjacent dock tiles are ~46px apart
+ * and a panel is 230px+ wide, so they overlap heavily, and without an
+ * explicit order the outgoing one wins on source order and fades out
+ * ON TOP of the menu the user is actually looking at.
+ */
+.os-constellation--closing {
+	z-index: calc( var( --os-cn-z, 2147483000 ) - 1 );
+}
+
+/* The panel body. */
+.os-constellation__surface {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 232px;
+	max-width: min( 340px, calc( 100vw - 24px ) );
+	/*
+	 * The vertical clamp. `--os-cn-max-h` is written by the JS on
+	 * every placement: the distance from this panel's bottom edge up
+	 * to the top of the viewport. The panel cannot be nudged
+	 * downwards to fit — that would push it over the dock — so it is
+	 * capped instead, and the group below takes the scroll.
+	 */
+	max-height: var( --os-cn-max-h, min( 78vh, 620px ) );
+	/*
+	 * The surface itself never scrolls. A long menu (WooCommerce's
+	 * fifteen children, a CPT with every taxonomy under it) puts the
+	 * scroll on its own group instead, which keeps the head and the
+	 * new-window row pinned AND keeps this element a stable
+	 * containing block for the spotlight + edge overlays — an
+	 * absolutely-positioned child of a scroll container scrolls with
+	 * the content, so the hairline would slide off the top.
+	 */
+	padding: 6px;
+	border-radius: var( --os-cn-radius, 14px );
+	background-color: var( --os-cn-surface, rgba( 26, 23, 33, 0.82 ) );
+	backdrop-filter: blur( 28px ) saturate( 170% );
+	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
+	box-shadow: var(
+		--os-cn-shadow,
+		0 24px 64px rgba( 0, 0, 0, 0.62 ),
+		0 2px 8px rgba( 0, 0, 0, 0.4 )
+	);
+	color: var( --os-cn-fg, #fffbff );
+}
+
+/*
+ * Cursor spotlight. The JS writes `--os-cn-x` / `--os-cn-y` on
+ * pointermove; this paints a soft bloom there so the panel lights up
+ * under the pointer instead of sitting inert. Additive (`screen`) so
+ * it brightens the surface without washing the text.
+ *
+ * `::before`, not `::after`, so it sits BELOW the rows in paint
+ * order — the rows are positioned, and a spotlight painted over the
+ * mesh of a hovered row would flatten exactly the moment it is
+ * meant to reward.
+ */
+.os-constellation__surface::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: radial-gradient(
+		220px circle at var( --os-cn-x, 50% ) var( --os-cn-y, 0% ),
+		hsl( var( --os-cn-hue, 300 ) 90% 70% / 0.14 ) 0%,
+		transparent 70%
+	);
+	mix-blend-mode: screen;
+	pointer-events: none;
+}
+
+/*
+ * The iridescent hairline. Painted as a gradient on a padding-box
+ * mask rather than as a `border-color`, because a border cannot hold
+ * a gradient and `border-image` loses the corner radius — the same
+ * trick `holoEdge` uses inside the component kit.
+ */
+.os-constellation__surface::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	padding: 1px;
+	background: var(
+		--os-ui-holo-edge-quiet,
+		linear-gradient(
+			124deg,
+			rgba( 154, 242, 255, 0.22 ) 0%,
+			rgba( 236, 155, 255, 0.28 ) 38%,
+			rgba( 242, 82, 252, 0.22 ) 62%,
+			rgba( 159, 152, 255, 0.2 ) 100%
+		)
+	);
+	-webkit-mask:
+		linear-gradient( #000 0 0 ) content-box,
+		linear-gradient( #000 0 0 );
+	mask:
+		linear-gradient( #000 0 0 ) content-box,
+		linear-gradient( #000 0 0 );
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	pointer-events: none;
+}
+
+/*
+ * The sheen. One diagonal band of light crossing the panel, once, as
+ * it opens.
+ *
+ * An element rather than a pseudo, and a child of the ROOT rather
+ * than of the surface: the surface has already spent `::before` on
+ * the spotlight and `::after` on the edge mask (the pseudo budget is
+ * exactly two), and hanging it off the root is what lets it sweep
+ * over the rows instead of under them.
+ */
+.os-constellation__sheen {
+	position: absolute;
+	inset: 0;
+	border-radius: var( --os-cn-radius, 14px );
+	overflow: hidden;
+	pointer-events: none;
+	opacity: 0;
+}
+
+.os-constellation--open .os-constellation__sheen {
+	animation: os-cn-sheen 900ms var( --os-ui-ease-out, ease-out ) 60ms 1;
+}
+
+.os-constellation__sheen::before {
+	content: "";
+	position: absolute;
+	inset: -40% -120%;
+	background: linear-gradient(
+		104deg,
+		transparent 42%,
+		rgba( 255, 253, 255, 0.42 ) 50%,
+		transparent 58%
+	);
+	transform: translateX( -60% );
+}
+
+@keyframes os-cn-sheen {
+	0% {
+		opacity: 0;
+	}
+	18% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateX( 120% );
+	}
+}
+
+/* ---- The beam ---------------------------------------------------- */
+
+/*
+ * The thread from the panel's underside down to the tile it belongs
+ * to. Its only real job is the clamped case: once the panel has been
+ * nudged sideways to stay on screen, the beam is the only thing left
+ * saying which tile it came out of.
+ */
+.os-constellation__beam {
+	position: absolute;
+	inset-inline-start: 50%;
+	top: 100%;
+	width: 2px;
+	height: 14px;
+	transform: translateX(
+		calc( -50% + var( --os-cn-beam-x, 0px ) )
+	);
+	background: linear-gradient(
+		to bottom,
+		var( --os-cn-beam, rgba( 217, 46, 227, 0.8 ) ) 0%,
+		transparent 100%
+	);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity var( --os-ui-motion-fast, 140ms ) ease-out 80ms;
+}
+
+.os-constellation--open .os-constellation__beam {
+	opacity: 1;
+}
+
+/* ---- Rows -------------------------------------------------------- */
+
+.os-constellation__row {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	/* The head and the new-window row are direct flex children of a
+	 * height-capped surface; without this they would be squashed
+	 * before the scrollable group in the middle gave way. */
+	flex: 0 0 auto;
+	padding: 8px 10px;
+	border: none;
+	border-radius: 9px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1.3;
+	text-align: start;
+	cursor: pointer;
+	/*
+	 * Staggered entrance. `--os-cn-row` is the row's index, written by
+	 * the JS, so the list unfurls top-down instead of appearing all at
+	 * once. Capped at 8 legs of delay: a 30-item submenu that took
+	 * 30 × 26ms to finish would read as sluggish, not as choreography.
+	 */
+	opacity: 0;
+	transform: translateY( 6px );
+	transition:
+		background-color var( --os-ui-motion-fast, 140ms ) ease-out,
+		color var( --os-ui-motion-fast, 140ms ) ease-out,
+		opacity 220ms ease-out,
+		transform 220ms
+			var( --os-ui-ease-spring, cubic-bezier( 0.32, 1.5, 0.55, 1 ) );
+	transition-delay: 0s, 0s,
+		calc( min( var( --os-cn-row, 0 ), 8 ) * 26ms ),
+		calc( min( var( --os-cn-row, 0 ), 8 ) * 26ms );
+}
+
+.os-constellation--open .os-constellation__row {
+	opacity: 1;
+	transform: translateY( 0 );
+}
+
+.os-constellation__row:hover,
+.os-constellation__row:focus-visible {
+	outline: none;
+	/*
+	 * The identity moment. The row under the pointer is "selected",
+	 * which is exactly the state the brand reserves the mesh for — so
+	 * this is where the panel spends it, and the ink flips to Void
+	 * because every mesh in the brand is a LIGHT surface.
+	 */
+	background-image: var(
+		--os-cn-row-fill,
+		var( --os-ui-holo-fill, linear-gradient( 124deg, #afa2e8, #c3b8ef ) )
+	);
+	color: var( --os-cn-row-ink, var( --os-ui-holo-ink, #0c0b0f ) );
+}
+
+.os-constellation__row:focus-visible {
+	box-shadow: var(
+		--os-ui-focus-ring,
+		0 0 0 2px rgba( 12, 11, 15, 0.9 ),
+		0 0 0 4px #f252fc
+	);
+}
+
+.os-constellation__row:active {
+	transform: scale( 0.985 );
+}
+
+.os-constellation__row-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-constellation__row-meta {
+	flex: 0 0 auto;
+	font-size: 11px;
+	opacity: 0.6;
+}
+
+/* ---- Head -------------------------------------------------------- */
+
+.os-constellation__head {
+	gap: 12px;
+	padding: 10px;
+	margin-bottom: 4px;
+}
+
+.os-constellation__head-icon {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 34px;
+	height: 34px;
+	border-radius: 10px;
+	color: var( --os-ui-holo-ink, #0c0b0f );
+	/*
+	 * The head's icon is the panel's second identity moment — the
+	 * menu, stated. It wears the mesh permanently (unlike the rows,
+	 * which earn it under the pointer) because there is exactly one
+	 * head per panel and it is the thing the panel is about.
+	 */
+	background-image: var(
+		--os-cn-row-fill,
+		var( --os-ui-holo-fill, linear-gradient( 124deg, #afa2e8, #c3b8ef ) )
+	);
+	box-shadow: var(
+		--os-ui-holo-glow,
+		0 0 0 1px rgba( 217, 46, 227, 0.2 ),
+		0 2px 10px rgba( 217, 46, 227, 0.15 )
+	);
+}
+
+.os-constellation__head-icon .dashicons {
+	width: 20px;
+	height: 20px;
+	font-size: 20px;
+	line-height: 20px;
+}
+
+/*
+ * The head's own hover state deliberately does NOT take the row mesh
+ * — the icon beside it is already wearing it, and two meshes touching
+ * is where iridescence stops reading as emphasis. It gets a plain
+ * raised wash instead.
+ */
+.os-constellation__head:hover,
+.os-constellation__head:focus-visible {
+	background-image: none;
+	background-color: var(
+		--os-ui-surface-raised,
+		rgba( 255, 251, 255, 0.06 )
+	);
+	color: var( --os-cn-fg, #fffbff );
+}
+
+.os-constellation__head-text {
+	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.os-constellation__head-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.os-constellation__head-hint {
+	font-size: 11px;
+	color: var( --os-cn-fg-muted, rgba( 255, 251, 255, 0.62 ) );
+}
+
+/* ---- Groups ------------------------------------------------------ */
+
+.os-constellation__group {
+	display: flex;
+	flex-direction: column;
+	padding-top: 4px;
+	border-top: 1px solid var( --os-cn-divider, rgba( 255, 251, 255, 0.1 ) );
+	/*
+	 * The scroll lives here rather than on the surface, so the head
+	 * and the new-window row stay pinned while a long submenu rolls
+	 * under them.
+	 *
+	 * `min-height: 0` is what lets the surface's `max-height` reach
+	 * this: a flex item's default `min-height: auto` refuses to
+	 * shrink below its content, so without it a tall submenu would
+	 * simply overflow the capped surface instead of scrolling inside
+	 * it. `flex: 0 1 auto` says this is the part that gives — the
+	 * head and the new-window row do not.
+	 */
+	flex: 0 1 auto;
+	min-height: 0;
+	max-height: min( 46vh, 360px );
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+}
+
+.os-constellation__legend {
+	padding: 4px 10px 3px;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var( --os-cn-legend, rgba( 255, 251, 255, 0.4 ) );
+}
+
+/* ---- Submenu rows ------------------------------------------------ */
+
+/*
+ * The orbit dot. Each row's hue comes from its own title, so a long
+ * submenu reads as a spectrum rather than as fifteen identical grey
+ * bullets — and "Menus" is the same colour on every site, every
+ * session, because the hue is hashed from the string.
+ */
+.os-constellation__orbit {
+	position: relative;
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	margin-inline-start: 3px;
+	border-radius: 50%;
+	background: hsl( var( --os-cn-row-hue, 300 ) 80% 70% );
+	box-shadow: 0 0 0 3px hsl( var( --os-cn-row-hue, 300 ) 80% 70% / 0.16 );
+	transition: box-shadow var( --os-ui-motion-fast, 140ms ) ease-out;
+}
+
+.os-constellation__row--sub:hover .os-constellation__orbit,
+.os-constellation__row--sub:focus-visible .os-constellation__orbit {
+	/* On the mesh the halo would disappear; a Void ring reads instead. */
+	box-shadow: 0 0 0 3px rgba( 12, 11, 15, 0.25 );
+}
+
+/* ---- Live-window rows -------------------------------------------- */
+
+.os-constellation__pip {
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	margin-inline-start: 3px;
+	border-radius: 50%;
+	background: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 8px var( --os-ui-accent-dim, #d92ee3 );
+}
+
+/* A minimized window's pip is hollow — same cue the dock's own
+ * indicator uses for "open, but put away". */
+.os-constellation__row--live[ data-state="minimized" ] .os-constellation__pip {
+	background: transparent;
+	border: 1px solid var( --os-ui-accent, #f252fc );
+	box-shadow: none;
+}
+
+/* ---- New-window row ---------------------------------------------- */
+
+.os-constellation__row--new {
+	margin-top: 2px;
+	border-top: 1px solid var( --os-cn-divider, rgba( 255, 251, 255, 0.1 ) );
+	border-radius: 0 0 9px 9px;
+	color: var( --os-cn-fg-muted, rgba( 255, 251, 255, 0.62 ) );
+}
+
+.os-constellation__plus {
+	flex: 0 0 auto;
+	width: 14px;
+	margin-inline-start: 0;
+	font-size: 15px;
+	line-height: 1;
+	text-align: center;
+	opacity: 0.5;
+}
+
+/* ==================================================================
+ * 3. Motion budget
+ * ================================================================== */
+
+/*
+ * Reduced motion stops the travel, never the surface. The panel still
+ * appears, the seam node still glows, the hovered row still wears the
+ * mesh — losing those would lose STATE, not animation. What goes is
+ * the flight: the spring, the stagger, the sheen sweep, the breathing.
+ */
+@media ( prefers-reduced-motion: reduce ) {
+	.os-constellation,
+	.os-constellation__row {
+		transition-duration: 1ms;
+		transition-delay: 0s;
+	}
+
+	/*
+	 * No travel, in either direction. The exit is also removed from
+	 * the document immediately under this preference (the JS reads
+	 * the same media query), so `--closing` is listed here only to
+	 * cover the frame between the class landing and the node going.
+	 */
+	.os-constellation,
+	.os-constellation--open,
+	.os-constellation--closing {
+		transform: translate(
+			calc( -50% + var( --os-cn-shift, 0px ) ),
+			-100%
+		);
+	}
+
+	.os-constellation__row {
+		transform: none;
+	}
+
+	.os-constellation--open .os-constellation__sheen {
+		animation: none;
+	}
+
+	.os-shell[ data-os-layout="openstation" ]
+		.os-dock[ data-os-dock-placement="bottom" ]
+		.os-dock__separator--group::after {
+		animation: none;
+		opacity: 1;
+	}
+}

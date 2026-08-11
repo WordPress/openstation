@@ -177,13 +177,17 @@ export const DOCK_PLACEMENTS = [
  * the shell root reflects the choice in `data-os-layout` and
  * the layout dispatcher rebuilds the dock(s) + desktop icons.
  *
- * `unified` leads the list because it is the default: one dock is the
- * shape a first-run desktop arrives in. The other two split navigation
- * across two surfaces, which is a deliberate choice rather than a
- * starting point.
+ * Ordered by how much navigation they consolidate. `unified` leads
+ * because it is the default: one dock is the shape a first-run desktop
+ * arrives in. `openstation` sits next to it as the other one-rail
+ * option — same single dock, plus a deterministic core-then-plugin
+ * sort, its own skin, and hover flyouts for submenus. `classic` and
+ * `spatial` split navigation across two surfaces, which is a
+ * deliberate choice rather than a starting point.
  */
 export const DESKTOP_LAYOUTS = [
 	{ id: 'unified', label: 'One dock' },
+	{ id: 'openstation', label: 'OpenStation' },
 	{ id: 'classic', label: 'Side bar' },
 	{ id: 'spatial', label: 'Spatial' },
 ] as const;

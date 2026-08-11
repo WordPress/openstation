@@ -1,7 +1,7 @@
 /**
  * Tests for `src/desktop-layout.ts` — the layout dispatcher that owns
  * the `Dock` instance(s) and the synthesized desktop icons across
- * Classic / Unified / Spatial.
+ * Classic / Unified / Spatial / OpenStation.
  *
  * Pins down the user-visible shape of each layout:
  *
@@ -14,6 +14,10 @@
  *   are synthesized into the desktop-icons list and pushed through
  *   `renderIcons`. Server-registered icons are PRESERVED and concatenated
  *   ahead of synthesized ones so plugin icons aren't shadowed.
+ * - OpenStation: ONE dock at the bottom holding every menu, but
+ *   RE-SORTED core-first so the rail's single `--group` separator
+ *   always lands on the core→plugin boundary. Icons behave as they do
+ *   in Classic / Unified.
  *
  * Also pins layout transitions: switching layouts tears down the old
  * docks (no leaked DOM, no leaked side-dock element on switch away
@@ -254,6 +258,158 @@ describe( 'desktop-layout dispatcher', () => {
 		);
 		expect( bottomTiles ).not.toContain( 'index.php' );
 		expect( bottomTiles ).not.toContain( 'edit.php' );
+	} );
+
+	/**
+	 * OpenStation is Unified plus one structural promise: the rail is
+	 * always WordPress-then-divider-then-plugins. `Dock.render()` drops
+	 * its `--group` separator at the first `isCore === false` tile, so
+	 * the promise is only kept if the dispatcher hands it an already-
+	 * grouped list — these tests are what stop a future ordering change
+	 * from silently scattering the divider.
+	 */
+	describe( 'openstation layout', () => {
+		/** Menu-tile slugs in DOM order, separators marked as `--`. */
+		function railSequence(): string[] {
+			const host = document.getElementById( 'os-dock' )!;
+			return Array.from(
+				host.querySelectorAll(
+					'[data-menu-slug], .os-dock__separator--group',
+				),
+			).map( ( el ) =>
+				( el as HTMLElement ).dataset.menuSlug ?? '--',
+			);
+		}
+
+		test( 'single bottom dock holds every item, no side dock element', () => {
+			const { deps } = makeDeps();
+			createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, posts, yoast, woo ],
+				[],
+			);
+			expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+			expect( railSequence() ).toContain( 'index.php' );
+			expect( railSequence() ).toContain( 'woocommerce' );
+		} );
+
+		test( 'core cluster leads, plugin cluster follows, one divider between', () => {
+			const { deps } = makeDeps();
+			// Deliberately interleaved input: a plugin first, then core,
+			// then another plugin. A naive pass-through would emit the
+			// separator before `index.php` and never again.
+			createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ yoast, dashboard, woo, posts ],
+				[],
+			);
+			expect( railSequence() ).toEqual( [
+				'index.php',
+				'edit.php',
+				'--',
+				'wpseo_dashboard',
+				'woocommerce',
+			] );
+		} );
+
+		test( 'no divider when the rail has only one kind of tile', () => {
+			const { deps } = makeDeps();
+			createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, posts ],
+				[],
+			);
+			expect( railSequence() ).toEqual( [ 'index.php', 'edit.php' ] );
+		} );
+
+		test( 'applyDockItems keeps the grouping and the single divider', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.applyDockItems( [ woo, posts, yoast, dashboard ] );
+			expect( railSequence() ).toEqual( [
+				'edit.php',
+				'index.php',
+				'--',
+				'woocommerce',
+				'wpseo_dashboard',
+			] );
+		} );
+
+		test( 'renderIcons gets the server list — no Spatial-style synthesis', () => {
+			const { deps, renderIcons } = makeDeps();
+			const serverIcon: DesktopIconServerEntry = {
+				id: 'jorvy',
+				title: 'Jorvy',
+				icon: 'dashicons-star-filled',
+				window: 'jorvy',
+				url: '',
+				position: 10,
+			};
+			createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, posts, yoast ],
+				[ serverIcon ],
+			);
+			const painted = renderIcons.mock.calls.at( -1 )?.[ 0 ] as
+				| DesktopIconServerEntry[]
+				| undefined;
+			expect( painted?.map( ( i ) => i.id ) ).toEqual( [ 'jorvy' ] );
+			// No `dock-core:*` entries — the wallpaper is available in
+			// this layout, but it is not where core menus live.
+			expect(
+				painted?.some( ( i ) => i.id.startsWith( 'dock-core:' ) ),
+			).toBe( false );
+		} );
+
+		test( 'core-affinity system tiles land on the primary rail', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard ],
+				[],
+			);
+			dispatcher.appendSystemTile( noopTile, 'core' );
+			expect(
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( '[data-system-id="desktop-mode-os-settings"]' ),
+			).not.toBeNull();
+			expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
+		} );
+
+		test( 'setLayout: classic → openstation tears the side dock down', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'classic',
+				[ dashboard, yoast ],
+				[],
+			);
+			expect( document.getElementById( 'os-side-dock' ) ).not.toBeNull();
+			dispatcher.setLayout( 'openstation' );
+			expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
+			expect( dispatcher.getLayout() ).toBe( 'openstation' );
+			expect( railSequence() ).toEqual( [
+				'index.php',
+				'--',
+				'wpseo_dashboard',
+			] );
+		} );
 	} );
 
 	test( 'spatial: drops non-pinned server icons without an override', () => {
@@ -554,6 +710,35 @@ describe( 'desktop-layout dispatcher', () => {
 
 			// Stored all the same: switching to a one-rail layout lands
 			// on the edge the user chose while wearing Classic.
+			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
+			dispatcher.setLayout( 'unified' );
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'left' );
+		} );
+
+		test( 'the OpenStation layout stays on the bottom whatever the pick', () => {
+			const { deps } = makeDeps();
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'openstation',
+				[ dashboard, yoast ],
+				[],
+				'left',
+			);
+
+			// The layout is drawn for a horizontal rail: its stylesheet is
+			// scoped to the bottom placement and the constellation flyout
+			// fans upward out of a tile. A vertical rail would lose the
+			// skin and keep geometry built for the wrong edge.
+			expect(
+				document
+					.getElementById( 'os-dock' )
+					?.getAttribute( 'data-os-dock-placement' ),
+			).toBe( 'bottom' );
+			// Remembered all the same, so Unified picks it back up.
 			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
 			dispatcher.setLayout( 'unified' );
 			expect(

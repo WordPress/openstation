@@ -85,6 +85,7 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-settings' );
 	wp_enqueue_style( 'os-dock' );
 	wp_enqueue_style( 'os-dock-peek' );
+	wp_enqueue_style( 'os-openstation-layout' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
 	wp_enqueue_style( 'os-files' );
@@ -876,6 +877,7 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 		'openstation_deferred_styles',
 		array(
 			'os-dock-peek',
+			'os-openstation-layout',
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
 			'os-window-overview',

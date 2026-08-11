@@ -1014,6 +1014,54 @@ export const HOOKS = {
 	DOCK_PEEK_CARD_ELEMENT: 'os.dock.peek-card-element',
 
 	// ------------------------------------------------------------------
+	// Constellation — the hover-submenu flyout that the `openstation`
+	// desktop layout fans out of a dock tile. Inert in every other
+	// layout, so a subscriber can register unconditionally and simply
+	// never hear from it while the user is on Classic.
+	// ------------------------------------------------------------------
+
+	/**
+	 * Filter, runs once per flyout right before it's appended to the
+	 * document. Receives the fully-built panel root — head, live-window
+	 * group, submenu group, footer, beam — and can return the same
+	 * node, a mutated version, or a replacement.
+	 *
+	 * Signature:
+	 *   ( panel: HTMLElement, detail: ConstellationPanelContext )
+	 *     => HTMLElement
+	 *
+	 * `detail` carries `{ item, instances, tile }`: the `DockItem` the
+	 * flyout was opened for, the live windows currently open for it,
+	 * and the dock tile it is anchored to.
+	 *
+	 * A plugin returning a brand-new node owns everything the flyout
+	 * relies on: the `os-constellation` class (positioning + the
+	 * open transition), `role="menu"`, and the `os-constellation__row`
+	 * class on anything that should take part in arrow-key roving.
+	 */
+	CONSTELLATION_PANEL: 'os.constellation.panel',
+	/**
+	 * Action, fires immediately after a flyout is appended. Detail:
+	 * `{ menuSlug: string, item: DockItem, instances: Window[],
+	 * handoff: boolean }`. `handoff` is `true` when this panel
+	 * replaced one that was already up — the pointer moved along the
+	 * rail — rather than arriving on an empty desk.
+	 */
+	CONSTELLATION_OPENED: 'os.constellation.opened',
+	/**
+	 * Action, fires when a flyout is dismissed — not when its node
+	 * leaves the document, which happens once its exit has played.
+	 *
+	 * Detail: `{ menuSlug: string, handoff: boolean }`. `menuSlug` is
+	 * the menu whose flyout closed, or `''` if the anchor tile had
+	 * already been torn down. `handoff` is `true` when another tile is
+	 * already taking over, so a subscriber can tell "the menu closed"
+	 * from "the menu moved" without diffing against the next
+	 * {@link CONSTELLATION_OPENED}.
+	 */
+	CONSTELLATION_CLOSED: 'os.constellation.closed',
+
+	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
 	//
 	// The "Arrange" admin-bar menu drives two layout algorithms —

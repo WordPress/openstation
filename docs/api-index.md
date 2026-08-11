@@ -58,8 +58,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 |---|---|---|
 | `dock` | `Dock \| null` *(primary / bottom rail)* | Stable |
 | `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable |
-| `desktopLayout` | `'classic' \| 'unified' \| 'spatial'` | Stable |
-| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(one-rail layouts)* | Stable |
+| `desktopLayout` | `'classic' \| 'unified' \| 'spatial' \| 'openstation'` | Stable |
+| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified + Spatial)* | Stable |
 | `Dock.setBadge` | `( id: string, count: number ) => void` | Stable |
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |

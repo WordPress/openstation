@@ -108,6 +108,8 @@ export function translateDesktopLayoutLabel(
 			return __( 'One dock' );
 		case 'spatial':
 			return __( 'Spatial' );
+		case 'openstation':
+			return __( 'OpenStation' );
 		default:
 			return fallback;
 	}
@@ -128,6 +130,10 @@ export function translateDesktopLayoutDescription(
 		case 'spatial':
 			return __(
 				'Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.',
+			);
+		case 'openstation':
+			return __(
+				'One bottom dock: WordPress first, a divider, then your plugins. Hover any tile to fan its submenu out as a holographic flyout.',
 			);
 		default:
 			return '';

@@ -671,6 +671,14 @@ body.os-active {
 	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
 	/* Decelerating. The default for anything arriving. */
 	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
+	/*
+	 * Accelerating — the mirror of `out`, and the default for anything
+	 * LEAVING. A surface that eases out on the way in and eases in on
+	 * the way out is the difference between "dismissed" and "undone":
+	 * decelerating into nothing reads as the thing hesitating, which
+	 * is the wrong note when the user has already moved on.
+	 */
+	--os-ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
 	/* Symmetric, for a loop that has to come back where it started. */
 	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
@@ -1081,6 +1089,51 @@ body.os-active {
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
 	--os-dock-floating-highlight: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
+
+	/*
+	 * ---- The OpenStation layout ---------------------------------
+	 *
+	 * Two surfaces that only exist while `data-os-layout` is
+	 * `openstation`: the core→plugin seam on the rail, and the
+	 * constellation — the flyout that fans a menu's submenu out of
+	 * its tile on hover.
+	 *
+	 * The seam is not a hairline. It is the layout's one structural
+	 * claim — "WordPress ends here, your plugins begin here" — and a
+	 * 1px 22%-white rule says that about as loudly as a comma. So it
+	 * gets Pulse at its waist, falling away to nothing at both ends,
+	 * with a diamond node on the centre line.
+	 *
+	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
+	 * is spent on the row under the pointer and on the head's icon
+	 * halo — the two moments where the panel is answering the user —
+	 * and nowhere else. A flyout that was iridescent edge to edge
+	 * would have nothing left to say when you actually pointed at
+	 * something in it.
+	 */
+	--os-cn-seam: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
+	--os-cn-seam-node: var(--os-ui-accent);
+	--os-cn-surface: rgba(26, 23, 33, 0.82);
+	--os-cn-border: rgba(255, 251, 255, 0.14);
+	--os-cn-shadow: 0 24px 64px rgba(0, 0, 0, 0.62),
+		0 2px 8px rgba(0, 0, 0, 0.4);
+	--os-cn-fg: #fffbff;
+	--os-cn-fg-muted: rgba(255, 251, 255, 0.62);
+	--os-cn-legend: rgba(255, 251, 255, 0.4);
+	--os-cn-divider: rgba(255, 251, 255, 0.1);
+	/* The row under the pointer — the panel's identity moment. */
+	--os-cn-row-fill: var(--os-ui-holo-fill);
+	--os-cn-row-ink: var(--os-ui-holo-ink);
+	/* Beam: the thread from the panel's underside down to the tile. */
+	--os-cn-beam: color-mix(in srgb, var(--os-ui-accent-dim) 80%, transparent);
+	--os-cn-radius: 14px;
+	/*
+	 * Above every window and above the dock. Two panels coexist while
+	 * the pointer moves along the rail — one dismissing, one arriving
+	 * — and the retiring one is painted one step below so it can
+	 * never fade out on top of the menu being read.
+	 */
+	--os-cn-z: 2147483000;
 
 	/*
 	 * ---- Shell surfaces ----------------------------------------

@@ -322,7 +322,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout:    'classic' | 'unified' | 'spatial',
+    layout:    'classic' | 'unified' | 'spatial' | 'openstation',
     placement: 'bottom' | 'left' | 'right',   // edge the primary rail mounted on
     primary:   Dock | null,   // primary dock — always present
     side:      Dock | null,   // left side bar — non-null only in classic
@@ -676,7 +676,7 @@ window.wp.os = {
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
     sideDock:          Dock | null,                            // left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial',
+    desktopLayout:     'classic' | 'unified' | 'spatial' | 'openstation',
     dockPlacement:     'bottom' | 'left' | 'right',           // edge the primary dock sits on
     icons:             IconsApi,
     saveSession:       () => void,
@@ -869,6 +869,65 @@ window.wp.hooks.addFilter(
     }
 );
 ```
+
+#### The constellation — OpenStation layout only
+
+The `openstation` desktop layout replaces the hover-peek **on menu tiles** with a richer surface: the **constellation**, a flyout that fans a menu's *submenu* out of its tile. Every other layout drops the submenu at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+One panel, up to four sections, top to bottom:
+
+| Section | Class | What it does |
+|---|---|---|
+| Head | `.os-constellation__head` | The menu's own page + a page count. Click = a dock click. |
+| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). |
+| Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
+| New window | `.os-constellation__row--new` | Spawns a fresh instance, same as the peek's Ghost Card. |
+
+Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
+
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+
+**The flyout is one tab stop, not one per row** — the conventional ARIA menu pattern. Every `.os-constellation__row` is given `tabindex="-1"` (including rows a plugin appended through the filter below, which are normalised after it runs), arrow keys do the moving, and `Tab` collapses the panel and returns focus to the tile *without* preventing the default, so the browser then continues from the rail's own place in the document order. Without that a fifteen-child submenu would put fifteen stops between the dock and whatever follows it.
+
+**Vertical sizing.** The panel hangs off the top of the dock and is never nudged downward to fit — that would push it over the rail and under the pointer. Instead the JS writes `--os-cn-max-h` on every placement (the distance from the panel's bottom edge to the top of the viewport, floored at 160px) and the surface reads it as a `max-height`; a menu too tall for the space shrinks and its submenu group takes the scroll, leaving the head and the new-window row pinned. Horizontally it *is* nudged, with `--os-cn-beam-x` keeping the beam pointed at the tile.
+
+Three hooks:
+
+- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
+- `os.constellation.opened` — **action**, `{ menuSlug, item, instances, handoff }`. `handoff` is `true` when this panel replaced one that was already up (the pointer moved along the rail) rather than arriving on an empty desk — the same flag the matching `closed` carries.
+- `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
+
+**More than one panel can be on screen.** `wp.os` never exposes a "the flyout" singleton for exactly this reason: a dismissed panel keeps its own anchor and finishes its own exit while the next one is already rising over a different tile. Moving along the rail is **two** panels, each animating where it belongs — the one you left playing its dismissal, the one you arrived at playing its entrance — not one panel sliding across and swapping contents. Each panel is a menu bound to a specific tile; morphing one into another would claim they are the same object and would drag a beam across the rail pointing at a tile its panel has nothing to do with. The retiring panel is painted one z-index step below the live one so it can never fade out on top of the menu being read.
+
+**Two ways to leave:**
+
+| | When | What happens |
+|---|---|---|
+| **Exit** | Any dismissal — pointer left, Escape, a row activated, or another tile taking over | Falls back into the rail: shrinks toward `bottom center` (where the beam meets its own tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
+| **Cut** | The anchor rect was invalidated (scroll, resize, layout switch), or `prefers-reduced-motion: reduce` | The node is removed outright. A panel gliding away from a tile that has already moved points at nothing. |
+
+```javascript
+// Add a "recently edited" row to the Posts flyout.
+window.wp.hooks.addFilter(
+    'os.constellation.panel',
+    'my-plugin/recent',
+    ( panel, { item } ) => {
+        if ( item.id !== 'edit.php' ) {
+            return panel;
+        }
+        const row = document.createElement( 'button' );
+        row.type = 'button';
+        row.className = 'os-constellation__row';
+        row.setAttribute( 'role', 'menuitem' );
+        row.textContent = 'Recently edited';
+        row.addEventListener( 'click', () => openRecent() );
+        panel.querySelector( '.os-constellation__surface' ).append( row );
+        return panel;
+    }
+);
+```
+
+**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius, stacking order) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
 
 ```javascript
 // Open a second Posts list alongside the first.
@@ -1311,7 +1370,14 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial' | 'openstation'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+
+| Layout | Rails | Where core menus live |
+|---|---|---|
+| `classic` | side + bottom | left side bar (`sideDock`) |
+| `unified` | bottom | the one rail, interleaved with plugins |
+| `spatial` | bottom | wallpaper icons |
+| `openstation` | bottom | the one rail, **grouped first**, then a divider, then plugins |
 
 ```js
 if ( wp.os.desktopLayout === 'spatial' ) {
@@ -1320,6 +1386,8 @@ if ( wp.os.desktopLayout === 'spatial' ) {
 ```
 
 Listen for `os-layout-changed` to react to a switch.
+
+**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. It is also the only layout that fans a menu's submenu out of its tile on hover — see [the constellation](#the-constellation--openstation-layout-only) below.
 
 ---
 
@@ -6325,8 +6393,8 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | Field | Type | Values |
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
-| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
-| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (one-rail layouts only) |
+| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` \| `openstation` |
+| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified + Spatial) |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |

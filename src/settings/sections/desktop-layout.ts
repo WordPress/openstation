@@ -11,9 +11,10 @@
  *     reads to rebuild the dock(s) and (for Spatial) the synthesized
  *     desktop icons.
  *   - **Dock position** (Bottom / Left / Right) bound to
- *     `state.dockPlacement`, rendered only for the one-rail layouts.
- *     Side bar has two rails whose edges ARE the layout, so there is
- *     nothing to move there and the control is not painted — a
+ *     `state.dockPlacement`, rendered only for the layouts that read
+ *     it. Side bar has two rails whose edges ARE the layout, and
+ *     OpenStation is drawn for a horizontal rail, so neither has an
+ *     edge to move and the control is not painted for them — a
  *     disabled segmented bar would just be a puzzle. Keeping both in
  *     one builder is what makes that appear and disappear on the same
  *     repaint as the layout pick.
@@ -32,6 +33,17 @@ import type {
 	DockPlacementId,
 	SettingsCtx,
 } from '../types';
+
+/**
+ * Layouts whose rail can move to another edge, and so the ones that
+ * get a Dock position control. Mirrors `primaryOrientation()` in
+ * `src/desktop-layout.ts`, which is the enforcement — keep the two
+ * lists equal or the control appears for a layout that ignores it.
+ */
+const HONOURS_DOCK_PLACEMENT: readonly DesktopLayoutId[] = [
+	'unified',
+	'spatial',
+];
 
 export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 	const onPick = ( e: Event ): void => {
@@ -81,9 +93,8 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 						) }
 					</os-segmented>
 				</os-section>
-				${ 'classic' === ctx.state.desktopLayout
-					? ''
-					: html`
+				${ HONOURS_DOCK_PLACEMENT.includes( ctx.state.desktopLayout )
+					? html`
 							<os-section
 								heading=${ __( 'Dock position' ) }
 								description=${ __(
@@ -106,7 +117,8 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 									) }
 								</os-segmented>
 							</os-section>
-					  ` }
+					  `
+					: '' }
 			`,
 			wrapper,
 		);

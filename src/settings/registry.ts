@@ -60,8 +60,10 @@ export interface OsSettingsSnapshot {
 	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
 	 * - `spatial` — one dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
+	 * - `openstation` — single bottom dock, core cluster then a
+	 *   divider then plugins, with hover-reveal submenu flyouts.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial';
+	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
 	/**
 	 * Which edge the dock sits on: `'bottom'` (the default), `'left'`,
 	 * or `'right'`. Read by the one-rail layouts; `'classic'` derives

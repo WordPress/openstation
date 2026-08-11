@@ -33,8 +33,17 @@ export type DockPlacementId = 'left' | 'right' | 'bottom';
  * - `spatial` — bottom dock with plugin menus + core menus rendered as
  *   icons on the wallpaper. One `Dock` instance, plus synthesized
  *   desktop icons.
+ * - `openstation` — single bottom dock holding every menu, sorted so the
+ *   WordPress core cluster leads and the plugin cluster follows, with
+ *   one luminous divider on the boundary. Hovering a tile fans out the
+ *   menu's submenu as a holographic flyout instead of hiding it behind
+ *   the in-window tab strip. Wallpaper icons are still allowed.
  */
-export type DesktopLayoutId = 'classic' | 'unified' | 'spatial';
+export type DesktopLayoutId =
+	| 'classic'
+	| 'unified'
+	| 'spatial'
+	| 'openstation';
 
 /** Two endpoints on the gradient, plus an angle in degrees (0–360). */
 export interface CustomGradient {
