@@ -667,6 +667,13 @@
 	--_tab-h: 30px;
 	/* Weight of the rail that traces the silhouette. */
 	--_tab-stroke: var( --os-tabs-rail-width, 2px );
+	/*
+	 * How far each straight run of the rail overlaps the arc it hands
+	 * over to. Purely an anti-seam allowance — see the mask sizes on
+	 * the ring. It has to stay well under the radius or the overlap
+	 * would reach past the arc it is covering for.
+	 */
+	--_tab-seam: 1px;
 	position: relative;
 	display: flex;
 	/* Tabs sit ON the floor of the track, not centred in it. */
@@ -904,17 +911,26 @@
 	 */
 	-webkit-mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
 	mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
+	/*
+	 * Each segment runs one `--_tab-seam` PAST where its fillet begins,
+	 * so the rail overlaps the arc rather than meeting it exactly —
+	 * the same anti-seam allowance the ring uses, for the same reason.
+	 */
 	-webkit-mask-size:
-		calc( var( --_tab-plate-x, 0px ) - var( --_tab-radius ) ) 100%,
+		calc(
+			var( --_tab-plate-x, 0px ) - var( --_tab-radius ) + var( --_tab-seam )
+		) 100%,
 		calc(
 			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
-				var( --_tab-radius )
+				var( --_tab-radius ) + var( --_tab-seam )
 		) 100%;
 	mask-size:
-		calc( var( --_tab-plate-x, 0px ) - var( --_tab-radius ) ) 100%,
+		calc(
+			var( --_tab-plate-x, 0px ) - var( --_tab-radius ) + var( --_tab-seam )
+		) 100%,
 		calc(
 			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
-				var( --_tab-radius )
+				var( --_tab-radius ) + var( --_tab-seam )
 		) 100%;
 	-webkit-mask-position: left top, right top;
 	mask-position: left top, right top;
@@ -993,20 +1009,35 @@
 		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
 		var( --_ring-bar ), var( --_ring-bar ),
 		var( --_ring-arc-out ), var( --_ring-arc-out-r );
+	/*
+	 * The three straight runs are each grown by `--_tab-seam` at BOTH
+	 * ends, and shifted back by the same amount, so every one of them
+	 * overlaps the arc it hands over to instead of meeting it exactly.
+	 *
+	 * Two layers that abut on a shared boundary each contribute a
+	 * partial, antialiased alpha there, and the sum can fall short of
+	 * 1 — which prints as a faint hairline across the stroke at all
+	 * six tangent points. Overlapping cannot go wrong in the other
+	 * direction: mask alpha is clamped, so doubling it is still opaque
+	 * and the seam simply stops existing.
+	 *
+	 * The overlap stays on the dark side of the curve at every one of
+	 * those points, so it never bleeds onto the white.
+	 */
 	-webkit-mask-size:
-		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) ) var( --_tab-stroke ),
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) + 2 * var( --_tab-seam ) ) var( --_tab-stroke ),
 		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
 		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
-		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
-		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
 		var( --_tab-radius ) var( --_tab-radius ),
 		var( --_tab-radius ) var( --_tab-radius );
 	mask-size:
-		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) ) var( --_tab-stroke ),
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) + 2 * var( --_tab-seam ) ) var( --_tab-stroke ),
 		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
 		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
-		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
-		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
 		var( --_tab-radius ) var( --_tab-radius ),
 		var( --_tab-radius ) var( --_tab-radius );
 	/*
@@ -1019,19 +1050,19 @@
 	 * measured from the edge and does not care how wide the layer is.
 	 */
 	-webkit-mask-position:
-		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) ) top 0,
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ) top 0,
 		left var( --_tab-radius ) top 0,
 		right var( --_tab-radius ) top 0,
-		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
-		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
 		left var( --_tab-stroke ) bottom 0,
 		right var( --_tab-stroke ) bottom 0;
 	mask-position:
-		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) ) top 0,
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ) top 0,
 		left var( --_tab-radius ) top 0,
 		right var( --_tab-radius ) top 0,
-		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
-		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
 		left var( --_tab-stroke ) bottom 0,
 		right var( --_tab-stroke ) bottom 0;
 	-webkit-mask-repeat: no-repeat;
