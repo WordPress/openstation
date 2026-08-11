@@ -885,9 +885,9 @@ Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open a
 
 Three hooks:
 
-- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the open transition), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
+- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
 - `os.constellation.opened` — **action**, `{ menuSlug, item, instances }`.
-- `os.constellation.closed` — **action**, `{ menuSlug }`.
+- `os.constellation.closed` — **action**, `{ menuSlug }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until its exit has played. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". Two dismissals skip the exit and remove the node outright — a hand-off to another tile, and anything that invalidated the anchor rect (scroll, resize, layout switch) — as does `prefers-reduced-motion: reduce`.
 
 ```javascript
 // Add a "recently edited" row to the Posts flyout.

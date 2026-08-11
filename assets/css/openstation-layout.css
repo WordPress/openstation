@@ -189,6 +189,55 @@ body.os-constellation-open .os-dock__tooltip {
 	pointer-events: auto;
 }
 
+/*
+ * The exit, and it is NOT the entrance in reverse.
+ *
+ * Arriving is an event and gets a spring that overshoots. Leaving is
+ * the user having already moved on: it eases IN (accelerating away
+ * rather than settling), runs in under half the time, and — because
+ * `transform-origin` is `bottom center`, where the beam meets the
+ * tile — the shrink plus the few pixels of downward travel read as
+ * the panel dropping back into the rail it came out of.
+ *
+ * `pointer-events: none` from the first frame. A panel that is
+ * visibly leaving must not still be clickable, or a fast pointer
+ * lands a row the user has already dismissed.
+ */
+.os-constellation.os-constellation--closing {
+	transform: translate(
+			calc( -50% + var( --os-cn-shift, 0px ) ),
+			calc( -100% + 8px )
+		)
+		scale( 0.96 );
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		transform 160ms var( --os-ui-ease-in, cubic-bezier( 0.4, 0, 1, 1 ) ),
+		opacity 140ms var( --os-ui-ease-in, cubic-bezier( 0.4, 0, 1, 1 ) );
+}
+
+/*
+ * The panel leaves as ONE object. Without this the rows revert to
+ * their pre-entrance state and each plays its own staggered exit
+ * inside a panel that is itself shrinking — two motions at two
+ * speeds, which reads as the menu coming apart rather than closing.
+ */
+.os-constellation--closing .os-constellation__row {
+	opacity: 1;
+	transform: none;
+	transition: none;
+}
+
+/*
+ * The beam goes first, and faster. It is the thread to the tile, so
+ * cutting it a beat before the panel lands sells the panel as
+ * falling rather than fading.
+ */
+.os-constellation--closing .os-constellation__beam {
+	opacity: 0;
+	transition: opacity 90ms ease-in;
+}
+
 /* The panel body. */
 .os-constellation__surface {
 	position: relative;
@@ -628,8 +677,15 @@ body.os-constellation-open .os-dock__tooltip {
 		transition-delay: 0s;
 	}
 
+	/*
+	 * No travel, in either direction. The exit is also removed from
+	 * the document immediately under this preference (the JS reads
+	 * the same media query), so `--closing` is listed here only to
+	 * cover the frame between the class landing and the node going.
+	 */
 	.os-constellation,
-	.os-constellation--open {
+	.os-constellation--open,
+	.os-constellation--closing {
 		transform: translate(
 			calc( -50% + var( --os-cn-shift, 0px ) ),
 			-100%

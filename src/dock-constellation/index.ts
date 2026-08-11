@@ -45,6 +45,13 @@
  * 3. **It routes through the same window ids the dock does** (see
  *    `routing.ts`), so the flyout and the tile address one window
  *    between them rather than two.
+ * 4. **A dismissed panel outlives its dismissal.** It is detached from
+ *    the module's state immediately but stays in the document,
+ *    marked `--closing`, until its exit has played. Two dismissals
+ *    skip the exit outright rather than play it: a hand-off to
+ *    another tile (two panels at two anchors reads as a glitch) and
+ *    anything that invalidated the anchor rect (a panel gliding away
+ *    from a tile that already moved points at nothing).
  *
  * Pointer AND keyboard. The tile is a `<button>` the rail already
  * focuses; ArrowUp (or Enter on a tile with children) fans the
@@ -78,6 +85,16 @@ const SHOW_DELAY_MS = 130;
  * tight timer turns that into a flicker.
  */
 const HIDE_DELAY_MS = 240;
+/**
+ * How long the exit plays before the node is removed. Must match the
+ * longest transition on `.os-constellation--closing` in
+ * `openstation-layout.css`.
+ *
+ * Deliberately less than half the entrance. A panel arriving is an
+ * event worth a spring; a panel leaving is the user having already
+ * moved on, and anything slower reads as the menu not letting go.
+ */
+const EXIT_MS = 160;
 /** Gap between the tile's top edge and the panel's bottom edge. */
 const BEAM_GAP_PX = 14;
 /** Keep-out margin from every viewport edge. */
@@ -89,6 +106,22 @@ const VIEWPORT_MARGIN_PX = 12;
  * and the flyout's head carries the same label.
  */
 const OPEN_BODY_CLASS = 'os-constellation-open';
+
+/**
+ * Whether the user has asked for less motion.
+ *
+ * Read at dismissal rather than cached: the exit is driven from JS
+ * (a timer decides when the node leaves the document), so unlike the
+ * CSS-side reductions it can't just be overridden by a media query.
+ * A user who flips the OS setting mid-session gets the new answer on
+ * the next dismissal.
+ */
+function prefersReducedMotion(): boolean {
+	return (
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia( '( prefers-reduced-motion: reduce )' ).matches
+	);
+}
 
 /** Wiring the constellation needs from the shell boot path. */
 export interface DockConstellationDeps extends ConstellationRouting {
@@ -164,19 +197,73 @@ export function mountDockConstellation(
 		return tile;
 	};
 
-	const close = ( restoreFocus = false ): void => {
+	/**
+	 * Panels that have been dismissed and are playing their exit, no
+	 * longer reachable through `panel`. Tracked so `teardown()` can
+	 * take them with it and so the body flag can stay set until the
+	 * last one is actually gone.
+	 */
+	const closing = new Set< HTMLElement >();
+
+	/**
+	 * The dock tooltip stays muted for as long as ANY panel is on
+	 * screen, including one mid-exit — otherwise the tooltip pops back
+	 * under a panel that is still visibly fading over it.
+	 */
+	const syncBodyFlag = (): void => {
+		document.body.classList.toggle(
+			OPEN_BODY_CLASS,
+			panel !== null || closing.size > 0,
+		);
+	};
+
+	/**
+	 * Dismiss the current flyout.
+	 *
+	 * @param restoreFocus Move focus back to the anchor tile. Set for
+	 *                     keyboard dismissals, where losing focus to
+	 *                     `<body>` would strand the user.
+	 * @param immediate    Skip the exit animation and remove the node
+	 *                     now. Used when animating would be actively
+	 *                     wrong rather than merely skippable: a
+	 *                     hand-off to another tile (two panels visible
+	 *                     at once, at different anchors), and any
+	 *                     event that invalidated the anchor rect
+	 *                     (scroll, resize, layout switch) — a panel
+	 *                     gliding away from a tile that has already
+	 *                     moved is worse than a cut.
+	 */
+	const close = ( restoreFocus = false, immediate = false ): void => {
 		cancelShow();
 		cancelHide();
 		if ( ! panel ) {
 			return;
 		}
 		const previousAnchor = anchor;
-		panel.remove();
+		const dying = panel;
+		// Detach from the module's state FIRST. Everything below —
+		// including a synchronous re-open from the hand-off path — has
+		// to see "no panel is current" even though a node is still in
+		// the document playing its exit.
 		panel = null;
 		anchor = null;
 		anchorSlug = '';
-		document.body.classList.remove( OPEN_BODY_CLASS );
 		previousAnchor?.removeAttribute( 'data-constellation-open' );
+
+		if ( immediate || prefersReducedMotion() ) {
+			dying.remove();
+		} else {
+			dying.classList.remove( 'os-constellation--open' );
+			dying.classList.add( 'os-constellation--closing' );
+			closing.add( dying );
+			window.setTimeout( () => {
+				dying.remove();
+				closing.delete( dying );
+				syncBodyFlag();
+			}, EXIT_MS );
+		}
+		syncBodyFlag();
+
 		if ( restoreFocus && previousAnchor ) {
 			previousAnchor
 				.querySelector< HTMLElement >( '.os-dock__item-primary' )
@@ -195,7 +282,10 @@ export function mountDockConstellation(
 			}
 			return;
 		}
-		close();
+		// Hand-off to a different tile: cut, don't fade. Two panels
+		// on screen at two different anchors reads as a glitch, not
+		// as choreography.
+		close( false, true );
 		const item = deps.getMenuItems().find( ( i ) => i.id === slug );
 		if ( ! item ) {
 			return;
@@ -208,7 +298,7 @@ export function mountDockConstellation(
 		anchor = tile;
 		anchorSlug = slug;
 		document.body.appendChild( panel );
-		document.body.classList.add( OPEN_BODY_CLASS );
+		syncBodyFlag();
 		tile.setAttribute( 'data-constellation-open', '' );
 		inheritShellVars( panel );
 		position( panel, tile );
@@ -318,8 +408,12 @@ export function mountDockConstellation(
 		}
 	};
 
-	/** Any layout / viewport change invalidates the anchor rect. */
-	const onInvalidate = (): void => close();
+	/**
+	 * Any layout / viewport change invalidates the anchor rect, so the
+	 * panel is cut rather than animated out — an exit that glides away
+	 * from a tile which has already moved points at nothing.
+	 */
+	const onInvalidate = (): void => close( false, true );
 
 	document.addEventListener( 'pointerover', onPointerOver );
 	document.addEventListener( 'pointerout', onPointerOut );
@@ -333,7 +427,15 @@ export function mountDockConstellation(
 	document.addEventListener( 'scroll', onInvalidate, true );
 
 	return (): void => {
-		close();
+		close( false, true );
+		// Take any in-flight exits with us. Their removal timers would
+		// otherwise fire against a module nobody is listening to any
+		// more, leaving an inert panel painted over the shell.
+		for ( const ghost of closing ) {
+			ghost.remove();
+		}
+		closing.clear();
+		syncBodyFlag();
 		document.removeEventListener( 'pointerover', onPointerOver );
 		document.removeEventListener( 'pointerout', onPointerOut );
 		document.removeEventListener( 'keydown', onKeyDown );

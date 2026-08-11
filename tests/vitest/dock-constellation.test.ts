@@ -48,6 +48,17 @@ const appearance: DockItem = {
 	],
 };
 
+const settings: DockItem = {
+	id: 'options-general.php',
+	title: 'Settings',
+	icon: 'dashicons-admin-settings',
+	url: '/wp-admin/options-general.php',
+	badge: 0,
+	isCore: true,
+	multi: false,
+	submenu: [ { title: 'Writing', url: '/wp-admin/options-writing.php' } ],
+};
+
 const opened: Array< Record< string, unknown > > = [];
 
 function makeManagerStub(): WindowManager {
@@ -110,8 +121,27 @@ function hover( tile: HTMLElement ): void {
 	vi.runOnlyPendingTimers();
 }
 
+/**
+ * The LIVE panel. A dismissed panel stays in the document for the
+ * length of its exit, so "is a flyout open?" has to exclude anything
+ * already on its way out.
+ */
 function panel(): HTMLElement | null {
-	return document.querySelector< HTMLElement >( '.os-constellation' );
+	return document.querySelector< HTMLElement >(
+		'.os-constellation:not( .os-constellation--closing )',
+	);
+}
+
+/** A panel mid-exit — present, marked, and no longer interactive. */
+function ghost(): HTMLElement | null {
+	return document.querySelector< HTMLElement >(
+		'.os-constellation--closing',
+	);
+}
+
+/** Let any in-flight exit finish and its node leave the document. */
+function flushExit(): void {
+	vi.runOnlyPendingTimers();
 }
 
 function rowLabels(): string[] {
@@ -246,9 +276,117 @@ describe( 'dock constellation', () => {
 		expect( document.activeElement ).toBe(
 			tile.querySelector( '.os-dock__item-primary' ),
 		);
+		flushExit();
 		expect(
 			document.body.classList.contains( 'os-constellation-open' ),
 		).toBe( false );
+	} );
+
+	describe( 'exit', () => {
+		test( 'plays an exit before the node leaves the document', () => {
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			document
+				.querySelector< HTMLElement >( '.os-constellation__head' )!
+				.click();
+
+			// No longer the live panel, but still painted — marked
+			// `--closing` so CSS can run the exit, and no longer the
+			// anchor's business.
+			expect( panel() ).toBeNull();
+			expect( ghost() ).not.toBeNull();
+			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
+				false,
+			);
+			// The tooltip stays muted while a panel is still visible,
+			// or it pops back underneath one that is fading over it.
+			expect(
+				document.body.classList.contains( 'os-constellation-open' ),
+			).toBe( true );
+
+			flushExit();
+			expect( ghost() ).toBeNull();
+			expect(
+				document.body.classList.contains( 'os-constellation-open' ),
+			).toBe( false );
+		} );
+
+		test( 'rows do not animate independently while the panel leaves', () => {
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			document
+				.querySelector< HTMLElement >( '.os-constellation__head' )!
+				.click();
+			// The `--open` class is what drives the per-row staggered
+			// entrance; dropping it without `--closing` taking over
+			// would send every row back through its own exit inside a
+			// panel that is itself shrinking.
+			const dying = ghost()!;
+			expect( dying.classList.contains( 'os-constellation--open' ) ).toBe(
+				false,
+			);
+			expect(
+				dying.classList.contains( 'os-constellation--closing' ),
+			).toBe( true );
+		} );
+
+		test( 'a hand-off to another tile cuts instead of fading', () => {
+			const tile = setupShell( 'openstation' );
+			const dock = document.querySelector( '.os-dock' )!;
+			const other = document.createElement( 'div' );
+			other.className = 'os-dock__item';
+			other.dataset.menuSlug = 'options-general.php';
+			other.appendChild( document.createElement( 'button' ) );
+			dock.appendChild( other );
+
+			teardown = mountDockConstellation( {
+				windowManager: makeManagerStub(),
+				adminUrl: '/wp-admin/',
+				getMenuItems: () => [ appearance, settings ],
+			} );
+
+			hover( tile );
+			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
+				'Appearance',
+			);
+			hover( other );
+			// One panel on screen, not two at two different anchors.
+			expect( ghost() ).toBeNull();
+			expect(
+				document.querySelectorAll( '.os-constellation' ),
+			).toHaveLength( 1 );
+			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
+				'Settings',
+			);
+		} );
+
+		test( 'a stale anchor cuts too — scroll invalidates the position', () => {
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			document.dispatchEvent( new Event( 'scroll', { bubbles: true } ) );
+			// Animating away from a tile that has already moved points
+			// at nothing, so this path removes the node outright.
+			expect( ghost() ).toBeNull();
+			expect( panel() ).toBeNull();
+		} );
+
+		test( 'teardown takes an in-flight exit with it', () => {
+			const tile = setupShell( 'openstation' );
+			mount();
+			hover( tile );
+			document
+				.querySelector< HTMLElement >( '.os-constellation__head' )!
+				.click();
+			expect( ghost() ).not.toBeNull();
+			teardown();
+			expect( document.querySelector( '.os-constellation' ) ).toBeNull();
+			expect(
+				document.body.classList.contains( 'os-constellation-open' ),
+			).toBe( false );
+		} );
 	} );
 
 	test( 'survives a tile rebuilt under it — the listener is delegated', () => {

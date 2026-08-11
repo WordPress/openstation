@@ -671,6 +671,14 @@ body.os-active {
 	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
 	/* Decelerating. The default for anything arriving. */
 	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
+	/*
+	 * Accelerating — the mirror of `out`, and the default for anything
+	 * LEAVING. A surface that eases out on the way in and eases in on
+	 * the way out is the difference between "dismissed" and "undone":
+	 * decelerating into nothing reads as the thing hesitating, which
+	 * is the wrong note when the user has already moved on.
+	 */
+	--os-ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
 	/* Symmetric, for a loop that has to come back where it started. */
 	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
