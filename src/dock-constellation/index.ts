@@ -45,19 +45,26 @@
  * 3. **It routes through the same window ids the dock does** (see
  *    `routing.ts`), so the flyout and the tile address one window
  *    between them rather than two.
- * 4. **A dismissed panel outlives its dismissal.** It is detached from
- *    the module's state immediately but stays in the document,
- *    marked `--closing`, until it has finished leaving. There are
- *    three ways to leave, and picking the right one is most of what
- *    makes the rail feel solid:
- *      - *exit* — the ordinary dismissal. Falls back into the rail.
- *      - *hand-off* — another tile is taking over. The panel does NOT
- *        close: it slides to the new anchor alongside its
- *        replacement and cross-fades, so the menu never leaves the
- *        screen. Anything else reads as a blink.
- *      - *cut* — the anchor rect was invalidated (scroll, resize,
- *        layout switch). A panel gliding away from a tile that has
- *        already moved points at nothing, so the node just goes.
+ * 4. **A dismissed panel outlives its dismissal, and there can be
+ *    more than one on screen.** `panel` is the panel you can still
+ *    interact with, not the only one in the document: a dismissed
+ *    panel is detached from the module's state immediately but stays
+ *    painted, marked `--closing`, until its exit has finished.
+ *
+ *    That decoupling is the whole reason moving along the rail looks
+ *    right. It is TWO panels, each animating at its own tile — the
+ *    one you left playing its dismissal above the tile it belongs
+ *    to, the one you arrived at rising above its own — rather than
+ *    one panel that slides across and swaps its contents. Each is a
+ *    menu anchored to a specific tile; turning one into the other
+ *    would claim they are the same object, and it would drag a beam
+ *    across the rail pointing at a tile its panel has nothing to do
+ *    with.
+ *
+ *    The one dismissal that skips its animation is `cut`, for when
+ *    the anchor rect has been invalidated (scroll, resize, layout
+ *    switch): a panel gliding away from a tile that has already
+ *    moved points at nothing, so the node just goes.
  *
  * Pointer AND keyboard. The tile is a `<button>` the rail already
  * focuses; ArrowUp (or Enter on a tile with children) fans the
@@ -101,17 +108,6 @@ const HIDE_DELAY_MS = 240;
  * moved on, and anything slower reads as the menu not letting go.
  */
 const EXIT_MS = 160;
-/**
- * How long the slide between two tiles runs. Must match the
- * `.os-constellation--handoff` transition in
- * `openstation-layout.css`.
- *
- * Longer than the exit and shorter than the entrance: the panel is
- * neither arriving nor leaving, it is travelling, and the distance
- * between two adjacent dock tiles is short enough that anything
- * slower turns a flick along the rail into a queue.
- */
-const HANDOFF_MS = 200;
 /** Gap between the tile's top edge and the panel's bottom edge. */
 const BEAM_GAP_PX = 14;
 /** Keep-out margin from every viewport edge. */
@@ -238,16 +234,15 @@ export function mountDockConstellation(
 	 * How a retiring panel should leave.
 	 *
 	 * - `exit` — the ordinary dismissal: fall back into the rail.
-	 * - `handoff` — another tile is taking over. The panel slides to
-	 *   the new anchor alongside its replacement and cross-fades, so
-	 *   the menu never leaves the screen.
-	 * - `cut` — remove the node now. For dismissals where animating
-	 *   would be actively wrong rather than merely skippable: the
-	 *   anchor rect has been invalidated (scroll, resize, layout
-	 *   switch) and a panel gliding away from a tile that already
-	 *   moved points at nothing.
+	 * - `cut` — remove the node now. Used wherever an animation would
+	 *   be pointless or wrong rather than merely skippable: the anchor
+	 *   rect has been invalidated (scroll, resize, layout switch) and
+	 *   a panel gliding away from a tile that already moved points at
+	 *   nothing; or a hand-off is under way and the node is about to
+	 *   be covered pixel-for-pixel by its replacement, so nothing of
+	 *   it would ever be seen uncovered.
 	 */
-	type RetireMode = 'exit' | 'handoff' | 'cut';
+	type RetireMode = 'exit' | 'cut';
 
 	/**
 	 * Detach a panel from the module's state and start it leaving.
@@ -257,7 +252,10 @@ export function mountDockConstellation(
 	 * path — has to see "no panel is current" even while a node is
 	 * still in the document playing its exit.
 	 */
-	const retire = ( mode: RetireMode, restoreFocus = false ): void => {
+	const retire = (
+		mode: RetireMode,
+		opts: { restoreFocus?: boolean; handoff?: boolean } = {},
+	): void => {
 		if ( ! panel ) {
 			return;
 		}
@@ -272,26 +270,19 @@ export function mountDockConstellation(
 			dying.remove();
 		} else {
 			dying.classList.remove( 'os-constellation--open' );
-			// `--closing` marks every retiring panel (it is what
-			// `:not( --closing )` queries key off, ours and plugins');
-			// `--handoff` then overrides the fall with the slide.
+			// `--closing` marks every retiring panel — it is what
+			// `:not( --closing )` queries key off, ours and plugins'.
 			dying.classList.add( 'os-constellation--closing' );
-			if ( mode === 'handoff' ) {
-				dying.classList.add( 'os-constellation--handoff' );
-			}
 			closing.add( dying );
-			window.setTimeout(
-				() => {
-					dying.remove();
-					closing.delete( dying );
-					syncBodyFlag();
-				},
-				mode === 'handoff' ? HANDOFF_MS : EXIT_MS,
-			);
+			window.setTimeout( () => {
+				dying.remove();
+				closing.delete( dying );
+				syncBodyFlag();
+			}, EXIT_MS );
 		}
 		syncBodyFlag();
 
-		if ( restoreFocus && previousAnchor ) {
+		if ( opts.restoreFocus && previousAnchor ) {
 			previousAnchor
 				.querySelector< HTMLElement >( '.os-dock__item-primary' )
 				?.focus();
@@ -301,14 +292,14 @@ export function mountDockConstellation(
 			// `true` when another tile is already taking over, so a
 			// subscriber can tell "the menu closed" from "the menu
 			// moved" without diffing against the next opened event.
-			handoff: mode === 'handoff',
+			handoff: opts.handoff === true,
 		} );
 	};
 
 	const close = ( restoreFocus = false, immediate = false ): void => {
 		cancelShow();
 		cancelHide();
-		retire( immediate ? 'cut' : 'exit', restoreFocus );
+		retire( immediate ? 'cut' : 'exit', { restoreFocus } );
 	};
 
 	const open = ( tile: HTMLElement, focusFirst = false ): void => {
@@ -332,64 +323,55 @@ export function mountDockConstellation(
 		}
 
 		/*
-		 * Hand-off. Moving from one menu to the next is not a close
-		 * followed by an open — it is the same menu changing what it
-		 * is about, which is how every menu bar since 1984 has
-		 * behaved. So the outgoing panel does not fall away and the
-		 * incoming one does not spring up: the new panel is born at
-		 * the OLD panel's x, both slide to the new anchor together on
-		 * the same curve, and they cross-fade on the way. The menu
-		 * never leaves the screen, and the eye tracks one object
-		 * across the rail instead of watching two events.
+		 * Moving from one menu to the next is TWO panels, each
+		 * animating at its own tile: the one you left plays its
+		 * dismissal above the tile it belongs to, the one you arrived
+		 * at plays its entrance above its own.
+		 *
+		 * This deliberately is not a morph. A single panel that slid
+		 * along the rail and swapped its contents was the other
+		 * candidate, and it is wrong for what these are: each panel is
+		 * a menu, anchored to a specific tile, and turning one into
+		 * another says they are the same object when the whole point
+		 * of the rail is that they are not. What the eye needs to see
+		 * is Appearance closing and Settings opening — which also
+		 * means the beam stays honest, since each panel's thread runs
+		 * to the tile it actually belongs to for as long as it exists.
+		 *
+		 * That is only possible because a retiring panel is decoupled
+		 * from `panel` rather than being the same node re-used: the
+		 * outgoing one keeps its own anchor and finishes its own exit
+		 * while the incoming one is already rising elsewhere.
 		 */
-		const handingOff = panel !== null && ! prefersReducedMotion();
-		const fromX = handingOff ? readLeft( panel as HTMLElement ) : null;
-		const outgoing = panel;
+		const handingOff = panel !== null;
 
-		retire( handingOff ? 'handoff' : 'cut' );
+		retire( 'exit', { handoff: handingOff } );
 
 		const instances =
 			deps.windowManager.getAllByBaseIdOnActiveDesktop(
 				resolveBaseId( deps, item ),
 			);
 		panel = buildPanel( deps, item, instances, tile, close );
-		if ( handingOff ) {
-			panel.classList.add( 'os-constellation--handoff' );
-		}
 		anchor = tile;
 		anchorSlug = slug;
 		document.body.appendChild( panel );
 		syncBodyFlag();
 		tile.setAttribute( 'data-constellation-open', '' );
 		inheritShellVars( panel );
-		const targetX = position( panel, tile, fromX );
-		// Walk the outgoing panel to the same destination so the pair
-		// travels as one. Its own transition (declared on `--handoff`)
-		// carries it; nothing else about it changes.
-		if ( outgoing && handingOff && targetX !== null ) {
-			outgoing.style.left = `${ targetX }px`;
-		}
-		// One frame late so the CSS start state is a real painted frame
-		// and the transition has something to animate FROM.
+		position( panel, tile );
+		// One frame late so the CSS start state is a real painted
+		// frame and the entrance has something to animate FROM.
 		requestAnimationFrame( () => {
 			panel?.classList.add( 'os-constellation--open' );
 			if ( focusFirst && panel ) {
 				focusRow( panel, 0 );
 			}
 		} );
-		if ( handingOff ) {
-			// Drop back to the ordinary transitions once the slide is
-			// done, so the NEXT dismissal gets the fall-into-the-rail
-			// exit rather than a slide to nowhere.
-			const settling = panel;
-			window.setTimeout( () => {
-				settling.classList.remove( 'os-constellation--handoff' );
-			}, HANDOFF_MS );
-		}
 		doAction( HOOKS.CONSTELLATION_OPENED, {
 			menuSlug: slug,
 			item,
 			instances,
+			handoff: handingOff,
 		} );
 	};
 
@@ -913,27 +895,11 @@ function inheritShellVars( panel: HTMLElement ): void {
  * nudged sideways back to the tile it belongs to, so it has to track
  * the anchor independently of the surface.
  */
-function position(
-	panel: HTMLElement,
-	tile: HTMLElement,
-	fromX: number | null = null,
-): number {
+function position( panel: HTMLElement, tile: HTMLElement ): void {
 	const rect = tile.getBoundingClientRect();
 	const centre = rect.left + rect.width / 2;
+	panel.style.left = `${ centre }px`;
 	panel.style.top = `${ rect.top - BEAM_GAP_PX }px`;
-
-	if ( fromX === null ) {
-		panel.style.left = `${ centre }px`;
-	} else {
-		// Hand-off: born where the outgoing panel is standing, then
-		// walked to the new anchor a frame later so the assignment is
-		// a transition rather than an initial value (an element's
-		// first computed value never animates).
-		panel.style.left = `${ fromX }px`;
-		requestAnimationFrame( () => {
-			panel.style.left = `${ centre }px`;
-		} );
-	}
 
 	requestAnimationFrame( () => {
 		const panelRect = panel.getBoundingClientRect();
@@ -949,17 +915,5 @@ function position(
 			panel.style.setProperty( '--os-cn-beam-x', `${ -dx }px` );
 		}
 	} );
-
-	return centre;
 }
 
-/**
- * The panel's current `left`, in px. Read off the inline style rather
- * than `getBoundingClientRect()` because that box has already been
- * moved by the `translate( -50%, … )`, and the hand-off needs the
- * anchor point the transition interpolates, not the painted edge.
- */
-function readLeft( panel: HTMLElement ): number | null {
-	const raw = parseFloat( panel.style.left );
-	return Number.isFinite( raw ) ? raw : null;
-}

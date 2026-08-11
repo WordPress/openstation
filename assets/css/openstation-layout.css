@@ -161,7 +161,7 @@ body.os-constellation-open .os-dock__tooltip {
 
 .os-constellation {
 	position: fixed;
-	z-index: 2147483000;
+	z-index: var( --os-cn-z, 2147483000 );
 	/*
 	 * `--os-cn-shift` is written by the clamp when the panel would
 	 * have overflowed a viewport edge; the beam compensates with
@@ -238,71 +238,18 @@ body.os-constellation-open .os-dock__tooltip {
 	transition: opacity 90ms ease-in;
 }
 
-/* ---- Hand-off ---------------------------------------------------- */
-
 /*
- * Moving from one menu to the next is not a close followed by an
- * open. It is the same menu changing what it is about — which is how
- * every menu bar since 1984 has behaved, and why a rail of them that
- * blinks between tiles feels broken rather than fast.
+ * A retiring panel never paints over a live one.
  *
- * So both panels wear `--handoff` and share one transition: the new
- * one is born at the old one's x, both walk to the new anchor on the
- * same curve, and they cross-fade on the way. The menu never leaves
- * the screen and the eye tracks one object along the rail instead of
- * watching two separate events.
- *
- * `left` is in the transition list ONLY here. In every other state
- * the panel is placed, not moved, and animating a placement would
- * turn each re-position (a clamp, a re-anchor) into a visible glide.
+ * Moving along the rail leaves two panels on screen at once — the one
+ * you left finishing its dismissal above its own tile, the one you
+ * arrived at rising above its. Adjacent dock tiles are ~46px apart
+ * and a panel is 230px+ wide, so they overlap heavily, and without an
+ * explicit order the outgoing one wins on source order and fades out
+ * ON TOP of the menu the user is actually looking at.
  */
-.os-constellation.os-constellation--handoff {
-	transition:
-		left var( --os-cn-handoff-ms, 200ms )
-			var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) ),
-		transform var( --os-cn-handoff-ms, 200ms )
-			var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) ),
-		opacity 130ms linear;
-}
-
-/*
- * Incoming: a cross-fade, with no scale. A panel that springs up from
- * 0.94 while sliding reads as a second, different menu arriving —
- * exactly the impression the hand-off exists to avoid.
- */
-.os-constellation.os-constellation--handoff:not( .os-constellation--open ) {
-	transform: translate( calc( -50% + var( --os-cn-shift, 0px ) ), -100% );
-}
-
-/*
- * Outgoing: fade while travelling. Overrides `--closing`'s fall — it
- * is not going back into the rail, it is going with its replacement.
- */
-.os-constellation.os-constellation--closing.os-constellation--handoff {
-	transform: translate( calc( -50% + var( --os-cn-shift, 0px ) ), -100% );
-	opacity: 0;
-	pointer-events: none;
-}
-
-/*
- * Rows stay solid on both sides. A staggered entrance inside a 200ms
- * cross-fade is flicker, not choreography — and the beam stays lit
- * because the thread to the rail is the one thing that should never
- * break mid-travel.
- */
-.os-constellation--handoff .os-constellation__row {
-	opacity: 1;
-	transform: none;
-	transition: none;
-}
-
-.os-constellation--handoff .os-constellation__sheen {
-	animation: none;
-}
-
-.os-constellation--handoff .os-constellation__beam {
-	opacity: 1;
-	transition: none;
+.os-constellation--closing {
+	z-index: calc( var( --os-cn-z, 2147483000 ) - 1 );
 }
 
 /* The panel body. */
@@ -752,8 +699,7 @@ body.os-constellation-open .os-dock__tooltip {
 	 */
 	.os-constellation,
 	.os-constellation--open,
-	.os-constellation--closing,
-	.os-constellation--handoff {
+	.os-constellation--closing {
 		transform: translate(
 			calc( -50% + var( --os-cn-shift, 0px ) ),
 			-100%

@@ -329,7 +329,7 @@ describe( 'dock constellation', () => {
 		).toBe( false );
 	} );
 
-	describe( 'exit', () => {
+	describe( 'leaving', () => {
 		test( 'plays an exit before the node leaves the document', () => {
 			const tile = setupShell( 'openstation' );
 			mount();
@@ -376,12 +376,13 @@ describe( 'dock constellation', () => {
 		} );
 
 		/**
-		 * The hand-off is the case a plain close-then-open gets wrong:
-		 * moving along the rail read as the menu blinking out and a
-		 * different one blinking in. It has to read as ONE menu
-		 * travelling and changing contents.
+		 * Moving along the rail is TWO panels, each animating at its
+		 * own tile — not one panel sliding across and swapping its
+		 * contents. The outgoing one has to get a real dismissal, and
+		 * it has to keep its own anchor while it plays, or its beam
+		 * ends up pointing at a tile it has nothing to do with.
 		 */
-		test( 'a hand-off slides and cross-fades instead of blinking', () => {
+		test( 'moving to another tile dismisses the old menu where it stands', () => {
 			const tile = setupShell( 'openstation' );
 			const other = addTile( 'options-general.php' );
 			placeTile( tile, 100 );
@@ -392,59 +393,53 @@ describe( 'dock constellation', () => {
 			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 				'Appearance',
 			);
-			const fromX = panel()!.style.left;
 
 			hover( other );
 
-			// Both panels are on screen mid-travel: the outgoing one
-			// marked as retiring, the incoming one live and already
-			// showing the new menu.
-			const dying = ghost()!;
+			// The old menu is still on screen, playing its exit, and
+			// still anchored over the tile it belongs to.
+			const dying = ghost();
 			expect( dying ).not.toBeNull();
-			expect(
-				dying.classList.contains( 'os-constellation--handoff' ),
-			).toBe( true );
+			expect( dying?.getAttribute( 'aria-label' ) ).toContain(
+				'Appearance',
+			);
+			expect( dying!.style.left ).toBe( '120px' );
+
+			// The new one is live over ITS tile, playing its entrance.
 			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 				'Settings',
 			);
+			expect( panel()!.style.left ).toBe( '180px' );
 			expect(
-				panel()?.classList.contains( 'os-constellation--handoff' ),
+				panel()?.classList.contains( 'os-constellation--open' ),
 			).toBe( true );
-
-			// They travel together: the outgoing panel has been walked
-			// to the incoming one's anchor, so the pair moves as one
-			// object rather than one vanishing beside another.
-			expect( panel()!.style.left ).not.toBe( fromX );
-			expect( dying.style.left ).toBe( panel()!.style.left );
 
 			flushExit();
 			expect( ghost() ).toBeNull();
 			expect(
 				document.querySelectorAll( '.os-constellation' ),
 			).toHaveLength( 1 );
-			// And once it has landed it stops being a hand-off, so the
-			// NEXT dismissal gets the fall-into-the-rail exit.
-			expect(
-				panel()?.classList.contains( 'os-constellation--handoff' ),
-			).toBe( false );
 		} );
 
-		test( 'the incoming panel is born at the outgoing one’s anchor', () => {
+		test( 'the tile being left un-lifts while its menu is still leaving', () => {
 			const tile = setupShell( 'openstation' );
 			const other = addTile( 'options-general.php' );
-			placeTile( tile, 100 );
-			placeTile( other, 160 );
 			mountWith( [ appearance, settings ] );
 
 			hover( tile );
-			const fromX = panel()!.style.left;
-			expect( fromX ).toBe( '120px' );
+			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
+				true,
+			);
 
-			// Step far enough to run the show timer but stop before the
-			// frame that walks the new panel to its own anchor.
-			other.dispatchEvent( pointerOver() );
-			vi.advanceTimersByTime( 0 );
-			expect( panel()!.style.left ).toBe( fromX );
+			hover( other );
+			// Only one tile is ever marked as hosting the menu, even
+			// while two panels are painted.
+			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
+				false,
+			);
+			expect( other.hasAttribute( 'data-constellation-open' ) ).toBe(
+				true,
+			);
 		} );
 
 		test( 'a stale anchor cuts too — scroll invalidates the position', () => {

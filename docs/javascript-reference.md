@@ -886,15 +886,16 @@ Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open a
 Three hooks:
 
 - `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
-- `os.constellation.opened` — **action**, `{ menuSlug, item, instances }`.
+- `os.constellation.opened` — **action**, `{ menuSlug, item, instances, handoff }`. `handoff` is `true` when this panel replaced one that was already up (the pointer moved along the rail) rather than arriving on an empty desk — the same flag the matching `closed` carries.
 - `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
 
-**Leaving, three ways.** Which one runs is most of what makes the rail feel solid:
+**More than one panel can be on screen.** `wp.os` never exposes a "the flyout" singleton for exactly this reason: a dismissed panel keeps its own anchor and finishes its own exit while the next one is already rising over a different tile. Moving along the rail is **two** panels, each animating where it belongs — the one you left playing its dismissal, the one you arrived at playing its entrance — not one panel sliding across and swapping contents. Each panel is a menu bound to a specific tile; morphing one into another would claim they are the same object and would drag a beam across the rail pointing at a tile its panel has nothing to do with. The retiring panel is painted one z-index step below the live one so it can never fade out on top of the menu being read.
+
+**Two ways to leave:**
 
 | | When | What happens |
 |---|---|---|
-| **Exit** | Ordinary dismissal — pointer left, Escape, a row activated | Falls back into the rail: shrinks toward `bottom center` (where the beam meets the tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
-| **Hand-off** | The pointer moved to another menu tile | The panel does **not** close. The incoming panel is born at the outgoing one's x, both walk to the new anchor on the same curve, and they cross-fade — one menu travelling and changing contents, the way a menu bar behaves. Both wear `.os-constellation--handoff`; the class is dropped once the slide lands. |
+| **Exit** | Any dismissal — pointer left, Escape, a row activated, or another tile taking over | Falls back into the rail: shrinks toward `bottom center` (where the beam meets its own tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
 | **Cut** | The anchor rect was invalidated (scroll, resize, layout switch), or `prefers-reduced-motion: reduce` | The node is removed outright. A panel gliding away from a tile that has already moved points at nothing. |
 
 ```javascript
@@ -918,7 +919,7 @@ window.wp.hooks.addFilter(
 );
 ```
 
-**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
+**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius, stacking order) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
 
 ```javascript
 // Open a second Posts list alongside the first.

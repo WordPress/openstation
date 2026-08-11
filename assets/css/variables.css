@@ -1111,6 +1111,13 @@ body.os-active {
 	/* Beam: the thread from the panel's underside down to the tile. */
 	--os-cn-beam: color-mix(in srgb, var(--os-ui-accent-dim) 80%, transparent);
 	--os-cn-radius: 14px;
+	/*
+	 * Above every window and above the dock. Two panels coexist while
+	 * the pointer moves along the rail — one dismissing, one arriving
+	 * — and the retiring one is painted one step below so it can
+	 * never fade out on top of the menu being read.
+	 */
+	--os-cn-z: 2147483000;
 
 	/*
 	 * ---- Shell surfaces ----------------------------------------

@@ -1042,7 +1042,10 @@ export const HOOKS = {
 	CONSTELLATION_PANEL: 'os.constellation.panel',
 	/**
 	 * Action, fires immediately after a flyout is appended. Detail:
-	 * `{ menuSlug: string, item: DockItem, instances: Window[] }`.
+	 * `{ menuSlug: string, item: DockItem, instances: Window[],
+	 * handoff: boolean }`. `handoff` is `true` when this panel
+	 * replaced one that was already up — the pointer moved along the
+	 * rail — rather than arriving on an empty desk.
 	 */
 	CONSTELLATION_OPENED: 'os.constellation.opened',
 	/**
