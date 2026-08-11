@@ -1,28 +1,19 @@
 /**
  * OpenStation — Pinned notes change broadcast.
  *
- * The Recycle Bin badge keeps its count live by subscribing to
- * `os.<post-type>.changed` for every type the bin captures, and
- * `wpd_note` is one of them (it rides in `config.recycleBinPostTypes`
- * because the bin's capture list includes every non-builtin `show_ui`
- * type). Without this, trashing a note moved the server's count but
- * left the badge showing whatever it had at boot: the bin gained an
- * item and the dock never said so.
+ * The Recycle Bin badge counts deltas off `os.<post-type>.changed`,
+ * one topic per type the bin captures. Notes never published it, so
+ * trashing one moved the server's count and left the badge stale.
  *
- * Shape mirrors `broadcastFilesChange` in
- * `src/desktop-files/trash.ts` — same topic pattern, same
- * `{ source, action, ids }` payload, so the badge's one shared
- * subscriber handles both.
+ * Payload matches `broadcastFilesChange` in
+ * `src/desktop-files/trash.ts`, so one subscriber handles both.
  */
 
 import { NOTES_POST_TYPE } from './types';
 
 type NotesChangeAction = 'trashed' | 'untrashed' | 'deleted';
 
-/**
- * Announce a change to the bin-relevant state of one or more notes.
- * Safe before `wp.os` exists (boot ordering, tests) — no-ops.
- */
+/** No-ops before `wp.os` exists (boot ordering, tests). */
 export function broadcastNotesChange(
 	action: NotesChangeAction,
 	ids: number[],

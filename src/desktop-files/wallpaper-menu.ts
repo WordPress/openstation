@@ -20,12 +20,9 @@ import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 import { attachDismissable } from './dismissable';
 
 /**
- * Second argument handed to the `os.wallpaper-context-menu` filter:
- * where the user right-clicked, in viewport coordinates.
- *
- * Items whose action places something on the wallpaper (a note, a
- * tile) need this — the menu synthesizes a bare `MouseEvent` for
- * `onClick`, so the original coordinates are gone by then.
+ * Where the user right-clicked, in viewport coordinates. Items that
+ * place something on the wallpaper need it: `onClick` receives a
+ * synthetic `MouseEvent` carrying no position.
  */
 export interface WallpaperMenuContext {
 	x: number;
@@ -439,12 +436,7 @@ export interface WallpaperMenuDeps {
 	 * Default `true`.
 	 */
 	includeShowDesktop?: boolean;
-	/**
-	 * Viewport coordinates of the right-click that opened the menu,
-	 * forwarded to the `os.wallpaper-context-menu` filter so items can
-	 * place things where the user clicked. Omitted in tests and by
-	 * callers with nothing to place; the filter then sees `{0, 0}`.
-	 */
+	/** Forwarded to the filter. Omitted, it sees `{ 0, 0 }`. */
 	position?: { x: number; y: number };
 	labels: {
 		createFolder: string;

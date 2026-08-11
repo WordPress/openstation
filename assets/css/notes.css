@@ -400,19 +400,14 @@
 	opacity: 0.6;
 }
 
-/* "Move to Trash" — the pointer/keyboard equivalent of dragging the
-   pin onto the bin. In the FOOTER, not the meta row: the pushpin is
-   56px wide, centred, jittered ±10px and painted above the paper's
-   chrome, so it covers note-relative x 62–138, and a fourth control
-   in the right-aligned meta row lands underneath it where a pointer
-   can't reach. The status chip is pushed to the trailing edge.
+/* "Move to Trash" lives in the footer, not the meta row: the pushpin
+   is painted above the paper's chrome and covers note-relative
+   x 62–138 across its ±10px jitter, so a fourth control in the
+   right-aligned meta row lands under it and can't be clicked.
 
-   Hover/focus-revealed like the meta row's controls, and on the same
-   curve. It can't live inside `.os-pinned-note__meta` and inherit
-   that reveal, so it is repeated here. The resting opacity matches
-   what a meta-row button resolves to: the row fades to 1 and each
-   button sits at 0.75 inside it. `opacity` doesn't affect layout, so
-   the status chip stays put whether or not this shows. */
+   The hover reveal is repeated here rather than inherited, since the
+   button is outside `.os-pinned-note__meta`. 0.75 is what a meta-row
+   button resolves to (row at 1, button at 0.75 inside it). */
 .os-pinned-note__trash {
 	--os-ui-btn-color: var(--dm-note-ink-soft);
 	margin-inline-end: auto;
@@ -425,10 +420,9 @@
 	opacity: 0.75;
 }
 
-/* Scoped through the note, not bare `.os-pinned-note__trash:hover`:
-   the reveal rule above is (0,3,0) and a bare button-hover would be
-   (0,2,0), so the button could never reach full opacity — you are
-   always hovering the note when you hover its button. */
+/* Scoped through the note so it outranks the reveal rule above —
+   bare `.os-pinned-note__trash:hover` loses to it and never reaches
+   full opacity. */
 .os-pinned-note:hover .os-pinned-note__trash:hover,
 .os-pinned-note:focus-within .os-pinned-note__trash:hover {
 	--os-ui-btn-color: #b32d2e;

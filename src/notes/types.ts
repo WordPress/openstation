@@ -8,11 +8,7 @@
  * that boundary — the widget imports nothing but types from here.
  */
 
-/**
- * The CPT slug, mirrored from `OPENSTATION_NOTES_POST_TYPE` in
- * `includes/notes/cpt.php`. Used for the `os.<type>.changed`
- * broadcast topic the Recycle Bin badge subscribes to.
- */
+/** Mirrors `OPENSTATION_NOTES_POST_TYPE` in `includes/notes/cpt.php`. */
 export const NOTES_POST_TYPE = 'wpd_note';
 
 /** Wire shape of one note. */

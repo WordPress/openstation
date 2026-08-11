@@ -83,10 +83,7 @@ function jitterSeed( note: Note ): number {
  */
 const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
 
-/**
- * The `trash` glyph from `@wordpress/icons`, inlined for the same
- * reason as {@link ICON_POST}. Marks "Move to Trash".
- */
+/** The `trash` glyph, inlined for the same reason as {@link ICON_POST}. */
 const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M20 5h-5.7c0-1.3-1-2.3-2.3-2.3S9.7 3.7 9.7 5H4v2h1.5v.3l1.4 12c.1.9.9 1.6 1.8 1.6h6.6c.9 0 1.7-.7 1.8-1.6l1.4-12V7H20V5zM8.4 19l-1.3-12h9.8l-1.3 12H8.4z" /></svg>`;
 
 export interface NotesLayerOptions {
@@ -231,14 +228,9 @@ export class NotesLayer {
 	}
 
 	/**
-	 * Pin a new note at a normalized position: paper on the wall
-	 * immediately (the thunk plays now, against a negative temp id),
-	 * server copy adopted when the POST lands.
-	 *
-	 * Shared by the wallpaper context menu and the Note Pad's
-	 * tear-off drop — both want the same optimistic dance, and the
-	 * drop path additionally has to flush edits typed while the POST
-	 * was still in flight.
+	 * Pin a new note optimistically against a negative temp id, then
+	 * adopt the server copy. Shared by the wallpaper context menu and
+	 * the Note Pad's tear-off drop.
 	 */
 	createNoteAt( options: {
 		x: number;
@@ -253,16 +245,11 @@ export class NotesLayer {
 		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
 		const isPublic = options.isPublic === true;
 		const { x, y } = this.clampPosition( options.x, options.y );
-		// Jitter seed: hashed HERE, at creation — the server persists it
-		// verbatim so the optimistic paper and every future render share
-		// the exact same tilt.
-		//
-		// Falls back to the drop position when there is no text. The
-		// wallpaper-menu path always starts empty, and `hashNoteSeed('')`
-		// returns the bare FNV offset basis, so seeding from the text
-		// alone would give every note from that path the identical tilt
-		// and pin offset. A wall of parallel paper is exactly what the
-		// seed exists to prevent.
+		// Hashed client-side so the optimistic paper and every later
+		// render share a tilt. Position is the fallback because
+		// `hashNoteSeed('')` is a constant, and the wallpaper-menu path
+		// always starts empty — every note from it would come out
+		// parallel, which is the one thing the seed exists to prevent.
 		const seed = hashNoteSeed( text || `${ x },${ y }` );
 
 		const tempId = this.nextTempId();
@@ -292,13 +279,12 @@ export class NotesLayer {
 		void createNote( { text, color, x, y, public: isPublic, seed } )
 			.then( ( note ) => {
 				this.bumpHighWater( note.updatedAtMs );
-				// Keep the optimistic position — the server echoes what we
-				// sent; the id + token are what we're after.
+				// The server echoes our position back; we only need the
+				// id and the concurrency token.
 				controller.replace( note );
 				this.rekeyNote( tempId, controller );
-				// Anything typed while the POST was in flight debounced
-				// against the temp id and couldn't save — flush it now
-				// that a real id exists.
+				// Edits typed during the POST debounced against the temp
+				// id and couldn't save. Now they can.
 				controller.flushPendingEdits();
 			} )
 			.catch( ( err: unknown ) => {
@@ -619,21 +605,15 @@ export class NoteController {
 		const footer = document.createElement( 'div' );
 		footer.className = 'os-pinned-note__footer';
 
-		// "Move to Trash" — the keyboard/pointer equivalent of dragging
-		// the pin onto the bin, for anyone who doesn't want to drag (or
-		// can't). It lives in the FOOTER rather than beside the other
-		// actions in the meta row: the pushpin is 56px wide, centred,
-		// jittered ±10px and painted above the paper's chrome, so it
-		// covers note-relative x 62–138. The right-aligned meta row
-		// already runs back to ~136 with three controls, and a fourth
-		// lands under the pin — rendered, but unreachable with a
-		// pointer. Down here there is no overlap at any jitter value.
+		// The pointer/keyboard equivalent of dragging the pin onto the
+		// bin. In the footer, not beside the other actions: a fourth
+		// control in the meta row lands under the pushpin (see
+		// notes.css).
 		const trash = document.createElement( 'os-window-button' );
 		trash.className = 'os-pinned-note__trash';
 		trash.innerHTML = ICON_TRASH;
 		const trashLabel = __( 'Move to Trash', 'desktop-mode' );
 		trash.setAttribute( 'title', trashLabel );
-		// Icon-only button — give screen readers an accessible name.
 		trash.setAttribute( 'aria-label', trashLabel );
 		trash.addEventListener( 'os-button-activate', () => this.confirmTrash() );
 		footer.appendChild( trash );
@@ -918,10 +898,9 @@ export class NoteController {
 	}
 
 	/**
-	 * Confirm, then soft-trash. Shared by the footer's trash button and
-	 * the keyboard move-mode Delete key — the drag-to-bin gesture skips
-	 * the dialog because the drop itself is the confirmation (and it
-	 * has the crumple + Undo toast to lean on).
+	 * Shared by the footer's trash button and move-mode's Delete key.
+	 * Drag-to-bin skips the dialog: the drop is the confirmation, and
+	 * it already has the crumple and an Undo toast.
 	 */
 	private confirmTrash(): void {
 		void osConfirm( {

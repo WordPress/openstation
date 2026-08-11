@@ -639,7 +639,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 |---|---|---|
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
 | `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
-| `new-note` | New note | Pins an empty paper note where the click landed and focuses its editor. Contributed by the pinned-notes layer via the filter below, not by the files layer. |
+| `new-note` | New note | Pins an empty paper note where the click landed. Contributed by the pinned-notes layer via the filter below. |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OpenStation Preferences | Opens the OpenStation Preferences window. |
@@ -652,40 +652,23 @@ JS — for runtime / closure-bearing items:
 wp.os.hooks.addFilter(
     'os.wallpaper-context-menu',
     'my-plugin/menu',
-    ( items ) => [
+    ( items, { x, y } ) => [
         ...items,
         {
             id: 'my-plugin/reminder',
             label: 'New reminder',
             icon: 'dashicons-format-aside',
             sort: 50,
-            onClick: () => myPlugin.createReminder(),
+            onClick: () => myPlugin.createReminderAt( x, y ),
         },
     ],
 );
 ```
 
-The filter's **second argument** is `{ x, y }`: where the user
-right-clicked, in viewport coordinates. Items that place something on
-the wallpaper need it — `onClick` is invoked with a synthetic
-`MouseEvent`, so reading coordinates off the event there yields
-`(0, 0)`. Capture the value in the filter and close over it:
-
-```js
-wp.os.hooks.addFilter(
-    'os.wallpaper-context-menu',
-    'my-plugin/menu',
-    ( items, { x, y } ) => [
-        ...items,
-        {
-            id: 'my-plugin/drop-here',
-            label: 'Drop here',
-            sort: 50,
-            onClick: () => myPlugin.placeAt( x, y ),
-        },
-    ],
-);
-```
+The second argument is the right-click position in viewport
+coordinates. Items that place something on the wallpaper need it:
+`onClick` receives a synthetic `MouseEvent` carrying no position, so
+close over `x` / `y` in the filter instead.
 
 PHP — for declarative items shipped with the plugin (no closures, since they don't serialize):
 

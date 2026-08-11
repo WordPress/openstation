@@ -1,9 +1,6 @@
 /**
- * The Recycle Bin badge keeps its count live off `os.<type>.changed`
- * broadcasts. `wpd_note` is one of the types the bin captures, so the
- * notes trash / restore paths have to publish one — without it the
- * server's count moved and the dock badge kept whatever it had at
- * boot.
+ * The Recycle Bin badge counts deltas off `os.<type>.changed`. Notes
+ * never published it, so the badge went stale on every trash.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { trashNoteWithUndo } from '../../src/notes/trash';
@@ -91,10 +88,7 @@ describe( 'notes bin broadcast', () => {
 	} );
 
 	test( 'the topic matches the slug the bin config ships', () => {
-		// `config.recycleBinPostTypes` carries `wpd_note` because the
-		// bin captures every non-builtin show_ui type; the badge
-		// subscribes to `os.<slug>.changed` for each. If this constant
-		// drifts from the CPT slug the badge silently stops updating.
+		// Drift here stops the badge updating, silently.
 		expect( NOTES_POST_TYPE ).toBe( 'wpd_note' );
 	} );
 } );

@@ -1,13 +1,6 @@
 /**
- * OpenStation — "New note" wallpaper context-menu entry.
- *
- * Right-click empty wallpaper → New note. The paper lands where the
- * click was, empty, with its editor focused — the Note Pad widget is
- * the composer, but it shouldn't be the only door to the wall.
- *
- * The filter's second argument carries the click position; the menu
- * synthesizes a bare `MouseEvent` for `onClick`, so reading
- * coordinates off the event there would give `(0, 0)`.
+ * OpenStation — "New note" wallpaper context-menu entry, so the wall
+ * has a door that isn't the Note Pad widget.
  */
 
 import { addFilter } from '../hooks';
@@ -31,8 +24,7 @@ export function installNotesWallpaperMenu( layer: NotesLayer ): void {
 			if ( items.some( ( item ) => item.id === MENU_ITEM_ID ) ) {
 				return items;
 			}
-			// Snapshot the coordinates now: `context` belongs to this
-			// menu opening, but `onClick` runs after it has closed.
+			// Snapshot now — `onClick` runs after this menu has closed.
 			const { x, y } = context ?? { x: 0, y: 0 };
 			return [
 				...items,

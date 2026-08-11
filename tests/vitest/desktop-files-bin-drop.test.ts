@@ -492,11 +492,8 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		).toBe( tile2 );
 	} );
 	test( 'every bin surface gets its own target, not just the first', async () => {
-		// The classic layout renders the bin BOTH as a wallpaper tile
-		// and as a dock system tile, at the same time. Resolving "the"
-		// bin to the first matching selector left the dock tile with no
-		// drop target at all, so dragging a note (or a file) onto the
-		// dock's Trash lit up nothing and did nothing on release.
+		// The classic layout shows the wallpaper tile and the dock tile
+		// at once; resolving to the first match left the dock dead.
 		const { binTargets } = await load();
 		const manager = new DragManager();
 		installManagerOnWindow( manager );
@@ -523,8 +520,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		expect( byId( 'recycle-bin-icon' ) ).toBe( legacyIcon );
 		expect( byId( 'recycle-bin-dock' ) ).toBe( dockTile );
 
-		// A surface that goes away drops its registration, and the
-		// others keep theirs.
+		// A surface that goes away drops only its own registration.
 		wallpaperTile.remove();
 		( window as unknown as { wp: { hooks: { doAction: ( h: string, ...a: unknown[] ) => void } } } )
 			.wp.hooks.doAction( HOOKS.DOCK_AFTER_RENDER, {} );

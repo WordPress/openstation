@@ -251,11 +251,8 @@ describe( 'NotesLayer', () => {
 	} );
 
 	test( 'empty notes still get distinct tilts', () => {
-		// The wallpaper-menu path always starts with empty text, and
-		// hashNoteSeed('') is a constant, so seeding from text alone
-		// would give every note from the primary creation path the same
-		// tilt and pin offset. A wall of parallel paper is exactly what
-		// the seed exists to prevent.
+		// `hashNoteSeed('')` is a constant and the wallpaper-menu path
+		// always starts empty, so every note from it would be parallel.
 		const layer = makeLayer();
 		const a = layer.createNoteAt( { x: 0.2, y: 0.3 } );
 		const b = layer.createNoteAt( { x: 0.6, y: 0.7 } );
@@ -263,8 +260,7 @@ describe( 'NotesLayer', () => {
 		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe(
 			b.element.style.getPropertyValue( '--dm-note-rot' ),
 		);
-		// Notes WITH text keep hashing from the text — the documented
-		// invariant the drop path relies on.
+		// Notes with text still hash from the text; the drop path relies on it.
 		const c = layer.createNoteAt( { x: 0.2, y: 0.3, text: 'buy milk' } );
 		expect( c.note.seed ).not.toBe( a.note.seed );
 	} );
@@ -276,8 +272,7 @@ describe( 'NotesLayer', () => {
 		const trash = controller.element.querySelector( '.os-pinned-note__trash' );
 		expect( trash ).not.toBeNull();
 		expect( trash?.getAttribute( 'aria-label' ) ).toBe( 'Move to Trash' );
-		// In the footer, clear of the pushpin's 56px band — the meta
-		// row can't take a fourth control without one landing under it.
+		// In the footer, clear of the pushpin's band.
 		expect( trash?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
 
 		// Viewers get no trash button; they can't mutate the note.

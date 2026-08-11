@@ -114,9 +114,8 @@ describe( 'wallpaper context menu', () => {
 	} );
 
 	test( 'the filter receives the right-click position', async () => {
-		// Items that place something on the wallpaper need the click
-		// coordinates; onClick runs against a synthetic MouseEvent, so
-		// this argument is the only place they can come from.
+		// onClick gets a synthetic MouseEvent, so this is the only
+		// place the coordinates can come from.
 		const { buildMenuItems } = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		const seen: unknown[] = [];

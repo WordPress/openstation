@@ -80,21 +80,13 @@ const TRASH_DROP_ACTIVE_ATTR = 'data-os-trash-drop-active';
 const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
 
 /**
- * Every surface that represents the recycle bin, each with the
- * drop-target id it registers under.
+ * Every surface representing the bin: the files layer's wallpaper
+ * tile, the legacy icon rail, the dock's system tile.
  *
- *   - `.os-file-tile[data-file-ref="…"]` — the unified files layer's
- *     wallpaper tile (current default).
- *   - `[data-icon-id="…"]` — legacy desktop-icons rail
- *     (`src/desktop-icons.ts`), still rendered when the files layer
- *     is absent.
- *   - `[data-system-id="…"]` — the dock's system tile.
- *
- * These are NOT alternatives to pick between. In the default classic
- * layout the wallpaper tile and the dock tile are both on screen at
- * once, so resolving "the" bin to the first match left the dock tile
- * with no drop target and dragging a note (or a file) onto the dock's
- * Trash silently did nothing. Register on all of them.
+ * NOT alternatives to pick between. The classic layout shows the
+ * wallpaper tile and the dock tile at once, so resolving "the" bin to
+ * the first match left the dock tile with no drop target — dropping
+ * on it did nothing at all.
  */
 const BIN_SURFACES = [
 	{ id: 'recycle-bin-tile', selector: `.os-file-tile[data-file-ref="${ RECYCLE_BIN_WINDOW_ID }"]` },
@@ -331,14 +323,11 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 			const live = el instanceof HTMLElement ? el : null;
 			const current = _tileRegistrations.get( id );
 			if ( ! live ) {
-				// Surface gone (legacy rail with no placement yet, dock
-				// hidden by layout) — drop the stale registration so the
-				// registry doesn't keep a detached element.
+				// Deregister so the registry doesn't hold a detached node.
 				current?.deregister();
 				_tileRegistrations.delete( id );
 				continue;
 			}
-			// Still the same element? Nothing to do.
 			if ( current && current.el === live ) {
 				continue;
 			}

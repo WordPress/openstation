@@ -80,8 +80,7 @@ export async function convertNoteToPost(
 	callbacks.onEvict( note.id );
 	try {
 		const result = await convertNote( note.id );
-		// Convert trashes the source note, so the bin gained an item
-		// just as it does on a plain trash.
+		// Convert trashes the source note, so the bin gained an item.
 		broadcastNotesChange( 'trashed', [ note.id ] );
 		const editorWindowId = openDraftEditor( result.editUrl );
 		getDesktopApi()?.showToast?.( {

@@ -69,9 +69,8 @@ function handleDraftDrop(
 		return;
 	}
 	const { x, y } = normalizedDropPosition( layer, session, ev );
-	// The optimistic create (temp id, thunk, adopt-the-server-copy)
-	// lives on the layer — the wallpaper context menu wants the exact
-	// same dance, minus the ghost-offset math above.
+	// Shared with the wallpaper context menu, which wants everything
+	// but the ghost-offset math above.
 	layer.createNoteAt( {
 		x,
 		y,
