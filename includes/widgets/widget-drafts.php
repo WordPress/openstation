@@ -318,10 +318,18 @@ function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 	// scorer uses. The SDK can throw as well as return a WP_Error, so both
 	// paths land on the same 502.
 	try {
-		$json = wp_ai_client_prompt( openstation_drafts_ai_prompt_text( $post ) )
+		$builder = wp_ai_client_prompt( openstation_drafts_ai_prompt_text( $post ) )
 			->using_system_instruction( openstation_drafts_ai_instructions( $post ) )
-			->as_json_response( openstation_ai_normalize_response_schema( openstation_drafts_ai_schema( $post ) ) )
-			->generate_text();
+			->as_json_response( openstation_ai_normalize_response_schema( openstation_drafts_ai_schema( $post ) ) );
+
+		$json = openstation_ai_apply_model_config(
+			$builder,
+			array(
+				'user_id'    => get_current_user_id(),
+				'source'     => 'widgets/drafts-suggestions',
+				'has_schema' => true,
+			)
+		)->generate_text();
 	} catch ( \Throwable $e ) {
 		$json = new WP_Error( 'openstation_ai_failed', $e->getMessage() );
 	}

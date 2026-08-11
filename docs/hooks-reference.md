@@ -1790,7 +1790,7 @@ apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 
 ### `openstation_ai_model_config` — Experimental
 
-Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, and the Agents runner.
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, and the Drafts widget's writing assistant.
 
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
@@ -1798,7 +1798,9 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 // $context = { user_id, request_id, source, has_tools, has_schema }
 ```
 
-`custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`.
+`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`.
+
+`custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
 
 **Defaults to empty.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific.
 

@@ -183,8 +183,10 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 		$model_config->setMaxTokens( (int) $config['max_tokens'] );
 	}
 
-	// Unlike max_tokens, 0.0 is a legitimate temperature (deterministic).
-	if ( isset( $config['temperature'] ) && is_numeric( $config['temperature'] ) && (float) $config['temperature'] >= 0.0 ) {
+	// Unlike max_tokens, 0.0 is a legitimate temperature (deterministic). The
+	// 2.0 ceiling is the range the SDK's own schema declares.
+	if ( isset( $config['temperature'] ) && is_numeric( $config['temperature'] )
+		&& (float) $config['temperature'] >= 0.0 && (float) $config['temperature'] <= 2.0 ) {
 		$model_config->setTemperature( (float) $config['temperature'] );
 	}
 
@@ -206,12 +208,14 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 
 	// After the config: `using_model()` merges the model's own defaults under
 	// whatever the builder already carries, so ours has to land first.
-	if ( isset( $config['model'] ) ) {
-		// `using_model()` needs a ModelInterface; a bare model id has to go
-		// through `using_model_preference()`.
-		$builder = $config['model'] instanceof ModelInterface
-			? $builder->using_model( $config['model'] )
-			: $builder->using_model_preference( $config['model'] );
+	$model = isset( $config['model'] ) ? $config['model'] : null;
+	if ( $model instanceof ModelInterface ) {
+		$builder = $builder->using_model( $model );
+	} elseif ( is_string( $model ) && '' !== trim( $model ) ) {
+		// `using_model()` needs a ModelInterface, so a bare model id goes
+		// through `using_model_preference()`, which throws on anything that
+		// isn't a non-empty string.
+		$builder = $builder->using_model_preference( trim( $model ) );
 	}
 
 	return $builder;
@@ -243,8 +247,8 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 		$builder = $builder->using_system_instruction( $instructions );
 	}
 
-	// Provider + model selection is delegated entirely to the Core AI Client
-	// (Connector-backed); OpenStation pins neither.
+	// Provider + model selection is delegated to the Core AI Client
+	// (Connector-backed) unless the model-config filter says otherwise.
 
 	$declarations = openstation_ai_build_function_declarations( $tool_defs );
 	if ( ! empty( $declarations ) ) {

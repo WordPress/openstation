@@ -118,16 +118,17 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 	 */
 	public function data_unusable_config() {
 		return array(
-			'zero ceiling'           => array( array( 'max_tokens' => 0 ) ),
-			'negative ceiling'       => array( array( 'max_tokens' => -1 ) ),
-			'non-numeric ceiling'    => array( array( 'max_tokens' => 'lots' ) ),
-			'negative temperature'   => array( array( 'temperature' => -1 ) ),
+			'zero ceiling'            => array( array( 'max_tokens' => 0 ) ),
+			'negative ceiling'        => array( array( 'max_tokens' => -1 ) ),
+			'non-numeric ceiling'     => array( array( 'max_tokens' => 'lots' ) ),
+			'negative temperature'    => array( array( 'temperature' => -1 ) ),
+			'over-max temperature'    => array( array( 'temperature' => 47 ) ),
 			'non-numeric temperature' => array( array( 'temperature' => 'hot' ) ),
-			'empty options'          => array( array( 'custom_options' => array() ) ),
-			'non-array options'      => array( array( 'custom_options' => 'thinking' ) ),
+			'empty options'           => array( array( 'custom_options' => array() ) ),
+			'non-array options'       => array( array( 'custom_options' => 'thinking' ) ),
 			// Provider parameters belong under `custom_options`; a top-level
 			// key is a typo that would otherwise fail silently at the provider.
-			'top-level provider key' => array( array( 'thinking' => array( 'type' => 'adaptive' ) ) ),
+			'top-level provider key'  => array( array( 'thinking' => array( 'type' => 'adaptive' ) ) ),
 		);
 	}
 
@@ -173,6 +174,40 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		openstation_ai_apply_model_config( $builder, array() );
 
 		$this->assertSame( array( 'claude-sonnet-5' ), $builder->preference );
+	}
+
+	/**
+	 * `using_model_preference()` throws on anything that isn't a non-empty
+	 * string, so an unusable model has to be dropped like every other key
+	 * rather than failing the whole turn.
+	 *
+	 * @dataProvider data_unusable_model
+	 * @covers ::openstation_ai_apply_model_config
+	 *
+	 * @param mixed $model Filter-supplied model.
+	 */
+	public function test_unusable_model_is_ignored( $model ) {
+		$this->filter_returns( array( 'model' => $model ) );
+		$builder = $this->builder();
+
+		openstation_ai_apply_model_config( $builder, array() );
+
+		$this->assertNull( $builder->preference );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public function data_unusable_model() {
+		return array(
+			'empty string'    => array( '' ),
+			'whitespace only' => array( "  \t " ),
+			'integer'         => array( 0 ),
+			'null'            => array( null ),
+			// usingModelPreference() accepts [provider, model] tuples, but we
+			// deliberately don't: the documented surface is id or instance.
+			'tuple'           => array( array( 'anthropic', 'claude-sonnet-5' ) ),
+		);
 	}
 
 	/**
@@ -261,5 +296,87 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 			),
 			$seen
 		);
+	}
+
+	/**
+	 * Captures the context of the next turn any call site generates.
+	 *
+	 * @return object
+	 */
+	private function capture_source() {
+		$capture = new stdClass();
+		$capture->source = null;
+
+		add_filter(
+			'openstation_ai_model_config',
+			static function ( $config, $context ) use ( $capture ) {
+				$capture->source = $context['source'];
+				return $config;
+			},
+			10,
+			2
+		);
+
+		return $capture;
+	}
+
+	/**
+	 * The `source` strings are the documented contract, so drive each entry
+	 * point for real rather than asserting them at the helper. Generation
+	 * fails afterwards (no provider is configured in tests) and that is fine:
+	 * the filter runs first.
+	 *
+	 * @covers ::openstation_ai_client_generate
+	 */
+	public function test_client_generate_forwards_the_callers_source() {
+		$capture = $this->capture_source();
+
+		openstation_ai_client_generate(
+			1,
+			array( openstation_ai_user_text_message( 'hello' ) ),
+			array(),
+			null,
+			'',
+			array( 'source' => 'agents/runner' )
+		);
+
+		$this->assertSame( 'agents/runner', $capture->source );
+	}
+
+	/**
+	 * @covers ::openstation_ai_run_followup
+	 */
+	public function test_followup_reports_its_source() {
+		$capture = $this->capture_source();
+
+		openstation_ai_run_followup( 'turn on the light', array( 'slug' => 'noop' ), array( 'ok' => true ) );
+
+		$this->assertSame( 'ai-copilot/followup', $capture->source );
+	}
+
+	/**
+	 * @covers ::openstation_ai_analyze_comment_now
+	 */
+	public function test_comment_analysis_reports_its_source() {
+		$capture    = $this->capture_source();
+		$comment_id = self::factory()->comment->create( array( 'comment_content' => 'Nice post!' ) );
+
+		openstation_ai_analyze_comment_now( get_comment( $comment_id ), 1 );
+
+		$this->assertSame( 'ai-copilot/comment-analysis', $capture->source );
+	}
+
+	/**
+	 * @covers ::openstation_rest_draft_suggestions
+	 */
+	public function test_draft_suggestions_report_their_source() {
+		$capture = $this->capture_source();
+		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/draft-suggestions' );
+		$request->set_param( 'post_id', $post_id );
+		openstation_rest_draft_suggestions( $request );
+
+		$this->assertSame( 'widgets/drafts-suggestions', $capture->source );
 	}
 }

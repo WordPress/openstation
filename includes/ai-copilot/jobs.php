@@ -101,7 +101,8 @@ function openstation_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
 	if ( '' !== $system ) {
 		$builder = $builder->using_system_instruction( $system );
 	}
-	// Provider + model are chosen by the Core AI Client; OpenStation pins neither.
+	// Provider + model are chosen by the Core AI Client unless the
+	// model-config filter says otherwise.
 
 	$builder = $builder->as_json_response( openstation_ai_normalize_response_schema( $schema ) );
 	$builder = openstation_ai_apply_model_config(
