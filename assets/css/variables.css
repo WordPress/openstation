@@ -235,14 +235,19 @@ body.os-active {
 	/*
 	 * ---- Title bar ---------------------------------------------
 	 *
-	 * Astro when focused, Obsidian when not: the focused window's
-	 * chrome lifts one step up the Shade ramp while its unfocused
-	 * neighbours sit flush with their own bodies. That is the entire
-	 * focus signal, and it costs no colour — which matters, because
-	 * the accent is spoken for.
+	 * Obsidian when focused, Void when not: the focused window's
+	 * chrome sits one step up the Shade ramp while its unfocused
+	 * neighbours sink toward the desk they are lying on. That is the
+	 * entire focus signal, and it costs no colour — which matters,
+	 * because the accent is spoken for.
+	 *
+	 * The pair used to be Astro-over-Obsidian, a step higher. It came
+	 * down so a focused window's title bar and its tab strip are the
+	 * SAME Obsidian, and the only thing lifting out of that surface is
+	 * the tab itself. The step is the same size; the whole ramp moved.
 	 */
-	--os-titlebar-bg: #1a1721;
-	--os-titlebar-bg-focused: #33303a;
+	--os-titlebar-bg: #0c0b0f;
+	--os-titlebar-bg-focused: #1a1721;
 	--os-titlebar-color: #99969c;
 	--os-titlebar-color-focused: #fffbff;
 	--os-titlebar-height: 40px;
@@ -1175,8 +1180,63 @@ body.os-active {
 	--os-my-wordpress-fg: #fffbff;
 	--os-my-wordpress-surface: rgba(255, 251, 255, 0.06);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
-	--os-tabs-bg: #33303a;
+	/*
+	 * ---- Window tab strip ---------------------------------------
+	 *
+	 * A window with sub-pages reads as three surfaces stacked in
+	 * depth, and the values below are that ramp: Astro on the focused
+	 * title bar, VOID for the track the tabs sit in, then the page
+	 * itself. The track is the darkest of the three on purpose — it
+	 * has to stay a distinct band under BOTH title-bar states, and
+	 * Obsidian would collapse into the unfocused bar (also Obsidian)
+	 * exactly when a window has the least going on to distinguish it.
+	 *
+	 * The active tab is not a colour, it is the page arriving early.
+	 * `chromeless.css` paints every admin page inside a window `#fff`
+	 * whatever the admin colour scheme says, so the tab can name that
+	 * white and the joint between the two is seamless. Retinting the
+	 * tab means retinting the page it belongs to, and these two move
+	 * together or the seam comes back.
+	 *
+	 * `-color-muted` is the second tone anything nested in an active
+	 * tab needs — the external tab's detach and close chips. It is
+	 * the only reason a "muted on light" value exists this far down a
+	 * dark palette.
+	 */
+	--os-tabs-bg: #1a1721;
 	--os-tabs-color: #b3afb5;
+	--os-tabs-active-bg: #fff;
+	--os-tabs-active-color: #0c0b0f;
+	--os-tabs-active-color-muted: rgba(12, 11, 15, 0.6);
+	/*
+	 * The plate's own body. Translucent at the crown, where the track
+	 * behind it is what you are seeing through the blur, and fully
+	 * opaque page-white by 74%.
+	 *
+	 * The last stop MUST be an opaque `#ffffff` and it must land above
+	 * the joint, which is the bottom `--os-tabs-radius` of the plate.
+	 * The joint is painted in flat `--os-tabs-active-bg`, so a body
+	 * that is still even slightly tinted where the two meet draws a
+	 * hairline across the exact edge this whole design exists to
+	 * erase. If you retune these stops, check the bottom edge first.
+	 */
+	--os-tabs-active-frost: linear-gradient(
+		180deg,
+		rgba(255, 251, 255, 0.8) 0%,
+		rgba(255, 253, 255, 0.95) 42%,
+		#ffffff 74%
+	);
+	--os-tabs-active-blur: blur(20px) saturate(1.6);
+	--os-tabs-active-specular: rgba(255, 255, 255, 0.95);
+	/*
+	 * The crown. Holomesh, masked away before the joint for the same
+	 * reason. It is on exactly ONE tab at a time — that is what keeps
+	 * the mesh an identity moment instead of wallpaper, and it is the
+	 * rule the rest of the kit follows. Set it to `none` to get the
+	 * plain frosted plate back.
+	 */
+	--os-tabs-active-crown: var(--os-mesh-holo);
+	--os-tabs-active-crown-opacity: 0.5;
 	--os-media-tile-bg: rgba(255, 251, 255, 0.05);
 	--os-media-visual-bg: rgba(255, 251, 255, 0.04);
 	--os-skeleton-low: rgba(255, 251, 255, 0.05);

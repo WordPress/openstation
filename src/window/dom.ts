@@ -598,25 +598,19 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'os-window__custom-buttons os-window__custom-buttons--right';
 
-	// Per-window activity indicator — sits between the icon and the
-	// title so it reads as "this window is doing something" without
-	// stealing the icon's role as window identity. Reserves a fixed
-	// width even when idle so its appearance/disappearance never
-	// causes layout shift on the title row. Wired up in
-	// `Window.markActivity()` / `Window.trackActivity()`; populated
-	// automatically by `wp.os.fetch()`.
-	const activityHost = document.createElement( 'span' );
-	activityHost.className = 'os-window__activity';
-	const activityStatus = document.createElement( 'os-save-status' );
-	activityStatus.setAttribute( 'mode', 'dot' );
-	activityStatus.setAttribute( 'animation', 'modem' );
-	activityStatus.setAttribute( 'phase', 'idle' );
-	activityStatus.setAttribute( 'data-os-activity-indicator', '' );
-	activityHost.appendChild( activityStatus );
-
+	// No activity indicator is painted here. The title bar used to
+	// carry an always-visible `<os-save-status>` dot between the icon
+	// and the title, which meant every window wore a small accent ring
+	// for the whole of its life to report a state — idle — that is
+	// true almost all of the time. The activity machinery itself is
+	// untouched: `Window.trackActivity()` / `Window.markActivity()`
+	// still reference-count and still phase, and
+	// `Window._paintActivityIndicator()` still paints onto any
+	// `[data-os-activity-indicator]` element found in the title bar.
+	// A plugin that wants the dot back drops an `<os-save-status>`
+	// carrying that attribute into a title-bar slot.
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
-	titleBar.appendChild( activityHost );
 	titleBar.appendChild( slotTitle );
 	titleBar.appendChild( slotAfterTitle );
 	titleBar.appendChild( customLeft );
@@ -763,6 +757,27 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		const tabs = document.createElement( 'nav' );
 		tabs.className = 'os-window__tabs';
 		tabs.setAttribute( 'role', 'tablist' );
+
+		// The plate — the active tab's surface, as one element that
+		// slides between tabs rather than a fill that switches off on
+		// one and on at the next. Appended FIRST so it paints under
+		// the tab buttons, which carry `z-index: 1`; a plate above
+		// them would hide the active label.
+		//
+		// `positionTabPlate()` in `tabs.ts` drives its geometry, and
+		// `observeTabOverflow()` is what calls that — the strip's
+		// existing observer already fires on every moment the plate
+		// would need re-measuring.
+		const plate = document.createElement( 'span' );
+		plate.className = 'os-window__tab-plate';
+		plate.setAttribute( 'aria-hidden', 'true' );
+		const plateFill = document.createElement( 'span' );
+		plateFill.className = 'os-window__tab-plate-fill';
+		const plateJoint = document.createElement( 'span' );
+		plateJoint.className = 'os-window__tab-plate-joint';
+		plate.appendChild( plateFill );
+		plate.appendChild( plateJoint );
+		tabs.appendChild( plate );
 		// translators: %s is the window's admin-page title (e.g., "Posts")
 		tabs.setAttribute( 'aria-label', sprintf( __( '%s sub-pages' ), config.title ) );
 

@@ -141,18 +141,19 @@ export class Window {
 
 	/**
 	 * In-flight async operation count. `markActivityStart()` /
-	 * `markActivitySettled()` increment / decrement; the title-bar
-	 * indicator paints `pending` while > 0. Counter (not boolean) so
-	 * concurrent fetches don't fight: two-in-flight + one-settled
-	 * still reads "saving".
+	 * `markActivitySettled()` increment / decrement; the phase reads
+	 * `pending` while > 0. Counter (not boolean) so concurrent fetches
+	 * don't fight: two-in-flight + one-settled still reads "saving".
 	 *
 	 * @internal
 	 */
 	public _activityCount = 0;
 
 	/**
-	 * Phase of the title-bar activity indicator. Driven by
-	 * `markActivity()` / `trackActivity()` / `wp.os.fetch()`.
+	 * This window's activity phase. Driven by `markActivity()` /
+	 * `trackActivity()` / `wp.os.fetch()`. Nothing renders it unless
+	 * an indicator has been mounted — see
+	 * {@link _paintActivityIndicator}.
 	 *
 	 * @internal
 	 */
@@ -2842,7 +2843,16 @@ export class Window {
 	}
 
 	/**
-	 * Push the current activity state onto the title-bar dot.
+	 * Push the current activity state onto an activity indicator, if
+	 * this window has one.
+	 *
+	 * The framework mounts none by default — the title bar carried an
+	 * always-visible dot once, and an always-visible dot spends a
+	 * permanent mark on a state (`idle`) that is almost always true.
+	 * Anything that wants the dot back puts an `<os-save-status>`
+	 * carrying `data-os-activity-indicator` in a title-bar slot; this
+	 * finds it by that attribute and drives it. With nothing mounted
+	 * the phase machinery still runs and this is a cheap no-op.
 	 *
 	 * @internal
 	 */

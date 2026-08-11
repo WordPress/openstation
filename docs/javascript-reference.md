@@ -17,7 +17,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 
 | API | Use it for | Status |
 |---|---|---|
-| [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
+| [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's activity phase + the activity bus pick the request up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
 | `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
@@ -1154,7 +1154,9 @@ Powers the dock-peek "+" button for native windows so they behave like iframe wi
 
 ### `wp.os.fetch( input, init?, opts? )` — Stable
 
-Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+Drop-in wrapper around the global `fetch()` that drives the target window's **activity phase** while the request is in flight, and attributes the request on the activity bus. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+
+> **The framework no longer paints an activity dot of its own.** The title bar used to carry an always-visible `<os-save-status>` between the icon and the title, which meant every window wore a small accent ring for its whole life to report a state — idle — that is true almost all of the time. The phase machinery below is unchanged and still runs; what changed is that nothing renders it unless you ask. To get the dot back on your own windows, put an `<os-save-status data-os-activity-indicator>` inside a `<span class="os-window__activity">` in a title-bar slot — `Window._paintActivityIndicator()` finds it by that attribute and drives its `phase` and `error` for you.
 
 ```js
 // In any window's render callback / event handler:
@@ -1165,7 +1167,7 @@ const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', {
 } );
 ```
 
-That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green when the request completes (any HTTP status — native `fetch` semantics, so a `404`/`500` response still flashes green) and red when the fetch rejects (network error, CORS, abort — with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the request completes (any HTTP status — native `fetch` semantics, so a `404`/`500` response still settles `saved`) and `failed` when the fetch rejects (network error, CORS, abort — with the `Error.message` carried as the phase's error), then back to `idle`. **No CSS, no per-window plumbing, no DOM.** An indicator mounted in a title-bar slot renders those phases as a blink, a green flash, a red dot with a tooltip.
 
 #### Auto X-WP-Nonce
 
@@ -1188,25 +1190,25 @@ Rules:
 | `init` | `RequestInit?` | Same as native `fetch`. |
 | `opts` | `{ windowId?: string; window?: Window; silent?: boolean }?` | Attribution + opt-out. |
 
-`opts` is the only addition. Resolution order for "which window's title bar pulses":
+`opts` is the only addition. Resolution order for "which window's activity phase moves":
 
 1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
 2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `openstation_register_window( '…' )`).
 3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
 
-`opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
+`opts.silent: true` skips the phase entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't read as user-initiated activity every tick. The fetch is otherwise identical.
 
 #### Why it works
 
-Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch shows a visible modem-blink before flashing green — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error becomes the tooltip) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
+Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch holds `saving` long enough for an indicator to be seen — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error is the one carried) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
 
 #### Migration tip
 
-You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't show a title-bar pulse. Adopt `wp.os.fetch` per call where the indicator is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
+You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't move the window's phase or reach the activity bus. Adopt `wp.os.fetch` per call where that attribution is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
 
 #### Source
 
-`src/desktop.ts` `trackedFetch`. The component the dot is rendered with is `<os-save-status>` — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
+`src/desktop.ts` `trackedFetch`. The component built to render these phases is `<os-save-status>` — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
 
 See also [`examples/window-activity.md`](./examples/window-activity.md) for end-to-end recipes.
 
@@ -1221,16 +1223,16 @@ const win = wp.os.windowManager.getById( 'my-plugin/inbox' );
 await win.trackActivity( indexedDbWrite( record ) );
 ```
 
-Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write shows a visible modem blink.
+Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write holds `saving` long enough to be seen.
 
 ### `Window.markActivity( phase, opts? )` — Experimental
 
 Manual escape hatch when the activity isn't a single Promise. Phases:
 
-- `'idle'`    — clear. Indicator resets to the always-on green ring.
-- `'pending'` / `'saving'` — modem-blink with a soft glow. Stays in this phase until you transition out.
-- `'saved'`   — brief green flash. Auto-clears to `idle` after ~2.2s.
-- `'failed'`  — red dot. `opts.error` becomes the host's `title` attribute (and so the native browser tooltip on hover). Auto-clears after ~6s.
+- `'idle'`    — clear. An `<os-save-status>` mounted on this window shows nothing.
+- `'pending'` / `'saving'` — work in flight. Stays in this phase until you transition out; an indicator renders it as a modem-blink with a soft glow.
+- `'saved'`   — settled ok. Auto-clears to `idle` after ~2.2s; an indicator flashes green.
+- `'failed'`  — settled with an error. `opts.error` becomes the indicator's `error` attribute, and so its `title` tooltip. Auto-clears after ~6s.
 
 ```js
 win.markActivity( 'saving' );
@@ -3456,7 +3458,7 @@ wp.os.updateOsSettings(
 - **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
-- **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OpenStation Preferences window).
+- **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).
 
 The read-side companions are also top-level members: `wp.os.getOsSettings()` returns a defensive copy of the current snapshot and `wp.os.subscribeOsSettings( cb )` returns an unsubscribe function — both mirror the settings-tab `ctx.getOsSettings` / `ctx.subscribeOsSettings` API documented under [`registerSettingsTab`](#registersettingstab-def---stable), usable from any feature plugin without registering a tab.
 

@@ -592,8 +592,60 @@ export function updateTabOverflow(
 }
 
 /**
- * Keep {@link updateTabOverflow} in step with everything that can
- * change the answer, and hand back a teardown.
+ * Move the plate — the active tab's surface — onto the active tab.
+ *
+ * The plate is one element that travels rather than a fill that
+ * switches off on one tab and on at the next, so this is the only
+ * thing that has to know where the active tab IS. It publishes two
+ * custom properties and lets CSS animate them.
+ *
+ * Two things are load-bearing:
+ *
+ * 1. **`offsetLeft`, not `getBoundingClientRect()`.** The plate is an
+ *    absolutely-positioned child of the strip, which is itself the
+ *    scroll container — so it scrolls WITH the tabs, and its geometry
+ *    has to be in the strip's own scrolled coordinate space. A
+ *    viewport-relative rect would drift by exactly `scrollLeft` the
+ *    moment a long strip is scrolled.
+ * 2. **`data-placed` gates the transition.** Without it the plate
+ *    animates in from the strip's left edge every time a window
+ *    opens, because the first measurement is a change from zero.
+ *
+ * With no active tab — `syncActiveTab` can land on a URL matching
+ * nothing, and foregrounding an external sub-tab deactivates every
+ * submenu tab — the plate keeps its last geometry and fades out, so
+ * re-activating does not read as it flying in from nowhere.
+ */
+export function positionTabPlate( strip: HTMLElement ): void {
+	const plate = strip.querySelector< HTMLElement >(
+		'.os-window__tab-plate',
+	);
+	if ( ! plate ) {
+		return;
+	}
+	const active = strip.querySelector< HTMLElement >(
+		'.os-window__tab--active',
+	);
+	if ( ! active ) {
+		plate.dataset.empty = '';
+		return;
+	}
+	delete plate.dataset.empty;
+	plate.style.setProperty( '--_tab-plate-x', `${ active.offsetLeft }px` );
+	plate.style.setProperty( '--_tab-plate-w', `${ active.offsetWidth }px` );
+	// Only now may it animate. A width of 0 means layout has not run
+	// yet (the first frame of a window being assembled), and placing
+	// the plate off that measurement would teach it a wrong origin to
+	// travel from.
+	if ( active.offsetWidth > 0 ) {
+		plate.dataset.placed = '';
+	}
+}
+
+/**
+ * Keep {@link updateTabOverflow} and {@link positionTabPlate} in step
+ * with everything that can change the answer, and hand back a
+ * teardown.
  *
  * Three sources, because a strip can start overflowing without the
  * user touching it: scrolling (the obvious one), the strip being
@@ -625,6 +677,7 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 				rtl = window.getComputedStyle( strip ).direction === 'rtl';
 			}
 			updateTabOverflow( strip, rtl );
+			positionTabPlate( strip );
 		} );
 	};
 
@@ -648,7 +701,29 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 		typeof MutationObserver === 'undefined'
 			? null
 			: new MutationObserver( scheduleWithDirection );
-	mutationObserver?.observe( strip, { childList: true, subtree: true } );
+	/*
+	 * `attributeFilter: [ 'class' ]` is doing two jobs.
+	 *
+	 * It is how the plate follows the active tab at all: four separate
+	 * places toggle `os-window__tab--active` (`syncActiveTab`,
+	 * `switchToTab`, the initial paint in `dom.ts`, and external-tab
+	 * creation), and watching the class means none of them has to know
+	 * the plate exists — it cannot fall out of step with them.
+	 *
+	 * It is ALSO what stops this from looping forever. The observer
+	 * watches the whole subtree, `positionTabPlate` writes inline
+	 * styles and `data-*` onto an element inside that subtree, and an
+	 * unfiltered attribute observer would see its own writes and
+	 * reschedule itself on every animation frame for the life of the
+	 * window. Filtering to `class` puts those writes out of scope.
+	 * Anything added here later must respect that.
+	 */
+	mutationObserver?.observe( strip, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: [ 'class' ],
+	} );
 
 	schedule();
 
