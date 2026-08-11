@@ -420,14 +420,16 @@
 	opacity: 0.6;
 }
 
-/* "Move to Trash" — same treatment as the other two actions. */
+/* "Move to Trash" — same treatment as the other two actions. It does
+   NOT redden on hover: the other two only brighten, and one action
+   changing hue made the row look inconsistent. The confirm dialog it
+   opens is the danger cue. */
 .os-pinned-note__trash {
 	--os-ui-btn-color: var(--dm-note-ink-soft);
 	opacity: 0.75;
 }
 
 .os-pinned-note__trash:hover {
-	--os-ui-btn-color: #b32d2e;
 	opacity: 1;
 }
 
@@ -435,10 +437,6 @@
 	width: 20px;
 	height: 20px;
 	fill: var(--dm-note-ink, #4d4419);
-}
-
-.os-pinned-note__trash:hover svg {
-	fill: #b32d2e;
 }
 
 /* Author sticker on read-only public notes — always visible. */
