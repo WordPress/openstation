@@ -665,6 +665,8 @@
 	--_tab-radius: var( --os-tabs-radius, 8px );
 	/* Tab height, shared with the plate that has to sit exactly on it. */
 	--_tab-h: 30px;
+	/* Weight of the rail that traces the silhouette. */
+	--_tab-stroke: var( --os-tabs-rail-width, 2px );
 	position: relative;
 	display: flex;
 	/* Tabs sit ON the floor of the track, not centred in it. */
@@ -758,18 +760,35 @@
  */
 .os-window__tab-plate-fill {
 	position: absolute;
-	inset: 0;
+	/*
+	 * Overshoots the track's floor by one radius, and is then clipped
+	 * by the strip's own `overflow`. Ending the face exactly ON the
+	 * floor puts a paint boundary on the one edge that has to be
+	 * invisible; pushing it past and cutting it means there is no edge
+	 * there to resolve at all.
+	 */
+	inset: 0 0 calc( var( --_tab-radius ) * -1 ) 0;
 	overflow: hidden;
 	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
-	background:
-		var( --os-tabs-active-frost, var( --os-tabs-active-bg, #fff ) );
-	backdrop-filter: var( --os-tabs-active-blur, none );
-	-webkit-backdrop-filter: var( --os-tabs-active-blur, none );
 	/*
-	 * Top specular only. A full inset ring draws its line across the
-	 * bottom edge too, which is the same seam by another route.
+	 * OPAQUE, and deliberately so — no `backdrop-filter`, no alpha.
+	 *
+	 * A translucent element with a backdrop filter is promoted to its
+	 * own compositor layer, and the edge of that layer is a clip the
+	 * compositor resolves against whatever is behind it. That leaves a
+	 * faint grey hairline down the plate's sides and across its
+	 * bottom. Everywhere else that would be a nuisance; here it draws
+	 * a second, dimmer line a few pixels inside the real one and flatly
+	 * contradicts what this design is claiming. The gradient below
+	 * reproduces the frosted crown by eye with no alpha at all.
+	 *
+	 * `background-size` pins the gradient to the tab's true height so
+	 * the overshoot underneath stays flat page-white.
 	 */
-	box-shadow: inset 0 1px 0 var( --os-tabs-active-specular, transparent );
+	background-color: var( --os-tabs-active-bg, #fff );
+	background-image: var( --os-tabs-active-frost, none );
+	background-size: 100% var( --_tab-h );
+	background-repeat: no-repeat;
 }
 
 /*
@@ -838,6 +857,191 @@
 		) right bottom / var( --_tab-radius ) var( --_tab-radius ) no-repeat;
 }
 
+/* ---------------------------------------------------------------
+ * The rail — one continuous line around the whole silhouette.
+ *
+ * It runs the top edge of the page, curves up through the fillet,
+ * traces the tab and comes back down. What it outlines is therefore
+ * page-plus-tab as ONE shape, which is the same claim the joint makes
+ * by omission, said out loud.
+ *
+ * Two rules govern every number below.
+ *
+ * 1. **The line lives on the DARK side of the boundary, everywhere.**
+ *    It hugs the white shape from outside and never paints on it. Get
+ *    this wrong on any one segment and the line steps sideways by its
+ *    own width at the tangent point where that segment meets the next
+ *    — which is exactly what a stroke that does not follow the shape
+ *    looks like. The convex tab corners are therefore annulus R→R+s
+ *    (outside the plate) while the concave fillets are R−s→R (inside
+ *    the fillet circle, whose white lies OUTSIDE it). Those look like
+ *    opposite conventions and are the same one.
+ *
+ * 2. **Every piece samples one mesh laid across the whole strip.**
+ *    `--_tab-strip-w` is why. Give the rail and the ring their own
+ *    backgrounds and you get two unrelated gradients meeting at a
+ *    visible join in the middle of the fillet.
+ *
+ * CSS cannot stroke a path, so the mesh is painted as a background and
+ * a mask cuts it to the outline. Seven layers, one per segment, all
+ * positioned off the box edges so the whole thing survives the plate
+ * changing width mid-slide with no JS.
+ * --------------------------------------------------------------- */
+.os-window__tabs::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: var( --_tab-stroke );
+	background-image: var( --os-tabs-rail, none );
+	background-size: var( --_tab-strip-w, 100% ) 100%;
+	background-repeat: no-repeat;
+	pointer-events: none;
+	/*
+	 * Two segments, stopping where each fillet begins. Run the rail
+	 * straight through and it draws a chord across the concave curve.
+	 */
+	-webkit-mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
+	mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
+	-webkit-mask-size:
+		calc( var( --_tab-plate-x, 0px ) - var( --_tab-radius ) ) 100%,
+		calc(
+			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
+				var( --_tab-radius )
+		) 100%;
+	mask-size:
+		calc( var( --_tab-plate-x, 0px ) - var( --_tab-radius ) ) 100%,
+		calc(
+			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
+				var( --_tab-radius )
+		) 100%;
+	-webkit-mask-position: left top, right top;
+	mask-position: left top, right top;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	transition:
+		-webkit-mask-size var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		mask-size var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
+}
+
+/* With no active tab there is no gap to leave, so the rail is whole. */
+.os-window__tabs[ data-tab-plate-empty ]::before {
+	-webkit-mask-image: none;
+	mask-image: none;
+}
+
+/*
+ * The tab's half of the line. The box is the plate grown by one
+ * stroke upward and by radius-plus-stroke on each side, so the top
+ * edge, both corners and both fillet arcs all have room to sit
+ * OUTSIDE the white.
+ */
+.os-window__tab-plate::after {
+	--_ring-arc-out: radial-gradient(
+		circle at 0 0,
+		transparent calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 var( --_tab-radius ),
+		transparent var( --_tab-radius )
+	);
+	--_ring-arc-out-r: radial-gradient(
+		circle at 100% 0,
+		transparent calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 var( --_tab-radius ),
+		transparent var( --_tab-radius )
+	);
+	--_ring-corner-l: radial-gradient(
+		circle at 100% 100%,
+		transparent var( --_tab-radius ),
+		#000 var( --_tab-radius ),
+		#000 calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		transparent calc( var( --_tab-radius ) + var( --_tab-stroke ) )
+	);
+	--_ring-corner-r: radial-gradient(
+		circle at 0 100%,
+		transparent var( --_tab-radius ),
+		#000 var( --_tab-radius ),
+		#000 calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		transparent calc( var( --_tab-radius ) + var( --_tab-stroke ) )
+	);
+	--_ring-bar: linear-gradient( #000 0 0 );
+
+	content: '';
+	position: absolute;
+	inset:
+		calc( var( --_tab-stroke ) * -1 )
+		calc( ( var( --_tab-radius ) + var( --_tab-stroke ) ) * -1 )
+		0;
+	background-image: var( --os-tabs-rail, none );
+	background-size: var( --_tab-strip-w, 100% ) 100%;
+	background-position:
+		calc(
+			var( --_tab-radius ) + var( --_tab-stroke ) -
+				var( --_tab-plate-x, 0px )
+		)
+		0;
+	background-repeat: no-repeat;
+	pointer-events: none;
+
+	-webkit-mask-image:
+		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
+		var( --_ring-bar ), var( --_ring-bar ),
+		var( --_ring-arc-out ), var( --_ring-arc-out-r );
+	mask-image:
+		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
+		var( --_ring-bar ), var( --_ring-bar ),
+		var( --_ring-arc-out ), var( --_ring-arc-out-r );
+	-webkit-mask-size:
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) ) var( --_tab-stroke ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-radius ) var( --_tab-radius ),
+		var( --_tab-radius ) var( --_tab-radius );
+	mask-size:
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) ) var( --_tab-stroke ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) ),
+		var( --_tab-radius ) var( --_tab-radius ),
+		var( --_tab-radius ) var( --_tab-radius );
+	/*
+	 * Four-value syntax throughout, and it is load-bearing. A
+	 * percentage in `mask-position` resolves against the container
+	 * MINUS the layer's own size, so `calc(100% - 8px)` does not mean
+	 * "8px from the right edge" — it means "right-aligned, then pushed
+	 * left by 8px PLUS the layer's width". Every right-hand segment
+	 * lands a radius too far left that way. `right <offset>` is
+	 * measured from the edge and does not care how wide the layer is.
+	 */
+	-webkit-mask-position:
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) ) top 0,
+		left var( --_tab-radius ) top 0,
+		right var( --_tab-radius ) top 0,
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		left var( --_tab-stroke ) bottom 0,
+		right var( --_tab-stroke ) bottom 0;
+	mask-position:
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) ) top 0,
+		left var( --_tab-radius ) top 0,
+		right var( --_tab-radius ) top 0,
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		left var( --_tab-stroke ) bottom 0,
+		right var( --_tab-stroke ) bottom 0;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+
+	/* Travels with the plate, so the mesh stays locked to the strip
+	 * for the whole slide instead of snapping on the first frame. */
+	transition: background-position var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
+}
+
 /*
  * No active tab to sit under — `syncActiveTab` can land on a URL that
  * matches nothing, and an external sub-tab deactivates every submenu
@@ -849,7 +1053,9 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.os-window__tab-plate {
+	.os-window__tab-plate,
+	.os-window__tab-plate::after,
+	.os-window__tabs::before {
 		transition-duration: 1ms;
 	}
 	.os-window__tab-plate-fill::before {

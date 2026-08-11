@@ -1209,25 +1209,28 @@ body.os-active {
 	--os-tabs-active-color: #0c0b0f;
 	--os-tabs-active-color-muted: rgba(12, 11, 15, 0.6);
 	/*
-	 * The plate's own body. Translucent at the crown, where the track
-	 * behind it is what you are seeing through the blur, and fully
-	 * opaque page-white by 74%.
+	 * The plate's own body: a frosted crown resolving to flat page
+	 * white well before the joint.
 	 *
-	 * The last stop MUST be an opaque `#ffffff` and it must land above
-	 * the joint, which is the bottom `--os-tabs-radius` of the plate.
-	 * The joint is painted in flat `--os-tabs-active-bg`, so a body
-	 * that is still even slightly tinted where the two meet draws a
-	 * hairline across the exact edge this whole design exists to
-	 * erase. If you retune these stops, check the bottom edge first.
+	 * Every stop is OPAQUE, and that is a requirement rather than a
+	 * preference. The face used to be translucent over a
+	 * `backdrop-filter`, which promotes it to its own compositor layer
+	 * and leaves a faint grey hairline where that layer is clipped —
+	 * down the plate's sides and across its bottom, which is precisely
+	 * where this design has a bright rail and needs everything else to
+	 * be invisible.
+	 *
+	 * The last stop must also land above the joint (the bottom
+	 * `--os-tabs-radius` of the plate), because the joint is painted
+	 * in flat `--os-tabs-active-bg` and a body still tinted where the
+	 * two meet draws a seam of its own. If you retune these stops,
+	 * check the bottom edge first.
 	 */
 	--os-tabs-active-frost: linear-gradient(
 		180deg,
-		rgba(255, 251, 255, 0.8) 0%,
-		rgba(255, 253, 255, 0.95) 42%,
-		#ffffff 74%
+		#f4eff9 0%,
+		#ffffff 58%
 	);
-	--os-tabs-active-blur: blur(20px) saturate(1.6);
-	--os-tabs-active-specular: rgba(255, 255, 255, 0.95);
 	/*
 	 * The crown. Holomesh, masked away before the joint for the same
 	 * reason. It is on exactly ONE tab at a time — that is what keeps
@@ -1236,7 +1239,19 @@ body.os-active {
 	 * plain frosted plate back.
 	 */
 	--os-tabs-active-crown: var(--os-mesh-holo);
-	--os-tabs-active-crown-opacity: 0.5;
+	--os-tabs-active-crown-opacity: 0.3;
+	/*
+	 * The rail: one continuous line around the silhouette of
+	 * page-plus-tab. Pulsemesh rather than flat Pulse, because the
+	 * line is long enough to show a gradient and short enough that a
+	 * whole mesh on it stays an accent rather than a surface.
+	 *
+	 * This is the one place the accent is spent on the tab strip, and
+	 * spending it here is what lets the tab itself stay uncoloured.
+	 * Set it to `none` for the plain frosted plate with no line.
+	 */
+	--os-tabs-rail: var(--os-mesh-pulse);
+	--os-tabs-rail-width: 2px;
 	--os-media-tile-bg: rgba(255, 251, 255, 0.05);
 	--os-media-visual-bg: rgba(255, 251, 255, 0.04);
 	--os-skeleton-low: rgba(255, 251, 255, 0.05);

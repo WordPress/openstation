@@ -628,11 +628,21 @@ export function positionTabPlate( strip: HTMLElement ): void {
 	);
 	if ( ! active ) {
 		plate.dataset.empty = '';
+		strip.dataset.tabPlateEmpty = '';
 		return;
 	}
 	delete plate.dataset.empty;
-	plate.style.setProperty( '--_tab-plate-x', `${ active.offsetLeft }px` );
-	plate.style.setProperty( '--_tab-plate-w', `${ active.offsetWidth }px` );
+	delete strip.dataset.tabPlateEmpty;
+	/*
+	 * Published on the STRIP, not the plate. The rail that traces the
+	 * page's top edge is the strip's own `::before`, and custom
+	 * properties inherit downward only — a value set on the plate is
+	 * invisible to its parent. The plate reads all three by
+	 * inheritance, so one write serves both halves of the line.
+	 */
+	strip.style.setProperty( '--_tab-plate-x', `${ active.offsetLeft }px` );
+	strip.style.setProperty( '--_tab-plate-w', `${ active.offsetWidth }px` );
+	strip.style.setProperty( '--_tab-strip-w', `${ strip.clientWidth }px` );
 	// Only now may it animate. A width of 0 means layout has not run
 	// yet (the first frame of a window being assembled), and placing
 	// the plate off that measurement would teach it a wrong origin to
