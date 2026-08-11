@@ -137,6 +137,16 @@ function openstation_user_edit_window_destroy_sessions_route() {
 }
 add_action( 'rest_api_init', 'openstation_user_edit_window_destroy_sessions_route' );
 
+/**
+ * REST handler: destroy some or all sessions for a user.
+ *
+ * When editing another user or when `scope=all`, every session is
+ * destroyed. When editing self with the default scope, all sessions
+ * except the current one are destroyed.
+ *
+ * @param WP_REST_Request $req Request with `id` and optional `scope`.
+ * @return WP_REST_Response|WP_Error
+ */
 function openstation_user_edit_window_rest_destroy_sessions( $req ) {
 	$id    = (int) $req->get_param( 'id' );
 	$scope = (string) $req->get_param( 'scope' );
@@ -246,6 +256,12 @@ function openstation_user_edit_window_app_pw_unavailable( $user_id ) {
 	return null;
 }
 
+/**
+ * REST handler: list application passwords for a user.
+ *
+ * @param WP_REST_Request $req Request with `id`.
+ * @return WP_REST_Response|WP_Error
+ */
 function openstation_user_edit_window_rest_app_pw_list( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return rest_ensure_response( array( 'items' => array() ) );
@@ -259,6 +275,12 @@ function openstation_user_edit_window_rest_app_pw_list( $req ) {
 	return rest_ensure_response( array( 'items' => $apps ) );
 }
 
+/**
+ * REST handler: create a new application password for a user.
+ *
+ * @param WP_REST_Request $req Request with `id` and `name`.
+ * @return WP_REST_Response|WP_Error
+ */
 function openstation_user_edit_window_rest_app_pw_create( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(
@@ -295,6 +317,12 @@ function openstation_user_edit_window_rest_app_pw_create( $req ) {
 	);
 }
 
+/**
+ * REST handler: revoke a single application password by UUID.
+ *
+ * @param WP_REST_Request $req Request with `id` and `uuid`.
+ * @return WP_REST_Response|WP_Error
+ */
 function openstation_user_edit_window_rest_app_pw_revoke( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(

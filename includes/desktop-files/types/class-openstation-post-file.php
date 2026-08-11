@@ -17,14 +17,30 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_Post_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'post';
 	}
 
+	/**
+	 * Whether the underlying post still exists.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return $this->post() instanceof WP_Post;
 	}
 
+	/**
+	 * Get a human-readable label, falling back to a placeholder
+	 * when the post is missing or has no title.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$post = $this->post();
 		if ( ! $post ) {
@@ -37,6 +53,12 @@ class OpenStation_Post_File extends OpenStation_File {
 		return '' !== $title ? $title : __( '(no title)', 'desktop-mode' );
 	}
 
+	/**
+	 * Resolve a Dashicon class for the post, preferring the
+	 * post-type's registered menu icon.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		$post = $this->post();
 		if ( ! $post ) {
@@ -49,6 +71,11 @@ class OpenStation_Post_File extends OpenStation_File {
 		return 'page' === $post->post_type ? 'dashicons-page' : 'dashicons-admin-post';
 	}
 
+	/**
+	 * Get the post's featured-image thumbnail URL, if any.
+	 *
+	 * @return string Empty string when no thumbnail is set.
+	 */
 	public function preview_url(): string {
 		$post = $this->post();
 		if ( ! $post ) {
@@ -62,6 +89,12 @@ class OpenStation_Post_File extends OpenStation_File {
 		return is_array( $src ) ? (string) $src[0] : '';
 	}
 
+	/**
+	 * Check whether the given user can read this post.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		$post = $this->post();
 		if ( ! $post ) {
@@ -70,6 +103,12 @@ class OpenStation_Post_File extends OpenStation_File {
 		return user_can( $user_id, 'read_post', $post->ID );
 	}
 
+	/**
+	 * Augment the base serialized shape with post type, status,
+	 * and permalink for cross-frame drag handlers.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape             = parent::serialize();
 		$post              = $this->post();
@@ -83,6 +122,11 @@ class OpenStation_Post_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the underlying WP_Post from the stored ref.
+	 *
+	 * @return WP_Post|null Null when the post is gone or the ref is invalid.
+	 */
 	private function post(): ?WP_Post {
 		$id = (int) $this->ref;
 		if ( $id <= 0 ) {

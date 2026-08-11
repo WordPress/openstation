@@ -12,14 +12,29 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_User_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'user';
 	}
 
+	/**
+	 * Whether the underlying user account still exists.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return $this->user() instanceof WP_User;
 	}
 
+	/**
+	 * Get the user's display name.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$user = $this->user();
 		if ( ! $user ) {
@@ -28,10 +43,20 @@ class OpenStation_User_File extends OpenStation_File {
 		return (string) $user->display_name;
 	}
 
+	/**
+	 * Get the Dashicon class for user tiles.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		return 'dashicons-admin-users';
 	}
 
+	/**
+	 * Get the user's avatar URL for tile previews.
+	 *
+	 * @return string Empty string when no avatar is available.
+	 */
 	public function preview_url(): string {
 		$user = $this->user();
 		if ( ! $user ) {
@@ -41,6 +66,13 @@ class OpenStation_User_File extends OpenStation_File {
 		return is_string( $avatar ) ? $avatar : '';
 	}
 
+	/**
+	 * Gate visibility on the `list_users` capability so shared
+	 * folders don't leak the user roster.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		// Reading the existence of another user is gated on
 		// `list_users` to avoid leaking the user roster via shared
@@ -49,6 +81,12 @@ class OpenStation_User_File extends OpenStation_File {
 		return user_can( $user_id, 'list_users' );
 	}
 
+	/**
+	 * Augment the base serialized shape with roles, author archive
+	 * URL, and agent metadata when applicable.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape          = parent::serialize();
 		$user           = $this->user();
@@ -115,6 +153,11 @@ class OpenStation_User_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the underlying WP_User from the stored ref.
+	 *
+	 * @return WP_User|null Null when the user is gone or the ref is invalid.
+	 */
 	private function user(): ?WP_User {
 		$id = (int) $this->ref;
 		if ( $id <= 0 ) {
