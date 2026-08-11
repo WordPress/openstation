@@ -968,7 +968,8 @@ function openstation_agent_runner_generate( $agent_user_id, array $history, arra
 				// requests. Tool-call turns are unaffected — the model either
 				// calls a function or emits the JSON answer.
 				openstation_agent_answer_schema(),
-				(string) $instructions . "\n\n" . openstation_agent_answer_prompt_appendix()
+				(string) $instructions . "\n\n" . openstation_agent_answer_prompt_appendix(),
+				array( 'source' => 'agents/runner' )
 			);
 		}
 	);

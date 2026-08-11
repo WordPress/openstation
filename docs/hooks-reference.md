@@ -1788,6 +1788,22 @@ Filter the ordered list of log-file paths the `get_php_error_log` AI tool probes
 apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 ```
 
+### `openstation_ai_model_config` — Experimental
+
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, and the Agents runner.
+
+```php
+apply_filters( 'openstation_ai_model_config', array $config, array $context );
+// $config  = { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }
+// $context = { user_id, request_id, source, has_tools, has_schema }
+```
+
+`custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`.
+
+**Defaults to empty.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific.
+
+Recipe: [`examples/ai-model-config.md`](./examples/ai-model-config.md).
+
 ---
 
 ## Drafts widget — AI writing assistant (Experimental)

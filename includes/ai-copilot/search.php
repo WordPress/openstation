@@ -1167,7 +1167,12 @@ The message field is always a friendly sentence or two shown directly to the use
 	// -----------------------------------------------------------------------
 	$messages = array( openstation_ai_user_text_message( $query ) );
 
-	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+	$generation_context = array(
+		'source'     => 'ai-copilot/search',
+		'request_id' => $request_id,
+	);
+
+	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -1473,7 +1478,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1761,7 +1766,11 @@ Rules:
 		array( openstation_ai_user_text_message( $user_message ) ),
 		array(), // no tools — we want a plain reply
 		null,    // no JSON schema — free-form text
-		$instructions
+		$instructions,
+		array(
+			'source'     => 'ai-copilot/followup',
+			'request_id' => $request_id,
+		)
 	);
 
 	// `openstation_ai_empty_answer` is the one generation error this path

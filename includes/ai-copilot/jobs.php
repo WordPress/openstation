@@ -79,10 +79,7 @@ add_action( 'desktop_mode_ai_analyze_comment', 'openstation_ai_job_analyze_comme
  * comment schema, and decodes the result.
  *
  * @param WP_Comment $comment The comment to analyze.
- * @param int        $user_id Requesting user id. Currently unused — the builder
- *                            is built from the prompt alone and the provider
- *                            comes from Connectors; retained for signature
- *                            stability and future attribution.
+ * @param int        $user_id Requesting user id.
  * @return array|WP_Error Structured `{ topic, ai_summary, harmful, spam }` or an error.
  */
 function openstation_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
@@ -106,7 +103,17 @@ function openstation_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
 	}
 	// Provider + model are chosen by the Core AI Client; OpenStation pins neither.
 
-	$json = $builder->as_json_response( openstation_ai_normalize_response_schema( $schema ) )->generate_text();
+	$builder = $builder->as_json_response( openstation_ai_normalize_response_schema( $schema ) );
+	$builder = openstation_ai_apply_model_config(
+		$builder,
+		array(
+			'user_id'    => (int) $user_id,
+			'source'     => 'ai-copilot/comment-analysis',
+			'has_schema' => true,
+		)
+	);
+
+	$json = $builder->generate_text();
 	if ( is_wp_error( $json ) ) {
 		return $json;
 	}

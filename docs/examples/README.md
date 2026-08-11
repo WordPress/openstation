@@ -44,6 +44,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.os.ai.ask()`](./ai-ask.md)
+- [Tune the AI model config (tokens, temperature, reasoning)](./ai-model-config.md)
 - [AI Agents — extend and invoke from a plugin](./agents.md)
 - [Retune the Drafts widget's AI writing assistant (Experimental)](./drafts-ai-suggestions.md)
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
