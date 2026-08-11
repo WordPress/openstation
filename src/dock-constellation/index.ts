@@ -15,15 +15,18 @@
  * Hovering a menu tile fans a flyout out of the rail:
  *
  *   ┌──────────────────────────────┐
- *   │ ◈  Appearance          Open →│   ← head: the menu's own page
+ *   │ ◈  Appearance                │   ← head: the menu's own page
+ *   │    3 pages                   │
  *   ├──────────────────────────────┤
- *   │ ● Editing 2 windows          │   ← live instances, click to focus
+ *   │ OPEN WINDOWS                 │
+ *   │ ● Appearance          Open   │   ← live instances, click to focus
  *   ├──────────────────────────────┤
+ *   │ OPEN                         │
  *   │ ◦ Themes                     │   ← the submenu, one row per link
  *   │ ◦ Customize                  │
  *   │ ◦ Menus                      │
  *   ├──────────────────────────────┤
- *   │ ＋ New window                 │
+ *   │ ＋ New Appearance window      │
  *   └──────────────────────────────┘
  *          ╲ beam ╱
  *           [tile]
@@ -483,11 +486,11 @@ function buildHead(
 	text.appendChild( hint );
 	head.appendChild( text );
 
-	const chev = document.createElement( 'span' );
-	chev.className =
-		'os-constellation__head-chevron dashicons dashicons-arrow-right-alt2';
-	chev.setAttribute( 'aria-hidden', 'true' );
-	head.appendChild( chev );
+	// No trailing chevron. It read as "there is another level behind
+	// me" — the one thing the head does NOT do. It opens a window,
+	// same as clicking the tile; the row's own hover state is the
+	// affordance, and a directional glyph on top of it was a promise
+	// the panel could not keep.
 
 	head.addEventListener( 'click', () => {
 		dismiss();
@@ -571,7 +574,7 @@ function buildSubmenuGroup(
 	group.className = 'os-constellation__group';
 	group.setAttribute( 'role', 'group' );
 	group.setAttribute( 'aria-label', item.title );
-	group.appendChild( legend( __( 'Go to' ) ) );
+	group.appendChild( legend( __( 'Open' ) ) );
 
 	for ( const sub of item.submenu ) {
 		group.appendChild(

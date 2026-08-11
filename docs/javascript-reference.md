@@ -876,7 +876,7 @@ One panel, up to four sections, top to bottom:
 |---|---|---|
 | Head | `.os-constellation__head` | The menu's own page + a page count. Click = a dock click. |
 | Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). |
-| Go to | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
+| Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
 | New window | `.os-constellation__row--new` | Spawns a fresh instance, same as the peek's Ghost Card. |
 
 Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.

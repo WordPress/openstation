@@ -519,25 +519,6 @@ body.os-constellation-open .os-dock__tooltip {
 	color: var( --os-cn-fg-muted, rgba( 255, 251, 255, 0.62 ) );
 }
 
-.os-constellation__head-chevron {
-	flex: 0 0 auto;
-	width: 16px;
-	height: 16px;
-	font-size: 16px;
-	line-height: 16px;
-	opacity: 0;
-	transform: translateX( -4px );
-	transition:
-		opacity var( --os-ui-motion-fast, 140ms ) ease-out,
-		transform var( --os-ui-motion-fast, 140ms ) ease-out;
-}
-
-.os-constellation__head:hover .os-constellation__head-chevron,
-.os-constellation__head:focus-visible .os-constellation__head-chevron {
-	opacity: 0.8;
-	transform: translateX( 0 );
-}
-
 /* ---- Groups ------------------------------------------------------ */
 
 .os-constellation__group {
