@@ -83,6 +83,42 @@ describe( 'AiAssistant — error recovery link', () => {
 		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
 	} );
 
+	test( 'closing the panel drops the in-flight answer', async () => {
+		// Resolve only when the test says so, so the panel can close first.
+		let release: ( v: Response ) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				( _url: string, init?: RequestInit ) =>
+					new Promise< Response >( ( resolve, reject ) => {
+						init?.signal?.addEventListener( 'abort', () =>
+							reject( new DOMException( 'aborted', 'AbortError' ) ),
+						);
+						release = resolve;
+					} ),
+			),
+		);
+
+		assistant.open();
+		const pending = assistant[ '_runSearchRequest' ]( 'hola', null, 0 );
+
+		assistant.close();
+		release( {
+			ok: true,
+			status: 200,
+			json: async () => ( {
+				answer_type: 'chat',
+				message: 'Answer that arrived too late.',
+				entity: null,
+				admin_links: null,
+			} ),
+		} as Response );
+		await pending;
+
+		const res = document.querySelector( '.os-ai__results' )!;
+		expect( res.textContent ).not.toContain( 'Answer that arrived too late.' );
+	} );
+
 	test( 'an error with no settings hint gets no link', async () => {
 		stubErrorResponse( 500, { code: 'oops', message: 'Boom.' } );
 

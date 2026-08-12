@@ -30,12 +30,10 @@ const DERIVE_WINDOW_ID = vi.fn( () => 'ai-entity-post-42' );
 
 const BASE_CONFIG: AiAssistantConfig = {
 	aiSearchUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/search',
-	aiSearchStreamUrl: '',
 	restNonce: 'test-nonce',
 	adminUrl: 'https://example.test/wp-admin/',
 	isAiAvailable: () => false,
 	isOverrideEnabled: () => false,
-	getTransport: () => 'off',
 };
 
 /**

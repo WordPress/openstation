@@ -176,6 +176,12 @@ export class AiAssistant implements AiAssistantApi {
 	private _previousFocus: Element | null = null;
 	private _aiSearchUrl: string;
 	private _restNonce: string;
+	/**
+	 * Aborts the in-flight search. Closing the panel or starting a new
+	 * query drops the previous answer rather than letting it land in a
+	 * closed overlay, steal focus, or race the newer one.
+	 */
+	private _searchAbort: AbortController | null = null;
 	private _adminUrl: string;
 	/** Live: is AI mode usable (APIs present + provider configured)? */
 	private _isAiAvailable: () => boolean;
@@ -300,6 +306,7 @@ export class AiAssistant implements AiAssistantApi {
 		this._isOpen = false;
 		this._el.classList.remove( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'true' );
+		this._abortSearch();
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
 		this._input.disabled = false;
@@ -939,11 +946,23 @@ export class AiAssistant implements AiAssistantApi {
 	 * Runs the search as a single REST request. The user sees "Thinking…"
 	 * until the answer lands.
 	 */
+	/** Cancel the in-flight search, if any. */
+	private _abortSearch(): void {
+		if ( this._searchAbort ) {
+			this._searchAbort.abort();
+			this._searchAbort = null;
+		}
+	}
+
 	private async _runSearchRequest(
 		query: string,
 		resumeTool: string | null,
 		startOffset: number,
 	): Promise<void> {
+		this._abortSearch();
+		const controller = new AbortController();
+		this._searchAbort = controller;
+
 		try {
 			const body: Record<string, unknown> = { query };
 			if ( resumeTool ) {
@@ -960,9 +979,14 @@ export class AiAssistant implements AiAssistantApi {
 						'X-WP-Nonce': this._restNonce,
 					},
 					body: JSON.stringify( body ),
+					signal: controller.signal,
 				},
 				{ source: 'desktop-mode/ai-search' },
 			);
+
+			if ( controller.signal.aborted ) {
+				return;
+			}
 
 			if ( ! res.ok ) {
 				const err = await res.json().catch( () => ( {} ) ) as {
@@ -981,14 +1005,23 @@ export class AiAssistant implements AiAssistantApi {
 
 			this._showResult( query, await res.json() as SearchResult );
 		} catch {
-			this._showError(
-				__( 'Network error — please check your connection and try again.' ),
-			);
+			// An abort is us, not the network.
+			if ( ! controller.signal.aborted ) {
+				this._showError(
+					__( 'Network error — please check your connection and try again.' ),
+				);
+			}
 		} finally {
-			this._isSearching = false;
-			this._submitBtn.disabled = false;
-			this._input.disabled = false;
-			this._input.focus();
+			// Only the newest request owns the input state. A superseded or
+			// aborted one must not re-enable a panel that has moved on, and
+			// must not pull focus back.
+			if ( this._searchAbort === controller ) {
+				this._searchAbort = null;
+				this._isSearching = false;
+				this._submitBtn.disabled = false;
+				this._input.disabled = false;
+				this._input.focus();
+			}
 		}
 	}
 

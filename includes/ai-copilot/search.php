@@ -1955,6 +1955,12 @@ function openstation_rest_ai_search_permission() {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_rest_ai_search( WP_REST_Request $request ) {
+	// The agent loop runs up to OPENSTATION_AI_SEARCH_MAX_ITERATIONS model
+	// round-trips, each with a tool call, which overruns a default 30s
+	// max_execution_time. The streaming endpoint used to raise this; it is
+	// the only path now, so it carries the limit.
+	@set_time_limit( 120 ); // phpcs:ignore
+
 	$user_id      = get_current_user_id();
 	$query        = $request->get_param( 'query' );
 	$resume_tool  = $request->get_param( 'resume_tool' );
