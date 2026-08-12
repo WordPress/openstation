@@ -196,6 +196,13 @@ export class OsConfirmDialog extends Component {
 		super.connectedCallback();
 		this.setAttribute( 'role', 'dialog' );
 		this.setAttribute( 'aria-modal', 'true' );
+		// Programmatically focusable, never tab-reachable: the last-
+		// resort target in `_focusInitial`. `-1` also keeps the host
+		// out of `isControl`, so Enter on it still reads as the
+		// container rather than as a control owning the key.
+		if ( ! this.hasAttribute( 'tabindex' ) ) {
+			this.setAttribute( 'tabindex', '-1' );
+		}
 		this.addEventListener( 'keydown', this._onKey );
 		this.addEventListener( 'click', this._onBackdrop );
 	}
@@ -311,13 +318,25 @@ export class OsConfirmDialog extends Component {
 			return;
 		}
 		const target = this.isConnected ? this._initialFocusTarget() : null;
-		if ( ! target ) {
-			if ( this._focusTries++ < 5 ) {
-				queueMicrotask( this._focusInitial );
-			}
+		if ( target ) {
+			target.focus();
 			return;
 		}
-		target.focus();
+		if ( this._focusTries++ < 5 ) {
+			queueMicrotask( this._focusInitial );
+			return;
+		}
+		/*
+		 * Out of hops with nothing rendered to aim at. Take the host,
+		 * which `connectedCallback` makes focusable for exactly this:
+		 * it carries the keydown listener, so Escape and the Tab trap
+		 * keep working. Giving up instead would leave focus on the
+		 * opener — the user parked behind the scrim, with a live modal
+		 * in front of them and no key that dismisses it.
+		 */
+		if ( this.isConnected ) {
+			this.focus();
+		}
 	};
 
 	private _initialFocusTarget(): HTMLElement | null {
@@ -350,18 +369,20 @@ export class OsConfirmDialog extends Component {
 		);
 	}
 
-	/** Hand focus back to whatever opened the dialog, once. */
+	/**
+	 * Hand focus back to whatever opened the dialog, once.
+	 *
+	 * `isConnected` is the whole guard: an opener that unmounted while
+	 * the dialog was up is the one case that actually arises, and
+	 * `focus()` on a live element in this document does not throw.
+	 */
 	private _restoreFocus(): void {
 		const prev = this._prevFocus;
 		this._prevFocus = null;
 		if ( ! prev || ! prev.isConnected ) {
 			return;
 		}
-		try {
-			prev.focus();
-		} catch ( e ) {
-			// The opener may have unmounted while the dialog was up.
-		}
+		prev.focus();
 	}
 
 	private _onBackdrop = ( e: MouseEvent ): void => {

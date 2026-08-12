@@ -160,6 +160,19 @@ describe( 'os-confirm-dialog', () => {
 		await expect( promise ).resolves.toBe( false );
 	} );
 
+	test( 'the host is programmatically focusable but not tab-reachable', async () => {
+		// The last-resort focus target if the first render is ever slow
+		// enough to outrun the retry — the host carries the keydown
+		// listener, so Escape and the trap survive.
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		expect( dialog.getAttribute( 'tabindex' ) ).toBe( '-1' );
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+	} );
+
 	test( 'a danger dialog with hideCancel opens on the X, not the destructive button', async () => {
 		const { osConfirm } = await load();
 		const promise = osConfirm( {
