@@ -527,6 +527,45 @@ describe( 'switching', () => {
 		expect( wordpress.tabIndex ).toBe( -1 );
 	} );
 
+	test( 'the selected tab is painted last, against the icons it names', () => {
+		mounted = mount(
+			[ coreItem( 'edit-php' ), pluginItem( 'woo' ) ],
+			[ systemTile( 'os-settings' ) ],
+		);
+		const order = (): string[] =>
+			[
+				...mounted!.container.querySelectorAll< HTMLElement >(
+					'.os-dock__deck',
+				),
+			].map( ( t ) => `${ t.dataset.deck }:${ t.style.order }` );
+
+		// Exactly one tab is pushed to the end, and it is the active
+		// one — that is what puts its label directly against the
+		// divider and the row of tiles it heads.
+		expect( order() ).toEqual( [
+			'wordpress:1',
+			'apps:0',
+			'station:0',
+		] );
+
+		tab( mounted.container, 'station' ).click();
+		expect( order() ).toEqual( [
+			'wordpress:0',
+			'apps:0',
+			'station:1',
+		] );
+
+		// DOM order never moves. The rearrangement is `order` only, so
+		// the roving tabindex, the arrow keys and every
+		// `querySelectorAll` on the strip keep reading the registered
+		// sequence rather than the painted one.
+		expect( tabIds( mounted.container ) ).toEqual( [
+			'wordpress',
+			'apps',
+			'station',
+		] );
+	} );
+
 	test( 'arrow keys move along the strip and activate as they go', () => {
 		mounted = mount(
 			[ coreItem( 'edit-php' ), pluginItem( 'woo' ) ],

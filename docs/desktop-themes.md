@@ -674,11 +674,14 @@ One more tunes how a deck switch *moves*:
 |---|---|
 | `--os-dock-deck-slide` | `<duration> <easing>` for the whole switch |
 
-Everything a switch moves is on that single token: the mesh fill
-travelling between tabs, the incoming tab's name unfurling to widen
-it, the outgoing tiles collapsing to zero width, the incoming ones
-opening back out — and, since the pill is `width: fit-content`, the
-pill resizing and re-centring around all of it.
+Everything a switch moves is on that single token: the tabs sliding
+so the selected one lands at the trailing end of the strip, its name
+unfurling to widen it, the outgoing tiles collapsing to zero width,
+the incoming ones opening back out — and, since the pill is
+`width: fit-content`, the pill resizing and re-centring around all of
+it. The mesh fill itself is the one thing that does not move; it is
+anchored at that trailing end and only its leading edge breathes as
+labels of different lengths pass under it.
 
 **One token rather than several is the design, not a shortcut.** An
 earlier pass gave the tiles their own duration and their own staggered

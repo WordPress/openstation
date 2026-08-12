@@ -4529,6 +4529,8 @@ A bottom rail is a pill, and a pill has a width. Rather than pushing the overflo
 
 Favorites leads on `order`, so a starred tile is starred *instead of* living with its provenance group — that is the point of starring it — and it is also the deck the rail opens on for a user who has any.
 
+**`order` sets the registered sequence, not the painted one.** The selected tab is always moved to the trailing end of the strip, so its label sits directly against the divider and the row of icons it names; the others hold their registered order to its left. The mesh fill is anchored at that trailing end and does not move — the tabs slide through it. DOM order is never rearranged (it is a flex `order` swap), so `aria-selected`, the roving tabindex and arrow-key navigation all keep reading the sequence you registered.
+
 ```typescript
 interface DockDeck {
     id: string;        // stable; persisted, and written to each tile's data-os-deck

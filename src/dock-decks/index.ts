@@ -814,14 +814,83 @@ export class DockDecks {
 	 * that keeps the strip a single stop on the way through the shell.
 	 */
 	private paintActiveTab(): void {
+		// Where every tab sits right now, read before anything changes.
+		// The slide below is measured against this.
+		const before = new Map< HTMLElement, number >();
+		const animate = this.strip?.dataset.platePlaced !== undefined;
+		if ( animate ) {
+			for ( const tab of this.tabs.values() ) {
+				before.set( tab, tab.offsetLeft );
+			}
+		}
+
 		for ( const [ id, tab ] of this.tabs ) {
 			const on = id === this.activeId;
 			tab.classList.toggle( 'os-dock__deck--active', on );
 			tab.setAttribute( 'aria-selected', on ? 'true' : 'false' );
 			tab.tabIndex = on ? 0 : -1;
+			// The selected tab is ALWAYS the last one on the strip,
+			// which is what puts it directly against the divider and
+			// the row of icons it names. `order` rather than a DOM
+			// move: the tabs stay in the document in their registered
+			// sequence, so `aria-owns`-free tablist semantics, the
+			// roving tabindex and every `querySelectorAll` on the
+			// strip keep reading the canonical order. Only the paint
+			// is rearranged.
+			tab.style.order = on ? '1' : '0';
+		}
+
+		if ( animate ) {
+			this.slideTabs( before );
 		}
 		this.trackPlate();
 		this.refreshIndicators();
+	}
+
+	/**
+	 * Slide the tabs to their new places.
+	 *
+	 * Standard FLIP: each tab is put back where it was with an inline
+	 * transform and no transition, then released a frame later so the
+	 * stylesheet's transition carries it home.
+	 *
+	 * The part worth knowing is that this stays correct even though
+	 * the flow it is animating against is ITSELF still moving — the
+	 * outgoing tab's label is collapsing and the incoming one's is
+	 * unfurling for the whole `--os-dock-deck-slide`. A transform is
+	 * relative to wherever flow puts the element, so the painted
+	 * position is `flow(t) + Δ·(1 − ease(t))`: exactly the old spot at
+	 * t=0, exactly the flow position at the end, and a blend of two
+	 * smooth curves in between. Nothing has to be re-measured, and no
+	 * layout is pinned.
+	 *
+	 * Skipped on the strip's first paint (the caller checks
+	 * `data-plate-placed`), where there is no "before" worth sliding
+	 * from and every tab would fly in from its unordered position.
+	 */
+	private slideTabs( before: ReadonlyMap< HTMLElement, number > ): void {
+		const moved: Array< [ HTMLElement, number ] > = [];
+		for ( const tab of this.tabs.values() ) {
+			const dx = ( before.get( tab ) ?? tab.offsetLeft ) - tab.offsetLeft;
+			if ( dx ) {
+				moved.push( [ tab, dx ] );
+			}
+		}
+		if ( moved.length === 0 ) {
+			return;
+		}
+		for ( const [ tab, dx ] of moved ) {
+			tab.style.transition = 'none';
+			tab.style.transform = `translateX( ${ dx }px )`;
+		}
+		// One forced reflow for the whole set, not one per tab.
+		void this.strip?.offsetWidth;
+		for ( const [ tab ] of moved ) {
+			// Clearing both inline values hands the tab back to the
+			// stylesheet, which is where its transition lives.
+			tab.style.transition = '';
+			tab.style.transform = '';
+		}
 	}
 
 	/**
@@ -945,6 +1014,13 @@ export class DockDecks {
 	 * deck toggles an attribute. Nothing is fetched, nothing is
 	 * mounted, and manual activation would mean every keyboard user
 	 * pressing Enter after every arrow for no benefit.
+	 *
+	 * Arrows walk the deck list's own order, not the painted one. The
+	 * painted order moves the selected tab to the end, so "next" in
+	 * visual terms would change meaning with every press — arrowing
+	 * right twice could land you back where you started. The
+	 * registered sequence is the stable mental model and it is what
+	 * `aria-selected` and the DOM both report.
 	 */
 	private onStripKeydown( e: KeyboardEvent ): void {
 		if ( e.altKey || e.ctrlKey || e.metaKey ) {

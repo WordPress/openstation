@@ -1333,11 +1333,22 @@
 	cursor: pointer;
 	transition:
 		background-color var( --os-ui-motion-fast, 140ms ) ease-out,
-		/* The ink rides with the plate, not with the hover wash: it is
-		 * flipping to Void because a light surface is arriving over
-		 * it, so settling 200ms before that surface gets there would
-		 * read as the label changing its mind. */
-		color var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		/* The slide. Driven from JS as a FLIP — the tab is put back
+		 * where it was with an inline transform and released, and this
+		 * is the transition that carries it. */
+		transform var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		/*
+		 * The ink flips LATE, and the delay is the point.
+		 *
+		 * The plate no longer moves; the tabs move through it. So a
+		 * tab is only over the mesh for the back half of its slide,
+		 * and an ink flip timed to the start would put Void text on
+		 * the dark rail for 300ms — invisible — while the outgoing tab
+		 * stays Void as it slides out from under the plate, equally
+		 * invisible. Delaying both to roughly where they cross means
+		 * each changes colour about when it changes background.
+		 */
+		color 200ms ease-out 340ms,
 		box-shadow var( --os-ui-motion-fast, 140ms ) ease-out;
 }
 
@@ -1404,22 +1415,27 @@
 }
 
 /*
- * The identity moment, and it TRAVELS.
+ * The identity moment, and it STAYS PUT.
  *
- * The mesh is not painted on the active tab — it is painted on one
- * element that slides between them, the same construction the window
- * tab strip's plate uses and for the same reason: a fill that
- * switched off on one tab and on at the next would have to cross-fade
- * a mesh into nothing, and every frame in between belongs to neither
- * state. Nothing cross-fades here. The surface moves and the ink
- * flips underneath it.
+ * The mesh is one element rather than a fill painted on whichever tab
+ * is active — a fill that switched off on one tab and on at the next
+ * would have to cross-fade a mesh into nothing, and every frame in
+ * between belongs to neither state.
  *
- * `DockDecks.positionPlate()` publishes the geometry as
- * `--_deck-plate-x` / `--_deck-plate-w` on the strip; everything else
- * is CSS. It follows the active tab for ~500ms after a switch because
- * the label reveal is still growing that tab underneath it — see the
- * method's own note for why the alternative (snapping the labels) is
- * worse.
+ * But unlike the window tab strip's plate, which travels to the
+ * selected tab, this one is anchored at the strip's trailing end and
+ * the TABS move through it. That is what puts the selected tab
+ * directly against the divider and the row of icons it names, so the
+ * label reads as a heading for what follows rather than as a marker
+ * floating somewhere in a strip. It also means the loudest thing on
+ * the rail is the one thing that never moves; the motion belongs to
+ * the buttons sliding under it.
+ *
+ * Its geometry still comes from the active tab — `positionPlate()`
+ * publishes `--_deck-plate-x` / `--_deck-plate-w` — because the
+ * active tab IS the last one on the strip. In practice only the width
+ * changes between decks (labels differ in length), so the plate's
+ * trailing edge holds and its leading edge breathes.
  */
 .os-dock__deck-plate {
 	position: absolute;
