@@ -37,6 +37,7 @@ import type { OsSettingsSnapshot } from './settings/registry';
 
 interface OpenStationShim {
 	getOsSettings?: () => OsSettingsSnapshot;
+	dock?: { getActiveDeck?: () => string | null } | null;
 	updateOsSettings?: (
 		patch: Partial< OsSettingsSnapshot >,
 		opts?: { windowId?: string },
@@ -75,6 +76,49 @@ function writeVisibility(
 	// desktop" / "Also show on dock" back into single-rail behavior.
 	next[ canonicalId ] = placement;
 	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
+ * The starred list after starring or unstarring one id.
+ *
+ * Appends rather than inserts: the Favorites deck reads this list in
+ * order, so the newest star lands at the end and the set the user
+ * built stays in the sequence they built it. Starring an id that is
+ * already there moves it to the end rather than duplicating it —
+ * a duplicate would render the tile twice in the deck.
+ *
+ * Pure so the ordering contract can be tested without stubbing the
+ * shell API, matching {@link computeHideTarget}.
+ */
+export function computeFavorites(
+	current: readonly string[],
+	canonicalId: string,
+	on: boolean,
+): string[] {
+	const without = current.filter( ( id ) => id !== canonicalId );
+	return on ? [ ...without, canonicalId ] : without;
+}
+
+/**
+ * Star or unstar a tile.
+ *
+ * The write goes through the public `updateOsSettings` writer for the
+ * same reason `writeVisibility` does — that writer sanitizes, saves,
+ * and asks the layout dispatcher for a repaint, so the deck appears
+ * or empties in the same frame as the pick.
+ */
+function writeFavorite( canonicalId: string, on: boolean ): void {
+	const api = getApi();
+	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
+		return;
+	}
+	api.updateOsSettings( {
+		dockFavorites: computeFavorites(
+			api.getOsSettings().dockFavorites ?? [],
+			canonicalId,
+			on,
+		),
+	} );
 }
 
 /**
@@ -136,6 +180,23 @@ export interface OpenItemVisibilityMenuOpts {
 	title: string;
 	/** Which surface the user right-clicked on. */
 	surface: 'dock' | 'desktop';
+	/**
+	 * Whether this item may be hidden or moved between rails.
+	 *
+	 * Defaults to `true`, which is right for every admin-menu tile.
+	 * System tiles pass their own `placeable` flag, and most of them
+	 * are `false`: OpenStation Preferences is how you reach the screen
+	 * that would put it back, and "Hide everywhere" on it is close
+	 * enough to a one-way door to be worth not offering. Those tiles
+	 * still get the menu — starring is non-destructive and belongs on
+	 * every icon in the dock — they just get it without the
+	 * hide/move half.
+	 *
+	 * Mirrors `SystemDockItem.placeable`, and for the same reason it
+	 * exists there: the visibility override is still honoured if
+	 * something else writes it, this only controls what is offered.
+	 */
+	placeable?: boolean;
 	/**
 	 * Plugin file (e.g. `woocommerce/woocommerce.php`) when the item is
 	 * owned by an active, deactivatable plugin. When non-null the menu
@@ -242,30 +303,59 @@ function openItemVisibilityMenuImmediate(
 		| { kind: 'separator' };
 
 	const options: MenuOption[] = [];
+	// Undefined means "an ordinary tile" — every admin-menu tile omits
+	// it. Only the system-tile call site passes it, and passes `false`
+	// for the load-bearing ones.
+	const placeable = opts.placeable !== false;
 
 	if ( opts.surface === 'dock' ) {
+		// Starring leads the menu, and it is the only entry here that
+		// is purely additive — everything below it hides, moves or
+		// deactivates something. It sits above the separator-free run
+		// of those so the destructive gradient still reads top to
+		// bottom.
+		//
+		// Offered whether or not the user has decks turned on: a star
+		// set while the rail is undivided is exactly what makes
+		// turning decks on worth doing, and the alternative is an
+		// option that appears and disappears depending on a setting
+		// two screens away.
+		const isFavorite = (
+			getApi()?.getOsSettings?.().dockFavorites ?? []
+		).includes( canonical );
 		options.push( {
-			id: 'hide-from-dock',
-			label: __( 'Hide from dock' ),
-			icon: 'dashicons-hidden',
-			onPick: () =>
-				writeVisibility(
-					canonical,
-					computeHideTarget(
-						canonical,
-						nativeRail,
-						'dock',
-						getApi()?.getOsSettings?.().itemVisibility ?? {},
-					),
-				),
+			id: isFavorite ? 'unfavorite' : 'favorite',
+			label: isFavorite
+				? __( 'Remove from favorites' )
+				: __( 'Add to favorites' ),
+			icon: isFavorite ? 'dashicons-star-empty' : 'dashicons-star-filled',
+			onPick: () => writeFavorite( canonical, ! isFavorite ),
 		} );
-		if ( currentPlacement !== 'both' ) {
+		if ( placeable ) {
+			options.push( { kind: 'separator' } );
 			options.push( {
-				id: 'show-on-desktop-too',
-				label: __( 'Also show on desktop' ),
-				icon: 'dashicons-desktop',
-				onPick: () => writeVisibility( canonical, 'both' ),
+				id: 'hide-from-dock',
+				label: __( 'Hide from dock' ),
+				icon: 'dashicons-hidden',
+				onPick: () =>
+					writeVisibility(
+						canonical,
+						computeHideTarget(
+							canonical,
+							nativeRail,
+							'dock',
+							getApi()?.getOsSettings?.().itemVisibility ?? {},
+						),
+					),
 			} );
+			if ( currentPlacement !== 'both' ) {
+				options.push( {
+					id: 'show-on-desktop-too',
+					label: __( 'Also show on desktop' ),
+					icon: 'dashicons-desktop',
+					onPick: () => writeVisibility( canonical, 'both' ),
+				} );
+			}
 		}
 	} else {
 		options.push( {
@@ -292,13 +382,15 @@ function openItemVisibilityMenuImmediate(
 			} );
 		}
 	}
-	options.push( {
-		id: 'hide-everywhere',
-		label: __( 'Hide everywhere' ),
-		icon: 'dashicons-no',
-		danger: true,
-		onPick: () => writeVisibility( canonical, 'hidden' ),
-	} );
+	if ( placeable ) {
+		options.push( {
+			id: 'hide-everywhere',
+			label: __( 'Hide everywhere' ),
+			icon: 'dashicons-no',
+			danger: true,
+			onPick: () => writeVisibility( canonical, 'hidden' ),
+		} );
+	}
 
 	options.push( {
 		id: 'open-settings',

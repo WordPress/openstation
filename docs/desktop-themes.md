@@ -652,6 +652,47 @@ disappears the moment you give the dock a light background.
 Recolouring the strip alone is the most common way a first theme ends
 up with an invisible dock.
 
+Two more cover the **deck tabs** — the strip at the leading edge of a
+bottom rail that names the group of tiles currently on screen (see
+[Dock decks](javascript-reference.md#dock-decks)):
+
+| Token | Role |
+|---|---|
+| `--os-dock-deck-fill` | The fill behind the active tab. Falls back to `--os-ui-holo-fill`, the brand mesh |
+| `--os-dock-deck-ink` | Its label and glyph. Falls back to `--os-ui-holo-ink`, near-Void |
+
+The inactive tabs deliberately have no tokens of their own: they read
+through `--os-dock-icon-color` and `--os-dock-item-bg-hover`, the same
+two the tiles beside them use, so a theme that recoloured its dock
+glyphs gets the strip for free. **Set the pair together or not at
+all** — an active tab with a repainted fill and default Void ink is
+the one combination that can end up unreadable.
+
+One more tunes how a deck switch *moves*:
+
+| Token | Role |
+|---|---|
+| `--os-dock-deck-slide` | `<duration> <easing>` for the whole switch |
+| `--os-dock-deck-idle-opacity` | How far the *unselected* tabs stand back (default `0.6`). Transparency rather than a dimmer ink, so the dock's surface comes through them; hover takes one back to full |
+
+Everything a switch moves is on that single token: the tabs sliding
+so the selected one lands at the trailing end of the strip, its name
+unfurling to widen it, the outgoing tiles collapsing to zero width,
+the incoming ones opening back out — and, since the pill is
+`width: fit-content`, the pill resizing and re-centring around all of
+it. The mesh fill itself is the one thing that does not move; it is
+anchored at that trailing end and only its leading edge breathes as
+labels of different lengths pass under it.
+
+**One token rather than several is the design, not a shortcut.** An
+earlier pass gave the tiles their own duration and their own staggered
+entrance; the result was two clocks in one gesture, and the faster one
+always read as the thing going wrong. It is deliberately slower than
+the rest of the rail — this is the one dock state change worth
+watching rather than just registering — so shorten it for a snappier
+rail, and set `0s` to remove the choreography without losing any of
+the state it carries.
+
 `--os-dock-icon-color` is a **colour**, not a fill, which
 matters if your iconset uses
 [`"iconColor": "currentColor"`](#icon-slots): those icons are masked

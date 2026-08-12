@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 - [Add a dock item with a badge](./dock-badge.md)
 - [Give a tile two icons, one per state](./tile-icon-state.md)
 - [Decorate the dock without forking the renderer](./dock-decoration-hooks.md)
+- [Group the dock your way — custom decks](./dock-decks.md)
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate OpenStation by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)

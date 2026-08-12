@@ -198,6 +198,18 @@ export interface OsSettingsSnapshot {
 	 */
 	dockOrder: string[];
 	/**
+	 * Whether the bottom dock folds into decks — one group of tiles on
+	 * screen at a time behind a tab strip. Opt-in; `false` means the
+	 * rail paints as one undivided row.
+	 */
+	dockDecksEnabled: boolean;
+	/**
+	 * Item ids the user has starred, in the order they starred them.
+	 * Populates the Favorites deck. Empty means no Favorites tab —
+	 * a deck matching nothing is dropped.
+	 */
+	dockFavorites: string[];
+	/**
 	 * Persisted desktop position (in CSS px) for every dock item the
 	 * user has promoted onto the wallpaper. Keyed by dock-item id.
 	 * Missing keys mean "no override" — the synth placement falls

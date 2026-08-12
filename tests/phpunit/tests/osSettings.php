@@ -409,6 +409,113 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	// ────────────────────────────────────────────────────────────────
+	// Dock decks — the bottom rail folding into one-at-a-time groups,
+	// the tiles the user starred, and whether the rail follows the
+	// focused window into its group.
+	//
+	// These live in the same user meta blob as every other preference,
+	// and the sanitizer is an allowlist: a key it does not name is
+	// dropped on the way to the database. That failure mode is
+	// invisible from the JS side — localStorage keeps the value, so
+	// the setting appears to work until the user opens the site in
+	// another browser and finds it reset.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_dock_deck_defaults_are_off_and_empty() {
+		$defaults = openstation_default_os_settings();
+		$this->assertArrayHasKey( 'dockDecksEnabled', $defaults );
+		$this->assertFalse( $defaults['dockDecksEnabled'] );
+		$this->assertArrayHasKey( 'dockDeckFollowFocus', $defaults );
+		$this->assertFalse( $defaults['dockDeckFollowFocus'] );
+		$this->assertArrayHasKey( 'dockFavorites', $defaults );
+		$this->assertSame( array(), $defaults['dockFavorites'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_round_trips_dock_deck_toggles() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'dockDecksEnabled'    => true,
+				'dockDeckFollowFocus' => true,
+			)
+		);
+		$this->assertTrue( $clean['dockDecksEnabled'] );
+		$this->assertTrue( $clean['dockDeckFollowFocus'] );
+	}
+
+	/**
+	 * Favorites share `dockOrder`'s sanitizer, so they inherit its
+	 * charset, its dedupe and its rail-prefix tolerance — a starred
+	 * tile the user promoted to the wallpaper carries `dock:` /
+	 * `desktop:` exactly as it does in the order list.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 * @covers ::openstation_sanitize_item_id_list
+	 */
+	public function test_sanitize_normalizes_dock_favorites() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'dockFavorites' => array(
+					'Edit Php',
+					'desktop:My-Icon',
+					'edit php',
+					'<script>x',
+				),
+			)
+		);
+		$this->assertSame(
+			array( 'editphp', 'desktop:my-icon', 'scriptx' ),
+			$clean['dockFavorites']
+		);
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_item_id_list
+	 */
+	public function test_sanitize_caps_dock_favorites_at_256() {
+		$input = array();
+		for ( $i = 0; $i < 300; $i++ ) {
+			$input[] = 'item-' . $i;
+		}
+		$clean = openstation_sanitize_os_settings(
+			array( 'dockFavorites' => $input )
+		);
+		$this->assertCount( 256, $clean['dockFavorites'] );
+	}
+
+	/**
+	 * The end-to-end guard: what the shell writes must survive the
+	 * round trip through user meta. A key missing from the sanitizer's
+	 * allowlist is silently dropped here and nowhere else.
+	 *
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
+	public function test_dock_deck_preferences_persist_to_user_meta() {
+		$user_id = self::factory()->user->create();
+		openstation_save_os_settings(
+			$user_id,
+			array(
+				'dockDecksEnabled'    => true,
+				'dockDeckFollowFocus' => true,
+				'dockFavorites'       => array( 'edit-php', 'os-settings' ),
+			)
+		);
+		$saved = openstation_get_os_settings( $user_id );
+		$this->assertTrue( $saved['dockDecksEnabled'] );
+		$this->assertTrue( $saved['dockDeckFollowFocus'] );
+		$this->assertSame(
+			array( 'edit-php', 'os-settings' ),
+			$saved['dockFavorites']
+		);
+	}
+
+	// ────────────────────────────────────────────────────────────────
 	// developerModeEnabled — per-user gate for developer-facing
 	// surfaces (Starter Widget in the add-widget picker, Components
 	// tab missing-import-warner demo). Off by default.

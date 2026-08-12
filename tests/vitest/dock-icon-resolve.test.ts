@@ -305,11 +305,23 @@ describe( 'Dock.replaceItems', () => {
 			onOpen: () => undefined,
 		} );
 
+		// The system separator, specifically. A bottom rail holding both
+		// a menu tile and a system tile is a decked rail, and the deck
+		// strip contributes its own leading separator — so a bare
+		// `.os-dock__separator` lookup finds that one first and this
+		// whole test would assert against the wrong element.
+		const systemSeparator = ():
+			| Element
+			| null =>
+			container.querySelector(
+				'.os-dock__separator:not(.os-dock__separator--decks)',
+			);
+
 		// Menu item + separator + system item.
 		expect(
 			container.querySelector( '.os-dock__item--system' ),
 		).not.toBeNull();
-		expect( container.querySelector( '.os-dock__separator' ) ).not.toBeNull();
+		expect( systemSeparator() ).not.toBeNull();
 
 		dock.replaceItems( [
 			makeItem( { id: 'plugin-c', title: 'Commerce', icon: 'dashicons-cart' } ),
@@ -321,10 +333,10 @@ describe( 'Dock.replaceItems', () => {
 		expect(
 			container.querySelector( '.os-dock__item--system' ),
 		).not.toBeNull();
-		expect( container.querySelector( '.os-dock__separator' ) ).not.toBeNull();
+		expect( systemSeparator() ).not.toBeNull();
 
 		// Menu item must come BEFORE the separator (rendering order).
-		const sep = container.querySelector( '.os-dock__separator' );
+		const sep = systemSeparator();
 		const sys = container.querySelector( '.os-dock__item--system' );
 		const menuTile = container.querySelector(
 			'.os-dock__item:not(.os-dock__item--system)',

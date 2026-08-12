@@ -63,6 +63,7 @@ import { buildAdminBarSection } from './sections/admin-bar';
 import { buildThemesSection } from './sections/themes';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
+import { buildDockDecksSection } from './sections/dock-decks';
 import { buildDockSizeSection } from './sections/dock-size';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
@@ -200,6 +201,7 @@ export function renderOsSettingsPanel(
 					${ buildAccentSection( ctx ) }
 					${ buildDesktopLayoutSection( ctx ) }
 					${ buildDockSizeSection( ctx ) }
+					${ buildDockDecksSection( ctx ) }
 					${ buildWindowRadiusSection( ctx ) }
 					${ buildAdminBarSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }

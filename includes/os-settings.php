@@ -259,6 +259,22 @@ function openstation_default_os_settings() {
 		// the list keep their server-supplied position appended after
 		// the listed ones. Unknown ids are tolerated.
 		'dockOrder'                   => array(),
+		// Whether the bottom dock folds its tiles into decks —
+		// Favorites, WordPress, Apps, OpenStation — and shows one at a
+		// time behind a tab strip. Opt-in: decking trades "every tile
+		// is on screen" for "the rail fits", which is worth it only
+		// once there are enough tiles to feel the crowding.
+		'dockDecksEnabled'            => false,
+		// Item ids the user has starred, in the order they starred
+		// them. Populates the Favorites deck; empty means no Favorites
+		// tab at all, since a deck matching nothing is dropped. Same
+		// shape and same sanitizer as `dockOrder`.
+		'dockFavorites'               => array(),
+		// Whether the decked dock switches itself to the deck holding a
+		// newly focused window. Off by default — the deck marks itself
+		// with an indicator dot and waits to be picked, rather than the
+		// shell reshuffling the rail under the pointer.
+		'dockDeckFollowFocus'         => false,
 		// Persisted desktop position for every dock item the user has
 		// promoted to the wallpaper via `itemVisibility[id]=desktop|both`.
 		// Keyed by item id, value is `{ x: int, y: int }`. The JS
@@ -307,6 +323,48 @@ function openstation_save_os_settings( $user_id, $settings ) {
 
 	$clean = openstation_sanitize_os_settings( $settings );
 	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
+}
+
+/**
+ * Sanitizes an ordered list of shell item ids.
+ *
+ * Backs both `dockOrder` (the user's dock ordering) and
+ * `dockFavorites` (the tiles they starred) — same shape, same charset,
+ * same dedupe and same cap, so they share one implementation rather
+ * than running near-copies that can drift apart.
+ *
+ * Most ids are `sanitize_key()`-clean dock slugs, but cross-rail tiles
+ * the user promoted carry a rail-synthesis prefix (`desktop:<id>` /
+ * `dock:<id>`, built by `src/settings/item-placement.ts`).
+ * `sanitize_key()` strips the colon, which silently breaks the JS
+ * match on reload and can collide with an unrelated id — so the colon
+ * (and hyphen and underscore) are allowed while everything outside the
+ * JS id charset is still rejected.
+ *
+ * @param mixed $raw Raw list from the client or user meta.
+ * @return array Deduped list of clean ids, capped at 256.
+ */
+function openstation_sanitize_item_id_list( $raw ) {
+	$out = array();
+	if ( ! is_array( $raw ) ) {
+		return $out;
+	}
+	$seen = array();
+	foreach ( $raw as $id ) {
+		if ( ! is_string( $id ) || '' === $id ) {
+			continue;
+		}
+		$slug = (string) preg_replace( '/[^a-z0-9_:-]+/', '', strtolower( $id ) );
+		if ( '' === $slug || isset( $seen[ $slug ] ) ) {
+			continue;
+		}
+		$seen[ $slug ] = true;
+		$out[]         = $slug;
+		if ( count( $out ) >= 256 ) {
+			break;
+		}
+	}
+	return $out;
 }
 
 /**
@@ -655,6 +713,14 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
+	$dock_decks_enabled = isset( $raw['dockDecksEnabled'] )
+		? (bool) $raw['dockDecksEnabled']
+		: $defaults['dockDecksEnabled'];
+
+	$dock_deck_follow_focus = isset( $raw['dockDeckFollowFocus'] )
+		? (bool) $raw['dockDeckFollowFocus']
+		: $defaults['dockDeckFollowFocus'];
+
 	$mio_enabled = isset( $raw['mioEnabled'] )
 		? (bool) $raw['mioEnabled']
 		: $defaults['mioEnabled'];
@@ -704,31 +770,15 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// dockOrder — ordered list of item ids. Most are sanitize_key()-
-	// clean dock slugs, but cross-rail tiles the user promoted carry a
-	// rail-synthesis prefix (`desktop:<id>` / `dock:<id>`, built by
-	// src/settings/item-placement.ts). sanitize_key() strips the colon,
-	// which silently breaks the JS order match on reload and can collide
-	// with an unrelated id — so allow the colon (and hyphen/underscore)
-	// while still rejecting anything outside the JS id charset.
-	$dock_order = array();
-	if ( isset( $raw['dockOrder'] ) && is_array( $raw['dockOrder'] ) ) {
-		$seen = array();
-		foreach ( $raw['dockOrder'] as $id ) {
-			if ( ! is_string( $id ) || '' === $id ) {
-				continue;
-			}
-			$slug = (string) preg_replace( '/[^a-z0-9_:-]+/', '', strtolower( $id ) );
-			if ( '' === $slug || isset( $seen[ $slug ] ) ) {
-				continue;
-			}
-			$seen[ $slug ] = true;
-			$dock_order[]  = $slug;
-			if ( count( $dock_order ) >= 256 ) {
-				break;
-			}
-		}
-	}
+	// dockOrder / dockFavorites — ordered lists of item ids, same shape
+	// and same guarantees, so they share one sanitizer rather than
+	// running near-copies that can drift apart.
+	$dock_order     = openstation_sanitize_item_id_list(
+		isset( $raw['dockOrder'] ) ? $raw['dockOrder'] : null
+	);
+	$dock_favorites = openstation_sanitize_item_id_list(
+		isset( $raw['dockFavorites'] ) ? $raw['dockFavorites'] : null
+	);
 
 	// dockPromotedPositions — map<sanitize_key, {x: int, y: int}>.
 	// Persisted positions for synthetic dock-promoted placements, so
@@ -810,6 +860,9 @@ function openstation_sanitize_os_settings( $raw ) {
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
 		'itemVisibility'              => $item_visibility,
 		'dockOrder'                   => $dock_order,
+		'dockDecksEnabled'            => $dock_decks_enabled,
+		'dockFavorites'               => $dock_favorites,
+		'dockDeckFollowFocus'         => $dock_deck_follow_focus,
 		'dockPromotedPositions'       => $dock_promoted_positions,
 	);
 }

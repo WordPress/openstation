@@ -217,9 +217,68 @@ See the full reference for the [`DockItem` shape](./javascript-reference.md#dock
 
 ---
 
+## Decks — the third thing you can customize
+
+The two registries above answer *what paints the rail* and *what
+decorates a tile*. Decks answer a third question the default renderer
+asks on a bottom rail: **which tiles are on screen right now.**
+
+With `dockDecksEnabled` on (opt-in, in Appearance → Dock groups) the
+rail folds itself into named groups — `favorites`, `wordpress`,
+`apps`, `station` — and shows one at a time, with a tab strip at its
+leading edge. The list is a filter, so it is yours to reorder, rename,
+extend, or switch off:
+
+```js
+wp.hooks.addFilter( 'os.dock.decks', 'my-plugin', ( decks ) => [
+    ...decks,
+    {
+        id: 'shop',
+        label: 'Shop',
+        icon: 'dashicons-cart',
+        order: 15,                 // between Apps (20) and WordPress (10)
+        matchItem: ( item ) => item.id.startsWith( 'woocommerce' ),
+    },
+] );
+```
+
+Three things worth knowing before you reach for it:
+
+- **A tile joins the first deck that claims it**, in `order` order. A
+  narrow deck at a low `order` therefore wins its tiles without you
+  having to also rewrite the built-ins' predicates — which is exactly
+  how `favorites` (order 5) pulls a starred tile out of `apps`.
+- **Decks only exist on a bottom rail**, and only when at least two of
+  them are non-empty. A custom *rail renderer* replaces the default
+  `Dock` entirely and so opts out of decks along with everything else
+  the class paints — if your renderer wants grouping, it owns it.
+- **Returning `[]` turns decks off** for every rail, which is the
+  supported way for a theme or plugin to get the old single-row rail
+  back.
+
+Reading and driving the current deck from anywhere:
+
+```js
+wp.os.dock?.getActiveDeck();          // 'wordpress' | 'apps' | … | null
+wp.os.dock?.setActiveDeck( 'apps' );
+
+wp.hooks.addAction( 'os.dock.deck-changed', 'my-plugin', ( ctx ) => {
+    // ctx.reason: 'click' | 'keyboard' | 'wheel' | 'swipe'
+    //           | 'restore' | 'auto'
+    console.log( ctx.previousDeckId, '→', ctx.deckId );
+} );
+```
+
+Both methods are no-ops on a rail that isn't decked, so neither needs
+a layout check around it. Full shapes in the
+[JavaScript Reference](./javascript-reference.md#dock-decks).
+
+---
+
 ## Where to go next
 
 - **[Decoration hooks recipes](./examples/dock-decoration-hooks.md)** — six examples from one-line classNames to grid-wide IntersectionObservers.
 - **[Rail renderer walk-through](./examples/dock-rail-renderer.md)** — full "ring" implementation with circular layout math.
 - **[JavaScript Reference](./javascript-reference.md#dock-decoration)** — every API entry, every hook, every type.
+- **[Deck tokens](./desktop-themes.md#dock-glyphs)** — the two tokens a desktop theme sets to repaint the active deck tab.
 - **[Architecture](./architecture.md#dock-customization--two-registries)** — how the registries plug into the layout dispatcher and the live menu-refresh pipeline.

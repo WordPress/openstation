@@ -1143,6 +1143,48 @@ body.os-active {
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
 
 	/*
+	 * ---- Deck motion --------------------------------------------
+	 *
+	 * ONE timing, deliberately slower than the shell's usual
+	 * `--os-ui-motion-slow`, and everything a deck switch moves is on
+	 * it: the mesh plate travelling between tabs, the incoming tab's
+	 * name unfurling to widen it, the outgoing tiles collapsing to
+	 * zero width, the incoming ones opening back out — and, because
+	 * the pill is `width: fit-content`, the pill itself resizing and
+	 * re-centring around all of it.
+	 *
+	 * One token rather than several is the whole design. An earlier
+	 * pass gave the tiles their own duration and their own staggered
+	 * keyframe; what that produced was two clocks in one gesture, and
+	 * the faster one always read as the thing going wrong. Anything
+	 * added here later should join this token, not bring its own.
+	 *
+	 * Slower than the rest of the rail because this is the one place
+	 * in the dock where a state change is worth WATCHING rather than
+	 * just registering; everything else stays quick, which is what
+	 * keeps this from reading as sluggishness.
+	 *
+	 * A theme that wants the old snap sets a shorter duration; `0s`
+	 * removes the choreography without losing any of the state it
+	 * carries.
+	 */
+	--os-dock-deck-slide: 720ms cubic-bezier(0.22, 1, 0.28, 1);
+
+	/*
+	 * How far the unselected deck tabs stand back.
+	 *
+	 * Transparency rather than a dimmer ink, so the dock's own surface
+	 * comes through them and they read as BEHIND the selection instead
+	 * of as a paler copy of it. One tab answers "where am I" and the
+	 * others are only offers; at equal weight the strip reads as four
+	 * things competing for the same job.
+	 *
+	 * Hover takes one back to full. Raise this toward 1 for a flatter
+	 * strip, lower it to push the unselected tabs further back.
+	 */
+	--os-dock-deck-idle-opacity: 0.6;
+
+	/*
 	 * ---- The OpenStation layout ---------------------------------
 	 *
 	 * The constellation: the flyout that fans a menu's submenu out of
