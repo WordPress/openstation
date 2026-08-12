@@ -184,6 +184,7 @@ import {
 import { recentlyMarqueed, type SelectionApi } from './selection';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
@@ -1991,13 +1992,8 @@ function init(): void {
 	const aiAssistant = new AiAssistantStub(
 		{
 			aiSearchUrl: config.aiSearchUrl ?? '',
-			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
 			adminUrl: config.adminUrl,
-			// Progress streaming is on by default now that the per-user
-			// transport picker is gone; the assistant falls back gracefully
-			// if the host drops the SSE connection.
-			getTransport: () => 'sse',
 			// AI mode is usable when the APIs are present and a provider is
 			// configured; the Commands palette works regardless. Read live so
 			// connecting a provider or flipping the "AI assistant" toggle takes
@@ -3698,6 +3694,9 @@ function init(): void {
 	// contributor / subscriber. Idempotent — safe to run twice
 	// if init() ever fires again.
 	bootHeartbeatBus();
+
+	// Notice OpenStation being deactivated from another tab, WP-CLI, etc.
+	bootPluginPresenceWatch();
 
 	// Challenge delivery rides the bus above — lives in the main
 	// bundle (like the recycle-bin badge) so an incoming challenge

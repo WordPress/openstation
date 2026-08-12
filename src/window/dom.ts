@@ -21,6 +21,7 @@ import {
 	markWindowContentReady,
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
+import { noteFrameLoaded } from '../plugin-presence';
 import { createRevealLayers } from '../reveals/surface';
 import { syncTabStripSemantics } from './tab-strip';
 import {
@@ -707,6 +708,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// idempotent loading → ready transition.
 		const onIframeLoad = (): void => {
 			markWindowContentReady( config.id );
+			noteFrameLoaded( iframe );
 		};
 		iframe.addEventListener( 'load', onIframeLoad );
 	} else {

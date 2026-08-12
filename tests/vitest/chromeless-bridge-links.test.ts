@@ -150,6 +150,24 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 		expect( adminLinkMessages() ).toHaveLength( 0 );
 	} );
 
+	// The Dashboard's welcome panel. dashboard.js binds the dismiss on
+	// the anchor itself, and `?welcome=0` is a no-JS fallback nothing
+	// in core reads any more — routing it opened a second Dashboard
+	// window, titled "Dismiss", on top of the one being dismissed.
+	test( 'the welcome panel dismiss links stay with dashboard.js', () => {
+		clickLink(
+			'<div id="welcome-panel"><a class="welcome-panel-close" href="/wp-admin/?welcome=0" aria-label="Dismiss the welcome panel">Dismiss</a></div>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		clickLink(
+			'<div id="welcome-panel"><p class="welcome-panel-dismiss"><a href="/wp-admin/?welcome=0">Dismiss</a></p></div>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
 	// On `?tab=upload` core skips that binding on purpose ("let the
 	// link behave like a link"), so the href IS the navigation and the
 	// shell has to route it like any other admin link.

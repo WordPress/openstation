@@ -48,6 +48,7 @@ import {
 	handleFinishedScreenHandoff,
 	handleWindowMessage,
 } from './iframe-bridge';
+import { noteFrameLoaded } from '../plugin-presence';
 import {
 	buttonsForWindow,
 	subscribeTitleBarButtons,
@@ -2379,6 +2380,7 @@ export class Window {
 				// has ready content: mark it so. A no-op in the common
 				// case where the overlay already cleared.
 				markWindowContentReady( this.id );
+				noteFrameLoaded( buffer );
 
 				// Keep the overlay contract alive for FUTURE classic
 				// reloads: the original frame got this wiring in
@@ -2387,6 +2389,7 @@ export class Window {
 				// clears.
 				buffer.addEventListener( 'load', () => {
 					markWindowContentReady( this.id );
+					noteFrameLoaded( buffer );
 				} );
 
 				// Same for the focus forwarder — the click-to-focus

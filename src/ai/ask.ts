@@ -15,10 +15,7 @@
  *      resolved shape so every caller has one place to read the
  *      outcome.
  *
- * The `ask()` contract is deliberately narrow — one call, one
- * promise, no streaming events. For live SSE progress, reach for
- * the existing `aiSearchStreamUrl` (admin-ajax) surface; `ask()` is
- * the "give me the answer" API.
+ * The `ask()` contract is deliberately narrow: one call, one promise.
  */
 
 import {

@@ -96,6 +96,20 @@ Key server-side entry points:
 6. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
 7. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
 
+### When OpenStation stops being active underneath the shell
+
+The server cannot announce this, because the next request no longer loads OpenStation. `src/plugin-presence.ts` detects it client side instead, in two halves.
+
+Triggers are cheap and allowed to be wrong: an iframe loading on an admin path whose `<body>` lacks `os-chromeless` (catches deactivate and delete from the classic `plugins.php`, row and bulk), or a Heartbeat tick without the `desktop_mode_nonces` field (catches another tab or WP-CLI). Neither is conclusive, since `wp_die()` screens carry no `admin_body_class` and core skips `heartbeat_received` on a tick with no client data.
+
+Confirmation is a `GET` of the `desktop-mode/v1` REST namespace index, needing neither nonce nor capability. Only a `404` carrying WordPress's own `rest_no_route` body evicts, because a bare 404 is also what a REST-hardening plugin or a firewall rule on `/wp-json` returns while OpenStation is perfectly healthy. A network error, a non-JSON body, or a shell config with no `restUrl` all leave the shell up. On a confirmed absence the shell toasts and navigates the top frame to `adminUrl` via `leaveForClassicAdmin()`, the same helper the native Plugins window's `reloadOutOfOpenStation()` uses.
+
+The watcher stops pinging after three consecutive "still here" answers, and any proof the plugin is alive (a chromeless page, a tick carrying the field) resets that. The Heartbeat field is gated on `openstation_is_enabled()`, not on the plugin being loaded, so a user who turns OpenStation off in another tab would otherwise make every later tick a trigger forever.
+
+State lives in a `createSharedStore` because this module compiles into both the main bundle and the lazy `window-system` one.
+
+The native Plugins window keeps its own faster path (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in `src/plugins-window/rest.ts`), since it knows which plugin the user just acted on.
+
 ## Desktop layout modes
 
 OpenStation Preferences → Appearance lets the user pick one of four top-level layouts. The shell root reflects the choice in `data-os-layout`; the layout dispatcher (`src/desktop-layout.ts`) owns every dock instance and the synthesized desktop-icon list, tearing down and rebuilding when the user switches.

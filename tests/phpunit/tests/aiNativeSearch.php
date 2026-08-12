@@ -156,4 +156,49 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'excerpt', $entity );
 		$this->assertArrayNotHasKey( 'ai_summary', $entity );
 	}
+
+	/**
+	 * The continue label names the entity, once.
+	 *
+	 * The noun used to be built from the tool slug, which is already
+	 * plural, so the button read "Continue searching in postss".
+	 *
+	 * @covers ::openstation_ai_continue_label
+	 */
+	public function test_continue_label_names_the_entity() {
+		$this->assertSame(
+			'Continue searching in posts (from item 11)',
+			openstation_ai_continue_label( 'search_posts', 11 )
+		);
+		$this->assertSame(
+			'Continue searching in pages (from item 11)',
+			openstation_ai_continue_label( 'search_pages', 11 )
+		);
+		$this->assertSame(
+			'Continue searching in comments (from item 4)',
+			openstation_ai_continue_label( 'search_comments', 4 )
+		);
+	}
+
+	/**
+	 * Every resumable tool gets a label of its own.
+	 *
+	 * The function falls back to the post wording for an unrecognised
+	 * tool, so a tool added to the resumable list without a matching case
+	 * would silently tell the user it is searching posts.
+	 *
+	 * @covers ::openstation_ai_continue_label
+	 */
+	public function test_every_resumable_tool_gets_its_own_continue_label() {
+		$labels = array();
+		foreach ( openstation_ai_search_resumable_tools() as $tool ) {
+			$labels[ $tool ] = openstation_ai_continue_label( $tool, 11 );
+		}
+
+		$this->assertSame(
+			count( $labels ),
+			count( array_unique( $labels ) ),
+			'A duplicate label means a resumable tool fell through to the default post wording.'
+		);
+	}
 }
