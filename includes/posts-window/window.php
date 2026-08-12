@@ -198,7 +198,6 @@ function openstation_posts_window_register_window() {
 			'currentUserId'   => (int) get_current_user_id(),
 			'defaultPerPage'  => 20,
 			'queryArgs'       => openstation_posts_window_default_query_args(),
-			// First-open intro dialog wiring — see `includes/seen-intros.php`.
 		),
 	);
 

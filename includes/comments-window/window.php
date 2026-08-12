@@ -129,8 +129,8 @@ function openstation_comments_window_register_window() {
 			'insightsUrlBase' => esc_url_raw( rest_url( 'desktop-mode/v1/comments/insights/' ) ),
 			'countsUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/comments/counts' ) ),
 			'aiSettingsUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			// Surface the current state so the OS Settings UI + the
-			// intro dialog can branch on it without a separate fetch.
+			// Surface the current state so the OS Settings UI can
+			// branch on it without a separate fetch.
 			// Cap-gated mirror of what the REST endpoint would return.
 			'aiModeration'    => array(
 				'enabled'            => openstation_comments_ai_is_enabled(),

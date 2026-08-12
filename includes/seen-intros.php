@@ -2,23 +2,24 @@
 /**
  * OpenStation — "Seen intros" registry.
  *
- * Tracks which one-time introduction dialogs the current user has
- * already dismissed, so the shell can show a "what's new in this
- * native app" dialog the first time a ported native window opens
- * and never bother the user again afterwards.
+ * Tracks which one-time announcements the current user has already
+ * dismissed, so each is shown once and never bothers them again.
  *
- * Today the surface is the native Posts window. The same key is
- * intentionally generic — any future ported native app (Pages,
- * Comments, Users, Plugins, …) registers its own slug and reuses
- * this storage. OS Settings → Features exposes a "Reset what's-new
- * dialogs" button that clears the whole list so the user can see
- * every intro again from scratch.
+ * Two surfaces use it today: the activation welcome dialog
+ * (`includes/welcome-dialog.php`, slug `activation-welcome`), shown
+ * in the classic admin while OpenStation is disabled, and the rebrand
+ * notice (`src/rebrand-notice.ts`, slug `openstation-rebrand`). The
+ * key is intentionally generic, so anything else that needs
+ * show-once semantics registers its own slug and reuses this storage.
+ * OpenStation Preferences → Features exposes a "Reset what's-new
+ * dialogs" button that clears the whole list.
  *
  * Storage shape:
  *   user meta `desktop_mode_seen_intros` → array<string> of slugs.
- *   `[ 'posts' ]`, `[ 'posts', 'pages' ]`, etc. Slug values pass
- *   through `sanitize_key()` and the list is capped at 64 entries
- *   so a runaway client cannot bloat user-meta indefinitely.
+ *   `[ 'activation-welcome' ]`, `[ 'openstation-rebrand' ]`, etc.
+ *   Slug values pass through `sanitize_key()` and the list is capped
+ *   at 64 entries so a runaway client cannot bloat user-meta
+ *   indefinitely.
  *
  * @package OpenStation
  */
@@ -187,8 +188,9 @@ add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
 /**
  * Permission gate for the seen-intros routes.
  *
- * In-shell intros (slug `posts`, `pages`, …) are only ever shown to a
- * user who has already entered OpenStation, so they keep the strict
+ * In-shell announcements (the rebrand notice, and anything a plugin
+ * registers) are only ever shown to a user who has already entered
+ * OpenStation, so they keep the strict
  * {@see openstation_rest_require_enabled()} gate — `read` alone is
  * insufficient (every role, Subscriber included, carries `read`).
  *

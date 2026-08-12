@@ -141,8 +141,8 @@ function openstation_pages_window_register_window() {
 		'config'     => array(
 			// `mode` is the JS-side discriminator the shared bundle reads
 			// to gate Pages-only behavior (parent column, no taxonomy
-			// tabs, Pages intro slug). The Posts config omits this key,
-			// so the bundle defaults to `'posts'` for backwards compat.
+			// tabs). The Posts config omits this key, so the bundle
+			// defaults to `'posts'` for backwards compat.
 			'mode'            => 'pages',
 			'restRoot'        => esc_url_raw( rest_url() ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
