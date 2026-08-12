@@ -746,14 +746,22 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.appendChild( titleBar );
 	el.appendChild( slotAfterTitlebar );
 
-	// Tab strip — initialized whenever the window has a submenu OR
-	// supports external-link sub-tabs (which iframe windows grow at
-	// runtime via `addExternalTab`). For windows with no submenu, we
-	// still create the strip but hide it via CSS `:empty` when empty.
-	// Each submenu tab is marked `data-kind="submenu"` so the runtime
-	// tab-switching code can tell submenu tabs apart from closeable
-	// external tabs.
-	if ( ! config.native ) {
+	/*
+	 * Tab strip — built for EVERY window, iframe or native.
+	 *
+	 * It used to be skipped for native windows, which is why they grew
+	 * a second tab system of their own inside the body. There is one
+	 * strip now and one stylesheet behind it; what differs between the
+	 * two kinds is only what a tab does when you press it. An iframe
+	 * window's submenu tabs swap the iframe URL (seeded below); a
+	 * native window's panel tabs show a pane in its body and are
+	 * declared at runtime through `Window.setTabs()`.
+	 *
+	 * A window with no tabs of either kind still gets the element, so
+	 * `addExternalTab()` and `setTabs()` have somewhere to put one
+	 * later. Empty, CSS collapses it to nothing.
+	 */
+	{
 		const tabs = document.createElement( 'nav' );
 		tabs.className = 'os-window__tabs';
 		tabs.setAttribute( 'role', 'tablist' );
@@ -778,8 +786,21 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		plate.appendChild( plateFill );
 		plate.appendChild( plateJoint );
 		tabs.appendChild( plate );
-		// translators: %s is the window's admin-page title (e.g., "Posts")
-		tabs.setAttribute( 'aria-label', sprintf( __( '%s sub-pages' ), config.title ) );
+		/*
+		 * A native window's tabs are panes of one app, not sub-pages
+		 * of an admin screen, so the tablist says so. Screen-reader
+		 * users hear this label on entering the strip and it is the
+		 * only thing telling them what these tabs belong to.
+		 */
+		let tabsLabel: string;
+		if ( config.native ) {
+			// translators: %s is the window's title (e.g., "OpenStation Preferences")
+			tabsLabel = sprintf( __( '%s sections' ), config.title );
+		} else {
+			// translators: %s is the window's admin-page title (e.g., "Posts")
+			tabsLabel = sprintf( __( '%s sub-pages' ), config.title );
+		}
+		tabs.setAttribute( 'aria-label', tabsLabel );
 
 		if ( config.submenu && config.submenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );

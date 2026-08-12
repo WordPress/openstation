@@ -680,7 +680,14 @@
 	align-items: flex-end;
 	flex-shrink: 0;
 	gap: 2px;
-	padding: 6px 8px 0;
+	/*
+	 * Horizontal padding is a floor as well as a breathing space. The
+	 * ring reaches one radius plus one stroke (10px at the shipped
+	 * values) past the plate on each side, so a first or last tab
+	 * under a smaller padding would have its outer corner clipped by
+	 * the `overflow` rule below.
+	 */
+	padding: 8px 12px 0;
 	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	/* TABBAR texture slot — layered over the strip's own colour. */
 	background-image: var( --os-tabs-image, none );
@@ -700,6 +707,59 @@
 	 * swipes inside the strip instead of triggering browser back.
 	 */
 	overscroll-behavior-x: contain;
+}
+
+/*
+ * Unfocused, the track follows the title bar down instead of holding
+ * its lit colour.
+ *
+ * Focused, the bar and the track are the same Obsidian and the tab is
+ * the only thing lifting out of them: two surfaces plus the tab. Dim
+ * the bar alone and the strip becomes a third colour belonging to
+ * neither the chrome above it nor the page below, which is the seam
+ * this rule removes.
+ *
+ * The chain ends at `--os-tabs-bg`, so a theme that names only the one
+ * strip colour keeps it in both states.
+ */
+.os-window:not( .os-window--focused ) .os-window__tabs {
+	background-color: var(
+		--os-tabs-bg-unfocused,
+		var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) )
+	);
+}
+
+/*
+ * The same strip on a NATIVE window, which is the same strip: one
+ * stylesheet, whatever is behind the window. What changes is only
+ * what the active tab is wearing, and it changes in tokens.
+ *
+ * The rule the whole design rests on is that the active tab wears the
+ * page's own fill and is filleted into it, so tab and content read as
+ * one surface. For an iframe window that fill is `#fff`, because
+ * `chromeless.css` paints every admin page inside a window white
+ * whatever the colour scheme says. A native window's page is its
+ * body, and `--os-window-bg` is what paints it — so that is the fill
+ * here, and the two move together by construction.
+ *
+ * The frost and the crown go with the white. They are what makes a
+ * bright plate read as a surface lifting out of dark chrome; on a
+ * native window the tab and the track are the same colour when the
+ * window is focused, and a crown on a tab you cannot see the edges of
+ * is decoration with nothing to decorate. The rail carries the
+ * silhouette on its own, which is the point: a native window has no
+ * value step to wear, so the line IS the tab.
+ *
+ * The label follows the fill. `--os-tabs-active-color` names the text
+ * on a white plate and resolves to near-black, which would be
+ * invisible here.
+ */
+.os-window--native {
+	--os-tabs-active-bg: var( --os-window-bg, #fff );
+	--os-tabs-active-color: var( --os-ui-fg, #1d2327 );
+	--os-tabs-active-color-muted: var( --os-ui-fg-muted, #50575e );
+	--os-tabs-active-frost: none;
+	--os-tabs-active-crown: none;
 }
 
 /*
@@ -1155,7 +1215,7 @@
 	display: inline-flex;
 	align-items: center;
 	height: 30px;
-	padding: 0 12px;
+	padding: 0 14px;
 	border: none;
 	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
 	background: transparent;

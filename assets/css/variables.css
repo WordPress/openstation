@@ -1216,6 +1216,35 @@ body.os-active {
 	 * dark palette.
 	 */
 	--os-tabs-bg: #1a1721;
+	/*
+	 * The track on an UNFOCUSED window, which follows the title bar
+	 * down to Void rather than holding Obsidian.
+	 *
+	 * A focused window already reads as two surfaces: title bar and
+	 * track are the same Obsidian, and the tab lifts out of them. Let
+	 * the track keep that Obsidian while the bar above it dims and
+	 * the window reads as THREE, with the strip belonging to neither
+	 * the chrome above nor the page below. Following the bar down
+	 * keeps the count at two in both states.
+	 *
+	 * Both tracks read this: the shell's strip on an iframe window,
+	 * and `<os-tabs variant="window">` inside a native one. The track
+	 * is chrome in both cases, so it dims with the chrome; what keeps
+	 * the tab attached to the content while that happens is the
+	 * plate's fill, which wears the body's own colour rather than the
+	 * track's.
+	 *
+	 * Note the asymmetry with the title bar's pair, which is
+	 * deliberate: there, `--os-titlebar-bg` is the unfocused base and
+	 * `-focused` is the modifier. Here the base is the LIT value,
+	 * so a theme naming one track colour lands on the state where the
+	 * track is doing the most work.
+	 *
+	 * A theme that sets only `--os-tabs-bg` (Legacy, and anything
+	 * written before this token existed) resolves through it in both
+	 * states and keeps its single strip colour.
+	 */
+	--os-tabs-bg-unfocused: #0c0b0f;
 	--os-tabs-color: #b3afb5;
 	--os-tabs-active-bg: #fff;
 	--os-tabs-active-color: #0c0b0f;

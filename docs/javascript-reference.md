@@ -232,6 +232,15 @@ Fires after the window is removed from the stack and begins its closing animatio
 
 ---
 
+### `os-window-tab-change` — Stable
+Fires when a native window's tab changes, whether the user clicked it, chose it with the keyboard, or code called `Window.activateTab()`. Dispatched on the window element and bubbles, so a listener on the element or on `document` both work.
+
+Only panel tabs fire this. A submenu tab on an iframe window navigates instead, and `os-window-content-loading` / `os-window-content-loaded` are the events for that.
+
+**`detail` shape:** `{ value: string }`
+
+---
+
 ### `os-window-changed` — Experimental
 Internal event used by the session saver. Fires for geometry changes (drag-end, resize-end) and state transitions (minimize, maximize, fullscreen, restore). Signature may change — prefer the per-operation events above for external use.
 
@@ -1058,6 +1067,43 @@ conn.subscribe( 'jorvy:quote-changed', ( payload ) => {
 ```
 
 Native targets fire `onOpen` on the next microtask (no handshake to wait for); iframe targets fire it after the iframe acks the handshake. `isOpen()`, `disconnect()`, and the `os.connection.*` hook lifecycle behave identically for both kinds.
+
+---
+
+### `Window.setTabs( entries, activeValue? )` — Stable
+
+Declare a native window's tabs in the window chrome. They render in the same strip an admin-page window wears under its title bar, with the same keyboard and the same look — one tab system, whatever is behind the window.
+
+Each entry's `value` matches the `for` attribute of an `<os-tabpanel>` in the window body. The shell shows one pane and hides the rest by toggling `hidden`, never re-rendering, so a pane that owns a canvas or a live preview keeps it across tab changes.
+
+```js
+wp.os.registerWindow( {
+    id: 'jorvy',
+    title: 'Jorvy',
+    render: ( body ) => {
+        body.innerHTML = `
+            <os-tabpanel for="calc">…</os-tabpanel>
+            <os-tabpanel for="convert">…</os-tabpanel>
+        `;
+        const win = body.closest( '.os-window' );
+        wp.os.windowManager.getById( 'jorvy' ).setTabs( [
+            { value: 'calc',    label: 'Calc' },
+            { value: 'convert', label: 'Convert' },
+        ] );
+        win.addEventListener( 'os-window-tab-change', ( e ) => {
+            console.log( 'now on', e.detail.value );
+        } );
+    },
+} );
+```
+
+Call it again whenever the list changes. It reconciles by `value` rather than rebuilding, so adding a tab mid-session leaves the user on the tab they were on and does not drop keyboard focus out of the strip. Pass `activeValue` only when you mean to move them deliberately; omit it and the current tab is kept.
+
+`Window.activateTab( value )` switches tabs programmatically and fires the same event.
+
+**Accessibility.** The strip is a `role="tablist"`, each tab a `role="tab"` wired to its pane with `aria-controls` / `aria-labelledby`. Tab enters the strip once and leaves it once (roving `tabindex`); arrow keys move within it, Home and End reach the ends, and Enter or Space activates. Activation is deliberate rather than follow-focus, because arrowing past a tab must not mount its pane.
+
+**A tab group inside content** — a switcher within one pane, say — is not this. Use `<os-tabs>` for that; see [`components-reference.md`](components-reference.md).
 
 ---
 

@@ -18,7 +18,28 @@ import { showToast } from '../toast';
 import { pageIdentityKey, urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
 import { withChromelessParam } from './dom';
+import {
+	activatePanelTab,
+	positionTabPlate,
+	syncTabRoving,
+} from './tab-strip';
 import type { Window } from './index';
+
+/*
+ * The strip's own DOM behaviour lives in `tab-strip.ts`, which imports
+ * nothing — so a feature bundle can declare a window's tabs without
+ * dragging in the toast layer and the iframe helpers this module
+ * needs. Re-exported here because `positionTabPlate` was part of this
+ * module's public surface before the split.
+ */
+export {
+	activatePanelTab,
+	handleTabStripKeydown,
+	positionTabPlate,
+	setPanelTabs,
+	syncTabRoving,
+} from './tab-strip';
+export type { PanelTabEntry } from './tab-strip';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 /**
@@ -503,6 +524,15 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		switchToTab( win, 'primary' );
 		return;
 	}
+	/*
+	 * Panel tab — a native window showing one of its own panes.
+	 * Nothing navigates and no iframe is involved: the pane is
+	 * already in the body, waiting behind `hidden`.
+	 */
+	if ( kind === 'panel' && tab.dataset.panel ) {
+		activatePanelTab( win.element, tab.dataset.panel );
+		return;
+	}
 	// Submenu tab — navigate primary iframe in place and bring it
 	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
@@ -592,67 +622,6 @@ export function updateTabOverflow(
 }
 
 /**
- * Move the plate — the active tab's surface — onto the active tab.
- *
- * The plate is one element that travels rather than a fill that
- * switches off on one tab and on at the next, so this is the only
- * thing that has to know where the active tab IS. It publishes two
- * custom properties and lets CSS animate them.
- *
- * Two things are load-bearing:
- *
- * 1. **`offsetLeft`, not `getBoundingClientRect()`.** The plate is an
- *    absolutely-positioned child of the strip, which is itself the
- *    scroll container — so it scrolls WITH the tabs, and its geometry
- *    has to be in the strip's own scrolled coordinate space. A
- *    viewport-relative rect would drift by exactly `scrollLeft` the
- *    moment a long strip is scrolled.
- * 2. **`data-placed` gates the transition.** Without it the plate
- *    animates in from the strip's left edge every time a window
- *    opens, because the first measurement is a change from zero.
- *
- * With no active tab — `syncActiveTab` can land on a URL matching
- * nothing, and foregrounding an external sub-tab deactivates every
- * submenu tab — the plate keeps its last geometry and fades out, so
- * re-activating does not read as it flying in from nowhere.
- */
-export function positionTabPlate( strip: HTMLElement ): void {
-	const plate = strip.querySelector< HTMLElement >(
-		'.os-window__tab-plate',
-	);
-	if ( ! plate ) {
-		return;
-	}
-	const active = strip.querySelector< HTMLElement >(
-		'.os-window__tab--active',
-	);
-	if ( ! active ) {
-		plate.dataset.empty = '';
-		strip.dataset.tabPlateEmpty = '';
-		return;
-	}
-	delete plate.dataset.empty;
-	delete strip.dataset.tabPlateEmpty;
-	/*
-	 * Published on the STRIP, not the plate. The rail that traces the
-	 * page's top edge is the strip's own `::before`, and custom
-	 * properties inherit downward only — a value set on the plate is
-	 * invisible to its parent. The plate reads all three by
-	 * inheritance, so one write serves both halves of the line.
-	 */
-	strip.style.setProperty( '--_tab-plate-x', `${ active.offsetLeft }px` );
-	strip.style.setProperty( '--_tab-plate-w', `${ active.offsetWidth }px` );
-	strip.style.setProperty( '--_tab-strip-w', `${ strip.clientWidth }px` );
-	// Only now may it animate. A width of 0 means layout has not run
-	// yet (the first frame of a window being assembled), and placing
-	// the plate off that measurement would teach it a wrong origin to
-	// travel from.
-	if ( active.offsetWidth > 0 ) {
-		plate.dataset.placed = '';
-	}
-}
-
-/**
  * Keep {@link updateTabOverflow} and {@link positionTabPlate} in step
  * with everything that can change the answer, and hand back a
  * teardown.
@@ -688,6 +657,14 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 			}
 			updateTabOverflow( strip, rtl );
 			positionTabPlate( strip );
+			/*
+			 * Same funnel, same reason: every place that toggles the
+			 * active class gets the roving tabindex updated without
+			 * having to know it exists. The `attributeFilter` below is
+			 * what keeps these `tabindex` writes from being seen as a
+			 * change and rescheduling forever.
+			 */
+			syncTabRoving( strip );
 		} );
 	};
 

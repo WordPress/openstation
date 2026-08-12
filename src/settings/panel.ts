@@ -52,6 +52,7 @@ import '../ui/components/os-swatch/os-swatch';
 import '../ui/components/os-swatch-grid/os-swatch-grid';
 import '../ui/components/os-tabs/os-tabs';
 import '../ui/components/os-text-field/os-text-field';
+import { setPanelTabs } from '../window/tab-strip';
 import { structuredDefaults } from './state';
 import type { OsSettings } from './index';
 import type { DesktopSettingsTab } from './registry';
@@ -172,7 +173,12 @@ export function renderOsSettingsPanel(
 	interface TabRow {
 		id: string;
 		order: number;
-		tab: ReturnType< typeof html >;
+		/*
+		 * A plain string, not a rendered `<os-tab>`. The strip lives
+		 * in the window chrome now, outside this panel's render root,
+		 * and the shell builds the buttons from these.
+		 */
+		label: string;
 		panel: ReturnType< typeof html >;
 		/** For external tabs — invoked after render to mount content. */
 		mount?: ( host: HTMLElement ) => void;
@@ -182,9 +188,7 @@ export function renderOsSettingsPanel(
 		{
 			id: 'appearance',
 			order: 10,
-			tab: html`<os-tab value="appearance"
-				>${ __( 'Appearance' ) }</os-tab
-			>`,
+			label: __( 'Appearance' ),
 			panel: html`<os-tabpanel for="appearance">
 				<os-panel>
 					<p class="os-settings__intro">
@@ -205,9 +209,7 @@ export function renderOsSettingsPanel(
 		{
 			id: 'features',
 			order: 25,
-			tab: html`<os-tab value="features"
-				>${ __( 'Features' ) }</os-tab
-			>`,
+			label: __( 'Features' ),
 			panel: html`<os-tabpanel for="features">
 				<os-panel>
 					${ buildFeaturesSection( ctx ) }
@@ -221,7 +223,7 @@ export function renderOsSettingsPanel(
 			// theme is a coarser version of what Appearance does, so
 			// it reads as the next step, not a separate concern.
 			order: 12,
-			tab: html`<os-tab value="themes">${ __( 'Themes' ) }</os-tab>`,
+			label: __( 'Themes' ),
 			panel: html`<os-tabpanel for="themes">
 				<os-panel>${ buildThemesSection( ctx ) }</os-panel>
 			</os-tabpanel>`,
@@ -229,9 +231,7 @@ export function renderOsSettingsPanel(
 		{
 			id: 'apps-icons',
 			order: 22,
-			tab: html`<os-tab value="apps-icons"
-				>${ __( 'Apps & Icons' ) }</os-tab
-			>`,
+			label: __( 'Apps & Icons' ),
 			panel: html`<os-tabpanel for="apps-icons">
 				<os-panel>${ buildAppsIconsSection( ctx ) }</os-panel>
 			</os-tabpanel>`,
@@ -239,9 +239,7 @@ export function renderOsSettingsPanel(
 		{
 			id: 'effects',
 			order: 27,
-			tab: html`<os-tab value="effects"
-				>${ __( 'Effects' ) }</os-tab
-			>`,
+			label: __( 'Effects' ),
 			panel: html`<os-tabpanel for="effects">
 				<os-panel>${ buildEffectsSection( ctx ) }</os-panel>
 			</os-tabpanel>`,
@@ -252,7 +250,7 @@ export function renderOsSettingsPanel(
 		rows.push( {
 			id: 'help',
 			order: 40,
-			tab: html`<os-tab value="help">${ __( 'Components' ) }</os-tab>`,
+			label: __( 'Components' ),
 			panel: html`<os-tabpanel for="help">
 				<os-panel>${ buildHelpSection( ctx ) }</os-panel>
 			</os-tabpanel>`,
@@ -271,7 +269,7 @@ export function renderOsSettingsPanel(
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,
-		tab: html`<os-tab value="about">${ __( 'About' ) }</os-tab>`,
+		label: __( 'About' ),
 		panel: html`<os-tabpanel for="about">
 			<os-panel padding="0">${ buildAboutSection() }</os-panel>
 		</os-tabpanel>`,
@@ -284,7 +282,7 @@ export function renderOsSettingsPanel(
 		rows.push( {
 			id: tabId,
 			order: tab.order ?? 100,
-			tab: html`<os-tab value=${ tabId }>${ tab.label }</os-tab>`,
+			label: tab.label,
 			panel: html`<os-tabpanel for=${ tabId }>
 				<os-panel><div data-host=${ hostAttr }></div></os-panel>
 			</os-tabpanel>`,
@@ -324,25 +322,16 @@ export function renderOsSettingsPanel(
 	// refreshMenu() snaps the user back to the Appearance tab
 	// mid-action.
 	//
-	// `<os-tabs>` keeps the live selected value on the JS property,
-	// not the attribute — `getAttribute('value')` would always
-	// return the initial value, regardless of what the user picked.
-	const previousTabs = body.querySelector( 'os-tabs' ) as
-		| ( HTMLElement & { value?: string } )
-		| null;
-	const previousValue =
-		ctx.activeTabId ??
-		previousTabs?.value ??
-		previousTabs?.getAttribute( 'value' ) ??
-		'appearance';
+	// `ctx.activeTabId` is the record now. The strip itself lives in
+	// the window chrome, outside this render root, and survives a
+	// re-render on its own — but the panes below do not, so the tab
+	// we hand the shell has to be one that still exists.
+	const previousValue = ctx.activeTabId ?? 'appearance';
 	const activeRowExists = rows.some( ( r ) => r.id === previousValue );
 	const initialTab = activeRowExists ? previousValue : 'appearance';
 
 	render(
 		html`
-			<os-tabs value=${ initialTab } label=${ __( 'Settings sections' ) }>
-				${ rows.map( ( r ) => r.tab ) }
-			</os-tabs>
 			${ rows.map( ( r ) => r.panel ) }
 			<os-panel class="os-settings__footer">
 				<os-button variant="ghost" @click=${ onReset }
@@ -365,19 +354,47 @@ export function renderOsSettingsPanel(
 		}
 	}
 
-	// Track the active tab id so a registry-driven re-render can
-	// land the user back on it. Bound on the freshly-rendered
-	// `<os-tabs>` host — `lit` reuses the DOM node across
-	// renders, but the listener idempotently overwrites
-	// `activeTabId` so duplicates are harmless.
-	const tabsHost = body.querySelector( 'os-tabs' );
-	if ( tabsHost ) {
-		tabsHost.addEventListener( 'os-tab-change', ( e: Event ) => {
-			const detail = ( e as CustomEvent ).detail as { value?: string };
-			if ( detail?.value ) {
-				ctx.activeTabId = detail.value;
-			}
-		} );
+	/*
+	 * Hand the tabs to the window chrome.
+	 *
+	 * This is the same strip an admin-page window wears under its
+	 * title bar: one tab system, one stylesheet, whatever is behind
+	 * the window. `setPanelTabs` reconciles by value, so a plugin
+	 * live-registering a tab adds one button rather than rebuilding
+	 * the strip under the user's cursor.
+	 *
+	 * Declared AFTER the panes are rendered, because it pairs each tab
+	 * to its pane for assistive tech and hides all but the active one.
+	 */
+	const winEl = body.closest< HTMLElement >( '.os-window' );
+	if ( winEl ) {
+		setPanelTabs(
+			winEl,
+			rows.map( ( r ) => ( { value: r.id, label: r.label } ) ),
+			initialTab,
+		);
+
+		/*
+		 * Track the user's choice so a registry-driven re-render lands
+		 * them back on it. Bound on the window element, which outlives
+		 * this render root; `AbortSignal` off a per-render controller
+		 * keeps a re-render from stacking listeners on it.
+		 */
+		ctx.tabChangeAbort?.abort();
+		const controller = new AbortController();
+		ctx.tabChangeAbort = controller;
+		winEl.addEventListener(
+			'os-window-tab-change',
+			( e: Event ) => {
+				const detail = ( e as CustomEvent ).detail as {
+					value?: string;
+				};
+				if ( detail?.value ) {
+					ctx.activeTabId = detail.value;
+				}
+			},
+			{ signal: controller.signal },
+		);
 	}
 	ctx.activeTabId = initialTab;
 

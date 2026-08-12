@@ -162,14 +162,25 @@ export class OsSettings implements SettingsCtx {
 
 	/**
 	 * Most-recent active settings tab id, captured from
-	 * `os-tab-change`. Used to keep the user on whatever tab they
-	 * picked when a registry mutation forces the panel to re-render
-	 * (e.g. when a third-party plugin live-registers a new settings
-	 * tab via the chromeless plugins-changed bridge).
+	 * `os-window-tab-change`. Used to keep the user on whatever tab
+	 * they picked when a registry mutation forces the panel to
+	 * re-render (e.g. when a third-party plugin live-registers a new
+	 * settings tab via the chromeless plugins-changed bridge).
 	 *
 	 * Public for the same reason as `tabRegistryUnsubscribe` above.
 	 */
 	public activeTabId: string | null = null;
+
+	/**
+	 * Aborts the previous render's `os-window-tab-change` listener.
+	 *
+	 * The tab strip lives on the window element now, not inside the
+	 * panel's render root, so it is NOT replaced when the panel
+	 * re-renders — which means a listener bound to it would survive
+	 * and stack, one more per registry mutation. One controller per
+	 * render, aborted by the next.
+	 */
+	public tabChangeAbort: AbortController | null = null;
 
 	/**
 	 * Subscribers to OpenStation Preferences state changes — third-party tabs that
