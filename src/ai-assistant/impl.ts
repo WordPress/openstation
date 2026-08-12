@@ -17,7 +17,7 @@
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
-import { __, sprintf } from '../i18n';
+import { __, _x, sprintf } from '../i18n';
 import { osConfirm } from '../os-confirm';
 import { trackedFetch } from '../tracked-fetch';
 import { decodeHTML } from '../utils';
@@ -946,17 +946,16 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.disabled = true;
 		this._showThinking( __( 'Thinking…' ) );
 
-		// Two transports, picked by the user in OpenStation Preferences → AI Settings:
-		//   - 'sse' — real-time progress ticks via EventSource. Preferred
-		//     UX, but some hosts (locked-down shared environments,
-		//     buffering proxies) drop the stream and surface as "Lost
-		//     connection to the assistant". Power users opt in.
-		//   - 'off' (default) — single REST request. No progress ticks;
-		//     the user sees "Thinking…" until the final answer. Reliable
-		//     everywhere.
+		// Two transports:
+		//   - 'sse' — real-time progress ticks via EventSource. The shell
+		//     default. Some hosts (locked-down shared environments,
+		//     buffering proxies) drop the stream, which surfaces as "Lost
+		//     connection to the assistant".
+		//   - 'off' — single REST request. No progress ticks; the user sees
+		//     "Thinking…" until the final answer. Reliable everywhere.
 		// We additionally fall back to fetch when EventSource is missing
-		// or PHP didn't provision a stream URL, so an SSE pick on a host
-		// that can't actually run it still degrades gracefully.
+		// or PHP didn't provision a stream URL, so SSE on a host that
+		// can't actually run it still degrades gracefully.
 		const useSse =
 			this._getTransport() === 'sse' &&
 			typeof EventSource !== 'undefined' &&
@@ -1003,6 +1002,7 @@ export class AiAssistant implements AiAssistantApi {
 				event?: string;
 				message?: string;
 				code?: string;
+				settings_tab?: string;
 				result?: SearchResult;
 			};
 			try {
@@ -1030,10 +1030,10 @@ export class AiAssistant implements AiAssistantApi {
 					finish();
 					break;
 				case 'error':
-					// The SSE endpoint bails with a bare status header for
-					// every recoverable case, so no settings hint can arrive
-					// on this path.
-					this._showError( data.message ?? __( 'Something went wrong.' ) );
+					this._showError(
+						data.message ?? __( 'Something went wrong.' ),
+						data.settings_tab,
+					);
 					finish();
 					break;
 			}
@@ -1761,7 +1761,10 @@ export class AiAssistant implements AiAssistantApi {
 			? sprintf(
 				/* translators: %s: title of the post the comment was left on. */
 				__( 'Comment on “%s”' ),
-				this._esc( e.post_title ?? __( 'post' ) ),
+				this._esc(
+					e.post_title ??
+						_x( 'post', 'fallback name for the post a comment was left on' ),
+				),
 			)
 			: this._esc( e.title ?? __( 'Untitled' ) );
 		const summary = this._esc( e.ai_summary || e.excerpt || '' );

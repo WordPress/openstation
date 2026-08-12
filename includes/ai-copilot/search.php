@@ -1990,12 +1990,15 @@ function openstation_rest_ai_search_permission() {
 		);
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
-		// `settings_tab` tells the overlay which OpenStation Preferences tab
-		// turns this back on, so it can offer a one-click recovery link
-		// without parsing the tab path back out of the message.
+		// The message names the tab for consumers that only get text (a REST
+		// client, `wp.os.ai.ask()`). `settings_tab` names it again as data,
+		// so the overlay can offer a one-click link without parsing prose.
 		return new WP_Error(
 			'openstation_ai_disabled',
-			__( 'The AI assistant is turned off.', 'desktop-mode' ),
+			__(
+				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
+				'desktop-mode'
+			),
 			array(
 				'status'       => 403,
 				'settings_tab' => 'features',
@@ -2383,6 +2386,37 @@ function openstation_ai_tail_file( $path, $lines ) {
  *   data: { "event": "done",     "result": { … } }
  *   data: { "event": "error",    "message": "…" }
  */
+/**
+ * Emits a one-shot SSE error frame and ends the request.
+ *
+ * Opens the stream with a 200 so the payload reaches `onmessage`. A status
+ * code alone reaches only `onerror`, which cannot carry a code or a
+ * recovery hint.
+ *
+ * @param string      $code         Error code the client branches on.
+ * @param string      $message      Human-readable message.
+ * @param string|null $settings_tab OpenStation Preferences tab that fixes it.
+ * @return never
+ */
+function openstation_ai_stream_error( $code, $message, $settings_tab = null ) {
+	header( 'Content-Type: text/event-stream; charset=utf-8' );
+	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+	header( 'X-Accel-Buffering: no' );
+
+	$payload = array(
+		'event'   => 'error',
+		'code'    => $code,
+		'message' => $message,
+	);
+	if ( null !== $settings_tab ) {
+		$payload['settings_tab'] = $settings_tab;
+	}
+
+	echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
+	flush();
+	exit;
+}
+
 function openstation_ai_ajax_search_stream() {
 	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
 	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
@@ -2399,8 +2433,18 @@ function openstation_ai_ajax_search_stream() {
 		exit;
 	}
 	if ( ! openstation_ai_is_enabled( $user_id ) ) {
-		status_header( 403 );
-		exit;
+		// Deliver this one as a stream error rather than a bare 403. It is
+		// the only recoverable failure here, and a status code carries no
+		// body, so EventSource would surface it as a generic connection
+		// drop and the client could never offer the one-click fix.
+		openstation_ai_stream_error(
+			'openstation_ai_disabled',
+			__(
+				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
+				'desktop-mode'
+			),
+			'features'
+		);
 	}
 
 	$query = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : ''; // phpcs:ignore WordPress.Security
