@@ -1206,16 +1206,28 @@ Powers the dock-peek "+" button for native windows so they behave like iframe wi
 
 Drop-in wrapper around the global `fetch()` that drives the target window's **activity phase** while the request is in flight, and attributes the request on the activity bus. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
 
-> **The phase is painted as a soft glow behind the window icon.** No element renders it and none is needed: `Window._paintActivityIndicator()` puts the phase on the title bar as `data-os-activity`, and `window-chrome.css` draws a halo on the icon slot's pseudo-element. Idle **removes** the attribute rather than setting `idle`, so an idle window matches nothing and costs nothing — which is what the always-visible dot this replaced could not do, having to occupy space whether or not anything was happening.
+> **The phase is painted as the status ring** — the leading mark of the title bar, in the position the app icon used to hold. That icon was a copy of the window's own dock tile a few hundred pixels below it, and a title bar has room for one mark of that size; it now carries one that changes.
+>
+> The ring is an `<os-save-status variant="ring" mode="icon">`, and only one of its four states fills:
+>
+> | Phase | Ring |
+> |---|---|
+> | `idle` | quiet outline in the title bar's own muted glyph colour |
+> | `pending` / `saving` | accent outline, breathing |
+> | `saved` | accent fill, white check |
+> | `failed` | open red outline, red bang |
+>
+> Colour alone is not a distinction every user can make, which is why the two outcomes differ in **shape** — filled versus open, check versus bang — and not only in hue.
 >
 > Three consequences worth knowing:
 >
-> - **The glow anchors on the icon slot host, not the icon.** A plugin owning the `icon` slot replaces the host's *children*, so a custom icon renderer inherits the glow without knowing it exists — and it works for `<img>` icons, which generate no pseudo-elements of their own.
-> - **A second attribute, `data-os-activity-last`, holds the last non-idle phase and is never cleared.** It is what colours the glow. The exit begins the moment `data-os-activity` is removed, and a glow that reverted to the accent as it started fading would read as a blink rather than a dissolve — so the colour outlives the phase, and the halo fades out mint (or red) instead of changing colour on the way. Entry is quick and decelerating, exit dissolves *and* shrinks over 0.55s on `--os-ui-ease-in`; reduced motion drops both movements and keeps the cross-fade.
-> - **The phase is announced too.** A glow says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
-> - **A literal dot is still available.** Put an `<os-save-status data-os-activity-indicator>` inside a `<span class="os-window__activity">` in a title-bar slot and the same paint call drives its `phase` and `error` alongside the glow.
+> - **The framework's ring claims no private channel.** It is found by `[data-os-activity-indicator]`, the same public attribute a plugin uses to mount its own `<os-save-status>` in a title-bar slot, and **every** matching element in the title bar is driven — a window showing two different phases at once would be worse than one showing none.
+> - **The phase is announced too.** A ring says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
+> - **The phase is mirrored to CSS** as `data-os-activity` on the title-bar element, absent while idle, so a desktop theme can react to window state without reaching into the component's shadow root.
 >
-> The three phases are a traffic light — **amber** in flight, **green** on success, **red** on failure — so in-flight is a colour of its own rather than the brand accent: a window glowing magenta while it saves is decorating, not reporting. Restyling is five tokens, all themeable: `--os-titlebar-activity-color`, `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, `--os-titlebar-activity-size`, and `--os-titlebar-activity-strength` — set the strength to `0` to turn the effect off entirely.
+> Restyling is four themeable tokens: `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`. The resting ring follows the title bar's control-glyph colours (`--os-titlebar-btn-color` / `-focused-color`) unless `--os-titlebar-activity-idle-color` overrides it.
+>
+> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
 
 ```js
 // In any window's render callback / event handler:
@@ -1226,7 +1238,7 @@ const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', {
 } );
 ```
 
-That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the server answers with a success status, and `failed` on any other outcome — an HTTP error status (`4xx` / `5xx`, carrying `Request failed (HTTP 500 Internal Server Error).`) or a rejected fetch (network error, CORS, abort, carrying the `Error.message`) — then back to `idle`. **No CSS, no per-window plumbing, no DOM.** The icon glows while the request is in flight, flashes mint when it lands, and stays red if it didn't.
+That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the server answers with a success status, and `failed` on any other outcome — an HTTP error status (`4xx` / `5xx`, carrying `Request failed (HTTP 500 Internal Server Error).`) or a rejected fetch (network error, CORS, abort, carrying the `Error.message`) — then back to `idle`. **No CSS, no per-window plumbing, no DOM.** The ring breathes while the request is in flight, fills with a check when it lands, and stays an open red ring if it didn't.
 
 #### Auto X-WP-Nonce
 
@@ -3641,7 +3653,7 @@ A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentCo
 Two rules follow:
 
 - **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
-- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their title-bar icons resolve to a `background-image` with `mask-image: none`.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their dock and desktop icons resolve to a `background-image` with `mask-image: none`.
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 
@@ -3915,6 +3927,21 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
     failed: boolean;
 }
 ```
+
+#### `os-iframe-activity` — Experimental
+Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, but **bracketing** the request rather than only reporting its completion — an indicator that can only be told "it finished" never shows the part the user waits through. This is what makes an iframe window report activity like a native one: native windows route through `wp.os.fetch`, which the shell owns, while an admin page inside an iframe does its own jQuery / XHR / `fetch` calls the parent has no other way to see.
+
+```typescript
+{ type: 'os-iframe-activity'; phase: 'start' }
+{ type: 'os-iframe-activity'; phase: 'end'; failed: boolean; status: number }
+```
+
+The parent feeds these to the same reference-counted `Window._markActivityStart()` / `_markActivitySettled()` pair `wp.os.fetch` uses, so a page firing six requests at once settles as one burst — and settles `failed` if any of them did. `status === 0` means no response arrived (network error, CORS, abort); the failure message omits the number in that case.
+
+**Every method counts, GET included** — "did that go through?" is as real a question for a list-table filter as for a save. Two deliberate exclusions:
+
+- **WordPress Heartbeat** never reports. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. This is the same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
+- **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
 
 #### `os-screen-meta` — Stable
 Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders one title-bar button per announced panel, replacing any previously rendered set.

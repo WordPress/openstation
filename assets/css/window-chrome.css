@@ -208,180 +208,65 @@
 }
 
 /* ---------------------------------------------------------------
- * Window activity — a glow behind the icon.
+ * Window activity — the status ring.
  *
- * `Window._paintActivityIndicator()` puts the phase on the title bar
- * as `data-os-activity`, and everything below is that one attribute
- * being read. Idle removes the attribute rather than setting
- * `idle`, so an idle window matches nothing here and pays nothing:
- * no pseudo-element, no compositing layer, no animation.
+ * The leading mark of the title bar, in the position the app icon
+ * used to hold. That icon was a copy of the window's own dock tile a
+ * few hundred pixels below it, and a title bar has room for one mark
+ * of that size — better spent on something that changes.
  *
- * Why the icon and not a dot of its own. A window's icon is already
- * the thing that says which app this is; lighting it is how a desk
- * lamp reports work — the object at work glows, no second object
- * appears to describe it. The dot this replaced had to occupy space
- * whether or not anything was happening, which is how it ended up
- * painting a permanent ring to report `idle`.
+ * The ring is an `<os-save-status variant="ring" mode="icon">`, found
+ * by `[data-os-activity-indicator]` — the same public attribute a
+ * plugin uses to mount its own. The framework's ring is not a special
+ * case; it is the first subscriber.
  *
- * The glow is a pseudo-element on the SLOT HOST, not on the icon.
- * Two reasons, both structural: `.os-window__icon` can be an `<img>`
- * (data-URI and remote icons), and replaced elements generate no
- * pseudo-elements; and a plugin owning the `icon` slot replaces the
- * host's CHILDREN, never the host — so the glow survives a custom
- * icon renderer without the plugin having to know it exists.
+ * Four states, and only one of them fills:
+ *
+ *   idle    quiet outline, no glyph
+ *   saving  accent outline, breathing
+ *   saved   accent fill, white check
+ *   failed  open red outline, red bang
+ *
+ * Colour alone is not a distinction every user can make, which is why
+ * the two outcomes differ in SHAPE — filled versus open, check versus
+ * bang — and not only in hue.
+ *
+ * `Window._paintActivityIndicator()` also mirrors the phase onto the
+ * title bar as `data-os-activity` (absent while idle) so a desktop
+ * theme can react to window state without reaching into the
+ * component's shadow root.
  */
-
-/*
- * The icon slot is the only in-titlebar slot that isn't
- * `display: contents` — the glow needs a box to be positioned
- * against. `inline-flex` + `flex-shrink: 0` reproduces exactly what
- * the icon contributed to the flex row when it was the flex item
- * itself, so the layout is unchanged; `:empty` collapses the host so
- * an icon-less window doesn't pay the title bar's `gap` for a slot
- * with nothing in it.
- */
-.os-window__slot--icon {
-	position: relative;
+.os-window__status {
+	--os-ui-save-status-size: var(--os-titlebar-activity-size, 16px);
+	/*
+	 * At rest the ring is chrome, not signal: it takes the title
+	 * bar's own muted foreground rather than the accent, so an idle
+	 * window — which is most windows, most of the time — carries a
+	 * mark that recedes. Every other phase is the accent or the
+	 * danger colour, and each one arrives as a change.
+	 */
+	--os-ui-save-status-idle-color: var(
+		--os-titlebar-activity-idle-color,
+		var(--os-titlebar-btn-color, rgba(255, 251, 255, 0.55))
+	);
+	--os-ui-save-status-bg: var(--os-titlebar-activity-color, #2271b1);
+	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
+	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
 }
 
-.os-window__slot--icon:empty {
-	display: none;
-}
-
 /*
- * The halo. `z-index: -1` puts it behind everything in the slot
- * whatever that content is — the slot host is positioned but has no
- * z-index of its own, so this paints inside the TITLE BAR's stacking
- * context: above its background, below its content. An icon painted
- * over its own glow is the whole effect; a glow painted over the icon
- * is a smudge.
- *
- * `transparent` at 70% rather than a hard edge is what makes it read
- * as light instead of a disc.
- *
- * This rule is the RESTING state, which is also the EXIT state — an
- * element with no `data-os-activity` above it is one whose work
- * finished. So the exit is declared here: dissolve and shrink
- * together, over 0.55s, on `--os-ui-ease-in`. Accelerating out is the
- * shell's rule for anything leaving; decelerating would read as the
- * glow hesitating, which is the wrong note once the save is done.
- * Both properties are compositor-only, so the whole thing is free.
- *
- * The tint is a private alias rather than a literal gradient, because
- * of what happens at the moment the attribute is removed. The colour
- * has to survive the exit: reverting mint to accent at the same
- * instant the opacity starts falling is a colour change, and a
- * colour change over 0.55s does not read as a fade — it reads as a
- * blink. `data-os-activity-last` is the sticky record of the last
- * non-idle phase and is never cleared, so the glow fades out in the
- * colour it lit up in.
+ * The focused title bar is the brighter of the two surfaces, so the
+ * resting ring lifts with it — same relationship the control glyphs
+ * already have with `--os-titlebar-btn-focused-color`.
  */
-.os-window__slot--icon::before {
-	--_tint: var(--os-titlebar-activity-color, #dba617);
-	content: '';
-	position: absolute;
-	z-index: -1;
-	inset-block-start: 50%;
-	inset-inline-start: 50%;
-	width: var(--os-titlebar-activity-size, 34px);
-	height: var(--os-titlebar-activity-size, 34px);
-	translate: -50% -50%;
-	border-radius: 50%;
-	pointer-events: none;
-	opacity: 0;
-	scale: 0.72;
-	background: radial-gradient(circle, var(--_tint) 0%, transparent 70%);
-	transition:
-		opacity 0.55s var(--os-ui-ease-in, ease-in),
-		scale 0.55s var(--os-ui-ease-in, ease-in);
-}
-
-/*
- * Entry is the mirror: quicker (0.2s) and decelerating, so the glow
- * arrives with the click that caused it and leaves in its own time.
- * Declaring it on the presence of the attribute rather than on the
- * base rule is what lets the two directions have different curves.
- */
-.os-window__titlebar[data-os-activity] .os-window__slot--icon::before {
-	scale: 1;
-	transition:
-		opacity 0.2s var(--os-ui-ease-out, ease-out),
-		scale 0.24s var(--os-ui-ease-out, ease-out);
-}
-
-/*
- * The tint, by outcome. Keyed on the STICKY attribute, not the live
- * one — see the exit note above. `saving` matches neither and falls
- * through to the amber on the base rule, which completes the traffic
- * light: amber working, green through, red stopped. The three
- * fallback literals are the WordPress-admin set for the same three
- * meanings, so the sequence still reads if the palette never loads.
- */
-.os-window__titlebar[data-os-activity-last='saved'] .os-window__slot--icon::before {
-	--_tint: var(--os-titlebar-activity-saved-color, #00a32a);
-}
-
-.os-window__titlebar[data-os-activity-last='failed'] .os-window__slot--icon::before {
-	--_tint: var(--os-titlebar-activity-failed-color, #d63638);
-}
-
-/*
- * In flight. The breath is slow (2.4s) and never reaches zero: a
- * blink reads as an alarm, a breath reads as work continuing.
- */
-.os-window__titlebar[data-os-activity='saving'] .os-window__slot--icon::before,
-.os-window__titlebar[data-os-activity='pending'] .os-window__slot--icon::before {
-	opacity: var(--os-titlebar-activity-strength, 0.55);
-	animation: os-window-activity-breathe 2.4s var(--os-ui-ease-loop, ease-in-out) infinite;
-}
-
-/*
- * Landed. Held at full strength for the ~2.2s the phase lasts, then
- * the attribute goes and the base rule dissolves it — still mint,
- * because `data-os-activity-last` stays behind.
- */
-.os-window__titlebar[data-os-activity='saved'] .os-window__slot--icon::before {
-	opacity: var(--os-titlebar-activity-strength, 0.55);
-}
-
-/*
- * Failed. Brighter than the other two and it does NOT auto-clear —
- * the phase persists until the next request starts, so the window
- * carries the fact that something didn't go through for as long as
- * that stays true. Two attention pulses, then steady.
- */
-.os-window__titlebar[data-os-activity='failed'] .os-window__slot--icon::before {
-	opacity: 1;
-	animation: os-window-activity-breathe 0.9s var(--os-ui-ease-loop, ease-in-out) 2;
-}
-
-/*
- * The trough (0.86) stays well above the resting scale (0.72) so the
- * breath is a breath and the exit is still a shrink — if the two met,
- * the dissolve would have no distance left to travel.
- */
-@keyframes os-window-activity-breathe {
-	0%, 100% { opacity: 0.28; scale: 0.86; }
-	50%      { opacity: 1;    scale: 1; }
-}
-
-/*
- * Reduced motion stops the movement, never the glow. The breath and
- * the shrink both go; the dissolve stays, because a cross-fade is a
- * change of opacity and not of position, and because the glow IS the
- * state — a user who asked for less movement did not ask to stop
- * being told whether their change saved.
- */
-@media (prefers-reduced-motion: reduce) {
-	.os-window__slot--icon::before,
-	.os-window__titlebar[data-os-activity] .os-window__slot--icon::before {
-		animation: none;
-		scale: 1;
-		transition: opacity 0.4s var(--os-ui-ease-in, ease-in);
-	}
+.os-window--focused .os-window__status {
+	--os-ui-save-status-idle-color: var(
+		--os-titlebar-activity-idle-color-focused,
+		var(--os-titlebar-btn-focused-color, rgba(255, 251, 255, 0.72))
+	);
 }
 
 /*
@@ -501,12 +386,12 @@
  * `flex-shrink: 0`, before/after spacers, etc.) keeps its
  * original layout role.
  *
- * Two slots are exceptions. `icon` owns a real box so the activity
- * glow has something to be positioned against (see the activity
- * block earlier in this file); it reproduces the icon's own flex
- * behaviour, so the row lays out the same either way.
+ * The `icon` slot is empty by default now — the app icon it used to
+ * carry duplicated the window's dock tile — so on most windows it
+ * contributes nothing at all. It keeps `display: contents` for the
+ * ones where a plugin or a desktop theme does render an icon into it.
  *
- * The `title` slot is the other: it's the flex-grow region of
+ * The `title` slot is the exception: it's the flex-grow region of
  * the title bar (`flex: 1`). When a plugin replaces the default
  * title with custom HTML or a render callback, we want the new
  * content to inherit the same "fill the remaining horizontal
@@ -522,6 +407,7 @@
  * @since 0.6.0
  */
 .os-window__slot--before-icon,
+.os-window__slot--icon,
 .os-window__slot--after-title,
 .os-window__slot--before-controls,
 .os-window__slot--after-controls {

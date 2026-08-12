@@ -147,7 +147,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-code>` | `OsCode` | `os-code/os-code.ts` | Inline / block monospace code with copy. |
 | `<os-spinner>` | `OsSpinner` | `os-spinner/os-spinner.ts` | Loading spinner with preset variants; `preset="inline"` is a bare arc for text-adjacent use. |
 | `<os-progress-bar>` | `OsProgressBar` | `os-progress-bar/os-progress-bar.ts` | Determinate or indeterminate progress. |
-| `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Title-bar save indicator (idle / saving / saved / failed). |
+| `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
 | `<os-relative-time>` | `OsRelativeTime` | `os-relative-time/os-relative-time.ts` | Auto-updating "2 min ago". |
 | `<os-empty-state>` | `OsEmptyState` | `os-empty-state/os-empty-state.ts` | Empty-list / no-results placeholder. |
 | `<os-rating-summary>` | `OsRatingSummary` | `os-rating-summary/os-rating-summary.ts` | Star average + per-star bucket bars. |

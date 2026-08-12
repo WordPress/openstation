@@ -1,32 +1,37 @@
-# Example: window activity & the icon glow
+# Example: window activity & the status ring
 
 Every desktop window carries an **activity phase** — `idle`, `pending`, `saving`, `saved`, `failed` — that the framework moves for you on every `wp.os.fetch`, and that you can drive by hand for anything else.
 
-The title bar renders it as a **soft glow behind the window icon**. Nothing is mounted and nothing occupies space: the phase lands on the title bar as `data-os-activity` and the glow is a pseudo-element on the icon slot. Idle removes the attribute, so an idle window — which is almost every window, almost all of the time — carries no mark at all. The icon is already the thing that says which app this is; lighting it is how a desk lamp reports work.
+The title bar renders it as the **status ring**: the leading mark, in the position the app icon used to hold. That icon was a copy of the window's own dock tile a few hundred pixels below it, and a title bar has room for one mark of that size — this one changes.
 
-The three phases are a **traffic light**: amber while a request is in flight (breathing slowly, not blinking), green for the moment after it lands, red if it didn't — and red **persists** until the next request starts, because a failure that fades out is a failure the user misses.
+| Phase | Ring |
+|---|---|
+| `idle` | quiet outline in the title bar's own muted glyph colour |
+| `pending` / `saving` | accent outline, breathing |
+| `saved` | accent fill, white check |
+| `failed` | open red outline, red bang — and it **persists** until the next request starts, because a failure that fades out is a failure the user misses |
 
-It arrives quickly and leaves slowly: entry is 0.2s decelerating, exit dissolves and shrinks together over 0.55s. The colour is held by a second attribute, `data-os-activity-last`, which is never cleared — so the halo fades out in the colour it lit up in rather than reverting to the accent halfway through, which is the difference between a dissolve and a blink.
+Only success fills. Colour alone is not a distinction every user can make, so the two outcomes differ in shape as well as hue: filled versus open, check versus bang.
 
-None of that needs any code from you. It is already happening on every window in the shell.
+None of that needs any code from you. It is already happening on every window in the shell — **including iframe windows**, whose admin pages do their own jQuery and XHR calls: the chromeless bridge brackets each one and the parent moves the ring. Every method counts, `GET` included. The one exclusion is WordPress Heartbeat, a poll the user never asked for that would otherwise light every window every 15 seconds.
 
 ## Making it yours
 
-Five tokens, all themeable from a desktop theme or a stylesheet of your own:
+Themeable from a desktop theme or a stylesheet of your own:
 
 | Token | What it paints |
 |---|---|
-| `--os-titlebar-activity-color` | The in-flight glow — amber. Deliberately not the brand accent: it belongs to the traffic light, not to the identity. |
-| `--os-titlebar-activity-saved-color` | The glow on success — green. |
-| `--os-titlebar-activity-failed-color` | The glow on failure — red. |
-| `--os-titlebar-activity-size` | Halo diameter (default `34px`). |
-| `--os-titlebar-activity-strength` | Peak opacity (default `0.55`). Set it to `0` to turn the effect off. |
+| `--os-titlebar-activity-color` | The ring while a request is in flight. |
+| `--os-titlebar-activity-saved-color` | The fill on success. |
+| `--os-titlebar-activity-failed-color` | The ring on failure. |
+| `--os-titlebar-activity-size` | Ring diameter (default `16px`). |
+| `--os-titlebar-activity-idle-color` | The resting ring. Defaults to the title bar's control-glyph colour, so it recedes with the rest of the chrome — override to break that relationship deliberately. |
 
-Reduced motion drops both movements — the breath and the shrink — and keeps the cross-fade: movement is decoration, the colour is the state.
+Reduced motion holds the ring lit instead of breathing it: the animation is decoration, the colour and fill are the state.
 
-## Adding a literal dot as well
+## Mounting your own indicator
 
-The old modem LED is still available for anything that wants a discrete indicator — a panel header, a native window's toolbar — and it is driven by the same paint call:
+The framework's ring claims no private channel — it is found by `data-os-activity-indicator`, and so is yours. Every matching element in the title bar is driven by the same paint call:
 
 ```js
 const host = document.createElement( 'span' );
@@ -43,11 +48,11 @@ host.appendChild( dot );
 // attribute and drives its `phase` and `error` from here on.
 ```
 
-While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
+That one is the modem LED: while work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip. `variant="ring"` gets you the treatment the title bar wears instead.
 
 ## Screen readers
 
-The glow is invisible to assistive technology, so the title bar also carries a visually-hidden live region that the framework writes the **outcome** into: `Saved` politely, `Not saved. <error>` assertively. The in-flight phase is deliberately not announced — telling someone that the save they just started is still going interrupts them to say nothing.
+The ring is invisible to assistive technology, so the title bar also carries a visually-hidden live region that the framework writes the **outcome** into: `Saved` politely, `Not saved. <error>` assertively. The in-flight phase is deliberately not announced — telling someone that the save they just started is still going interrupts them to say nothing.
 
 > Status: `wp.os.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<os-save-status>` are **Experimental**.
 
@@ -63,9 +68,9 @@ const res = await fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 ```
 
-That's it. The window is `saving` for the round-trip, `saved` on success, `failed` on failure (carrying the error message). No CSS, no DOM, no per-window plumbing — and if you mounted a dot as above, it blinks, flashes green, then goes red with the error as its tooltip.
+That's it. The window is `saving` for the round-trip, `saved` on success, `failed` on failure (carrying the error message). No CSS, no DOM, no per-window plumbing — the title bar's ring breathes, fills with a check, or goes red on its own.
 
-**"Failure" means the outcome, not the promise.** Native `fetch` resolves for 4xx/5xx, but the indicator doesn't: a response with `ok: false` settles the phase as `failed` with `Request failed (HTTP 500 Internal Server Error).` as its tooltip. Your side of the call is unaffected — `wp.os.fetch` hands back the native promise, so it still resolves with the error response and your own `if ( ! res.ok )` branch runs as before. Only a genuinely successful (2xx) response paints the green check.
+**"Failure" means the outcome, not the promise.** Native `fetch` resolves for 4xx/5xx, but the indicator doesn't: a response with `ok: false` settles the phase as `failed` with `Request failed (HTTP 500 Internal Server Error).` as its tooltip. Your side of the call is unaffected — `wp.os.fetch` hands back the native promise, so it still resolves with the error response and your own `if ( ! res.ok )` branch runs as before. Only a genuinely successful (2xx) response fills the ring.
 
 ## Where it lands
 

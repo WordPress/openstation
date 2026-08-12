@@ -2750,6 +2750,35 @@ export class Window {
 	}
 
 	/**
+	 * Drop everything in flight and return the indicator to `idle`.
+	 *
+	 * For the one case the reference count cannot survive: the
+	 * document that started the requests is gone. An iframe that
+	 * navigates mid-request takes its pending `end` messages with it,
+	 * and a counter that can only go down when someone reports back
+	 * would leave the ring lit for the rest of the window's life.
+	 *
+	 * Deliberately NOT called on a failure — a failed phase is meant
+	 * to persist until the next request starts.
+	 *
+	 * @internal
+	 */
+	public _resetActivity(): void {
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+		this._activityCount = 0;
+		this._activityPhase = 'idle';
+		this._activityError = null;
+		this._paintActivityIndicator();
+	}
+
+	/**
 	 * Track a Promise's lifecycle on this window's activity indicator.
 	 * The dot pulses while the Promise is in flight; on resolve it
 	 * settles to `saved` (green flash); on reject it shows `failed`
@@ -2904,23 +2933,20 @@ export class Window {
 	 *
 	 * Three consumers, in order of how most windows use them:
 	 *
-	 *   1. `data-os-activity` on the title-bar element — what
-	 *      `window-chrome.css` reads to paint the soft glow behind the
-	 *      window icon. Absent while idle, so an idle window carries no
-	 *      mark at all; the dot this replaced spent a permanent one on
-	 *      a state that is almost always true. Its sticky companion
-	 *      `data-os-activity-last` holds the last non-idle phase and is
-	 *      what colours the glow, so the fade-out keeps the colour the
-	 *      phase ended on.
-	 *   2. A visually-hidden `role="status"` region — a glow announces
+	 *   1. Every `[data-os-activity-indicator]` element in the title
+	 *      bar. The framework's own status ring is one of these — it
+	 *      claims no private channel, so a plugin mounting an
+	 *      `<os-save-status>` in a title-bar slot is driven by exactly
+	 *      the same code path.
+	 *   2. A visually-hidden `role="status"` region — a ring announces
 	 *      nothing, and "did my change save?" is exactly the question a
 	 *      screen-reader user cannot answer by looking. Failures go out
 	 *      assertively and carry the error text; everything else is
 	 *      polite.
-	 *   3. Any `[data-os-activity-indicator]` element in the title bar
-	 *      — the opt-in dot. Drop an `<os-save-status>` carrying that
-	 *      attribute into a title-bar slot and its `phase` / `error`
-	 *      are driven here too.
+	 *   3. `data-os-activity` on the title-bar element, mirroring the
+	 *      phase for CSS. Absent while idle, so a desktop theme can
+	 *      react to window state without reaching into the component's
+	 *      shadow root, and an idle window matches nothing.
 	 *
 	 * @internal
 	 */
@@ -2934,15 +2960,6 @@ export class Window {
 			this._titleBar.removeAttribute( 'data-os-activity' );
 		} else {
 			this._titleBar.setAttribute( 'data-os-activity', phase );
-			// The sticky companion: the last phase that WASN'T idle,
-			// never cleared. It carries the glow's colour, and the
-			// colour has to outlive the phase — the exit begins the
-			// instant `data-os-activity` is removed, and a glow that
-			// reverts to the accent as it starts fading reads as a
-			// blink rather than a dissolve. Kept out of the phase
-			// attribute itself so CSS can tell "what is happening"
-			// from "what happened last".
-			this._titleBar.setAttribute( 'data-os-activity-last', phase );
 		}
 
 		const live = this._titleBar.querySelector< HTMLElement >(
@@ -2955,18 +2972,21 @@ export class Window {
 			live.textContent = this._activityStatusText();
 		}
 
-		const indicator = this._titleBar.querySelector< HTMLElement >(
+		// All of them, not the first — the framework's ring and a
+		// plugin's own indicator have to agree, and a window that
+		// showed two different phases at once would be worse than one
+		// that showed none.
+		const indicators = this._titleBar.querySelectorAll< HTMLElement >(
 			'[data-os-activity-indicator]',
 		);
-		if ( ! indicator ) {
-			return;
-		}
-		indicator.setAttribute( 'phase', phase );
-		if ( this._activityError ) {
-			indicator.setAttribute( 'error', this._activityError );
-		} else {
-			indicator.removeAttribute( 'error' );
-		}
+		indicators.forEach( ( indicator ) => {
+			indicator.setAttribute( 'phase', phase );
+			if ( this._activityError ) {
+				indicator.setAttribute( 'error', this._activityError );
+			} else {
+				indicator.removeAttribute( 'error' );
+			}
+		} );
 	}
 
 	/**

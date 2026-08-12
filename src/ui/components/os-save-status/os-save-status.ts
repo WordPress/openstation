@@ -80,6 +80,7 @@ export class OsSaveStatus extends Component {
 	static props = [
 		'phase',
 		'mode',
+		'variant',
 		'animation',
 		'auto',
 		'event',
@@ -111,6 +112,12 @@ export class OsSaveStatus extends Component {
 				default: 'dot',
 				description:
 					'Layout. `dot` is the smallest (10×10 colored dot); `icon` adds a glyph inside on saved/failed; `pill` adds an inline label.',
+			},
+			{
+				name: 'variant',
+				type: "'dot' (default) | 'ring'",
+				description:
+					'Treatment. The default fills the indicator for every non-idle phase; `ring` keeps the outline open and moves the colour through it, filling only on `saved` — so success is the one state that reads at a glance. Failure tints the glyph rather than the fill, since a filled red disc and a filled accent disc are the same silhouette. This is what the window title bar wears.',
 			},
 			{
 				name: 'animation',
@@ -180,8 +187,18 @@ export class OsSaveStatus extends Component {
 		],
 		cssProps: [
 			{
+				name: '--os-ui-save-status-size',
+				description:
+					'Indicator diameter (default 12px). The glyph scales with it.',
+			},
+			{
+				name: '--os-ui-save-status-idle-color',
+				description: 'Ring colour at rest.',
+			},
+			{
 				name: '--os-ui-save-status-bg',
-				description: 'Indicator background color (saving/pending phase).',
+				description:
+					'Indicator background color (saving/pending phase) — the ring colour instead, under `variant="ring"`.',
 			},
 			{
 				name: '--os-ui-save-status-saved-bg',
@@ -209,6 +226,9 @@ export class OsSaveStatus extends Component {
 				<os-save-status mode="pill" phase="saving"></os-save-status>
 				<os-save-status mode="pill" phase="saved"></os-save-status>
 				<os-save-status mode="pill" phase="failed" error="Network error."></os-save-status>
+				<os-save-status variant="ring" mode="icon" phase="saving"></os-save-status>
+				<os-save-status variant="ring" mode="icon" phase="saved"></os-save-status>
+				<os-save-status variant="ring" mode="icon" phase="failed"></os-save-status>
 			</os-cluster>
 		`,
 	} as const;

@@ -268,32 +268,31 @@ body.os-active {
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
 	/*
-	 * Activity glow — the halo behind the window icon while a request
-	 * this window owns is in flight, and for the moment after it
-	 * lands. There is no idle colour: idle paints nothing.
+	 * The status ring — leading mark of the title bar, where the app
+	 * icon used to be. Four states, and the sequence is deliberate:
+	 * the resting ring is chrome (it takes the title bar's own muted
+	 * glyph colour, declared in `window-chrome.css`), work and success
+	 * are both Pulse, failure is the danger colour.
 	 *
-	 * The three read as one traffic light — amber working, green
-	 * through, red stopped — which is why in-flight is a colour of its
-	 * own and NOT Pulse. The accent is the shell's identity, and a
-	 * window that glows brand-magenta while it saves is decorating,
-	 * not reporting; put it in the same sequence as the outcomes and
-	 * the phase is legible before it's read. The amber is the shell's
-	 * own, lifted until it carries on Void, in the same spirit as the
-	 * derived status colours above.
+	 * Pulse twice over is not an oversight. In flight and landed
+	 * differ in FILL — an open ring breathing, then a solid disc with
+	 * a check — and failure differs from both in fill AND glyph AND
+	 * hue. Shape carries the distinction that colour alone cannot for
+	 * a user who can't separate the two hues, and the accent stays the
+	 * shell's own voice for "this is your station working".
 	 *
-	 * The outcome pair comes from those status colours, and they are
-	 * the one thing here that must not be quietened — a failure that
-	 * whispers is a failure the user misses.
+	 * Failure resolves through `--os-ui-danger` and is the one value
+	 * here that must not be quietened: a failure that whispers is a
+	 * failure the user misses.
 	 *
-	 * `-size` is the halo's diameter and `-strength` its peak alpha;
-	 * a theme that wants the effect gone sets the strength to 0 rather
-	 * than having to re-point three colours at `transparent`.
+	 * `-idle-color` (and its `-focused` twin) default to the title
+	 * bar's control-glyph colours in `window-chrome.css`; declare them
+	 * here only to break that relationship deliberately.
 	 */
-	--os-titlebar-activity-color: #ff9d3c;
-	--os-titlebar-activity-saved-color: var(--os-ui-success-fg, #1d6f42);
+	--os-titlebar-activity-color: var(--os-ui-accent, #2271b1);
+	--os-titlebar-activity-saved-color: var(--os-ui-accent, #2271b1);
 	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);
-	--os-titlebar-activity-size: 34px;
-	--os-titlebar-activity-strength: 0.55;
+	--os-titlebar-activity-size: 16px;
 
 	/*
 	 * Title-bar control glyphs — minimise / maximise / close, the ⋯

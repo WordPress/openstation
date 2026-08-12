@@ -9,7 +9,7 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
-import { __ } from '../i18n';
+import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
 import { addExternalTab } from './tabs';
 import type { Window } from './index';
@@ -197,6 +197,12 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// listener-timing a known footgun otherwise).
 	if ( data.type === 'os-ready' ) {
 		win._iframeBridgeReady = true;
+		// A new document means the old one's in-flight requests will
+		// never report back — navigating away cancels them and takes
+		// the `end` message with them. Without this the ring stays
+		// lit forever on any window where the user clicked a link
+		// mid-request, which is most of them.
+		win._resetActivity();
 		// Bridge announced — anything queued via `Window.send()`
 		// before this point flushes now in FIFO order.
 		markWindowContentReady( win.id );
@@ -459,6 +465,34 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 	}
 
+	// Iframe activity — the bracketing pair the status ring runs on.
+	// Bridged from the same fetch + XHR wrappers as the network
+	// message below, but fired on START as well as end, because an
+	// indicator that only hears "it finished" can never show the part
+	// the user is waiting through.
+	//
+	// This is what makes an iframe window report like a native one:
+	// native windows route through `wp.os.fetch`, which the shell owns;
+	// an admin page inside an iframe does its own jQuery / XHR /
+	// `fetch` calls that the parent has no other way to see.
+	//
+	// Reference-counted parent-side by the same `_markActivityStart` /
+	// `_markActivitySettled` pair `wp.os.fetch` uses, so a page firing
+	// six requests at once settles as one burst — and settles `failed`
+	// if any of them did.
+	if ( data.type === 'os-iframe-activity' ) {
+		if ( data.phase === 'start' ) {
+			win._markActivityStart();
+		} else if ( data.phase === 'end' ) {
+			const failed = !! data.failed;
+			const status = typeof data.status === 'number' ? data.status : 0;
+			win._markActivitySettled(
+				! failed,
+				failed ? iframeActivityError( status ) : undefined,
+			);
+		}
+	}
+
 	// Iframe network completion — bridged from the fetch + XHR
 	// wrappers inside the chromeless iframe. Every completed call
 	// (success or failure) fires here. `status === 0` indicates a
@@ -497,6 +531,21 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
  * or replaces the iframe's `src`. Any URL that fails the origin
  * check is silently refused.
  */
+/**
+ * Tooltip / announcement text for a failed request inside an iframe.
+ *
+ * `status === 0` is the iframe's own marker for "no response arrived"
+ * — a network error, a CORS refusal, an aborted request — where the
+ * number would be noise rather than information.
+ */
+function iframeActivityError( status: number ): string {
+	if ( status <= 0 ) {
+		return __( 'Request failed.' );
+	}
+	/* translators: %d: HTTP status code of the failed request. */
+	return sprintf( __( 'Request failed (HTTP %d).' ), status );
+}
+
 function handleDesktopNavigate(
 	win: Window,
 	rawUrl: string,
