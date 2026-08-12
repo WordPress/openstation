@@ -184,6 +184,7 @@ import {
 import { recentlyMarqueed, type SelectionApi } from './selection';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
@@ -3698,6 +3699,12 @@ function init(): void {
 	// contributor / subscriber. Idempotent — safe to run twice
 	// if init() ever fires again.
 	bootHeartbeatBus();
+
+	// Notice OpenStation being deactivated from somewhere the shell
+	// can't see (another tab, WP-CLI) and walk the user out. The
+	// in-window path is covered by the iframe-load trigger in
+	// `window/dom.ts`.
+	bootPluginPresenceWatch();
 
 	// Challenge delivery rides the bus above — lives in the main
 	// bundle (like the recycle-bin badge) so an incoming challenge

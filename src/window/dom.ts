@@ -23,6 +23,7 @@ import {
 	markWindowContentReady,
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
+import { noteFrameLoaded } from '../plugin-presence';
 import { createRevealLayers } from '../reveals/surface';
 import {
 	LOADING_OVERLAY_CLASS,
@@ -687,6 +688,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// idempotent loading → ready transition.
 		const onIframeLoad = (): void => {
 			markWindowContentReady( config.id );
+			// Fires on in-place navigations too — which is how
+			// deactivating OpenStation from the classic `plugins.php`
+			// in this window gets noticed.
+			noteFrameLoaded( iframe );
 		};
 		iframe.addEventListener( 'load', onIframeLoad );
 	} else {
