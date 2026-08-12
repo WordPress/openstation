@@ -98,18 +98,13 @@ Key server-side entry points:
 
 ### When OpenStation stops being active underneath the shell
 
-Deactivating or deleting the plugin while a shell tab is open is the one transition the server cannot announce: the next request no longer loads OpenStation, so there is no payload, no bridge and no hook left to fire. `src/plugin-presence.ts` handles it client side, in two halves.
+The server cannot announce this, because the next request no longer loads OpenStation. `src/plugin-presence.ts` detects it client side instead, in two halves.
 
-**Triggers** are cheap and allowed to be wrong:
+Triggers are cheap and allowed to be wrong: an iframe loading on an admin path whose `<body>` lacks `os-chromeless` (catches deactivate and delete from the classic `plugins.php`, row and bulk), or a Heartbeat tick without the `desktop_mode_nonces` field (catches another tab or WP-CLI). Neither is conclusive, since `wp_die()` screens carry no `admin_body_class` and core skips `heartbeat_received` on a tick with no client data.
 
-- an iframe finishing a load on an admin path whose `<body>` lacks `os-chromeless` (catches deactivate / delete from the classic `plugins.php` in a window, single-row and bulk alike, without knowing which plugin was acted on);
-- a Heartbeat tick arriving without the `desktop_mode_nonces` field (catches deactivation from another tab or WP-CLI, which no iframe load would ever see).
+Confirmation is a `GET` of the `desktop-mode/v1` REST namespace index, which answers `200` while the plugin is active and `404 rest_no_route` once it is not, needing neither nonce nor capability. Only a 404 evicts, so a false trigger costs one silent request and a dropped connection never throws the user out. On a confirmed absence the shell toasts and navigates the top frame to `adminUrl`.
 
-**Confirmation** is authoritative: a `GET` of the `desktop-mode/v1` REST namespace index, which answers `200` while the plugin is active and `404 rest_no_route` once it is not, needing neither nonce nor capability. Only a 404 evicts; a network error deliberately does not, because an offline shell is still a working shell. On a confirmed absence the shell toasts and navigates the top frame to `adminUrl`.
-
-The split is the point: a false trigger costs one silent request, which is what makes it safe to trigger on signals that are merely suggestive. `wp_die()` screens carry no `admin_body_class` at all, and core skips `heartbeat_received` on a tick with no client data — both would otherwise be false positives.
-
-The native Plugins window keeps its own faster path (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in `src/plugins-window/rest.ts`): it knows which plugin the user just acted on, so it can skip the round trip.
+The native Plugins window keeps its own faster path (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in `src/plugins-window/rest.ts`), since it knows which plugin the user just acted on.
 
 ## Desktop layout modes
 

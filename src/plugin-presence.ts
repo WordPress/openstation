@@ -1,39 +1,12 @@
 /**
- * Notices that OpenStation itself stopped being active, and walks the
- * user out of the shell.
+ * Notices OpenStation being deactivated or deleted under a running
+ * shell, and walks the user out.
  *
- * Deactivating (or deleting) OpenStation from the classic
- * `plugins.php` inside a window leaves the shell running on top of a
- * plugin that no longer loads: the desktop, dock and windows stay up,
- * every `desktop-mode/v1` call 404s, and the window where the action
- * happened repaints as a full classic admin page inside the frame.
- * The native Plugins window already handles its own case
- * (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in
- * `src/plugins-window/rest.ts`), but that window is opt-in and off by
- * default, so the default path had no guard at all.
- *
- * The server cannot help after the fact — the next request no longer
- * loads OpenStation, so there is no payload, no bridge and no hook to
- * fire. Detection has to be client side, and it is split in two:
- *
- *   - **Triggers** are cheap and allowed to be wrong. A chromeless
- *     admin iframe that loads *without* the `os-chromeless` body class
- *     (see `includes/render/body-classes.php`), or a Heartbeat tick
- *     that arrives without the `desktop_mode_nonces` field (see
- *     `includes/nonce-refresh.php`), both mean "OpenStation might be
- *     gone". Neither is conclusive: `wp_die()` screens render no
- *     `admin_body_class` at all, and core skips `heartbeat_received`
- *     entirely on a tick that carries no client data.
- *
- *   - **Confirmation** is authoritative and cheap enough to be worth
- *     the round trip. The `desktop-mode/v1` REST namespace index
- *     answers 200 while the plugin is active and 404 `rest_no_route`
- *     once it is not. It needs no nonce and no capability, so it
- *     survives exactly the situation being tested for.
- *
- * That split is the whole design: a false trigger costs one silent
- * request and nothing else, which is what makes it safe to trigger on
- * signals that are merely suggestive.
+ * The server cannot announce it: the next request no longer loads the
+ * plugin. So triggers are cheap and allowed to be wrong (an admin
+ * iframe without the `os-chromeless` body class, a Heartbeat tick
+ * without `desktop_mode_nonces`), and a REST namespace ping is what
+ * actually decides. A false trigger then costs one silent request.
  */
 
 import { __ } from './i18n';
@@ -44,27 +17,13 @@ import { joinRestUrl } from './rest-url';
 /** Matches `OPENSTATION_NONCE_REFRESH_FIELD` in `includes/nonce-refresh.php`. */
 const NONCE_FIELD = 'desktop_mode_nonces';
 
-/**
- * The REST namespace whose existence IS the plugin's existence. Its
- * index route is registered by WordPress for any namespace that has
- * routes, and disappears with them.
- */
+/** The REST namespace whose existence means that the plugin is active. */
 const NAMESPACE_PATH = 'desktop-mode/v1';
 
-/**
- * Minimum spacing between confirmation pings. Triggers are allowed to
- * be noisy (a Heartbeat tick without client data fires one every
- * interval), so the throttle — not the trigger — is what bounds the
- * request rate.
- */
+/** Triggers are allowed to be noisy, so the throttle is what bounds the request rate. */
 const CONFIRM_COOLDOWN_MS = 30_000;
 
-/**
- * How long the toast is on screen before the navigation. Long enough
- * to read, short enough that the page swap still reads as a
- * consequence of the click that caused it. Matches the native Plugins
- * window's own delay.
- */
+/** Time to read the toast before the navigation. */
 const EXIT_DELAY_MS = 2000;
 
 let confirmInFlight = false;
@@ -86,10 +45,8 @@ function readConfig(): ShellConfig {
 }
 
 /**
- * Admin path prefix used to tell "an admin page lost its chromeless
- * marker" from "a front-end page, which never had one". `body_class`
- * is not `admin_body_class`: a window showing the site's front end
- * carries no `os-chromeless` and is perfectly healthy.
+ * Admin path prefix. The marker comes from `admin_body_class`, so a
+ * front-end page in a window never carries it and is fine.
  */
 function adminPath(): string {
 	const raw = readConfig().adminUrl || '/wp-admin/';
@@ -108,14 +65,7 @@ function namespaceUrl(): string {
 	return joinRestUrl( root, NAMESPACE_PATH );
 }
 
-/**
- * Confirm — or dismiss — a suspicion that the plugin is gone.
- *
- * Only a 404 counts. A network error is deliberately NOT treated as
- * absence: an offline shell is still a working shell, and evicting the
- * user out of it on a dropped connection would be worse than the bug
- * this module exists to fix.
- */
+/** Confirm, or dismiss, a suspicion that the plugin is gone. */
 async function confirmAbsence(): Promise< void > {
 	if ( exiting || confirmInFlight ) {
 		return;
@@ -143,16 +93,8 @@ async function confirmAbsence(): Promise< void > {
 }
 
 /**
- * Announce the eviction and navigate the top frame to the classic
- * Dashboard.
- *
- * The navigation is on a plain timer rather than chained off the
- * toast: when OpenStation was *deleted* rather than deactivated, the
- * lazy `shell-overlays` bundle the toast renders through is no longer
- * on disk and never resolves. The user still has to get out.
- *
- * `adminUrl` is the destination rather than a reload because the
- * current URL may itself be a now-unroutable `admin.php?page=…`.
+ * Navigate the top frame to the classic Dashboard. Not a reload,
+ * because the current URL may be a now-unroutable `admin.php?page=…`.
  */
 function exitToClassicAdmin(): void {
 	if ( exiting ) {
@@ -160,10 +102,9 @@ function exitToClassicAdmin(): void {
 	}
 	exiting = true;
 
-	// Armed FIRST, and the toast is allowed to fail: on a *delete*
-	// the lazy `shell-overlays` bundle it renders through is no
-	// longer on disk. Losing the message is survivable; losing the
-	// way out is the bug this module exists to fix.
+	// Armed before the toast, and the toast is allowed to fail: on a
+	// delete, the lazy `shell-overlays` bundle it renders through is
+	// no longer on disk.
 	const dest = readConfig().adminUrl || '/wp-admin/';
 	window.setTimeout( () => {
 		const target = window.top ?? window;
@@ -188,14 +129,9 @@ function exitToClassicAdmin(): void {
 }
 
 /**
- * Trigger: a window iframe finished loading. Same-origin admin pages
- * are the only ones that carry the chromeless marker, so everything
- * else is left alone.
- *
- * Called on every iframe `load`, which includes in-place navigations —
- * that is what catches the classic `plugins.php` row action, both the
- * single-row and the bulk form, without knowing anything about which
- * plugin was acted on.
+ * Trigger: a window iframe finished loading. Fires on in-place
+ * navigations too, which is what catches the classic `plugins.php`
+ * row and bulk actions.
  */
 export function noteFrameLoaded( frame: HTMLIFrameElement ): void {
 	if ( exiting ) {
@@ -227,13 +163,10 @@ interface JQueryLike {
 }
 
 /**
- * Trigger: a Heartbeat tick came back without OpenStation's nonce
- * field. Covers the case no iframe load can — the plugin deactivated
- * from another tab, or over WP-CLI, while the shell sits idle.
- *
- * Bound directly rather than through `src/heartbeat.ts`: that bus
- * deliberately skips subscribers when a field is `undefined`, and
- * `undefined` is precisely the signal here.
+ * Trigger: a Heartbeat tick without OpenStation's nonce field, which
+ * catches deactivation from another tab or WP-CLI. Bound directly
+ * rather than through `src/heartbeat.ts`, because that bus skips
+ * subscribers on `undefined` and `undefined` is the signal here.
  */
 export function bootPluginPresenceWatch(): void {
 	if ( booted ) {

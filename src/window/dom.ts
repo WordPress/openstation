@@ -688,9 +688,6 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// idempotent loading → ready transition.
 		const onIframeLoad = (): void => {
 			markWindowContentReady( config.id );
-			// Fires on in-place navigations too — which is how
-			// deactivating OpenStation from the classic `plugins.php`
-			// in this window gets noticed.
 			noteFrameLoaded( iframe );
 		};
 		iframe.addEventListener( 'load', onIframeLoad );

@@ -3700,10 +3700,7 @@ function init(): void {
 	// if init() ever fires again.
 	bootHeartbeatBus();
 
-	// Notice OpenStation being deactivated from somewhere the shell
-	// can't see (another tab, WP-CLI) and walk the user out. The
-	// in-window path is covered by the iframe-load trigger in
-	// `window/dom.ts`.
+	// Notice OpenStation being deactivated from another tab, WP-CLI, etc.
 	bootPluginPresenceWatch();
 
 	// Challenge delivery rides the bus above — lives in the main
