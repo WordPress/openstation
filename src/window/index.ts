@@ -17,7 +17,7 @@ import type { WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
-import { __ } from './../i18n';
+import { __, sprintf } from './../i18n';
 import {
 	addParentSubscriber,
 	clearWindowChannels,
@@ -2900,16 +2900,27 @@ export class Window {
 	}
 
 	/**
-	 * Push the current activity state onto an activity indicator, if
-	 * this window has one.
+	 * Push the current activity state onto the title bar.
 	 *
-	 * The framework mounts none by default — the title bar carried an
-	 * always-visible dot once, and an always-visible dot spends a
-	 * permanent mark on a state (`idle`) that is almost always true.
-	 * Anything that wants the dot back puts an `<os-save-status>`
-	 * carrying `data-os-activity-indicator` in a title-bar slot; this
-	 * finds it by that attribute and drives it. With nothing mounted
-	 * the phase machinery still runs and this is a cheap no-op.
+	 * Three consumers, in order of how most windows use them:
+	 *
+	 *   1. `data-os-activity` on the title-bar element — what
+	 *      `window-chrome.css` reads to paint the soft glow behind the
+	 *      window icon. Absent while idle, so an idle window carries no
+	 *      mark at all; the dot this replaced spent a permanent one on
+	 *      a state that is almost always true. Its sticky companion
+	 *      `data-os-activity-last` holds the last non-idle phase and is
+	 *      what colours the glow, so the fade-out keeps the colour the
+	 *      phase ended on.
+	 *   2. A visually-hidden `role="status"` region — a glow announces
+	 *      nothing, and "did my change save?" is exactly the question a
+	 *      screen-reader user cannot answer by looking. Failures go out
+	 *      assertively and carry the error text; everything else is
+	 *      polite.
+	 *   3. Any `[data-os-activity-indicator]` element in the title bar
+	 *      — the opt-in dot. Drop an `<os-save-status>` carrying that
+	 *      attribute into a title-bar slot and its `phase` / `error`
+	 *      are driven here too.
 	 *
 	 * @internal
 	 */
@@ -2917,17 +2928,72 @@ export class Window {
 		if ( this._isDestroyed ) {
 			return;
 		}
+		const phase = this._activityPhase;
+
+		if ( 'idle' === phase ) {
+			this._titleBar.removeAttribute( 'data-os-activity' );
+		} else {
+			this._titleBar.setAttribute( 'data-os-activity', phase );
+			// The sticky companion: the last phase that WASN'T idle,
+			// never cleared. It carries the glow's colour, and the
+			// colour has to outlive the phase — the exit begins the
+			// instant `data-os-activity` is removed, and a glow that
+			// reverts to the accent as it starts fading reads as a
+			// blink rather than a dissolve. Kept out of the phase
+			// attribute itself so CSS can tell "what is happening"
+			// from "what happened last".
+			this._titleBar.setAttribute( 'data-os-activity-last', phase );
+		}
+
+		const live = this._titleBar.querySelector< HTMLElement >(
+			'.os-window__activity-status',
+		);
+		if ( live ) {
+			const failed = 'failed' === phase;
+			live.setAttribute( 'role', failed ? 'alert' : 'status' );
+			live.setAttribute( 'aria-live', failed ? 'assertive' : 'polite' );
+			live.textContent = this._activityStatusText();
+		}
+
 		const indicator = this._titleBar.querySelector< HTMLElement >(
 			'[data-os-activity-indicator]',
 		);
 		if ( ! indicator ) {
 			return;
 		}
-		indicator.setAttribute( 'phase', this._activityPhase );
+		indicator.setAttribute( 'phase', phase );
 		if ( this._activityError ) {
 			indicator.setAttribute( 'error', this._activityError );
 		} else {
 			indicator.removeAttribute( 'error' );
+		}
+	}
+
+	/**
+	 * Announcement text for the current phase. Empty while idle —
+	 * a live region that keeps saying "nothing is happening" is worse
+	 * than one that stays quiet.
+	 *
+	 * `saving` is deliberately NOT announced on its own: the phase is
+	 * held for at least {@link MIN_SAVING_DISPLAY_MS} and every save
+	 * would interrupt whatever the user was reading to tell them
+	 * something they already know they started. The outcome is the
+	 * part they can't see.
+	 *
+	 * @internal
+	 */
+	private _activityStatusText(): string {
+		switch ( this._activityPhase ) {
+			case 'saved':
+				return __( 'Saved' );
+			case 'failed':
+				if ( ! this._activityError ) {
+					return __( 'Not saved.' );
+				}
+				/* translators: %s: error message explaining why the change could not be saved. */
+				return sprintf( __( 'Not saved. %s' ), this._activityError );
+			default:
+				return '';
 		}
 	}
 

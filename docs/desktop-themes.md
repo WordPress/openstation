@@ -1185,6 +1185,21 @@ desktop environments do it — the shape is yours to build:
 | `--os-titlebar-divider` | The hairline between page chrome and window chrome. Set `transparent` to let your artwork carry the separation |
 | `--os-titlebar-divider-unfocused` | Its unfocused counterpart |
 
+The window icon glows while the window is busy — the activity phase
+`wp.os.fetch` drives. The three phases are a traffic light (amber,
+green, red), and there is no idle colour to set: idle paints nothing
+at all. Retint them if your theme's title bar would swallow one of
+the three, but keep them a *sequence* — the phase is meant to be
+legible before it is read.
+
+| Token | Controls |
+|---|---|
+| `--os-titlebar-activity-color` | The glow while a request is in flight — amber, and deliberately not the accent |
+| `--os-titlebar-activity-saved-color` | The glow when the request lands |
+| `--os-titlebar-activity-failed-color` | The glow when it didn't. This one stays until the next request starts |
+| `--os-titlebar-activity-size` | Halo diameter behind the 18px icon (default `34px`) |
+| `--os-titlebar-activity-strength` | Peak opacity (default `0.55`). `0` removes the effect — the right way to opt a theme out, rather than pointing three colours at `transparent` |
+
 ```json
 "tokens": {
   "--os-titlebar-controls-bg": "rgba( 10, 10, 26, 0.55 )",

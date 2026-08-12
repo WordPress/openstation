@@ -616,17 +616,33 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'os-window__custom-buttons os-window__custom-buttons--right';
 
-	// No activity indicator is painted here. The title bar used to
-	// carry an always-visible `<os-save-status>` dot between the icon
-	// and the title, which meant every window wore a small accent ring
-	// for the whole of its life to report a state — idle — that is
-	// true almost all of the time. The activity machinery itself is
-	// untouched: `Window.trackActivity()` / `Window.markActivity()`
-	// still reference-count and still phase, and
-	// `Window._paintActivityIndicator()` still paints onto any
-	// `[data-os-activity-indicator]` element found in the title bar.
-	// A plugin that wants the dot back drops an `<os-save-status>`
-	// carrying that attribute into a title-bar slot.
+	// Activity is reported as a soft glow behind the window icon, not
+	// as a dot of its own. The title bar carried an `<os-save-status>`
+	// between the icon and the title once, and the cost of that was a
+	// permanent accent ring on every window reporting a state — idle —
+	// that is true almost all of the time. The glow has no idle state
+	// to paint: it is nothing until something is in flight, and the
+	// icon it sits behind is already the thing the phase is about.
+	//
+	// No element is needed for it — `_paintActivityIndicator()` sets
+	// `data-os-activity` on the title bar and the glow is a
+	// pseudo-element on the icon slot host (see `window-chrome.css`),
+	// which survives a plugin replacing the slot's contents.
+	//
+	// A glow says nothing to a screen reader, so the phase is
+	// announced from a visually-hidden live region instead. It is
+	// absolutely positioned out of the flex flow, so it contributes
+	// neither a box nor a `gap` to the title bar.
+	const activityStatus = document.createElement( 'span' );
+	activityStatus.className = 'os-window__activity-status';
+	activityStatus.setAttribute( 'role', 'status' );
+	activityStatus.setAttribute( 'aria-live', 'polite' );
+
+	// `[data-os-activity-indicator]` still works for anything that
+	// wants a literal dot back: drop an `<os-save-status>` carrying
+	// that attribute into a title-bar slot and the same paint call
+	// drives its `phase` / `error`.
+	titleBar.appendChild( activityStatus );
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
 	titleBar.appendChild( slotTitle );

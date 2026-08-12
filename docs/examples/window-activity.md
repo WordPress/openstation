@@ -1,11 +1,34 @@
-# Example: window activity & the modem dot
+# Example: window activity & the icon glow
 
 Every desktop window carries an **activity phase** — `idle`, `pending`, `saving`, `saved`, `failed` — that the framework moves for you on every `wp.os.fetch`, and that you can drive by hand for anything else.
 
-Nothing renders it by default. The title bar used to carry a **modem-style activity LED** between the icon and the title, always visible, a hollow ring in the user's accent at rest. That ring reported `idle` — the state a window is in almost all of the time — on every window for the whole of its life, so the framework stopped painting it. The phase machinery is untouched; the rendering is now yours to opt into.
+The title bar renders it as a **soft glow behind the window icon**. Nothing is mounted and nothing occupies space: the phase lands on the title bar as `data-os-activity` and the glow is a pseudo-element on the icon slot. Idle removes the attribute, so an idle window — which is almost every window, almost all of the time — carries no mark at all. The icon is already the thing that says which app this is; lighting it is how a desk lamp reports work.
+
+The three phases are a **traffic light**: amber while a request is in flight (breathing slowly, not blinking), green for the moment after it lands, red if it didn't — and red **persists** until the next request starts, because a failure that fades out is a failure the user misses.
+
+It arrives quickly and leaves slowly: entry is 0.2s decelerating, exit dissolves and shrinks together over 0.55s. The colour is held by a second attribute, `data-os-activity-last`, which is never cleared — so the halo fades out in the colour it lit up in rather than reverting to the accent halfway through, which is the difference between a dissolve and a blink.
+
+None of that needs any code from you. It is already happening on every window in the shell.
+
+## Making it yours
+
+Five tokens, all themeable from a desktop theme or a stylesheet of your own:
+
+| Token | What it paints |
+|---|---|
+| `--os-titlebar-activity-color` | The in-flight glow — amber. Deliberately not the brand accent: it belongs to the traffic light, not to the identity. |
+| `--os-titlebar-activity-saved-color` | The glow on success — green. |
+| `--os-titlebar-activity-failed-color` | The glow on failure — red. |
+| `--os-titlebar-activity-size` | Halo diameter (default `34px`). |
+| `--os-titlebar-activity-strength` | Peak opacity (default `0.55`). Set it to `0` to turn the effect off. |
+
+Reduced motion drops both movements — the breath and the shrink — and keeps the cross-fade: movement is decoration, the colour is the state.
+
+## Adding a literal dot as well
+
+The old modem LED is still available for anything that wants a discrete indicator — a panel header, a native window's toolbar — and it is driven by the same paint call:
 
 ```js
-// Mount the dot on your own window, in a title-bar slot:
 const host = document.createElement( 'span' );
 host.className = 'os-window__activity';
 
@@ -20,7 +43,11 @@ host.appendChild( dot );
 // attribute and drives its `phase` and `error` from here on.
 ```
 
-At rest it's a hollow ring tinted with the user's accent colour. While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
+While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
+
+## Screen readers
+
+The glow is invisible to assistive technology, so the title bar also carries a visually-hidden live region that the framework writes the **outcome** into: `Saved` politely, `Not saved. <error>` assertively. The in-flight phase is deliberately not announced — telling someone that the save they just started is still going interrupts them to say nothing.
 
 > Status: `wp.os.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<os-save-status>` are **Experimental**.
 

@@ -1206,7 +1206,16 @@ Powers the dock-peek "+" button for native windows so they behave like iframe wi
 
 Drop-in wrapper around the global `fetch()` that drives the target window's **activity phase** while the request is in flight, and attributes the request on the activity bus. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
 
-> **The framework no longer paints an activity dot of its own.** The title bar used to carry an always-visible `<os-save-status>` between the icon and the title, which meant every window wore a small accent ring for its whole life to report a state — idle — that is true almost all of the time. The phase machinery below is unchanged and still runs; what changed is that nothing renders it unless you ask. To get the dot back on your own windows, put an `<os-save-status data-os-activity-indicator>` inside a `<span class="os-window__activity">` in a title-bar slot — `Window._paintActivityIndicator()` finds it by that attribute and drives its `phase` and `error` for you.
+> **The phase is painted as a soft glow behind the window icon.** No element renders it and none is needed: `Window._paintActivityIndicator()` puts the phase on the title bar as `data-os-activity`, and `window-chrome.css` draws a halo on the icon slot's pseudo-element. Idle **removes** the attribute rather than setting `idle`, so an idle window matches nothing and costs nothing — which is what the always-visible dot this replaced could not do, having to occupy space whether or not anything was happening.
+>
+> Three consequences worth knowing:
+>
+> - **The glow anchors on the icon slot host, not the icon.** A plugin owning the `icon` slot replaces the host's *children*, so a custom icon renderer inherits the glow without knowing it exists — and it works for `<img>` icons, which generate no pseudo-elements of their own.
+> - **A second attribute, `data-os-activity-last`, holds the last non-idle phase and is never cleared.** It is what colours the glow. The exit begins the moment `data-os-activity` is removed, and a glow that reverted to the accent as it started fading would read as a blink rather than a dissolve — so the colour outlives the phase, and the halo fades out mint (or red) instead of changing colour on the way. Entry is quick and decelerating, exit dissolves *and* shrinks over 0.55s on `--os-ui-ease-in`; reduced motion drops both movements and keeps the cross-fade.
+> - **The phase is announced too.** A glow says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
+> - **A literal dot is still available.** Put an `<os-save-status data-os-activity-indicator>` inside a `<span class="os-window__activity">` in a title-bar slot and the same paint call drives its `phase` and `error` alongside the glow.
+>
+> The three phases are a traffic light — **amber** in flight, **green** on success, **red** on failure — so in-flight is a colour of its own rather than the brand accent: a window glowing magenta while it saves is decorating, not reporting. Restyling is five tokens, all themeable: `--os-titlebar-activity-color`, `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, `--os-titlebar-activity-size`, and `--os-titlebar-activity-strength` — set the strength to `0` to turn the effect off entirely.
 
 ```js
 // In any window's render callback / event handler:
@@ -1217,7 +1226,7 @@ const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', {
 } );
 ```
 
-That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the request completes (any HTTP status — native `fetch` semantics, so a `404`/`500` response still settles `saved`) and `failed` when the fetch rejects (network error, CORS, abort — with the `Error.message` carried as the phase's error), then back to `idle`. **No CSS, no per-window plumbing, no DOM.** An indicator mounted in a title-bar slot renders those phases as a blink, a green flash, a red dot with a tooltip.
+That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the server answers with a success status, and `failed` on any other outcome — an HTTP error status (`4xx` / `5xx`, carrying `Request failed (HTTP 500 Internal Server Error).`) or a rejected fetch (network error, CORS, abort, carrying the `Error.message`) — then back to `idle`. **No CSS, no per-window plumbing, no DOM.** The icon glows while the request is in flight, flashes mint when it lands, and stays red if it didn't.
 
 #### Auto X-WP-Nonce
 

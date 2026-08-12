@@ -268,6 +268,34 @@ body.os-active {
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
 	/*
+	 * Activity glow — the halo behind the window icon while a request
+	 * this window owns is in flight, and for the moment after it
+	 * lands. There is no idle colour: idle paints nothing.
+	 *
+	 * The three read as one traffic light — amber working, green
+	 * through, red stopped — which is why in-flight is a colour of its
+	 * own and NOT Pulse. The accent is the shell's identity, and a
+	 * window that glows brand-magenta while it saves is decorating,
+	 * not reporting; put it in the same sequence as the outcomes and
+	 * the phase is legible before it's read. The amber is the shell's
+	 * own, lifted until it carries on Void, in the same spirit as the
+	 * derived status colours above.
+	 *
+	 * The outcome pair comes from those status colours, and they are
+	 * the one thing here that must not be quietened — a failure that
+	 * whispers is a failure the user misses.
+	 *
+	 * `-size` is the halo's diameter and `-strength` its peak alpha;
+	 * a theme that wants the effect gone sets the strength to 0 rather
+	 * than having to re-point three colours at `transparent`.
+	 */
+	--os-titlebar-activity-color: #ff9d3c;
+	--os-titlebar-activity-saved-color: var(--os-ui-success-fg, #1d6f42);
+	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);
+	--os-titlebar-activity-size: 34px;
+	--os-titlebar-activity-strength: 0.55;
+
+	/*
 	 * Title-bar control glyphs — minimise / maximise / close, the ⋯
 	 * menu trigger, and the screen-meta cluster — in each of the two
 	 * title-bar states.
