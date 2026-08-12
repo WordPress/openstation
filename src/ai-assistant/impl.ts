@@ -1618,11 +1618,9 @@ export class AiAssistant implements AiAssistantApi {
 	/**
 	 * Render an error, optionally with a one-click recovery link.
 	 *
-	 * `settingsTab` comes from the server's error data, so the server
-	 * names the tab that fixes the problem rather than the client
-	 * recovering it by pattern-matching the message. The old version
-	 * spliced a link over an "OpenStation Preferences → Features" match
-	 * in the prose, which only ever matched while the message was English.
+	 * `settingsTab` comes from the server's error data: the server names
+	 * the tab that fixes the problem, so the client never has to find it
+	 * by pattern-matching the message, which no translation would survive.
 	 */
 	private _showError( message: string, settingsTab?: string ): void {
 		this._resultsEl.hidden = false;

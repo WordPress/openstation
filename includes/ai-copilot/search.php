@@ -700,9 +700,8 @@ function openstation_ai_progress_message( $tool_name ) {
 /**
  * Returns the label for the "keep looking" button on an exhausted search.
  *
- * One full sentence per resumable tool rather than interpolating a noun
- * built from the tool slug: that only produced a word in English, and the
- * slug is already plural, so the old `. 's'` rendered "postss".
+ * One full sentence per resumable tool: a noun interpolated into a shared
+ * template cannot be translated.
  *
  * @param string $resume_tool Tool the client would resume from.
  * @param int    $from_item   1-based index of the next item to search.
@@ -1992,9 +1991,8 @@ function openstation_rest_ai_search_permission() {
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
 		// `settings_tab` tells the overlay which OpenStation Preferences tab
-		// turns this back on, so it can offer a one-click recovery link. It
-		// used to find that by regex-matching the tab path out of this
-		// message, which stops working the moment the message is translated.
+		// turns this back on, so it can offer a one-click recovery link
+		// without parsing the tab path back out of the message.
 		return new WP_Error(
 			'openstation_ai_disabled',
 			__( 'The AI assistant is turned off.', 'desktop-mode' ),
