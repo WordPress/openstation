@@ -1349,6 +1349,9 @@
 		 * each changes colour about when it changes background.
 		 */
 		color 200ms ease-out 340ms,
+		/* No delay and nothing clever: this is the hover response, and
+		 * a hover response that is not immediate is a broken one. */
+		opacity var( --os-ui-motion-fast, 140ms ) ease-out,
 		box-shadow var( --os-ui-motion-fast, 140ms ) ease-out;
 }
 
@@ -1505,12 +1508,34 @@
  * Scoped away from the active tab because a `background-color` under
  * the mesh would show through its transparent stops and muddy it.
  */
+/*
+ * The unselected tabs stand back.
+ *
+ * Not a dimmer ink — actual transparency, so the dock's own surface
+ * comes through them and they read as *behind* the selection rather
+ * than as a paler version of it. One tab on this rail is the answer
+ * to "where am I", and the other three are only offers; at equal
+ * weight the strip reads as four things competing.
+ *
+ * Hovering brings one fully forward. Note what does NOT change on
+ * hover: `color`. The ink transition carries a 340ms delay for the
+ * selection flip (see the base rule), and a hover that moved it would
+ * inherit that delay — you would point at a tab, get nothing for a
+ * third of a second, and then watch it brighten after you had already
+ * moved on. Opacity and the wash both answer immediately, and the ink
+ * is left to mean one thing only: whether this tab is the selected
+ * one.
+ */
+.os-dock__deck:not( .os-dock__deck--active ) {
+	opacity: var( --os-dock-deck-idle-opacity, 0.6 );
+}
+
 .os-dock__deck:not( .os-dock__deck--active ):hover {
+	opacity: 1;
 	background-color: var(
 		--os-dock-item-bg-hover,
 		rgba( 242, 82, 252, 0.18 )
 	);
-	color: var( --os-dock-icon-color-hover, #fffbff );
 }
 
 .os-dock__deck:focus-visible {
@@ -1522,9 +1547,20 @@
 	);
 }
 
-.os-dock__deck:active {
-	transform: scale( 0.96 );
-}
+/*
+ * No press-scale on a deck tab, deliberately.
+ *
+ * It had one, and it was the glitch: `transform` is what the slide
+ * animates now, so `:active { transform: scale() }` and the FLIP's
+ * inline `translateX()` were two things writing one property. Pressing
+ * a tab cancelled or distorted whichever slide was in flight, and the
+ * scale itself picked up the slide's 720ms — a press that took most of
+ * a second to sink and another to come back.
+ *
+ * A tab does not need it. Pressing one moves the whole strip and
+ * repaints the rail beside it; that is more feedback than a 4% squash
+ * could add, and it arrives on the same gesture.
+ */
 
 /*
  * A hidden deck still has to be able to say something.
@@ -1615,10 +1651,6 @@
 	 */
 	.os-dock__deck-plate {
 		transition: none;
-	}
-
-	.os-dock__deck:active {
-		transform: none;
 	}
 }
 

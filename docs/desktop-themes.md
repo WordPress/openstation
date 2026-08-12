@@ -673,6 +673,7 @@ One more tunes how a deck switch *moves*:
 | Token | Role |
 |---|---|
 | `--os-dock-deck-slide` | `<duration> <easing>` for the whole switch |
+| `--os-dock-deck-idle-opacity` | How far the *unselected* tabs stand back (default `0.6`). Transparency rather than a dimmer ink, so the dock's surface comes through them; hover takes one back to full |
 
 Everything a switch moves is on that single token: the tabs sliding
 so the selected one lands at the trailing end of the strip, its name

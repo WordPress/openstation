@@ -1171,6 +1171,20 @@ body.os-active {
 	--os-dock-deck-slide: 720ms cubic-bezier(0.22, 1, 0.28, 1);
 
 	/*
+	 * How far the unselected deck tabs stand back.
+	 *
+	 * Transparency rather than a dimmer ink, so the dock's own surface
+	 * comes through them and they read as BEHIND the selection instead
+	 * of as a paler copy of it. One tab answers "where am I" and the
+	 * others are only offers; at equal weight the strip reads as four
+	 * things competing for the same job.
+	 *
+	 * Hover takes one back to full. Raise this toward 1 for a flatter
+	 * strip, lower it to push the unselected tabs further back.
+	 */
+	--os-dock-deck-idle-opacity: 0.6;
+
+	/*
 	 * ---- The OpenStation layout ---------------------------------
 	 *
 	 * The constellation: the flyout that fans a menu's submenu out of
