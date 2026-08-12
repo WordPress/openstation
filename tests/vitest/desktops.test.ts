@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { closeDesktop } from '../../src/window-manager/desktops';
+import { HOOKS } from '../../src/hooks';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -83,6 +84,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// none of them fire later and reach for `window.wp.hooks`
 		// after `clearHooksStub()` below has removed it.
 		manager.destroy();
+		vi.useRealTimers();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -380,6 +382,213 @@ describe( 'WindowManager — virtual desktops', async () => {
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 'canceling overview preserves a visible fullscreen window', async () => {
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+		const fullscreenActions = recordActions( hooks, [
+			HOOKS.WINDOW_FULLSCREEN_ENTERED,
+			HOOKS.WINDOW_FULLSCREEN_EXITED,
+		] );
+
+		manager.enterOverview();
+		expect( a.state ).toBe( 'fullscreen' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBe( 'true' );
+		manager.exitOverview();
+
+		expect( a.state ).toBe( 'fullscreen' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+
+		vi.advanceTimersByTime( 280 );
+
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( true );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+		expect( fullscreenActions ).toHaveLength( 0 );
+	} );
+
+	test( 'selecting a fullscreen thumbnail preserves fullscreen state', async () => {
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+
+		manager.enterOverview();
+		manager.exitOverview( a );
+
+		expect( a.state ).toBe( 'fullscreen' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+
+		vi.advanceTimersByTime( 280 );
+
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( true );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 'selecting another window clears a stale fullscreen marker', async () => {
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		manager.focus( a );
+		a.toggleFullscreen();
+
+		manager.enterOverview();
+		expect( a.state ).toBe( 'fullscreen' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+
+		manager.exitOverview( b );
+		expect( a.state ).toBe( 'normal' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+
+		vi.advanceTimersByTime( 280 );
+
+		expect( a.state ).toBe( 'normal' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 'fullscreen styling stays suspended on an inactive desktop after overview', async () => {
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		const second = manager.createDesktop();
+		a.toggleFullscreen();
+
+		manager.enterOverview();
+		manager.switchDesktop( second.id );
+		manager.exitOverview();
+		vi.advanceTimersByTime( 280 );
+
+		expect( a.state ).toBe( 'fullscreen' );
+		expect( a.element.style.display ).toBe( 'none' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBe( 'true' );
+
+		manager.switchDesktop( 'desktop-1' );
+
+		expect( a.element.style.display ).toBe( '' );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( true );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 're-entering overview mid-exit does not re-fullscreen a thumbnail', async () => {
+		// Double-tapping the overview trigger lands the second enter
+		// inside the 280 ms exit animation. The outgoing session's timer
+		// must not survive into the new one — if it does, it fires
+		// mid-session and re-applies `--fullscreen` to a thumbnail that
+		// is currently laid out in the grid, blowing it up to full size
+		// and taking the admin bar with it (the body class hides it).
+		vi.useFakeTimers();
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+
+		manager.enterOverview();
+		manager.exitOverview();
+		vi.advanceTimersByTime( 100 );
+		manager.enterOverview();
+
+		// The flush settled the first session, so the marker is back on
+		// for the SECOND session's layout — not a leftover of the first.
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBe( 'true' );
+
+		// Past the point the stale timer would have fired.
+		vi.advanceTimersByTime( 280 );
+
+		expect( manager._overviewActive ).toBe( true );
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( false );
+		expect(
+			document.body.classList.contains( 'os-has-fullscreen-window' ),
+		).toBe( false );
+		// The thumbnail is still laid out as one.
+		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe(
+			true,
+		);
+
+		// And the second session still exits cleanly.
+		manager.exitOverview();
+		vi.advanceTimersByTime( 280 );
+
+		expect(
+			a.element.classList.contains( 'os-window--fullscreen' ),
+		).toBe( true );
+		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBeUndefined();
+	} );
+
+	test( 're-entering overview mid-exit settles the outgoing session first', async () => {
+		vi.useFakeTimers();
+		await manager.open( openConfig( 'a' ) );
+		const log = recordActions( hooks, [
+			HOOKS.OVERVIEW_EXITED,
+			HOOKS.OVERVIEW_ENTERING,
+		] );
+
+		manager.enterOverview();
+		const firstTopBar = manager._overviewTopBar;
+		manager.exitOverview();
+		vi.advanceTimersByTime( 100 );
+		manager.enterOverview();
+
+		// `exited` for session one lands BEFORE `entering` for session
+		// two — the order a listener expects, rather than arriving 180 ms
+		// into a session that is already up.
+		expect( log.map( ( e ) => e.name ) ).toEqual( [
+			HOOKS.OVERVIEW_ENTERING,
+			HOOKS.OVERVIEW_EXITED,
+			HOOKS.OVERVIEW_ENTERING,
+		] );
+		// The first session's top bar was torn down, not orphaned in the
+		// DOM behind the new one.
+		expect( firstTopBar?.isConnected ).toBe( false );
+		expect(
+			desktopArea.querySelectorAll( '.os-overview-top-bar' ),
+		).toHaveLength( 1 );
+
+		// The stale timer is gone — the new session's top bar survives.
+		vi.advanceTimersByTime( 280 );
+		expect( manager._overviewTopBar?.isConnected ).toBe( true );
 	} );
 
 	test( 'Enter key in overview exits without selecting a window', async () => {

@@ -23,7 +23,110 @@ import {
 	markWindowContentReady,
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
+import { noteFrameLoaded } from '../plugin-presence';
 import { createRevealLayers } from '../reveals/surface';
+import { syncTabStripSemantics } from './tab-strip';
+import {
+	LOADING_OVERLAY_CLASS,
+	LOADING_OVERLAY_SHOW_DELAY_MS,
+	LOADING_OVERLAY_VISIBLE_CLASS,
+} from './constants';
+
+/**
+ * Body modifier while a window's content is loading.
+ *
+ * @internal
+ */
+export const LOADING_BODY_CLASS = 'os-window__body--loading';
+
+/*
+ * Re-exported: `syncTabStripSemantics` moved to `tab-strip.ts` with
+ * the rest of the strip's own DOM behaviour, and this module is where
+ * its callers have always imported it from.
+ */
+export { syncTabStripSemantics } from './tab-strip';
+
+/**
+ * Body modifier while a painted spinner hands off to the content: the
+ * content stays transparent through the overlay's fade-out, then fades
+ * in. Not used when the spinner never became visible.
+ *
+ * @internal
+ */
+export const LOADING_HANDOFF_BODY_CLASS = 'os-window__body--loading-out';
+
+/**
+ * When the body entered the loading state, in ms. Kept on the element
+ * so it dies with the window, and so repainting the overlay mid-load
+ * resumes the clock instead of restarting it.
+ *
+ * @internal
+ */
+export const LOADING_STARTED_ATTR = 'data-os-loading-at';
+
+/**
+ * Which load cycle the body is on. Bumped on every loading edge so a
+ * hand-off timer left over from an earlier cycle can tell it is stale
+ * and bail, instead of stripping a later cycle's state.
+ *
+ * @internal
+ */
+export const LOADING_CYCLE_ATTR = 'data-os-loading-cycle';
+
+/**
+ * The body's current load-cycle token. Capture it when scheduling a
+ * timer, compare it when the timer fires.
+ *
+ * @internal
+ */
+export function loadingCycle( body: HTMLElement ): string {
+	return body.getAttribute( LOADING_CYCLE_ATTR ) ?? '0';
+}
+
+/**
+ * Record when a body entered the loading state, and open a new cycle.
+ *
+ * @internal
+ */
+export function stampLoadingStart( body: HTMLElement ): void {
+	body.setAttribute( LOADING_STARTED_ATTR, String( Date.now() ) );
+	body.setAttribute(
+		LOADING_CYCLE_ATTR,
+		String( Number( loadingCycle( body ) ) + 1 ),
+	);
+}
+
+/**
+ * Make the overlay visible once the show delay has passed, so a fast
+ * load never paints a spinner. Resumes the body's existing clock, so a
+ * mid-load repaint does not restart the delay.
+ *
+ * @internal
+ */
+export function scheduleLoadingOverlayShow(
+	body: HTMLElement,
+	overlay: HTMLElement,
+): void {
+	const startedAt = Number( body.getAttribute( LOADING_STARTED_ATTR ) );
+	const elapsed =
+		Number.isFinite( startedAt ) && startedAt > 0 ? Date.now() - startedAt : 0;
+	const remaining = LOADING_OVERLAY_SHOW_DELAY_MS - elapsed;
+	if ( remaining <= 0 ) {
+		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
+		return;
+	}
+	// No cancel bookkeeping: both reasons to skip (overlay gone,
+	// window no longer loading) are readable at fire time.
+	window.setTimeout( () => {
+		if ( ! overlay.isConnected ) {
+			return;
+		}
+		if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
+			return;
+		}
+		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
+	}, remaining );
+}
 
 /**
  * Carrier symbol used to stash a window's config on its outer
@@ -117,13 +220,17 @@ export function updateFullscreenBodyClass(): void {
  */
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
-	overlay.className = 'os-window__loading';
-	// `aria-hidden` so screen readers don't announce the spinner —
-	// the window's title bar already has a `role="dialog"` + label,
-	// and the spinner's own `<svg role="img" aria-label="Loading">`
-	// is the per-spinner SR signal. Keeping the overlay aria-hidden
-	// avoids double-announcement when the window opens.
-	overlay.setAttribute( 'aria-hidden', 'true' );
+	overlay.className = LOADING_OVERLAY_CLASS;
+	// The overlay is the ONLY thing on screen while a window loads, so
+	// it has to be reachable by assistive tech — `aria-hidden` here
+	// left a screen-reader user with a `role="dialog"` that appeared
+	// to be simply empty. `role="status"` announces the spinner's own
+	// label politely when it paints and, being a live region, stays
+	// quiet for loads fast enough that the spinner never shows. The
+	// window element carries `aria-busy` for the duration; see
+	// `src/window/loading.ts`.
+	overlay.setAttribute( 'role', 'status' );
+	overlay.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
 	// `classic` — canonical WordPress mark, three concentric arcs,
@@ -202,18 +309,19 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
 	// replacing children. Re-add it so the CSS rules that drive
 	// the fade transition + positioning still apply. The class is
 	// what `os-window__body--loading` selectors depend on.
-	if ( overlay && ! overlay.classList.contains( 'os-window__loading' ) ) {
-		overlay.classList.add( 'os-window__loading' );
+	if ( overlay && ! overlay.classList.contains( LOADING_OVERLAY_CLASS ) ) {
+		overlay.classList.add( LOADING_OVERLAY_CLASS );
 	}
 	return overlay;
 }
 
 /**
- * Remove the loading overlay element from a window's body. Call
- * AFTER the fade-out transition has settled so the spinner doesn't
- * pop. The matching CSS rule sets `transition: opacity` on the
- * overlay; the Window class waits the same duration before
- * invoking this helper.
+ * Remove the loading overlay element from a window's body.
+ *
+ * Call in the same tick if the overlay never became visible: there is
+ * no fade to wait for. Otherwise wait `LOADING_OVERLAY_FADE_OUT_MS`,
+ * the duration the matching CSS rule transitions over, so the spinner
+ * does not pop.
  *
  * Idempotent — a window whose overlay was already removed (e.g.
  * because `markContentLoaded` was called twice in a row) silently
@@ -253,7 +361,11 @@ export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
 		return;
 	}
 	const config = getWindowConfigFromElement( windowEl );
-	body.appendChild( config ? createLoadingOverlay( config ) : buildDefaultLoadingOverlay() );
+	const overlay = config
+		? createLoadingOverlay( config )
+		: buildDefaultLoadingOverlay();
+	body.appendChild( overlay );
+	scheduleLoadingOverlayShow( body, overlay );
 }
 
 /**
@@ -309,6 +421,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.id = `wp-window-${ config.id }`;
 	el.setAttribute( 'role', 'dialog' );
 	el.setAttribute( 'aria-labelledby', `wp-window-title-${ config.id }` );
+	// A window is born loading. Stamped here rather than left to the
+	// `WINDOW_CONTENT_LOADING` subscriber in `src/window/loading.ts`,
+	// because the `markWindowContentLoading()` call at the end of this
+	// function fires while this element is still detached and that
+	// subscriber resolves windows by `document.getElementById`.
+	el.setAttribute( 'aria-busy', 'true' );
 	el.style.left = `${ config.x }px`;
 	el.style.top = `${ config.y }px`;
 	el.style.width = `${ config.width }px`;
@@ -424,6 +542,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		menuPanel.appendChild( openExternal );
 	}
 
+	// Plugin-registered actions (`wp.os.registerWindowAction`) are
+	// appended to the panel on every menu open by `paintWindowActions()`
+	// — not at construction, because both their labels and their
+	// visibility are allowed to depend on state that changes while the
+	// window is alive.
+	//
+	// They go in as direct children rather than inside a container: the
+	// panel is `role="menu"` and each row is `role="menuitem"`, and an
+	// intermediate element breaks that parent-child relationship for
+	// assistive technology. `paintWindowActions()` finds them by class
+	// instead, which is what a container would have bought.
+
 	// Slot host helpers — Layer 3 of the chrome framework. Each
 	// named slot lives inside a `<span>` carrying a `data-slot`
 	// attribute, so `paintWindowSlots()` can target them by selector
@@ -487,25 +617,19 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'os-window__custom-buttons os-window__custom-buttons--right';
 
-	// Per-window activity indicator — sits between the icon and the
-	// title so it reads as "this window is doing something" without
-	// stealing the icon's role as window identity. Reserves a fixed
-	// width even when idle so its appearance/disappearance never
-	// causes layout shift on the title row. Wired up in
-	// `Window.markActivity()` / `Window.trackActivity()`; populated
-	// automatically by `wp.os.fetch()`.
-	const activityHost = document.createElement( 'span' );
-	activityHost.className = 'os-window__activity';
-	const activityStatus = document.createElement( 'os-save-status' );
-	activityStatus.setAttribute( 'mode', 'dot' );
-	activityStatus.setAttribute( 'animation', 'modem' );
-	activityStatus.setAttribute( 'phase', 'idle' );
-	activityStatus.setAttribute( 'data-os-activity-indicator', '' );
-	activityHost.appendChild( activityStatus );
-
+	// No activity indicator is painted here. The title bar used to
+	// carry an always-visible `<os-save-status>` dot between the icon
+	// and the title, which meant every window wore a small accent ring
+	// for the whole of its life to report a state — idle — that is
+	// true almost all of the time. The activity machinery itself is
+	// untouched: `Window.trackActivity()` / `Window.markActivity()`
+	// still reference-count and still phase, and
+	// `Window._paintActivityIndicator()` still paints onto any
+	// `[data-os-activity-indicator]` element found in the title bar.
+	// A plugin that wants the dot back drops an `<os-save-status>`
+	// carrying that attribute into a title-bar slot.
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
-	titleBar.appendChild( activityHost );
 	titleBar.appendChild( slotTitle );
 	titleBar.appendChild( slotAfterTitle );
 	titleBar.appendChild( customLeft );
@@ -540,7 +664,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	}
 
 	const body = document.createElement( 'div' );
-	body.className = 'os-window__body os-window__body--loading';
+	body.className = `os-window__body ${ LOADING_BODY_CLASS }`;
+	// Start the show-delay clock here, not when the overlay is
+	// appended: `repaintLoadingOverlays()` replaces the overlay
+	// element mid-load and must resume this clock rather than restart
+	// it.
+	stampLoadingStart( body );
 
 	// Native windows own the body contents via {@link WindowConfig.render}
 	// — called from the Window constructor after mount. Skip the iframe
@@ -571,6 +700,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// idempotent loading → ready transition.
 		const onIframeLoad = (): void => {
 			markWindowContentReady( config.id );
+			noteFrameLoaded( iframe );
 		};
 		iframe.addEventListener( 'load', onIframeLoad );
 	} else {
@@ -579,16 +709,20 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 	// Loading overlay — sits above the body content (iframe or native
 	// render output) until the window's content reports ready. The
-	// shell drives the visibility via the `--loading` body modifier;
-	// the overlay element itself is removed once the fade-out
-	// transition lands so it doesn't intercept pointer events on a
-	// "ready" window. Painted unconditionally for every window type so
-	// production lag (slow iframe boot, async native data fetch)
-	// always has the same affordance. Customization is plumbed via
+	// element is built for every window type so production lag (slow
+	// iframe boot, async native data fetch) always has the same
+	// affordance, but it stays INVISIBLE until
+	// `scheduleLoadingOverlayShow` promotes it: a load that lands
+	// inside the show delay never paints a spinner, and therefore
+	// never has one to fade out over its own content. The element is
+	// removed once the fade-out lands so it doesn't intercept pointer
+	// events on a "ready" window. Customization is plumbed via
 	// `config.loading.render` (per-window) and the
 	// `WINDOW_LOADING_OVERLAY` filter (global) — see
 	// `createLoadingOverlay` above.
-	body.appendChild( createLoadingOverlay( config ) );
+	const loadingOverlay = createLoadingOverlay( config );
+	body.appendChild( loadingOverlay );
+	scheduleLoadingOverlayShow( body, loadingOverlay );
 
 	// Reveal layers — the opaque surface the window's content is
 	// uncovered from once it reports ready, plus its trailing edge.
@@ -632,19 +766,65 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.appendChild( titleBar );
 	el.appendChild( slotAfterTitlebar );
 
-	// Tab strip — initialized whenever the window has a submenu OR
-	// supports external-link sub-tabs (which iframe windows grow at
-	// runtime via `addExternalTab`). For windows with no submenu, we
-	// still create the strip but hide it via CSS `:empty` when empty.
-	// Each submenu tab is marked `data-kind="submenu"` so the runtime
-	// tab-switching code can tell submenu tabs apart from closeable
-	// external tabs.
-	if ( ! config.native ) {
+	/*
+	 * Tab strip — built for EVERY window, iframe or native.
+	 *
+	 * It used to be skipped for native windows, which is why they grew
+	 * a second tab system of their own inside the body. There is one
+	 * strip now and one stylesheet behind it; what differs between the
+	 * two kinds is only what a tab does when you press it. An iframe
+	 * window's submenu tabs swap the iframe URL (seeded below); a
+	 * native window's panel tabs show a pane in its body and are
+	 * declared at runtime through `Window.setTabs()`.
+	 *
+	 * A window with no tabs of either kind still gets the element, so
+	 * `addExternalTab()` and `setTabs()` have somewhere to put one
+	 * later. Empty, CSS collapses it to nothing.
+	 *
+	 * The strip's accessible name is stashed on a data attribute rather
+	 * than applied here: navigation semantics are only switched on once
+	 * the strip actually holds tabs (see `syncTabStripSemantics`), and
+	 * by that point the config object is out of reach of the runtime
+	 * tab code in `tabs.ts` and `tab-strip.ts`.
+	 */
+	{
 		const tabs = document.createElement( 'nav' );
 		tabs.className = 'os-window__tabs';
-		tabs.setAttribute( 'role', 'tablist' );
-		// translators: %s is the window's admin-page title (e.g., "Posts")
-		tabs.setAttribute( 'aria-label', sprintf( __( '%s sub-pages' ), config.title ) );
+
+		// The plate — the active tab's surface, as one element that
+		// slides between tabs rather than a fill that switches off on
+		// one and on at the next. Appended FIRST so it paints under
+		// the tab buttons, which carry `z-index: 1`; a plate above
+		// them would hide the active label.
+		//
+		// `positionTabPlate()` in `tab-strip.ts` drives its geometry,
+		// and `observeTabOverflow()` is what calls that — the strip's
+		// existing observer already fires on every moment the plate
+		// would need re-measuring.
+		const plate = document.createElement( 'span' );
+		plate.className = 'os-window__tab-plate';
+		plate.setAttribute( 'aria-hidden', 'true' );
+		const plateFill = document.createElement( 'span' );
+		plateFill.className = 'os-window__tab-plate-fill';
+		const plateJoint = document.createElement( 'span' );
+		plateJoint.className = 'os-window__tab-plate-joint';
+		plate.appendChild( plateFill );
+		plate.appendChild( plateJoint );
+		tabs.appendChild( plate );
+
+		/*
+		 * A native window's tabs are panes of one app, not sub-pages
+		 * of an admin screen, so the tablist says so. Screen-reader
+		 * users hear this on entering the strip and it is the only
+		 * thing telling them what these tabs belong to.
+		 */
+		if ( config.native ) {
+			// translators: %s is the window's title (e.g., "OpenStation Preferences")
+			tabs.dataset.tablistLabel = sprintf( __( '%s sections' ), config.title );
+		} else {
+			// translators: %s is the window's admin-page title (e.g., "Posts")
+			tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
+		}
 
 		if ( config.submenu && config.submenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );
@@ -696,6 +876,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 				tabs.appendChild( tab );
 			}
 		}
+		syncTabStripSemantics( tabs );
 		el.appendChild( tabs );
 	}
 

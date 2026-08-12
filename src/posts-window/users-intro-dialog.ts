@@ -11,10 +11,19 @@
  */
 
 import { __ } from '../i18n';
+import { trapFocus } from '../ui/modal-focus';
 
 export type IntroResult = 'confirm' | 'settings' | 'cancel';
 
-export async function showUsersIntroDialog(): Promise< IntroResult > {
+/**
+ * Show the Users-window intro.
+ *
+ * @param returnFocusTo Where focus lands on dismissal — the Users
+ *                      window's root. See {@link showPostsIntroDialog}.
+ */
+export async function showUsersIntroDialog(
+	returnFocusTo?: HTMLElement | null,
+): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		const backdrop = document.createElement( 'div' );
 		backdrop.className = 'os-users-intro__backdrop';
@@ -64,7 +73,13 @@ export async function showUsersIntroDialog(): Promise< IntroResult > {
 		const settingsBtn = dialog.querySelector< HTMLButtonElement >(
 			'[data-action="settings"]',
 		);
-		primaryBtn?.focus();
+		// Opens on "Got it" and holds Tab inside the dialog until it
+		// closes, then hands focus to the window it introduced.
+		const focusScope = trapFocus( {
+			root: dialog,
+			initialFocus: primaryBtn,
+			returnFocusTo,
+		} );
 
 		let resolved = false;
 		const cleanup = ( result: IntroResult ): void => {
@@ -73,12 +88,17 @@ export async function showUsersIntroDialog(): Promise< IntroResult > {
 			}
 			resolved = true;
 			document.removeEventListener( 'keydown', onKey, true );
+			// Before the removal — see `showPostsIntroDialog`.
+			focusScope.release();
 			backdrop.remove();
 			resolve( result );
 		};
 
 		const onKey = ( e: KeyboardEvent ): void => {
-			if ( e.key === 'Escape' ) {
+			// A dialog that opened on top of this one owns Escape —
+			// one keypress reaching both would close a dialog the
+			// user cannot even see yet.
+			if ( e.key === 'Escape' && focusScope.isTopmost() ) {
 				e.preventDefault();
 				cleanup( 'cancel' );
 			}

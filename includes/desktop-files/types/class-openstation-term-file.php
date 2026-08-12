@@ -13,14 +13,29 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_Term_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'term';
 	}
 
+	/**
+	 * Whether the term still exists.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return $this->term() instanceof WP_Term;
 	}
 
+	/**
+	 * Get the term name.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$term = $this->term();
 		if ( ! $term ) {
@@ -29,6 +44,11 @@ class OpenStation_Term_File extends OpenStation_File {
 		return wp_strip_all_tags( $term->name );
 	}
 
+	/**
+	 * Resolve a Dashicon class based on the taxonomy.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		$term = $this->term();
 		if ( ! $term ) {
@@ -44,6 +64,13 @@ class OpenStation_Term_File extends OpenStation_File {
 		}
 	}
 
+	/**
+	 * Check whether the user can edit terms in this taxonomy or
+	 * has the base `read` capability.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		$term = $this->term();
 		if ( ! $term ) {
@@ -56,6 +83,12 @@ class OpenStation_Term_File extends OpenStation_File {
 		return user_can( $user_id, $tax->cap->edit_terms ) || user_can( $user_id, 'read' );
 	}
 
+	/**
+	 * Augment the base serialized shape with taxonomy and post
+	 * count.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape             = parent::serialize();
 		$term              = $this->term();
@@ -64,6 +97,11 @@ class OpenStation_Term_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the underlying WP_Term from the stored ref.
+	 *
+	 * @return WP_Term|null Null when the term is gone or the ref is invalid.
+	 */
 	private function term(): ?WP_Term {
 		[ $taxonomy, $term_id ] = $this->parse_ref();
 		if ( '' === $taxonomy || $term_id <= 0 ) {

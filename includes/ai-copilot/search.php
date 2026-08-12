@@ -60,184 +60,184 @@ const OPENSTATION_AI_SEARCH_BATCH_SIZE = 10;
 function openstation_ai_get_admin_page_catalog() {
 	$catalog = array(
 		array(
-			'title'       => 'Dashboard',
+			'title'       => __( 'Dashboard', 'desktop-mode' ),
 			'url'         => admin_url( 'index.php' ),
 			'icon'        => 'dashicons-dashboard',
-			'description' => 'The main admin dashboard — activity, drafts, site overview.',
+			'description' => __( 'The main admin dashboard: activity, drafts, site overview.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'All Posts',
+			'title'       => __( 'All Posts', 'desktop-mode' ),
 			'url'         => admin_url( 'edit.php' ),
 			'icon'        => 'dashicons-admin-post',
-			'description' => 'List, edit, bulk-manage blog posts.',
+			'description' => __( 'List, edit, bulk-manage blog posts.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Add New Post',
+			'title'       => __( 'Add New Post', 'desktop-mode' ),
 			'url'         => admin_url( 'post-new.php' ),
 			'icon'        => 'dashicons-plus',
-			'description' => 'Create a new blog post.',
+			'description' => __( 'Create a new blog post.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Categories',
+			'title'       => __( 'Categories', 'desktop-mode' ),
 			'url'         => admin_url( 'edit-tags.php?taxonomy=category' ),
 			'icon'        => 'dashicons-category',
-			'description' => 'Manage post categories — add, rename, merge.',
+			'description' => __( 'Manage post categories: add, rename, merge.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Tags',
+			'title'       => __( 'Tags', 'desktop-mode' ),
 			'url'         => admin_url( 'edit-tags.php?taxonomy=post_tag' ),
 			'icon'        => 'dashicons-tag',
-			'description' => 'Manage post tags.',
+			'description' => __( 'Manage post tags.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'All Pages',
+			'title'       => __( 'All Pages', 'desktop-mode' ),
 			'url'         => admin_url( 'edit.php?post_type=page' ),
 			'icon'        => 'dashicons-admin-page',
-			'description' => 'List and edit static pages (About, Contact, etc.).',
+			'description' => __( 'List and edit static pages (About, Contact, etc.).', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Add New Page',
+			'title'       => __( 'Add New Page', 'desktop-mode' ),
 			'url'         => admin_url( 'post-new.php?post_type=page' ),
 			'icon'        => 'dashicons-plus',
-			'description' => 'Create a new page.',
+			'description' => __( 'Create a new page.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Media Library',
+			'title'       => __( 'Media Library', 'desktop-mode' ),
 			'url'         => admin_url( 'upload.php' ),
 			'icon'        => 'dashicons-admin-media',
-			'description' => 'Browse, upload, and manage images, files, videos.',
+			'description' => __( 'Browse, upload, and manage images, files, videos.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Comments',
+			'title'       => __( 'Comments', 'desktop-mode' ),
 			'url'         => admin_url( 'edit-comments.php' ),
 			'icon'        => 'dashicons-admin-comments',
-			'description' => 'Moderate and reply to comments on posts and pages.',
+			'description' => __( 'Moderate and reply to comments on posts and pages.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Themes',
+			'title'       => __( 'Themes', 'desktop-mode' ),
 			'url'         => admin_url( 'themes.php' ),
 			'icon'        => 'dashicons-admin-appearance',
-			'description' => 'Change, install, or customize the active theme.',
+			'description' => __( 'Change, install, or customize the active theme.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Customize',
+			'title'       => __( 'Customize', 'desktop-mode' ),
 			'url'         => admin_url( 'customize.php' ),
 			'icon'        => 'dashicons-admin-customizer',
-			'description' => 'Live-preview theme customisation — colors, fonts, layout.',
+			'description' => __( 'Live-preview theme customisation: colors, fonts, layout.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Widgets',
+			'title'       => __( 'Widgets', 'desktop-mode' ),
 			'url'         => admin_url( 'widgets.php' ),
 			'icon'        => 'dashicons-screenoptions',
-			'description' => 'Manage sidebar and footer widgets.',
+			'description' => __( 'Manage sidebar and footer widgets.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Menus',
+			'title'       => __( 'Menus', 'desktop-mode' ),
 			'url'         => admin_url( 'nav-menus.php' ),
 			'icon'        => 'dashicons-menu',
-			'description' => 'Create and edit navigation menus.',
+			'description' => __( 'Create and edit navigation menus.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Plugins',
+			'title'       => __( 'Plugins', 'desktop-mode' ),
 			'url'         => admin_url( 'plugins.php' ),
 			'icon'        => 'dashicons-admin-plugins',
-			'description' => 'Activate, deactivate, update or delete plugins.',
+			'description' => __( 'Activate, deactivate, update or delete plugins.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Add New Plugin',
+			'title'       => __( 'Add New Plugin', 'desktop-mode' ),
 			'url'         => admin_url( 'plugin-install.php' ),
 			'icon'        => 'dashicons-plus',
-			'description' => 'Search and install new plugins from the directory.',
+			'description' => __( 'Search and install new plugins from the directory.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Users',
+			'title'       => __( 'Users', 'desktop-mode' ),
 			'url'         => admin_url( 'users.php' ),
 			'icon'        => 'dashicons-admin-users',
-			'description' => 'Manage user accounts and roles.',
+			'description' => __( 'Manage user accounts and roles.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Add New User',
+			'title'       => __( 'Add New User', 'desktop-mode' ),
 			'url'         => admin_url( 'user-new.php' ),
 			'icon'        => 'dashicons-plus',
-			'description' => 'Create a new user account.',
+			'description' => __( 'Create a new user account.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Your Profile',
+			'title'       => __( 'Your Profile', 'desktop-mode' ),
 			'url'         => admin_url( 'profile.php' ),
 			'icon'        => 'dashicons-id',
-			'description' => 'Edit your own profile, password, admin colour scheme.',
+			'description' => __( 'Edit your own profile, password, admin colour scheme.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'General Settings',
+			'title'       => __( 'General Settings', 'desktop-mode' ),
 			'url'         => admin_url( 'options-general.php' ),
 			'icon'        => 'dashicons-admin-settings',
-			'description' => 'Site title, tagline, URL, timezone, language.',
+			'description' => __( 'Site title, tagline, URL, timezone, language.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Writing Settings',
+			'title'       => __( 'Writing Settings', 'desktop-mode' ),
 			'url'         => admin_url( 'options-writing.php' ),
 			'icon'        => 'dashicons-edit',
-			'description' => 'Default post category, post format, remote publishing.',
+			'description' => __( 'Default post category, post format, remote publishing.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Reading Settings',
+			'title'       => __( 'Reading Settings', 'desktop-mode' ),
 			'url'         => admin_url( 'options-reading.php' ),
 			'icon'        => 'dashicons-book',
-			'description' => 'Homepage, blog posts per page, search-engine visibility.',
+			'description' => __( 'Homepage, blog posts per page, search-engine visibility.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Discussion Settings',
+			'title'       => __( 'Discussion Settings', 'desktop-mode' ),
 			'url'         => admin_url( 'options-discussion.php' ),
 			'icon'        => 'dashicons-format-chat',
-			'description' => 'Comment moderation, avatars, email notifications.',
+			'description' => __( 'Comment moderation, avatars, email notifications.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Media Settings',
+			'title'       => __( 'Media Settings', 'desktop-mode' ),
 			'url'         => admin_url( 'options-media.php' ),
 			'icon'        => 'dashicons-format-image',
-			'description' => 'Image size settings for thumbnail / medium / large.',
+			'description' => __( 'Image size settings for thumbnail / medium / large.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Permalinks',
+			'title'       => __( 'Permalinks', 'desktop-mode' ),
 			'url'         => admin_url( 'options-permalink.php' ),
 			'icon'        => 'dashicons-admin-links',
-			'description' => 'URL structure for posts, pages, categories, tags.',
+			'description' => __( 'URL structure for posts, pages, categories, tags.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Privacy',
+			'title'       => __( 'Privacy', 'desktop-mode' ),
 			'url'         => admin_url( 'options-privacy.php' ),
 			'icon'        => 'dashicons-privacy',
-			'description' => 'Privacy policy page selection and preview.',
+			'description' => __( 'Privacy policy page selection and preview.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Tools',
+			'title'       => __( 'Tools', 'desktop-mode' ),
 			'url'         => admin_url( 'tools.php' ),
 			'icon'        => 'dashicons-admin-tools',
-			'description' => 'Built-in site tools.',
+			'description' => __( 'Built-in site tools.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Import',
+			'title'       => __( 'Import', 'desktop-mode' ),
 			'url'         => admin_url( 'import.php' ),
 			'icon'        => 'dashicons-download',
-			'description' => 'Import content from other platforms (WP, Tumblr, RSS, etc.).',
+			'description' => __( 'Import content from other platforms (WP, Tumblr, RSS, etc.).', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Export',
+			'title'       => __( 'Export', 'desktop-mode' ),
 			'url'         => admin_url( 'export.php' ),
 			'icon'        => 'dashicons-upload',
-			'description' => 'Export all site content as XML.',
+			'description' => __( 'Export all site content as XML.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Site Health',
+			'title'       => __( 'Site Health', 'desktop-mode' ),
 			'url'         => admin_url( 'site-health.php' ),
 			'icon'        => 'dashicons-heart',
-			'description' => 'Performance and security recommendations for the site.',
+			'description' => __( 'Performance and security recommendations for the site.', 'desktop-mode' ),
 		),
 		array(
-			'title'       => 'Updates',
+			'title'       => __( 'Updates', 'desktop-mode' ),
 			'url'         => admin_url( 'update-core.php' ),
 			'icon'        => 'dashicons-update',
-			'description' => 'WordPress, theme, and plugin updates.',
+			'description' => __( 'WordPress, theme, and plugin updates.', 'desktop-mode' ),
 		),
 	);
 
@@ -680,21 +680,45 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 function openstation_ai_progress_message( $tool_name ) {
 	switch ( $tool_name ) {
 		case 'search_posts':
-			return 'Looking through your posts…';
+			return __( 'Looking through your posts…', 'desktop-mode' );
 		case 'search_pages':
-			return 'Checking your pages…';
+			return __( 'Checking your pages…', 'desktop-mode' );
 		case 'search_comments':
-			return 'Reading through comments…';
+			return __( 'Reading through comments…', 'desktop-mode' );
 		case 'search_comments_by_post':
-			return 'Scanning comments on that post…';
+			return __( 'Scanning comments on that post…', 'desktop-mode' );
 		case 'list_admin_pages':
-			return 'Finding the right admin page…';
+			return __( 'Finding the right admin page…', 'desktop-mode' );
 		case 'search_wporg_plugins':
-			return 'Searching the WordPress.org plugin directory…';
+			return __( 'Searching the WordPress.org plugin directory…', 'desktop-mode' );
 		case 'get_php_error_log':
-			return 'Tailing the PHP error log…';
+			return __( 'Tailing the PHP error log…', 'desktop-mode' );
 	}
-	return 'Thinking…';
+	return __( 'Thinking…', 'desktop-mode' );
+}
+
+/**
+ * Returns the label for the "keep looking" button on an exhausted search.
+ *
+ * One full sentence per resumable tool: a noun interpolated into a shared
+ * template cannot be translated.
+ *
+ * @param string $resume_tool Tool the client would resume from.
+ * @param int    $from_item   1-based index of the next item to search.
+ * @return string
+ */
+function openstation_ai_continue_label( $resume_tool, $from_item ) {
+	switch ( $resume_tool ) {
+		case 'search_pages':
+			/* translators: %d: 1-based index of the next page to search. */
+			return sprintf( __( 'Continue searching in pages (from item %d)', 'desktop-mode' ), $from_item );
+		case 'search_comments':
+			/* translators: %d: 1-based index of the next comment to search. */
+			return sprintf( __( 'Continue searching in comments (from item %d)', 'desktop-mode' ), $from_item );
+		default:
+			/* translators: %d: 1-based index of the next post to search. */
+			return sprintf( __( 'Continue searching in posts (from item %d)', 'desktop-mode' ), $from_item );
+	}
 }
 
 /**
@@ -1155,7 +1179,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	$emit(
 		array(
 			'phase'   => 'start',
-			'message' => 'Thinking about your question…',
+			'message' => __( 'Thinking about your question…', 'desktop-mode' ),
 		)
 	);
 
@@ -1167,7 +1191,12 @@ The message field is always a friendly sentence or two shown directly to the use
 	// -----------------------------------------------------------------------
 	$messages = array( openstation_ai_user_text_message( $query ) );
 
-	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+	$generation_context = array(
+		'source'     => 'ai-copilot/search',
+		'request_id' => $request_id,
+	);
+
+	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -1214,22 +1243,18 @@ The message field is always a friendly sentence or two shown directly to the use
 			$emit(
 				array(
 					'phase'   => 'composing',
-					'message' => 'Putting together your answer…',
+					'message' => __( 'Putting together your answer…', 'desktop-mode' ),
 				)
 			);
-			$text = $turn['text'] ?? null;
-			if ( ! is_string( $text ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP OpenStation AI] AI Client returned no text in the final turn.' );
-				return new WP_Error(
-					'openstation_ai_empty',
-					'The AI provider returned no text in the final turn.'
-				);
-			}
+			// A toolless turn with no extractable text never reaches here:
+			// openstation_ai_client_generate() returns
+			// `openstation_ai_empty_answer` for that case, handled with the
+			// other generation errors above.
+			$text = (string) ( $turn['text'] ?? '' );
 
 			$answer = json_decode( $text, true );
 			if ( ! is_array( $answer ) ) {
-				return new WP_Error( 'openstation_ai_result_parse', 'Could not parse structured search answer.' );
+				return new WP_Error( 'openstation_ai_result_parse', __( 'Could not parse structured search answer.', 'desktop-mode' ) );
 			}
 
 			$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
@@ -1477,7 +1502,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
+		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1495,18 +1520,17 @@ The message field is always a friendly sentence or two shown directly to the use
 		// carries no post_id — so fall back to plain comment search,
 		// keeping `tool` inside openstation_ai_search_resumable_tools().
 		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
-		$type_label  = str_replace( 'search_', '', $resume_tool ) . 's';
 		$continue    = array(
 			'tool'        => $resume_tool,
 			'entity_type' => rtrim( str_replace( 'search_', '', $resume_tool ), 's' ),
 			'offset'      => $next_offset,
-			'label'       => sprintf( 'Continue searching in %s (from item %d)', $type_label, $next_offset + 1 ),
+			'label'       => openstation_ai_continue_label( $resume_tool, $next_offset + 1 ),
 		);
 	}
 
 	$final = array(
 		'answer_type' => 'chat',
-		'message'     => 'I searched 100 items without finding a clear match. Want me to keep looking further?',
+		'message'     => __( 'I searched 100 items without finding a clear match. Want me to keep looking further?', 'desktop-mode' ),
 		'entity'      => null,
 		'admin_links' => null,
 		'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
@@ -1765,10 +1789,20 @@ Rules:
 		array( openstation_ai_user_text_message( $user_message ) ),
 		array(), // no tools — we want a plain reply
 		null,    // no JSON schema — free-form text
-		$instructions
+		$instructions,
+		array(
+			'source'     => 'ai-copilot/followup',
+			'request_id' => $request_id,
+		)
 	);
 
-	if ( is_wp_error( $turn ) ) {
+	// `openstation_ai_empty_answer` is the one generation error this path
+	// deliberately absorbs: the command DID run, so a text-less summary turn
+	// degrades to the generic confirmation below instead of surfacing as a
+	// failure of the command itself.
+	$empty_answer = is_wp_error( $turn ) && 'openstation_ai_empty_answer' === $turn->get_error_code();
+
+	if ( is_wp_error( $turn ) && ! $empty_answer ) {
 		do_action(
 			'openstation_ai_search_error',
 			array(
@@ -1783,7 +1817,7 @@ Rules:
 		return $turn;
 	}
 
-	$text     = $turn['text'] ?? null;
+	$text     = $empty_answer ? null : ( $turn['text'] ?? null );
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
 		// Graceful degrade — if the provider returned nothing usable, fall
@@ -1944,22 +1978,31 @@ function openstation_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
 			'openstation_ai_forbidden',
-			'You must be logged in to use the AI assistant.',
+			__( 'You must be logged in to use the AI assistant.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 	if ( ! openstation_ai_is_available() ) {
 		return new WP_Error(
 			'openstation_ai_unavailable',
-			'The AI assistant is unavailable on this site.',
+			__( 'The AI assistant is unavailable on this site.', 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
+		// The message names the tab for consumers that only get text (a REST
+		// client, `wp.os.ai.ask()`). `settings_tab` names it again as data,
+		// so the overlay can offer a one-click link without parsing prose.
 		return new WP_Error(
 			'openstation_ai_disabled',
-			'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
-			array( 'status' => 403 )
+			__(
+				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
+				'desktop-mode'
+			),
+			array(
+				'status'       => 403,
+				'settings_tab' => 'features',
+			)
 		);
 	}
 	return true;
@@ -2343,6 +2386,37 @@ function openstation_ai_tail_file( $path, $lines ) {
  *   data: { "event": "done",     "result": { … } }
  *   data: { "event": "error",    "message": "…" }
  */
+/**
+ * Emits a one-shot SSE error frame and ends the request.
+ *
+ * Opens the stream with a 200 so the payload reaches `onmessage`. A status
+ * code alone reaches only `onerror`, which cannot carry a code or a
+ * recovery hint.
+ *
+ * @param string      $code         Error code the client branches on.
+ * @param string      $message      Human-readable message.
+ * @param string|null $settings_tab OpenStation Preferences tab that fixes it.
+ * @return never
+ */
+function openstation_ai_stream_error( $code, $message, $settings_tab = null ) {
+	header( 'Content-Type: text/event-stream; charset=utf-8' );
+	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+	header( 'X-Accel-Buffering: no' );
+
+	$payload = array(
+		'event'   => 'error',
+		'code'    => $code,
+		'message' => $message,
+	);
+	if ( null !== $settings_tab ) {
+		$payload['settings_tab'] = $settings_tab;
+	}
+
+	echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
+	flush();
+	exit;
+}
+
 function openstation_ai_ajax_search_stream() {
 	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
 	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
@@ -2359,8 +2433,18 @@ function openstation_ai_ajax_search_stream() {
 		exit;
 	}
 	if ( ! openstation_ai_is_enabled( $user_id ) ) {
-		status_header( 403 );
-		exit;
+		// Deliver this one as a stream error rather than a bare 403. It is
+		// the only recoverable failure here, and a status code carries no
+		// body, so EventSource would surface it as a generic connection
+		// drop and the client could never offer the one-click fix.
+		openstation_ai_stream_error(
+			'openstation_ai_disabled',
+			__(
+				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
+				'desktop-mode'
+			),
+			'features'
+		);
 	}
 
 	$query = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : ''; // phpcs:ignore WordPress.Security

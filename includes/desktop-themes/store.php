@@ -475,6 +475,7 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 	$schema = array(
 		'dockSize'             => array( 'enum' => OPENSTATION_OS_SETTINGS_DOCK_SIZES ),
 		'desktopLayout'        => array( 'enum' => OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS ),
+		'dockPlacement'        => array( 'enum' => OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS ),
 		'windowRadius'         => array( 'enum' => OPENSTATION_OS_SETTINGS_WINDOW_RADII ),
 		'adminBarMode'         => array( 'enum' => OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES ),
 		'dockRailRenderer'     => array( 'slug' => true ),

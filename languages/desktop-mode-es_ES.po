@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-08-07T11:20:04+00:00\n"
+"POT-Creation-Date: 2026-08-11T11:34:25+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -38,8 +38,8 @@ msgstr "Error al subir."
 msgid "Cannot be undone."
 msgstr ""
 
-#: src/agent-run-window.ts:297 src/my-wordpress/agents-renderer.ts:581
-#: src/my-wordpress/agents-renderer.ts:1200
+#: src/agent-run-window.ts:297 src/my-wordpress/agents-renderer.ts:599
+#: src/my-wordpress/agents-renderer.ts:1261
 #: src/my-wordpress/bulk-actions.ts:830 src/my-wordpress/media-list.ts:509
 #: src/my-wordpress/media-list.ts:569 src/plugins-window/flyout-detail.ts:603
 #: src/plugins-window/flyout-detail.ts:740
@@ -101,7 +101,7 @@ msgid "Chat window config is missing."
 msgstr ""
 
 #: src/agent-run-window.ts:734 src/desktop-files/agent-drop-targets.ts:84
-#: src/my-wordpress/agents-renderer.ts:401
+#: src/my-wordpress/agents-renderer.ts:419
 msgid "Send to agent"
 msgstr ""
 
@@ -134,8 +134,8 @@ msgstr ""
 
 #: src/agents-entity-window.ts:68 src/content-graph/panel.ts:414
 #: src/content-graph/panel.ts:885 includes/desktop-files/built-in-types.php:30
-#: includes/my-wordpress/window.php:153 includes/recycle-bin/store.php:597
-#: includes/recycle-bin/window.php:49 includes/window-links.php:603
+#: includes/my-wordpress/window.php:160 includes/recycle-bin/store.php:597
+#: includes/recycle-bin/window.php:155 includes/window-links.php:603
 msgid "Media"
 msgstr ""
 
@@ -200,7 +200,7 @@ msgstr ""
 #: src/bug-report/index.ts:126 src/content-graph/panel.ts:898
 #: src/my-wordpress/integrations/woocommerce.ts:742
 #: src/my-wordpress/media-preview.ts:223 src/settings/sections/help.ts:456
-#: includes/agents/identity.php:228
+#: includes/agents/identity.php:217
 msgid "Type"
 msgstr ""
 
@@ -220,32 +220,32 @@ msgstr ""
 msgid "Environment included with the report"
 msgstr ""
 
-#: src/comments-window/conversation.ts:178
+#: src/comments-window/conversation.ts:187
 msgid "Approved"
 msgstr ""
 
-#: src/comments-window/conversation.ts:180 src/posts-window/index.ts:259
+#: src/comments-window/conversation.ts:189 src/posts-window/index.ts:259
 #: src/posts-window/index.ts:1063 includes/comments-window/window.php:35
 msgid "Pending"
 msgstr ""
 
-#: src/comments-window/conversation.ts:182
-#: src/comments-window/conversation.ts:964
+#: src/comments-window/conversation.ts:191
+#: src/comments-window/conversation.ts:973
 #: includes/comments-window/window.php:37
 msgid "Spam"
 msgstr ""
 
-#: src/comments-window/conversation.ts:184
-#: src/comments-window/conversation.ts:971 src/posts-window/index.ts:261
+#: src/comments-window/conversation.ts:193
+#: src/comments-window/conversation.ts:980 src/posts-window/index.ts:261
 #: src/posts-window/index.ts:1065 includes/comments-window/window.php:38
-#: includes/recycle-bin/window.php:153 includes/recycle-bin/window.php:179
+#: includes/recycle-bin/window.php:262 includes/recycle-bin/window.php:288
 msgid "Trash"
 msgstr ""
 
-#: src/comments-window/conversation.ts:503
-#: src/comments-window/conversation.ts:893
-#: src/comments-window/conversation.ts:1095
-#: src/comments-window/conversation.ts:1157 src/my-wordpress/index.ts:3062
+#: src/comments-window/conversation.ts:512
+#: src/comments-window/conversation.ts:902
+#: src/comments-window/conversation.ts:1104
+#: src/comments-window/conversation.ts:1166 src/my-wordpress/index.ts:3062
 #: src/my-wordpress/index.ts:3097 src/my-wordpress/index.ts:3122
 #: src/my-wordpress/index.ts:3222 src/plugins-window/flyout-detail.ts:522
 #: src/plugins-window/installed-detail.ts:1064
@@ -255,66 +255,66 @@ msgid "Anonymous"
 msgstr ""
 
 #. %d: number of direct replies.
-#: src/comments-window/conversation.ts:528
+#: src/comments-window/conversation.ts:537
 #, fuzzy
 msgid "%d replies"
 msgstr "Subpáginas de %s"
 
 #. %s: post title.
-#: src/comments-window/conversation.ts:549
+#: src/comments-window/conversation.ts:558
 msgid "On: %s"
 msgstr ""
 
-#: src/comments-window/conversation.ts:550
+#: src/comments-window/conversation.ts:559
 #, fuzzy
 msgid "Comments on this post"
 msgstr "Buscar medios"
 
-#: src/comments-window/conversation.ts:554
+#: src/comments-window/conversation.ts:563
 #, fuzzy
 msgid "Show all"
 msgstr "Mostrando %d"
 
-#: src/comments-window/conversation.ts:575 src/content-graph/panel.ts:1247
+#: src/comments-window/conversation.ts:584 src/content-graph/panel.ts:1247
 #: src/my-wordpress/index.ts:2670 src/my-wordpress/index.ts:2749
 #, fuzzy
 msgid "Loading…"
 msgstr "Subiendo…"
 
-#: src/comments-window/conversation.ts:586
+#: src/comments-window/conversation.ts:595
 #: src/settings/sections/custom-image.ts:301
 msgid "Load more"
 msgstr "Cargar más"
 
-#: src/comments-window/conversation.ts:606
+#: src/comments-window/conversation.ts:615
 msgid "Nothing on this post here"
 msgstr ""
 
-#: src/comments-window/conversation.ts:607
+#: src/comments-window/conversation.ts:616
 msgid "This post has no comments in this view — try another tab."
 msgstr ""
 
-#: src/comments-window/conversation.ts:611
+#: src/comments-window/conversation.ts:620
 msgid "No conversations yet"
 msgstr ""
 
-#: src/comments-window/conversation.ts:612
+#: src/comments-window/conversation.ts:621
 msgid "Comments in this view will show up here."
 msgstr ""
 
-#: src/comments-window/conversation.ts:724
+#: src/comments-window/conversation.ts:733
 msgid "No conversation selected"
 msgstr ""
 
-#: src/comments-window/conversation.ts:725
+#: src/comments-window/conversation.ts:734
 msgid "Pick one from the list to read and reply."
 msgstr ""
 
-#: src/comments-window/conversation.ts:812
+#: src/comments-window/conversation.ts:821
 msgid "In response to"
 msgstr ""
 
-#: src/comments-window/conversation.ts:814 src/my-wordpress/index.ts:1925
+#: src/comments-window/conversation.ts:823 src/my-wordpress/index.ts:1925
 #: src/my-wordpress/index.ts:1989 src/my-wordpress/index.ts:1999
 #: src/my-wordpress/index.ts:2243 src/my-wordpress/index.ts:4606
 #: src/my-wordpress/index.ts:6706 src/my-wordpress/media-list.ts:168
@@ -328,138 +328,138 @@ msgstr ""
 msgid "(no title)"
 msgstr ""
 
-#: src/comments-window/conversation.ts:825
 #: src/comments-window/conversation.ts:834
+#: src/comments-window/conversation.ts:843
 msgid "Edit this post"
 msgstr ""
 
-#: src/comments-window/conversation.ts:853
+#: src/comments-window/conversation.ts:862
 #, fuzzy
 msgid "View post"
 msgstr "Acciones de ventana"
 
-#: src/comments-window/conversation.ts:857
+#: src/comments-window/conversation.ts:866
 #, fuzzy
 msgid "(opens in a new tab)"
 msgstr "Abrir en una nueva pestaña del navegador"
 
-#: src/comments-window/conversation.ts:900
+#: src/comments-window/conversation.ts:909
 msgid "You"
 msgstr ""
 
-#: src/comments-window/conversation.ts:941
+#: src/comments-window/conversation.ts:950
 msgid "Unapprove"
 msgstr ""
 
-#: src/comments-window/conversation.ts:941
+#: src/comments-window/conversation.ts:950
 msgid "Approve"
 msgstr ""
 
-#: src/comments-window/conversation.ts:953
-#: src/comments-window/conversation.ts:1137
+#: src/comments-window/conversation.ts:962
+#: src/comments-window/conversation.ts:1146
 #, fuzzy
 msgid "Reply"
 msgstr "Error al subir."
 
-#: src/comments-window/conversation.ts:958 src/content-graph/panel.ts:536
+#: src/comments-window/conversation.ts:967 src/content-graph/panel.ts:536
 #: src/my-wordpress/integrations/woocommerce.ts:754
 msgid "Edit"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1019
+#: src/comments-window/conversation.ts:1028
 msgid "Mark as spam?"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1020
+#: src/comments-window/conversation.ts:1029
 msgid ""
 "This comment moves out of the conversation. You can restore it from the Spam "
 "tab."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1023
+#: src/comments-window/conversation.ts:1032
 msgid "Mark as spam"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1026
+#: src/comments-window/conversation.ts:1035
 msgid "Move to trash?"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1027
+#: src/comments-window/conversation.ts:1036
 msgid ""
 "This comment moves out of the conversation. You can restore it from the "
 "Trash tab."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1030 src/posts-window/index.ts:1080
+#: src/comments-window/conversation.ts:1039 src/posts-window/index.ts:1080
 msgid "Move to trash"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1038
+#: src/comments-window/conversation.ts:1047
 msgid "Comment approved."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1040
+#: src/comments-window/conversation.ts:1049
 msgid "Comment unapproved."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1042
+#: src/comments-window/conversation.ts:1051
 msgid "Comment marked as spam."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1044
+#: src/comments-window/conversation.ts:1053
 msgid "Comment restored from spam."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1046
+#: src/comments-window/conversation.ts:1055
 #, fuzzy
 msgid "Comment moved to trash."
 msgstr "No se pudieron cargar tus medios: %s"
 
-#: src/comments-window/conversation.ts:1048
+#: src/comments-window/conversation.ts:1057
 msgid "Comment restored from trash."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1096
+#: src/comments-window/conversation.ts:1105
 msgid "Replying to"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1100
+#: src/comments-window/conversation.ts:1109
 msgid "Send reply"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1108
+#: src/comments-window/conversation.ts:1117
 msgid "Reply is empty."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1118
+#: src/comments-window/conversation.ts:1127
 #, fuzzy
 msgid "Reply sent."
 msgstr "Error al subir."
 
-#: src/comments-window/conversation.ts:1122
+#: src/comments-window/conversation.ts:1131
 #, fuzzy
 msgid "Reply failed."
 msgstr "Error al subir."
 
-#: src/comments-window/conversation.ts:1136
+#: src/comments-window/conversation.ts:1145
 msgid "Write a reply…"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1148
+#: src/comments-window/conversation.ts:1157
 msgid "Enter to send · Shift+Enter for a new line"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1197
+#: src/comments-window/conversation.ts:1206
 msgid "Edit comment…"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1198
+#: src/comments-window/conversation.ts:1207
 #, fuzzy
 msgid "Comment text"
 msgstr "Buscar medios"
 
-#: src/comments-window/conversation.ts:1209 src/games/challenge-dialog.ts:93
-#: src/item-visibility-menu.ts:453 src/my-wordpress/agents-renderer.ts:1110
+#: src/comments-window/conversation.ts:1218 src/games/challenge-dialog.ts:93
+#: src/item-visibility-menu.ts:452 src/my-wordpress/agents-renderer.ts:1134
 #: src/my-wordpress/bulk-actions.ts:358 src/my-wordpress/bulk-actions.ts:745
 #: src/my-wordpress/bulk-actions.ts:826 src/my-wordpress/index.ts:4650
 #: src/my-wordpress/index.ts:4795 src/my-wordpress/media-list.ts:510
@@ -470,41 +470,41 @@ msgstr "Buscar medios"
 msgid "Cancel"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1212
-#: src/my-wordpress/agents-renderer.ts:828
+#: src/comments-window/conversation.ts:1221
+#: src/my-wordpress/agents-renderer.ts:852
 #: src/posts-window/categories-mindmap.ts:2598
 #: src/posts-window/tags-cloud.ts:1878
 msgid "Save"
 msgstr ""
 
-#: src/comments-window/conversation.ts:1227
+#: src/comments-window/conversation.ts:1236
 msgid "A comment cannot be empty."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1235
+#: src/comments-window/conversation.ts:1244
 msgid "Comment updated."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1238
+#: src/comments-window/conversation.ts:1247
 #, fuzzy
 msgid "Edit failed."
 msgstr "Error al subir."
 
-#: src/comments-window/conversation.ts:686
+#: src/comments-window/conversation.ts:695
 #, fuzzy
 msgid "Could not load comments"
 msgstr "No se pudieron cargar tus medios."
 
-#: src/comments-window/conversation.ts:687
+#: src/comments-window/conversation.ts:696
 msgid "Check your connection and try another tab."
 msgstr ""
 
-#: src/comments-window/conversation.ts:1073
+#: src/comments-window/conversation.ts:1082
 #, fuzzy
 msgid "Action failed."
 msgstr "Error al subir."
 
-#: src/comments-window/conversation.ts:1262
+#: src/comments-window/conversation.ts:1271
 msgid "Comments window configuration missing."
 msgstr ""
 
@@ -554,7 +554,7 @@ msgstr ""
 #: src/my-wordpress/index.ts:597 src/my-wordpress/index.ts:3991
 #: src/posts-window/index.ts:564 src/posts-window/user-edit-render.ts:1037
 #: src/posts-window/users-render.ts:481 includes/comments-window/window.php:99
-#: includes/recycle-bin/window.php:53 includes/window-links.php:523
+#: includes/recycle-bin/window.php:159 includes/window-links.php:523
 #: includes/window-links.php:524
 msgid "Comments"
 msgstr ""
@@ -622,15 +622,15 @@ msgstr ""
 #: src/content-graph/panel.ts:729 src/desktop-files/preview.ts:406
 #: src/desktop-files/preview.ts:481 src/my-wordpress/index.ts:3568
 #: src/my-wordpress/index.ts:3978 src/posts-window/user-edit-render.ts:1026
-#: src/posts-window/users-render.ts:478 includes/my-wordpress/window.php:130
-#: includes/posts-window/window.php:176 includes/recycle-bin/window.php:37
+#: src/posts-window/users-render.ts:478 includes/my-wordpress/window.php:137
+#: includes/posts-window/window.php:176 includes/recycle-bin/window.php:143
 msgid "Posts"
 msgstr ""
 
 #: src/content-graph/panel.ts:628 src/desktop-files/preview.ts:412
 #: src/my-wordpress/index.ts:3581 src/posts-window/users-render.ts:479
-#: includes/my-wordpress/window.php:138 includes/pages-window/window.php:127
-#: includes/recycle-bin/window.php:38
+#: includes/my-wordpress/window.php:145 includes/pages-window/window.php:127
+#: includes/recycle-bin/window.php:144
 msgid "Pages"
 msgstr ""
 
@@ -918,14 +918,14 @@ msgstr "Abrir en una nueva pestaña del navegador"
 msgid "Move to Trash"
 msgstr ""
 
-#: src/desktop-icons.ts:325
+#: src/desktop-icons.ts:436
 #, fuzzy
 msgid "Desktop icons"
 msgstr "Escritorio 1"
 
 #. %d is the number of pending items in a desktop-icon badge.
 #. %d is the number of pending items in a dock badge.
-#: src/desktop-icons.ts:416 src/dock.ts:2343 src/dock.ts:2356
+#: src/desktop-icons.ts:541 src/dock.ts:2493 src/dock.ts:2506
 msgid "%d notification"
 msgid_plural "%d notifications"
 msgstr[0] ""
@@ -954,7 +954,7 @@ msgid "New %s"
 msgstr ""
 
 #. %d is the number of pending updates / items.
-#: src/dock.ts:965
+#: src/dock.ts:1115
 msgid "%d update"
 msgid_plural "%d updates"
 msgstr[0] "%d actualización"
@@ -1564,90 +1564,90 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:174
+#: src/icon-canvas/menu.ts:175
 msgid "Sort by"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:180
+#: src/icon-canvas/menu.ts:181
 msgid "Name (A → Z)"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:186
+#: src/icon-canvas/menu.ts:187
 msgid "Name (Z → A)"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:192
+#: src/icon-canvas/menu.ts:193
 msgid "Newest first"
 msgstr ""
 
-#: src/icon-canvas/menu.ts:198
+#: src/icon-canvas/menu.ts:199
 msgid "Oldest first"
 msgstr ""
 
-#: src/item-visibility-menu.ts:218
+#: src/item-visibility-menu.ts:219
 msgid "Hide from dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:234
+#: src/item-visibility-menu.ts:235
 #, fuzzy
 msgid "Also show on desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:242
+#: src/item-visibility-menu.ts:243
 #, fuzzy
 msgid "Hide from desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:258
+#: src/item-visibility-menu.ts:259
 msgid "Also show on dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:266
+#: src/item-visibility-menu.ts:267
 msgid "Hide everywhere"
 msgstr ""
 
-#: src/item-visibility-menu.ts:274
+#: src/item-visibility-menu.ts:275
 msgid "Apps & Icons settings…"
 msgstr ""
 
 #. %s is the owning plugin's display name.
-#: src/item-visibility-menu.ts:297
+#: src/item-visibility-menu.ts:298
 #, fuzzy
 msgid "Deactivate %s…"
 msgstr "Subiendo…"
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:448
+#: src/item-visibility-menu.ts:447
 #, fuzzy
 msgid "Deactivate %s?"
 msgstr "Error al subir."
 
-#: src/item-visibility-menu.ts:449
+#: src/item-visibility-menu.ts:448
 msgid ""
 "This plugin will stop running on the site. You can re-activate it later from "
 "the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:452 src/plugins-window/flyout-detail.ts:589
+#: src/item-visibility-menu.ts:451 src/plugins-window/flyout-detail.ts:589
 #: src/plugins-window/installed-view.ts:634
 #: src/plugins-window/installed-view.ts:717
 msgid "Deactivate"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:510
+#: src/item-visibility-menu.ts:509
 #, fuzzy
 msgid "Could not deactivate %s."
 msgstr "No se pudieron cargar tus medios: %s"
 
 #. 1: plugin title. 2: number of windows that were closed.
-#: src/item-visibility-menu.ts:534
+#: src/item-visibility-menu.ts:533
 msgid "%1$s deactivated. Closed %2$d window(s)."
 msgstr ""
 
 #. %s: plugin title.
 #. %s: plugin name
-#: src/item-visibility-menu.ts:540 src/plugins-window/flyout-detail.ts:708
+#: src/item-visibility-menu.ts:539 src/plugins-window/flyout-detail.ts:708
 #: src/plugins-window/installed-view.ts:887
 msgid "%s deactivated."
 msgstr ""
@@ -1843,70 +1843,70 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:543 includes/agents/identity.php:88
+#: src/my-wordpress/agents-renderer.ts:561 includes/agents/identity.php:88
 msgid "Agent name is required."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:576
+#: src/my-wordpress/agents-renderer.ts:594
 #, fuzzy
 msgid "Delete agent?"
 msgstr "Error al subir."
 
-#: src/my-wordpress/agents-renderer.ts:577
+#: src/my-wordpress/agents-renderer.ts:595
 msgid ""
 "The agent user is deleted permanently. Content it authored is not reassigned."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:612
+#: src/my-wordpress/agents-renderer.ts:630
 msgid "Abilities saved."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:620
+#: src/my-wordpress/agents-renderer.ts:638
 msgid "Triggers saved."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:632
+#: src/my-wordpress/agents-renderer.ts:656
 msgid ""
 "No AI provider is configured — agents cannot run until a connector is set up."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:636
+#: src/my-wordpress/agents-renderer.ts:660
 msgid ""
 "This WordPress does not ship the AI Client (WordPress 7.0+). Agents can be "
 "defined but not run."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:642
+#: src/my-wordpress/agents-renderer.ts:666
 msgid "Open Connectors settings"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:671
+#: src/my-wordpress/agents-renderer.ts:695
 msgid "+ Create agent"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:676 includes/agents/my-wordpress.php:29
+#: src/my-wordpress/agents-renderer.ts:700 includes/agents/my-wordpress.php:35
 msgid "Agents"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:699
+#: src/my-wordpress/agents-renderer.ts:723
 #, fuzzy
 msgid "No description yet."
 msgstr "Subiendo…"
 
-#: src/my-wordpress/agents-renderer.ts:713
+#: src/my-wordpress/agents-renderer.ts:737
 msgid "Define"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:714
+#: src/my-wordpress/agents-renderer.ts:738
 msgid "Tools"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:715
+#: src/my-wordpress/agents-renderer.ts:739
 msgid "Triggers"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:751
-#: src/my-wordpress/agents-renderer.ts:1064
+#: src/my-wordpress/agents-renderer.ts:775
+#: src/my-wordpress/agents-renderer.ts:1088
 #: src/posts-window/categories-mindmap.ts:2313
 #: src/posts-window/categories-mindmap.ts:2494
 #: src/posts-window/categories-mindmap.ts:2500
@@ -1916,151 +1916,171 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:760
-#: src/my-wordpress/agents-renderer.ts:1084
+#: src/my-wordpress/agents-renderer.ts:784
+#: src/my-wordpress/agents-renderer.ts:1108
 msgid "When to use (description)"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:769
-#: src/my-wordpress/agents-renderer.ts:1091 includes/agents/privacy.php:73
+#: src/my-wordpress/agents-renderer.ts:793
+#: src/my-wordpress/agents-renderer.ts:1115 includes/agents/privacy.php:73
 msgid "Instructions (system prompt)"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:780
-#: src/my-wordpress/agents-renderer.ts:786
-#: src/my-wordpress/agents-renderer.ts:799
-#: src/my-wordpress/agents-renderer.ts:1073
+#: src/my-wordpress/agents-renderer.ts:804
+#: src/my-wordpress/agents-renderer.ts:810
+#: src/my-wordpress/agents-renderer.ts:823
+#: src/my-wordpress/agents-renderer.ts:1097
 #: src/posts-window/user-edit-render.ts:391
 #: src/posts-window/users-render.ts:711 src/posts-window/users-render.ts:1391
 #: includes/agents/privacy.php:65 includes/users-window/window.php:177
 msgid "Role"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:809
+#: src/my-wordpress/agents-renderer.ts:833
 msgid ""
 "The agent acts with this role's capabilities — pick the least privilege that "
 "still lets it do its job."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:825
+#: src/my-wordpress/agents-renderer.ts:849
 msgid "Agent saved."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:851
+#: src/my-wordpress/agents-renderer.ts:875
 msgid ""
 "The agent may only call abilities ticked here — and every call is still "
 "gated by the ability's own permission check against the agent's role."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:875
+#: src/my-wordpress/agents-renderer.ts:899
 msgid "read-only"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:876
+#: src/my-wordpress/agents-renderer.ts:900
 msgid "can modify"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:843
+#: src/my-wordpress/agents-renderer.ts:867
 #: includes/my-wordpress/integrations/woocommerce.php:240
 msgid "Other"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:933
+#: src/my-wordpress/agents-renderer.ts:957
 msgid "Hook name"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:941
+#: src/my-wordpress/agents-renderer.ts:965
 msgid "Suggestions"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:952
+#: src/my-wordpress/agents-renderer.ts:976
 msgid "Required capability"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:978
+#: src/my-wordpress/agents-renderer.ts:1002
 msgid ""
 "Triggers describe how this site reaches the agent. Chat, drag & drop, and "
 "Send to work today; kinds marked \"coming soon\" can be configured but are "
 "not wired yet."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:985
+#: src/my-wordpress/agents-renderer.ts:1009
 msgid "No triggers configured yet."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1006
+#: src/my-wordpress/agents-renderer.ts:1030
 #: src/settings/sections/custom-image.ts:166
 msgid "Remove"
 msgstr "Eliminar"
 
-#: src/my-wordpress/agents-renderer.ts:1018
+#: src/my-wordpress/agents-renderer.ts:1042
 #, fuzzy
 msgid "Add trigger"
 msgstr "Añadir %s"
 
-#: src/my-wordpress/agents-renderer.ts:1037
+#: src/my-wordpress/agents-renderer.ts:1061
 msgid "Pick a trigger kind…"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1044
+#: src/my-wordpress/agents-renderer.ts:1068
 msgid "(coming soon)"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1062
+#: src/my-wordpress/agents-renderer.ts:1086
 msgid "Create agent"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1100
+#: src/my-wordpress/agents-renderer.ts:1124
 #: src/posts-window/categories-mindmap.ts:2361
 #: src/posts-window/tags-cloud.ts:1673
 #: src/posts-window/user-edit-render.ts:1892
 msgid "Create"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1122
+#: src/my-wordpress/agents-renderer.ts:1154
+msgid ""
+"Turn the Agents framework on in OpenStation Preferences → Features to create "
+"agents, give them abilities, and chat with them."
+msgstr ""
+
+#: src/my-wordpress/agents-renderer.ts:1158
+msgid ""
+"Ask an administrator to turn the Agents framework on in OpenStation "
+"Preferences → Features."
+msgstr ""
+
+#: src/my-wordpress/agents-renderer.ts:1165
+msgid "Agents are turned off"
+msgstr ""
+
+#: src/my-wordpress/agents-renderer.ts:1176
+msgid "Turn on Agents"
+msgstr ""
+
+#: src/my-wordpress/agents-renderer.ts:1183
 msgid "An administrator has not created any agents on this site yet."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1127
+#: src/my-wordpress/agents-renderer.ts:1188
 msgid ""
 "Create your first agent: give it a name, a role, and instructions, then pick "
 "the abilities it may use."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1135
+#: src/my-wordpress/agents-renderer.ts:1196
 msgid "No agents yet"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:1150
+#: src/my-wordpress/agents-renderer.ts:1211
 #, fuzzy
 msgid "Open profile"
 msgstr "Abrir"
 
-#: src/my-wordpress/agents-renderer.ts:1163
+#: src/my-wordpress/agents-renderer.ts:1224
 #, fuzzy
 msgid "View contributions"
 msgstr "Acciones de ventana"
 
-#: src/my-wordpress/agents-renderer.ts:1179
+#: src/my-wordpress/agents-renderer.ts:1240
 #, fuzzy
 msgid "Send to Desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/my-wordpress/agents-renderer.ts:1190 includes/agents/store.php:368
+#: src/my-wordpress/agents-renderer.ts:1251 includes/agents/store.php:368
 msgid "Chat"
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:233
+#: src/my-wordpress/agents-renderer.ts:247
 msgid "The desktop files API is not available in this context."
 msgstr ""
 
-#: src/my-wordpress/agents-renderer.ts:273
+#: src/my-wordpress/agents-renderer.ts:287
 #, fuzzy
 msgid "Agent added to the desktop."
 msgstr "Añadir nuevo escritorio"
 
 #. %s is the agent's name.
-#: src/my-wordpress/agents-send-to.ts:181
+#: src/my-wordpress/agents-send-to.ts:187
 #, fuzzy
 msgid "Send to %s"
 msgstr "Añadir %s"
@@ -3968,7 +3988,7 @@ msgstr "Color de acento"
 msgid "Public — visible to other desktop users"
 msgstr ""
 
-#: src/plugins/notes-widget/index.ts:168 includes/recycle-bin/window.php:69
+#: src/plugins/notes-widget/index.ts:168 includes/recycle-bin/window.php:175
 #, fuzzy
 msgid "Pin to desktop"
 msgstr "Añadir nuevo escritorio"
@@ -4006,83 +4026,83 @@ msgstr "Restablecer valores predeterminados"
 msgid "Snow"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:116
-#: src/plugins-window/featured-view.ts:316
+#: src/plugins-window/browse-view.ts:117
+#: src/plugins-window/featured-view.ts:317
 msgid "Featured"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:117
+#: src/plugins-window/browse-view.ts:118
 msgid "Popular"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:118
+#: src/plugins-window/browse-view.ts:119
 msgid "Recommended"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:119
+#: src/plugins-window/browse-view.ts:120
 msgid "Favorites"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:120
+#: src/plugins-window/browse-view.ts:121
 #: includes/my-wordpress/integrations/woocommerce-customers.php:332
 #, fuzzy
 msgid "New"
 msgstr "Añadir %s"
 
-#: src/plugins-window/browse-view.ts:121
+#: src/plugins-window/browse-view.ts:122
 msgid "Beta"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:136
+#: src/plugins-window/browse-view.ts:137
 msgid "Search WordPress.org…"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:157
+#: src/plugins-window/browse-view.ts:158
 #, fuzzy
 msgid "Upload Plugin"
 msgstr "Subir nueva"
 
-#: src/plugins-window/browse-view.ts:173
+#: src/plugins-window/browse-view.ts:174
 #: src/plugins-window/installed-view.ts:221 includes/pages-window/window.php:43
-#: includes/posts-window/window.php:70 includes/recycle-bin/window.php:77
+#: includes/posts-window/window.php:70 includes/recycle-bin/window.php:183
 #: includes/users-window/window.php:63
 msgid "Refresh"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:212
+#: src/plugins-window/browse-view.ts:213
 msgid "Drop the .zip to install."
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:351
-#: src/plugins-window/featured-view.ts:166
+#: src/plugins-window/browse-view.ts:352
+#: src/plugins-window/featured-view.ts:167
 #: src/plugins-window/flyout-detail.ts:623 src/settings/sections/themes.ts:311
 #, fuzzy
 msgid "Installing…"
 msgstr "Subiendo…"
 
 #. %s: plugin name
-#: src/plugins-window/browse-view.ts:368
-#: src/plugins-window/featured-view.ts:174
+#: src/plugins-window/browse-view.ts:369
+#: src/plugins-window/featured-view.ts:175
 #: src/plugins-window/flyout-detail.ts:629
 msgid "Installed %s."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/browse-view.ts:388
-#: src/plugins-window/featured-view.ts:194
+#: src/plugins-window/browse-view.ts:389
+#: src/plugins-window/featured-view.ts:195
 #: src/plugins-window/flyout-detail.ts:649
 msgid "Install failed: %s"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:401
-#: src/plugins-window/featured-view.ts:207
+#: src/plugins-window/browse-view.ts:402
+#: src/plugins-window/featured-view.ts:208
 #, fuzzy
 msgid "Activating…"
 msgstr "Subiendo…"
 
 #. %s: plugin name
-#: src/plugins-window/browse-view.ts:409
-#: src/plugins-window/featured-view.ts:215
+#: src/plugins-window/browse-view.ts:410
+#: src/plugins-window/featured-view.ts:216
 #: src/plugins-window/flyout-detail.ts:667
 #: src/plugins-window/installed-view.ts:836
 #: src/plugins-window/upload-dialog.ts:453
@@ -4090,19 +4110,19 @@ msgid "%s activated."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/browse-view.ts:436
-#: src/plugins-window/featured-view.ts:240
+#: src/plugins-window/browse-view.ts:437
+#: src/plugins-window/featured-view.ts:241
 #: src/plugins-window/flyout-detail.ts:679
 #: src/plugins-window/installed-view.ts:854
 msgid "Activation failed: %s"
 msgstr ""
 
-#: src/plugins-window/browse-view.ts:564
+#: src/plugins-window/browse-view.ts:565
 msgid "No plugins matched."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/browse-view.ts:596
+#: src/plugins-window/browse-view.ts:597
 #: src/plugins-window/installed-view.ts:746
 #, fuzzy
 msgid "Could not load plugins: %s"
@@ -4157,22 +4177,22 @@ msgstr ""
 msgid "Rated %s out of 5"
 msgstr ""
 
-#: src/plugins-window/featured-view.ts:95
+#: src/plugins-window/featured-view.ts:96
 msgid "Made for OpenStation"
 msgstr ""
 
-#: src/plugins-window/featured-view.ts:98
+#: src/plugins-window/featured-view.ts:99
 msgid ""
 "Plugins that extend OpenStation — desktop decorations, native windows, "
 "widgets, and other companions."
 msgstr ""
 
-#: src/plugins-window/featured-view.ts:270
+#: src/plugins-window/featured-view.ts:271
 msgid "No featured plugins yet."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/featured-view.ts:279
+#: src/plugins-window/featured-view.ts:280
 #, fuzzy
 msgid "Could not load featured plugins: %s"
 msgstr "No se pudieron cargar tus medios."
@@ -4515,7 +4535,7 @@ msgstr ""
 
 #: src/plugins-window/installed-view.ts:148 src/posts-window/index.ts:1060
 #: src/posts-window/users-render.ts:780 includes/comments-window/window.php:36
-#: includes/recycle-bin/window.php:36
+#: includes/recycle-bin/window.php:142
 msgid "All"
 msgstr ""
 
@@ -6158,12 +6178,12 @@ msgstr ""
 msgid "By"
 msgstr ""
 
-#: src/recycle-bin/index.ts:347 includes/recycle-bin/window.php:65
+#: src/recycle-bin/index.ts:347 includes/recycle-bin/window.php:171
 msgid "Restore"
 msgstr ""
 
 #: src/recycle-bin/index.ts:355 src/recycle-bin/index.ts:867
-#: includes/recycle-bin/window.php:73
+#: includes/recycle-bin/window.php:179
 msgid "Delete forever"
 msgstr ""
 
@@ -6196,7 +6216,7 @@ msgid ""
 "items hidden by the current filter or search. This cannot be undone."
 msgstr ""
 
-#: src/recycle-bin/index.ts:956 includes/recycle-bin/window.php:82
+#: src/recycle-bin/index.ts:956 includes/recycle-bin/window.php:188
 msgid "Empty Trash"
 msgstr ""
 
@@ -7409,44 +7429,44 @@ msgstr "Minimizar"
 msgid "Maximize"
 msgstr "Maximizar"
 
-#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:1898
+#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:1905
 #: includes/admin-bar.php:69 includes/admin-bar.php:691
 msgid "Enter fullscreen"
 msgstr "Entrar en pantalla completa"
 
-#: src/window/dom.ts:138
+#: src/window/dom.ts:232
 msgid "Loading window content"
 msgstr ""
 
-#: src/window/dom.ts:342
+#: src/window/dom.ts:441
 msgid "Window actions"
 msgstr "Acciones de ventana"
 
-#: src/window/dom.ts:366
+#: src/window/dom.ts:465
 msgid "Open on startup"
 msgstr "Abrir al iniciar"
 
 #. %s is the window's admin-page name (e.g., "Posts")
-#: src/window/dom.ts:380
+#: src/window/dom.ts:479
 msgid "Open another %s"
 msgstr "Abrir otra ventana de %s"
 
-#: src/window/dom.ts:396
+#: src/window/dom.ts:495
 #, fuzzy
 msgid "Open in new window"
 msgstr "Abrir en una nueva pestaña del navegador"
 
-#: src/window/dom.ts:410
+#: src/window/dom.ts:509
 msgid "Reload"
 msgstr ""
 
-#: src/window/dom.ts:423
+#: src/window/dom.ts:522
 #, fuzzy
 msgid "Open in browser tab"
 msgstr "Abrir en una nueva pestaña del navegador"
 
 #. %s is the window's admin-page title (e.g., "Posts")
-#: src/window/dom.ts:647
+#: src/window/dom.ts:767
 msgid "%s sub-pages"
 msgstr "Subpáginas de %s"
 
@@ -7463,7 +7483,7 @@ msgstr ""
 msgid "Close window"
 msgstr "Organizar ventanas"
 
-#: src/window/index.ts:1898 includes/admin-bar.php:690
+#: src/window/index.ts:1905 includes/admin-bar.php:690
 #: includes/admin-bar.php:692
 msgid "Exit fullscreen"
 msgstr "Salir de pantalla completa"
@@ -7480,26 +7500,26 @@ msgid ""
 msgstr ""
 
 #. %d is the desktop number (e.g., "Desktop 2")
-#: src/window-manager/desktops.ts:81
+#: src/window-manager/desktops.ts:84
 msgid "Desktop %d"
 msgstr "Escritorio %d"
 
-#: src/window-manager/overview.ts:479
+#: src/window-manager/overview.ts:528
 msgid "Add new desktop"
 msgstr "Añadir nuevo escritorio"
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:523
+#: src/window-manager/overview.ts:572
 msgid "Switch to %s"
 msgstr "Cambiar a %s"
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:562
+#: src/window-manager/overview.ts:611
 msgid "Close %s"
 msgstr "Cerrar %s"
 
 #. %d is the number of external sub-tabs open on this window.
-#: src/window-manager/overview.ts:657
+#: src/window-manager/overview.ts:706
 msgid "· %d open tab"
 msgid_plural "· %d open tabs"
 msgstr[0] "· %d pestaña abierta"
@@ -7805,15 +7825,15 @@ msgstr "Escritorio %d"
 msgid "Could not delete the agent user."
 msgstr "No se pudieron cargar tus medios: %s"
 
-#: includes/agents/identity.php:246
+#: includes/agents/identity.php:235
 msgid "OpenStation agent"
 msgstr ""
 
-#: includes/agents/identity.php:248
+#: includes/agents/identity.php:237
 msgid "Agent"
 msgstr ""
 
-#: includes/agents/identity.php:251
+#: includes/agents/identity.php:240
 msgid "Person"
 msgstr ""
 
@@ -7847,31 +7867,31 @@ msgstr "Vista general"
 msgid "Rate limit (per hour)"
 msgstr ""
 
-#: includes/agents/rest.php:242
+#: includes/agents/rest.php:205
 #, fuzzy
 msgid "You do not have permission to read OpenStation agents."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/agents/rest.php:258
+#: includes/agents/rest.php:221
 #, fuzzy
 msgid "You do not have permission to manage OpenStation agents."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/agents/rest.php:274
+#: includes/agents/rest.php:237
 #, fuzzy
 msgid "You do not have permission to invoke OpenStation agents."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/agents/rest.php:317 includes/agents/rest.php:364
-#: includes/agents/rest.php:408 includes/agents/rest.php:438
+#: includes/agents/rest.php:280 includes/agents/rest.php:327
+#: includes/agents/rest.php:371 includes/agents/rest.php:401
 #: includes/agents/runner.php:147 includes/agents/store.php:883
 msgid "Agent not found."
 msgstr ""
 
-#: includes/agents/rest.php:451
+#: includes/agents/rest.php:414
 #, fuzzy
 msgid "You do not have permission to invoke this agent."
 msgstr ""
@@ -7901,35 +7921,41 @@ msgid "This agent reached its limit of %d runs this hour. Try again later."
 msgstr ""
 
 #. translators: %s is the tool name the model called.
-#: includes/agents/runner.php:561
+#: includes/agents/runner.php:570
 #, php-format
 msgid "Tool \"%s\" is not on this agent's allowlist."
 msgstr ""
 
 #. translators: %d is the max-turn cap.
-#: includes/agents/runner.php:631
+#: includes/agents/runner.php:640
 #, php-format
 msgid "Agent stopped after %d turns without a final answer."
 msgstr ""
 
-#: includes/agents/runner.php:883
+#: includes/agents/runner.php:892
 msgid ""
 "The AI provider returned an empty answer — its safety system most likely "
 "declined this request. Rephrase and try again, or switch the provider in "
 "Settings → Connectors."
 msgstr ""
 
-#: includes/agents/runner.php:929
+#: includes/agents/runner.php:903
+msgid ""
+"The model ran out of room before writing its answer — it most likely spent "
+"the whole output budget reasoning. Try a narrower request, or try again."
+msgstr ""
+
+#: includes/agents/runner.php:949
 #, fuzzy
 msgid "The WordPress AI Client is not available on this site."
 msgstr "Azul WordPress"
 
-#: includes/agents/runner.php:1178
+#: includes/agents/runner.php:1198
 msgid "The Abilities API is not available on this site."
 msgstr ""
 
 #. translators: %s is the ability slug.
-#: includes/agents/runner.php:1187
+#: includes/agents/runner.php:1207
 #, php-format
 msgid "Ability \"%s\" is not registered on this site."
 msgstr ""
@@ -8074,6 +8100,10 @@ msgstr ""
 msgid "Comment not found."
 msgstr ""
 
+#: includes/ai-copilot/client.php:138
+msgid "The AI provider returned no answer text."
+msgstr ""
+
 #: includes/commands.php:63
 msgid "Command script registration requires a non-empty script handle."
 msgstr ""
@@ -8187,7 +8217,7 @@ msgstr ""
 msgid "Insufficient permissions."
 msgstr ""
 
-#: includes/content-graph/window.php:188 includes/content-graph/window.php:229
+#: includes/content-graph/window.php:190 includes/content-graph/window.php:231
 msgid "Corkboard"
 msgstr ""
 
@@ -8264,7 +8294,7 @@ msgid "Go to Themes"
 msgstr ""
 
 #. translators: %s: number of pending updates.
-#: includes/core/payload.php:1243
+#: includes/core/payload.php:1241
 #, php-format
 msgid "%s update available"
 msgid_plural "%s updates available"
@@ -8272,7 +8302,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1557
+#: includes/core/payload.php:1555
 #, php-format
 msgid ""
 "%1$s script handle \"%2$s\" is not registered with WordPress (no "
@@ -9209,8 +9239,8 @@ msgstr ""
 msgid "Only an accepted challenge can be completed."
 msgstr ""
 
-#: includes/games/window.php:66 includes/games/window.php:99
-#: includes/games/window.php:125
+#: includes/games/window.php:92 includes/games/window.php:125
+#: includes/games/window.php:151
 msgid "Games"
 msgstr ""
 
@@ -9506,7 +9536,7 @@ msgstr ""
 msgid "WP Explorer"
 msgstr ""
 
-#: includes/my-wordpress/window.php:146 includes/users-window/window.php:260
+#: includes/my-wordpress/window.php:153 includes/users-window/window.php:260
 msgid "Users"
 msgstr ""
 
@@ -9838,20 +9868,20 @@ msgstr ""
 msgid "Failed to permanently delete comment."
 msgstr ""
 
-#: includes/recycle-bin/window.php:54
+#: includes/recycle-bin/window.php:160
 #, fuzzy
 msgid "Desktop"
 msgstr "Escritorio %d"
 
-#: includes/recycle-bin/window.php:58
+#: includes/recycle-bin/window.php:164
 msgid "Search trash…"
 msgstr ""
 
-#: includes/recycle-bin/window.php:97
+#: includes/recycle-bin/window.php:203
 msgid "The Trash is empty."
 msgstr ""
 
-#: includes/recycle-bin/window.php:99
+#: includes/recycle-bin/window.php:205
 msgid ""
 "Deleted posts, pages, and media show up here. Restoring puts them back where "
 "they were."
@@ -9989,7 +10019,7 @@ msgid ""
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:988
+#: includes/render/assets.php:1039
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -10466,6 +10496,10 @@ msgstr ""
 
 #: includes/widgets/widget-starter.php:166
 msgid "A skeleton widget — copy this to build your own."
+msgstr ""
+
+#: includes/window-actions.php:64
+msgid "Window action script registration requires a non-empty script handle."
 msgstr ""
 
 #: includes/window-chrome.php:57

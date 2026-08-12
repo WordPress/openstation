@@ -33,8 +33,17 @@ export type DockPlacementId = 'left' | 'right' | 'bottom';
  * - `spatial` — bottom dock with plugin menus + core menus rendered as
  *   icons on the wallpaper. One `Dock` instance, plus synthesized
  *   desktop icons.
+ * - `openstation` — the same single rail as `unified`, painted its own
+ *   way: a luminous seam on the WordPress-to-OpenStation boundary in
+ *   place of the shared hairline, and a holographic flyout that fans a
+ *   menu's submenu out of its tile on hover instead of hiding it behind
+ *   the in-window tab strip. Bottom edge only.
  */
-export type DesktopLayoutId = 'classic' | 'unified' | 'spatial';
+export type DesktopLayoutId =
+	| 'classic'
+	| 'unified'
+	| 'spatial'
+	| 'openstation';
 
 /** Two endpoints on the gradient, plus an angle in degrees (0–360). */
 export interface CustomGradient {
@@ -92,12 +101,22 @@ export interface OsSettingsState {
 	windowRadius: WindowRadiusId;
 	/**
 	 * How the WordPress admin bar presents above the shell:
-	 * `'static'` (always visible, the default), `'dynamic'`
+	 * `'static'` (always visible, vanilla behavior), `'dynamic'`
 	 * (auto-hides to a peek strip, reveals on hover/focus), or
-	 * `'hidden'` (not rendered).
+	 * `'hidden'` (not rendered — the default).
 	 */
 	adminBarMode: AdminBarModeId;
 	desktopLayout: DesktopLayoutId;
+	/**
+	 * Which edge the dock sits on: `'bottom'` (the default),
+	 * `'left'`, or `'right'`.
+	 *
+	 * Read by the layout dispatcher for the one-rail layouts
+	 * (`'unified'`, `'spatial'`). `'classic'` ignores it — that layout
+	 * IS a placement decision, a left side bar plus a bottom dock, and
+	 * moving one of the two rails would leave both on the same edge.
+	 */
+	dockPlacement: DockPlacementId;
 	/**
 	 * Active dock rail-renderer id. Resolves through the dock-rail
 	 * registry; missing or invalid falls back to `'default'` (the

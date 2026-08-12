@@ -161,10 +161,10 @@ export const ADMIN_BAR_MODES = [
  * keys off that attribute to position the rail, flip the tooltip
  * anchor, and adjust the desktop-area inset.
  *
- * Placement is no longer user-tunable on its own: it is derived from
- * the active `desktopLayout` (classic uses both `bottom` and `left`,
- * unified + spatial both use `bottom`). The list is kept around as
- * the canonical orientation set the dock and its CSS reason about.
+ * The one-rail layouts (`unified`, `spatial`) take their placement
+ * from the user's `dockPlacement` pick. `classic` derives both of its
+ * rails from the layout itself — a left side bar for core menus plus a
+ * bottom dock for plugin apps — and ignores the setting.
  */
 export const DOCK_PLACEMENTS = [
 	{ id: 'bottom', label: 'Bottom' },
@@ -176,10 +176,19 @@ export const DOCK_PLACEMENTS = [
  * Desktop layout options. User picks one in OS Settings → Appearance;
  * the shell root reflects the choice in `data-os-layout` and
  * the layout dispatcher rebuilds the dock(s) + desktop icons.
+ *
+ * Ordered by how much navigation they consolidate. `unified` leads
+ * because it is the default: one dock is the shape a first-run desktop
+ * arrives in. `openstation` sits next to it as the other one-rail
+ * option — same single dock, plus a deterministic core-then-plugin
+ * sort, its own skin, and hover flyouts for submenus. `classic` and
+ * `spatial` split navigation across two surfaces, which is a
+ * deliberate choice rather than a starting point.
  */
 export const DESKTOP_LAYOUTS = [
-	{ id: 'classic', label: 'Classic' },
-	{ id: 'unified', label: 'Unified' },
+	{ id: 'unified', label: 'One dock' },
+	{ id: 'openstation', label: 'OpenStation' },
+	{ id: 'classic', label: 'Side bar' },
 	{ id: 'spatial', label: 'Spatial' },
 ] as const;
 
@@ -187,9 +196,22 @@ export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'pulse',
 	dockSize: 'default',
-	windowRadius: 'default',
-	adminBarMode: 'static',
-	desktopLayout: 'classic',
+	// `round` (16px), not `default` (8px). The preset ids are stored
+	// values and cannot be renamed, so the option labelled "Default"
+	// is no longer the shipped default — the label is cosmetic, the id
+	// is data. See `WINDOW_RADII`.
+	windowRadius: 'round',
+	// Hidden by default. A desktop whose navigation is consolidated
+	// into one dock has no second place left for navigation to live,
+	// and the top bar was the loudest of those second places. The
+	// dock's "Exit OpenStation" tile keeps the way back to classic
+	// admin, so this is not a one-way door; `static` and `dynamic`
+	// are one pick away in Appearance.
+	adminBarMode: 'hidden',
+	// One dock holding every menu. `classic` (side bar + bottom dock)
+	// and `spatial` are still there for anyone who wants two surfaces.
+	desktopLayout: 'unified',
+	dockPlacement: 'bottom',
 	dockRailRenderer: 'default',
 	// `''` = System default. Any other value is a desktop-theme
 	// slug; the registry resolves it at apply time and falls back

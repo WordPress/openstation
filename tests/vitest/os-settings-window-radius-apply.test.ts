@@ -77,11 +77,13 @@ describe( 'apply() — window radius', () => {
 	test( 'a later pick overwrites the shell value', () => {
 		const settings = makeSettings();
 		settings.apply();
-		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '8px' );
-
-		settings.state.windowRadius = 'round';
-		settings.apply();
+		// The shipped default is `round`.
 		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '16px' );
+
+		// Pick something OTHER than the default, or this proves nothing.
+		settings.state.windowRadius = 'sharp';
+		settings.apply();
+		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '0px' );
 	} );
 
 	test( 'an unknown persisted value falls back to the default preset', () => {
@@ -91,7 +93,7 @@ describe( 'apply() — window radius', () => {
 		);
 		const settings = makeSettings();
 		settings.apply();
-		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '8px' );
+		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '16px' );
 	} );
 
 	test( 'the shell write is an inline style, which outranks any theme rule', () => {

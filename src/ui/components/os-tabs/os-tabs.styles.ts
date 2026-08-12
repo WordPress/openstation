@@ -14,6 +14,7 @@ export const tabsStyles = css`
 		margin-bottom: 10px;
 		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 	}
+
 `;
 
 export const tabPanelStyles = css`
@@ -111,4 +112,5 @@ export const tabStyles = css`
 			transition-duration: 1ms;
 		}
 	}
+
 `;

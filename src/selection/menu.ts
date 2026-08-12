@@ -17,6 +17,7 @@
 import { doAction } from '../hooks';
 import { attachDismissable } from '../desktop-files/dismissable';
 import { openWithShellOverlays } from '../shell-overlays/loader';
+import { clampToViewport } from '../ui/util/menu-position';
 /**
  * What the menu needs from an action — the structural subset of
  * `SelectionAction` that has nothing to do with which item type the
@@ -169,13 +170,7 @@ function openImmediate(
 	activeMenu = menu;
 	activeOnClosed = onClosed ?? null;
 
-	const rect = menu.getBoundingClientRect();
-	if ( rect.right > window.innerWidth ) {
-		menu.style.left = `${ Math.max( 0, window.innerWidth - rect.width - 8 ) }px`;
-	}
-	if ( rect.bottom > window.innerHeight ) {
-		menu.style.top = `${ Math.max( 0, window.innerHeight - rect.height - 8 ) }px`;
-	}
+	clampToViewport( menu );
 
 	const detach = attachDismissable( menu, { close: () => closeActionMenu() } );
 	menu.addEventListener( 'tile-menu-closed', detach );

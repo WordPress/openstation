@@ -85,10 +85,54 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-settings' );
 	wp_enqueue_style( 'os-dock' );
 	wp_enqueue_style( 'os-dock-peek' );
+	wp_enqueue_style( 'os-openstation-layout' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
+
+	// Solo mode — a single window freed into a native OS window by the
+	// desktop host. Same shell, everything but that one window hidden.
+	$solo_window = openstation_solo_window_id();
+	if ( '' !== $solo_window ) {
+		wp_enqueue_style( 'os-solo' );
+
+		/*
+		 * Hide every window that is not the one this surface was booted
+		 * to paint — from the first frame, before any of them exist.
+		 *
+		 * Solo mode promises one window. Anything that opens a second
+		 * (a game launched from a freed Games hub, a plugin calling
+		 * `openWindow`) would otherwise land on top of the first, and
+		 * solo's CSS stretches every window to fill the viewport, so it
+		 * covers what the user was using.
+		 *
+		 * This has to be CSS rather than JavaScript, and it has to be
+		 * inline. A JS rule can only run once the window exists, which
+		 * is a frame too late — the user sees the newcomer flash before
+		 * it is dealt with. A static stylesheet cannot express it
+		 * either, because the selector depends on which window this is.
+		 * So the rule is emitted with the id baked in, and no window but
+		 * that one is ever painted.
+		 *
+		 * `visibility` rather than `display`: a hidden-but-laid-out
+		 * window still has a size, which canvas-based windows need in
+		 * order to initialise without dividing by zero on the way to
+		 * being closed.
+		 *
+		 * The id is `sanitize_key()`-clean (see `openstation_solo_window_id()`),
+		 * so it is safe in a selector; it is escaped again here because
+		 * the distance between those two facts is exactly where this
+		 * kind of bug lives.
+		 */
+		wp_add_inline_style(
+			'os-solo',
+			sprintf(
+				'body.os-solo .os-window:not(#wp-window-%1$s){visibility:hidden !important;pointer-events:none !important;}',
+				esc_attr( $solo_window )
+			)
+		);
+	}
 
 	// The rebrand announcement paints on one visit per user and never
 	// again, so its stylesheet is only worth sending to the users who
@@ -198,6 +242,9 @@ function openstation_enqueue_assets() {
 		: array();
 	$server_titlebar_button_scripts    = isset( $menu_payload['serverTitleBarButtonScripts'] )
 		? $menu_payload['serverTitleBarButtonScripts']
+		: array();
+	$server_window_action_scripts      = isset( $menu_payload['serverWindowActionScripts'] )
+		? $menu_payload['serverWindowActionScripts']
 		: array();
 	$server_window_theme_scripts       = isset( $menu_payload['serverWindowThemeScripts'] )
 		? $menu_payload['serverWindowThemeScripts']
@@ -387,13 +434,13 @@ function openstation_enqueue_assets() {
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
+	 *     @type string $soloWindow   Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); '' otherwise. No dock, taskbar, wallpaper or desk, and no session restore.
 	 *     @type string $portalUrl    Canonical `/openstation/` URL.
 	 *     @type bool   $fromPortal   Whether the shell was reached via the portal.
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
 	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin.
-	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `openstation_sticky_notes_is_available()`.
 	 * }
 	 */
 	$config = apply_filters(
@@ -418,6 +465,7 @@ function openstation_enqueue_assets() {
 			'serverSettingsTabs'            => $server_settings_tabs,
 			'serverDockRailRendererScripts' => $server_dock_rail_renderer_scripts,
 			'serverTitleBarButtonScripts'   => $server_titlebar_button_scripts,
+			'serverWindowActionScripts'     => $server_window_action_scripts,
 			'serverWindowThemeScripts'      => $server_window_theme_scripts,
 			'serverWindowThemes'            => $server_window_themes,
 			'serverWindowControlScripts'    => $server_window_control_scripts,
@@ -520,6 +568,9 @@ function openstation_enqueue_assets() {
 			// when a core update is actually pending.
 			'releaseCardBundleUrl'          => $lazy_bundle_url( 'release-card' ),
 			'restNonce'                     => wp_create_nonce( 'wp_rest' ),
+			// Non-empty when the shell was asked to paint exactly one
+			// window and nothing else. See `OPENSTATION_SOLO_FLAG`.
+			'soloWindow'                    => openstation_solo_window_id(),
 			'osSettings'                    => openstation_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),
@@ -530,14 +581,6 @@ function openstation_enqueue_assets() {
 			// above; the dialog cannot paint without that stylesheet, so
 			// the two must not diverge.
 			'rebrandNotice'                 => $show_rebrand_notice,
-			// Sticky notes ride on Gutenberg's Guidelines experiment
-			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
-			// When that experiment isn't active the `wp/v2/guidelines`
-			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
-			// noisy — so the shell skips booting the layer entirely.
-			'stickyNotes'                   => array(
-				'available' => openstation_sticky_notes_is_available(),
-			),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'             => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
@@ -825,6 +868,7 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 		'openstation_deferred_styles',
 		array(
 			'os-dock-peek',
+			'os-openstation-layout',
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
 			'os-window-overview',

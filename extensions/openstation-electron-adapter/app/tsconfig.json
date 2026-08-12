@@ -1,0 +1,24 @@
+{
+	"//": "The Electron app's main process and preloads. CommonJS because that is what Electron loads them as. The renderer is deliberately NOT here — a CommonJS prologue throws `exports is not defined` in a page with nodeIntegration off — so `src/renderer/**` is bundled to an IIFE by vite.config.mjs and typechecked by the root tsconfig instead.",
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "CommonJS",
+		"moduleResolution": "Node",
+		"lib": [ "ES2022", "DOM" ],
+		"outDir": "dist",
+		"rootDir": "src",
+		"strict": true,
+		"noUncheckedIndexedAccess": false,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"exactOptionalPropertyTypes": false,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"declaration": false,
+		"types": [ "node" ]
+	},
+	"include": [ "src/**/*.ts" ],
+	"exclude": [ "src/renderer/**" ]
+}

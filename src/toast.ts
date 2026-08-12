@@ -16,6 +16,14 @@
  * before constructing the elements. The public API stays
  * synchronous (still returns a dismiss callback) so callers don't
  * change.
+ *
+ * `duration` is a countdown rather than a deadline: it only runs
+ * while the toast is unattended. The element reports pointer-over
+ * and focus-inside as a `held` state (see `<os-toast>`), and this
+ * module pauses on it — an action button cannot be deleted out from
+ * under the hand reaching for it. The matching half is focus
+ * custody, below: a dismissal that takes focus with it hands focus
+ * back rather than leaving it on `<body>`.
  */
 
 import { activity } from './activity';
@@ -29,6 +37,16 @@ const DEFAULT_DURATION_MS = 4000;
  * Must match the `:host` transition on `<os-toast>`.
  */
 const FADE_OUT_MS = 200;
+
+/**
+ * Floor on the countdown handed back when a hold releases.
+ *
+ * A toast that was one tick from expiring when the pointer arrived
+ * would otherwise vanish the instant the pointer leaves, which reads
+ * as the toast reacting to the user leaving rather than to its own
+ * clock. Give it a moment on the way out either way.
+ */
+const MIN_RESUME_MS = 1200;
 
 export interface ToastOptions {
 	/** Short human-readable message. */
@@ -166,19 +184,53 @@ function renderToast( intent: ToastIntent ): () => void {
 
 	let dismissed = false;
 	let dismissTimer: number | null = null;
+	/** Countdown left to run. Decremented as each stretch is paused. */
+	let remaining = intent.duration ?? DEFAULT_DURATION_MS;
+	/** When the running stretch started, so a pause can measure it. */
+	let startedAt = 0;
+
+	const stopTimer = (): void => {
+		if ( dismissTimer === null ) {
+			return;
+		}
+		window.clearTimeout( dismissTimer );
+		dismissTimer = null;
+	};
+
 	const dismiss = (): void => {
 		if ( dismissed ) {
 			return;
 		}
 		dismissed = true;
-		if ( dismissTimer !== null ) {
-			window.clearTimeout( dismissTimer );
-			dismissTimer = null;
-		}
+		stopTimer();
+		// While the toast still exists — once it is gone the browser
+		// has already dropped focus on `<body>` and there is nothing
+		// left to hand back.
+		restoreFocusFrom( toast );
 		toast.setAttribute( 'state', 'out' );
 		window.setTimeout( () => {
 			toast.remove();
+			releaseFocusTracking();
 		}, FADE_OUT_MS );
+	};
+
+	const startTimer = (): void => {
+		if ( dismissed || intent.persistent || dismissTimer !== null ) {
+			return;
+		}
+		startedAt = Date.now();
+		dismissTimer = window.setTimeout(
+			dismiss,
+			remaining,
+		) as unknown as number;
+	};
+
+	const pauseTimer = (): void => {
+		if ( dismissTimer === null ) {
+			return;
+		}
+		remaining = Math.max( 0, remaining - ( Date.now() - startedAt ) );
+		stopTimer();
 	};
 
 	// Enter animation — flip `state` to `'in'` on the next frame so
@@ -187,12 +239,25 @@ function renderToast( intent: ToastIntent ): () => void {
 		toast.setAttribute( 'state', 'in' );
 	} );
 
-	if ( ! intent.persistent ) {
-		dismissTimer = window.setTimeout(
-			dismiss,
-			intent.duration ?? DEFAULT_DURATION_MS,
-		) as unknown as number;
-	}
+	/*
+	 * Pointer over the toast, or focus inside it, freezes the
+	 * countdown — the element decides what "attended to" means and
+	 * says so; this side owns the clock. Without it, a toast whose
+	 * action button the user has Tabbed to deletes itself out from
+	 * under them mid-reach, and focus lands on `<body>`.
+	 */
+	toast.addEventListener( 'os-toast-hold', ( e: Event ) => {
+		const held = ( e as CustomEvent< { held: boolean } > ).detail?.held;
+		if ( held ) {
+			pauseTimer();
+			return;
+		}
+		remaining = Math.max( remaining, MIN_RESUME_MS );
+		startTimer();
+	} );
+
+	trackExternalFocus( toast );
+	startTimer();
 
 	// Fire-and-forget broadcast that a toast went up. Audit /
 	// telemetry plugins subscribe; the toast renderer doesn't wait
@@ -201,6 +266,84 @@ function renderToast( intent: ToastIntent ): () => void {
 	activity.publish( 'os/toast-shown', { ...intent } );
 
 	return dismiss;
+}
+
+// ---------------------------------------------------------------------
+// Focus custody
+//
+// A toast is the one piece of shell UI that removes itself while the
+// user may be standing on it. Clicking "Undo" — or Tabbing to it and
+// pressing Enter — dismisses the toast the button lives in, and the
+// browser's answer to "where does focus go when its element leaves the
+// document?" is `<body>`: the next Tab starts from the top of the
+// admin, and a screen-reader user loses their place entirely.
+//
+// So while any toast is on screen we remember the last thing outside
+// the stack that held focus, and a dismissal that happens to be
+// holding focus hands it back there. The listener is only bound while
+// toasts exist — this runs on every focus change in the shell, and a
+// permanently-bound one would be a tax on a surface that is empty
+// almost all the time.
+// ---------------------------------------------------------------------
+
+/** Last focused element outside the toast stack. */
+let lastExternalFocus: HTMLElement | null = null;
+
+/** Toasts currently keeping the tracker bound. */
+let focusTrackers = 0;
+
+function onDocumentFocusIn( e: FocusEvent ): void {
+	const target = e.target;
+	if ( ! ( target instanceof HTMLElement ) ) {
+		return;
+	}
+	if ( target.closest( 'os-toast-container' ) ) {
+		return;
+	}
+	lastExternalFocus = target;
+}
+
+function trackExternalFocus( toast: HTMLElement ): void {
+	if ( focusTrackers === 0 ) {
+		document.addEventListener( 'focusin', onDocumentFocusIn, true );
+	}
+	focusTrackers += 1;
+	// Seed from the current position: focus may not move again between
+	// here and the dismissal, and that stationary case is exactly the
+	// one where the user clicked the action button straight away.
+	const doc = toast.ownerDocument;
+	const active = doc.activeElement;
+	if (
+		active instanceof HTMLElement &&
+		active !== doc.body &&
+		! active.closest( 'os-toast-container' )
+	) {
+		lastExternalFocus = active;
+	}
+}
+
+function releaseFocusTracking(): void {
+	focusTrackers = Math.max( 0, focusTrackers - 1 );
+	if ( focusTrackers === 0 ) {
+		document.removeEventListener( 'focusin', onDocumentFocusIn, true );
+	}
+}
+
+/**
+ * Hand focus back if the toast being dismissed is holding it. A
+ * dismissal that happens while the user is somewhere else entirely
+ * leaves them there.
+ */
+function restoreFocusFrom( toast: HTMLElement ): void {
+	// The toast's controls live in its shadow root, so focus on the
+	// action button reads as the host here — no shadow walk needed.
+	const active = toast.ownerDocument.activeElement;
+	if ( active !== toast && ! toast.contains( active ) ) {
+		return;
+	}
+	if ( lastExternalFocus?.isConnected === true ) {
+		lastExternalFocus.focus();
+	}
 }
 
 /**

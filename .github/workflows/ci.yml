@@ -17,7 +17,7 @@ jobs:
     name: Lint · Types · Vitest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs
@@ -58,6 +58,26 @@ jobs:
           npm --prefix extensions/desktop-mode-feed-buddy run build
           git diff --exit-code -- extensions/desktop-mode-feed-buddy/assets/js
 
+      - name: Electron adapter extension checks
+        env:
+          # Nothing in this job launches Electron — this is lint, types,
+          # unit tests and the bundles. The `electron` package still
+          # installs (its type definitions are what `app/tsconfig.json`
+          # compiles against); only the ~100 MB binary download is
+          # skipped.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: |
+          npm --prefix extensions/openstation-electron-adapter ci
+          # The package's own `verify`, rather than a sequence spelled
+          # out again here. It builds BEFORE it tests, and that order is
+          # load-bearing: `connect-bundle.test.ts` asserts against
+          # `app/dist/renderer/connect.js`, so a run that tests first
+          # passes only on a machine that happens to have built already.
+          # Deferring to `verify` also means a developer running it
+          # locally is running what CI runs.
+          npm --prefix extensions/openstation-electron-adapter run verify
+          git diff --exit-code -- extensions/openstation-electron-adapter/assets/js
+
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
@@ -67,7 +87,7 @@ jobs:
         php: [ '8.3', '8.4' ]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs
@@ -130,7 +150,7 @@ jobs:
     name: Plugin Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs

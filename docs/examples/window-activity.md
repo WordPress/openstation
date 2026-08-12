@@ -1,6 +1,26 @@
 # Example: window activity & the modem dot
 
-Every desktop window's title bar has a small **modem-style activity LED** sitting between the icon and the title. At rest it's a hollow ring tinted with the user's accent color — a calm "alive, ready" affordance. While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
+Every desktop window carries an **activity phase** — `idle`, `pending`, `saving`, `saved`, `failed` — that the framework moves for you on every `wp.os.fetch`, and that you can drive by hand for anything else.
+
+Nothing renders it by default. The title bar used to carry a **modem-style activity LED** between the icon and the title, always visible, a hollow ring in the user's accent at rest. That ring reported `idle` — the state a window is in almost all of the time — on every window for the whole of its life, so the framework stopped painting it. The phase machinery is untouched; the rendering is now yours to opt into.
+
+```js
+// Mount the dot on your own window, in a title-bar slot:
+const host = document.createElement( 'span' );
+host.className = 'os-window__activity';
+
+const dot = document.createElement( 'os-save-status' );
+dot.setAttribute( 'mode', 'dot' );
+dot.setAttribute( 'animation', 'modem' );
+dot.setAttribute( 'phase', 'idle' );
+dot.setAttribute( 'data-os-activity-indicator', '' );
+
+host.appendChild( dot );
+// …render `host` into an after-title slot; the window finds it by that
+// attribute and drives its `phase` and `error` from here on.
+```
+
+At rest it's a hollow ring tinted with the user's accent colour. While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
 
 > Status: `wp.os.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<os-save-status>` are **Experimental**.
 
@@ -16,9 +36,9 @@ const res = await fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } );
 ```
 
-That's it. The title-bar dot blinks for the round-trip, flashes green on success, red on failure (with the error message as tooltip). No CSS, no DOM, no per-window plumbing.
+That's it. The window is `saving` for the round-trip, `saved` on success, `failed` on failure (carrying the error message). No CSS, no DOM, no per-window plumbing — and if you mounted a dot as above, it blinks, flashes green, then goes red with the error as its tooltip.
 
-## Where it lights up
+## Where it lands
 
 By default, `wp.os.fetch` attributes the request to the **focused window** at the moment of the call. Most fetches happen inside event handlers — clicks, key presses, form submits — and the click already focused the window. So in 95% of cases the default attribution is correct.
 
@@ -31,13 +51,13 @@ wp.os.fetch( url, init, { windowId: 'my-plugin/inbox' } );
 // You have a Window instance in scope:
 wp.os.fetch( url, init, { window: ctx.window } );
 
-// Don't blink for this fetch (background polls, prefetches):
+// Don't move the phase for this fetch (background polls, prefetches):
 wp.os.fetch( url, init, { silent: true } );
 ```
 
 ## Bundle-level migration recipe
 
-Wrap the bundle's fetch helper once, then every call inherits the indicator:
+Wrap the bundle's fetch helper once, then every call inherits the attribution:
 
 ```js
 // my-plugin/rest.js
@@ -58,7 +78,7 @@ export async function archive( id ) {
 }
 ```
 
-Every call site (`fetchInbox`, `archive`) now lights up the inbox window's title-bar dot, with no per-call adoption.
+Every call site (`fetchInbox`, `archive`) now moves the inbox window's activity phase, with no per-call adoption.
 
 ## Non-fetch async work
 
@@ -128,7 +148,7 @@ The terminal phase reflects the **burst as a whole** — if any tracked operatio
 
 **Minimum 1.2s saving display** — even a 50ms fetch holds the saving phase for ~1.2s so the modem-blink animation has time to register. Concurrent fetches that re-start within the floor cancel any deferred settle, so chained operations keep blinking smoothly without dropping into "saved" between calls.
 
-**Always-on idle ring** — at rest, the dot is a 12px hollow circle with a 2px border tinted by the user's accent (`color-mix(in srgb, var(--wp-admin-theme-color) 55%, transparent)`). It looks like a real modem's "ready" LED — quietly present, not flashing, not invisible.
+**Always-on idle ring** — at rest, the dot is a 12px hollow circle with a 2px border tinted by the user's accent (`color-mix(in srgb, var(--wp-admin-theme-color) 55%, transparent)`). It looks like a real modem's "ready" LED — quietly present, not flashing, not invisible. That "always on" is why the framework no longer mounts one in the title bar of its own accord: a ready LED is right on a surface a user chose to put it on, and wrong as a fixture on every window ever opened. Set `--os-ui-save-status-idle-color: transparent` on the host if you want a dot that only appears while work is in flight.
 
 **Drift-by-design animation** — the modem stutter cycles at 1.8s, the soft-glow halo at 2.4s; the offset periods mean the combined pattern only truly repeats every 7.2s, so it never reads as a metronome.
 

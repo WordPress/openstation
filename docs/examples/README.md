@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 ## Index
 
 - [Add a dock item with a badge](./dock-badge.md)
+- [Give a tile two icons, one per state](./tile-icon-state.md)
 - [Decorate the dock without forking the renderer](./dock-decoration-hooks.md)
 - [Replace the dock rail entirely](./dock-rail-renderer.md)
 - [Gate OpenStation by role](./gate-by-role.md)
@@ -33,6 +34,8 @@ defined( 'ABSPATH' ) || exit;
 - [Register a custom window reveal (Experimental)](./window-reveal.md)
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Related entities — extend the title bar's "Related" menu (Experimental)](./related-entities.md)
+- [Add a row to a window's ⋯ menu (Experimental)](./window-action.md)
+- [React to a window being set free onto the real desktop (Experimental)](./desktop-host.md)
 - [Inject data into `openStationConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)
@@ -41,6 +44,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.os.ai.ask()`](./ai-ask.md)
+- [Tune the AI model config (tokens, temperature, reasoning)](./ai-model-config.md)
 - [AI Agents — extend and invoke from a plugin](./agents.md)
 - [Retune the Drafts widget's AI writing assistant (Experimental)](./drafts-ai-suggestions.md)
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)

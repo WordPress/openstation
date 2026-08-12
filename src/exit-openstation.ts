@@ -101,8 +101,40 @@ export async function exitOpenStation(): Promise< void > {
  */
 function navigateTop( url: string ): void {
 	try {
-		window.top!.location.href = url;
+		( window.top ?? window ).location.assign( url );
 	} catch {
-		window.location.href = url;
+		window.location.assign( url );
 	}
+}
+
+/**
+ * Delay before leaving, so the toast explaining why is readable.
+ */
+export const LEAVE_DELAY_MS = 800;
+
+/**
+ * Leave the shell for the classic admin. Shared by every "OpenStation
+ * is gone, get the user out" path so the delay and the fallback can't
+ * drift apart.
+ *
+ * `adminUrl` rather than a reload because the current URL may be a
+ * now-unroutable `admin.php?page=…`.
+ */
+export function leaveForClassicAdmin(
+	adminUrl: string,
+	delayMs: number = LEAVE_DELAY_MS,
+): void {
+	window.setTimeout( () => {
+		if ( adminUrl ) {
+			navigateTop( adminUrl );
+			return;
+		}
+		// No admin URL (older registration / test harness). A reload
+		// still beats sitting on a dead shell.
+		try {
+			( window.top ?? window ).location.reload();
+		} catch {
+			window.location.reload();
+		}
+	}, delayMs );
 }

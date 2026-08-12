@@ -874,6 +874,7 @@ function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) 
  * "recommendedOsSettings": {
  *   "dockSize":         "large",
  *   "desktopLayout":    "unified",
+ *   "dockPlacement":    "left",
  *   "windowRadius":     "default",
  *   "adminBarMode":     "dynamic",
  *   "dockRailRenderer": "default"

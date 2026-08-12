@@ -1,0 +1,21 @@
+# The extension carries its own toolchain (Vite for the shell bundle,
+# tsc for the Electron app), so it carries its own install.
+node_modules/
+
+# Compiled Electron app. `npm run build:app` regenerates it; shipping
+# it in git would mean reviewing a diff of tsc output on every change.
+app/dist/
+
+# electron-builder artefacts.
+release/
+dist/
+
+# The built shell bundle IS tracked — WordPress enqueues it directly
+# from a checkout, and every other extension in this repo ships its
+# built JS the same way. Source of truth is `src/`; never hand-edit
+# `assets/js/electron-adapter*.js`.
+#
+# Its source map is not: it is a verbatim copy of `src/` that changes on
+# every build, so tracking it would put the whole adapter into every
+# diff twice.
+assets/js/*.map

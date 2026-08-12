@@ -740,9 +740,9 @@ need one that isn't there.
 ### What stays fixed
 
 Colour that encodes meaning or is composed artwork is deliberately
-**not** themable: sticky-note paper, game palettes, the content-graph
+**not** themable: pinned-note paper, game palettes, the content-graph
 node hues, the About scene. Retinting those would destroy the signal
-they carry. The same applies to their typography — the sticky note's
+they carry. The same applies to their typography — the note's
 handwriting face and the Inkfall serif are part of the artwork.
 
 ---
@@ -946,7 +946,8 @@ still apply.
 | Field | Values |
 |---|---|
 | `dockSize` | `compact`, `default`, `large` |
-| `desktopLayout` | `classic`, `unified`, `spatial` |
+| `desktopLayout` | `classic`, `unified`, `spatial`, `openstation` |
+| `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Read by `unified` and `spatial`; `classic` owns both of its edges and `openstation` is drawn for a horizontal rail, so both ignore it. |
 | `windowRadius` | `sharp`, `default`, `round` |
 | `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit OpenStation** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |

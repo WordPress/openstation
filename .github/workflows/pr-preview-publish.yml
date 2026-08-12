@@ -34,33 +34,65 @@ jobs:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - name: Resolve PR from trusted workflow_run data
         id: meta
         uses: actions/github-script@v9
         with:
           script: |
-            // The `pr-meta` artifact is written by the fork-controlled build
-            // run, so its contents are untrusted — a malicious PR could point
-            // the preview comment at any PR. Derive the identity from the
-            // `workflow_run` event instead: GitHub sets `head_sha` and it
-            // cannot be spoofed by PR code. `workflow_run.pull_requests` is
-            // empty for fork PRs, so resolve the PR number via the API and
-            // require its head SHA to match before publishing anything.
-            const headSha = context.payload.workflow_run.head_sha;
+            // PR identity is never taken from the build run's artifacts — that
+            // run executes fork-controlled code and can write whatever it
+            // likes, so a malicious PR could aim the preview comment at any
+            // PR. Derive it from the `workflow_run` event instead: GitHub sets
+            // `head_sha`, `head_repository` and `head_branch`, and PR code
+            // cannot spoof any of them.
+            //
+            // Resolve the PR by head repo + branch. `workflow_run.pull_requests`
+            // is empty for fork PRs, and so is
+            // `listPullRequestsAssociatedWithCommit` — that endpoint does not
+            // resolve commits living in a fork, which left every fork PR
+            // without a preview.
+            //
+            // The `head` filter is server-side and fails open: a value GitHub
+            // does not recognise is ignored rather than rejected, and the call
+            // then returns every PR. Re-check owner, branch and SHA against the
+            // payload below so ownership is an invariant enforced here, not a
+            // bet on that filter's behaviour.
+            const run = context.payload.workflow_run;
+            const headSha = run.head_sha;
             if (!/^[0-9a-f]{40}$/.test(headSha)) {
               core.setFailed(`Unexpected workflow_run head SHA: ${headSha}`);
               return;
             }
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            const headOwner = run.head_repository?.owner?.login;
+            const headBranch = run.head_branch;
+            if (!headOwner || !headBranch) {
+              core.setFailed(`Incomplete workflow_run head data: owner=${headOwner} branch=${headBranch}`);
+              return;
+            }
+            // `state: 'all'` because a PR can merge between the build finishing
+            // and this run starting; the old lookup published in that window
+            // and there's no reason to start failing there. A branch reused
+            // across several PRs can match more than once, so prefer the open
+            // one.
+            const prs = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: headSha,
+              state: 'all',
+              head: `${headOwner}:${headBranch}`,
+              per_page: 100,
             });
-            const pr = prs.find((p) => p.head.sha === headSha);
+            // `head.repo` is null when the head fork has been deleted.
+            const matches = prs.filter(
+              (p) =>
+                p.head.sha === headSha &&
+                p.head.repo?.owner?.login === headOwner &&
+                p.head.ref === headBranch
+            );
+            const pr = matches.find((p) => p.state === 'open') ?? matches[0];
             if (!pr) {
-              core.setFailed(`No pull request found with head SHA ${headSha}; refusing to publish a preview.`);
+              core.setFailed(`No pull request for ${headOwner}:${headBranch} at head SHA ${headSha}; refusing to publish a preview.`);
               return;
             }
             core.setOutput('pr-number', String(pr.number));

@@ -717,30 +717,47 @@
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
-/* Separator — horizontal hairline between menu tiles and system
- * tiles. With the `__scroll` / `__pinned` split the system separator
- * lives at the top of `__pinned`; flex-flow handles the "system
- * tiles at the bottom" placement, no margin-top: auto needed. The
- * `--group` variant is used inline between core and plugin menu
- * tiles in `__scroll`; it keeps the hairline styling and sits
- * exactly where it's inserted. */
+/* Separator — the line between two groups of tiles. With the
+ * `__scroll` / `__pinned` split the system separator lives at the top
+ * of `__pinned`; flex-flow handles the "system tiles at the bottom"
+ * placement, no margin-top: auto needed. The `--group` variant is used
+ * inline between core and plugin menu tiles in `__scroll` and sits
+ * exactly where it's inserted.
+ *
+ * ONE treatment for every division in the rail. The selector carries
+ * only the base class on purpose: `--group` elements carry it too, so
+ * both boundaries resolve here and cannot drift apart. Two weights in
+ * one short rail read as two unrelated ideas rather than one system,
+ * which is why the earlier loud-plus-hairline pairing is gone.
+ *
+ * A gradient, not a flat fill: the line is brightest where the eye
+ * lands and gone by the time it reaches the rail's padding, so it
+ * never terminates in a visible stub against the glass. The soft glow
+ * around it is what keeps a 2px line from disappearing into the dock
+ * tint; nothing is drawn on the line itself. */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__separator,
 .os-dock[ data-os-dock-placement="right" ]
 	.os-dock__separator {
+	position: relative;
 	width: 60%;
-	height: 1px;
-	margin: 8px auto 4px;
-	background: var( --os-dock-border );
+	height: 2px;
+	margin: 12px auto;
+	border-radius: 2px;
+	background: linear-gradient(
+		to right,
+		transparent 0%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
+		transparent 100%
+	);
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
+			transparent
+		);
 	flex-shrink: 0;
-}
-
-.os-dock[ data-os-dock-placement="left" ]
-	.os-dock__separator--group,
-.os-dock[ data-os-dock-placement="right" ]
-	.os-dock__separator--group {
-	margin: 10px auto;
-	background: rgba( 255, 255, 255, 0.22 );
 }
 
 /*
@@ -933,29 +950,26 @@
 }
 
 /*
- * Global "Show Desktop" indicator — set on `<body>` by the dock when
- * every live window on the active desktop is in the minimized state.
- * The bottom-dock pill picks up a soft theme-color ring so the user
- * has a global cue that the windows haven't disappeared, they're just
- * minimized. ArrowUp / a wallpaper click / clicking any dock tile
- * brings them back; without this the empty wallpaper looks identical
- * to a freshly-loaded desktop with no windows open.
+ * "Show Desktop" — every live window on the active desktop minimized.
+ *
+ * The dock does not change when this happens. It used to: the bottom
+ * pill and the vertical rails each picked up a 1px inset ring, on the
+ * reasoning that an empty wallpaper otherwise looks identical to a
+ * desktop that never had anything on it.
+ *
+ * The reasoning was sound and the ring was still the wrong answer. It
+ * outlined the whole dock — the one surface on screen that is always
+ * present and never the subject — to say something about windows that
+ * are not on the dock at all. Every tile that has minimized windows
+ * already says so, precisely and locally, by swapping its solid
+ * indicator dot for a hollow ring. That is the cue: it points at the
+ * tiles the windows are under, in the place the user will click to get
+ * them back.
+ *
+ * `body.os-show-desktop-active` is still set (see `src/dock.ts`) and
+ * still public, so a theme or plugin that wants a global cue can paint
+ * one. Core does not.
  */
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="bottom" ] {
-	box-shadow:
-		inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) ),
-		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
-		0 10px 32px rgba( 0, 0, 0, 0.45 );
-}
-
-/* Vertical docks get the same treatment along their inner edge. */
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="left" ],
-body.os-show-desktop-active
-	.os-dock[ data-os-dock-placement="right" ] {
-	box-shadow: inset 0 0 0 1px var( --wp-admin-theme-color, rgba( 255, 255, 255, 0.45 ) );
-}
 
 /* "Open another" chip — floats above the tile's top-right corner so
  * it doesn't collide with neighbouring tiles in the horizontal row. */
@@ -974,9 +988,19 @@ body.os-show-desktop-active
 /*
  * Bottom-dock inner wrappers — `__scroll` carries the menu tiles and
  * absorbs horizontal overflow; `__pinned` carries the system tiles and
- * stays anchored to the trailing edge. Padding-top on `__scroll` gives
- * the badge (top: -3px on the tile) room so `overflow-y: hidden`
- * doesn't crop it. `min-width: 0` lets the wrapper shrink below its
+ * stays anchored to the trailing edge.
+ *
+ * **The padding around `__scroll` is what keeps badges visible, and it
+ * has to be on both axes.** `overflow-x: auto` below cannot coexist
+ * with `overflow-y: visible`: per spec the visible axis computes to
+ * `auto`, so this wrapper is a scroll container in BOTH directions
+ * however it is authored, and anything a child hangs outside its
+ * padding box is clipped. A badge sits at `top: -3px; right: -3px` on
+ * its tile, and the LAST tile's edge is the wrapper's edge once the
+ * content is wide enough to scroll — which is why this showed up as
+ * "the badge on the last plugin looks cut off" rather than as a
+ * general problem. The inline padding is symmetric so the tile cluster
+ * stays centred in the pill. `min-width: 0` lets the wrapper shrink below its
  * content's natural width, so the dock pill's `max-width` is what
  * decides when scroll kicks in instead of the content forcing the
  * pill wider. `justify-content: center` keeps tiles balanced inside
@@ -993,7 +1017,14 @@ body.os-show-desktop-active
 	min-width: 0;
 	padding-top: 4px;
 	padding-bottom: 6px;
+	padding-inline: 4px;
 	overflow-x: auto;
+	/*
+	 * Authored `visible`, computed `auto` — see the note above. Kept as
+	 * the honest statement of intent: nothing here wants a vertical
+	 * scrollbar, and `scrollbar-width: none` plus the padding is what
+	 * makes that true in practice.
+	 */
 	overflow-y: visible;
 	scrollbar-width: none;
 }
@@ -1014,44 +1045,41 @@ body.os-show-desktop-active
 	padding-bottom: 6px;
 }
 
-/* Separator — vertical hairline between menu tiles and system tiles.
- * Lives at the leading edge of `__pinned`; flex flow handles the
+/* Separator — the line between two groups of tiles. The system one
+ * lives at the leading edge of `__pinned` (flex flow handles the
  * "pinned at the trailing edge" placement, no margin-inline-start:
- * auto needed. The `--group` variant keeps the hairline styling for
- * the inline core→plugin boundary inside `__scroll` and sits where
- * inserted. */
+ * auto needed); the `--group` one sits inline inside `__scroll` where
+ * it was inserted. Both resolve through this single rule — see the
+ * note on the vertical placements above for why there is only one. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator {
-	width: 1px;
+	position: relative;
+	width: 2px;
 	/* Fixed height — `60%` collapses against the floating pill's
-	   intrinsic height, leaving the hairline effectively invisible.
-	   28px matches the dock tile inner glyph area. */
-	height: 28px;
+	   intrinsic height, leaving the line effectively invisible. */
+	height: 34px;
 	/* Symmetric horizontal margin so the divider sits centered in the
 	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
-	 * on the left, `__pinned`'s own gap on the right) plus an equal 6px
+	 * on the left, `__pinned`'s own gap on the right) plus an equal
 	 * margin per side balances out. An asymmetric margin here nudges the
 	 * divider — and the whole menu cluster with it — off the pill's
-	 * center. */
-	margin: auto 6px;
-	background: var( --os-dock-border );
-	flex-shrink: 0;
-}
-
-/*
- * Group separator — sits inline between the core cluster and the
- * plugin cluster. Brighter than the menu-vs-system separator because
- * it carries user meaning ("this is where your installed apps
- * begin"), and flanked by extra gap so the boundary reads at a
- * glance rather than disappearing into the dock tint.
- */
-.os-dock[ data-os-dock-placement="bottom" ]
-	.os-dock__separator--group {
-	width: 1px;
-	height: 60%;
-	margin: auto 10px;
-	margin-inline-start: 10px;
-	background: rgba( 255, 255, 255, 0.22 );
+	 * center. Wider than the tile gap on purpose: the clusters need to
+	 * read as groups before the line between them means anything. */
+	margin: auto 14px;
+	border-radius: 2px;
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
+		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
+		transparent 100%
+	);
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
+			transparent
+		);
 	flex-shrink: 0;
 }
 
@@ -1096,4 +1124,124 @@ body.os-show-desktop-active
 
 .os-dock__item:not( .os-dock__item--system ):active {
 	cursor: grabbing;
+}
+
+/* ------------------------------------------------------------------
+ * The way out — `Exit OpenStation`
+ *
+ * Every other system tile opens something you can close again. This
+ * one leaves the desktop, and with the admin bar hidden by default it
+ * is the only route back to classic admin. Drawn like its neighbours
+ * it read as one more launcher, which is the same "some tiles do a
+ * different kind of thing" confusion the single dock set out to fix,
+ * just moved to the other end of the rail.
+ *
+ * Three signals, none of them colour. Danger red would overstate it
+ * (nothing is destroyed, the session is saved and the desktop is one
+ * click away) and Pulse is already spent on the seam:
+ *
+ *   1. **Last, always.** `order: 1` rather than registration order —
+ *      native-window tiles from plugins sync in after boot and would
+ *      otherwise land behind it.
+ *   2. **Its own gap**, wider than the rail's 6px, so it reads as
+ *      sitting outside the set rather than at the end of it. A second
+ *      divider would have said this too, and would have cost the rail
+ *      the one-structural-line rule it just earned.
+ *   3. **A different silhouette** — a ring rather than a plate. Shape
+ *      survives every theme, every dock texture, greyscale and a
+ *      colour-blind reading of the rail; a tint survives none of them
+ *      reliably.
+ *
+ * And it leans toward the edge it leads to on hover instead of lifting
+ * toward the pointer, because every other tile's lift means "I will
+ * come to you" and this one means the opposite.
+ *
+ * Keyed on the tile id, the same idiom the Recycle Bin badge uses
+ * above. `os-exit` is frozen in `src/exit-openstation.ts`
+ * (`EXIT_OPENSTATION_TILE_ID`) and `dock-exit-tile.test.ts` pins the
+ * attribute this selector depends on.
+ * ------------------------------------------------------------------ */
+
+.os-dock__item[ data-system-id="os-exit" ] {
+	order: 1;
+}
+
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary {
+	border-radius: 50%;
+	background-color: transparent;
+	box-shadow: inset 0 0 0 1px var(
+		--os-dock-exit-ring,
+		var( --os-dock-border, rgba( 255, 255, 255, 0.18 ) )
+	);
+	color: var( --os-dock-exit-icon, rgba( 255, 255, 255, 0.55 ) );
+}
+
+/*
+ * The gap runs along the rail's own axis, so it follows the placement:
+ * inline for the horizontal pill, block for the vertical pillars.
+ */
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item[ data-system-id="os-exit" ] {
+	margin-inline-start: 10px;
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item[ data-system-id="os-exit" ],
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item[ data-system-id="os-exit" ] {
+	margin-block-start: 8px;
+}
+
+/*
+ * Hover: the ring closes up and the tile moves TOWARD its edge. The
+ * generic tile rule scales up by 1.1, so these have to out-specify it
+ * rather than sit alongside it.
+ */
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:hover,
+.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:focus-visible {
+	background-color: transparent;
+	box-shadow: inset 0 0 0 1px var(
+		--os-dock-exit-ring-hover,
+		var( --os-dock-item-outline, rgba( 255, 255, 255, 0.7 ) )
+	);
+	color: var( --os-dock-icon-color-hover, var( --os-ui-fg-on-accent, #fff ) );
+}
+
+.os-dock[ data-os-dock-placement="bottom" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateY( 2px );
+}
+
+.os-dock[ data-os-dock-placement="left" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateX( -2px );
+}
+
+.os-dock[ data-os-dock-placement="right" ]
+	.os-dock__item[ data-system-id="os-exit" ]
+	.os-dock__item-primary:hover {
+	transform: translateX( 2px );
+}
+
+/* The press keeps the shared cue: every tile in the rail dips on
+ * :active, and this one should not feel unresponsive by comparison. */
+.os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:active {
+	transform: scale( 0.95 );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-dock[ data-os-dock-placement="bottom" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover,
+	.os-dock[ data-os-dock-placement="left" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover,
+	.os-dock[ data-os-dock-placement="right" ]
+		.os-dock__item[ data-system-id="os-exit" ]
+		.os-dock__item-primary:hover {
+		transform: none;
+	}
 }

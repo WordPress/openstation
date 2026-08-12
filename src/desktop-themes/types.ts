@@ -31,6 +31,12 @@ export interface RecommendedOsSettings {
 	dockSize?: string;
 	/** `classic` | `unified` | `spatial`. */
 	desktopLayout?: string;
+	/**
+	 * `bottom` | `left` | `right` — which edge the single dock sits on.
+	 * Only the one-rail layouts read it; `classic` derives both of its
+	 * rails from the layout.
+	 */
+	dockPlacement?: string;
 	/** `sharp` | `default` | `round`. */
 	windowRadius?: string;
 	/**

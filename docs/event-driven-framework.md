@@ -59,7 +59,7 @@ For a multi-instance window (`multi: true`, ids like
 for one exact id. Use `windowManager.isActiveByBaseId(baseId)`
 instead — it returns `true` if *any* instance sharing that
 `baseId` is the currently focused window (still scoped to the
-active desktop). This is the query `src/recycle-bin/badge.ts`
+active desktop). This is the query `src/recycle-bin/icon-state.ts`
 switched to so its badge doesn't stay suppressed while the user
 is looking at a *different* recycle-bin instance.
 
@@ -393,7 +393,7 @@ repaintBadge(); // initial paint
 id )` in `repaintBadge()` above — otherwise the badge only
 suppresses for the exact instance id first opened, and stays
 visible while the user is looking at instance `-2` or `-3`. See
-[`src/recycle-bin/badge.ts`](../src/recycle-bin/badge.ts) for the
+[`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts) for the
 full pattern, including matching lifecycle events across every
 instance id sharing the base.
 
@@ -448,4 +448,4 @@ for the full contract.
 - [Hooks reference](./hooks-reference.md) — full PHP filter / action signatures.
 - [`docs/examples/`](./examples/) — copy-paste recipes.
 - In-tree consumer worth reading:
-  - [`src/recycle-bin/badge.ts`](../src/recycle-bin/badge.ts)
+  - [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts)

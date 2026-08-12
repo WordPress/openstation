@@ -148,7 +148,15 @@ wp.hooks.addFilter(
             label: 'Duplicate',
             icon: 'dashicons-admin-page',
             variant: 'secondary',
-            confirm: 'Duplicate %d post(s)?',
+            confirm: ( count ) =>
+                wp.i18n.sprintf(
+                    wp.i18n._n(
+                        'Duplicate %d post?',
+                        'Duplicate %d posts?',
+                        count
+                    ),
+                    count
+                ),
             run: async ( ids ) => {
                 await fetch( '/wp-json/myplugin/v1/duplicate', {
                     method: 'POST',
@@ -167,7 +175,9 @@ wp.hooks.addFilter(
 );
 ```
 
-`confirm` is interpolated with the row count via `%d`. Returning `false` from `run()` opts out of the auto-refresh — useful when the action navigates away or shows its own modal.
+`confirm` takes either a function or a string. Prefer the function: it receives the row count, which is what `_n()` needs to pick a plural form. A plain string still works and is interpolated with the count via `%d`, but it can only carry one form, so it cannot be translated into languages that have more than two.
+
+Returning `false` from `run()` opts out of the auto-refresh — useful when the action navigates away or shows its own modal.
 
 To remove the default trash action (read-only views, audit-style mirrors), filter it out by id:
 

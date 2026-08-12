@@ -2,13 +2,23 @@
  * OpenStation — Window title-bar actions menu.
  *
  * Open / close lifecycle for the ⋯ menu in every window's title bar
- * (native and iframe). Items today: "Open on startup" (checkable),
+ * (native and iframe). Built-in items: "Open on startup" (checkable),
  * optional "Open another <page>" for multi-capable pages, and — iframe
  * windows only — "Open in new window", "Reload", "Open in browser tab".
+ * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
+ * after those on every open by {@link paintWindowActions}.
  * Each free function here takes the `Window` instance as its first arg.
  */
 
+import { HOOKS, doAction } from '../hooks';
 import { urlMatchKey } from '../utils';
+import {
+	isActionVisible,
+	listWindowActions,
+	resolveActionIcon,
+	resolveActionLabel,
+	subscribeWindowActions,
+} from '../window-actions/registry';
 import type { Window } from './index';
 
 /** Toggle the title-bar actions menu open/closed. */
@@ -58,6 +68,36 @@ export function openActionsMenu( win: Window ): void {
 	if ( startup ) {
 		refreshStartupCheckState( win, startup );
 	}
+
+	// Plugin-registered actions repaint from scratch on every open —
+	// see `paintWindowActions()` for why they cannot be built once.
+	paintWindowActions( win, panel );
+
+	/*
+	 * Keep repainting while the menu stays open.
+	 *
+	 * An action registered a moment after the menu opened would
+	 * otherwise not appear until the next open, and "open it twice"
+	 * is a poor answer to "why isn't it there?". This is what lets a
+	 * plugin answer `WINDOW_MENU_OPENED` with something asynchronous —
+	 * a probe, a permission check — and still have its row land under
+	 * the user's pointer.
+	 */
+	win._unsubscribeWindowActions?.();
+	win._unsubscribeWindowActions = subscribeWindowActions( () => {
+		if ( ! panel.hidden ) {
+			paintWindowActions( win, panel );
+		}
+	} );
+
+	/*
+	 * Announced after the paint, so a subscriber that registers an
+	 * action sees the repaint above rather than racing it.
+	 */
+	doAction( HOOKS.WINDOW_MENU_OPENED, {
+		windowId: win.id,
+		element: panel,
+	} );
 
 	if ( ! win._boundOnDocumentPointerDown ) {
 		win._boundOnDocumentPointerDown = ( e: PointerEvent ) => {
@@ -110,6 +150,9 @@ export function closeActionsMenu( win: Window ): void {
 			true,
 		);
 	}
+	// Stop repainting a menu nobody is looking at.
+	win._unsubscribeWindowActions?.();
+	win._unsubscribeWindowActions = null;
 }
 
 /**
@@ -164,5 +207,75 @@ export function refreshStartupCheckState(
 		item.setAttribute( 'checked', '' );
 	} else {
 		item.removeAttribute( 'checked' );
+	}
+}
+
+/**
+ * Paint the plugin-registered rows of the ⋯ menu.
+ *
+ * Rebuilt from scratch on every open rather than kept in sync, and
+ * that is the cheap correct choice rather than a lazy one: an action's
+ * label, icon and visibility are all allowed to be functions of the
+ * window's current state, so "keeping them in sync" would mean
+ * re-evaluating every predicate on every state change of every window
+ * to catch the one menu that happens to be open. A menu opens rarely
+ * and holds a handful of rows; rebuilding it costs nothing and cannot
+ * drift.
+ *
+ * A row whose handler throws is contained: the menu still closes and
+ * the other rows still work. The ⋯ menu is shared surface, and one
+ * plugin's bug must not cost the user their "Reload".
+ *
+ * @param win   The window the menu belongs to.
+ * @param panel The `<os-menu>` panel element.
+ */
+export function paintWindowActions( win: Window, panel: HTMLElement ): void {
+	// Rows go in as direct children of the `role="menu"` panel, so the
+	// previous pass is cleared by class rather than by emptying a
+	// container — see the note in `createWindowElement()` for why there
+	// is no container.
+	for ( const stale of Array.from(
+		panel.querySelectorAll( '.os-window__menu-item--action' ),
+	) ) {
+		stale.remove();
+	}
+
+	for ( const def of listWindowActions() ) {
+		if ( ! isActionVisible( def, win ) ) {
+			continue;
+		}
+		const label = resolveActionLabel( def, win );
+		if ( ! label ) {
+			continue;
+		}
+
+		const item = document.createElement( 'os-menu-item' );
+		item.setAttribute( 'role', 'menuitem' );
+		item.setAttribute( 'value', def.id );
+		const icon = resolveActionIcon( def, win );
+		if ( icon ) {
+			item.setAttribute( 'icon', icon );
+		}
+		item.classList.add( 'os-window__menu-item' );
+		item.classList.add( 'os-window__menu-item--action' );
+		item.setAttribute( 'data-action-id', def.id );
+		item.textContent = label;
+
+		item.addEventListener( 'os-menu-item-click', ( e: Event ) => {
+			e.stopPropagation();
+			closeActionsMenu( win );
+			try {
+				def.onSelect( win );
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						`[openstation] window action "${ def.id }" threw:`,
+						err,
+					);
+				}
+			}
+		} );
+
+		panel.appendChild( item );
 	}
 }

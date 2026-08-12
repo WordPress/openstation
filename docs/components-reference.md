@@ -112,6 +112,12 @@ from a desktop theme — the same trap described in
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+`<os-window-button>` paints an `aria-hidden` glyph inside a shadow
+`<button>`, so it has no accessible name of its own — **always set
+`aria-label` on the host**. The component forwards it onto that inner
+button (which is the element focus lands on) and keeps it in sync when
+you relabel the host, e.g. Maximize ⇄ Restore.
+
 ## Menus & overlays
 
 | Tag | Class | Source | Purpose |
@@ -123,6 +129,10 @@ from a desktop theme — the same trap described in
 | `<os-confirm-dialog>` | `OsConfirmDialog`, `osConfirm` | `os-confirm-dialog/os-confirm-dialog.ts` | Confirm prompt — use `await osConfirm({...})` (never `window.confirm`). |
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<os-notice>` | `OsNotice` | `os-notice/os-notice.ts` | Inline informational/warning notice. |
+
+**`<os-toast>` hold contract.** A toast reports when the user is attending to it — pointer over it, or focus anywhere inside it, including its action and close buttons in the shadow root. While that is true it carries a reflected `held` attribute and, on every transition, emits `os-toast-hold` with `{ held: boolean }`. `showToast()` listens and pauses the auto-dismiss countdown for the duration; a released countdown resumes with the time it had left, floored at 1.2s so a nearly-expired toast doesn't vanish the instant the pointer leaves. `held` is set by the component and is not something to write by hand — a toast that should never expire on its own is `persistent`. Dismissing a toast that currently holds focus hands focus back to the last element outside the toast stack that had it, so clicking `Undo` never drops the user on `<body>`.
+
+**`<os-confirm-dialog>` keyboard contract.** Opening the dialog remembers what had focus and moves focus inside; Tab and Shift+Tab cycle between the dialog's own controls and cannot reach the page behind the scrim; closing — by any route, including `osConfirm()` unmounting the element — hands focus back to the control that opened it. Escape always cancels. Enter is the dialog's *default* action only while no control inside it owns the key: with a button focused, Enter activates **that** button, so Enter on `Cancel` cancels. A `danger` dialog has **no** default action — it opens on the safe control (`Cancel`, or the X that `dismissable` adds, or the container when `hideCancel` leaves neither) and never on its destructive button, and Enter from the container does nothing. Reaching the destructive action is always deliberate: Tab to it, or click it.
 
 ## Display & feedback
 
@@ -154,7 +164,7 @@ from a desktop theme — the same trap described in
 
 | Tag | Class | Source | Purpose |
 | --- | --- | --- | --- |
-| `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels. |
+| `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
 | `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Wizard step indicator. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |

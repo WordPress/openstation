@@ -20,6 +20,7 @@
 
 import { trackedFetch } from '../tracked-fetch';
 import { joinRestUrl } from '../rest-url';
+import { leaveForClassicAdmin } from '../exit-openstation';
 import type {
 	BrowseFilter,
 	InstalledPlugin,
@@ -643,51 +644,17 @@ export function isOpenStationSelf( pluginFile: string ): boolean {
 }
 
 /**
- * Navigate the top-level window to the classic wp-admin Dashboard
- * after a brief delay so the user can read the "OpenStation
- * deactivated" toast. Drives navigation against `config.adminUrl`
- * (the server-localized `admin_url()`) instead of `location.reload()`
- * because the current URL may be a deactivated plugin's
- * `admin.php?page=…` route — reloading that lands the user on
- * "Sorry, you are not allowed to access this page." Going to the
- * Dashboard is the WordPress-default landing the user expects when
- * OpenStation is off.
- *
- * The top frame is targeted (not just this window) because every
- * other open openstation window is also iframing into a now-stale
- * shell context.
- *
- * The delay is short enough that the page swap feels like a natural
- * consequence of the click; long enough for the toast text to be
- * legible.
+ * Leave the shell for the classic Dashboard after the caller's
+ * "OpenStation deactivated" toast. The top frame is targeted, not
+ * just this window, because every other open window is iframing into
+ * a now-stale shell context.
  */
 export function reloadOutOfOpenStation(): void {
-	const target = window.top ?? window;
 	let dest: string;
 	try {
 		dest = getConfig().adminUrl;
 	} catch {
 		dest = '';
 	}
-	window.setTimeout( () => {
-		if ( dest ) {
-			try {
-				target.location.assign( dest );
-				return;
-			} catch {
-				// Cross-origin top frame — fall through to a local
-				// navigation. The caller has already shown a toast.
-			}
-			window.location.assign( dest );
-			return;
-		}
-		// No admin URL in config (older registration / test harness) —
-		// fall back to a plain reload. Better than getting stuck on
-		// the now-stale shell.
-		try {
-			target.location.reload();
-		} catch {
-			window.location.reload();
-		}
-	}, 800 );
+	leaveForClassicAdmin( dest );
 }

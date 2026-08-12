@@ -22,6 +22,7 @@
  */
 
 import { __ } from '../i18n';
+import { trapFocus } from '../ui/modal-focus';
 
 interface PixiPoint { x: number; y: number; }
 interface PixiContainer {
@@ -491,8 +492,17 @@ function renderFallback( stage: HTMLElement ): void {
 /**
  * Render the intro modal. Returns the user's choice once the dialog
  * is dismissed.
+ *
+ * @param returnFocusTo Where focus lands on dismissal — pass the Posts
+ *                      window's root. The dialog opens itself as the
+ *                      window paints, so there is no launcher to
+ *                      return to and the default (whatever the user
+ *                      last touched) would park them outside the
+ *                      window they just opened.
  */
-export async function showPostsIntroDialog(): Promise< IntroResult > {
+export async function showPostsIntroDialog(
+	returnFocusTo?: HTMLElement | null,
+): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		// --- Backdrop + dialog DOM -----------------------------------
 		const backdrop = document.createElement( 'div' );
@@ -545,16 +555,33 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 
 		document.body.appendChild( backdrop );
 
+		// --- Focus ---------------------------------------------------
+		// Opens on "Got it" and stays inside the dialog until it
+		// closes: a modal the keyboard can Tab out of is a modal only
+		// for the mouse.
+		const focusScope = trapFocus( {
+			root: dialog,
+			initialFocus: confirmBtn,
+			returnFocusTo,
+		} );
+
 		// --- Cleanup wiring -----------------------------------------
 		let teardownPixi: ( () => void ) | null = null;
 		const cleanup = ( result: IntroResult ): void => {
-			document.removeEventListener( 'keydown', onKey );
+			document.removeEventListener( 'keydown', onKey, true );
 			teardownPixi?.();
+			// Before the removal — once the dialog is out of the
+			// document the browser has already dropped focus on
+			// `<body>` and there is nothing to hand back from.
+			focusScope.release();
 			backdrop.remove();
 			resolve( result );
 		};
 		const onKey = ( e: KeyboardEvent ): void => {
-			if ( e.key === 'Escape' ) {
+			// A dialog that opened on top of this one owns Escape —
+			// one keypress reaching both would close a dialog the
+			// user cannot even see yet.
+			if ( e.key === 'Escape' && focusScope.isTopmost() ) {
 				e.preventDefault();
 				// Escape does NOT mark the intro as seen — the
 				// caller treats `'cancel'` as a no-op so the dialog
@@ -564,7 +591,10 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 				cleanup( 'cancel' );
 			}
 		};
-		document.addEventListener( 'keydown', onKey );
+		// Capture phase so the shell's own global key handlers (the
+		// command palette, window shortcuts) don't get the Escape
+		// first — matches every other intro dialog.
+		document.addEventListener( 'keydown', onKey, true );
 
 		confirmBtn.addEventListener( 'click', () => cleanup( 'confirm' ) );
 		settingsBtn.addEventListener( 'click', () => cleanup( 'settings' ) );
@@ -576,9 +606,6 @@ export async function showPostsIntroDialog(): Promise< IntroResult > {
 				cleanup( 'cancel' );
 			}
 		} );
-
-		// Focus the dialog so Escape works without a click first.
-		requestAnimationFrame( () => dialog.focus() );
 
 		// --- Pixi mount (async; fallback on failure) ----------------
 		void mountPixi( stage ).then( ( teardown ) => {

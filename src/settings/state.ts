@@ -22,6 +22,7 @@ import {
 	ADMIN_BAR_MODES,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
+	DOCK_PLACEMENTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
 	WINDOW_RADII,
@@ -35,6 +36,7 @@ import type {
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
+	DockPlacementId,
 	DockSizeId,
 	OsSettingsState,
 	WindowRadiusId,
@@ -123,6 +125,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		)
 			? ( parsed.desktopLayout as DesktopLayoutId )
 			: DEFAULTS.desktopLayout,
+		dockPlacement: DOCK_PLACEMENTS.some(
+			( p ) => p.id === parsed.dockPlacement,
+		)
+			? ( parsed.dockPlacement as DockPlacementId )
+			: DEFAULTS.dockPlacement,
 		// Dock rail renderer — any sanitize_key()-clean string
 		// survives; the registry resolves at use time and falls back
 		// to `'default'` when the picked renderer isn't registered.

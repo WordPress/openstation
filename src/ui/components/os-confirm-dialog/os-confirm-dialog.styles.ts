@@ -104,6 +104,32 @@ export const dialogStyles = css`
 		color: inherit;
 	}
 
+	/*
+	 * Tab is trapped inside the dialog, which is only usable if you can
+	 * see where it landed. Same ring the rest of the kit wears — see
+	 * the note on --_holo-focus in src/ui/holo.ts. The container itself
+	 * is excluded: it takes focus programmatically as a last resort and
+	 * ringing the whole box reads as an error state.
+	 *
+	 * :focus, not :focus-visible — the one deliberate departure
+	 * from os-button. The dialog moves focus itself on open, and a
+	 * programmatic focus only matches :focus-visible when the LAST
+	 * interaction was a keystroke; open the dialog with the mouse and
+	 * the ring never appears, leaving the pre-selected button (Cancel,
+	 * on a danger dialog) silently armed for Enter. A trap that hides
+	 * where focus went is worse than a ring after a click, and the
+	 * dialog is modal — exactly one control can wear this at a time.
+	 */
+	.btn:focus,
+	.close:focus {
+		outline: none;
+		box-shadow: var( --_holo-focus );
+	}
+	.dialog:focus,
+	.dialog:focus-visible {
+		outline: none;
+	}
+
 	.title {
 		margin: 0 0 4px;
 		font-size: 16px;

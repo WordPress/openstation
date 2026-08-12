@@ -28,10 +28,22 @@
 		--os-my-wordpress-bg,
 		var( --os-window-bg, #fff )
 	);
-	/* Light-context tile color tokens — same recipe as the folder
-	 * window. Tiles inside My WordPress paint dark-on-light. */
+	/* Tile color tokens — same recipe as the folder window. Both
+	 * chain through the palette so the surface follows the active
+	 * desktop theme, with the pre-brand WordPress-admin literal as
+	 * the floor if no stylesheet declares one.
+	 *
+	 * `--os-tile-fg-muted` used to be the bare literal below, which
+	 * outranked the palette's own value and painted every tile's
+	 * secondary line near-black — invisible on a dark station, while
+	 * the label right beside it followed the theme correctly. A
+	 * colour declared next to the thing it paints is out of reach of
+	 * the palette AND of every desktop theme. */
 	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
-	--os-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
+	--os-tile-fg-muted: var(
+		--os-my-wordpress-fg-muted,
+		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
+	);
 	--os-tile-hover-bg: var(
 		--os-hover,
 		rgba( 0, 0, 0, 0.06 )
@@ -2102,6 +2114,16 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	box-sizing: border-box;
 }
 
+/* The framework is opt-in but the section is always listed, so with
+   the option off the surface paints inert rather than vanishing.
+   Only the sidebar dims: the detail pane holds the empty state
+   explaining why, and the one button that undoes it — dimming the way
+   out along with everything else is how a disabled screen becomes a
+   dead end. */
+.dm-agents.is-disabled .dm-agents__sidebar {
+	opacity: 0.6;
+}
+
 /* Section-level loading — same scale curve as the My WordPress
    preview loader and the window-loading overlay, instead of the bare
    48px component default. */
@@ -2219,6 +2241,16 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+}
+
+/* `<os-empty-state>` owns the icon + copy and centres them within
+   itself; the host is still a flex item that shrinks to its content,
+   so without this it sits at the top of a pane that is mostly empty
+   space. Auto margins on both axes absorb the slack — placement only,
+   same as the comments window. Covers the framework-off state and
+   "No agents yet" alike. */
+.dm-agents__detail > os-empty-state {
+	margin: auto;
 }
 
 .dm-agents__detail-head {

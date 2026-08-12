@@ -17,8 +17,29 @@ import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
 import { pageIdentityKey, urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
-import { withChromelessParam } from './dom';
+import { syncTabStripSemantics, withChromelessParam } from './dom';
+import {
+	activatePanelTab,
+	positionTabPlate,
+	syncTabRoving,
+} from './tab-strip';
 import type { Window } from './index';
+
+/*
+ * The strip's own DOM behaviour lives in `tab-strip.ts`, which imports
+ * nothing — so a feature bundle can declare a window's tabs without
+ * dragging in the toast layer and the iframe helpers this module
+ * needs. Re-exported here because `positionTabPlate` was part of this
+ * module's public surface before the split.
+ */
+export {
+	activatePanelTab,
+	handleTabStripKeydown,
+	positionTabPlate,
+	setPanelTabs,
+	syncTabRoving,
+} from './tab-strip';
+export type { PanelTabEntry } from './tab-strip';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 /**
@@ -219,6 +240,9 @@ export function addExternalTab(
 	tabEl.appendChild( closeBtn );
 
 	tabStrip.appendChild( tabEl );
+	// The strip may have opened empty (a window with no submenu); it is
+	// a real tab list from here on.
+	syncTabStripSemantics( tabStrip );
 
 	// Build the iframe. Hidden until we switch to it. `sandbox`
 	// intentionally omitted — external sites often need scripts,
@@ -295,6 +319,7 @@ function ensureMainTab( win: Window, tabStrip: HTMLElement ): void {
 	main.setAttribute( 'aria-selected', 'true' );
 	main.textContent = win.config.title || 'Main';
 	tabStrip.prepend( main );
+	syncTabStripSemantics( tabStrip );
 }
 
 /**
@@ -364,6 +389,11 @@ export function closeExternalTab( win: Window, tabId: string ): void {
 		);
 		main?.remove();
 	}
+	// Back to an empty strip on a submenu-less window — drop the tab
+	// list semantics again.
+	syncTabStripSemantics(
+		win.element.querySelector< HTMLElement >( '.os-window__tabs' ),
+	);
 	// Poke the session saver so the closed tab doesn't resurrect on
 	// reload.
 	win._emitChange( 'state' );
@@ -503,6 +533,15 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		switchToTab( win, 'primary' );
 		return;
 	}
+	/*
+	 * Panel tab — a native window showing one of its own panes.
+	 * Nothing navigates and no iframe is involved: the pane is
+	 * already in the body, waiting behind `hidden`.
+	 */
+	if ( kind === 'panel' && tab.dataset.panel ) {
+		activatePanelTab( win.element, tab.dataset.panel );
+		return;
+	}
 	// Submenu tab — navigate primary iframe in place and bring it
 	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
@@ -592,8 +631,9 @@ export function updateTabOverflow(
 }
 
 /**
- * Keep {@link updateTabOverflow} in step with everything that can
- * change the answer, and hand back a teardown.
+ * Keep {@link updateTabOverflow} and {@link positionTabPlate} in step
+ * with everything that can change the answer, and hand back a
+ * teardown.
  *
  * Three sources, because a strip can start overflowing without the
  * user touching it: scrolling (the obvious one), the strip being
@@ -625,6 +665,15 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 				rtl = window.getComputedStyle( strip ).direction === 'rtl';
 			}
 			updateTabOverflow( strip, rtl );
+			positionTabPlate( strip );
+			/*
+			 * Same funnel, same reason: every place that toggles the
+			 * active class gets the roving tabindex updated without
+			 * having to know it exists. The `attributeFilter` below is
+			 * what keeps these `tabindex` writes from being seen as a
+			 * change and rescheduling forever.
+			 */
+			syncTabRoving( strip );
 		} );
 	};
 
@@ -648,7 +697,29 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 		typeof MutationObserver === 'undefined'
 			? null
 			: new MutationObserver( scheduleWithDirection );
-	mutationObserver?.observe( strip, { childList: true, subtree: true } );
+	/*
+	 * `attributeFilter: [ 'class' ]` is doing two jobs.
+	 *
+	 * It is how the plate follows the active tab at all: four separate
+	 * places toggle `os-window__tab--active` (`syncActiveTab`,
+	 * `switchToTab`, the initial paint in `dom.ts`, and external-tab
+	 * creation), and watching the class means none of them has to know
+	 * the plate exists — it cannot fall out of step with them.
+	 *
+	 * It is ALSO what stops this from looping forever. The observer
+	 * watches the whole subtree, `positionTabPlate` writes inline
+	 * styles and `data-*` onto an element inside that subtree, and an
+	 * unfiltered attribute observer would see its own writes and
+	 * reschedule itself on every animation frame for the life of the
+	 * window. Filtering to `class` puts those writes out of scope.
+	 * Anything added here later must respect that.
+	 */
+	mutationObserver?.observe( strip, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: [ 'class' ],
+	} );
 
 	schedule();
 

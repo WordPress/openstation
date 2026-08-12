@@ -1,12 +1,14 @@
 /**
  * Pinned-notes layer: owner vs read-only rendering, z-order,
- * heartbeat deltas, and the trash/restore round trip.
+ * heartbeat deltas, the wallpaper-menu create path, and the
+ * trash/restore round trip.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { NotesLayer } from '../../src/notes/layer';
 import { __resetNotesHeartbeatForTests } from '../../src/notes/heartbeat';
 import { __resetNotesRestForTests, installNotesRestDeps } from '../../src/notes/rest';
 import type { Note } from '../../src/notes/types';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 function makeNote( overrides: Partial< Note > = {} ): Note {
 	return {
@@ -27,14 +29,34 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 	};
 }
 
-function makeLayer(): NotesLayer {
+function makeLayer( canCreatePosts = false ): NotesLayer {
 	const host = document.createElement( 'div' );
+	// jsdom has no layout — pin down the geometry the position math reads.
+	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
+	Object.defineProperty( host, 'clientHeight', { value: 500 } );
+	host.getBoundingClientRect = () =>
+		( {
+			left: 0,
+			top: 0,
+			width: 1000,
+			height: 500,
+			right: 1000,
+			bottom: 500,
+			x: 0,
+			y: 0,
+			toJSON: () => ( {} ),
+		} ) as DOMRect;
 	document.body.appendChild( host );
-	return new NotesLayer( { host, pluginUrl: 'https://example.test/plugin' } );
+	return new NotesLayer( {
+		host,
+		pluginUrl: 'https://example.test/plugin',
+		canCreatePosts,
+	} );
 }
 
 describe( 'NotesLayer', () => {
 	beforeEach( () => {
+		installHooksStub();
 		__resetNotesHeartbeatForTests();
 		__resetNotesRestForTests();
 		installNotesRestDeps( { baseUrl: 'https://example.test/notes', nonce: 'n' } );
@@ -48,6 +70,7 @@ describe( 'NotesLayer', () => {
 
 	afterEach( () => {
 		document.body.innerHTML = '';
+		clearHooksStub();
 		vi.unstubAllGlobals();
 	} );
 
@@ -194,6 +217,99 @@ describe( 'NotesLayer', () => {
 		).toBe( 'newer' );
 	} );
 
+
+
+
+
+
+
+
+
+	test( 'createNoteAt pins optimistically and POSTs', async () => {
+		const fetchSpy = vi.fn( async () =>
+			new Response(
+				JSON.stringify(
+					makeNote( { id: 77, text: '', updatedAtMs: 3000 } ),
+				),
+				{ status: 200 },
+			),
+		);
+		vi.stubGlobal( 'fetch', fetchSpy );
+
+		const layer = makeLayer();
+		const controller = layer.createNoteAt( { x: 0.4, y: 0.6, focus: true } );
+
+		// Paper is on the wall before the network answers.
+		expect( controller.element.isConnected ).toBe( true );
+		expect( controller.note.id ).toBeLessThan( 0 );
+
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+		const post = fetchSpy.mock.calls.find(
+			( call ) => ( call[ 1 ] as RequestInit | undefined )?.method === 'POST',
+		);
+		expect( post ).toBeDefined();
+		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
+		expect( body.x ).toBeCloseTo( 0.4 );
+		// The temp id gave way to the server's.
+		expect( layer.has( 77 ) ).toBe( true );
+	} );
+
+	test( 'empty notes still get distinct tilts', () => {
+		// `hashNoteSeed('')` is a constant and the wallpaper-menu path
+		// always starts empty, so every note from it would be parallel.
+		const layer = makeLayer();
+		const a = layer.createNoteAt( { x: 0.2, y: 0.3 } );
+		const b = layer.createNoteAt( { x: 0.6, y: 0.7 } );
+		expect( a.note.seed ).not.toBe( b.note.seed );
+		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe(
+			b.element.style.getPropertyValue( '--dm-note-rot' ),
+		);
+		// Notes with text still hash from the text; the drop path relies on it.
+		const c = layer.createNoteAt( { x: 0.2, y: 0.3, text: 'buy milk' } );
+		expect( c.note.seed ).not.toBe( a.note.seed );
+	} );
+
+
+	test( 'every action sits together in the footer, clear of the pushpin', () => {
+		// The pin is painted over the meta row and covers its middle,
+		// so that row holds the colour dot and nothing else.
+		const layer = makeLayer( true );
+		const el = layer.upsertNote( makeNote() ).element;
+
+		const actions = el.querySelector( '.os-pinned-note__actions' );
+		expect( actions ).not.toBeNull();
+		expect( actions?.parentElement?.className ).toBe( 'os-pinned-note__footer' );
+		expect(
+			[ ...( actions?.children ?? [] ) ].map( ( c ) => c.className ),
+		).toEqual( [
+			'os-pinned-note__visibility',
+			'os-pinned-note__convert',
+			'os-pinned-note__trash',
+		] );
+		expect(
+			el.querySelector( '.os-pinned-note__trash' )?.getAttribute( 'aria-label' ),
+		).toBe( 'Move to Trash' );
+
+		// The meta row carries the save chip left, colour dot right —
+		// the two positions the pin doesn't cover.
+		expect(
+			[ ...( el.querySelector( '.os-pinned-note__meta' )?.children ?? [] ) ].map(
+				( c ) => c.className,
+			),
+		).toEqual( [
+			'os-pinned-note__status',
+			'os-pinned-note__color-dot',
+		] );
+
+		// Viewers get no actions at all; they can't mutate the note.
+		const theirs = layer.upsertNote(
+			makeNote( { id: 2, canEdit: false, public: true } ),
+		);
+		expect(
+			theirs.element.querySelector( '.os-pinned-note__actions' ),
+		).toBeNull();
+	} );
+
 	test( 'trashNote evicts optimistically, DELETEs, and Undo restores', async () => {
 		const restored = makeNote( { id: 1, updatedAtMs: 7000 } );
 		const fetchSpy = vi.fn( async ( url: string, init?: RequestInit ) => {
@@ -208,8 +324,9 @@ describe( 'NotesLayer', () => {
 		const showToast = vi.fn( ( opts: { action?: { onClick: () => void } } ) => {
 			undoAction = opts.action?.onClick ?? null;
 		} );
-		( window as unknown as { wp: { os: { showToast: unknown } } } ).wp = {
-			os: { showToast },
+		// Merge, don't replace — the hooks stub lives on `window.wp` too.
+		( window as unknown as { wp: { os: { showToast: unknown } } } ).wp.os = {
+			showToast,
 		};
 
 		const layer = makeLayer();
