@@ -1456,6 +1456,21 @@ function openstation_chromeless_bridge_script() {
 			}
 		}
 		/*
+		 * Same shape as the toggles above: dashboard.js binds the
+		 * dismiss on the anchor and preventDefaults, so our capture
+		 * handler gets there first and routes `?welcome=0` (a dead
+		 * no-JS fallback) into a second Dashboard window titled
+		 * "Dismiss". Scoped like core's own selector, so a
+		 * `welcome-panel-close` elsewhere still routes.
+		 */
+		if (
+			link.closest( '#welcome-panel' ) &&
+			( link.classList.contains( 'welcome-panel-close' ) ||
+				link.closest( '.welcome-panel-dismiss' ) )
+		) {
+			return;
+		}
+		/*
 		 * WordPress core's wp-admin/js/updates.js owns the click on these
 		 * AJAX-driven plugin/theme management buttons — it binds in bubble
 		 * phase and calls preventDefault to take over with an in-place

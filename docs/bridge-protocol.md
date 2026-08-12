@@ -269,6 +269,8 @@ The class doesn't promise a handler, though. The Media list table stamps it on T
 
 Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-style `install-now` / `update-link` / `update-now` / `delete-plugin` / `delete-theme` / `install-theme` buttons, the plugins-list-table row Delete (`[data-plugin] a.delete`), and the network themes row Delete (`.themes-php.network-admin a.delete`). updates.js `preventDefault`s these itself and runs an in-place AJAX operation; if the bridge hijacked them, the parent-driven navigation would race the AJAX call (a `wp.updates.beforeunload` "Leave site?" prompt followed by the no-JS fallback screen for an already-deleted plugin).
 
+The Dashboard's welcome panel is the same story with no marker class at all: `dashboard.js` binds the dismiss on the anchor and `preventDefault`s it, and `?welcome=0` is a dead no-JS fallback. The interceptor yields `.welcome-panel-close` and `.welcome-panel-dismiss a` inside `#welcome-panel`, matching core's own selector. Routing them opened a second Dashboard window titled **Dismiss** on top of the one being dismissed.
+
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `openstation_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `os-iframe-admin-form-submit` message.
 
 ### Window titles the shell had to guess
