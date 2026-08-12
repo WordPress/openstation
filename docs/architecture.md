@@ -102,7 +102,11 @@ The server cannot announce this, because the next request no longer loads OpenSt
 
 Triggers are cheap and allowed to be wrong: an iframe loading on an admin path whose `<body>` lacks `os-chromeless` (catches deactivate and delete from the classic `plugins.php`, row and bulk), or a Heartbeat tick without the `desktop_mode_nonces` field (catches another tab or WP-CLI). Neither is conclusive, since `wp_die()` screens carry no `admin_body_class` and core skips `heartbeat_received` on a tick with no client data.
 
-Confirmation is a `GET` of the `desktop-mode/v1` REST namespace index, which answers `200` while the plugin is active and `404 rest_no_route` once it is not, needing neither nonce nor capability. Only a 404 evicts, so a false trigger costs one silent request and a dropped connection never throws the user out. On a confirmed absence the shell toasts and navigates the top frame to `adminUrl`.
+Confirmation is a `GET` of the `desktop-mode/v1` REST namespace index, needing neither nonce nor capability. Only a `404` carrying WordPress's own `rest_no_route` body evicts, because a bare 404 is also what a REST-hardening plugin or a firewall rule on `/wp-json` returns while OpenStation is perfectly healthy. A network error, a non-JSON body, or a shell config with no `restUrl` all leave the shell up. On a confirmed absence the shell toasts and navigates the top frame to `adminUrl` via `leaveForClassicAdmin()`, the same helper the native Plugins window's `reloadOutOfOpenStation()` uses.
+
+The watcher stops pinging after three consecutive "still here" answers, and any proof the plugin is alive (a chromeless page, a tick carrying the field) resets that. The Heartbeat field is gated on `openstation_is_enabled()`, not on the plugin being loaded, so a user who turns OpenStation off in another tab would otherwise make every later tick a trigger forever.
+
+State lives in a `createSharedStore` because this module compiles into both the main bundle and the lazy `window-system` one.
 
 The native Plugins window keeps its own faster path (`isOpenStationSelf()` / `reloadOutOfOpenStation()` in `src/plugins-window/rest.ts`), since it knows which plugin the user just acted on.
 
