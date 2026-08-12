@@ -7,6 +7,11 @@ async function load() {
 	return await import( './os-confirm-dialog' );
 }
 
+/** Flush the microtask hops the component's render + focus take. */
+function tick() {
+	return new Promise( ( r ) => setTimeout( r, 0 ) );
+}
+
 describe( 'os-confirm-dialog', () => {
 	beforeEach( () => {
 		document.body.innerHTML = '';
@@ -131,6 +136,117 @@ describe( 'os-confirm-dialog', () => {
 		expect( closeBtn!.getAttribute( 'aria-label' ) ).toBe( 'Close' );
 		closeBtn!.click();
 		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'opening moves focus onto the confirm button', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const confirmBtn = dialog.shadowRoot!.querySelector( '.btn--primary' );
+		expect( dialog.shadowRoot!.activeElement ).toBe( confirmBtn );
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+	} );
+
+	test( 'a danger dialog opens on cancel, not on the destructive button', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X', danger: true } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const cancelBtn = dialog.shadowRoot!.querySelector( '.btn--secondary' );
+		expect( dialog.shadowRoot!.activeElement ).toBe( cancelBtn );
+		( cancelBtn as HTMLButtonElement ).click();
+		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'Enter on the focused cancel button does not confirm', async () => {
+		const { osConfirm } = await load();
+		let settled: boolean | null = null;
+		const promise = osConfirm( { message: 'X', danger: true } ).then( ( v ) => {
+			settled = v;
+			return v;
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const cancelBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >(
+			'.btn--secondary',
+		)!;
+		cancelBtn.dispatchEvent(
+			new KeyboardEvent( 'keydown', {
+				key: 'Enter',
+				bubbles: true,
+				composed: true,
+			} ),
+		);
+		await tick();
+		// The dialog stays up and nothing was confirmed — the button
+		// owns Enter, and in a real browser activates itself.
+		expect( settled ).toBeNull();
+		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
+		cancelBtn.click();
+		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'Escape cancels while a button inside the dialog has focus', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const confirmBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >(
+			'.btn--primary',
+		)!;
+		confirmBtn.dispatchEvent(
+			new KeyboardEvent( 'keydown', {
+				key: 'Escape',
+				bubbles: true,
+				composed: true,
+			} ),
+		);
+		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'Tab wraps from the last control back to the first', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const buttons = Array.from(
+			dialog.shadowRoot!.querySelectorAll< HTMLButtonElement >( '.btn' ),
+		);
+		const first = buttons[ 0 ];
+		const last = buttons[ buttons.length - 1 ];
+		last.focus();
+		last.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Tab', bubbles: true, composed: true } ),
+		);
+		expect( dialog.shadowRoot!.activeElement ).toBe( first );
+		// …and backwards off the first lands on the last.
+		first.dispatchEvent(
+			new KeyboardEvent( 'keydown', {
+				key: 'Tab',
+				shiftKey: true,
+				bubbles: true,
+				composed: true,
+			} ),
+		);
+		expect( dialog.shadowRoot!.activeElement ).toBe( last );
+		first.click();
+		await promise;
+	} );
+
+	test( 'closing restores focus to whatever opened the dialog', async () => {
+		const { osConfirm } = await load();
+		const opener = document.createElement( 'button' );
+		document.body.appendChild( opener );
+		opener.focus();
+		const promise = osConfirm( { message: 'X' } );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		expect( opener.ownerDocument.activeElement ).toBe( dialog );
+		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
+		await promise;
+		expect( opener.ownerDocument.activeElement ).toBe( opener );
 	} );
 
 	test( 'without dismissable, the close button is absent', async () => {

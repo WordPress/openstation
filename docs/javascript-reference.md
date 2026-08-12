@@ -18,7 +18,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | API | Use it for | Status |
 |---|---|---|
 | [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
-| `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
+| `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. Traps focus, restores it to the opener on close, and routes Enter to the focused button. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 

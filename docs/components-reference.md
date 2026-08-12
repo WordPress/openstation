@@ -124,6 +124,8 @@ from a desktop theme — the same trap described in
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<os-notice>` | `OsNotice` | `os-notice/os-notice.ts` | Inline informational/warning notice. |
 
+**`<os-confirm-dialog>` keyboard contract.** Opening the dialog remembers what had focus and moves focus inside; Tab and Shift+Tab cycle between the dialog's own controls and cannot reach the page behind the scrim; closing — by any route, including `osConfirm()` unmounting the element — hands focus back to the control that opened it. Escape always cancels. Enter is the dialog's *default* action only while no control inside it owns the key: with a button focused, Enter activates **that** button, so Enter on `Cancel` cancels. A `danger` dialog opens with `Cancel` focused rather than its destructive button, so Enter is never the shortcut that deletes — pass `hideCancel` only when there genuinely is no alternative action, and pair it with `dismissable`.
+
 ## Display & feedback
 
 | Tag | Class | Source | Purpose |
