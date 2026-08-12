@@ -292,6 +292,76 @@ describe( 'the tablist keyboard', () => {
 	} );
 } );
 
+describe( 'panes nested below the body', () => {
+	beforeEach( () => {
+		document.body.innerHTML = '';
+	} );
+
+	/**
+	 * A server-registered window wraps its panes in `<os-stack>` for
+	 * padding, so depth is not a usable signal for finding them.
+	 */
+	test( 'finds panes wrapped in a layout element', () => {
+		const win = mountWindow( [] );
+		win.querySelector( '.os-window__body' )!.innerHTML = `
+			<os-stack gap="12" padding="16">
+				<os-tabpanel for="main">Main</os-tabpanel>
+				<os-tabpanel for="extra">Extra</os-tabpanel>
+			</os-stack>
+		`;
+
+		setPanelTabs(
+			win,
+			[
+				{ value: 'main', label: 'Main' },
+				{ value: 'extra', label: 'Extra' },
+			],
+			'main',
+		);
+
+		expect(
+			win.querySelector( 'os-tabpanel[for="main"]' )!.hasAttribute( 'hidden' ),
+		).toBe( false );
+		expect(
+			win.querySelector( 'os-tabpanel[for="extra"]' )!.hasAttribute( 'hidden' ),
+		).toBe( true );
+	} );
+
+	test( 'leaves a nested tab group alone', () => {
+		const win = mountWindow( [] );
+		win.querySelector( '.os-window__body' )!.innerHTML = `
+			<os-tabpanel for="main">
+				<os-tabs value="upload">
+					<os-tab value="upload">Upload</os-tab>
+					<os-tab value="library">Library</os-tab>
+				</os-tabs>
+				<os-tabpanel for="upload">Upload pane</os-tabpanel>
+				<os-tabpanel for="library">Library pane</os-tabpanel>
+			</os-tabpanel>
+			<os-tabpanel for="extra">Extra</os-tabpanel>
+		`;
+
+		setPanelTabs(
+			win,
+			[
+				{ value: 'main', label: 'Main' },
+				{ value: 'extra', label: 'Extra' },
+			],
+			'main',
+		);
+
+		/*
+		 * The inner switcher's panes are its own business. Claiming
+		 * them would hide half that group on every outer tab change,
+		 * and `for="upload"` matching no outer tab would hide it
+		 * permanently.
+		 */
+		const inner = win.querySelector( 'os-tabpanel[for="upload"]' )!;
+		expect( inner.hasAttribute( 'hidden' ) ).toBe( false );
+		expect( inner.hasAttribute( 'aria-hidden' ) ).toBe( false );
+	} );
+} );
+
 describe( 'tablist semantics', () => {
 	beforeEach( () => {
 		document.body.innerHTML = '';
