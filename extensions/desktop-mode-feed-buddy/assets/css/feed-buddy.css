@@ -171,6 +171,10 @@
 	margin: 0 0 8px;
 }
 
+.feed-buddy-reader__empty h2 {
+	color: var(--feed-buddy-ink);
+}
+
 .feed-buddy-transcript {
 	display: grid;
 	gap: 0;
