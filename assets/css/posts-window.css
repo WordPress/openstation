@@ -1252,11 +1252,21 @@
 	overflow: hidden;
 }
 
+/*
+ * The explicit `color` is load-bearing. Core's `common.css` ships a
+ * bare `h2, h3 { color: #1d2327 }`, and a declaration matching the
+ * element always beats the value it would otherwise inherit from
+ * `.os-intro` — so without this the title computes to near-black on
+ * the dark dialog surface. `window-chrome.css` already neutralises
+ * that collision, but only under `:where( .os-window__body )`, and
+ * this backdrop is appended to `document.body`.
+ */
 .os-intro__title {
 	margin: 0;
 	font-size: 20px;
 	font-weight: 600;
 	letter-spacing: -0.01em;
+	color: var( --os-ui-fg, #1d2327 );
 }
 
 .os-intro__lede {

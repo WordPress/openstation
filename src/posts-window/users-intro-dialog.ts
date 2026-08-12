@@ -22,8 +22,7 @@ export async function showUsersIntroDialog(): Promise< IntroResult > {
 		Object.assign( backdrop.style, {
 			position: 'fixed',
 			inset: '0',
-			background:
-				'color-mix(in srgb, var(--wp-admin-theme-color, #1d2327) 60%, transparent)',
+			background: 'rgba(15, 23, 42, 0.55)',
 			backdropFilter: 'blur(2px)',
 			zIndex: '100000',
 			display: 'flex',
@@ -41,8 +40,8 @@ export async function showUsersIntroDialog(): Promise< IntroResult > {
 		);
 		dialog.className = 'os-users-intro';
 		Object.assign( dialog.style, {
-			background: 'var(--wp-admin-theme-bg, #fff)',
-			color: 'var(--wp-admin-theme-fg, #1d2327)',
+			background: 'var(--os-ui-surface, #fff)',
+			color: 'var(--os-ui-fg, #1d2327)',
 			borderRadius: '14px',
 			boxShadow: '0 24px 60px rgba(0,0,0,.28)',
 			maxWidth: '520px',
@@ -121,15 +120,21 @@ function renderDialogMarkup(): string {
 
 	return `
 		<style>
+			/*
+			 * Explicit colour: core's bare "h2, h3 { color: #1d2327 }" beats
+			 * the value inherited from the dialog, which reads as near-black
+			 * on the palette's dark surface.
+			 */
 			.os-users-intro h2 {
 				margin: 0 0 8px;
 				font-size: 22px;
 				font-weight: 600;
 				letter-spacing: -0.01em;
+				color: var(--os-ui-fg, #1d2327);
 			}
 			.os-users-intro p.lede {
 				margin: 0 0 20px;
-				color: var(--wp-admin-theme-fg-muted, #50575e);
+				color: var(--os-ui-fg-muted, #50575e);
 				font-size: 14px;
 				line-height: 1.5;
 			}
@@ -162,8 +167,8 @@ function renderDialogMarkup(): string {
 			}
 			.os-users-intro__footer button {
 				appearance: none;
-				border: 1px solid var(--wp-admin-theme-border, #dcdcde);
-				background: var(--wp-admin-theme-bg, #fff);
+				border: 1px solid var(--os-ui-border, #dcdcde);
+				background: var(--os-ui-hover, rgba(0, 0, 0, 0.04));
 				color: inherit;
 				padding: 8px 14px;
 				border-radius: 6px;
@@ -173,7 +178,7 @@ function renderDialogMarkup(): string {
 			.os-users-intro__footer button.primary {
 				border-color: var(--wp-admin-theme-color, #2271b1);
 				background: var(--wp-admin-theme-color, #2271b1);
-				color: #fff;
+				color: var(--os-ui-fg-on-accent, #fff);
 				font-weight: 500;
 			}
 			.os-users-intro__footer button:hover { filter: brightness(1.05); }
