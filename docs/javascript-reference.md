@@ -694,7 +694,7 @@ document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 
 ### `os-intros-reset` — Experimental
 
-Fires after the user resets the first-run intro flags in **OpenStation Preferences → Features** and the REST delete succeeds. The shell has already mirrored the reset into every in-memory `window.openStationWindowConfig` blob (`introSeen: false`), so the next window-open re-fires its intro; already-loaded bundles that cache their own intro-state should listen here and invalidate it so their intro replays without an F5. No detail payload.
+Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. Bundles that cache their own dismissed-dialog state should listen here and invalidate it so the dialog can appear again without an F5. No detail payload.
 
 ---
 

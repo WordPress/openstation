@@ -15,7 +15,6 @@
  * @public
  */
 
-import { trackedFetch } from '../tracked-fetch';
 import { __ } from '../i18n';
 // Side-effect imports — register the `<os-*>` components this
 // bundle constructs that the main shell does not ship.
@@ -31,7 +30,7 @@ import '../ui/components/os-flyout/os-flyout';
 import { mountBrowseView } from './browse-view';
 import { mountFeaturedView } from './featured-view';
 import { mountInstalledView } from './installed-view';
-import { getConfig, type PluginsWindowConfig } from './rest';
+import { getConfig } from './rest';
 import {
 	consumePluginsWindowTab,
 	subscribePluginsWindowTab,
@@ -168,87 +167,6 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		}
 	};
 	document.addEventListener( 'os-window-closed', onClosed );
-
-	// First-open intro — gated on `config.introSeen`. Lazy-loaded
-	// (the dialog ships a chunk of inline-styled markup that we only
-	// pay for when the dialog actually fires) so cold opens after
-	// the first stay snappy. Dismissing it hands focus to the window
-	// root rather than to whatever the user last touched before the
-	// window opened.
-	void maybeShowIntro( config, root );
-}
-
-/**
- * Module-scoped guard — block the dialog from re-opening within the same shell session
- *  if the user already dismissed it but the REST POST hasn't echoed back yet.
- */
-let _introShown = false;
-
-async function maybeShowIntro(
-	config: PluginsWindowConfig,
-	returnFocusTo: HTMLElement | null,
-): Promise< void > {
-	if ( _introShown || config.introSeen ) {
-		return;
-	}
-	_introShown = true;
-	try {
-		const { showPluginsIntroDialog } = await import( './intro-dialog' );
-		const result = await showPluginsIntroDialog( returnFocusTo );
-		// `cancel` (Escape / backdrop click) intentionally does NOT
-		// mark seen — it's our testing escape hatch so design
-		// iteration doesn't require resetting OS Settings between
-		// runs.
-		if ( result === 'cancel' ) {
-			_introShown = false;
-			return;
-		}
-		void markIntroSeen( config );
-		if ( result === 'settings' ) {
-			openOsSettingsFeatures();
-		}
-	} catch {
-		// Dialog mount failed; allow a re-open to retry.
-		_introShown = false;
-	}
-}
-
-async function markIntroSeen( config: PluginsWindowConfig ): Promise< void > {
-	if ( ! config.introUrl ) {
-		return;
-	}
-	try {
-		await trackedFetch(
-			config.introUrl,
-			{
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.restNonce,
-				},
-				body: JSON.stringify( { slug: 'plugins' } ),
-			},
-			{
-				windowId: 'desktop-mode-plugins',
-				source: 'plugins-window/intro',
-			},
-		);
-		// Mirror the server flag locally so a re-open inside the
-		// same shell session doesn't re-fire the dialog.
-		( config as { introSeen: boolean } ).introSeen = true;
-	} catch {
-		// Swallow — worst case is showing the intro once more.
-	}
-}
-
-function openOsSettingsFeatures(): void {
-	const api = ( window as unknown as {
-		wp?: { os?: { openOsSettings?: ( opts?: { tabId?: string } ) => void } };
-	} ).wp?.os;
-	if ( typeof api?.openOsSettings === 'function' ) {
-		api.openOsSettings( { tabId: 'features' } );
-	}
 }
 
 const registry = ( window.openStationNativeWindows ??= {} );

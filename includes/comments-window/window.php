@@ -108,15 +108,12 @@ function openstation_comments_window_register_window() {
 		'placement'  => 'none',
 		'config'     => array(
 			'mode'            => 'comments',
-			'introSlug'       => 'comments',
 			'restRoot'        => esc_url_raw( rest_url() ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'commentsUrl'     => esc_url_raw( rest_url( 'wp/v2/comments' ) ),
 			'currentUserId'   => $viewer_id,
 			'defaultPerPage'  => 20,
 			'queryArgs'       => openstation_comments_window_default_query_args(),
-			'introSeen'       => openstation_has_seen_intro( $viewer_id, 'comments' ),
-			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
 			// the viewer can't perform. Server still re-checks every

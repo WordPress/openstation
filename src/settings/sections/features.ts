@@ -447,23 +447,8 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				},
 				{ source: 'os-settings/reset-intros' },
 			);
-			// Mirror the reset into every in-memory native-window
-			// config blob so the next window-open re-fires the intro
-			// without forcing a full-page reload. Without this the
-			// localized `introSeen: true` flag survives the round-trip
-			// and silently suppresses the dialog. Also broadcast a
-			// CustomEvent so already-loaded bundles that cache their
-			// own intro-state can invalidate it.
-			const store = ( window as unknown as {
-				openStationWindowConfig?: Record< string, { introSeen?: boolean } | undefined >;
-			} ).openStationWindowConfig;
-			if ( store ) {
-				Object.values( store ).forEach( ( entry ) => {
-					if ( entry && typeof entry === 'object' ) {
-						entry.introSeen = false;
-					}
-				} );
-			}
+			// Broadcast so already-loaded bundles that cache their own
+			// dismissed-dialog state can invalidate it without an F5.
 			document.dispatchEvent(
 				new CustomEvent( 'os-intros-reset' ),
 			);
@@ -700,7 +685,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						</os-button>
 						<p class="os-features__hint">
 							${ __(
-								'Re-shows the one-time introduction dialog the next time you open each redesigned native window.',
+								'Re-shows the one-time announcements you have already dismissed, such as the welcome dialog.',
 							) }
 						</p>
 					</div>

@@ -124,8 +124,8 @@ src/
 │   │                        #   Component class + css` helper.
 │   ├── components/          # <os-*> web components (one folder per
 │   │                        #   tag, each with .ts / .styles.ts / .test.ts).
-│   └── modal-focus.ts       # Focus scope shared by the light-DOM
-│                            #   modals (the first-run intro dialogs).
+│   └── modal-focus.ts       # Focus scope for light-DOM modals —
+│                            #   trap + restore on close.
 ├── modules/                 # Vendor-script registry (PixiJS today,
 │                            #   more later). Used by canvas wallpapers.
 ├── plugins/                 # Built-in plugins that use the public API —

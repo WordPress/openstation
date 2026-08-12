@@ -162,10 +162,6 @@ function openstation_plugins_window_register_window() {
 			// each individual row is enabled / forced / supported.
 			'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
 			'currentUserId'      => (int) get_current_user_id(),
-			'introSeen'          => function_exists( 'openstation_has_seen_intro' )
-				? openstation_has_seen_intro( get_current_user_id(), 'plugins' )
-				: true,
-			'introUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// The plugin file path WordPress uses to identify the
 			// OpenStation plugin itself in REST mutations
 			// (`/wp/v2/plugins/{plugin}`). The JS uses this to detect

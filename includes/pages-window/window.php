@@ -144,7 +144,6 @@ function openstation_pages_window_register_window() {
 			// tabs, Pages intro slug). The Posts config omits this key,
 			// so the bundle defaults to `'posts'` for backwards compat.
 			'mode'            => 'pages',
-			'introSlug'       => 'pages',
 			'restRoot'        => esc_url_raw( rest_url() ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			// Use the `/wp/v2/pages` collection rather than `/wp/v2/posts`
@@ -157,8 +156,6 @@ function openstation_pages_window_register_window() {
 			'currentUserId'   => (int) get_current_user_id(),
 			'defaultPerPage'  => 20,
 			'queryArgs'       => openstation_pages_window_default_query_args(),
-			'introSeen'       => openstation_has_seen_intro( get_current_user_id(), 'pages' ),
-			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// Reading-page assignments — surfaced so the title cell can
 			// paint "Front page" / "Posts page" badges on matching rows
 			// (one of the most-asked Pages-list usability gaps in the
