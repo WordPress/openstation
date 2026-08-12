@@ -2197,21 +2197,6 @@ export interface DesktopConfig {
 	 * skips the challenges Heartbeat channel. Absent means enabled.
 	 */
 	gamesEnabled?: boolean;
-	/**
-	 * Sticky-notes (Gutenberg Guidelines experiment) availability.
-	 *
-	 * `available` is `true` only when the `wp_guideline` CPT and
-	 * `wp_guideline_type` taxonomy are registered server-side — i.e. the
-	 * Gutenberg Guidelines experiment (22.7+, opt-in under Gutenberg →
-	 * Experiments) is active. The shell skips booting the sticky-notes
-	 * layer when `false`, avoiding the `wp/v2/guidelines` +
-	 * `wp/v2/wp_guideline_type` REST probes that 404 without it. Absent
-	 * on shells older than 0.5.0 → treated as available (boot and
-	 * swallow), preserving prior behavior.
-	 */
-	stickyNotes?: {
-		available: boolean;
-	};
 }
 
 /**

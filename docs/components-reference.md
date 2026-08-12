@@ -112,6 +112,12 @@ from a desktop theme — the same trap described in
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+`<os-window-button>` paints an `aria-hidden` glyph inside a shadow
+`<button>`, so it has no accessible name of its own — **always set
+`aria-label` on the host**. The component forwards it onto that inner
+button (which is the element focus lands on) and keeps it in sync when
+you relabel the host, e.g. Maximize ⇄ Restore.
+
 ## Menus & overlays
 
 | Tag | Class | Source | Purpose |
@@ -123,6 +129,8 @@ from a desktop theme — the same trap described in
 | `<os-confirm-dialog>` | `OsConfirmDialog`, `osConfirm` | `os-confirm-dialog/os-confirm-dialog.ts` | Confirm prompt — use `await osConfirm({...})` (never `window.confirm`). |
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<os-notice>` | `OsNotice` | `os-notice/os-notice.ts` | Inline informational/warning notice. |
+
+**`<os-confirm-dialog>` keyboard contract.** Opening the dialog remembers what had focus and moves focus inside; Tab and Shift+Tab cycle between the dialog's own controls and cannot reach the page behind the scrim; closing — by any route, including `osConfirm()` unmounting the element — hands focus back to the control that opened it. Escape always cancels. Enter is the dialog's *default* action only while no control inside it owns the key: with a button focused, Enter activates **that** button, so Enter on `Cancel` cancels. A `danger` dialog has **no** default action — it opens on the safe control (`Cancel`, or the X that `dismissable` adds, or the container when `hideCancel` leaves neither) and never on its destructive button, and Enter from the container does nothing. Reaching the destructive action is always deliberate: Tab to it, or click it.
 
 ## Display & feedback
 

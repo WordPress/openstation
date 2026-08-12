@@ -2,11 +2,10 @@
  * OpenStation — Pinned notes layer.
  *
  * Renders `wpd_note` posts as paper notes pinned to the wallpaper.
- * Modeled on the sticky-notes layer (`src/sticky-notes/layer.ts`) but
- * with a different physics: each note hangs from a pushpin, the pin
- * is the ONLY drag handle, drags route through the shell DragManager
- * (payload type `'note'`), and the recycle bin accepts the payload as
- * a trash gesture via `recycle-bin-payloads.ts`.
+ * Each note hangs from a pushpin, the pin is the ONLY drag handle,
+ * drags route through the shell DragManager (payload type `'note'`),
+ * and the recycle bin accepts the payload as a trash gesture via
+ * `recycle-bin-payloads.ts`.
  *
  * Read-only public notes (other users') render with a steel pin
  * that is *scenery, not a handle* — no drag, no edit, an always-
@@ -21,8 +20,9 @@ import '../ui/components/os-window-button/os-window-button';
 import { osConfirm } from '../os-confirm';
 import { DRAG_EVENTS } from '../drag';
 import type { DragManagerApi } from '../drag';
-import { nextNoteColor, sanitizeNoteColorSlug } from './colors';
+import { NOTE_COLORS, nextNoteColor, sanitizeNoteColorSlug } from './colors';
 import {
+	hashNoteSeed,
 	noteJitter,
 	playCrumpleIntoBin,
 	playPinInsertion,
@@ -33,6 +33,7 @@ import {
 } from './motion';
 import { buildPinImage, PIN_TIP_X, PIN_TIP_Y } from './pin';
 import {
+	createNote,
 	isNotesConflict,
 	listNotes,
 	updateNote,
@@ -81,6 +82,9 @@ function jitterSeed( note: Note ): number {
  * inherits from the button's ink color (see notes.css).
  */
 const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
+
+/** The `trash` glyph, inlined for the same reason as {@link ICON_POST}. */
+const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M20 5h-5.7c0-1.3-1-2.3-2.3-2.3S9.7 3.7 9.7 5H4v2h1.5v.3l1.4 12c.1.9.9 1.6 1.8 1.6h6.6c.9 0 1.7-.7 1.8-1.6l1.4-12V7H20V5zM8.4 19l-1.3-12h9.8l-1.3 12H8.4z" /></svg>`;
 
 export interface NotesLayerOptions {
 	host: HTMLElement;
@@ -213,6 +217,88 @@ export class NotesLayer {
 		};
 	}
 
+	/** Normalized 0–1 top-left for a viewport point. */
+	normalizedFromClient( clientX: number, clientY: number ): { x: number; y: number } {
+		const rect = this.host.getBoundingClientRect();
+		const { width, height } = this.hostSize();
+		return this.clampPosition(
+			( clientX - rect.left ) / width,
+			( clientY - rect.top ) / height,
+		);
+	}
+
+	/**
+	 * Pin a new note optimistically against a negative temp id, then
+	 * adopt the server copy. Shared by the wallpaper context menu and
+	 * the Note Pad's tear-off drop.
+	 */
+	createNoteAt( options: {
+		x: number;
+		y: number;
+		text?: string;
+		color?: string;
+		isPublic?: boolean;
+		/** Focus the editor once the paper lands. */
+		focus?: boolean;
+	} ): NoteController {
+		const text = options.text ?? '';
+		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
+		const isPublic = options.isPublic === true;
+		const { x, y } = this.clampPosition( options.x, options.y );
+		// Hashed client-side so the optimistic paper and every later
+		// render share a tilt. Position is the fallback because
+		// `hashNoteSeed('')` is a constant, and the wallpaper-menu path
+		// always starts empty — every note from it would come out
+		// parallel, which is the one thing the seed exists to prevent.
+		const seed = hashNoteSeed( text || `${ x },${ y }` );
+
+		const tempId = this.nextTempId();
+		const controller = this.upsertNote(
+			{
+				id: tempId,
+				text,
+				color,
+				x,
+				y,
+				z: 1,
+				public: isPublic,
+				seed,
+				ownerId: 0,
+				ownerName: '',
+				ownerAvatar: '',
+				canEdit: true,
+				updatedAtMs: 0,
+			},
+			{ animate: 'thunk' },
+		);
+		this.bringToFront( controller );
+		if ( options.focus ) {
+			controller.focusEditor();
+		}
+
+		void createNote( { text, color, x, y, public: isPublic, seed } )
+			.then( ( note ) => {
+				this.bumpHighWater( note.updatedAtMs );
+				// The server echoes our position back; we only need the
+				// id and the concurrency token.
+				controller.replace( note );
+				this.rekeyNote( tempId, controller );
+				// Edits typed during the POST debounced against the temp
+				// id and couldn't save. Now they can.
+				controller.flushPendingEdits();
+			} )
+			.catch( ( err: unknown ) => {
+				this.removeNote( tempId );
+				this.notifyError(
+					__( 'Could not pin the note. Please try again.', 'desktop-mode' ),
+				);
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] notes: create failed:', err );
+			} );
+
+		return controller;
+	}
+
 	announce( message: string ): void {
 		this.ensureRoot();
 		if ( this.liveRegion ) {
@@ -286,8 +372,7 @@ export class NotesLayer {
 		if ( payload.truncated ) {
 			// The server capped the delta — anything beyond the cap
 			// would be skipped forever now that the high-water mark
-			// advanced. Re-hydrate from the full list instead (same
-			// recovery the sticky-notes layer uses).
+			// advanced. Re-hydrate from the full list instead.
 			void this.reloadFromServer();
 		}
 	}
@@ -461,12 +546,27 @@ export class NoteController {
 		const meta = document.createElement( 'div' );
 		meta.className = 'os-pinned-note__meta';
 
+		const status = document.createElement( 'os-save-status' );
+		status.setAttribute( 'mode', 'icon' );
+		status.setAttribute( 'phase', 'idle' );
+		status.className = 'os-pinned-note__status';
+		this.statusEl = status;
+
 		const colorDot = document.createElement( 'button' );
 		colorDot.type = 'button';
 		colorDot.className = 'os-pinned-note__color-dot';
 		this.colorDot = colorDot;
 		this.refreshColorDot();
 		colorDot.addEventListener( 'click', () => this.cycleColor() );
+
+		meta.append( status, colorDot );
+
+		// Every action lives in the footer. The pushpin is painted over
+		// the paper's chrome and covers the middle of the meta row, so
+		// that row only ever had space for two controls to the right of
+		// it — see notes.css.
+		const actions = document.createElement( 'div' );
+		actions.className = 'os-pinned-note__actions';
 
 		const visibility = document.createElement( 'os-window-button' );
 		visibility.className = 'os-pinned-note__visibility';
@@ -475,8 +575,7 @@ export class NoteController {
 		visibility.addEventListener( 'os-button-activate', () =>
 			this.togglePublic(),
 		);
-
-		meta.append( colorDot, visibility );
+		actions.appendChild( visibility );
 
 		// "Convert to post" — only for users who can author posts. Drops
 		// the note into a fresh draft (the note itself is trashed) and
@@ -493,8 +592,18 @@ export class NoteController {
 			convert.addEventListener( 'os-button-activate', () =>
 				this.layer.convertNote( this.note ),
 			);
-			meta.append( convert );
+			actions.appendChild( convert );
 		}
+
+		// The pointer/keyboard equivalent of dragging the pin onto the bin.
+		const trash = document.createElement( 'os-window-button' );
+		trash.className = 'os-pinned-note__trash';
+		trash.innerHTML = ICON_TRASH;
+		const trashLabel = __( 'Move to Trash', 'desktop-mode' );
+		trash.setAttribute( 'title', trashLabel );
+		trash.setAttribute( 'aria-label', trashLabel );
+		trash.addEventListener( 'os-button-activate', () => this.confirmTrash() );
+		actions.appendChild( trash );
 
 		const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
 		editor.className = 'os-pinned-note__editor';
@@ -519,12 +628,7 @@ export class NoteController {
 
 		const footer = document.createElement( 'div' );
 		footer.className = 'os-pinned-note__footer';
-		const status = document.createElement( 'os-save-status' );
-		status.setAttribute( 'mode', 'icon' );
-		status.setAttribute( 'phase', 'idle' );
-		status.className = 'os-pinned-note__status';
-		this.statusEl = status;
-		footer.appendChild( status );
+		footer.appendChild( actions );
 
 		this.paperEl.append( meta, editor, footer );
 	}
@@ -799,6 +903,24 @@ export class NoteController {
 	}
 
 	/**
+	 * Shared by the footer's trash button and move-mode's Delete key.
+	 * Drag-to-bin skips the dialog: the drop is the confirmation, and
+	 * it already has the crumple and an Undo toast.
+	 */
+	private confirmTrash(): void {
+		void osConfirm( {
+			title: __( 'Move note to the Trash?', 'desktop-mode' ),
+			message: __( 'You can restore it from the Trash later.', 'desktop-mode' ),
+			confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
+			danger: true,
+		} ).then( ( confirmed ) => {
+			if ( confirmed ) {
+				this.layer.trashNote( this.note );
+			}
+		} );
+	}
+
+	/**
 	 * All PATCHes flow through one chain so the concurrency token is
 	 * always the latest server-issued one, even when a text save and
 	 * a position save race.
@@ -818,11 +940,15 @@ export class NoteController {
 				}
 				// Adopt the server's token (and any fields we didn't
 				// touch) without clobbering in-flight local edits.
+				const publicChanged = saved.public !== this.note.public;
 				this.note = {
 					...this.note,
 					updatedAtMs: saved.updatedAtMs,
 					public: saved.public,
 				};
+				if ( publicChanged ) {
+					this.refreshVisibility();
+				}
 				this.setPhase( 'saved' );
 			} catch ( err ) {
 				if ( this.disposed ) {
@@ -1132,16 +1258,7 @@ export class NoteController {
 			case 'Delete':
 			case 'Backspace':
 				this.exitMoveMode( false );
-				void osConfirm( {
-					title: __( 'Move note to the Trash?', 'desktop-mode' ),
-					message: __( 'You can restore it from the Trash later.', 'desktop-mode' ),
-					confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
-					danger: true,
-				} ).then( ( confirmed ) => {
-					if ( confirmed ) {
-						this.layer.trashNote( this.note );
-					}
-				} );
+				this.confirmTrash();
 				break;
 			default:
 				return;

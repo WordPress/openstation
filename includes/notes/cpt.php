@@ -3,10 +3,8 @@
  * OpenStation — Pinned notes CPT.
  *
  * Registers the `wpd_note` post type backing the pinned-notes feature:
- * paper notes the user writes in the Note Pad widget and pins to the
- * desktop wallpaper. Distinct from the Guidelines-backed sticky-notes
- * layer (`includes/sticky-notes/heartbeat.php`) — that one rides
- * Gutenberg's `wp_guideline` CPT; this one is plugin-owned.
+ * paper notes the user writes in the Note Pad widget (or straight on
+ * the wallpaper, via its right-click menu) and pins to the desktop.
  *
  * Visibility model: the "public" checkbox maps to `post_status`.
  *

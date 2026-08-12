@@ -1086,9 +1086,28 @@ function defaultBulkActions( client: PostsWindowClient ): BulkAction[] {
 			label: __( 'Move to trash' ),
 			icon: 'dashicons-trash',
 			variant: 'danger',
-			confirm: isPages
-				? /* translators: %d: row count. */ __( 'Move %d page(s) to the trash?' )
-				: /* translators: %d: row count. */ __( 'Move %d post(s) to the trash?' ),
+			confirm: ( count: number ) => {
+				if ( isPages ) {
+					return sprintf(
+						/* translators: %d: row count. */
+						_n(
+							'Move %d page to the trash?',
+							'Move %d pages to the trash?',
+							count,
+						),
+						count,
+					);
+				}
+				return sprintf(
+					/* translators: %d: row count. */
+					_n(
+						'Move %d post to the trash?',
+						'Move %d posts to the trash?',
+						count,
+					),
+					count,
+				);
+			},
 			run: async ( ids, ctx ) => {
 				// Don't try to trash rows already in trash — a `DELETE`
 				// without `force` would hard-delete them.
@@ -2696,13 +2715,21 @@ export async function renderPostsWindow(
 		if ( ids.length === 0 ) {
 			return;
 		}
-		if ( action.confirm ) {
+		const { confirm } = action;
+		if ( confirm ) {
+			// A function builds the message from the count, which is the
+			// only form `_n()` can be used in. A plain string keeps the
+			// original `%d` interpolation.
+			const message =
+				typeof confirm === 'function'
+					? confirm( ids.length )
+					: sprintf(
+						/* translators: %d: row count. */
+						confirm,
+						ids.length,
+					);
 			const ok = await osConfirmGlobal( {
-				message: sprintf(
-					/* translators: %d: row count. */
-					action.confirm,
-					ids.length,
-				),
+				message,
 				danger: true,
 			} );
 			if ( ! ok ) {

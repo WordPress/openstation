@@ -35,6 +35,9 @@
  *     theme authors: **control glyphs are monochrome silhouettes** —
  *     only the alpha channel of the source image is used. Wins over
  *     `icon`, which in turn wins over slotted content.
+ *   - `aria-label="…"` — the button's accessible name. Set it on the
+ *     host; the component forwards it onto the shadow `<button>`,
+ *     which is the element that actually takes focus.
  *   - `active` — boolean, applies the pressed-down look
  *   - `danger` — boolean, swaps hover to a red wash (used by the
  *     close button)
@@ -132,6 +135,25 @@ export class OsWindowButton extends Component {
 	static props = [ 'icon', 'icon-src', 'active', 'danger' ] as const;
 	static styles = [ styles ];
 
+	/**
+	 * `aria-label` is observed but deliberately NOT a prop.
+	 *
+	 * The focusable element is the `<button>` inside the shadow root,
+	 * and the host is a custom element with no role — an `aria-label`
+	 * sitting on it is ignored by assistive tech, so every control in
+	 * the title bar announced as an unnamed button. The label has to
+	 * be forwarded onto the shadow `<button>`, and observing the
+	 * attribute is what re-renders when a caller retitles a control
+	 * mid-life (e.g. maximize ⇄ restore).
+	 *
+	 * It stays out of `static props` so the base class doesn't install
+	 * a prop accessor over `HTMLElement.prototype.ariaLabel` and break
+	 * the native ARIA reflection.
+	 */
+	static get observedAttributes(): string[] {
+		return [ ...super.observedAttributes, 'aria-label' ];
+	}
+
 	static help = {
 		title: 'Window button',
 		summary:
@@ -142,6 +164,11 @@ export class OsWindowButton extends Component {
 				name: 'icon',
 				type: "'minimize' | 'maximize' | 'fullscreen' | 'fullscreen-exit' | 'detach' | 'reload' | 'close' | 'menu'",
 				description: 'Which built-in inline SVG to paint. Omit to supply your own via the slot.',
+			},
+			{
+				name: 'aria-label',
+				type: 'string',
+				description: 'Accessible name, forwarded onto the shadow <button> that takes focus. Required — the glyph is aria-hidden.',
 			},
 			{
 				name: 'active',
@@ -195,13 +222,18 @@ export class OsWindowButton extends Component {
 		// is known. The wrapper has no dynamic content; the slot
 		// shows what the consumer provides for custom icons.
 		const svgInner = ICONS[ iconKey ] || '';
+		// Forward the host's accessible name onto the shadow `<button>`
+		// — that is the element focus lands on, and its only content is
+		// an `aria-hidden` glyph. An empty value removes the attribute
+		// rather than writing `aria-label=""`.
+		const label = this.getAttribute( 'aria-label' ) || '';
 		if ( iconSrc ) {
 			// CSS `mask` + `background-color: currentColor` rather than
 			// an `<img>`: an image would paint its own colours and go
 			// deaf to `--os-ui-btn-color`, so a themed close button would
 			// stop turning white on a focused title bar.
 			return html`
-				<button type="button">
+				<button type="button" aria-label="${ label }">
 					<span
 						class="themed-icon"
 						aria-hidden="true"
@@ -212,7 +244,7 @@ export class OsWindowButton extends Component {
 			`;
 		}
 		return html`
-			<button type="button">
+			<button type="button" aria-label="${ label }">
 				<svg
 					width="14"
 					height="14"

@@ -4,6 +4,17 @@
  * macOS / Windows: title, body, two buttons, Escape cancels,
  * Enter confirms.
  *
+ * **Keyboard and focus.** Opening moves focus into the dialog and
+ * remembers what had it, so closing hands it straight back to the
+ * control that opened the prompt. Tab cycles inside the dialog and
+ * cannot reach the page behind the scrim. Escape always cancels.
+ * Enter is the dialog's *default* action only while no control
+ * inside it owns the key — with Cancel focused, Enter cancels, the
+ * way every other button on the platform behaves. A `danger` dialog
+ * has no default action at all: it opens on the safe control and
+ * never on its destructive button, so Enter is never the shortcut
+ * that deletes.
+ *
  * Two ways to use it:
  *
  * **1. As a Web Component, declarative.** Mount the element,
@@ -33,6 +44,47 @@
 import { Component, defineComponent, html } from '../../core';
 import { dialogStyles } from './os-confirm-dialog.styles';
 
+/**
+ * Everything the dialog is allowed to hand focus to. Same list
+ * `<os-modal>` uses — the dialog's own controls all live in the
+ * shadow root, so this only ever matches the buttons we render.
+ */
+const FOCUSABLE =
+	'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The genuinely focused element, walking through any shadow roots on
+ * the way down. `document.activeElement` stops at the outermost host,
+ * which for this shell is almost always an `<os-*>` wrapper rather
+ * than the control the user actually pressed — and re-focusing a host
+ * that is not itself focusable silently drops focus on the floor.
+ */
+function deepActiveElement( doc: Document | null ): HTMLElement | null {
+	let el = ( doc?.activeElement ?? null ) as HTMLElement | null;
+	while ( el?.shadowRoot?.activeElement ) {
+		el = el.shadowRoot.activeElement as HTMLElement;
+	}
+	return el && el !== doc?.body ? el : null;
+}
+
+/**
+ * The element a keyboard event actually started on. `e.target`
+ * retargets to the host at the shadow boundary, so it is the host for
+ * every key pressed on one of the dialog's own buttons — the deepest
+ * entry in the composed path is the one that answers "what has
+ * focus?".
+ */
+function eventSource( e: Event ): HTMLElement | null {
+	const path = e.composedPath();
+	const deepest = path.length > 0 ? path[ 0 ] : e.target;
+	return deepest instanceof HTMLElement ? deepest : null;
+}
+
+/** Whether an element is one of the dialog's focusable controls. */
+function isControl( el: HTMLElement | null ): boolean {
+	return el !== null && el.matches( FOCUSABLE );
+}
+
 export class OsConfirmDialog extends Component {
 	static props = [
 		'open',
@@ -49,7 +101,7 @@ export class OsConfirmDialog extends Component {
 	static help = {
 		title: 'Confirm dialog',
 		summary:
-			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper.',
+			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper. Opening moves focus into the dialog and traps Tab inside it; closing hands focus back to the control that opened it. Escape always cancels. Enter is the default action only while no button is focused — on a focused Cancel it cancels — and a `danger` dialog has no default action at all, opening on the safe control and never on its destructive button.',
 		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
@@ -134,10 +186,23 @@ export class OsConfirmDialog extends Component {
 		},
 	} as const;
 
+	/** What had focus when the dialog opened, to hand it back on close. */
+	private _prevFocus: HTMLElement | null = null;
+
+	/** Microtask hops spent waiting for the first render. See `_focusInitial`. */
+	private _focusTries = 0;
+
 	connectedCallback() {
 		super.connectedCallback();
 		this.setAttribute( 'role', 'dialog' );
 		this.setAttribute( 'aria-modal', 'true' );
+		// Programmatically focusable, never tab-reachable: the last-
+		// resort target in `_focusInitial`. `-1` also keeps the host
+		// out of `isControl`, so Enter on it still reads as the
+		// container rather than as a control owning the key.
+		if ( ! this.hasAttribute( 'tabindex' ) ) {
+			this.setAttribute( 'tabindex', '-1' );
+		}
 		this.addEventListener( 'keydown', this._onKey );
 		this.addEventListener( 'click', this._onBackdrop );
 	}
@@ -145,18 +210,180 @@ export class OsConfirmDialog extends Component {
 	disconnectedCallback() {
 		this.removeEventListener( 'keydown', this._onKey );
 		this.removeEventListener( 'click', this._onBackdrop );
+		// `osConfirm()` removes the element while it is still `[open]`,
+		// so unmounting — not the attribute — is where that path ends.
+		this._restoreFocus();
+	}
+
+	attributeChangedCallback(
+		name: string,
+		oldValue: string | null,
+		newValue: string | null,
+	): void {
+		super.attributeChangedCallback( name, oldValue, newValue );
+		if ( name !== 'open' ) {
+			return;
+		}
+		if ( newValue !== null ) {
+			this._prevFocus = deepActiveElement( this.ownerDocument );
+			this._focusTries = 0;
+			queueMicrotask( this._focusInitial );
+		} else {
+			this._restoreFocus();
+		}
 	}
 
 	private _onKey = ( e: KeyboardEvent ): void => {
 		if ( e.key === 'Escape' ) {
 			e.preventDefault();
 			this._cancel();
+			return;
+		}
+		if ( e.key === 'Tab' ) {
+			this._trapTab( e );
+			return;
 		}
 		if ( e.key === 'Enter' && ! e.isComposing ) {
+			/*
+			 * Enter is the dialog's default action only while nothing
+			 * inside it owns the key. A focused button activates itself
+			 * natively; swallowing that here is how Enter on "Cancel"
+			 * used to run the destructive branch instead.
+			 */
+			if ( isControl( eventSource( e ) ) ) {
+				return;
+			}
+			/*
+			 * A destructive dialog has no default action at all. Focus
+			 * opens on a safe control, but `hide-cancel` without
+			 * `dismissable` leaves none to open on, and clicking the
+			 * message text focuses the container — both leave Enter
+			 * pointing at the container, and on a danger dialog the
+			 * container's default would be the deletion. Reaching the
+			 * destructive button has to be deliberate: Tab to it, or
+			 * click it.
+			 */
+			if ( this.hasAttribute( 'danger' ) ) {
+				return;
+			}
 			e.preventDefault();
 			this._confirm();
 		}
 	};
+
+	/** Every focusable control the dialog renders, in tab order. */
+	private _focusables(): HTMLElement[] {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return [];
+		}
+		return Array.from( root.querySelectorAll< HTMLElement >( FOCUSABLE ) );
+	}
+
+	/**
+	 * Keep Tab inside the dialog. Wrapping at either end is the trap
+	 * itself; the `! isControl` branch covers the container, which
+	 * holds focus before the user has touched a button.
+	 */
+	private _trapTab( e: KeyboardEvent ): void {
+		const focusables = this._focusables();
+		if ( focusables.length === 0 ) {
+			return;
+		}
+		const first = focusables[ 0 ];
+		const last = focusables[ focusables.length - 1 ];
+		const active = eventSource( e );
+		const loose = ! isControl( active );
+		if ( e.shiftKey && ( loose || active === first ) ) {
+			e.preventDefault();
+			last.focus();
+		} else if ( ! e.shiftKey && ( loose || active === last ) ) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
+
+	/**
+	 * Move focus into the dialog once it has something to move it to.
+	 *
+	 * Two things run late here: `osConfirm()` sets `open` before it
+	 * appends the element, and the base class renders on a microtask.
+	 * So the first hop can find us detached, or mounted with an empty
+	 * shadow root. Retry over a few microtasks rather than guess at a
+	 * timing — the container always renders, so a hit is the signal
+	 * that the render landed.
+	 */
+	private _focusInitial = (): void => {
+		if ( ! this.hasAttribute( 'open' ) ) {
+			return;
+		}
+		const target = this.isConnected ? this._initialFocusTarget() : null;
+		if ( target ) {
+			target.focus();
+			return;
+		}
+		if ( this._focusTries++ < 5 ) {
+			queueMicrotask( this._focusInitial );
+			return;
+		}
+		/*
+		 * Out of hops with nothing rendered to aim at. Take the host,
+		 * which `connectedCallback` makes focusable for exactly this:
+		 * it carries the keydown listener, so Escape and the Tab trap
+		 * keep working. Giving up instead would leave focus on the
+		 * opener — the user parked behind the scrim, with a live modal
+		 * in front of them and no key that dismisses it.
+		 */
+		if ( this.isConnected ) {
+			this.focus();
+		}
+	};
+
+	private _initialFocusTarget(): HTMLElement | null {
+		const root = this.shadowRoot;
+		if ( ! root ) {
+			return null;
+		}
+		const cancel = root.querySelector< HTMLElement >( '.btn--secondary' );
+		// The container. Always rendered, so a hit here is also what
+		// tells `_focusInitial` the first render landed.
+		const container = root.querySelector< HTMLElement >( '.dialog' );
+		if ( this.hasAttribute( 'danger' ) ) {
+			/*
+			 * A destructive dialog opens on the safe choice, the way the
+			 * desktop platforms do it. Cancel first, then the X that
+			 * `dismissable` adds — `hide-cancel` drops the former and is
+			 * documented to pair with the latter for exactly this reason.
+			 * With neither, the container takes focus: there is no safe
+			 * control to offer, and offering the destructive one instead
+			 * is the failure this whole branch exists to prevent.
+			 */
+			return (
+				cancel ?? root.querySelector< HTMLElement >( '.close' ) ?? container
+			);
+		}
+		return (
+			root.querySelector< HTMLElement >( '.btn--primary, .btn--danger' ) ??
+			cancel ??
+			container
+		);
+	}
+
+	/**
+	 * Hand focus back to whatever opened the dialog, once.
+	 *
+	 * `isConnected` is the whole guard: an opener that unmounted while
+	 * the dialog was up is the one case that actually arises, and
+	 * `focus()` on a live element in this document does not throw.
+	 */
+	private _restoreFocus(): void {
+		const prev = this._prevFocus;
+		this._prevFocus = null;
+		if ( ! prev || ! prev.isConnected ) {
+			return;
+		}
+		prev.focus();
+	}
 
 	private _onBackdrop = ( e: MouseEvent ): void => {
 		// Click target retargets to the host as the event crosses
@@ -278,8 +505,8 @@ export function osConfirm( options: OsConfirmOptions ): Promise< boolean > {
 		dialog.addEventListener( 'os-confirm', () => cleanup( true ) );
 		dialog.addEventListener( 'os-cancel', () => cleanup( false ) );
 		document.body.appendChild( dialog );
-		// Focus the dialog so Enter/Escape land where we expect.
-		const inner = dialog.shadowRoot?.querySelector< HTMLElement >( '.dialog' );
-		( inner ?? dialog ).focus?.();
+		// Focus is the component's job — it captures the opener on
+		// `[open]` and moves into the dialog once the first render
+		// lands, which has not happened yet at this point.
 	} );
 }

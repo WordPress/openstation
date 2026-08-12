@@ -113,6 +113,10 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
+			// Tell assistive tech the dialog's content is in flux, so a
+			// screen reader doesn't read a half-built (or empty) window
+			// as if it were finished.
+			el.setAttribute( 'aria-busy', 'true' );
 			// Cancel any hand-off still running: the content is about
 			// to be covered again, so fading it in is stale.
 			body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
@@ -144,6 +148,11 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
+			// Content is settled — clear the busy state on the same edge
+			// the loading modifier drops, not on the fade timers below
+			// (those are cosmetic; the content is already there).
+			el.removeAttribute( 'aria-busy' );
+
 			// Only a spinner that actually painted has a fade to
 			// sequence the content behind.
 			const spinnerWasVisible = !! body

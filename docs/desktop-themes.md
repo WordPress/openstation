@@ -740,9 +740,9 @@ need one that isn't there.
 ### What stays fixed
 
 Colour that encodes meaning or is composed artwork is deliberately
-**not** themable: sticky-note paper, game palettes, the content-graph
+**not** themable: pinned-note paper, game palettes, the content-graph
 node hues, the About scene. Retinting those would destroy the signal
-they carry. The same applies to their typography — the sticky note's
+they carry. The same applies to their typography — the note's
 handwriting face and the Inkfall serif are part of the artwork.
 
 ---

@@ -361,3 +361,49 @@ describe( 'panes nested below the body', () => {
 		expect( inner.hasAttribute( 'aria-hidden' ) ).toBe( false );
 	} );
 } );
+
+describe( 'tablist semantics', () => {
+	beforeEach( () => {
+		document.body.innerHTML = '';
+	} );
+
+	/*
+	 * A native window's strip is born empty and presentational (an
+	 * empty tab list is announced as a tab list with no tabs, and a
+	 * bare nav is a landmark with nothing to navigate). Declaring
+	 * tabs is what turns the semantics on.
+	 */
+	test( 'an empty strip stays out of the accessibility tree', () => {
+		const win = mountWindow();
+		const strip = stripOf( win );
+		strip.removeAttribute( 'role' );
+		strip.dataset.tablistLabel = 'Probe sections';
+
+		setPanelTabs( win, [] );
+
+		expect( strip.getAttribute( 'role' ) ).toBe( 'presentation' );
+		expect( strip.hasAttribute( 'aria-label' ) ).toBe( false );
+	} );
+
+	test( 'declaring tabs turns the tablist on and names it', () => {
+		const win = mountWindow();
+		const strip = stripOf( win );
+		strip.dataset.tablistLabel = 'Probe sections';
+
+		setPanelTabs( win, ENTRIES );
+
+		expect( strip.getAttribute( 'role' ) ).toBe( 'tablist' );
+		expect( strip.getAttribute( 'aria-label' ) ).toBe( 'Probe sections' );
+	} );
+
+	test( 'emptying the strip again takes the semantics back off', () => {
+		const win = mountWindow();
+		const strip = stripOf( win );
+		strip.dataset.tablistLabel = 'Probe sections';
+		setPanelTabs( win, ENTRIES );
+
+		setPanelTabs( win, [] );
+
+		expect( strip.getAttribute( 'role' ) ).toBe( 'presentation' );
+	} );
+} );

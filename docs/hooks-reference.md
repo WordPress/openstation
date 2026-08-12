@@ -2719,7 +2719,7 @@ Every JS hook below is also documented on `wp.hooks` so plugins can register wit
 |---|---|---|---|
 | `openstation.postsWindow.columns` | filter | built-in 5 columns | `OsTableColumn< PostListItem >[]` — append, replace, or remove cells. |
 | `openstation.postsWindow.statusSegments` | filter | All / Published / Drafts / Pending / Scheduled / Trash | `StatusSegment[]` — `{ value, label }` pairs. `value` is sent verbatim as `?status=…`; use `''` for "All" (the bundle remaps to `?status=any`). |
-| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. Filter out by id to remove. |
+| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. Filter out by id to remove. |
 | `openstation.postsWindow.toolbarTrailing` | filter | `[]` | `HTMLElement[]` rendered before Refresh + Add New. Receives the live `PostsWindowContext` as the second arg. |
 | `openstation.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
 | `openstation.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |
@@ -4025,51 +4025,17 @@ uses to detect a user switch (see
 
 ---
 
-## Sticky notes
-
-Sticky notes are backed by **Gutenberg's Guidelines experiment** — the
-`wp_guideline` CPT and `wp_guideline_type` taxonomy (exposed at
-`wp/v2/guidelines` and `wp/v2/wp_guideline_type`). That experiment is
-opt-in (Gutenberg plugin 22.7+, under Gutenberg → Experiments). When it
-isn't active those REST routes 404, so both the Heartbeat delta handler
-and the client-side layer gate on availability.
-
-### `openstation_sticky_notes_available` — Stable *(filter)*
-
-Filters whether the sticky-notes surface is treated as available. The
-default is `post_type_exists( 'wp_guideline' ) && taxonomy_exists(
-'wp_guideline_type' )`. The result is read by
-`openstation_sticky_notes_is_available()`, which gates both the
-`heartbeat_received` delta handler and the `stickyNotes.available` flag
-in the shell config (so the client skips booting the layer — and its
-404-prone REST probes — when `false`).
-
-```php
-apply_filters( 'openstation_sticky_notes_available', bool $available );
-```
-
-**Example — force sticky notes off site-wide even when Guidelines is enabled:**
-
-```php
-add_filter( 'openstation_sticky_notes_available', '__return_false' );
-```
-
-- **Param** `bool $available` — whether the guideline CPT + taxonomy are registered.
-- **Return** `bool` — coerced with `(bool)`.
-
----
-
 ## Pinned notes
 
-Pinned notes are the plugin-owned paper notes composed in the **Note
-Pad** widget and pinned to the wallpaper with a pushpin. They are
-backed by the `wpd_note` CPT (non-public, custom REST controller at
-`/desktop-mode/v1/notes`) — a separate feature from the
-Guidelines-backed sticky notes above. Visibility maps to post status:
-`private` (default, owner-only) or `publish` ("public" — read-only on
-every other OpenStation user's wallpaper). Only the owner can edit,
-move, recolor, or delete a note; administrators do not bypass
-ownership through this controller.
+Pinned notes are the paper notes composed in the **Note Pad** widget
+(or straight on the wallpaper, via its right-click **New note** entry)
+and pinned to the desktop with a pushpin. They are backed by the
+`wpd_note` CPT (non-public, custom REST controller at
+`/desktop-mode/v1/notes`). Visibility maps to post status: `private`
+(default, owner-only) or `publish` ("public" — read-only on every other
+OpenStation user's wallpaper). Only the owner can edit, move, recolor,
+or delete a note; administrators do not bypass ownership through this
+controller.
 
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 

@@ -98,7 +98,6 @@ require_once OPENSTATION_DIR . 'includes/admin-bar.php';
 require_once OPENSTATION_DIR . 'includes/session.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
-require_once OPENSTATION_DIR . 'includes/sticky-notes/heartbeat.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
 require_once OPENSTATION_DIR . 'includes/seen-intros.php';
 // One-time data migrations. After os-settings.php and seen-intros.php,

@@ -138,7 +138,7 @@ src/
 
 The tree above is curated, not exhaustive — `src/` holds many more
 single-purpose modules and feature directories (drag bridge, devtools,
-sticky notes, …). Run `ls src/` for the full picture; the shipped
+pinned notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
 `package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
 
