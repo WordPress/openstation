@@ -1207,9 +1207,10 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 	link.addEventListener( 'click', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
+		const isPages = client.getConfig().mode === 'pages';
 		openAdminUrl( link.href, {
 			title,
-			icon: 'dashicons-admin-post',
+			icon: isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
 		} );
 	} );
 	titleRow.appendChild( link );
