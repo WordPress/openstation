@@ -1434,18 +1434,25 @@
  * the rail is the one thing that never moves; the motion belongs to
  * the buttons sliding under it.
  *
- * Its geometry still comes from the active tab — `positionPlate()`
- * publishes `--_deck-plate-x` / `--_deck-plate-w` — because the
- * active tab IS the last one on the strip. In practice only the width
- * changes between decks (labels differ in length), so the plate's
- * trailing edge holds and its leading edge breathes.
+ * Its trailing edge is pinned in CSS and its width is the one thing
+ * written from JS — `syncPlate()` publishes `--_deck-plate-w`, once
+ * per switch, from a width measured before anything started moving.
+ * So the plate's trailing edge holds and only its leading edge
+ * breathes, by however much two labels differ in length.
  */
 .os-dock__deck-plate {
 	position: absolute;
 	inset-block: 4px 0;
-	left: 0;
+	/*
+	 * Pinned to the trailing edge, in CSS, forever. The selected tab
+	 * is always the last one on the strip, so this is where it is —
+	 * and anchoring the plate here rather than positioning it from a
+	 * measured `x` means there is no coordinate to keep in sync and
+	 * nothing that can drift out of it. Only the width is written
+	 * from JS.
+	 */
+	inset-inline-end: 0;
 	width: var( --_deck-plate-w, 0 );
-	transform: translateX( var( --_deck-plate-x, 0 ) );
 	border-radius: 14px;
 	pointer-events: none;
 	background-image: var(
@@ -1460,8 +1467,14 @@
 		0 0 0 1px rgba( 217, 46, 227, 0.2 ),
 		0 2px 10px rgba( 217, 46, 227, 0.15 )
 	);
+	/*
+	 * Width only. There is no `transform` here any more and that is
+	 * the point: the plate is anchored, so the only thing left to
+	 * animate is how far its leading edge reaches — and it does so on
+	 * the same curve the label unfurls on, from one target written
+	 * once per switch.
+	 */
 	transition:
-		transform var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
 		width var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
 }
 
@@ -1472,6 +1485,22 @@
  * every time the dock paints.
  */
 .os-dock__decks:not( [ data-plate-placed ] ) .os-dock__deck-plate {
+	transition: none;
+}
+
+/*
+ * The measuring frame.
+ *
+ * `measureTabWidths()` opens each tab's label in turn to read the
+ * width it will settle at. Every one of those reads would come back
+ * mid-transition without this — whatever the label happened to have
+ * reached — so the probe is run with the strip flagged and everything
+ * it touches held still. Set and cleared inside one synchronous
+ * block; it is never on across a paint.
+ */
+.os-dock__decks[ data-deck-measuring ] .os-dock__deck,
+.os-dock__decks[ data-deck-measuring ] .os-dock__deck-label,
+.os-dock__decks[ data-deck-measuring ] .os-dock__deck-plate {
 	transition: none;
 }
 

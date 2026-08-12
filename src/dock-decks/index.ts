@@ -339,10 +339,13 @@ export class DockDecks {
 	 * for nothing.
 	 */
 	private inFollowFocus = false;
-	/** In-flight frame handle for {@link trackPlate}. */
-	private plateFrame = 0;
-	/** Keeps the plate under the active tab when the strip is re-laid out. */
-	private stripResize: ResizeObserver | null = null;
+	/**
+	 * Each tab's width WITH its label open, keyed by deck id. The
+	 * plate is sized from this rather than from a live read, so a
+	 * switch costs one write instead of a per-frame chase. Refreshed
+	 * by {@link measureTabWidths} on every partition pass.
+	 */
+	private expanded: Map< string, number > = new Map();
 	private detachers: Array< () => void > = [];
 
 	constructor( deps: DockDecksDeps ) {
@@ -431,6 +434,12 @@ export class DockDecks {
 		}
 
 		this.buildStrip();
+		// Re-read every tab's expanded width. `buildStrip` returns
+		// early when the deck set is unchanged, but the tabs may still
+		// have been re-laid out under it — a Dock size change, a new
+		// locale, a theme's icon set — and the plate is sized from
+		// these numbers.
+		this.measureTabWidths();
 
 		// Resolve the deck to show: the current one if it survived,
 		// else the remembered one, else the leading deck.
@@ -780,26 +789,11 @@ export class DockDecks {
 		this.deps.container.insertBefore( strip, separator );
 		this.strip = strip;
 
-		// Anything that re-lays the strip out without changing the
-		// active deck still moves the plate's target: the Dock size
-		// preference resizes every glyph, a locale change relabels the
-		// active tab, a desktop theme swaps the icon set. Cheaper and
-		// more complete than subscribing to each of those.
-		if ( typeof ResizeObserver === 'function' ) {
-			this.stripResize = new ResizeObserver( () => this.positionPlate() );
-			this.stripResize.observe( strip );
-		}
-
 		this.paintActiveTab();
 	}
 
 	private teardownStrip(): void {
-		this.stripResize?.disconnect();
-		this.stripResize = null;
-		if ( typeof cancelAnimationFrame === 'function' ) {
-			cancelAnimationFrame( this.plateFrame );
-		}
-		this.plateFrame = 0;
+		this.expanded.clear();
 		this.strip?.remove();
 		this.strip = null;
 		this.tabs.clear();
@@ -843,7 +837,7 @@ export class DockDecks {
 		if ( animate ) {
 			this.slideTabs( before );
 		}
-		this.trackPlate();
+		this.syncPlate();
 		this.refreshIndicators();
 	}
 
@@ -894,90 +888,67 @@ export class DockDecks {
 	}
 
 	/**
-	 * Write the plate's target geometry.
+	 * Measure what each tab is *going* to be, once, so that nothing
+	 * has to chase it later.
 	 *
-	 * The plate is ONE element that travels between tabs rather than a
-	 * fill that switches off on one and on at the next — the same
-	 * distinction the window tab strip's plate is built on, and for
-	 * the same reason: a fill that switches has to cross-fade a mesh
-	 * into nothing, and every frame in between belongs to neither
-	 * state. Nothing cross-fades here. The surface moves, and the ink
-	 * flips underneath it.
+	 * Every tab has two widths — collapsed, and expanded with its
+	 * label — and only the expanded one matters to the plate. Reading
+	 * it here, with the label reveal suppressed and before anything is
+	 * moving, is what lets the plate be handed a single target per
+	 * switch instead of a fresh one every frame.
 	 *
-	 * `data-placed` gates the transition. A width of zero means layout
-	 * has not run yet, and placing the plate off that measurement
-	 * would teach it a wrong origin to travel from — it would fly in
-	 * from the strip's leading edge the first time the dock paints.
+	 * Cheap enough to redo on every partition pass, which is also the
+	 * only way it stays right: the Dock size preference resizes every
+	 * glyph, a locale change relabels every tab, a desktop theme swaps
+	 * the icon set, and all three arrive through `sync()`.
 	 */
-	private positionPlate(): void {
+	private measureTabWidths(): void {
 		const strip = this.strip;
 		if ( ! strip ) {
 			return;
 		}
-		const tab = this.activeId ? this.tabs.get( this.activeId ) : null;
-		if ( ! tab ) {
-			return;
+		strip.dataset.deckMeasuring = '';
+		for ( const [ id, tab ] of this.tabs ) {
+			const wasActive = tab.classList.contains(
+				'os-dock__deck--active',
+			);
+			tab.classList.add( 'os-dock__deck--active' );
+			this.expanded.set( id, tab.offsetWidth );
+			tab.classList.toggle( 'os-dock__deck--active', wasActive );
 		}
-		// Read both before writing either: `offsetWidth` forces a
-		// layout flush, and interleaving reads with the custom-property
-		// writes would flush twice per frame for nothing.
-		const x = tab.offsetLeft;
-		const w = tab.offsetWidth;
-		strip.style.setProperty( '--_deck-plate-x', `${ x }px` );
-		strip.style.setProperty( '--_deck-plate-w', `${ w }px` );
-		if ( w > 0 ) {
-			strip.dataset.platePlaced = '';
-		}
+		delete strip.dataset.deckMeasuring;
 	}
 
 	/**
-	 * Follow the active tab for as long as the strip is still moving
-	 * under it.
+	 * Point the plate at the active tab's final width.
 	 *
-	 * A single measurement after the class flip would be wrong, and
-	 * this is the part worth reading twice: the label reveal animates
-	 * the tab's own width, so at the instant the flip lands the
-	 * incoming tab is still collapsed and sitting where the collapsed
-	 * layout put it. Its final box does not exist yet to be measured.
+	 * The plate does not move. Its trailing edge is pinned to the
+	 * strip's by CSS and the selected tab is always the last one on
+	 * the strip, so the only thing that differs between decks is how
+	 * far its leading edge reaches — a shorter label, a shorter plate.
 	 *
-	 * So the plate is given a moving target. It starts travelling
-	 * toward the incoming tab's *current* box while that tab grows and
-	 * slides toward the plate; the two converge. The alternative —
-	 * snapping the labels so the layout settles in one frame — would
-	 * settle it, and would also make the whole pill jump width and
-	 * re-centre in that frame, since the dock is `width: fit-content;
-	 * margin: 0 auto`. Moving the plate is cheaper than moving the
-	 * dock.
+	 * ONE write per switch, to the measured final width, and the
+	 * stylesheet's transition carries it there on the same curve the
+	 * label unfurls on. This used to re-target every frame off the
+	 * tab's live geometry, and that is what made it wobble: a 720ms
+	 * curve restarting sixty times a second against a moving box is a
+	 * chase, and a chase rubber-bands. The one thing on the rail that
+	 * is meant to hold still looked like the least stable.
 	 *
-	 * Bounded by frame count rather than a timer so it costs nothing
-	 * in a background tab, where rAF simply stops.
+	 * `data-plate-placed` gates the transition, so the strip's first
+	 * paint sizes the plate rather than growing it out of nothing.
 	 */
-	private trackPlate(): void {
-		if ( typeof requestAnimationFrame !== 'function' ) {
-			this.positionPlate();
+	private syncPlate(): void {
+		const strip = this.strip;
+		if ( ! strip || ! this.activeId ) {
 			return;
 		}
-		cancelAnimationFrame( this.plateFrame );
-		// ~1s at 60Hz, comfortably past the label reveal that
-		// `--os-dock-deck-slide` drives (720ms shipped). Tracking a
-		// few frames longer than needed costs two layout reads each;
-		// stopping short would strand the plate at whatever width the
-		// tab happened to have when the loop gave up — which is the
-		// failure this margin exists to buy off, so keep it ahead of
-		// the token if that token ever slows down again.
-		let frames = 60;
-		const step = (): void => {
-			this.positionPlate();
-			if ( --frames > 0 ) {
-				this.plateFrame = requestAnimationFrame( step );
-			}
-		};
-		// Called, not scheduled: the first placement has to land in
-		// this task so the strip's very first paint sets
-		// `data-plate-placed` without the plate having had a frame at
-		// zero width to travel out of. `step` schedules its own
-		// successor, so there is exactly one chain in flight.
-		step();
+		const w = this.expanded.get( this.activeId ) ?? 0;
+		if ( w <= 0 ) {
+			return;
+		}
+		strip.style.setProperty( '--_deck-plate-w', `${ w }px` );
+		strip.dataset.platePlaced = '';
 	}
 
 	private paintTabBadge( tab: HTMLElement, count: number ): void {
