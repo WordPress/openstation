@@ -11,8 +11,9 @@
  * Enter is the dialog's *default* action only while no control
  * inside it owns the key — with Cancel focused, Enter cancels, the
  * way every other button on the platform behaves. A `danger` dialog
- * opens on Cancel rather than on its destructive button, so Enter is
- * never the shortcut that deletes.
+ * has no default action at all: it opens on the safe control and
+ * never on its destructive button, so Enter is never the shortcut
+ * that deletes.
  *
  * Two ways to use it:
  *
@@ -100,7 +101,7 @@ export class OsConfirmDialog extends Component {
 	static help = {
 		title: 'Confirm dialog',
 		summary:
-			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper. Opening moves focus into the dialog and traps Tab inside it; closing hands focus back to the control that opened it. Escape always cancels. Enter is the default action only while no button is focused — on a focused Cancel it cancels — and a `danger` dialog opens on Cancel so Enter never deletes.',
+			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper. Opening moves focus into the dialog and traps Tab inside it; closing hands focus back to the control that opened it. Escape always cancels. Enter is the default action only while no button is focused — on a focused Cancel it cancels — and a `danger` dialog has no default action at all, opening on the safe control and never on its destructive button.',
 		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
@@ -245,6 +246,19 @@ export class OsConfirmDialog extends Component {
 			if ( isControl( eventSource( e ) ) ) {
 				return;
 			}
+			/*
+			 * A destructive dialog has no default action at all. Focus
+			 * opens on a safe control, but `hide-cancel` without
+			 * `dismissable` leaves none to open on, and clicking the
+			 * message text focuses the container — both leave Enter
+			 * pointing at the container, and on a danger dialog the
+			 * container's default would be the deletion. Reaching the
+			 * destructive button has to be deliberate: Tab to it, or
+			 * click it.
+			 */
+			if ( this.hasAttribute( 'danger' ) ) {
+				return;
+			}
 			e.preventDefault();
 			this._confirm();
 		}
@@ -312,16 +326,27 @@ export class OsConfirmDialog extends Component {
 			return null;
 		}
 		const cancel = root.querySelector< HTMLElement >( '.btn--secondary' );
-		// A destructive dialog opens on the safe choice, the way the
-		// desktop platforms do it: Enter must never be the shortcut
-		// that deletes.
-		if ( this.hasAttribute( 'danger' ) && cancel ) {
-			return cancel;
+		// The container. Always rendered, so a hit here is also what
+		// tells `_focusInitial` the first render landed.
+		const container = root.querySelector< HTMLElement >( '.dialog' );
+		if ( this.hasAttribute( 'danger' ) ) {
+			/*
+			 * A destructive dialog opens on the safe choice, the way the
+			 * desktop platforms do it. Cancel first, then the X that
+			 * `dismissable` adds — `hide-cancel` drops the former and is
+			 * documented to pair with the latter for exactly this reason.
+			 * With neither, the container takes focus: there is no safe
+			 * control to offer, and offering the destructive one instead
+			 * is the failure this whole branch exists to prevent.
+			 */
+			return (
+				cancel ?? root.querySelector< HTMLElement >( '.close' ) ?? container
+			);
 		}
 		return (
 			root.querySelector< HTMLElement >( '.btn--primary, .btn--danger' ) ??
 			cancel ??
-			root.querySelector< HTMLElement >( '.dialog' )
+			container
 		);
 	}
 

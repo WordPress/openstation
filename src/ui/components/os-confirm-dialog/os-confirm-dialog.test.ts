@@ -160,6 +160,53 @@ describe( 'os-confirm-dialog', () => {
 		await expect( promise ).resolves.toBe( false );
 	} );
 
+	test( 'a danger dialog with hideCancel opens on the X, not the destructive button', async () => {
+		const { osConfirm } = await load();
+		const promise = osConfirm( {
+			message: 'X',
+			danger: true,
+			hideCancel: true,
+			dismissable: true,
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const closeBtn = dialog.shadowRoot!.querySelector( '.close' );
+		expect( dialog.shadowRoot!.activeElement ).toBe( closeBtn );
+		( closeBtn as HTMLButtonElement ).click();
+		await expect( promise ).resolves.toBe( false );
+	} );
+
+	test( 'a danger dialog with no safe control never focuses or Enter-fires the destructive button', async () => {
+		const { osConfirm } = await load();
+		let settled: boolean | null = null;
+		const promise = osConfirm( {
+			message: 'X',
+			danger: true,
+			hideCancel: true,
+		} ).then( ( v ) => {
+			settled = v;
+			return v;
+		} );
+		await tick();
+		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
+		const dangerBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >(
+			'.btn--danger',
+		)!;
+		// Nothing safe to open on, so the container holds focus — the
+		// destructive button must not.
+		expect( dialog.shadowRoot!.activeElement ).not.toBe( dangerBtn );
+		// …and the container has no default action on a danger dialog.
+		dialog.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ),
+		);
+		await tick();
+		expect( settled ).toBeNull();
+		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
+		// Reaching it has to be deliberate.
+		dangerBtn.click();
+		await expect( promise ).resolves.toBe( true );
+	} );
+
 	test( 'Enter on the focused cancel button does not confirm', async () => {
 		const { osConfirm } = await load();
 		let settled: boolean | null = null;
