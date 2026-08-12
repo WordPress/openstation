@@ -582,7 +582,6 @@ function openstation_enqueue_assets() {
 			// the two must not diverge.
 			'rebrandNotice'                 => $show_rebrand_notice,
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
-			'aiSearchStreamUrl'             => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
 			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
 			'aiAssistant'                   => function_exists( 'openstation_ai_assistant_config' )

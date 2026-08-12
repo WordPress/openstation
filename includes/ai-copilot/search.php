@@ -670,34 +670,6 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns a friendly progress message for a tool name — surfaced to the
- * client via SSE so the user sees "Looking through your posts…" rather
- * than the raw tool call.
- *
- * @param string $tool_name
- * @return string
- */
-function openstation_ai_progress_message( $tool_name ) {
-	switch ( $tool_name ) {
-		case 'search_posts':
-			return __( 'Looking through your posts…', 'desktop-mode' );
-		case 'search_pages':
-			return __( 'Checking your pages…', 'desktop-mode' );
-		case 'search_comments':
-			return __( 'Reading through comments…', 'desktop-mode' );
-		case 'search_comments_by_post':
-			return __( 'Scanning comments on that post…', 'desktop-mode' );
-		case 'list_admin_pages':
-			return __( 'Finding the right admin page…', 'desktop-mode' );
-		case 'search_wporg_plugins':
-			return __( 'Searching the WordPress.org plugin directory…', 'desktop-mode' );
-		case 'get_php_error_log':
-			return __( 'Tailing the PHP error log…', 'desktop-mode' );
-	}
-	return __( 'Thinking…', 'desktop-mode' );
-}
-
-/**
  * Returns the label for the "keep looking" button on an exhausted search.
  *
  * One full sentence per resumable tool: a noun interpolated into a shared
@@ -724,9 +696,9 @@ function openstation_ai_continue_label( $resume_tool, $from_item ) {
 /**
  * Returns the tools a client may resume an exhausted search from.
  *
- * Single source of truth for every `resume_tool` allowlist — the REST
- * arg sanitizer, the SSE handler, and the `$initial_tool` validation
- * inside `openstation_ai_run_search()`. `search_comments_by_post` is
+ * Single source of truth for every `resume_tool` allowlist: the REST
+ * arg sanitizer and the `$initial_tool` validation inside
+ * `openstation_ai_run_search()`. `search_comments_by_post` is
  * deliberately absent: the `continue` payload carries no `post_id`, so
  * it cannot truly resume — exhausted runs map it to `search_comments`
  * when building the `continue` object.
@@ -876,24 +848,13 @@ function openstation_ai_strip_wp_schema_keys( array $schema ) {
  * message primes the agent to resume from the last searched position with
  * the same keywords.
  *
- * @param string        $query        User's natural-language search.
- * @param string|null   $initial_tool Tool name to resume from, or null for fresh search.
- * @param int           $start_offset Offset to resume from (0 for fresh).
- * @param callable|null $on_progress Optional progress emitter for SSE ticks.
- * @param array         $extra        Extensibility context (command tools, prompt overrides, …).
+ * @param string      $query        User's natural-language search.
+ * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
+ * @param int         $start_offset Offset to resume from (0 for fresh).
+ * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
  * @return array|WP_Error
  */
-function openstation_ai_run_search( $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
-	/**
-	 * Progress emitter — sends a tick to the caller if they provided a
-	 * callable; no-op otherwise. Callers use this to render real-time
-	 * status to the user via SSE.
-	 */
-	$emit         = static function ( array $event ) use ( $on_progress ) {
-		if ( is_callable( $on_progress ) ) {
-			$on_progress( $event );
-		}
-	};
+function openstation_ai_run_search( $query, $initial_tool = null, $start_offset = 0, array $extra = array() ) {
 	$start_offset = max( 0, (int) $start_offset );
 	$search_tools = array( 'search_posts', 'search_pages', 'search_comments', 'search_comments_by_post' );
 	$valid_tools  = array_merge(
@@ -1176,13 +1137,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	$answer_schema = openstation_ai_search_answer_schema();
 
-	$emit(
-		array(
-			'phase'   => 'start',
-			'message' => __( 'Thinking about your question…', 'desktop-mode' ),
-		)
-	);
-
 	// -----------------------------------------------------------------------
 	// First call — user query as the sole message, instructions as system
 	// guidance. Generation routes through the WordPress AI Client; the tools
@@ -1240,12 +1194,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
-			$emit(
-				array(
-					'phase'   => 'composing',
-					'message' => __( 'Putting together your answer…', 'desktop-mode' ),
-				)
-			);
 			// A toolless turn with no extractable text never reaches here:
 			// openstation_ai_client_generate() returns
 			// `openstation_ai_empty_answer` for that case, handled with the
@@ -1409,14 +1357,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			$raw    = json_decode( $fc['arguments'] ?? '{}', true );
 			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
-
-			$emit(
-				array(
-					'phase'   => 'tool_call',
-					'tool'    => $tool_name,
-					'message' => openstation_ai_progress_message( $tool_name ),
-				)
-			);
 
 			do_action(
 				'openstation_ai_tool_called',
@@ -2060,7 +2000,7 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
 			: array();
 		$result  = openstation_ai_run_followup( $query, $tool, $outcome, $extra );
 	} else {
-		$result = openstation_ai_run_search( $query, $resume_tool, $start_offset, null, $extra );
+		$result = openstation_ai_run_search( $query, $resume_tool, $start_offset, $extra );
 	}
 
 	if ( is_wp_error( $result ) ) {
@@ -2362,160 +2302,3 @@ function openstation_ai_tail_file( $path, $lines ) {
 
 	return array_slice( $all, -1 * ( $lines + 1 ) );
 }
-
-// ---------------------------------------------------------------------------
-// Streaming endpoint (Server-Sent Events)
-//
-// EventSource can't send POST or custom headers, so we ride admin-ajax.php
-// which handles cookie-based auth natively. The nonce goes in the URL.
-// Output buffering is forcibly disabled and every emit is flushed so the
-// browser receives progress ticks in real time.
-// ---------------------------------------------------------------------------
-
-/**
- * Admin-ajax handler for the streaming search endpoint.
- *
- * URL: /wp-admin/admin-ajax.php?action=openstation_ai_search_stream
- *   &nonce=<rest_nonce>
- *   &query=<user question>
- *   &resume_tool=<search_posts|…>   (optional)
- *   &start_offset=<int>             (optional)
- *
- * Emits SSE events:
- *   data: { "event": "progress", "phase": "tool_call", "message": "…" }
- *   data: { "event": "done",     "result": { … } }
- *   data: { "event": "error",    "message": "…" }
- */
-/**
- * Emits a one-shot SSE error frame and ends the request.
- *
- * Opens the stream with a 200 so the payload reaches `onmessage`. A status
- * code alone reaches only `onerror`, which cannot carry a code or a
- * recovery hint.
- *
- * @param string      $code         Error code the client branches on.
- * @param string      $message      Human-readable message.
- * @param string|null $settings_tab OpenStation Preferences tab that fixes it.
- * @return never
- */
-function openstation_ai_stream_error( $code, $message, $settings_tab = null ) {
-	header( 'Content-Type: text/event-stream; charset=utf-8' );
-	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
-	header( 'X-Accel-Buffering: no' );
-
-	$payload = array(
-		'event'   => 'error',
-		'code'    => $code,
-		'message' => $message,
-	);
-	if ( null !== $settings_tab ) {
-		$payload['settings_tab'] = $settings_tab;
-	}
-
-	echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
-	flush();
-	exit;
-}
-
-function openstation_ai_ajax_search_stream() {
-	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
-	if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-		status_header( 403 );
-		exit;
-	}
-	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
-		status_header( 403 );
-		exit;
-	}
-	$user_id = get_current_user_id();
-	if ( ! openstation_ai_is_available() ) {
-		status_header( 503 );
-		exit;
-	}
-	if ( ! openstation_ai_is_enabled( $user_id ) ) {
-		// Deliver this one as a stream error rather than a bare 403. It is
-		// the only recoverable failure here, and a status code carries no
-		// body, so EventSource would surface it as a generic connection
-		// drop and the client could never offer the one-click fix.
-		openstation_ai_stream_error(
-			'openstation_ai_disabled',
-			__(
-				'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
-				'desktop-mode'
-			),
-			'features'
-		);
-	}
-
-	$query = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : ''; // phpcs:ignore WordPress.Security
-	if ( trim( $query ) === '' ) {
-		status_header( 400 );
-		exit;
-	}
-
-	$resume_tool  = isset( $_GET['resume_tool'] ) ? sanitize_key( wp_unslash( $_GET['resume_tool'] ) ) : null; // phpcs:ignore WordPress.Security
-	$start_offset = isset( $_GET['start_offset'] ) ? absint( $_GET['start_offset'] ) : 0; // phpcs:ignore WordPress.Security
-	if ( null !== $resume_tool && ! in_array( $resume_tool, openstation_ai_search_resumable_tools(), true ) ) {
-		$resume_tool = null;
-	}
-
-	// SSE headers — tell nginx to stop buffering, tell the browser this is
-	// a persistent event stream.
-	header( 'Content-Type: text/event-stream; charset=utf-8' );
-	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
-	header( 'X-Accel-Buffering: no' );
-	header( 'Connection: keep-alive' );
-
-	// Let other requests from this user proceed (release session lock).
-	if ( session_status() === PHP_SESSION_ACTIVE ) {
-		session_write_close();
-	}
-
-	// Kill any output buffers PHP set up, otherwise nothing flushes until
-	// the request ends — which defeats the whole point of streaming.
-	while ( ob_get_level() > 0 ) {
-		@ob_end_flush(); // phpcs:ignore
-	}
-	@ini_set( 'output_buffering', 'off' ); // phpcs:ignore
-	@ini_set( 'zlib.output_compression', 'off' ); // phpcs:ignore
-	@set_time_limit( 120 ); // phpcs:ignore
-
-	$emit = static function ( array $payload ) {
-		echo 'data: ' . wp_json_encode( $payload ) . "\n\n";
-		@ob_flush(); // phpcs:ignore
-		flush();
-	};
-
-	// Initial tick so the EventSource opens immediately and the JS can
-	// start showing "Thinking…" without waiting for the first model call.
-	$emit( array( 'event' => 'open' ) );
-
-	$result = openstation_ai_run_search(
-		$query,
-		$resume_tool,
-		$start_offset,
-		function ( $progress ) use ( $emit ) {
-			$emit( array_merge( array( 'event' => 'progress' ), $progress ) );
-		}
-	);
-
-	if ( is_wp_error( $result ) ) {
-		$emit(
-			array(
-				'event'   => 'error',
-				'message' => $result->get_error_message(),
-				'code'    => $result->get_error_code(),
-			)
-		);
-	} else {
-		$emit(
-			array(
-				'event'  => 'done',
-				'result' => $result,
-			)
-		);
-	}
-
-	exit;
-}
-add_action( 'wp_ajax_openstation_ai_search_stream', 'openstation_ai_ajax_search_stream' );

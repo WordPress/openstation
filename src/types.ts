@@ -2102,12 +2102,6 @@ export interface DesktopConfig {
 	 */
 	aiSearchUrl?: string;
 	/**
-	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
-	 * `action=openstation_ai_search_stream` pre-filled. The JS EventSource appends
-	 * &nonce= and &query= when connecting.
-	 */
-	aiSearchStreamUrl?: string;
-	/**
 	 * AI assistant availability + per-user state. Governs whether the Cmd+K
 	 * assistant and its admin-bar icon appear, and the setup placeholder.
 	 * `null` when the AI Copilot module isn't loaded.

@@ -123,6 +123,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 == Changelog ==
 
 = 1.0.1 =
+* AI: the assistant answers over a single request again; live progress streaming is gone
 * Tile contrast, comments-window styling, Overview clicks, and preview refreshes
 * Always show the Agents section in WP Explorer
 * Windows: Preserve fullscreen state after leaving Overview

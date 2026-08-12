@@ -175,17 +175,8 @@ export class AiAssistant implements AiAssistantApi {
 	private _isSearching = false;
 	private _previousFocus: Element | null = null;
 	private _aiSearchUrl: string;
-	private _aiSearchStreamUrl: string;
 	private _restNonce: string;
 	private _adminUrl: string;
-	private _currentStream: EventSource | null = null;
-	/**
-	 * Reads the user's preferred live-progress transport from OpenStation Preferences.
-	 * Defaults to `'off'` when the shell hasn't wired one in — the
-	 * conservative choice for hosts that may block SSE.
-	 */
-	private _getTransport: () => 'sse' | 'off';
-
 	/** Live: is AI mode usable (APIs present + provider configured)? */
 	private _isAiAvailable: () => boolean;
 	/** Live: is the "Override…" toggle on (default to AI mode)? */
@@ -228,10 +219,8 @@ export class AiAssistant implements AiAssistantApi {
 
 	constructor( config: AiAssistantConfig ) {
 		this._aiSearchUrl = config.aiSearchUrl;
-		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
 		this._adminUrl = config.adminUrl;
-		this._getTransport = config.getTransport ?? ( () => 'off' );
 		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
 		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
 
@@ -311,9 +300,6 @@ export class AiAssistant implements AiAssistantApi {
 		this._isOpen = false;
 		this._el.classList.remove( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'true' );
-		// Abort any in-flight streaming request so we don't keep an open
-		// HTTP connection to the server after the user closes the panel.
-		this._closeStream();
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
 		this._input.disabled = false;
@@ -946,116 +932,14 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.disabled = true;
 		this._showThinking( __( 'Thinking…' ) );
 
-		// Two transports:
-		//   - 'sse' — real-time progress ticks via EventSource. The shell
-		//     default. Some hosts (locked-down shared environments,
-		//     buffering proxies) drop the stream, which surfaces as "Lost
-		//     connection to the assistant".
-		//   - 'off' — single REST request. No progress ticks; the user sees
-		//     "Thinking…" until the final answer. Reliable everywhere.
-		// We additionally fall back to fetch when EventSource is missing
-		// or PHP didn't provision a stream URL, so SSE on a host that
-		// can't actually run it still degrades gracefully.
-		const useSse =
-			this._getTransport() === 'sse' &&
-			typeof EventSource !== 'undefined' &&
-			!! this._aiSearchStreamUrl;
-		if ( useSse ) {
-			this._runSearchStream( query, resumeTool, startOffset );
-		} else {
-			this._runSearchFetch( query, resumeTool, startOffset );
-		}
+		void this._runSearchRequest( query, resumeTool, startOffset );
 	}
 
 	/**
-	 * EventSource-based streaming — the preferred path. Shows real-time
-	 * progress messages as the agent picks tools and runs them.
+	 * Runs the search as a single REST request. The user sees "Thinking…"
+	 * until the answer lands.
 	 */
-	private _runSearchStream(
-		query: string,
-		resumeTool: string | null,
-		startOffset: number,
-	): void {
-		const url = new URL( this._aiSearchStreamUrl, window.location.origin );
-		url.searchParams.set( 'nonce', this._restNonce );
-		url.searchParams.set( 'query', query );
-		if ( resumeTool ) {
-			url.searchParams.set( 'resume_tool', resumeTool );
-			url.searchParams.set( 'start_offset', String( startOffset ) );
-		}
-
-		this._closeStream();
-		const es = new EventSource( url.toString() );
-		this._currentStream = es;
-
-		const finish = () => {
-			es.close();
-			this._currentStream = null;
-			this._isSearching = false;
-			this._submitBtn.disabled = false;
-			this._input.disabled = false;
-			this._input.focus();
-		};
-
-		es.onmessage = ( ev ) => {
-			let data: {
-				event?: string;
-				message?: string;
-				code?: string;
-				settings_tab?: string;
-				result?: SearchResult;
-			};
-			try {
-				data = JSON.parse( ev.data );
-			} catch {
-				return;
-			}
-			if ( ! data || typeof data !== 'object' ) {
-				return;
-			}
-
-			switch ( data.event ) {
-				case 'open':
-					// Connection established — keep the initial "Thinking…".
-					break;
-				case 'progress':
-					if ( typeof data.message === 'string' ) {
-						this._showThinking( data.message );
-					}
-					break;
-				case 'done':
-					if ( data.result ) {
-						this._showResult( query, data.result );
-					}
-					finish();
-					break;
-				case 'error':
-					this._showError(
-						data.message ?? __( 'Something went wrong.' ),
-						data.settings_tab,
-					);
-					finish();
-					break;
-			}
-		};
-
-		es.onerror = () => {
-			// Connection dropped mid-stream. If we never received 'done'
-			// we need to show a user-visible error, otherwise the user
-			// would stare at a stale "Thinking…".
-			if ( this._currentStream === es ) {
-				this._showError(
-					__( 'Lost connection to the assistant. Please try again.' ),
-				);
-				finish();
-			}
-		};
-	}
-
-	/**
-	 * Legacy fetch path — used when EventSource is not available.
-	 */
-	private async _runSearchFetch(
+	private async _runSearchRequest(
 		query: string,
 		resumeTool: string | null,
 		startOffset: number,
@@ -1105,13 +989,6 @@ export class AiAssistant implements AiAssistantApi {
 			this._submitBtn.disabled = false;
 			this._input.disabled = false;
 			this._input.focus();
-		}
-	}
-
-	private _closeStream(): void {
-		if ( this._currentStream ) {
-			this._currentStream.close();
-			this._currentStream = null;
 		}
 	}
 

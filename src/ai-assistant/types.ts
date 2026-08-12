@@ -35,7 +35,6 @@ export interface AiAssistantApi {
  */
 export interface AiAssistantConfig {
 	aiSearchUrl: string;
-	aiSearchStreamUrl: string;
 	restNonce: string;
 	/**
 	 * Base admin URL (e.g. `'http://example.com/wp-admin/'`). Used to
@@ -43,7 +42,6 @@ export interface AiAssistantConfig {
 	 * entity search results (posts, pages) in legacy windows.
 	 */
 	adminUrl: string;
-	getTransport?: () => 'sse' | 'off';
 	/**
 	 * Whether the AI mode is usable — the AI APIs are present and a
 	 * provider is configured. When false the assistant is a pure command

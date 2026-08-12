@@ -1991,13 +1991,8 @@ function init(): void {
 	const aiAssistant = new AiAssistantStub(
 		{
 			aiSearchUrl: config.aiSearchUrl ?? '',
-			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
 			adminUrl: config.adminUrl,
-			// Progress streaming is on by default now that the per-user
-			// transport picker is gone; the assistant falls back gracefully
-			// if the host drops the SSE connection.
-			getTransport: () => 'sse',
 			// AI mode is usable when the APIs are present and a provider is
 			// configured; the Commands palette works regardless. Read live so
 			// connecting a provider or flipping the "AI assistant" toggle takes

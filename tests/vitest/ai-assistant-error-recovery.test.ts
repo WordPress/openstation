@@ -16,12 +16,10 @@ import type { AiAssistantConfig } from '../../src/ai-assistant/types';
 
 const BASE_CONFIG: AiAssistantConfig = {
 	aiSearchUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/search',
-	aiSearchStreamUrl: '',
 	restNonce: 'test-nonce',
 	adminUrl: 'https://example.test/wp-admin/',
 	isAiAvailable: () => false,
 	isOverrideEnabled: () => false,
-	getTransport: () => 'off',
 };
 
 /** Stub the REST call with a non-ok response carrying `body`. */
@@ -74,7 +72,7 @@ describe( 'AiAssistant — error recovery link', () => {
 		} );
 
 		assistant.open();
-		await assistant[ '_runSearchFetch' ]( 'hola', null, 0 );
+		await assistant[ '_runSearchRequest' ]( 'hola', null, 0 );
 
 		const link = document.querySelector< HTMLButtonElement >(
 			'.os-ai__settings-link',
@@ -85,58 +83,11 @@ describe( 'AiAssistant — error recovery link', () => {
 		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
 	} );
 
-	test( 'the link also arrives over SSE, the default transport', async () => {
-		// The stream endpoint used to bail with a bare 403 for this case,
-		// which reaches `onerror` and cannot carry a hint. It now sends a
-		// real error frame, so the link works on the path users are on.
-		const instances: Array< Record< string, unknown > > = [];
-		class FakeEventSource {
-			onmessage: ( ( ev: { data: string } ) => void ) | null = null;
-			onerror: ( () => void ) | null = null;
-			close = vi.fn();
-			constructor() {
-				instances.push( this as unknown as Record< string, unknown > );
-			}
-		}
-		vi.stubGlobal( 'EventSource', FakeEventSource );
-
-		const streaming = new AiAssistant( {
-			...BASE_CONFIG,
-			aiSearchStreamUrl: 'https://example.test/stream',
-			getTransport: () => 'sse',
-		} );
-		streaming.open();
-		streaming[ '_runSearchStream' ]( 'hola', null, 0 );
-
-		const es = instances[ 0 ] as unknown as FakeEventSource;
-		es.onmessage!( {
-			data: JSON.stringify( {
-				event: 'error',
-				code: 'openstation_ai_disabled',
-				message: 'El asistente de IA está desactivado.',
-				settings_tab: 'features',
-			} ),
-		} );
-
-		// This instance appended a second overlay, so scope to its own DOM
-		// rather than the document.
-		const panel = streaming[ '_el' ] as HTMLElement;
-		const link = panel.querySelector< HTMLButtonElement >(
-			'.os-ai__settings-link',
-		);
-		expect( link ).not.toBeNull();
-		link!.click();
-		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
-
-		streaming.close();
-		panel.remove();
-	} );
-
 	test( 'an error with no settings hint gets no link', async () => {
 		stubErrorResponse( 500, { code: 'oops', message: 'Boom.' } );
 
 		assistant.open();
-		await assistant[ '_runSearchFetch' ]( 'hola', null, 0 );
+		await assistant[ '_runSearchRequest' ]( 'hola', null, 0 );
 
 		expect( document.querySelector( '.os-ai__settings-link' ) ).toBeNull();
 		expect(
