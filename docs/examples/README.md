@@ -32,6 +32,7 @@ defined( 'ABSPATH' ) || exit;
 - [Custom window chrome — full title-bar replacement (Experimental)](./custom-chrome.md)
 - [Register a custom unfocused-window effect (Experimental)](./custom-unfocus-effect.md)
 - [Register a custom window reveal (Experimental)](./window-reveal.md)
+- [Register a custom view transition (Experimental)](./view-transition.md)
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Related entities — extend the title bar's "Related" menu (Experimental)](./related-entities.md)
 - [Add a row to a window's ⋯ menu (Experimental)](./window-action.md)

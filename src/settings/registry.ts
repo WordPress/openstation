@@ -109,6 +109,23 @@ export interface OsSettingsSnapshot {
 	 */
 	windowRevealDuration: number;
 	/**
+	 * Active view-transition id — the whole-surface animation played
+	 * through the View Transitions API when the shell changes state.
+	 * `'none'` (no transition) is the default: they are opt-in.
+	 */
+	viewTransition: string;
+	/**
+	 * Active window-transition id — the animation played when a single
+	 * window opens, closes, minimizes, restores or toggles maximized.
+	 * `'none'` (the default) keeps the shell's class-driven animations.
+	 */
+	windowTransition: string;
+	/**
+	 * Global view-transition speed override in ms, or `0` to let each
+	 * transition use its own tuned timing. Shared by both selections.
+	 */
+	viewTransitionDuration: number;
+	/**
 	 * Active window-link renderer id; `'none'` disables the visuals,
 	 * unknown ids fall back to the built-in `'svg-splines'`.
 	 */

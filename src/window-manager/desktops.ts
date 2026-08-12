@@ -19,6 +19,11 @@ import {
 	restoreWindowAfterOverviewLayout,
 } from './overview';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
+import {
+	hasActiveViewTransition,
+	runViewTransition,
+} from '../view-transitions';
+import type { ViewTransitionDirection } from '../view-transitions';
 import type { WindowManager } from './index';
 
 export function getDesktops( mgr: WindowManager ): Desktop[] {
@@ -142,14 +147,15 @@ export function switchDesktop(
 	// `--active` highlight to match. Without these two calls,
 	// keyboard-driven desktop switching mid-overview looked like
 	// "nothing happened" even though the underlying active id moved.
-	if ( mgr._overviewActive ) {
-		relayoutOverviewForActiveDesktop( mgr );
-		refreshOverviewTopBar( mgr );
-	} else {
+	// Everything that actually moves pixels, in one callback — so the
+	// view-transition path and the plain path run the SAME mutation and
+	// fire `DESKTOP_SWITCHED` at the same point relative to it (right
+	// after the DOM lands, never before). A listener that reads window
+	// visibility from the hook sees the new desktop either way; the
+	// only difference is that the animated path gets there a frame or
+	// two later, once the browser has taken its "old" snapshot.
+	const applySwitch = (): void => {
 		refreshDesktopVisibility( mgr );
-		if ( opts?.direction ) {
-			animateDesktopSwitch( mgr, opts.direction );
-		}
 
 		// Re-focus the topmost window on the new desktop. Without this,
 		// focus / z-state would still point at the prior desktop's window
@@ -164,12 +170,54 @@ export function switchDesktop(
 		if ( topOnNew ) {
 			mgr.focus( topOnNew );
 		}
+
+		doAction( HOOKS.DESKTOP_SWITCHED, {
+			from: previousId,
+			to: id,
+		} );
+	};
+
+	if ( mgr._overviewActive ) {
+		// Overview has already snapshotted every window at a scaled
+		// transform and is mid-layout; wrapping that in a whole-screen
+		// snapshot would animate the grid re-flowing rather than the
+		// desktop changing, which is not the same event.
+		relayoutOverviewForActiveDesktop( mgr );
+		refreshOverviewTopBar( mgr );
+		doAction( HOOKS.DESKTOP_SWITCHED, {
+			from: previousId,
+			to: id,
+		} );
+		return;
 	}
 
-	doAction( HOOKS.DESKTOP_SWITCHED, {
-		from: previousId,
-		to: id,
-	} );
+	if ( hasActiveViewTransition( 'root' ) ) {
+		// Jump-to-desktop callers (a tile click, the plugin API) pass no
+		// direction because there is no left/right metaphor to honour —
+		// which the transitions read as `'none'` and play their forward
+		// form for, exactly as the desktop-area slide already skips.
+		let direction: ViewTransitionDirection = 'none';
+		if ( 'next' === opts?.direction ) {
+			direction = 'forward';
+		} else if ( 'prev' === opts?.direction ) {
+			direction = 'backward';
+		}
+		// The user picked a whole-screen transition, so it replaces the
+		// desktop-area slide rather than playing alongside it — two
+		// animations of the same event read as one stutter.
+		void runViewTransition( {
+			family: 'root',
+			update: applySwitch,
+			types: [ 'os-vt-desktop' ],
+			direction,
+		} );
+		return;
+	}
+
+	applySwitch();
+	if ( opts?.direction ) {
+		animateDesktopSwitch( mgr, opts.direction );
+	}
 }
 
 /**

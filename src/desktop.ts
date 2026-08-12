@@ -84,6 +84,11 @@ import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-syn
 import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
+import type {
+	PlayViewTransitionOptions,
+	ViewTransitionDef,
+	ViewTransitionResult,
+} from './view-transitions';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
@@ -96,6 +101,7 @@ import { createUnfocusEffectRegistrySync } from './effects/server-sync';
 import { createWindowLinkRendererRegistrySync } from './window-links/server-sync';
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
+import { startViewTransitionEngine } from './view-transitions';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import { mountDockConstellation } from './dock-constellation';
 import {
@@ -1211,6 +1217,61 @@ export interface OpenStationPublicApi {
 	unregisterWindowReveal: ( id: string ) => void;
 	/** Snapshot of registered window reveals (filter applied). */
 	listWindowReveals: () => WindowRevealDef[];
+	/**
+	 * Register a view transition — a whole-surface animation played
+	 * through the browser's View Transitions API when the shell changes
+	 * state, selectable in OpenStation Preferences → Effects.
+	 *
+	 * A transition is **CSS, not JavaScript**. The def below carries an
+	 * id, a label and a duration; the motion lives in your own
+	 * stylesheet, matched by the view-transition *type* the shell
+	 * activates for the run:
+	 *
+	 * ```css
+	 * html:active-view-transition-type( os-vt-acme-swoosh )::view-transition-old( root ) {
+	 *     animation: my-swoosh-out var( --os-vt-duration ) both;
+	 * }
+	 * ```
+	 *
+	 * `--os-vt-duration` and `--os-vt-easing` are published on the
+	 * document element for the run, so honouring the user's speed
+	 * setting costs nothing. Set `scope: 'element'` for a transition
+	 * that animates ONE window rather than the screen — those are
+	 * offered to window-level changes and whole-screen ones are not,
+	 * and vice versa. Set `owner` to your script handle to tag it for
+	 * grouped removal.
+	 *
+	 * The built-ins are registered through this same API.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 */
+	registerViewTransition: ( def: ViewTransitionDef ) => void;
+	/** Remove a previously registered view transition. */
+	unregisterViewTransition: ( id: string ) => void;
+	/** Snapshot of registered view transitions (filter applied). */
+	listViewTransitions: () => ViewTransitionDef[];
+	/**
+	 * Play a view transition around your own DOM mutation, using the
+	 * user's current selection unless you name one.
+	 *
+	 * Always runs `update` exactly once — animated where the browser,
+	 * the user's motion preference and their selection all allow it,
+	 * and plainly where they do not. There is no need to branch on
+	 * support.
+	 *
+	 * @example
+	 * ```js
+	 * await wp.os.runViewTransition( {
+	 *     update: () => panel.replaceChildren( nextView ),
+	 *     types: [ 'acme-panel' ],
+	 * } );
+	 * ```
+	 */
+	runViewTransition: (
+		opts: PlayViewTransitionOptions,
+	) => Promise< ViewTransitionResult >;
+	/** Whether this browser has same-document view transitions at all. */
+	supportsViewTransitions: () => boolean;
 	/**
 	 * Window content relations — which piece of content each window
 	 * shows and how windows group around a shared root (a comment
@@ -3201,6 +3262,15 @@ function init(): void {
 	// that edge and drives the surface directly, which keeps the class
 	// toggles in a single deterministic order.
 	startWindowRevealEngine( { osSettings } );
+
+	// View-transition engine — tracks which whole-surface transition
+	// the user picked, and starts recording pointer positions so the
+	// shaped ones (`ripple`, `iris`, `pulse`) originate at the control
+	// that was clicked rather than at the centre of the screen. Like
+	// the reveal engine it owns no trigger: the surfaces that change
+	// state — `switchDesktop`, `Window.toggleMaximize` — call
+	// `runViewTransition` at the edge they already own.
+	startViewTransitionEngine( { osSettings } );
 
 	// Window-links relations engine — tracks per-window content
 	// identity and relation groups. Pure state + events; the link

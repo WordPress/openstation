@@ -599,6 +599,144 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 		$this->assertSame( 0, $clean['windowRevealDuration'] );
 	}
 
+	// ------------------------------------------------------------------
+	// viewTransition — the whole-surface animation played through the
+	// View Transitions API when the shell changes state. Same id
+	// charset, same no-allow-list stance and same duration semantics as
+	// windowReveal above: the JS player resolves at play time, so a
+	// transition belonging to a deactivated plugin has to survive the
+	// round-trip rather than being scrubbed to the default here.
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
+	public function test_default_view_transition_is_none() {
+		$defaults = openstation_default_os_settings();
+		$this->assertSame( 'none', $defaults['viewTransition'] );
+		$this->assertSame( 'none', $defaults['windowTransition'] );
+		$this->assertSame( 0, $defaults['viewTransitionDuration'] );
+	}
+
+	/**
+	 * The two selections are independent keys, not one shared value:
+	 * a user can reasonably want windows growing out of their icons
+	 * and want the desktop switch left alone.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_transition_is_independent() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'viewTransition'   => 'cube',
+				'windowTransition' => 'genie',
+			)
+		);
+		$this->assertSame( 'cube', $clean['viewTransition'] );
+		$this->assertSame( 'genie', $clean['windowTransition'] );
+
+		// Setting one leaves the other at its default.
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowTransition' => 'swirl' )
+		);
+		$this->assertSame( 'none', $clean['viewTransition'] );
+		$this->assertSame( 'swirl', $clean['windowTransition'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_window_transition_falls_back_on_junk() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowTransition' => '!!!' )
+		);
+		$this->assertSame( 'none', $clean['windowTransition'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'windowTransition' => array( 'genie' ) )
+		);
+		$this->assertSame( 'none', $clean['windowTransition'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_view_transition_accepts_any_registry_id() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => 'cube' )
+		);
+		$this->assertSame( 'cube', $clean['viewTransition'] );
+
+		// Slashes survive so a plugin can namespace `vendor/sub-id`.
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => 'acme/warp-drive' )
+		);
+		$this->assertSame( 'acme/warp-drive', $clean['viewTransition'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => 'none' )
+		);
+		$this->assertSame( 'none', $clean['viewTransition'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_view_transition_strips_illegal_characters() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => 'Cube Turn!<script>' )
+		);
+		$this->assertSame( 'cubeturnscript', $clean['viewTransition'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_view_transition_falls_back_on_junk() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => '!!!' )
+		);
+		$this->assertSame( 'none', $clean['viewTransition'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransition' => array( 'cube' ) )
+		);
+		$this->assertSame( 'none', $clean['viewTransition'] );
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_view_transition_duration_clamps_and_keeps_sentinel() {
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransitionDuration' => 700 )
+		);
+		$this->assertSame( 700, $clean['viewTransitionDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransitionDuration' => 999999 )
+		);
+		$this->assertSame( 4000, $clean['viewTransitionDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransitionDuration' => 5 )
+		);
+		$this->assertSame( 80, $clean['viewTransitionDuration'] );
+
+		// 0 is "use each transition's own tuned timing", not a missing
+		// value — clamping it up to the minimum would take the choice
+		// away from anyone who picked "Default".
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransitionDuration' => 0 )
+		);
+		$this->assertSame( 0, $clean['viewTransitionDuration'] );
+
+		$clean = openstation_sanitize_os_settings(
+			array( 'viewTransitionDuration' => 'fast' )
+		);
+		$this->assertSame( 0, $clean['viewTransitionDuration'] );
+	}
+
 	/**
 	 * The setting has to survive a save → load round-trip through user
 	 * meta, since that is the path the shell actually reads at boot.

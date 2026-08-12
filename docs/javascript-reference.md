@@ -2776,6 +2776,169 @@ Remove a reveal by id, or read the current list (post-filter). `listWindowReveal
 
 ---
 
+### `registerViewTransition( def )` — Experimental
+
+Register a **view transition** — a whole-surface animation played through the browser's [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API) while the shell changes state. Selectable in OpenStation Preferences → Effects.
+
+A view transition is not the same thing as a [window reveal](#registerwindowreveal-def---experimental). A reveal uncovers **one window's content** after it loads. A transition animates **the change itself** — the desktop you were on becoming the desktop you switched to, the window you clicked becoming a maximized one — by having the browser snapshot the surface before and after your mutation and animate one into the other.
+
+**A transition is CSS, not JavaScript.** The def carries an id, a label and a duration; the motion lives in your own stylesheet, matched by the **view-transition type** the shell activates for the run:
+
+```js
+wp.os.registerViewTransition( {
+    id:          'acme/swoosh',
+    label:       'Swoosh',
+    description: 'Everything leans out of the way and the new screen skids in.',
+    duration:    480,
+    owner:       'acme-desktop',
+} );
+```
+
+```css
+/* The type is your id, prefixed and slash-flattened:
+   `acme/swoosh` → `os-vt-acme-swoosh`. */
+html:active-view-transition-type( os-vt-acme-swoosh )::view-transition-old( root ) {
+    animation: acme-swoosh-out var( --os-vt-duration ) var( --os-vt-easing ) both;
+}
+html:active-view-transition-type( os-vt-acme-swoosh )::view-transition-new( root ) {
+    animation: acme-swoosh-in var( --os-vt-duration ) var( --os-vt-easing ) both;
+}
+```
+
+You never write an `Animation`, never own teardown, and never reason about interruption: types are scoped to the transition's lifetime by the browser, so one that is skipped, aborted, or interrupted mid-flight leaves no state behind.
+
+**`ViewTransitionDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Required. `/^[a-z0-9_/-]+$/`; `'none'` is reserved. Becomes the type `os-vt-<id>` with slashes flattened to hyphens — use `viewTransitionTypeFor( id )` rather than composing it by hand. |
+| `label` | `string` | Required. Shown in the Preferences selector. |
+| `description` | `string` | Optional. One line under the selector. |
+| `scope` | `'root' \| 'element'` | Optional, default `'root'`. Which surfaces offer this transition — see **Scope decides where a transition plays** below. |
+| `duration` | `number` | Optional ms, default `420`. Clamped to 80–4000. Published as `--os-vt-duration`. |
+| `easing` | `string` | Optional. Published as `--os-vt-easing`. |
+| `types` | `string[]` | Optional extra types activated alongside your own — the way a family of transitions shares one chunk of CSS. The built-in `cube`, `flip` and `fold` all declare `os-vt-3d`, which is where the perspective lives. |
+| `usesPointer` | `boolean` | Optional. Publishes `--os-vt-x` / `--os-vt-y` (viewport px) for the run, taken from the user's last pointer press, so a transition can grow out of the control they clicked. Falls back to the viewport centre for keyboard-driven runs. |
+| `owner` | `string` | Optional script handle, for grouped removal. |
+
+**What the shell publishes on `<html>` for the run:** `--os-vt-duration`, `--os-vt-easing`, and — for `usesPointer` defs — `--os-vt-x` / `--os-vt-y`. Also `--os-vt-mesh`, `--os-vt-accent` and `--os-vt-surface`, which carry the resolved brand palette up from `body.os-active` (the pseudo-element tree inherits from the root element, so it cannot read the palette on its own). All are removed when the transition settles.
+
+**Context types the shell adds**, which your CSS may key off:
+
+| Type | Meaning |
+|---|---|
+| `os-vt-on` | Every run. Where the shared setup lives — bind your keyframes to your own type, not this one. |
+| `os-vt-desktop` | The active virtual desktop changed. |
+| `os-vt-appearance` | Wallpaper, accent, desktop theme, dock placement or layout changed. |
+| `os-vt-window` | One window changed. Also switches on per-window `view-transition-name: match-element`, so each window is its own group. |
+| `os-vt-open` / `-close` / `-minimize` / `-restore` / `-maximize` | Which window moment this is. |
+| `os-vt-preview` | Played from the Preferences panel rather than by a real state change. |
+| `os-vt-forward` / `os-vt-backward` | Direction hint. Declare your forward form and mirror under `backward`; a transition that ignores it plays the same both ways. |
+
+**`scope` splits the registry into two families, and there are two settings.** "How should the screen change when I switch Space?" and "how should a window appear when I open it?" have no overlapping good answers — a cube rotation is right for the first and absurd for the second, where it would freeze and rotate the whole desk to animate one corner of it. So:
+
+| `scope` | Setting | Plays on |
+|---|---|---|
+| `'root'` (default) | `viewTransition` | Switching virtual desktop; any appearance change (wallpaper, accent, desktop theme, dock placement, layout) |
+| `'element'` | `windowTransition` | A window opening, closing, minimizing, restoring, or toggling maximized |
+
+OpenStation Preferences → Effects shows one selector per family, filtered from the same registry, so a plugin registers into one place and lands in the right list. `viewTransitionDuration` is shared by both — "how fast is this desktop" is one preference, not two.
+
+**Built-ins** — 32, all registered through this same API.
+
+*Screen* (`root`): `crossfade`, `dissolve`, `through-black`, `slide`, `cover`, `uncover`, `lift`, `parallax`, `zoom`, `push-back`, `warp`, `cube`, `flip`, `fold`, `spin`, `ripple`, `iris`, `wipe`, `blinds`, `curtain`, `shutter`, `nebula`, `pulse`, `glitch`, `scanline`.
+
+*Window* (`element`): `morph`, `genie`, `pop`, `unfold`, `swirl`, `materialize`, `slam`.
+
+### The launcher morph — windows grow out of what you clicked
+
+Every window transition gets this for free, and it needs nothing from the code that opens the window.
+
+When a window opens, the shell pairs it with **whatever the user last pressed** by giving both a shared `view-transition-name`. The browser then stops treating them as one thing appearing and another disappearing and treats them as one thing that *moved* — interpolating position, size and corner radius from the dock tile or wallpaper icon into the finished window. No path to compute, no ghost element tracking the pointer.
+
+The source is **inferred from the last `pointerdown`**, not passed as an argument. That is deliberate: an argument would need adding to every existing launcher (dock, wallpaper icons, taskbar, links inside windows, `wp.os.openWindow()`) *and* every future one — including a plugin's, which would silently get the un-morphed version with no reason to suspect an argument was missing. Inferring inverts it: the animation works by default and you opt out or refine instead.
+
+Resolution walks up from the pressed element through this ordered list, first match wins:
+
+```
+[data-os-vt-launcher]      ← the opt-in; put it on your own button
+.os-dock__item-primary
+.os-dock__item
+.os-icon__image
+.os-icon
+.os-file-tile
+.os-taskbar__item
+.os-dock-peek__card
+.os-window                 ← fallback: a window opened from a link inside another window
+```
+
+`[data-os-vt-launcher]` also covers every `<os-*>` web component for free — events crossing a shadow boundary are retargeted to the host, so the host is what the tracker sees, and the attribute goes on the host.
+
+It resolves to `null` — and the transition plays un-paired — for a keyboard shortcut, for session restore at boot, for a programmatic open from a timer, and for a launcher that has since been re-rendered away. All correct: in none of those cases was there a click for the window to have come from.
+
+Filter `os.view-transition-launcher` receives the resolved element (or `null`) and the element actually pressed. Return `null` to suppress the morph, or another element to redirect it — a "recently opened" list might prefer to morph from the app's dock tile rather than from the list row.
+
+**In CSS**, the subject of a window transition carries `view-transition-class: os-vt-morph`, applied inline alongside the shared name. Every open window carries `os-vt-card`; only the one the transition is *about* carries `os-vt-morph`, which is how a rule tells the window that is opening from the eight that merely happen to be on screen while it does. The desk itself holds still: `::view-transition-old(root)` / `-new(root)` are pinned to a hold animation for the whole `os-vt-window` family.
+
+Lifecycle context types let a def distinguish the moments: `os-vt-open`, `os-vt-close`, `os-vt-minimize`, `os-vt-restore`, `os-vt-maximize`, plus `os-vt-preview` when it is being played from the Preferences panel.
+
+**Behaviour worth knowing:**
+
+- **Graceful degradation is four-tiered.** Without `document.startViewTransition` nothing animates and the mutation just runs. Without view-transition *types* the shell mirrors the id onto `<html data-os-vt="…">` instead and the built-in stylesheet matches on either, so the transitions work on engines older than types are (context types are lost in that mode). Without element-scoped transitions a `scope: 'element'` def runs at the root carrying identical types. Without `document.activeViewTransition` the shell cannot see an in-flight transition and simply starts anyway.
+- **`prefers-reduced-motion` skips the animation entirely** — deliberately total. Unlike a reveal, which is one element wiping away and can be shortened to a fade, a view transition moves the whole surface the user is reading; there is no reduced version that is still the transition.
+- **A busy transition is skipped, not queued** (`whenBusy: 'skip'`, the default), so holding a desktop-switch shortcut tracks the key repeat instead of lagging a keypress behind. Pass `whenBusy: 'drop'` for background changes that must land but must not fight for the screen.
+- **Registration is JS-only.** Same known gap as reveals and palettes: no `openstation_register_view_transition_script()` PHP companion yet, so a transition registered by a plugin activated mid-session appears in the selector only after a reload.
+
+The raw `os.view-transitions` JS filter receives the registry array on every read, mirroring `os.window-reveals` — use it to reorder, remove, or conditionally swap transitions. The user's selections persist in the `viewTransition` and `windowTransition` OS-settings keys (a transition id or `'none'`, the default — they are opt-in) with `viewTransitionDuration` as a shared speed override in ms (`0` = per transition). An unknown id resolves to no transition rather than to a substitute, and starts working again the moment that plugin re-registers it.
+
+See [`docs/examples/view-transition.md`](./examples/view-transition.md) for a copy-paste recipe.
+
+### `runViewTransition( opts )` — Experimental
+
+Play a transition around your own DOM mutation. **Always runs `opts.update` exactly once** — animated where the browser, the user's motion preference and their selection all allow it, and plainly where they do not. There is no need to branch on support.
+
+```js
+await wp.os.runViewTransition( {
+    update: () => panel.replaceChildren( nextView ),
+    types:  [ 'acme-panel' ],
+} );
+```
+
+| Option | Type | Notes |
+|---|---|---|
+| `update` | `() => void \| Promise<void>` | Required. May be async — the browser holds the old snapshot on screen until it settles, so keep it short. |
+| `family` | `'root' \| 'element'` | Which of the user's two selections to use. Default `'root'`. This is the caller saying what it is animating; a def's own `scope` is what it is capable of animating. They must agree for anything to play. |
+| `id` | `string` | Play a specific transition instead of the user's selection. |
+| `types` | `string[]` | Context types added on top of the def's own. |
+| `morph` | `{ from?, to? }` | Pair two elements so the browser animates one INTO the other. `from` is an element that exists now; `to` is a *callback*, run right after `update`, because the destination usually does not exist yet. |
+| `direction` | `'forward' \| 'backward' \| 'none'` | Published as `os-vt-forward` / `os-vt-backward`. |
+| `scopeElement` | `Element \| null` | Confine to one subtree via `element.startViewTransition()`. Honoured only when the resolved def asks for `scope: 'element'` and the engine supports it. Note the shell's own window transitions do **not** use this — they run at the root with per-window naming, because a morph between two different elements cannot be scoped to either. If you do pass it, key your CSS on the scoping element rather than on `html`. |
+| `origin` | `{ x, y } \| null` | Override the pointer origin for `usesPointer` defs. |
+| `whenBusy` | `'skip' \| 'drop'` | What to do when a transition is already running. Default `'skip'`. |
+
+Resolves to `{ animated, reason }`, where `reason` is one of `'unsupported'`, `'reduced-motion'`, `'none-selected'`, `'busy'`, `'failed'` or `null`.
+
+### `unregisterViewTransition( id )` / `listViewTransitions()` / `supportsViewTransitions()` — Experimental
+
+Remove a transition by id, read the current list (post-filter), or check whether this browser has same-document view transitions at all. Unregistering is idempotent.
+
+### Cross-document transitions inside windows
+
+Separately from all of the above, **navigating between admin pages inside a window is animated by the browser itself**. `chromeless.css` opts the framed document into cross-document view transitions:
+
+```css
+@view-transition {
+    navigation: auto;
+    types: os-page-nav;
+}
+```
+
+Clicking *Posts → Add New* inside a window is a real navigation — the iframe unloads one document and loads the next — and this hands the gap between them to the browser instead of showing a blank frame. It is same-origin only and applies only where **both** documents opt in, which is exactly the chromeless-to-chromeless case: navigate out of the shell and the transition is skipped rather than broken.
+
+This is deliberately **not** the shell's `viewTransition` setting. That one animates the desktop changing state and lives in the parent document; this animates a page load and lives in the framed one, where the shell's stylesheet is not (and must not be) loaded. `#wpbody-content` carries `view-transition-name: os-page-content` so the content region moves independently of the surrounding page; style `::view-transition-old( os-page-content )` / `::view-transition-new( os-page-content )` from a stylesheet enqueued on the `openstation_chromeless_styles` action to change it, and key off the `os-page-nav` type to tell an in-window navigation apart from a shell transition.
+
+---
+
 ### `wp.os.relations` — Experimental
 
 Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def---experimental) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.

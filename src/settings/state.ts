@@ -192,6 +192,30 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			parsed.windowRevealDuration > 0
 				? Math.min( 4000, Math.max( 80, Math.round( parsed.windowRevealDuration ) ) )
 				: DEFAULTS.windowRevealDuration,
+		// View transition — same id charset as reveals; the player
+		// resolves at play time and treats an unknown id as "no
+		// transition" rather than substituting a built-in.
+		viewTransition:
+			typeof parsed.viewTransition === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.viewTransition )
+				? parsed.viewTransition
+				: DEFAULTS.viewTransition,
+		// Window transition — same charset, same resolution rules; the
+		// player additionally refuses a def whose scope disagrees with
+		// the selector it came from.
+		windowTransition:
+			typeof parsed.windowTransition === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowTransition )
+				? parsed.windowTransition
+				: DEFAULTS.windowTransition,
+		// Speed override — 0 (or anything out of range) means "use each
+		// transition's own timing"; the player clamps the rest.
+		viewTransitionDuration:
+			typeof parsed.viewTransitionDuration === 'number' &&
+			Number.isFinite( parsed.viewTransitionDuration ) &&
+			parsed.viewTransitionDuration > 0
+				? Math.min( 4000, Math.max( 80, Math.round( parsed.viewTransitionDuration ) ) )
+				: DEFAULTS.viewTransitionDuration,
 		// Window-link renderer — same id charset as unfocus effects;
 		// the render host resolves at use time and falls back to the
 		// built-in `svg-splines` for unknown ids.

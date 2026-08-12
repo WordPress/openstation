@@ -32,6 +32,12 @@ import type {
 import type { Window } from '../window';
 import { urlReuseKey } from '../utils';
 import {
+	findLaunchSource,
+	hasActiveViewTransition,
+	isShellBooting,
+	runViewTransition,
+} from '../view-transitions';
+import {
 	ensureWindowSystemLoaded,
 	windowSystemBundleUrl,
 } from '../window-system/loader';
@@ -615,7 +621,86 @@ export class WindowManager {
 		const id = this.getByBaseId( baseId )
 			? this.nextInstanceId( baseId )
 			: config.id;
-		return this.createWindow( { ...config, id, baseId } );
+		return this.createWindowAnimated( { ...config, id, baseId } );
+	}
+
+	/**
+	 * {@link createWindow}, wrapped in the user's window transition and
+	 * paired with whatever they pressed to trigger it.
+	 *
+	 * This is the single funnel every open in the shell passes through —
+	 * dock tiles, wallpaper icons, the taskbar, links inside windows,
+	 * `wp.os.openWindow()`, a plugin's own button — so wiring it here
+	 * animates all of them at once, including ones that do not exist
+	 * yet. See `./launcher.ts` for why the source element is inferred
+	 * from the last pointer press rather than passed down.
+	 *
+	 * The morph is what makes it read as caused: the browser is given
+	 * one `view-transition-name` shared between the icon and the new
+	 * window, so it interpolates the box from one to the other instead
+	 * of fading a window in over the top of an icon that is still there.
+	 *
+	 * @param config Window config, id already resolved.
+	 * @return       The created window.
+	 * @internal
+	 */
+	private createWindowAnimated(
+		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
+	): Promise< Window > {
+		if ( ! hasActiveViewTransition( 'element' ) || isShellBooting() ) {
+			// Returned, not awaited. Deliberately NOT an `async` method:
+			// awaiting here would insert a microtask before the caller
+			// ever sees the promise, and everything downstream of an
+			// open — the iframe's first load event, the tab strip's
+			// initial sync — is ordered against that resolution. One
+			// extra tick on the un-animated path is a behaviour change
+			// for every open in the shell, in exchange for nothing.
+			return this.createWindow( config );
+		}
+		return this._createWindowWithTransition( config );
+	}
+
+	/**
+	 * The animated half of {@link createWindowAnimated}, split out so
+	 * the common path above can stay synchronous.
+	 *
+	 * @param config Window config, id already resolved.
+	 * @return       The created window.
+	 * @internal
+	 */
+	private async _createWindowWithTransition(
+		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
+	): Promise< Window > {
+		const source = findLaunchSource();
+		let created: Window | undefined;
+		let failure: unknown;
+		await runViewTransition( {
+			family: 'element',
+			// `os-vt-open` lets a def distinguish arriving from leaving;
+			// `os-vt-window` is what switches on per-window naming.
+			types: [ 'os-vt-window', 'os-vt-open' ],
+			morph: { from: source, to: () => created?.element ?? null },
+			update: async () => {
+				try {
+					created = await this.createWindow( config );
+				} catch ( e ) {
+					// The player treats the update as opaque and
+					// swallows a rejected `finished`, so an error here
+					// has to be carried out by hand or an open that
+					// genuinely failed would resolve as a silent no-op.
+					failure = e;
+				}
+			},
+		} );
+		if ( failure ) {
+			throw failure;
+		}
+		if ( ! created ) {
+			throw new Error(
+				'windowManager.open(): the window transition completed without creating a window.',
+			);
+		}
+		return created;
 	}
 
 	/**
@@ -651,7 +736,7 @@ export class WindowManager {
 				: this.nextInstanceId( baseId );
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
-		return this.createWindow( {
+		return this.createWindowAnimated( {
 			initialState: 'normal',
 			x: cascadeX,
 			y: cascadeY,

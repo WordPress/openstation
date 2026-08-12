@@ -111,6 +111,11 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerWindowReveal` | `( def: WindowRevealDef ) => void` | Experimental |
 | `unregisterWindowReveal` | `( id: string ) => void` | Experimental |
 | `listWindowReveals` | `() => WindowRevealDef[]` | Experimental |
+| `registerViewTransition` | `( def: ViewTransitionDef ) => void` | Experimental |
+| `unregisterViewTransition` | `( id: string ) => void` | Experimental |
+| `listViewTransitions` | `() => ViewTransitionDef[]` | Experimental |
+| `runViewTransition` | `( opts: PlayViewTransitionOptions ) => Promise< ViewTransitionResult >` | Experimental |
+| `supportsViewTransitions` | `() => boolean` | Experimental |
 | `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental |
 | `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental |
 | `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental |

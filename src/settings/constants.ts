@@ -227,6 +227,21 @@ export const DEFAULTS: OsSettingsState = {
 	// 0 = use each reveal's own tuned duration. Any other value is a
 	// global override in ms, set from OS Settings → Effects.
 	windowRevealDuration: 0,
+	// Off by default, and for a stronger reason than reveals: a view
+	// transition freezes the WHOLE surface for its duration, so an
+	// opinionated default would tax every desktop switch on behalf of a
+	// user who never asked for one. They pick one in OpenStation
+	// Preferences → Effects; `'none'` keeps the desktop-area slide the
+	// shell has always had.
+	viewTransition: 'none',
+	// The window-lifecycle half of the same feature, off for the same
+	// reason. Its own key rather than a shared one: a user can
+	// reasonably want windows to grow out of their icons and want the
+	// desktop switch left alone, or the reverse.
+	windowTransition: 'none',
+	// 0 = use each transition's own tuned duration. Any other value is
+	// a global override in ms, set from Preferences → Effects.
+	viewTransitionDuration: 0,
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',
 	windowLinksEnabled: true,

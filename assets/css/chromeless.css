@@ -491,3 +491,91 @@ html.wp-toolbar:has( body.os-chromeless ) {
 .os-chromeless .commands-command-menu {
 	display: none !important;
 }
+
+/* ---------------------------------------------------------------
+ * Cross-document view transitions — page-to-page inside a window.
+ *
+ * Everything else in this sheet adjusts how ONE admin page paints
+ * inside a window. This is the only part that concerns the moment
+ * BETWEEN two of them.
+ *
+ * Clicking "Posts → Add New" inside a window is a real navigation:
+ * the iframe unloads one document and loads the next, and until now
+ * the user saw a flash of blank frame in between. `@view-transition`
+ * hands that gap to the browser — it holds the outgoing page's
+ * rendering, waits for the incoming one, and animates one into the
+ * other. Same-origin only, and only where BOTH documents opt in,
+ * which is precisely the chromeless-to-chromeless case: navigate out
+ * of the shell and the transition is skipped rather than broken.
+ *
+ * `types` publishes `os-page-nav` for the run, so a plugin can style
+ * navigations inside a window differently from a shell transition
+ * without guessing which one it is looking at.
+ *
+ * This is deliberately NOT the shell's view-transition setting. That
+ * one animates the desktop changing state and lives in the parent
+ * document; this animates a page load and lives in the framed one,
+ * where the shell's stylesheet is not (and must not be) loaded.
+ * Keeping them separate is also what keeps the promise in the header
+ * of `variables.css`: an admin page in a window looks exactly as it
+ * does outside one — including, now, while it is arriving.
+ * --------------------------------------------------------------- */
+@view-transition {
+	navigation: auto;
+	types: os-page-nav;
+}
+
+/*
+ * The content region gets its own name so it can move independently
+ * of the surrounding page. Without it the whole document is one
+ * snapshot and the only possible animation is a crossfade of
+ * everything, chrome included — which reads as a flicker rather than
+ * as one page replacing another.
+ */
+.os-chromeless #wpbody-content {
+	view-transition-name: os-page-content;
+}
+
+::view-transition-old( os-page-content ) {
+	animation: os-page-content-out 180ms cubic-bezier( 0.4, 0, 1, 1 ) both;
+}
+
+::view-transition-new( os-page-content ) {
+	animation: os-page-content-in 280ms cubic-bezier( 0, 0, 0.2, 1 ) both;
+}
+
+@keyframes os-page-content-out {
+	from {
+		opacity: 1;
+		transform: translateY( 0 );
+	}
+	to {
+		opacity: 0;
+		transform: translateY( -8px );
+	}
+}
+
+@keyframes os-page-content-in {
+	from {
+		opacity: 0;
+		transform: translateY( 10px );
+	}
+	to {
+		opacity: 1;
+		transform: translateY( 0 );
+	}
+}
+
+/*
+ * The shell's own reduced-motion guard lives in `view-transitions.css`,
+ * which is a PARENT-document sheet and never loads in here. A
+ * cross-document transition is started by the browser without asking
+ * any script first, so this document has to carry its own.
+ */
+@media ( prefers-reduced-motion: reduce ) {
+	::view-transition-group( * ),
+	::view-transition-old( * ),
+	::view-transition-new( * ) {
+		animation: none !important;
+	}
+}
