@@ -112,7 +112,10 @@ export async function showCommentsIntroDialog(
 		};
 
 		const onKey = ( e: KeyboardEvent ): void => {
-			if ( e.key === 'Escape' ) {
+			// A dialog that opened on top of this one owns Escape —
+			// one keypress reaching both would close a dialog the
+			// user cannot even see yet.
+			if ( e.key === 'Escape' && focusScope.isTopmost() ) {
 				e.preventDefault();
 				cleanup( 'cancel' );
 			}

@@ -26,7 +26,26 @@
  * a root that leaves the document some other way (a plugin replacing
  * the body, a test resetting the DOM) unbinds on the next event
  * instead of swallowing Tab for the rest of the session.
+ *
+ * **Only one scope is live at a time.** Two open scopes each see the
+ * other's dialog as "behind the scrim", and each pull-back is a real
+ * focus change that re-triggers the other's — mutual recursion that
+ * blows the stack rather than settling. Nothing stops two first-run
+ * dialogs from mounting at once (each window gates its own intro
+ * independently, so opening two never-seen windows back to back opens
+ * two), so scopes go on a stack and only the topmost acts. The ones
+ * underneath stay mounted and inert until it releases, which is also
+ * what makes `isTopmost()` the right question for a dialog's own
+ * Escape handler to ask before closing.
+ *
+ * That stack is cross-bundle state: `posts-window`, `plugins-window`
+ * and `comments-window` are separate Vite IIFEs, each with its own
+ * compiled copy of this module, so a module-level array would give
+ * every bundle a private stack and coordinate nothing. It lives in a
+ * `createSharedStore` slot for exactly that reason.
  */
+
+import { createSharedStore } from '../shared-store';
 
 /**
  * Everything the trap treats as a stop in the tab order.
@@ -80,7 +99,32 @@ export interface ModalFocusScope {
 	 * dialogs call it from a `cleanup()` that several paths reach.
 	 */
 	release(): void;
+	/**
+	 * Whether this is the frontmost live scope.
+	 *
+	 * A dialog binds its own Escape handler on the document, so with
+	 * two dialogs open one keypress reaches both and closes both —
+	 * the user dismissed the one they could see and the one behind it
+	 * went too, marked seen without ever being read. Gate that
+	 * handler on this.
+	 */
+	isTopmost(): boolean;
 }
+
+/** One entry per live scope. Identity is all we need from it. */
+interface ScopeToken {
+	root: HTMLElement;
+}
+
+/**
+ * The stack of live scopes, shared across every bundle that traps
+ * focus. See the module docblock for why this cannot be a plain
+ * module-level array.
+ */
+const scopeStack = createSharedStore< { stack: ScopeToken[] } >(
+	'openstation/modal-focus',
+	() => ( { stack: [] } ),
+);
 
 /**
  * The genuinely focused element, walking down through shadow roots.
@@ -130,6 +174,23 @@ function contains( root: HTMLElement, el: EventTarget | null ): boolean {
 	return false;
 }
 
+/** Whether `token` is the frontmost entry on the shared stack. */
+function isTopmostToken( token: ScopeToken ): boolean {
+	const { stack } = scopeStack.state;
+	return stack.length > 0 && stack[ stack.length - 1 ] === token;
+}
+
+/** Drop `token` wherever it sits — scopes can release out of order. */
+function dropToken( token: ScopeToken ): void {
+	const { stack } = scopeStack.state;
+	const at = stack.indexOf( token );
+	if ( at === -1 ) {
+		return;
+	}
+	stack.splice( at, 1 );
+	scopeStack.notify();
+}
+
 /**
  * Confine focus to `root` until the returned scope is released.
  */
@@ -137,6 +198,12 @@ export function trapFocus( options: ModalFocusOptions ): ModalFocusScope {
 	const { root } = options;
 	const doc = root.ownerDocument;
 	const opener = deepActiveElement( doc );
+
+	// Frontmost from here on. Anything already open goes inert rather
+	// than fighting this scope for focus.
+	const token: ScopeToken = { root };
+	scopeStack.state.stack.push( token );
+	scopeStack.notify();
 
 	// Where to put focus when it escapes. Starts as the initial
 	// target and tracks the last legal position after that, so a pull-
@@ -150,10 +217,10 @@ export function trapFocus( options: ModalFocusOptions ): ModalFocusScope {
 
 	const onKeyDown = ( e: KeyboardEvent ): void => {
 		if ( ! root.isConnected ) {
-			unbind();
+			detach();
 			return;
 		}
-		if ( e.key !== 'Tab' ) {
+		if ( ! isTopmostToken( token ) || e.key !== 'Tab' ) {
 			return;
 		}
 		const items = focusablesIn( root );
@@ -183,7 +250,7 @@ export function trapFocus( options: ModalFocusOptions ): ModalFocusScope {
 
 	const onFocusIn = ( e: FocusEvent ): void => {
 		if ( ! root.isConnected ) {
-			unbind();
+			detach();
 			return;
 		}
 		if ( contains( root, e.target ) ) {
@@ -191,6 +258,13 @@ export function trapFocus( options: ModalFocusOptions ): ModalFocusScope {
 			if ( target instanceof HTMLElement ) {
 				lastInside = target;
 			}
+			return;
+		}
+		// A scope underneath an open one records where focus went but
+		// does not chase it — the scope on top owns that decision, and
+		// two scopes both pulling would bounce focus between them until
+		// the stack overflows.
+		if ( ! isTopmostToken( token ) ) {
 			return;
 		}
 		// Focus reached something behind the scrim — a background
@@ -202,25 +276,46 @@ export function trapFocus( options: ModalFocusOptions ): ModalFocusScope {
 		);
 	};
 
-	function unbind(): void {
+	/**
+	 * Unbind and leave the stack. Also the self-heal path for a root
+	 * that left the document some other way — a scope that can no
+	 * longer act must not go on blocking the one underneath it.
+	 */
+	function detach(): void {
 		doc.removeEventListener( 'keydown', onKeyDown, true );
 		doc.removeEventListener( 'focusin', onFocusIn, true );
+		dropToken( token );
 	}
 
 	doc.addEventListener( 'keydown', onKeyDown, true );
 	doc.addEventListener( 'focusin', onFocusIn, true );
 
 	return {
+		isTopmost(): boolean {
+			return isTopmostToken( token );
+		},
 		release(): void {
 			if ( released ) {
 				return;
 			}
 			released = true;
-			unbind();
-			// Only take focus back if the dialog still had it. A
-			// dismissal that happened while the user was elsewhere
-			// (a background timer clearing the dialog) should not
-			// yank the caret out of whatever they moved on to.
+			// Leave the stack before moving focus: whatever scope is
+			// underneath is live again from here, and the focus this
+			// hands out is its to reclaim if its dialog is still up.
+			detach();
+			/*
+			 * Only take focus back if the dialog still had it. A
+			 * dismissal that happened while the user was elsewhere (a
+			 * background timer clearing the dialog) should not yank
+			 * the caret out of whatever they moved on to.
+			 *
+			 * `null` — focus on `<body>`, i.e. nowhere — counts as
+			 * ours to hand back, not as somewhere the user moved to.
+			 * Clicking the backdrop lands exactly there, and leaving
+			 * focus on `<body>` is the failure this scope exists to
+			 * prevent. Only a real live element outside the dialog
+			 * means the user went somewhere deliberately.
+			 */
 			const active = deepActiveElement( doc );
 			if ( active !== null && ! contains( root, active ) ) {
 				return;

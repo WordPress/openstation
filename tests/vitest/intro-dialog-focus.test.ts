@@ -142,3 +142,53 @@ describe.each( DIALOGS )( '%s intro dialog', ( _name, show ) => {
 		expect( document.activeElement ).toBe( behind );
 	} );
 } );
+
+/**
+ * Nothing serialises the five intros: each window gates its own, so
+ * opening two never-seen windows back to back — two dock clicks, or a
+ * session restoring several windows — mounts two dialogs at once.
+ * They have to stack rather than fight.
+ */
+describe( 'two intro dialogs open at once', () => {
+	let postsRoot: HTMLElement;
+	let usersRoot: HTMLElement;
+
+	beforeEach( () => {
+		document.body.innerHTML = '';
+		postsRoot = document.createElement( 'div' );
+		usersRoot = document.createElement( 'div' );
+		document.body.append( postsRoot, usersRoot );
+	} );
+
+	afterEach( () => {
+		document.body.innerHTML = '';
+	} );
+
+	test( 'the second dialog holds focus, and Escape closes one at a time', async () => {
+		const posts = showPostsIntroDialog( postsRoot );
+		const users = showUsersIntroDialog( usersRoot );
+
+		const dialogs = document.querySelectorAll< HTMLElement >(
+			'[role="dialog"]',
+		);
+		expect( dialogs ).toHaveLength( 2 );
+		const [ postsDialog, usersDialog ] = Array.from( dialogs );
+
+		// The one that opened last owns focus — and getting here at all
+		// means the two scopes did not recurse into each other.
+		expect( usersDialog.contains( document.activeElement ) ).toBe( true );
+
+		// One Escape, one dismissal: the dialog behind must not be
+		// closed — and marked seen — before the user has seen it.
+		pressEscape();
+		await expect( users ).resolves.toBe( 'cancel' );
+		expect( document.body.contains( usersDialog ) ).toBe( false );
+		expect( document.body.contains( postsDialog ) ).toBe( true );
+		// Focus came forward to the dialog that is now frontmost.
+		expect( postsDialog.contains( document.activeElement ) ).toBe( true );
+
+		pressEscape();
+		await expect( posts ).resolves.toBe( 'cancel' );
+		expect( document.activeElement ).toBe( postsRoot );
+	} );
+} );

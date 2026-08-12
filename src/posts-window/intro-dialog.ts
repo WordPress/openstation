@@ -568,7 +568,7 @@ export async function showPostsIntroDialog(
 		// --- Cleanup wiring -----------------------------------------
 		let teardownPixi: ( () => void ) | null = null;
 		const cleanup = ( result: IntroResult ): void => {
-			document.removeEventListener( 'keydown', onKey );
+			document.removeEventListener( 'keydown', onKey, true );
 			teardownPixi?.();
 			// Before the removal — once the dialog is out of the
 			// document the browser has already dropped focus on
@@ -578,7 +578,10 @@ export async function showPostsIntroDialog(
 			resolve( result );
 		};
 		const onKey = ( e: KeyboardEvent ): void => {
-			if ( e.key === 'Escape' ) {
+			// A dialog that opened on top of this one owns Escape —
+			// one keypress reaching both would close a dialog the
+			// user cannot even see yet.
+			if ( e.key === 'Escape' && focusScope.isTopmost() ) {
 				e.preventDefault();
 				// Escape does NOT mark the intro as seen — the
 				// caller treats `'cancel'` as a no-op so the dialog
@@ -588,7 +591,10 @@ export async function showPostsIntroDialog(
 				cleanup( 'cancel' );
 			}
 		};
-		document.addEventListener( 'keydown', onKey );
+		// Capture phase so the shell's own global key handlers (the
+		// command palette, window shortcuts) don't get the Escape
+		// first — matches every other intro dialog.
+		document.addEventListener( 'keydown', onKey, true );
 
 		confirmBtn.addEventListener( 'click', () => cleanup( 'confirm' ) );
 		settingsBtn.addEventListener( 'click', () => cleanup( 'settings' ) );

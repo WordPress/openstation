@@ -160,3 +160,84 @@ describe( 'trapFocus', () => {
 		expect( document.activeElement ).toBe( outside );
 	} );
 } );
+
+/**
+ * Two dialogs open at once is not hypothetical: every window gates
+ * its own first-run intro independently, so opening two never-seen
+ * native windows back to back mounts two. Before the stack, each
+ * scope saw the other's dialog as "behind the scrim" and pulled focus
+ * back — and because every pull-back is a real focus change, the two
+ * handlers re-entered each other until the stack overflowed.
+ */
+describe( 'trapFocus with two scopes open', () => {
+	let dialogA: HTMLElement;
+	let buttonA: HTMLButtonElement;
+	let dialogB: HTMLElement;
+	let buttonB: HTMLButtonElement;
+
+	function build( label: string ): [ HTMLElement, HTMLButtonElement ] {
+		const root = document.createElement( 'div' );
+		root.setAttribute( 'role', 'dialog' );
+		const button = document.createElement( 'button' );
+		button.textContent = label;
+		root.appendChild( button );
+		document.body.appendChild( root );
+		return [ root, button ];
+	}
+
+	beforeEach( () => {
+		document.body.innerHTML = '';
+		[ dialogA, buttonA ] = build( 'A' );
+		[ dialogB, buttonB ] = build( 'B' );
+	} );
+
+	afterEach( () => {
+		document.body.innerHTML = '';
+	} );
+
+	test( 'the second scope takes focus without the first fighting it', () => {
+		const a = trapFocus( { root: dialogA, initialFocus: buttonA } );
+		expect( a.isTopmost() ).toBe( true );
+
+		const b = trapFocus( { root: dialogB, initialFocus: buttonB } );
+		// No recursion, and B keeps what it took.
+		expect( document.activeElement ).toBe( buttonB );
+		expect( a.isTopmost() ).toBe( false );
+		expect( b.isTopmost() ).toBe( true );
+	} );
+
+	test( 'only the topmost scope traps Tab', () => {
+		trapFocus( { root: dialogA, initialFocus: buttonA } );
+		trapFocus( { root: dialogB, initialFocus: buttonB } );
+		tab();
+		// B wrapped onto its own only control; A stayed out of it.
+		expect( document.activeElement ).toBe( buttonB );
+	} );
+
+	test( 'releasing the top scope hands control back to the one below', () => {
+		const windowRoot = document.createElement( 'div' );
+		document.body.appendChild( windowRoot );
+
+		trapFocus( { root: dialogA, initialFocus: buttonA } );
+		const b = trapFocus( {
+			root: dialogB,
+			initialFocus: buttonB,
+			returnFocusTo: windowRoot,
+		} );
+
+		b.release();
+		// B handed focus to its window root — which is behind A, still
+		// on screen, so A (live again) reclaims it.
+		expect( dialogA.contains( document.activeElement ) ).toBe( true );
+	} );
+
+	test( 'a scope whose dialog was removed stops blocking the one below', () => {
+		const a = trapFocus( { root: dialogA, initialFocus: buttonA } );
+		trapFocus( { root: dialogB, initialFocus: buttonB } );
+
+		dialogB.remove();
+		// Any event is enough to trip B's self-heal.
+		tab();
+		expect( a.isTopmost() ).toBe( true );
+	} );
+} );
