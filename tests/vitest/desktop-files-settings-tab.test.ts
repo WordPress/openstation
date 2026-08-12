@@ -76,7 +76,7 @@ describe( 'File Associations OS Settings tab', () => {
 		).toEqual( [ 'Default app for Post', 'Default app for User' ] );
 		expect(
 			Array.from( body.querySelectorAll( 'os-select' ) ).map( ( select ) =>
-				select.getAttribute( 'aria-label' ),
+				select.getAttribute( 'label' ),
 			),
 		).toEqual( [ 'Default app for Post', 'Default app for User' ] );
 	} );

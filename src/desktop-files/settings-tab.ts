@@ -100,7 +100,11 @@ function buildRow(
 		value?: string;
 	};
 	select.setAttribute( 'value', currentId );
-	select.setAttribute( 'aria-label', `Default app for ${ typeLabel }` );
+	// `<os-select>` forwards its `label` property to the native
+	// `<select>` inside the shadow root. An `aria-label` on the host is
+	// not enough: the component removes it when no `label` property is
+	// present, leaving the real keyboard target unnamed.
+	select.setAttribute( 'label', `Default app for ${ typeLabel }` );
 	select.className = 'os-file-associations__select';
 	label.htmlFor = `assoc-${ typeSlug }`;
 	select.id = `assoc-${ typeSlug }`;
