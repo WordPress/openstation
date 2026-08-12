@@ -62,6 +62,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified + Spatial)* | Stable |
 | `Dock.setBadge` | `( id: string, count: number ) => void` | Stable |
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
+| `Dock.getActiveDeck` | `() => string \| null` *(bottom rails; `null` when undecked)* | Stable |
+| `Dock.setActiveDeck` | `( deckId: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |
 | `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable |
 | `registerSystemTile` | `( item: SystemDockItem ) => void` | Stable |

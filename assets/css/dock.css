@@ -1083,6 +1083,529 @@
 	flex-shrink: 0;
 }
 
+/* ==================================================================
+ * Decks — one group of tiles on screen at a time.
+ *
+ * The bottom rail is a pill, and a pill has a width. A site with a
+ * dozen plugins overran it and the rail's answer was a hidden
+ * horizontal scroll: the tiles were there, if you knew to swipe. The
+ * three clusters it already drew dividers between — core menus,
+ * plugin apps, OpenStation's own controls — are now decks, and
+ * exactly one is on screen. A strip of tabs at the leading edge names
+ * the one you're on and offers the others.
+ *
+ * Bottom placement only. A vertical rail is a column with the shell's
+ * whole height to spend; folding it into decks would hide tiles that
+ * already fit. `Dock` builds the controller for `'bottom'` and tears
+ * it down on any flip away, so these selectors simply never match
+ * elsewhere.
+ *
+ * **Which tiles are hidden is decided in JS, not here.** CSS cannot
+ * compare two attributes — there is no way to write "hide the tiles
+ * whose `data-os-deck` differs from the dock's `data-os-deck-active`"
+ * without one rule per deck id, which would cover the three built-ins
+ * and silently fail for every deck a plugin registers through
+ * `os.dock.decks`. `DockDecks.applyVisibility()` stamps
+ * `--deck-off` and this stylesheet only paints it.
+ * ================================================================== */
+
+/*
+ * A tile leaves by COLLAPSING, not by disappearing.
+ *
+ * This is the load-bearing rule of the whole switch, and it used to
+ * be `display: none`. The pill is `width: fit-content`, so its width
+ * is whatever its tiles add up to — and taking eight tiles out of the
+ * flow in one frame moved that by several hundred pixels instantly.
+ * Everything else was animating politely around a snap, which is the
+ * one thing the eye actually tracks.
+ *
+ * Collapsing to zero width instead means the pill's intrinsic width
+ * is recomputed every frame of the transition and `margin: 0 auto`
+ * re-centres it every frame with it. Nothing measures anything,
+ * nothing is pinned, and the outgoing tiles, the incoming tiles, the
+ * travelling plate and the label unfurling all move on one clock.
+ *
+ * `inert` (set from JS alongside the class) is what keeps a collapsed
+ * tile out of the tab order and the accessibility tree. A CSS
+ * `visibility: hidden` would have to be delayed until the collapse
+ * finished, which would couple this rule to the duration token.
+ */
+/*
+ * The flex `gap` goes with it, and this is why.
+ *
+ * `gap` is drawn BETWEEN items and cannot be animated per item, so a
+ * tile collapsed to zero width still leaves its 6px of gap behind —
+ * twenty of them is 120px of pill that never closes. Trading the gap
+ * for a symmetric 3px margin on every tile gives the same 6px between
+ * neighbours and the same 3px at the ends, and puts the spacing on
+ * the tile, where it can collapse with it.
+ *
+ * Scoped to decked rails: an undecked rail never collapses a tile, so
+ * it keeps the plain `gap` it has always had.
+ */
+.os-dock[ data-os-deck-active ] .os-dock__scroll,
+.os-dock[ data-os-deck-active ] .os-dock__pinned {
+	gap: 0;
+}
+
+.os-dock[ data-os-deck-active ] .os-dock__item {
+	margin-inline: 3px;
+	transition:
+		width var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		margin-inline-start
+			var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		margin-inline-end
+			var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		/* Faster than the collapse on purpose: a tile that is still
+		 * fully opaque at 4px wide reads as a sliver of debris. It
+		 * fades while there is still enough of it to fade. */
+		opacity 260ms ease-out;
+}
+
+/*
+ * The collapsed state, and it MUST out-specify the rule above.
+ *
+ * Both would otherwise sit at (0,3,0) and source order alone would
+ * decide whether `margin-inline: 0` or `margin-inline: 3px` won — and
+ * when the base rule won, every folded tile kept 6px it no longer had
+ * any width to justify. Twenty of those scattered through a deck is
+ * why the visible icons came out unevenly spaced: the phantom gap
+ * between any two of them was however many collapsed tiles happened
+ * to sit between them in DOM order.
+ *
+ * Carrying the placement attribute takes this to (0,4,0), so it wins
+ * wherever it is written rather than only where it happens to be.
+ * Decks are a bottom-rail affordance anyway, so the extra qualifier
+ * states something already true.
+ */
+.os-dock[ data-os-dock-placement="bottom" ][ data-os-deck-active ]
+	.os-dock__item--deck-off {
+	width: 0;
+	margin-inline: 0;
+	opacity: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+/*
+ * The first paint is not a switch.
+ *
+ * Without this the dock would open by showing every tile it has and
+ * then visibly folding two thirds of them away — a collapse the user
+ * did not ask for and has no way to read. The JS clears this
+ * attribute one frame after the first partition, once the starting
+ * state is already on screen.
+ */
+.os-dock[ data-os-deck-init ] .os-dock__item {
+	transition: none;
+}
+
+/*
+ * The dividers stand down while the rail is decked. They exist to say
+ * "these tiles are a different group from those tiles", and that is
+ * now the tab strip's whole job — a line inside a deck would be
+ * dividing a group from nothing.
+ *
+ * The strip's own leading separator is exempt: that one divides the
+ * switcher from the tiles, which is a real boundary in either mode.
+ */
+.os-dock[ data-os-deck-active ]
+	.os-dock__separator:not( .os-dock__separator--decks ) {
+	display: none;
+}
+
+/*
+ * Drop whichever wrapper the active deck left empty.
+ *
+ * `__scroll` carries `flex: 1 1 auto` and its own padding, so on the
+ * OpenStation deck — where every menu tile is `display: none` — it
+ * would otherwise sit in the flow as a phantom column, pushing the
+ * system tiles off the pill's centre. The existing "no tiles at all"
+ * rule can't cover this: the tiles ARE there, they're just hidden.
+ *
+ * Specificity has to clear the per-placement rules that set
+ * `display: flex` on these wrappers, which sit at (0,3,0). Carrying
+ * both dock attributes puts this at (0,5,0).
+ */
+.os-dock[ data-os-dock-placement="bottom" ][ data-os-deck-active ]
+	.os-dock__scroll:not(
+		:has( .os-dock__item:not( .os-dock__item--deck-off ) )
+	),
+.os-dock[ data-os-dock-placement="bottom" ][ data-os-deck-active ]
+	.os-dock__pinned:not(
+		:has( .os-dock__item:not( .os-dock__item--deck-off ) )
+	) {
+	display: none;
+}
+
+/*
+ * The strip's own divider runs a little taller and sits a little
+ * closer than the one between tile clusters. Taller because it is
+ * measuring itself against a 46px tab rather than a 40px tile;
+ * closer because the shared 14px is sized for a gap that has tiles on
+ * both sides, and here one side is a filled plate that already reads
+ * as an edge.
+ */
+.os-dock[ data-os-dock-placement="bottom" ] .os-dock__separator--decks {
+	height: 40px;
+	margin-inline: 10px;
+}
+
+/* ---- The tab strip ----------------------------------------------- */
+
+/*
+ * The strip claims the pill's full inner height, and that is the
+ * whole trick to it sitting centred.
+ *
+ * The pill's own padding is deliberately bottom-heavy — `4px` above,
+ * `8px` below — because a tile hangs its active dot at `bottom: -3px`
+ * and needs the room. `__scroll` adds `4px / 6px` on top of that for
+ * the same reason at the other end (the badge sits at `top: -3px`).
+ * A tab has neither: its dot and its badge are INSIDE its own box. So
+ * matching the wrapper's padding, which is what this used to do, just
+ * inherited a clearance the tabs don't spend and left them floating
+ * 8px from the top edge and 14px from the bottom.
+ *
+ * `padding-bottom: 0` cancels the half it doesn't need. The tab grows
+ * to fill what that frees, so the gap is 4 + 4 = 8px above and
+ * 0 + 8 = 8px below — even, and the button is bigger for it.
+ */
+.os-dock__decks {
+	/* Containing block for the travelling plate, and the offsetParent
+	 * the JS measures each tab against. */
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	/* The same 6px the tiles use. The strip is a row of buttons in a
+	 * row of buttons; a tighter gap here made the tabs read as one
+	 * segmented control welded together rather than as three places
+	 * to go. */
+	gap: 6px;
+	flex-shrink: 0;
+	padding-top: 4px;
+	padding-bottom: 0;
+}
+
+/*
+ * The same 8px on the leading edge. The pill's 12px inline padding is
+ * sized for a tile, whose 40px plate is a circle-ish glyph with air
+ * already built into it; a tab's plate is a filled rectangle that
+ * starts where it says it does, so the same 12px reads as a wider
+ * gap on the left than on the top. Scoped to decked rails so an
+ * undecked pill keeps the inset it has always had.
+ */
+.os-dock[ data-os-dock-placement="bottom" ][ data-os-deck-active ] {
+	padding-inline: 8px;
+}
+
+/*
+ * A tab is a tile-sized thing, because it sits in a row of tiles.
+ *
+ * The 40px square and the `--os-dock-icon-size` glyph are the same
+ * two numbers `.os-dock__item-primary` uses, and matching them is
+ * what makes the strip read as part of the rail rather than as a
+ * control bolted to the end of it — a collapsed tab is then exactly
+ * a tile with a different job. It also means the whole strip grows
+ * and shrinks with the Dock size preference for free; a hardcoded
+ * glyph would have stayed put at Compact and Large.
+ *
+ * `min-width` rather than `width`: the active tab has to grow past
+ * the square to fit its label.
+ */
+.os-dock__deck {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 46px;
+	height: 46px;
+	padding: 0 11px;
+	border: 0;
+	border-radius: 14px;
+	background-color: transparent;
+	color: var( --os-dock-icon-color, rgba( 255, 251, 255, 0.72 ) );
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background-color var( --os-ui-motion-fast, 140ms ) ease-out,
+		/* The ink rides with the plate, not with the hover wash: it is
+		 * flipping to Void because a light surface is arriving over
+		 * it, so settling 200ms before that surface gets there would
+		 * read as the label changing its mind. */
+		color var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		box-shadow var( --os-ui-motion-fast, 140ms ) ease-out;
+}
+
+/*
+ * A shade larger than a tile glyph, because the plate under it is a
+ * shade larger too — 46px against the tile's 40. Expressed against
+ * the same token so the Dock size preference still carries the whole
+ * strip; a hardcoded 22px would have stayed put at Compact and Large.
+ */
+.os-dock__deck .dashicons {
+	width: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	height: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	font-size: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	line-height: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	flex-shrink: 0;
+}
+
+/* Non-dashicon glyphs are painted as a mask so they take the tab's
+ * ink — which is what lets one go from muted to Void-on-mesh when it
+ * becomes the active tab, exactly as a themed tile icon does. */
+.os-dock__deck-mask {
+	width: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	height: calc( var( --os-dock-icon-size, 20px ) * 1.1 );
+	flex-shrink: 0;
+	background-color: currentColor;
+	-webkit-mask: var( --os-deck-mask ) center / contain no-repeat;
+	mask: var( --os-deck-mask ) center / contain no-repeat;
+}
+
+/*
+ * Only the active tab is named.
+ *
+ * Three labels across the leading edge is a menu bar, and the rail
+ * already has thirty things to look at. Collapsed to zero width the
+ * inactive tabs read as what they are — two more places to go — and
+ * the one that matters is spelled out. `max-width` rather than
+ * `display` so the name has something to animate from; the cap is
+ * generous enough for a translated "OpenStation" and stops a plugin's
+ * essay from taking the rail with it.
+ */
+.os-dock__deck-label {
+	display: block;
+	max-width: 0;
+	margin-inline-start: 0;
+	overflow: hidden;
+	opacity: 0;
+	/*
+	 * The SAME curve the plate travels on, deliberately. The plate is
+	 * chasing this tab's growing width frame by frame; two different
+	 * easings would have the surface and the label it is uncovering
+	 * disagreeing about where they are for the whole 340ms.
+	 */
+	transition:
+		max-width var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		margin-inline-start
+			var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		opacity var( --os-ui-motion-fast, 140ms ) ease-out;
+}
+
+.os-dock__deck--active .os-dock__deck-label {
+	max-width: 14ch;
+	margin-inline-start: 6px;
+	opacity: 1;
+}
+
+/*
+ * The identity moment, and it TRAVELS.
+ *
+ * The mesh is not painted on the active tab — it is painted on one
+ * element that slides between them, the same construction the window
+ * tab strip's plate uses and for the same reason: a fill that
+ * switched off on one tab and on at the next would have to cross-fade
+ * a mesh into nothing, and every frame in between belongs to neither
+ * state. Nothing cross-fades here. The surface moves and the ink
+ * flips underneath it.
+ *
+ * `DockDecks.positionPlate()` publishes the geometry as
+ * `--_deck-plate-x` / `--_deck-plate-w` on the strip; everything else
+ * is CSS. It follows the active tab for ~500ms after a switch because
+ * the label reveal is still growing that tab underneath it — see the
+ * method's own note for why the alternative (snapping the labels) is
+ * worse.
+ */
+.os-dock__deck-plate {
+	position: absolute;
+	inset-block: 4px 0;
+	left: 0;
+	width: var( --_deck-plate-w, 0 );
+	transform: translateX( var( --_deck-plate-x, 0 ) );
+	border-radius: 14px;
+	pointer-events: none;
+	background-image: var(
+		--os-dock-deck-fill,
+		var(
+			--os-ui-holo-fill,
+			linear-gradient( 124deg, #afa2e8, #c3b8ef )
+		)
+	);
+	box-shadow: var(
+		--os-ui-holo-glow,
+		0 0 0 1px rgba( 217, 46, 227, 0.2 ),
+		0 2px 10px rgba( 217, 46, 227, 0.15 )
+	);
+	transition:
+		transform var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		width var( --os-dock-deck-slide, 720ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
+}
+
+/*
+ * Until the first measurement lands the plate has no business
+ * animating — a width of 0 at x 0 is the strip's leading edge, and
+ * travelling out of it is what "flying in from nowhere" looks like
+ * every time the dock paints.
+ */
+.os-dock__decks:not( [ data-plate-placed ] ) .os-dock__deck-plate {
+	transition: none;
+}
+
+/*
+ * The tabs ride above it. Both are positioned, so without an explicit
+ * order the plate would win on source... it is the first child, so it
+ * loses — but only by accident of DOM order, and the JS inserts it
+ * first for exactly this reason. Stating it here means a future
+ * reorder cannot quietly paint the mesh over the labels.
+ */
+.os-dock__deck {
+	z-index: 1;
+}
+
+.os-dock__deck-plate {
+	z-index: 0;
+}
+
+/*
+ * Ink flips to Void because every mesh in the brand is a light
+ * surface. This is the only thing the active tab still owns — its
+ * fill left for the plate.
+ */
+.os-dock__deck--active {
+	color: var(
+		--os-dock-deck-ink,
+		var( --os-ui-holo-ink, #0c0b0f )
+	);
+}
+
+/*
+ * The inactive tabs get the tile hover wash, not a second mesh — two
+ * meshes touching is where iridescence stops reading as emphasis.
+ * Scoped away from the active tab because a `background-color` under
+ * the mesh would show through its transparent stops and muddy it.
+ */
+.os-dock__deck:not( .os-dock__deck--active ):hover {
+	background-color: var(
+		--os-dock-item-bg-hover,
+		rgba( 242, 82, 252, 0.18 )
+	);
+	color: var( --os-dock-icon-color-hover, #fffbff );
+}
+
+.os-dock__deck:focus-visible {
+	outline: none;
+	box-shadow: var(
+		--os-ui-focus-ring,
+		0 0 0 2px rgba( 12, 11, 15, 0.9 ),
+		0 0 0 4px #f252fc
+	);
+}
+
+.os-dock__deck:active {
+	transform: scale( 0.96 );
+}
+
+/*
+ * A hidden deck still has to be able to say something.
+ *
+ * The indicator dot is the same shape and the same position the tiles
+ * use one row over — a dot for "something in here is open", a short
+ * bar when the focused window is in there. Painted on the INACTIVE
+ * tabs only: the active deck's tiles are on screen carrying their own
+ * dots, and repeating them an inch away says the same thing twice.
+ */
+.os-dock__deck--has-open:not( .os-dock__deck--active )::after {
+	content: "";
+	position: absolute;
+	inset-inline-start: 50%;
+	bottom: 1px;
+	transform: translateX( -50% );
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: var( --os-dock-item-outline, #f252fc );
+}
+
+.os-dock__deck--has-focused:not( .os-dock__deck--active )::after {
+	width: 14px;
+	height: 4px;
+	border-radius: 2px;
+}
+
+/*
+ * The aggregate badge — the sum of the deck's tiles' own badges.
+ *
+ * Without it, folding the rail into decks would fold the update
+ * counts away with them: five pending plugin updates would be true,
+ * on screen a moment ago, and now behind a tab that looked idle.
+ * Inactive tabs only, for the same reason as the dot.
+ */
+.os-dock__deck-badge {
+	position: absolute;
+	top: -1px;
+	inset-inline-end: -3px;
+	min-width: 15px;
+	height: 15px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: var(
+		--os-dock-badge-bg,
+		linear-gradient( 180deg, #f97dff 0%, #f252fc 100% )
+	);
+	color: var( --os-dock-badge-fg, #0c0b0f );
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 15px;
+	text-align: center;
+	pointer-events: none;
+}
+
+/* ---- The switch -------------------------------------------------- */
+
+/*
+ * There is no separate entrance animation, and that is the point.
+ *
+ * An earlier pass dealt the incoming tiles in with a staggered
+ * keyframe — translate, scale, fade, 44ms a leg. It was pretty and it
+ * was fighting the wrong problem: it ran ON TOP of a pill whose width
+ * had already snapped, so the flourish played over the very jump it
+ * was distracting from. Now that a tile leaves and arrives by
+ * changing width, the arrival IS the animation, and a second motion
+ * layered over it only muddies whose clock the rail is on.
+ *
+ * If a staggered entrance comes back, it must not touch layout —
+ * `transform` and `opacity` only — or it will fight the width
+ * transition for the pill's intrinsic size.
+ */
+
+/*
+ * Reduced motion stops the travel, never the switch. The deck still
+ * changes, the tab still wears the mesh, the label still appears, the
+ * tiles still swap — losing those would lose STATE, not animation.
+ */
+@media ( prefers-reduced-motion: reduce ) {
+	.os-dock[ data-os-deck-active ] .os-dock__item,
+	.os-dock__deck-label,
+	.os-dock__deck,
+	/*
+	 * The plate still MOVES — it is where the selection is, and a
+	 * selection that stopped appearing would be lost state, not lost
+	 * animation. What goes is the travel: it cuts to the new tab.
+	 */
+	.os-dock__deck-plate {
+		transition: none;
+	}
+
+	.os-dock__deck:active {
+		transform: none;
+	}
+}
+
 /* Tooltip — above the hovered tile. JS writes the horizontal center
  * + a top near the tile's top edge; CSS translates the tooltip up by
  * its own height so it clears the tile. */

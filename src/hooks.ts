@@ -914,6 +914,40 @@ export const HOOKS = {
 	 */
 	DOCK_AFTER_RENDER: 'os.dock.after-render',
 	/**
+	 * Filter, resolves the list of decks a bottom rail folds itself
+	 * into — the named clusters its leading tab strip switches
+	 * between. Signature:
+	 * `( decks: DockDeck[], detail: DockHookContextBase ) => DockDeck[]`.
+	 *
+	 * The shell ships three: `wordpress` (core menus), `apps` (plugin
+	 * menus), `station` (system tiles). Reorder by `order`, rename by
+	 * `label`, drop one by filtering it out, or add your own with a
+	 * `matchItem` / `matchSystem` predicate. A tile goes to the FIRST
+	 * deck in sorted order whose predicate claims it, so a narrow deck
+	 * registered at a low `order` takes precedence without having to
+	 * rewrite the built-ins.
+	 *
+	 * A deck matching no tile is dropped as empty. With fewer than two
+	 * decks left the strip is removed entirely and the rail paints as
+	 * one undivided row — which is also how to switch decks off.
+	 *
+	 * Runs on every partition pass (boot, live menu refresh, system
+	 * tiles arriving or leaving), so keep it cheap and pure.
+	 */
+	DOCK_DECKS: 'os.dock.decks',
+	/**
+	 * Action, fires after the visible deck changes. Payload
+	 * `DockDeckChangeContext` — the base dock context plus `deckId`,
+	 * `previousDeckId` (`null` on the first paint) and `reason`
+	 * (`'click' | 'keyboard' | 'wheel' | 'swipe' | 'restore' | 'auto'`).
+	 *
+	 * `'restore'` is the rail resolving which deck to show without the
+	 * user asking — boot, or a deactivation emptying the deck they
+	 * were on. `'auto'` is the follow-focus preference moving the rail
+	 * on their behalf.
+	 */
+	DOCK_DECK_CHANGED: 'os.dock.deck-changed',
+	/**
 	 * Action a plugin *fires* (rather than listens to) when the state
 	 * behind a tile's active dot has changed for a reason the dock
 	 * cannot observe.

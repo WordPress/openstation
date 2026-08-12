@@ -10,6 +10,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	railFromId,
 	computeHideTarget,
+	computeFavorites,
 } from '../../src/item-visibility-menu';
 
 describe( 'railFromId', () => {
@@ -64,5 +65,34 @@ describe( 'computeHideTarget', () => {
 				'my-icon': 'dock',
 			} ),
 		).toBe( 'hidden' );
+	} );
+} );
+
+describe( 'computeFavorites', () => {
+	test( 'a new star lands at the end', () => {
+		expect( computeFavorites( [ 'woo' ], 'edit-php', true ) ).toEqual( [
+			'woo',
+			'edit-php',
+		] );
+	} );
+
+	test( 'unstarring leaves the rest of the order intact', () => {
+		expect(
+			computeFavorites( [ 'a', 'b', 'c' ], 'b', false ),
+		).toEqual( [ 'a', 'c' ] );
+	} );
+
+	test( 'starring an already-starred id moves it, never duplicates it', () => {
+		// A duplicate would paint the tile twice in the Favorites deck,
+		// and the dock keys its tile map by id — the second one would
+		// win and the first would leak.
+		expect( computeFavorites( [ 'a', 'b' ], 'a', true ) ).toEqual( [
+			'b',
+			'a',
+		] );
+	} );
+
+	test( 'unstarring something that was never starred is a no-op', () => {
+		expect( computeFavorites( [ 'a' ], 'zzz', false ) ).toEqual( [ 'a' ] );
 	} );
 } );

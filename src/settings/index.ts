@@ -222,6 +222,8 @@ export class OsSettings implements SettingsCtx {
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),
+			dockDecksEnabled: this.state.dockDecksEnabled,
+			dockFavorites: this.state.dockFavorites.slice(),
 			dockPromotedPositions: Object.fromEntries(
 				Object.entries( this.state.dockPromotedPositions ).map(
 					( [ k, v ] ) => [ k, { ...v } ],
@@ -401,6 +403,22 @@ export class OsSettings implements SettingsCtx {
 		shell.setAttribute(
 			'data-os-layout',
 			this.state.desktopLayout,
+		);
+
+		// The two deck preferences, as attributes rather than as
+		// callbacks threaded through the layout dispatcher: `DockDecks`
+		// reads them at the moment it would act, so a rail built before
+		// the user flipped either one picks up the new answer without
+		// being rebuilt — and boot, every save, and the rollback after
+		// a failed save all route through apply(), so there is one
+		// writer.
+		shell.setAttribute(
+			'data-os-decks',
+			this.state.dockDecksEnabled ? '1' : '0',
+		);
+		shell.setAttribute(
+			'data-os-deck-follow-focus',
+			this.state.dockDeckFollowFocus ? '1' : '0',
 		);
 
 		// Dock rail renderer pick — push into the registry so the

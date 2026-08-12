@@ -272,6 +272,14 @@ export const DEFAULTS: OsSettingsState = {
 	// opt-in Beta posture; cap-gated on `edit_posts` server-side.
 	nativeCommentsEnabled: false,
 	showDesktopOnWallpaperClick: false,
+	// Opt-in. Decking trades "every tile is on screen" for "the rail
+	// fits" — worth it once you have the tiles to feel the crowding,
+	// and not something to decide on a user's behalf before then.
+	dockDecksEnabled: false,
+	dockFavorites: [],
+	// The dock stays where the user left it. See the type's docblock
+	// for why this is not the default.
+	dockDeckFollowFocus: false,
 	mioEnabled: false,
 	// No opinions: the user has not been to "Make it yours" yet, so
 	// they get whatever Mio the site ships.

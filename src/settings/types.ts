@@ -297,6 +297,40 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
+	 * Whether the bottom dock folds its tiles into decks — WordPress,
+	 * Apps, OpenStation, Favorites — and shows one at a time behind a
+	 * tab strip.
+	 *
+	 * Off by default. Decking is a real change to how the rail is
+	 * read, not a refinement of it: a tile that was on screen is now
+	 * one click away, and that is a trade worth making only for
+	 * someone who has enough tiles to feel the crowding. Opting in is
+	 * how they say so. `OsSettings.apply()` writes it to the shell's
+	 * `data-os-decks` attribute; `DockDecks.sync()` reads it there.
+	 * Per-user.
+	 */
+	dockDecksEnabled: boolean;
+	/**
+	 * Canonical ids of the dock tiles the user has starred, in the
+	 * order they starred them. Populates the Favorites deck; empty
+	 * means no Favorites tab at all, since a deck matching nothing is
+	 * dropped. Written from the dock tile's right-click menu.
+	 * Per-user.
+	 */
+	dockFavorites: string[];
+	/**
+	 * Whether the bottom dock switches itself to the deck holding a
+	 * newly focused window.
+	 *
+	 * Off by default, deliberately. The framework is a transport, not
+	 * a UX policy maker (`docs/event-driven-framework.md`) — a rail
+	 * that reshuffles under the pointer because a window took focus is
+	 * the shell deciding on the user's behalf. With this off, the deck
+	 * holding that window says so with its indicator dot and waits to
+	 * be picked. Per-user.
+	 */
+	dockDeckFollowFocus: boolean;
+	/**
 	 * Whether Mio, the desk companion, is on. Toggled from Mio's dock
 	 * tile; the shell lazy-loads `assets/js/mio[.min].js` the first
 	 * time it flips true. Off by default. See `docs/mio.md`.

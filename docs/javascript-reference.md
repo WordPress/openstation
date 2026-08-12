@@ -367,6 +367,8 @@ document.addEventListener( 'os-item-menu-opening', ( e ) => {
 
 Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
 
+**Every icon in the dock has this menu**, admin-menu tiles and system tiles alike (OpenStation Preferences, the recycle bin, plugin-owned native windows, Exit OpenStation). What it *offers* differs: a system tile is only given the hide / move-between-rails entries when it declared `placeable: true` on registration — the same flag that decides whether it appears in Apps & Icons. Most don't, because most are load-bearing (Preferences is how you reach the screen that would put it back). The star and the settings shortcut are offered unconditionally: adding a tile to Favorites is non-destructive and belongs on every icon.
+
 ---
 
 ### Drag-and-drop CustomEvents — Stable
@@ -3295,7 +3297,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, `dockDecksEnabled`, `dockFavorites`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -3528,9 +3530,9 @@ wp.os.updateOsSettings(
 ): void;
 ```
 
-- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
+- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` / `dockFavorites` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
-- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer`, `desktopTheme` or `dockDecksEnabled` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `itemVisibility`, `dockOrder` and `dockFavorites` repaint the rail synchronously via the layout dispatcher. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).
@@ -3576,7 +3578,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
 ]
 ```
 
-`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the visibility override is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
+`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the visibility override is honoured whether or not the flag is set: all it controls is whether the user is offered a row — in Apps & Icons, and in the tile's own right-click menu, which drops its hide / move entries for a tile that isn't placeable and keeps the Favorites star either way.
 
 ```js
 const tiles = wp.os.listSystemTiles();
@@ -4509,6 +4511,81 @@ Custom rail renderers (registered via `wp.os.registerDockRailRenderer`, see belo
 | `os.dock.item-appended` | action | Stable | `{ id }` — fires when `wp.os.registerSystemTile()` lands a tile |
 | `os.dock.item-removed` | action | Stable | `{ id, placement }` — symmetric counterpart to `item-appended` |
 | `os.dock.refresh-active` | action | Experimental | No payload. One you **fire**, not listen to: repaints every tile's active dot. The dock already repaints on window lifecycle events, so this is only for a system tile whose `isOpen()` asks something other than "is a window open?" — Mio's asks whether the companion is on screen, and no window event will ever fire for that |
+| `os.dock.decks` | filter | Stable | `( decks: DockDeck[], ctx: DockHookContextBase ) → DockDeck[]` — the groups a bottom rail folds itself into. See [Dock decks](#dock-decks) |
+| `os.dock.deck-changed` | action | Stable | `DockHookContextBase & { deckId, previousDeckId: string \| null, reason }` — fires after the visible deck changes |
+
+##### Dock decks
+
+A bottom rail is a pill, and a pill has a width. Rather than pushing the overflow into a hidden horizontal scroll, the rail can fold its tiles into **decks** and show one at a time, with a tab strip at its leading edge naming the one you're on. Four ship:
+
+| Deck id | `order` | Holds |
+|---|---|---|
+| `favorites` | 5 | Every tile whose id is in `dockFavorites` — menu tiles and system tiles alike. Empty until the user stars something from a tile's right-click menu |
+| `wordpress` | 10 | Core admin menus — every `DockItem` whose `isCore` is not `false` |
+| `apps` | 20 | Plugin-contributed menus — `isCore === false`. Labelled *Plugins*; the id stays `apps` because the user's remembered deck is stored under it |
+| `station` | 30 | Every JS-registered system tile (OpenStation Preferences, the recycle bin, plugin-owned native windows, Exit OpenStation) |
+
+**Decks are opt-in** (`dockDecksEnabled`, default `false`) and a **bottom-placement affordance only**. A left or right rail is a column with the shell's full height to spend and scrolls honestly; folding it would hide tiles that already fit. A rail whose tiles all land in one deck loses the strip entirely and paints exactly as an undecked rail does — which is also what filtering every deck out does.
+
+Favorites leads on `order`, so a starred tile is starred *instead of* living with its provenance group — that is the point of starring it — and it is also the deck the rail opens on for a user who has any.
+
+```typescript
+interface DockDeck {
+    id: string;        // stable; persisted, and written to each tile's data-os-deck
+    label: string;     // tab label and accessible name
+    icon: string;      // dashicons class, or a URL / data: URI painted as a mask
+    order: number;     // lower is closer to the leading edge
+    matchItem?:   ( item: DockItem ) => boolean;
+    matchSystem?: ( item: SystemDockItem ) => boolean;
+}
+```
+
+A tile joins the **first** deck in sorted order whose predicate claims it, so a narrow deck registered at a low `order` takes precedence without you having to rewrite the built-ins' predicates:
+
+```javascript
+wp.hooks.addFilter( 'os.dock.decks', 'my-plugin', ( decks ) => [
+    ...decks,
+    {
+        id: 'favourites',
+        label: 'Favourites',
+        icon: 'dashicons-star-filled',
+        order: 5,
+        matchItem: ( item ) => [ 'edit.php', 'upload.php' ].includes( item.id ),
+    },
+] );
+```
+
+The filter runs on every partition pass — boot, every live menu refresh, and every system tile arriving or leaving — so keep it cheap and pure.
+
+`reason` on `os.dock.deck-changed` is `'click' | 'keyboard' | 'wheel' | 'swipe' | 'restore' | 'auto'`. `'restore'` is the rail resolving which deck to show without the user asking (boot, or a deactivation emptying the deck they were on); `'auto'` is the follow-focus preference moving the rail on their behalf.
+
+**Reading and driving the rail** — `wp.os.dock` exposes two methods, both no-ops on a rail that isn't decked, so you can call them without first checking the user's layout:
+
+```javascript
+wp.os.dock.getActiveDeck();          // 'wordpress' | 'apps' | 'station' | … | null
+wp.os.dock.setActiveDeck( 'apps' );
+```
+
+The pick is remembered per rail under the `desktop-mode-dock-deck` localStorage key.
+
+Three OS-settings keys, all readable via `getOsSettings()` and writable via `updateOsSettings()` — and all three round-trip through the `desktop_mode_os_settings` user meta like every other preference, so they follow the user across browsers and devices:
+
+| Key | Values | Where |
+|---|---|---|
+| `dockDecksEnabled` | `boolean` (default `false`) — master switch; off means one undivided row | Appearance → Dock groups |
+| `dockFavorites` | `string[]` — canonical item ids, in the order they were starred. Populates the Favorites deck | Right-click a dock tile → *Add to favorites* |
+| `dockDeckFollowFocus` | `boolean` (default `false`) — switch the rail to the deck holding a window whenever that window takes focus | Appearance → Dock groups |
+
+`dockDecksEnabled` is off by default because decking trades "every tile is on screen" for "the rail fits" — worth it once there are enough tiles to feel the crowding, and not a call to make on a user's behalf before then. `dockDeckFollowFocus` is off on the [event-driven framework](./event-driven-framework.md)'s rule: the shell is a transport, not a UX policy maker, and a rail that reshuffles under the pointer because a window took focus is a policy the user did not ask for. With it off, the deck says so with its indicator dot and waits to be picked.
+
+Writing `dockFavorites` through `updateOsSettings()` repaints the rail synchronously, so a plugin can seed a starred set without a reload:
+
+```javascript
+const snap = wp.os.getOsSettings();
+wp.os.updateOsSettings( {
+    dockFavorites: [ ...snap.dockFavorites, 'edit.php' ],
+} );
+```
 
 **`DockHookContextBase`** (shared by both context types):
 

@@ -20,6 +20,7 @@ import {
 import { applyIconMask } from './desktop-themes/paint-tinted-icon';
 import { slotForTileId } from './desktop-themes/slots';
 import { attachDockPeek } from './dock-peek';
+import { DockDecks } from './dock-decks';
 import { tryOpenExternalUrl } from './external-url';
 import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
@@ -305,6 +306,14 @@ export class Dock {
 	/** Unique hooks-bus namespace per instance for clean teardown. */
 	private hooksNamespace: string;
 
+	/**
+	 * Deck controller — the bottom rail's answer to a pill narrower
+	 * than its contents. Present only in the `'bottom'` orientation;
+	 * a vertical rail is a column with the shell's whole height to
+	 * spend and scrolls honestly. See `src/dock-decks/index.ts`.
+	 */
+	private decks: DockDecks | null = null;
+
 	private static instanceCounter = 0;
 
 	/**
@@ -367,6 +376,12 @@ export class Dock {
 		scroll.className = 'os-dock__scroll';
 		const pinned = document.createElement( 'div' );
 		pinned.className = 'os-dock__pinned';
+		// Ids so the deck tabs can name the region each one reveals
+		// via `aria-controls`. Derived from the rail's own id, which
+		// is unique per rail — two docks coexist in Classic.
+		const hostBase = container.id || `os-dock-${ Dock.instanceCounter }`;
+		scroll.id = `${ hostBase }-items`;
+		pinned.id = `${ hostBase }-pinned`;
 		container.appendChild( scroll );
 		container.appendChild( pinned );
 		this.itemHost = scroll;
@@ -392,8 +407,83 @@ export class Dock {
 		}
 		document.body.appendChild( this.tooltip );
 
+		this.syncDeckController();
 		this.render();
 		this.bindWindowEvents();
+	}
+
+	/**
+	 * Bring the deck controller in line with the current orientation.
+	 *
+	 * Constructed for `'bottom'`, torn down for anything else. Kept
+	 * as its own method because three paths need it: the constructor,
+	 * {@link setOrientation}, and (defensively) any future rebuild —
+	 * and each of them must not end up with two controllers stacking
+	 * gesture listeners on the same container.
+	 */
+	private syncDeckController(): void {
+		if ( this.orientation === 'bottom' ) {
+			if ( ! this.decks ) {
+				this.decks = new DockDecks( {
+					container: this.container,
+					itemHost: this.itemHost,
+					systemHost: this.systemHost,
+					rail: this.rail,
+					hookContext: () => this.buildHookContextBase(),
+					showTooltip: ( el, text ) => {
+						this.positionTooltip( el, text );
+						this.tooltip.classList.add(
+							'os-dock__tooltip--visible',
+						);
+					},
+					hideTooltip: () =>
+						this.tooltip.classList.remove(
+							'os-dock__tooltip--visible',
+						),
+				} );
+			}
+			return;
+		}
+		this.decks?.destroy();
+		this.decks = null;
+	}
+
+	/**
+	 * Hand the deck controller a fresh view of what is on the rail.
+	 *
+	 * Called after every path that adds or removes a tile. A no-op
+	 * when there is no controller (vertical rails), so callers don't
+	 * have to know which orientation they're in.
+	 */
+	private syncDecks(): void {
+		this.decks?.sync( {
+			items: this.items,
+			tiles: this.itemElements,
+			systemItems: this.systemItems,
+			systemTiles: this.systemItemElements,
+		} );
+	}
+
+	/**
+	 * The deck currently on screen, or `null` when this rail isn't
+	 * decked (any vertical placement, or a bottom rail whose tiles
+	 * all fall into one group).
+	 *
+	 * @public
+	 */
+	public getActiveDeck(): string | null {
+		return this.decks?.getActive() ?? null;
+	}
+
+	/**
+	 * Show a deck by id. Silently ignored when the rail isn't decked
+	 * or the id isn't one of the live decks, so a plugin can call it
+	 * without first checking the layout the user happens to be in.
+	 *
+	 * @public
+	 */
+	public setActiveDeck( deckId: string ): void {
+		this.decks?.setActive( deckId, 'click' );
 	}
 
 	/**
@@ -433,6 +523,11 @@ export class Dock {
 			'data-os-dock-placement',
 			orientation,
 		);
+		// Decks are a bottom-rail affordance; a flip either builds the
+		// controller and re-partitions, or tears it down and lets every
+		// tile back onto the rail.
+		this.syncDeckController();
+		this.syncDecks();
 		this.tooltip.classList.remove(
 			'os-dock__tooltip--above',
 			'os-dock__tooltip--before',
@@ -531,6 +626,10 @@ export class Dock {
 			} );
 		}
 
+		// Re-partition BEFORE the active-state sweep: that sweep asks
+		// the deck controller to repaint its tab indicators, and it
+		// can only answer for tiles it has already stamped.
+		this.syncDecks();
 		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_AFTER_RENDER, {
@@ -582,6 +681,10 @@ export class Dock {
 			this.systemSeparator.remove();
 			this.systemSeparator = null;
 		}
+
+		// The OpenStation deck may have just emptied — re-partitioning
+		// is what drops its tab and moves the rail onto a live deck.
+		this.syncDecks();
 
 		doAction( HOOKS.DOCK_ITEM_REMOVED, { id, placement: this.rail } );
 	}
@@ -879,6 +982,7 @@ export class Dock {
 			this._paintArt( tile, item.id, systemArt );
 		}
 		this.systemHost.appendChild( tile );
+		this.syncDecks();
 		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_TILE_RENDERED, {
@@ -958,6 +1062,8 @@ export class Dock {
 			} );
 		}
 
+		this.syncDecks();
+
 		doAction( HOOKS.DOCK_AFTER_RENDER, {
 			...base,
 			items: this.items,
@@ -1007,6 +1113,29 @@ export class Dock {
 		// System items don't have a native admin-menu counterpart; the
 		// third arg is intentionally omitted.
 		primary.addEventListener( 'click', () => item.onOpen() );
+
+		// Right-click → the same menu a menu tile gets. System tiles
+		// went without one for a long time, on the reasoning that
+		// most of them must not be hideable — OpenStation Preferences
+		// is how you reach the screen that would put it back. That
+		// reasoning covers the hide/move entries, not the menu: a
+		// star is non-destructive and belongs on every icon in the
+		// dock. `placeable` (the same flag that decides whether the
+		// tile is offered in Apps & Icons) is what gates the
+		// destructive half, so a load-bearing tile opens a menu with
+		// the star and the settings shortcut and nothing that can
+		// strand the user.
+		tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
+			ev.preventDefault();
+			openItemVisibilityMenu( {
+				x: ev.clientX,
+				y: ev.clientY,
+				id: item.id,
+				title: item.title,
+				surface: 'dock',
+				placeable: !! item.placeable,
+			} );
+		} );
 
 		tile.appendChild( primary );
 		this.bindTooltipFiltered( tile, item.title, ctx );
@@ -2319,6 +2448,8 @@ export class Dock {
 			teardown();
 		}
 		this.peekTeardowns.clear();
+		this.decks?.destroy();
+		this.decks = null;
 		this.tooltip.remove();
 		while ( this.container.firstChild ) {
 			this.container.removeChild( this.container.firstChild );
@@ -2434,6 +2565,12 @@ export class Dock {
 		// dock instances: two docks setting the same class doesn't
 		// double-fire.
 		this.updateShowDesktopBodyClass();
+
+		// Push what the tiles now say onto the deck tabs — the open
+		// dot and the aggregate badge for whichever decks are off
+		// screen. Runs last so it reads the classes just written
+		// above rather than the previous pass's.
+		this.decks?.refreshIndicators();
 	}
 
 	/**

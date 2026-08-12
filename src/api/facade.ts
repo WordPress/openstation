@@ -551,6 +551,17 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 					)
 					.slice( 0, 256 );
 			}
+			if ( Array.isArray( patch.dockFavorites ) ) {
+				osSettings.state.dockFavorites = patch.dockFavorites
+					.filter(
+						( v ): v is string =>
+							typeof v === 'string' && v !== '',
+					)
+					.slice( 0, 256 );
+			}
+			if ( typeof patch.dockDecksEnabled === 'boolean' ) {
+				osSettings.state.dockDecksEnabled = patch.dockDecksEnabled;
+			}
 			if (
 				patch.dockPromotedPositions &&
 				typeof patch.dockPromotedPositions === 'object'
@@ -616,7 +627,13 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockPlacement === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
-				typeof patch.desktopTheme === 'string'
+				typeof patch.desktopTheme === 'string' ||
+				// `apply()` is what writes `data-os-decks` on the
+				// shell, and `DockDecks.sync()` reads it there — so a
+				// deck toggle that skipped this would flip the state
+				// and leave the rail painting the old answer until
+				// something else happened to re-apply.
+				typeof patch.dockDecksEnabled === 'boolean'
 			) {
 				osSettings.apply();
 			}
@@ -631,7 +648,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			// grid pick up the new placement synchronously with the
 			// write — no F5 required for "Hide from dock" / "Also show
 			// on desktop" picks from the right-click menu.
-			if ( patch.itemVisibility || patch.dockOrder ) {
+			// Starring a tile and toggling decks both change which
+			// tiles the rail shows, and both arrive through this
+			// writer (the tile's right-click menu, the Appearance
+			// toggle) — so they need the same synchronous repaint.
+			if (
+				patch.itemVisibility ||
+				patch.dockOrder ||
+				patch.dockFavorites ||
+				typeof patch.dockDecksEnabled === 'boolean'
+			) {
 				layoutDispatcher?.refresh();
 			}
 		},

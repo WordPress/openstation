@@ -265,6 +265,14 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
+		dockDecksEnabled:
+			typeof parsed.dockDecksEnabled === 'boolean'
+				? parsed.dockDecksEnabled
+				: DEFAULTS.dockDecksEnabled,
+		dockDeckFollowFocus:
+			typeof parsed.dockDeckFollowFocus === 'boolean'
+				? parsed.dockDeckFollowFocus
+				: DEFAULTS.dockDeckFollowFocus,
 		mioEnabled:
 			typeof parsed.mioEnabled === 'boolean'
 				? parsed.mioEnabled
@@ -287,6 +295,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 				: DEFAULTS.foldersSharingEnabled,
 		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
 		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
+		// Same shape and the same guarantees as `dockOrder` — a
+		// deduped list of item ids — so it takes the same sanitizer
+		// rather than a near-copy that could drift from it.
+		dockFavorites: sanitizeDockOrder( parsed.dockFavorites ),
 		dockPromotedPositions: sanitizeDockPromotedPositions(
 			parsed.dockPromotedPositions,
 		),
@@ -524,6 +536,7 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
+		dockFavorites: state.dockFavorites.slice(),
 		dockPromotedPositions: Object.fromEntries(
 			Object.entries( state.dockPromotedPositions ).map( ( [ k, v ] ) => [
 				k,
