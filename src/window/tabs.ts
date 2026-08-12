@@ -17,7 +17,7 @@ import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
 import { pageIdentityKey, urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
-import { withChromelessParam } from './dom';
+import { syncTabStripSemantics, withChromelessParam } from './dom';
 import type { Window } from './index';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
@@ -219,6 +219,9 @@ export function addExternalTab(
 	tabEl.appendChild( closeBtn );
 
 	tabStrip.appendChild( tabEl );
+	// The strip may have opened empty (a window with no submenu); it is
+	// a real tab list from here on.
+	syncTabStripSemantics( tabStrip );
 
 	// Build the iframe. Hidden until we switch to it. `sandbox`
 	// intentionally omitted — external sites often need scripts,
@@ -295,6 +298,7 @@ function ensureMainTab( win: Window, tabStrip: HTMLElement ): void {
 	main.setAttribute( 'aria-selected', 'true' );
 	main.textContent = win.config.title || 'Main';
 	tabStrip.prepend( main );
+	syncTabStripSemantics( tabStrip );
 }
 
 /**
@@ -364,6 +368,11 @@ export function closeExternalTab( win: Window, tabId: string ): void {
 		);
 		main?.remove();
 	}
+	// Back to an empty strip on a submenu-less window — drop the tab
+	// list semantics again.
+	syncTabStripSemantics(
+		win.element.querySelector< HTMLElement >( '.os-window__tabs' ),
+	);
 	// Poke the session saver so the closed tab doesn't resurrect on
 	// reload.
 	win._emitChange( 'state' );

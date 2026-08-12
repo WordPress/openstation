@@ -112,6 +112,12 @@ from a desktop theme — the same trap described in
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+`<os-window-button>` paints an `aria-hidden` glyph inside a shadow
+`<button>`, so it has no accessible name of its own — **always set
+`aria-label` on the host**. The component forwards it onto that inner
+button (which is the element focus lands on) and keeps it in sync when
+you relabel the host, e.g. Maximize ⇄ Restore.
+
 ## Menus & overlays
 
 | Tag | Class | Source | Purpose |

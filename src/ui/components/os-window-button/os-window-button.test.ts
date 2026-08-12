@@ -77,6 +77,48 @@ describe( '<os-window-button>', () => {
 		expect( saw ).toBe( true );
 	} );
 
+	test( 'forwards the host aria-label onto the shadow button', async () => {
+		host.innerHTML = `<os-window-button icon="minimize" aria-label="Minimize"></os-window-button>`;
+		await tick();
+		await tick();
+		const el = host.querySelector( 'os-window-button' )!;
+		const btn = el.shadowRoot!.querySelector( 'button' )!;
+		// The focusable element is the shadow button; a label only on
+		// the (role-less) host is invisible to assistive tech.
+		expect( btn.getAttribute( 'aria-label' ) ).toBe( 'Minimize' );
+	} );
+
+	test( 'forwards the label for themed (icon-src) buttons too', async () => {
+		host.innerHTML =
+			`<os-window-button icon-src="https://example.com/x.png" aria-label="Close"></os-window-button>`;
+		await tick();
+		await tick();
+		const el = host.querySelector( 'os-window-button' )!;
+		const btn = el.shadowRoot!.querySelector( 'button' )!;
+		expect( btn.getAttribute( 'aria-label' ) ).toBe( 'Close' );
+	} );
+
+	test( 'relabelling the host relabels the shadow button', async () => {
+		host.innerHTML = `<os-window-button icon="maximize" aria-label="Maximize"></os-window-button>`;
+		await tick();
+		await tick();
+		const el = host.querySelector( 'os-window-button' )!;
+		el.setAttribute( 'aria-label', 'Restore' );
+		await tick();
+		await tick();
+		const btn = el.shadowRoot!.querySelector( 'button' )!;
+		expect( btn.getAttribute( 'aria-label' ) ).toBe( 'Restore' );
+	} );
+
+	test( 'no aria-label on the host leaves the button unlabelled, not empty-labelled', async () => {
+		host.innerHTML = `<os-window-button icon="close"></os-window-button>`;
+		await tick();
+		await tick();
+		const el = host.querySelector( 'os-window-button' )!;
+		const btn = el.shadowRoot!.querySelector( 'button' )!;
+		expect( btn.hasAttribute( 'aria-label' ) ).toBe( false );
+	} );
+
 	test( 'switching the icon attribute repaints the svg', async () => {
 		host.innerHTML = `<os-window-button icon="minimize"></os-window-button>`;
 		await tick();

@@ -212,12 +212,16 @@ export function updateFullscreenBodyClass(): void {
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
 	overlay.className = LOADING_OVERLAY_CLASS;
-	// `aria-hidden` so screen readers don't announce the spinner —
-	// the window's title bar already has a `role="dialog"` + label,
-	// and the spinner's own `<svg role="img" aria-label="Loading">`
-	// is the per-spinner SR signal. Keeping the overlay aria-hidden
-	// avoids double-announcement when the window opens.
-	overlay.setAttribute( 'aria-hidden', 'true' );
+	// The overlay is the ONLY thing on screen while a window loads, so
+	// it has to be reachable by assistive tech — `aria-hidden` here
+	// left a screen-reader user with a `role="dialog"` that appeared
+	// to be simply empty. `role="status"` announces the spinner's own
+	// label politely when it paints and, being a live region, stays
+	// quiet for loads fast enough that the spinner never shows. The
+	// window element carries `aria-busy` for the duration; see
+	// `src/window/loading.ts`.
+	overlay.setAttribute( 'role', 'status' );
+	overlay.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
 	// `classic` — canonical WordPress mark, three concentric arcs,
@@ -373,6 +377,40 @@ function createSlotHost( name: string ): HTMLElement {
 }
 
 /**
+ * Apply (or strip) the tab strip's navigation semantics based on
+ * whether it currently holds any tabs.
+ *
+ * Every iframe window gets a strip element, because external sub-tabs
+ * can be added at runtime to a window that opened with no submenu. A
+ * strip that is still empty must not advertise itself: an empty
+ * `role="tablist"` is announced as a tab list with no tabs, and a bare
+ * `<nav>` is a navigation landmark with nothing to navigate. Both are
+ * noise in a landmark/rotor listing. `role="presentation"` drops the
+ * element out of the accessibility tree without touching layout.
+ *
+ * Call after any mutation of the strip's children — `tabs.ts` does so
+ * when external tabs are added, when the synthetic "Main" tab is
+ * injected, and when either is removed.
+ *
+ * @internal
+ */
+export function syncTabStripSemantics( strip: HTMLElement | null ): void {
+	if ( ! strip ) {
+		return;
+	}
+	if ( strip.querySelector( ':scope > .os-window__tab' ) ) {
+		strip.setAttribute( 'role', 'tablist' );
+		const label = strip.dataset.tablistLabel;
+		if ( label ) {
+			strip.setAttribute( 'aria-label', label );
+		}
+		return;
+	}
+	strip.setAttribute( 'role', 'presentation' );
+	strip.removeAttribute( 'aria-label' );
+}
+
+/**
  * Build a title-bar control button via the `<os-window-button>` web
  * component. The component ships the SVG icon, variant styling,
  * focused-/unfocused-aware coloring (via custom properties set on the
@@ -408,6 +446,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.id = `wp-window-${ config.id }`;
 	el.setAttribute( 'role', 'dialog' );
 	el.setAttribute( 'aria-labelledby', `wp-window-title-${ config.id }` );
+	// A window is born loading. Stamped here rather than left to the
+	// `WINDOW_CONTENT_LOADING` subscriber in `src/window/loading.ts`,
+	// because the `markWindowContentLoading()` call at the end of this
+	// function fires while this element is still detached and that
+	// subscriber resolves windows by `document.getElementById`.
+	el.setAttribute( 'aria-busy', 'true' );
 	el.style.left = `${ config.x }px`;
 	el.style.top = `${ config.y }px`;
 	el.style.width = `${ config.width }px`;
@@ -759,12 +803,17 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Each submenu tab is marked `data-kind="submenu"` so the runtime
 	// tab-switching code can tell submenu tabs apart from closeable
 	// external tabs.
+	//
+	// The strip's accessible name is stashed on a data attribute rather
+	// than applied here: navigation semantics are only switched on once
+	// the strip actually holds tabs (see `syncTabStripSemantics`), and
+	// by that point the config object is out of reach of the runtime
+	// tab code in `tabs.ts`.
 	if ( ! config.native ) {
 		const tabs = document.createElement( 'nav' );
 		tabs.className = 'os-window__tabs';
-		tabs.setAttribute( 'role', 'tablist' );
 		// translators: %s is the window's admin-page title (e.g., "Posts")
-		tabs.setAttribute( 'aria-label', sprintf( __( '%s sub-pages' ), config.title ) );
+		tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
 
 		if ( config.submenu && config.submenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );
@@ -816,6 +865,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 				tabs.appendChild( tab );
 			}
 		}
+		syncTabStripSemantics( tabs );
 		el.appendChild( tabs );
 	}
 
