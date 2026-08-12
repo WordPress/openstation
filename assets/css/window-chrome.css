@@ -207,15 +207,93 @@
 	font-size: 9px;
 }
 
+/* ---------------------------------------------------------------
+ * Window activity — the status ring.
+ *
+ * The leading mark of the title bar, in the position the app icon
+ * used to hold. That icon was a copy of the window's own dock tile a
+ * few hundred pixels below it, and a title bar has room for one mark
+ * of that size — better spent on something that changes.
+ *
+ * The ring is an `<os-save-status variant="ring" mode="icon">`, found
+ * by `[data-os-activity-indicator]` — the same public attribute a
+ * plugin uses to mount its own. The framework's ring is not a special
+ * case; it is the first subscriber.
+ *
+ * Four states, and only one of them fills:
+ *
+ *   idle    quiet outline, no glyph
+ *   saving  accent outline, breathing
+ *   saved   accent fill, white check
+ *   failed  open red outline, red bang
+ *
+ * Colour alone is not a distinction every user can make, which is why
+ * the two outcomes differ in SHAPE — filled versus open, check versus
+ * bang — and not only in hue.
+ *
+ * `Window._paintActivityIndicator()` also mirrors the phase onto the
+ * title bar as `data-os-activity` (absent while idle) so a desktop
+ * theme can react to window state without reaching into the
+ * component's shadow root.
+ */
+.os-window__status {
+	--os-ui-save-status-size: var(--os-titlebar-activity-size, 16px);
+	/*
+	 * At rest the ring is chrome, not signal: it takes the title
+	 * bar's own muted foreground rather than the accent, so an idle
+	 * window — which is most windows, most of the time — carries a
+	 * mark that recedes. Every other phase is the accent or the
+	 * danger colour, and each one arrives as a change.
+	 */
+	--os-ui-save-status-idle-color: var(
+		--os-titlebar-activity-idle-color,
+		var(--os-titlebar-btn-color, rgba(255, 251, 255, 0.55))
+	);
+	--os-ui-save-status-bg: var(--os-titlebar-activity-color, #2271b1);
+	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
+	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+/*
+ * The focused title bar is the brighter of the two surfaces, so the
+ * resting ring lifts with it — same relationship the control glyphs
+ * already have with `--os-titlebar-btn-focused-color`.
+ */
+.os-window--focused .os-window__status {
+	--os-ui-save-status-idle-color: var(
+		--os-titlebar-activity-idle-color-focused,
+		var(--os-titlebar-btn-focused-color, rgba(255, 251, 255, 0.72))
+	);
+}
+
+/*
+ * The announcement. A glow is invisible to a screen reader, and
+ * "did that save?" is precisely the question that can't be answered
+ * by looking. `Window._paintActivityIndicator()` writes the outcome
+ * here; absolute positioning keeps it out of the title bar's flex
+ * flow so it contributes neither a box nor a `gap`.
+ */
+.os-window__activity-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 /*
  * Activity indicator slot — opt-in, and empty by default.
  *
- * The framework no longer puts an `<os-save-status>` in the title bar
- * of its own accord. It used to, in `dot` mode with the modem blink,
- * and the cost of that was an accent ring painted on every window for
- * the whole of its life to report `idle`.
- *
- * The slot survives for anything that DOES want the dot: give an
+ * The framework paints the glow above instead of putting an
+ * `<os-save-status>` in the title bar of its own accord. The slot
+ * survives for anything that DOES want a literal dot as well: give an
  * `<os-save-status>` the `data-os-activity-indicator` attribute, drop
  * it in a title-bar slot inside a `.os-window__activity` wrapper, and
  * `Window._paintActivityIndicator()` drives its phase for you.
@@ -308,6 +386,11 @@
  * `flex-shrink: 0`, before/after spacers, etc.) keeps its
  * original layout role.
  *
+ * The `icon` slot is empty by default now — the app icon it used to
+ * carry duplicated the window's dock tile — so on most windows it
+ * contributes nothing at all. It keeps `display: contents` for the
+ * ones where a plugin or a desktop theme does render an icon into it.
+ *
  * The `title` slot is the exception: it's the flex-grow region of
  * the title bar (`flex: 1`). When a plugin replaces the default
  * title with custom HTML or a render callback, we want the new
@@ -330,6 +413,7 @@
 .os-window__slot--after-controls {
 	display: contents;
 }
+
 
 .os-window__slot--title {
 	flex: 1;

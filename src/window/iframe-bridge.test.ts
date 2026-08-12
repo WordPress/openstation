@@ -46,6 +46,11 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_isDestroyed: false,
 		_closePending: false,
 		_iframeCloseTimeout: null,
+		// Activity surface — the bridge brackets iframe requests onto
+		// the title-bar status ring, and resets on every new document.
+		_markActivityStart: vi.fn(),
+		_markActivitySettled: vi.fn(),
+		_resetActivity: vi.fn(),
 		...overrides,
 	} as unknown as Window;
 }
@@ -99,6 +104,79 @@ describe( 'iframe-bridge: os-ready', () => {
 		postToWindow( win, { type: 'os-ready' } );
 
 		expect( seen ).toEqual( [ { windowId: 'test-window' } ] );
+	} );
+
+	test( 'a new document resets the activity count', () => {
+		// An iframe that navigates mid-request takes its pending
+		// `end` messages with it. Without the reset the ring stays
+		// lit for the rest of the window's life.
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-ready' } );
+		expect( win._resetActivity ).toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: os-iframe-activity', () => {
+	beforeEach( () => installHooksStub() );
+	afterEach( () => clearHooksStub() );
+
+	test( 'start marks the window busy', () => {
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-iframe-activity', phase: 'start' } );
+		expect( win._markActivityStart ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a 2xx end settles as success', () => {
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: false,
+			status: 200,
+		} );
+		expect( win._markActivitySettled ).toHaveBeenCalledWith(
+			true,
+			undefined,
+		);
+	} );
+
+	test( 'an HTTP error settles as failure and carries the status', () => {
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: true,
+			status: 500,
+		} );
+		const [ ok, message ] = ( win._markActivitySettled as ReturnType<
+			typeof vi.fn
+		> ).mock.calls[ 0 ];
+		expect( ok ).toBe( false );
+		expect( message ).toContain( '500' );
+	} );
+
+	test( 'a network-level failure reports no status number', () => {
+		// `status: 0` is the iframe's marker for "no response
+		// arrived" — printing it would be noise, not information.
+		const win = mockWindow();
+		postToWindow( win, {
+			type: 'os-iframe-activity',
+			phase: 'end',
+			failed: true,
+			status: 0,
+		} );
+		const [ ok, message ] = ( win._markActivitySettled as ReturnType<
+			typeof vi.fn
+		> ).mock.calls[ 0 ];
+		expect( ok ).toBe( false );
+		expect( message ).not.toContain( '0' );
+	} );
+
+	test( 'an unknown phase does nothing', () => {
+		const win = mockWindow();
+		postToWindow( win, { type: 'os-iframe-activity', phase: 'nonsense' } );
+		expect( win._markActivityStart ).not.toHaveBeenCalled();
+		expect( win._markActivitySettled ).not.toHaveBeenCalled();
 	} );
 } );
 

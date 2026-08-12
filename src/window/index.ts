@@ -17,7 +17,7 @@ import type { WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
-import { __ } from './../i18n';
+import { __, sprintf } from './../i18n';
 import {
 	addParentSubscriber,
 	clearWindowChannels,
@@ -2750,6 +2750,35 @@ export class Window {
 	}
 
 	/**
+	 * Drop everything in flight and return the indicator to `idle`.
+	 *
+	 * For the one case the reference count cannot survive: the
+	 * document that started the requests is gone. An iframe that
+	 * navigates mid-request takes its pending `end` messages with it,
+	 * and a counter that can only go down when someone reports back
+	 * would leave the ring lit for the rest of the window's life.
+	 *
+	 * Deliberately NOT called on a failure — a failed phase is meant
+	 * to persist until the next request starts.
+	 *
+	 * @internal
+	 */
+	public _resetActivity(): void {
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+		this._activityCount = 0;
+		this._activityPhase = 'idle';
+		this._activityError = null;
+		this._paintActivityIndicator();
+	}
+
+	/**
 	 * Track a Promise's lifecycle on this window's activity indicator.
 	 * The dot pulses while the Promise is in flight; on resolve it
 	 * settles to `saved` (green flash); on reject it shows `failed`
@@ -2900,16 +2929,24 @@ export class Window {
 	}
 
 	/**
-	 * Push the current activity state onto an activity indicator, if
-	 * this window has one.
+	 * Push the current activity state onto the title bar.
 	 *
-	 * The framework mounts none by default — the title bar carried an
-	 * always-visible dot once, and an always-visible dot spends a
-	 * permanent mark on a state (`idle`) that is almost always true.
-	 * Anything that wants the dot back puts an `<os-save-status>`
-	 * carrying `data-os-activity-indicator` in a title-bar slot; this
-	 * finds it by that attribute and drives it. With nothing mounted
-	 * the phase machinery still runs and this is a cheap no-op.
+	 * Three consumers, in order of how most windows use them:
+	 *
+	 *   1. Every `[data-os-activity-indicator]` element in the title
+	 *      bar. The framework's own status ring is one of these — it
+	 *      claims no private channel, so a plugin mounting an
+	 *      `<os-save-status>` in a title-bar slot is driven by exactly
+	 *      the same code path.
+	 *   2. A visually-hidden `role="status"` region — a ring announces
+	 *      nothing, and "did my change save?" is exactly the question a
+	 *      screen-reader user cannot answer by looking. Failures go out
+	 *      assertively and carry the error text; everything else is
+	 *      polite.
+	 *   3. `data-os-activity` on the title-bar element, mirroring the
+	 *      phase for CSS. Absent while idle, so a desktop theme can
+	 *      react to window state without reaching into the component's
+	 *      shadow root, and an idle window matches nothing.
 	 *
 	 * @internal
 	 */
@@ -2917,17 +2954,66 @@ export class Window {
 		if ( this._isDestroyed ) {
 			return;
 		}
-		const indicator = this._titleBar.querySelector< HTMLElement >(
+		const phase = this._activityPhase;
+
+		if ( 'idle' === phase ) {
+			this._titleBar.removeAttribute( 'data-os-activity' );
+		} else {
+			this._titleBar.setAttribute( 'data-os-activity', phase );
+		}
+
+		const live = this._titleBar.querySelector< HTMLElement >(
+			'.os-window__activity-status',
+		);
+		if ( live ) {
+			const failed = 'failed' === phase;
+			live.setAttribute( 'role', failed ? 'alert' : 'status' );
+			live.setAttribute( 'aria-live', failed ? 'assertive' : 'polite' );
+			live.textContent = this._activityStatusText();
+		}
+
+		// All of them, not the first — the framework's ring and a
+		// plugin's own indicator have to agree, and a window that
+		// showed two different phases at once would be worse than one
+		// that showed none.
+		const indicators = this._titleBar.querySelectorAll< HTMLElement >(
 			'[data-os-activity-indicator]',
 		);
-		if ( ! indicator ) {
-			return;
-		}
-		indicator.setAttribute( 'phase', this._activityPhase );
-		if ( this._activityError ) {
-			indicator.setAttribute( 'error', this._activityError );
-		} else {
-			indicator.removeAttribute( 'error' );
+		indicators.forEach( ( indicator ) => {
+			indicator.setAttribute( 'phase', phase );
+			if ( this._activityError ) {
+				indicator.setAttribute( 'error', this._activityError );
+			} else {
+				indicator.removeAttribute( 'error' );
+			}
+		} );
+	}
+
+	/**
+	 * Announcement text for the current phase. Empty while idle —
+	 * a live region that keeps saying "nothing is happening" is worse
+	 * than one that stays quiet.
+	 *
+	 * `saving` is deliberately NOT announced on its own: the phase is
+	 * held for at least {@link MIN_SAVING_DISPLAY_MS} and every save
+	 * would interrupt whatever the user was reading to tell them
+	 * something they already know they started. The outcome is the
+	 * part they can't see.
+	 *
+	 * @internal
+	 */
+	private _activityStatusText(): string {
+		switch ( this._activityPhase ) {
+			case 'saved':
+				return __( 'Saved' );
+			case 'failed':
+				if ( ! this._activityError ) {
+					return __( 'Not saved.' );
+				}
+				/* translators: %s: error message explaining why the change could not be saved. */
+				return sprintf( __( 'Not saved. %s' ), this._activityError );
+			default:
+				return '';
 		}
 	}
 

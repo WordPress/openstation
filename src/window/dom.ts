@@ -8,8 +8,6 @@
 
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
-import { renderIcon } from '../icon';
-import { slotForTileId } from '../desktop-themes/slots';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<os-spinner>` so the loading
@@ -562,21 +560,13 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	//
 	// Default content for `icon` and `title` reproduces the legacy
 	// title-bar visual; the other slots are empty by default.
+	// The `icon` slot is EMPTY by default. The app icon that used to
+	// live here duplicated the window's own dock tile a few hundred
+	// pixels below it, and a title bar has one place for a mark of
+	// that size — better spent on something that changes. The slot
+	// host stays, so a plugin or a desktop theme that renders an icon
+	// into it still gets one.
 	const slotIcon = createSlotHost( 'icon' );
-	// `renderIcon` is the canonical dispatcher for every icon shape a
-	// window can register (dashicons class, SVG/raster data URI,
-	// http(s) URL, letter-badge fallback). Rendering only the
-	// dashicons shape here left data-URI icons — e.g. the Games
-	// window's gamepad SVG — invisible in the title bar.
-	const iconEl = renderIcon( config.icon, {
-		title: config.title,
-		className: 'os-window__icon',
-		// A desktop theme can replace a window's title-bar icon by
-		// slot — either the generic `DEFAULT_APP_ICON` or the
-		// per-window `APP:<id>` form.
-		slot: slotForTileId( config.id ),
-	} );
-	slotIcon.appendChild( iconEl );
 
 	const slotTitle = createSlotHost( 'title' );
 	const titleEl = document.createElement( 'span' );
@@ -616,17 +606,35 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const customRight = document.createElement( 'span' );
 	customRight.className = 'os-window__custom-buttons os-window__custom-buttons--right';
 
-	// No activity indicator is painted here. The title bar used to
-	// carry an always-visible `<os-save-status>` dot between the icon
-	// and the title, which meant every window wore a small accent ring
-	// for the whole of its life to report a state — idle — that is
-	// true almost all of the time. The activity machinery itself is
-	// untouched: `Window.trackActivity()` / `Window.markActivity()`
-	// still reference-count and still phase, and
-	// `Window._paintActivityIndicator()` still paints onto any
-	// `[data-os-activity-indicator]` element found in the title bar.
-	// A plugin that wants the dot back drops an `<os-save-status>`
-	// carrying that attribute into a title-bar slot.
+	// The status ring — leading mark of the title bar, in the position
+	// the app icon used to hold. Four states: a quiet ring at rest, an
+	// accent ring breathing while a request is in flight, a filled
+	// ring with a check when it lands, an open red ring with a bang
+	// when it didn't.
+	//
+	// It is found by `[data-os-activity-indicator]`, which is the same
+	// public attribute a plugin uses to mount its own indicator — the
+	// framework's ring is not a special case, it is the first
+	// subscriber. `Window._paintActivityIndicator()` drives `phase`
+	// and `error`.
+	const activityRing = document.createElement( 'os-save-status' );
+	activityRing.className = 'os-window__status';
+	activityRing.setAttribute( 'mode', 'icon' );
+	activityRing.setAttribute( 'variant', 'ring' );
+	activityRing.setAttribute( 'phase', 'idle' );
+	activityRing.setAttribute( 'data-os-activity-indicator', '' );
+
+	// A ring says nothing to a screen reader, so the phase is also
+	// announced from a visually-hidden live region. It is absolutely
+	// positioned out of the flex flow, so it contributes neither a box
+	// nor a `gap` to the title bar.
+	const activityStatus = document.createElement( 'span' );
+	activityStatus.className = 'os-window__activity-status';
+	activityStatus.setAttribute( 'role', 'status' );
+	activityStatus.setAttribute( 'aria-live', 'polite' );
+
+	titleBar.appendChild( activityStatus );
+	titleBar.appendChild( activityRing );
 	titleBar.appendChild( slotBeforeIcon );
 	titleBar.appendChild( slotIcon );
 	titleBar.appendChild( slotTitle );

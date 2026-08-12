@@ -597,6 +597,73 @@ function openstation_chromeless_bridge_script() {
 			} catch ( _err ) { /* swallow */ }
 		};
 
+		// Activity reporting — the window's status ring.
+		//
+		// `os-iframe-network` above fires on COMPLETION only, which is
+		// enough for the devtools panel and useless for an indicator:
+		// a ring that can only be told "it finished" never shows the
+		// part the user is waiting through. These two messages bracket
+		// the request instead, and the parent reference-counts them
+		// the same way `wp.os.fetch` does for native windows.
+		//
+		// Every request counts — GET included. "Did that go through?"
+		// is as real a question for a list-table filter as for a save.
+		var osIsBackgroundRequest = function ( url, body ) {
+			// WordPress Heartbeat is a poll the user did not initiate,
+			// on a timer, forever. Reporting it would light the ring
+			// on every open window every 15 seconds and flash a
+			// "Saved" check for a save nobody made — the framework's
+			// own background pings pass `silent: true` for exactly
+			// this reason. The action rides in the POST body, not the
+			// URL, so both are checked.
+			try {
+				if ( String( url || '' ).indexOf( 'action=heartbeat' ) !== -1 ) {
+					return true;
+				}
+				if ( typeof body === 'string' && body.indexOf( 'action=heartbeat' ) !== -1 ) {
+					return true;
+				}
+				if ( body && typeof body.get === 'function' && body.get( 'action' ) === 'heartbeat' ) {
+					return true;
+				}
+			} catch ( _bgErr ) { /* unreadable body — treat as foreground */ }
+			return false;
+		};
+
+		var osActivityBegin = function ( url, body ) {
+			if ( osIsBackgroundRequest( url, body ) ) {
+				return false;
+			}
+			try {
+				window.parent.postMessage(
+					{ type: 'os-iframe-activity', phase: 'start' },
+					window.location.origin
+				);
+			} catch ( _sErr ) { /* swallow — instrumentation is best-effort */ }
+			return true;
+		};
+
+		// `tracked` is the value `osActivityBegin` returned, so a
+		// request that was never counted can never decrement — an
+		// unbalanced end would settle the ring while other requests
+		// are still in flight.
+		var osActivityEnd = function ( tracked, failed, status ) {
+			if ( ! tracked ) {
+				return;
+			}
+			try {
+				window.parent.postMessage(
+					{
+						type: 'os-iframe-activity',
+						phase: 'end',
+						failed: !! failed,
+						status: typeof status === 'number' ? status : 0
+					},
+					window.location.origin
+				);
+			} catch ( _eErr ) { /* swallow */ }
+		};
+
 		// Helper — when an admin-side request returns 401/403 the
 		// session is most likely toast. Don't wait up to 60s for the
 		// next heartbeat tick to surface core's auth-check modal —
@@ -772,11 +839,14 @@ function openstation_chromeless_bridge_script() {
 					}
 				}
 
+				var tracked = osActivityBegin( url, ( init && init.body ) || ( input && input.body ) );
+
 				var promise;
 				try {
 					promise = osOrigFetch.apply( this, arguments );
 				} catch ( sync ) {
 					osReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+					osActivityEnd( tracked, true, 0 );
 					throw sync;
 				}
 				return promise.then(
@@ -796,6 +866,9 @@ function openstation_chromeless_bridge_script() {
 							} catch ( _hErr ) { /* swallow */ }
 						}
 						osReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
+						// `fetch` resolves for 4xx / 5xx, so the ring
+						// settles on `res.ok` and not on the promise.
+						osActivityEnd( tracked, ! res.ok, res.status );
 						osMaybeForceAuthCheck( res.status, url );
 						return res;
 					},
@@ -804,6 +877,7 @@ function openstation_chromeless_bridge_script() {
 							? performance.now()
 							: Date.now() ) - start;
 						osReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+						osActivityEnd( tracked, true, 0 );
 						throw err;
 					}
 				);
@@ -840,11 +914,14 @@ function openstation_chromeless_bridge_script() {
 				} catch ( _err ) { /* swallow */ }
 				return osOrigSetHeader.apply( this, arguments );
 			};
-			XMLHttpRequest.prototype.send = function () {
+			XMLHttpRequest.prototype.send = function ( body ) {
 				var xhr = this;
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
 					: Date.now();
+				// The body is where an admin-ajax action name lives,
+				// and the action name is how Heartbeat is recognised.
+				var tracked = osActivityBegin( xhr.__wpdUrl, body );
 
 				// Apply contributed headers right before send. Doing it
 				// here rather than in open() means contributions added
@@ -888,14 +965,16 @@ function openstation_chromeless_bridge_script() {
 							extra.responseHeaders = resHeaders;
 						} catch ( _rErr ) { /* swallow */ }
 					}
+					var failed = xhr.status === 0 || xhr.status >= 400;
 					osReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
 						xhr.status,
 						Math.round( dur ),
-						xhr.status === 0 || xhr.status >= 400,
+						failed,
 						extra
 					);
+					osActivityEnd( tracked, failed, xhr.status );
 					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
 				};
 				try {

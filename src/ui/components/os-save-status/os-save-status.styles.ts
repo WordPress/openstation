@@ -39,8 +39,8 @@ export const styles = css`
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 12px;
-		height: 12px;
+		width: var( --os-ui-save-status-size, 12px );
+		height: var( --os-ui-save-status-size, 12px );
 		border-radius: 50%;
 		flex-shrink: 0;
 		box-sizing: border-box;
@@ -163,19 +163,102 @@ export const styles = css`
 	}
 
 	/* Phase: saved — solid green, no pulse. The hollow ring
-	 * "fills in" momentarily before auto-clearing back to idle. */
+	 * "fills in" momentarily before auto-clearing back to idle.
+	 *
+	 * The second fallback is the SEMANTIC colour, not --os-ui-surface
+	 * — routing it through the surface token was the classic
+	 * fallback-chain collapse: the palette declares --os-ui-surface
+	 * (Obsidian), so the green dot resolved to the same near-black as
+	 * the panel behind it and vanished. */
 	:host( [ phase='saved' ] ) .os-save-status__indicator {
-		background: var( --os-ui-save-status-saved-bg, var( --os-ui-surface, #1d6f42 ) );
+		background: var( --os-ui-save-status-saved-bg, var( --os-ui-success-fg, #1d6f42 ) );
 		border-color: transparent;
 		color: var( --os-ui-save-status-saved-bg, var( --os-ui-success-fg, #1d6f42 ) );
 	}
 
 	/* Phase: failed — solid red, gentle attention pulse. */
 	:host( [ phase='failed' ] ) .os-save-status__indicator {
-		background: var( --os-ui-save-status-failed-bg, var( --os-ui-surface, #d63638 ) );
+		background: var( --os-ui-save-status-failed-bg, var( --os-ui-danger, #d63638 ) );
 		border-color: transparent;
 		color: var( --os-ui-save-status-failed-bg, var( --os-ui-danger, #d63638 ) );
 		animation: os-save-status-pulse 0.8s ease-in-out 2;
+	}
+
+	/*
+	 * Variant: 'ring' — the outline IS the indicator.
+	 *
+	 * The default treatment fills the dot for every phase that isn't
+	 * idle, which makes three of the five states the same shape in
+	 * three colours. The ring keeps the outline and moves the COLOUR
+	 * through it, spending the filled state on exactly one thing:
+	 * success. That's what makes "it worked" the only phase that
+	 * reads at a glance, which is the phase users are actually
+	 * waiting for.
+	 *
+	 * Built for the window title bar, where the ring replaced the app
+	 * icon — a duplicate of the dock tile below it — so the only mark
+	 * in that corner is one that means something.
+	 */
+	:host( [ variant='ring' ][ phase='pending' ] ) .os-save-status__indicator,
+	:host( [ variant='ring' ][ phase='saving' ] ) .os-save-status__indicator {
+		background: transparent;
+		border-color: var(
+			--os-ui-save-status-bg,
+			var( --wp-admin-theme-color, #2271b1 )
+		);
+		animation: os-save-status-ring-pulse 1.6s
+			var( --os-ui-ease-loop, ease-in-out ) infinite;
+	}
+
+	/*
+	 * Failure keeps the ring open and tints the glyph rather than
+	 * the fill. A filled red disc and a filled accent disc are the
+	 * same silhouette, and colour alone is not a distinction every
+	 * user can make.
+	 */
+	:host( [ variant='ring' ][ phase='failed' ] ) .os-save-status__indicator {
+		background: transparent;
+		border-color: var(
+			--os-ui-save-status-failed-bg,
+			var( --os-ui-danger, #d63638 )
+		);
+		animation: none;
+	}
+
+	:host( [ variant='ring' ][ phase='failed' ] ) .os-save-status__glyph {
+		color: var(
+			--os-ui-save-status-failed-bg,
+			var( --os-ui-danger, #d63638 )
+		);
+	}
+
+	:host( [ variant='ring' ][ phase='saved' ] ) .os-save-status__indicator {
+		background: var(
+			--os-ui-save-status-saved-bg,
+			var( --wp-admin-theme-color, #2271b1 )
+		);
+		border-color: transparent;
+	}
+
+	/*
+	 * The pulse breathes the ring rather than blinking it — opacity
+	 * and scale only, both compositor properties, and neither
+	 * reaching zero. A ring that disappears between beats reads as a
+	 * fault; one that breathes reads as work continuing.
+	 */
+	@keyframes os-save-status-ring-pulse {
+		0%, 100% { opacity: 0.45; scale: 0.9; }
+		50%      { opacity: 1;    scale: 1; }
+	}
+
+	/* Reduced motion: hold the ring lit instead of breathing it. */
+	@media ( prefers-reduced-motion: reduce ) {
+		:host( [ variant='ring' ][ phase='pending' ] ) .os-save-status__indicator,
+		:host( [ variant='ring' ][ phase='saving' ] ) .os-save-status__indicator {
+			animation: none;
+			opacity: 1;
+			scale: 1;
+		}
 	}
 
 	@keyframes os-save-status-pulse {
@@ -224,8 +307,10 @@ export const styles = css`
 	:host( [ phase='failed' ] ) .os-save-status__glyph {
 		display: inline-block;
 		color: var( --os-ui-fg-on-accent, #fff );
-		width: 8px;
-		height: 8px;
+		/* Proportional to the indicator so a resized ring keeps its
+		 * glyph in the same relationship to the stroke. */
+		width: calc( var( --os-ui-save-status-size, 12px ) * 0.66 );
+		height: calc( var( --os-ui-save-status-size, 12px ) * 0.66 );
 	}
 	.os-save-status__glyph {
 		display: none;

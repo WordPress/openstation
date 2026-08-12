@@ -268,6 +268,33 @@ body.os-active {
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
 	/*
+	 * The status ring — leading mark of the title bar, where the app
+	 * icon used to be. Four states, and the sequence is deliberate:
+	 * the resting ring is chrome (it takes the title bar's own muted
+	 * glyph colour, declared in `window-chrome.css`), work and success
+	 * are both Pulse, failure is the danger colour.
+	 *
+	 * Pulse twice over is not an oversight. In flight and landed
+	 * differ in FILL — an open ring breathing, then a solid disc with
+	 * a check — and failure differs from both in fill AND glyph AND
+	 * hue. Shape carries the distinction that colour alone cannot for
+	 * a user who can't separate the two hues, and the accent stays the
+	 * shell's own voice for "this is your station working".
+	 *
+	 * Failure resolves through `--os-ui-danger` and is the one value
+	 * here that must not be quietened: a failure that whispers is a
+	 * failure the user misses.
+	 *
+	 * `-idle-color` (and its `-focused` twin) default to the title
+	 * bar's control-glyph colours in `window-chrome.css`; declare them
+	 * here only to break that relationship deliberately.
+	 */
+	--os-titlebar-activity-color: var(--os-ui-accent, #2271b1);
+	--os-titlebar-activity-saved-color: var(--os-ui-accent, #2271b1);
+	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);
+	--os-titlebar-activity-size: 16px;
+
+	/*
 	 * Title-bar control glyphs — minimise / maximise / close, the ⋯
 	 * menu trigger, and the screen-meta cluster — in each of the two
 	 * title-bar states.

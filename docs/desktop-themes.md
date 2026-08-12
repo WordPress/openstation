@@ -1019,7 +1019,7 @@ extension. `name` must match `^dashicons-[a-z0-9-]+$`.
 |---|---|
 | Window controls | `WINDOW_CONTROL_MINIMIZE`, `WINDOW_CONTROL_MAXIMIZE`, `WINDOW_CONTROL_FULLSCREEN`, `WINDOW_CONTROL_FULLSCREEN_EXIT`, `WINDOW_CONTROL_CLOSE`, `WINDOW_CONTROL_MENU`, `WINDOW_CONTROL_RELOAD`, `WINDOW_CONTROL_DETACH` |
 | System tiles | `OS_SETTINGS`, `RECYCLE_BIN`, `BUG_REPORT`, `EXIT_OPENSTATION`, `PWA_INSTALL` |
-| Apps | `DEFAULT_APP_ICON`, plus `APP:<slug>` for any individual dock tile, desktop icon, or native window id |
+| Apps | `DEFAULT_APP_ICON`, plus `APP:<slug>` for any individual dock tile, desktop icon, or native window id. These reach the dock and the desktop; the window title bar carries the status ring rather than an app icon, so it is not one of the surfaces they paint |
 | Desktop files | `FOLDER`, `FILE_SHORTCUT`, `FILE_POST`, `FILE_ATTACHMENT`, `FILE_UPLOAD`, `FILE_USER`, `FILE_TERM`, `FILE_COMMENT`, `FILE_BOOKMARK`, `FILE_LINK`, `FILE_EMBED` |
 | Recycle-bin row actions | `RECYCLE_RESTORE`, `RECYCLE_DELETE` |
 
@@ -1185,6 +1185,26 @@ desktop environments do it — the shape is yours to build:
 | `--os-titlebar-divider` | The hairline between page chrome and window chrome. Set `transparent` to let your artwork carry the separation |
 | `--os-titlebar-divider-unfocused` | Its unfocused counterpart |
 
+The leading mark of the title bar is the **status ring** — the window's
+activity phase, the one `wp.os.fetch` drives. It replaced the app icon
+that used to sit there, which was a copy of the same window's dock
+tile. Four states, and only success fills the ring; the resting state
+follows your title-bar glyph colours, so a retinted title bar takes
+the ring with it for free.
+
+| Token | Controls |
+|---|---|
+| `--os-titlebar-activity-color` | The ring while a request is in flight |
+| `--os-titlebar-activity-saved-color` | The fill when the request lands |
+| `--os-titlebar-activity-failed-color` | The ring when it didn't. This one stays until the next request starts |
+| `--os-titlebar-activity-size` | Ring diameter (default `16px`) |
+| `--os-titlebar-activity-idle-color` | The resting ring. Defaults to `--os-titlebar-btn-color`; `-idle-color-focused` is the focused twin, defaulting to `--os-titlebar-btn-focused-color` |
+
+Retint them if your title-bar artwork would swallow one, but keep the
+outcomes distinguishable by more than hue — the built-in pair differs
+in fill and glyph as well as colour, which is what makes it readable
+for a user who can't separate the two.
+
 ```json
 "tokens": {
   "--os-titlebar-controls-bg": "rgba( 10, 10, 26, 0.55 )",
@@ -1266,7 +1286,7 @@ from cutting into the artwork.
 **Top corners paint over the title bar.** The resize handles sit at
 `z-index: 999` and the title bar at `21`, so `WINDOW_CORNER_NE` and
 `_NW` render *above* the chrome — NE over the close button, NW over
-the window icon. They cannot be pushed underneath: the ornament is a
+the status ring. They cannot be pushed underneath: the ornament is a
 child of the z-999 handle, which is its own stacking context.
 
 That makes the top two slots a different design problem from the
