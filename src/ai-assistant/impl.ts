@@ -1626,8 +1626,10 @@ export class AiAssistant implements AiAssistantApi {
 		this._resultsEl.hidden = false;
 
 		if ( settingsTab ) {
+			// Terse on purpose: the message already names the tab, so a
+			// second full sentence here just repeats it.
 			const link = `<button type="button" class="os-ai__settings-link">${ this._esc(
-				__( 'Turn it on in OpenStation Preferences' ),
+				__( 'Open Preferences' ),
 			) }</button>`;
 			this._resultsEl.innerHTML = `
 				<div class="os-ai__state os-ai__state--error">
