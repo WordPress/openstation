@@ -15,6 +15,7 @@
  */
 
 import { __ } from '../i18n';
+import { trapFocus } from '../ui/modal-focus';
 
 /**
  * Outcome of the dialog. Mirrors `IntroResult` in `./intro-dialog.ts`.
@@ -24,8 +25,13 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 /**
  * Show the Pages-window intro. Returns a Promise that resolves with
  * the user's chosen action.
+ *
+ * @param returnFocusTo Where focus lands on dismissal — the Pages
+ *                      window's root. See {@link showPostsIntroDialog}.
  */
-export async function showPagesIntroDialog(): Promise< IntroResult > {
+export async function showPagesIntroDialog(
+	returnFocusTo?: HTMLElement | null,
+): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {
 		const backdrop = document.createElement( 'div' );
 		backdrop.className = 'os-pages-intro__backdrop';
@@ -71,7 +77,13 @@ export async function showPagesIntroDialog(): Promise< IntroResult > {
 		const settingsBtn = dialog.querySelector< HTMLButtonElement >(
 			'[data-action="settings"]',
 		);
-		primaryBtn?.focus();
+		// Opens on "Got it" and holds Tab inside the dialog until it
+		// closes, then hands focus to the window it introduced.
+		const focusScope = trapFocus( {
+			root: dialog,
+			initialFocus: primaryBtn,
+			returnFocusTo,
+		} );
 
 		let resolved = false;
 		const cleanup = ( result: IntroResult ): void => {
@@ -80,6 +92,8 @@ export async function showPagesIntroDialog(): Promise< IntroResult > {
 			}
 			resolved = true;
 			document.removeEventListener( 'keydown', onKey, true );
+			// Before the removal — see `showPostsIntroDialog`.
+			focusScope.release();
 			backdrop.remove();
 			resolve( result );
 		};

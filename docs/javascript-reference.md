@@ -2131,6 +2131,8 @@ const clear = wp.os.showToast( {
 
 A `persistent` toast has no auto-dismiss timer — clear it via the action button (which dismisses on click), the close (×) button when `dismissible` is set, or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
+**`duration` is a countdown, not a deadline.** It only runs while the toast is unattended: hovering the toast, or moving focus into it (Tab to the action button, a screen reader entering it), pauses the timer and resumes it on release with the time it had left, floored at 1.2s. So an `action` the user is reaching for cannot be deleted mid-reach — which also means a toast can outlive its `duration` by as long as the user keeps it under the pointer. And if a dismissal happens while the toast holds focus — clicking `Undo` removes the element the button lives in — focus is handed back to the last element outside the toast stack that had it, instead of falling to `<body>`. Both behaviours are the `<os-toast>` element's `held` state driving the timer; see the [`<os-toast>` hold contract](components-reference.md#menus--overlays) if you are building on the element directly.
+
 Routes through the `os/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
 ---

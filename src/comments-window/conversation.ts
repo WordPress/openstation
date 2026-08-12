@@ -12,6 +12,7 @@
 
 import { __, sprintf } from '../i18n';
 import { decodeHTML } from '../utils';
+import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import {
 	fetchComments,
@@ -1263,6 +1264,79 @@ function openInlineEdit( ctx: Ctx, row: CommentRow ): void {
 /* Entry                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Module-scoped guard so the dialog can't re-open within the same
+ * shell session while the seen-mark POST is still in flight.
+ */
+let _introShown = false;
+
+// "Reset what's-new dialogs" in OpenStation Preferences dispatches
+// this after its DELETE lands — clear the guard so the next window
+// open re-fires the dialog without a page reload.
+document.addEventListener( 'os-intros-reset', () => {
+	_introShown = false;
+} );
+
+/**
+ * First-open intro, mirroring the seen-intros surface in
+ * `includes/seen-intros.php`: gated on `introSeen`, marks itself seen
+ * on dismiss via `POST introUrl`. Escape / backdrop click resolve
+ * `'cancel'` and deliberately do NOT mark it seen.
+ */
+function maybeShowIntro( cfg: CommentsConfig, returnFocusTo: HTMLElement ): void {
+	if ( _introShown || cfg.introSeen ) {
+		return;
+	}
+	_introShown = true;
+	void import( './intro-dialog' )
+		.then( ( m ) => m.showCommentsIntroDialog( returnFocusTo ) )
+		.then( ( result ) => {
+			if ( result === 'cancel' ) {
+				_introShown = false;
+				return;
+			}
+			void markIntroSeen( cfg );
+			if ( result === 'settings' ) {
+				(
+					window.wp as
+						| { os?: { openOsSettings?: () => void } }
+						| undefined
+				)?.os?.openOsSettings?.();
+			}
+		} )
+		.catch( () => {
+			// Dialog mount failed; keep the gate off so a re-open retries.
+			_introShown = false;
+		} );
+}
+
+async function markIntroSeen( cfg: CommentsConfig ): Promise< void > {
+	if ( ! cfg.introUrl ) {
+		return;
+	}
+	try {
+		await trackedFetch(
+			cfg.introUrl,
+			{
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': cfg.restNonce,
+				},
+				body: JSON.stringify( { slug: cfg.introSlug || 'comments' } ),
+			},
+			{
+				windowId: 'desktop-mode-comments',
+				source: 'comments-window/intro',
+			},
+		);
+		( cfg as { introSeen: boolean } ).introSeen = true;
+	} catch {
+		// Non-fatal — the cost of a lost write is seeing the dialog once more.
+	}
+}
+
 export async function renderConversation( body: HTMLElement ): Promise< void > {
 	const cfg = readConfig();
 	if ( ! cfg ) {
@@ -1283,6 +1357,15 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	}
 	const searchEl = body.querySelector< HTMLElement >( '[data-os-comments-search]' );
 	const statusEl = body.querySelector< HTMLElement >( '[data-os-comments-status]' );
+
+	// First-open intro — gated on `cfg.introSeen`, and only once the
+	// window has a surface to introduce. Dismissing it hands focus to
+	// the window root rather than to whatever the user last touched
+	// before the window opened.
+	maybeShowIntro(
+		cfg,
+		body.querySelector< HTMLElement >( '[data-os-comments-root]' ) ?? body,
+	);
 
 	// A pending `edit-comments.php?p=<id>` open scopes the rail to that
 	// post; a filtered open starts on "All" so the post's whole thread is

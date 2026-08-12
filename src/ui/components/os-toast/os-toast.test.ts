@@ -93,6 +93,61 @@ describe( '<os-toast>', () => {
 		expect( fired ).toBe( true );
 	} );
 
+	test( 'hover sets held + emits os-toast-hold once per transition', async () => {
+		host.innerHTML = `<os-toast action="Undo">Moved to trash</os-toast>`;
+		await tick();
+		const toast = host.querySelector( 'os-toast' )!;
+		const seen: boolean[] = [];
+		toast.addEventListener( 'os-toast-hold', ( e ) => {
+			seen.push( ( e as CustomEvent< { held: boolean } > ).detail.held );
+		} );
+
+		toast.dispatchEvent( new Event( 'mouseenter' ) );
+		expect( toast.hasAttribute( 'held' ) ).toBe( true );
+		// A second enter without an intervening leave is not a new
+		// transition — re-emitting would reset showToast()'s countdown
+		// on every pointer twitch.
+		toast.dispatchEvent( new Event( 'mouseenter' ) );
+		toast.dispatchEvent( new Event( 'mouseleave' ) );
+		expect( toast.hasAttribute( 'held' ) ).toBe( false );
+		expect( seen ).toEqual( [ true, false ] );
+	} );
+
+	test( 'hover and focus overlap without releasing early', async () => {
+		host.innerHTML = `<os-toast action="Undo">Moved to trash</os-toast>`;
+		await tick();
+		const toast = host.querySelector( 'os-toast' )!;
+
+		toast.dispatchEvent( new Event( 'mouseenter' ) );
+		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+		toast.dispatchEvent( new Event( 'mouseleave' ) );
+		// Pointer gone, focus still inside → still held.
+		expect( toast.hasAttribute( 'held' ) ).toBe( true );
+
+		toast.dispatchEvent(
+			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: null } ),
+		);
+		expect( toast.hasAttribute( 'held' ) ).toBe( false );
+	} );
+
+	test( 'focus moving between the toast\'s own buttons is not a release', async () => {
+		host.innerHTML = `<os-toast action="Undo" dismissible>Moved to trash</os-toast>`;
+		await tick();
+		const toast = host.querySelector( 'os-toast' )!;
+		const close = toast.shadowRoot!.querySelector( '.os-toast__close' )!;
+
+		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+		// Both buttons live in the shadow root, where contains() stops
+		// — the check has to walk out through the host.
+		toast.dispatchEvent(
+			new FocusEvent( 'focusout', {
+				bubbles: true,
+				relatedTarget: close,
+			} ),
+		);
+		expect( toast.hasAttribute( 'held' ) ).toBe( true );
+	} );
+
 	test( 'role=status set on connection', async () => {
 		host.innerHTML = `<os-toast>Hi</os-toast>`;
 		await tick();

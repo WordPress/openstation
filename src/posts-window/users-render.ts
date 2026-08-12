@@ -222,7 +222,10 @@ function memoUserCell(
 }
 
 const _usersIntroShown = { v: false };
-function maybeShowUsersIntro( client: UsersWindowClient ): void {
+function maybeShowUsersIntro(
+	client: UsersWindowClient,
+	returnFocusTo: HTMLElement | null,
+): void {
 	if ( _usersIntroShown.v ) {
 		return;
 	}
@@ -236,7 +239,7 @@ function maybeShowUsersIntro( client: UsersWindowClient ): void {
 		return;
 	}
 	_usersIntroShown.v = true;
-	void showUsersIntroDialog()
+	void showUsersIntroDialog( returnFocusTo )
 		.then( ( result ) => {
 			if ( result === 'cancel' ) {
 				_usersIntroShown.v = false;
@@ -839,7 +842,9 @@ export async function renderUsersWindow(
 		void openUserEditWindow( id );
 	} );
 
-	maybeShowUsersIntro( client );
+	// Dismissing the intro hands focus to the window root rather than
+	// to whatever the user last touched before the window opened.
+	maybeShowUsersIntro( client, root );
 
 	const cfg = client.getConfig();
 	const view: ViewState = {

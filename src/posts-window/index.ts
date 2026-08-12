@@ -161,7 +161,10 @@ document.addEventListener( 'os-intros-reset', () => {
 	}
 } );
 
-function maybeShowIntro( client: PostsWindowClient ): void {
+function maybeShowIntro(
+	client: PostsWindowClient,
+	returnFocusTo: HTMLElement | null,
+): void {
 	let cfg: PostsWindowConfig;
 	try {
 		cfg = client.getConfig();
@@ -180,9 +183,9 @@ function maybeShowIntro( client: PostsWindowClient ): void {
 	const dialogPromise =
 		slug === 'pages'
 			? import( './pages-intro-dialog' ).then( ( m ) =>
-				m.showPagesIntroDialog(),
+				m.showPagesIntroDialog( returnFocusTo ),
 			)
-			: showPostsIntroDialog();
+			: showPostsIntroDialog( returnFocusTo );
 
 	void dialogPromise
 		.then( ( result ) => {
@@ -2275,7 +2278,9 @@ export async function renderPostsWindow(
 		return;
 	}
 
-	maybeShowIntro( client );
+	// Dismissing the intro hands focus to the window root rather than
+	// to whatever the user last touched before the window opened.
+	maybeShowIntro( client, root );
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them

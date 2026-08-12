@@ -122,8 +122,10 @@ src/
 ├── ui/
 │   ├── core/                # The tagged-template renderer + base
 │   │                        #   Component class + css` helper.
-│   └── components/          # <os-*> web components (one folder per
-│                            #   tag, each with .ts / .styles.ts / .test.ts).
+│   ├── components/          # <os-*> web components (one folder per
+│   │                        #   tag, each with .ts / .styles.ts / .test.ts).
+│   └── modal-focus.ts       # Focus scope shared by the light-DOM
+│                            #   modals (the first-run intro dialogs).
 ├── modules/                 # Vendor-script registry (PixiJS today,
 │                            #   more later). Used by canvas wallpapers.
 ├── plugins/                 # Built-in plugins that use the public API —
