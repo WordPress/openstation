@@ -45,18 +45,6 @@ const CSS_DIR = join( __dirname, '../../assets/css' );
  */
 const ALLOWED = new Map( [
 	[
-		'desktop.css:--os-ui-fg',
-		'Sticky-note paper is its own surface: a fixed dark-olive ink on note yellow, which must not follow the station palette or the note becomes unreadable.',
-	],
-	[
-		'desktop.css:--os-ui-fg-muted',
-		'Same note-paper surface as --os-ui-fg above.',
-	],
-	[
-		'desktop.css:--os-ui-btn-bg-active',
-		'Same note-paper surface — the pressed wash is mixed against the note, not the station.',
-	],
-	[
 		'desktop-files.css:--os-tile-hover-bg',
 		'Pre-brand hover wash on the folder-window tile canvas. Flagged, not fixed: changing a hover wash is a visual decision, not a bug fix.',
 	],

@@ -129,6 +129,40 @@ export function positionTabPlate( strip: HTMLElement ): void {
 }
 
 /**
+ * Apply (or strip) the tab strip's navigation semantics based on
+ * whether it currently holds any tabs.
+ *
+ * Every iframe window gets a strip element, because external sub-tabs
+ * can be added at runtime to a window that opened with no submenu. A
+ * strip that is still empty must not advertise itself: an empty
+ * `role="tablist"` is announced as a tab list with no tabs, and a bare
+ * `<nav>` is a navigation landmark with nothing to navigate. Both are
+ * noise in a landmark/rotor listing. `role="presentation"` drops the
+ * element out of the accessibility tree without touching layout.
+ *
+ * Call after any mutation of the strip's children — `tabs.ts` does so
+ * when external tabs are added, when the synthetic "Main" tab is
+ * injected, and when either is removed.
+ *
+ * @internal
+ */
+export function syncTabStripSemantics( strip: HTMLElement | null ): void {
+	if ( ! strip ) {
+		return;
+	}
+	if ( strip.querySelector( ':scope > .os-window__tab' ) ) {
+		strip.setAttribute( 'role', 'tablist' );
+		const label = strip.dataset.tablistLabel;
+		if ( label ) {
+			strip.setAttribute( 'aria-label', label );
+		}
+		return;
+	}
+	strip.setAttribute( 'role', 'presentation' );
+	strip.removeAttribute( 'aria-label' );
+}
+
+/**
  * Roving tabindex: exactly one tab in the strip is in the page's tab
  * order, and it is the active one.
  *
@@ -360,6 +394,14 @@ export function setPanelTabs(
 	for ( const stale of existing.values() ) {
 		stale.remove();
 	}
+
+	/*
+	 * The strip advertises `role="tablist"` only while it holds tabs,
+	 * so both edges of this function have to re-run that check: a
+	 * native window's strip is born empty and presentational, and a
+	 * caller can also empty it again by declaring no tabs.
+	 */
+	syncTabStripSemantics( strip );
 
 	// Pair each pane back to its tab for assistive tech.
 	for ( const pane of panesIn( winEl ) ) {

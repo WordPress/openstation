@@ -441,7 +441,6 @@ function openstation_enqueue_assets() {
 	 *     @type array  $seenIntros   Slugs of one-time intro dialogs the user has dismissed (e.g. `['posts']`). Native windows gate their first-open intro on this list.
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
 	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin.
-	 *     @type array  $stickyNotes  { available: bool } — whether the Gutenberg Guidelines experiment (the `wp_guideline` CPT + `wp_guideline_type` taxonomy) is registered. The shell skips booting the sticky-notes layer when false, avoiding the REST probes that 404 without the experiment. See `openstation_sticky_notes_is_available()`.
 	 * }
 	 */
 	$config = apply_filters(
@@ -582,14 +581,6 @@ function openstation_enqueue_assets() {
 			// above; the dialog cannot paint without that stylesheet, so
 			// the two must not diverge.
 			'rebrandNotice'                 => $show_rebrand_notice,
-			// Sticky notes ride on Gutenberg's Guidelines experiment
-			// (the `wp_guideline` CPT + `wp_guideline_type` taxonomy).
-			// When that experiment isn't active the `wp/v2/guidelines`
-			// + `wp/v2/wp_guideline_type` probes 404 — harmless but
-			// noisy — so the shell skips booting the layer entirely.
-			'stickyNotes'                   => array(
-				'available' => openstation_sticky_notes_is_available(),
-			),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'             => esc_url_raw( add_query_arg( 'action', 'openstation_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
 			// AI assistant availability + per-user toggle. Drives whether the

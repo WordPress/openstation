@@ -23,7 +23,7 @@ import type { DesktopConfig, Session, WindowConfig } from '../types';
  * Whether the saved payload carries meaningful shell state to restore.
  *
  * A session can be worth restoring even when it has no windows: virtual
- * desktops live in the same payload, and sticky notes / desktop files can
+ * desktops live in the same payload, and pinned notes / desktop files can
  * make an otherwise empty workspace meaningful. The server always sends a
  * default one-desktop shape, so keep that as "empty" until the user has
  * actually saved a customized desktop registry.

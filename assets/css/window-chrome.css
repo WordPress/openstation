@@ -376,7 +376,7 @@
  * theme could not reach them: these declarations land on the WINDOW
  * element, so a `--os-ui-btn-color` set at the shell root loses to
  * them, and the same names also drive buttons outside the title bar
- * (sticky notes, the desk chrome) that a theme usually does not want
+ * (pinned notes, the desk chrome) that a theme usually does not want
  * to move in the same stroke.
  *
  * `--os-titlebar-btn-focused-*` mirrors the unfocused set

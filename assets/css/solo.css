@@ -48,7 +48,7 @@ body.os-solo .os-files-layer,
 body.os-solo .os-widgets,
 body.os-solo .os-mio,
 body.os-solo .os-mio-panel,
-body.os-solo .os-sticky-notes,
+body.os-solo .os-notes,
 body.os-solo .os-dock-peek {
 	display: none !important;
 }

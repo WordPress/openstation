@@ -24,6 +24,7 @@ import {
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
 import { createRevealLayers } from '../reveals/surface';
+import { syncTabStripSemantics } from './tab-strip';
 import {
 	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_SHOW_DELAY_MS,
@@ -36,6 +37,13 @@ import {
  * @internal
  */
 export const LOADING_BODY_CLASS = 'os-window__body--loading';
+
+/*
+ * Re-exported: `syncTabStripSemantics` moved to `tab-strip.ts` with
+ * the rest of the strip's own DOM behaviour, and this module is where
+ * its callers have always imported it from.
+ */
+export { syncTabStripSemantics } from './tab-strip';
 
 /**
  * Body modifier while a painted spinner hands off to the content: the
@@ -212,12 +220,16 @@ export function updateFullscreenBodyClass(): void {
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
 	overlay.className = LOADING_OVERLAY_CLASS;
-	// `aria-hidden` so screen readers don't announce the spinner —
-	// the window's title bar already has a `role="dialog"` + label,
-	// and the spinner's own `<svg role="img" aria-label="Loading">`
-	// is the per-spinner SR signal. Keeping the overlay aria-hidden
-	// avoids double-announcement when the window opens.
-	overlay.setAttribute( 'aria-hidden', 'true' );
+	// The overlay is the ONLY thing on screen while a window loads, so
+	// it has to be reachable by assistive tech — `aria-hidden` here
+	// left a screen-reader user with a `role="dialog"` that appeared
+	// to be simply empty. `role="status"` announces the spinner's own
+	// label politely when it paints and, being a live region, stays
+	// quiet for loads fast enough that the spinner never shows. The
+	// window element carries `aria-busy` for the duration; see
+	// `src/window/loading.ts`.
+	overlay.setAttribute( 'role', 'status' );
+	overlay.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
 	// `classic` — canonical WordPress mark, three concentric arcs,
@@ -408,6 +420,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.id = `wp-window-${ config.id }`;
 	el.setAttribute( 'role', 'dialog' );
 	el.setAttribute( 'aria-labelledby', `wp-window-title-${ config.id }` );
+	// A window is born loading. Stamped here rather than left to the
+	// `WINDOW_CONTENT_LOADING` subscriber in `src/window/loading.ts`,
+	// because the `markWindowContentLoading()` call at the end of this
+	// function fires while this element is still detached and that
+	// subscriber resolves windows by `document.getElementById`.
+	el.setAttribute( 'aria-busy', 'true' );
 	el.style.left = `${ config.x }px`;
 	el.style.top = `${ config.y }px`;
 	el.style.width = `${ config.width }px`;
@@ -760,11 +778,16 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	 * A window with no tabs of either kind still gets the element, so
 	 * `addExternalTab()` and `setTabs()` have somewhere to put one
 	 * later. Empty, CSS collapses it to nothing.
+	 *
+	 * The strip's accessible name is stashed on a data attribute rather
+	 * than applied here: navigation semantics are only switched on once
+	 * the strip actually holds tabs (see `syncTabStripSemantics`), and
+	 * by that point the config object is out of reach of the runtime
+	 * tab code in `tabs.ts` and `tab-strip.ts`.
 	 */
 	{
 		const tabs = document.createElement( 'nav' );
 		tabs.className = 'os-window__tabs';
-		tabs.setAttribute( 'role', 'tablist' );
 
 		// The plate — the active tab's surface, as one element that
 		// slides between tabs rather than a fill that switches off on
@@ -772,8 +795,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// the tab buttons, which carry `z-index: 1`; a plate above
 		// them would hide the active label.
 		//
-		// `positionTabPlate()` in `tabs.ts` drives its geometry, and
-		// `observeTabOverflow()` is what calls that — the strip's
+		// `positionTabPlate()` in `tab-strip.ts` drives its geometry,
+		// and `observeTabOverflow()` is what calls that — the strip's
 		// existing observer already fires on every moment the plate
 		// would need re-measuring.
 		const plate = document.createElement( 'span' );
@@ -786,21 +809,20 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		plate.appendChild( plateFill );
 		plate.appendChild( plateJoint );
 		tabs.appendChild( plate );
+
 		/*
 		 * A native window's tabs are panes of one app, not sub-pages
 		 * of an admin screen, so the tablist says so. Screen-reader
-		 * users hear this label on entering the strip and it is the
-		 * only thing telling them what these tabs belong to.
+		 * users hear this on entering the strip and it is the only
+		 * thing telling them what these tabs belong to.
 		 */
-		let tabsLabel: string;
 		if ( config.native ) {
 			// translators: %s is the window's title (e.g., "OpenStation Preferences")
-			tabsLabel = sprintf( __( '%s sections' ), config.title );
+			tabs.dataset.tablistLabel = sprintf( __( '%s sections' ), config.title );
 		} else {
 			// translators: %s is the window's admin-page title (e.g., "Posts")
-			tabsLabel = sprintf( __( '%s sub-pages' ), config.title );
+			tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
 		}
-		tabs.setAttribute( 'aria-label', tabsLabel );
 
 		if ( config.submenu && config.submenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );
@@ -852,6 +874,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 				tabs.appendChild( tab );
 			}
 		}
+		syncTabStripSemantics( tabs );
 		el.appendChild( tabs );
 	}
 

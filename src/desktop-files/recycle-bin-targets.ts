@@ -80,34 +80,27 @@ const TRASH_DROP_ACTIVE_ATTR = 'data-os-trash-drop-active';
 const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
 
 /**
- * Selectors that all match the recycle bin tile, in order of
- * preference. The first matching element wins.
+ * Every surface representing the bin: the files layer's wallpaper
+ * tile, the legacy icon rail, the dock's system tile.
  *
- *   - `.os-file-tile[data-file-ref="…"]` — the unified
- *     files layer's representation (current default).
- *   - `[data-icon-id="…"]` — legacy desktop-icons rail
- *     (`src/desktop-icons.ts`), still rendered when the files
- *     layer is absent.
- *   - `[data-system-id="…"]` — any dock-side system-tile bridge.
+ * NOT alternatives to pick between. The classic layout shows the
+ * wallpaper tile and the dock tile at once, so resolving "the" bin to
+ * the first match left the dock tile with no drop target — dropping
+ * on it did nothing at all.
  */
-const BIN_TILE_SELECTORS = [
-	`.os-file-tile[data-file-ref="${ RECYCLE_BIN_WINDOW_ID }"]`,
-	`[data-icon-id="${ RECYCLE_BIN_WINDOW_ID }"]`,
-	`[data-system-id="${ RECYCLE_BIN_WINDOW_ID }"]`,
-];
-
-function findBinTile(): HTMLElement | null {
-	for ( const sel of BIN_TILE_SELECTORS ) {
-		const el = document.querySelector( sel );
-		if ( el instanceof HTMLElement ) {
-			return el;
-		}
-	}
-	return null;
-}
+const BIN_SURFACES = [
+	{ id: 'recycle-bin-tile', selector: `.os-file-tile[data-file-ref="${ RECYCLE_BIN_WINDOW_ID }"]` },
+	{ id: 'recycle-bin-icon', selector: `[data-icon-id="${ RECYCLE_BIN_WINDOW_ID }"]` },
+	{ id: 'recycle-bin-dock', selector: `[data-system-id="${ RECYCLE_BIN_WINDOW_ID }"]` },
+] as const;
 
 let _installed = false;
-let _dockDeregister: ( () => void ) | null = null;
+interface BinRegistration {
+	el: HTMLElement;
+	deregister: () => void;
+}
+/** Live tile registrations, keyed by drop-target id. */
+const _tileRegistrations = new Map< string, BinRegistration >();
 let _windowDeregister: ( () => void ) | null = null;
 let _binMutationObserver: MutationObserver | null = null;
 
@@ -322,24 +315,28 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	// DOM on every store change (`os-files-changed`); the
 	// legacy icon rail rebuilds on `DESKTOP_ICONS_RENDERED`; the
 	// legacy dock rail rebuilds on `DOCK_AFTER_RENDER`. We listen to
-	// all three and re-discover via `findBinTile()`. Idempotent
-	// re-registration via the registry's id-based replacement.
+	// all three and re-probe every surface in `BIN_SURFACES`.
+	// Idempotent — re-registration is keyed by drop-target id.
 	const reprobeTile = (): void => {
-		const el = findBinTile();
-		if ( ! el ) {
-			// Tile gone (legacy rail, no placement yet) — drop the
-			// stale registration so the registry doesn't keep a
-			// detached element.
-			_dockDeregister?.();
-			_dockDeregister = null;
-			return;
+		for ( const { id, selector } of BIN_SURFACES ) {
+			const el = document.querySelector( selector );
+			const live = el instanceof HTMLElement ? el : null;
+			const current = _tileRegistrations.get( id );
+			if ( ! live ) {
+				// Deregister so the registry doesn't hold a detached node.
+				current?.deregister();
+				_tileRegistrations.delete( id );
+				continue;
+			}
+			if ( current && current.el === live ) {
+				continue;
+			}
+			current?.deregister();
+			_tileRegistrations.set( id, {
+				el: live,
+				deregister: registerOn( dragManager, id, live ),
+			} );
 		}
-		// If the registered element is still the live tile, no work.
-		if ( _dockDeregister && getRegisteredElementId( dragManager ) === el ) {
-			return;
-		}
-		_dockDeregister?.();
-		_dockDeregister = registerOn( dragManager, 'recycle-bin-dock', el );
 	};
 
 	// Initial probe — covers the case where the dock has already
@@ -417,26 +414,14 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	);
 }
 
-/**
- * Read the live `element` of the currently-registered
- * `recycle-bin-dock` target, or `null` if not registered. Used by
- * `reprobeTile` to skip re-registration when the element hasn't
- * changed.
- */
-function getRegisteredElementId( dragManager: DragManagerApi ): HTMLElement | null {
-	const t = dragManager
-		.debug()
-		.listTargets()
-		.find( ( target ) => target.id === 'recycle-bin-dock' );
-	return t ? t.element : null;
-}
-
 /** Test-only — resets the install latch + clears registrations. */
 export function __resetRecycleBinDropTargetsForTests(): void {
-	_dockDeregister?.();
+	for ( const { deregister } of _tileRegistrations.values() ) {
+		deregister();
+	}
+	_tileRegistrations.clear();
 	_windowDeregister?.();
 	_binMutationObserver?.disconnect();
-	_dockDeregister = null;
 	_windowDeregister = null;
 	_binMutationObserver = null;
 	_installed = false;

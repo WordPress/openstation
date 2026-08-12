@@ -363,8 +363,8 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		installManagerOnWindow( manager );
 
 		// Build the bin tile in the same DOM shape the files layer
-		// produces — `.os-file-tile[data-file-ref="…"]` is
-		// the first selector `findBinTile()` checks.
+		// produces — `.os-file-tile[data-file-ref="…"]`, which
+		// registers under the `recycle-bin-tile` id.
 		const binTile = document.createElement( 'div' );
 		binTile.classList.add( 'os-file-tile' );
 		binTile.dataset.fileRef = 'desktop-mode-recycle-bin';
@@ -372,7 +372,7 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		binTargets.installRecycleBinDropTargets( manager );
 		expect(
-			manager.debug().listTargets().find( ( t ) => t.id === 'recycle-bin-dock' ),
+			manager.debug().listTargets().find( ( t ) => t.id === 'recycle-bin-tile' ),
 		).toBeDefined();
 
 		// The bin's placement: positive id (it's a real DB row) +
@@ -490,5 +490,41 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 				.listTargets()
 				.find( ( t ) => t.id === 'recycle-bin-dock' )?.element,
 		).toBe( tile2 );
+	} );
+	test( 'every bin surface gets its own target, not just the first', async () => {
+		// The classic layout shows the wallpaper tile and the dock tile
+		// at once; resolving to the first match left the dock dead.
+		const { binTargets } = await load();
+		const manager = new DragManager();
+		installManagerOnWindow( manager );
+
+		const wallpaperTile = document.createElement( 'div' );
+		wallpaperTile.classList.add( 'os-file-tile' );
+		wallpaperTile.dataset.fileRef = 'desktop-mode-recycle-bin';
+		document.body.appendChild( wallpaperTile );
+
+		const legacyIcon = document.createElement( 'button' );
+		legacyIcon.dataset.iconId = 'desktop-mode-recycle-bin';
+		document.body.appendChild( legacyIcon );
+
+		const dockTile = document.createElement( 'div' );
+		dockTile.classList.add( 'os-dock__item', 'os-dock__item--system' );
+		dockTile.dataset.systemId = 'desktop-mode-recycle-bin';
+		document.body.appendChild( dockTile );
+
+		binTargets.installRecycleBinDropTargets( manager );
+
+		const byId = ( id: string ) =>
+			manager.debug().listTargets().find( ( t ) => t.id === id )?.element;
+		expect( byId( 'recycle-bin-tile' ) ).toBe( wallpaperTile );
+		expect( byId( 'recycle-bin-icon' ) ).toBe( legacyIcon );
+		expect( byId( 'recycle-bin-dock' ) ).toBe( dockTile );
+
+		// A surface that goes away drops only its own registration.
+		wallpaperTile.remove();
+		( window as unknown as { wp: { hooks: { doAction: ( h: string, ...a: unknown[] ) => void } } } )
+			.wp.hooks.doAction( HOOKS.DOCK_AFTER_RENDER, {} );
+		expect( byId( 'recycle-bin-tile' ) ).toBeUndefined();
+		expect( byId( 'recycle-bin-dock' ) ).toBe( dockTile );
 	} );
 } );
