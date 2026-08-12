@@ -38,6 +38,8 @@ const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', { method: 'POST' } )
 
 That's it. The window is `saving` for the round-trip, `saved` on success, `failed` on failure (carrying the error message). No CSS, no DOM, no per-window plumbing — and if you mounted a dot as above, it blinks, flashes green, then goes red with the error as its tooltip.
 
+**"Failure" means the outcome, not the promise.** Native `fetch` resolves for 4xx/5xx, but the indicator doesn't: a response with `ok: false` settles the phase as `failed` with `Request failed (HTTP 500 Internal Server Error).` as its tooltip. Your side of the call is unaffected — `wp.os.fetch` hands back the native promise, so it still resolves with the error response and your own `if ( ! res.ok )` branch runs as before. Only a genuinely successful (2xx) response paints the green check.
+
 ## Where it lands
 
 By default, `wp.os.fetch` attributes the request to the **focused window** at the moment of the call. Most fetches happen inside event handlers — clicks, key presses, form submits — and the click already focused the window. So in 95% of cases the default attribution is correct.

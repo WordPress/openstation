@@ -28,6 +28,7 @@ import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
 import { injectRestNonce } from '../inject-rest-nonce';
 import { noteAuthFailure } from '../auth-recovery';
+import { __, sprintf } from '../i18n';
 
 export interface TrackedFetchImplOpts {
 	windowId?: string;
@@ -88,9 +89,39 @@ export function trackedFetch(
 		// expect identical resolution semantics. `trackActivity`
 		// attaches its own `.then`/`catch` without consuming the
 		// rejection (it re-throws), so fire-and-forget here.
-		void target.trackActivity( promise ).catch( () => {
-			/* swallow — caller's await sees the rejection */
-		} );
+		//
+		// What IS tracked is a derived promise, not this one: `fetch`
+		// resolves normally for 4xx/5xx, so handing the raw promise to
+		// the indicator paints the green "Saved" check (and announces
+		// it to screen readers) for a response the server refused.
+		// Rejecting on `! res.ok` settles the indicator as `failed`
+		// with the status as its tooltip, while the caller still gets
+		// `promise` untouched and does its own response handling.
+		void target
+			.trackActivity(
+				promise.then( ( res ) => {
+					if ( ! res.ok ) {
+						throw new Error( httpErrorMessage( res ) );
+					}
+					return res;
+				} ),
+			)
+			.catch( () => {
+				/* swallow — caller's await sees the real outcome */
+			} );
 	}
 	return promise;
+}
+
+/**
+ * Tooltip text for an HTTP error response. Includes the reason
+ * phrase when the server sent one — "500 Internal Server Error"
+ * says more than "500", and HTTP/2 responses carry no phrase at all.
+ */
+function httpErrorMessage( res: Response ): string {
+	const status = res.statusText
+		? `${ res.status } ${ res.statusText }`
+		: String( res.status );
+	/* translators: %s: HTTP status code, optionally followed by the reason phrase (e.g. "500 Internal Server Error"). */
+	return sprintf( __( 'Request failed (HTTP %s).' ), status );
 }

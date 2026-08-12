@@ -1250,7 +1250,7 @@ Rules:
 
 #### Why it works
 
-Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch holds `saving` long enough for an indicator to be seen — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error is the one carried) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
+Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. **An HTTP error status settles the phase as `failed`, not `saved`** — native `fetch` resolves for 4xx/5xx, so the tracked promise is a derived one that rejects when `response.ok` is false, carrying `Request failed (HTTP 500 Internal Server Error).` as the indicator's tooltip. The promise you receive is the untouched native one: it still *resolves* with the error response, and your own `if ( ! res.ok )` handling is unchanged. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch holds `saving` long enough for an indicator to be seen — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error is the one carried) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
 
 #### Migration tip
 
