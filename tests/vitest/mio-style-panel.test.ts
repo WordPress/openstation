@@ -362,7 +362,7 @@ describe( 'Mio style panel', () => {
 		expect( state.writes ).toHaveLength( 0 );
 	} );
 
-	test( 'Restore Mio resets and repaints the controls', async () => {
+	test( 'Reset Mio’s look resets and repaints the controls', async () => {
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -377,7 +377,7 @@ describe( 'Mio style panel', () => {
 
 		const restore = Array.from(
 			panel()!.querySelectorAll( 'os-button' ),
-		).find( ( el ) => el.textContent === 'Restore Mio' );
+		).find( ( el ) => el.textContent === 'Reset Mio’s look' );
 		expect( restore ).toBeDefined();
 		restore!.dispatchEvent( new MouseEvent( 'click' ) );
 
@@ -497,14 +497,14 @@ describe( 'Mio style panel', () => {
 		} );
 	} );
 
-	test( 'Surprise me writes both halves of a look and repaints', async () => {
+	test( 'Try a random look writes both halves of a look and repaints', async () => {
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
 		const surprise = Array.from(
 			panel()!.querySelectorAll( 'os-button' ),
-		).find( ( el ) => el.textContent === 'Surprise me' );
+		).find( ( el ) => el.textContent === 'Try a random look' );
 		expect( surprise ).toBeDefined();
 		surprise!.dispatchEvent( new MouseEvent( 'click' ) );
 

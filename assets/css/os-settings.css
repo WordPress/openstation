@@ -121,8 +121,17 @@
 
 .os-settings__footer {
 	display: flex;
+	align-items: center;
 	justify-content: flex-end;
+	gap: 16px;
 	margin-top: 12px;
+}
+
+.os-settings__reset-note {
+	flex: 1;
+	margin: 0;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
 }
 
 /* Top-level tab strip separating Appearance from AI Settings.
@@ -1398,7 +1407,16 @@
  */
 .os-settings__theme-recommendation {
 	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
 	margin-block: 16px;
+}
+
+.os-settings__theme-recommendation-note {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
 }
 
 .os-settings__theme-upload {

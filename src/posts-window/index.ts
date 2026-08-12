@@ -985,7 +985,12 @@ function mountKebabColumnToggles(
 	const sectionLabel = document.createElement( 'div' );
 	sectionLabel.className = SECTION_CLASS;
 	sectionLabel.setAttribute( 'role', 'presentation' );
-	sectionLabel.textContent = __( 'Show columns' );
+	const modeLabel = windowMode( client ) === 'pages' ? __( 'Pages' ) : __( 'Posts' );
+	sectionLabel.textContent = sprintf(
+		/* translators: %s: Posts or Pages. */
+		__( 'Show columns in %s' ),
+		modeLabel,
+	);
 	panel.appendChild( sectionLabel );
 
 	const itemEls = new Map< string, HTMLElement >();
@@ -995,7 +1000,15 @@ function mountKebabColumnToggles(
 		item.setAttribute( 'value', VALUE_PREFIX + col.key );
 		item.classList.add( 'os-window__menu-item' );
 		item.classList.add( ITEM_CLASS );
-		item.textContent = col.label || col.key;
+		const label = col.label || col.key;
+		item.textContent =
+			col.key === 'author' || col.key === 'date'
+				? sprintf(
+					/* translators: %s: column name shared by Posts and Pages. */
+					__( '%s (shared by Posts and Pages)' ),
+					label,
+				)
+				: label;
 		panel.appendChild( item );
 		itemEls.set( col.key, item );
 	}
@@ -3160,4 +3173,3 @@ registry[ 'desktop-mode-user-edit' ] = (
 		} );
 	} );
 };
-

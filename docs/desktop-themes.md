@@ -927,7 +927,7 @@ activates it — and never again.**
   dock back to compact, re-pick the theme — it stays compact.
 
 The way back is the user's to take: **OpenStation Preferences → Themes** shows an
-**Apply &lt;theme&gt;'s recommended layout and effects** button for the
+**Apply &lt;theme&gt;'s recommended preferences** button for the
 active theme when it recommends something, and that is the only path
 that applies a recommendation a second time. It sets the settings and
 nothing else — the dock resizing under the cursor is the feedback.
@@ -1499,7 +1499,7 @@ The first card in the grid is **OpenStation** — the shell's own look,
 stored as the empty string. It is not a theme in the registry (its
 palette is `assets/css/variables.css`, not a manifest), but the picker
 treats it as a peer of everything beside it: it carries the same
-"Apply …'s recommended layout and effects" button, and what it
+"Apply …'s recommended preferences" button, and what it
 recommends is the accent its palette was drawn against (Pulse) and the
 layout it was drawn for (`classic`).
 
@@ -1512,7 +1512,7 @@ flash of the default palette.
 If the theme ships
 [`recommendedOsSettings`](#recommended-os-settings), the user's first
 activation of it also seeds those preferences — once — and the tab
-grows an **Apply &lt;theme&gt;'s recommended layout** button for going
+grows an **Apply &lt;theme&gt;'s recommended preferences** button for going
 back to them later.
 
 ### From JavaScript

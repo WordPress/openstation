@@ -1,6 +1,6 @@
 /**
- * Custom-image section — the "Or use your own image" block beneath the
- * wallpaper swatch grid. Two tabs: "Upload new" (drag-drop + file
+ * Custom-image section — the "Use a custom wallpaper image" block beneath the
+ * wallpaper swatch grid. Two tabs: "Upload to Media Library" (drag-drop + file
  * picker, disabled when the current user can't upload) and "Media
  * Library" (paginated REST grid with search + HD filter).
  */
@@ -41,7 +41,7 @@ export function buildCustomImageSection(
 	if ( ctx.config.canUpload ) {
 		tabDefs.push( {
 			key: 'upload',
-			label: __( 'Upload new' ),
+			label: __( 'Upload to Media Library' ),
 			render: () => renderUploadPane( ctx, pane, body ),
 		} );
 	}
@@ -62,7 +62,7 @@ export function buildCustomImageSection(
 		html`
 			<div class="os-settings__uploader">
 				<h4 class="os-settings__uploader-heading">
-					${ __( 'Or use your own image' ) }
+					${ __( 'Use a custom wallpaper image' ) }
 				</h4>
 				${ tabDefs.length > 1
 		? html`<os-tabs
@@ -161,9 +161,11 @@ function renderUploadTile(
 					<os-button
 						variant="danger"
 						class="os-settings__upload-remove"
-						aria-label=${ __( 'Remove custom image' ) }
+						aria-label=${ __(
+							'Stop using this custom image. The file stays in Media Library.',
+						) }
 						@click=${ onRemove }
-						>${ __( 'Remove' ) }</os-button
+						>${ __( 'Stop using' ) }</os-button
 					>
 				`
 			: html`
@@ -286,9 +288,9 @@ function renderLibraryPane(
 	// surrounding structure is declarative.
 	const search = document.createElement( 'input' );
 	search.type = 'search';
-	search.placeholder = __( 'Search your media' );
+	search.placeholder = __( 'Search Media Library' );
 	search.className = 'os-settings__library-search';
-	search.setAttribute( 'aria-label', __( 'Search media' ) );
+	search.setAttribute( 'aria-label', __( 'Search Media Library' ) );
 
 	const grid = document.createElement( 'div' );
 	grid.className = 'os-settings__library-grid';
@@ -298,7 +300,7 @@ function renderLibraryPane(
 
 	const loadMore = document.createElement( 'os-button' );
 	loadMore.setAttribute( 'variant', 'ghost' );
-	loadMore.textContent = __( 'Load more' );
+	loadMore.textContent = __( 'Load more images' );
 
 	let query = '';
 	let page = 0;
@@ -321,7 +323,7 @@ function renderLibraryPane(
 					<os-checkbox-label
 						label=${ sprintf(
 		// translators: %1$d is the HD minimum width in px, %2$d is the minimum height.
-		__( 'Only HD (≥%1$d×%2$d)' ),
+		__( 'Show only images at least %1$d×%2$d' ),
 		HD_MIN_WIDTH,
 		HD_MIN_HEIGHT,
 	) }

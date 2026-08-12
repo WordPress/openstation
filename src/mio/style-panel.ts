@@ -333,7 +333,14 @@ function openMioStylePanelImmediate(): void {
 				]
 				: [];
 
+		const intro = document.createElement( 'p' );
+		intro.className = 'os-mio-panel__intro';
+		intro.textContent = __(
+			'Changes preview immediately and are saved to your WordPress account as you make them. Reset Mio’s look returns every control in this panel to the look chosen by this site.',
+		);
+
 		body.replaceChildren(
+			intro,
 			section( __( 'Shape' ), [
 				shapePicker( physics.shapePreset, ( preset ) => {
 					set( { shapePreset: preset } );
@@ -346,7 +353,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'shapeAmount',
-						label: __( 'Shape strength' ),
+						label: __( 'Shape definition (0 is a circle)' ),
 						min: 0,
 						max: 1.4,
 						step: 0.05,
@@ -380,9 +387,9 @@ function openMioStylePanelImmediate(): void {
 					},
 				),
 			] ),
-			section( __( 'Idle' ), [
+			section( __( 'Idle movement' ), [
 				toggle(
-					__( 'Wobble when idle' ),
+					__( 'Use idle wobble' ),
 					physics.idleWobble > 0,
 					( next ) => {
 						// Unticked, Mio holds a still silhouette instead of
@@ -400,7 +407,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'idleWobble',
-						label: __( 'Wobble strength' ),
+						label: __( 'Idle wobble strength (0 is off)' ),
 						min: 0,
 						max: 0.4,
 						step: 0.005,
@@ -411,7 +418,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'idleWobbleSpeed',
-						label: __( 'Wobble speed' ),
+						label: __( 'Idle wobble speed' ),
 						min: 0,
 						max: 4,
 						step: 0.05,
@@ -435,7 +442,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'hueSpan',
-						label: __( 'Hue spread' ),
+						label: __( 'Colour range' ),
 						min: -360,
 						max: 360,
 						step: 1,
@@ -457,7 +464,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'lightness',
-						label: __( 'Brightness' ),
+						label: __( 'Colour brightness' ),
 						min: 0.15,
 						max: 1,
 						step: 0.01,
@@ -529,7 +536,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'hueSpin',
-						label: __( 'Spin the gradient' ),
+						label: __( 'Move gradient around ring' ),
 						min: -60,
 						max: 60,
 						step: 1,
@@ -540,7 +547,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'hueDrift',
-						label: __( 'Cycle the colours' ),
+						label: __( 'Shift colours over time' ),
 						min: -60,
 						max: 60,
 						step: 1,
@@ -551,7 +558,7 @@ function openMioStylePanelImmediate(): void {
 			] ),
 			section( __( 'Hologram' ), [
 				toggle(
-					__( 'Holographic' ),
+					__( 'Use holographic effect' ),
 					appearance.iridescence > 0,
 					( next ) => {
 						// Coming back on lands at the strength the
@@ -566,7 +573,7 @@ function openMioStylePanelImmediate(): void {
 				slider(
 					{
 						key: 'iridescence',
-						label: __( 'Iridescence' ),
+						label: __( 'Holographic strength (0 is off)' ),
 						min: 0,
 						max: 2,
 						step: 0.05,
@@ -618,7 +625,7 @@ function openMioStylePanelImmediate(): void {
 	const surprise = document.createElement( 'os-button' );
 	surprise.setAttribute( 'slot', 'footer' );
 	surprise.setAttribute( 'variant', 'secondary' );
-	surprise.textContent = __( 'Surprise me' );
+	surprise.textContent = __( 'Try a random look' );
 	surprise.addEventListener( 'click', () => {
 		const look = randomMioLook();
 		mio.setStyle( { ...look.appearance, ...look.physics } );
@@ -628,7 +635,7 @@ function openMioStylePanelImmediate(): void {
 	const restore = document.createElement( 'os-button' );
 	restore.setAttribute( 'slot', 'footer' );
 	restore.setAttribute( 'variant', 'secondary' );
-	restore.textContent = __( 'Restore Mio' );
+	restore.textContent = __( 'Reset Mio’s look' );
 	restore.addEventListener( 'click', () => {
 		mio.resetStyle();
 		paint();

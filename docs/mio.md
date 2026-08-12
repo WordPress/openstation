@@ -282,7 +282,7 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 **Change shape on its own** is `shapeShuffle`: ticked, Mio picks a new stock silhouette about every minute and eases into it; unticked, it settles back into whichever shape the picker says and stays there. Unticking mid-shuffle eases home rather than snapping — a companion that jumps when you untick a box reads as a glitch.
 
-**Wobble when idle** is `idleWobble`: unticked, Mio holds a still silhouette instead of breathing. Ticking it back on returns to the shipped strength, and the two sliders beneath tune amplitude and rate. Unticking repaints the section, because sliders that no longer do anything should not sit there implying they do.
+**Use idle wobble** is `idleWobble`: unticked, Mio holds a still silhouette instead of breathing. Ticking it back on returns to the shipped strength, and the two sliders beneath tune amplitude and rate. Unticking repaints the section, because sliders that no longer do anything should not sit there implying they do.
 
 The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
 
@@ -295,9 +295,9 @@ The **Corners** slider appears only for `Polygon` (`custom`), the one preset tha
 
 **Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<os-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
 
-### Surprise me
+### Try a random look
 
-A randomizer, next to Restore. It writes both halves of a look at once and repaints the panel from what it applied.
+A randomizer, next to **Reset Mio's look**. It writes both halves of a look at once and repaints the panel from what it applied.
 
 **A randomizer is a taste filter, not a dice roll.** Uniform noise across every slider produces a grey, dim, seam-ridden thing about nine times in ten, and a user who presses the button twice and gets two of those concludes the feature is broken rather than that they were unlucky. So `randomMioLook()` narrows every range to the part of the space that still reads as Mio:
 
@@ -358,7 +358,7 @@ The look merges **last**, after server config and the JS filter. Everything befo
 
 **`setStyle` persists; `setConfig` does not.** That split is deliberate: `setConfig` is the programmatic surface, and a plugin nudging Mio for a moment shouldn't silently become the user's saved look.
 
-**Restore Mio** clears the saved look and repaints the panel from the restored config — every control's value is stale after a reset, so the panel is rebuilt rather than just the config being reset. The cleared look is *written*, not merely forgotten: an empty look is a statement ("I want the site's Mio"), and only a save carries it to the user's other devices.
+**Reset Mio's look** clears the saved look and repaints the panel from the restored config — every control's value is stale after a reset, so the panel is rebuilt rather than just the config being reset. The cleared look is *written*, not merely forgotten: an empty look is a statement ("I want the site's Mio"), and only a save carries it to the user's other devices.
 
 ---
 

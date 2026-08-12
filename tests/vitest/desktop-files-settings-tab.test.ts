@@ -69,6 +69,16 @@ describe( 'File Associations OS Settings tab', () => {
 
 		const rows = body.querySelectorAll( '.os-file-associations__row' );
 		expect( rows.length ).toBe( 2 );
+		expect(
+			Array.from( body.querySelectorAll( '.os-file-associations__label' ) ).map(
+				( label ) => label.textContent,
+			),
+		).toEqual( [ 'Default app for Post', 'Default app for User' ] );
+		expect(
+			Array.from( body.querySelectorAll( 'os-select' ) ).map( ( select ) =>
+				select.getAttribute( 'aria-label' ),
+			),
+		).toEqual( [ 'Default app for Post', 'Default app for User' ] );
 	} );
 
 	test( 'changing the select POSTs the new association', async () => {

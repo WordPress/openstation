@@ -481,6 +481,13 @@ body.os-active #wpcontent {
 	pointer-events: auto;
 }
 
+.os-mio-panel__intro {
+	margin: 0 0 16px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 12px;
+	line-height: 1.5;
+}
+
 /*
  * Overview (Exposé) hides the desk furniture so the window grid
  * reads cleanly — Mio goes with the widgets and the notes.

@@ -480,7 +480,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				<os-section
 					heading=${ __( 'Features' ) }
 					description=${ __(
-						'Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.',
+						'Most choices here affect only your account and apply immediately. Site-wide choices and settings that need a reload are identified below. The dot in the title bar shows when saving finishes.',
 					) }
 				>
 					${ shellCfg?.aiAssistant?.available
@@ -708,66 +708,66 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 				<os-section
 					heading=${ __( 'Beta features' ) }
 					description=${ __(
-						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
+						'Choose which version of each admin screen opens for your account. The choice applies the next time you open that app; windows already open keep their current version.',
 					) }
 				>
 					<div class="os-features__item">
 						<os-checkbox-label
-							label=${ __( 'Use the native Posts window' ) }
+							label=${ __( 'Open Posts in the native window' ) }
 							?checked=${ ctx.state.nativePostsEnabled }
 							@os-checkbox-change=${ onNativePostsToggle }
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
+								'Uses OpenStation’s table-based Posts window instead of the classic WordPress screen. Includes a sticky header, paginated rows, bulk actions, and previews. Turn it off to use the classic screen the next time you open Posts.',
 							) }
 						</p>
 					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
-							label=${ __( 'Use the native Pages window' ) }
+							label=${ __( 'Open Pages in the native window' ) }
 							?checked=${ ctx.state.nativePagesEnabled }
 							@os-checkbox-change=${ onNativePagesToggle }
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
+								'Uses OpenStation’s table-based Pages window instead of the classic WordPress screen. Includes page hierarchy, a Parent column, and editing-lock indicators. Turn it off to use the classic screen the next time you open Pages.',
 							) }
 						</p>
 					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
-							label=${ __( 'Use the native Users window' ) }
+							label=${ __( 'Open Users in the native window' ) }
 							?checked=${ ctx.state.nativeUsersEnabled }
 							@os-checkbox-change=${ onNativeUsersToggle }
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
+								'Uses OpenStation’s Users window instead of the classic WordPress screen. Includes bulk role changes, last-login and online indicators, copyable email addresses, and password resets. Available actions still follow WordPress permissions. The choice applies the next time you open Users.',
 							) }
 						</p>
 					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
-							label=${ __( 'Use the native Plugins window' ) }
+							label=${ __( 'Open Plugins in the native window' ) }
 							?checked=${ ctx.state.nativePluginsEnabled }
 							@os-checkbox-change=${ onNativePluginsToggle }
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
+								'Uses OpenStation’s two-tab Plugins window instead of the classic WordPress screen. Manage installed plugins, browse WordPress.org, inspect details and reviews, or drop in a .zip. The choice applies the next time you open Plugins.',
 							) }
 						</p>
 					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
-							label=${ __( 'Use the native Comments window' ) }
+							label=${ __( 'Open Comments in the native window' ) }
 							?checked=${ ctx.state.nativeCommentsEnabled }
 							@os-checkbox-change=${ onNativeCommentsToggle }
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native two-pane Comments window: a rail of conversations filtered by Pending / All / Spam / Trash / Mine, and the selected thread’s full nested reply chain beside it. Every message carries Reply, Edit, Approve, Spam and Trash inline, with a docked composer that repoints to whichever message you answer. Opening “Comments” on a post scopes the window to that post.',
+								'Uses OpenStation’s two-pane Comments window instead of the classic WordPress screen. Filter conversations, read nested replies, moderate messages, and reply from one place. The choice applies the next time you open Comments.',
 							) }
 						</p>
 					</div>

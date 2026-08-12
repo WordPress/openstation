@@ -94,18 +94,9 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	/**
-	 * "Apply recommended layout and effects" — the deliberate way back
-	 * to the author's intended presentation after the user has moved
-	 * things around. The only path that re-applies a recommendation.
-	 *
-	 * "and effects" is not decoration: a theme may recommend the
-	 * window-reveal style and its speed alongside the layout keys, and
-	 * a label that named only the layout would understate what the
-	 * button is about to change.
-	 *
-	 * It just sets the settings. The dock resizing and the layout
-	 * moving IS the feedback; a notice on top of a visible change is
-	 * noise.
+	 * Re-apply the active theme's recommended preferences. The exact
+	 * set is intentionally theme-defined and extensible, so the UI says
+	 * "preferences" rather than promising a fixed list of controls.
 	 */
 	const applyRecommended = ( themeSlug: string ): void => {
 		const applied = applyThemeRecommendations( ctx.state, themeSlug, {
@@ -309,7 +300,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			<span class="os-settings__theme-upload-prompt"
 				>${ busy
 					? __( 'Installing…' )
-					: __( 'Drop a theme .zip here, or click to upload' ) }</span
+					: __( 'Install a theme for everyone: drop a .zip here or choose a file' ) }</span
 			>
 		</label>
 	</div>`;
@@ -342,12 +333,17 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			return '';
 		}
 		return html`<div class="os-settings__theme-recommendation">
+			<p class="os-settings__theme-recommendation-note">
+				${ __(
+					'This replaces the personal OpenStation preferences recommended by this theme.',
+				) }
+			</p>
 			<os-button
 				variant="secondary"
 				@click=${ () => applyRecommended( activeSlug ) }
 				>${ sprintf(
 			/* translators: %s: theme name. */
-			__( 'Apply %s’s recommended layout and effects' ),
+			__( 'Apply %s’s recommended preferences' ),
 			name,
 		) }</os-button
 			>
@@ -363,7 +359,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 				</h3>
 				<p class="os-settings__intro">
 					${ __(
-						'A desktop theme restyles the whole shell — colours, window frames, the dock, and every icon. Your choice applies only to you.',
+						'A desktop theme changes colours, window frames, the dock, and icons for your account. The first time you choose a theme, OpenStation also applies that theme’s recommended preferences. You can change those preferences afterward. Uploaded themes are installed for everyone on this site.',
 					) }
 				</p>
 				${ errorText !== ''

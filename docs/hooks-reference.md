@@ -2654,7 +2654,7 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 ## Native Posts window
 
-`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
+`<os-table>`-driven native window that replaces the chromeless `edit.php` iframe. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Open Posts in the native window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes.
 
 ### `openstation_posts_window_user_can_register` — Stable *(filter)*
 
@@ -2820,7 +2820,7 @@ The `{ slug: label }` map for the active theme's registered page templates, used
 
 ## Native Plugins window
 
-A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A two-tab native window that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Open Plugins in the native window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
 
 Architecture summary: read paths use Core REST (`/wp/v2/plugins`); admin-only paths (browse / info / reviews / .zip upload) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations are followed by `wp.os.refreshMenu()` so the dock repaints live.
 

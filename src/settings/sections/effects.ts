@@ -179,7 +179,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 			( r ) => r.id === ctx.state.windowLinkRenderer,
 		);
 		const linksFallbackDescription = __(
-			'Draw a visual tie between windows showing related content — a post and its comments or media.',
+			'Choose how connector lines look and when they appear between related windows, such as a post and its comments or media. Window links must also be enabled in Features.',
 		);
 		const linksDescription =
 			ctx.state.windowLinkRenderer !== LINKS_NONE &&
@@ -247,7 +247,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 				>
 					<os-select
 						value=${ ctx.state.windowLinkRenderer }
-						label=${ __( 'Link style' ) }
+						label=${ __( 'Connector line style' ) }
 						@os-pick=${ onPickLinkRenderer }
 					>
 						<os-option value=${ LINKS_NONE }>
@@ -262,7 +262,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 					</os-select>
 					<os-select
 						value=${ ctx.state.windowLinkVisibility }
-						label=${ __( 'Show links' ) }
+						label=${ __( 'When to show connector lines' ) }
 						@os-pick=${ onPickLinkVisibility }
 					>
 						${ LINK_VISIBILITIES.map(

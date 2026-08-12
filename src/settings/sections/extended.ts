@@ -112,7 +112,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 					) }
 				>
 					<os-checkbox-label
-						label=${ __( 'Enable drag-and-drop in the Media Library' ) }
+						label=${ __( 'Enable Media Library drag-and-drop for everyone' ) }
 						?checked=${ state.media_library_enhanced }
 						@os-checkbox-change=${ onMediaToggle }
 					></os-checkbox-label>
@@ -124,7 +124,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 					</p>
 
 					<os-checkbox-label
-						label=${ __( 'Enable games' ) }
+						label=${ __( 'Enable games for everyone' ) }
 						?checked=${ state.games }
 						@os-checkbox-change=${ onGamesToggle }
 					></os-checkbox-label>
@@ -136,7 +136,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 					</p>
 
 					<os-checkbox-label
-						label=${ __( 'Enable AI agents' ) }
+						label=${ __( 'Enable AI agents for everyone' ) }
 						?checked=${ state.agents }
 						@os-checkbox-change=${ onAgentsToggle }
 					></os-checkbox-label>

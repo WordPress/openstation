@@ -9,7 +9,7 @@
  * dispatcher's settings subscription refreshes the rails live.
  */
 
-import { __ } from '../../i18n';
+import { __, sprintf } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { renderIcon } from '../../icon';
 import { slotForTileId } from '../../desktop-themes/slots';
@@ -82,10 +82,10 @@ interface PlacementOption {
  */
 function getPlacementOptions(): PlacementOption[] {
 	return [
-		{ id: 'desktop', label: __( 'On the desktop' ) },
-		{ id: 'dock', label: __( 'On the dock' ) },
-		{ id: 'both', label: __( 'On both' ) },
-		{ id: 'hidden', label: __( 'Hidden' ) },
+		{ id: 'desktop', label: __( 'Desktop only' ) },
+		{ id: 'dock', label: __( 'Dock only' ) },
+		{ id: 'both', label: __( 'Desktop and dock' ) },
+		{ id: 'hidden', label: __( 'Nowhere' ) },
 	];
 }
 
@@ -98,8 +98,8 @@ function getPlacementOptions(): PlacementOption[] {
  */
 function getDockOnlyOptions(): PlacementOption[] {
 	return [
-		{ id: 'dock', label: __( 'On the dock' ) },
-		{ id: 'hidden', label: __( 'Hidden' ) },
+		{ id: 'dock', label: __( 'Show on dock' ) },
+		{ id: 'hidden', label: __( 'Hide from dock' ) },
 	];
 }
 
@@ -147,7 +147,7 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 				<os-section
 					heading=${ __( 'Apps & Icons' ) }
 					description=${ __(
-						'Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.',
+						'Choose where each shortcut appears for your account. The desktop means the wallpaper; the dock means the app launcher. The dot in the title bar shows when your choice is saved.',
 					) }
 				>
 					${ rows.length === 0
@@ -181,7 +181,11 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 												</div>
 											</div>
 											<os-select
-												label=${ __( 'Show in' ) }
+												label=${ sprintf(
+													/* translators: %s: app or shortcut name. */
+													__( 'Where to show %s' ),
+													row.title,
+												) }
 												value=${ row.placement }
 												@os-pick=${ onPlacementChange( row.id ) }
 											>

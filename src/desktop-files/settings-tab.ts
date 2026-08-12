@@ -52,7 +52,7 @@ function renderTab( body: HTMLElement ): void {
 	const intro = document.createElement( 'p' );
 	intro.className = 'os-file-associations__intro';
 	intro.textContent =
-		'Pick which app opens each kind of file when you double-click it on the desktop.';
+		'Choose the default app for each kind of desktop file. These choices apply to your account and are used the next time you open a file.';
 	body.appendChild( intro );
 
 	const associations = getUserAssociations();
@@ -77,7 +77,7 @@ function buildRow(
 
 	const label = document.createElement( 'label' );
 	label.className = 'os-file-associations__label';
-	label.textContent = typeLabel;
+	label.textContent = `Default app for ${ typeLabel }`;
 	row.appendChild( label );
 
 	const candidates = getOpenersForType( typeSlug );

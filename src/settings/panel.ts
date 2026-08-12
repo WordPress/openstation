@@ -193,7 +193,7 @@ export function renderOsSettingsPanel(
 				<os-panel>
 					<p class="os-settings__intro">
 						${ __(
-							'Personalize your desktop. Changes apply instantly and are saved to this browser.',
+							'Personalize your desktop. Most changes appear immediately and are saved to your WordPress account. The dot in the title bar shows when saving finishes.',
 						) }
 					</p>
 					${ buildWallpaperSection( ctx, body ) }
@@ -334,8 +334,13 @@ export function renderOsSettingsPanel(
 		html`
 			${ rows.map( ( r ) => r.panel ) }
 			<os-panel class="os-settings__footer">
+				<p class="os-settings__reset-note">
+					${ __(
+						'Resets every OpenStation Preferences tab for your account. Your uploaded wallpaper file stays in Media Library, but the saved custom-image choice is cleared. This cannot be undone.',
+					) }
+				</p>
 				<os-button variant="ghost" @click=${ onReset }
-					>${ __( 'Reset to defaults' ) }</os-button
+					>${ __( 'Reset all OpenStation preferences' ) }</os-button
 				>
 			</os-panel>
 		`,
