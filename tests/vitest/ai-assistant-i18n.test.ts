@@ -142,6 +142,71 @@ describe( 'AiAssistant — i18n', () => {
 		);
 	} );
 
+	test( 'the settings recovery link comes from the server hint, not the prose', async () => {
+		const openOsSettings = vi.fn();
+		const existing = ( window as unknown as Record< string, unknown > ).wp as
+			| Record< string, unknown >
+			| undefined;
+		( window as unknown as Record< string, unknown > ).wp = {
+			...existing,
+			os: { openOsSettings },
+		};
+
+		// A translated message with no English "OpenStation Preferences →
+		// Features" phrase in it. The old regex found nothing here.
+		vi.stubGlobal(
+			'fetch',
+			vi.fn( () =>
+				Promise.resolve( {
+					ok: false,
+					status: 403,
+					json: async () => ( {
+						code: 'openstation_ai_disabled',
+						message: 'El asistente de IA está desactivado.',
+						data: { status: 403, settings_tab: 'features' },
+					} ),
+				} as Response ),
+			),
+		);
+
+		assistant.open();
+		await assistant[ '_runSearchFetch' ]( 'hola', null, 0 );
+
+		const link = document.querySelector< HTMLButtonElement >(
+			'.os-ai__settings-link',
+		);
+		expect( link ).not.toBeNull();
+		expect( link!.textContent ).toBe(
+			translate( 'Turn it on in OpenStation Preferences' ),
+		);
+
+		link!.click();
+		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
+	} );
+
+	test( 'an error with no settings hint renders no recovery link', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn( () =>
+				Promise.resolve( {
+					ok: false,
+					status: 500,
+					json: async () => ( { code: 'oops', message: 'Boom.' } ),
+				} as Response ),
+			),
+		);
+
+		assistant.open();
+		await assistant[ '_runSearchFetch' ]( 'hola', null, 0 );
+
+		expect(
+			document.querySelector( '.os-ai__settings-link' ),
+		).toBeNull();
+		expect(
+			document.querySelector( '.os-ai__state--error' )?.textContent?.trim(),
+		).toBe( 'Boom.' );
+	} );
+
 	test( 'the unknown-command error renders translated', () => {
 		assistant.open();
 		const input = document.querySelector< HTMLInputElement >(

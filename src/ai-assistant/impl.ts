@@ -1030,10 +1030,10 @@ export class AiAssistant implements AiAssistantApi {
 					finish();
 					break;
 				case 'error':
-					this._showError(
-						data.message ?? __( 'Something went wrong.' ),
-						data.code,
-					);
+					// The SSE endpoint bails with a bare status header for
+					// every recoverable case, so no settings hint can arrive
+					// on this path.
+					this._showError( data.message ?? __( 'Something went wrong.' ) );
 					finish();
 					break;
 			}
@@ -1084,12 +1084,13 @@ export class AiAssistant implements AiAssistantApi {
 				const err = await res.json().catch( () => ( {} ) ) as {
 					message?: string;
 					code?: string;
+					data?: { settings_tab?: string };
 				};
 				this._showError(
 					err.message ??
 						/* translators: %d: HTTP status code. */
 						sprintf( __( 'Server returned %d' ), res.status ),
-					err.code,
+					err.data?.settings_tab,
 				);
 				return;
 			}
@@ -1194,17 +1195,17 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Open OpenStation Preferences on the Features tab so the user can turn the
-	 * assistant on in one click from the "assistant is off" error state.
-	 * Closes the assistant first so the settings window isn't hidden behind
-	 * it, and drops the stored focus target so closing doesn't bounce
-	 * focus back to the launcher away from the settings window.
+	 * Open OpenStation Preferences on the tab the server named, so the user
+	 * can turn the assistant on in one click from the "assistant is off"
+	 * error state. Closes the assistant first so the settings window isn't
+	 * hidden behind it, and drops the stored focus target so closing doesn't
+	 * bounce focus back to the launcher away from the settings window.
 	 */
-	private _openAssistantSettings(): void {
+	private _openAssistantSettings( tabId: string ): void {
 		const shell = this._getDesktopShell();
 		this._previousFocus = null;
 		this.close();
-		shell?.openOsSettings?.( { tabId: 'features' } );
+		shell?.openOsSettings?.( { tabId } );
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
@@ -1614,31 +1615,32 @@ export class AiAssistant implements AiAssistantApi {
 		`;
 	}
 
-	private _showError( message: string, code?: string ): void {
+	/**
+	 * Render an error, optionally with a one-click recovery link.
+	 *
+	 * `settingsTab` comes from the server's error data, so the server
+	 * names the tab that fixes the problem rather than the client
+	 * recovering it by pattern-matching the message. The old version
+	 * spliced a link over an "OpenStation Preferences → Features" match
+	 * in the prose, which only ever matched while the message was English.
+	 */
+	private _showError( message: string, settingsTab?: string ): void {
 		this._resultsEl.hidden = false;
 
-		// The "assistant is off" case is recoverable in one click, so we
-		// turn the "OpenStation Preferences → Features" mention in the message into an
-		// inline link that opens OpenStation Preferences on the Features tab. Keyed on
-		// the server error code, not the wording, so the affordance survives
-		// copy tweaks; the regex spans whatever sits between the two anchors
-		// (arrow, spacing) and falls back to a trailing link if absent.
-		if ( code === 'openstation_ai_disabled' ) {
-			const escaped = this._esc( message );
-			const linkify = ( text: string ) =>
-				`<button type="button" class="os-ai__settings-link">${ text }</button>`;
-			const phrase = /OpenStation Preferences.*?Features/;
-			const withLink = phrase.test( escaped )
-				? escaped.replace( phrase, ( match ) => linkify( match ) )
-				: `${ escaped } ${ linkify( this._esc( __( 'Features' ) ) ) }`;
+		if ( settingsTab ) {
+			const link = `<button type="button" class="os-ai__settings-link">${ this._esc(
+				__( 'Turn it on in OpenStation Preferences' ),
+			) }</button>`;
 			this._resultsEl.innerHTML = `
 				<div class="os-ai__state os-ai__state--error">
-					<span>${ withLink }</span>
+					<span>${ this._esc( message ) } ${ link }</span>
 				</div>
 			`;
 			this._resultsEl
 				.querySelector< HTMLButtonElement >( '.os-ai__settings-link' )
-				?.addEventListener( 'click', () => this._openAssistantSettings() );
+				?.addEventListener( 'click', () =>
+					this._openAssistantSettings( settingsTab ),
+				);
 			return;
 		}
 

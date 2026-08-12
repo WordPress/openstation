@@ -680,21 +680,46 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 function openstation_ai_progress_message( $tool_name ) {
 	switch ( $tool_name ) {
 		case 'search_posts':
-			return 'Looking through your posts…';
+			return __( 'Looking through your posts…', 'desktop-mode' );
 		case 'search_pages':
-			return 'Checking your pages…';
+			return __( 'Checking your pages…', 'desktop-mode' );
 		case 'search_comments':
-			return 'Reading through comments…';
+			return __( 'Reading through comments…', 'desktop-mode' );
 		case 'search_comments_by_post':
-			return 'Scanning comments on that post…';
+			return __( 'Scanning comments on that post…', 'desktop-mode' );
 		case 'list_admin_pages':
-			return 'Finding the right admin page…';
+			return __( 'Finding the right admin page…', 'desktop-mode' );
 		case 'search_wporg_plugins':
-			return 'Searching the WordPress.org plugin directory…';
+			return __( 'Searching the WordPress.org plugin directory…', 'desktop-mode' );
 		case 'get_php_error_log':
-			return 'Tailing the PHP error log…';
+			return __( 'Tailing the PHP error log…', 'desktop-mode' );
 	}
-	return 'Thinking…';
+	return __( 'Thinking…', 'desktop-mode' );
+}
+
+/**
+ * Returns the label for the "keep looking" button on an exhausted search.
+ *
+ * One full sentence per resumable tool rather than interpolating a noun
+ * built from the tool slug: that only produced a word in English, and the
+ * slug is already plural, so the old `. 's'` rendered "postss".
+ *
+ * @param string $resume_tool Tool the client would resume from.
+ * @param int    $from_item   1-based index of the next item to search.
+ * @return string
+ */
+function openstation_ai_continue_label( $resume_tool, $from_item ) {
+	switch ( $resume_tool ) {
+		case 'search_pages':
+			/* translators: %d: 1-based index of the next page to search. */
+			return sprintf( __( 'Continue searching in pages (from item %d)', 'desktop-mode' ), $from_item );
+		case 'search_comments':
+			/* translators: %d: 1-based index of the next comment to search. */
+			return sprintf( __( 'Continue searching in comments (from item %d)', 'desktop-mode' ), $from_item );
+		default:
+			/* translators: %d: 1-based index of the next post to search. */
+			return sprintf( __( 'Continue searching in posts (from item %d)', 'desktop-mode' ), $from_item );
+	}
 }
 
 /**
@@ -1155,7 +1180,7 @@ The message field is always a friendly sentence or two shown directly to the use
 	$emit(
 		array(
 			'phase'   => 'start',
-			'message' => 'Thinking about your question…',
+			'message' => __( 'Thinking about your question…', 'desktop-mode' ),
 		)
 	);
 
@@ -1219,7 +1244,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			$emit(
 				array(
 					'phase'   => 'composing',
-					'message' => 'Putting together your answer…',
+					'message' => __( 'Putting together your answer…', 'desktop-mode' ),
 				)
 			);
 			// A toolless turn with no extractable text never reaches here:
@@ -1230,7 +1255,7 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			$answer = json_decode( $text, true );
 			if ( ! is_array( $answer ) ) {
-				return new WP_Error( 'openstation_ai_result_parse', 'Could not parse structured search answer.' );
+				return new WP_Error( 'openstation_ai_result_parse', __( 'Could not parse structured search answer.', 'desktop-mode' ) );
 			}
 
 			$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
@@ -1496,18 +1521,17 @@ The message field is always a friendly sentence or two shown directly to the use
 		// carries no post_id — so fall back to plain comment search,
 		// keeping `tool` inside openstation_ai_search_resumable_tools().
 		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
-		$type_label  = str_replace( 'search_', '', $resume_tool ) . 's';
 		$continue    = array(
 			'tool'        => $resume_tool,
 			'entity_type' => rtrim( str_replace( 'search_', '', $resume_tool ), 's' ),
 			'offset'      => $next_offset,
-			'label'       => sprintf( 'Continue searching in %s (from item %d)', $type_label, $next_offset + 1 ),
+			'label'       => openstation_ai_continue_label( $resume_tool, $next_offset + 1 ),
 		);
 	}
 
 	$final = array(
 		'answer_type' => 'chat',
-		'message'     => 'I searched 100 items without finding a clear match. Want me to keep looking further?',
+		'message'     => __( 'I searched 100 items without finding a clear match. Want me to keep looking further?', 'desktop-mode' ),
 		'entity'      => null,
 		'admin_links' => null,
 		'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
@@ -1955,22 +1979,29 @@ function openstation_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
 			'openstation_ai_forbidden',
-			'You must be logged in to use the AI assistant.',
+			__( 'You must be logged in to use the AI assistant.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}
 	if ( ! openstation_ai_is_available() ) {
 		return new WP_Error(
 			'openstation_ai_unavailable',
-			'The AI assistant is unavailable on this site.',
+			__( 'The AI assistant is unavailable on this site.', 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
+		// `settings_tab` tells the overlay which OpenStation Preferences tab
+		// turns this back on, so it can offer a one-click recovery link. It
+		// used to find that by regex-matching the tab path out of this
+		// message, which stops working the moment the message is translated.
 		return new WP_Error(
 			'openstation_ai_disabled',
-			'The AI assistant is turned off. Enable it in OpenStation Preferences → Features.',
-			array( 'status' => 403 )
+			__( 'The AI assistant is turned off.', 'desktop-mode' ),
+			array(
+				'status'       => 403,
+				'settings_tab' => 'features',
+			)
 		);
 	}
 	return true;
