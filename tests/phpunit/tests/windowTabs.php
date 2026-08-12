@@ -325,9 +325,13 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 
 	/**
 	 * Once at least one additional tab is registered the shell
-	 * wraps the whole body in `<os-stack>` + `<os-tabs>` +
-	 * `<os-tabpanel>`s. Plugin authors never hand-write this
-	 * markup.
+	 * wraps the whole body in `<os-stack>` + one `<os-tabpanel>` per
+	 * tab. Plugin authors never hand-write this markup.
+	 *
+	 * The tab STRIP is deliberately not in here: it is built by the
+	 * shell in the window chrome from the same metadata, so that one
+	 * window has one tab strip in one place. See
+	 * `docs/migration-window-tabs.md`.
 	 *
 	 * @covers ::openstation_build_native_window_template_html
 	 */
@@ -344,9 +348,11 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$entry = openstation_native_window_registry( 'demo-wrap' );
 		$html  = openstation_build_native_window_template_html( $entry );
 
-		$this->assertStringContainsString( '<os-tabs value="main">', $html );
-		$this->assertStringContainsString( '<os-tab value="main">', $html );
-		$this->assertStringContainsString( '<os-tab value="about">About</os-tab>', $html );
+		// No strip in the body: the shell builds it in the chrome.
+		$this->assertStringNotContainsString( '<os-tabs', $html );
+		$this->assertStringNotContainsString( '<os-tab ', $html );
+		// The panes are still here, and still server-rendered.
+		$this->assertStringContainsString( '<os-stack gap="12"', $html );
 		// Main panel is the active one — no `hidden` attribute.
 		$this->assertStringContainsString( '<os-tabpanel for="main">', $html );
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
@@ -461,13 +467,18 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Tab labels with special characters are escaped — the shell
-	 * emits them into HTML attributes and tag bodies, so a plugin
-	 * that passes `<script>` via `label` must not break out.
+	 * A tab label never reaches the template HTML at all now that the
+	 * strip is built in the window chrome, so a hostile `label`
+	 * cannot break out of markup that no longer exists.
+	 *
+	 * The label travels to the client as payload data instead, where
+	 * `setPanelTabs()` writes it with `textContent`. That is a
+	 * stronger guarantee than escaping was: there is no HTML parse of
+	 * this string on either side.
 	 *
 	 * @covers ::openstation_build_native_window_template_html
 	 */
-	public function test_template_html_escapes_tab_labels() {
+	public function test_template_html_does_not_carry_tab_labels() {
 		$this->register_demo_window( 'demo-escape' );
 		openstation_register_window_tab( 'demo-escape', array(
 			'value'    => 'x',
@@ -479,7 +490,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$html  = openstation_build_native_window_template_html( $entry );
 
 		$this->assertStringNotContainsString( '<script>alert(1)</script>', $html );
-		$this->assertStringContainsString( '&lt;script&gt;', $html );
+		$this->assertStringNotContainsString( 'alert(1)', $html );
+		// The value still lands in an attribute, and still escaped.
+		$this->assertStringContainsString( '<os-tabpanel for="x"', $html );
 	}
 
 	// --------------------------------------------------------------

@@ -27,6 +27,7 @@ import { activity } from './activity';
 import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
+import { setPanelTabs } from './window/tab-strip';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
@@ -951,6 +952,40 @@ export interface NativeWindowSync {
 	) => boolean;
 }
 
+/**
+ * Declare a server-registered native window's tabs in the window
+ * chrome.
+ *
+ * The panes are server-rendered into the template (one
+ * `<os-tabpanel>` per registered tab); the strip that drives them is
+ * the shell's, in the chrome, the same one an admin-page window
+ * wears. The metadata to build it already rides the payload, so a
+ * plugin using `openstation_register_window_tab()` needs no JS for
+ * this at all.
+ *
+ * Single-tab windows are left alone: PHP emits their template bare,
+ * with no panes to switch between and so no strip to build.
+ */
+function declareServerTabs(
+	body: HTMLElement,
+	entry: NativeWindowServerEntry,
+): void {
+	const tabs = entry.tabs;
+	if ( ! Array.isArray( tabs ) || tabs.length < 2 ) {
+		return;
+	}
+	const winEl = body.closest< HTMLElement >( '.os-window' );
+	if ( ! winEl ) {
+		return;
+	}
+	setPanelTabs(
+		winEl,
+		tabs.map( ( tab ) => ( { value: tab.value, label: tab.label } ) ),
+		// The window's own template is the pane that opens.
+		tabs.find( ( tab ) => tab.isMain )?.value,
+	);
+}
+
 export function createNativeWindowSync(
 	deps: NativeWindowRegistryDeps,
 ): NativeWindowSync {
@@ -1113,6 +1148,9 @@ export function createNativeWindowSync(
 		// callbacks ignore `ctx`; new ones can destructure it.
 		const finalRender: RenderCallback = ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
+			// After the panes are in the body, so the strip can pair
+			// each tab to the one it shows and hide the rest.
+			declareServerTabs( body, entry );
 			// Forward the optional teardown returned by the plugin's
 			// render callback so the Window class can invoke it on
 			// close. Without this `return`, the teardown was silently
@@ -1164,6 +1202,7 @@ export function createNativeWindowSync(
 
 		const finalRender: RenderCallback = ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
+			declareServerTabs( body, entry );
 			return render?.( body, ctx );
 		};
 

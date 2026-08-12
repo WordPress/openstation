@@ -247,14 +247,28 @@ function panelTabsIn( strip: HTMLElement ): Map< string, HTMLElement > {
 	return found;
 }
 
-/** The `<os-tabpanel>` panes a strip's panel tabs show. */
+/**
+ * The `<os-tabpanel>` panes a strip's panel tabs show.
+ *
+ * Not `:scope > os-tabpanel`, because the panes are not always direct
+ * children of the body: a server-registered window wraps them in an
+ * `<os-stack>` for padding, and a plugin may nest them however it
+ * likes. Depth is therefore not a usable signal, and OWNERSHIP is:
+ * a pane belongs to this strip unless it is inside another tab group,
+ * which is what a pane containing its own `<os-tabs>` switcher looks
+ * like. Without that filter, opening a window whose pane holds a
+ * nested tab group would hide half of that group's panes on the way
+ * past.
+ */
 function panesIn( winEl: HTMLElement ): HTMLElement[] {
 	const body = winEl.querySelector< HTMLElement >( '.os-window__body' );
 	if ( ! body ) {
 		return [];
 	}
 	return Array.from(
-		body.querySelectorAll< HTMLElement >( ':scope > os-tabpanel[ for ]' ),
+		body.querySelectorAll< HTMLElement >( 'os-tabpanel[ for ]' ),
+	).filter(
+		( pane ) => ! pane.parentElement?.closest( 'os-tabpanel, os-tabs' ),
 	);
 }
 
