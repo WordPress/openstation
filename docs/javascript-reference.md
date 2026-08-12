@@ -1210,14 +1210,16 @@ Drop-in wrapper around the global `fetch()` that drives the target window's **ac
 >
 > The ring is an `<os-save-status variant="ring" mode="icon">`, and only one of its four states fills:
 >
-> | Phase | Ring |
-> |---|---|
-> | `idle` | quiet outline in the title bar's own muted glyph colour |
-> | `pending` / `saving` | accent outline, breathing |
-> | `saved` | accent fill, white check |
-> | `failed` | open red outline, red bang |
+> | Phase | Ring | Gesture |
+> |---|---|---|
+> | `idle` | white outline | — |
+> | `pending` / `saving` | accent outline | breathes, 1.6s |
+> | `saved` | accent fill, white check | overshoots and settles; the glyph fades up just behind the fill |
+> | `failed` | open red outline, red bang | two decaying swells, then stops |
 >
-> Colour alone is not a distinction every user can make, which is why the two outcomes differ in **shape** — filled versus open, check versus bang — and not only in hue.
+> Colour alone is not a distinction every user can make, which is why the two outcomes differ in **shape** — filled versus open, check versus bang — and not only in hue. The gestures are emphasis, so `prefers-reduced-motion` drops all three and keeps every colour, fill and glyph.
+>
+> The resting ring is one value in both title-bar states rather than dimming when unfocused: the ring reports a phase, and `idle` shouldn't mean something different depending on which window you last clicked.
 >
 > Three consequences worth knowing:
 >
@@ -1225,7 +1227,7 @@ Drop-in wrapper around the global `fetch()` that drives the target window's **ac
 > - **The phase is announced too.** A ring says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
 > - **The phase is mirrored to CSS** as `data-os-activity` on the title-bar element, absent while idle, so a desktop theme can react to window state without reaching into the component's shadow root.
 >
-> Restyling is four themeable tokens: `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`. The resting ring follows the title bar's control-glyph colours (`--os-titlebar-btn-color` / `-focused-color`) unless `--os-titlebar-activity-idle-color` overrides it.
+> Restyling is five themeable tokens: `--os-titlebar-activity-idle-color` (at rest), `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`.
 >
 > **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
 
@@ -3938,10 +3940,13 @@ Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, b
 
 The parent feeds these to the same reference-counted `Window._markActivityStart()` / `_markActivitySettled()` pair `wp.os.fetch` uses, so a page firing six requests at once settles as one burst — and settles `failed` if any of them did. `status === 0` means no response arrived (network error, CORS, abort); the failure message omits the number in that case.
 
-**Every method counts, GET included** — "did that go through?" is as real a question for a list-table filter as for a save. Two deliberate exclusions:
+**Only writes report.** Three deliberate exclusions:
 
-- **WordPress Heartbeat** never reports. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. This is the same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
+- **Reads never reach the ring** — `GET`, `HEAD`, `OPTIONS`, and `QUERY`. The ring answers "did my change go through?", and a read has no *through*: nothing changed, so nothing can have failed to change. An admin page also fires reads constantly on its own (list-table refreshes, dashboard widgets, autosave checks, media queries) and the user never asked about any of them. `QUERY` is in the list because it carries a **body** — it is a safe, idempotent read whose parameters wouldn't fit in a URL, so any "does it have a payload?" test would classify it backwards.
+- **WordPress Heartbeat** never reports even though it POSTs. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. Same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
 - **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
+
+This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
 
 #### `os-screen-meta` — Stable
 Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders one title-bar button per announced panel, replacing any previously rendered set.

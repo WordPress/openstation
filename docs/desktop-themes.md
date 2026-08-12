@@ -1188,17 +1188,15 @@ desktop environments do it — the shape is yours to build:
 The leading mark of the title bar is the **status ring** — the window's
 activity phase, the one `wp.os.fetch` drives. It replaced the app icon
 that used to sit there, which was a copy of the same window's dock
-tile. Four states, and only success fills the ring; the resting state
-follows your title-bar glyph colours, so a retinted title bar takes
-the ring with it for free.
+tile. Four states, and only success fills the ring.
 
 | Token | Controls |
 |---|---|
+| `--os-titlebar-activity-idle-color` | The resting ring — white by default, and one value whether the window is focused or not |
 | `--os-titlebar-activity-color` | The ring while a request is in flight |
 | `--os-titlebar-activity-saved-color` | The fill when the request lands |
 | `--os-titlebar-activity-failed-color` | The ring when it didn't. This one stays until the next request starts |
 | `--os-titlebar-activity-size` | Ring diameter (default `16px`) |
-| `--os-titlebar-activity-idle-color` | The resting ring. Defaults to `--os-titlebar-btn-color`; `-idle-color-focused` is the focused twin, defaulting to `--os-titlebar-btn-focused-color` |
 
 Retint them if your title-bar artwork would swallow one, but keep the
 outcomes distinguishable by more than hue — the built-in pair differs

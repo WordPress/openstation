@@ -4,16 +4,20 @@ Every desktop window carries an **activity phase** — `idle`, `pending`, `savin
 
 The title bar renders it as the **status ring**: the leading mark, in the position the app icon used to hold. That icon was a copy of the window's own dock tile a few hundred pixels below it, and a title bar has room for one mark of that size — this one changes.
 
-| Phase | Ring |
-|---|---|
-| `idle` | quiet outline in the title bar's own muted glyph colour |
-| `pending` / `saving` | accent outline, breathing |
-| `saved` | accent fill, white check |
-| `failed` | open red outline, red bang — and it **persists** until the next request starts, because a failure that fades out is a failure the user misses |
+| Phase | Ring | Gesture |
+|---|---|---|
+| `idle` | white outline | — |
+| `pending` / `saving` | accent outline | breathes, 1.6s |
+| `saved` | accent fill, white check | overshoots and settles; the glyph fades up just behind the fill |
+| `failed` | open red outline, red bang — **persists** until the next request starts, because a failure that fades out is a failure the user misses | two decaying swells, then stops |
 
-Only success fills. Colour alone is not a distinction every user can make, so the two outcomes differ in shape as well as hue: filled versus open, check versus bang.
+Only success fills. Colour alone is not a distinction every user can make, so the two outcomes differ in shape as well as hue: filled versus open, check versus bang. The gestures are emphasis rather than information, so `prefers-reduced-motion` drops all three and every colour, fill and glyph stays.
 
-None of that needs any code from you. It is already happening on every window in the shell — **including iframe windows**, whose admin pages do their own jQuery and XHR calls: the chromeless bridge brackets each one and the parent moves the ring. Every method counts, `GET` included. The one exclusion is WordPress Heartbeat, a poll the user never asked for that would otherwise light every window every 15 seconds.
+None of that needs any code from you. It is already happening on every window in the shell — **including iframe windows**, whose admin pages do their own jQuery and XHR calls: the chromeless bridge brackets each one and the parent moves the ring.
+
+**Only writes report on that automatic path.** `GET`, `HEAD`, `OPTIONS` and `QUERY` are excluded — a read changed nothing, so nothing can have failed to change, and an admin page fires reads constantly on its own. (`QUERY` carries a body, so a payload test would classify it backwards; it is still a read.) WordPress Heartbeat is excluded too, POST or not: a poll the user never asked for would otherwise light every window every 15 seconds.
+
+`wp.os.fetch` is the deliberate path and doesn't filter by method — a `GET` you route through it *does* move the phase, because you chose to report it. Pass `silent: true` to opt one call out.
 
 ## Making it yours
 
@@ -25,9 +29,9 @@ Themeable from a desktop theme or a stylesheet of your own:
 | `--os-titlebar-activity-saved-color` | The fill on success. |
 | `--os-titlebar-activity-failed-color` | The ring on failure. |
 | `--os-titlebar-activity-size` | Ring diameter (default `16px`). |
-| `--os-titlebar-activity-idle-color` | The resting ring. Defaults to the title bar's control-glyph colour, so it recedes with the rest of the chrome — override to break that relationship deliberately. |
+| `--os-titlebar-activity-idle-color` | The resting ring — white, and the same value focused or not. |
 
-Reduced motion holds the ring lit instead of breathing it: the animation is decoration, the colour and fill are the state.
+Reduced motion drops the breath and both outcome gestures: movement is emphasis, the colour and the fill are the state.
 
 ## Mounting your own indicator
 

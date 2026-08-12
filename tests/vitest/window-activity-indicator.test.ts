@@ -209,6 +209,32 @@ describe( 'reference counting and the reset escape hatch', () => {
 } );
 
 describe( 'the ring treatment', () => {
+	test( 'the ring has no resting fill, whatever the host sets', () => {
+		// The bug this pins shipped and was visible on every idle
+		// window: `--os-ui-save-status-bg` is the DOT's background on
+		// the base rule, and the title bar was setting it to tint the
+		// in-flight outline — so idle painted a solid accent disc
+		// inside the white ring. One token, two meanings, one rule
+		// apart.
+		const guard = COMPONENT_CSS.slice(
+			COMPONENT_CSS.indexOf(
+				":host( [ variant='ring' ] ) .os-save-status__indicator {",
+			),
+		);
+		expect( guard.slice( 0, guard.indexOf( '\n\t}' ) ) ).toContain(
+			'background: transparent',
+		);
+
+		// …and the title bar asks for the ring by its own name, so the
+		// two can never be confused again.
+		const host = CHROME_CSS.slice(
+			CHROME_CSS.indexOf( '.os-window__status {' ),
+		);
+		const block = host.slice( 0, host.indexOf( '\n}' ) );
+		expect( block ).toContain( '--os-ui-save-status-ring-color:' );
+		expect( block ).not.toContain( '--os-ui-save-status-bg:' );
+	} );
+
 	test( 'only success fills — the other phases keep the outline open', () => {
 		// Colour alone is not a distinction every user can make, so
 		// the two outcomes differ in shape as well as hue.
@@ -233,26 +259,76 @@ describe( 'the ring treatment', () => {
 		}
 	} );
 
-	test( 'reduced motion holds the ring lit instead of breathing it', () => {
+	test( 'each state change has a gesture, and success and failure differ', () => {
+		// Landing overshoots and settles; failure swells twice and
+		// stops. A heartbeat would say "still going" on a phase that
+		// has already ended.
+		expect( COMPONENT_CSS ).toContain(
+			'@keyframes os-save-status-ring-land',
+		);
+		expect( COMPONENT_CSS ).toContain(
+			'@keyframes os-save-status-ring-alert',
+		);
+		expect( COMPONENT_CSS ).toContain(
+			'@keyframes os-save-status-glyph-in',
+		);
+
+		for ( const [ phase, keyframes ] of [
+			[ 'saved', 'os-save-status-ring-land' ],
+			[ 'failed', 'os-save-status-ring-alert' ],
+		] ) {
+			const rule = COMPONENT_CSS.slice(
+				COMPONENT_CSS.indexOf(
+					`:host( [ variant='ring' ][ phase='${ phase }' ] ) .os-save-status__indicator {`,
+				),
+			);
+			expect( rule.slice( 0, rule.indexOf( '\n\t}' ) ) ).toContain(
+				keyframes,
+			);
+		}
+	} );
+
+	test( 'the gestures stay small — a 16px ring cannot bounce', () => {
+		// Anything past ~1.1 on a mark this size reads as a wobble
+		// rather than as weight.
+		const scales = [
+			...COMPONENT_CSS.matchAll( /scale:\s*([\d.]+)/g ),
+		].map( ( m ) => Number( m[ 1 ] ) );
+		expect( scales.length ).toBeGreaterThan( 0 );
+		expect( Math.max( ...scales ) ).toBeLessThanOrEqual( 1.1 );
+	} );
+
+	test( 'reduced motion drops every gesture and keeps every colour', () => {
 		const query = COMPONENT_CSS.slice(
 			COMPONENT_CSS.lastIndexOf( '@media ( prefers-reduced-motion: reduce )' ),
 		);
 		const block = query.slice( 0, query.indexOf( '\n\t}\n' ) );
 		expect( block ).toContain( "variant='ring'" );
 		expect( block ).toContain( 'animation: none' );
+		expect( block ).toContain( 'scale: 1' );
+		// The glyph is information, not emphasis — it must not be
+		// swept up with the animations that carry it in.
 		expect( block ).toContain( 'opacity: 1' );
+		expect( block ).not.toContain( 'display: none' );
 	} );
 
-	test( 'the resting ring is chrome, not signal', () => {
-		// An idle window is most windows, most of the time. The ring
-		// takes the title bar's own muted glyph colour there and only
-		// becomes accent when something is actually happening.
+	test( 'the resting ring is white, in both title-bar states', () => {
+		// One value, not two: the ring reports a phase, and dimming it
+		// on an unfocused window would make `idle` mean something
+		// different depending on which window you last clicked.
 		const rule = CHROME_CSS.slice(
 			CHROME_CSS.indexOf( '.os-window__status {' ),
 		);
 		const block = rule.slice( 0, rule.indexOf( '\n}' ) );
-		expect( block ).toContain( '--os-titlebar-btn-color' );
-		expect( CHROME_CSS ).toContain( '.os-window--focused .os-window__status' );
+		expect( block ).toContain(
+			'--os-ui-save-status-idle-color: var(--os-titlebar-activity-idle-color, #fff)',
+		);
+		expect( CHROME_CSS ).not.toContain(
+			'.os-window--focused .os-window__status',
+		);
+		expect( VARIABLES_CSS ).toMatch(
+			/--os-titlebar-activity-idle-color:\s*#fffbff/,
+		);
 	} );
 
 	test( 'every colour resolves through a themeable title-bar token', () => {

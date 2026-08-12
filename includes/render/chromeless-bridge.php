@@ -606,8 +606,29 @@ function openstation_chromeless_bridge_script() {
 		// the request instead, and the parent reference-counts them
 		// the same way `wp.os.fetch` does for native windows.
 		//
-		// Every request counts — GET included. "Did that go through?"
-		// is as real a question for a list-table filter as for a save.
+		// Reads do NOT count. The ring answers one question — "did my
+		// change go through?" — and a GET has no "through": nothing was
+		// changed, so nothing can have failed to change. In an admin
+		// page most GETs are the page's own housekeeping (list-table
+		// refreshes, dashboard widgets, autosave checks, media queries)
+		// that the user never asked about and shouldn't be made to
+		// watch. Mutations are the requests with a question attached.
+		//
+		// HEAD and OPTIONS go with GET: a probe and a preflight are
+		// even further from a change than a read is.
+		//
+		// QUERY too, and it is the one that needs saying out loud: it
+		// carries a BODY, so every "does it have a payload?" heuristic
+		// mistakes it for a write. It is a safe, idempotent read — a
+		// GET whose parameters wouldn't fit in a URL — so it belongs
+		// here with the rest of them. Listed ahead of the spec landing
+		// on purpose: a method the shell has never heard of arriving in
+		// a Core release should not start lighting rings.
+		var osIsReadRequest = function ( method ) {
+			var m = String( method || 'GET' ).toUpperCase();
+			return 'GET' === m || 'HEAD' === m || 'OPTIONS' === m || 'QUERY' === m;
+		};
+
 		var osIsBackgroundRequest = function ( url, body ) {
 			// WordPress Heartbeat is a poll the user did not initiate,
 			// on a timer, forever. Reporting it would light the ring
@@ -630,8 +651,8 @@ function openstation_chromeless_bridge_script() {
 			return false;
 		};
 
-		var osActivityBegin = function ( url, body ) {
-			if ( osIsBackgroundRequest( url, body ) ) {
+		var osActivityBegin = function ( method, url, body ) {
+			if ( osIsReadRequest( method ) || osIsBackgroundRequest( url, body ) ) {
 				return false;
 			}
 			try {
@@ -839,7 +860,7 @@ function openstation_chromeless_bridge_script() {
 					}
 				}
 
-				var tracked = osActivityBegin( url, ( init && init.body ) || ( input && input.body ) );
+				var tracked = osActivityBegin( method, url, ( init && init.body ) || ( input && input.body ) );
 
 				var promise;
 				try {
@@ -921,7 +942,7 @@ function openstation_chromeless_bridge_script() {
 					: Date.now();
 				// The body is where an admin-ajax action name lives,
 				// and the action name is how Heartbeat is recognised.
-				var tracked = osActivityBegin( xhr.__wpdUrl, body );
+				var tracked = osActivityBegin( xhr.__wpdMethod, xhr.__wpdUrl, body );
 
 				// Apply contributed headers right before send. Doing it
 				// here rather than in open() means contributions added

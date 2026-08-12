@@ -222,7 +222,7 @@
  *
  * Four states, and only one of them fills:
  *
- *   idle    quiet outline, no glyph
+ *   idle    white outline, no glyph
  *   saving  accent outline, breathing
  *   saved   accent fill, white check
  *   failed  open red outline, red bang
@@ -239,34 +239,26 @@
 .os-window__status {
 	--os-ui-save-status-size: var(--os-titlebar-activity-size, 16px);
 	/*
-	 * At rest the ring is chrome, not signal: it takes the title
-	 * bar's own muted foreground rather than the accent, so an idle
-	 * window — which is most windows, most of the time — carries a
-	 * mark that recedes. Every other phase is the accent or the
-	 * danger colour, and each one arrives as a change.
+	 * At rest: a white ring. One value, in both title-bar states —
+	 * the phase is what the ring reports, and dimming it on an
+	 * unfocused window would make "idle" say two different things
+	 * depending on which window you last clicked.
 	 */
-	--os-ui-save-status-idle-color: var(
-		--os-titlebar-activity-idle-color,
-		var(--os-titlebar-btn-color, rgba(255, 251, 255, 0.55))
-	);
-	--os-ui-save-status-bg: var(--os-titlebar-activity-color, #2271b1);
+	--os-ui-save-status-idle-color: var(--os-titlebar-activity-idle-color, #fff);
+	/*
+	 * The RING colour, not the dot's background. Setting
+	 * `--os-ui-save-status-bg` here instead is what once painted a
+	 * solid accent fill inside the resting outline: that token is the
+	 * dot's `background` on the component's base rule, and the ring
+	 * only borrows it as a border. The ring has its own name for
+	 * exactly this reason.
+	 */
+	--os-ui-save-status-ring-color: var(--os-titlebar-activity-color, #2271b1);
 	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
 	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
-}
-
-/*
- * The focused title bar is the brighter of the two surfaces, so the
- * resting ring lifts with it — same relationship the control glyphs
- * already have with `--os-titlebar-btn-focused-color`.
- */
-.os-window--focused .os-window__status {
-	--os-ui-save-status-idle-color: var(
-		--os-titlebar-activity-idle-color-focused,
-		var(--os-titlebar-btn-focused-color, rgba(255, 251, 255, 0.72))
-	);
 }
 
 /*

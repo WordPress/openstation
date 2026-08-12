@@ -269,10 +269,8 @@ body.os-active {
 
 	/*
 	 * The status ring — leading mark of the title bar, where the app
-	 * icon used to be. Four states, and the sequence is deliberate:
-	 * the resting ring is chrome (it takes the title bar's own muted
-	 * glyph colour, declared in `window-chrome.css`), work and success
-	 * are both Pulse, failure is the danger colour.
+	 * icon used to be. Four states: the resting ring is Starlight,
+	 * work and success are both Pulse, failure is the danger colour.
 	 *
 	 * Pulse twice over is not an oversight. In flight and landed
 	 * differ in FILL — an open ring breathing, then a solid disc with
@@ -285,10 +283,12 @@ body.os-active {
 	 * here that must not be quietened: a failure that whispers is a
 	 * failure the user misses.
 	 *
-	 * `-idle-color` (and its `-focused` twin) default to the title
-	 * bar's control-glyph colours in `window-chrome.css`; declare them
-	 * here only to break that relationship deliberately.
+	 * The resting ring is one value in both title-bar states, not two:
+	 * the ring reports a phase, and dimming it on an unfocused window
+	 * would make `idle` say something different depending on which
+	 * window you last clicked.
 	 */
+	--os-titlebar-activity-idle-color: #fffbff;
 	--os-titlebar-activity-color: var(--os-ui-accent, #2271b1);
 	--os-titlebar-activity-saved-color: var(--os-ui-accent, #2271b1);
 	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);

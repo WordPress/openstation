@@ -198,7 +198,12 @@ export class OsSaveStatus extends Component {
 			{
 				name: '--os-ui-save-status-bg',
 				description:
-					'Indicator background color (saving/pending phase) — the ring colour instead, under `variant="ring"`.',
+					'Indicator background color (saving/pending phase). Under `variant="ring"` set `--os-ui-save-status-ring-color` instead — this one is a *background*, and the ring has none until it succeeds.',
+			},
+			{
+				name: '--os-ui-save-status-ring-color',
+				description:
+					'`variant="ring"` only: the outline colour while a request is in flight. Falls back to `--os-ui-save-status-bg`.',
 			},
 			{
 				name: '--os-ui-save-status-saved-bg',
