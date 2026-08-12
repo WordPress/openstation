@@ -43,7 +43,7 @@ export interface OsSettingsSnapshot {
 	windowRadius: string;
 	/**
 	 * How the WordPress admin bar presents above the shell:
-	 * `'static'` | `'dynamic'` | `'hidden'`.
+	 * `'static'` | `'dynamic'` | `'hidden'` (the default).
 	 *
 	 * Written as a `os-admin-bar-<mode>` body class by both
 	 * PHP (first paint) and the apply pass (live changes). `dynamic`
@@ -56,12 +56,22 @@ export interface OsSettingsSnapshot {
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
+	 * - `unified` — one dock with every menu, core cluster first. The
+	 *   default.
 	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
-	 * - `unified` — single bottom dock with every menu.
-	 * - `spatial` — bottom dock with plugins; core menus rendered as
+	 * - `spatial` — one dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
+	 * - `openstation` — the same one dock, plus its own skin, a
+	 *   luminous seam on the WordPress-to-OpenStation boundary, and
+	 *   hover-reveal submenu flyouts.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial';
+	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
+	/**
+	 * Which edge the dock sits on: `'bottom'` (the default), `'left'`,
+	 * or `'right'`. Read by the one-rail layouts; `'classic'` derives
+	 * its two rails from the layout and ignores this.
+	 */
+	dockPlacement: 'bottom' | 'left' | 'right';
 	/**
 	 * Active dock rail-renderer id; mirrors the dock-rail registry's
 	 * resolution. `'default'` is the shipped icon-strip renderer.

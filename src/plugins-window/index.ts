@@ -172,8 +172,10 @@ function renderPluginsWindow( body: HTMLElement ): void {
 	// First-open intro — gated on `config.introSeen`. Lazy-loaded
 	// (the dialog ships a chunk of inline-styled markup that we only
 	// pay for when the dialog actually fires) so cold opens after
-	// the first stay snappy.
-	void maybeShowIntro( config );
+	// the first stay snappy. Dismissing it hands focus to the window
+	// root rather than to whatever the user last touched before the
+	// window opened.
+	void maybeShowIntro( config, root );
 }
 
 /**
@@ -182,14 +184,17 @@ function renderPluginsWindow( body: HTMLElement ): void {
  */
 let _introShown = false;
 
-async function maybeShowIntro( config: PluginsWindowConfig ): Promise< void > {
+async function maybeShowIntro(
+	config: PluginsWindowConfig,
+	returnFocusTo: HTMLElement | null,
+): Promise< void > {
 	if ( _introShown || config.introSeen ) {
 		return;
 	}
 	_introShown = true;
 	try {
 		const { showPluginsIntroDialog } = await import( './intro-dialog' );
-		const result = await showPluginsIntroDialog();
+		const result = await showPluginsIntroDialog( returnFocusTo );
 		// `cancel` (Escape / backdrop click) intentionally does NOT
 		// mark seen — it's our testing escape hatch so design
 		// iteration doesn't require resetting OS Settings between

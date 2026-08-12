@@ -158,20 +158,22 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * `.page-title-action` (the "Add New" / "Add Order" button next to
  * the H1) stays VISIBLE by default — it's the only entry point to
  * the add-new flow on many plugin pages (WooCommerce Orders, custom
- * CPTs, plugin settings pages, etc.). Earlier versions of this CSS
- * hid it on the assumption that the submenu tab strip exposed the
- * same action — which holds for WP Core pages with a registered
- * "Add New" submenu (Posts, Pages, Users) but breaks every third-
- * party plugin page that has no submenu equivalent. A small bit of
- * redundancy with the submenu strip on Core pages is the better
- * trade-off vs. losing the primary affordance on plugin pages
- * entirely.
+ * CPTs, plugin settings pages, etc.). A blanket hide would break
+ * every third-party plugin page that has no submenu equivalent, so
+ * the button is only removed where the window's own tab strip
+ * demonstrably leads to the same place — see
+ * `includes/render/chromeless-title-actions.php`, which emits one
+ * `[href="…"]` rule per submenu tab URL of the current screen.
  *
- * Sites that prefer the cleaner Core-page look can hide the button
- * on specific pages via the `openstation_chromeless_styles`
- * action — e.g.:
+ * Sites that want to hide it somewhere that rule deliberately
+ * doesn't reach can add their own via the
+ * `openstation_chromeless_styles` action — e.g. WooCommerce's "Add
+ * order", which we keep because it points at `&action=new` and the
+ * Orders tab doesn't:
  *
- *     body.edit-php .wrap > .page-title-action { display: none; }
+ *     body.woocommerce_page_wc-orders .wrap > .page-title-action {
+ *         display: none;
+ *     }
  *
  * --------------------------------------------------------------- */
 .os-chromeless .wrap > h1,
@@ -184,19 +186,30 @@ html.wp-toolbar:has( body.os-chromeless ) {
 /*
  * The H1 above it is hidden, so the button would float at the very
  * top of the iframe area without breathing room — give it a small
- * margin so it lands cleanly. inline-block matches WP Core's
- * computed style on this element (matters for vertical-align with
- * any adjacent inline content like the `.subsubsub` filter row).
+ * margin so it lands cleanly.
+ *
+ * `block` + `fit-content` instead of Core's `inline-block`: with the
+ * H1 hidden, an inline button ends up on the same line as the
+ * floated `.subsubsub` filter row and reads as one more filter link
+ * ("All (6) | Published (4) | Trash (2) Add Post"). Its own row is
+ * also what the screen already looks like when an admin notice is
+ * showing. `clear` keeps it below anything floated before it.
  *
  * Themes.php's native "Add Theme" button lives in the submenu tab
  * strip via `openstation_inject_appearance_tabs`
  * (includes/themes-tabs.php), so its in-page page-title-action is
- * redundant on that one screen — keep the per-page hide rule below
- * so we don't ship two "Add Theme" entry points.
+ * redundant on that one screen. The generic href-matching hide in
+ * `includes/render/chromeless-title-actions.php` only matches exact
+ * URLs, and the injected tab points at
+ * `theme-install.php?browse=popular` while the button points at
+ * plain `theme-install.php`. Hence the per-page rule below.
  */
 .os-chromeless .wrap > .page-title-action {
-	display: inline-block;
+	display: block;
+	width: fit-content;
 	margin-top: 12px;
+	margin-bottom: 12px;
+	clear: both;
 }
 
 .os-chromeless.themes-php .wrap > .page-title-action {

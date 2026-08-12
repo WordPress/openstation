@@ -41,7 +41,16 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial', 'openstation' );
+
+/**
+ * Valid dock-placement IDs — mirrors the TS `DOCK_PLACEMENTS` constant.
+ *
+ * Which edge the single dock sits on. Read by the layout dispatcher for
+ * the one-rail layouts (`unified`, `spatial`); `classic` derives its two
+ * rails from the layout itself and ignores this.
+ */
+const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
 /**
  * Playable range for the window-reveal duration override, in ms.
@@ -67,11 +76,29 @@ function openstation_default_os_settings() {
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
 		'dockSize'                    => 'default',
-		'windowRadius'                => 'default',
+		// `round` (16px), not the preset id literally named `default`.
+		// Preset ids are stored values and cannot be renamed, so the
+		// option labelled "Default" in the picker is no longer the
+		// shipped default. Must stay in step with `DEFAULTS` in
+		// `src/settings/constants.ts` — PHP seeds the first load and JS
+		// owns every paint after it, so a mismatch shows up as the
+		// corners changing shape a moment after the shell boots.
+		'windowRadius'                => 'round',
 		// How the WordPress admin bar presents above the shell.
-		// `static` is vanilla behavior and the shipped default.
-		'adminBarMode'                => 'static',
-		'desktopLayout'               => 'classic',
+		// `hidden` ships as the default so a fresh desktop has ONE
+		// navigation surface: everything the user can open lives on the
+		// dock, and the dock's "Exit OpenStation" tile is the way back
+		// to classic admin. `static` (vanilla behavior) and `dynamic`
+		// are one pick away in OpenStation Preferences → Appearance.
+		'adminBarMode'                => 'hidden',
+		// One dock holding every menu, with the system tiles grouped
+		// behind a hairline. `classic` (side bar for core menus + bottom
+		// dock for plugins) and `spatial` stay available; they are no
+		// longer what a first-run desktop looks like.
+		'desktopLayout'               => 'unified',
+		// Which edge the single dock sits on. Ignored by `classic`,
+		// which derives both of its rails from the layout.
+		'dockPlacement'               => 'bottom',
 		'dockRailRenderer'            => 'default',
 		// Active desktop-theme slug, or `''` for the system default.
 		// Site-wide library (`includes/desktop-themes/`), per-user
@@ -326,12 +353,19 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Desktop layout — must be one of the three known values
-	// (`classic`, `unified`, `spatial`). Default `classic`.
+	// Desktop layout — must be one of the known values
+	// (`classic`, `unified`, `spatial`, `openstation`). Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
 		: $defaults['desktopLayout'];
+
+	// Dock placement — which edge the single dock sits on. Must be one
+	// of the three known values (`bottom`, `left`, `right`).
+	$dock_placement = isset( $raw['dockPlacement'] )
+		&& in_array( $raw['dockPlacement'], OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS, true )
+		? (string) $raw['dockPlacement']
+		: $defaults['dockPlacement'];
 
 	// Dock rail renderer id — accept any sanitize_key()-clean
 	// string. JS-side registry resolves at use time and falls back
@@ -744,6 +778,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'windowRadius'                => $window_radius,
 		'adminBarMode'                => $admin_bar_mode,
 		'desktopLayout'               => $desktop_layout,
+		'dockPlacement'               => $dock_placement,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'desktopTheme'                => $desktop_theme,
 		'appliedThemeRecommendations' => $applied_theme_recommendations,

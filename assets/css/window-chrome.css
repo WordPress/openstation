@@ -207,14 +207,94 @@
 	font-size: 9px;
 }
 
-/* Activity indicator slot — sits between the icon and the title.
- * Reserves a fixed width so the indicator's blink animation can't
- * shift the title text horizontally. The inner `<os-save-status>`
- * paints a 12px modem-style dot (always visible, accent-colored).
+/* ---------------------------------------------------------------
+ * Window activity — the status ring.
  *
- * `--wp-admin-theme-color` is forwarded as `color` on the host so
- * the inner shadow-DOM stylesheet's `currentColor` references
- * (used in the box-shadow glow) resolve to the live accent. */
+ * The leading mark of the title bar, in the position the app icon
+ * used to hold. That icon was a copy of the window's own dock tile a
+ * few hundred pixels below it, and a title bar has room for one mark
+ * of that size — better spent on something that changes.
+ *
+ * The ring is an `<os-save-status variant="ring" mode="icon">`, found
+ * by `[data-os-activity-indicator]` — the same public attribute a
+ * plugin uses to mount its own. The framework's ring is not a special
+ * case; it is the first subscriber.
+ *
+ * Four states, and only one of them fills:
+ *
+ *   idle    white outline, no glyph
+ *   saving  accent outline, breathing
+ *   saved   accent fill, white check
+ *   failed  open red outline, red bang
+ *
+ * Colour alone is not a distinction every user can make, which is why
+ * the two outcomes differ in SHAPE — filled versus open, check versus
+ * bang — and not only in hue.
+ *
+ * `Window._paintActivityIndicator()` also mirrors the phase onto the
+ * title bar as `data-os-activity` (absent while idle) so a desktop
+ * theme can react to window state without reaching into the
+ * component's shadow root.
+ */
+.os-window__status {
+	--os-ui-save-status-size: var(--os-titlebar-activity-size, 16px);
+	/*
+	 * At rest: a white ring. One value, in both title-bar states —
+	 * the phase is what the ring reports, and dimming it on an
+	 * unfocused window would make "idle" say two different things
+	 * depending on which window you last clicked.
+	 */
+	--os-ui-save-status-idle-color: var(--os-titlebar-activity-idle-color, #fff);
+	/*
+	 * The RING colour, not the dot's background. Setting
+	 * `--os-ui-save-status-bg` here instead is what once painted a
+	 * solid accent fill inside the resting outline: that token is the
+	 * dot's `background` on the component's base rule, and the ring
+	 * only borrows it as a border. The ring has its own name for
+	 * exactly this reason.
+	 */
+	--os-ui-save-status-ring-color: var(--os-titlebar-activity-color, #2271b1);
+	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
+	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+/*
+ * The announcement. A glow is invisible to a screen reader, and
+ * "did that save?" is precisely the question that can't be answered
+ * by looking. `Window._paintActivityIndicator()` writes the outcome
+ * here; absolute positioning keeps it out of the title bar's flex
+ * flow so it contributes neither a box nor a `gap`.
+ */
+.os-window__activity-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/*
+ * Activity indicator slot — opt-in, and empty by default.
+ *
+ * The framework paints the glow above instead of putting an
+ * `<os-save-status>` in the title bar of its own accord. The slot
+ * survives for anything that DOES want a literal dot as well: give an
+ * `<os-save-status>` the `data-os-activity-indicator` attribute, drop
+ * it in a title-bar slot inside a `.os-window__activity` wrapper, and
+ * `Window._paintActivityIndicator()` drives its phase for you.
+ *
+ * The fixed width is what keeps the blink from shifting the title
+ * text sideways, and `--wp-admin-theme-color` is forwarded as `color`
+ * so the component's shadow-DOM `currentColor` references (the glow's
+ * box-shadow) resolve to the live accent.
+ */
 .os-window__activity {
 	display: inline-flex;
 	align-items: center;
@@ -298,6 +378,11 @@
  * `flex-shrink: 0`, before/after spacers, etc.) keeps its
  * original layout role.
  *
+ * The `icon` slot is empty by default now — the app icon it used to
+ * carry duplicated the window's dock tile — so on most windows it
+ * contributes nothing at all. It keeps `display: contents` for the
+ * ones where a plugin or a desktop theme does render an icon into it.
+ *
  * The `title` slot is the exception: it's the flex-grow region of
  * the title bar (`flex: 1`). When a plugin replaces the default
  * title with custom HTML or a render callback, we want the new
@@ -320,6 +405,7 @@
 .os-window__slot--after-controls {
 	display: contents;
 }
+
 
 .os-window__slot--title {
 	flex: 1;
@@ -366,7 +452,7 @@
  * theme could not reach them: these declarations land on the WINDOW
  * element, so a `--os-ui-btn-color` set at the shell root loses to
  * them, and the same names also drive buttons outside the title bar
- * (sticky notes, the desk chrome) that a theme usually does not want
+ * (pinned notes, the desk chrome) that a theme usually does not want
  * to move in the same stroke.
  *
  * `--os-titlebar-btn-focused-*` mirrors the unfocused set
@@ -630,19 +716,65 @@
  * below the title bar. Each tab swaps the iframe URL in place; no
  * new window opens. Horizontally scrollable on narrow windows so the
  * same component works on tablet and mobile shells unchanged.
+ *
+ * These are TABS in the physical sense: the strip is a recessed
+ * track, and the active tab is a plate that rises out of it wearing
+ * the page's own fill, filleted into the floor at both bottom
+ * corners so tab and page read as one continuous surface. That joint
+ * is the whole design. The previous treatment — flat text with an
+ * accent underline, on a strip painted the same colour as the
+ * focused title bar — gave the sub-pages no container to belong to
+ * and no relationship to the page they navigate, which is why they
+ * read as loose text floating in the chrome.
+ *
+ * The page under an iframe window is always `#fff`: `chromeless.css`
+ * paints `body.os-chromeless` white whatever the admin colour scheme
+ * says. So "the page's own fill" is a colour the shell can name, and
+ * `--os-tabs-active-bg` names it.
  * --------------------------------------------------------------- */
 .os-window__tabs {
+	/*
+	 * Corner radius and fillet size are the same measurement — the
+	 * fillet is the *inverse* of the corner, so a mismatch reads as a
+	 * kink where the tab meets the floor. One alias, read by both.
+	 */
+	--_tab-radius: var( --os-tabs-radius, 8px );
+	/* Tab height, shared with the plate that has to sit exactly on it. */
+	--_tab-h: 30px;
+	/* Weight of the rail that traces the silhouette. */
+	--_tab-stroke: var( --os-tabs-rail-width, 2px );
+	/*
+	 * How far each straight run of the rail overlaps the arc it hands
+	 * over to. Purely an anti-seam allowance — see the mask sizes on
+	 * the ring. It has to stay well under the radius or the overlap
+	 * would reach past the arc it is covering for.
+	 */
+	--_tab-seam: 1px;
+	position: relative;
 	display: flex;
+	/* Tabs sit ON the floor of the track, not centred in it. */
+	align-items: flex-end;
 	flex-shrink: 0;
 	gap: 2px;
-	padding: 0 8px;
+	/*
+	 * Horizontal padding is a floor as well as a breathing space. The
+	 * ring reaches one radius plus one stroke (10px at the shipped
+	 * values) past the plate on each side, so a first or last tab
+	 * under a smaller padding would have its outer corner clipped by
+	 * the `overflow` rule below.
+	 */
+	padding: 8px 12px 0;
 	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	/* TABBAR texture slot — layered over the strip's own colour. */
 	background-image: var( --os-tabs-image, none );
 	background-repeat: var( --os-tabs-image-repeat, repeat );
 	background-size: var( --os-tabs-image-size, auto );
 	background-position: var( --os-tabs-image-position, center );
-	border-bottom: 1px solid var(--os-window-border);
+	/*
+	 * No bottom border. A hairline here would run straight through
+	 * the joint between the active tab and its page, which is the one
+	 * edge this design exists to erase.
+	 */
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: thin;
@@ -651,6 +783,451 @@
 	 * swipes inside the strip instead of triggering browser back.
 	 */
 	overscroll-behavior-x: contain;
+}
+
+/*
+ * Unfocused, the track follows the title bar down instead of holding
+ * its lit colour.
+ *
+ * Focused, the bar and the track are the same Obsidian and the tab is
+ * the only thing lifting out of them: two surfaces plus the tab. Dim
+ * the bar alone and the strip becomes a third colour belonging to
+ * neither the chrome above it nor the page below, which is the seam
+ * this rule removes.
+ *
+ * The chain ends at `--os-tabs-bg`, so a theme that names only the one
+ * strip colour keeps it in both states.
+ */
+.os-window:not( .os-window--focused ) .os-window__tabs {
+	background-color: var(
+		--os-tabs-bg-unfocused,
+		var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) )
+	);
+}
+
+/*
+ * The same strip on a NATIVE window, which is the same strip: one
+ * stylesheet, whatever is behind the window. What changes is only
+ * what the active tab is wearing, and it changes in tokens.
+ *
+ * The rule the whole design rests on is that the active tab wears the
+ * page's own fill and is filleted into it, so tab and content read as
+ * one surface. For an iframe window that fill is `#fff`, because
+ * `chromeless.css` paints every admin page inside a window white
+ * whatever the colour scheme says. A native window's page is its
+ * body, and `--os-window-bg` is what paints it — so that is the fill
+ * here, and the two move together by construction.
+ *
+ * The frost and the crown go with the white. They are what makes a
+ * bright plate read as a surface lifting out of dark chrome; on a
+ * native window the tab and the track are the same colour when the
+ * window is focused, and a crown on a tab you cannot see the edges of
+ * is decoration with nothing to decorate. The rail carries the
+ * silhouette on its own, which is the point: a native window has no
+ * value step to wear, so the line IS the tab.
+ *
+ * The label follows the fill. `--os-tabs-active-color` names the text
+ * on a white plate and resolves to near-black, which would be
+ * invisible here.
+ */
+.os-window--native {
+	--os-tabs-active-bg: var( --os-window-bg, #fff );
+	--os-tabs-active-color: var( --os-ui-fg, #1d2327 );
+	--os-tabs-active-color-muted: var( --os-ui-fg-muted, #50575e );
+	--os-tabs-active-frost: none;
+	--os-tabs-active-crown: none;
+}
+
+/*
+ * Windows with no submenu still get a strip — `createWindowElement()`
+ * appends it unconditionally so `addExternalTab()` has somewhere to
+ * put a tab later. Empty, it must take no room at all: with vertical
+ * padding on the track, an empty strip would otherwise paint a bare
+ * band of track colour under every submenu-less window's title bar.
+ *
+ * `:has()` rather than `:empty`, because the strip is never empty any
+ * more — it always carries the plate. What makes a strip vacant is
+ * having no TABS in it.
+ */
+.os-window__tabs:not( :has( .os-window__tab ) ) {
+	display: none;
+}
+
+/* ---------------------------------------------------------------
+ * The plate — the active tab's surface.
+ *
+ * It is one element that TRAVELS between tabs rather than a fill
+ * that switches off on one tab and on at the next. That distinction
+ * is the whole reason it exists: a fill that switches has to cross-
+ * fade a dark tab into a light one, and every frame in between is a
+ * muddy grey that belongs to neither. Nothing crossfades here. The
+ * surface simply moves, and the labels change colour underneath it.
+ *
+ * `tabs.ts` publishes the target geometry as `--_tab-plate-x` and
+ * `--_tab-plate-w` on this element; everything else is CSS.
+ * --------------------------------------------------------------- */
+.os-window__tab-plate {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: var( --_tab-h );
+	width: var( --_tab-plate-w, 0 );
+	transform: translateX( var( --_tab-plate-x, 0 ) );
+	pointer-events: none;
+	transition:
+		transform var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		width var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		opacity 0.15s ease;
+}
+
+/*
+ * Until the first measurement lands, the plate has no business
+ * animating — it would slide in from the strip's left edge every
+ * time a window opens.
+ */
+.os-window__tab-plate:not( [ data-placed ] ) {
+	transition: none;
+}
+
+/*
+ * The frosted face.
+ *
+ * The tint is TOP-WEIGHTED and reaches zero before the bottom of the
+ * plate, which is the load-bearing part: the joint below is the
+ * page's own colour, so anything still tinted down there draws a
+ * seam across the one edge this design exists to erase. Keep the
+ * gradient's last stop fully transparent and keep it above ~75%.
+ *
+ * The fallback is a flat `--os-tabs-active-bg`, so a stylesheet that
+ * loses the palette gets the plain white tab rather than nothing.
+ */
+.os-window__tab-plate-fill {
+	position: absolute;
+	/*
+	 * Overshoots the track's floor by one radius, and is then clipped
+	 * by the strip's own `overflow`. Ending the face exactly ON the
+	 * floor puts a paint boundary on the one edge that has to be
+	 * invisible; pushing it past and cutting it means there is no edge
+	 * there to resolve at all.
+	 */
+	inset: 0 0 calc( var( --_tab-radius ) * -1 ) 0;
+	overflow: hidden;
+	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
+	/*
+	 * OPAQUE, and deliberately so — no `backdrop-filter`, no alpha.
+	 *
+	 * A translucent element with a backdrop filter is promoted to its
+	 * own compositor layer, and the edge of that layer is a clip the
+	 * compositor resolves against whatever is behind it. That leaves a
+	 * faint grey hairline down the plate's sides and across its
+	 * bottom. Everywhere else that would be a nuisance; here it draws
+	 * a second, dimmer line a few pixels inside the real one and flatly
+	 * contradicts what this design is claiming. The gradient below
+	 * reproduces the frosted crown by eye with no alpha at all.
+	 *
+	 * `background-size` pins the gradient to the tab's true height so
+	 * the overshoot underneath stays flat page-white.
+	 */
+	background-color: var( --os-tabs-active-bg, #fff );
+	background-image: var( --os-tabs-active-frost, none );
+	background-size: 100% var( --_tab-h );
+	background-repeat: no-repeat;
+}
+
+/*
+ * The crown — Holomesh over the top of the plate, masked away before
+ * the joint. Holomesh is nine stacked gradients, so it cannot be
+ * faded by adding a colour stop; it needs its own layer and a mask.
+ *
+ * It is on exactly one tab at a time. That is what keeps the mesh an
+ * identity moment rather than wallpaper, and it is the same rule the
+ * rest of the kit follows (see `src/ui/holo.ts`).
+ */
+.os-window__tab-plate-fill::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: var( --os-tabs-active-crown, none );
+	background-size: 210% 210%;
+	background-position: 20% 26%;
+	opacity: var( --os-tabs-active-crown-opacity, 0.5 );
+	-webkit-mask-image: linear-gradient(
+		180deg,
+		#000 0%,
+		rgba( 0, 0, 0, 0.55 ) 34%,
+		transparent 66%
+	);
+	mask-image: linear-gradient(
+		180deg,
+		#000 0%,
+		rgba( 0, 0, 0, 0.55 ) 34%,
+		transparent 66%
+	);
+	animation: os-tab-crown-drift 16s ease-in-out infinite alternate;
+}
+
+@keyframes os-tab-crown-drift {
+	from { background-position: 20% 26%; }
+	to   { background-position: 72% 62%; }
+}
+
+/*
+ * The joint: two concave quarter-circles carrying the plate's fill
+ * out to the floor of the track. Without them the plate is a rounded
+ * rectangle NEAR the page; with them it is attached to it.
+ *
+ * Its own element rather than a pseudo on the face, so the face can
+ * clip its crown (`overflow: hidden`) without clipping the curve
+ * that does the attaching. Pure `--os-tabs-active-bg` — see the note
+ * on the tint above.
+ */
+.os-window__tab-plate-joint {
+	position: absolute;
+	bottom: 0;
+	left: calc( var( --_tab-radius ) * -1 );
+	right: calc( var( --_tab-radius ) * -1 );
+	height: var( --_tab-radius );
+	background:
+		radial-gradient(
+			circle at 0 0,
+			transparent var( --_tab-radius ),
+			var( --os-tabs-active-bg, #fff ) var( --_tab-radius )
+		) left bottom / var( --_tab-radius ) var( --_tab-radius ) no-repeat,
+		radial-gradient(
+			circle at 100% 0,
+			transparent var( --_tab-radius ),
+			var( --os-tabs-active-bg, #fff ) var( --_tab-radius )
+		) right bottom / var( --_tab-radius ) var( --_tab-radius ) no-repeat;
+}
+
+/* ---------------------------------------------------------------
+ * The rail — one continuous line around the whole silhouette.
+ *
+ * It runs the top edge of the page, curves up through the fillet,
+ * traces the tab and comes back down. What it outlines is therefore
+ * page-plus-tab as ONE shape, which is the same claim the joint makes
+ * by omission, said out loud.
+ *
+ * Two rules govern every number below.
+ *
+ * 1. **The line lives on the DARK side of the boundary, everywhere.**
+ *    It hugs the white shape from outside and never paints on it. Get
+ *    this wrong on any one segment and the line steps sideways by its
+ *    own width at the tangent point where that segment meets the next
+ *    — which is exactly what a stroke that does not follow the shape
+ *    looks like. The convex tab corners are therefore annulus R→R+s
+ *    (outside the plate) while the concave fillets are R−s→R (inside
+ *    the fillet circle, whose white lies OUTSIDE it). Those look like
+ *    opposite conventions and are the same one.
+ *
+ * 2. **Every piece samples one mesh laid across the whole strip.**
+ *    `--_tab-strip-w` is why. Give the rail and the ring their own
+ *    backgrounds and you get two unrelated gradients meeting at a
+ *    visible join in the middle of the fillet.
+ *
+ * CSS cannot stroke a path, so the mesh is painted as a background and
+ * a mask cuts it to the outline. Seven layers, one per segment, all
+ * positioned off the box edges so the whole thing survives the plate
+ * changing width mid-slide with no JS.
+ * --------------------------------------------------------------- */
+.os-window__tabs::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: var( --_tab-stroke );
+	background-image: var( --os-tabs-rail, none );
+	background-size: var( --_tab-strip-w, 100% ) 100%;
+	background-repeat: no-repeat;
+	pointer-events: none;
+	/*
+	 * Two segments, stopping where each fillet begins. Run the rail
+	 * straight through and it draws a chord across the concave curve.
+	 */
+	-webkit-mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
+	mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
+	/*
+	 * Each segment runs one `--_tab-seam` PAST where its fillet begins,
+	 * so the rail overlaps the arc rather than meeting it exactly —
+	 * the same anti-seam allowance the ring uses, for the same reason.
+	 */
+	-webkit-mask-size:
+		calc(
+			var( --_tab-plate-x, 0px ) - var( --_tab-radius ) + var( --_tab-seam )
+		) 100%,
+		calc(
+			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
+				var( --_tab-radius ) + var( --_tab-seam )
+		) 100%;
+	mask-size:
+		calc(
+			var( --_tab-plate-x, 0px ) - var( --_tab-radius ) + var( --_tab-seam )
+		) 100%,
+		calc(
+			100% - var( --_tab-plate-x, 0px ) - var( --_tab-plate-w, 0px ) -
+				var( --_tab-radius ) + var( --_tab-seam )
+		) 100%;
+	-webkit-mask-position: left top, right top;
+	mask-position: left top, right top;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	transition:
+		-webkit-mask-size var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) ),
+		mask-size var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
+}
+
+/* With no active tab there is no gap to leave, so the rail is whole. */
+.os-window__tabs[ data-tab-plate-empty ]::before {
+	-webkit-mask-image: none;
+	mask-image: none;
+}
+
+/*
+ * The tab's half of the line. The box is the plate grown by one
+ * stroke upward and by radius-plus-stroke on each side, so the top
+ * edge, both corners and both fillet arcs all have room to sit
+ * OUTSIDE the white.
+ */
+.os-window__tab-plate::after {
+	--_ring-arc-out: radial-gradient(
+		circle at 0 0,
+		transparent calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 var( --_tab-radius ),
+		transparent var( --_tab-radius )
+	);
+	--_ring-arc-out-r: radial-gradient(
+		circle at 100% 0,
+		transparent calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 calc( var( --_tab-radius ) - var( --_tab-stroke ) ),
+		#000 var( --_tab-radius ),
+		transparent var( --_tab-radius )
+	);
+	--_ring-corner-l: radial-gradient(
+		circle at 100% 100%,
+		transparent var( --_tab-radius ),
+		#000 var( --_tab-radius ),
+		#000 calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		transparent calc( var( --_tab-radius ) + var( --_tab-stroke ) )
+	);
+	--_ring-corner-r: radial-gradient(
+		circle at 0 100%,
+		transparent var( --_tab-radius ),
+		#000 var( --_tab-radius ),
+		#000 calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		transparent calc( var( --_tab-radius ) + var( --_tab-stroke ) )
+	);
+	--_ring-bar: linear-gradient( #000 0 0 );
+
+	content: '';
+	position: absolute;
+	inset:
+		calc( var( --_tab-stroke ) * -1 )
+		calc( ( var( --_tab-radius ) + var( --_tab-stroke ) ) * -1 )
+		0;
+	background-image: var( --os-tabs-rail, none );
+	background-size: var( --_tab-strip-w, 100% ) 100%;
+	background-position:
+		calc(
+			var( --_tab-radius ) + var( --_tab-stroke ) -
+				var( --_tab-plate-x, 0px )
+		)
+		0;
+	background-repeat: no-repeat;
+	pointer-events: none;
+
+	-webkit-mask-image:
+		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
+		var( --_ring-bar ), var( --_ring-bar ),
+		var( --_ring-arc-out ), var( --_ring-arc-out-r );
+	mask-image:
+		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
+		var( --_ring-bar ), var( --_ring-bar ),
+		var( --_ring-arc-out ), var( --_ring-arc-out-r );
+	/*
+	 * The three straight runs are each grown by `--_tab-seam` at BOTH
+	 * ends, and shifted back by the same amount, so every one of them
+	 * overlaps the arc it hands over to instead of meeting it exactly.
+	 *
+	 * Two layers that abut on a shared boundary each contribute a
+	 * partial, antialiased alpha there, and the sum can fall short of
+	 * 1 — which prints as a faint hairline across the stroke at all
+	 * six tangent points. Overlapping cannot go wrong in the other
+	 * direction: mask alpha is clamped, so doubling it is still opaque
+	 * and the seam simply stops existing.
+	 *
+	 * The overlap stays on the dark side of the curve at every one of
+	 * those points, so it never bleeds onto the white.
+	 */
+	-webkit-mask-size:
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) + 2 * var( --_tab-seam ) ) var( --_tab-stroke ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-radius ) var( --_tab-radius ),
+		var( --_tab-radius ) var( --_tab-radius );
+	mask-size:
+		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) + 2 * var( --_tab-seam ) ) var( --_tab-stroke ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
+		var( --_tab-radius ) var( --_tab-radius ),
+		var( --_tab-radius ) var( --_tab-radius );
+	/*
+	 * Four-value syntax throughout, and it is load-bearing. A
+	 * percentage in `mask-position` resolves against the container
+	 * MINUS the layer's own size, so `calc(100% - 8px)` does not mean
+	 * "8px from the right edge" — it means "right-aligned, then pushed
+	 * left by 8px PLUS the layer's width". Every right-hand segment
+	 * lands a radius too far left that way. `right <offset>` is
+	 * measured from the edge and does not care how wide the layer is.
+	 */
+	-webkit-mask-position:
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ) top 0,
+		left var( --_tab-radius ) top 0,
+		right var( --_tab-radius ) top 0,
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		left var( --_tab-stroke ) bottom 0,
+		right var( --_tab-stroke ) bottom 0;
+	mask-position:
+		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ) top 0,
+		left var( --_tab-radius ) top 0,
+		right var( --_tab-radius ) top 0,
+		left var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		right var( --_tab-radius ) top calc( var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ),
+		left var( --_tab-stroke ) bottom 0,
+		right var( --_tab-stroke ) bottom 0;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+
+	/* Travels with the plate, so the mesh stays locked to the strip
+	 * for the whole slide instead of snapping on the first frame. */
+	transition: background-position var( --os-tabs-slide, 340ms cubic-bezier( 0.22, 1, 0.28, 1 ) );
+}
+
+/*
+ * No active tab to sit under — `syncActiveTab` can land on a URL that
+ * matches nothing, and an external sub-tab deactivates every submenu
+ * tab. The plate keeps its last geometry and fades, so re-activating
+ * a tab does not read as the plate flying in from nowhere.
+ */
+.os-window__tab-plate[ data-empty ] {
+	opacity: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-window__tab-plate,
+	.os-window__tab-plate::after,
+	.os-window__tabs::before {
+		transition-duration: 1ms;
+	}
+	.os-window__tab-plate-fill::before {
+		animation: none;
+	}
 }
 
 /*
@@ -709,22 +1286,22 @@
 }
 
 .os-window__tab {
+	position: relative;
 	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
-	height: 32px;
-	padding: 0 12px;
+	height: 30px;
+	padding: 0 14px;
 	border: none;
+	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
 	background: transparent;
 	color: var( --os-tabs-color, var( --os-ui-fg-muted, #50575e ) );
 	font: inherit;
 	font-size: 12px;
 	line-height: 1;
 	cursor: pointer;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
 	white-space: nowrap;
-	transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+	transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .os-window__tab:hover {
@@ -737,10 +1314,39 @@
 	outline-offset: -2px;
 }
 
+/*
+ * The active tab. It paints NO surface of its own — the plate does
+ * that, and the plate is a sibling that slides. All this rule owns is
+ * the label.
+ *
+ * No accent anywhere on it either. The shape already says "this one",
+ * and the accent is spent: one Pulse divider in the dock, one focus
+ * ring. A tab that is both a distinct surface AND coloured is saying
+ * the same thing twice.
+ */
 .os-window__tab--active {
-	color: var(--wp-admin-theme-color, #2271b1);
-	border-bottom-color: var(--wp-admin-theme-color, #2271b1);
+	color: var( --os-tabs-active-color, #1d2327 );
 	font-weight: 600;
+	/*
+	 * Anything nested in an active tab (the external tab's detach and
+	 * close chips) is now sitting on a light fill inside dark chrome,
+	 * so the two tones it reads have to flip with the tab. Both are
+	 * re-pointed through names the palette owns rather than hardcoded
+	 * here, so a desktop theme retints the chips with the tab.
+	 */
+	--os-ui-fg-muted: var( --os-tabs-active-color-muted, rgba(29, 35, 39, 0.6) );
+	--os-ui-hover: color-mix(
+		in srgb,
+		var( --os-tabs-active-color, #1d2327 ) 8%,
+		transparent
+	);
+}
+
+/* An active tab has the plate under it; a hover wash on top of that
+ * would double-paint the surface. */
+.os-window__tab--active:hover {
+	background: transparent;
+	color: var( --os-tabs-active-color, #1d2327 );
 }
 
 /*
@@ -926,12 +1532,12 @@ os-tab-chip + os-tab-chip {
  * output) and kept aria-hidden so the spinner's own SR-label is
  * the only loading announcement.
  *
- * `transition-delay` on the overlay's fade-in means a render
- * that lands within ~120ms never paints the spinner — the
- * overlay only becomes visible when there's actually a wait
- * worth surfacing. This keeps the affordance from flashing on
- * fast local-dev loads while still covering the slow production
- * iframe boots that motivated it.
+ * The `--visible` modifier turns the overlay on. JS adds it ~120ms
+ * into the load (`LOADING_OVERLAY_SHOW_DELAY_MS`), so a fast render
+ * never paints a spinner. The delay cannot be a `transition-delay`
+ * here: the overlay is appended into a body that already carries
+ * `--loading`, so its first computed style is the visible one and the
+ * transition never runs.
  */
 .os-window__loading {
 	position: absolute;
@@ -964,13 +1570,31 @@ os-tab-chip + os-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
-.os-window__body--loading > .os-window__loading {
+.os-window__body--loading > .os-window__loading--visible {
 	opacity: 1;
-	/* Entry transition with a small delay — loads that finish in
-	 * under ~120ms never paint the spinner, so fast local-dev /
-	 * hot-cache fires don't flash. Slow production iframe boots
-	 * still see the spinner. */
-	transition-delay: 0.12s;
+}
+
+/*
+ * Content hand-off. `--loading` drops as soon as the content is ready,
+ * but the overlay above it still needs 250ms to fade out. Without this
+ * both layers are on screen at once, which reads as a flash.
+ *
+ * This modifier holds the content transparent for the length of that
+ * fade, then fades it in. The delay in the shorthand does the holding.
+ *
+ * Only added when the spinner actually painted. A load that finishes
+ * inside the show delay never reached `--visible`, so the shell drops
+ * the overlay in the same tick instead.
+ *
+ * `--revealing` declares the same selector at the same specificity and
+ * comes later in the file, so a window playing a reveal keeps its
+ * content opaque under the reveal surface.
+ */
+.os-window__body--loading-out > .os-window__iframe,
+.os-window__body--loading-out
+	> :not(.os-window__loading):not(.os-window__reveal) {
+	opacity: 1;
+	transition: opacity 0.25s ease 0.25s;
 }
 
 @media ( prefers-reduced-motion: reduce ) {
@@ -978,6 +1602,9 @@ os-tab-chip + os-tab-chip {
 	.os-window__loading,
 	.os-window__body--loading > .os-window__iframe,
 	.os-window__body--loading
+		> :not(.os-window__loading):not(.os-window__reveal),
+	.os-window__body--loading-out > .os-window__iframe,
+	.os-window__body--loading-out
 		> :not(.os-window__loading):not(.os-window__reveal) {
 		transition: none;
 	}

@@ -42,7 +42,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$this->assertStringContainsString(
-			'os-admin-bar-static',
+			'os-admin-bar-hidden',
 			openstation_admin_body_classes( '' )
 		);
 	}

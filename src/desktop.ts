@@ -58,7 +58,9 @@ import {
 } from './hooks';
 import { WallpaperLayer } from './wallpapers/layer';
 import type { WallpaperSuspendApi } from './wallpapers/layer';
+import { gamesApi } from './games/api';
 import type { GamesApi } from './games/api';
+import type { WindowActionDef } from './window-actions/registry';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createGamesRegistrySync } from './games/server-sync';
 import { createDesktopThemeSync } from './desktop-themes/server-sync';
@@ -79,6 +81,7 @@ import {
 	type TitleBarButtonDef,
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
+import { createWindowActionRegistrySync } from './window-actions/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
 import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
@@ -94,6 +97,7 @@ import { createWindowLinkRendererRegistrySync } from './window-links/server-sync
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
+import { mountDockConstellation } from './dock-constellation';
 import {
 	type WindowThemeDef,
 } from './window-chrome/themes/registry';
@@ -141,7 +145,7 @@ import {
 	attachBroadcastBus,
 	installBroadcastReceiver,
 } from './broadcast';
-import { startRecycleBinBadge, _currentRecycleBinBadge } from './recycle-bin/badge';
+import { startRecycleBinIconState, _currentRecycleBinCount } from './recycle-bin/icon-state';
 import { registerBuiltInPeekRenderers } from './dock-peek/built-in-renderers';
 import {
 	BUG_REPORT_WINDOW_ID,
@@ -180,6 +184,7 @@ import {
 import { recentlyMarqueed, type SelectionApi } from './selection';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
@@ -196,7 +201,6 @@ import {
 	installShortcutsSync,
 	syncShortcutsWithVisibility,
 } from './settings/desktop-shortcuts-sync';
-import { bootStickyNotes } from './sticky-notes';
 import { bootNotes } from './notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
@@ -436,7 +440,8 @@ export interface OpenStationPublicApi {
 	/**
 	 * Side (left) dock instance — only non-null when the active
 	 * layout is `classic`. Holds core admin menus while the bottom
-	 * dock holds plugin menus. `null` in `unified` and `spatial`.
+	 * dock holds plugin menus. `null` in `unified`, `spatial` and
+	 * `openstation`.
 	 */
 	sideDock: Dock | null;
 	/**
@@ -445,7 +450,18 @@ export interface OpenStationPublicApi {
 	 * `data-os-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial';
+	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
+	/**
+	 * Edge the primary dock sits on. Mirrors
+	 * `OsSettingsSnapshot.dockPlacement` for the one-rail layouts;
+	 * reads `'bottom'` under `classic`, which owns both of its edges
+	 * whatever the preference says. The framework writes the same
+	 * value as `data-os-dock-placement` on the rail element.
+	 *
+	 * Replaced on the same terms as {@link dock}: moving the dock is
+	 * a rebuild, and it fires `os-layout-changed`.
+	 */
+	dockPlacement: 'bottom' | 'left' | 'right';
 	/**
 	 * Wallpaper-icon rail — the second badge surface alongside the
 	 * dock. Mirrors `Dock.setBadge` exactly:
@@ -1133,6 +1149,33 @@ export interface OpenStationPublicApi {
 	unregisterTitleBarButton: ( id: string ) => void;
 	/** Snapshot of registered title-bar buttons. */
 	listTitleBarButtons: () => TitleBarButtonDef[];
+	/**
+	 * Register (or replace) a row in every window's ⋯ actions menu —
+	 * the right surface for an infrequent, wordy, per-window verb that
+	 * has not earned a permanent title-bar button.
+	 *
+	 * `label`, `icon` and `isVisible` may each be a function of the
+	 * window, re-read every time the menu opens. That is what lets one
+	 * row express a toggle whose meaning depends on state:
+	 *
+	 * ```ts
+	 * wp.os.registerWindowAction( {
+	 *     id: 'my-plugin/pin',
+	 *     label: ( win ) => isPinned( win.id ) ? 'Unpin' : 'Pin to top',
+	 *     icon: 'dashicons-sticky',
+	 *     isVisible: ( win ) => ! win.config.native,
+	 *     onSelect: ( win ) => togglePin( win.id ),
+	 *     owner: 'my-plugin-shell',
+	 * } );
+	 * ```
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 */
+	registerWindowAction: ( def: WindowActionDef ) => void;
+	/** Remove a previously registered window action. */
+	unregisterWindowAction: ( id: string ) => void;
+	/** Snapshot of registered window actions, in `order`. */
+	listWindowActions: () => WindowActionDef[];
 	/**
 	 * Register (or replace) an unfocused-window effect — a visual
 	 * treatment applied to every window that isn't focused, surfaced in
@@ -1949,13 +1992,8 @@ function init(): void {
 	const aiAssistant = new AiAssistantStub(
 		{
 			aiSearchUrl: config.aiSearchUrl ?? '',
-			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
 			adminUrl: config.adminUrl,
-			// Progress streaming is on by default now that the per-user
-			// transport picker is gone; the assistant falls back gracefully
-			// if the host drops the SSE connection.
-			getTransport: () => 'sse',
 			// AI mode is usable when the APIs are present and a provider is
 			// configured; the Commands palette works regardless. Read live so
 			// connecting a provider or flipping the "AI assistant" toggle takes
@@ -2424,7 +2462,9 @@ function init(): void {
 
 	if ( bottomDockEl && shellEl && shellBody && config.dockItems ) {
 		desktopArea.classList.add( 'os-area--with-dock' );
-		const initialLayout = osSettings.getOsSettingsSnapshot().desktopLayout;
+		const initialSnapshot = osSettings.getOsSettingsSnapshot();
+		const initialLayout = initialSnapshot.desktopLayout;
+		const initialPlacement = initialSnapshot.dockPlacement;
 		const renderIcons = (
 			icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 		): void => {
@@ -2455,7 +2495,19 @@ function init(): void {
 			initialLayout,
 			config.dockItems,
 			config.desktopIcons,
+			initialPlacement,
 		);
+		// Constellation — the hover-submenu flyout. Mounted once and
+		// left mounted: it is a single delegated listener that
+		// self-gates on `data-os-layout`, so a user flipping between
+		// layouts never needs it re-wired, and a user who never picks
+		// the OpenStation layout pays for one `pointerover` handler
+		// that early-returns on its first line.
+		mountDockConstellation( {
+			windowManager: manager,
+			adminUrl: config.adminUrl,
+			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		} );
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
 		// expect a shell-owned affordance) and on the primary rail in
@@ -2778,7 +2830,75 @@ function init(): void {
 		return nativeWindows.openById( nativeId );
 	}
 
-	const sessionRestore = hasSession
+	/*
+	 * Solo mode — the shell booted to paint exactly one window
+	 * (`?openstation_solo=<id>`; see `includes/solo-window.php`).
+	 *
+	 * The whole shell still boots: every registry, every render
+	 * callback, every plugin integration. What changes is that nothing
+	 * *else* opens. Restoring the session would drag the user's entire
+	 * desk into a surface asked to hold one thing, and
+	 * `openCurrentPage` would open the admin home the solo URL happens
+	 * to be built on — neither is the window that was asked for.
+	 *
+	 * Deliberately generic. The native desktop host (the Electron
+	 * adapter in `extensions/`) is the reason it exists — a native
+	 * window has no URL to hand a real OS window, so the only way to
+	 * show the *same* window elsewhere is to bring the framework — but
+	 * nothing here knows about Electron, and an embed, a kiosk or a
+	 * PWA shortcut can use the same flag.
+	 */
+	const soloWindowId =
+		'string' === typeof config.soloWindow ? config.soloWindow : '';
+	if ( soloWindowId ) {
+		// Deferred one tick for the same reason the native
+		// default-window path below defers: the layout dispatcher and
+		// the system tiles have to have finished mounting before
+		// any opener will resolve an id.
+		queueMicrotask( () => {
+			if ( openNativeWindowById( soloWindowId ) ) {
+				return;
+			}
+
+			// Games are not in the native-window registry: their window
+			// is minted at launch time by `wp.os.games.launch()`, so the
+			// only way to reconstitute `os-game-<id>` is to launch it.
+			// Not a special case sneaking into core — games are a
+			// first-party feature with a first-party registry, and solo
+			// mode's job is to reproduce a window by id whatever minted
+			// it.
+			const gameId = soloWindowId.startsWith( 'os-game-' )
+				? soloWindowId.slice( 'os-game-'.length )
+				: '';
+			if ( gameId ) {
+				void gamesApi.launch( gameId ).catch( ( err ) => {
+					if ( typeof console !== 'undefined' ) {
+						console.error( '[openstation] solo game failed to launch:', err );
+					}
+				} );
+				return;
+			}
+
+			/*
+			 * Nothing recognised the id, and that is where this stops.
+			 *
+			 * Opening something else — the current page, say — looks
+			 * like a graceful fallback and is the opposite: solo mode
+			 * means "paint this one window", so painting a different
+			 * one silently hands the user the wrong thing. Worse, under
+			 * a desktop host the substitute is itself a window the host
+			 * has never seen, which the freed-window forwarder then
+			 * dutifully forwards, and one request becomes two windows.
+			 */
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[openstation] solo window "${ soloWindowId }" is not registered; nothing to paint.`,
+				);
+			}
+		} );
+	}
+
+	const sessionRestore = hasSession && ! soloWindowId
 		? restoreSession(
 			manager,
 			config,
@@ -2795,7 +2915,7 @@ function init(): void {
 	const isNativeDefault =
 		typeof defaultUrlEarly === 'string' &&
 		defaultUrlEarly.startsWith( 'native:' );
-	if ( shouldAutoOpenCurrentPage( {
+	if ( ! soloWindowId && shouldAutoOpenCurrentPage( {
 		fromPortal: config.fromPortal,
 		fromPortalIntent: config.fromPortalIntent,
 		hasSession,
@@ -3029,6 +3149,16 @@ function init(): void {
 	void syncServerTitleBarButtons(
 		Array.isArray( config.serverTitleBarButtonScripts )
 			? config.serverTitleBarButtonScripts
+			: [],
+	);
+
+	// Window-action sync — same pattern. Loads opted-in scripts so a
+	// plugin's `registerWindowAction()` row is in the next ⋯ menu that
+	// opens; deactivation drops rows by `owner` tag.
+	const syncServerWindowActions = createWindowActionRegistrySync();
+	void syncServerWindowActions(
+		Array.isArray( config.serverWindowActionScripts )
+			? config.serverWindowActionScripts
 			: [],
 	);
 
@@ -3277,7 +3407,7 @@ function init(): void {
 		recycleBinCountUrl?: string;
 	};
 	const cfgCountRaw = cfgWithBin.recycleBinCount;
-	startRecycleBinBadge(
+	startRecycleBinIconState(
 		Number( cfgCountRaw ) || 0,
 		typeof cfgWithBin.recycleBinCountUrl === 'string'
 			? cfgWithBin.recycleBinCountUrl
@@ -3290,7 +3420,7 @@ function init(): void {
 	// their own thumbnails — this is just the built-in set so the
 	// in-tree windows look like first-class apps.
 	registerBuiltInPeekRenderers( {
-		getRecycleBinCount: _currentRecycleBinBadge,
+		getRecycleBinCount: _currentRecycleBinCount,
 	} );
 
 	// Auto-reload iframes on `os.<post_type>.changed` is
@@ -3382,6 +3512,7 @@ function init(): void {
 		syncServerCommands,
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
+		syncServerWindowActions,
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
@@ -3454,19 +3585,29 @@ function init(): void {
 			return;
 		}
 		const prevLayout = layoutDispatcher.getLayout();
+		const prevPlacement = layoutDispatcher.getDockPlacement();
+		// Placement before layout so a save that only moved the dock
+		// rebuilds once. A save carrying BOTH (a theme's recommended
+		// settings, a reset) rebuilds twice — both passes are
+		// idempotent, and it is not a path a user can reach by picking.
+		layoutDispatcher.setDockPlacement( snapshot.dockPlacement );
 		layoutDispatcher.setLayout( snapshot.desktopLayout );
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
+		desktopApi.dockPlacement = layoutDispatcher.getDockPlacement();
 		// Always re-apply per-item placement on every settings save.
-		// `setLayout` already rebuilt from scratch when the layout
-		// itself changed (and reads the latest settings while doing
-		// so), so we skip the explicit refresh in that case to avoid
-		// double-rendering. Otherwise, refresh unconditionally — the
-		// snapshot may carry an item-visibility or dock-order change
-		// that callers (settings tab, context menu, drag-to-reorder)
-		// rely on landing live.
-		if ( prevLayout === snapshot.desktopLayout ) {
+		// `setLayout` / `setDockPlacement` already rebuilt from scratch
+		// when the layout or the edge itself changed (and read the
+		// latest settings while doing so), so we skip the explicit
+		// refresh in that case to avoid double-rendering. Otherwise,
+		// refresh unconditionally — the snapshot may carry an
+		// item-visibility or dock-order change that callers (settings
+		// tab, context menu, drag-to-reorder) rely on landing live.
+		if (
+			prevLayout === snapshot.desktopLayout &&
+			prevPlacement === snapshot.dockPlacement
+		) {
 			layoutDispatcher.refresh();
 		}
 		// Bring the files-layer placements in line with the new
@@ -3554,6 +3695,9 @@ function init(): void {
 	// if init() ever fires again.
 	bootHeartbeatBus();
 
+	// Notice OpenStation being deactivated from another tab, WP-CLI, etc.
+	bootPluginPresenceWatch();
+
 	// Challenge delivery rides the bus above — lives in the main
 	// bundle (like the recycle-bin badge) so an incoming challenge
 	// notifies the user even when the Games window never opened this
@@ -3594,34 +3738,11 @@ function init(): void {
 		} ),
 	);
 
-	bootStickyNotes( {
-		host: desktopArea,
-		config,
-		// Only boot when the Gutenberg Guidelines experiment is live
-		// server-side; otherwise the layer's REST probes would 404. The
-		// flag is `undefined` on shells older than the one that added it
-		// → the layer treats that as available (boot and swallow).
-		available: config.stickyNotes?.available,
-		getActiveDesktopId: () => manager.getActiveDesktopId(),
-		openArtifact: ( url, title ) => {
-			const id = deriveWindowId( url, config.adminUrl );
-			void manager.open( {
-				id,
-				baseId: id,
-				url,
-				title,
-				icon: 'dashicons-edit-page',
-			} );
-		},
-		onError: ( message ) => {
-			showToast( { message } );
-		},
-	} );
-
 	// Pinned notes — CPT-backed paper notes pinned to the wallpaper
-	// with a pushpin. Composes its REST client, the wall layer, and
-	// the drop routes (wallpaper create/reposition via the canvas
-	// payload seam, recycle-bin trash via the bin payload seam).
+	// with a pushpin. Composes its REST client, the wall layer, the
+	// drop routes (wallpaper create/reposition via the canvas payload
+	// seam, recycle-bin trash via the bin payload seam), and the
+	// wallpaper context-menu entry.
 	bootNotes( {
 		host: desktopArea,
 		config,
@@ -4262,6 +4383,7 @@ function init(): void {
 				currentSortMode: rootSortMode,
 				includeShowDesktop:
 					! osSettings.state.showDesktopOnWallpaperClick,
+				position: { x: clientX, y: clientY },
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',

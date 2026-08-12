@@ -173,6 +173,15 @@ function openstation_register_assets() {
 		array( 'os-windows' ),
 		$built_version( 'assets/css/os-settings.css' )
 	);
+	// Solo mode — one window, no desk around it. Loads last so it can
+	// hide surfaces the sheets above declared, and only enqueues on a
+	// solo request, so a normal shell never pays for it.
+	wp_register_style(
+		'os-solo',
+		OPENSTATION_URL . 'assets/css/solo.css',
+		array( 'os-windows' ),
+		$built_version( 'assets/css/solo.css' )
+	);
 	wp_register_style(
 		'os-dock',
 		OPENSTATION_URL . 'assets/css/dock.css',
@@ -184,6 +193,19 @@ function openstation_register_assets() {
 		OPENSTATION_URL . 'assets/css/dock-peek.css',
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
+	);
+	// The OpenStation desktop layout — the core/plugin seam on the rail
+	// plus the constellation hover-submenu flyout. Both surfaces are
+	// scoped (`[data-os-layout="openstation"]` / `.os-constellation`),
+	// so the sheet is inert in every other layout and is loaded
+	// unconditionally rather than gated on the user's current pick:
+	// the layout is switchable live from OpenStation Preferences, and a
+	// conditional enqueue would leave the first switch unstyled.
+	wp_register_style(
+		'os-openstation-layout',
+		OPENSTATION_URL . 'assets/css/openstation-layout.css',
+		array( 'os-dock' ),
+		$built_version( 'assets/css/openstation-layout.css' )
 	);
 	// `filemtime`-stamped — the chromeless overrides iterate faster
 	// than the plugin-wide version bumps (per-page compat shims and

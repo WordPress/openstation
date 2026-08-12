@@ -17,8 +17,8 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 
 | API | Use it for | Status |
 |---|---|---|
-| [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
-| `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
+| [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's activity phase + the activity bus pick the request up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
+| `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. Traps focus, restores it to the opener on close, and routes Enter to the focused button. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 
@@ -110,6 +110,10 @@ Fires every time a window enters the **loading** state — at construction (ever
 
 The shell paints a `<os-spinner>` overlay over the body while the window is loading and fades the body content out. The overlay's spinner is sized responsively (`clamp(96px, 14vw, 192px)`) so it scales with the window's width.
 
+The overlay element is attached immediately (so `config.loading.render` and the `WINDOW_LOADING_OVERLAY` filter always have a host) but stays **invisible for the first 120 ms**. A load that finishes inside that window never paints a spinner at all.
+
+**Assistive tech.** The window element carries `aria-busy="true"` for the duration of the loading state (stamped at construction, cleared on the ready edge), and the overlay is a `role="status"` / `aria-live="polite"` region whose spinner supplies the announced text. A custom overlay supplied via `config.loading.render` or the `WINDOW_LOADING_OVERLAY` filter inherits the region — keep some text or a labelled indicator inside it, and don't set `aria-hidden` on the host.
+
 **Edge-triggered.** Idempotent calls don't re-fire — a plugin that calls `markLoading()` twice in a row sees the event exactly once.
 
 ```javascript
@@ -129,6 +133,8 @@ Companion `wp.hooks` action: `HOOKS.WINDOW_CONTENT_LOADING` (`os.window.content-
 ### `os-window-content-loaded` — Stable
 
 Fires when a window's body content becomes ready — for iframe windows the moment the chromeless bridge announces `os-ready`, for native windows after the user's `render( body )` callback (or its returned Promise) resolves, and whenever a plugin calls `Window.markContentLoaded()` or `ctx.window.markReady()` mid-life. The shell removes the loading overlay and fades the body content in on this transition.
+
+**The overlay and the content are never on screen together.** If the spinner never painted (the load finished inside the 120 ms show delay), the overlay is removed in the same tick, so nothing is held back. A native body appears immediately; an iframe still fades in over 250 ms via its own base rule. If it did paint, it gets its 250 ms fade-out to itself and the content fades in after that, not underneath it.
 
 **Use this instead of branching on iframe vs. native.** The unified signal across both render strategies. Iframe-only consumers can still subscribe to `os.iframe.ready`, which fires alongside this event for iframe windows.
 
@@ -228,6 +234,15 @@ Fires after the window is removed from the stack and begins its closing animatio
 
 ---
 
+### `os-window-tab-change` — Stable
+Fires when a native window's tab changes, whether the user clicked it, chose it with the keyboard, or code called `Window.activateTab()`. Dispatched on the window element and bubbles, so a listener on the element or on `document` both work.
+
+Only panel tabs fire this. A submenu tab on an iframe window navigates instead, and `os-window-content-loading` / `os-window-content-loaded` are the events for that.
+
+**`detail` shape:** `{ value: string }`
+
+---
+
 ### `os-window-changed` — Experimental
 Internal event used by the session saver. Fires for geometry changes (drag-end, resize-end) and state transitions (minimize, maximize, fullscreen, restore). Signature may change — prefer the per-operation events above for external use.
 
@@ -305,12 +320,12 @@ An empty selection fires too, with `keys: []` and `count: 0`. See [`wp.os.select
 ---
 
 ### `os-layout-changed` — Stable
-Fires when the user picks a new top-level desktop layout in OpenStation Preferences → Appearance. The shell tears down and rebuilds the dock(s) before the event fires; plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the new value in `data-os-layout` attribute by the time this fires, so CSS selectors keyed on it will already match.
+Fires when the user picks a new top-level desktop layout **or moves the dock to another edge** in OpenStation Preferences → Appearance. Both tear down and rebuild the dock(s) before the event fires, so plugins that cached `wp.os.dock` should re-fetch from the event detail (or read `wp.os.dock` again — it's mutated in place). The shell root reflects the layout in its `data-os-layout` attribute and each rail its edge in `data-os-dock-placement` by the time this fires, so CSS selectors keyed on either will already match.
 
 ```javascript
 document.addEventListener( 'os-layout-changed', ( e ) => {
-    const { layout, primary, side } = e.detail;
-    console.log( 'Desktop layout is now', layout );
+    const { layout, placement, primary, side } = e.detail;
+    console.log( 'Desktop layout is now', layout, 'on the', placement, 'edge' );
 } );
 ```
 
@@ -318,11 +333,39 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout: 'classic' | 'unified' | 'spatial',
-    primary: Dock | null,   // bottom dock — always present
-    side:    Dock | null,   // left side bar — non-null only in classic
+    layout:    'classic' | 'unified' | 'spatial' | 'openstation',
+    placement: 'bottom' | 'left' | 'right',   // edge the primary rail mounted on
+    primary:   Dock | null,   // primary dock — always present
+    side:      Dock | null,   // left side bar — non-null only in classic
 }
 ```
+
+`placement` is the edge the primary rail **actually mounted on**, not the raw preference: `classic` owns both of its edges, so it reports `bottom` however `dockPlacement` is set.
+
+---
+
+### `os-item-menu-opening` — Stable
+Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
+
+It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the active layout gives it (the constellation flyout in the OpenStation layout, the peek card everywhere else). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
+
+```javascript
+document.addEventListener( 'os-item-menu-opening', ( e ) => {
+    const { id, surface } = e.detail;
+    myHoverCard?.close();
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    id:      string,   // dock item slug, system-tile id, or desktop-icon id
+    surface: 'dock' | 'desktop',
+}
+```
+
+Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
 
 ---
 
@@ -669,7 +712,8 @@ window.wp.os = {
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
     sideDock:          Dock | null,                            // left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial',
+    desktopLayout:     'classic' | 'unified' | 'spatial' | 'openstation',
+    dockPlacement:     'bottom' | 'left' | 'right',           // edge the primary dock sits on
     icons:             IconsApi,
     saveSession:       () => void,
 
@@ -769,6 +813,8 @@ manager.closeDesktop( id: string ): void;
 
 **`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
 
+Every iframe window gets the strip element, whether or not it has a submenu, because external sub-tabs can be added to it later. Its navigation semantics follow its contents: `role="tablist"` plus an `aria-label` of `"<title> sub-pages"` while it holds tabs, `role="presentation"` while it is empty — so a window with no sub-pages never advertises an empty tab list to assistive tech.
+
 The active tab is re-matched against the iframe's URL after every navigation. An exact URL match wins; otherwise the shell lights the tab whose *page* the current URL belongs to, so a screen's own sub-views keep their tab highlighted (`nav-menus.php?action=locations` stays on Menus, `edit.php?post_type=post&paged=2` stays on All Posts). A tab owns a URL when the page-identity params agree (`post_type`, `taxonomy`, `page`, `path`, …) **and** every param the tab's own URL declares is present with the same value — so `admin.php?page=x&tab=test` never claims `admin.php?page=x&tab=logs`, which falls back to the `admin.php?page=x` entry. When two entries both qualify, the more specific one (more params declared) wins. Exactly one tab is ever active.
 
 **`seedWindowRestoreState( entries )`** — stage config to merge into the *next* window opened under each id, then forget it. For openers that build their own `manager.open()` config and have no argument to thread extra values through: you can't hand geometry to `wp.os.openWindow( id )` or to a native window's own opener, but you can state it up front and let the manager apply it when the window materialises.
@@ -861,6 +907,65 @@ window.wp.hooks.addFilter(
     }
 );
 ```
+
+#### The constellation — OpenStation layout only
+
+The `openstation` desktop layout replaces the hover-peek **on menu tiles** with a richer surface: the **constellation**, a flyout that fans a menu's *submenu* out of its tile. Every other layout drops the submenu at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+One panel, up to four sections, top to bottom:
+
+| Section | Class | What it does |
+|---|---|---|
+| Head | `.os-constellation__head` | The menu's own page + a page count. Click = a dock click. |
+| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). |
+| Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
+| New window | `.os-constellation__row--new` | Spawns a fresh instance, same as the peek's Ghost Card. |
+
+Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
+
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+
+**The flyout is one tab stop, not one per row** — the conventional ARIA menu pattern. Every `.os-constellation__row` is given `tabindex="-1"` (including rows a plugin appended through the filter below, which are normalised after it runs), arrow keys do the moving, and `Tab` collapses the panel and returns focus to the tile *without* preventing the default, so the browser then continues from the rail's own place in the document order. Without that a fifteen-child submenu would put fifteen stops between the dock and whatever follows it.
+
+**Vertical sizing.** The panel hangs off the top of the dock and is never nudged downward to fit — that would push it over the rail and under the pointer. Instead the JS writes `--os-cn-max-h` on every placement (the distance from the panel's bottom edge to the top of the viewport, floored at 160px) and the surface reads it as a `max-height`; a menu too tall for the space shrinks and its submenu group takes the scroll, leaving the head and the new-window row pinned. Horizontally it *is* nudged, with `--os-cn-beam-x` keeping the beam pointed at the tile.
+
+Three hooks:
+
+- `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
+- `os.constellation.opened` — **action**, `{ menuSlug, item, instances, handoff }`. `handoff` is `true` when this panel replaced one that was already up (the pointer moved along the rail) rather than arriving on an empty desk — the same flag the matching `closed` carries.
+- `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
+
+**More than one panel can be on screen.** `wp.os` never exposes a "the flyout" singleton for exactly this reason: a dismissed panel keeps its own anchor and finishes its own exit while the next one is already rising over a different tile. Moving along the rail is **two** panels, each animating where it belongs — the one you left playing its dismissal, the one you arrived at playing its entrance — not one panel sliding across and swapping contents. Each panel is a menu bound to a specific tile; morphing one into another would claim they are the same object and would drag a beam across the rail pointing at a tile its panel has nothing to do with. The retiring panel is painted one z-index step below the live one so it can never fade out on top of the menu being read.
+
+**Two ways to leave:**
+
+| | When | What happens |
+|---|---|---|
+| **Exit** | Any dismissal — pointer left, Escape, a row activated, or another tile taking over | Falls back into the rail: shrinks toward `bottom center` (where the beam meets its own tile) on an ease-**in** curve, beam cutting first. Rows are pinned so the panel leaves as one object. |
+| **Cut** | The anchor rect was invalidated (scroll, resize, layout switch), or `prefers-reduced-motion: reduce` | The node is removed outright. A panel gliding away from a tile that has already moved points at nothing. |
+
+```javascript
+// Add a "recently edited" row to the Posts flyout.
+window.wp.hooks.addFilter(
+    'os.constellation.panel',
+    'my-plugin/recent',
+    ( panel, { item } ) => {
+        if ( item.id !== 'edit.php' ) {
+            return panel;
+        }
+        const row = document.createElement( 'button' );
+        row.type = 'button';
+        row.className = 'os-constellation__row';
+        row.setAttribute( 'role', 'menuitem' );
+        row.textContent = 'Recently edited';
+        row.addEventListener( 'click', () => openRecent() );
+        panel.querySelector( '.os-constellation__surface' ).append( row );
+        return panel;
+    }
+);
+```
+
+**Theming.** The panel reads `--os-cn-*` (surface, border, shadow, text, legend, divider, row fill + ink, beam, radius, stacking order) plus the seam tokens `--os-cn-seam` / `--os-cn-seam-node` for the rail's core→plugin divider. All are declared in `variables.css` and re-pointable by a desktop theme like any other token. The mesh is spent deliberately in exactly two places — the row under the pointer, and the head's icon — because those are the moments the panel is answering the user; the surface itself stays Obsidian.
 
 ```javascript
 // Open a second Posts list alongside the first.
@@ -969,6 +1074,43 @@ Native targets fire `onOpen` on the next microtask (no handshake to wait for); i
 
 ---
 
+### `Window.setTabs( entries, activeValue? )` — Stable
+
+Declare a native window's tabs in the window chrome. They render in the same strip an admin-page window wears under its title bar, with the same keyboard and the same look — one tab system, whatever is behind the window.
+
+Each entry's `value` matches the `for` attribute of an `<os-tabpanel>` in the window body. The shell shows one pane and hides the rest by toggling `hidden`, never re-rendering, so a pane that owns a canvas or a live preview keeps it across tab changes.
+
+```js
+wp.os.registerWindow( {
+    id: 'jorvy',
+    title: 'Jorvy',
+    render: ( body ) => {
+        body.innerHTML = `
+            <os-tabpanel for="calc">…</os-tabpanel>
+            <os-tabpanel for="convert">…</os-tabpanel>
+        `;
+        const win = body.closest( '.os-window' );
+        wp.os.windowManager.getById( 'jorvy' ).setTabs( [
+            { value: 'calc',    label: 'Calc' },
+            { value: 'convert', label: 'Convert' },
+        ] );
+        win.addEventListener( 'os-window-tab-change', ( e ) => {
+            console.log( 'now on', e.detail.value );
+        } );
+    },
+} );
+```
+
+Call it again whenever the list changes. It reconciles by `value` rather than rebuilding, so adding a tab mid-session leaves the user on the tab they were on and does not drop keyboard focus out of the strip. Pass `activeValue` only when you mean to move them deliberately; omit it and the current tab is kept.
+
+`Window.activateTab( value )` switches tabs programmatically and fires the same event.
+
+**Accessibility.** The strip is a `role="tablist"`, each tab a `role="tab"` wired to its pane with `aria-controls` / `aria-labelledby`. Tab enters the strip once and leaves it once (roving `tabindex`); arrow keys move within it, Home and End reach the ends, and Enter or Space activates. Activation is deliberate rather than follow-focus, because arrowing past a tab must not mount its pane.
+
+**A tab group inside content** — a switcher within one pane, say — is not this. Use `<os-tabs>` for that; see [`components-reference.md`](components-reference.md).
+
+---
+
 ### `wp.os.openWindow( id, opts? )` — Stable
 
 Open (or focus) a server-registered native window by id. Symmetric with `openstation_register_window( $id, ... )` — pass the same string.
@@ -1062,7 +1204,32 @@ Powers the dock-peek "+" button for native windows so they behave like iframe wi
 
 ### `wp.os.fetch( input, init?, opts? )` — Stable
 
-Drop-in wrapper around the global `fetch()` that lights up the target window's title-bar **modem activity dot** while the request is in flight. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+Drop-in wrapper around the global `fetch()` that drives the target window's **activity phase** while the request is in flight, and attributes the request on the activity bus. Same return type and resolution semantics as native `fetch()` — callers can `.then(r => r.json())` / `await` / `catch` unchanged.
+
+> **The phase is painted as the status ring** — the leading mark of the title bar, in the position the app icon used to hold. That icon was a copy of the window's own dock tile a few hundred pixels below it, and a title bar has room for one mark of that size; it now carries one that changes.
+>
+> The ring is an `<os-save-status variant="ring" mode="icon">`, and only one of its four states fills:
+>
+> | Phase | Ring | Gesture |
+> |---|---|---|
+> | `idle` | white outline | — |
+> | `pending` / `saving` | accent outline | breathes, 1.6s |
+> | `saved` | accent fill, white check | overshoots and settles; the glyph fades up just behind the fill |
+> | `failed` | open red outline, red bang | two decaying swells, then stops |
+>
+> Colour alone is not a distinction every user can make, which is why the two outcomes differ in **shape** — filled versus open, check versus bang — and not only in hue. The gestures are emphasis, so `prefers-reduced-motion` drops all three and keeps every colour, fill and glyph.
+>
+> The resting ring is one value in both title-bar states rather than dimming when unfocused: the ring reports a phase, and `idle` shouldn't mean something different depending on which window you last clicked.
+>
+> Three consequences worth knowing:
+>
+> - **The framework's ring claims no private channel.** It is found by `[data-os-activity-indicator]`, the same public attribute a plugin uses to mount its own `<os-save-status>` in a title-bar slot, and **every** matching element in the title bar is driven — a window showing two different phases at once would be worse than one showing none.
+> - **The phase is announced too.** A ring says nothing to a screen reader, so the title bar carries a visually-hidden live region: successes politely (`Saved`), failures assertively and with the error text (`Not saved. Request failed (HTTP 500 Internal Server Error).`). The in-flight phase is deliberately silent — interrupting a user to tell them a save they started is still going is noise.
+> - **The phase is mirrored to CSS** as `data-os-activity` on the title-bar element, absent while idle, so a desktop theme can react to window state without reaching into the component's shadow root.
+>
+> Restyling is five themeable tokens: `--os-titlebar-activity-idle-color` (at rest), `--os-titlebar-activity-color` (in flight), `--os-titlebar-activity-saved-color`, `--os-titlebar-activity-failed-color`, and `--os-titlebar-activity-size`.
+>
+> **Iframe windows report too.** See [`os-iframe-activity`](#os-iframe-activity--experimental) — the chromeless bridge brackets every `fetch` and `XMLHttpRequest` inside the iframe, so an admin page's own jQuery calls move the ring without knowing the shell exists.
 
 ```js
 // In any window's render callback / event handler:
@@ -1073,7 +1240,7 @@ const res = await wp.os.fetch( '/wp-json/myplugin/v1/save', {
 } );
 ```
 
-That's the whole pattern. The dot blinks for the duration of the round-trip, flashes green when the request completes (any HTTP status — native `fetch` semantics, so a `404`/`500` response still flashes green) and red when the fetch rejects (network error, CORS, abort — with the `Error.message` exposed as the dot's tooltip), then settles back to the always-on idle ring. **No CSS, no per-window plumbing, no DOM.**
+That's the whole pattern. The window is `saving` for the duration of the round-trip, `saved` when the server answers with a success status, and `failed` on any other outcome — an HTTP error status (`4xx` / `5xx`, carrying `Request failed (HTTP 500 Internal Server Error).`) or a rejected fetch (network error, CORS, abort, carrying the `Error.message`) — then back to `idle`. **No CSS, no per-window plumbing, no DOM.** The ring breathes while the request is in flight, fills with a check when it lands, and stays an open red ring if it didn't.
 
 #### Auto X-WP-Nonce
 
@@ -1096,25 +1263,25 @@ Rules:
 | `init` | `RequestInit?` | Same as native `fetch`. |
 | `opts` | `{ windowId?: string; window?: Window; silent?: boolean }?` | Attribution + opt-out. |
 
-`opts` is the only addition. Resolution order for "which window's title bar pulses":
+`opts` is the only addition. Resolution order for "which window's activity phase moves":
 
 1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
 2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `openstation_register_window( '…' )`).
 3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
 
-`opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
+`opts.silent: true` skips the phase entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't read as user-initiated activity every tick. The fetch is otherwise identical.
 
 #### Why it works
 
-Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch shows a visible modem-blink before flashing green — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error becomes the tooltip) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
+Internally, `wp.os.fetch` calls `Window.trackActivity( promise )` on the resolved target. **An HTTP error status settles the phase as `failed`, not `saved`** — native `fetch` resolves for 4xx/5xx, so the tracked promise is a derived one that rejects when `response.ok` is false, carrying `Request failed (HTTP 500 Internal Server Error).` as the indicator's tooltip. The promise you receive is the untouched native one: it still *resolves* with the error response, and your own `if ( ! res.ok )` handling is unchanged. The window enforces a **minimum saving-display time of 1.2s** so even a 50ms fetch holds `saving` long enough for an indicator to be seen — fast successes don't get lost between the click and the next paint. Concurrent fetches reference-count: 5 in-flight settle as one burst when the **last** one lands, and the burst settles **failed** if **any** of them failed (the most recent error is the one carried) — even when the final fetch itself succeeded — matching the user's "did everything go through?" mental model.
 
 #### Migration tip
 
-You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't show a title-bar pulse. Adopt `wp.os.fetch` per call where the indicator is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
+You don't need to migrate everything. Bundles that currently call native `fetch` keep working unchanged — they just don't move the window's phase or reach the activity bus. Adopt `wp.os.fetch` per call where that attribution is valuable: REST mutations (saves, deletes, tag-add/remove), data refreshes that take more than a frame, anything users would otherwise wonder "did that work?". Keep using native `fetch` for fire-and-forget telemetry, prefetches, anything users shouldn't notice.
 
 #### Source
 
-`src/desktop.ts` `trackedFetch`. The component the dot is rendered with is `<os-save-status>` — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
+`src/desktop.ts` `trackedFetch`. The component built to render these phases is `<os-save-status>` — read on for the standalone component, plus `Window.trackActivity` / `Window.markActivity` for non-fetch async work.
 
 See also [`examples/window-activity.md`](./examples/window-activity.md) for end-to-end recipes.
 
@@ -1129,16 +1296,16 @@ const win = wp.os.windowManager.getById( 'my-plugin/inbox' );
 await win.trackActivity( indexedDbWrite( record ) );
 ```
 
-Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write shows a visible modem blink.
+Returns the Promise unchanged so callers can chain. Multiple concurrent calls are reference-counted and the **minimum 1.2s saving-display floor** still applies — so even a 100ms IDB write holds `saving` long enough to be seen.
 
 ### `Window.markActivity( phase, opts? )` — Experimental
 
 Manual escape hatch when the activity isn't a single Promise. Phases:
 
-- `'idle'`    — clear. Indicator resets to the always-on green ring.
-- `'pending'` / `'saving'` — modem-blink with a soft glow. Stays in this phase until you transition out.
-- `'saved'`   — brief green flash. Auto-clears to `idle` after ~2.2s.
-- `'failed'`  — red dot. `opts.error` becomes the host's `title` attribute (and so the native browser tooltip on hover). Auto-clears after ~6s.
+- `'idle'`    — clear. An `<os-save-status>` mounted on this window shows nothing.
+- `'pending'` / `'saving'` — work in flight. Stays in this phase until you transition out; an indicator renders it as a modem-blink with a soft glow.
+- `'saved'`   — settled ok. Auto-clears to `idle` after ~2.2s; an indicator flashes green.
+- `'failed'`  — settled with an error. `opts.error` becomes the indicator's `error` attribute, and so its `title` tooltip. Auto-clears after ~6s.
 
 ```js
 win.markActivity( 'saving' );
@@ -1277,15 +1444,15 @@ If a `Window.close()` throws, the loop catches and continues — one bad window 
 ---
 
 ### `dock` — Stable
-The **primary (bottom) `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. What it holds depends on the active `desktopLayout`:
+The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM). Always present once the shell has booted. It sits on the edge named by `dockPlacement` — `bottom` by default, `left` or `right` when the user moves it. What it holds depends on the active `desktopLayout`:
 
+- **Unified** *(default)* — every menu, core and plugin alike, sharing one rail, with OpenStation's own system tiles grouped behind a divider.
 - **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
-- **Unified** — every menu, core and plugin alike, sharing one rail.
 - **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
-`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator — `rail: 'taskbar'` for this bottom primary rail, `rail: 'dock'` for the Classic-layout side rail (`sideDock`). `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+`setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator. **The discriminator follows the rail's orientation, not its role:** `rail: 'taskbar'` for a horizontal rail (the primary dock on the bottom edge), `rail: 'dock'` for a vertical one — the Classic side rail (`sideDock`), and also the primary dock itself once the user moves it to the left or right. Code that reacts to badges should key off `itemId`, or accept both values; treating `'taskbar'` as "the primary rail" holds only while the dock is on the bottom. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
-> **Layout switching note** — the underlying instance is replaced when the user picks a new layout in OpenStation Preferences → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
+> **Layout switching note** — the underlying instance is replaced when the user picks a new layout **or moves the dock to another edge** in OpenStation Preferences → Appearance. `wp.os.dock` is mutated in place so a fresh property read returns the current dock; plugins that **cache** the reference earlier should listen for `os-layout-changed` and refresh.
 
 ---
 
@@ -1303,7 +1470,14 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial' | 'openstation'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+
+| Layout | Rails | Where core menus live |
+|---|---|---|
+| `classic` | side + bottom | left side bar (`sideDock`) |
+| `unified` | bottom | the one rail, interleaved with plugins |
+| `spatial` | bottom | wallpaper icons |
+| `openstation` | bottom | the one rail, **grouped first**, then a divider, then plugins |
 
 ```js
 if ( wp.os.desktopLayout === 'spatial' ) {
@@ -1312,6 +1486,8 @@ if ( wp.os.desktopLayout === 'spatial' ) {
 ```
 
 Listen for `os-layout-changed` to react to a switch.
+
+**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. It is also the only layout that fans a menu's submenu out of its tile on hover — see [the constellation](#the-constellation--openstation-layout-only) below.
 
 ---
 
@@ -1343,6 +1519,35 @@ Every applied change publishes on:
 - `HOOKS.ICON_BADGE_CHANGED` action with `{ iconId, count, previousCount }` *(icon rail only)*.
 
 The rails do NOT auto-suppress based on window state — that's per-app UX policy. The canonical "show 0 while my window is active" recipe lives in [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
+
+### `setArt` — Stable
+
+The same three rails share `setArt( id, svg )`, for a tile whose icon means something different depending on state rather than counting something. Same unified id space and the same fan-to-all-rails pattern:
+
+```js
+function paintBinState( isFull ) {
+    const art = isFull ? FULL_BIN_URI : EMPTY_BIN_URI;
+    wp.os.dock?.setArt?.(     'my-bin', art );
+    wp.os.sideDock?.setArt?.( 'my-bin', art );
+    wp.os.icons?.setArt?.(    'my-bin', art );
+}
+paintBinState( true );
+wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
+```
+
+`svg` takes the shapes `renderIcon()` accepts: a `data:` URI, an `http(s)` URL, or a dashicon class. Art naming `currentColor` is painted as a mask and follows the tile's own glyph colour; fixed-colour art keeps its own. Each call:
+
+- **Idempotent on the icon rail** — the same art twice is a no-op.
+- **`''` clears** the override and hands the tile back to its registered icon.
+- **Silent no-op when the id isn't on this rail.**
+- **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
+- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+
+Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
+
+`wp.os.icons.getArt( id )` reads the current override back, or `''` when the registered icon is still in charge.
+
+In-tree reference: [`src/recycle-bin/icon-state.ts`](../src/recycle-bin/icon-state.ts). The Recycle Bin uses it to draw an empty bin and a bin holding something as two states of one object. It replaced a count badge there: the badge pill is positioned onto the artwork rather than beside it, and at a 20px dock tile it covered about 30% of the icon.
 
 ### `icons` — Stable
 
@@ -1996,6 +2201,8 @@ const clear = wp.os.showToast( {
 ```
 
 A `persistent` toast has no auto-dismiss timer — clear it via the action button (which dismisses on click), the close (×) button when `dismissible` is set, or the returned dismiss callback. `duration` is ignored when `persistent` is set.
+
+**`duration` is a countdown, not a deadline.** It only runs while the toast is unattended: hovering the toast, or moving focus into it (Tab to the action button, a screen reader entering it), pauses the timer and resumes it on release with the time it had left, floored at 1.2s. So an `action` the user is reaching for cannot be deleted mid-reach — which also means a toast can outlive its `duration` by as long as the user keeps it under the pointer. And if a dismissal happens while the toast holds focus — clicking `Undo` removes the element the button lives in — focus is handed back to the last element outside the toast stack that had it, instead of falling to `<body>`. Both behaviours are the `<os-toast>` element's `held` state driving the timer; see the [`<os-toast>` hold contract](components-reference.md#menus--overlays) if you are building on the element directly.
 
 Routes through the `os/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
@@ -2755,7 +2962,7 @@ Front-end documents carry no chromeless bridge, so the shell wires click-to-focu
 
 The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `os.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
 
-**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat (core still skips the request when nothing changed, so an idle settle never reloads anything). The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`os-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`os-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the watcher listens for typing on the title/content/excerpt fields and inside every TinyMCE editor, and each settle forces the server autosave core would otherwise only run on its ~60 s heartbeat. Because those events also fire for things that are not user edits (TinyMCE adds an undo level on **blur**, and emits `SetContent` on any programmatic write), and because core's own autosave can go out for a post nobody touched (`getPostData()` re-serializes TinyMCE into `#content` as a side effect, which moves core's compare string on its own), both the settle and the refresh nudge are gated on a content fingerprint read directly off the editors. A settle or a completed autosave carrying content the preview already shows is silent; see [`bridge-protocol.md`](bridge-protocol.md) for the full mechanics. The watch is re-armed automatically whenever the editor page reloads while the pairing is open — the classic editor reloads on every manual save, and the pairing keeps tracking typing across it. Tune or disable via the `os.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
 
 **Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )`: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `os.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
 
@@ -2843,11 +3050,13 @@ w.markContentLoading();
 await refetchData();
 w.appendBody( renderTable( data ) );
 
-// Hide the spinner, fade the content in.
+// Hide the spinner, then fade the content in.
 w.markContentLoaded();
 ```
 
 Idempotent: calling `markContentLoading()` twice in a row only fires `WINDOW_CONTENT_LOADING` once; the same edge-trigger logic applies to `markContentLoaded()`.
+
+A refetch that resolves inside the 120 ms show delay never paints a spinner, so the pair is cheap to reach for on work that is usually fast. When one does paint, the content waits for its fade-out rather than appearing under it.
 
 The framework calls `markContentLoaded()` automatically when:
 - An iframe window's chromeless bridge posts `os-ready`.
@@ -3086,7 +3295,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -3321,10 +3530,10 @@ wp.os.updateOsSettings(
 
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
-- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`os-settings-save-lifecycle`](#os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<os-save-status auto>` renders it for free.
-- **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OpenStation Preferences window).
+- **`opts.windowId`** attributes the in-flight REST sync to a specific window's activity phase (defaults to the OpenStation Preferences window).
 
 The read-side companions are also top-level members: `wp.os.getOsSettings()` returns a defensive copy of the current snapshot and `wp.os.subscribeOsSettings( cb )` returns an unsubscribe function — both mirror the settings-tab `ctx.getOsSettings` / `ctx.subscribeOsSettings` API documented under [`registerSettingsTab`](#registersettingstab-def---stable), usable from any feature plugin without registering a tab.
 
@@ -3446,7 +3655,7 @@ A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentCo
 Two rules follow:
 
 - **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
-- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before. Full-colour app icons (the Games gamepad) are unchanged.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before, so a plugin shipping a full-colour brand mark gets back exactly what it drew. The two built-in games are the in-tree examples: `openstation_inkfall_icon_svg()` and `openstation_alphabet_soup_icon_svg()` are both full-colour, and `src/games/launch.ts` hands them to `renderIcon()` through the window registration, so their dock and desktop icons resolve to a `background-image` with `mask-image: none`.
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 
@@ -3721,6 +3930,24 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
 }
 ```
 
+#### `os-iframe-activity` — Experimental
+Posted by the same `fetch` / `XMLHttpRequest` wrappers as `os-iframe-network`, but **bracketing** the request rather than only reporting its completion — an indicator that can only be told "it finished" never shows the part the user waits through. This is what makes an iframe window report activity like a native one: native windows route through `wp.os.fetch`, which the shell owns, while an admin page inside an iframe does its own jQuery / XHR / `fetch` calls the parent has no other way to see.
+
+```typescript
+{ type: 'os-iframe-activity'; phase: 'start' }
+{ type: 'os-iframe-activity'; phase: 'end'; failed: boolean; status: number }
+```
+
+The parent feeds these to the same reference-counted `Window._markActivityStart()` / `_markActivitySettled()` pair `wp.os.fetch` uses, so a page firing six requests at once settles as one burst — and settles `failed` if any of them did. `status === 0` means no response arrived (network error, CORS, abort); the failure message omits the number in that case.
+
+**Only writes report.** Three deliberate exclusions:
+
+- **Reads never reach the ring** — `GET`, `HEAD`, `OPTIONS`, and `QUERY`. The ring answers "did my change go through?", and a read has no *through*: nothing changed, so nothing can have failed to change. An admin page also fires reads constantly on its own (list-table refreshes, dashboard widgets, autosave checks, media queries) and the user never asked about any of them. `QUERY` is in the list because it carries a **body** — it is a safe, idempotent read whose parameters wouldn't fit in a URL, so any "does it have a payload?" test would classify it backwards.
+- **WordPress Heartbeat** never reports even though it POSTs. It is a poll the user did not initiate, on a timer, forever; reporting it would light every open window's ring every 15 seconds and flash a success check for a save nobody made. Same judgement `wp.os.fetch`'s `silent: true` exists for. The action name is read from the request body, since Heartbeat POSTs to `admin-ajax.php` with no action in the URL.
+- **A new document resets the count.** An iframe that navigates mid-request takes its pending `end` messages with it, so `os-ready` calls `Window._resetActivity()`; without it the ring would stay lit for the rest of the window's life.
+
+This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
+
 #### `os-screen-meta` — Stable
 Announces the screen-meta panels (Screen Options / Help) that the iframe page exposes. The parent renders one title-bar button per announced panel, replacing any previously rendered set.
 
@@ -3965,12 +4192,14 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 
 Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
+The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.overview.entering` | action | Stable | `{}` — before the enter animation starts |
 | `os.overview.entered` | action | Stable | `{}` — fires ~300 ms later, after the grid settles |
 | `os.overview.exiting` | action | Stable | `{ windowId?: string, reason: 'select' \| 'cancel' }` |
-| `os.overview.exited` | action | Stable | same payload as `exiting` |
+| `os.overview.exited` | action | Stable | same payload as `exiting` — fires ~280 ms later, once the windows have animated home |
 | `os.overview.window-hover` | action | Stable | `{ windowId }` |
 | `os.overview.window-unhover` | action | Stable | `{ windowId }` |
 | `os.overview.window-click` | action | Stable | `{ windowId }` — fires just before `exiting` when a thumbnail is clicked |
@@ -4031,7 +4260,7 @@ wp.os.registerWidget( {
 ```js
 wp.os.registerWidget( {
     id: 'my/notes',
-    label: 'Sticky notes',
+    label: 'Scratchpad',
     description: 'A quick scratchpad you can drop anywhere.',
     icon: 'dashicons-welcome-write-blog',
     movable: true,
@@ -4646,7 +4875,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Preferences snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Preferences changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Preferences state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `stickyNotes.available` (boolean — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 
@@ -5028,7 +5257,7 @@ wp.os.listWindowThemes();
 wp.os.applyWindowTheme( windowId, override );
 
 // Layer 2 — Controls (Stable)
-wp.os.registerWindowControl( def );
+wp.os.registerWindowControl( def );        // `label` becomes the button's accessible name
 wp.os.unregisterWindowControl( id );       // pass 'core/close' to hide globally
 wp.os.listWindowControls();
 wp.os.applyWindowControls( windowId, override );
@@ -6284,7 +6513,8 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | Field | Type | Values |
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
-| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
+| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` \| `openstation` |
+| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified + Spatial) |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |
@@ -6559,8 +6789,164 @@ maps to `media`, pages are detected via `bridgePayload.postType`) and
 
 ---
 
+## `wp.os.registerWindowAction()` — *Experimental*
+
+Adds a row to the ⋯ actions menu in **every** window's title bar — the
+right surface for an infrequent, wordy, per-window verb that has not
+earned a permanent title-bar button. (For something the user reaches
+for constantly, use
+[`registerTitleBarButton`](#wposregistertitlebarbutton--stable)
+instead.)
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/pin',
+    label: ( win ) => ( isPinned( win.id ) ? 'Unpin' : 'Pin to top' ),
+    icon: 'dashicons-sticky',
+    order: 60,
+    isVisible: ( win ) => ! win.config.native,
+    onSelect: ( win ) => togglePin( win.id ),
+    owner: 'my-plugin-shell',
+} );
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Required. `/^[a-z0-9_/-]+$/`; `vendor/sub-id` namespacing encouraged. |
+| `label` | `string \| ( win ) => string` | Required. A function is re-read on **every menu open**. |
+| `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
+| `order` | `number` | Sort order among registered rows. Default `100`. |
+| `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
+| `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
+| `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
+
+Also: `wp.os.unregisterWindowAction( id )` and
+`wp.os.listWindowActions()`.
+
+**Making `owner` mean something.** Pair it with the PHP opt-in
+[`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
+and pass the same handle. That puts your script in the live-refresh
+payload, so activating your plugin loads it — the row is in the next ⋯
+menu that opens, no reload — and deactivating it sweeps every action
+tagged with that handle back out.
+
+Without the PHP call there is nothing to diff, so an `owner` tag is
+inert: the row stays until the next page reload. That is deliberate
+backwards-compat, the same bargain commands and title-bar buttons
+offer, but it does mean `owner` alone is not the whole opt-in.
+
+**Why `label` / `icon` / `isVisible` may be functions.** They are read
+fresh every time the menu opens, not once at registration. That is what
+lets one row express a toggle whose meaning depends on state — "Send to
+your Mac" becoming "Bring back into OpenStation" for the same window —
+without the plugin re-registering itself on every transition. A window
+is in one place or the other, so one row that answers "what does this
+do right now?" is the honest shape; two competing rows would
+misdescribe it.
+
+A row whose resolver or handler throws is contained: the row hides (or
+the click is swallowed) and the rest of the menu keeps working. The ⋯
+menu is shared surface, and the user's "Reload" lives there.
+
+Registering or unregistering repaints menus on their next open;
+`registerWindowAction` throws a `RegistrationError` naming the bad
+field when validation fails.
+
+### `HOOKS.WINDOW_MENU_OPENED` — *Experimental*
+
+Fires when a window's ⋯ actions menu opens, **after** its rows have
+been painted. Payload: `{ windowId: string, element: HTMLElement }`,
+where `element` is the `<os-menu>` panel.
+
+The moment to do work a menu's contents depend on but that is too
+expensive, or too perishable, to do up front — probing the network,
+re-reading a permission, checking whether a companion app has started
+since the page loaded.
+
+**An open menu repaints itself when the registry changes.** So
+registering an action from this hook — even asynchronously — puts the
+row under the user's pointer rather than on their next click:
+
+```js
+wp.os.hooks.addAction( wp.os.HOOKS.WINDOW_MENU_OPENED, 'my-plugin/probe', () => {
+    void probeForCompanionApp().then( ( found ) => {
+        if ( found ) {
+            wp.os.registerWindowAction( { /* … */ } );
+        }
+    } );
+} );
+```
+
+That is why it fires after the paint rather than before. The
+subscription lives only while the menu is open.
+
+---
+
+## Native desktop host — `wp.os.electron` *(Experimental)*
+
+Published by the **Electron Adapter extension**, not by core, when the
+desktop is being viewed through the OpenStation Desktop app. Absent in
+a browser, so check before use:
+
+```js
+if ( wp.os.electron?.isAvailable() ) {
+    console.log( wp.os.electron.getSendLabel() ); // "Send to your Mac"
+    await wp.os.electron.free( 'edit-php' );
+}
+```
+
+Full narrative, the REST surface, and the adapter's PHP hooks:
+[Native Desktop Host](./desktop-host.md).
+
+| Method | Returns | Notes |
+|---|---|---|
+| `isAvailable()` | `boolean` | Always true when the namespace exists. |
+| `getInfo()` | `HostInfo \| null` | Platform, app version, host id, currently-freed ids. |
+| `getSendLabel()` | `string` | Translated and OS-adapted. |
+| `getDockLabel()` | `string` | "Bring back into OpenStation". |
+| `isFreedWindow()` | `boolean` | Whether *this page* is itself a freed window. |
+| `free( windowId )` | `Promise<boolean>` | Set a window free; focuses it if already free. |
+| `dock( windowId )` | `Promise<boolean>` | Bring a freed window back into the shell. |
+| `listFreed()` | `string[]` | Ids currently out on the desktop. |
+| `isFreed( windowId )` | `boolean` | Whether one specific window is out there. |
+| `getConnection()` | `ConnectionState` | Last liveness-pulse snapshot. |
+
+Anything that would surface a freed window inside the shell — a dock
+click, the switcher, a plugin calling `openWindow()` — raises the
+**native** window instead. Plugin authors get that for free.
+
+### CustomEvents
+
+| Event | `detail` | Fires when |
+|---|---|---|
+| `os-desktop-host-freed` | `{ windowId: string }` | A window went out to the real desktop. |
+| `os-desktop-host-docked` | `{ windowId: string }` | A freed window came back into the shell. |
+| `os-desktop-host-connection` | `ConnectionState` | The connection changed phase. |
+
+### Shell config key
+
+| Key | Type | Notes |
+|---|---|---|
+| `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+
+### `window.openStationChromelessHost` — *Experimental*
+
+Set this to `true` **before a page's own scripts run** to claim a
+top-level chromeless page as deliberately hosted. Without it, the
+chromeless bridge treats a top-level `?openstation_chromeless=1` page
+as an accident and rescues the user by stripping the flag and reloading
+as classic admin — correct for a stale bookmark, wrong for an embedder
+that put the page there on purpose and provides its own way out.
+
+It must be a global rather than a query flag: a flag is lost on the
+first in-page navigation. See
+[bridge-protocol.md](./bridge-protocol.md#top-frame-escape-hatch--and-how-to-opt-out).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — the Electron layer, solo mode, and the liveness pulse.
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
 - [Examples — React to window events](./examples/react-to-window-events.md)
 - [Examples — Add a dock badge](./examples/dock-badge.md)

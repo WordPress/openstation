@@ -155,7 +155,7 @@ When the user clicks an editor window's **Preview (eye)** title-bar button, the 
 The answerer lives in the standalone bridge only (`installEditorAutosaveHandler()` in `src/iframe-bridge-standalone.ts` — installed on every admin page for OpenStation users, chromeless included, outside the bundle's double-install guard so it runs even where the inline chromeless bridge owns `wp.os.iframe`). Editor detection, in order:
 
 1. **Gutenberg** (`wp.data.select( 'core/editor' )` resolves) — prefers `dispatch( 'core/editor' ).__unstableSaveForPreview()`, exactly what core's Preview button calls: it autosaves when needed and resolves to the freshest preview link, returned as `previewUrl`. Fallback when that action is absent: `isEditedPostAutosaveable()` false → `not-dirty` immediately; otherwise `autosave()` watched to completion via `wp.data.subscribe` (8 s best-effort backstop answers `saved` anyway).
-2. **Classic editor** (`wp.autosave.server`) — `triggerSave()` + jQuery's `after-autosave` event, with a 5 s best-effort backstop.
+2. **Classic editor** (`wp.autosave.server`) — `triggerSave()` + jQuery's `after-autosave` event, with a 5 s backstop that answers **`not-dirty`**, not `saved`. Core's `save()` returns early when `compareString === lastCompareString`: no request goes out and `after-autosave` never fires, so a silent 5 s is core declining to autosave rather than a save it forgot to announce. Answering `saved` there made the shell refresh the preview companion ~5.4 s after the eye click for a save that never happened — late enough to read as a reaction to whatever the user clicked next. A save genuinely still in flight at 5 s is not lost: the live watch's own `after-autosave` handler announces it when it lands. Only when jQuery is absent — unreachable in practice, since `autosave.js` depends on it — does the backstop assume `saved`, because nothing can observe the round-trip there.
 3. **Neither** — `no-editor`, immediately, so the parent never waits on a page with nothing to save.
 
 On the parent side every non-`saved` outcome degrades gracefully: the preview opens at the identity's server-computed `previewUrl` (the last saved/autosaved revision), with a warning toast only on `error`.
@@ -170,7 +170,22 @@ On the parent side every non-`saved` outcome degrades gracefully: the preview op
 
 Gutenberg watch mechanics: `wp.data.subscribe` + **reference** comparison of `core/block-editor`'s block list and the edited title (every real edit replaces those references). A completing save ALSO churns those references (the save response normalizes the entity and resyncs the block list), and drafts autosave in place — Gutenberg considers them forever autosaveable — so without guards the watcher's own save reads as a fresh edit and loops. Three guards break the feedback: (1) churn arriving while `isSavingPost()`/`isAutosavingPost()` is true — and on the settle tick right after — is absorbed into the baseline without scheduling; (2) a reference change only schedules while `isEditedPostDirty()` (user edits set dirty synchronously; a draft's completed in-place autosave clears it); (3) the settle itself bails when `isEditedPostAutosaveable()` is false (published posts stay dirty relative to published content after an autosave revision — nothing new to save, nothing to refresh). On settle it also defers while a save is in flight (1 s retry), then autosaves via `__unstableSaveForPreview()`.
 
-Classic-editor watch mechanics: no reactive store, so typing is detected on the raw surfaces — `input` on the `#title` / `#content` / `#excerpt` fields (the three classic autosave snapshots) plus edit events on every TinyMCE editor, including editors initialized later (a visual↔text switch re-initializes). On settle the watcher forces the server autosave core would otherwise only run on its ~60 s heartbeat (`wp.autosave.server.triggerSave()`); core's own `save()` still bails when nothing changed, so an idle settle stays silent. Core silently drops a trigger while an autosave round-trip is on the wire, so the watcher tracks in-flight state via the `before-autosave`/`after-autosave` events and retries a settle that landed mid-save. Every completed round-trip — forced or core's own — announces `os-editor-live-saved`.
+Classic-editor watch mechanics: no reactive store, so typing is detected on the raw surfaces — `input` on the `#title` / `#content` / `#excerpt` fields (the three classic autosave snapshots) plus edit events on every TinyMCE editor, including editors initialized later (a visual↔text switch re-initializes). On settle the watcher forces the server autosave core would otherwise only run on its ~60 s heartbeat (`wp.autosave.server.triggerSave()`). Core silently drops a trigger while an autosave round-trip is on the wire, so the watcher tracks in-flight state via the `before-autosave`/`after-autosave` events and retries a settle that landed mid-save.
+
+Both the settle and the announcement are gated on a **content fingerprint** — the title input plus, for the body and the excerpt, `tinymce.get( field ).getContent()` (falling back to the raw textarea in text mode or with no TinyMCE). Neither the bound events nor core's own bookkeeping answers "did the user change something":
+
+- **The events don't.** TinyMCE adds an undo level on **blur** and emits `change`, and emits `SetContent` on any programmatic write (init, a visual↔text switch, a plugin normalizing markup). Clicking from the editor into the preview window was enough to schedule a settle.
+- **Core's compare string doesn't either.** `wp.autosave.getPostData()` calls `editor.save()` as a side effect, re-serializing the TinyMCE DOM into `#content`. On markup core didn't write (shortcodes, WooCommerce product content, anything `wpautop` round-trips differently) the re-serialized string differs from the stored one, so core's own `compareString !== lastCompareString` gate passes, the autosave goes out, and `after-autosave` fires — for a post the user never touched. This is why the fingerprint must NOT be built from `getPostData()`: doing so inherits exactly that side effect and can never catch the case.
+
+`getContent()` is the stable read — it serializes the same DOM every time, so an idle blur/focus cycle produces an identical string and only a real edit moves it. It is read-only by contract: a fingerprint with a side effect is the bug it exists to prevent.
+
+So: a settle whose fingerprint matches the last announcement sends nothing, and a completed round-trip whose fingerprint matches the last announcement stays silent. The fingerprint is captured at **send** time (`before-autosave`), so an edit typed during the round-trip still counts as unannounced and gets its own save. A screen with none of the three fields fails open.
+
+Two further rules, both needed for the **first** round-trip of a session:
+
+- **An announcement additionally requires an observed edit event since the last one.** The baseline is seeded when the watch starts, which is *before* core has ever called `getPostData()` on that page — and that call's `editor.save()` fires `SaveContent` / `PostProcess`, which WordPress's own `wpview` and wpautop handlers use to rewrite the editor DOM. The first autosave of a session therefore serializes differently from the seed through no user action at all. Every completed round-trip re-baselines the fingerprint whether or not it announced, so that drift is absorbed once and never looked at again.
+
+Every other completed round-trip — forced or core's own — announces `os-editor-live-saved`.
 
 The watch dies with the page (it's plain JS in the iframe), so the shell **re-arms it under a fresh `watchId` on every readiness re-announcement** while the pairing holds — the classic editor reloads on every manual save, and without the re-arm the typing-driven refresh would be permanently dead from that point. The previous `watchId` is unwatched first, so a readiness re-announcement without a real reload never stacks two watches.
 
@@ -254,6 +269,8 @@ The class doesn't promise a handler, though. The Media list table stamps it on T
 
 Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-style `install-now` / `update-link` / `update-now` / `delete-plugin` / `delete-theme` / `install-theme` buttons, the plugins-list-table row Delete (`[data-plugin] a.delete`), and the network themes row Delete (`.themes-php.network-admin a.delete`). updates.js `preventDefault`s these itself and runs an in-place AJAX operation; if the bridge hijacked them, the parent-driven navigation would race the AJAX call (a `wp.updates.beforeunload` "Leave site?" prompt followed by the no-JS fallback screen for an already-deleted plugin).
 
+The Dashboard's welcome panel is the same story with no marker class at all: `dashboard.js` binds the dismiss on the anchor and `preventDefault`s it, and `?welcome=0` is a dead no-JS fallback. The interceptor yields `.welcome-panel-close` and `.welcome-panel-dismiss a` inside `#welcome-panel`, matching core's own selector. Routing them opened a second Dashboard window titled **Dismiss** on top of the one being dismissed.
+
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `openstation_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `os-iframe-admin-form-submit` message.
 
 ### Window titles the shell had to guess
@@ -289,6 +306,33 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 | `os-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-os-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the WP Explorer window on that user's footprint route and leaves the source window open. |
 
 **Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.os.openWindow`. Cold-start safe: the WP Explorer bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.os.myWordpress.openUserFootprint`.
+
+## Top-frame escape hatch — and how to opt out
+
+The inline chromeless bridge runs one check before anything else: is
+this page the top frame? A chromeless page is meant to live inside a
+window iframe, so a top-level one is normally an accident — a stale
+bookmark, a bad portal redirect — and the page has no admin bar, which
+means no way to turn OpenStation off. The bridge rescues it: strip
+`openstation_chromeless`, strip `desktop_mode_portal`, and
+`location.replace()` into classic admin.
+
+An embedder that hosts a top-level chromeless page **on purpose** opts
+out by setting a global before the page's own scripts run:
+
+```js
+window.openStationChromelessHost = true;
+```
+
+The bridge then leaves the URL alone. It still returns early — every
+feature below the check posts to `window.parent`, and there isn't one —
+so a hosted chromeless page gets a plain admin screen and nothing else.
+
+The native desktop host (`extensions/openstation-electron-adapter`)
+sets it from the preload of every window a user sets free. It has to be
+a JS global rather than a query flag: a flag is lost on the first
+in-page navigation, and the rescue would fire the moment the user
+clicked a link inside their own window.
 
 ## Public hooks
 

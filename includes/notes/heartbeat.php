@@ -2,11 +2,10 @@
 /**
  * OpenStation — Pinned notes Heartbeat sync.
  *
- * Same delta model as the sticky-notes sync
- * (`includes/sticky-notes/heartbeat.php`): the client subscribes with
- * the note ids it already renders plus a high-water modified
- * timestamp; the server responds with notes changed since then and
- * with removals (trashed, deleted, or made private by their owner).
+ * Delta model: the client subscribes with the note ids it already
+ * renders plus a high-water modified timestamp; the server responds
+ * with notes changed since then and with removals (trashed, deleted,
+ * or made private by their owner).
  *
  * Visibility mirrors the REST list: the viewer's own notes (private +
  * publish) plus every other user's public notes.

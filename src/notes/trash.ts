@@ -8,6 +8,7 @@
  */
 
 import { __ } from '../i18n';
+import { broadcastNotesChange } from './broadcast';
 import { deleteNote, restoreNote } from './rest';
 import type { Note } from './types';
 
@@ -44,6 +45,8 @@ export async function trashNoteWithUndo(
 	callbacks.onEvict( note.id );
 	try {
 		await deleteNote( note.id );
+		// The bin gained an item — tell its icon.
+		broadcastNotesChange( 'trashed', [ note.id ] );
 		getToastApi()?.showToast?.( {
 			message: __( 'Note moved to Trash', 'desktop-mode' ),
 			duration: 6000,
@@ -51,7 +54,10 @@ export async function trashNoteWithUndo(
 				label: __( 'Undo', 'desktop-mode' ),
 				onClick: () => {
 					void restoreNote( note.id )
-						.then( ( restored ) => callbacks.onRestore( restored ) )
+						.then( ( restored ) => {
+							broadcastNotesChange( 'untrashed', [ note.id ] );
+							callbacks.onRestore( restored );
+						} )
 						.catch( ( err: unknown ) => {
 							// eslint-disable-next-line no-console
 							console.error(

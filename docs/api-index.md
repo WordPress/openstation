@@ -25,6 +25,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `HOOKS` | `typeof HOOKS` *(typed hook-name constants)* | Stable |
 | `hooks` | `wp.hooks` bridge | Stable |
 | `saveSession` | `() => void` | Stable |
+| `registerWindowAction` / `unregisterWindowAction` / `listWindowActions` | `( def: WindowActionDef ) => void` *(rows in every window's ⋯ menu; `label`/`icon`/`isVisible` may be per-window functions)* | Experimental |
+| [`electron`](./desktop-host.md) | `ElectronAdapterApi` *(set a window free into a real OS window; published by the Electron Adapter extension, absent in a browser)* | Experimental |
 
 ### HTTP & UI primitives — must-know
 
@@ -56,7 +58,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 |---|---|---|
 | `dock` | `Dock \| null` *(primary / bottom rail)* | Stable |
 | `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable |
-| `desktopLayout` | `'classic' \| 'unified' \| 'spatial'` | Stable |
+| `desktopLayout` | `'classic' \| 'unified' \| 'spatial' \| 'openstation'` | Stable |
+| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified + Spatial)* | Stable |
 | `Dock.setBadge` | `( id: string, count: number ) => void` | Stable |
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |
@@ -227,6 +230,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-presence-changed` | Stable |
 | `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
+| `os-item-menu-opening` | Stable |
 | `os-registry-changed` | Stable |
 | `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |
 | `os-cross-frame-drag-start` / `-end` *(cross-iframe drag bridge)* | Stable |
@@ -239,6 +243,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
 | `os-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
+| `os-desktop-host-freed` / `-docked` / `-connection` *(window set free into a real OS window)* | Experimental |
 
 ---
 

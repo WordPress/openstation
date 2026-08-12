@@ -484,6 +484,9 @@
             "Agents": [
                 ""
             ],
+            "Agents are turned off": [
+                ""
+            ],
             "All": [
                 ""
             ],
@@ -554,6 +557,9 @@
                 ""
             ],
             "Apps & Icons settings…": [
+                ""
+            ],
+            "Ask an administrator to turn the Agents framework on in OpenStation Preferences → Features.": [
                 ""
             ],
             "Ask the agent to do something…": [
@@ -3353,6 +3359,12 @@
                 ""
             ],
             "Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.": [
+                ""
+            ],
+            "Turn on Agents": [
+                ""
+            ],
+            "Turn the Agents framework on in OpenStation Preferences → Features to create agents, give them abilities, and chat with them.": [
                 ""
             ],
             "Two panels part from the middle of the window and slide off the sides.": [

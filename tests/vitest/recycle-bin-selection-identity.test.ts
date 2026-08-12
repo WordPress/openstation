@@ -23,8 +23,8 @@ const mocks = vi.hoisted( () => ( {
 } ) );
 
 vi.mock( '../../src/recycle-bin/rest', () => mocks );
-vi.mock( '../../src/recycle-bin/badge', () => ( {
-	setRecycleBinBadge: vi.fn(),
+vi.mock( '../../src/recycle-bin/icon-state', () => ( {
+	setRecycleBinCount: vi.fn(),
 } ) );
 vi.mock( '../../src/recycle-bin/realtime', () => ( {
 	start: vi.fn(),

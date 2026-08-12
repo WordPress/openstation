@@ -56,7 +56,14 @@ describe( 'brand palette', () => {
 		[ '--os-ui-info-fg', '#c2f1f1' ], // Sirius
 		[ '--os-backstop', '#0c0b0f' ], // Void
 		[ '--os-window-bg', '#1a1721' ], // Obsidian
-		[ '--os-titlebar-bg-focused', '#33303a' ], // Astro
+		// Window chrome sits one step lower than it used to: a focused
+		// title bar and its tab strip are the SAME Obsidian, so the
+		// only thing lifting out of that surface is the active tab.
+		// Unfocused sinks to Void — the step is the same size, the
+		// whole ramp moved.
+		[ '--os-titlebar-bg-focused', '#1a1721' ], // Obsidian
+		[ '--os-titlebar-bg', '#0c0b0f' ], // Void
+		[ '--os-tabs-bg', '#1a1721' ], // Obsidian
 	] )( '%s is %s', ( token, value ) => {
 		expect( declared( token ) ).toBe( value );
 	} );

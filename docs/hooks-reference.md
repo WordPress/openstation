@@ -503,6 +503,36 @@ For live unregistration on deactivation, set `owner: 'my-plugin-titlebar'` on ea
 
 ---
 
+### `openstation_window_action_script_registered` — Experimental
+
+Fires after `openstation_register_window_action_script()` stores a window-action script handle.
+
+```php
+do_action( 'openstation_window_action_script_registered', string $handle );
+```
+
+### `openstation_register_window_action_script( $handle )` — Experimental (PHP function)
+
+Declares a WP-registered script handle as a provider of rows in every window's ⋯ actions menu. The shell injects the resolved URL on plugin activation so [`wp.os.registerWindowAction()`](./javascript-reference.md#wposregisterwindowaction--experimental) calls made by the plugin's JS land **without a page reload** — the row is in the next ⋯ menu that opens, and a menu that happens to be open already repaints in place.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-window-actions',
+        plugins_url( 'js/window-actions.js', __FILE__ ),
+        array( 'openstation' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-window-actions' );
+} );
+openstation_register_window_action_script( 'my-plugin-window-actions' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-window-actions'` on each `registerWindowAction` call. Untagged actions survive past deactivation until the next page reload — graceful backwards-compat.
+
+---
+
 ### `openstation_unfocus_effect_script_registered` — Experimental
 
 Fires after `openstation_register_unfocus_effect_script()` stores an unfocus-effect script handle.
@@ -1058,6 +1088,7 @@ array(
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal
     'fromPortalIntent' => bool,     // portal forward resolved from a user-supplied `target` URL — the user expressed navigation intent toward `currentPage`, not just a bare `/openstation/` visit.
+    'soloWindow'       => string,   // window id when the shell was asked to paint exactly one window; '' otherwise
 )
 ```
 
@@ -1334,9 +1365,9 @@ apply_filters( 'openstation_admin_bar_mode', string $mode );
 
 | Mode | Behavior |
 |---|---|
-| `static` | The bar is pinned above the shell and the shell starts below it. Default, and vanilla behavior. |
+| `static` | The bar is pinned above the shell and the shell starts below it. Vanilla behavior. |
 | `dynamic` | The bar parks off the top edge leaving a visible seam (`--os-admin-bar-peek`, `4px`), and slides back in on hover, keyboard focus, or tap. The pointer target is larger than the seam — an invisible reveal zone extends `--os-admin-bar-reveal-zone` (`16px`) below it, so the band to hit is `20px` from the top of the viewport. The shell takes the full viewport. |
-| `hidden` | The bar is not rendered. The shell takes the full viewport. |
+| `hidden` | The bar is not rendered. The shell takes the full viewport. The default: a desktop whose navigation is consolidated into one dock has no second place for navigation to live. |
 
 A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.os.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
 
@@ -1756,6 +1787,24 @@ Filter the ordered list of log-file paths the `get_php_error_log` AI tool probes
 ```php
 apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 ```
+
+### `openstation_ai_model_config` — Experimental
+
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, and the Drafts widget's writing assistant.
+
+```php
+apply_filters( 'openstation_ai_model_config', array $config, array $context );
+// $config  = { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }
+// $context = { user_id, request_id, source, has_tools, has_schema }
+```
+
+`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`.
+
+`custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
+
+**Defaults to empty.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific.
+
+Recipe: [`examples/ai-model-config.md`](./examples/ai-model-config.md).
 
 ---
 
@@ -2426,7 +2475,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 ### `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args` — Experimental (filter)
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the dashicon, or move the window from the taskbar to the dock.
+Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the icon, or move the window from the taskbar to the dock. The bin ships its own silhouette (`openstation_recycle_bin_icon_svg()`), so the icon args carry `icon_svg` rather than a dashicon class; replace that key, not `icon`, when substituting your own art.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 
@@ -2670,7 +2719,7 @@ Every JS hook below is also documented on `wp.hooks` so plugins can register wit
 |---|---|---|---|
 | `openstation.postsWindow.columns` | filter | built-in 5 columns | `OsTableColumn< PostListItem >[]` — append, replace, or remove cells. |
 | `openstation.postsWindow.statusSegments` | filter | All / Published / Drafts / Pending / Scheduled / Trash | `StatusSegment[]` — `{ value, label }` pairs. `value` is sent verbatim as `?status=…`; use `''` for "All" (the bundle remaps to `?status=any`). |
-| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. Filter out by id to remove. |
+| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. Filter out by id to remove. |
 | `openstation.postsWindow.toolbarTrailing` | filter | `[]` | `HTMLElement[]` rendered before Refresh + Add New. Receives the live `PostsWindowContext` as the second arg. |
 | `openstation.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
 | `openstation.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |
@@ -3976,51 +4025,17 @@ uses to detect a user switch (see
 
 ---
 
-## Sticky notes
-
-Sticky notes are backed by **Gutenberg's Guidelines experiment** — the
-`wp_guideline` CPT and `wp_guideline_type` taxonomy (exposed at
-`wp/v2/guidelines` and `wp/v2/wp_guideline_type`). That experiment is
-opt-in (Gutenberg plugin 22.7+, under Gutenberg → Experiments). When it
-isn't active those REST routes 404, so both the Heartbeat delta handler
-and the client-side layer gate on availability.
-
-### `openstation_sticky_notes_available` — Stable *(filter)*
-
-Filters whether the sticky-notes surface is treated as available. The
-default is `post_type_exists( 'wp_guideline' ) && taxonomy_exists(
-'wp_guideline_type' )`. The result is read by
-`openstation_sticky_notes_is_available()`, which gates both the
-`heartbeat_received` delta handler and the `stickyNotes.available` flag
-in the shell config (so the client skips booting the layer — and its
-404-prone REST probes — when `false`).
-
-```php
-apply_filters( 'openstation_sticky_notes_available', bool $available );
-```
-
-**Example — force sticky notes off site-wide even when Guidelines is enabled:**
-
-```php
-add_filter( 'openstation_sticky_notes_available', '__return_false' );
-```
-
-- **Param** `bool $available` — whether the guideline CPT + taxonomy are registered.
-- **Return** `bool` — coerced with `(bool)`.
-
----
-
 ## Pinned notes
 
-Pinned notes are the plugin-owned paper notes composed in the **Note
-Pad** widget and pinned to the wallpaper with a pushpin. They are
-backed by the `wpd_note` CPT (non-public, custom REST controller at
-`/desktop-mode/v1/notes`) — a separate feature from the
-Guidelines-backed sticky notes above. Visibility maps to post status:
-`private` (default, owner-only) or `publish` ("public" — read-only on
-every other OpenStation user's wallpaper). Only the owner can edit,
-move, recolor, or delete a note; administrators do not bypass
-ownership through this controller.
+Pinned notes are the paper notes composed in the **Note Pad** widget
+(or straight on the wallpaper, via its right-click **New note** entry)
+and pinned to the desktop with a pushpin. They are backed by the
+`wpd_note` CPT (non-public, custom REST controller at
+`/desktop-mode/v1/notes`). Visibility maps to post status: `private`
+(default, owner-only) or `publish` ("public" — read-only on every other
+OpenStation user's wallpaper). Only the owner can edit, move, recolor,
+or delete a note; administrators do not bypass ownership through this
+controller.
 
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
@@ -4419,8 +4434,8 @@ add_filter(
 );
 ```
 
-Core ships seven entries: `dockSize`, `desktopLayout`, `windowRadius`
-and `adminBarMode` as `enum` rules mirroring the matching
+Core ships eight entries: `dockSize`, `desktopLayout`, `dockPlacement`,
+`windowRadius` and `adminBarMode` as `enum` rules mirroring the matching
 `OPENSTATION_OS_SETTINGS_*` constants; `dockRailRenderer` and
 `windowReveal` as `slug` rules; and `windowRevealDuration` as an `int`
 rule bounded by `OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN` /
@@ -4515,12 +4530,22 @@ Features → Extended options, admin-only, default off). While the flag
 is off none of these hooks exist — `includes/agents/bootstrap.php`
 skips every module file.
 
-**One exception**: `includes/agents/guard.php` loads unconditionally,
-ahead of the flag. It owns `openstation_agent_is_agent()` and every
-login/session block. Disabling the feature does not delete agent user
-rows, and a row whose blocks unloaded with the feature would accept
-application passwords and password resets again — so the blocks are a
-property of the rows, not of the feature.
+**Two exceptions** load unconditionally, ahead of the flag:
+
+- `includes/agents/guard.php` owns `openstation_agent_is_agent()` and
+  every login/session block. Disabling the feature does not delete
+  agent user rows, and a row whose blocks unloaded with the feature
+  would accept application passwords and password resets again — so
+  the blocks are a property of the rows, not of the feature.
+- `includes/agents/my-wordpress.php` adds the Agents section to WP
+  Explorer, so the section is always listed for anyone who passes
+  `openstation_agents_user_can_read`. While the flag is off the
+  section config carries `enabled => false` and the bundle paints it
+  read-only without issuing a single request — the REST routes below
+  genuinely do not exist then. The three capability filters and
+  `openstation_agent_avatar_url()` live in `bootstrap.php` for the
+  same reason: the section descriptor needs them while `rest.php` and
+  `identity.php` are unloaded.
 
 An agent is a synthetic `wp_users` row (login-blocked) whose entire
 definition lives as user meta on that row: description, instructions
@@ -4786,11 +4811,16 @@ add_filter( 'openstation_agent_http_timeout', fn() => 300 );
 The three permission gates on the REST surface and the UI. Defaults:
 read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
+All three are available even when the agents feature is off
+(bootstrap.php) — `openstation_agents_user_can_read` decides whether
+the always-listed WP Explorer section appears at all.
+
 - **Param** `bool $can`
 
 ### PHP helpers — Experimental
 
 - `openstation_agent_is_agent( $user )` — marker-meta test. Available even when the agents feature is off (guard.php).
+- `openstation_agent_avatar_url()` — the bot avatar file URL. Available even when the agents feature is off (bootstrap.php).
 - `openstation_agent_create( $args )` / `openstation_agent_update( $user_id, $fields )` / `openstation_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `openstation_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
@@ -4802,7 +4832,49 @@ read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
 ---
 
+## Solo window rendering mode — Experimental
+
+`?openstation_solo=<window-id>` boots the whole shell and paints exactly
+one window: no dock, taskbar, wallpaper or desk, and no session restore.
+Built for the native desktop host, which uses it to give a *native*
+window — one with no URL of its own — to a real OS window. Nothing about
+it is Electron-specific: an embed, a kiosk screen or a PWA shortcut can
+point at the same flag.
+
+It is a **rendering mode, not an access grant**. The flag is ignored for
+a user who has not turned OpenStation on, and every capability check on
+the underlying screen applies exactly as it would anywhere else.
+
+Full narrative: [Native Desktop Host](./desktop-host.md).
+
+### `openstation_solo_window_id` — Experimental *(filter)*
+
+The window id booted in solo mode. Return `''` to refuse solo mode for
+this request — the hook for gating single-window rendering by role or by
+window.
+
+```php
+apply_filters( 'openstation_solo_window_id', string $id, string $raw );
+```
+
+### PHP helpers — Experimental
+
+- `openstation_solo_window_id()` — `''` unless this is a solo request.
+- `openstation_is_solo_request()`.
+
+Shell config gains one key, `soloWindow`.
+
+### Electron Adapter hooks
+
+The desktop-host contract — handshake, liveness heartbeat, and the
+`openstation_electron_*` filters and actions — lives in the **Electron
+Adapter extension**, not in core. See
+[Native Desktop Host → Adapter hooks](./desktop-host.md#adapter-hooks).
+
+---
+
 ## See also
 
+- [Native Desktop Host](./desktop-host.md) — solo mode, the Electron Adapter extension, and `wp.os.electron`.
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.
 - [Examples](./examples/README.md) — full-plugin recipes.

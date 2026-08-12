@@ -17,7 +17,7 @@ import type { WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
-import { __ } from './../i18n';
+import { __, sprintf } from './../i18n';
 import {
 	addParentSubscriber,
 	clearWindowChannels,
@@ -48,6 +48,7 @@ import {
 	handleFinishedScreenHandoff,
 	handleWindowMessage,
 } from './iframe-bridge';
+import { noteFrameLoaded } from '../plugin-presence';
 import {
 	buttonsForWindow,
 	subscribeTitleBarButtons,
@@ -85,13 +86,17 @@ import {
  */
 const INITIAL_ORIGIN = window.location.origin;
 import {
+	activatePanelTab,
 	addExternalTab,
 	externalTabCount,
 	externalTabsSnapshot,
 	handleTabStripClick,
+	handleTabStripKeydown,
 	observeTabOverflow,
+	setPanelTabs,
 	syncActiveTab,
 } from './tabs';
+import type { PanelTabEntry } from './tabs';
 import {
 	closeActionsMenu,
 	flipStartupCheckOptimistically,
@@ -141,18 +146,19 @@ export class Window {
 
 	/**
 	 * In-flight async operation count. `markActivityStart()` /
-	 * `markActivitySettled()` increment / decrement; the title-bar
-	 * indicator paints `pending` while > 0. Counter (not boolean) so
-	 * concurrent fetches don't fight: two-in-flight + one-settled
-	 * still reads "saving".
+	 * `markActivitySettled()` increment / decrement; the phase reads
+	 * `pending` while > 0. Counter (not boolean) so concurrent fetches
+	 * don't fight: two-in-flight + one-settled still reads "saving".
 	 *
 	 * @internal
 	 */
 	public _activityCount = 0;
 
 	/**
-	 * Phase of the title-bar activity indicator. Driven by
-	 * `markActivity()` / `trackActivity()` / `wp.os.fetch()`.
+	 * This window's activity phase. Driven by `markActivity()` /
+	 * `trackActivity()` / `wp.os.fetch()`. Nothing renders it unless
+	 * an indicator has been mounted — see
+	 * {@link _paintActivityIndicator}.
 	 *
 	 * @internal
 	 */
@@ -484,6 +490,13 @@ export class Window {
 	 * @internal
 	 */
 	public _boundOnDocumentPointerDown: ( ( e: PointerEvent ) => void ) | null = null;
+
+	/**
+	 * Live subscription that repaints the ⋯ menu while it is open, so
+	 * an action registered a moment after opening still appears. Held
+	 * only for the lifetime of one open menu. @internal
+	 */
+	public _unsubscribeWindowActions: ( () => void ) | null = null;
 
 	/**
 	 * ResizeObserver watching the body element. Fires the inline
@@ -1100,23 +1113,40 @@ export class Window {
 			this.toggleMaximize();
 		} );
 
-		// Iframe-only wiring: tab strip, load listener, and
-		// postMessage bridge all presuppose an iframe. Native windows
-		// have none of those affordances, so skip this whole block.
+		/*
+		 * Tab-strip wiring, for BOTH window kinds. It used to sit
+		 * inside the iframe-only block below, which is why native
+		 * windows could not have a strip at all. Nothing in here
+		 * presupposes an iframe: the click handler dispatches on the
+		 * tab's own `data-kind`, and the keyboard and overflow
+		 * observers are pure geometry.
+		 */
+		const tabs = this.element.querySelector< HTMLElement >(
+			'.os-window__tabs',
+		);
+		if ( tabs ) {
+			tabs.addEventListener( 'click', ( e: Event ) =>
+				handleTabStripClick( this, e ),
+			);
+			/*
+			 * One delegated listener rather than one per tab: tabs come
+			 * and go (external tabs open and close, `setTabs()`
+			 * re-declares a native window's), and a per-tab listener
+			 * would have to be re-attached on every one of those.
+			 */
+			tabs.addEventListener( 'keydown', ( e: Event ) =>
+				handleTabStripKeydown( tabs, e ),
+			);
+			// Paint the edge fades only where scrolling would
+			// actually reveal another tab.
+			this._tabOverflowTeardown = observeTabOverflow( tabs );
+		}
+
+		// Iframe-only wiring: the load listener and the postMessage
+		// bridge both presuppose an iframe. Native windows have
+		// neither, so skip this whole block.
 		if ( this.iframe ) {
 			const iframe = this.iframe;
-
-			const tabs = this.element.querySelector< HTMLElement >(
-				'.os-window__tabs',
-			);
-			if ( tabs ) {
-				tabs.addEventListener( 'click', ( e: Event ) =>
-					handleTabStripClick( this, e ),
-				);
-				// Paint the edge fades only where scrolling would
-				// actually reveal another tab.
-				this._tabOverflowTeardown = observeTabOverflow( tabs );
-			}
 
 			// Sync the active tab whenever the iframe finishes a
 			// navigation.
@@ -1130,6 +1160,42 @@ export class Window {
 	/** Add a closeable+detachable sub-tab hosting an external URL. */
 	public addExternalTab( url: string, label: string ): void {
 		addExternalTab( this, url, label );
+	}
+
+	/**
+	 * Declare this native window's tabs in the window chrome.
+	 *
+	 * Each entry's `value` matches the `for` attribute of an
+	 * `<os-tabpanel>` in the window body; the shell shows one pane and
+	 * hides the rest. Panes are toggled, never re-rendered, so a pane
+	 * that owns a canvas or a live preview keeps it across tab
+	 * changes.
+	 *
+	 * ```js
+	 * win.setTabs( [
+	 *   { value: 'calc',    label: 'Calc' },
+	 *   { value: 'convert', label: 'Convert' },
+	 * ] );
+	 * ```
+	 *
+	 * Safe to call again whenever the list changes: it reconciles by
+	 * `value` rather than rebuilding, so the user stays on the tab
+	 * they were on and the keyboard keeps its place. Pass
+	 * `activeValue` only to override that deliberately.
+	 *
+	 * Listen for `os-window-tab-change` on the window element (it
+	 * bubbles) to react to the user's choice.
+	 */
+	public setTabs(
+		entries: readonly PanelTabEntry[],
+		activeValue?: string,
+	): void {
+		setPanelTabs( this.element, entries, activeValue );
+	}
+
+	/** Show one of this window's panel tabs programmatically. */
+	public activateTab( value: string ): void {
+		activatePanelTab( this.element, value );
 	}
 
 	/** Set the z-index of this window. */
@@ -2314,6 +2380,7 @@ export class Window {
 				// has ready content: mark it so. A no-op in the common
 				// case where the overlay already cleared.
 				markWindowContentReady( this.id );
+				noteFrameLoaded( buffer );
 
 				// Keep the overlay contract alive for FUTURE classic
 				// reloads: the original frame got this wiring in
@@ -2322,6 +2389,7 @@ export class Window {
 				// clears.
 				buffer.addEventListener( 'load', () => {
 					markWindowContentReady( this.id );
+					noteFrameLoaded( buffer );
 				} );
 
 				// Same for the focus forwarder — the click-to-focus
@@ -2570,10 +2638,11 @@ export class Window {
 	 *
 	 * The shell:
 	 *   - Adds the `os-window__body--loading` modifier to
-	 *     the body (CSS fades the content out, fades the overlay
-	 *     in).
+	 *     the body (CSS fades the content out).
 	 *   - Re-attaches the overlay element if it was already torn
-	 *     down by a prior `markContentLoaded` call.
+	 *     down by a prior `markContentLoaded` call. The spinner
+	 *     only fades in past the show delay, so a quick refetch
+	 *     never paints one.
 	 *   - Fires the {@link HOOKS.WINDOW_CONTENT_LOADING} action +
 	 *     dispatches `os-window-content-loading` on
 	 *     `document` (idempotent — no re-fire when already
@@ -2586,9 +2655,11 @@ export class Window {
 	}
 
 	/**
-	 * Tell the shell this window's body content is ready — fades
-	 * the spinner overlay out, fades the content in, removes the
-	 * overlay element after the transition lands.
+	 * Tell the shell this window's body content is ready — fades the
+	 * spinner out, then fades the content in, and removes the overlay
+	 * once the transition lands. The two run back to back, never
+	 * together. A spinner that never painted is dropped in the same
+	 * tick, so the content appears with no wait.
 	 *
 	 * Iframe windows mark themselves ready automatically on the
 	 * `os-ready` postMessage from the chromeless bridge.
@@ -2678,6 +2749,35 @@ export class Window {
 	): void {
 		this._activityPhase = phase;
 		this._activityError = opts.error ?? null;
+		this._paintActivityIndicator();
+	}
+
+	/**
+	 * Drop everything in flight and return the indicator to `idle`.
+	 *
+	 * For the one case the reference count cannot survive: the
+	 * document that started the requests is gone. An iframe that
+	 * navigates mid-request takes its pending `end` messages with it,
+	 * and a counter that can only go down when someone reports back
+	 * would leave the ring lit for the rest of the window's life.
+	 *
+	 * Deliberately NOT called on a failure — a failed phase is meant
+	 * to persist until the next request starts.
+	 *
+	 * @internal
+	 */
+	public _resetActivity(): void {
+		if ( this._activitySettleTimer !== null ) {
+			window.clearTimeout( this._activitySettleTimer );
+			this._activitySettleTimer = null;
+		}
+		if ( this._activityClearTimer !== null ) {
+			window.clearTimeout( this._activityClearTimer );
+			this._activityClearTimer = null;
+		}
+		this._activityCount = 0;
+		this._activityPhase = 'idle';
+		this._activityError = null;
 		this._paintActivityIndicator();
 	}
 
@@ -2832,7 +2932,24 @@ export class Window {
 	}
 
 	/**
-	 * Push the current activity state onto the title-bar dot.
+	 * Push the current activity state onto the title bar.
+	 *
+	 * Three consumers, in order of how most windows use them:
+	 *
+	 *   1. Every `[data-os-activity-indicator]` element in the title
+	 *      bar. The framework's own status ring is one of these — it
+	 *      claims no private channel, so a plugin mounting an
+	 *      `<os-save-status>` in a title-bar slot is driven by exactly
+	 *      the same code path.
+	 *   2. A visually-hidden `role="status"` region — a ring announces
+	 *      nothing, and "did my change save?" is exactly the question a
+	 *      screen-reader user cannot answer by looking. Failures go out
+	 *      assertively and carry the error text; everything else is
+	 *      polite.
+	 *   3. `data-os-activity` on the title-bar element, mirroring the
+	 *      phase for CSS. Absent while idle, so a desktop theme can
+	 *      react to window state without reaching into the component's
+	 *      shadow root, and an idle window matches nothing.
 	 *
 	 * @internal
 	 */
@@ -2840,17 +2957,66 @@ export class Window {
 		if ( this._isDestroyed ) {
 			return;
 		}
-		const indicator = this._titleBar.querySelector< HTMLElement >(
+		const phase = this._activityPhase;
+
+		if ( 'idle' === phase ) {
+			this._titleBar.removeAttribute( 'data-os-activity' );
+		} else {
+			this._titleBar.setAttribute( 'data-os-activity', phase );
+		}
+
+		const live = this._titleBar.querySelector< HTMLElement >(
+			'.os-window__activity-status',
+		);
+		if ( live ) {
+			const failed = 'failed' === phase;
+			live.setAttribute( 'role', failed ? 'alert' : 'status' );
+			live.setAttribute( 'aria-live', failed ? 'assertive' : 'polite' );
+			live.textContent = this._activityStatusText();
+		}
+
+		// All of them, not the first — the framework's ring and a
+		// plugin's own indicator have to agree, and a window that
+		// showed two different phases at once would be worse than one
+		// that showed none.
+		const indicators = this._titleBar.querySelectorAll< HTMLElement >(
 			'[data-os-activity-indicator]',
 		);
-		if ( ! indicator ) {
-			return;
-		}
-		indicator.setAttribute( 'phase', this._activityPhase );
-		if ( this._activityError ) {
-			indicator.setAttribute( 'error', this._activityError );
-		} else {
-			indicator.removeAttribute( 'error' );
+		indicators.forEach( ( indicator ) => {
+			indicator.setAttribute( 'phase', phase );
+			if ( this._activityError ) {
+				indicator.setAttribute( 'error', this._activityError );
+			} else {
+				indicator.removeAttribute( 'error' );
+			}
+		} );
+	}
+
+	/**
+	 * Announcement text for the current phase. Empty while idle —
+	 * a live region that keeps saying "nothing is happening" is worse
+	 * than one that stays quiet.
+	 *
+	 * `saving` is deliberately NOT announced on its own: the phase is
+	 * held for at least {@link MIN_SAVING_DISPLAY_MS} and every save
+	 * would interrupt whatever the user was reading to tell them
+	 * something they already know they started. The outcome is the
+	 * part they can't see.
+	 *
+	 * @internal
+	 */
+	private _activityStatusText(): string {
+		switch ( this._activityPhase ) {
+			case 'saved':
+				return __( 'Saved' );
+			case 'failed':
+				if ( ! this._activityError ) {
+					return __( 'Not saved.' );
+				}
+				/* translators: %s: error message explaining why the change could not be saved. */
+				return sprintf( __( 'Not saved. %s' ), this._activityError );
+			default:
+				return '';
 		}
 	}
 
@@ -3378,6 +3544,14 @@ export class Window {
 				true,
 			);
 		}
+		// The ⋯ menu's repaint subscription is normally dropped by
+		// `closeActionsMenu()`, and a click-driven close always gets
+		// there first because the pointerdown capture above closes the
+		// menu. A programmatic `close()` with the menu open does not —
+		// leaving a live registry listener holding this window and the
+		// detached panel it would try to repaint.
+		this._unsubscribeWindowActions?.();
+		this._unsubscribeWindowActions = null;
 		this.element.remove();
 		// If this was the last fullscreen window, drop the body
 		// class so the admin bar and shell top-offset come back

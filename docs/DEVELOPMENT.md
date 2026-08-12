@@ -122,8 +122,10 @@ src/
 ├── ui/
 │   ├── core/                # The tagged-template renderer + base
 │   │                        #   Component class + css` helper.
-│   └── components/          # <os-*> web components (one folder per
-│                            #   tag, each with .ts / .styles.ts / .test.ts).
+│   ├── components/          # <os-*> web components (one folder per
+│   │                        #   tag, each with .ts / .styles.ts / .test.ts).
+│   └── modal-focus.ts       # Focus scope shared by the light-DOM
+│                            #   modals (the first-run intro dialogs).
 ├── modules/                 # Vendor-script registry (PixiJS today,
 │                            #   more later). Used by canvas wallpapers.
 ├── plugins/                 # Built-in plugins that use the public API —
@@ -138,7 +140,7 @@ src/
 
 The tree above is curated, not exhaustive — `src/` holds many more
 single-purpose modules and feature directories (drag bridge, devtools,
-sticky notes, …). Run `ls src/` for the full picture; the shipped
+pinned notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
 `package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
 

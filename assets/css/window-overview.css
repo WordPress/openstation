@@ -165,7 +165,7 @@
  * hidden during overview so they don't compete with window
  * thumbnails or overlap them (especially noticeable with few
  * windows or Spatial layout). Matches the fade-out pattern
- * used by widgets and sticky notes. Scoped to DIRECT children
+ * used by widgets and pinned notes. Scoped to DIRECT children
  * of the desktop area only: folder windows mount their own
  * files layer inside the window body, and that must stay
  * visible in its thumbnail.

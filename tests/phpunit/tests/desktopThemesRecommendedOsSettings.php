@@ -77,6 +77,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			$schema['desktopLayout']['enum']
 		);
 		$this->assertSame(
+			OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS,
+			$schema['dockPlacement']['enum']
+		);
+		$this->assertSame(
 			OPENSTATION_OS_SETTINGS_WINDOW_RADII,
 			$schema['windowRadius']['enum']
 		);

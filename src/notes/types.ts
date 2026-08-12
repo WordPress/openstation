@@ -8,6 +8,9 @@
  * that boundary — the widget imports nothing but types from here.
  */
 
+/** Mirrors `OPENSTATION_NOTES_POST_TYPE` in `includes/notes/cpt.php`. */
+export const NOTES_POST_TYPE = 'wpd_note';
+
 /** Wire shape of one note. */
 export interface Note {
 	id: number;

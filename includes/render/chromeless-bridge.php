@@ -302,25 +302,43 @@ function openstation_chromeless_bridge_script() {
 	$js = <<<'JS'
 //# sourceURL=os-chromeless-bridge.js
 ( function() {
-	// Escape hatch: a chromeless page is only meant to live inside a
-	// openstation window iframe. If the top window IS this page, the
-	// user ended up here directly — either bookmarked it, followed a
-	// stale link, or got stranded by a bad portal redirect. Without
-	// an admin bar there's no toggle to turn OpenStation off, so
-	// strip the chromeless flag and reload as classic admin. That
-	// puts the admin bar back and lets the user decide what to do.
+	// Escape hatch: a chromeless page is *normally* only meant to live
+	// inside a openstation window iframe. If the top window IS this
+	// page, the user usually ended up here by accident — bookmarked
+	// it, followed a stale link, or got stranded by a bad portal
+	// redirect. Without an admin bar there's no toggle to turn
+	// OpenStation off, so strip the chromeless flag and reload as
+	// classic admin. That puts the admin bar back and lets the user
+	// decide what to do.
+	//
+	// Unless something is deliberately HOSTING this page top-level.
+	// `window.openStationChromelessHost` is how an embedder says "this
+	// is not an accident, and I provide the way out" — the native
+	// desktop host sets it on windows a user set free, where closing
+	// the OS window is the way back. Rescuing those would strip the
+	// flag, reload as classic, bounce through the portal, and leave a
+	// whole second desktop inside a window that was meant to hold one
+	// screen.
+	//
+	// It has to be a JS global rather than a query flag: a query flag
+	// is lost on the first in-page navigation, and the host would stop
+	// recognising its own window the moment the user clicked a link.
 	if ( ! window.parent || window.parent === window ) {
-		try {
-			var here = new URL( window.location.href );
-			if ( here.searchParams.has( 'openstation_chromeless' ) ) {
-				here.searchParams.delete( 'openstation_chromeless' );
-				here.searchParams.delete( 'desktop_mode_portal' );
-				window.location.replace( here.toString() );
+		if ( ! window.openStationChromelessHost ) {
+			try {
+				var here = new URL( window.location.href );
+				if ( here.searchParams.has( 'openstation_chromeless' ) ) {
+					here.searchParams.delete( 'openstation_chromeless' );
+					here.searchParams.delete( 'desktop_mode_portal' );
+					window.location.replace( here.toString() );
+				}
+			} catch ( err ) {
+				/* URL parse failure — let the broken state stand rather than
+				 * navigate somewhere worse. */
 			}
-		} catch ( err ) {
-			/* URL parse failure — let the broken state stand rather than
-			 * navigate somewhere worse. */
 		}
+		// Either way the rest of the bridge is skipped: every feature
+		// below posts to `window.parent`, and there isn't one.
 		return;
 	}
 
@@ -579,6 +597,94 @@ function openstation_chromeless_bridge_script() {
 			} catch ( _err ) { /* swallow */ }
 		};
 
+		// Activity reporting — the window's status ring.
+		//
+		// `os-iframe-network` above fires on COMPLETION only, which is
+		// enough for the devtools panel and useless for an indicator:
+		// a ring that can only be told "it finished" never shows the
+		// part the user is waiting through. These two messages bracket
+		// the request instead, and the parent reference-counts them
+		// the same way `wp.os.fetch` does for native windows.
+		//
+		// Reads do NOT count. The ring answers one question — "did my
+		// change go through?" — and a GET has no "through": nothing was
+		// changed, so nothing can have failed to change. In an admin
+		// page most GETs are the page's own housekeeping (list-table
+		// refreshes, dashboard widgets, autosave checks, media queries)
+		// that the user never asked about and shouldn't be made to
+		// watch. Mutations are the requests with a question attached.
+		//
+		// HEAD and OPTIONS go with GET: a probe and a preflight are
+		// even further from a change than a read is.
+		//
+		// QUERY too, and it is the one that needs saying out loud: it
+		// carries a BODY, so every "does it have a payload?" heuristic
+		// mistakes it for a write. It is a safe, idempotent read — a
+		// GET whose parameters wouldn't fit in a URL — so it belongs
+		// here with the rest of them. Listed ahead of the spec landing
+		// on purpose: a method the shell has never heard of arriving in
+		// a Core release should not start lighting rings.
+		var osIsReadRequest = function ( method ) {
+			var m = String( method || 'GET' ).toUpperCase();
+			return 'GET' === m || 'HEAD' === m || 'OPTIONS' === m || 'QUERY' === m;
+		};
+
+		var osIsBackgroundRequest = function ( url, body ) {
+			// WordPress Heartbeat is a poll the user did not initiate,
+			// on a timer, forever. Reporting it would light the ring
+			// on every open window every 15 seconds and flash a
+			// "Saved" check for a save nobody made — the framework's
+			// own background pings pass `silent: true` for exactly
+			// this reason. The action rides in the POST body, not the
+			// URL, so both are checked.
+			try {
+				if ( String( url || '' ).indexOf( 'action=heartbeat' ) !== -1 ) {
+					return true;
+				}
+				if ( typeof body === 'string' && body.indexOf( 'action=heartbeat' ) !== -1 ) {
+					return true;
+				}
+				if ( body && typeof body.get === 'function' && body.get( 'action' ) === 'heartbeat' ) {
+					return true;
+				}
+			} catch ( _bgErr ) { /* unreadable body — treat as foreground */ }
+			return false;
+		};
+
+		var osActivityBegin = function ( method, url, body ) {
+			if ( osIsReadRequest( method ) || osIsBackgroundRequest( url, body ) ) {
+				return false;
+			}
+			try {
+				window.parent.postMessage(
+					{ type: 'os-iframe-activity', phase: 'start' },
+					window.location.origin
+				);
+			} catch ( _sErr ) { /* swallow — instrumentation is best-effort */ }
+			return true;
+		};
+
+		// `tracked` is the value `osActivityBegin` returned, so a
+		// request that was never counted can never decrement — an
+		// unbalanced end would settle the ring while other requests
+		// are still in flight.
+		var osActivityEnd = function ( tracked, failed, status ) {
+			if ( ! tracked ) {
+				return;
+			}
+			try {
+				window.parent.postMessage(
+					{
+						type: 'os-iframe-activity',
+						phase: 'end',
+						failed: !! failed,
+						status: typeof status === 'number' ? status : 0
+					},
+					window.location.origin
+				);
+			} catch ( _eErr ) { /* swallow */ }
+		};
+
 		// Helper — when an admin-side request returns 401/403 the
 		// session is most likely toast. Don't wait up to 60s for the
 		// next heartbeat tick to surface core's auth-check modal —
@@ -754,11 +860,14 @@ function openstation_chromeless_bridge_script() {
 					}
 				}
 
+				var tracked = osActivityBegin( method, url, ( init && init.body ) || ( input && input.body ) );
+
 				var promise;
 				try {
 					promise = osOrigFetch.apply( this, arguments );
 				} catch ( sync ) {
 					osReportNetwork( method, url, 0, 0, true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+					osActivityEnd( tracked, true, 0 );
 					throw sync;
 				}
 				return promise.then(
@@ -778,6 +887,9 @@ function openstation_chromeless_bridge_script() {
 							} catch ( _hErr ) { /* swallow */ }
 						}
 						osReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
+						// `fetch` resolves for 4xx / 5xx, so the ring
+						// settles on `res.ok` and not on the promise.
+						osActivityEnd( tracked, ! res.ok, res.status );
 						osMaybeForceAuthCheck( res.status, url );
 						return res;
 					},
@@ -786,6 +898,7 @@ function openstation_chromeless_bridge_script() {
 							? performance.now()
 							: Date.now() ) - start;
 						osReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+						osActivityEnd( tracked, true, 0 );
 						throw err;
 					}
 				);
@@ -822,11 +935,14 @@ function openstation_chromeless_bridge_script() {
 				} catch ( _err ) { /* swallow */ }
 				return osOrigSetHeader.apply( this, arguments );
 			};
-			XMLHttpRequest.prototype.send = function () {
+			XMLHttpRequest.prototype.send = function ( body ) {
 				var xhr = this;
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
 					: Date.now();
+				// The body is where an admin-ajax action name lives,
+				// and the action name is how Heartbeat is recognised.
+				var tracked = osActivityBegin( xhr.__wpdMethod, xhr.__wpdUrl, body );
 
 				// Apply contributed headers right before send. Doing it
 				// here rather than in open() means contributions added
@@ -870,14 +986,16 @@ function openstation_chromeless_bridge_script() {
 							extra.responseHeaders = resHeaders;
 						} catch ( _rErr ) { /* swallow */ }
 					}
+					var failed = xhr.status === 0 || xhr.status >= 400;
 					osReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
 						xhr.status,
 						Math.round( dur ),
-						xhr.status === 0 || xhr.status >= 400,
+						failed,
 						extra
 					);
+					osActivityEnd( tracked, failed, xhr.status );
 					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
 				};
 				try {
@@ -1410,6 +1528,46 @@ function openstation_chromeless_bridge_script() {
 			if ( link.classList.contains( 'submitdelete' ) ) {
 				stampSourceRefererOnLink( link );
 			}
+			return;
+		}
+		/*
+		 * Same story as `aria-button-if-js` above, minus the marker
+		 * class: `plugin-install.php`'s "Upload Plugin" href is a
+		 * no-JS fallback, and plugin-install.js binds a bubble-phase
+		 * handler that opens the drop zone in place above the plugin
+		 * cards. Our capture handler used to win and navigate to
+		 * `?tab=upload`, which shows the uploader with no cards.
+		 *
+		 * On that page core skips the binding on purpose ("let the
+		 * link behave like a link"), flagged by
+		 * `plugin-install-tab-upload` on the wrap. There the href is
+		 * the real navigation, so we route it as usual.
+		 *
+		 * `theme-install.php`'s Upload Theme is a `<button>`, so it
+		 * never reaches this handler.
+		 */
+		if ( link.classList.contains( 'upload-view-toggle' ) ) {
+			var uploadWrap = link.closest( '.wrap' );
+			if (
+				! uploadWrap ||
+				! uploadWrap.classList.contains( 'plugin-install-tab-upload' )
+			) {
+				return;
+			}
+		}
+		/*
+		 * Same shape as the toggles above: dashboard.js binds the
+		 * dismiss on the anchor and preventDefaults, so our capture
+		 * handler gets there first and routes `?welcome=0` (a dead
+		 * no-JS fallback) into a second Dashboard window titled
+		 * "Dismiss". Scoped like core's own selector, so a
+		 * `welcome-panel-close` elsewhere still routes.
+		 */
+		if (
+			link.closest( '#welcome-panel' ) &&
+			( link.classList.contains( 'welcome-panel-close' ) ||
+				link.closest( '.welcome-panel-dismiss' ) )
+		) {
 			return;
 		}
 		/*

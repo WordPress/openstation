@@ -12,14 +12,29 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_Comment_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'comment';
 	}
 
+	/**
+	 * Whether the comment still exists.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return $this->comment() instanceof WP_Comment;
 	}
 
+	/**
+	 * Get a label combining author name and a content excerpt.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$c = $this->comment();
 		if ( ! $c ) {
@@ -30,10 +45,22 @@ class OpenStation_Comment_File extends OpenStation_File {
 		return sprintf( '%s — %s', $author, $excerpt );
 	}
 
+	/**
+	 * Get the Dashicon class for comment tiles.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		return 'dashicons-admin-comments';
 	}
 
+	/**
+	 * Approved comments are public; unapproved comments require
+	 * the `moderate_comments` capability.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		$c = $this->comment();
 		if ( ! $c ) {
@@ -47,6 +74,12 @@ class OpenStation_Comment_File extends OpenStation_File {
 		return user_can( $user_id, 'moderate_comments' );
 	}
 
+	/**
+	 * Augment the base serialized shape with post id and approval
+	 * status.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape             = parent::serialize();
 		$c                 = $this->comment();
@@ -55,6 +88,11 @@ class OpenStation_Comment_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the underlying WP_Comment from the stored ref.
+	 *
+	 * @return WP_Comment|null Null when the comment is gone or the ref is invalid.
+	 */
 	private function comment(): ?WP_Comment {
 		$id = (int) $this->ref;
 		if ( $id <= 0 ) {

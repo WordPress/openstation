@@ -192,7 +192,19 @@ body.os-active {
 	/* Window chrome — Obsidian body inside a Starlight hairline. */
 	--os-window-bg: #1a1721;
 	--os-window-border: rgba(255, 251, 255, 0.12);
-	--os-window-radius: 8px;
+	/*
+	 * Window corner. Softer than the 8px the shell carried before, so
+	 * a window reads as an object on the desk rather than a panel
+	 * pinned to it.
+	 *
+	 * The tab strip's own radius is deliberately NOT tied to this one.
+	 * A tab is 30px tall, so a corner anywhere near this size eats the
+	 * whole straight edge and turns the tab into a capsule — it stops
+	 * reading as a folder tab attached to the page, which is the one
+	 * thing the tab has to say. `--os-tabs-radius` stays smaller and
+	 * independent on purpose.
+	 */
+	--os-window-radius: 16px;
 	/*
 	 * Shadows stay black and go deeper than they were: on a Void desk
 	 * a soft grey shadow is invisible, and depth is the only thing
@@ -235,20 +247,52 @@ body.os-active {
 	/*
 	 * ---- Title bar ---------------------------------------------
 	 *
-	 * Astro when focused, Obsidian when not: the focused window's
-	 * chrome lifts one step up the Shade ramp while its unfocused
-	 * neighbours sit flush with their own bodies. That is the entire
-	 * focus signal, and it costs no colour — which matters, because
-	 * the accent is spoken for.
+	 * Obsidian when focused, Void when not: the focused window's
+	 * chrome sits one step up the Shade ramp while its unfocused
+	 * neighbours sink toward the desk they are lying on. That is the
+	 * entire focus signal, and it costs no colour — which matters,
+	 * because the accent is spoken for.
+	 *
+	 * The pair used to be Astro-over-Obsidian, a step higher. It came
+	 * down so a focused window's title bar and its tab strip are the
+	 * SAME Obsidian, and the only thing lifting out of that surface is
+	 * the tab itself. The step is the same size; the whole ramp moved.
 	 */
-	--os-titlebar-bg: #1a1721;
-	--os-titlebar-bg-focused: #33303a;
+	--os-titlebar-bg: #0c0b0f;
+	--os-titlebar-bg-focused: #1a1721;
 	--os-titlebar-color: #99969c;
 	--os-titlebar-color-focused: #fffbff;
 	--os-titlebar-height: 40px;
 	/* Hairline between page chrome and window chrome. */
 	--os-titlebar-divider: rgba(255, 251, 255, 0.12);
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
+
+	/*
+	 * The status ring — leading mark of the title bar, where the app
+	 * icon used to be. Four states: the resting ring is Starlight,
+	 * work and success are both Pulse, failure is the danger colour.
+	 *
+	 * Pulse twice over is not an oversight. In flight and landed
+	 * differ in FILL — an open ring breathing, then a solid disc with
+	 * a check — and failure differs from both in fill AND glyph AND
+	 * hue. Shape carries the distinction that colour alone cannot for
+	 * a user who can't separate the two hues, and the accent stays the
+	 * shell's own voice for "this is your station working".
+	 *
+	 * Failure resolves through `--os-ui-danger` and is the one value
+	 * here that must not be quietened: a failure that whispers is a
+	 * failure the user misses.
+	 *
+	 * The resting ring is one value in both title-bar states, not two:
+	 * the ring reports a phase, and dimming it on an unfocused window
+	 * would make `idle` say something different depending on which
+	 * window you last clicked.
+	 */
+	--os-titlebar-activity-idle-color: #fffbff;
+	--os-titlebar-activity-color: var(--os-ui-accent, #2271b1);
+	--os-titlebar-activity-saved-color: var(--os-ui-accent, #2271b1);
+	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);
+	--os-titlebar-activity-size: 16px;
 
 	/*
 	 * Title-bar control glyphs — minimise / maximise / close, the ⋯
@@ -671,6 +715,14 @@ body.os-active {
 	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
 	/* Decelerating. The default for anything arriving. */
 	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
+	/*
+	 * Accelerating — the mirror of `out`, and the default for anything
+	 * LEAVING. A surface that eases out on the way in and eases in on
+	 * the way out is the difference between "dismissed" and "undone":
+	 * decelerating into nothing reads as the thing hesitating, which
+	 * is the wrong note when the user has already moved on.
+	 */
+	--os-ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
 	/* Symmetric, for a loop that has to come back where it started. */
 	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
@@ -985,19 +1037,24 @@ body.os-active {
 	 *                   icon-badge token, so "badges are 22px" reaches
 	 *                   the bin too.
 	 *
-	 * The count badges keep their red, and keep it as a LITERAL: a
-	 * badge is a status, not an identity moment, and Pulse next to a
-	 * Pulse-accented dock tile would read as decoration rather than as
-	 * "three things need you". Naming the gradient here also keeps it
-	 * a gradient — both stops used to resolve through `--os-ui-danger`,
-	 * which the palette moved, flattening the badge to one flat red
-	 * and turning its white numerals Void. The bin's neutral badge has
-	 * no such constraint and follows the station.
+	 * The count badges wear Pulse, and wear it as a LITERAL gradient:
+	 * both stops used to resolve through `--os-ui-danger`, which the
+	 * palette moved, flattening the badge to one flat fill and turning
+	 * its numerals Void by accident. Naming the stops here keeps it a
+	 * gradient on purpose. The bin's neutral badge is deliberately not
+	 * part of this: a count of things in the trash is ambient state,
+	 * not something asking for you.
+	 *
+	 * **The numerals are Void, not Starlight, and that is a
+	 * requirement rather than a preference.** Starlight on Pulse is
+	 * 2.9:1, which fails AA for text this small; Void on Pulse is
+	 * 6.8:1. Any future retint of these has to keep the pair legible,
+	 * so check the ratio before swapping the ink back to white.
 	 */
-	--os-dock-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
-	--os-dock-badge-fg: #fffbff;
-	--os-icon-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
-	--os-icon-badge-fg: #fffbff;
+	--os-dock-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
+	--os-dock-badge-fg: #0c0b0f;
+	--os-icon-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
+	--os-icon-badge-fg: #0c0b0f;
 	--os-recycle-badge-bg: rgba(26, 23, 33, 0.85);
 	--os-recycle-badge-fg: rgba(255, 251, 255, 0.96);
 	--os-dock-recycle-badge-bg: rgba(26, 23, 33, 0.85);
@@ -1060,11 +1117,68 @@ body.os-active {
 	 * back to the shared value above it.
 	 */
 	--os-dock-border: rgba(255, 251, 255, 0.1);
+
+	/*
+	 * The dividers INSIDE the rail, which are a different job from the
+	 * outline around it: they separate tiles that belong to different
+	 * groups — core menus, plugin apps, and OpenStation's own controls.
+	 *
+	 * One treatment for all of them. An earlier pass gave the
+	 * WordPress-to-OpenStation boundary Pulse and dropped the
+	 * core-to-plugin one to a hairline, on the theory that only one
+	 * boundary was worth reading. Two weights in one short rail read as
+	 * two unrelated ideas instead of one system, so both are now the
+	 * same line: Pulse at the waist, falling away to nothing at both
+	 * ends, with a soft glow to hold it against the dock tint.
+	 *
+	 * Resolved one step back from the accent through
+	 * `--os-ui-accent-dim`, where every ambient use of Pulse resolves,
+	 * so "tone the station down" stays one edit.
+	 */
+	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
 	--os-dock-floating-border-top: rgba(255, 251, 255, 0.18);
 	--os-dock-floating-highlight: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
+
+	/*
+	 * ---- The OpenStation layout ---------------------------------
+	 *
+	 * The constellation: the flyout that fans a menu's submenu out of
+	 * its tile on hover, and the only surface left that exists solely
+	 * while `data-os-layout` is `openstation`. The rail's divider used
+	 * to live here too; it is shared chrome now and reads through
+	 * `--os-dock-divider`.
+	 *
+	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
+	 * is spent on the row under the pointer and on the head's icon
+	 * halo — the two moments where the panel is answering the user —
+	 * and nowhere else. A flyout that was iridescent edge to edge
+	 * would have nothing left to say when you actually pointed at
+	 * something in it.
+	 */
+	--os-cn-surface: rgba(26, 23, 33, 0.82);
+	--os-cn-border: rgba(255, 251, 255, 0.14);
+	--os-cn-shadow: 0 24px 64px rgba(0, 0, 0, 0.62),
+		0 2px 8px rgba(0, 0, 0, 0.4);
+	--os-cn-fg: #fffbff;
+	--os-cn-fg-muted: rgba(255, 251, 255, 0.62);
+	--os-cn-legend: rgba(255, 251, 255, 0.4);
+	--os-cn-divider: rgba(255, 251, 255, 0.1);
+	/* The row under the pointer — the panel's identity moment. */
+	--os-cn-row-fill: var(--os-ui-holo-fill);
+	--os-cn-row-ink: var(--os-ui-holo-ink);
+	/* Beam: the thread from the panel's underside down to the tile. */
+	--os-cn-beam: color-mix(in srgb, var(--os-ui-accent-dim) 80%, transparent);
+	--os-cn-radius: 14px;
+	/*
+	 * Above every window and above the dock. Two panels coexist while
+	 * the pointer moves along the rail — one dismissing, one arriving
+	 * — and the retiring one is painted one step below so it can
+	 * never fade out on top of the menu being read.
+	 */
+	--os-cn-z: 2147483000;
 
 	/*
 	 * ---- Shell surfaces ----------------------------------------
@@ -1105,8 +1219,107 @@ body.os-active {
 	--os-my-wordpress-fg: #fffbff;
 	--os-my-wordpress-surface: rgba(255, 251, 255, 0.06);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
-	--os-tabs-bg: #33303a;
+	/*
+	 * ---- Window tab strip ---------------------------------------
+	 *
+	 * A window with sub-pages reads as three surfaces stacked in
+	 * depth, and the values below are that ramp: Astro on the focused
+	 * title bar, VOID for the track the tabs sit in, then the page
+	 * itself. The track is the darkest of the three on purpose — it
+	 * has to stay a distinct band under BOTH title-bar states, and
+	 * Obsidian would collapse into the unfocused bar (also Obsidian)
+	 * exactly when a window has the least going on to distinguish it.
+	 *
+	 * The active tab is not a colour, it is the page arriving early.
+	 * `chromeless.css` paints every admin page inside a window `#fff`
+	 * whatever the admin colour scheme says, so the tab can name that
+	 * white and the joint between the two is seamless. Retinting the
+	 * tab means retinting the page it belongs to, and these two move
+	 * together or the seam comes back.
+	 *
+	 * `-color-muted` is the second tone anything nested in an active
+	 * tab needs — the external tab's detach and close chips. It is
+	 * the only reason a "muted on light" value exists this far down a
+	 * dark palette.
+	 */
+	--os-tabs-bg: #1a1721;
+	/*
+	 * The track on an UNFOCUSED window, which follows the title bar
+	 * down to Void rather than holding Obsidian.
+	 *
+	 * A focused window already reads as two surfaces: title bar and
+	 * track are the same Obsidian, and the tab lifts out of them. Let
+	 * the track keep that Obsidian while the bar above it dims and
+	 * the window reads as THREE, with the strip belonging to neither
+	 * the chrome above nor the page below. Following the bar down
+	 * keeps the count at two in both states.
+	 *
+	 * Both tracks read this: the shell's strip on an iframe window,
+	 * and `<os-tabs variant="window">` inside a native one. The track
+	 * is chrome in both cases, so it dims with the chrome; what keeps
+	 * the tab attached to the content while that happens is the
+	 * plate's fill, which wears the body's own colour rather than the
+	 * track's.
+	 *
+	 * Note the asymmetry with the title bar's pair, which is
+	 * deliberate: there, `--os-titlebar-bg` is the unfocused base and
+	 * `-focused` is the modifier. Here the base is the LIT value,
+	 * so a theme naming one track colour lands on the state where the
+	 * track is doing the most work.
+	 *
+	 * A theme that sets only `--os-tabs-bg` (Legacy, and anything
+	 * written before this token existed) resolves through it in both
+	 * states and keeps its single strip colour.
+	 */
+	--os-tabs-bg-unfocused: #0c0b0f;
 	--os-tabs-color: #b3afb5;
+	--os-tabs-active-bg: #fff;
+	--os-tabs-active-color: #0c0b0f;
+	--os-tabs-active-color-muted: rgba(12, 11, 15, 0.6);
+	/*
+	 * The plate's own body: a frosted crown resolving to flat page
+	 * white well before the joint.
+	 *
+	 * Every stop is OPAQUE, and that is a requirement rather than a
+	 * preference. The face used to be translucent over a
+	 * `backdrop-filter`, which promotes it to its own compositor layer
+	 * and leaves a faint grey hairline where that layer is clipped —
+	 * down the plate's sides and across its bottom, which is precisely
+	 * where this design has a bright rail and needs everything else to
+	 * be invisible.
+	 *
+	 * The last stop must also land above the joint (the bottom
+	 * `--os-tabs-radius` of the plate), because the joint is painted
+	 * in flat `--os-tabs-active-bg` and a body still tinted where the
+	 * two meet draws a seam of its own. If you retune these stops,
+	 * check the bottom edge first.
+	 */
+	--os-tabs-active-frost: linear-gradient(
+		180deg,
+		#f4eff9 0%,
+		#ffffff 58%
+	);
+	/*
+	 * The crown. Holomesh, masked away before the joint for the same
+	 * reason. It is on exactly ONE tab at a time — that is what keeps
+	 * the mesh an identity moment instead of wallpaper, and it is the
+	 * rule the rest of the kit follows. Set it to `none` to get the
+	 * plain frosted plate back.
+	 */
+	--os-tabs-active-crown: var(--os-mesh-holo);
+	--os-tabs-active-crown-opacity: 0.3;
+	/*
+	 * The rail: one continuous line around the silhouette of
+	 * page-plus-tab. Pulsemesh rather than flat Pulse, because the
+	 * line is long enough to show a gradient and short enough that a
+	 * whole mesh on it stays an accent rather than a surface.
+	 *
+	 * This is the one place the accent is spent on the tab strip, and
+	 * spending it here is what lets the tab itself stay uncoloured.
+	 * Set it to `none` for the plain frosted plate with no line.
+	 */
+	--os-tabs-rail: var(--os-mesh-pulse);
+	--os-tabs-rail-width: 2px;
 	--os-media-tile-bg: rgba(255, 251, 255, 0.05);
 	--os-media-visual-bg: rgba(255, 251, 255, 0.04);
 	--os-skeleton-low: rgba(255, 251, 255, 0.05);

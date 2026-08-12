@@ -166,7 +166,11 @@ function buildControlElement(
 	win: DesktopWindow,
 ): { element: HTMLElement; teardown?: () => void } {
 	const host = document.createElement( 'os-window-button' );
-	host.setAttribute( 'aria-label', def.label );
+	// The component forwards this onto the focusable shadow `<button>`,
+	// whose only other content is an `aria-hidden` glyph. Fall back to
+	// the control id so a plugin that forgot a label still produces a
+	// named button rather than an anonymous one.
+	host.setAttribute( 'aria-label', def.label || def.id );
 	host.classList.add( 'os-window__btn' );
 
 	// Variant class — `core/close` → `close`, `plug/star` → `plug-star`.

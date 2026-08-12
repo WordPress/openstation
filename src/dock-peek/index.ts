@@ -28,7 +28,9 @@ import type { Window as WPWindow } from '../window';
 import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
+import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
 import { applyFilters, HOOKS } from '../hooks';
+import { isConstellationLayoutActive } from '../dock-constellation/active';
 
 /**
  * Detail passed to the {@link HOOKS.DOCK_PEEK_CARD_CONTENT} filter.
@@ -151,6 +153,15 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		if ( e.pointerType !== 'mouse' ) {
 			return;
 		}
+		// The OpenStation layout hands the hover gesture on menu tiles
+		// to the constellation flyout, which already surfaces the open
+		// instances the peek would have shown — plus the submenu the
+		// peek has no way to reach. Two popovers on one tile is a
+		// flicker, not a feature. System tiles have no submenu and keep
+		// the peek in every layout.
+		if ( isConstellationLayoutActive() && tile.dataset.menuSlug ) {
+			return;
+		}
 		// Re-evaluate on every enter — open windows might have changed
 		// since the tile was constructed.
 		if ( ! shouldShowPeek( deps ) ) {
@@ -226,12 +237,23 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		} );
 	};
 
+	// A right-click (or any other route into the tile's menu) means the
+	// user has asked for a different surface on this same tile. The
+	// peek card is anchored to the tile too, so it has to go — see
+	// `ITEM_MENU_OPENING_EVENT`.
+	const onMenuOpening = (): void => tearDown();
+
 	tile.addEventListener( 'pointerenter', onPointerEnterTile );
 	tile.addEventListener( 'pointerleave', onPointerLeaveTile );
+	document.addEventListener( ITEM_MENU_OPENING_EVENT, onMenuOpening );
 
 	return (): void => {
 		tile.removeEventListener( 'pointerenter', onPointerEnterTile );
 		tile.removeEventListener( 'pointerleave', onPointerLeaveTile );
+		document.removeEventListener(
+			ITEM_MENU_OPENING_EVENT,
+			onMenuOpening,
+		);
 		tearDown();
 	};
 }

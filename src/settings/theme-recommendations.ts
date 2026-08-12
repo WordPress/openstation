@@ -62,7 +62,8 @@ const SYSTEM_DEFAULT_LEDGER_KEY = 'system-default';
  */
 const SYSTEM_DEFAULT_RECOMMENDATIONS: RecommendedOsSettings = {
 	accent: 'pulse',
-	desktopLayout: 'classic',
+	desktopLayout: 'unified',
+	dockPlacement: 'bottom',
 };
 
 /** Options for {@link applyThemeRecommendations}. */

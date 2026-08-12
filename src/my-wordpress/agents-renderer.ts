@@ -100,6 +100,8 @@ function agentsConfig(): AgentsSectionConfig {
 	};
 	return (
 		cfg.agents ?? {
+			enabled: false,
+			canEnable: false,
 			canManage: false,
 			canInvoke: false,
 			aiAvailable: false,
@@ -108,6 +110,18 @@ function agentsConfig(): AgentsSectionConfig {
 			runWindowId: 'desktop-mode-agent-run',
 		}
 	);
+}
+
+/**
+ * Open OpenStation Preferences on the Features tab, where the `agents`
+ * extended option lives. Resolved off `wp.os` at call time — the
+ * shell bundle owns the opener and this bundle must not import it.
+ */
+function openAgentsFeatureSetting(): void {
+	const api = ( window as unknown as {
+		wp?: { os?: { openOsSettings?: ( opts?: { tabId?: string } ) => void } };
+	} ).wp?.os;
+	api?.openOsSettings?.( { tabId: 'features' } );
 }
 
 /**
@@ -307,13 +321,17 @@ function draftFromAgent( agent: Agent | null ): AgentsState[ 'draft' ] {
 
 export function renderAgents( host: EntityRenderHost ): void {
 	const cfg = agentsConfig();
+	// The framework is opt-in, but the section is always listed. With
+	// the option off the whole surface paints disabled: nothing to
+	// load, nothing to probe, and every control inert.
+	const off = ! cfg.enabled;
 	const root = document.createElement( 'div' );
-	root.className = 'dm-agents';
+	root.className = 'dm-agents' + ( off ? ' is-disabled' : '' );
 	host.body.replaceChildren( root );
 
 	const state: AgentsState = {
 		agents: [],
-		loading: true,
+		loading: ! off,
 		error: '',
 		selectedId: null,
 		pane: 'define',
@@ -625,8 +643,14 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// Templates
 	// -----------------------------------------------------------------
 
+	/**
+	 * Silent while the framework is off: a connector is the SECOND
+	 * thing to fix, and the empty state is already saying what the
+	 * first one is. Two warnings and neither reads as the actionable
+	 * one.
+	 */
 	const aiNotice = () => {
-		if ( state.aiReady === true || state.aiReady === null ) {
+		if ( off || state.aiReady === true || state.aiReady === null ) {
 			return html``;
 		}
 		const noProvider = __(
@@ -660,7 +684,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 							<os-button
 								class="dm-agents__create"
 								variant="primary"
-								?disabled=${ state.saving }
+								?disabled=${ state.saving || off }
 								@click=${ () => {
 									state.creating = true;
 									state.notice = '';
@@ -1119,6 +1143,43 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		const agent = selected();
 		if ( ! agent ) {
+			// The whole off-state message lives here rather than in a
+			// banner above the layout. While the framework is off there
+			// is nothing to list, so this pane always renders — a
+			// banner as well would say the same thing twice, and a
+			// full-window bar carrying one sentence reads as mostly
+			// dead space.
+			if ( off ) {
+				const offDescription = cfg.canEnable
+					? __(
+						'Turn the Agents framework on in OpenStation Preferences → Features to create agents, give them abilities, and chat with them.',
+						'desktop-mode',
+					)
+					: __(
+						'Ask an administrator to turn the Agents framework on in OpenStation Preferences → Features.',
+						'desktop-mode',
+					);
+				return html`
+					<os-empty-state
+						icon="superhero"
+						heading=${ __( 'Agents are turned off', 'desktop-mode' ) }
+						description=${ offDescription }
+					>
+						${ cfg.canEnable
+							? html`
+									<os-button
+										slot="cta"
+										class="dm-agents__enable"
+										variant="primary"
+										@click=${ () => openAgentsFeatureSetting() }
+									>
+										${ __( 'Turn on Agents', 'desktop-mode' ) }
+									</os-button>
+							  `
+							: html`` }
+					</os-empty-state>
+				`;
+			}
 			let emptyDescription = __(
 				'An administrator has not created any agents on this site yet.',
 				'desktop-mode',
@@ -1246,12 +1307,15 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	paint();
-	void load();
-	void probeAi();
-	// The Define pane's role picker needs the catalogue as soon as an
-	// agent is selected, which happens the moment the list resolves —
-	// fetch alongside the list rather than on the first click.
-	void ensureRoles();
+	if ( ! off ) {
+		void load();
+		void probeAi();
+		// The Define pane's role picker needs the catalogue as soon as
+		// an agent is selected, which happens the moment the list
+		// resolves — fetch alongside the list rather than on the first
+		// click.
+		void ensureRoles();
+	}
 }
 
 registerEntityKind( 'agent', renderAgents );

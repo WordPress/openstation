@@ -1138,6 +1138,27 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 }
 
 /**
+ * Server-declared window-action script entry. One per
+ * `openstation_register_window_action_script()` call. The shell
+ * injects each `scriptUrl` on mid-session activation; the loaded
+ * script calls `wp.os.registerWindowAction()` and every ⋯ menu
+ * picks the row up on its next open (an already-open menu repaints
+ * itself through the registry's subscribe fan-out).
+ *
+ * @public
+ */
+export interface DesktopWindowActionScriptServerEntry {
+	/** WordPress script handle — doubles as the action `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared unfocus-effect script entry. One per
  * `openstation_register_unfocus_effect_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
@@ -1683,6 +1704,14 @@ export interface DesktopConfig {
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
+	 * `openstation_register_window_action_script()`. Shell injects each
+	 * URL on boot and on mid-session activation so a newly-installed
+	 * plugin's ⋯ menu row appears without an F5. Owner-tagged
+	 * registrations live-unregister on deactivation.
+	 */
+	serverWindowActionScripts?: DesktopWindowActionScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
 	 * `openstation_register_unfocus_effect_script()`. Shell injects
 	 * each URL on boot and on mid-session activation so newly-installed
 	 * plugins surface their unfocus effect in OS Settings → Effects
@@ -1929,6 +1958,15 @@ export interface DesktopConfig {
 	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
 	restNonce: string;
+	/**
+	 * Non-empty when the shell was asked to paint exactly one window
+	 * (`?openstation_solo=<id>`). It boots in full — every registry,
+	 * every render callback — but opens only that window, with no
+	 * dock, taskbar, wallpaper or desk around it, and skips session
+	 * restore. The native desktop host uses this to give a native
+	 * window (which has no URL of its own) to a real OS window.
+	 */
+	soloWindow?: string;
 	/** Canonical `/openstation/` URL — used for history.replaceState. */
 	portalUrl: string;
 	/** True when the shell was reached via the portal redirect. */
@@ -2064,12 +2102,6 @@ export interface DesktopConfig {
 	 */
 	aiSearchUrl?: string;
 	/**
-	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
-	 * `action=openstation_ai_search_stream` pre-filled. The JS EventSource appends
-	 * &nonce= and &query= when connecting.
-	 */
-	aiSearchStreamUrl?: string;
-	/**
 	 * AI assistant availability + per-user state. Governs whether the Cmd+K
 	 * assistant and its admin-bar icon appear, and the setup placeholder.
 	 * `null` when the AI Copilot module isn't loaded.
@@ -2159,21 +2191,6 @@ export interface DesktopConfig {
 	 * skips the challenges Heartbeat channel. Absent means enabled.
 	 */
 	gamesEnabled?: boolean;
-	/**
-	 * Sticky-notes (Gutenberg Guidelines experiment) availability.
-	 *
-	 * `available` is `true` only when the `wp_guideline` CPT and
-	 * `wp_guideline_type` taxonomy are registered server-side — i.e. the
-	 * Gutenberg Guidelines experiment (22.7+, opt-in under Gutenberg →
-	 * Experiments) is active. The shell skips booting the sticky-notes
-	 * layer when `false`, avoiding the `wp/v2/guidelines` +
-	 * `wp/v2/wp_guideline_type` REST probes that 404 without it. Absent
-	 * on shells older than 0.5.0 → treated as available (boot and
-	 * swallow), preserving prior behavior.
-	 */
-	stickyNotes?: {
-		available: boolean;
-	};
 }
 
 /**

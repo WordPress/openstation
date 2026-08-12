@@ -28,6 +28,7 @@ import {
 	type NativeRail,
 } from './settings/item-placement';
 import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
+import { placeAfterRender } from './ui/util/menu-position';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
@@ -163,6 +164,27 @@ export interface OpenItemVisibilityMenuOpts {
 let openGeneration = 0;
 
 /**
+ * Event fired on `document` the moment a tile menu is asked for, before
+ * anything is painted.
+ *
+ * It exists because a tile can carry two surfaces at once: the menu,
+ * and whichever hover affordance the active layout gives it (the
+ * constellation flyout, the peek card). Both anchor to the same tile,
+ * so opening one over the other leaves two panels fighting for the same
+ * corner of the screen. Rather than teach the menu about every hover
+ * surface that might exist — or teach each surface to sniff for
+ * right-clicks — the menu announces itself and the hover surfaces
+ * decide to get out of the way.
+ *
+ * Deliberately named for the intent rather than the input: a menu
+ * opened from the keyboard has the same collision, and a plugin that
+ * opens one programmatically should dismiss hover surfaces too.
+ *
+ * @see docs/javascript-reference.md
+ */
+export const ITEM_MENU_OPENING_EVENT = 'os-item-menu-opening';
+
+/**
  * Open the visibility menu next to the user's cursor. Idempotent —
  * a second call closes the previous menu before opening a fresh one.
  *
@@ -174,6 +196,15 @@ let openGeneration = 0;
 export function openItemVisibilityMenu(
 	opts: OpenItemVisibilityMenuOpts,
 ): void {
+	// Announced BEFORE the menu is built, and before the await inside
+	// `openWithShellOverlays`: a hover panel that is still on screen
+	// when the menu paints has already lost the race, and the cut needs
+	// to happen in the same frame as the click that caused it.
+	document.dispatchEvent(
+		new CustomEvent( ITEM_MENU_OPENING_EVENT, {
+			detail: { id: opts.id, surface: opts.surface },
+		} ),
+	);
 	closeMenu();
 	const myGen = ++openGeneration;
 	openWithShellOverlays(
@@ -309,9 +340,10 @@ function openItemVisibilityMenuImmediate(
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
+	// `placeAfterRender` owns the hiding, so no `visibility` here:
+	// one invariant, one owner.
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
-	menu.style.visibility = 'hidden';
 	// Must sit above the dock-peek popover (z-index: 999999 in
 	// assets/css/dock-peek.css). The peek is still visible when the
 	// user right-clicks a tile, so without this the menu opens
@@ -371,17 +403,16 @@ function openItemVisibilityMenuImmediate(
 	document.body.appendChild( menu );
 	activeMenu = menu;
 
-	// Measure on the next animation frame, AFTER the component has
-	// completed its microtask render. Calling getBoundingClientRect()
+	// `placeAfterRender` measures on the next animation frame, AFTER
+	// the component has completed its microtask render. Measuring
 	// synchronously here returns a near-zero height (shadow DOM not
 	// populated yet) — which made dock right-clicks land the
 	// "anchor-above-cursor" math at `opts.y - 0 - 8 ≈ opts.y`,
 	// pushing the bottom dock's menu off-screen below the viewport.
-	const positionMenu = (): void => {
-		if ( menu !== activeMenu ) {
-			return; // Was closed before we got here.
-		}
-		const rect = menu.getBoundingClientRect();
+	// This menu does its own placement rather than calling
+	// `clampToViewport` because the dock case anchors the menu's
+	// bottom edge at the cursor unconditionally.
+	placeAfterRender( menu, ( rect ) => {
 		const margin = 8;
 		let left = opts.x;
 		let top: number;
@@ -405,9 +436,7 @@ function openItemVisibilityMenuImmediate(
 		}
 		menu.style.left = `${ left }px`;
 		menu.style.top = `${ top }px`;
-		menu.style.visibility = '';
-	};
-	requestAnimationFrame( positionMenu );
+	} );
 
 	// Outside-click + Escape dismisser.
 	const onOutside = ( ev: MouseEvent ): void => {

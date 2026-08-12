@@ -120,13 +120,21 @@ function suppressNativeSelection( ref: HTMLElement ): () => void {
 }
 
 /**
- * Subtrees a marquee never starts from. Windows and widgets are
- * children of the desktop area, so their pointer events bubble to the
- * wallpaper's own listener; without this a drag on a title bar would
- * both move the window and rubber-band the icons behind it.
+ * Subtrees a marquee never starts from. Windows, widgets and pinned
+ * notes are children of the desktop area, so their pointer events
+ * bubble to the wallpaper's own listener; without this a drag on a
+ * title bar would both move the window and rubber-band the icons
+ * behind it.
  */
 const DEFAULT_MARQUEE_EXCLUDE =
-	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add';
+	'.os-window, .os-widgets__list, .os-widgets__card, .os-widgets__add, .os-pinned-note';
+
+/**
+ * Class the window manager puts on the desktop area for the duration of
+ * Overview. While it is present the area is a click surface, not a
+ * selection canvas — see the guard in `onBackgroundPointerDown`.
+ */
+const OVERVIEW_ACTIVE_CLASS = 'os-area--overview';
 
 export interface SelectionControllerOptions {
 	/** CSS selector for selectable items under `root`. */
@@ -618,13 +626,37 @@ export function attachSelection(
 		if ( ! ( e.target instanceof Element ) ) {
 			return;
 		}
+		// Overview repurposes the whole desktop area as a click surface:
+		// window thumbnails and the desktops top bar are the only live
+		// targets, and the icons / files layers this marquee selects from
+		// are hidden underneath it. Starting a band here is both
+		// meaningless AND destructive — `capturePointer()` retargets the
+		// rest of the gesture (including the compatibility mouse events)
+		// to the canvas, so the synthesized `click` lands on the desktop
+		// area instead of the top-bar tile the user pressed, and
+		// switching desktops from Overview silently does nothing.
+		//
+		// Thumbnails escaped this because Overview's own capture-phase
+		// pointerdown handler stops propagation before the press reaches
+		// this listener; top-bar presses and bare-backdrop presses do not
+		// (the latter share this node, where `stopPropagation()` can't
+		// unregister a same-node sibling listener).
+		if ( background.classList.contains( OVERVIEW_ACTIVE_CLASS ) ) {
+			return;
+		}
 		if ( e.target.closest( itemSelector ) ) {
 			return; // Tile press — the drag manager owns that gesture.
 		}
 		// Floating furniture only counts when it sits INSIDE this
-		// canvas. Windows and widgets are children of the desktop
-		// area, so on the wallpaper this is what stops a title-bar
-		// drag from rubber-banding the icons behind it.
+		// canvas. Windows, widgets and pinned notes are children of
+		// the desktop area, so on the wallpaper this is what stops a
+		// title-bar drag from rubber-banding the icons behind it.
+		//
+		// Skipping a layer here doesn't merely rubber-band behind it —
+		// it makes the layer's own controls unclickable, because
+		// `capturePointer()` retargets the release (and the
+		// synthesized click) to the canvas. That is what happened to
+		// every button on a pinned note.
 		//
 		// A canvas that lives inside a window is the mirror image:
 		// the `.os-window` is an ANCESTOR of the background, and

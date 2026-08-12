@@ -4,21 +4,36 @@
  * Owns the dock(s) and any synthesized desktop icons across the three
  * top-level layouts the user can pick in OS Settings → Appearance:
  *
+ * - **Unified** — a single `Dock` instance with every menu sharing one
+ *   rail, on the edge the user's `dockPlacement` names. Default for
+ *   new installs: one navigation surface, so nothing has to be learned
+ *   twice.
  * - **Classic** — two `Dock` instances. The bottom dock holds plugin
  *   menus (`!isCore`). A side dock on the left edge holds core admin
- *   menus (`isCore`). Default for new installs.
- * - **Unified** — a single bottom `Dock` instance with every menu
- *   sharing one rail. (Pre-0.6.0 default; one-click away.)
- * - **Spatial** — a single bottom `Dock` instance with plugin menus
- *   only. Core menus are synthesized into desktop-icon entries and
- *   handed to `renderDesktopIcons` so they appear on the wallpaper.
+ *   menus (`isCore`).
+ * - **Spatial** — a single `Dock` instance with plugin menus only.
+ *   Core menus are synthesized into desktop-icon entries and handed to
+ *   `renderDesktopIcons` so they appear on the wallpaper.
+ * - **OpenStation** — a single bottom `Dock` instance holding every
+ *   menu, but *re-sorted* so the WordPress core cluster leads and the
+ *   plugin cluster follows. That sort is what makes the rail's single
+ *   core→plugin divider deterministic: `Dock.render()` drops its
+ *   `--group` separator at the first `isCore === false` tile, so any
+ *   interleaved order (a user drag, a plugin's `dockOrder` filter)
+ *   would otherwise scatter the boundary or lose it entirely. Desktop
+ *   icons behave exactly as they do in Classic/Unified — the wallpaper
+ *   stays available, it just isn't load-bearing. Bottom-only, unlike
+ *   Unified and Spatial — see `primaryOrientation()`.
  *
- * Two surfaces drive this module:
+ * Three surfaces drive this module:
  *
  * 1. `setLayout( layout )` — full rebuild. Tears down current docks,
  *    creates new ones for the new layout, re-attaches the OS Settings
- *    system tile to the bottom rail, repaints desktop icons.
- * 2. `applyDockItems( items )` / `applyDesktopIcons( serverIcons )` —
+ *    system tile to the primary rail, repaints desktop icons.
+ * 2. `setDockPlacement( placement )` — same full rebuild for the edge
+ *    the single rail lives on. A no-op in Classic, whose two rails are
+ *    the layout's own decision.
+ * 3. `applyDockItems( items )` / `applyDesktopIcons( serverIcons )` —
  *    update paths used by the live menu-refresh pipeline. Same item
  *    list comes in; the dispatcher partitions it by `isCore` and pushes
  *    the right slice to each rail (and re-synthesizes core icons on
@@ -43,7 +58,11 @@ import {
 } from './dock-rail';
 import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
-import type { DesktopLayoutId, OsSettingsState } from './settings/types';
+import type {
+	DesktopLayoutId,
+	DockPlacementId,
+	OsSettingsState,
+} from './settings/types';
 import {
 	applyDesktopPlacement,
 	applyDockPlacement,
@@ -69,7 +88,11 @@ export interface LayoutDispatcherDeps {
 	 * first child here so its CSS `order: -1` paints it on the left.
 	 */
 	shellBody: HTMLElement;
-	/** Existing `#os-dock` element from the PHP shell template. */
+	/**
+	 * Existing `#os-dock` element from the PHP shell template. Hosts the
+	 * primary rail on whichever edge is in play — the name is
+	 * historical, `bottom` is only its default placement.
+	 */
 	bottomDockEl: HTMLElement;
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
@@ -100,7 +123,7 @@ export interface LayoutDispatcherDeps {
 export interface LayoutDispatcher {
 	/** Currently-active layout. Mirrors `state.desktopLayout`. */
 	getLayout(): DesktopLayoutId;
-	/** Bottom dock instance. Always present once `setLayout` has run. */
+	/** Primary dock instance. Always present once `setLayout` has run. */
 	getPrimary(): Dock | null;
 	/** Side (left) dock instance. Non-null only in Classic. */
 	getSide(): Dock | null;
@@ -114,6 +137,23 @@ export interface LayoutDispatcher {
 	 * changed` on `document` and refresh their reference.
 	 */
 	setLayout( layout: DesktopLayoutId ): void;
+	/**
+	 * The edge the single rail sits on. Mirrors `state.dockPlacement`
+	 * whatever the layout is — Classic keeps the user's pick stored
+	 * without acting on it, so switching back to a one-rail layout
+	 * lands on the edge they chose rather than resetting to the bottom.
+	 */
+	getDockPlacement(): DockPlacementId;
+	/**
+	 * Move the single rail to another edge. Same full rebuild as
+	 * `setLayout` — the placement is passed to the renderer at
+	 * `mount()` time, so a rail cannot be re-oriented without one.
+	 *
+	 * Idempotent, and a no-op in Classic beyond storing the value:
+	 * that layout's two rails (side bar + bottom dock) are the layout
+	 * itself, and honouring the pick would stack both on one edge.
+	 */
+	setDockPlacement( placement: DockPlacementId ): void;
 	/**
 	 * Replace the dock-items list across whichever rails are live.
 	 * Items with `isCore === true` route to the side dock in Classic
@@ -216,8 +256,13 @@ export function createLayoutDispatcher(
 	initialLayout: DesktopLayoutId,
 	initialDockItems: DockItem[],
 	initialServerIcons: DesktopIconServerEntry[] | undefined,
+	initialPlacement: DockPlacementId = 'bottom',
 ): LayoutDispatcher {
 	let layout: DesktopLayoutId = initialLayout;
+	// Named for the setting rather than shortened to `placement`: this
+	// file also calls an item's dock-vs-desktop visibility a placement,
+	// and the two are unrelated.
+	let dockPlacement: DockPlacementId = initialPlacement;
 	let items: DockItem[] = initialDockItems;
 	let serverIcons: DesktopIconServerEntry[] = initialServerIcons ?? [];
 	// Two-tier storage: controllers drive every live update (built
@@ -371,6 +416,31 @@ export function createLayoutDispatcher(
 			}
 		}
 		return { core, plugin };
+	};
+
+	/**
+	 * A one-rail list: every menu on one dock, core cluster first,
+	 * plugin cluster second. Used by Unified and OpenStation, the two
+	 * layouts that put the whole admin menu on a single rail.
+	 *
+	 * The re-sort is deliberate and is the whole reason the rail's
+	 * divider works. `Dock` inserts its `--group` separator at the
+	 * first tile whose `isCore` is `false`, so it only produces one
+	 * clean boundary when the list is already grouped. `partition()`
+	 * preserves each item's relative order inside its own cluster, so
+	 * a user's drag-to-reorder still holds — it just can't drag a
+	 * plugin into the middle of WordPress.
+	 *
+	 * Unified took the menu in menu order until it didn't: a plugin
+	 * that registers its menu high up (Yoast, Jetpack) put the divider
+	 * two tiles in, with the rest of WordPress stranded on the plugin
+	 * side of a line that then claimed nothing true. A boundary that
+	 * lands somewhere different on every site teaches nothing, so both
+	 * one-rail layouts group first and draw second.
+	 */
+	const coreFirstRailItems = (): DockItem[] => {
+		const { core, plugin } = partition();
+		return [ ...core, ...plugin ];
 	};
 
 	const repaintIcons = (): void => {
@@ -583,6 +653,30 @@ export function createLayoutDispatcher(
 		openSystemItem: ( item ) => item.onOpen(),
 	} );
 
+	/**
+	 * Which edge the primary rail mounts on.
+	 *
+	 * Unified and Spatial follow the user's `dockPlacement`. Two layouts
+	 * are pinned to `'bottom'`, for different reasons:
+	 *
+	 *   - **Classic** — its side bar already owns the left edge, so
+	 *     letting the plugin rail move there would stack the two on top
+	 *     of each other.
+	 *   - **OpenStation** — the layout is drawn for a horizontal rail.
+	 *     Its stylesheet is scoped to
+	 *     `[data-os-dock-placement="bottom"]` and its
+	 *     constellation flyout fans upward out of a tile, so a vertical
+	 *     rail would lose the skin and keep geometry built for an edge
+	 *     it is no longer on.
+	 *
+	 * The pick is remembered either way — switching to Unified or
+	 * Spatial later lands on the edge the user chose.
+	 */
+	const primaryOrientation = (): DockPlacementId =>
+		layout === 'classic' || layout === 'openstation'
+			? 'bottom'
+			: dockPlacement;
+
 	const buildDocksForCurrentLayout = (): void => {
 		tearDownDocks();
 		const { core, plugin } = partition();
@@ -597,18 +691,29 @@ export function createLayoutDispatcher(
 				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
 			);
 			primaryDock = unwrapDefaultDock( primary );
-		} else if ( layout === 'unified' ) {
+		} else if ( layout === 'unified' || layout === 'openstation' ) {
+			// One rail, same contents. The two differ in how the rail is
+			// PAINTED (OpenStation brings its own skin, its seam and the
+			// constellation flyout), not in what it holds.
 			removeSideDockEl();
 			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, effectiveDockItems(), 'bottom' ),
+				buildMountDeps(
+					deps.bottomDockEl,
+					coreFirstRailItems(),
+					primaryOrientation(),
+				),
 			);
 			primaryDock = unwrapDefaultDock( primary );
 		} else {
-			// Spatial — bottom dock holds plugins; core items are
+			// Spatial — the rail holds plugins; core items are
 			// emitted as wallpaper icons by `repaintIcons()` below.
 			removeSideDockEl();
 			primary = mountRail(
-				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
+				buildMountDeps(
+					deps.bottomDockEl,
+					plugin,
+					primaryOrientation(),
+				),
 			);
 			primaryDock = unwrapDefaultDock( primary );
 		}
@@ -643,6 +748,38 @@ export function createLayoutDispatcher(
 				new CustomEvent( 'os-layout-changed', {
 					detail: {
 						layout: next,
+						placement: primaryOrientation(),
+						primary: primaryDock,
+						side: sideDock,
+					},
+				} ),
+			);
+		},
+		getDockPlacement: () => dockPlacement,
+		setDockPlacement: ( next: DockPlacementId ): void => {
+			if ( next === dockPlacement ) {
+				return;
+			}
+			const wasHonoured = primaryOrientation();
+			dockPlacement = next;
+			// Classic stores the pick and stops here — see
+			// `primaryOrientation()`. Comparing the ORIENTATION rather
+			// than the layout id keeps that in one place: when the edge
+			// the rail actually mounts on hasn't moved, neither has
+			// anything worth tearing down.
+			if ( primaryOrientation() === wasHonoured ) {
+				return;
+			}
+			buildDocksForCurrentLayout();
+			repaintIcons();
+			// Same event as a layout change, and for the same reason:
+			// the rails were destroyed and rebuilt, so every cached
+			// `wp.os.dock` reference now points at a dead instance.
+			document.dispatchEvent(
+				new CustomEvent( 'os-layout-changed', {
+					detail: {
+						layout,
+						placement: primaryOrientation(),
 						primary: primaryDock,
 						side: sideDock,
 					},
@@ -655,8 +792,11 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
+			} else if (
+				layout === 'unified' ||
+				layout === 'openstation'
+			) {
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );
 			}
@@ -714,8 +854,11 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if ( layout === 'unified' ) {
-				primary?.replaceItems( effectiveDockItems() );
+			} else if (
+				layout === 'unified' ||
+				layout === 'openstation'
+			) {
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
 				primary?.replaceItems( plugin );
 			}

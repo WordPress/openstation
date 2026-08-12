@@ -23,20 +23,15 @@
  * over every note (the registry has no fall-through).
  */
 
-import { __ } from '../i18n';
 import {
 	registerCanvasPayloadHandler,
 	type CanvasPayloadContext,
 } from '../desktop-files/canvas-payloads';
 import { registerRecycleBinPayloadHandler } from '../desktop-files/recycle-bin-payloads';
 import type { DragSession } from '../drag';
-import { sanitizeNoteColorSlug } from './colors';
-import { hashNoteSeed } from './motion';
-import { createNote } from './rest';
 import {
 	NOTE_DRAFT_PAYLOAD_TYPE,
 	NOTE_PAYLOAD_TYPE,
-	type Note,
 	type NoteDraftDragData,
 	type NoteDragData,
 } from './types';
@@ -74,54 +69,15 @@ function handleDraftDrop(
 		return;
 	}
 	const { x, y } = normalizedDropPosition( layer, session, ev );
-	const color = sanitizeNoteColorSlug( String( data.color ?? '' ) );
-	const isPublic = data.isPublic === true;
-	// Jitter seed: hashed from the text HERE, at creation — the
-	// server persists it verbatim so the optimistic paper and every
-	// future render share the exact same tilt.
-	const seed = hashNoteSeed( text );
-
-	// Optimistic: pin a temp note immediately (the thunk plays now),
-	// then adopt the server copy.
-	const tempId = layer.nextTempId();
-	const optimistic: Note = {
-		id: tempId,
-		text,
-		color,
+	// Shared with the wallpaper context menu, which wants everything
+	// but the ghost-offset math above.
+	layer.createNoteAt( {
 		x,
 		y,
-		z: 1,
-		public: isPublic,
-		seed,
-		ownerId: 0,
-		ownerName: '',
-		ownerAvatar: '',
-		canEdit: true,
-		updatedAtMs: 0,
-	};
-	const controller = layer.upsertNote( optimistic, { animate: 'thunk' } );
-	layer.bringToFront( controller );
-
-	void createNote( { text, color, x, y, public: isPublic, seed } )
-		.then( ( note ) => {
-			layer.bumpHighWater( note.updatedAtMs );
-			// Keep the optimistic position — the server echoes what we
-			// sent; the id + token are what we're after.
-			controller.replace( note );
-			layer.rekeyNote( tempId, controller );
-			// Anything typed while the POST was in flight debounced
-			// against the temp id and couldn't save — flush it now
-			// that a real id exists.
-			controller.flushPendingEdits();
-		} )
-		.catch( ( err: unknown ) => {
-			layer.removeNote( tempId );
-			layer.notifyError(
-				__( 'Could not pin the note. Please try again.', 'desktop-mode' ),
-			);
-			// eslint-disable-next-line no-console
-			console.error( '[openstation] notes: create failed:', err );
-		} );
+		text,
+		color: String( data.color ?? '' ),
+		isPublic: data.isPublic === true,
+	} );
 }
 
 function handleNoteDrop(

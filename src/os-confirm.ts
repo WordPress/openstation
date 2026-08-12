@@ -63,7 +63,8 @@ export async function osConfirm(
 		dialog.addEventListener( 'os-confirm', () => cleanup( true ) );
 		dialog.addEventListener( 'os-cancel', () => cleanup( false ) );
 		document.body.appendChild( dialog );
-		const inner = dialog.shadowRoot?.querySelector< HTMLElement >( '.dialog' );
-		( inner ?? dialog ).focus?.();
+		// Focus is the component's job — it captures the opener when
+		// `open` is set and moves into the dialog once the first
+		// render lands, which has not happened yet at this point.
 	} );
 }

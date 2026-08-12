@@ -31,6 +31,14 @@
  * flyout `<os-context-menu>` on hover / activate (see
  * src/desktop-files/wallpaper-menu.ts and src/icon-canvas/menu.ts
  * for the canonical rigs).
+ *
+ * **Place it with src/ui/util/menu-position.ts, never by measuring
+ * on the line after `appendChild()`.** Like every `Component`, this
+ * one paints its shadow DOM in a `queueMicrotask()`, so an immediate
+ * `getBoundingClientRect()` returns an empty box: a viewport clamp
+ * built on it silently never fires and the menu opens off-screen.
+ * `clampToViewport` and `positionFlyout` there defer the measurement
+ * to the next frame and already handle the close-before-frame case.
  */
 
 import {

@@ -17,14 +17,29 @@ defined( 'ABSPATH' ) || exit;
  */
 class OpenStation_Folder_File extends OpenStation_File {
 
+	/**
+	 * Get the file type identifier.
+	 *
+	 * @return string
+	 */
 	public static function type(): string {
 		return 'folder';
 	}
 
+	/**
+	 * Whether the folder row still exists in the database.
+	 *
+	 * @return bool
+	 */
 	public function exists(): bool {
 		return null !== $this->folder();
 	}
 
+	/**
+	 * Get the folder name, falling back to a generic label.
+	 *
+	 * @return string
+	 */
 	public function title(): string {
 		$row = $this->folder();
 		if ( ! $row ) {
@@ -33,10 +48,22 @@ class OpenStation_Folder_File extends OpenStation_File {
 		return '' !== (string) $row['name'] ? (string) $row['name'] : __( 'Folder', 'desktop-mode' );
 	}
 
+	/**
+	 * Get the Dashicon class for folder tiles.
+	 *
+	 * @return string
+	 */
 	public function icon(): string {
 		return 'dashicons-portfolio';
 	}
 
+	/**
+	 * Check whether the user owns the folder, has a direct share,
+	 * or reaches it via cascade from a parent folder.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
 	public function can_read( int $user_id ): bool {
 		$row = $this->folder();
 		if ( ! $row ) {
@@ -60,6 +87,11 @@ class OpenStation_Folder_File extends OpenStation_File {
 		return in_array( (int) $row['id'], array_map( 'intval', (array) $visible_ids ), true );
 	}
 
+	/**
+	 * Augment the base serialized shape with owner id and share mode.
+	 *
+	 * @return array
+	 */
 	public function serialize(): array {
 		$shape              = parent::serialize();
 		$row                = $this->folder();
@@ -68,6 +100,11 @@ class OpenStation_Folder_File extends OpenStation_File {
 		return $shape;
 	}
 
+	/**
+	 * Lazily resolve the folder row from the stored ref.
+	 *
+	 * @return array|null Null when the folder is gone or the ref is invalid.
+	 */
 	private function folder(): ?array {
 		$id = (int) $this->ref;
 		if ( $id <= 0 ) {

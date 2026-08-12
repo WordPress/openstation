@@ -3,7 +3,9 @@
 **Status: Experimental.** The whole module sits behind the
 `agents` extended option (OpenStation Preferences → Features → Extended options,
 admin-only). While the flag is off none of these hooks or routes
-exist.
+exist — the one thing that stays is the WP Explorer **Agents** section,
+which is always listed and renders read-only, with a way into the
+Features tab for admins.
 
 An agent is a login-blocked `wp_users` row whose definition
 (description, system prompt, ability allowlist, triggers, model

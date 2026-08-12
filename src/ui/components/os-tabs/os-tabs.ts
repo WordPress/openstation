@@ -187,10 +187,6 @@ export class OsTabs extends Component {
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
 		}
-		// Mirror the current `value` onto each child tab via
-		// aria-selected. Children live in LIGHT DOM; deferred one
-		// microtask so newly-added children have a chance to upgrade
-		// before we read them.
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {
 			const tabs = this.querySelectorAll( 'os-tab' );
