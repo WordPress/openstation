@@ -120,26 +120,41 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
+/** The shipped `confirm` is a builder — resolve it at a given count. */
+function confirmAt( action: BulkAction, count: number ): string {
+	const { confirm } = action;
+	if ( typeof confirm !== 'function' ) {
+		throw new Error( 'expected the trash confirm to be a builder' );
+	}
+	return confirm( count );
+}
+
 describe( 'bulk-trash confirmation', () => {
-	test( 'posts mode says post(s)', async () => {
+	test( 'posts mode says post, and pluralizes', async () => {
 		const { bulkActions } = await render(
 			'desktop-mode-posts',
 			'posts',
 			[ row( 1 ) ],
 		);
-		expect( bulkActions()[ 0 ].confirm ).toBe(
-			'Move %d post(s) to the trash?',
+		expect( confirmAt( bulkActions()[ 0 ], 1 ) ).toBe(
+			'Move 1 post to the trash?',
+		);
+		expect( confirmAt( bulkActions()[ 0 ], 3 ) ).toBe(
+			'Move 3 posts to the trash?',
 		);
 	} );
 
-	test( 'pages mode says page(s)', async () => {
+	test( 'pages mode says page, and pluralizes', async () => {
 		const { bulkActions } = await render(
 			'desktop-mode-pages',
 			'pages',
 			[ row( 1 ) ],
 		);
-		expect( bulkActions()[ 0 ].confirm ).toBe(
-			'Move %d page(s) to the trash?',
+		expect( confirmAt( bulkActions()[ 0 ], 1 ) ).toBe(
+			'Move 1 page to the trash?',
+		);
+		expect( confirmAt( bulkActions()[ 0 ], 3 ) ).toBe(
+			'Move 3 pages to the trash?',
 		);
 	} );
 } );

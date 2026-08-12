@@ -65,11 +65,13 @@ export interface BulkAction {
 	 */
 	variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
 	/**
-	 * Optional confirmation prompt. When set, clicking the button shows
-	 * a `window.confirm()` with the message (interpolated with the row
-	 * count via `%d`) before invoking `run`.
+	 * Optional confirmation prompt shown before `run` is invoked. Pass a
+	 * function to build the message from the row count — that is the only
+	 * form `_n()` can be used in, since the plural form has to be picked
+	 * once the count is known. A plain string keeps working and is
+	 * interpolated with the count via `%d`.
 	 */
-	confirm?: string;
+	confirm?: string | ( ( count: number ) => string );
 	/**
 	 * Action runner. Receives the selected row ids and the window
 	 * context. May return a Promise; the bulk bar disables itself
