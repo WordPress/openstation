@@ -125,15 +125,11 @@
 	margin-top: 12px;
 }
 
-/* Top-level tab strip separating Appearance from AI Settings.
- * Don't add a `display` rule for `os-tabpanel` here — the component's
+/* Don't add a `display` rule for `os-tabpanel` here — the component's
  * shadow-DOM `:host([hidden]) { display: none }` has lower specificity
  * than any outer descendant selector, and overriding it from outside
  * breaks the auto-swap (hidden panels stay visible). The component's
  * own `:host { display: block }` already handles the shown state. */
-.os-settings os-tabs {
-	display: block;
-}
 
 /* `__reset` now renders as `<os-button variant="ghost">`. */
 
@@ -939,25 +935,62 @@
 	flex-direction: column;
 }
 
+/*
+ * Two columns, two rows: the sidebar down the left, every pane sharing
+ * the cell on the right (only the unhidden one takes up space), and
+ * the footer spanning both.
+ */
 .os-settings {
 	flex: 1;
 	min-height: 0;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: var( --os-settings-nav-width, 208px ) minmax( 0, 1fr );
+	grid-template-rows: minmax( 0, 1fr ) auto;
 }
 
-/* The tab strip + footer must NOT shrink when the active panel
-   wants more height. Marking them flex-shrink:0 also keeps them
-   pinned visually as the panel below scrolls. */
-.os-settings > os-tabs,
-.os-settings > .os-settings__footer {
-	flex: 0 0 auto;
+.os-settings > os-tabs {
+	grid-column: 1;
+	grid-row: 1;
+	padding: 8px;
+	border-right: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	overflow-y: auto;
 }
 
 .os-settings > os-tabpanel {
-	flex: 1;
+	grid-column: 2;
+	grid-row: 1;
 	min-height: 0;
 	overflow: auto;
+	padding: 16px 16px 0;
+}
+
+.os-settings > .os-settings__footer {
+	grid-column: 1 / -1;
+	grid-row: 2;
+	margin-top: 0;
+	padding: 10px 16px;
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+/* Narrow windows: the sidebar would eat the pane, so fall back to the
+   stacked layout the panel had before. */
+@media ( max-width: 640px ) {
+	.os-settings {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: auto minmax( 0, 1fr ) auto;
+	}
+	.os-settings > os-tabs {
+		grid-column: 1;
+		flex-direction: row;
+		overflow-x: auto;
+		border-right: 0;
+		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+	}
+	.os-settings > os-tabpanel {
+		grid-column: 1;
+		grid-row: 2;
+	}
 }
 
 /* Components tab — split-pane layout. Don't scroll the whole panel;

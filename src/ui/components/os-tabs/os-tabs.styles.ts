@@ -15,6 +15,18 @@ export const tabsStyles = css`
 		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 	}
 
+	/*
+	 * Vertical: a sidebar rather than a strip. The bottom border goes
+	 * with it, because the boundary is now the column edge, and that
+	 * belongs to whoever is laying the strip out.
+	 */
+	:host( [ orientation='vertical' ] ) {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 2px;
+		margin-bottom: 0;
+		border-bottom: 0;
+	}
 `;
 
 export const tabPanelStyles = css`
@@ -57,6 +69,44 @@ export const tabStyles = css`
 
 	:host {
 		display: inline-block;
+	}
+	/*
+	 * Vertical tabs fill the sidebar so the whole row is the target,
+	 * not just the label. data-orientation is stamped by the parent
+	 * strip; see the note in os-tabs.ts about :host-context().
+	 */
+	:host( [ data-orientation='vertical' ] ) {
+		display: block;
+	}
+	:host( [ data-orientation='vertical' ] ) button {
+		width: 100%;
+		padding: 10px 14px;
+		margin-bottom: 0;
+		text-align: start;
+		font-size: 13px;
+		border-radius: 6px;
+	}
+	/*
+	 * The accent moves from an underline to a leading edge: same mesh,
+	 * same transition, grown from the middle of the row's height
+	 * rather than the middle of its width.
+	 */
+	:host( [ data-orientation='vertical' ] ) button::after {
+		inset-inline: 0 auto;
+		inset-block: 50%;
+		width: 2px;
+		height: auto;
+		border-radius: 0 2px 2px 0;
+		transition: inset-block var( --_holo-t ) ease, opacity var( --_holo-t ) ease;
+	}
+	:host( [ data-orientation='vertical' ] ) button:hover::after {
+		inset-block: 30%;
+	}
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button::after {
+		inset-block: 15%;
+	}
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
+		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
 	}
 	button {
 		appearance: none;

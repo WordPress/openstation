@@ -199,16 +199,42 @@ export function renderOsSettingsPanel(
 					${ buildWallpaperSection( ctx, body ) }
 					${ buildAccentSection( ctx ) }
 					${ buildDesktopLayoutSection( ctx ) }
-					${ buildDockSizeSection( ctx ) }
-					${ buildWindowRadiusSection( ctx ) }
 					${ buildAdminBarSection( ctx ) }
+				</os-panel>
+			</os-tabpanel>`,
+		},
+		{
+			// The dock's own page. Placement stays with Desktop layout
+			// on Appearance rather than moving here: the position
+			// control only renders for the layouts that honour it, so
+			// the two are one decision in the code as well as the UI.
+			id: 'dock',
+			order: 14,
+			label: __( 'Dock' ),
+			panel: html`<os-tabpanel for="dock">
+				<os-panel>
+					${ buildDockSizeSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 				</os-panel>
 			</os-tabpanel>`,
 		},
 		{
+			// Corners came from Appearance, the rest from Effects.
+			// Shape, motion and links are all one object's settings;
+			// "Effects" named the technique rather than the thing.
+			id: 'windows',
+			order: 18,
+			label: __( 'Windows' ),
+			panel: html`<os-tabpanel for="windows">
+				<os-panel>
+					${ buildWindowRadiusSection( ctx ) }
+					${ buildEffectsSection( ctx ) }
+				</os-panel>
+			</os-tabpanel>`,
+		},
+		{
 			id: 'features',
-			order: 25,
+			order: 30,
 			label: __( 'Features' ),
 			panel: html`<os-tabpanel for="features">
 				<os-panel>
@@ -219,9 +245,9 @@ export function renderOsSettingsPanel(
 		},
 		{
 			id: 'themes',
-			// Between Appearance (10) and Apps & Icons (22): a desktop
-			// theme is a coarser version of what Appearance does, so
-			// it reads as the next step, not a separate concern.
+			// Between Appearance (10) and the dock: a desktop theme is
+			// a coarser version of what Appearance does, so it reads as
+			// the next step, not a separate concern.
 			order: 12,
 			label: __( 'Themes' ),
 			panel: html`<os-tabpanel for="themes">
@@ -231,17 +257,9 @@ export function renderOsSettingsPanel(
 		{
 			id: 'apps-icons',
 			order: 22,
-			label: __( 'Apps & Icons' ),
+			label: __( 'Apps & Plugins' ),
 			panel: html`<os-tabpanel for="apps-icons">
 				<os-panel>${ buildAppsIconsSection( ctx ) }</os-panel>
-			</os-tabpanel>`,
-		},
-		{
-			id: 'effects',
-			order: 27,
-			label: __( 'Effects' ),
-			panel: html`<os-tabpanel for="effects">
-				<os-panel>${ buildEffectsSection( ctx ) }</os-panel>
 			</os-tabpanel>`,
 		},
 	];
@@ -332,6 +350,15 @@ export function renderOsSettingsPanel(
 
 	render(
 		html`
+			<os-tabs
+				orientation="vertical"
+				value=${ initialTab }
+				label=${ __( 'Settings sections' ) }
+			>
+				${ rows.map(
+					( r ) => html`<os-tab value=${ r.id }>${ r.label }</os-tab>`,
+				) }
+			</os-tabs>
 			${ rows.map( ( r ) => r.panel ) }
 			<os-panel class="os-settings__footer">
 				<os-button variant="ghost" @click=${ onReset }
@@ -355,36 +382,33 @@ export function renderOsSettingsPanel(
 	}
 
 	/*
-	 * Hand the tabs to the window chrome.
+	 * The strip lives in the panel body, not the window chrome.
 	 *
-	 * This is the same strip an admin-page window wears under its
-	 * title bar: one tab system, one stylesheet, whatever is behind
-	 * the window. `setPanelTabs` reconciles by value, so a plugin
-	 * live-registering a tab adds one button rather than rebuilding
-	 * the strip under the user's cursor.
+	 * `setPanelTabs()` puts a window's tabs under its title bar, which
+	 * is right for an admin-page window and wrong here: that strip is
+	 * horizontal and shared with every native window, and OS Settings
+	 * needs a sidebar that can hold more entries than a title bar has
+	 * room for. Eight tabs already measured 1178px inside an 1180px
+	 * window, and `openstation_register_settings_tab()` exists to
+	 * invite more.
 	 *
-	 * Declared AFTER the panes are rendered, because it pairs each tab
-	 * to its pane for assistive tech and hides all but the active one.
+	 * `<os-tabs>` pairs itself with the sibling `<os-tabpanel for="…">`
+	 * panes above, so selection, `aria-selected`, roving tabindex and
+	 * pane visibility all come with it.
 	 */
-	const winEl = body.closest< HTMLElement >( '.os-window' );
-	if ( winEl ) {
-		setPanelTabs(
-			winEl,
-			rows.map( ( r ) => ( { value: r.id, label: r.label } ) ),
-			initialTab,
-		);
-
+	const tabsHost = body.querySelector( 'os-tabs' );
+	if ( tabsHost ) {
 		/*
 		 * Track the user's choice so a registry-driven re-render lands
-		 * them back on it. Bound on the window element, which outlives
-		 * this render root; `AbortSignal` off a per-render controller
-		 * keeps a re-render from stacking listeners on it.
+		 * them back on it. `lit` reuses the host across renders, so the
+		 * listener would stack; an `AbortSignal` off a per-render
+		 * controller retires the previous one.
 		 */
 		ctx.tabChangeAbort?.abort();
 		const controller = new AbortController();
 		ctx.tabChangeAbort = controller;
-		winEl.addEventListener(
-			'os-window-tab-change',
+		tabsHost.addEventListener(
+			'os-tab-change',
 			( e: Event ) => {
 				const detail = ( e as CustomEvent ).detail as {
 					value?: string;
@@ -395,6 +419,17 @@ export function renderOsSettingsPanel(
 			},
 			{ signal: controller.signal },
 		);
+	}
+
+	/*
+	 * Clear any panel tabs a previous render left in the chrome. The
+	 * window is reused across opens, so a build that still handed its
+	 * tabs upward would otherwise leave a stale strip under the title
+	 * bar with nothing behind it.
+	 */
+	const winEl = body.closest< HTMLElement >( '.os-window' );
+	if ( winEl ) {
+		setPanelTabs( winEl, [] );
 	}
 	ctx.activeTabId = initialTab;
 

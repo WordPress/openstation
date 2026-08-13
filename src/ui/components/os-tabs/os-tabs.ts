@@ -92,13 +92,13 @@ export class OsTab extends Component {
 defineComponent( 'os-tab', OsTab );
 
 export class OsTabs extends Component {
-	static props = [ 'value', 'label' ] as const;
+	static props = [ 'value', 'label', 'orientation' ] as const;
 	static styles = [ tabsStyles ];
 
 	static help = {
 		title: 'Tabs',
 		summary:
-			'Underline-accent tab strip. Pair with sibling <os-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection.',
+			'Underline-accent tab strip. Pair with sibling <os-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection. Set orientation="vertical" for a sidebar instead of a strip.',
 		status: 'stable',
 		props: [
 			{
@@ -110,6 +110,12 @@ export class OsTabs extends Component {
 				name: 'label',
 				type: 'string',
 				description: 'aria-label for the tablist — describe the tab group for assistive tech.',
+			},
+			{
+				name: 'orientation',
+				type: "'horizontal' | 'vertical'",
+				description:
+					'Lay the tabs across the top (default) or down the side. Vertical also sets aria-orientation and moves each tab\'s accent from an underline to a leading edge.',
 			},
 		],
 		slots: [
@@ -186,6 +192,26 @@ export class OsTabs extends Component {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
+		}
+		// Anything other than the opt-in keyword stays horizontal, so a
+		// typo degrades to the shipped layout rather than to nothing.
+		const vertical =
+			( this as unknown as { orientation: string | null } ).orientation ===
+			'vertical';
+		this.setAttribute(
+			'aria-orientation',
+			vertical ? 'vertical' : 'horizontal',
+		);
+		// Stamped synchronously, unlike the selection state below: the
+		// tabs style themselves off this and Firefox has no
+		// :host-context() to read it upward, so a frame spent without
+		// it is a frame of horizontal tabs in a vertical column.
+		for ( const tab of Array.from( this.querySelectorAll( 'os-tab' ) ) ) {
+			if ( vertical ) {
+				tab.setAttribute( 'data-orientation', 'vertical' );
+			} else {
+				tab.removeAttribute( 'data-orientation' );
+			}
 		}
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {

@@ -56,6 +56,54 @@ describe( '<os-tabs> + <os-tab>', () => {
 		).toBe( 'tab' );
 	} );
 
+	test( 'defaults to a horizontal strip', async () => {
+		host.innerHTML = `
+			<os-tabs value="a">
+				<os-tab value="a">A</os-tab>
+			</os-tabs>
+		`;
+		await tick();
+		expect(
+			host.querySelector( 'os-tabs' )!.getAttribute( 'aria-orientation' ),
+		).toBe( 'horizontal' );
+		expect(
+			host.querySelector( 'os-tab' )!.hasAttribute( 'data-orientation' ),
+		).toBe( false );
+	} );
+
+	test( 'orientation=vertical is announced and mirrored onto every tab', async () => {
+		host.innerHTML = `
+			<os-tabs value="a" orientation="vertical">
+				<os-tab value="a">A</os-tab>
+				<os-tab value="b">B</os-tab>
+			</os-tabs>
+		`;
+		await tick();
+		expect(
+			host.querySelector( 'os-tabs' )!.getAttribute( 'aria-orientation' ),
+		).toBe( 'vertical' );
+		// Mirrored down rather than read upward, because the tabs style
+		// themselves and Firefox has no :host-context().
+		for ( const tab of Array.from( host.querySelectorAll( 'os-tab' ) ) ) {
+			expect( tab.getAttribute( 'data-orientation' ) ).toBe( 'vertical' );
+		}
+	} );
+
+	test( 'an unknown orientation degrades to horizontal rather than to nothing', async () => {
+		host.innerHTML = `
+			<os-tabs value="a" orientation="sideways">
+				<os-tab value="a">A</os-tab>
+			</os-tabs>
+		`;
+		await tick();
+		expect(
+			host.querySelector( 'os-tabs' )!.getAttribute( 'aria-orientation' ),
+		).toBe( 'horizontal' );
+		expect(
+			host.querySelector( 'os-tab' )!.hasAttribute( 'data-orientation' ),
+		).toBe( false );
+	} );
+
 	test( 'sibling <os-tabpanel> elements auto-hide based on the active value', async () => {
 		host.innerHTML = `
 			<div class="scope">
