@@ -40,6 +40,7 @@ import {
 } from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
+import { tryNativeUrlRemap } from '../native-url-remap';
 import { findMenuEntryForUrl } from './menu-entry';
 import { navigateToDownload } from './download-nav';
 
@@ -550,6 +551,23 @@ export function registerBuiltInFileOpeners(): void {
 						const u = new URL( extras.shortcutUrl, window.location.origin );
 						if ( u.origin !== window.location.origin ) {
 							window.open( u.toString(), '_blank', 'noopener,noreferrer' );
+							return;
+						}
+						// Let a native window claim the URL first, the
+						// same way `Dock.openPage` and the shell's link
+						// interceptor do. A shortcut knows only a URL,
+						// so without this the Spatial layout's core
+						// wallpaper tiles — synthesized from the very
+						// dock items the remap registry serves — opened
+						// the classic iframe even for a user who had
+						// explicitly enabled native Posts, Pages,
+						// Comments, Plugins or Users. Same app, two
+						// answers, depending on which surface you
+						// clicked. The registry's own `enabled` gate
+						// reads the live OS Settings snapshot, so a
+						// disabled native window still falls through to
+						// the iframe path below.
+						if ( tryNativeUrlRemap( u.toString() ) ) {
 							return;
 						}
 						// Derive the window id from the URL so this

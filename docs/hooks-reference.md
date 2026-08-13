@@ -2747,7 +2747,9 @@ Fired after every bulk trash. The recycle bin and any other listener are cross-w
 
 ### URL → native-window remap registry
 
-Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL (dock click, portal deep-link, `<a href="/wp-admin/…">` anywhere in the shell) consults `tryNativeUrlRemap()` before falling back to the iframe. Future native windows (Pages, Media, Users) register themselves with one line:
+Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL consults `tryNativeUrlRemap()` before falling back to the iframe — dock click, dock constellation, portal deep-link, session restore, Related-entities menu, command palette, `<a href="/wp-admin/…">` anywhere in the shell, and **wallpaper shortcut tiles** (the Spatial layout synthesizes one per core dock item, so the same `edit.php` is reachable from two surfaces and both must answer the same way). If you add a surface that turns a URL into a window, it belongs on this list: a path that skips the registry doesn't degrade gracefully, it silently contradicts a preference the user set.
+
+Future native windows (Pages, Media, Users) register themselves with one line:
 
 ```js
 wp.os.registerNativeUrlRemap( {           // planned public API; internal today — not yet exposed on wp.os
