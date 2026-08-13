@@ -97,6 +97,13 @@ import {
 	registerWindowReveal,
 	unregisterWindowReveal,
 } from '../reveals/registry';
+import {
+	listViewTransitions,
+	registerViewTransition,
+	runViewTransition,
+	supportsViewTransitions,
+	unregisterViewTransition,
+} from '../view-transitions';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -221,6 +228,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerWindowAction', 'unregisterWindowAction', 'listWindowActions',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
 	'registerWindowReveal', 'unregisterWindowReveal', 'listWindowReveals',
+	'registerViewTransition', 'unregisterViewTransition',
+	'listViewTransitions', 'runViewTransition', 'supportsViewTransitions',
 	'relations',
 	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
 	'listWindowLinkRenderers',
@@ -660,6 +669,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindowReveal,
 		unregisterWindowReveal,
 		listWindowReveals,
+		registerViewTransition,
+		unregisterViewTransition,
+		listViewTransitions,
+		runViewTransition,
+		supportsViewTransitions,
 		relations: relationsApi,
 		registerWindowLinkRenderer,
 		unregisterWindowLinkRenderer,

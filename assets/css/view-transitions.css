@@ -1,0 +1,1520 @@
+/**
+ * OpenStation — View transitions.
+ *
+ * Every transition in `src/view-transitions/registry.ts` is CSS, and
+ * this is that CSS. The player never writes a keyframe: it starts a
+ * view transition carrying the type `os-vt-<id>` and the rules below
+ * pick their own out of the cascade.
+ *
+ * ## How a rule finds its transition
+ *
+ * Two selectors, always written as one forgiving `:is()`:
+ *
+ *     html:is( :active-view-transition-type( os-vt-cube ), [data-os-vt="cube"] )
+ *
+ * The first is the real mechanism. The second is the fallback the
+ * player switches to on engines that have view transitions but not
+ * view-transition *types*, where it mirrors the id onto the document
+ * element instead. They live in one `:is()` rather than two rules
+ * because `:is()` parses forgivingly — an engine that has never heard
+ * of `:active-view-transition-type()` drops that argument and still
+ * matches on the attribute, instead of throwing away the whole
+ * selector list the way a plain comma would.
+ *
+ * `os-vt-on` rides along on every run and carries the shared setup, so
+ * a plugin's transition inherits the timing wiring by existing.
+ *
+ * ## The pseudo-element tree, and where to put what
+ *
+ *     ::view-transition                    ← overlay root, fills viewport
+ *       └ ::view-transition-group( name )  ← the animating box; put
+ *         │                                  `perspective` here
+ *         └ ::view-transition-image-pair( name )  ← put `transform-style`
+ *           ├ ::view-transition-old( name )        here
+ *           └ ::view-transition-new( name )       ← paints ABOVE old
+ *
+ * Two consequences worth internalising before editing:
+ *
+ * 1. **`new` is on top by default.** A transition where the OLD
+ *    surface does the moving — every wipe, `uncover`, `iris` — has to
+ *    raise it with `z-index`, or it animates underneath the thing it is
+ *    supposed to be uncovering and nothing appears to happen.
+ * 2. **The UA puts old and new in `mix-blend-mode: plus-lighter`** so
+ *    its own crossfade sums to exactly 1.0 with no dip. That is right
+ *    for a fade and wrong for everything else: two opaque surfaces
+ *    sliding past each other in `plus-lighter` glow white where they
+ *    overlap. `os-vt-on` resets it to `normal`, and `crossfade` — the
+ *    one transition that actually is a fade — asks for it back.
+ *
+ * ## Inheritance
+ *
+ * The pseudo-tree inherits from the ROOT element, not from `<body>`.
+ * The station's palette is scoped to `body.os-active` (see AGENTS.md →
+ * "The palette lives in variables.css"), so tokens do not reach here on
+ * their own; `variables.css` re-exposes the handful these rules need on
+ * `html:has( body.os-active )`. Read tokens, never literals — a
+ * transition is as themeable as anything else in the shell.
+ */
+
+/* ------------------------------------------------------------------
+ * Registered custom properties.
+ *
+ * `--os-vt-band` and `--os-vt-gap` are animated INSIDE gradient stops,
+ * which an unregistered custom property cannot do: without a declared
+ * syntax the browser treats it as an untyped token and swaps it at the
+ * halfway mark instead of interpolating. Registering them as
+ * `<percentage>` is what turns `blinds` and `curtain` from a jump cut
+ * into a movement.
+ * ------------------------------------------------------------------ */
+
+@property --os-vt-band {
+	syntax: '<percentage>';
+	inherits: false;
+	initial-value: 0%;
+}
+
+@property --os-vt-gap {
+	syntax: '<percentage>';
+	inherits: false;
+	initial-value: 0%;
+}
+
+/* ------------------------------------------------------------------
+ * Shared setup — every transition, built-in or plugin.
+ * ------------------------------------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-on ), [data-os-vt] )::view-transition-group( root ) {
+	animation-duration: var( --os-vt-duration, 420ms );
+	animation-timing-function: var( --os-vt-easing, cubic-bezier( 0.32, 0.72, 0, 1 ) );
+}
+
+html:is( :active-view-transition-type( os-vt-on ), [data-os-vt] )::view-transition-old( root ),
+html:is( :active-view-transition-type( os-vt-on ), [data-os-vt] )::view-transition-new( root ) {
+	/* See the header note: `plus-lighter` is a fade optimisation, not a
+	 * general compositing mode. */
+	mix-blend-mode: normal;
+	animation-duration: var( --os-vt-duration, 420ms );
+	animation-timing-function: var( --os-vt-easing, cubic-bezier( 0.32, 0.72, 0, 1 ) );
+	animation-fill-mode: both;
+	/* The snapshots are the full surface at its natural size — letting
+	 * the UA letterbox them would show seams on any transition that
+	 * moves one relative to the other. */
+	height: 100%;
+	object-fit: none;
+	object-position: top left;
+	overflow: clip;
+}
+
+/*
+ * While ANY transition is running, stop the shell's own transitions
+ * from fighting it. A window mid-`filter` transition (the unfocus
+ * effects) captured into a snapshot bakes whatever frame it was on into
+ * a still image, so the effect appears to freeze and then jump when the
+ * transition ends. `:active-view-transition` is a plain document-state
+ * selector — no type needed — which is exactly the kind of blanket
+ * suppression it exists for.
+ */
+html:active-view-transition .os-window,
+html:active-view-transition .os-dock__item-primary {
+	transition: none !important;
+}
+
+/*
+ * Reduced motion. The player already refuses to start a transition
+ * under `prefers-reduced-motion`, so this is the belt to that braces —
+ * it covers CROSS-DOCUMENT transitions inside windows, which the
+ * browser starts on its own without asking the player anything.
+ */
+@media ( prefers-reduced-motion: reduce ) {
+	::view-transition-group( * ),
+	::view-transition-old( * ),
+	::view-transition-new( * ) {
+		animation: none !important;
+	}
+}
+
+/* ==================================================================
+ * FADES
+ * ================================================================== */
+
+/* --- crossfade — the plain dissolve, on our timing ---------------- */
+
+html:is( :active-view-transition-type( os-vt-crossfade ), [data-os-vt="crossfade"] )::view-transition-old( root ),
+html:is( :active-view-transition-type( os-vt-crossfade ), [data-os-vt="crossfade"] )::view-transition-new( root ) {
+	/* The one transition that wants the UA's compositing back. */
+	mix-blend-mode: plus-lighter;
+}
+
+html:is( :active-view-transition-type( os-vt-crossfade ), [data-os-vt="crossfade"] )::view-transition-old( root ) {
+	animation-name: os-vt-fade-out;
+}
+
+html:is( :active-view-transition-type( os-vt-crossfade ), [data-os-vt="crossfade"] )::view-transition-new( root ) {
+	animation-name: os-vt-fade-in;
+}
+
+/* --- dissolve — defocus out, refocus in --------------------------- */
+
+html:is( :active-view-transition-type( os-vt-dissolve ), [data-os-vt="dissolve"] )::view-transition-old( root ) {
+	animation-name: os-vt-dissolve-out;
+}
+
+html:is( :active-view-transition-type( os-vt-dissolve ), [data-os-vt="dissolve"] )::view-transition-new( root ) {
+	animation-name: os-vt-dissolve-in;
+}
+
+@keyframes os-vt-dissolve-out {
+	from {
+		opacity: 1;
+		filter: blur( 0 );
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		filter: blur( 10px );
+		transform: scale( 1.06 );
+	}
+}
+
+@keyframes os-vt-dissolve-in {
+	from {
+		opacity: 0;
+		filter: blur( 10px );
+		transform: scale( 0.96 );
+	}
+	to {
+		opacity: 1;
+		filter: blur( 0 );
+		transform: scale( 1 );
+	}
+}
+
+/* --- through-black — a film cut ----------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-through-black ), [data-os-vt="through-black"] )::view-transition {
+	/* What the two snapshots fade against. Nothing else in the sheet
+	 * paints the overlay root — this transition IS the gap between
+	 * them, so the gap needs a colour. */
+	background-color: #000;
+}
+
+html:is( :active-view-transition-type( os-vt-through-black ), [data-os-vt="through-black"] )::view-transition-old( root ) {
+	animation-name: os-vt-fade-out;
+	animation-duration: calc( var( --os-vt-duration, 620ms ) * 0.42 );
+	animation-timing-function: ease-in;
+}
+
+html:is( :active-view-transition-type( os-vt-through-black ), [data-os-vt="through-black"] )::view-transition-new( root ) {
+	animation-name: os-vt-fade-in;
+	animation-duration: calc( var( --os-vt-duration, 620ms ) * 0.42 );
+	animation-delay: calc( var( --os-vt-duration, 620ms ) * 0.58 );
+	animation-timing-function: ease-out;
+}
+
+/* ==================================================================
+ * SLIDES
+ *
+ * Direction is a CONTEXT type, not a def: the caller knows whether the
+ * user went next or previous, so each of these declares its forward
+ * form and mirrors under `os-vt-backward`.
+ * ================================================================== */
+
+/* --- slide — the two surfaces travel together --------------------- */
+
+html:is( :active-view-transition-type( os-vt-slide ), [data-os-vt="slide"] )::view-transition-old( root ) {
+	animation-name: os-vt-slide-out-left;
+}
+
+html:is( :active-view-transition-type( os-vt-slide ), [data-os-vt="slide"] )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-right;
+}
+
+html:active-view-transition-type( os-vt-slide ):active-view-transition-type( os-vt-backward )::view-transition-old( root ) {
+	animation-name: os-vt-slide-out-right;
+}
+
+html:active-view-transition-type( os-vt-slide ):active-view-transition-type( os-vt-backward )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-left;
+}
+
+/* --- cover — the new surface slides in on top --------------------- */
+
+html:is( :active-view-transition-type( os-vt-cover ), [data-os-vt="cover"] )::view-transition-old( root ) {
+	/* Held still and fully opaque: the whole point is that it does not
+	 * move while something slides over it. */
+	animation-name: os-vt-hold;
+}
+
+html:is( :active-view-transition-type( os-vt-cover ), [data-os-vt="cover"] )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-right;
+	box-shadow: -24px 0 48px rgb( 0 0 0 / 35% );
+}
+
+html:active-view-transition-type( os-vt-cover ):active-view-transition-type( os-vt-backward )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-left;
+	box-shadow: 24px 0 48px rgb( 0 0 0 / 35% );
+}
+
+/* --- uncover — the old surface slides away ------------------------ */
+
+html:is( :active-view-transition-type( os-vt-uncover ), [data-os-vt="uncover"] )::view-transition-old( root ) {
+	/* The mover has to be on top. See the header note on paint order. */
+	z-index: 2;
+	animation-name: os-vt-slide-out-left;
+	box-shadow: 24px 0 48px rgb( 0 0 0 / 35% );
+}
+
+html:is( :active-view-transition-type( os-vt-uncover ), [data-os-vt="uncover"] )::view-transition-new( root ) {
+	animation-name: os-vt-hold;
+}
+
+html:active-view-transition-type( os-vt-uncover ):active-view-transition-type( os-vt-backward )::view-transition-old( root ) {
+	animation-name: os-vt-slide-out-right;
+	box-shadow: -24px 0 48px rgb( 0 0 0 / 35% );
+}
+
+/* --- lift — the new surface rises from below ---------------------- */
+
+html:is( :active-view-transition-type( os-vt-lift ), [data-os-vt="lift"] )::view-transition-old( root ) {
+	animation-name: os-vt-recede;
+}
+
+html:is( :active-view-transition-type( os-vt-lift ), [data-os-vt="lift"] )::view-transition-new( root ) {
+	animation-name: os-vt-rise;
+	border-radius: 12px;
+	box-shadow: 0 -20px 60px rgb( 0 0 0 / 45% );
+}
+
+@keyframes os-vt-rise {
+	from {
+		transform: translateY( 100% );
+	}
+	to {
+		transform: translateY( 0 );
+	}
+}
+
+@keyframes os-vt-recede {
+	from {
+		transform: scale( 1 );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: scale( 0.92 );
+		filter: brightness( 0.6 );
+	}
+}
+
+/* --- parallax — outgoing surface at half speed -------------------- */
+
+html:is( :active-view-transition-type( os-vt-parallax ), [data-os-vt="parallax"] )::view-transition-old( root ) {
+	animation-name: os-vt-parallax-out;
+}
+
+html:is( :active-view-transition-type( os-vt-parallax ), [data-os-vt="parallax"] )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-right;
+}
+
+html:active-view-transition-type( os-vt-parallax ):active-view-transition-type( os-vt-backward )::view-transition-old( root ) {
+	animation-name: os-vt-parallax-out-reverse;
+}
+
+html:active-view-transition-type( os-vt-parallax ):active-view-transition-type( os-vt-backward )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-left;
+}
+
+@keyframes os-vt-parallax-out {
+	from {
+		transform: translateX( 0 );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: translateX( -38% );
+		filter: brightness( 0.55 );
+	}
+}
+
+@keyframes os-vt-parallax-out-reverse {
+	from {
+		transform: translateX( 0 );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: translateX( 38% );
+		filter: brightness( 0.55 );
+	}
+}
+
+/* ==================================================================
+ * DEPTH
+ * ================================================================== */
+
+/* --- zoom — one falls back, one comes forward --------------------- */
+
+html:is( :active-view-transition-type( os-vt-zoom ), [data-os-vt="zoom"] )::view-transition-old( root ) {
+	animation-name: os-vt-zoom-out;
+}
+
+html:is( :active-view-transition-type( os-vt-zoom ), [data-os-vt="zoom"] )::view-transition-new( root ) {
+	animation-name: os-vt-zoom-in;
+}
+
+@keyframes os-vt-zoom-out {
+	from {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 0.82 );
+	}
+}
+
+@keyframes os-vt-zoom-in {
+	from {
+		opacity: 0;
+		transform: scale( 1.18 );
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+}
+
+/* --- push-back — a deck of cards ---------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-push-back ), [data-os-vt="push-back"] )::view-transition-old( root ) {
+	animation-name: os-vt-push-back-out;
+}
+
+html:is( :active-view-transition-type( os-vt-push-back ), [data-os-vt="push-back"] )::view-transition-new( root ) {
+	animation-name: os-vt-slide-in-right;
+	border-radius: 14px;
+	box-shadow: -30px 0 70px rgb( 0 0 0 / 50% );
+}
+
+@keyframes os-vt-push-back-out {
+	from {
+		transform: scale( 1 ) translateY( 0 );
+		filter: brightness( 1 ) saturate( 1 );
+	}
+	to {
+		transform: scale( 0.86 ) translateY( -3% );
+		filter: brightness( 0.45 ) saturate( 0.7 );
+	}
+}
+
+/* --- warp — hyperspace -------------------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-warp ), [data-os-vt="warp"] )::view-transition-old( root ) {
+	animation-name: os-vt-warp-out;
+	animation-timing-function: cubic-bezier( 0.7, 0, 0.84, 0 );
+}
+
+html:is( :active-view-transition-type( os-vt-warp ), [data-os-vt="warp"] )::view-transition-new( root ) {
+	animation-name: os-vt-warp-in;
+	animation-timing-function: cubic-bezier( 0.16, 1, 0.3, 1 );
+}
+
+@keyframes os-vt-warp-out {
+	from {
+		opacity: 1;
+		transform: scale( 1, 1 );
+		filter: blur( 0 ) brightness( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 3.4, 0.015 );
+		filter: blur( 12px ) brightness( 2.4 );
+	}
+}
+
+@keyframes os-vt-warp-in {
+	from {
+		opacity: 0;
+		transform: scale( 3.4, 0.015 );
+		filter: blur( 12px ) brightness( 2.4 );
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1, 1 );
+		filter: blur( 0 ) brightness( 1 );
+	}
+}
+
+/* ==================================================================
+ * ROTATIONS
+ *
+ * All three declare the shared `os-vt-3d` type, which is where the
+ * perspective and `transform-style` live — a rotation without them
+ * flattens into a squash and stops reading as a rotation at all.
+ * ================================================================== */
+
+html:is( :active-view-transition-type( os-vt-3d ), [data-os-vt="cube"], [data-os-vt="flip"], [data-os-vt="fold"] )::view-transition-group( root ) {
+	perspective: 1600px;
+	perspective-origin: 50% 50%;
+}
+
+html:is( :active-view-transition-type( os-vt-3d ), [data-os-vt="cube"], [data-os-vt="flip"], [data-os-vt="fold"] )::view-transition-image-pair( root ) {
+	transform-style: preserve-3d;
+}
+
+html:is( :active-view-transition-type( os-vt-3d ), [data-os-vt="cube"], [data-os-vt="flip"], [data-os-vt="fold"] )::view-transition-old( root ),
+html:is( :active-view-transition-type( os-vt-3d ), [data-os-vt="cube"], [data-os-vt="flip"], [data-os-vt="fold"] )::view-transition-new( root ) {
+	backface-visibility: hidden;
+}
+
+/* --- cube — the desktop is a face --------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-cube ), [data-os-vt="cube"] )::view-transition-old( root ) {
+	transform-origin: 100% 50%;
+	animation-name: os-vt-cube-out;
+}
+
+html:is( :active-view-transition-type( os-vt-cube ), [data-os-vt="cube"] )::view-transition-new( root ) {
+	transform-origin: 0% 50%;
+	animation-name: os-vt-cube-in;
+}
+
+html:active-view-transition-type( os-vt-cube ):active-view-transition-type( os-vt-backward )::view-transition-old( root ) {
+	transform-origin: 0% 50%;
+	animation-name: os-vt-cube-out-reverse;
+}
+
+html:active-view-transition-type( os-vt-cube ):active-view-transition-type( os-vt-backward )::view-transition-new( root ) {
+	transform-origin: 100% 50%;
+	animation-name: os-vt-cube-in-reverse;
+}
+
+@keyframes os-vt-cube-out {
+	from {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: rotateY( -90deg );
+		filter: brightness( 0.35 );
+	}
+}
+
+@keyframes os-vt-cube-in {
+	from {
+		transform: rotateY( 90deg );
+		filter: brightness( 0.35 );
+	}
+	to {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+}
+
+@keyframes os-vt-cube-out-reverse {
+	from {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: rotateY( 90deg );
+		filter: brightness( 0.35 );
+	}
+}
+
+@keyframes os-vt-cube-in-reverse {
+	from {
+		transform: rotateY( -90deg );
+		filter: brightness( 0.35 );
+	}
+	to {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+}
+
+/* --- flip — the surface turns over -------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-flip ), [data-os-vt="flip"] )::view-transition-old( root ) {
+	animation-name: os-vt-flip-out;
+}
+
+html:is( :active-view-transition-type( os-vt-flip ), [data-os-vt="flip"] )::view-transition-new( root ) {
+	animation-name: os-vt-flip-in;
+}
+
+@keyframes os-vt-flip-out {
+	from {
+		transform: rotateY( 0deg );
+	}
+	to {
+		transform: rotateY( 180deg );
+	}
+}
+
+@keyframes os-vt-flip-in {
+	from {
+		transform: rotateY( -180deg );
+	}
+	to {
+		transform: rotateY( 0deg );
+	}
+}
+
+/* --- fold — hinged along the far edge ----------------------------- */
+
+html:is( :active-view-transition-type( os-vt-fold ), [data-os-vt="fold"] )::view-transition-old( root ) {
+	transform-origin: 0% 50%;
+	animation-name: os-vt-fold-out;
+}
+
+html:is( :active-view-transition-type( os-vt-fold ), [data-os-vt="fold"] )::view-transition-new( root ) {
+	transform-origin: 100% 50%;
+	animation-name: os-vt-fold-in;
+}
+
+@keyframes os-vt-fold-out {
+	from {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+	to {
+		transform: rotateY( -95deg );
+		filter: brightness( 0.2 );
+	}
+}
+
+@keyframes os-vt-fold-in {
+	from {
+		transform: rotateY( 95deg );
+		filter: brightness( 0.2 );
+	}
+	to {
+		transform: rotateY( 0deg );
+		filter: brightness( 1 );
+	}
+}
+
+/* --- spin — a quarter turn in the plane of the screen -------------- */
+
+html:is( :active-view-transition-type( os-vt-spin ), [data-os-vt="spin"] )::view-transition-old( root ) {
+	animation-name: os-vt-spin-out;
+}
+
+html:is( :active-view-transition-type( os-vt-spin ), [data-os-vt="spin"] )::view-transition-new( root ) {
+	animation-name: os-vt-spin-in;
+}
+
+@keyframes os-vt-spin-out {
+	from {
+		opacity: 1;
+		transform: rotate( 0deg ) scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: rotate( -75deg ) scale( 0.3 );
+	}
+}
+
+@keyframes os-vt-spin-in {
+	from {
+		opacity: 0;
+		transform: rotate( 75deg ) scale( 0.3 );
+	}
+	to {
+		opacity: 1;
+		transform: rotate( 0deg ) scale( 1 );
+	}
+}
+
+/* ==================================================================
+ * SHAPED WIPES
+ *
+ * `--os-vt-x` / `--os-vt-y` are published by the player from wherever
+ * the user last committed a pointer press, so these originate at the
+ * dock tile that was clicked rather than at an arbitrary point. The
+ * fallbacks below are the viewport centre, which is also what the
+ * player supplies for keyboard-driven runs.
+ * ================================================================== */
+
+/* --- ripple — the new surface floods out from the click ----------- */
+
+html:is( :active-view-transition-type( os-vt-ripple ), [data-os-vt="ripple"] )::view-transition-old( root ) {
+	animation-name: os-vt-hold;
+}
+
+html:is( :active-view-transition-type( os-vt-ripple ), [data-os-vt="ripple"] )::view-transition-new( root ) {
+	animation-name: os-vt-ripple-in;
+	animation-timing-function: cubic-bezier( 0.22, 1, 0.36, 1 );
+}
+
+@keyframes os-vt-ripple-in {
+	from {
+		clip-path: circle( 0 at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+	to {
+		clip-path: circle( 150vmax at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+}
+
+/* --- iris — a camera aperture ------------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-iris ), [data-os-vt="iris"] )::view-transition-old( root ) {
+	z-index: 2;
+	animation-name: os-vt-iris-close;
+	animation-duration: calc( var( --os-vt-duration, 660ms ) * 0.52 );
+	animation-timing-function: cubic-bezier( 0.5, 0, 0.75, 0 );
+}
+
+html:is( :active-view-transition-type( os-vt-iris ), [data-os-vt="iris"] )::view-transition-new( root ) {
+	animation-name: os-vt-iris-open;
+	animation-duration: calc( var( --os-vt-duration, 660ms ) * 0.52 );
+	animation-delay: calc( var( --os-vt-duration, 660ms ) * 0.48 );
+	animation-timing-function: cubic-bezier( 0.25, 1, 0.5, 1 );
+}
+
+@keyframes os-vt-iris-close {
+	from {
+		clip-path: circle( 150vmax at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+	to {
+		clip-path: circle( 0 at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+}
+
+@keyframes os-vt-iris-open {
+	from {
+		clip-path: circle( 0 at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+	to {
+		clip-path: circle( 150vmax at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+}
+
+/* --- wipe — a hard edge sweeps across ------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-wipe ), [data-os-vt="wipe"] )::view-transition-old( root ) {
+	z-index: 2;
+	animation-name: os-vt-wipe-out;
+	animation-timing-function: cubic-bezier( 0.65, 0, 0.35, 1 );
+}
+
+html:is( :active-view-transition-type( os-vt-wipe ), [data-os-vt="wipe"] )::view-transition-new( root ) {
+	animation-name: os-vt-hold;
+}
+
+html:active-view-transition-type( os-vt-wipe ):active-view-transition-type( os-vt-backward )::view-transition-old( root ) {
+	animation-name: os-vt-wipe-out-reverse;
+}
+
+@keyframes os-vt-wipe-out {
+	from {
+		clip-path: inset( 0 0 0 0 );
+	}
+	to {
+		clip-path: inset( 0 100% 0 0 );
+	}
+}
+
+@keyframes os-vt-wipe-out-reverse {
+	from {
+		clip-path: inset( 0 0 0 0 );
+	}
+	to {
+		clip-path: inset( 0 0 0 100% );
+	}
+}
+
+/* --- blinds — venetian slats close --------------------------------
+ *
+ * A mask whose repeating unit is one twelfth of the height, with the
+ * opaque part of each unit shrinking to nothing. One gradient, one
+ * animated length — the slats fall out of the repetition rather than
+ * being twelve separate elements.
+ * ------------------------------------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-blinds ), [data-os-vt="blinds"] )::view-transition-old( root ) {
+	z-index: 2;
+	mask-image: repeating-linear-gradient(
+		to bottom,
+		#000 0 var( --os-vt-band ),
+		transparent var( --os-vt-band ) 8.3333%
+	);
+	animation-name: os-vt-blinds-close;
+	animation-timing-function: cubic-bezier( 0.76, 0, 0.24, 1 );
+}
+
+html:is( :active-view-transition-type( os-vt-blinds ), [data-os-vt="blinds"] )::view-transition-new( root ) {
+	animation-name: os-vt-hold;
+}
+
+@keyframes os-vt-blinds-close {
+	from {
+		--os-vt-band: 8.3333%;
+	}
+	to {
+		--os-vt-band: 0%;
+	}
+}
+
+/* --- curtain — parts down the middle ------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-curtain ), [data-os-vt="curtain"] )::view-transition-old( root ) {
+	z-index: 2;
+	mask-image: linear-gradient(
+		to right,
+		#000 0 calc( 50% - var( --os-vt-gap ) ),
+		transparent calc( 50% - var( --os-vt-gap ) ) calc( 50% + var( --os-vt-gap ) ),
+		#000 calc( 50% + var( --os-vt-gap ) ) 100%
+	);
+	animation-name: os-vt-curtain-part;
+	animation-timing-function: cubic-bezier( 0.65, 0, 0.35, 1 );
+}
+
+html:is( :active-view-transition-type( os-vt-curtain ), [data-os-vt="curtain"] )::view-transition-new( root ) {
+	animation-name: os-vt-curtain-settle;
+}
+
+@keyframes os-vt-curtain-part {
+	from {
+		--os-vt-gap: 0%;
+	}
+	to {
+		--os-vt-gap: 51%;
+	}
+}
+
+@keyframes os-vt-curtain-settle {
+	from {
+		transform: scale( 1.04 );
+	}
+	to {
+		transform: scale( 1 );
+	}
+}
+
+/* --- shutter — banded, and sequenced left to right ------------------
+ *
+ * Two mask layers intersected: vertical bands that close, AND a soft
+ * left-to-right sweep. Neither alone is the effect — the bands give the
+ * shop-front banding, the sweep is what makes them close in sequence
+ * instead of all at once, which one gradient cannot express.
+ * ------------------------------------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-shutter ), [data-os-vt="shutter"] )::view-transition-old( root ) {
+	z-index: 2;
+	mask-image:
+		repeating-linear-gradient(
+			to right,
+			#000 0 var( --os-vt-band ),
+			transparent var( --os-vt-band ) 7.6923%
+		),
+		linear-gradient( to right, transparent 0 var( --os-vt-gap ), #000 var( --os-vt-gap ) 100% );
+	mask-composite: intersect;
+	animation-name: os-vt-shutter-drop;
+	animation-timing-function: cubic-bezier( 0.83, 0, 0.17, 1 );
+}
+
+html:is( :active-view-transition-type( os-vt-shutter ), [data-os-vt="shutter"] )::view-transition-new( root ) {
+	animation-name: os-vt-hold;
+}
+
+@keyframes os-vt-shutter-drop {
+	from {
+		--os-vt-band: 7.6923%;
+		--os-vt-gap: 0%;
+	}
+	to {
+		--os-vt-band: 0%;
+		--os-vt-gap: 100%;
+	}
+}
+
+/* ==================================================================
+ * STATION HOUSE STYLE
+ *
+ * These read the brand tokens rather than literals — see the header
+ * note on inheritance. A desktop theme that re-points `--os-mesh-holo`
+ * or `--os-ui-accent-dim` re-tints them for free.
+ * ================================================================== */
+
+/* --- nebula — the mesh carries the new surface in ------------------ */
+
+html:is( :active-view-transition-type( os-vt-nebula ), [data-os-vt="nebula"] )::view-transition-group( root ) {
+	background: var( --os-vt-mesh, linear-gradient( 120deg, #f252fc, #4b3eff ) );
+}
+
+html:is( :active-view-transition-type( os-vt-nebula ), [data-os-vt="nebula"] )::view-transition-old( root ) {
+	animation-name: os-vt-nebula-out;
+}
+
+html:is( :active-view-transition-type( os-vt-nebula ), [data-os-vt="nebula"] )::view-transition-new( root ) {
+	animation-name: os-vt-nebula-in;
+}
+
+@keyframes os-vt-nebula-out {
+	from {
+		opacity: 1;
+		transform: scale( 1 );
+		filter: blur( 0 ) saturate( 1 );
+	}
+	40% {
+		opacity: 0.5;
+		filter: blur( 6px ) saturate( 1.8 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 1.12 );
+		filter: blur( 18px ) saturate( 2.6 );
+	}
+}
+
+@keyframes os-vt-nebula-in {
+	from {
+		opacity: 0;
+		transform: scale( 0.94 );
+		filter: blur( 18px ) saturate( 2.6 );
+		clip-path: inset( 0 100% 0 0 );
+	}
+	45% {
+		opacity: 0.6;
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+		filter: blur( 0 ) saturate( 1 );
+		clip-path: inset( 0 0 0 0 );
+	}
+}
+
+/* --- pulse — a bloom of accent light ------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-pulse ), [data-os-vt="pulse"] )::view-transition-group( root ) {
+	background:
+		radial-gradient(
+			circle at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ),
+			var( --os-vt-accent, #d92ee3 ) 0%,
+			transparent 55%
+		),
+		var( --os-vt-surface, #14161a );
+}
+
+html:is( :active-view-transition-type( os-vt-pulse ), [data-os-vt="pulse"] )::view-transition-old( root ) {
+	animation-name: os-vt-pulse-out;
+}
+
+html:is( :active-view-transition-type( os-vt-pulse ), [data-os-vt="pulse"] )::view-transition-new( root ) {
+	animation-name: os-vt-pulse-in;
+}
+
+@keyframes os-vt-pulse-out {
+	from {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 1.05 );
+	}
+}
+
+@keyframes os-vt-pulse-in {
+	from {
+		opacity: 0;
+		transform: scale( 0.97 );
+		clip-path: circle( 0 at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+		clip-path: circle( 150vmax at var( --os-vt-x, 50vw ) var( --os-vt-y, 50vh ) );
+	}
+}
+
+/* --- glitch — a signal drop ---------------------------------------
+ *
+ * `steps()` on both sides is the whole trick: a glitch is a sequence of
+ * held wrong frames, and anything that eases between them reads as a
+ * wobble instead.
+ * ------------------------------------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-glitch ), [data-os-vt="glitch"] )::view-transition-old( root ) {
+	z-index: 2;
+	animation-name: os-vt-glitch-out;
+	animation-timing-function: steps( 8, end );
+}
+
+html:is( :active-view-transition-type( os-vt-glitch ), [data-os-vt="glitch"] )::view-transition-new( root ) {
+	animation-name: os-vt-glitch-in;
+	animation-timing-function: steps( 8, end );
+}
+
+@keyframes os-vt-glitch-out {
+	0% {
+		opacity: 1;
+		transform: translateX( 0 );
+		clip-path: inset( 0 0 0 0 );
+		filter: none;
+	}
+	20% {
+		transform: translateX( -1.5% );
+		clip-path: inset( 12% 0 46% 0 );
+		filter: hue-rotate( 90deg ) saturate( 3 );
+	}
+	40% {
+		transform: translateX( 2% );
+		clip-path: inset( 58% 0 8% 0 );
+		filter: hue-rotate( -70deg ) saturate( 3 );
+	}
+	60% {
+		opacity: 0.8;
+		transform: translateX( -3% );
+		clip-path: inset( 30% 0 30% 0 );
+		filter: invert( 1 );
+	}
+	80% {
+		opacity: 0.4;
+		transform: translateX( 1% );
+		clip-path: inset( 0 0 72% 0 );
+	}
+	100% {
+		opacity: 0;
+		transform: translateX( 0 );
+		clip-path: inset( 0 0 100% 0 );
+	}
+}
+
+@keyframes os-vt-glitch-in {
+	0% {
+		opacity: 0;
+		transform: translateX( 3% );
+		filter: hue-rotate( 120deg ) saturate( 4 );
+	}
+	45% {
+		opacity: 1;
+		transform: translateX( -2% );
+		filter: hue-rotate( -40deg ) saturate( 2 );
+	}
+	70% {
+		transform: translateX( 1% );
+		filter: none;
+	}
+	100% {
+		opacity: 1;
+		transform: translateX( 0 );
+		filter: none;
+	}
+}
+
+/* --- scanline — a CRT refresh -------------------------------------- */
+
+html:is( :active-view-transition-type( os-vt-scanline ), [data-os-vt="scanline"] )::view-transition {
+	background-color: #05070a;
+}
+
+html:is( :active-view-transition-type( os-vt-scanline ), [data-os-vt="scanline"] )::view-transition-old( root ) {
+	animation-name: os-vt-crt-off;
+	animation-duration: calc( var( --os-vt-duration, 620ms ) * 0.45 );
+	animation-timing-function: cubic-bezier( 0.5, 0, 0.75, 0 );
+}
+
+html:is( :active-view-transition-type( os-vt-scanline ), [data-os-vt="scanline"] )::view-transition-new( root ) {
+	animation-name: os-vt-crt-on;
+	animation-duration: calc( var( --os-vt-duration, 620ms ) * 0.55 );
+	animation-delay: calc( var( --os-vt-duration, 620ms ) * 0.45 );
+	animation-timing-function: cubic-bezier( 0.25, 1, 0.5, 1 );
+}
+
+@keyframes os-vt-crt-off {
+	0% {
+		transform: scale( 1, 1 );
+		filter: brightness( 1 );
+	}
+	70% {
+		transform: scale( 1, 0.014 );
+		filter: brightness( 3 );
+	}
+	100% {
+		transform: scale( 0.02, 0.008 );
+		filter: brightness( 6 );
+		opacity: 0.9;
+	}
+}
+
+@keyframes os-vt-crt-on {
+	0% {
+		transform: scale( 0.02, 0.008 );
+		filter: brightness( 6 );
+		opacity: 0.9;
+	}
+	35% {
+		transform: scale( 1, 0.014 );
+		filter: brightness( 3 );
+		opacity: 1;
+	}
+	100% {
+		transform: scale( 1, 1 );
+		filter: brightness( 1 );
+		opacity: 1;
+	}
+}
+
+/* ==================================================================
+ * WINDOW-SCOPED TRANSITIONS
+ *
+ * When a caller passes the `os-vt-window` context type, every window
+ * becomes its own transition group and the root stops being one
+ * monolithic snapshot. Three modern pieces do the work:
+ *
+ * - `view-transition-name: match-element` gives each window a unique
+ *   name WITHOUT anyone assigning ids. The alternative — writing
+ *   `view-transition-name: os-window-<id>` from JS on every window
+ *   before every transition and removing it after — is exactly the
+ *   bookkeeping this property exists to delete.
+ * - `view-transition-class` puts them all in one bucket so a single
+ *   `::view-transition-group( .os-vt-card )` rule times every window at
+ *   once, however many are open.
+ * - `view-transition-group: contain` keeps any named descendant a
+ *   plugin puts INSIDE a window nested in that window's group, so it
+ *   travels with the window it belongs to rather than flying
+ *   independently across the desk.
+ *
+ * The naming is deliberately gated on the type. Left on permanently,
+ * every window would be lifted out of the root snapshot during a `cube`
+ * or `warp` too, and those transitions would rotate an empty desktop
+ * while the windows morphed in place beside it.
+ * ================================================================== */
+
+html:active-view-transition-type( os-vt-window ) .os-window {
+	view-transition-name: match-element;
+	view-transition-class: os-vt-card;
+	view-transition-group: contain;
+}
+
+/*
+ * THE TITLE BAR IS PART OF THE WINDOW'S OWN SNAPSHOT — except while
+ * maximizing. Read this before giving it a name again.
+ *
+ * Naming an element lifts it OUT of its ancestor's snapshot into a
+ * group of its own, which animates its own box independently. For a
+ * window that is *opening*, that is exactly wrong: the title bar has no
+ * "old" side to interpolate from, so it appears instantly at final size
+ * while the body scales up underneath it. The window reads as two
+ * pieces arriving on different schedules — clunky in precisely the way
+ * a morph is supposed to avoid.
+ *
+ * Left unnamed, the title bar is captured inside the window image and
+ * scales with it: title text, controls and tab strip all zoom out of
+ * the icon together, as one coherent thing.
+ *
+ * Maximize is the one case that wants the opposite, and gets it below.
+ */
+html:active-view-transition-type( os-vt-maximize ) .os-window__titlebar {
+	/*
+	 * Here the window exists on both sides and only its box changes —
+	 * usually much wider, somewhat taller. Scaling the title bar with
+	 * it would stretch a 40px bar to ~60px mid-flight and squash the
+	 * text back down on landing. Its own nested group keeps its height
+	 * fixed and just widens it, which is what a title bar does when a
+	 * window is maximized.
+	 */
+	view-transition-name: match-element;
+	view-transition-class: os-vt-card-chrome;
+	view-transition-group: nearest;
+}
+
+::view-transition-group( .os-vt-card ),
+::view-transition-group( .os-vt-card-chrome ) {
+	animation-duration: var( --os-vt-duration, 400ms );
+	animation-timing-function: var( --os-vt-easing, cubic-bezier( 0.32, 0.72, 0, 1 ) );
+}
+
+/*
+ * On the way IN, clear the launcher's image early.
+ *
+ * A morph pairs a ~48px icon with a ~900px window, and the group
+ * interpolates between those two boxes while both images are painted
+ * into it. The old image — the icon — is being stretched toward window
+ * width the whole time, and a stretched icon is the one frame in the
+ * whole animation that looks broken. Forty percent is long enough to
+ * read as a crossfade and short enough that the stretch never resolves
+ * into anything legible.
+ *
+ * Deliberately not applied to `os-vt-close` or `os-vt-minimize`: there
+ * the old image IS the window, and it has to stay visible for the whole
+ * run or the window vanishes before its own animation finishes.
+ */
+html:is( :active-view-transition-type( os-vt-open ), :active-view-transition-type( os-vt-restore ) )::view-transition-old( .os-vt-morph ) {
+	animation-duration: calc( var( --os-vt-duration, 400ms ) * 0.4 );
+}
+
+/*
+ * Appearance changes (wallpaper, accent, desktop theme, dock placement,
+ * layout) are a whole-screen repaint, so they take the root family —
+ * but they get one adjustment: the change is one the user just made in
+ * a panel that is itself on screen, so a direction-aware transition
+ * playing its "forward" form here would imply travel that did not
+ * happen. Neutralised to a straight run.
+ */
+html:active-view-transition-type( os-vt-appearance )::view-transition-group( root ) {
+	animation-timing-function: ease-in-out;
+}
+
+/*
+ * `.os-vt-morph` is "the window this transition is ABOUT".
+ *
+ * `.os-vt-card` is every open window; the subject additionally carries
+ * `os-vt-morph`, applied inline by the player alongside the shared
+ * `view-transition-name` that pairs it with its launcher. Without that
+ * distinction a rule could not tell the window that is opening from the
+ * eight that merely happen to be on screen while it does.
+ *
+ * On OPEN and RESTORE the pair is (launcher, window): one group whose
+ * box interpolates from the dock tile or wallpaper icon to the finished
+ * window, which is the whole "the icon became the window" effect. On
+ * CLOSE it is (window, nothing). On MINIMIZE and MAXIMIZE it is the
+ * same element on both sides, changing state.
+ */
+::view-transition-group( .os-vt-morph ) {
+	animation-duration: var( --os-vt-duration, 400ms );
+	animation-timing-function: var( --os-vt-easing, cubic-bezier( 0.32, 0.72, 0, 1 ) );
+	/* Above the windows that are holding still, so a window growing
+	 * out of the dock passes over its neighbours rather than under. */
+	z-index: 10;
+}
+
+/*
+ * The desk holds still for every window transition — that is what makes
+ * these different from the whole-screen family. The root snapshot is
+ * captured and simply held, so only the named groups move.
+ */
+html:active-view-transition-type( os-vt-window )::view-transition-old( root ),
+html:active-view-transition-type( os-vt-window )::view-transition-new( root ) {
+	animation-name: os-vt-hold;
+}
+
+/*
+ * Windows that are NOT the subject hold too. Their group animation is
+ * an identity transform anyway; what this suppresses is the UA's
+ * default crossfade, which on an unchanged window is a pointless dip in
+ * opacity — visible as a flicker across every other window on the desk
+ * each time one of them opens.
+ */
+html:active-view-transition-type( os-vt-window )::view-transition-old( .os-vt-card ),
+html:active-view-transition-type( os-vt-window )::view-transition-new( .os-vt-card ) {
+	animation-name: os-vt-hold;
+}
+
+/* --- morph — the group animation, and nothing else ------------------
+ *
+ * No keyframes of its own on purpose. The group already interpolates
+ * the launcher's box into the window's; the only thing to do is let it,
+ * and cross the two images over the top as briefly as possible so the
+ * stretched icon is never legible.
+ * ------------------------------------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-morph ), [data-os-vt="morph"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-fade-out;
+}
+
+html:is( :active-view-transition-type( os-vt-morph ), [data-os-vt="morph"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-fade-in;
+}
+
+/* --- genie — skews and stretches on the way ------------------------- */
+
+html:is( :active-view-transition-type( os-vt-genie ), [data-os-vt="genie"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-genie-out;
+}
+
+html:is( :active-view-transition-type( os-vt-genie ), [data-os-vt="genie"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-genie-in;
+}
+
+@keyframes os-vt-genie-out {
+	from {
+		opacity: 1;
+		transform: perspective( 900px ) skewY( 0deg ) scaleY( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: perspective( 900px ) skewY( 5deg ) scaleY( 0.55 );
+	}
+}
+
+@keyframes os-vt-genie-in {
+	from {
+		opacity: 0;
+		transform: perspective( 900px ) skewY( -5deg ) scaleY( 0.55 );
+	}
+	to {
+		opacity: 1;
+		transform: perspective( 900px ) skewY( 0deg ) scaleY( 1 );
+	}
+}
+
+/* --- pop — overshoot in, collapse out ------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-pop ), [data-os-vt="pop"] )::view-transition-group( .os-vt-morph ) {
+	animation-timing-function: cubic-bezier( 0.34, 1.56, 0.64, 1 );
+}
+
+html:is( :active-view-transition-type( os-vt-pop ), [data-os-vt="pop"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-pop-out;
+}
+
+html:is( :active-view-transition-type( os-vt-pop ), [data-os-vt="pop"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-pop-in;
+}
+
+@keyframes os-vt-pop-in {
+	from {
+		opacity: 0;
+		transform: scale( 0.86 );
+	}
+	60% {
+		opacity: 1;
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+}
+
+@keyframes os-vt-pop-out {
+	from {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 0.86 );
+	}
+}
+
+/* --- unfold — hinged at the top ------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-unfold ), [data-os-vt="unfold"] )::view-transition-group( .os-vt-morph ) {
+	perspective: 1400px;
+}
+
+html:is( :active-view-transition-type( os-vt-unfold ), [data-os-vt="unfold"] )::view-transition-image-pair( .os-vt-morph ) {
+	transform-style: preserve-3d;
+}
+
+html:is( :active-view-transition-type( os-vt-unfold ), [data-os-vt="unfold"] )::view-transition-old( .os-vt-morph ) {
+	transform-origin: 50% 0;
+	animation-name: os-vt-unfold-out;
+}
+
+html:is( :active-view-transition-type( os-vt-unfold ), [data-os-vt="unfold"] )::view-transition-new( .os-vt-morph ) {
+	transform-origin: 50% 0;
+	animation-name: os-vt-unfold-in;
+}
+
+@keyframes os-vt-unfold-in {
+	from {
+		opacity: 0;
+		transform: rotateX( -82deg );
+		filter: brightness( 0.4 );
+	}
+	to {
+		opacity: 1;
+		transform: rotateX( 0deg );
+		filter: brightness( 1 );
+	}
+}
+
+@keyframes os-vt-unfold-out {
+	from {
+		opacity: 1;
+		transform: rotateX( 0deg );
+		filter: brightness( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: rotateX( -82deg );
+		filter: brightness( 0.4 );
+	}
+}
+
+/* --- swirl — spirals up to size ------------------------------------ */
+
+html:is( :active-view-transition-type( os-vt-swirl ), [data-os-vt="swirl"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-swirl-out;
+}
+
+html:is( :active-view-transition-type( os-vt-swirl ), [data-os-vt="swirl"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-swirl-in;
+}
+
+@keyframes os-vt-swirl-in {
+	from {
+		opacity: 0;
+		transform: rotate( -110deg ) scale( 0.25 );
+	}
+	to {
+		opacity: 1;
+		transform: rotate( 0deg ) scale( 1 );
+	}
+}
+
+@keyframes os-vt-swirl-out {
+	from {
+		opacity: 1;
+		transform: rotate( 0deg ) scale( 1 );
+	}
+	to {
+		opacity: 0;
+		transform: rotate( 110deg ) scale( 0.25 );
+	}
+}
+
+/* --- materialize — arrives out of focus, settles sharp -------------- */
+
+html:is( :active-view-transition-type( os-vt-materialize ), [data-os-vt="materialize"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-materialize-out;
+}
+
+html:is( :active-view-transition-type( os-vt-materialize ), [data-os-vt="materialize"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-materialize-in;
+}
+
+@keyframes os-vt-materialize-in {
+	from {
+		opacity: 0;
+		filter: blur( 16px ) saturate( 2.2 ) brightness( 1.5 );
+		transform: scale( 1.04 );
+	}
+	to {
+		opacity: 1;
+		filter: blur( 0 ) saturate( 1 ) brightness( 1 );
+		transform: scale( 1 );
+	}
+}
+
+@keyframes os-vt-materialize-out {
+	from {
+		opacity: 1;
+		filter: blur( 0 ) saturate( 1 ) brightness( 1 );
+		transform: scale( 1 );
+	}
+	to {
+		opacity: 0;
+		filter: blur( 16px ) saturate( 2.2 ) brightness( 1.5 );
+		transform: scale( 1.04 );
+	}
+}
+
+/* --- slam — fast and hard from the front ---------------------------- */
+
+html:is( :active-view-transition-type( os-vt-slam ), [data-os-vt="slam"] )::view-transition-old( .os-vt-morph ) {
+	animation-name: os-vt-slam-out;
+	animation-timing-function: cubic-bezier( 0.7, 0, 0.84, 0 );
+}
+
+html:is( :active-view-transition-type( os-vt-slam ), [data-os-vt="slam"] )::view-transition-new( .os-vt-morph ) {
+	animation-name: os-vt-slam-in;
+	animation-timing-function: cubic-bezier( 0.16, 1, 0.3, 1 );
+}
+
+@keyframes os-vt-slam-in {
+	from {
+		opacity: 0;
+		transform: scale( 1.9 );
+		filter: blur( 6px );
+	}
+	70% {
+		opacity: 1;
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+		filter: blur( 0 );
+	}
+}
+
+@keyframes os-vt-slam-out {
+	from {
+		opacity: 1;
+		transform: scale( 1 );
+		filter: blur( 0 );
+	}
+	to {
+		opacity: 0;
+		transform: scale( 1.9 );
+		filter: blur( 6px );
+	}
+}
+
+/* ==================================================================
+ * SHARED KEYFRAMES
+ * ================================================================== */
+
+@keyframes os-vt-fade-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes os-vt-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+/*
+ * "Stay exactly as you are for the whole run."
+ *
+ * Needed far more often than it looks: the UA's default animation on
+ * old/new is a fade, so a transition where one side is supposed to sit
+ * still has to say so explicitly. `animation: none` would not do it —
+ * that restores the UA default rather than removing it.
+ */
+@keyframes os-vt-hold {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes os-vt-slide-out-left {
+	from {
+		transform: translateX( 0 );
+	}
+	to {
+		transform: translateX( -100% );
+	}
+}
+
+@keyframes os-vt-slide-out-right {
+	from {
+		transform: translateX( 0 );
+	}
+	to {
+		transform: translateX( 100% );
+	}
+}
+
+@keyframes os-vt-slide-in-right {
+	from {
+		transform: translateX( 100% );
+	}
+	to {
+		transform: translateX( 0 );
+	}
+}
+
+@keyframes os-vt-slide-in-left {
+	from {
+		transform: translateX( -100% );
+	}
+	to {
+		transform: translateX( 0 );
+	}
+}

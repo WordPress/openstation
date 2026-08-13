@@ -64,6 +64,11 @@ import { subscribeWindowControls } from './../window-chrome/controls/registry';
 import { paintWindowControls } from './../window-chrome/controls/render';
 import { paintThemedControlIcon } from './../window-chrome/controls/paint-themed-icon';
 import { renderIcon } from '../icon';
+import {
+	findLaunchSource,
+	hasActiveViewTransition,
+	runViewTransition,
+} from '../view-transitions';
 import { slotForTileId } from '../desktop-themes/slots';
 import { subscribeWindowSlots } from './../window-chrome/slots/registry';
 import { paintWindowSlots } from './../window-chrome/slots/render';
@@ -1580,7 +1585,46 @@ export class Window {
 		return this.element.classList.contains( 'os-window--focused' );
 	}
 
+	/**
+	 * Collapse the window to the dock.
+	 *
+	 * Plays the user's window transition when they have one; otherwise
+	 * takes the original class-driven path untouched.
+	 */
 	public minimize(): void {
+		if ( this.state === 'minimized' ) {
+			return;
+		}
+		if ( ! hasActiveViewTransition( 'element' ) ) {
+			this._minimizeNow( false );
+			return;
+		}
+		void runViewTransition( {
+			family: 'element',
+			types: [ 'os-vt-window', 'os-vt-minimize' ],
+			// Same element both sides — the window is not moving to a
+			// new node, it is changing state. Naming it is what singles
+			// it out from every other open window for the stylesheet.
+			morph: { from: this.element, to: () => this.element },
+			update: () => this._minimizeNow( true ),
+		} ).then( () => this._parkMinimized() );
+	}
+
+	/**
+	 * The minimize state machine.
+	 *
+	 * @param deferPark Whether the caller will invoke
+	 *                  {@link _parkMinimized} itself once its animation
+	 *                  lands. A view transition suppresses the window's
+	 *                  CSS transitions for its duration, so the
+	 *                  `transitionend` this normally hangs the parking
+	 *                  work off would never fire — and the window would
+	 *                  stay fully rendered while minimized, which is the
+	 *                  exact background cost the parking exists to
+	 *                  avoid.
+	 * @internal
+	 */
+	private _minimizeNow( deferPark: boolean ): void {
 		// Re-entering minimize from minimize would clobber the saved
 		// underlying state, leaking the 'minimized' value into the
 		// restore target.
@@ -1602,18 +1646,13 @@ export class Window {
 		// inside the iframe still run — stopping those would require
 		// unloading the page.) Browsers without content-visibility
 		// ignore the property and keep today's behavior.
-		this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
-			if (
-				e.propertyName === 'opacity' &&
-				this.state === 'minimized' &&
-				! this.element.classList.contains( 'os-window--overview' )
-			) {
-				if ( this.iframe ) {
-					this.iframe.style.visibility = 'hidden';
+		if ( ! deferPark ) {
+			this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
+				if ( e.propertyName === 'opacity' ) {
+					this._parkMinimized();
 				}
-				this.element.style.setProperty( 'content-visibility', 'hidden' );
-			}
-		}, { once: true } );
+			}, { once: true } );
+		}
 
 		this.onMinimize?.( this );
 		this._emitChange( 'state' );
@@ -1628,6 +1667,39 @@ export class Window {
 	}
 
 	/**
+	 * Stop a minimized window doing rendering work.
+	 *
+	 * `opacity: 0` alone leaves the subtree in the render tree: the
+	 * iframe keeps compositing and its rAF loops keep firing, and with
+	 * several minimized wp-admin pages that is real background cost.
+	 * `visibility: hidden` on the iframe plus `content-visibility:
+	 * hidden` on the window root skip paint, layout, and in-iframe rAF
+	 * entirely while preserving all DOM / iframe state for an instant
+	 * restore. (Timers and Heartbeat inside the iframe still run —
+	 * stopping those would require unloading the page.) Browsers
+	 * without `content-visibility` ignore the property and keep the
+	 * previous behaviour.
+	 *
+	 * Re-checks the state rather than trusting its caller: both entry
+	 * points are asynchronous, and a window restored during the
+	 * animation must not be parked after the fact.
+	 *
+	 * @internal
+	 */
+	private _parkMinimized(): void {
+		if (
+			this.state !== 'minimized' ||
+			this.element.classList.contains( 'os-window--overview' )
+		) {
+			return;
+		}
+		if ( this.iframe ) {
+			this.iframe.style.visibility = 'hidden';
+		}
+		this.element.style.setProperty( 'content-visibility', 'hidden' );
+	}
+
+	/**
 	 * Restore the window from minimized state. Returns the window to
 	 * whichever underlying state it occupied before {@link minimize} —
 	 * so a previously-maximized window comes back maximized rather than
@@ -1636,12 +1708,46 @@ export class Window {
 	 * out of sync with `this.state`.
 	 */
 	public restore(): void {
-		// Restore renderability before the animation starts — the
-		// un-minimize transition needs the subtree painting again.
+		if ( ! hasActiveViewTransition( 'element' ) ) {
+			this._restoreNow();
+			return;
+		}
+		// Un-parked BEFORE the transition starts, not inside the update:
+		// a window still carrying `content-visibility: hidden` when the
+		// browser takes its "old" snapshot is captured as a blank box,
+		// and the restore animates from nothing into the page.
+		this._unparkMinimized();
+		void runViewTransition( {
+			family: 'element',
+			types: [ 'os-vt-window', 'os-vt-restore' ],
+			// Restoring from the dock reads as launching from it, so the
+			// same launcher pairing applies — click the dock tile and
+			// the window grows back out of the tile you clicked.
+			morph: {
+				from: findLaunchSource( this.element ),
+				to: () => this.element,
+			},
+			update: () => this._restoreNow(),
+		} );
+	}
+
+	/** Undo {@link _parkMinimized}. @internal */
+	private _unparkMinimized(): void {
 		this.element.style.removeProperty( 'content-visibility' );
 		if ( this.iframe ) {
 			this.iframe.style.visibility = '';
 		}
+	}
+
+	/**
+	 * The restore state machine.
+	 *
+	 * @internal
+	 */
+	private _restoreNow(): void {
+		// Restore renderability before the animation starts — the
+		// un-minimize transition needs the subtree painting again.
+		this._unparkMinimized();
 
 		const wasMinimized = this.state === 'minimized';
 		this.element.classList.remove( 'os-window--minimized' );
@@ -1762,8 +1868,50 @@ export class Window {
 		return true;
 	}
 
-	/** Toggle between maximized and normal states. */
+	/**
+	 * Toggle between maximized and normal states.
+	 *
+	 * Wraps the real work in a view transition when the user has picked
+	 * a window-scoped one (`morph`, `genie`, `pop`). A maximize is a
+	 * pure geometry change, which is the one case the API handles
+	 * better than a CSS transition can: the window's group interpolates
+	 * its whole box — position, size, corner radius — from the old
+	 * layout to the new one, including the parts a `transition` on
+	 * `width`/`height` cannot reach, like the title bar's contents
+	 * reflowing.
+	 *
+	 * A whole-screen selection (`cube`, `warp`, …) deliberately does
+	 * NOT play here — see `activeViewTransitionMatchesScope`. The
+	 * window falls back to the CSS transition it has always had, which
+	 * is why the un-wrapped path below is untouched rather than
+	 * duplicated.
+	 */
 	public toggleMaximize(): void {
+		if ( ! hasActiveViewTransition( 'element' ) ) {
+			this._toggleMaximizeNow();
+			return;
+		}
+		void runViewTransition( {
+			family: 'element',
+			update: () => this._toggleMaximizeNow(),
+			// Turns on per-window `view-transition-name: match-element`
+			// for the run (see `view-transitions.css`), so each window
+			// is its own group and only THIS one has anything to
+			// animate — the rest are captured unchanged and hold still.
+			types: [ 'os-vt-window', 'os-vt-maximize' ],
+			morph: { from: this.element, to: () => this.element },
+		} );
+	}
+
+	/**
+	 * The maximize/unmaximize state machine itself, with no animation
+	 * concerns. Split out so {@link toggleMaximize} can decide whether
+	 * to run it inside a view transition without either path forking
+	 * the logic.
+	 *
+	 * @internal
+	 */
+	private _toggleMaximizeNow(): void {
 		const parent = this.element.parentElement;
 		if ( ! parent ) {
 			return;
@@ -3390,6 +3538,32 @@ export class Window {
 		// Fire the callback immediately so the window manager updates
 		// its stack.
 		this.onClose?.( this );
+
+		// A window transition replaces the CSS closing animation rather
+		// than playing over it. The two cannot coexist: the CSS path
+		// finalises on `transitionend` for `opacity`, and the blanket
+		// `html:active-view-transition .os-window { transition: none }`
+		// in `view-transitions.css` means that event would never fire —
+		// the window would hang around until the 300 ms safety net
+		// caught it, one beat after its own animation finished.
+		//
+		// So the transition owns the whole close: the update removes
+		// the element outright, and the browser animates the snapshot
+		// it took beforehand.
+		if ( hasActiveViewTransition( 'element' ) ) {
+			void runViewTransition( {
+				family: 'element',
+				types: [ 'os-vt-window', 'os-vt-close' ],
+				// `to: null` — there is no destination, the window is
+				// going away. Naming the source is still what marks it
+				// as the subject of the transition, so the stylesheet
+				// animates THIS window's snapshot and holds every other
+				// open window still.
+				morph: { from: this.element, to: () => null },
+				update: () => this._finalizeClose(),
+			} );
+			return;
+		}
 
 		this.element.classList.add( 'os-window--closing' );
 

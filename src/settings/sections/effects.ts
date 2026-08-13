@@ -34,6 +34,15 @@ import {
 	subscribeWindowReveals,
 	WINDOW_REVEAL_NONE as REVEAL_NONE,
 } from '../../reveals/registry';
+import {
+	listViewTransitions,
+	runViewTransition,
+	subscribeViewTransitions,
+	supportsViewTransitions,
+	VIEW_TRANSITION_NONE as VT_NONE,
+	VT_DURATION_AUTO,
+} from '../../view-transitions';
+import type { ViewTransitionDef } from '../../view-transitions';
 import type { UnfocusEffectDef } from '../../effects/types';
 import type { WindowRevealDef } from '../../reveals/types';
 import type { WindowLinkRendererDef } from '../../window-links/types';
@@ -53,6 +62,22 @@ import type { SettingsCtx } from '../types';
  */
 const REVEAL_SPEEDS = [
 	{ value: REVEAL_DURATION_AUTO, label: () => __( 'Default (per reveal)' ) },
+	{ value: 200, label: () => __( 'Very fast — 200 ms' ) },
+	{ value: 320, label: () => __( 'Fast — 320 ms' ) },
+	{ value: 460, label: () => __( 'Normal — 460 ms' ) },
+	{ value: 700, label: () => __( 'Slow — 700 ms' ) },
+	{ value: 1100, label: () => __( 'Very slow — 1100 ms' ) },
+] as const;
+
+/**
+ * View-transition speed presets, in ms. Same shape and same reasoning
+ * as {@link REVEAL_SPEEDS} — `0` keeps each transition's own tuning,
+ * which matters more here than it does for reveals because the spread
+ * is wider: `crossfade` ships at 260 ms and `nebula` at 760, and one
+ * flat number would make one of them wrong.
+ */
+const VT_SPEEDS = [
+	{ value: VT_DURATION_AUTO, label: () => __( 'Default (per transition)' ) },
 	{ value: 200, label: () => __( 'Very fast — 200 ms' ) },
 	{ value: 320, label: () => __( 'Fast — 320 ms' ) },
 	{ value: 460, label: () => __( 'Normal — 460 ms' ) },
@@ -120,6 +145,108 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onPickTransition = ( e: Event ): void => {
+		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( id === '' ) {
+			return;
+		}
+		if ( id !== VT_NONE && ! screenTransitions.some( ( t ) => t.id === id ) ) {
+			return;
+		}
+		ctx.state.viewTransition = id;
+		ctx.save();
+		// No `ctx.apply()` — a transition is read at play time, not
+		// written into a custom property, so the apply pass has nothing
+		// to do. `save()` already fired the settings subscribers, which
+		// is how the shell bundle learns the new id.
+		paint();
+		// Play it immediately. A transition is the one kind of setting
+		// whose value is unreadable from its name — nobody knows what
+		// "Shutter" looks like until they have seen it — and the
+		// alternative is asking the user to close Preferences, switch
+		// desktop, and come back for every one of two dozen options.
+		preview( id );
+	};
+
+	const onPickWindowTransition = ( e: Event ): void => {
+		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( id === '' ) {
+			return;
+		}
+		if ( id !== VT_NONE && ! windowTransitions.some( ( t ) => t.id === id ) ) {
+			return;
+		}
+		ctx.state.windowTransition = id;
+		ctx.save();
+		paint();
+		preview( id );
+	};
+
+	const onPickTransitionSpeed = ( e: Event ): void => {
+		const raw = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( raw === '' ) {
+			return;
+		}
+		const value = Number( raw );
+		if ( ! VT_SPEEDS.some( ( s ) => s.value === value ) ) {
+			return;
+		}
+		ctx.state.viewTransitionDuration = value;
+		ctx.save();
+		paint();
+		// Preview whichever of the two the user actually has set, so
+		// the speed change is visible without them having to guess
+		// which selector it applied to.
+		preview(
+			ctx.state.viewTransition !== VT_NONE
+				? ctx.state.viewTransition
+				: ctx.state.windowTransition,
+		);
+	};
+
+	/**
+	 * Play the given transition against the live shell.
+	 *
+	 * The update callback changes an attribute and nothing else, so the
+	 * two snapshots are identical — which is exactly what a preview
+	 * wants. Every transition here MOVES its snapshots (slides them,
+	 * rotates them, wipes between them), so identical content still
+	 * shows the full motion, and the desktop is guaranteed to be in the
+	 * same state afterwards as before. A preview that actually switched
+	 * desktop would demonstrate the transition and rearrange the user's
+	 * workspace to do it.
+	 *
+	 * A window transition previews against the Preferences window
+	 * itself — the one window the user is certainly looking at — using
+	 * the same morph pairing the real lifecycle callers use, so what
+	 * they see here is what they will get when they open something.
+	 *
+	 * @param id Transition to play.
+	 */
+	const preview = ( id: string ): void => {
+		if ( id === VT_NONE || ! supportsViewTransitions() ) {
+			return;
+		}
+		const def = allTransitions().find( ( t ) => t.id === id );
+		const windowScoped = ( def?.scope ?? 'root' ) === 'element';
+		const host = wrapper.closest< HTMLElement >( '.os-window' );
+		void runViewTransition( {
+			id,
+			family: windowScoped ? 'element' : 'root',
+			update: () => {
+				const root = document.documentElement;
+				const n = Number( root.dataset.osVtPreview ?? '0' ) + 1;
+				root.dataset.osVtPreview = String( n );
+			},
+			types: windowScoped
+				? [ 'os-vt-window', 'os-vt-preview' ]
+				: [ 'os-vt-desktop', 'os-vt-preview' ],
+			morph: windowScoped
+				? { from: host, to: () => host }
+				: undefined,
+		} );
+	};
+
 	const onPickLinkRenderer = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
 		if ( id === '' ) {
@@ -150,6 +277,22 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 
 	let effects: UnfocusEffectDef[] = listUnfocusEffects();
 	let reveals: WindowRevealDef[] = listWindowReveals();
+	// The registry is one list; the two selectors are the two halves of
+	// it, split on `scope`. Partitioning at paint time rather than
+	// keeping two registries means a plugin registers into the same
+	// place either way and simply lands in the right selector.
+	let screenTransitions: ViewTransitionDef[] = [];
+	let windowTransitions: ViewTransitionDef[] = [];
+	const allTransitions = (): ViewTransitionDef[] => [
+		...screenTransitions,
+		...windowTransitions,
+	];
+	const refreshTransitions = (): void => {
+		const all = listViewTransitions();
+		screenTransitions = all.filter( ( t ) => ( t.scope ?? 'root' ) === 'root' );
+		windowTransitions = all.filter( ( t ) => t.scope === 'element' );
+	};
+	refreshTransitions();
 	let linkRenderers: WindowLinkRendererDef[] = listWindowLinkRenderers();
 
 	const paint = (): void => {
@@ -174,6 +317,38 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 			ctx.state.windowReveal !== REVEAL_NONE && activeReveal?.description
 				? activeReveal.description
 				: revealFallbackDescription;
+
+		const supported = supportsViewTransitions();
+		const unsupportedNotice = __(
+			'This browser does not support view transitions, so these play as instant changes.',
+		);
+
+		const activeTransition = screenTransitions.find(
+			( t ) => t.id === ctx.state.viewTransition,
+		);
+		const vtFallbackDescription = supported
+			? __(
+				'Animate the whole screen when it changes — switching Space, or changing the desktop’s appearance.',
+			)
+			: unsupportedNotice;
+		const vtDescription =
+			ctx.state.viewTransition !== VT_NONE && activeTransition?.description
+				? activeTransition.description
+				: vtFallbackDescription;
+
+		const activeWindowTransition = windowTransitions.find(
+			( t ) => t.id === ctx.state.windowTransition,
+		);
+		const wtFallbackDescription = supported
+			? __(
+				'Animate one window as it opens, closes, minimizes or fills the desk — and let it grow out of whatever you clicked to open it.',
+			)
+			: unsupportedNotice;
+		const wtDescription =
+			ctx.state.windowTransition !== VT_NONE &&
+			activeWindowTransition?.description
+				? activeWindowTransition.description
+				: wtFallbackDescription;
 
 		const activeLinkRenderer = linkRenderers.find(
 			( r ) => r.id === ctx.state.windowLinkRenderer,
@@ -242,6 +417,76 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 					</os-select>
 				</os-section>
 				<os-section
+					stack
+					heading=${ __( 'Screen transitions' ) }
+					description=${ vtDescription }
+				>
+					<os-select
+						value=${ ctx.state.viewTransition }
+						label=${ __( 'When the screen changes' ) }
+						@os-pick=${ onPickTransition }
+					>
+						<os-option value=${ VT_NONE }>
+							${ __( 'None' ) }
+						</os-option>
+						${ screenTransitions.map(
+							( t ) =>
+								html`<os-option value=${ t.id }
+									>${ t.label }</os-option
+								>`,
+						) }
+					</os-select>
+					<os-button
+						class="os-settings__vt-play"
+						variant="secondary"
+						?disabled=${ ctx.state.viewTransition === VT_NONE ||
+						! supported }
+						@click=${ () => preview( ctx.state.viewTransition ) }
+						>${ __( 'Play it again' ) }</os-button
+					>
+				</os-section>
+				<os-section
+					stack
+					heading=${ __( 'Window transitions' ) }
+					description=${ wtDescription }
+				>
+					<os-select
+						value=${ ctx.state.windowTransition }
+						label=${ __( 'When a window opens or closes' ) }
+						@os-pick=${ onPickWindowTransition }
+					>
+						<os-option value=${ VT_NONE }>
+							${ __( 'None' ) }
+						</os-option>
+						${ windowTransitions.map(
+							( t ) =>
+								html`<os-option value=${ t.id }
+									>${ t.label }</os-option
+								>`,
+						) }
+					</os-select>
+					<os-select
+						value=${ String( ctx.state.viewTransitionDuration ) }
+						label=${ __( 'Transition speed' ) }
+						@os-pick=${ onPickTransitionSpeed }
+					>
+						${ VT_SPEEDS.map(
+							( s ) =>
+								html`<os-option value=${ String( s.value ) }
+									>${ s.label() }</os-option
+								>`,
+						) }
+					</os-select>
+					<os-button
+						class="os-settings__vt-play"
+						variant="secondary"
+						?disabled=${ ctx.state.windowTransition === VT_NONE ||
+						! supported }
+						@click=${ () => preview( ctx.state.windowTransition ) }
+						>${ __( 'Play it again' ) }</os-button
+					>
+				</os-section>
+				<os-section
 					heading=${ __( 'Window links' ) }
 					description=${ linksDescription }
 				>
@@ -286,6 +531,10 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		reveals = listWindowReveals();
 		paint();
 	} );
+	const unsubscribeTransitions = subscribeViewTransitions( () => {
+		refreshTransitions();
+		paint();
+	} );
 	const unsubscribeLinks = subscribeWindowLinkRenderers( () => {
 		linkRenderers = listWindowLinkRenderers();
 		paint();
@@ -295,6 +544,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		if ( ! wrapper.isConnected ) {
 			unsubscribe();
 			unsubscribeReveals();
+			unsubscribeTransitions();
 			unsubscribeLinks();
 			observer.disconnect();
 		}

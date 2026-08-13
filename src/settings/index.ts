@@ -57,6 +57,11 @@ import {
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
 import { applyDesktopTheme } from '../desktop-themes/apply';
+import {
+	hasActiveViewTransition,
+	isShellBooting,
+	runViewTransition,
+} from '../view-transitions';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -206,6 +211,9 @@ export class OsSettings implements SettingsCtx {
 			unfocusEffect: this.state.unfocusEffect,
 			windowReveal: this.state.windowReveal,
 			windowRevealDuration: this.state.windowRevealDuration,
+			viewTransition: this.state.viewTransition,
+			windowTransition: this.state.windowTransition,
+			viewTransitionDuration: this.state.viewTransitionDuration,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
 			windowLinksEnabled: this.state.windowLinksEnabled,
@@ -296,6 +304,38 @@ export class OsSettings implements SettingsCtx {
 	 * generation counter; CSS property writes are idempotent.
 	 */
 	public apply(): void {
+		// Appearance is the one settings surface whose result IS a
+		// picture, so it is the one worth animating: swapping wallpaper,
+		// accent, desktop theme, dock placement or layout repaints the
+		// whole desk in a single frame, and a hard cut between two looks
+		// reads as a glitch rather than as a change the user made.
+		//
+		// Gated on the boot flag because `apply()` also runs once at
+		// startup, where there is no "before" for a transition to come
+		// from — only an empty desk the shell is deliberately hiding.
+		if ( hasActiveViewTransition( 'root' ) && ! isShellBooting() ) {
+			void runViewTransition( {
+				family: 'root',
+				types: [ 'os-vt-appearance' ],
+				update: () => this._applyNow(),
+				// A settings change is a background-ish repaint that
+				// must land whatever else is on screen — but it must not
+				// interrupt a desktop switch the user is mid-way
+				// through, and losing an appearance animation costs
+				// nothing while losing the appearance would not.
+				whenBusy: 'drop',
+			} );
+			return;
+		}
+		this._applyNow();
+	}
+
+	/**
+	 * The apply pass itself, with no animation concerns.
+	 *
+	 * @internal
+	 */
+	private _applyNow(): void {
 		const shell = document.getElementById( 'os-shell' );
 		if ( ! shell ) {
 			return;

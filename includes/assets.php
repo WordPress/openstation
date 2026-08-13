@@ -121,7 +121,13 @@ function openstation_register_assets() {
 	 * prints after them and still wins ties:
 	 *
 	 *   window-chrome → window-states → effects → window-links
-	 *   → windows
+	 *   → view-transitions → windows
+	 *
+	 * `view-transitions` sits at the tail of the chain deliberately: it
+	 * carries a blanket `html:active-view-transition .os-window {
+	 * transition: none }` that has to out-rank the per-window
+	 * transitions declared in `window-chrome` and `effects`, and
+	 * neither of those is going to grow the specificity to fight it.
 	 *
 	 * `window-overview` and `os-settings` are deliberately NOT in this
 	 * chain — they are registered below, after `os-windows`,
@@ -130,10 +136,11 @@ function openstation_register_assets() {
 	 * the contract.
 	 */
 	$window_sheets = array(
-		'os-window-chrome' => 'assets/css/window-chrome.css',
-		'os-window-states' => 'assets/css/window-states.css',
-		'os-effects'       => 'assets/css/effects.css',
-		'os-window-links'  => 'assets/css/window-links.css',
+		'os-window-chrome'    => 'assets/css/window-chrome.css',
+		'os-window-states'    => 'assets/css/window-states.css',
+		'os-effects'          => 'assets/css/effects.css',
+		'os-window-links'     => 'assets/css/window-links.css',
+		'os-view-transitions' => 'assets/css/view-transitions.css',
 	);
 	$previous      = array( 'os-variables', 'dashicons' );
 	foreach ( $window_sheets as $handle => $relative ) {

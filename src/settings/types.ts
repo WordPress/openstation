@@ -174,6 +174,37 @@ export interface OsSettingsState {
 	 */
 	windowRevealDuration: number;
 	/**
+	 * Active view-transition id — the whole-surface animation played
+	 * through the View Transitions API when the shell changes state
+	 * (switching virtual desktop, maximizing a window). Resolves
+	 * through the view-transition registry; `'none'` means the shell
+	 * mutates without one, and an unknown id is treated as `'none'`
+	 * until/if a matching transition registers. Default `'none'` —
+	 * view transitions are opt-in.
+	 */
+	viewTransition: string;
+	/**
+	 * Active WINDOW transition id — the animation played when a single
+	 * window opens, closes, minimizes, restores, or toggles maximized.
+	 * Resolves through the same registry as {@link viewTransition}, but
+	 * only ever against defs declaring `scope: 'element'`; `'none'`
+	 * means the shell keeps its original class-driven animations.
+	 * Default `'none'` — opt-in.
+	 *
+	 * Separate from `viewTransition` because the two questions have no
+	 * overlapping good answers: a cube rotation is right for "the
+	 * screen changed" and absurd for "a window opened".
+	 */
+	windowTransition: string;
+	/**
+	 * Global view-transition speed override, in ms. `0` (the default)
+	 * means "use each transition's own timing" — the built-ins ship
+	 * tuned durations, and a rotation needs longer than a fade to read
+	 * as a rotation. Any other value is clamped to 80–4000 and wins
+	 * over the transition's own duration.
+	 */
+	viewTransitionDuration: number;
+	/**
 	 * Active window-link renderer id. Resolves through the window-link
 	 * renderer registry; `'none'` disables the visuals, an unknown id
 	 * falls back to the built-in `'svg-splines'`.

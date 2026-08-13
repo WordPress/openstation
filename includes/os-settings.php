@@ -127,6 +127,21 @@ function openstation_default_os_settings() {
 		// than Sweep's straight line), and one flat number would
 		// lose that.
 		'windowRevealDuration'        => 0,
+		// View-transition id — the whole-surface animation played
+		// through the View Transitions API when the shell changes
+		// state (switching virtual desktop, maximizing a window). Off
+		// by default; `none` keeps the desktop-area slide the shell
+		// has always had.
+		'viewTransition'              => 'none',
+		// The window-lifecycle half of the same feature — played when
+		// a single window opens, closes, minimizes, restores or
+		// toggles maximized. Its own key because a user can want
+		// windows animated and the desktop switch left alone.
+		'windowTransition'            => 'none',
+		// Global view-transition speed override in ms. 0 means "use
+		// each transition's own tuned timing" — a rotation needs
+		// longer than a fade to read as a rotation.
+		'viewTransitionDuration'      => 0,
 		// Window-link renderer id — how relation ties between windows
 		// are drawn (see includes/window-links.php). `svg-splines` is
 		// the shipped built-in; `none` disables the visuals.
@@ -462,6 +477,46 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// View-transition id — same id charset and same no-allow-list
+	// reasoning as the window reveal above. The JS player resolves at
+	// play time and treats an unknown id as "no transition", so a
+	// transition belonging to a temporarily-deactivated plugin survives
+	// the round-trip and starts working again the moment it
+	// re-registers.
+	$view_transition = $defaults['viewTransition'];
+	if ( isset( $raw['viewTransition'] ) && is_string( $raw['viewTransition'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['viewTransition'] ) );
+		if ( '' !== $slug ) {
+			$view_transition = $slug;
+		}
+	}
+
+	// Window-transition id — same charset and same reasoning again.
+	$window_transition = $defaults['windowTransition'];
+	if ( isset( $raw['windowTransition'] ) && is_string( $raw['windowTransition'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowTransition'] ) );
+		if ( '' !== $slug ) {
+			$window_transition = $slug;
+		}
+	}
+
+	// View-transition speed override — same shape and same clamping
+	// rationale as the reveal duration above, and the same range.
+	// Shared by both selections: "how fast is this desktop" is one
+	// preference, not two.
+	$view_transition_duration = $defaults['viewTransitionDuration'];
+	if ( isset( $raw['viewTransitionDuration'] ) && is_numeric( $raw['viewTransitionDuration'] ) ) {
+		$requested = (int) round( (float) $raw['viewTransitionDuration'] );
+		if ( $requested > 0 ) {
+			$view_transition_duration = max(
+				OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
+				min( OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX, $requested )
+			);
+		} else {
+			$view_transition_duration = 0;
+		}
+	}
+
 	// Window-link renderer id — same id charset as unfocus effects
 	// (slashes allowed for `vendor/sub-id`). No allow-list: the JS
 	// render host resolves at use time and falls back to the built-in
@@ -785,6 +840,9 @@ function openstation_sanitize_os_settings( $raw ) {
 		'unfocusEffect'               => $unfocus_effect,
 		'windowReveal'                => $window_reveal,
 		'windowRevealDuration'        => $window_reveal_duration,
+		'viewTransition'              => $view_transition,
+		'windowTransition'            => $window_transition,
+		'viewTransitionDuration'      => $view_transition_duration,
 		'windowLinkRenderer'          => $window_link_renderer,
 		'windowLinkVisibility'        => $window_link_visibility,
 		'windowLinksEnabled'          => $window_links_enabled,

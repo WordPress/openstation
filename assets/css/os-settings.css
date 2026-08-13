@@ -1069,6 +1069,21 @@
 	margin: 0;
 }
 
+/*
+ * The "Play it again" buttons in Effects → Screen / Window
+ * transitions.
+ *
+ * Their sections use `<os-section stack>`, which makes the slot a flex
+ * column with a gap — that is what puts air between the button and the
+ * selector above it. But a flex column stretches its items, and
+ * `<os-button>` is an `inline-flex` host that would happily become a
+ * full-width bar. `align-self` pulls it back to its own width, which is
+ * what a secondary action beside a picker should be.
+ */
+.os-settings__vt-play {
+	align-self: flex-start;
+}
+
 .os-features__hint {
 	margin: 0;
 	font-size: 12px;

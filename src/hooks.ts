@@ -178,6 +178,20 @@ export const HOOKS = {
 	 * has finished loading.
 	 */
 	WINDOW_REVEALS: 'os.window-reveals',
+	/**
+	 * Filter, receives the view-transition registry array — the
+	 * whole-surface animations played through the View Transitions API
+	 * when the shell changes state (switching virtual desktop,
+	 * maximizing a window).
+	 */
+	VIEW_TRANSITIONS: 'os.view-transitions',
+	/**
+	 * Filter, receives the element a window about to open should
+	 * appear to grow out of — inferred from the last pointer press —
+	 * plus the element actually pressed. Return `null` to suppress the
+	 * morph, or another element to redirect it.
+	 */
+	VIEW_TRANSITION_LAUNCHER: 'os.view-transition-launcher',
 	/** Action before a canvas wallpaper mounts. */
 	WALLPAPER_MOUNTING: 'os.wallpaper.mounting',
 	/** Action after a canvas wallpaper mounts successfully. */

@@ -39,10 +39,15 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * @var array<string,string>
 	 */
 	private static $chain = array(
-		'os-window-chrome' => 'assets/css/window-chrome.css',
-		'os-window-states' => 'assets/css/window-states.css',
-		'os-effects'       => 'assets/css/effects.css',
-		'os-window-links'  => 'assets/css/window-links.css',
+		'os-window-chrome'    => 'assets/css/window-chrome.css',
+		'os-window-states'    => 'assets/css/window-states.css',
+		'os-effects'          => 'assets/css/effects.css',
+		'os-window-links'     => 'assets/css/window-links.css',
+		// Last before the entry point: it carries a blanket
+		// `html:active-view-transition .os-window { transition: none }`
+		// that has to out-rank the per-window transitions declared in
+		// `window-chrome` and `effects`.
+		'os-view-transitions' => 'assets/css/view-transitions.css',
 	);
 
 	/**
