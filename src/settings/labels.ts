@@ -103,9 +103,9 @@ export function translateDesktopLayoutLabel(
 ): string {
 	switch ( id ) {
 		case 'classic':
-			return __( 'Side bar' );
+			return __( 'Split' );
 		case 'unified':
-			return __( 'One dock' );
+			return __( 'Unified' );
 		case 'spatial':
 			return __( 'Spatial' );
 		case 'openstation':
@@ -121,12 +121,10 @@ export function translateDesktopLayoutDescription(
 	switch ( id ) {
 		case 'classic':
 			return __(
-				'The core admin menu on the left, apps in the dock.',
+				'Core admin menus are placed in a sidebar; plugins, apps, and OpenStation controls in a dock along the bottom edge.',
 			);
 		case 'unified':
-			return __(
-				'Every menu in a single dock along the bottom edge.',
-			);
+			return __( 'Every menu in a single dock.' );
 		case 'spatial':
 			return __( 'Core menus as desktop icons, apps in the dock.' );
 		case 'openstation':

@@ -603,25 +603,34 @@
  * from `desktop-layout.ts` as percentages, so the cards stay legible
  * as the grid reflows.
  * --------------------------------------------------------------- */
+/*
+ * Two layouts, half the pane each. Fixed tracks rather than
+ * auto-fill: there are exactly two of them and they are a pair to be
+ * compared, so a wide pane that fitted a third column would only
+ * shrink both cards away from each other for no reason.
+ *
+ * `align-items: start` because the cards are not the same height.
+ * One dock carries its own options and Side bar does not, and a Side
+ * bar card stretched to match would be mostly empty box.
+ */
 .os-settings__layout-grid {
 	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 172px, 1fr ) );
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	align-items: start;
 	gap: 12px;
 }
 
 /*
- * The dock options One dock reveals under the cards: Placement on
- * the left, Dock size on the right. The SAME track definition as
- * the layout grid above, so each option column starts exactly where
- * a card does and the pair reads as captions to the cards rather
- * than as a second, unrelated layout. On a narrow pane they wrap
- * back to one column together with the cards.
+ * The dock options, inside the One dock card. Stacked, because half
+ * a pane is not enough for two segmented controls side by side, and
+ * because reading them down the card follows the order the decision
+ * is made in: this layout, then where its dock sits, then how big.
  */
 .os-settings__dock-options {
-	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 172px, 1fr ) );
-	gap: 12px;
-	margin-top: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 14px;
 }
 
 .os-settings__dock-option {
@@ -637,31 +646,53 @@
 	color: var( --os-ui-fg, #1d2327 );
 }
 
+/*
+ * The card is the BOX, not the control. It holds the radio that
+ * picks the layout and, for One dock, that layout's own options —
+ * and a radio cannot contain a segmented control, so the two are
+ * siblings inside it. See the docblock in
+ * `src/settings/sections/desktop-layout.ts`.
+ *
+ * Which means the box wears the state of a child it does not own.
+ * Both `:has()` rules name the CHOICE rather than the card, so a
+ * pointer resting on a segmented control does not lift the card, and
+ * a segment taking focus does not light the selection ring.
+ */
 .os-settings__layout-card {
 	display: flex;
 	flex-direction: column;
 	padding: 10px;
 	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
-	border: 0;
 	border-radius: 10px;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
+	transform: translateY( -2px );
+}
+
+.os-settings__layout-card:has( [ aria-checked='true' ] ) {
+	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
+}
+
+/* The radio: everything in the card that means "this layout". */
+.os-settings__layout-choice {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: 0;
+	border-radius: 8px;
 	font: inherit;
 	color: inherit;
 	text-align: start;
 	cursor: pointer;
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.os-settings__layout-card:hover {
-	transform: translateY( -2px );
-}
-
-.os-settings__layout-card:focus-visible {
+.os-settings__layout-choice:focus-visible {
 	outline: none;
 	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
-}
-
-.os-settings__layout-card[ aria-checked='true' ] {
-	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
 }
 
 .os-settings__layout-preview {
@@ -691,8 +722,9 @@
 	border-radius: 3px;
 }
 
-/* The dock, or the Space you are on. One accent mark per card, which
-   is what makes the four schematics tell each other apart. */
+/* A rail the user gets to place: the dock, and in Side bar the admin
+   menu beside it. The accent is what separates the rails from the
+   windows they sit next to, so a card can carry more than one. */
 .os-settings__layout-win.is-accent,
 .os-settings__layout-bar.is-accent {
 	background: var( --os-ui-accent, #2271b1 );
@@ -717,7 +749,7 @@
 		transition-duration: 0.01ms;
 	}
 
-	.os-settings__layout-card:hover {
+	.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
 		transform: none;
 	}
 }
@@ -1538,6 +1570,14 @@
 	 */
 	.os-settings > .os-settings__footer {
 		grid-row: 3;
+	}
+	/*
+	 * Half a pane this narrow is not a card any more, and the One dock
+	 * card has segmented controls inside it that would start clipping
+	 * their labels. The two stack instead.
+	 */
+	.os-settings__layout-grid {
+		grid-template-columns: minmax( 0, 1fr );
 	}
 }
 

@@ -3,7 +3,7 @@
  *
  * Two cards, one per offered layout, each drawing the arrangement it
  * is offering rather than naming it. A layout is a spatial choice and
- * the words for them ("One dock", "Side bar") are not self-explaining:
+ * the words for them ("Unified", "Split") are not self-explaining:
  * a segmented bar of those labels asked the user to guess what each
  * one would do to their screen and then find out by trying. The
  * previews are schematic on purpose, a couple of window rectangles
@@ -15,16 +15,25 @@
  * OFFERED here. Removing a stored value would silently rearrange the
  * desk of anyone already using it, so only the picker shrank.
  *
- * ## The dock options live under the card that has a dock
+ * ## The dock options live INSIDE the card that has a dock
  *
- * Picking One dock reveals Dock position and Dock size right under
- * the cards, two columns, because those options only mean something
- * once that layout is the answer. They used to be a separate Dock
- * page in the sidebar; a page for two segmented controls sent people
- * hunting for what is really one decision made in one place. Dock
- * STYLE (the rail renderer registry) stays its own section on this
- * page, appended by `panel.ts`, because plugins can register rows
- * into it at runtime and it carries its own repaint wiring.
+ * Picking Unified opens Placement and Size within that card,
+ * because those options only mean something once that layout is the
+ * answer, and saying so by containment beats saying it by proximity.
+ * They used to be a separate Dock page in the sidebar; a page for two
+ * segmented controls sent people hunting for what is really one
+ * decision made in one place. Dock STYLE (the rail renderer registry)
+ * stays its own section on this page, appended by `panel.ts`, because
+ * plugins can register rows into it at runtime and it carries its own
+ * repaint wiring.
+ *
+ * That containment is why a card is not a `<button>`. A radio cannot
+ * hold a segmented control: nested interactive content is invalid,
+ * and every click on a segment would also land on the card behind it.
+ * So the card is a plain box, and the radio is the region inside it
+ * that means "this layout" — the preview, the name, the description.
+ * The box wears the selection ring and the hover lift on the radio's
+ * behalf, through `:has()`, so nothing about how it reads changed.
  */
 
 import { __ } from '../../i18n';
@@ -76,10 +85,24 @@ const PREVIEWS: Readonly< Record< string, readonly PreviewShape[] > > = {
 		{ kind: 'win', style: 'left:30%;top:30%;width:44%;height:42%' },
 		{ kind: 'bar', accent: true, style: 'left:24%;bottom:10%;width:52%;height:9%' },
 	],
-	// The classic wp-admin menu, wide, on the left. No dock.
+	// The same desk, plus a rail down the left. Same two windows at
+	// the same size as Unified, because the only thing this layout
+	// adds IS the second rail — and a preview that also resized the
+	// windows would have the user hunting for which difference is the
+	// one being offered.
+	//
+	// The rail is flush to the left edge and as thin as the dock is
+	// tall (3% of the box's width reads the same as 9% of its height,
+	// which is a third as long). It is the one shape here that is
+	// attached to the screen rather than floating on it, which is what
+	// the side bar actually does. The dock is shorter than Unified's
+	// for the honest reason: in this layout it holds the plugins and
+	// the apps, not every menu.
 	classic: [
-		{ kind: 'bar', style: 'left:7%;top:12%;width:20%;height:70%' },
-		{ kind: 'win', style: 'left:35%;top:17%;width:43%;height:50%' },
+		{ kind: 'bar', accent: true, style: 'left:0;top:0;bottom:0;width:3%' },
+		{ kind: 'win', style: 'left:14%;top:14%;width:44%;height:42%' },
+		{ kind: 'win', style: 'left:32%;top:30%;width:44%;height:42%' },
+		{ kind: 'bar', accent: true, style: 'left:33%;bottom:10%;width:38%;height:9%' },
 	],
 };
 
@@ -117,13 +140,12 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	/*
-	 * Only One dock reveals the dock options: Side bar draws its own
-	 * rails on its own edges, so a position control under it would
+	 * Only Unified carries the dock options: Split draws its own
+	 * rails on its own edges, so a position control in its card would
 	 * point at an edge nothing reads.
 	 */
 	const dockOptions = () =>
-		ctx.state.desktopLayout === 'unified'
-			? html`<div class="os-settings__dock-options">
+		html`<div class="os-settings__dock-options">
 					<div class="os-settings__dock-option">
 						<span
 							class="os-settings__dock-option-label"
@@ -149,7 +171,7 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 						<span
 							class="os-settings__dock-option-label"
 							id="os-settings-dock-size-label"
-							>${ __( 'Dock size' ) }</span
+							>${ __( 'Size' ) }</span
 						>
 						<os-segmented
 							value=${ ctx.state.dockSize }
@@ -166,8 +188,7 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 							) }
 						</os-segmented>
 					</div>
-			  </div>`
-			: html``;
+			  </div>`;
 
 	const wrapper = document.createElement( 'div' );
 	const paint = (): void =>
@@ -186,41 +207,45 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 							OFFERED.includes( l.id ),
 						).map( ( l ) => {
 							const selected = ctx.state.desktopLayout === l.id;
-							return html`<button
-								type="button"
-								class="os-settings__layout-card"
-								role="radio"
-								aria-checked=${ selected ? 'true' : 'false' }
-								@click=${ () => onPick( l.id ) }
-							>
-								<span
-									class="os-settings__layout-preview"
-									aria-hidden="true"
+							return html`<div class="os-settings__layout-card">
+								<button
+									type="button"
+									class="os-settings__layout-choice"
+									role="radio"
+									aria-checked=${ selected ? 'true' : 'false' }
+									@click=${ () => onPick( l.id ) }
 								>
-									${ ( PREVIEWS[ l.id ] ?? [] ).map(
-										( shape ) => html`<span
-											class="os-settings__layout-${ shape.kind }${ shape.accent
-												? ' is-accent'
-												: '' }"
-											style=${ shape.style }
-										></span>`,
-									) }
-								</span>
-								<span class="os-settings__layout-name"
-									>${ translateDesktopLayoutLabel(
-										l.id,
-										l.label,
-									) }</span
-								>
-								<span class="os-settings__layout-desc"
-									>${ translateDesktopLayoutDescription(
-										l.id,
-									) }</span
-								>
-							</button>`;
+									<span
+										class="os-settings__layout-preview"
+										aria-hidden="true"
+									>
+										${ ( PREVIEWS[ l.id ] ?? [] ).map(
+											( shape ) => html`<span
+												class="os-settings__layout-${ shape.kind }${ shape.accent
+													? ' is-accent'
+													: '' }"
+												style=${ shape.style }
+											></span>`,
+										) }
+									</span>
+									<span class="os-settings__layout-name"
+										>${ translateDesktopLayoutLabel(
+											l.id,
+											l.label,
+										) }</span
+									>
+									<span class="os-settings__layout-desc"
+										>${ translateDesktopLayoutDescription(
+											l.id,
+										) }</span
+									>
+								</button>
+								${ l.id === 'unified' && selected
+									? dockOptions()
+									: html`` }
+							</div>`;
 						} ) }
 					</div>
-					${ dockOptions() }
 				</os-section>
 			`,
 			wrapper,

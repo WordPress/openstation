@@ -147,7 +147,7 @@ type ConstellationSide = 'top' | 'left' | 'right';
  * The direction this tile's flyout fans out in.
  *
  * Read off the RAIL, not off the layout. One layout can put two rails
- * on two edges — Side bar runs core menus down the left and plugins
+ * on two edges — Split runs core menus down the left and plugins
  * along the bottom — and each of them has room in its own direction,
  * so a per-layout answer would be wrong for one of the two rails on
  * the same screen.

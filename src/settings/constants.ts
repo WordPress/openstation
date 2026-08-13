@@ -198,9 +198,9 @@ export const DOCK_PLACEMENTS = [
  * deliberate choice rather than a starting point.
  */
 export const DESKTOP_LAYOUTS = [
-	{ id: 'unified', label: 'One dock' },
+	{ id: 'unified', label: 'Unified' },
 	{ id: 'openstation', label: 'OpenStation' },
-	{ id: 'classic', label: 'Side bar' },
+	{ id: 'classic', label: 'Split' },
 	{ id: 'spatial', label: 'Spatial' },
 ] as const;
 
