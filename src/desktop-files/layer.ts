@@ -981,7 +981,16 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 	// Initial paint from whatever the store currently knows.
 	repaint( filesStoreApi.getState() );
-	const off = filesStoreApi.subscribe( repaint );
+	// Every paint writes stored coordinates back onto the tiles, so
+	// a tile parked outside the canvas needs rescuing again after
+	// each one — not only when the host is resized. `reflow` is a
+	// no-op unless something actually overflows, and it is declared
+	// below, so both calls are deferred past its initialization.
+	queueMicrotask( () => reflow() );
+	const off = filesStoreApi.subscribe( ( state ) => {
+		repaint( state );
+		reflow();
+	} );
 
 	// Hydrate from REST if we haven't seen this folder yet. Resolves
 	// the `hydrated` promise so the boot path can hold off revealing
@@ -1108,13 +1117,21 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	};
 
 	/**
-	 * If any tile would render past the canvas's right edge given
-	 * its stored (x, y), do an in-memory row-major reflow so the
-	 * user sees them all without needing to scroll horizontally.
-	 * Doesn't persist — once the user drags a tile after the
-	 * reflow, that single drag is what sticks. Repaints clobber
-	 * the visual reflow on the next store change, so we apply
-	 * positions directly via DOM mutation.
+	 * If any tile would render past the canvas's edge given its
+	 * stored (x, y), do an in-memory row-major reflow so the user
+	 * sees them all. Doesn't persist — once the user drags a tile
+	 * after the reflow, that single drag is what sticks. Repaints
+	 * clobber the visual reflow on the next store change, so we
+	 * apply positions directly via DOM mutation.
+	 *
+	 * Both edges count. The layer is `position: absolute; inset: 0`
+	 * and does not scroll, so a tile past the BOTTOM edge isn't
+	 * below the fold — there is no fold — it is unreachable. That
+	 * is how a tile filed into a folder from low down on the
+	 * desktop went missing: stored at a `y` no folder window is
+	 * tall enough to show. Filing now re-packs (see the folder-tile
+	 * drop handler), but rows written before that, or by any other
+	 * route, still need rescuing on sight.
 	 */
 	const reflow = (): void => {
 		const live = filesStoreApi.getState().placementsByFolder.get( folderId );
@@ -1122,10 +1139,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return;
 		}
 		const w = host.clientWidth > 0 ? host.clientWidth : Infinity;
-		const overflowing = live.some( ( p ) => {
-			const right = p.x + GRID_CELL_W;
-			return right > w;
-		} );
+		const h = host.clientHeight > 0 ? host.clientHeight : Infinity;
+		const overflowing = live.some(
+			( p ) => p.x + GRID_CELL_W > w || p.y + GRID_CELL_H > h,
+		);
 		if ( ! overflowing ) {
 			return;
 		}
@@ -1162,18 +1179,24 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 	};
 
-	// Watch the host for width changes — fire `reflow` whenever a
-	// resize would clip tiles off the right edge. Same mechanism
-	// the My WordPress canvas uses; folders share the model.
+	// Watch the host for size changes — fire `reflow` whenever a
+	// resize would push tiles off an edge. Same mechanism the My
+	// WordPress canvas uses; folders share the model. Height counts
+	// as much as width: shortening a folder window strands its
+	// bottom row exactly the way narrowing it strands the right
+	// column, and the layer has no scroll to fall back on.
 	let lastWidth = host.clientWidth;
+	let lastHeight = host.clientHeight;
 	let resizeObserver: ResizeObserver | null = null;
 	if ( typeof ResizeObserver !== 'undefined' ) {
 		resizeObserver = new ResizeObserver( () => {
 			const w = host.clientWidth;
-			if ( w === lastWidth ) {
+			const h = host.clientHeight;
+			if ( w === lastWidth && h === lastHeight ) {
 				return;
 			}
 			lastWidth = w;
+			lastHeight = h;
 			reflow();
 		} );
 		resizeObserver.observe( host );
@@ -1771,15 +1794,41 @@ function registerFolderDropTarget(
 			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
 			if ( session.payload.type === 'desktop-file' ) {
 				const data = session.payload.data as unknown as DesktopFileDragData;
+				// Re-pack into the destination folder rather than
+				// carrying the coordinates the tile had out here. A
+				// desktop is far taller than a folder window, so a
+				// tile filed from low down kept a `y` no folder canvas
+				// reaches — and the layer doesn't scroll, so the tile
+				// wasn't merely below the fold, it was unreachable.
+				// The file looked like it had swallowed the icon.
+				//
+				// Row-major for the same reason the shortcut branch
+				// below packs that way: the destination window is
+				// probably not mounted, so we can't measure it and
+				// aim — landing at the top-left of a folder is the
+				// outcome that's visible whatever its size.
+				const peers =
+					filesStoreApi
+						.getState()
+						.placementsByFolder.get( targetFolderId ) ?? [];
+				const occupied = buildVisualOccupiedSet( peers );
 				for ( const placement of dragPlacements( data ) ) {
+					const cell = nextRowMajorCell( occupied );
+					occupied.add( cellKey( cell.col, cell.row ) );
 					filesStoreApi.upsertPlacement( {
 						...placement,
+						x: cell.x,
+						y: cell.y,
 						parentId: targetFolderId,
 					} );
 					void rest
 						.updatePlacement(
 							placement.id,
-							{ parentId: targetFolderId },
+							{
+								x: cell.x,
+								y: cell.y,
+								parentId: targetFolderId,
+							},
 							placement.updatedAtMs,
 						)
 						.then( ( server ) => {
