@@ -9,6 +9,8 @@
  * a hex, because a hardcoded fill cannot follow a row through its
  * hover and selected states or follow the panel into a desktop theme.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { NAV_ICONS } from '../../src/settings/nav-icons';
 
@@ -59,6 +61,25 @@ describe( 'settings nav icons', () => {
 		// The blank-spacer path in panel.ts depends on a miss being
 		// undefined rather than a stray empty template.
 		expect( NAV_ICONS[ 'ext-file-associations' ] ).toBeUndefined();
+	} );
+
+	test( 'panel.ts resolves external-tab glyphs by RAW registry id', () => {
+		// The trap this guards: external rows render under an
+		// ext-prefixed id, so a NAV_ICONS entry keyed on the raw
+		// registry id (File Associations) matches NOTHING unless the
+		// external-row construction looks it up itself. The map test
+		// above stays green while the sidebar quietly renders the
+		// blank spacer — which is exactly how the glyph shipped
+		// missing once.
+		const panelSource = readFileSync(
+			resolve( __dirname, '../../src/settings/panel.ts' ),
+			'utf8'
+		);
+		expect(
+			panelSource,
+			'External rows must carry `icon: NAV_ICONS[ tab.id ]` so a ' +
+				'shell-owned registry tab can resolve its glyph by raw id.'
+		).toMatch( /icon:\s*NAV_ICONS\[\s*tab\.id\s*\]/ );
 	} );
 
 	test.each( BUILT_IN_TAB_IDS )( '%s is drawn in currentColor', ( id ) => {

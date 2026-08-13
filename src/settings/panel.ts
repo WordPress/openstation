@@ -361,6 +361,14 @@ export function renderOsSettingsPanel(
 		 */
 		label: string;
 		panel: ReturnType< typeof html >;
+		/**
+		 * The sidebar glyph. Built-in rows resolve straight from
+		 * NAV_ICONS by row id; external rows carry theirs here,
+		 * because their row id wears the ext- prefix while NAV_ICONS
+		 * keys on the raw registry id (see the File Associations
+		 * entry in nav-icons.ts).
+		 */
+		icon?: ReturnType< typeof html >;
 		/** For external tabs — invoked after render to mount content. */
 		mount?: ( host: HTMLElement ) => void;
 	}
@@ -512,6 +520,11 @@ export function renderOsSettingsPanel(
 			id: tabId,
 			order: tab.order ?? 100,
 			label: tab.label,
+			// The registry has no icon field, but the shell may know
+			// its OWN registry-delivered tabs by raw id. Looked up
+			// here rather than in the template, because the row id
+			// carries the ext- prefix and would never match.
+			icon: NAV_ICONS[ tab.id ],
 			panel: html`<os-tabpanel for=${ tabId }>
 				<os-panel><div data-host=${ hostAttr }></div></os-panel>
 			</os-tabpanel>`,
@@ -738,6 +751,7 @@ export function renderOsSettingsPanel(
 						value=${ r.id }
 						data-group-start=${ startsGroup ? 'true' : null }
 						>${ NAV_ICONS[ r.id ] ??
+						r.icon ??
 						// Third-party tabs have no glyph to render: the
 						// registry has no icon field. The spacer keeps
 						// their label on the same line as every other
