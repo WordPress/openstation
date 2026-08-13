@@ -1459,7 +1459,7 @@
    column beside it is doing. */
 .os-settings > os-tabpanel {
 	grid-column: 2;
-	grid-row: 1 / 4;
+	grid-row: 1 / -1;
 	min-height: 0;
 	overflow: auto;
 	padding: 28px 32px 44px;
@@ -1467,35 +1467,35 @@
 }
 
 /*
- * The reset bar is permanent rather than revealed, and it names the
- * page it will reset so it cannot read as global. Its own surface
- * rather than a rule above it, for the same reason the sidebar has no
- * divider: a tonal step already says "different thing".
+ * Reset sits at the foot of the nav, and it resets everything.
+ *
+ * In the column rather than across the page because that is what it
+ * addresses: the list names the pages, and the thing under the list
+ * acts on all of them. Across the bottom of the pane it read as
+ * belonging to whatever page happened to be open, which is the whole
+ * reason it once had to grow a name and a sentence to disown that
+ * reading.
+ *
+ * The column's own surface, so it continues the sidebar rather than
+ * starting a third one. No rule above it, for the same reason the
+ * sidebar has no divider against the pane: it is already the last
+ * thing in a column that ends.
  */
 .os-settings > .os-settings__footer {
-	grid-column: 1 / -1;
+	grid-column: 1;
 	grid-row: 4;
 	display: flex;
 	/*
 	 * Stated, not inherited. `<os-panel>` is a stack and sets
-	 * `flex-direction: column` on its own host; without this the button
-	 * and its note sit one above the other, and `align-items: center`
-	 * then centres them across the whole width instead of aligning
-	 * them on the baseline of a row.
+	 * `flex-direction: column` on its own host, which would stretch
+	 * the button to the column's full width.
 	 */
 	flex-direction: row;
-	flex-wrap: wrap;
 	align-items: center;
 	justify-content: flex-start;
-	gap: 14px;
 	margin-top: 0;
-	padding: 14px 32px;
-	/*
-	 * The pane's surface, not the sidebar's. The bar belongs to the
-	 * page it resets, so it continues the pane's Void and the
-	 * Obsidian column simply ends above it.
-	 */
-	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	padding: 12px;
+	background: var( --os-ui-surface, #fff );
 }
 
 /*
@@ -1509,17 +1509,6 @@
 	--os-ui-button-border-radius: 8px;
 	--os-ui-button-border: 0;
 	--os-ui-button-bg: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
-	font-size: 13px;
-}
-
-/*
- * The sentence that makes the button's scope legible before it is
- * pressed rather than after. Reset is the one irreversible control in
- * the panel, so the limit of what it touches belongs next to it, not
- * in a confirm dialog the user reads only once they have committed.
- */
-.os-settings__footer-note {
-	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 13px;
 }
 

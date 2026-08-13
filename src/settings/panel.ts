@@ -32,7 +32,7 @@
  *     final UI.
  */
 
-import { __, sprintf } from '../i18n';
+import { __ } from '../i18n';
 import { html, render } from '../ui/core';
 // Side-effect imports — register every `<os-*>` component the
 // panel constructs in this bundle (not in main). `defineComponent`
@@ -56,7 +56,6 @@ import { setPanelTabs } from '../window/tab-strip';
 import { NAV_ICONS } from './nav-icons';
 import { structuredDefaults } from './state';
 import type { OsSettings } from './index';
-import type { OsSettingsState } from './types';
 import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
@@ -134,102 +133,6 @@ const TEXT_ATTRIBUTES = [
 	'label',
 	'placeholder',
 ] as const;
-
-/**
- * Which settings each page owns, and therefore what its Reset button
- * is allowed to touch.
- *
- * The bar used to say "Reset to defaults" and mean *everything*: one
- * click from the Dock page put the wallpaper, the accent, the window
- * corners and every feature flag back. Nothing on screen said so. Now
- * the button names the page it will reset and resets only that page,
- * which is the only way the sentence under it can be true.
- *
- * The map is exhaustive over {@link OsSettingsState} by design, and
- * `settings-page-coverage.test.ts` fails if a key is added without
- * being claimed here. An unclaimed key is not a cosmetic gap: it is a
- * setting with no way back to its default, on any page.
- *
- * Pages absent from this map (Components, About, and every
- * third-party tab) own no state, and render no Reset bar at all
- * rather than an inert one.
- */
-const PAGE_SETTINGS: Readonly<
-	Record< string, readonly ( keyof OsSettingsState )[] >
-> = {
-	appearance: [
-		'wallpaper',
-		'accent',
-		'customAccent',
-		'customGradient',
-		'wallpaperSettings',
-		'libraryHdOnly',
-		'adminBarMode',
-		'desktopLayout',
-		// The dock options moved back with the layout cards that
-		// reveal them: one page, one reset scope.
-		'dockPlacement',
-		'dockSize',
-		'dockRailRenderer',
-	],
-	themes: [ 'desktopTheme', 'appliedThemeRecommendations' ],
-	windows: [
-		'windowRadius',
-		'unfocusEffect',
-		'windowReveal',
-		'windowRevealDuration',
-		'windowLinkRenderer',
-		'windowLinkVisibility',
-		'windowLinksEnabled',
-		'windowLinkRaiseOnFocus',
-		'windowLinkHighlight',
-	],
-	'apps-icons': [ 'itemVisibility', 'dockOrder', 'dockPromotedPositions' ],
-	features: [
-		'ai',
-		'heartbeatRate',
-		'nativePostsEnabled',
-		'nativePostsHiddenColumns',
-		'nativePagesEnabled',
-		'nativeUsersEnabled',
-		'nativePluginsEnabled',
-		'nativeCommentsEnabled',
-		'showDesktopOnWallpaperClick',
-		'mioEnabled',
-		'mioStyle',
-		'showPostStatusRibbons',
-		'developerModeEnabled',
-		'foldersSharingEnabled',
-	],
-};
-
-/**
- * The one setting no page resets.
- *
- * `customImage` is a pointer at something the user uploaded, not a
- * preference. Resetting Appearance puts the wallpaper back to Galaxy,
- * which is the visible thing they asked for; throwing away the upload
- * on the way would be a second, silent, destructive act they did not.
- * The image stays in the grid, one click from being chosen again.
- */
-const NEVER_RESET: readonly ( keyof OsSettingsState )[] = [ 'customImage' ];
-
-/**
- * Copy one setting from `source` to `target`.
- *
- * A one-line helper because it is the only way to move a value by a
- * key held in a variable without casting both sides to
- * `Record< string, unknown >`. The generic ties the key to its own
- * value type, so this still fails to compile if the two states ever
- * stop matching, which a pair of casts would have hidden.
- */
-function copySetting< K extends keyof OsSettingsState >(
-	target: OsSettingsState,
-	source: OsSettingsState,
-	key: K,
-): void {
-	target[ key ] = source[ key ];
-}
 
 /**
  * The heading a page opens with, and the sentence under it.
@@ -312,31 +215,28 @@ export function renderOsSettingsPanel(
 	body.classList.add( 'os-settings' );
 
 	/**
-	 * Put one page's settings back to their defaults, and nothing else.
+	 * Put every setting back to its default.
 	 *
-	 * Only the keys {@link PAGE_SETTINGS} lists for this page are
-	 * copied over, so every other page survives untouched. That is the
-	 * whole difference from the old behaviour, where the button read
-	 * "Reset to defaults" and quietly meant the entire panel.
+	 * One button for the whole panel, at the foot of the nav, because
+	 * that is where the panel itself is addressed from: the column
+	 * lists the pages, and the thing under the list acts on all of
+	 * them. A per-page bar was tried and it cost a permanent strip
+	 * across the bottom of every page to say what one button in the
+	 * furniture says once.
+	 *
+	 * The uploaded image survives. It is a pointer at something the
+	 * user made, not a preference: putting the wallpaper back to Galaxy
+	 * is the visible thing they asked for, and throwing away the upload
+	 * on the way would be a second, silent, destructive act they did
+	 * not. It stays in the grid, one click from being chosen again.
 	 *
 	 * `structuredDefaults()` deep-clones the nested objects, so a reset
 	 * can never alias (and later corrupt) the module-level DEFAULTS
 	 * singleton. See the function's own note.
 	 */
-	const onReset = ( tabId: string ): void => {
-		const keys = PAGE_SETTINGS[ tabId ];
-		if ( ! keys ) {
-			return;
-		}
-		const defaults = structuredDefaults();
-		const next: OsSettingsState = { ...ctx.state };
-		for ( const key of keys ) {
-			if ( NEVER_RESET.includes( key ) ) {
-				continue;
-			}
-			copySetting( next, defaults, key );
-		}
-		ctx.state = next;
+	const onReset = (): void => {
+		const preservedImage = ctx.state.customImage;
+		ctx.state = { ...structuredDefaults(), customImage: preservedImage };
 		ctx.save();
 		ctx.apply();
 		ctx.renderPanel( body );
@@ -572,50 +472,6 @@ export function renderOsSettingsPanel(
 	const activeRowExists = rows.some( ( r ) => r.id === previousValue );
 	const initialTab = activeRowExists ? previousValue : 'appearance';
 
-	/*
-	 * The reset bar, as a threaded DOM node rather than part of the
-	 * template, because it is the one piece of the panel that has to
-	 * repaint when the SELECTION changes rather than when the settings
-	 * do. The renderer holds a threaded node by reference and never
-	 * clones it, so repainting its contents here survives any re-render
-	 * of the tree around it.
-	 */
-	const footer = document.createElement( 'os-panel' );
-	footer.className = 'os-settings__footer';
-
-	const paintFooter = ( tabId: string ): void => {
-		const keys = PAGE_SETTINGS[ tabId ];
-		const row = rows.find( ( r ) => r.id === tabId );
-		/*
-		 * A page that owns no settings gets no bar. Components, About
-		 * and every third-party tab are in that group: a Reset button
-		 * on them would either do nothing or, worse, look like it had.
-		 */
-		if ( ! keys || keys.length === 0 || ! row ) {
-			footer.hidden = true;
-			render( html``, footer );
-			return;
-		}
-		footer.hidden = false;
-		render(
-			html`
-				<os-button variant="ghost" @click=${ () => onReset( tabId ) }
-					>${ sprintf(
-						/* translators: %s: name of the settings page, e.g. "Appearance". */
-						__( 'Reset %s to defaults' ),
-						row.label,
-					) }</os-button
-				>
-				<span class="os-settings__footer-note"
-					>${ __(
-						'Only this page. Everything else stays as you set it.',
-					) }</span
-				>
-			`,
-			footer,
-		);
-	};
-
 	/**
 	 * What each page can be found by.
 	 *
@@ -766,11 +622,15 @@ export function renderOsSettingsPanel(
 			<p class="os-settings__search-empty" hidden>
 				${ __( 'No settings match that.' ) }
 			</p>
-			${ rows.map( ( r ) => r.panel ) } ${ footer }
+			<os-panel class="os-settings__footer">
+				<os-button variant="ghost" @click=${ onReset }
+					>${ __( 'Reset to defaults' ) }</os-button
+				>
+			</os-panel>
+			${ rows.map( ( r ) => r.panel ) }
 		`,
 		body,
 	);
-	paintFooter( initialTab );
 	// Save feedback lives on the OS Settings window's title-bar
 	// activity dot — the always-on modem light next to the icon.
 	// No section-level or footer indicator: one canonical
@@ -818,9 +678,6 @@ export function renderOsSettingsPanel(
 				};
 				if ( detail?.value ) {
 					ctx.activeTabId = detail.value;
-					// The bar names the page it will reset, so it has
-					// to follow the selection rather than the state.
-					paintFooter( detail.value );
 				}
 			},
 			{ signal: controller.signal },
