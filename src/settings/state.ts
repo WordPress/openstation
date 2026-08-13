@@ -71,6 +71,11 @@ export function loadState(): OsSettingsState {
 		const state = _parseRaw( serverRaw );
 		// Prime the local cache so mid-session reads don't re-parse JSON.
 		_writeLocalStorage( state );
+		// This branch — and only this branch — read the state out of
+		// user meta, so it is the only one that may claim the server
+		// has agreed to it. See `setLastConfirmedState()` for what
+		// goes wrong when the other two make that claim.
+		setLastConfirmedState( state );
 		return state;
 	}
 
@@ -484,18 +489,30 @@ let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 const SYNC_DEBOUNCE_MS = 250;
 
 /**
- * Last state the server confirmed it accepted. Used to roll back
- * the local cache + the in-memory `OsSettings.state` when a save
- * fails (offline, REST 4xx/5xx, nonce expired). On boot, callers
- * should prime this via {@link setLastConfirmedState} with the
- * loaded state — the boot snapshot came from user meta and is by
- * definition confirmed.
+ * Last state the server confirmed it accepted. Two jobs:
+ *
+ *   1. Roll back the local cache + the in-memory `OsSettings.state`
+ *      when a save fails (offline, REST 4xx/5xx, nonce expired).
+ *   2. Serve as the baseline `_buildPayload()` diffs against, which
+ *      decides what a save is allowed to say anything about.
+ *
+ * Job 2 is why this must only ever hold state the server really did
+ * accept. `loadState()` primes it from the server snapshot and from
+ * nothing else: the localStorage cache can hold values a previous
+ * session never got as far as saving, and treating those as
+ * confirmed would mean never sending them — a field silently stuck
+ * locally, which is a quieter version of the bug the diff exists to
+ * fix. Left unprimed, the first save posts the full snapshot and the
+ * divergence heals itself.
  */
 let _lastConfirmedState: OsSettingsState | null = null;
 
 /**
- * Prime the rollback baseline. Called once after `loadState()` so
- * the FIRST failed save still has somewhere to roll back to.
+ * Prime the rollback + diff baseline. `loadState()` calls this on
+ * the server-snapshot path so the FIRST failed save already has
+ * somewhere to roll back to. Exported for tests and for any caller
+ * that has genuinely server-confirmed state in hand — do not call it
+ * with values the server hasn't accepted.
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
 	_lastConfirmedState = _cloneState( state );

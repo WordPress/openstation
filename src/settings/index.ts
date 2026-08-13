@@ -52,7 +52,6 @@ import {
 import {
 	loadState,
 	saveState,
-	setLastConfirmedState,
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
@@ -252,12 +251,14 @@ export class OsSettings implements SettingsCtx {
 	constructor( config: OsSettingsConfig, layer: WallpaperLayer ) {
 		this.config = config;
 		this.layer = layer;
+		// `loadState()` primes the rollback + diff baseline itself,
+		// but only when it read the state out of user meta. Priming
+		// it unconditionally from here was the bug: with the server
+		// snapshot absent, the boot state comes from the localStorage
+		// cache, which can hold values a previous session never got
+		// as far as saving — and a baseline that claims those are
+		// confirmed is a baseline that never sends them.
 		this.state = loadState();
-
-		// Prime the rollback baseline so the FIRST failed save still
-		// has a snapshot to revert to. The boot state came from user
-		// meta and is by definition server-confirmed.
-		setLastConfirmedState( this.state );
 
 		// Auto-rollback on save failure — restore the in-memory state
 		// to the last server-confirmed snapshot AND re-render the

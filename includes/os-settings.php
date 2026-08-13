@@ -898,10 +898,25 @@ function openstation_rest_get_os_settings() {
 function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'settings' );
-	if ( is_array( $payload ) ) {
-		$payload = array_merge( openstation_get_os_settings( $user_id ), $payload );
+
+	// A payload that isn't an object says nothing about any field, so
+	// it changes nothing. The route declares `'settings' => object`
+	// and WP's schema validation rejects a scalar before the callback
+	// runs, so this is unreachable over real REST traffic — but the
+	// sanitizer resolves a non-array to the full defaults, which
+	// means the one way to reach this function with a bad payload
+	// used to be the one way to wipe a user's settings. Returning
+	// early costs nothing and keeps "don't destroy what wasn't sent"
+	// true of every path into this handler, not just the ones the
+	// schema happens to guard.
+	if ( ! is_array( $payload ) ) {
+		return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 	}
-	openstation_save_os_settings( $user_id, $payload );
+
+	openstation_save_os_settings(
+		$user_id,
+		array_merge( openstation_get_os_settings( $user_id ), $payload )
+	);
 	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 }
 

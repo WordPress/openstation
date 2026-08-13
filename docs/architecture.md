@@ -252,6 +252,8 @@ User preferences (`OsSettingsState` — wallpaper, accent, dock size, layout, fe
 
 That is what keeps two open sessions of the same account from overwriting each other. A session that booted an hour ago and then changes only its accent has no opinion about the wallpaper another session changed in the meantime — the key simply isn't in the request. The diff baseline is deliberately *this session's* last confirmed state, not the server's current truth: diffing against fresh server state would make the other session's change look like a local edit and post the stale value straight back.
 
+The baseline is primed **only** from the server snapshot. `loadState()` falls back to the `localStorage` cache when `openStationConfig.osSettings` is absent, and that cache can hold values a previous session never got as far as saving — calling those confirmed would mean never sending them, a field silently stuck on one machine. An unprimed baseline makes the first save post the full snapshot instead, so the divergence heals itself and every save after that is a diff again.
+
 Three things this is not:
 
 - **Not a conflict protocol.** There is no revision token and no 409. Two sessions editing the *same* field is still last-write-wins, which is the right trade for per-user preferences.

@@ -186,6 +186,52 @@ describe( 'OS Settings — partial saves', () => {
 		} );
 	} );
 
+	test( 'a server-loaded boot primes the baseline, so the first save is a diff', async () => {
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
+			osSettingsUrl: '/wp-json/desktop-mode/v1/os-settings',
+			restNonce: 'nonce',
+			osSettings: { wallpaper: 'dark' },
+		};
+
+		const state = state_.loadState();
+		expect( state.wallpaper ).toBe( 'dark' );
+
+		state.accent = 'wp-midnight';
+		state_.saveState( state );
+		await flush();
+
+		expect( sentSettings() ).toEqual( { accent: 'wp-midnight' } );
+	} );
+
+	test( 'a cache-loaded boot does NOT prime the baseline — the first save heals it', async () => {
+		// No `osSettings` on the config, so `loadState()` falls back
+		// to localStorage. That cache can hold values a previous
+		// session never got as far as saving; treating them as
+		// server-confirmed would mean never sending them again.
+		window.localStorage.setItem(
+			'desktop-mode-os-settings',
+			JSON.stringify( { ...state_.structuredDefaults(), wallpaper: 'dark' } ),
+		);
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
+			osSettingsUrl: '/wp-json/desktop-mode/v1/os-settings',
+			restNonce: 'nonce',
+		};
+
+		const state = state_.loadState();
+		expect( state.wallpaper ).toBe( 'dark' );
+
+		state.accent = 'wp-midnight';
+		state_.saveState( state );
+		await flush();
+
+		// Full snapshot — including the wallpaper the server may
+		// never have been told about.
+		const sent = sentSettings();
+		expect( sent.accent ).toBe( 'wp-midnight' );
+		expect( sent.wallpaper ).toBe( 'dark' );
+		expect( sent ).toEqual( state );
+	} );
+
 	test( 'without a primed baseline the full snapshot is sent', async () => {
 		// Defensive path: no `setLastConfirmedState()` call, so there is
 		// nothing to diff against and a partial payload would be a

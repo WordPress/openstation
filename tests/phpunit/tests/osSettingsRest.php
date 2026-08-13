@@ -162,20 +162,31 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A non-array payload (bad client, wrong content type) must not
-	 * blow up the merge — it falls through to the sanitizer, which
-	 * returns the defaults.
+	 * A payload that isn't an object says nothing about any field, so
+	 * it must change nothing.
+	 *
+	 * The route declares `'settings' => object`, so schema validation
+	 * rejects a scalar before the callback runs and this is
+	 * unreachable over real REST traffic. It is pinned anyway because
+	 * the sanitizer resolves a non-array to the full defaults: the
+	 * one way to reach this handler with a bad payload was the one
+	 * way to wipe a user's settings, and a future direct PHP caller
+	 * bypassing REST validation would have found it.
 	 *
 	 * @covers ::openstation_rest_save_os_settings
 	 */
-	public function test_non_array_payload_is_survivable() {
+	public function test_non_array_payload_changes_nothing() {
+		$this->post( array( 'wallpaper' => 'dark' ) );
+
 		$req = new WP_REST_Request( 'POST', '/desktop-mode/v1/os-settings' );
 		$req->set_param( 'settings', 'not-an-array' );
 		$res = openstation_rest_save_os_settings( $req );
 
+		$this->assertSame( 'dark', $res->get_data()['wallpaper'] );
 		$this->assertSame(
-			openstation_default_os_settings(),
-			$res->get_data()
+			'dark',
+			openstation_get_os_settings( self::$user_id )['wallpaper'],
+			'A junk payload must not reset stored settings to the defaults.'
 		);
 	}
 }
