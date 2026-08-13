@@ -21,7 +21,6 @@
  */
 
 import { __, sprintf } from '../i18n';
-import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import type { PostsWindowConfig } from './rest';
 import {
@@ -30,7 +29,6 @@ import {
 	type UsersListParams,
 	type UsersWindowClient,
 } from './users-rest';
-import { showUsersIntroDialog } from './users-intro-dialog';
 // Static import — see `desktop.ts`'s onMatch comment for why this
 // can't be `await import('./user-edit-target')`. The user-edit
 // window's render callback fires synchronously inside `openWindow`,
@@ -219,73 +217,6 @@ function memoUserCell(
 	const node = build();
 	cache.set( k, node );
 	return node;
-}
-
-const _usersIntroShown = { v: false };
-function maybeShowUsersIntro(
-	client: UsersWindowClient,
-	returnFocusTo: HTMLElement | null,
-): void {
-	if ( _usersIntroShown.v ) {
-		return;
-	}
-	let cfg: PostsWindowConfig;
-	try {
-		cfg = client.getConfig();
-	} catch {
-		return;
-	}
-	if ( cfg.introSeen ) {
-		return;
-	}
-	_usersIntroShown.v = true;
-	void showUsersIntroDialog( returnFocusTo )
-		.then( ( result ) => {
-			if ( result === 'cancel' ) {
-				_usersIntroShown.v = false;
-				return;
-			}
-			void markUsersIntroSeen( client, cfg );
-			if ( result === 'settings' ) {
-				const w = window as unknown as {
-					wp?: { os?: { openOsSettings?: () => void } };
-				};
-				w.wp?.os?.openOsSettings?.();
-			}
-		} )
-		.catch( () => {
-			_usersIntroShown.v = false;
-		} );
-}
-
-async function markUsersIntroSeen(
-	client: UsersWindowClient,
-	cfg: PostsWindowConfig,
-): Promise< void > {
-	if ( ! cfg.introUrl ) {
-		return;
-	}
-	try {
-		await trackedFetch(
-			cfg.introUrl,
-			{
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': cfg.restNonce,
-				},
-				body: JSON.stringify( { slug: 'users' } ),
-			},
-			{
-				windowId: client.windowId,
-				source: 'users-window/intro',
-			},
-		);
-		( cfg as { introSeen: boolean } ).introSeen = true;
-	} catch {
-		// non-fatal
-	}
 }
 
 // ─── Cell builders ───────────────────────────────────────────────────
@@ -841,10 +772,6 @@ export async function renderUsersWindow(
 		}
 		void openUserEditWindow( id );
 	} );
-
-	// Dismissing the intro hands focus to the window root rather than
-	// to whatever the user last touched before the window opened.
-	maybeShowUsersIntro( client, root );
 
 	const cfg = client.getConfig();
 	const view: ViewState = {

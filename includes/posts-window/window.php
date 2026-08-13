@@ -198,11 +198,6 @@ function openstation_posts_window_register_window() {
 			'currentUserId'   => (int) get_current_user_id(),
 			'defaultPerPage'  => 20,
 			'queryArgs'       => openstation_posts_window_default_query_args(),
-			// First-open intro dialog wiring — see `includes/seen-intros.php`.
-			// `introSeen` is the boot-time snapshot; the bundle marks the
-			// intro seen via `introUrl` after the user dismisses the dialog.
-			'introSeen'       => openstation_has_seen_intro( get_current_user_id(), 'posts' ),
-			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 		),
 	);
 

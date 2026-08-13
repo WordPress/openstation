@@ -60,6 +60,25 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_WOO_RELATION_ITEM_CAP = 20;
 
 /**
+ * How many orders the product and coupon groups list.
+ */
+const OPENSTATION_WOO_RELATION_ORDER_CAP = 10;
+
+/**
+ * How many order-item rows to read to fill that list.
+ *
+ * The id lists come out of `woocommerce_order_items`, which holds
+ * refund rows alongside order rows — and refunds sort *first* there,
+ * since the query orders by descending id and a refund is created
+ * after the order it refunds. A `LIMIT 10` on a much-refunded product
+ * could therefore come back as ten refunds and no orders at all, and
+ * the group would render empty on the one product whose history a
+ * merchant most wants to read. Reading a few times the budget and
+ * stopping at the cap costs one bounded query.
+ */
+const OPENSTATION_WOO_RELATION_ORDER_CANDIDATES = 40;
+
+/**
  * Query flag marking a person-URL as a request for a *particular*
  * view of that person rather than for the profile editor.
  *
@@ -128,6 +147,44 @@ function openstation_my_wordpress_woo_current_order() {
  */
 function openstation_my_wordpress_woo_can_read_orders() {
 	return true === openstation_my_wordpress_woo_orders_permission();
+}
+
+/**
+ * Whether an object read back from an order-item row is a purchase.
+ *
+ * Refunds keep their own line items in the same
+ * `woocommerce_order_items` tables, under the refund's id — so a
+ * lookup that asks those tables "which orders contain product X"
+ * answers with refund ids too, for any product that has ever been
+ * refunded. `WC_Order_Refund` extends `WC_Abstract_Order`, so the
+ * usual guard waves it through, and the next line asks it for
+ * `get_order_number()`: a `WC_Order` method the abstract base does
+ * not declare, and therefore a fatal on the product edit screen.
+ *
+ * Dropping refunds is also the truer answer. "Who bought this" and
+ * "where was this coupon used" are questions about purchases, and a
+ * refund is the undoing of one.
+ *
+ * Deliberately *not* `instanceof WC_Order`. The abstract base is the
+ * type every order class actually extends, including HPOS's overrides
+ * and whatever custom order type a store registers — testing against
+ * `WC_Order` has already been tried elsewhere in this integration and
+ * silently emptied lists on stores that use them. So this excludes the
+ * one known-hostile subclass and then asks the object directly for the
+ * accessors these lists call, which keeps an exotic order type that
+ * extends the base without them out of a fatal too.
+ *
+ * @param mixed $order Whatever `wc_get_order()` returned.
+ * @return bool
+ */
+function openstation_my_wordpress_woo_is_purchase( $order ) {
+	if ( ! $order instanceof WC_Abstract_Order ) {
+		return false;
+	}
+	if ( $order instanceof WC_Order_Refund ) {
+		return false;
+	}
+	return method_exists( $order, 'get_order_number' );
 }
 
 /**
@@ -730,11 +787,16 @@ function openstation_my_wordpress_woo_product_related( $product_id ) {
 	// not read orders must not read them sideways.
 	if ( openstation_my_wordpress_woo_can_read_orders() ) {
 		$customers = array();
-		foreach ( openstation_my_wordpress_woo_orders_with_product( $product_id, 10 ) as $order_id ) {
+		$listed    = 0;
+		foreach ( openstation_my_wordpress_woo_orders_with_product( $product_id, OPENSTATION_WOO_RELATION_ORDER_CANDIDATES ) as $order_id ) {
+			if ( $listed >= OPENSTATION_WOO_RELATION_ORDER_CAP ) {
+				break;
+			}
 			$order = wc_get_order( $order_id );
-			if ( ! $order instanceof WC_Abstract_Order ) {
+			if ( ! openstation_my_wordpress_woo_is_purchase( $order ) ) {
 				continue;
 			}
+			++$listed;
 
 			$name  = method_exists( $order, 'get_formatted_billing_full_name' )
 				? trim( $order->get_formatted_billing_full_name() )
@@ -926,11 +988,16 @@ function openstation_my_wordpress_woo_coupon_related( $coupon_id ) {
 	// a question you currently answer by exporting orders.
 	if ( openstation_my_wordpress_woo_can_read_orders() ) {
 		$customers = array();
-		foreach ( openstation_my_wordpress_woo_orders_with_coupon( $coupon->get_code(), 10 ) as $order_id ) {
+		$listed    = 0;
+		foreach ( openstation_my_wordpress_woo_orders_with_coupon( $coupon->get_code(), OPENSTATION_WOO_RELATION_ORDER_CANDIDATES ) as $order_id ) {
+			if ( $listed >= OPENSTATION_WOO_RELATION_ORDER_CAP ) {
+				break;
+			}
 			$order = wc_get_order( $order_id );
-			if ( ! $order instanceof WC_Abstract_Order ) {
+			if ( ! openstation_my_wordpress_woo_is_purchase( $order ) ) {
 				continue;
 			}
+			++$listed;
 
 			$name  = method_exists( $order, 'get_formatted_billing_full_name' )
 				? trim( $order->get_formatted_billing_full_name() )

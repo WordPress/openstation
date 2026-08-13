@@ -70,8 +70,6 @@ export interface PluginsWindowConfig {
 	 */
 	autoUpdatesEnabled: boolean;
 	currentUserId: number;
-	introSeen: boolean;
-	introUrl: string;
 	/**
 	 * OpenStation's own plugin file path (e.g.
 	 * `"desktop-mode/desktop-mode.php"`) — the same value WordPress

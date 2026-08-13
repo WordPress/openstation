@@ -51,8 +51,6 @@ function installConfig( over: Partial< PluginsWindowConfig > = {} ): void {
 			upload:   true,
 		},
 		currentUserId: 1,
-		introSeen:     true,
-		introUrl:      'http://example.test/wp-json/desktop-mode/v1/intros/seen',
 		...over,
 	};
 	window.openStationWindowConfig = window.openStationWindowConfig ?? {};

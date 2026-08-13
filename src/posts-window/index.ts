@@ -21,9 +21,7 @@
  */
 
 import { __, _n, sprintf } from '../i18n';
-import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
-import { showPostsIntroDialog } from './intro-dialog';
 import { decodeHTML } from '../utils';
 // Side-effect imports — register the `<os-*>` components this
 // bundle constructs that the main shell does not ship. See the
@@ -132,118 +130,6 @@ function windowMode( client: PostsWindowClient ): 'posts' | 'pages' {
 	} catch {
 		return 'posts';
 	}
-}
-
-/**
- * Posts-window first-open intro. Mirrors the seen-intros surface in
- * `includes/seen-intros.php`: gated on `config.introSeen`, marks
- * itself seen on dismiss via `POST config.introUrl`. Runs once per
- * user — OS Settings → Features exposes a "Reset what's-new dialogs"
- * button that wipes the list so it appears again from scratch.
- *
- * Posts is the first ported native app, so the copy explicitly
- * points at the OS Settings escape hatch. Future ported apps drop
- * that line.
- */
-/**
- * Per-window-mode intro tracker — `'posts'` and `'pages'` each gate
- * independently so opening one window doesn't suppress the other's
- * first-open dialog.
- */
-const _introShown: Record< string, boolean > = Object.create( null );
-
-// "Reset what's-new dialogs" in OS Settings dispatches this event
-// after the DELETE round-trip completes — clear the per-mode cache
-// so the next window-open re-fires the dialog without a page reload.
-document.addEventListener( 'os-intros-reset', () => {
-	for ( const slug of Object.keys( _introShown ) ) {
-		_introShown[ slug ] = false;
-	}
-} );
-
-function maybeShowIntro(
-	client: PostsWindowClient,
-	returnFocusTo: HTMLElement | null,
-): void {
-	let cfg: PostsWindowConfig;
-	try {
-		cfg = client.getConfig();
-	} catch {
-		return;
-	}
-	const slug = cfg.introSlug || cfg.mode || 'posts';
-	if ( _introShown[ slug ] ) {
-		return;
-	}
-	if ( cfg.introSeen ) {
-		return;
-	}
-	_introShown[ slug ] = true;
-
-	const dialogPromise =
-		slug === 'pages'
-			? import( './pages-intro-dialog' ).then( ( m ) =>
-				m.showPagesIntroDialog( returnFocusTo ),
-			)
-			: showPostsIntroDialog( returnFocusTo );
-
-	void dialogPromise
-		.then( ( result ) => {
-			// Escape / backdrop click resolve `'cancel'` and explicitly
-			// MUST NOT mark the intro seen — that's the testing escape
-			// hatch so we can iterate on the dialog without resetting
-			// OS Settings between runs.
-			if ( result === 'cancel' ) {
-				_introShown[ slug ] = false;
-				return;
-			}
-			void markIntroSeen( cfg, slug, client );
-			if ( result === 'settings' ) {
-				openOsSettingsFeatures();
-			}
-		} )
-		.catch( () => {
-			// Dialog mount failed; keep gating off so a re-open can retry.
-			_introShown[ slug ] = false;
-		} );
-}
-
-async function markIntroSeen(
-	cfg: PostsWindowConfig,
-	slug: string,
-	client: PostsWindowClient,
-): Promise< void > {
-	if ( ! cfg.introUrl ) {
-		return;
-	}
-	try {
-		await trackedFetch(
-			cfg.introUrl,
-			{
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': cfg.restNonce,
-				},
-				body: JSON.stringify( { slug } ),
-			},
-			{
-				windowId: client.windowId,
-				source: `${ slug }-window/intro`,
-			},
-		);
-		// Mirror the server change locally so a re-open inside the
-		// same shell session doesn't re-fire the dialog.
-		( cfg as { introSeen: boolean } ).introSeen = true;
-	} catch {
-		// Swallow — the worst case is showing the intro one more time.
-	}
-}
-
-function openOsSettingsFeatures(): void {
-	const api = ( window.wp as { os?: { openOsSettings?: () => void } } | undefined )?.os;
-	api?.openOsSettings?.();
 }
 
 const ROOT = '[data-os-posts-root]';
@@ -2277,10 +2163,6 @@ export async function renderPostsWindow(
 	if ( ! root || ! table ) {
 		return;
 	}
-
-	// Dismissing the intro hands focus to the window root rather than
-	// to whatever the user last touched before the window opened.
-	maybeShowIntro( client, root );
 
 	// Term-management tabs (Categories + Tags) — lazy-mounted on first
 	// activation so cold-load of the Posts window never pays for them

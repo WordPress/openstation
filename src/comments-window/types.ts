@@ -73,15 +73,12 @@ export interface AiModerationSettings {
 
 export interface CommentsConfig {
 	mode: 'comments';
-	introSlug: string;
 	restRoot: string;
 	restNonce: string;
 	commentsUrl: string;
 	currentUserId: number;
 	defaultPerPage: number;
 	queryArgs: Record< string, unknown >;
-	introSeen: boolean;
-	introUrl: string;
 	canModerate: boolean;
 	canEditComments: boolean;
 	bulkUrl: string;

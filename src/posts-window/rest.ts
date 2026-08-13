@@ -37,19 +37,10 @@ declare global {
 export interface PostsWindowConfig {
 	/**
 	 * Window mode — `'posts'` (default) or `'pages'`. Drives JS-side
-	 * branches: which intro dialog to show, whether to bind taxonomy
-	 * tabs, the column set, and the {@link introSlug} default. Absent
-	 * on older Posts-window configs (treated as
-	 * `'posts'`).
+	 * branches: whether to bind taxonomy tabs, and the column set.
+	 * Absent on older Posts-window configs (treated as `'posts'`).
 	 */
 	mode?: 'posts' | 'pages' | 'users';
-	/**
-	 * Intro-dialog slug — `'posts'` for the canonical Posts window,
-	 * `'pages'` for the Pages window, plus any plugin-introduced
-	 * variant. Falls back to `mode` (or `'posts'` if `mode` is also
-	 * absent) so legacy Posts configs keep working unchanged.
-	 */
-	introSlug?: string;
 	/**
 	 * Page id assigned as the static front page (`page_on_front`),
 	 * or `0` when the site uses the latest-posts homepage. Pages-mode
@@ -115,15 +106,6 @@ export interface PostsWindowConfig {
 	defaultPerPage: number;
 	/** Default outbound query args (e.g. `_fields`, `_embed`, `post_type`). */
 	queryArgs: Record< string, string >;
-	/**
-	 * Boot-time snapshot of whether the user has already dismissed the
-	 * Posts intro dialog. When false, the bundle shows the dialog the
-	 * first time the window opens and POSTs to {@link introUrl} on
-	 * dismiss.
-	 */
-	introSeen: boolean;
-	/** REST URL for `POST /desktop-mode/v1/intros/seen`. */
-	introUrl: string;
 }
 
 /**

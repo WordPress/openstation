@@ -108,15 +108,12 @@ function openstation_comments_window_register_window() {
 		'placement'  => 'none',
 		'config'     => array(
 			'mode'            => 'comments',
-			'introSlug'       => 'comments',
 			'restRoot'        => esc_url_raw( rest_url() ),
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'commentsUrl'     => esc_url_raw( rest_url( 'wp/v2/comments' ) ),
 			'currentUserId'   => $viewer_id,
 			'defaultPerPage'  => 20,
 			'queryArgs'       => openstation_comments_window_default_query_args(),
-			'introSeen'       => openstation_has_seen_intro( $viewer_id, 'comments' ),
-			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
 			// the viewer can't perform. Server still re-checks every
@@ -132,8 +129,8 @@ function openstation_comments_window_register_window() {
 			'insightsUrlBase' => esc_url_raw( rest_url( 'desktop-mode/v1/comments/insights/' ) ),
 			'countsUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/comments/counts' ) ),
 			'aiSettingsUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			// Surface the current state so the OS Settings UI + the
-			// intro dialog can branch on it without a separate fetch.
+			// Surface the current state so the OS Settings UI can
+			// branch on it without a separate fetch.
 			// Cap-gated mirror of what the REST endpoint would return.
 			'aiModeration'    => array(
 				'enabled'            => openstation_comments_ai_is_enabled(),

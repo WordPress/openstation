@@ -272,7 +272,6 @@ function openstation_users_window_register_window() {
 		'placement'  => 'none',
 		'config'     => array(
 			'mode'             => 'users',
-			'introSlug'        => 'users',
 			'restRoot'         => esc_url_raw( rest_url() ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'postsUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
@@ -282,8 +281,6 @@ function openstation_users_window_register_window() {
 			'currentUserId'    => $viewer_id,
 			'defaultPerPage'   => 20,
 			'queryArgs'        => openstation_users_window_default_query_args(),
-			'introSeen'        => openstation_has_seen_intro( $viewer_id, 'users' ),
-			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
 			// the viewer can't perform. Server still re-checks every

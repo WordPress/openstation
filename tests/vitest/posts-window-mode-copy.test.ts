@@ -34,7 +34,6 @@ function installConfig( windowId: string, mode: 'posts' | 'pages' ): void {
 		currentUserId: 1,
 		defaultPerPage: 20,
 		mode,
-		introSeen: true,
 		queryArgs: {},
 	};
 	window.openStationWindowConfig = window.openStationWindowConfig ?? {};
