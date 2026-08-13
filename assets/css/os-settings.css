@@ -939,13 +939,6 @@
 }
 
 /* Extended options section — hint paragraph + error/saving states */
-.os-ext__hint {
-	margin: 6px 0 0;
-	font-size: 13px;
-	color: var( --os-ui-fg-muted, #646970 );
-	line-height: 1.5;
-}
-
 .os-ext__error {
 	margin: 6px 0 0;
 	font-size: 13px;
