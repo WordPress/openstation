@@ -164,18 +164,18 @@ export const styles = css`
 	}
 
 	/*
-	 * ON. The identity moment, and the reason this component exists in
-	 * a holographic kit: the track becomes the mesh.
-	 *
-	 * The .os-holo-fill class (from src/ui/holo.ts) brings the mesh, the
-	 * oversized background so it has room to slide, and the tilt on
-	 * hover. The inset edge is dropped — a grey line around a bright
-	 * mesh reads as a seam — and the glow takes over as the thing
-	 * separating the track from the surface. Both are box-shadows, so
-	 * the swap moves nothing.
+	 * ON. Flat accent, not the mesh: toggles arrive a dozen to a
+	 * settings page, and the brand reserves meshes for hero surfaces.
+	 * The .os-holo-fill class stays on the element so a caller can
+	 * re-enable a mesh through its own tokens; background-image: none
+	 * takes it off here. The inset edge is dropped with nothing in
+	 * its place, because a lit accent track carries its own boundary
+	 * against the surface.
 	 */
 	:host( [ checked ] ) button {
-		box-shadow: var( --_holo-glow );
+		background-image: none;
+		background-color: var( --os-ui-accent, #2271b1 );
+		box-shadow: none;
 	}
 
 	/*

@@ -46,9 +46,21 @@ export const DEFAULT_WALLPAPER_ID = 'galaxy';
  * customise the list should hook `openstation_accent_colors` in PHP,
  * not fork this constant.
  */
+/**
+ * The accent id that means "not one of the presets".
+ *
+ * Deliberately NOT in {@link DEFAULT_ACCENTS} or in the PHP list: it
+ * has no fixed value, so it cannot be resolved by looking it up. Its
+ * colour is `state.customAccent`, and `OsSettings.apply()` special-
+ * cases it before the preset lookup.
+ */
+export const CUSTOM_ACCENT_ID = 'custom';
+
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
 	{ id: 'pulse', label: 'Pulse', value: '#f252fc' },
 	{ id: 'nebula', label: 'Nebula', value: '#ec9bff' },
+	{ id: 'sirius', label: 'Sirius', value: '#9af2ff' },
+	{ id: 'lagoon', label: 'Lagoon', value: '#9f98ff' },
 	{ id: 'wp-blue', label: 'WordPress Blue', value: '#2271b1' },
 	{ id: 'indigo', label: 'Indigo', value: '#3858e9' },
 	{ id: 'teal', label: 'Teal', value: '#04a4cc' },
@@ -195,6 +207,10 @@ export const DESKTOP_LAYOUTS = [
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'pulse',
+	// Only read when `accent` is CUSTOM_ACCENT_ID. Seeded with Pulse so
+	// picking Custom before touching the colour field is a no-op rather
+	// than a jump to black.
+	customAccent: '#f252fc',
 	dockSize: 'default',
 	// `round` (16px), not `default` (8px). The preset ids are stored
 	// values and cannot be renamed, so the option labelled "Default"

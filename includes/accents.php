@@ -44,6 +44,20 @@ function openstation_get_accent_colors() {
 			'label' => __( 'Nebula', 'desktop-mode' ),
 			'value' => '#ec9bff',
 		),
+		// The other two brand accents. Sirius is the cool counterweight
+		// to Pulse and the only light accent in the set; Lagoon sits
+		// between the two families and is what the guide reaches for
+		// when Pulse is too loud and WordPress Blue too corporate.
+		array(
+			'id'    => 'sirius',
+			'label' => __( 'Sirius', 'desktop-mode' ),
+			'value' => '#9af2ff',
+		),
+		array(
+			'id'    => 'lagoon',
+			'label' => __( 'Lagoon', 'desktop-mode' ),
+			'value' => '#9f98ff',
+		),
 		array(
 			'id'    => 'wp-blue',
 			'label' => __( 'WordPress Blue', 'desktop-mode' ),

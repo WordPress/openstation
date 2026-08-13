@@ -34,7 +34,7 @@
  *       ├── wallpaper.ts   — swatch grid + editor slot + custom-gradient
  *       ├── custom-image.ts — upload + library tabs
  *       ├── accent.ts      — accent swatch row
- *       └── dock-size.ts   — segmented dock-size control
+ *       └── desktop-layout.ts — layout cards + inline dock options
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
@@ -43,6 +43,7 @@ import * as registry from '../wallpapers/registry';
 import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	ADMIN_BAR_MODES,
+	CUSTOM_ACCENT_ID,
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
 	WINDOW_RADII,
@@ -323,7 +324,19 @@ export class OsSettings implements SettingsCtx {
 		}
 
 		const accents = getAccents();
-		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
+		/*
+		 * Custom resolves from state, not from the list: it is the one
+		 * accent with no fixed value, so a lookup would miss it and
+		 * fall through to the first preset. Checked before the lookup
+		 * rather than after, because the fallback that catches an
+		 * unknown id is the same expression and would swallow it.
+		 */
+		const preset =
+			accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
+		const accentValue =
+			this.state.accent === CUSTOM_ACCENT_ID
+				? this.state.customAccent
+				: preset.value;
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
 		const windowRadius =
@@ -347,7 +360,7 @@ export class OsSettings implements SettingsCtx {
 		// inside the body, and the accent picker would appear to do
 		// nothing. On the same element, an inline style always wins.
 		const root = document.body;
-		root.style.setProperty( '--wp-admin-theme-color', accent.value );
+		root.style.setProperty( '--wp-admin-theme-color', accentValue );
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(

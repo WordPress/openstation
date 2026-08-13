@@ -203,8 +203,6 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			<button
 				type="button"
 				class="os-settings__theme-card"
-				role="radio"
-				aria-checked=${ selected ? 'true' : 'false' }
 				aria-pressed=${ selected ? 'true' : 'false' }
 				data-theme-slug=${ theme.slug }
 				@click=${ () => pick( theme.slug ) }
@@ -259,8 +257,6 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			<button
 				type="button"
 				class="os-settings__theme-card os-settings__theme-card--system"
-				role="radio"
-				aria-checked=${ selected ? 'true' : 'false' }
 				aria-pressed=${ selected ? 'true' : 'false' }
 				@click=${ () => pick( SYSTEM_DEFAULT ) }
 			>
@@ -358,27 +354,30 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		const themes = listDesktopThemes();
 		render(
 			html`
-				<h3 class="os-settings__heading">
-					${ __( 'Desktop themes' ) }
-				</h3>
-				<p class="os-settings__intro">
-					${ __(
-						'A desktop theme restyles the whole shell — colours, window frames, the dock, and every icon. Your choice applies only to you.',
-					) }
-				</p>
 				${ errorText !== ''
 					? html`<os-notice tone="error">${ errorText }</os-notice>`
 					: '' }
-				<div
-					class="os-settings__theme-grid"
-					role="radiogroup"
-					aria-label=${ __( 'Desktop theme' ) }
-				>
-					${ systemCard() }
-					${ themes.map( ( theme ) => themeCard( theme ) ) }
-				</div>
-				${ recommendationRow( themes ) }
-				${ canManage ? uploadTile() : '' }
+				<os-section heading=${ __( 'Installed' ) }>
+					<!--
+						role="group", not radiogroup. The upload tile is the
+						last cell of this grid, the way the wallpaper picker
+						on Appearance ends with "Use your own image", and a
+						radiogroup may contain nothing but radios. The cards
+						are toggle buttons carrying aria-pressed, which is
+						what the swatches in that other picker already do,
+						so the two now agree.
+					-->
+					<div
+						class="os-settings__theme-grid"
+						role="group"
+						aria-label=${ __( 'Desktop theme' ) }
+					>
+						${ systemCard() }
+						${ themes.map( ( theme ) => themeCard( theme ) ) }
+						${ canManage ? uploadTile() : '' }
+					</div>
+					${ recommendationRow( themes ) }
+				</os-section>
 			`,
 			host,
 		);

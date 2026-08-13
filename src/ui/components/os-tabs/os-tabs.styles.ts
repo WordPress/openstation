@@ -19,11 +19,15 @@ export const tabsStyles = css`
 	 * Vertical: a sidebar rather than a strip. The bottom border goes
 	 * with it, because the boundary is now the column edge, and that
 	 * belongs to whoever is laying the strip out.
+	 *
+	 * Rows sit flush against each other. The gap that separates one
+	 * GROUP from the next is the only vertical space in the column, so
+	 * it has to be the only thing that looks like one.
 	 */
 	:host( [ orientation='vertical' ] ) {
 		flex-direction: column;
 		align-items: stretch;
-		gap: 2px;
+		gap: 0;
 		margin-bottom: 0;
 		border-bottom: 0;
 	}
@@ -77,36 +81,156 @@ export const tabStyles = css`
 	 */
 	:host( [ data-orientation='vertical' ] ) {
 		display: block;
-	}
-	:host( [ data-orientation='vertical' ] ) button {
-		width: 100%;
-		padding: 10px 14px;
-		margin-bottom: 0;
-		text-align: start;
-		font-size: 13px;
-		border-radius: 6px;
+		/*
+		 * The three layers of the selected row, read into private
+		 * aliases so the palette and every desktop theme keep the last
+		 * word on them. Never declare the public names here: see
+		 * AGENTS.md, "Never declare a themeable token on a component's
+		 * :host".
+		 */
+		--_tab-edge: var(
+			--os-ui-tab-edge,
+			linear-gradient( 90deg, #f252fc 7%, #aa67ff 48.3%, #a580ff 70.7%, #4b3eff 93% )
+		);
+		--_tab-wash: var(
+			--os-ui-tab-wash,
+			linear-gradient(
+				90deg,
+				rgba( 242, 82, 252, 0.16 ) 0%,
+				rgba( 255, 251, 255, 0.04 ) 42%,
+				transparent 100%
+			)
+		);
+		--_tab-bloom: var(
+			--os-ui-tab-bloom,
+			linear-gradient( 90deg, rgba( 242, 82, 252, 0.26 ), transparent )
+		);
 	}
 	/*
-	 * The accent moves from an underline to a leading edge: same mesh,
-	 * same transition, grown from the middle of the row's height
-	 * rather than the middle of its width.
+	 * A row, not a chip. Full-bleed to both edges of the sidebar so
+	 * the accent can sit ON the boundary; the 20px inline-start
+	 * padding is what holds the label off it. No radius for the same
+	 * reason: a rounded row would pull the edge inward and leave a
+	 * notch above and below it.
+	 *
+	 * 40px tall and 14px Regular: Body Small, straight off the brand
+	 * guide. isolation confines the two pseudos below to this row.
+	 */
+	:host( [ data-orientation='vertical' ] ) button {
+		display: flex;
+		align-items: center;
+		gap: 11px;
+		isolation: isolate;
+		width: 100%;
+		min-height: 40px;
+		padding: 0 14px 0 20px;
+		margin-bottom: 0;
+		border-radius: 0;
+		text-align: start;
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 1.5;
+		white-space: nowrap;
+	}
+	/*
+	 * A leading icon, if the caller slotted one. Sized here rather
+	 * than left to the SVG so a Core icon on a 24 grid and one of ours
+	 * on the same grid land identically.
+	 *
+	 * Write slot::slotted() and never a bare ::slotted() after a
+	 * descendant combinator. The implied universal in
+	 * :host( ... ) ::slotted( svg ) is parsed as part of the same
+	 * compound rather than as a selector for the slot, so the rule
+	 * silently matches nothing: no error, no warning, just an unsized
+	 * SVG that renders at its intrinsic size and turns a 40px row into
+	 * an 86px one. Naming the slot element removes the ambiguity.
+	 */
+	:host( [ data-orientation='vertical' ] ) slot::slotted( svg ) {
+		flex: 0 0 17px;
+		width: 17px;
+		height: 17px;
+		opacity: 0.8;
+		transition: opacity var( --_holo-t ) var( --_holo-ease );
+	}
+	:host( [ data-orientation='vertical' ] ) button:hover slot::slotted( svg ),
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
+		slot::slotted( svg ) {
+		opacity: 1;
+	}
+	/*
+	 * The accent moves from an underline to a leading edge: the mesh
+	 * spent as a hairline rather than as a fill, because nine
+	 * iridescent rows in a column is wallpaper.
+	 *
+	 * Both pseudos sit at z-index -1: inside the row's own stacking
+	 * context that paints them above its background and below its
+	 * label, which is exactly the order the three layers need.
 	 */
 	:host( [ data-orientation='vertical' ] ) button::after {
 		inset-inline: 0 auto;
-		inset-block: 50%;
+		inset-block: 0;
+		z-index: -1;
 		width: 2px;
 		height: auto;
-		border-radius: 0 2px 2px 0;
-		transition: inset-block var( --_holo-t ) ease, opacity var( --_holo-t ) ease;
+		border-radius: 0;
+		background-image: var( --_tab-edge );
+		transition: opacity var( --_holo-t ) var( --_holo-ease );
 	}
+	/* The bloom the edge throws back across the row. */
+	:host( [ data-orientation='vertical' ] ) button::before {
+		content: '';
+		position: absolute;
+		inset-inline: 0 auto;
+		inset-block: 0;
+		z-index: -1;
+		width: 44px;
+		background-image: var( --_tab-bloom );
+		filter: blur( 8px );
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity var( --_holo-t ) var( --_holo-ease );
+	}
+	/*
+	 * Hover is the label and its icon coming up to full strength, and
+	 * nothing else. The horizontal strip grows a half-width underline
+	 * to say "this one is about to be it", but a row that lights its
+	 * own edge on hover competes with the row that already owns it:
+	 * in a column the eye reads the two as both selected.
+	 */
 	:host( [ data-orientation='vertical' ] ) button:hover::after {
-		inset-block: 30%;
-	}
-	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button::after {
-		inset-block: 15%;
+		inset-inline: 0 auto;
+		opacity: 0;
 	}
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
-		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+		background-image: var( --_tab-wash );
+		/*
+		 * No weight bump. Body Small is Regular, and the edge already
+		 * says which row this is. A second signal only makes the
+		 * column jitter as the selection moves.
+		 */
+		font-weight: 400;
+	}
+	/*
+	 * inset-inline is restated, not inherited: the horizontal selected
+	 * rule sets it to 0 to grow the underline out to the full width of
+	 * the tab, and that same declaration would stretch this edge
+	 * across the whole row.
+	 */
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button::after,
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
+		button:hover::after {
+		inset-inline: 0 auto;
+		opacity: 1;
+	}
+	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
+		button::before {
+		opacity: 1;
+	}
+	@media ( prefers-reduced-motion: reduce ) {
+		:host( [ data-orientation='vertical' ] ) button::before,
+		:host( [ data-orientation='vertical' ] ) slot::slotted( svg ) {
+			transition-duration: 1ms;
+		}
 	}
 	button {
 		appearance: none;

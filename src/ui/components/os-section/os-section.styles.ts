@@ -12,22 +12,30 @@ import { css } from '../../core';
 export const styles = css`
 	:host {
 		display: block;
-		margin-block-end: 28px;
+		margin-block-end: 36px;
 	}
 	:host( [ hidden ] ) {
 		display: none;
 	}
+	/*
+	 * Heading 20 / Medium 500 with the guide's optical tightening, and
+	 * the description at Body Small on the muted step. The heading sits
+	 * ABOVE the section box (see part="body" in the render): a section
+	 * is a heading, a sentence, and a bounded surface, in that order.
+	 */
 	.os-section__heading {
-		margin: 0 0 2px;
-		font-size: 14px;
-		font-weight: 600;
+		margin: 0 0 5px;
+		font-size: 20px;
+		font-weight: 500;
+		letter-spacing: -0.01em;
 		color: var( --os-ui-fg, #1d2327 );
 	}
 	.os-section__description {
 		margin: 0 0 14px;
-		font-size: 12px;
+		max-width: 78ch;
+		font-size: 14px;
 		color: var( --os-ui-fg-muted, #646970 );
-		line-height: 1.45;
+		line-height: 1.55;
 	}
 	/* Collapse the description node when no text was
 	 * supplied — avoids stray margin under the heading. */

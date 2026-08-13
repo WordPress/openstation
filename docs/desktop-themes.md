@@ -429,6 +429,8 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. Miomesh by default. |
+| `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
 | `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
 | `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
 | `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |

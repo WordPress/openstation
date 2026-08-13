@@ -144,8 +144,13 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 
 		render(
 			html`
+				<!--
+					No heading. The page title above already says
+					"Apps & Plugins", and <os-section> omits an empty
+					heading entirely rather than opening with a blank line.
+				-->
 				<os-section
-					heading=${ __( 'Apps & Icons' ) }
+					heading=""
 					description=${ __(
 						'Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell.',
 					) }

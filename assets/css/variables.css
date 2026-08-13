@@ -681,6 +681,44 @@ body.os-active {
 		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
 
 	/*
+	 * The selected row of a VERTICAL `<os-tabs>`: the sidebar in
+	 * OpenStation Preferences, and any native window that lays its
+	 * pages down the side rather than across the top.
+	 *
+	 * Three layers, and the split is the whole point. A mesh repeated
+	 * down nine rows is wallpaper, not an identity moment, so the mesh
+	 * is spent as a two-pixel EDGE and the row itself gets only a wash
+	 * that falls away. That is the same trade `--os-ui-holo-fill`
+	 * makes for a control that is on: the brand appears where it is
+	 * cheap to look at and expensive to ignore.
+	 *
+	 * `-edge` is Miomesh rather than Holomesh. At 2px wide there is
+	 * room for a sweep and no room for a mesh's radial structure, so
+	 * Holomesh cropped to a hairline is one arbitrary lilac. Miomesh
+	 * IS a left-to-right sweep, so a vertical slice of it reads as a
+	 * considered gradient at any height.
+	 *
+	 * `-wash` and `-bloom` are AMBIENT accent, so both resolve through
+	 * `--os-ui-accent-dim` like every other glow in the kit. Turning
+	 * the station down is still one edit. The Starlight stop in the
+	 * middle of the wash is what keeps the row from reading as a pink
+	 * smear: it lifts the surface under the label rather than tinting
+	 * it, and it is gone by the time the row ends.
+	 */
+	--os-ui-tab-edge: var(--os-mesh-mio);
+	--os-ui-tab-wash: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent) 0%,
+		rgba(255, 251, 255, 0.04) 42%,
+		transparent 100%
+	);
+	--os-ui-tab-bloom: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
+		transparent
+	);
+
+	/*
 	 * ---- Motion --------------------------------------------------
 	 *
 	 * Four durations and three curves, and every animated thing in the

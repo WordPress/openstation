@@ -97,6 +97,12 @@ export interface AiAssistantConfig {
 export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
+	/**
+	 * The colour behind the Custom accent swatch. A `#rrggbb` string,
+	 * read only when `accent` is `custom`; the presets carry their own
+	 * values and never consult it.
+	 */
+	customAccent: string;
 	dockSize: DockSizeId;
 	windowRadius: WindowRadiusId;
 	/**
