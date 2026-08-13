@@ -209,6 +209,9 @@ export function installShareMenuItems(): void {
 			return folderOwnerId( folderId ) === viewerId();
 		},
 		onClick: ( w: DesktopWindow ): void => {
+			if ( ! sharingEnabled() ) {
+				return;
+			}
 			const base = ( w.config as { baseId?: string } ).baseId ?? w.id;
 			const folderId = folderIdFromBaseId( base );
 			if ( folderId === null ) {
