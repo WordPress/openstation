@@ -422,4 +422,209 @@ describe( 'agents entity kind', () => {
 
 		expect( host.body.textContent ).toContain( 'kaboom' );
 	} );
+
+	describe( 'guided create flow', () => {
+		/**
+		 * URL-keyed fetch mock: the wizard touches the list, the AI
+		 * status probe, and both catalogues in one journey.
+		 */
+		function mockAgentRoutes(
+			opts: { providerConfigured?: boolean } = {},
+		): FetchMock {
+			const respond = ( body: unknown ): Response =>
+				( {
+					ok: true,
+					status: 200,
+					json: async () => body,
+				} ) as unknown as Response;
+			const fn = vi.fn( async ( input: RequestInfo ) => {
+				const url = String( input );
+				if ( url.includes( '/ai/status' ) ) {
+					return respond( {
+						available: true,
+						providerConfigured: opts.providerConfigured === true,
+					} );
+				}
+				if ( url.includes( '/agents/roles' ) ) {
+					return respond( [
+						{ slug: 'author', label: 'Author' },
+						{ slug: 'editor', label: 'Editor' },
+					] );
+				}
+				if ( url.includes( '/agents/abilities' ) ) {
+					return respond( [
+						{
+							slug: 'desktop-mode/get-post',
+							label: 'Read posts',
+							description: 'Reads a post.',
+							category: 'Content',
+							readonly: true,
+						},
+					] );
+				}
+				if ( url.includes( '/agents/trigger-kinds' ) ) {
+					return respond( [] );
+				}
+				if ( url.includes( '/agents/hooks-catalogue' ) ) {
+					return respond( [] );
+				}
+				return respond( [] );
+			} );
+			( globalThis as unknown as { fetch: FetchMock } ).fetch = fn;
+			return fn;
+		}
+
+		function openCreate( host: ReturnType< typeof makeHost > ): void {
+			host.body
+				.querySelector< HTMLElement >( '.dm-agents__create' )!
+				.click();
+		}
+
+		function setField(
+			host: ReturnType< typeof makeHost >,
+			selector: string,
+			value: string,
+		): void {
+			host.body.querySelector( selector )!.dispatchEvent(
+				new CustomEvent( 'os-input-change', { detail: { value } } ),
+			);
+		}
+
+		test( 'create opens on the guided Describe step', async () => {
+			mockAgentRoutes();
+			const host = makeHost();
+
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+			openCreate( host );
+			await flush();
+
+			const steps = Array.from(
+				host.body.querySelectorAll( '.dm-agents__wizard-step-label' ),
+			).map( ( el ) => el.textContent?.trim() );
+			expect( steps ).toEqual( [ 'Describe', 'Refine', 'Launch' ] );
+			expect(
+				host.body.querySelector( '.dm-agents__brief' ),
+			).not.toBeNull();
+		} );
+
+		test( 'the Expert segment shows the classic form', async () => {
+			mockAgentRoutes();
+			const host = makeHost();
+
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+			openCreate( host );
+			await flush();
+
+			host.body.querySelector( 'os-segmented' )!.dispatchEvent(
+				new CustomEvent( 'os-pick', { detail: { value: 'expert' } } ),
+			);
+			await flush();
+
+			expect(
+				host.body.querySelector( '.dm-agents__wizard-steps' ),
+			).toBeNull();
+			const buttons = Array.from(
+				host.body.querySelectorAll( 'os-button' ),
+			).map( ( el ) => el.textContent?.trim() );
+			expect( buttons ).toContain( 'Create' );
+		} );
+
+		test( 'continuing without AI seeds the instructions from the brief', async () => {
+			mockAgentRoutes();
+			const host = makeHost();
+
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+			openCreate( host );
+			await flush();
+
+			setField(
+				host,
+				'.dm-agents__brief',
+				'Watch comments and draft replies.',
+			);
+			// aiAvailable is false in the default config, so the lone
+			// advance button reads Continue.
+			const advance = Array.from(
+				host.body.querySelectorAll< HTMLElement >( 'os-button' ),
+			).find( ( el ) => el.textContent?.trim() === 'Continue' );
+			expect( advance ).toBeDefined();
+			advance!.click();
+			await flush();
+
+			const instructions = Array.from(
+				host.body.querySelectorAll( 'os-textarea' ),
+			).find(
+				( el ) =>
+					el.getAttribute( 'label' ) ===
+					'Instructions (system prompt)',
+			);
+			expect( instructions?.getAttribute( 'value' ) ).toBe(
+				'Watch comments and draft replies.',
+			);
+		} );
+
+		test( 'Draft it for me fills the Refine step from the model reply', async () => {
+			installConfig( {
+				aiAvailable: true,
+				aiStatusUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/status',
+			} );
+			mockAgentRoutes( { providerConfigured: true } );
+			const ask = vi.fn( async () => ( {
+				message: JSON.stringify( {
+					name: 'Comment Concierge',
+					description: 'Reach for it when comments pile up.',
+					instructions: 'Read new comments and draft kind replies.',
+					role: 'editor',
+					abilities: [
+						'desktop-mode/get-post',
+						'not-a-real-ability',
+					],
+				} ),
+			} ) );
+			( window as unknown as Record< string, unknown > ).wp = {
+				os: { ai: { ask } },
+			};
+			try {
+				const host = makeHost();
+
+				getEntityRenderer( 'agent' )!( host, ENTITY );
+				await flush();
+				openCreate( host );
+				await flush();
+
+				setField(
+					host,
+					'.dm-agents__brief',
+					'Answer comments for me.',
+				);
+				const draft = Array.from(
+					host.body.querySelectorAll< HTMLElement >( 'os-button' ),
+				).find(
+					( el ) => el.textContent?.trim() === 'Draft it for me',
+				);
+				expect( draft ).toBeDefined();
+				draft!.click();
+				await flush();
+				await flush();
+
+				expect( ask ).toHaveBeenCalledTimes( 1 );
+				const nameField = Array.from(
+					host.body.querySelectorAll( 'os-text-field' ),
+				).find( ( el ) => el.getAttribute( 'label' ) === 'Name' );
+				expect( nameField?.getAttribute( 'value' ) ).toBe(
+					'Comment Concierge',
+				);
+				// The unknown ability slug is dropped, the known one kept.
+				const ticked = Array.from(
+					host.body.querySelectorAll( 'os-checkbox-label' ),
+				).filter( ( el ) => el.hasAttribute( 'checked' ) );
+				expect( ticked ).toHaveLength( 1 );
+			} finally {
+				delete ( window as unknown as Record< string, unknown > ).wp;
+			}
+		} );
+	} );
 } );

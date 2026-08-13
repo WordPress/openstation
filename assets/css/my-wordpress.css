@@ -2401,3 +2401,121 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	display: flex;
 	gap: 8px;
 }
+
+/* Create flow: the guided wizard. Fallback literals are the
+   pre-brand admin values, same as every other rule in this file. */
+
+.dm-agents__create-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+}
+
+.dm-agents__create-head h3 {
+	margin: 0;
+}
+
+/* Three stations on one route. Labels speak the mono instrument
+   voice; the lit number wears the accent. */
+.dm-agents__wizard-steps {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	list-style: none;
+	margin: 2px 0 4px;
+	padding: 0;
+}
+
+.dm-agents__wizard-step {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* The connecting line between stations. */
+.dm-agents__wizard-step + .dm-agents__wizard-step::before {
+	content: '';
+	width: 20px;
+	height: 1px;
+	background: var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__wizard-step-dot {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 1px solid var( --os-ui-border-strong, #c3c4c7 );
+	font-size: 11px;
+	line-height: 1;
+}
+
+.dm-agents__wizard-step.is-active {
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.dm-agents__wizard-step.is-active .dm-agents__wizard-step-dot {
+	border-color: transparent;
+	background: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-fg-on-accent, #fff );
+}
+
+.dm-agents__wizard-step.is-done .dm-agents__wizard-step-dot {
+	border-color: transparent;
+	background: var( --os-ui-surface-elevated, #f0f0f1 );
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* The launch summary: one card, brand card radius. */
+.dm-agents__wizard-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: 10px;
+	background: var( --os-ui-surface-subtle, transparent );
+}
+
+.dm-agents__wizard-summary-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dm-agents__wizard-summary-name {
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.dm-agents__wizard-summary-desc {
+	margin: 0;
+}
+
+/* Instructions preview: clamped, not scrolling. Refine is one Back
+   away if it needs a full read. */
+.dm-agents__wizard-instructions {
+	margin: 0;
+	font-size: 12px;
+	white-space: pre-wrap;
+	color: var( --os-ui-fg-muted, #646970 );
+	display: -webkit-box;
+	-webkit-line-clamp: 6;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.dm-agents__wizard-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
