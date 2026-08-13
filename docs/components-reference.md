@@ -180,7 +180,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 The kit wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and the brand ships five mesh gradients with one instruction attached: *"meshes reserved for hero surfaces."* `src/ui/holo.ts` is how a control gets to be one without every component reinventing what holographic means.
 
-**It is a moment, not a skin.** Form controls (checkboxes, radios, switches, sliders, the segmented thumb) wear the flat accent when they are on; the mesh appears only where a single surface speaks for the brand, such as `<os-button variant="holo">` and the selected-row edge of a vertical tab strip. A panel where every surface is iridescent has no identity moments left to spend.
+**It is a moment, not a skin.** Form controls (checkboxes, radios, switches, sliders, the segmented thumb) wear the flat accent when they are on; selection and state across the kit resolve through `--os-ui-accent`, which follows the accent the user picked in OpenStation Preferences; the mesh appears only where a single surface speaks for the brand, such as `<os-button variant="holo">`. A panel where every surface is iridescent has no identity moments left to spend.
 
 Three treatments, in ascending loudness:
 
@@ -221,7 +221,7 @@ Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — t
 | `--os-ui-holo-edge` / `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow` / `--os-ui-holo-glow-strong` | The Pulse bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
-| `--os-ui-tab-edge` | The selected row's leading edge in a vertical `<os-tabs>`. Miomesh, because a 2px slice of a sweep still reads as a gradient where a cropped radial mesh reads as one arbitrary colour. |
+| `--os-ui-tab-edge` | The selected row's leading edge in a vertical `<os-tabs>`. The flat accent, so the row says "this one" in the same colour as every control beside it. |
 | `--os-ui-tab-wash` / `--os-ui-tab-bloom` | That row's surface wash, and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
 | `--os-ui-accent-dim` | Pulse one step back (same hue, S and L pulled down together). **The single knob for how loud the station is** — every ambient use of the accent resolves through it. |
 | `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |

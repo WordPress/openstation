@@ -361,6 +361,36 @@ export class OsSettings implements SettingsCtx {
 		// nothing. On the same element, an inline style always wins.
 		const root = document.body;
 		root.style.setProperty( '--wp-admin-theme-color', accentValue );
+		// The control kit paints its on states and selection rings from
+		// `--os-ui-accent` — switches, checkboxes, radios, sliders, the
+		// segmented pill, the swatch ring. The palette declares it at
+		// Pulse, and that declaration stays the brand's; this inline
+		// write is the user's pick, and without it choosing an accent
+		// moves the title bars and leaves every control pink.
+		root.style.setProperty( '--os-ui-accent', accentValue );
+		/*
+		 * The ambient layer resolves one step back through
+		 * `--os-ui-accent-dim` — the dock divider, the selected
+		 * sidebar row's wash and bloom, every glow. It has to move
+		 * with the pick too, or the station stays pink around a teal
+		 * control.
+		 *
+		 * Pulse keeps the palette's own value rather than a derived
+		 * one: the brand mixes its dim by hand, pulling saturation
+		 * and lightness down together, and no single step reproduces
+		 * that pair. Every other accent gets the darkening step,
+		 * which is what "one step back" means for a colour we were
+		 * handed rather than given a twin for.
+		 */
+		const BRAND_ACCENT = '#f252fc';
+		if ( accentValue.toLowerCase() === BRAND_ACCENT ) {
+			root.style.removeProperty( '--os-ui-accent-dim' );
+		} else {
+			root.style.setProperty(
+				'--os-ui-accent-dim',
+				`color-mix( in srgb, ${ accentValue } 88%, #000 )`,
+			);
+		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(

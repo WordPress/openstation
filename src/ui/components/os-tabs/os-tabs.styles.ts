@@ -55,12 +55,16 @@ export const tabPanelStyles = css`
 `;
 
 /**
- * The selected tab's underline is the mesh.
+ * The selected tab's underline is the accent.
  *
- * `border-bottom-color` takes a colour, so the underline is drawn as
- * an `::after` bar instead — which also lets it animate its width from
- * the centre out, and lets the mesh sit at the bar's own scale rather
- * than being stretched across a 2 px strip of a nine-layer gradient.
+ * Flat, not the mesh: a window's tab strip is chrome that every
+ * window wears, so the underline belongs to the same family as the
+ * form controls rather than to the hero surfaces. The vertical strip
+ * spends the mesh on its leading edge, where there is exactly one.
+ *
+ * The underline is drawn as an `::after` bar rather than a
+ * `border-bottom`, which lets it animate its width from the centre
+ * out.
  *
  * The bar exists on every tab and is simply zero-width until the tab
  * is chosen. Growing an element that is already in the layout costs a
@@ -90,7 +94,10 @@ export const tabStyles = css`
 		 */
 		--_tab-edge: var(
 			--os-ui-tab-edge,
-			linear-gradient( 90deg, #f252fc 7%, #aa67ff 48.3%, #a580ff 70.7%, #4b3eff 93% )
+			linear-gradient(
+				var( --os-ui-accent, #f252fc ),
+				var( --os-ui-accent, #f252fc )
+			)
 		);
 		--_tab-wash: var(
 			--os-ui-tab-wash,
@@ -253,7 +260,10 @@ export const tabStyles = css`
 		bottom: 0;
 		height: 2px;
 		border-radius: 2px 2px 0 0;
-		background-image: var( --_holo-fill );
+		background-image: linear-gradient(
+			var( --os-ui-accent, #2271b1 ),
+			var( --os-ui-accent, #2271b1 )
+		);
 		background-size: 100% 100%;
 		opacity: 0;
 		transition: inset-inline var( --_holo-t ) ease, opacity var( --_holo-t ) ease;
