@@ -30,7 +30,7 @@
 // instead of collapsing to unknown elements.
 import '../../ui/components';
 
-import { __, sprintf } from '../../i18n';
+import { __ } from '../../i18n';
 import { html, render, type OsHelp } from '../../ui/core';
 import { OS_COMPONENT_TAGS } from '../../ui/components/tags';
 import type { SettingsCtx } from '../types';
@@ -226,28 +226,14 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 			visible.find( ( e ) => e.tag === activeTag ) ?? visible[ 0 ];
 		render(
 			html`
-				<os-section
-					heading=${ __( 'Component library' ) }
-					description=${ __(
-						'Every <os-*> web component shipped by this plugin, with its props, slots, and a live example. Descriptors live next to each component class — the list stays in sync with the code.',
-					) }
-				>
-					<p class="os-settings__help-count">
-						${ query
-							? sprintf(
-									/* translators: 1: number of matching components, 2: total number of components. */
-									__( '%1$s of %2$s components match.' ),
-									String( visible.length ),
-									String( entries.length ),
-								)
-							: sprintf(
-									/* translators: %s: number of registered components. */
-									__( '%s components registered.' ),
-									String( entries.length ),
-								) }
-					</p>
-				</os-section>
-
+				<!--
+					No intro card. The page header above already names the
+					tab and says what it is, and a count of how many
+					components are registered answered a question nobody
+					asked while costing the two panes the height they
+					actually need. This tab is the list; it starts at the
+					list.
+				-->
 				${ ctx.state.developerModeEnabled
 					? html`
 						<os-section

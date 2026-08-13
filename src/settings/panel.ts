@@ -385,7 +385,7 @@ export function renderOsSettingsPanel(
 					${ pageHeader(
 						__( 'Components' ),
 						__(
-							'The os-* component kit, live. A developer surface, which is why it sits under System.',
+							'Every <os-*> web component shipped by this plugin, with its props, slots, and a live example.',
 						),
 					) }
 					${ buildHelpSection( ctx ) }

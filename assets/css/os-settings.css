@@ -957,11 +957,6 @@
  * (nav + detail) on desktop, stacks naturally on narrow windows via
  * the same container the OS Settings panel lives in.
  */
-.os-settings__help-count {
-	margin: 4px 0 0;
-	font-size: 13px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
 
 .os-settings__help-layout {
 	display: grid;
@@ -1578,6 +1573,13 @@
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
+	/*
+	 * Square off the bottom inset. Every other page carries 44px there
+	 * so a scrolling column has somewhere to end; this one does not
+	 * scroll, so those extra 16px are just the panes stopping short of
+	 * the window. Matching the top puts the same frame on both ends.
+	 */
+	padding-bottom: 28px;
 }
 .os-settings
 	> os-tabpanel[ for='help' ]:not( [ hidden ] )
