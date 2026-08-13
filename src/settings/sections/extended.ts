@@ -42,8 +42,25 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 	const el = document.createElement( 'div' );
 
+	/**
+	 * A control moved while a request was in flight, so the values on
+	 * the server are already stale. Cleared by the trailing save that
+	 * the in-flight one kicks off when it settles.
+	 */
+	let pending = false;
+
 	const save = async (): Promise<void> => {
-		if ( ! extendedOptionsUrl || ! restNonce || state.saving ) {
+		if ( ! extendedOptionsUrl || ! restNonce ) {
+			return;
+		}
+		if ( state.saving ) {
+			// The in-flight request carries the previous values and
+			// the controls stay live, so returning here on its own
+			// would leave the panel showing one state and the server
+			// holding another. Remember the change instead; the
+			// trailing save rebuilds its body from `state`, so any
+			// number of mid-flight toggles coalesce into one request.
+			pending = true;
 			return;
 		}
 		state.saving = true;
@@ -83,7 +100,15 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 			state.error = __( 'Network error — check your connection.' );
 		} finally {
 			state.saving = false;
-			paint();
+			if ( pending ) {
+				// Awaited rather than fired off, so the promise this
+				// call returns only settles once the values on the
+				// server match the ones on screen.
+				pending = false;
+				await save();
+			} else {
+				paint();
+			}
 		}
 	};
 
