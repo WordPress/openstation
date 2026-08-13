@@ -347,7 +347,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 ### `os-item-menu-opening` — Stable
 Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
 
-It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the active layout gives it (the constellation flyout in the OpenStation layout, the peek card everywhere else). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
+It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the tile has (the constellation flyout on menu tiles, the peek card on system ones). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
 
 ```javascript
 document.addEventListener( 'os-item-menu-opening', ( e ) => {
@@ -908,9 +908,13 @@ window.wp.hooks.addFilter(
 );
 ```
 
-#### The constellation — OpenStation layout only
+#### The constellation
 
-The `openstation` desktop layout replaces the hover-peek **on menu tiles** with a richer surface: the **constellation**, a flyout that fans a menu's *submenu* out of its tile. Every other layout drops the submenu at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+**Menu tiles** hand the hover gesture to the **constellation**, a flyout that fans a menu's *submenu* out of its tile, in place of the hover-peek. Without it the submenu is dropped at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Side bar puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
+
+System tiles have no submenu and keep the peek.
 
 One panel, up to four sections, top to bottom:
 
@@ -1487,7 +1491,7 @@ if ( wp.os.desktopLayout === 'spatial' ) {
 
 Listen for `os-layout-changed` to react to a switch.
 
-**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. It is also the only layout that fans a menu's submenu out of its tile on hover — see [the constellation](#the-constellation--openstation-layout-only) below.
+**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. Fanning a menu's submenu out of its tile on hover started here but is no longer particular to it — see [the constellation](#the-constellation) below.
 
 ---
 

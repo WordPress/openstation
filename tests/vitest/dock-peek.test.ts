@@ -13,6 +13,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { attachDockPeek } from '../../src/dock-peek';
+import { CONSTELLATION_FLAG } from '../../src/dock-constellation/active';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 function makeTile( multi: boolean ): HTMLElement {
@@ -118,6 +119,7 @@ describe( 'dock-peek', () => {
 	afterEach( () => {
 		vi.useRealTimers();
 		document.body.innerHTML = '';
+		document.body.removeAttribute( CONSTELLATION_FLAG );
 		clearHooksStub();
 	} );
 
@@ -662,6 +664,25 @@ describe( 'dock-peek', () => {
 		detach();
 		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
 
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();
+	} );
+
+	test( 'a menu tile stands down while a constellation is mounted', () => {
+		// The flyout carries the open instances this peek would have
+		// shown, plus the submenu the peek has no way to reach. Two
+		// popovers on one tile is a flicker, not a feature. Every
+		// other test in this file runs with no flyout mounted, which
+		// is the case where the peek keeps menu tiles.
+		document.body.setAttribute( CONSTELLATION_FLAG, '' );
+		const tile = makeTile( true );
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ makeWindowStub( 'All Posts', 'edit-php' ) ],
+			} ),
+		);
 		pointerEnter( tile );
 		vi.advanceTimersByTime( 500 );
 		expect( document.querySelector( '.os-dock-peek' ) ).toBeNull();

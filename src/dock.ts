@@ -351,10 +351,31 @@ export class Dock {
 		// (Classic layout's left side bar + bottom dock) can coexist
 		// without their CSS scopes colliding. dock.css reads this
 		// attribute for layout, tooltip anchor, and indicator anchor.
+		//
+		// Committed with transitions off, because the container is
+		// REUSED across a rebuild. Moving the dock from the bottom edge
+		// to a side is a teardown and a fresh Dock on the same element,
+		// which arrives still carrying the old placement's padding —
+		// and `.os-dock` transitions padding, width and transform (see
+		// `window-overview.css`, where they exist to animate the
+		// overview collapse). Without this the new dock tweens out of
+		// the old one's geometry: it lands a size too big and settles,
+		// which reads as a bounce. A rebuild is not a state change and
+		// nothing about it should tween.
+		//
+		// Reading `offsetWidth` between the two lines is what makes it
+		// work: it forces the new placement to be resolved while
+		// transitions are still off, so it becomes the before-change
+		// style rather than a target to animate towards. rAF would be
+		// the usual way to wait a frame, and it is the wrong tool —
+		// this has to happen before the browser can paint, not after.
+		this.container.classList.add( 'os-dock--no-transition' );
 		this.container.setAttribute(
 			'data-os-dock-placement',
 			orientation,
 		);
+		void this.container.offsetWidth;
+		this.container.classList.remove( 'os-dock--no-transition' );
 
 		// Every dock gets two inner wrappers so menu tiles can scroll
 		// independently of the system tiles. Vertical placements scroll

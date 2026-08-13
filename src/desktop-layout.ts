@@ -662,12 +662,12 @@ export function createLayoutDispatcher(
 	 *   - **Classic** — its side bar already owns the left edge, so
 	 *     letting the plugin rail move there would stack the two on top
 	 *     of each other.
-	 *   - **OpenStation** — the layout is drawn for a horizontal rail.
-	 *     Its stylesheet is scoped to
-	 *     `[data-os-dock-placement="bottom"]` and its
-	 *     constellation flyout fans upward out of a tile, so a vertical
-	 *     rail would lose the skin and keep geometry built for an edge
-	 *     it is no longer on.
+	 *   - **OpenStation** — the layout's rail skin is drawn for a
+	 *     horizontal rail and scoped to
+	 *     `[data-os-dock-placement="bottom"]`, so a vertical rail
+	 *     would simply lose it. (The constellation flyout used to be
+	 *     the other half of this reason. It no longer is: it fans
+	 *     away from whichever edge its rail is on.)
 	 *
 	 * The pick is remembered either way — switching to Unified or
 	 * Spatial later lands on the edge the user chose.

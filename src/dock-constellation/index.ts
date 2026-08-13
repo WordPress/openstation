@@ -1,16 +1,24 @@
 /**
  * OpenStation — the Constellation.
  *
- * The hover-submenu surface that gives the `openstation` desktop
- * layout its reason to exist.
+ * The hover-submenu surface: every dock rail, every layout, every
+ * edge.
  *
- * Every other layout throws a menu's submenu away at the dock: the
- * tile opens the landing page and the child pages are only reachable
- * once you are already inside the window, through its tab strip. That
- * is a real navigational cost — "Appearance → Menus" is two screens
- * away from a rail that already knows the link exists. The tab strip
- * stays exactly as it is; this adds the missing shortcut in front of
- * it.
+ * Without it a menu's submenu is thrown away at the dock: the tile
+ * opens the landing page and the child pages are only reachable once
+ * you are already inside the window, through its tab strip. That is a
+ * real navigational cost — "Appearance → Menus" is two screens away
+ * from a rail that already knows the link exists. The tab strip stays
+ * exactly as it is; this adds the missing shortcut in front of it.
+ *
+ * It began as the one thing the `openstation` layout had that the
+ * others did not. That was never a property of the layout, only of
+ * where the work had been done: the panel fanned upward out of a
+ * horizontal rail because that was the rail that layout draws. A dock
+ * on the left has the same submenus and the same room, just in
+ * another direction — so the direction is read off the rail's edge
+ * (see `sideFor`) and the surface belongs to the dock rather than to
+ * any one layout.
  *
  * Hovering a menu tile fans a flyout out of the rail:
  *
@@ -38,10 +46,11 @@
  *    (plugin activated, tiles rebuilt) can't leave a stale listener
  *    behind on a detached node — the failure mode that made the
  *    hover-peek leak popovers before it grew a teardown map.
- * 2. **It owns the hover gesture in this layout.** `dock-peek` stands
- *    down for menu tiles here (see `active.ts`), and the dock tooltip
- *    is suppressed by CSS while the flyout is open, because the head
- *    already says the tile's name — louder, and in the right place.
+ * 2. **It owns the hover gesture on menu tiles.** `dock-peek` stands
+ *    down for them, and the dock tooltip is suppressed by CSS while
+ *    the flyout is open, because the head already says the tile's
+ *    name — louder, and in the right place. System tiles have no
+ *    submenu and keep the peek.
  * 3. **It routes through the same window ids the dock does** (see
  *    `routing.ts`), so the flyout and the tile address one window
  *    between them rather than two.
@@ -80,7 +89,7 @@ import type { DockItem, SubmenuItem } from '../dock';
 import type { Window as OsWindow } from '../window';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
-import { isConstellationLayoutActive } from './active';
+import { CONSTELLATION_FLAG } from './active';
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
 import {
 	openMenuItem,
@@ -88,8 +97,6 @@ import {
 	openSubmenuItem,
 	type ConstellationRouting,
 } from './routing';
-
-export { isConstellationLayoutActive, CONSTELLATION_LAYOUT } from './active';
 
 /** Dwell before the flyout fans out. Short enough to feel instant. */
 const SHOW_DELAY_MS = 130;
@@ -109,8 +116,14 @@ const HIDE_DELAY_MS = 240;
  * moved on, and anything slower reads as the menu not letting go.
  */
 const EXIT_MS = 160;
-/** Gap between the tile's top edge and the panel's bottom edge. */
+/** Gap between the tile's near edge and the panel's facing edge. */
 const BEAM_GAP_PX = 14;
+/**
+ * How far the beam is held off either end of a side panel. The
+ * surface's corner radius plus a little, so the thread never lands on
+ * the curve it would have to cross.
+ */
+const BEAM_INSET_PX = 18;
 /** Keep-out margin from every viewport edge. */
 const VIEWPORT_MARGIN_PX = 12;
 /**
@@ -126,6 +139,49 @@ const MIN_PANEL_HEIGHT_PX = 160;
  * and the flyout's head carries the same label.
  */
 const OPEN_BODY_CLASS = 'os-constellation-open';
+
+/** Which side of its tile a panel fans out on. */
+type ConstellationSide = 'top' | 'left' | 'right';
+
+/**
+ * The direction this tile's flyout fans out in.
+ *
+ * Read off the RAIL, not off the layout. One layout can put two rails
+ * on two edges — Side bar runs core menus down the left and plugins
+ * along the bottom — and each of them has room in its own direction,
+ * so a per-layout answer would be wrong for one of the two rails on
+ * the same screen.
+ *
+ * The mapping is just "away from the edge the rail is on": a bottom
+ * rail fans up, a left rail fans right, a right rail fans left.
+ * Anything else (no placement attribute, an unrecognised value, a
+ * tile a plugin parked outside a rail) falls back to up, which is the
+ * only direction guaranteed to have somewhere to go.
+ */
+const sideFor = ( tile: HTMLElement ): ConstellationSide => {
+	const placement = tile
+		.closest< HTMLElement >( '.os-dock' )
+		?.getAttribute( 'data-os-dock-placement' );
+	if ( placement === 'left' ) {
+		return 'right';
+	}
+	if ( placement === 'right' ) {
+		return 'left';
+	}
+	return 'top';
+};
+
+/**
+ * The arrow that fans the flyout open from a focused tile: the one
+ * pointing at where the panel will appear. On a vertical rail Up and
+ * Down are already spoken for — they walk the rail — so opening on Up
+ * there would fight the rail's own roving.
+ */
+const OPEN_KEY: Readonly< Record< ConstellationSide, string > > = {
+	top: 'ArrowUp',
+	right: 'ArrowRight',
+	left: 'ArrowLeft',
+};
 
 /**
  * Whether the user has asked for less motion.
@@ -196,14 +252,11 @@ export function mountDockConstellation(
 
 	/**
 	 * Resolve the menu tile an event landed on, or null when the event
-	 * has nothing to do with us. Guards on the layout, on the tile
-	 * being menu-derived (system tiles keep the hover-peek), and on the
-	 * tile living on a rail rather than in some plugin's own markup.
+	 * has nothing to do with us. Guards on the tile being menu-derived
+	 * (system tiles keep the hover-peek) and on the tile living on a
+	 * rail rather than in some plugin's own markup.
 	 */
 	const tileFrom = ( target: EventTarget | null ): HTMLElement | null => {
-		if ( ! isConstellationLayoutActive() ) {
-			return null;
-		}
 		if ( ! ( target instanceof Element ) ) {
 			return null;
 		}
@@ -373,6 +426,23 @@ export function mountDockConstellation(
 		}
 		anchor = tile;
 		anchorSlug = slug;
+		/*
+		 * The side goes on BEFORE the panel enters the document, and
+		 * that ordering is load-bearing.
+		 *
+		 * `data-os-cn-side` selects the panel's entire transform. Set
+		 * after the append, it changes a transform the element has
+		 * already resolved — and `inheritShellVars` below reads
+		 * computed style, which makes that resolution a real
+		 * before-change style rather than a discardable first one. The
+		 * change then TRANSITIONS: the panel spends the whole entrance
+		 * sliding diagonally from where a bottom-rail panel would sit
+		 * to where its own geometry puts it, on top of the scale it is
+		 * supposed to be playing. Set before the append, there is
+		 * nothing to transition from and the panel is simply born the
+		 * right shape.
+		 */
+		panel.dataset.osCnSide = sideFor( tile );
 		document.body.appendChild( panel );
 		syncBodyFlag();
 		tile.setAttribute( 'data-constellation-open', '' );
@@ -475,13 +545,13 @@ export function mountDockConstellation(
 			}
 			return;
 		}
-		// On a tile: ArrowUp fans the constellation out (the rail is at
-		// the bottom edge, so "up" is where the panel appears).
+		// On a tile: the arrow pointing at where the panel will appear
+		// fans the constellation out. See `OPEN_KEY`.
 		const tile = tileFrom( e.target );
 		if ( ! tile ) {
 			return;
 		}
-		if ( e.key === 'ArrowUp' ) {
+		if ( e.key === OPEN_KEY[ sideFor( tile ) ] ) {
 			e.preventDefault();
 			open( tile, true );
 		} else if ( e.key === 'Escape' ) {
@@ -496,6 +566,9 @@ export function mountDockConstellation(
 	 */
 	const onInvalidate = (): void => close( false, true );
 
+	// Tells `dock-peek` there is a flyout to stand down for. See
+	// `active.ts` — the flag is the mount, not the layout.
+	document.body.setAttribute( CONSTELLATION_FLAG, '' );
 	document.addEventListener( 'pointerover', onPointerOver );
 	document.addEventListener( 'pointerout', onPointerOut );
 	document.addEventListener( 'keydown', onKeyDown );
@@ -522,6 +595,7 @@ export function mountDockConstellation(
 		}
 		closing.clear();
 		syncBodyFlag();
+		document.body.removeAttribute( CONSTELLATION_FLAG );
 		document.removeEventListener( ITEM_MENU_OPENING_EVENT, onInvalidate );
 		document.removeEventListener( 'pointerover', onPointerOver );
 		document.removeEventListener( 'pointerout', onPointerOut );
@@ -916,41 +990,103 @@ function inheritShellVars( panel: HTMLElement ): void {
 }
 
 /**
- * Anchor the panel above the tile, cap it to the room actually
- * available there, then pull it back inside the viewport horizontally
- * and slide the beam to stay pointed at the tile's centre.
+ * Anchor the panel beside its tile, on whichever side the rail leaves
+ * free, then cap it to the room there and nudge it back inside the
+ * viewport along the one axis it can move on.
  *
- * The two axes are clamped differently on purpose.
+ * The two axes are never symmetrical, and which is which depends on
+ * the side.
  *
- * **Horizontally** the panel is nudged, because sliding it sideways
- * costs nothing — it still points at its tile, and the beam tracks
- * the anchor independently via `--os-cn-beam-x` so the thread stays
- * honest.
+ * **The free axis is the one running ALONG the rail.** Sliding the
+ * panel that way costs nothing: it still sits beside its tile, and
+ * the beam compensates by the same amount (`--os-cn-beam-x` above a
+ * bottom rail, `--os-cn-beam-y` beside a vertical one) so the thread
+ * stays pointed at the tile whatever the clamp did.
  *
- * **Vertically it cannot be nudged at all.** The panel hangs off the
- * top of the dock; moving it down to fit would push it over the rail
- * and under the pointer, which is worse than the overflow. So the
- * height is capped instead: `--os-cn-max-h` is the distance from the
- * panel's bottom edge to the top of the viewport, and the surface
+ * **The axis facing the rail cannot be nudged at all.** Moving the
+ * panel that way would push it over the rail and under the pointer,
+ * which is worse than the overflow. So the size is capped instead:
+ * `--os-cn-max-h` is the room the panel actually has, and the surface
  * reads it as a `max-height`. A menu too tall for the space shrinks
  * to fit and its submenu group takes the scroll — which is why the
  * group is the flex item that shrinks, not the head or the
  * new-window row.
+ *
+ * Above a bottom rail those are the same statement as before: free
+ * horizontally, capped by the distance up to the top of the viewport.
+ *
+ * **Beside a vertical rail the panel is top-aligned with its tile,
+ * not centred on it**, and that is the whole difference between a
+ * flyout and a panel that has come loose. A rail is as tall as the
+ * screen and a menu can be 400px of it: centring the FIRST tile's
+ * panel on a tile 24px down the rail puts most of it above the top of
+ * the viewport, and the clamp then has to shove it back down by
+ * hundreds of pixels, landing it beside the fifth tile with a beam
+ * pointing off its own edge. Top-aligned, the common case needs no
+ * clamp at all, and the beam meets the panel where the tile actually
+ * is.
+ *
+ * The beam is what carries the anchoring here, so it is positioned
+ * from the TILE (`--os-cn-beam-y`, the tile's centre measured from
+ * the panel's top edge) rather than pinned to the panel's middle,
+ * and it is where the entrance grows from. Clamped to stay a corner
+ * radius clear of both ends so it never draws on the rounded corner
+ * it would have to cross.
  */
 function position( panel: HTMLElement, tile: HTMLElement ): void {
 	const rect = tile.getBoundingClientRect();
-	const centre = rect.left + rect.width / 2;
-	panel.style.left = `${ centre }px`;
-	panel.style.top = `${ rect.top - BEAM_GAP_PX }px`;
+	// Already on the panel — `open()` stamps it before the append, and
+	// the note there says why it cannot wait until here.
+	const side = sideFor( tile );
 
 	// `MIN_PANEL_HEIGHT_PX` is a floor rather than a hard truth: on a
 	// viewport so short that even that doesn't fit, a panel that
 	// overflows slightly beats one collapsed to a sliver.
-	const available = rect.top - BEAM_GAP_PX - VIEWPORT_MARGIN_PX;
+	const available =
+		side === 'top'
+			? rect.top - BEAM_GAP_PX - VIEWPORT_MARGIN_PX
+			: window.innerHeight - VIEWPORT_MARGIN_PX * 2;
 	panel.style.setProperty(
 		'--os-cn-max-h',
 		`${ Math.max( MIN_PANEL_HEIGHT_PX, available ) }px`,
 	);
+
+	if ( side !== 'top' ) {
+		panel.style.left =
+			side === 'right'
+				? `${ rect.right + BEAM_GAP_PX }px`
+				: `${ rect.left - BEAM_GAP_PX }px`;
+
+		/*
+		 * Measured now rather than in a frame's time, and with
+		 * `offsetHeight` rather than a rect: layout is available the
+		 * moment the panel is in the document, and offset sizes ignore
+		 * the entrance transform, which a rect does not. Clamping
+		 * against a rect measured mid-scale would answer a question
+		 * about a box the user never sees.
+		 */
+		const height = panel.offsetHeight;
+		const vh = window.innerHeight;
+		const top = Math.max(
+			VIEWPORT_MARGIN_PX,
+			Math.min( rect.top, vh - VIEWPORT_MARGIN_PX - height ),
+		);
+		panel.style.top = `${ top }px`;
+		// The beam meets the panel level with the tile's centre, held
+		// clear of both rounded ends.
+		const beamY = Math.max(
+			BEAM_INSET_PX,
+			Math.min(
+				rect.top + rect.height / 2 - top,
+				height - BEAM_INSET_PX,
+			),
+		);
+		panel.style.setProperty( '--os-cn-beam-y', `${ beamY }px` );
+		return;
+	}
+
+	panel.style.left = `${ rect.left + rect.width / 2 }px`;
+	panel.style.top = `${ rect.top - BEAM_GAP_PX }px`;
 
 	requestAnimationFrame( () => {
 		const panelRect = panel.getBoundingClientRect();

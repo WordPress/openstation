@@ -118,6 +118,25 @@
 }
 
 /*
+ * The escape hatch for the rule above, and the reason it lives here
+ * rather than in `dock.css`: this is the only place `.os-dock` is
+ * given a transition, so it is the only place worth looking when one
+ * fires where it should not.
+ *
+ * The properties above are geometry, and geometry also changes for a
+ * reason that is not a state change: moving the dock to another edge
+ * tears the rail down and builds a new one on the SAME element, which
+ * still carries the previous placement's padding and width. Animated,
+ * the new dock slides out of the old one's shape — it arrives a size
+ * too big and settles. `Dock`'s constructor wears this class while it
+ * commits the placement, so that change lands with nothing to tween
+ * from.
+ */
+.os-dock--no-transition {
+	transition: none !important;
+}
+
+/*
  * Collapse EVERY dock (bottom + side rails, Classic / Unified /
  * Spatial layouts alike) when overview is active.
  *

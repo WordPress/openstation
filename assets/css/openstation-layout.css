@@ -1,15 +1,21 @@
 /**
  * OpenStation — the OpenStation desktop layout.
  *
- * One surface now, scoped so it costs nothing in any other layout.
- * The seam this file used to own became shared chrome: every division
- * in every rail wears the same Pulse line, so it lives in `dock.css`
- * next to the separator it paints.
+ * Two surfaces, and only the first belongs to the layout in the file
+ * name. The seam this file used to own became shared chrome: every
+ * division in every rail wears the same Pulse line, so it lives in
+ * `dock.css` next to the separator it paints.
  *
- * **The constellation.** The flyout that fans a menu's submenu out
- *    of its tile on hover. Body-attached (it has to escape the dock's
- *    stacking context and its `overflow`), so its selectors are
- *    rooted on `.os-constellation` rather than on the shell.
+ * 1. **The rail's own signature** — scoped to
+ *    `[data-os-layout="openstation"]`, so it costs nothing in any
+ *    other layout.
+ * 2. **The constellation.** The flyout that fans a menu's submenu out
+ *    of its tile on hover, on every rail in every layout. It stayed
+ *    in this file because this is where it was written, not because
+ *    it is scoped here: it is body-attached (it has to escape the
+ *    dock's stacking context and its `overflow`), so its selectors
+ *    are rooted on `.os-constellation` and reach it wherever the dock
+ *    is parked.
  *
  * Colour discipline, per the palette rule: every declaration here
  * reads `var( --token, <literal> )`, and every literal is a plain
@@ -182,6 +188,75 @@ body.os-constellation-open .os-dock__tooltip {
  */
 .os-constellation--closing {
 	z-index: calc( var( --os-cn-z, 2147483000 ) - 1 );
+}
+
+/* ---- Fanning sideways -------------------------------------------- */
+
+/*
+ * Everything above assumes the rail is along the bottom: the panel
+ * hangs off the top of its tile, is centred on it horizontally, and
+ * drops back down into the rail as it leaves. A dock on the left or
+ * the right needs the same three statements rotated a quarter turn.
+ *
+ * `data-os-cn-side` is written by `position()` in
+ * `src/dock-constellation/index.ts` and names where the PANEL is
+ * relative to its tile, not where the rail is: a left-hand rail fans
+ * its panels out to the `right`.
+ *
+ * Two things change per side and nothing else does. The panel is
+ * pinned by its facing edge instead of its bottom one, so the
+ * translate loses its vertical half entirely: `top` is an absolute
+ * position the JS already clamped, not an offset from the tile. And
+ * `transform-origin` swaps which axis is pinned and which is centred.
+ *
+ * ## The cross axis is CENTRED, and that is the whole animation
+ *
+ * The entrance is a 0.94 → 1 scale and nothing else, so what the eye
+ * reads is entirely down to where the origin is. Above a bottom rail
+ * it is `bottom center`: the growth along the pinned axis all goes
+ * one way (the panel's top edge rises out of the dock) and the growth
+ * across it is symmetrical, ±7px that cancel. The panel does not
+ * appear to travel at all — it opens.
+ *
+ * Anchoring the cross axis to `--os-cn-beam-y` instead — where the
+ * beam meets the panel, which sounds like the right place for a menu
+ * to grow out of — breaks exactly that. On the first tile of a rail
+ * the beam sits 20px down a 400px panel, which is a corner in all
+ * but name, and growth off a corner all goes one way: measured, the
+ * top edge does not move at all while the bottom and right edges
+ * both travel. It expands down-and-right where the bottom rail
+ * opens evenly.
+ *
+ * So the cross axis stays `center` here too. The beam still lands on
+ * the tile — it is positioned from `--os-cn-beam-y` independently —
+ * but it does not get to drag the origin with it.
+ */
+/*
+ * The properties below are PHYSICAL (`left` / `right`, not
+ * `inset-inline-*`), because the thing they follow is physical: the
+ * screen edge the dock is parked on. `dockPlacement` is `left` or
+ * `right` in both directions of text.
+ */
+.os-constellation[ data-os-cn-side='right' ] {
+	transform: translate( 0, 0 ) scale( 0.94 );
+	transform-origin: left center;
+}
+.os-constellation[ data-os-cn-side='right' ].os-constellation--open {
+	transform: translate( 0, 0 ) scale( 1 );
+}
+.os-constellation[ data-os-cn-side='right' ].os-constellation--closing {
+	transform: translate( -8px, 0 ) scale( 0.96 );
+}
+
+.os-constellation[ data-os-cn-side='left' ] {
+	transform: translate( -100%, 0 ) scale( 0.94 );
+	transform-origin: right center;
+}
+.os-constellation[ data-os-cn-side='left' ].os-constellation--open {
+	transform: translate( -100%, 0 ) scale( 1 );
+}
+.os-constellation[ data-os-cn-side='left' ].os-constellation--closing {
+	transform: translate( calc( -100% + 8px ), 0 ) scale( 0.96 );
 }
 
 /* The panel body. */
@@ -357,6 +432,48 @@ body.os-constellation-open .os-dock__tooltip {
 
 .os-constellation--open .os-constellation__beam {
 	opacity: 1;
+}
+
+/*
+ * The same thread, turned. It leaves the panel by its facing edge and
+ * runs back to the tile, so beside a rail it is 14px wide and 2px
+ * tall rather than the other way round, and the fade runs toward the
+ * tile in both cases.
+ *
+ * `--os-cn-beam-y` is where the tile is, measured down from the top
+ * of the panel — not a correction applied to a centred beam, which is
+ * what the bottom rail's `--os-cn-beam-x` is. Beside a rail the panel
+ * is top-aligned with its tile rather than centred on it, so the
+ * beam's position IS the anchoring, and a panel that had to be
+ * clamped away from a viewport edge still has a thread landing on the
+ * tile it belongs to.
+ */
+.os-constellation[ data-os-cn-side='right' ] .os-constellation__beam,
+.os-constellation[ data-os-cn-side='left' ] .os-constellation__beam {
+	top: var( --os-cn-beam-y, 50% );
+	width: 14px;
+	height: 2px;
+	transform: translateY( -50% );
+}
+.os-constellation[ data-os-cn-side='right' ] .os-constellation__beam {
+	inset-inline-start: auto;
+	left: auto;
+	right: 100%;
+	background: linear-gradient(
+		to left,
+		var( --os-cn-beam, rgba( 217, 46, 227, 0.8 ) ) 0%,
+		transparent 100%
+	);
+}
+.os-constellation[ data-os-cn-side='left' ] .os-constellation__beam {
+	inset-inline-start: auto;
+	right: auto;
+	left: 100%;
+	background: linear-gradient(
+		to right,
+		var( --os-cn-beam, rgba( 217, 46, 227, 0.8 ) ) 0%,
+		transparent 100%
+	);
 }
 
 /* ---- Rows -------------------------------------------------------- */

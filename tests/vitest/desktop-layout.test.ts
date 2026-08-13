@@ -829,10 +829,9 @@ describe( 'desktop-layout dispatcher', () => {
 				'left',
 			);
 
-			// The layout is drawn for a horizontal rail: its stylesheet is
-			// scoped to the bottom placement and the constellation flyout
-			// fans upward out of a tile. A vertical rail would lose the
-			// skin and keep geometry built for the wrong edge.
+			// The layout's rail skin is drawn for a horizontal rail and
+			// scoped to the bottom placement, so a vertical rail would
+			// simply lose it.
 			expect(
 				document
 					.getElementById( 'os-dock' )
