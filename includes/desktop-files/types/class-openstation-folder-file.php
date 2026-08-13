@@ -88,7 +88,17 @@ class OpenStation_Folder_File extends OpenStation_File {
 	}
 
 	/**
-	 * Augment the base serialized shape with owner id and share mode.
+	 * Augment the base serialized shape with owner id, share mode and
+	 * the share summary.
+	 *
+	 * `shareSummary` is the same shape the folder response carries
+	 * (see {@see openstation_files_folder_share_summary()}) and it
+	 * belongs here for one reason: a folder on the desktop is a
+	 * PLACEMENT, and a placement's `file` is whatever this method
+	 * returns. Without it the shared badge had nothing to read — the
+	 * summary existed only on the separate folder response, which the
+	 * tile renderer never sees — so an accepted share was invisible
+	 * to owner and recipient alike.
 	 *
 	 * @return array
 	 */
@@ -97,6 +107,9 @@ class OpenStation_Folder_File extends OpenStation_File {
 		$row                = $this->folder();
 		$shape['ownerId']   = $row ? (int) $row['owner_id'] : 0;
 		$shape['shareMode'] = $row ? (string) $row['share_mode'] : 'private';
+		if ( $row && function_exists( 'openstation_files_folder_share_summary' ) ) {
+			$shape['shareSummary'] = openstation_files_folder_share_summary( $row );
+		}
 		return $shape;
 	}
 
