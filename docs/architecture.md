@@ -244,6 +244,24 @@ dictates. The server never claims a host is attached *now* — the same user can
 have a browser tab open at the same moment, so only the client's probe (a
 global the Electron preload injects) can answer that.
 
+## Preference persistence
+
+User preferences (`OsSettingsState` — wallpaper, accent, dock size, layout, feature toggles, and everything else OpenStation Preferences edits) live in the `desktop_mode_os_settings` user meta and sync through `/wp-json/desktop-mode/v1/os-settings`. The client keeps a full copy in `localStorage` as a read cache, but the server snapshot in `openStationConfig.osSettings` outranks it at boot, so a change made on another device is honoured on the next load.
+
+**A save sends only what changed.** `POST /os-settings` accepts a **partial** payload: a key the request omits keeps the value already stored for that user rather than resetting to the shipped default. The shell diffs the live state against the last state the server confirmed (`src/settings/state.ts`, `_buildPayload()`) and posts just those fields; when nothing moved, no request is made at all.
+
+That is what keeps two open sessions of the same account from overwriting each other. A session that booted an hour ago and then changes only its accent has no opinion about the wallpaper another session changed in the meantime — the key simply isn't in the request. The diff baseline is deliberately *this session's* last confirmed state, not the server's current truth: diffing against fresh server state would make the other session's change look like a local edit and post the stale value straight back.
+
+Three things this is not:
+
+- **Not a conflict protocol.** There is no revision token and no 409. Two sessions editing the *same* field is still last-write-wins, which is the right trade for per-user preferences.
+- **Not a live sync.** A session doesn't learn about another's change until it reloads; the guarantee is about what gets *persisted*, not what's on screen.
+- **Not a deep merge.** Merging is one level. A request that sends a map-shaped field (`wallpaperSettings`, `itemVisibility`, `dockOrder`, `dockPromotedPositions`) replaces that whole map — deep-merging would leave no way to delete an entry.
+
+A client that still posts the complete snapshot behaves exactly as it always did: every key is present, so every key wins.
+
+The merge lives in the REST handler, **not** in `openstation_save_os_settings()`. That function's contract is replace, and `includes/migrations.php` depends on it — migration 1 `unset()`s keys and re-saves precisely so the sanitizer backfills the new defaults. A saver that merged would turn that migration into a silent no-op, invisible to a test suite that builds fresh meta every run.
+
 ## Session persistence
 
 Every window lifecycle event — open, close, focus, move, resize, state change — plus virtual-desktop create / switch / close is pushed into a debounced writer that `POST`s the full stack to a REST endpoint. On next load, the shell reads the session and rebuilds the stack before the user sees anything (no "flash of default layout"). Clamping logic adapts window coordinates when the viewport shrinks. Desktop-only state still counts: if the user has multiple Spaces but no open windows, the desktop registry and active desktop are restored.

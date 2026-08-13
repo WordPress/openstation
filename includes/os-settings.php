@@ -868,12 +868,39 @@ function openstation_rest_get_os_settings() {
 /**
  * POST /desktop-mode/v1/os-settings
  *
+ * Accepts a PARTIAL payload: keys the request omits keep the value
+ * already stored for the user, rather than resetting to the shipped
+ * default. The client sends only the fields that changed since its
+ * last confirmed save, which is what stops two open sessions from
+ * overwriting each other — a session that never touched the
+ * wallpaper cannot express an opinion about it, so a stale snapshot
+ * can no longer undo another session's unrelated change.
+ *
+ * A full payload still behaves exactly as before: every key is
+ * present, so every key wins.
+ *
+ * The merge lives here rather than in {@see openstation_save_os_settings()}
+ * on purpose. That function's contract is REPLACE, and migrations
+ * depend on it: migration 1 in `includes/migrations.php` `unset()`s
+ * keys and re-saves precisely so the sanitizer backfills the new
+ * defaults. Give the saver merge semantics and that migration
+ * silently becomes a no-op.
+ *
+ * Merging is shallow, one level deep. For the map-shaped fields
+ * (`wallpaperSettings`, `itemVisibility`, `dockOrder`,
+ * `dockPromotedPositions`) a request that sends the key replaces the
+ * whole map — deep-merging them would leave no way to delete an
+ * entry.
+ *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
  */
 function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'settings' );
+	if ( is_array( $payload ) ) {
+		$payload = array_merge( openstation_get_os_settings( $user_id ), $payload );
+	}
 	openstation_save_os_settings( $user_id, $payload );
 	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 }
