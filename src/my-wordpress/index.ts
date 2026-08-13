@@ -1142,6 +1142,10 @@ function renderEntityList(
 	const tiles = document.createElement( 'div' );
 	tiles.className =
 		'os-my-wordpress__tiles os-my-wordpress__canvas';
+	// Which section these tiles belong to. An entry id is only unique
+	// within its section — a post and a user can both be 12 — so the
+	// live-trash pruner needs this to tell one canvas from another.
+	tiles.dataset.entityId = entity.id;
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
@@ -4908,6 +4912,9 @@ function renderUserEntityList(
 	const tiles = document.createElement( 'div' );
 	tiles.className =
 		'os-my-wordpress__tiles os-my-wordpress__canvas os-my-wordpress__canvas--users';
+	// See the entity list's canvas: user ids and post ids share one
+	// numeric namespace, and the trash pruner walks every live body.
+	tiles.dataset.entityId = entity.id;
 	tiles.setAttribute( 'role', 'list' );
 	left.appendChild( tiles );
 
@@ -5277,7 +5284,14 @@ function buildUserTile(
 		// replaces that icon as a richer fallback.
 		icon: avatarUrl ? undefined : 'dashicons-admin-users',
 		role: 'entry',
-		dataset: { userId: item.id, role: 'user' },
+		// `entryId` is what the section's selection controller keys on
+		// (`keyOf` reads `data-entry-id`) and what the trash / bulk-remove
+		// paths query tiles by. Without it a user tile is invisible to
+		// every one of them: the click lands, the controller finds no key
+		// for the element, and nothing is selected — which on the
+		// WooCommerce Customers section reads as a dead grid, since the
+		// preview pane only paints from a selection.
+		dataset: { entryId: item.id, userId: item.id, role: 'user' },
 		extraClasses: [
 			'os-my-wordpress__tile',
 			'os-my-wordpress__tile--user',
@@ -7899,7 +7913,19 @@ if ( desktopGlobal ) {
 				const tile = state.body.querySelector< HTMLElement >(
 					`[data-entry-id="${ detail.id }"]`,
 				);
-				tile?.remove();
+				if ( ! tile ) {
+					continue;
+				}
+				// Entry ids are unique per section, not per site: post 12
+				// and user 12 both exist, and this listener sees every
+				// live body. Without the section check, trashing a post in
+				// one window would silently delete a stranger's tile from
+				// the Users grid in another.
+				const canvas = tile.closest< HTMLElement >( '[data-entity-id]' );
+				if ( canvas && canvas.dataset.entityId !== detail.entityId ) {
+					continue;
+				}
+				tile.remove();
 			}
 		},
 	);

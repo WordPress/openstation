@@ -240,4 +240,84 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '#a2aab2', $svg );
 		$this->assertStringContainsString( '<svg', $svg );
 	}
+
+	/**
+	 * A refund is not a purchase, and asking it for an order number is
+	 * fatal.
+	 *
+	 * The "who bought it" / "used on" lists read their ids out of
+	 * `woocommerce_order_items`, where a refund keeps its own line
+	 * items under its own id — so a refunded product's id list names
+	 * refunds. `WC_Order_Refund` extends `WC_Abstract_Order` and sails
+	 * through the usual guard; the `get_order_number()` call two lines
+	 * later then takes down the whole Product edit screen, because that
+	 * method belongs to `WC_Order`.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_is_purchase
+	 */
+	public function test_refunds_are_not_purchases() {
+		$this->assertTrue(
+			openstation_my_wordpress_woo_is_purchase(
+				new OpenStation_Test_Woo_Order()
+			),
+			'an order is a purchase'
+		);
+
+		$this->assertFalse(
+			openstation_my_wordpress_woo_is_purchase(
+				new OpenStation_Test_Woo_Refund()
+			),
+			'a refund must never reach get_order_number()'
+		);
+
+		// An order type that extends the abstract base without the
+		// accessors these lists call would fatal the same way.
+		$this->assertFalse(
+			openstation_my_wordpress_woo_is_purchase(
+				new OpenStation_Test_Woo_Bare_Order()
+			)
+		);
+
+		$this->assertFalse( openstation_my_wordpress_woo_is_purchase( null ) );
+		$this->assertFalse(
+			openstation_my_wordpress_woo_is_purchase( new stdClass() )
+		);
+	}
 }
+
+/*
+ * WooCommerce isn't loaded in the test suite, so the class hierarchy
+ * the guard reasons about is stubbed here — the shapes only, since the
+ * guard asks nothing of them beyond their type and their methods. The
+ * `class_exists` checks keep this inert on a site that does have
+ * WooCommerce.
+ */
+
+if ( ! class_exists( 'WC_Abstract_Order' ) ) {
+	/** Stand-in for WooCommerce's abstract order. */
+	abstract class WC_Abstract_Order {}
+}
+
+if ( ! class_exists( 'WC_Order' ) ) {
+	/** Stand-in for a shop order. */
+	class WC_Order extends WC_Abstract_Order {
+		/** @return string */
+		public function get_order_number() {
+			return '1234';
+		}
+	}
+}
+
+if ( ! class_exists( 'WC_Order_Refund' ) ) {
+	/** Stand-in for a refund — deliberately without an order number. */
+	class WC_Order_Refund extends WC_Abstract_Order {}
+}
+
+/** A shop order, as the store's data store would hand one back. */
+class OpenStation_Test_Woo_Order extends WC_Order {}
+
+/** A refund, which the order-items tables can name as an "order". */
+class OpenStation_Test_Woo_Refund extends WC_Order_Refund {}
+
+/** An order type that extends the base and declares none of it. */
+class OpenStation_Test_Woo_Bare_Order extends WC_Abstract_Order {}
