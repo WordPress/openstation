@@ -59,7 +59,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `dock` | `Dock \| null` *(primary / bottom rail)* | Stable |
 | `sideDock` | `Dock \| null` *(left rail; classic only)* | Stable |
 | `desktopLayout` | `'classic' \| 'unified'` | Stable |
-| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified + Spatial)* | Stable |
+| `dockPlacement` | `'bottom' \| 'left' \| 'right'` *(Unified)* | Stable |
 | `Dock.setBadge` | `( id: string, count: number ) => void` | Stable |
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |

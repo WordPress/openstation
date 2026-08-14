@@ -354,9 +354,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		: $defaults['adminBarMode'];
 
 	// Desktop layout — must be one of the known values (`classic`,
-	// `unified`). A stored `spatial` / `openstation` from when those
-	// existed fails the check and lands on the default, which is the
-	// migration. Default `unified`.
+	// `unified`). Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']

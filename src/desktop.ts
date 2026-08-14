@@ -2209,10 +2209,9 @@ function init(): void {
 	);
 
 	// Dock(s) + desktop icons — managed by the layout dispatcher.
-	// User picks one of three layouts in OS Settings → Appearance:
-	// Classic (left side bar + bottom dock), Unified (single bottom
-	// rail), or Spatial (bottom dock + core menus as wallpaper
-	// icons). The dispatcher tears down and rebuilds the right set
+	// User picks one of two layouts in OS Settings → Appearance:
+	// Unified (single bottom rail) or Classic (left side bar + bottom
+	// dock). The dispatcher tears down and rebuilds the right set
 	// of `Dock` instances on every layout change and exposes a
 	// stable handle the rest of the shell (live menu refresh,
 	// public API) keeps wired to whichever rails are currently live.
@@ -2509,7 +2508,7 @@ function init(): void {
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
 		// expect a shell-owned affordance) and on the primary rail in
-		// Unified and Spatial (where there is no side dock to host it).
+		// Unified (where there is no side dock to host it).
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild.
 		//
@@ -2674,7 +2673,7 @@ function init(): void {
 
 	// Dock system tile — sits next to OS Settings on the primary
 	// rail. Tracked by the layout dispatcher so it survives a layout
-	// rebuild (Classic ↔ Unified ↔ Spatial).
+	// rebuild (Classic ↔ Unified).
 	if ( layoutDispatcher ) {
 		layoutDispatcher.appendSystemTile(
 			{
@@ -3469,10 +3468,9 @@ function init(): void {
 	// callbacks that depend on the cloned template, breaking every
 	// plugin that follows the documented pattern.
 	// Wallpaper-icon repaint that re-uses whatever the layout
-	// dispatcher last said the merged list should be. In Spatial
-	// mode the dispatcher synthesizes core menu items as additional
-	// icons; in every other layout this is a passthrough to
-	// `renderDesktopIcons`.
+	// dispatcher last said the list should be. A passthrough to
+	// `renderDesktopIcons` with the dispatcher's visibility filtering
+	// already applied.
 	const renderIcons = (
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	): void => {
@@ -3566,9 +3564,8 @@ function init(): void {
 	} );
 
 	// Live desktop-layout sync: when the user picks a new layout
-	// in OS Settings, the dispatcher tears down the current dock(s),
-	// rebuilds for the new layout, and (in Spatial) re-emits the
-	// merged wallpaper-icons list. `osSettings.apply()` has already
+	// in OS Settings, the dispatcher tears down the current dock(s)
+	// and rebuilds for the new layout. `osSettings.apply()` has already
 	// written `data-os-layout` on the shell root by the time
 	// this fires.
 	//
@@ -4068,8 +4065,8 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
-			// Synthetic placements (dock-item promotions, Spatial-layout
-			// core icons) live JS-only — `settings/desktop-shortcuts-sync.ts`
+			// Synthetic placements (dock-item promotions) live JS-only —
+			// `settings/desktop-shortcuts-sync.ts`
 			// mints them with a negative id and never persists them via
 			// the files REST layer. PATCHing one 404s (`rest_no_route`,
 			// the route regex only matches positive ids). See

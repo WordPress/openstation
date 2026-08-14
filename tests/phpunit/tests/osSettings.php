@@ -93,13 +93,6 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	public function test_sanitize_falls_back_to_default_for_unknown_layout() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => 'invalid-mode' ) );
 		$this->assertSame( 'unified', $clean['desktopLayout'] );
-
-		// `spatial` and `openstation` were layouts once. Whoever stored
-		// one lands on the default, which is the migration.
-		foreach ( array( 'spatial', 'openstation' ) as $retired ) {
-			$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => $retired ) );
-			$this->assertSame( 'unified', $clean['desktopLayout'], "retired '{$retired}' should migrate" );
-		}
 	}
 
 	/**

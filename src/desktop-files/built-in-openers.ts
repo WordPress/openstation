@@ -576,9 +576,8 @@ export function registerBuiltInFileOpeners(): void {
 						// Enrich with the matching admin-menu entry so
 						// the window gets the same submenu tab strip /
 						// parent-tab / multi behavior as a dock open.
-						// Without this, Spatial-layout core tiles (and
-						// any dock-promoted shortcut) opened windows
-						// with no tab strip at all.
+						// Without this, a dock-promoted shortcut
+						// opened windows with no tab strip at all.
 						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,

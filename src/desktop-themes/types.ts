@@ -29,7 +29,7 @@
 export interface RecommendedOsSettings {
 	/** `compact` | `default` | `large`. */
 	dockSize?: string;
-	/** `classic` | `unified` | `spatial`. */
+	/** `classic` | `unified`. */
 	desktopLayout?: string;
 	/**
 	 * `bottom` | `left` | `right` — which edge the single dock sits on.

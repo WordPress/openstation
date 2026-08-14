@@ -109,7 +109,7 @@ are embedding solo mode, either keep the embedded screen to one window
 or supply your own forwarder for the second.
 
 Core's `solo.css` hides the desk — wallpaper, dock, both icon layouts
-(the Classic grid and the Spatial files layer), widgets, Mio, sticky
+(the legacy grid and the files layer), widgets, Mio, sticky
 notes — and fills the viewport with the one window. It
 deliberately **keeps the window's title bar**, because a generic
 embedder has no other chrome to offer: no frame, no close button, no

@@ -173,10 +173,10 @@ export const ADMIN_BAR_MODES = [
  * keys off that attribute to position the rail, flip the tooltip
  * anchor, and adjust the desktop-area inset.
  *
- * The one-rail layouts (`unified`, `spatial`) take their placement
- * from the user's `dockPlacement` pick. `classic` derives both of its
- * rails from the layout itself — a left side bar for core menus plus a
- * bottom dock for plugin apps — and ignores the setting.
+ * `unified` takes its placement from the user's `dockPlacement` pick.
+ * `classic` derives both of its rails from the layout itself — a left
+ * side bar for core menus plus a bottom dock for plugin apps — and
+ * ignores the setting.
  */
 export const DOCK_PLACEMENTS = [
 	{ id: 'bottom', label: 'Bottom' },
@@ -192,10 +192,6 @@ export const DOCK_PLACEMENTS = [
  * `unified` leads because it is the default: one dock is the shape a
  * first-run desktop arrives in. `classic` splits navigation across two
  * surfaces, which is a deliberate choice rather than a starting point.
- *
- * A stored value that is neither — `spatial` and `openstation` were
- * both offered once — falls back to the default in `parse()`, which is
- * the migration for anyone who had picked one.
  */
 export const DESKTOP_LAYOUTS = [
 	{ id: 'unified', label: 'Unified' },
@@ -223,7 +219,7 @@ export const DEFAULTS: OsSettingsState = {
 	// are one pick away in Appearance.
 	adminBarMode: 'hidden',
 	// One dock holding every menu. `classic` (side bar + bottom dock)
-	// and `spatial` are still there for anyone who wants two surfaces.
+	// is the other option.
 	desktopLayout: 'unified',
 	dockPlacement: 'bottom',
 	dockRailRenderer: 'default',

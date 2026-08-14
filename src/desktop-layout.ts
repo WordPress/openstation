@@ -162,7 +162,7 @@ export interface LayoutDispatcher {
 	 *   native-window tiles.
 	 * - `'core'` — lands on the side dock when one exists (Classic
 	 *   layout, alongside core admin menus); falls back to the primary
-	 *   dock in Unified and Spatial where there is no side rail. Used
+	 *   dock in Unified, where there is no side rail. Used
 	 *   by shell-owned affordances like OS Settings.
 	 */
 	appendSystemTile(
@@ -182,7 +182,7 @@ export interface LayoutDispatcher {
 		title: string;
 		icon: string;
 		affinity: SystemTileAffinity;
-		/** Whether the tile opts into the Apps & Icons list. */
+		/** Whether the tile opts into the Apps & Plugins list. */
 		placeable: boolean;
 	} >;
 	/**
@@ -242,13 +242,13 @@ export function createLayoutDispatcher(
 	// window registration adds plugin-owned tiles. Iteration is in
 	// insertion order so re-attach matches the original visual order.
 	// Each entry remembers its affinity so a `'core'` tile can route
-	// to the side dock in Classic and to primary in Unified/Spatial.
+	// to the side dock in Classic and to primary in Unified.
 	const systemTiles = new Map<
 		string,
 		{ item: SystemDockItem; affinity: SystemTileAffinity }
 	>();
 	// Ids of tracked system tiles currently attached to a live rail.
-	// A tile the user hid via OS Settings → Apps & Icons stays tracked
+	// A tile the user hid via OS Settings → Apps & Plugins stays tracked
 	// (so flipping the setting back restores it) but detached.
 	const attachedSystemTiles = new Set< string >();
 
@@ -299,13 +299,13 @@ export function createLayoutDispatcher(
 
 	/**
 	 * Whether a system tile is allowed on the dock under the user's
-	 * current Apps & Icons overrides. Native windows registered with
+	 * current Apps & Plugins overrides. Native windows registered with
 	 * `placement: 'dock'` land on the rails as system tiles rather
 	 * than menu items, so `applyDockPlacement` never filters them —
 	 * resolve the override here instead.
 	 *
 	 * The override is read from the desktop icon targeting the tile's
-	 * window when one exists (the Apps & Icons tab keys its rows by
+	 * window when one exists (the Apps & Plugins tab keys its rows by
 	 * icon id), falling back to the tile's own id. No override means
 	 * the tile stays on its native dock rail.
 	 */
@@ -499,7 +499,7 @@ export function createLayoutDispatcher(
 		// native-window launchers, etc. Lets a renderer apply
 		// uniform treatment across menu + system cohorts in one
 		// pass. Live updates flow through `appendSystemItem` /
-		// `removeSystemItem`. Tiles hidden via Apps & Icons are
+		// `removeSystemItem`. Tiles hidden via Apps & Plugins are
 		// excluded, matching what the dispatcher attaches below.
 		fullSystemTiles: Array.from( systemTiles.values() )
 			.filter( ( entry ) => isSystemTileDockVisible( entry.item.id ) )
@@ -596,7 +596,7 @@ export function createLayoutDispatcher(
 		// Re-attach every tracked system tile to the rebuilt rails
 		// according to its registered affinity, in registration order
 		// so the visual order survives the rebuild. Tiles hidden via
-		// Apps & Icons stay tracked but detached.
+		// Apps & Plugins stay tracked but detached.
 		attachedSystemTiles.clear();
 		for ( const [ id, entry ] of systemTiles ) {
 			if ( ! isSystemTileDockVisible( id ) ) {
@@ -676,7 +676,7 @@ export function createLayoutDispatcher(
 			next: DesktopIconServerEntry[] | undefined,
 		): void => {
 			serverIcons = next ?? [];
-			// The icon → window mapping that Apps & Icons overrides
+			// The icon → window mapping that Apps & Plugins overrides
 			// key off may have changed — re-check every system tile.
 			reconcileSystemTiles();
 			repaintIcons();
@@ -686,7 +686,7 @@ export function createLayoutDispatcher(
 			affinity: SystemTileAffinity = 'plugin',
 		): void => {
 			systemTiles.set( item.id, { item, affinity } );
-			// Respect a pre-existing Apps & Icons override — a native
+			// Respect a pre-existing Apps & Plugins override — a native
 			// window the user hid must not resurface on the dock when
 			// its plugin re-registers the tile (boot, plugins-changed
 			// sync). The tile stays tracked so unhiding restores it.
@@ -729,7 +729,7 @@ export function createLayoutDispatcher(
 			}
 			// Apply the (possibly changed) visibility overrides to the
 			// system-tile cohort too — a native window's dock tile
-			// hidden / restored via Apps & Icons lands live here.
+			// hidden / restored via Apps & Plugins lands live here.
 			reconcileSystemTiles();
 			repaintIcons();
 		},

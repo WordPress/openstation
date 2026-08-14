@@ -66,8 +66,8 @@ export interface DockRailMountDeps {
 	 */
 	items: DockItem[];
 	/**
-	 * The COMPLETE admin-menu list, including items routed to other
-	 * rails or to the wallpaper-icon grid (Spatial). A custom
+	 * The COMPLETE admin-menu list, including items routed to the
+	 * other rail. A custom
 	 * renderer that wants to paint a *unified view* of the entire
 	 * admin — or that wants to ignore the layout's partitioning
 	 * logic for its own UX — reads this. Updates with every live

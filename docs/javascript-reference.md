@@ -475,8 +475,8 @@ true (the current user has `edit_posts`):
 2. the open **native Posts window** body (`[data-os-posts-root]`)
    — both get a real `DropTarget` and set
    `data-os-posts-drop-active` while a note hovers.
-3. The Posts **shortcut tile in the Spatial layout**. There the core
-   menu icons are files-layer shortcut tiles already claimed by the
+3. A Posts **shortcut tile on the desktop**. A promoted menu icon is a
+   files-layer shortcut tile already claimed by the
    files layer's per-tile reject target, so notes can't register their
    own target. Instead the files layer exposes a **tile-payload seam**
    (`registerTilePayloadHandler( type, { appliesTo, accept, acceptLabel,
@@ -1452,7 +1452,6 @@ The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM
 
 - **Unified** *(default)* — every menu, core and plugin alike, sharing one rail, with OpenStation's own system tiles grouped behind a divider.
 - **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
-- **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
 `setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator. **The discriminator follows the rail's orientation, not its role:** `rail: 'taskbar'` for a horizontal rail (the primary dock on the bottom edge), `rail: 'dock'` for a vertical one — the Classic side rail (`sideDock`), and also the primary dock itself once the user moves it to the left or right. Code that reacts to badges should key off `itemId`, or accept both values; treating `'taskbar'` as "the primary rail" holds only while the dock is on the bottom. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
@@ -1461,7 +1460,7 @@ The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM
 ---
 
 ### `sideDock` — Stable
-Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified and Spatial.
+Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified.
 
 Same `Dock` API as `dock`, just with `data-os-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
 
@@ -1480,8 +1479,6 @@ Currently-active top-level layout, `'unified'` or `'classic'`. Mirrors the user'
 |---|---|---|
 | `unified` *(default)* | bottom | the one rail, **grouped core-first**, then a divider, then plugins |
 | `classic` | side + bottom | left side bar (`sideDock`) |
-
-`'spatial'` and `'openstation'` were layouts once and are gone. A stored value of either migrates to the default, so a check against them is dead code rather than a branch that fires rarely.
 
 ```js
 if ( wp.os.desktopLayout === 'classic' ) {
@@ -1545,7 +1542,7 @@ wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
 - **`''` clears** the override and hands the tile back to its registered icon.
 - **Silent no-op when the id isn't on this rail.**
 - **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
-- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+- **Covers both desktop surfaces** — `wp.os.icons.setArt` paints the legacy `.os-icons` grid *and* the files layer's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
 
 Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
 
@@ -4859,7 +4856,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `saveSession()` | Stable | Force a session write |
 | `hooks` | Stable | Alias of `window.wp.hooks` |
 | `isActive()` | Stable | `true` when the desktop shell is mounted and active on this page. Cheap capability check for plugins that also run in classic admin — branch desktop-vs-classic without probing the DOM yourself. |
-| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified / Spatial layouts) |
+| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified) |
 | `registerWallpaper( def )` | Stable | Add a wallpaper to the registry + re-apply |
 | `registerWidget( def )` | Stable | Add a widget to the registry |
 | `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `os.dock.item-appended`. See "System tiles" below. |
@@ -6518,7 +6515,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
 | `desktopLayout` | `string` | `classic` \| `unified` |
-| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified + Spatial) |
+| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified) |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |

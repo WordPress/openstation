@@ -7,8 +7,8 @@
  * hard-reject every foreign payload so a drop doesn't fall through to the
  * wallpaper. This registry lets a feature opt a payload type INTO a tile
  * whose placement it recognizes — e.g. the pinned-notes "convert to post"
- * drop onto the Posts shortcut icon in the Spatial layout, where the
- * Posts menu item is a files-layer shortcut tile rather than a dock tile.
+ * drop onto a Posts shortcut icon, where the Posts menu item is a
+ * files-layer shortcut tile rather than a dock tile.
  *
  * The files layer owns the actual `DropTarget` on each tile (the registry
  * allows one target per element); it consults this registry for the

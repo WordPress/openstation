@@ -134,12 +134,6 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		)
 			? ( parsed.adminBarMode as AdminBarModeId )
 			: DEFAULTS.adminBarMode,
-		/*
-		 * An unknown value falls back to the default, which is also the
-		 * migration: `spatial` and `openstation` were layouts once, and
-		 * whoever stored one arrives on Unified rather than in a layout
-		 * with no card in the picker.
-		 */
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)

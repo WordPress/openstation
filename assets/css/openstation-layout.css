@@ -7,12 +7,6 @@
  * rooted on `.os-constellation` and reach it wherever the dock is
  * parked.
  *
- * This file used to carry a second surface: the `openstation` desktop
- * layout's own rail skin, scoped to `[data-os-layout="openstation"]`.
- * That layout is gone, and its skin with it. The name stayed because
- * renaming a stylesheet renames its handle, and this is the file the
- * flyout has always lived in.
- *
  * Colour discipline, per the palette rule: every declaration here
  * reads `var( --token, <literal> )`, and every literal is a plain
  * value that stands on its own if `variables.css` never loads. The

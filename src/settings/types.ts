@@ -106,8 +106,8 @@ export interface OsSettingsState {
 	 * Which edge the dock sits on: `'bottom'` (the default),
 	 * `'left'`, or `'right'`.
 	 *
-	 * Read by the layout dispatcher for the one-rail layouts
-	 * (`'unified'`, `'spatial'`). `'classic'` ignores it — that layout
+	 * Read by the layout dispatcher for `'unified'`. `'classic'`
+	 * ignores it — that layout
 	 * IS a placement decision, a left side bar plus a bottom dock, and
 	 * moving one of the two rails would leave both on the same edge.
 	 */

@@ -10,11 +10,6 @@
  * and a rail, because the point is where things sit and not what they
  * contain.
  *
- * There were four of these once. `spatial` and `openstation` are gone
- * from the shell entirely; a stored selection of either falls back to
- * the default in `parse()`, which is the migration for anyone who had
- * picked one.
- *
  * ## Placement lives inside the card, dock size does not
  *
  * Picking Unified opens Placement within that card, because an edge
