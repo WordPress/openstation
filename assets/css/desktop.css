@@ -189,7 +189,15 @@ body.os-active.os-admin-bar-dynamic #wpadminbar {
 
 body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
-body.os-active.os-admin-bar-dynamic #wpadminbar:active {
+body.os-active.os-admin-bar-dynamic #wpadminbar:active,
+/*
+ * …and while the notch is being used. The notch hangs from the same
+ * edge and steps down to sit under the bar when it appears (see
+ * notch.css), so letting the bar retract out from over it mid-reach
+ * would drop the notch back up under the pointer.
+ */
+body.os-active.os-admin-bar-dynamic:has( .os-notch:hover ) #wpadminbar,
+body.os-active.os-admin-bar-dynamic:has( .os-notch:focus-visible ) #wpadminbar {
 	transform: translateY(0);
 }
 

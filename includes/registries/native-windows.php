@@ -90,17 +90,18 @@ defined( 'ABSPATH' ) || exit;
  *     @type int      $min_width    Minimum width (px). Default 280.
  *     @type int      $min_height   Minimum height (px). Default 220.
  *     @type string   $placement    'dock' | 'none'. Default 'dock'.
+ *                                  'none' skips the tile (plugin
+ *                                  opens the window programmatically).
  *     @type int      $dock_order   Sort key among system tiles,
  *                                  ascending; ties keep registration
  *                                  order. Default 0, which places the
  *                                  tile ahead of the shell's own
  *                                  trailing cluster (Mio 10, Overview
- *                                  20, System 30). Needed because
- *                                  registration order is not something
- *                                  a plugin controls: tiles land when
- *                                  their lazy script resolves.
- *                                  'none' skips the tile (plugin
- *                                  opens the window programmatically).
+ *                                  20, System 30, Exit 35, Trash 40).
+ *                                  Needed because registration order
+ *                                  is not something a plugin controls:
+ *                                  tiles land when their lazy script
+ *                                  resolves.
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
  *                                  `WP_Error openstation_capability_denied`.

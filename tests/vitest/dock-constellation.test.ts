@@ -725,6 +725,34 @@ describe( 'dock constellation', () => {
 		expect( rowLabels() ).toEqual( [ 'Themes', 'Editor' ] );
 	} );
 
+	/*
+	 * The panel is built on hover and never repaints, so anything the
+	 * click changes leaves it describing a state that has passed:
+	 * clicking the System tile while its window is minimized restores
+	 * that window, and the panel goes on reporting it as minimized.
+	 */
+	test( 'clicking the anchor tile dismisses the flyout', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+		expect( panel() ).not.toBeNull();
+
+		tile.querySelector< HTMLElement >( '.os-dock__item-primary' )!.click();
+		expect( panel() ).toBeNull();
+	} );
+
+	test( 'clicking inside the panel does not dismiss it on its own', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+
+		// The rows dismiss themselves before acting; a click on the
+		// panel's own chrome must not, or a plugin's custom row loses
+		// the panel out from under it mid-handler.
+		panel()!.click();
+		expect( panel() ).not.toBeNull();
+	} );
+
 	test( 'teardown removes the flyout and stops responding', () => {
 		const tile = setupShell( 'openstation' );
 		mount();

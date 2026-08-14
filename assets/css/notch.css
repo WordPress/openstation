@@ -48,7 +48,8 @@
 	   transitioning an auto width does nothing. The message's own
 	   max-width is what opens and closes. */
 	transition: background 160ms ease, opacity 160ms ease,
-		border-color 160ms ease, visibility 0s linear 160ms;
+		border-color 160ms ease, top 180ms ease,
+		visibility 0s linear 160ms;
 }
 
 .os-notch:hover,
@@ -153,4 +154,41 @@ body.os-solo .os-notch {
 	.os-notch__message {
 		transition-duration: 1ms;
 	}
+}
+
+/*
+ * Auto-hide admin bar.
+ *
+ * The shell starts at the viewport top in this mode (the bar is out of
+ * flow), so the notch would be underneath the bar whenever it rolls
+ * down. It steps down to sit below it instead, on the bar's own timing.
+ */
+body.os-active.os-admin-bar-dynamic:has( #wpadminbar:hover ) .os-notch,
+body.os-active.os-admin-bar-dynamic:has( #wpadminbar:focus-within ) .os-notch,
+body.os-active.os-admin-bar-dynamic:has( .os-notch:hover ) .os-notch,
+body.os-active.os-admin-bar-dynamic:has( .os-notch:focus-visible ) .os-notch {
+	top: var( --wp-admin--admin-bar--height, 32px );
+}
+
+/*
+ * The hover bridge, and it is what makes the step stable.
+ *
+ * Hovering the notch is one of the things that rolls the bar down, and
+ * the notch answers by moving 32px away from the pointer — which ends
+ * the hover, retracts the bar, and brings the notch back up under the
+ * pointer to start again. This claims the space the notch vacates, so
+ * the pointer is still over the element after the step. Hovering a
+ * pseudo-element counts as hovering its owner, the same trick the
+ * bar's own reveal zone uses.
+ *
+ * Only in this mode: nothing moves in the other two, and a permanent
+ * 32px hit area hanging off the notch would swallow clicks meant for
+ * whatever is behind it.
+ */
+body.os-active.os-admin-bar-dynamic .os-notch::before {
+	content: "";
+	position: absolute;
+	inset-inline: 0;
+	inset-block-end: 100%;
+	height: var( --wp-admin--admin-bar--height, 32px );
 }

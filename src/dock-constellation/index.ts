@@ -606,11 +606,38 @@ export function mountDockConstellation(
 	 */
 	const onInvalidate = (): void => close( false, true );
 
+	/**
+	 * A click on a dock tile dismisses the flyout.
+	 *
+	 * The panel is built once, on hover, and never repaints — so
+	 * anything the click changes leaves it describing a state that has
+	 * passed. Clicking the System tile while its own Preferences window
+	 * is minimized restores that window, and the panel goes on
+	 * reporting it as minimized underneath.
+	 *
+	 * Rows dismiss themselves before acting; this is the tile, which
+	 * the constellation does not otherwise hear about. Clicks INSIDE
+	 * the panel are left alone, so a plugin's own row keeps whatever
+	 * behaviour it wired.
+	 */
+	const onClick = ( e: MouseEvent ): void => {
+		if ( ! panel || ! ( e.target instanceof Element ) ) {
+			return;
+		}
+		if ( panel.contains( e.target ) ) {
+			return;
+		}
+		if ( e.target.closest( '.os-dock__item' ) ) {
+			close();
+		}
+	};
+
 	// Tells `dock-peek` there is a flyout to stand down for. See
 	// `active.ts` — the flag is the mount, not the layout.
 	document.body.setAttribute( CONSTELLATION_FLAG, '' );
 	document.addEventListener( 'pointerover', onPointerOver );
 	document.addEventListener( 'pointerout', onPointerOut );
+	document.addEventListener( 'click', onClick );
 	document.addEventListener( 'keydown', onKeyDown );
 	window.addEventListener( 'resize', onInvalidate );
 	window.addEventListener( 'blur', onInvalidate );
@@ -639,6 +666,7 @@ export function mountDockConstellation(
 		document.removeEventListener( ITEM_MENU_OPENING_EVENT, onInvalidate );
 		document.removeEventListener( 'pointerover', onPointerOver );
 		document.removeEventListener( 'pointerout', onPointerOut );
+		document.removeEventListener( 'click', onClick );
 		document.removeEventListener( 'keydown', onKeyDown );
 		window.removeEventListener( 'resize', onInvalidate );
 		window.removeEventListener( 'blur', onInvalidate );
