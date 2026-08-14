@@ -869,6 +869,81 @@ describe( 'desktop-layout dispatcher', () => {
 			expect( synth() ).toBeNull();
 		} );
 
+		/*
+		 * The same rule, asked of a system tile rather than an icon.
+		 * The Trash has no desktop icon to be synthesized from, so
+		 * without this it is the one running app on the desktop whose
+		 * window has no tile — which is exactly the state the icon case
+		 * above exists to prevent.
+		 */
+		test( 'a desktop-only system tile joins the rail while its window is open', () => {
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'desktop-mode-games': 'desktop' },
+					dockOrder: [],
+				} ),
+			} );
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			const tile = () =>
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector );
+
+			expect( tile() ).toBeNull();
+
+			// A system tile's id IS its window id.
+			open.push( { id: 'desktop-mode-games', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect( tile() ).not.toBeNull();
+
+			open.length = 0;
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+			expect( tile() ).toBeNull();
+		} );
+
+		test( 'a HIDDEN system tile stays hidden while its window is open', () => {
+			// Hidden means suppressed from every shell surface. The user
+			// asked for no tile, not for a tile whenever the app happens
+			// to be open.
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'desktop-mode-games': 'hidden' },
+					dockOrder: [],
+				} ),
+			} );
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+
+			open.push( { id: 'desktop-mode-games', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect(
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+		} );
+
 		test( 'refresh() detaches a live tile on hide and re-attaches it on unhide', () => {
 			const visibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' > =
 				{};

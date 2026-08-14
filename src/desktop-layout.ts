@@ -319,6 +319,14 @@ export function createLayoutDispatcher(
 	 * backs it: a placeable tile with no icon is promoted onto the
 	 * wallpaper by the files-layer sync instead, so the pick has
 	 * somewhere to land either way.
+	 *
+	 * Except while it is RUNNING, for the reason a desktop-only icon
+	 * is synthesized onto the rail while its window is open (see
+	 * `openWindowIds`). A system tile's id IS its window id, so the
+	 * question is the same one, asked of a tile rather than an icon.
+	 * Without this the Trash on the desktop opens a window that
+	 * cannot be switched to and has nowhere to minimize back into,
+	 * while WP Explorer beside it keeps its tile.
 	 */
 	const isSystemTileDockVisible = ( tileId: string ): boolean => {
 		const visibility = readSettings().itemVisibility;
@@ -332,7 +340,14 @@ export function createLayoutDispatcher(
 		if ( ! override ) {
 			return true;
 		}
-		return override === 'dock' || override === 'both';
+		if ( override === 'dock' || override === 'both' ) {
+			return true;
+		}
+		// `'hidden'` means suppressed from every shell surface, so it
+		// outranks the running override, exactly as it does for an
+		// icon in `applyDockPlacement`. The user asked for no tile,
+		// not for a tile whenever the app happens to be open.
+		return override !== 'hidden' && openWindowIds().has( tileId );
 	};
 
 	/**
@@ -392,7 +407,7 @@ export function createLayoutDispatcher(
 	const runningIconSignature = (): string => {
 		const open = openWindowIds();
 		const visibility = readSettings().itemVisibility;
-		return serverIcons
+		const icons = serverIcons
 			.filter(
 				( icon ) =>
 					!! icon.window &&
@@ -402,9 +417,17 @@ export function createLayoutDispatcher(
 					// this signature tracks.
 					'desktop' === ( visibility[ icon.id ] ?? 'desktop' ),
 			)
-			.map( ( icon ) => icon.id )
-			.sort()
-			.join( ',' );
+			.map( ( icon ) => icon.id );
+		// System tiles the user sent to the desktop ride the rail while
+		// their window is open, on the same terms, so they belong in
+		// the same signature or the refresh that puts them there never
+		// fires. A tile's id IS its window id. `'hidden'` is absent for
+		// the same reason it is absent above: it never gains a tile, so
+		// its state cannot move.
+		const tiles = Array.from( systemTiles.keys() ).filter(
+			( id ) => open.has( id ) && 'desktop' === visibility[ id ],
+		);
+		return [ ...icons, ...tiles ].sort().join( ',' );
 	};
 	let lastRunningIcons = runningIconSignature();
 
