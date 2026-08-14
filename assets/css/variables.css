@@ -1458,11 +1458,9 @@ body.os-active {
 	--os-z-mio: 190;
 	/*
 	 * The notch — above every window and above the dock, because it
-	 * overlaps the top edge deliberately and must stay legible over a
-	 * maximized window's title bar. Below the admin bar (9991) and
-	 * fullscreen (99999): a shell that still shows the bar has the
-	 * bar's own reveal zone up there, and a fullscreen window is the
-	 * one state where the shell genuinely should disappear.
+	 * overlaps the shell's top edge deliberately and must stay legible
+	 * over a maximized window's title bar. Scoped inside the shell's
+	 * own stacking context, so it never competes with the admin bar.
 	 */
 	--os-z-notch: 9000;
 

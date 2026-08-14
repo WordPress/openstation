@@ -2,16 +2,20 @@
  * The notch — top-centre, floating, never reserving.
  *
  * The load-bearing rule in this file is that nothing here touches
- * `.os-area`. A 32px full-width bar that permanently stole height is
- * what OpenStation removed; a smaller element that reserved space
- * would be the same mistake in a nicer shape, and it would make the
- * notch a second hardcoded claimant on a work-area rectangle that
- * already has three disagreeing answers. It floats, and it gets out of
- * the way instead.
+ * `.os-area`. Reserving height would make the notch another hardcoded
+ * claimant on a work-area rectangle that already has several
+ * disagreeing answers. It floats, and it gets out of the way instead.
  */
 
+/*
+ * Anchored to the SHELL, not the viewport. `.os-shell` starts below
+ * the admin bar when the user keeps it, and at the viewport top when
+ * they don't, so an absolutely-positioned notch lands correctly in
+ * every admin-bar mode without knowing which one is on. Fixed
+ * positioning put it under the bar, which paints above the shell.
+ */
 .os-notch {
-	position: fixed;
+	position: absolute;
 	top: 0;
 	left: 50%;
 	transform: translateX( -50% );
