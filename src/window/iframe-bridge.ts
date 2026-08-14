@@ -38,6 +38,12 @@ const INITIAL_ORIGIN = window.location.origin;
  */
 export interface AdminLinkDockEntry {
 	title: string;
+	/**
+	 * WordPress's label for the parent's landing page ("Themes"), for
+	 * the in-window tab that leads back to it. Falls back to `title`,
+	 * which is the menu's name.
+	 */
+	selfLabel?: string;
 	icon: string;
 	/**
 	 * The parent dock-tile URL — the page the user clicked from. Used
@@ -82,6 +88,7 @@ interface AdminLinkDispatchDeps {
 		titleFromPage?: boolean;
 		icon: string;
 		submenu?: { title: string; url: string }[];
+		selfLabel?: string;
 		multi?: boolean;
 	} ): void;
 	/**
@@ -938,6 +945,7 @@ function openAdminUrlInOwnWindow(
 		titleFromPage: ! entry,
 		icon: entry?.icon ?? 'dashicons-admin-generic',
 		submenu: entry?.submenu,
+		selfLabel: entry?.selfLabel,
 		multi: entry?.multi,
 	} );
 }

@@ -61,11 +61,14 @@ import {
 import { doAction, HOOKS } from './hooks';
 
 /**
- * Where a system tile prefers to live. `'core'` follows the rail
- * that holds core admin menus (side bar in Classic, primary rail
- * elsewhere); `'plugin'` always lands on the primary rail with
- * plugin menus. Defaults to `'plugin'` so plugin-registered native-
- * window tiles continue to sit alongside other plugin entries.
+ * What kind of system tile this is: `'core'` for a shell-owned
+ * affordance (System, Exit OpenStation), `'plugin'` for a plugin's
+ * launcher. Defaults to `'plugin'`.
+ *
+ * Descriptive, not positional. It used to route `'core'` tiles to
+ * Split's side rail; that rail is core ADMIN MENUS only, so every
+ * system tile now lands on the primary dock and this survives as the
+ * classification `listSystemTiles()` reports.
  */
 export type SystemTileAffinity = 'core' | 'plugin';
 
@@ -155,15 +158,11 @@ export interface LayoutDispatcher {
 	 * tracked set in registration order. Calling twice with the same
 	 * id replaces the previous tile (idempotent).
 	 *
-	 * `affinity` controls which rail the tile lives on:
-	 *
-	 * - `'plugin'` *(default)* — always lands on the primary (bottom)
-	 *   dock alongside plugin admin menus. Used by plugin-registered
-	 *   native-window tiles.
-	 * - `'core'` — lands on the side dock when one exists (Classic
-	 *   layout, alongside core admin menus); falls back to the primary
-	 *   dock in Unified, where there is no side rail. Used
-	 *   by shell-owned affordances like OS Settings.
+	 * `affinity` records what KIND of tile this is — `'core'` for a
+	 * shell-owned affordance, `'plugin'` *(default)* for a plugin's
+	 * launcher — and is reported by {@link listSystemTiles}. It no
+	 * longer picks a rail: every system tile lands on the primary
+	 * dock. Split's side rail is core admin menus and nothing else.
 	 */
 	appendSystemTile(
 		item: SystemDockItem,
@@ -252,14 +251,22 @@ export function createLayoutDispatcher(
 	// (so flipping the setting back restores it) but detached.
 	const attachedSystemTiles = new Set< string >();
 
+	/**
+	 * Which rail hosts a system tile. Always the primary one.
+	 *
+	 * Split's side rail is for CORE ADMIN MENUS, and only those. It is
+	 * the WordPress half of the layout — that is the whole idea the
+	 * split expresses — so shell affordances (System, Exit
+	 * OpenStation, Mio) belong on the bottom dock with everything else
+	 * OpenStation owns, whichever layout is on.
+	 *
+	 * `'core'` affinity used to route here, which put Preferences and
+	 * the exit button under a column of admin menus and made the rail
+	 * mean two things at once.
+	 */
 	const railFor = (
-		affinity: SystemTileAffinity,
-	): DockRailController | null => {
-		if ( affinity === 'core' && side ) {
-			return side;
-		}
-		return primary;
-	};
+		_affinity: SystemTileAffinity,
+	): DockRailController | null => primary;
 
 	const ensureSideDockEl = (): HTMLElement => {
 		const existing = document.getElementById(
@@ -595,6 +602,7 @@ export function createLayoutDispatcher(
 					? item.icon
 					: 'dashicons-admin-generic',
 				submenu: item.submenu,
+				selfLabel: item.selfLabel,
 				multi: !! item.multi,
 			} );
 		},
@@ -614,6 +622,7 @@ export function createLayoutDispatcher(
 					? item.icon
 					: 'dashicons-admin-generic',
 				submenu: item.submenu,
+				selfLabel: item.selfLabel,
 				multi: !! item.multi,
 			} );
 		},

@@ -85,6 +85,17 @@ export interface WindowConfig {
 	 * sub-page.
 	 */
 	parentUrl?: string;
+	/**
+	 * Label for the synthetic first tab — the one that leads back to
+	 * {@link parentUrl}. WordPress's own name for that page: "Themes"
+	 * under Appearance, "All Posts" under Posts.
+	 *
+	 * Falls back to {@link title}, which is the MENU's name, and was
+	 * the only label available before `DockItem.selfLabel` carried the
+	 * stripped self-link through. That fallback still covers menus with
+	 * no self-link at all.
+	 */
+	selfLabel?: string;
 	/** Window title displayed in the title bar. */
 	title: string;
 	/**
@@ -1506,6 +1517,12 @@ export interface DockItemConfig {
 	badge: number;
 	/** Submenu items. */
 	submenu: { title: string; url: string }[];
+	/**
+	 * WordPress's own label for this menu's landing page ("Themes",
+	 * "All Posts"), stripped out of `submenu` as the self-link. Names
+	 * the in-window tab that leads back to it.
+	 */
+	selfLabel?: string;
 	/**
 	 * Whether this admin page supports multiple open windows. Determined
 	 * server-side — list screens (Posts, Pages, Media, Users, Comments,

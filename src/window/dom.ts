@@ -863,9 +863,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			const parentAlreadyInSubmenu = config.submenu.some(
 				( s ) => urlMatchKey( s.url ) === synthKey,
 			);
+			// Labelled the way WordPress labels it — "Themes" under
+			// Appearance, "All Posts" under Posts — which is what
+			// `selfLabel` carries. `config.title` is the MENU's name
+			// and was the only label available before that field
+			// existed; it stays the fallback for menus with no
+			// self-link to have taken a name from.
 			const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
 				? [ ...config.submenu ]
-				: [ { title: config.title, url: synthUrl }, ...config.submenu ];
+				: [
+					{ title: config.selfLabel || config.title, url: synthUrl },
+					...config.submenu,
+				];
 
 			for ( const sub of seedSubmenu ) {
 				const tab = document.createElement( 'button' );

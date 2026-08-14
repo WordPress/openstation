@@ -3585,7 +3585,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         id:        string,
         title:     string,
         icon:      string,
-        affinity:  'core' | 'plugin',  // 'core' tiles route to side rail in Classic
+        affinity:  'core' | 'plugin',  // shell affordance vs plugin launcher
         placeable: boolean,            // opted into OpenStation Preferences → Apps & Plugins
     },
     …

@@ -56,6 +56,7 @@ export function openMenuItem(
 		title: item.title,
 		icon: safeIcon( item.icon ),
 		submenu: item.submenu,
+		selfLabel: item.selfLabel,
 		multi: !! item.multi,
 	} );
 }

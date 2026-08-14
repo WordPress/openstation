@@ -115,6 +115,46 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 	} );
 
+	/*
+	 * The synthetic tab is WordPress's own name for that page — "All
+	 * Posts", not "Posts". `config.title` is the MENU's name and was
+	 * the only label available before `selfLabel` carried the stripped
+	 * self-link through from the payload.
+	 */
+	test( 'synthetic parent tab prefers selfLabel over the menu title', async () => {
+		const win = await manager.open( {
+			id: 'edit.php',
+			url: 'http://example.test/wp-admin/edit.php',
+			title: 'Posts',
+			selfLabel: 'All Posts',
+			icon: 'dashicons-admin-post',
+			multi: false,
+			submenu: [
+				{ title: 'Categories', url: 'http://example.test/wp-admin/edit-tags.php?taxonomy=category' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
+		expect( tabs[ 0 ].textContent ).toBe( 'All Posts' );
+		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/edit.php' );
+	} );
+
+	test( 'synthetic parent tab falls back to the title without a selfLabel', async () => {
+		const win = await manager.open( {
+			id: 'tools.php',
+			url: 'http://example.test/wp-admin/tools.php',
+			title: 'Tools',
+			icon: 'dashicons-admin-tools',
+			multi: false,
+			submenu: [
+				{ title: 'Import', url: 'http://example.test/wp-admin/import.php' },
+			],
+		} );
+
+		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
+		expect( tabs[ 0 ].textContent ).toBe( 'Tools' );
+	} );
+
 	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', async () => {
 		// Reproduces the F5-on-Add-Theme scenario: session save
 		// captured the iframe URL (theme-install.php), so on restore

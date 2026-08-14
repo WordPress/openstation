@@ -2308,6 +2308,7 @@ function init(): void {
 					icon: item.icon,
 					url: item.url,
 					submenu: item.submenu,
+					selfLabel: item.selfLabel,
 					multi: item.multi,
 				};
 			}
@@ -2552,12 +2553,11 @@ function init(): void {
 		mountNotch( shellEl, () => {
 			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 		} );
-		// OpenStation Preferences tile — `'core'` affinity so it lands on
-		// the side dock in Classic (with core admin menus, where users
-		// expect a shell-owned affordance) and on the primary rail in
-		// Unified (where there is no side dock to host it).
 		// Tracked by the dispatcher so it re-attaches automatically
-		// after a layout rebuild.
+		// after a layout rebuild. `'core'` classifies it as a
+		// shell-owned affordance; every system tile lands on the
+		// primary dock regardless, since Split's side rail is core
+		// admin menus and nothing else.
 		//
 		// The tile wears a gear, not the logomark. The mark said "this
 		// panel IS the product", which is true and unhelpful: sitting in
@@ -2780,10 +2780,9 @@ function init(): void {
 			'core',
 		);
 
-		// Mio tile — `'plugin'` affinity, so it lands on the bottom
-		// dock with the other optional apps rather than among the core
-		// shell affordances. Clicking toggles the companion; the active
-		// dot tracks whether it is on screen.
+		// Mio tile — `'plugin'` affinity, classifying it as an optional
+		// app rather than a shell affordance. Clicking toggles the
+		// companion; the active dot tracks whether it is on screen.
 		//
 		// `placeable` is what puts a row in OS Settings → Apps & Plugins,
 		// so a user who doesn't want a desk companion can hide the

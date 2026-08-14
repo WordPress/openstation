@@ -616,7 +616,15 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( bottomTiles ).toEqual( [ 'woocommerce' ] );
 	} );
 
-	test( 'appendSystemTile: core affinity lands on the side dock in classic', () => {
+	/*
+	 * Split's side rail is core ADMIN MENUS, and only those. That is
+	 * the idea the split expresses, so shell affordances (System, Exit
+	 * OpenStation) belong on the bottom dock with everything else
+	 * OpenStation owns. `'core'` affinity used to route them to the
+	 * side rail, which put Preferences under a column of admin menus
+	 * and made the rail mean two things at once.
+	 */
+	test( 'appendSystemTile: core affinity still lands on the primary dock in classic', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
 			deps,
@@ -627,12 +635,12 @@ describe( 'desktop-layout dispatcher', () => {
 		dispatcher.appendSystemTile( noopTile, 'core' );
 		expect(
 			document
-				.getElementById( 'os-side-dock' )!
+				.getElementById( 'os-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).not.toBeNull();
 		expect(
 			document
-				.getElementById( 'os-dock' )!
+				.getElementById( 'os-side-dock' )!
 				.querySelector( `[data-system-id="${ noopTile.id }"]` ),
 		).toBeNull();
 	} );

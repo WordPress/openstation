@@ -2213,6 +2213,7 @@ export class Dock {
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,
+			selfLabel: item.selfLabel,
 			multi: !! item.multi,
 		} );
 	}
@@ -2282,6 +2283,7 @@ export class Dock {
 			title: item.title,
 			icon: item.icon.startsWith( 'dashicons-' ) ? item.icon : 'dashicons-admin-generic',
 			submenu: item.submenu,
+			selfLabel: item.selfLabel,
 			multi: true,
 		} );
 	}

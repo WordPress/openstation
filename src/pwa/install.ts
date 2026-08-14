@@ -1,21 +1,21 @@
 /**
  * OpenStation — PWA install affordance.
  *
- * Registers a persistent system-tile on the dock so the install
- * action is always within reach of the user. Clicking it dispatches
- * the browser's install prompt when the site is currently
- * installable; otherwise it shows a contextual toast.
+ * Offers the install action as a row of the System dock tile's menu.
+ * Choosing it dispatches the browser's install prompt when the site is
+ * currently installable; otherwise it shows a contextual toast.
  *
  * UX policy:
  *
- *   - **Visible whenever installing could be useful.** desktop.ts
- *     registers the tile on boot unless the shell is already running
- *     standalone, and removes it live when the display mode flips to
- *     standalone or `getInstalledRelatedApps()` reports the app
- *     installed; on platforms without those signals (Safari,
- *     Firefox) the tile persists as a fallback. The icon is the
- *     *entry point*, not the *trigger*; the trigger is whatever the
- *     browser will let us do when the user clicks.
+ *   - **Offered whenever installing could be useful.** desktop.ts
+ *     builds the row unless the shell is already running standalone or
+ *     `getInstalledRelatedApps()` reports the app installed; on
+ *     platforms without those signals (Safari, Firefox) the row
+ *     remains as a fallback. Because the menu's rows are built on
+ *     every hover, that answer is re-asked each time rather than
+ *     needing a live removal. The row is the *entry point*, not the
+ *     *trigger*; the trigger is whatever the browser will let us do
+ *     when the user clicks.
  *
  *   - **Click → context-aware action.**
  *       - Installable now (we have a deferred `beforeinstallprompt`):
@@ -115,13 +115,10 @@ let _deferred: BeforeInstallPromptEvent | null = null;
  * `appinstalled` window listeners so the rest of the module can react
  * to install state changes.
  *
- * Tile registration is **separate** — see {@link getInstallTileDef}.
- * desktop.ts inserts the tile next to the OS Settings tile with the
- * `'core'` rail affinity so it lands on the side dock (Classic
- * layout) or the primary rail (Unified), matching where
- * users expect shell-owned affordances. Putting that placement
- * decision in desktop.ts keeps `install.ts` framework-agnostic — it
- * doesn't need to know about `layoutDispatcher` or affinities.
+ * Surfacing the action is **separate** — see {@link getInstallTileDef}.
+ * desktop.ts reads its `title` and `onOpen` into a row of the System
+ * tile's menu, which keeps `install.ts` framework-agnostic: it does
+ * not need to know about `layoutDispatcher`, rails or menus.
  *
  * Idempotent — a second call de-dupes listeners.
  */
@@ -168,10 +165,12 @@ export function installPwaInstallAffordance(
 }
 
 /**
- * Build the {@link SystemDockItem} definition for the install tile.
- * desktop.ts hands this to `layoutDispatcher.appendSystemTile` with
- * the `'core'` affinity so the icon lands next to OS Settings on the
- * side dock.
+ * Build the install affordance's definition.
+ *
+ * Shaped like a `SystemDockItem` because it was one; desktop.ts now
+ * reads its `title` and `onOpen` into a row of the System tile's
+ * menu, alongside Preferences and Report a bug, rather than giving it
+ * a glyph of its own on the rail.
  */
 export function getInstallTileDef(
 	siteName: string,
