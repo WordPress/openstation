@@ -7,13 +7,12 @@
  * assistant) and the shell cluster at its tail (Mio, Overview,
  * System). Everything here is data; `desktop.ts` does the registering.
  *
- * The orders are the point of the module. System tiles used to land in
- * whatever sequence they were registered, which reads as deliberate
- * and is not: native-window tiles (Trash, and every plugin's) arrive
- * whenever their lazy script resolves, so a tile registered last in
- * `desktop.ts` could still be overtaken. Anything left at the default
- * `0` sorts ahead of this cluster, which is the intent — the site's
- * apps first, the shell's own affordances last.
+ * The orders are the point of the module. Registration order cannot
+ * express the intended rail: native-window tiles (Trash, and every
+ * plugin's) arrive whenever their lazy script resolves, so a tile
+ * registered last in `desktop.ts` can still be overtaken. Anything
+ * left at the default `0` sorts ahead of this cluster, which is the
+ * intent — the site's apps first, the shell's own affordances last.
  */
 
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */

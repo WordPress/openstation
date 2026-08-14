@@ -65,10 +65,9 @@ import { doAction, HOOKS } from './hooks';
  * affordance (System, Exit OpenStation), `'plugin'` for a plugin's
  * launcher. Defaults to `'plugin'`.
  *
- * Descriptive, not positional. It used to route `'core'` tiles to
- * Split's side rail; that rail is core ADMIN MENUS only, so every
- * system tile now lands on the primary dock and this survives as the
- * classification `listSystemTiles()` reports.
+ * Descriptive, not positional: every system tile lands on the primary
+ * dock, because Split's side rail is core ADMIN MENUS only. This is
+ * the classification `listSystemTiles()` reports, nothing more.
  */
 export type SystemTileAffinity = 'core' | 'plugin';
 
@@ -260,8 +259,8 @@ export function createLayoutDispatcher(
 	 * OpenStation, Mio) belong on the bottom dock with everything else
 	 * OpenStation owns, whichever layout is on.
 	 *
-	 * `'core'` affinity used to route here, which put Preferences and
-	 * the exit button under a column of admin menus and made the rail
+	 * Routing `'core'` tiles to the side rail would put Preferences and
+	 * the exit button under a column of admin menus, making the rail
 	 * mean two things at once.
 	 */
 	const railFor = (

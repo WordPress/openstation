@@ -11,11 +11,10 @@
  *     builds the row unless the shell is already running standalone or
  *     `getInstalledRelatedApps()` reports the app installed; on
  *     platforms without those signals (Safari, Firefox) the row
- *     remains as a fallback. Because the menu's rows are built on
- *     every hover, that answer is re-asked each time rather than
- *     needing a live removal. The row is the *entry point*, not the
- *     *trigger*; the trigger is whatever the browser will let us do
- *     when the user clicks.
+ *     remains as a fallback. The menu's rows are built on every
+ *     hover, so that answer is re-asked each time. The row is the
+ *     *entry point*, not the *trigger*; the trigger is whatever the
+ *     browser will let us do when the user clicks.
  *
  *   - **Click → context-aware action.**
  *       - Installable now (we have a deferred `beforeinstallprompt`):
@@ -26,12 +25,11 @@
  *         user keep using the page; Chrome's heuristic fires the
  *         event after a few seconds of engagement.
  *
- *   - **Survives page reloads.** Because we register from JS each
- *     boot, the tile is present whether or not a prior session ever
- *     saw `beforeinstallprompt`. Plugins reading `listSystemTiles()`
- *     will see it consistently.
+ *   - **Survives page reloads.** The row is built from JS on each
+ *     boot, so it is present whether or not a prior session ever saw
+ *     `beforeinstallprompt`.
  *
- *   - **Safari (iOS / iPadOS)** still gets the icon — clicking shows
+ *   - **Safari (iOS / iPadOS)** still gets the row — choosing it shows
  *     a "your browser doesn't support automatic install" toast;
  *     users use Share → Add to Home Screen for the actual install.
  *     The `apple-mobile-web-app-*` meta tags emitted from PHP make
@@ -144,7 +142,7 @@ export function installPwaInstallAffordance(
 
 	function _handleBeforeInstall( ev: Event ): void {
 		// `preventDefault` suppresses Chromium's mini-info-bar — we'd
-		// rather route the install through our dock tile than have
+		// rather route the install through the System menu than have
 		// two affordances fighting for the user's attention.
 		ev.preventDefault();
 		_deferred = ev as BeforeInstallPromptEvent;
@@ -165,12 +163,9 @@ export function installPwaInstallAffordance(
 }
 
 /**
- * Build the install affordance's definition.
- *
- * Shaped like a `SystemDockItem` because it was one; desktop.ts now
- * reads its `title` and `onOpen` into a row of the System tile's
- * menu, alongside Preferences and Report a bug, rather than giving it
- * a glyph of its own on the rail.
+ * Build the install affordance's definition. `SystemDockItem`-shaped;
+ * desktop.ts reads its `title` and `onOpen` into a row of the System
+ * tile's menu, alongside Preferences and Report a bug.
  */
 export function getInstallTileDef(
 	siteName: string,
@@ -183,12 +178,10 @@ export function getInstallTileDef(
 } {
 	return {
 		id: PWA_INSTALL_TILE_ID,
-		// No site name. This was a standalone dock tile, where the
-		// tooltip was the only thing naming what it would install; it
-		// is a row in the System menu now, and that menu is already
-		// unambiguously about this site. "Install <Site Title> as an
-		// app" also grew unbounded with the site's title, in a menu
-		// whose other rows are two words.
+		// No site name: this is a row in the System menu, which is
+		// already unambiguously about this site. Interpolating the
+		// title would also grow the row unbounded, next to rows that
+		// are two or three words.
 		title: __( 'Install web app' ),
 		// Dashicons class — the dock renderer prefers Dashicons
 		// strings. `dashicons-download` is the closest match for

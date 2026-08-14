@@ -620,9 +620,9 @@ describe( 'desktop-layout dispatcher', () => {
 	 * Split's side rail is core ADMIN MENUS, and only those. That is
 	 * the idea the split expresses, so shell affordances (System, Exit
 	 * OpenStation) belong on the bottom dock with everything else
-	 * OpenStation owns. `'core'` affinity used to route them to the
-	 * side rail, which put Preferences under a column of admin menus
-	 * and made the rail mean two things at once.
+	 * OpenStation owns. Routing `'core'` tiles to the side rail would
+	 * put Preferences under a column of admin menus and make the rail
+	 * mean two things at once.
 	 */
 	test( 'appendSystemTile: core affinity still lands on the primary dock in classic', () => {
 		const { deps } = makeDeps();

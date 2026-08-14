@@ -147,7 +147,7 @@ function openstation_build_dock_items() {
 					// "All Pages"), and the constellation flyout lists
 					// it as the first thing the menu opens — a list of
 					// a menu's pages that omits its main page reads as
-					// a bug, which is how this was reported.
+					// a bug.
 					//
 					// Carried separately rather than left in `submenu`
 					// because `submenu` has two other consumers that

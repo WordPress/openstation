@@ -1,16 +1,14 @@
 /*
  * Keyboard-shortcuts window.
  *
- * The reference used to be a popover under the admin bar's keyboard
- * button, styled under `#wpadminbar`. It is a shell window now (see
- * `src/shortcuts.ts`), so the styling comes with it — and reads the
- * palette's tokens rather than the admin bar's, which is what lets a
- * desktop theme reach it.
+ * Styles the window `src/shortcuts.ts` paints. Reads the palette's
+ * tokens rather than the admin bar's, which is what lets a desktop
+ * theme reach it.
  *
  * Every colour resolves through `var( --os-ui-*, <literal> )`, and
- * each literal is the pre-brand WordPress-admin value it had in the
- * popover. That is the floor if the stylesheet fails to load, and it
- * is what the Legacy snapshot collected.
+ * each literal is the pre-brand WordPress-admin value. That is the
+ * floor if the stylesheet fails to load, and it is what the Legacy
+ * snapshot collected.
  */
 
 .os-shortcuts {

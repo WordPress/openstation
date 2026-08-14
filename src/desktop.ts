@@ -2567,10 +2567,10 @@ function init(): void {
 		// needs no label. Themes can still replace it through the
 		// `OS_SETTINGS` icon slot.
 		// System tile — one menu for the shell's own affordances, and
-		// the new home of three jobs the hidden admin bar used to do
-		// (View site, Fullscreen, account + log out) plus three tiles
-		// that used to sit on the rail in their own right: Preferences,
-		// Bug Report and Install web app. Nine glyphs became one.
+		// the home of three jobs the hidden admin bar carried (View
+		// site, Fullscreen, log out) plus three that would otherwise
+		// each want a tile: Preferences, Bug Report and Install web
+		// app. Six affordances, one glyph.
 		//
 		// The rows are built fresh on every hover — `submenu` is read
 		// through `getSystemTile()` at flyout time — so "Install as an

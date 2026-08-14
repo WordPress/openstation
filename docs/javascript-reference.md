@@ -936,7 +936,7 @@ One panel, up to three sections, top to bottom — the same three whichever kind
 | Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). An admin menu resolves these from its own window key; a system tile's action menu resolves them from its rows' `windowId`. |
 | Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
 
-There is no trailing "New *menu* window" row. It offered a second copy of the landing page that any row in the Open group already opens, and it was the one section an action menu could never have — keeping it would have meant two panel shapes depending on which tile you hovered.
+There is no trailing "New *menu* window" row: it would be a second copy of the landing page that any row in the Open group already opens, and it is the one section an action menu cannot have, so the panel would take two shapes depending on which tile you hovered.
 
 Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
 

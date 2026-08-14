@@ -1,11 +1,11 @@
 /**
  * Where a system tile lands on the rail.
  *
- * Tiles used to append in registration order, which looks deliberate
- * and is not: native-window tiles (Trash, and every plugin's) register
- * when their lazy script resolves, so a tile registered last in
- * `desktop.ts` could still be overtaken by one that arrived late.
- * `order` decides, and ties keep registration order.
+ * Registration order cannot express it: native-window tiles (Trash,
+ * and every plugin's) register when their lazy script resolves, so a
+ * tile registered last in `desktop.ts` can still be overtaken by one
+ * that arrived late. `order` decides, and ties keep registration
+ * order.
  *
  * Load-bearing for the admin-bar relocation: Mio → Overview → System →
  * Trash has to hold whenever each of them happens to arrive.

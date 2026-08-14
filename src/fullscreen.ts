@@ -1,10 +1,9 @@
 /**
  * Browser fullscreen for the whole shell.
  *
- * This used to live only in `assets/js/admin-bar.js`, wired to the
- * admin bar's fullscreen button. With the bar hidden by default that
- * button is not on screen, so the capability needed a home inside the
- * shell — this is it, and the System tile's row is its front door.
+ * The System tile's "Fullscreen" row is its front door. Lives here
+ * rather than in `assets/js/admin-bar.js` so it is reachable with the
+ * admin bar hidden, which is the default.
  *
  * Note this is BROWSER fullscreen (the whole document leaves the
  * browser chrome behind), not a window's focus mode, which is a

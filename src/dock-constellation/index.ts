@@ -11,30 +11,23 @@
  * from a rail that already knows the link exists. The tab strip stays
  * exactly as it is; this adds the missing shortcut in front of it.
  *
- * It began as the one thing the `openstation` layout had that the
- * others did not. That was never a property of the layout, only of
- * where the work had been done: the panel fanned upward out of a
- * horizontal rail because that was the rail that layout draws. A dock
- * on the left has the same submenus and the same room, just in
- * another direction — so the direction is read off the rail's edge
- * (see `sideFor`) and the surface belongs to the dock rather than to
- * any one layout.
+ * The surface belongs to the dock rather than to any one layout: a
+ * rail on the left has the same submenus and the same room as one
+ * along the bottom, just in another direction, so the direction is
+ * read off the rail's own edge (see `sideFor`).
  *
  * Hovering a menu tile fans a flyout out of the rail:
  *
  *   ┌──────────────────────────────┐
- *   │ ◈  Appearance                │   ← head: the menu's own page
- *   │    3 pages                   │
+ *   │ ◈  Appearance                │   ← head: the tile, restated
  *   ├──────────────────────────────┤
- *   │ OPEN WINDOWS                 │
+ *   │ 1 OPEN WINDOW                │
  *   │ ● Appearance          Open   │   ← live instances, click to focus
  *   ├──────────────────────────────┤
  *   │ OPEN                         │
- *   │ ◦ Themes                     │   ← the submenu, one row per link
+ *   │ ◦ Themes                     │   ← the menu's own page, first
  *   │ ◦ Customize                  │
  *   │ ◦ Menus                      │
- *   ├──────────────────────────────┤
- *   │ ＋ New Appearance window      │
  *   └──────────────────────────────┘
  *          ╲ beam ╱
  *           [tile]
@@ -51,13 +44,13 @@
  *    while the flyout is open, because the head already says the
  *    tile's name — louder, and in the right place. That is every menu
  *    tile, plus the system tiles that declared a `submenu` of their
- *    own (Create, System); every other system tile keeps the peek.
+ *    own (System); every other system tile keeps the peek.
  *
- *    A system tile's menu is a list of ACTIONS, not admin pages, so
- *    its panel drops the head (there is no landing page behind the
- *    tile) and the footer (nothing to open another of) and paints the
- *    rows alone. See `ConstellationMenu`, which is what the panel
- *    builder actually takes.
+ *    A system tile's menu is a list of ACTIONS rather than admin
+ *    pages, but it wears the same three sections. What differs is only
+ *    what fills them: no landing page behind the head, so it runs the
+ *    first row, and its live windows come from the rows' `windowId`.
+ *    See `ConstellationMenu`, which is what the panel builder takes.
  * 3. **It routes through the same window ids the dock does** (see
  *    `routing.ts`), so the flyout and the tile address one window
  *    between them rather than two.

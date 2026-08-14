@@ -357,8 +357,8 @@ describe( 'dock constellation', () => {
 	 * "All Posts" is a real row in wp-admin's menu, and the payload
 	 * strips it out of `submenu` because two other consumers need that
 	 * list to be child links only. The flyout LISTS a menu's pages, so
-	 * it puts the menu's own page back at the top — a list that omits
-	 * the main page reads as a bug, which is how this arrived.
+	 * it puts the menu's own page back at the top: a list that omits
+	 * the main page reads as a bug.
 	 */
 	test( 'the menu’s own page leads the Open list', () => {
 		const tile = setupShell( 'openstation' );
@@ -386,9 +386,9 @@ describe( 'dock constellation', () => {
 	} );
 
 	/*
-	 * The head is the tile: icon and title, nothing else. It used to
-	 * carry a "3 pages" count under the title — a number the reader
-	 * has no use for, with the rows themselves right below it.
+	 * The head is the tile: icon and title, nothing else. No page
+	 * count — a number the reader has no use for, with the rows
+	 * themselves right below it.
 	 */
 	test( 'the head shows the icon and title, with no page count', () => {
 		const tile = setupShell( 'openstation' );
