@@ -505,6 +505,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
 				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
 			}
+			if ( typeof patch.showPostStatusRibbons === 'boolean' ) {
+				osSettings.state.showPostStatusRibbons = patch.showPostStatusRibbons;
+			}
 			if ( typeof patch.developerModeEnabled === 'boolean' ) {
 				osSettings.state.developerModeEnabled = patch.developerModeEnabled;
 			}

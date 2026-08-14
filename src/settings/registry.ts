@@ -206,6 +206,11 @@ export interface OsSettingsSnapshot {
 	 * field.
 	 */
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
+	/**
+	 * When true, shows draft/pending/private/scheduled status ribbons on post/page tiles.
+	 * Defaults to `true`.
+	 */
+	showPostStatusRibbons: boolean;
 }
 
 export interface SettingsTabRenderCtx {
