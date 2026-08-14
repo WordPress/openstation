@@ -10,6 +10,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import {
+	applyDockPlacement,
 	listPlaceableItems,
 	type PlaceableSystemTile,
 } from '../../src/settings/item-placement';
@@ -115,5 +116,81 @@ describe( 'listPlaceableItems', () => {
 		);
 		expect( rows ).toHaveLength( 1 );
 		expect( rows[ 0 ].title ).toBe( 'From a system tile' );
+	} );
+} );
+
+/*
+ * A running app takes a dock tile for as long as its window is open,
+ * whatever its resting place is: sending it to the desktop says where
+ * its launcher lives, not that a live window should be unswitchable
+ * while every other one has a tile.
+ *
+ * `'hidden'` is the exception, and the one worth a test. It means
+ * suppressed from every shell surface, so it outranks the override —
+ * the user asked for no tile, not for a tile whenever the app happens
+ * to be running.
+ */
+describe( 'applyDockPlacement: running apps', () => {
+	const explorer = icon( { id: 'wp-explorer', window: 'my-wordpress' } );
+	const synth = ( items: ReturnType< typeof applyDockPlacement > ) =>
+		items.find( ( i ) => i.id === 'dock:wp-explorer' ) ?? null;
+
+	test( 'a desktop-only icon gains a tile while its window is open', () => {
+		const settings = {
+			itemVisibility: { 'wp-explorer': 'desktop' as const },
+			dockOrder: [],
+		};
+
+		expect(
+			synth( applyDockPlacement( [], [ explorer ], settings ) ),
+		).toBeNull();
+		expect(
+			synth(
+				applyDockPlacement(
+					[],
+					[ explorer ],
+					settings,
+					undefined,
+					new Set( [ 'my-wordpress' ] ),
+				),
+			),
+		).not.toBeNull();
+	} );
+
+	test( 'the tile lands in the plugin cluster, carrying its window id', () => {
+		const item = synth(
+			applyDockPlacement(
+				[],
+				[ explorer ],
+				{
+					itemVisibility: { 'wp-explorer': 'desktop' as const },
+					dockOrder: [],
+				},
+				undefined,
+				new Set( [ 'my-wordpress' ] ),
+			),
+		);
+
+		// `isCore: false` is what puts it after the core→plugin seam,
+		// and `windowId` is what lights its running indicator.
+		expect( item?.isCore ).toBe( false );
+		expect( item?.windowId ).toBe( 'my-wordpress' );
+	} );
+
+	test( 'a hidden icon stays hidden even while running', () => {
+		expect(
+			synth(
+				applyDockPlacement(
+					[],
+					[ explorer ],
+					{
+						itemVisibility: { 'wp-explorer': 'hidden' as const },
+						dockOrder: [],
+					},
+					undefined,
+					new Set( [ 'my-wordpress' ] ),
+				),
+			),
+		).toBeNull();
 	} );
 } );

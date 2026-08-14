@@ -2,10 +2,10 @@
  * The shell's own dock tiles: their ids, their art, and the order they
  * sit in.
  *
- * These are the tiles that answer for OpenStation itself rather than
- * for the site — the front door at the head of the rail (Create, the
- * assistant) and the shell cluster at its tail (Mio, Overview,
- * System). Everything here is data; `desktop.ts` does the registering.
+ * The tiles that answer for OpenStation itself rather than for the
+ * site: Mio, Overview, System and Exit OpenStation, clustered at the
+ * tail of the rail. Everything here is data; `desktop.ts` does the
+ * registering.
  *
  * The orders are the point of the module. Registration order cannot
  * express the intended rail: native-window tiles (Trash, and every
@@ -27,6 +27,7 @@ export const SYSTEM_TILE_ORDER = {
 	mio: 10,
 	overview: 20,
 	system: 30,
+	exit: 35,
 } as const;
 
 /**

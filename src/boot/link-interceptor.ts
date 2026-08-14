@@ -178,6 +178,7 @@ export function bindTopWindowLinkInterceptor(
 				title: dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,
+				selfLabel: dockEntry?.selfLabel,
 			};
 
 			if ( isAdminBarNew ) {

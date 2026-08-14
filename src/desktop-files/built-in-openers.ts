@@ -587,6 +587,7 @@ export function registerBuiltInFileOpeners(): void {
 							title: file.title(),
 							icon: file.icon(),
 							submenu: entry?.submenu,
+							selfLabel: entry?.selfLabel,
 							multi: !! entry?.multi,
 						} );
 					} catch {

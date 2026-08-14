@@ -176,7 +176,13 @@ export function applyDockPlacement(
 	//    on the dock as a framework system tile (Recycle Bin et al).
 	for ( const icon of desktopIcons ) {
 		const placement = resolvePlacement( icon.id, 'desktop', visibility );
-		const running = !! icon.window && !! openWindowIds?.has( icon.window );
+		// `'hidden'` means suppressed from every shell surface, so it
+		// outranks the running override — the user asked for no tile,
+		// not for a tile whenever the app happens to be open.
+		const running =
+			placement !== 'hidden' &&
+			!! icon.window &&
+			!! openWindowIds?.has( icon.window );
 		if ( ! shouldShowOnDock( placement ) && ! running ) {
 			continue;
 		}

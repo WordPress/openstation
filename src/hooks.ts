@@ -1034,9 +1034,11 @@ export const HOOKS = {
 	 * was opened for, the live windows currently open for it, and the
 	 * dock tile it is anchored to. `item.menuItem` is the `DockItem`
 	 * behind the menu, or `null` when the tile is a system tile whose
-	 * submenu is a list of shell actions rather than admin pages — in
-	 * which case `instances` is always empty and the panel carries no
-	 * head or footer row.
+	 * submenu is a list of shell actions rather than admin pages. The
+	 * panel has the same sections either way; a system tile resolves
+	 * its `instances` from each row's `windowId` instead of from one
+	 * menu key, so the list is populated whenever those windows are
+	 * open.
 	 *
 	 * A plugin returning a brand-new node owns everything the flyout
 	 * relies on: the `os-constellation` class (positioning + the
@@ -1052,9 +1054,9 @@ export const HOOKS = {
 	 * the rail — rather than arriving on an empty desk.
 	 *
 	 * `menuSlug` is the admin-menu slug for a menu tile, and the
-	 * system tile's id for a tile whose submenu is shell actions
-	 * (Create, System). Filter on `item.menuItem !== null` to handle
-	 * only the admin-menu ones.
+	 * system tile's id for a tile whose submenu is shell actions.
+	 * Filter on `item.menuItem !== null` to handle only the admin-menu
+	 * ones.
 	 */
 	CONSTELLATION_OPENED: 'os.constellation.opened',
 	/**

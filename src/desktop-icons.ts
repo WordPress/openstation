@@ -677,6 +677,7 @@ function openTarget(
 				title: entry.title,
 				icon: entry.icon,
 				submenu: menuEntry?.submenu,
+				selfLabel: menuEntry?.selfLabel,
 				multi: !! menuEntry?.multi,
 			} );
 		} catch {

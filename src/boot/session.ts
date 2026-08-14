@@ -236,6 +236,7 @@ export async function restoreSession(
 			height: clamped.height,
 			initialState: win.state,
 			submenu: dockEntry?.submenu,
+			selfLabel: dockEntry?.selfLabel,
 		} );
 
 		// Rehydrate any external sub-tabs the user had open on this
@@ -298,5 +299,6 @@ export async function openCurrentPage(
 		title: config.currentTitle,
 		icon: config.currentIcon,
 		submenu: dockEntry?.submenu,
+		selfLabel: dockEntry?.selfLabel,
 	} );
 }

@@ -158,8 +158,8 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		// peek would have shown — plus the submenu the peek has no way
 		// to reach. Two popovers on one tile is a flicker, not a
 		// feature. That is every menu tile, and the system tiles that
-		// declared a submenu of their own (Create, System); every other
-		// system tile keeps the peek.
+		// declared a submenu of their own; every other system tile
+		// keeps the peek.
 		//
 		// Conditional on the flyout actually being mounted: a rail
 		// rendered without one (a plugin embedding the dock on its

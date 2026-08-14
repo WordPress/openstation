@@ -85,13 +85,16 @@ export interface SystemDockItem {
 	 * Rows to fan out of this tile on hover, through the same
 	 * constellation flyout the admin menus use.
 	 *
-	 * A system tile with a submenu is a MENU, not a launcher: it has no
-	 * landing page of its own, so the flyout drops the head row and the
-	 * "open another" footer and paints the rows alone. `onOpen` still
-	 * runs on click, for the pointer that lands on the tile rather than
-	 * waiting for the flyout, and for keyboards and touch, which never
-	 * fan it open. Give every submenu-bearing tile an `onOpen` that
-	 * does something defensible on its own.
+	 * The panel is the same three sections an admin menu's gets: a head
+	 * naming the tile, the live windows the rows have open (resolved
+	 * from each row's {@link SubmenuItem.windowId}), and the rows.
+	 *
+	 * **The head runs `submenu[0]` on click**, standing in for the
+	 * landing page the tile does not have — so put nothing destructive
+	 * first. `onOpen` runs on a click on the TILE, which is also the
+	 * only thing keyboards and touch get, since neither fans the flyout
+	 * open. Give every submenu-bearing tile an `onOpen` that does
+	 * something defensible on its own.
 	 */
 	submenu?: SubmenuItem[];
 	/**

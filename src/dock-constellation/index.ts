@@ -44,7 +44,7 @@
  *    while the flyout is open, because the head already says the
  *    tile's name — louder, and in the right place. That is every menu
  *    tile, plus the system tiles that declared a `submenu` of their
- *    own (System); every other system tile keeps the peek.
+ *    own; every other system tile keeps the peek.
  *
  *    A system tile's menu is a list of ACTIONS rather than admin
  *    pages, but it wears the same three sections. What differs is only

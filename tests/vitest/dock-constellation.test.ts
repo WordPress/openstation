@@ -368,6 +368,29 @@ describe( 'dock constellation', () => {
 		expect( rowLabels() ).toEqual( [ 'All Themes', 'Themes', 'Editor' ] );
 	} );
 
+	/*
+	 * Every route out of the flyout has to carry `selfLabel`, or the
+	 * window's first tab is named "Posts" from one door and "All Posts"
+	 * from another.
+	 */
+	test( 'a submenu row carries selfLabel to the window it opens', () => {
+		const tile = setupShell( 'openstation' );
+		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
+
+		hover( tile );
+		rows( '.os-constellation__row--sub' )[ 1 ].click();
+		expect( opened.at( -1 )?.selfLabel ).toBe( 'All Themes' );
+	} );
+
+	test( 'the head carries it too', () => {
+		const tile = setupShell( 'openstation' );
+		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
+
+		hover( tile );
+		rows( '.os-constellation__head' )[ 0 ].click();
+		expect( opened.at( -1 )?.selfLabel ).toBe( 'All Themes' );
+	} );
+
 	test( 'it opens the menu’s own page', () => {
 		const tile = setupShell( 'openstation' );
 		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
