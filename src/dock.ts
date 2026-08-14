@@ -69,7 +69,7 @@ export interface SystemDockItem {
 	 */
 	onOpenNew?: () => void;
 	/**
-	 * Whether the tile appears in OS Settings → Apps & Icons, so the
+	 * Whether the tile appears in OS Settings → Apps & Plugins, so the
 	 * user can hide it.
 	 *
 	 * Opt-in rather than the default, because most system tiles are

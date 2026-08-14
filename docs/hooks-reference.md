@@ -694,7 +694,7 @@ do_action( 'openstation_window_link_renderer_script_registered', string $handle 
 
 ### `openstation_register_window_link_renderer_script( $handle )` — Experimental (PHP function)
 
-Declares a WP-registered script handle as a window-link renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerWindowLinkRenderer()` calls made by the plugin's JS surface in **OpenStation Preferences → Effects → Window links** **without a page reload**.
+Declares a WP-registered script handle as a window-link renderer provider. The shell injects the resolved URL on plugin activation so `wp.os.registerWindowLinkRenderer()` calls made by the plugin's JS surface in **OpenStation Preferences → Windows → Window links** **without a page reload**.
 
 ```php
 add_action( 'admin_enqueue_scripts', function () {

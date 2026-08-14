@@ -2014,7 +2014,7 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 ### `wp.os.mio` — Experimental
 
-Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Apps & Icons.
+Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Apps & Plugins.
 
 Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
 
@@ -2989,7 +2989,7 @@ The PHP-side control point is the `openstation_window_preview_url` filter (rewri
 
 ### `registerWindowLinkRenderer( def )` — Experimental
 
-Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Preferences → Effects → Window links**; only one renderer is mounted at a time.
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Preferences → Windows → Window links**; only one renderer is mounted at a time.
 
 **`WindowLinkRendererDef`:**
 
@@ -3278,7 +3278,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ### `registerSettingsTab( def )` — Stable
 
-Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Plugins, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -3446,7 +3446,7 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
 | `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Preferences, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Preferences → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Preferences, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Preferences → Apps & Plugins are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
 | `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-os-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
@@ -3503,7 +3503,7 @@ Open (or focus, if already open) the shell's OpenStation Preferences window. Rou
 wp.os.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab.) The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'themes'`, `'windows'`, `'apps-icons'`, `'features'`, `'help'` (labelled Components, admin-only), and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. Two ids are accepted as aliases for the page that absorbed them: `'extended'` → `'features'`, and `'effects'` → `'windows'`. The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
 
 ```js
 // Deep-link straight to the AI Settings tab.
@@ -3571,7 +3571,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         title:     string,
         icon:      string,
         affinity:  'core' | 'plugin',  // 'core' tiles route to side rail in Classic
-        placeable: boolean,            // opted into OpenStation Preferences → Apps & Icons
+        placeable: boolean,            // opted into OpenStation Preferences → Apps & Plugins
     },
     …
 ]

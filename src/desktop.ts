@@ -1059,7 +1059,7 @@ export interface OpenStationPublicApi {
 		icon: string;
 		affinity: 'core' | 'plugin';
 		/**
-		 * Whether the tile opts into OS Settings → Apps & Icons, so
+		 * Whether the tile opts into OS Settings → Apps & Plugins, so
 		 * the user can hide it. Opt-in: most system tiles are
 		 * load-bearing.
 		 */
@@ -1240,7 +1240,7 @@ export interface OpenStationPublicApi {
 	 * built-in `svg-splines` registers through this same API. Set
 	 * `owner` to the script handle for live unregistration on
 	 * deactivation. The user picks the active renderer in OS Settings
-	 * → Effects → Window links.
+	 * → Windows → Window links.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
 	 */
@@ -2617,10 +2617,20 @@ function init(): void {
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
-		// The Extended Options tab merged into Features —
-		// keep documented deep-links to the old tab id working.
-		if ( opts.tabId === 'extended' ) {
-			opts = { ...opts, tabId: 'features' };
+		// Tabs that merged into another page. A deep link to a page
+		// that no longer exists is worse than a stale one: `focusTab`
+		// sets `os-tabs.value` to an id no row carries, and the panel
+		// then hides every pane — a sidebar with nothing selected and
+		// a blank page beside it.
+		const MERGED_TABS: Readonly< Record< string, string > > = {
+			// Extended Options is a section on Features now.
+			extended: 'features',
+			// Effects merged into Windows.
+			effects: 'windows',
+		};
+		const merged = opts.tabId ? MERGED_TABS[ opts.tabId ] : undefined;
+		if ( merged ) {
+			opts = { ...opts, tabId: merged };
 		}
 		if ( opts.tabId ) {
 			osSettings.activeTabId = opts.tabId;
@@ -2711,7 +2721,7 @@ function init(): void {
 		// shell affordances. Clicking toggles the companion; the active
 		// dot tracks whether it is on screen.
 		//
-		// `placeable` is what puts a row in OS Settings → Apps & Icons,
+		// `placeable` is what puts a row in OS Settings → Apps & Plugins,
 		// so a user who doesn't want a desk companion can hide the
 		// toggle itself. It is opt-in precisely because most system
 		// tiles must not be hideable — OS Settings is how you reach the
@@ -3171,7 +3181,7 @@ function init(): void {
 
 	// Window-link renderer sync — same pattern. Loads opted-in scripts
 	// so a plugin's `registerWindowLinkRenderer()` lands and surfaces
-	// in OS Settings → Effects → Window links; deactivation drops
+	// in OS Settings → Windows → Window links; deactivation drops
 	// renderers by `owner` tag and the render host falls back to the
 	// built-in `svg-splines` if the active pick departed.
 	const syncServerWindowLinkRenderers = createWindowLinkRendererRegistrySync();

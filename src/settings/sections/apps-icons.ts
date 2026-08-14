@@ -1,5 +1,5 @@
 /**
- * Apps & Icons section — per-item placement preferences.
+ * Apps & Plugins section — per-item placement preferences.
  *
  * Lists every dock item + desktop icon registered in this admin (the
  * dispatcher's view via `getMenuItems()` and `openStationConfig.

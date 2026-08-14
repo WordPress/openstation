@@ -2,9 +2,9 @@
  * OpenStation — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / Apps & Icons / Features / Effects /
- * Components / About), wallpaper picker + editor host, and the
- * Reset button. None of this is needed before the user clicks the
+ * every built-in tab (Appearance / Themes / Windows / Apps & Plugins /
+ * Features / Components / About), wallpaper picker + editor host, and
+ * the Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
  * (`os-settings-panel[.min].js`) and gets `<script>`-injected on
  * first open by the stub `renderPanel()` on the `OsSettings` class

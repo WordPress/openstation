@@ -556,7 +556,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Draws connector lines between related windows. Line style and visibility live in Effects → Window links.',
+								'Draws connector lines between related windows. Line style and visibility live in Windows → Window links.',
 							) }
 						</p>
 						<div class="os-features__item">
