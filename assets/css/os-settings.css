@@ -609,14 +609,22 @@
  * compared, so a wide pane that fitted a third column would only
  * shrink both cards away from each other for no reason.
  *
- * `align-items: start` because the cards are not the same height.
- * One dock carries its own options and Side bar does not, and a Side
- * bar card stretched to match would be mostly empty box.
+ * The cards stretch to the taller of the two (the grid's default
+ * `align-items`, left unset). They are a matched pair presented side
+ * by side, and two boxes of different heights read as two different
+ * KINDS of thing rather than as two answers to one question — which
+ * is the comparison the whole picker is for. What varies is the
+ * description: one line for Unified, two for Split, and neither is
+ * worth a ragged bottom edge.
+ *
+ * This used to be `align-items: start`, back when the Unified card
+ * also held Placement and Dock size and stretching Split to match
+ * left it mostly empty. Dock size has since moved out below both
+ * cards, so the gap it was guarding against is now one control deep.
  */
 .os-settings__layout-grid {
 	display: grid;
 	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
-	align-items: start;
 	gap: 12px;
 }
 
@@ -705,11 +713,30 @@
 	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
 }
 
+/*
+ * A screen, so it is shaped like one: 16/9, not whatever shape is left
+ * over once the card has been sized. A full-width box at a fixed 78px
+ * ran about 6.7:1, and every shape inside is a percentage of it — so
+ * the two windows came out five times wider than they were tall and
+ * read as stacked bars rather than as windows, which is the one thing
+ * these previews exist to show.
+ *
+ * Capped in width rather than stretched, because 16/9 across a whole
+ * half-pane card is ~290px of preview for a schematic with four
+ * rectangles in it. The cap sets the height (288 → 162px); the card
+ * keeps its own width and the preview sits centred in it, which is why
+ * `inline-size` is a percentage with a ceiling instead of a fixed
+ * width: below the cap — the stacked single-column pane — it goes back
+ * to filling the card, still at 16/9.
+ */
 .os-settings__layout-preview {
 	position: relative;
 	display: block;
-	height: 78px;
-	margin-bottom: 9px;
+	inline-size: 100%;
+	max-inline-size: 288px;
+	aspect-ratio: 16 / 9;
+	margin-block-end: 9px;
+	margin-inline: auto;
 	overflow: hidden;
 	background: var( --os-ui-surface-sunken, #f0f0f1 );
 	border-radius: 8px;

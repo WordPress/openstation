@@ -87,14 +87,19 @@ const PREVIEWS: Readonly< Record< string, readonly PreviewShape[] > > = {
 	// one being offered.
 	//
 	// The rail is flush to the left edge and as thin as the dock is
-	// tall (3% of the box's width reads the same as 9% of its height,
-	// which is a third as long). It is the one shape here that is
-	// attached to the screen rather than floating on it, which is what
-	// the side bar actually does. The dock is shorter than Unified's
-	// for the honest reason: in this layout it holds the plugins and
-	// the apps, not every menu.
+	// tall. Those are percentages of two different axes, so the box's
+	// shape decides whether they match: at 16/9, 9% of the height is
+	// 9% x 9/16 = 5.06% of the width, which is what the rail is set to.
+	// Keep the two in step if that ratio ever changes — a rail that
+	// reads thinner than the dock stops looking like the same furniture
+	// stood on its end.
+	//
+	// It is the one shape here that is attached to the screen rather
+	// than floating on it, which is what the side bar actually does.
+	// The dock is shorter than Unified's for the honest reason: in this
+	// layout it holds the plugins and the apps, not every menu.
 	classic: [
-		{ kind: 'bar', accent: true, style: 'left:0;top:0;bottom:0;width:3%' },
+		{ kind: 'bar', accent: true, style: 'left:0;top:0;bottom:0;width:5%' },
 		{ kind: 'win', style: 'left:14%;top:14%;width:44%;height:42%' },
 		{ kind: 'win', style: 'left:32%;top:30%;width:44%;height:42%' },
 		{ kind: 'bar', accent: true, style: 'left:33%;bottom:10%;width:38%;height:9%' },
