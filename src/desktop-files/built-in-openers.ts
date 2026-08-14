@@ -556,9 +556,9 @@ export function registerBuiltInFileOpeners(): void {
 						// Let a native window claim the URL first, the
 						// same way `Dock.openPage` and the shell's link
 						// interceptor do. A shortcut knows only a URL,
-						// so without this the Spatial layout's core
-						// wallpaper tiles — synthesized from the very
-						// dock items the remap registry serves — opened
+						// so without this a wallpaper shortcut tile —
+						// pointing at the very admin URLs the remap
+						// registry serves — opened
 						// the classic iframe even for a user who had
 						// explicitly enabled native Posts, Pages,
 						// Comments, Plugins or Users. Same app, two

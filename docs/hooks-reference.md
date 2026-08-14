@@ -2747,7 +2747,7 @@ Fired after every bulk trash. The recycle bin and any other listener are cross-w
 
 ### URL → native-window remap registry
 
-Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL consults `tryNativeUrlRemap()` before falling back to the iframe — dock click, dock constellation, portal deep-link, session restore, Related-entities menu, command palette, `<a href="/wp-admin/…">` anywhere in the shell, and **wallpaper shortcut tiles** (the Spatial layout synthesizes one per core dock item, so the same `edit.php` is reachable from two surfaces and both must answer the same way). If you add a surface that turns a URL into a window, it belongs on this list: a path that skips the registry doesn't degrade gracefully, it silently contradicts a preference the user set.
+Centralized in `src/native-url-remap.ts`. Every code path that opens an admin URL consults `tryNativeUrlRemap()` before falling back to the iframe — dock click, dock constellation, portal deep-link, session restore, Related-entities menu, command palette, `<a href="/wp-admin/…">` anywhere in the shell, and **wallpaper shortcut tiles** (a dock item promoted to the wallpaper points at the same `edit.php`, so it is reachable from two surfaces and both must answer the same way). If you add a surface that turns a URL into a window, it belongs on this list: a path that skips the registry doesn't degrade gracefully, it silently contradicts a preference the user set.
 
 Future native windows (Pages, Media, Users) register themselves with one line:
 
