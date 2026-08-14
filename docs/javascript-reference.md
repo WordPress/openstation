@@ -21,6 +21,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. Traps focus, restores it to the opener on close, and routes Enter to the focused button. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
+| [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
 
 ---
 
@@ -1214,6 +1215,29 @@ wp.os.openNewWindow(
 Returns `true` when the registry matched the id (a fresh window with id `<base>-2` / `-3` / … is now mounted), `false` when no native window is registered with that id.
 
 Powers the dock-peek "+" button for native windows so they behave like iframe windows do: every "+" yields a duplicate. `opts.source` carries the same semantics as `openWindow`'s — it tags the `os/open-requested` activity-bus publish.
+
+---
+
+### `wp.os.loadWindowScript( id )` — Stable
+
+Load a registered native window's bundle **without opening the window**.
+
+```typescript
+wp.os.loadWindowScript( id: string ): Promise< boolean >;
+```
+
+A native window's script loads the first time the window opens — the shell reads the render callback off `window.openStationNativeWindows[ <id> ]` after the load, so opening a window needs no ceremony. This is for the other case: a bundle that *also* publishes an API on `wp.os` which a different bundle calls with no window in sight.
+
+```javascript
+await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
+await wp.os.myWordpress.trashEntity( 'posts', 42 );
+```
+
+Resolves `true` once the bundle is in the tab — immediately on a repeat call, since loads are deduplicated by URL and concurrent callers share one `<script>`. Resolves `false` when no native window is registered with that id. A network failure still resolves `true` and reports through the `os.shell.error` action, so **check for the API you came for rather than trusting the boolean**.
+
+Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open.
+
+If the API you need has an early stub in the always-loaded shell bundle (WP Explorer's does — see `wp.os.myWordpress`), call it directly instead: the stub forwards through this same path for you.
 
 ---
 

@@ -1922,12 +1922,25 @@ function openstation_my_wordpress_woo_register_assets() {
 add_action( 'init', 'openstation_my_wordpress_woo_register_assets', 5 );
 
 /**
- * Enqueue the integration bundle.
+ * Attach the integration's config to its script handle.
+ *
+ * The bundle itself is NOT enqueued here, and that is the point. It
+ * subscribes to the WP Explorer window's `preview-extras` /
+ * `group-extras` actions, so it has to be in the tab before that
+ * window's bundle paints — but not one moment sooner. It travels as
+ * a companion of `desktop-mode-my-wordpress` (see the `scripts` arg
+ * on that window's registration), which means the shell loads it
+ * when the window first opens and a merchant who never opens WP
+ * Explorer never downloads it at all.
  *
  * Only for users who can open the site window on a store — everyone
- * else pays nothing. The bundle subscribes to the site window's
- * `preview-extras` / `group-extras` actions, which is why it has to be
- * present before the (lazily loaded) window bundle paints.
+ * else pays nothing.
+ *
+ * Runs at priority 5, ahead of `openstation_enqueue_assets()` at 10:
+ * that is where the boot payload is built, and it harvests this
+ * inline blob off the registered handle so the lazy loader can
+ * replay it around the script tag. Attaching later would ship the
+ * bundle with no config.
  *
  * @return void
  */
@@ -1942,7 +1955,9 @@ function openstation_my_wordpress_woo_enqueue() {
 		return;
 	}
 
-	wp_enqueue_script( 'os-my-wordpress-woocommerce' );
+	// The stylesheet stays eager: it is a few KB, it has no parse
+	// cost worth deferring, and the window's own CSS is enqueued the
+	// same way.
 	wp_enqueue_style( 'os-my-wordpress-woocommerce' );
 	wp_add_inline_script(
 		'os-my-wordpress-woocommerce',
@@ -1976,4 +1991,30 @@ function openstation_my_wordpress_woo_enqueue() {
 		'before'
 	);
 }
-add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue', 5 );
+
+/**
+ * Attach the bundle to the WP Explorer window as a companion script.
+ *
+ * `scripts` handles load in order immediately before the window's own
+ * `script`, so the integration is listening to `preview-extras` /
+ * `group-extras` by the time the window bundle fires them — the same
+ * guarantee the old boot-time enqueue gave, at the cost of nothing
+ * until the window opens.
+ *
+ * @param array $window_args Args passed to `openstation_register_window()`.
+ * @return array
+ */
+function openstation_my_wordpress_woo_window_args( $window_args ) {
+	if ( ! is_array( $window_args ) || ! openstation_my_wordpress_woo_active() ) {
+		return $window_args;
+	}
+
+	$scripts   = isset( $window_args['scripts'] ) ? (array) $window_args['scripts'] : array();
+	$scripts[] = 'os-my-wordpress-woocommerce';
+
+	$window_args['scripts'] = $scripts;
+
+	return $window_args;
+}
+add_filter( 'openstation_my_wordpress_window_args', 'openstation_my_wordpress_woo_window_args' );

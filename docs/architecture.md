@@ -182,16 +182,31 @@ Sending a system tile to the wallpaper goes through `syncShortcutsWithVisibility
 
 The shell's own **OpenStation Preferences** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `os.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
 
-#### Eager vs lazy script load — and what gets injected
+#### When a window's bundle loads — and what gets injected
 
-The script handle declared in `openstation_register_window( …, [ 'script' => $handle ] )` reaches the shell page through one of two paths:
+**A native window's script loads the first time the window opens.** Not at boot. The shell reads the render callback off `window.openStationNativeWindows[ <id> ]` at open time, so a bundle printed on every admin page is weight for a window most of those pages never open.
 
-- **Eager** — `openstation_enqueue_native_window_scripts()` calls `wp_enqueue_script( $handle )` on `admin_enqueue_scripts:20`, so WordPress prints the tag normally through `wp_print_scripts()` along with all `extra` data (localize, inline, translations).
-- **Lazy** — when the shell receives the `nativeWindows` payload mid-session (e.g. after a `os-plugins-changed` postMessage from the chromeless `plugins.php` iframe), it appends `<script src="…">` directly via `loadVendorScript( url, extras )`. **This path bypasses `wp_print_scripts()` entirely.**
+The script handle declared in `openstation_register_window( …, [ 'script' => $handle ] )` therefore reaches the page through one of two paths:
 
-The payload builders harvest each registered handle's `extra['data']` (localize), `extra['before']` / `extra['after']` (inline), and `wp_set_script_translations()` snippet into the `nativeWindows[]` entry as `scriptL10n` / `scriptBefore` / `scriptAfter` / `scriptTranslations`. The shell injects them as inline `<script>` tags around the lazy `<script src>` in `wp_print_scripts` order — translations → l10n → before → src → after. So `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` work transparently on both paths.
+- **Deferred (the default)** — the shell appends `<script src="…">` via `loadVendorScript( url, extras )` when the window first opens, or when the `nativeWindows` payload arrives mid-session (e.g. after a `os-plugins-changed` postMessage from the chromeless `plugins.php` iframe) for a window that declared `preload_script`. **This path bypasses `wp_print_scripts()` entirely.**
+- **Eager (`'preload_script' => true`)** — `openstation_enqueue_native_window_scripts()` calls `wp_enqueue_script( $handle )` on `admin_enqueue_scripts:5`, so WordPress prints the tag normally through `wp_print_scripts()` along with all `extra` data. Opt in only when the bundle has a boot-time job that must run whether or not the window is ever opened — a dock-badge poller, a `wp.os` API surface. Prefer splitting that job into an always-loaded bundle.
+
+Two related knobs:
+
+- **`'scripts' => [ $handle, … ]`** — companion bundles, loaded in order immediately *before* the window's own script. For code that extends the window from outside it and must be subscribed before its render callback paints. `my-wordpress-woocommerce` is the in-tree example: it hooks WP Explorer's `preview-extras` / `group-extras` actions, and riding the window is what keeps 47 KB off every admin page of a store.
+- **`wp.os.loadWindowScript( id )`** — load a window's bundle without opening the window, for the case where another bundle needs an API that one publishes. See [`javascript-reference.md`](./javascript-reference.md).
+
+The payload builders harvest each registered handle's `extra['data']` (localize), `extra['before']` / `extra['after']` (inline), and `wp_set_script_translations()` snippet into the `nativeWindows[]` entry as `scriptL10n` / `scriptBefore` / `scriptAfter` / `scriptTranslations` (and the same shape per companion under `companionScripts[]`). The shell injects them as inline `<script>` tags around the `<script src>` in `wp_print_scripts` order — translations → l10n → before → src → after. So `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` work transparently on both paths. This is why the enqueue hook runs at priority **5**: `openstation_enqueue_assets()` builds the payload at 10, and data attached after that would ship a bundle with no config.
 
 The `'config'` arg on `openstation_register_window()` ships through the same delivery path and is the recommended way to pass session-bound data to a bundle. See [`docs/examples/window-with-config.md`](./examples/window-with-config.md).
+
+#### Wallpapers and widgets load the same way
+
+**Wallpapers.** A canvas wallpaper's bundle is registered but never enqueued. The boot payload's metadata (label, preview swatch, description) is enough for the shell to register a **stub** def and paint a picker tile; the bundle arrives when something needs the callbacks — the shell hydrates the user's *active* wallpaper during the boot sync, and the wallpaper picker hydrates the rest when it opens. `src/wallpapers/lazy.ts` owns the deferral; a stub that gets mounted without either of those happening hydrates itself and delegates.
+
+**Widgets.** Simpler still, because everything the picker shows is server-declared: `openstation_register_widget()` supplies label, description, icon and size constraints, and the bundle's only contribution is `mount`. `src/widgets/server-sync.ts` assembles the def from the payload and its `mount` loads the script on first use, so a widget the user has never enabled costs a row in the picker and nothing else. An *enabled* widget still lands on screen in the same beat — `mountIfEnabled()` runs immediately after registration and triggers the load.
+
+Nothing changes for plugin authors on either: `openstation_register_wallpaper()` / `openstation_register_widget()` and the `window.openStationWallpapers[ id ]` / `window.openStationWidgets[ id ]` contracts are unchanged.
 
 ## A third rendering path: solo mode, and the native desktop host
 

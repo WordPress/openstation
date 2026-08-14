@@ -950,6 +950,25 @@ export interface NativeWindowSync {
 			params?: Record< string, string | number | boolean >;
 		},
 	) => boolean;
+
+	/**
+	 * Load a registered native window's bundle (companions first,
+	 * then the window's own script) WITHOUT opening the window.
+	 *
+	 * Native-window bundles load on first open. That covers the
+	 * windows themselves, but not the second thing some of them do:
+	 * publish an API on `wp.os` that another bundle calls with no
+	 * window in sight — `wp.os.myWordpress.trashEntity()` from a
+	 * drop on the recycle bin, say. Those call sites await this
+	 * first, then read the API.
+	 *
+	 * Resolves `true` once the bundle is in the tab (immediately on
+	 * a repeat call), `false` when the id isn't registered. A load
+	 * FAILURE also resolves `true` — the script tag was attempted
+	 * and reported through `SHELL_ERROR`; the caller's own "is the
+	 * API there?" check is the honest test of whether it worked.
+	 */
+	loadScriptById: ( id: string ) => Promise< boolean >;
 }
 
 /**
@@ -994,6 +1013,8 @@ export function createNativeWindowSync(
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
+	/** URL → in-flight load, so concurrent opens share one `<script>`. */
+	const inflightScripts = new Map< string, Promise< void > >();
 	const loadedStyles = new Set< string >();
 	// Entry index — `openById` reaches in here when the desktop-icon
 	// or AI-command paths request "open whatever's registered as <id>".
@@ -1099,58 +1120,135 @@ export function createNativeWindowSync(
 		loadedStyles.add( url );
 	};
 
+	/**
+	 * Load one bundle, once. The in-flight map is what makes this
+	 * safe to call from the render path: a window opened twice in
+	 * the same tick (tile click racing a session restore) would
+	 * otherwise get two `<script>` tags for the same URL, because
+	 * `loadedScripts` isn't written until the await resolves.
+	 */
+	const loadOnce = (
+		id: string,
+		script: {
+			scriptUrl: string;
+			scriptTranslations?: string;
+			scriptL10n?: string[];
+			scriptBefore?: string[];
+			scriptAfter?: string[];
+		},
+	): Promise< void > => {
+		const url = script.scriptUrl;
+		if ( loadedScripts.has( url ) ) {
+			return Promise.resolve();
+		}
+		const pending = inflightScripts.get( url );
+		if ( pending ) {
+			return pending;
+		}
+		const load = loadVendorScript( url, {
+			translations: script.scriptTranslations,
+			l10n: script.scriptL10n,
+			before: script.scriptBefore,
+			after: script.scriptAfter,
+		} )
+			.catch( ( err ) => {
+				// Load failed — surface via SHELL_ERROR. The window
+				// still opens, but its body only gets the bare
+				// template (no interactive render callback). Better
+				// than blocking the whole sync / open.
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-script-load',
+					id,
+					error: err,
+				} );
+			} )
+			.then( () => {
+				loadedScripts.add( url );
+				inflightScripts.delete( url );
+			} );
+		inflightScripts.set( url, load );
+		return load;
+	};
+
+	/**
+	 * Bring every bundle this window needs into the tab: companion
+	 * handles first, in declaration order, then the window's own
+	 * script. The order is the contract — a companion subscribes to
+	 * actions the window's bundle fires while rendering, so it has
+	 * to be listening before that bundle is even parsed.
+	 */
 	const ensureScript = async (
 		entry: NativeWindowServerEntry,
 	): Promise< void > => {
-		if ( ! entry.scriptUrl || loadedScripts.has( entry.scriptUrl ) ) {
+		for ( const companion of entry.companionScripts ?? [] ) {
+			if ( ! companion.scriptUrl ) {
+				continue;
+			}
+			await loadOnce( entry.id, companion );
+		}
+		if ( ! entry.scriptUrl ) {
 			return;
 		}
-		try {
-			await loadVendorScript( entry.scriptUrl, {
-				translations: entry.scriptTranslations,
-				l10n: entry.scriptL10n,
-				before: entry.scriptBefore,
-				after: entry.scriptAfter,
-			} );
-		} catch ( err ) {
-			// Load failed — surface via SHELL_ERROR. The tile will
-			// still render + open, but the window's body will only
-			// get the bare template (no interactive render
-			// callback). Better than blocking the whole sync.
-			doAction( HOOKS.SHELL_ERROR, {
-				scope: 'native-window-script-load',
-				id: entry.id,
-				error: err,
-			} );
-		}
-		loadedScripts.add( entry.scriptUrl );
+		await loadOnce( entry.id, entry );
 	};
 
-	const openFromEntry = (
+	/**
+	 * Boot-time load, for the windows that asked for one.
+	 *
+	 * Every other window's bundle waits for its first open — see the
+	 * `preload_script` note on `openstation_register_window()`. The
+	 * shell reads a window's render callback off
+	 * `window.openStationNativeWindows[ id ]` at open time, so
+	 * loading the bundle any earlier only buys weight on every admin
+	 * page the window is never opened from.
+	 */
+	const preloadScriptIfRequested = async (
 		entry: NativeWindowServerEntry,
-		params?: Record< string, string | number | boolean >,
-	): void => {
-		const render = readGlobalRegistry()[ entry.id ];
+	): Promise< void > => {
+		if ( ! entry.preloadScript ) {
+			return;
+		}
+		await ensureScript( entry );
+	};
 
-		// Pre-populate the window body with the cloned template, then
-		// hand it to the optional render callback. The render contract
-		// is enhancement: declare static markup in `template`, query
-		// the body for mount points in render, light them up. Without
-		// a render callback the cloned template IS the window —
-		// declarative-only plugins need zero JS.
-		//
-		// `cloneTemplate` throws (and console.errors) when the
-		// template element is missing — let it surface; a missing
-		// template is a developer error worth seeing, not silencing.
-		//
-		// The `(body, ctx)` shape is built inside `Window.hydrateNative`
-		// — see the note in `createRegisterWindow` above. Legacy unary
-		// callbacks ignore `ctx`; new ones can destructure it.
-		const finalRender: RenderCallback = ( body, ctx ) => {
+	/**
+	 * Build the render callback the window manager will invoke once
+	 * the window element is in the DOM.
+	 *
+	 * Pre-populates the window body with the cloned template, then
+	 * hands it to the optional render callback. The render contract
+	 * is enhancement: declare static markup in `template`, query the
+	 * body for mount points in render, light them up. Without a
+	 * render callback the cloned template IS the window —
+	 * declarative-only plugins need zero JS.
+	 *
+	 * `cloneTemplate` throws (and console.errors) when the template
+	 * element is missing — let it surface; a missing template is a
+	 * developer error worth seeing, not silencing.
+	 *
+	 * The `(body, ctx)` shape is built inside `Window.hydrateNative`
+	 * — see the note in `createRegisterWindow` above. Legacy unary
+	 * callbacks ignore `ctx`; new ones can destructure it.
+	 *
+	 * The template is cloned BEFORE the bundle is awaited, so the
+	 * window paints its declared markup immediately and the wait
+	 * only covers the interactive layer. `hydrateNative` holds the
+	 * window's loading spinner for as long as this promise is
+	 * pending, so a cold open reads as loading rather than as an
+	 * empty window.
+	 */
+	const buildRender = ( entry: NativeWindowServerEntry ): RenderCallback => {
+		return async ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
 			// After the panes are in the body, so the strip can pair
 			// each tab to the one it shows and hide the rest.
 			declareServerTabs( body, entry );
+			// No-op once the bundle is in the tab — the second open of
+			// a window resolves on an already-settled promise.
+			await ensureScript( entry );
+			// Read the callback AFTER the load: on a lazy window this
+			// is the moment it exists.
+			const render = readGlobalRegistry()[ entry.id ];
 			// Forward the optional teardown returned by the plugin's
 			// render callback so the Window class can invoke it on
 			// close. Without this `return`, the teardown was silently
@@ -1158,6 +1256,13 @@ export function createNativeWindowSync(
 			// native windows.
 			return render?.( body, ctx );
 		};
+	};
+
+	const openFromEntry = (
+		entry: NativeWindowServerEntry,
+		params?: Record< string, string | number | boolean >,
+	): void => {
+		const finalRender = buildRender( entry );
 
 		const size = resolveSizeForEntry( entry );
 
@@ -1198,13 +1303,7 @@ export function createNativeWindowSync(
 		entry: NativeWindowServerEntry,
 		params?: Record< string, string | number | boolean >,
 	): void => {
-		const render = readGlobalRegistry()[ entry.id ];
-
-		const finalRender: RenderCallback = ( body, ctx ) => {
-			body.appendChild( cloneTemplate( entry.templateId ) );
-			declareServerTabs( body, entry );
-			return render?.( body, ctx );
-		};
+		const finalRender = buildRender( entry );
 
 		// Duplicate instances always open floating — the remembered
 		// maximize preference applies to the primary window only.
@@ -1241,20 +1340,20 @@ export function createNativeWindowSync(
 		}
 		if ( 'none' === entry.placement ) {
 			// Plugin declared a window but opted out of a tile —
-			// shell still processes the template + script so the
+			// shell still processes the template + style so the
 			// plugin can open the window programmatically via
 			// `wp.os.windowManager.open()`. Nothing to
 			// register on the rails.
 			ensureTemplate( entry );
 			ensureStyle( entry );
-			await ensureScript( entry );
+			await preloadScriptIfRequested( entry );
 			registered.add( entry.id );
 			return;
 		}
 
 		ensureTemplate( entry );
 		ensureStyle( entry );
-		await ensureScript( entry );
+		await preloadScriptIfRequested( entry );
 
 		appendSystemTile( {
 			id: entry.id,
@@ -1497,7 +1596,16 @@ export function createNativeWindowSync(
 		},
 	);
 
-	return { sync, openById, openNewById };
+	const loadScriptById = async ( id: string ): Promise< boolean > => {
+		const entry = entriesById.get( id );
+		if ( ! entry ) {
+			return false;
+		}
+		await ensureScript( entry );
+		return true;
+	};
+
+	return { sync, openById, openNewById, loadScriptById };
 }
 
 export function cloneTemplate(

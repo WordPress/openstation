@@ -9,9 +9,10 @@ lazy load paths.
 
 ## Why a dedicated mechanism
 
-OpenStation lazy-loads native-window scripts on mid-session plugin
-activation by appending a raw `<script src="…">` tag to the document
-head. That bypasses `wp_print_scripts()` entirely, which means data
+A native window's script loads the first time the window opens (and on
+mid-session plugin activation, for a window that opted into
+`preload_script`), by appending a raw `<script src="…">` tag to the
+document head. That bypasses `wp_print_scripts()` entirely, which means data
 attached to the handle via `wp_localize_script` /
 `wp_add_inline_script` / `wp_set_script_translations` would be silently
 dropped on the lazy path. The shell harvests that data into

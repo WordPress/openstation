@@ -257,23 +257,22 @@ function openstation_build_desktop_wallpapers_payload() {
 }
 
 
-/**
- * Enqueue plugin-registered wallpaper scripts on the shell page
- * so wallpapers active at boot time have their defs available
- * without any dynamic-load roundtrip.
+/*
+ * Wallpaper scripts are NOT enqueued here, and that is deliberate.
+ *
+ * A canvas wallpaper's bundle IS the wallpaper — Living Tree is 58 KB
+ * of PixiJS scene, Snow is 42 KB — and this file used to
+ * `wp_enqueue_script()` every registered one on every admin page, so
+ * that every user downloaded and parsed every wallpaper in the
+ * install including the ones they were not wearing. The metadata in
+ * the boot payload (label, preview swatch, description) is enough for
+ * the shell to register a stub and paint a picker tile without any of
+ * it.
+ *
+ * The bundle arrives when something needs the callbacks: the shell
+ * hydrates the user's ACTIVE wallpaper during the boot sync, and the
+ * wallpaper picker hydrates the rest when it opens. See
+ * `src/wallpapers/lazy.ts`. `scriptUrl` in the payload (built above)
+ * is what makes that possible; nothing else on the PHP side is
+ * involved.
  */
-function openstation_enqueue_desktop_wallpaper_scripts() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
-		return;
-	}
-	$registry = openstation_desktop_wallpaper_registry();
-	if ( ! is_array( $registry ) ) {
-		return;
-	}
-	foreach ( $registry as $entry ) {
-		if ( ! empty( $entry['script'] ) ) {
-			wp_enqueue_script( $entry['script'] );
-		}
-	}
-}
-add_action( 'admin_enqueue_scripts', 'openstation_enqueue_desktop_wallpaper_scripts', 20 );

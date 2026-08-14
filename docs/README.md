@@ -30,8 +30,9 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 22. **[Migration — async `windowManager` (0.8.4)](./migration-0.8.4-async-windowmanager.md)** — `registerWindow()` and its siblings return a `Promise`. Read if you call the window manager from a plugin bundle.
 23. **[Migration — AI connectors (0.9.4)](./migration-ai-connectors.md)** — `openstation_register_ai_tool()` and the `openstation_ai_tool_registered` action are gone; server-dispatched tools are WordPress abilities. Read if you integrated with the AI Copilot's provider or credential surface.
 24. **[Migration — native window tabs move to the chrome](./migration-window-tabs.md)** — a multi-tab native window no longer renders an `<os-tabs>` strip into its body; the shell builds one strip in the window chrome from the same metadata. `openstation_register_window_tab()` is unchanged. Read if you listened for `os-tab-change`, or styled or queried that strip.
-25. **[Register a widget — polling, storage, canvas charts](./examples/register-widget.md)**
-26. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
+25. **[Migration — window, wallpaper and widget bundles load on demand](./migration-lazy-window-scripts.md)** — a window's `script` loads on first open, a canvas wallpaper's when it's applied or previewed, a widget's when it mounts — instead of all of them on every admin page. Nothing to do for a bundle that only publishes its render/mount callback; read if yours also has a boot-time job, extends another plugin's window, or calls an API one publishes.
+26. **[Register a widget — polling, storage, canvas charts](./examples/register-widget.md)**
+27. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental.* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
 
 ## Conventions used in this docs folder
 

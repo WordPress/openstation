@@ -274,6 +274,7 @@ export interface BuildPublicApiDeps {
 			params?: Record< string, string | number | boolean >;
 		},
 	) => boolean;
+	loadWindowScriptById: ( id: string ) => Promise< boolean >;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -309,6 +310,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindow,
 		openWindowById,
 		openNewWindowById,
+		loadWindowScriptById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,
@@ -369,6 +371,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
+		loadWindowScript: loadWindowScriptById,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
 		repaintLoadingOverlays,

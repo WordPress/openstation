@@ -141,6 +141,42 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The integration bundle rides the WP Explorer window, not the
+	 * page load. It subscribes to that window's own actions, so it
+	 * has to be in the tab before the window paints — and not one
+	 * moment sooner, which is what `scripts` (companion handles)
+	 * buys. Enqueueing it here instead would put 47 KB on every
+	 * admin page a merchant never opens WP Explorer from.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_window_args
+	 */
+	public function test_bundle_is_attached_to_the_explorer_window_not_enqueued() {
+		$args = openstation_my_wordpress_woo_window_args(
+			array( 'title' => 'WP Explorer' )
+		);
+
+		// No WooCommerce in this test process, so the filter passes
+		// the args through untouched — nothing to attach.
+		$this->assertArrayNotHasKey( 'scripts', $args );
+	}
+
+	/**
+	 * The config blob still has to reach the bundle. It's attached to
+	 * the registered handle (not an enqueued one) so the payload
+	 * builder harvests it for the lazy loader to replay — which only
+	 * works if the attach happens before `openstation_enqueue_assets`
+	 * builds that payload at priority 10.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_enqueue
+	 */
+	public function test_config_attach_runs_before_the_payload_is_built() {
+		$this->assertSame(
+			5,
+			has_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_woo_enqueue' )
+		);
+	}
+
+	/**
 	 * "WooCommerce" wraps onto two lines in an 88px tile, so the
 	 * folder is relabelled — and gets WooCommerce's own mark instead
 	 * of the generic plugin dashicon.

@@ -227,23 +227,24 @@ function openstation_build_desktop_widgets_payload() {
 	return $out;
 }
 
-/**
- * Enqueue plugin-registered widget scripts on the shell page so
- * widgets active at boot time have their mount callbacks
- * available without any dynamic-load roundtrip.
+/*
+ * Widget scripts are NOT enqueued here, and that is deliberate.
+ *
+ * Everything the widget picker shows — label, description, icon,
+ * size constraints — is metadata declared right here in PHP and
+ * shipped in the boot payload. The only thing a plugin's bundle
+ * contributes is the `mount` callback, so the shell assembles the
+ * whole def from the payload and loads the script the first time
+ * the widget is actually mounted.
+ *
+ * A widget the user has never enabled therefore costs a row in the
+ * picker and nothing else. This file used to `wp_enqueue_script()`
+ * every registered one on every admin page, which meant the nine
+ * built-in widget bundles — Drafts at 46 KB, Focus Timer at 41 KB,
+ * Notes at 31 KB, and the rest — were downloaded and parsed by
+ * every user whether or not a single widget was on their desktop.
+ *
+ * See `src/widgets/server-sync.ts`. `scriptUrl` in the payload
+ * (built above) is what makes that possible; nothing else on the
+ * PHP side is involved.
  */
-function openstation_enqueue_desktop_widget_scripts() {
-	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
-		return;
-	}
-	$registry = openstation_desktop_widget_registry();
-	if ( ! is_array( $registry ) ) {
-		return;
-	}
-	foreach ( $registry as $entry ) {
-		if ( ! empty( $entry['script'] ) ) {
-			wp_enqueue_script( $entry['script'] );
-		}
-	}
-}
-add_action( 'admin_enqueue_scripts', 'openstation_enqueue_desktop_widget_scripts', 20 );

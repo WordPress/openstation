@@ -2,17 +2,26 @@
  * My WordPress — early-load API stub.
  *
  * Imported by `src/desktop.ts` so it lands in the main `desktop.min.js`
- * bundle that's always loaded. Installs a queueing stub on
- * `window.wp.os.myWordpress` so plugin scripts can call
- * `registerEntityKind(...)` at script-load time, before the lazy
- * `my-wordpress.min.js` bundle has mounted.
+ * bundle that's always loaded. `my-wordpress.min.js` is a third of a
+ * megabyte and loads the first time the WP Explorer window opens, so
+ * for most of a session `wp.os.myWordpress` has to exist without it.
+ * This stub is that stand-in, and it covers the surface two ways:
  *
- * When the lazy bundle initializes it drains
- * `window.wp.os.myWordpress.__pendingKinds` and replaces this
- * stub with the real API.
+ *   - `registerEntityKind()` **queues**. It's synchronous by
+ *     contract (it returns an unregister), and plugin scripts call
+ *     it at script-load time. The lazy bundle drains
+ *     `window.wp.os.myWordpress.__pendingKinds` on init.
+ *   - Everything else **forwards**: load the bundle, then re-read
+ *     `wp.os.myWordpress` (the bundle replaces this stub with the
+ *     real API on init) and call through. Those methods either
+ *     already returned a Promise or returned nothing, so awaiting a
+ *     load first is invisible to callers.
  *
  * @public
  */
+
+/** Window id of the WP Explorer native window the bundle backs. */
+const WINDOW_ID = 'desktop-mode-my-wordpress';
 
 /**
  * Per-call mutable slot the stub closes over. Until the lazy bundle
@@ -44,8 +53,74 @@ interface MyWordpressEarlyStub {
 	) => () => void;
 	/** Drained by the lazy bundle on mount. */
 	__pendingKinds?: PendingKindRegistration[];
-	/** Any other methods (openDetail, openMedia, …) get attached later. */
+	/**
+	 * Route the window into a post/page detail view. Forwarding
+	 * stub — see the module header.
+	 */
+	openDetail: ( args: unknown ) => void;
+	/** Route the window into a media drill-in. Forwarding stub. */
+	openMedia: ( args: unknown ) => void;
+	/** Route the window into a user's activity footprint. Forwarding stub. */
+	openUserFootprint: ( args: unknown ) => void;
+	/** Trash an entity by id. Forwarding stub; resolves like the real one. */
+	trashEntity: ( entityId: string, id: number ) => Promise< void >;
+	/** Any method the lazy bundle adds later. */
 	[ key: string ]: unknown;
+}
+
+/** The shape of `wp.os` this module reaches for. */
+interface LooseDesktopApi {
+	loadWindowScript?: ( id: string ) => Promise< boolean >;
+	myWordpress?: MyWordpressEarlyStub;
+	[ key: string ]: unknown;
+}
+
+function desktopApi(): LooseDesktopApi | undefined {
+	return ( window as unknown as { wp?: { os?: LooseDesktopApi } } ).wp?.os;
+}
+
+/**
+ * Load `my-wordpress.min.js` and hand back whatever
+ * `wp.os.myWordpress` is once it settles — the real API on success,
+ * this stub if the load failed or the shell is too early to have
+ * wired `loadWindowScript` yet.
+ *
+ * Reading the global AFTER the await rather than closing over it is
+ * the whole trick: the bundle's init overwrites the property, so a
+ * captured reference would forward back into the stub forever.
+ */
+async function resolveApi(): Promise< MyWordpressEarlyStub | undefined > {
+	const desktop = desktopApi();
+	if ( typeof desktop?.loadWindowScript === 'function' ) {
+		await desktop.loadWindowScript( WINDOW_ID );
+	}
+	return desktopApi()?.myWordpress;
+}
+
+/**
+ * Build a forwarding stub for a method the lazy bundle owns.
+ *
+ * The identity guard is the important part: if the bundle failed to
+ * load, `wp.os.myWordpress` is still this stub, and calling through
+ * would recurse until the stack ran out. A missed call is the
+ * correct failure here — the load error already went out through
+ * `SHELL_ERROR`.
+ */
+function forward< A extends unknown[] >(
+	name: string,
+	self: () => MyWordpressEarlyStub,
+): ( ...args: A ) => Promise< void > {
+	return async ( ...args: A ): Promise< void > => {
+		const api = await resolveApi();
+		if ( ! api || api === self() ) {
+			return;
+		}
+		const fn = api[ name ];
+		if ( typeof fn !== 'function' ) {
+			return;
+		}
+		await ( fn as ( ...a: A ) => unknown )( ...args );
+	};
 }
 
 /**
@@ -74,7 +149,14 @@ export function installMyWordpressEarlyStub(): void {
 		return;
 	}
 	const queue: PendingKindRegistration[] = [];
+	// `self` is read lazily so `forward()` can compare the resolved
+	// API against this exact object — see the recursion note there.
+	const self = (): MyWordpressEarlyStub => stub;
 	const stub: MyWordpressEarlyStub = {
+		openDetail: forward( 'openDetail', self ),
+		openMedia: forward( 'openMedia', self ),
+		openUserFootprint: forward( 'openUserFootprint', self ),
+		trashEntity: forward< [ string, number ] >( 'trashEntity', self ),
 		registerEntityKind: ( kind, renderer ) => {
 			const slot: PendingKindSlot = { unregister: null };
 			const entry: PendingKindRegistration = { kind, renderer, slot };

@@ -8,6 +8,7 @@
 import { __, sprintf } from '../../i18n';
 import { html, render } from '../../ui/core';
 import * as registry from '../../wallpapers/registry';
+import { hydrateAll } from '../../wallpapers/lazy';
 import {
 	getWallpaperSettings,
 	publishWallpaperSettings,
@@ -715,6 +716,16 @@ export function buildWallpaperSection(
 		}
 		syncWallpaperConfigButton( ctx, configSlot );
 	} );
+
+	// Pull in the bundles for every wallpaper still registered as a
+	// metadata-only stub. Canvas wallpapers ship their scene as JS and
+	// the shell leaves it on the shelf until something needs it (see
+	// `wallpapers/lazy.ts`) — this section is that something: live
+	// tile previews, the inline editor and the settings dialog all
+	// live on the real def. Deliberately not awaited: the grid paints
+	// from metadata immediately, and each def that lands notifies the
+	// registry subscription above, which re-paints.
+	void hydrateAll();
 
 	return wrapper;
 }

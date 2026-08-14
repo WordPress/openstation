@@ -1665,6 +1665,32 @@ function openstation_build_native_windows_payload() {
 		$script_handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$script_payload = openstation_resolve_script_payload( $script_handle );
 
+		// Companion handles (`scripts` arg) — bundles that extend the
+		// window from outside it and must be in the tab before its
+		// render callback paints. Same resolved shape as the main
+		// script, kept as a list so the shell loads them in the
+		// declared order ahead of it. Handles that resolve to nothing
+		// (never registered) are dropped rather than shipped as an
+		// entry the loader would skip anyway.
+		$companion_scripts = array();
+		if ( ! empty( $entry['scripts'] ) && is_array( $entry['scripts'] ) ) {
+			foreach ( $entry['scripts'] as $companion_handle ) {
+				$companion_handle  = (string) $companion_handle;
+				$companion_payload = openstation_resolve_script_payload( $companion_handle );
+				if ( '' === $companion_payload['url'] ) {
+					continue;
+				}
+				$companion_scripts[] = array(
+					'scriptUrl'          => $companion_payload['url'],
+					'scriptHandle'       => $companion_handle,
+					'scriptBefore'       => $companion_payload['before'],
+					'scriptAfter'        => $companion_payload['after'],
+					'scriptL10n'         => $companion_payload['l10n'],
+					'scriptTranslations' => $companion_payload['translations'],
+				);
+			}
+		}
+
 		// Resolve the optional style handle alongside the script so the
 		// shell's lazy-loader can inject a `<link rel="stylesheet">`
 		// (and any `wp_add_inline_style()` blobs) on mid-session
@@ -1733,6 +1759,12 @@ function openstation_build_native_windows_payload() {
 			'scriptAfter'        => $script_payload['after'],
 			'scriptL10n'         => $script_payload['l10n'],
 			'scriptTranslations' => $script_payload['translations'],
+			'companionScripts'   => $companion_scripts,
+			// Whether the shell loads the bundle at boot rather than on
+			// first open. Off by default: a window's script is dead
+			// weight on every admin page until the window is actually
+			// opened.
+			'preloadScript'      => ! empty( $entry['preload_script'] ),
 			'styleUrl'           => $style_payload['url'],
 			'styleHandle'        => $style_handle,
 			'styleInline'        => $style_payload['inline'],

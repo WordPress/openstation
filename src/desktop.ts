@@ -669,6 +669,29 @@ export interface OpenStationPublicApi {
 	 */
 	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
+	 * Load a registered native window's bundle without opening the
+	 * window.
+	 *
+	 * A native window's script loads the first time the window
+	 * opens. Most callers never think about it — the render callback
+	 * is read after the load, so opening a window Just Works. This
+	 * is for the other case: a bundle that ALSO publishes an API on
+	 * `wp.os` which a different bundle calls with no window in
+	 * sight. Await this, then read the API:
+	 *
+	 * ```js
+	 * await wp.os.loadWindowScript( 'desktop-mode-my-wordpress' );
+	 * await wp.os.myWordpress.trashEntity( 'posts', 42 );
+	 * ```
+	 *
+	 * Resolves `true` once the bundle is in the tab (immediately on
+	 * a repeat call), `false` when no native window is registered
+	 * with that id. A network failure still resolves `true` and
+	 * reports through the `SHELL_ERROR` action — check for the API
+	 * you came for rather than trusting the boolean.
+	 */
+	loadWindowScript: ( id: string ) => Promise< boolean >;
+	/**
 	 * Wrapper around native `fetch()` that attributes the request to
 	 * a desktop window's activity indicator. While the fetch is in
 	 * flight the window's title-bar dot blinks like a modem activity
@@ -3743,6 +3766,7 @@ function init(): void {
 		registerWindow,
 		openWindowById: nativeWindows.openById,
 		openNewWindowById: nativeWindows.openNewById,
+		loadWindowScriptById: nativeWindows.loadScriptById,
 		placeSystemTile,
 		setDefaultWindow,
 		refreshMenu,

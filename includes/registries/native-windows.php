@@ -85,6 +85,40 @@ defined( 'ABSPATH' ) || exit;
  *                                  Optional — omit for a purely
  *                                  declarative window whose body is
  *                                  exactly the cloned template.
+ *                                  Loaded the first time the window
+ *                                  opens, not at boot — see
+ *                                  `$preload_script`.
+ *     @type string[] $scripts      Companion script handles loaded
+ *                                  immediately before `$script`, in
+ *                                  the order given. For a bundle that
+ *                                  extends the window from outside it
+ *                                  — subscribing to the window's own
+ *                                  actions, contributing a section —
+ *                                  and therefore has to be in the tab
+ *                                  before the window's render callback
+ *                                  paints. Declaring it here is what
+ *                                  keeps it off the boot critical
+ *                                  path: it travels with the window
+ *                                  it extends. Default empty.
+ *     @type bool     $preload_script Load `$script` (and `$scripts`) at
+ *                                  shell boot instead of on first
+ *                                  open. Default false — a window's
+ *                                  bundle is dead weight until the
+ *                                  window opens, and the documented
+ *                                  contract for it is "publish a
+ *                                  render callback on
+ *                                  `window.openStationNativeWindows[
+ *                                  <id> ]`", which the shell reads at
+ *                                  open time. Opt in only when the
+ *                                  bundle ALSO has a boot-time job
+ *                                  that must run whether or not the
+ *                                  user ever opens the window — a
+ *                                  dock badge poller, a public API it
+ *                                  installs on `wp.os`. Prefer
+ *                                  splitting that job into an
+ *                                  always-loaded bundle over paying
+ *                                  the whole window's weight on every
+ *                                  admin page.
  *     @type int      $width        Initial width (px). Default 520.
  *     @type int      $height       Initial height (px). Default 400.
  *     @type int      $min_width    Minimum width (px). Default 280.
@@ -168,6 +202,8 @@ function openstation_register_window( $id, $args = array() ) {
 		'icon'             => 'dashicons-admin-generic',
 		'template'         => null,
 		'script'           => '',
+		'scripts'          => array(),
+		'preload_script'   => false,
 		// Optional WP style handle (registered with `wp_register_style()`).
 		// Resolved at payload-build time so the shell can lazy-inject a
 		// `<link rel="stylesheet">` when a peer plugin is activated
@@ -234,6 +270,19 @@ function openstation_register_window( $id, $args = array() ) {
 		'icon'             => (string) $args['icon'],
 		'template'         => $args['template'],
 		'script'           => (string) $args['script'],
+		// Companion handles, deduped and stripped of empties so the
+		// payload builder can resolve the list without re-checking.
+		'scripts'          => array_values(
+			array_unique(
+				array_filter(
+					array_map( 'strval', (array) $args['scripts'] ),
+					static function ( $handle ) {
+						return '' !== $handle;
+					}
+				)
+			)
+		),
+		'preload_script'   => (bool) $args['preload_script'],
 		'style'            => (string) $args['style'],
 		'width'            => (int) $args['width'],
 		'height'           => (int) $args['height'],
@@ -786,10 +835,27 @@ function openstation_build_native_window_template_html( $entry ) {
 }
 
 /**
- * Enqueue every registered native window's script when the shell
- * is active. Runs on `admin_enqueue_scripts` alongside the main
- * shell enqueue so ordering (shell → plugin scripts) is
- * deterministic.
+ * Attach every registered native window's script data, and enqueue
+ * the handful of bundles that asked to load at boot.
+ *
+ * **A native window's bundle is not enqueued here.** It loads the
+ * first time the window opens: the shell reads the render callback
+ * off `window.openStationNativeWindows[ <id> ]` at open time, so a
+ * bundle printed at boot is weight on every admin page the window is
+ * never opened from — and between WP Explorer, Posts, Plugins,
+ * Comments, the Recycle Bin, Content Graph, Games and the agent
+ * runner that came to well over a megabyte before a single window
+ * had been clicked. `preload_script` is the opt-out for a bundle
+ * with a genuine boot-time job.
+ *
+ * What still happens for EVERY window is the data attach: the
+ * localize blob and the `config` inline. Those hang off the
+ * REGISTERED handle whether or not it is enqueued, which is exactly
+ * how the lazy path gets them — `openstation_resolve_script_payload()`
+ * harvests both into the payload for the shell to replay around the
+ * script tag it injects. Hence priority 5: `openstation_enqueue_assets()`
+ * builds that payload at 10, and data attached after it would ship a
+ * bundle with no config.
  */
 function openstation_enqueue_native_window_scripts() {
 	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
@@ -800,10 +866,12 @@ function openstation_enqueue_native_window_scripts() {
 		return;
 	}
 	foreach ( $registry as $entry ) {
-		// Enqueue per-tab scripts — each tab registration can carry
-		// its own script handle so a tab's JS module stays scoped to
-		// that tab. Main tab uses the window's own `script`; it's
-		// enqueued below alongside the localize call.
+		$preload = ! empty( $entry['preload_script'] );
+
+		// Per-tab scripts stay eager. The shell has no lazy path for
+		// them — a tab's script is not part of the window's own
+		// bundle chain — so deferring here would simply break the
+		// tab. The main tab uses the window's own `script`.
 		$tabs = openstation_get_native_window_tabs( $entry['id'] );
 		foreach ( $tabs as $tab ) {
 			if ( $tab['is_main'] || empty( $tab['script'] ) ) {
@@ -815,7 +883,12 @@ function openstation_enqueue_native_window_scripts() {
 		if ( empty( $entry['script'] ) ) {
 			continue;
 		}
-		wp_enqueue_script( $entry['script'] );
+		if ( $preload ) {
+			wp_enqueue_script( $entry['script'] );
+			foreach ( (array) $entry['scripts'] as $companion ) {
+				wp_enqueue_script( $companion );
+			}
+		}
 		// Localize the config the JS side reads to register itself.
 		wp_localize_script(
 			$entry['script'],
@@ -844,15 +917,17 @@ function openstation_enqueue_native_window_scripts() {
 			)
 		);
 
-		// Bundle-bound `config`. Ships through
-		// `wp_add_inline_script` `'before'` so it lands on the eager
-		// path the same way `wp_localize_script` does, AND through
-		// the lazy-load payload (see `openstation_resolve_script_payload`)
-		// so the same data is available even when the script is
-		// dynamically injected mid-session. The bundle reads it via
-		// `wp.os.getWindowConfig( id )` or directly at
+		// Bundle-bound `config`, for the eager print path only.
+		// `openstation_build_native_windows_payload()` synthesizes the
+		// same assignment into the payload's `scriptL10n`, which is
+		// what delivers it on the lazy path — and it has to, because
+		// that payload is also built inside chromeless iframes, where
+		// this function returns early. Attaching here unconditionally
+		// would mean a shell page shipped the identical assignment
+		// twice: once as `before`, once as `l10n`. The bundle reads it
+		// via `wp.os.getWindowConfig( id )` or directly at
 		// `window.openStationWindowConfig[ id ]`.
-		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+		if ( $preload && ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
 			wp_add_inline_script(
 				$entry['script'],
 				sprintf(
@@ -865,7 +940,7 @@ function openstation_enqueue_native_window_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'openstation_enqueue_native_window_scripts', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_native_window_scripts', 5 );
 
 /**
  * Emit a `<template>` tag for every registered native window on
