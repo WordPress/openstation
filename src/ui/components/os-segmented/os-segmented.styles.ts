@@ -8,20 +8,18 @@ import { holoTokens, holoSheen } from '../../holo';
  * the visual decisions co-located (the parent pill + the inner
  * buttons share a visual language).
  *
- * ## The selected segment is the mesh
+ * ## The selected segment wears the accent
  *
- * Of every "one of these is chosen" control in the kit this is the
- * best-behaved place to spend an identity moment: exactly one segment
- * is lit at a time, the lit area is small and bounded, and the thing
- * being said — *this* one — is precisely what an accent is for.
+ * Flat accent, not the mesh: selection states across the kit resolve
+ * through --os-ui-accent (checkboxes, switches, sliders, rings), and
+ * the segmented pill says "this one" in the same voice. The meshes
+ * stay reserved for hero surfaces.
  *
- * A caller who disagrees has two declarations to write —
- * `--os-ui-segmented-selected-image: none` and
- * `--os-ui-segmented-selected-bg: <colour>` — which is how a settings
- * panel with four segmented controls stacked in a column flattens
- * them without touching this file. Two rather than one because a
- * background *colour* cannot override a background *image*; they are
- * different properties and the mesh lives in the second.
+ * A caller who wants a different pill has two declarations to write:
+ * `--os-ui-segmented-selected-image: <gradient>` and
+ * `--os-ui-segmented-selected-bg: <colour>`. Two rather than one
+ * because a background *colour* cannot override a background *image*;
+ * they are different properties.
  */
 
 export const segmentedStyles = css`
@@ -32,7 +30,7 @@ export const segmentedStyles = css`
 		position: relative;
 		padding: 3px;
 		background: var( --os-ui-segmented-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) ) );
-		border-radius: 7px;
+		border-radius: 8px;
 		gap: 2px;
 	}
 
@@ -62,16 +60,15 @@ export const segmentedStyles = css`
 		bottom: 3px;
 		left: 0;
 		width: var( --_thumb-w, 0px );
-		border-radius: 5px;
-		background-color: var( --os-ui-segmented-selected-bg, transparent );
-		background-image: var(
-			--os-ui-segmented-selected-image,
-			var( --_holo-fill )
+		border-radius: 6px;
+		background-color: var(
+			--os-ui-segmented-selected-bg,
+			var( --os-ui-accent, #2271b1 )
 		);
+		background-image: var( --os-ui-segmented-selected-image, none );
 		background-size: 220% 220%;
 		background-position: 22% 28%;
 		background-repeat: no-repeat;
-		box-shadow: var( --_holo-glow );
 		transform: translateX( var( --_thumb-x, 0px ) );
 		pointer-events: none;
 		opacity: 0;
@@ -121,14 +118,14 @@ export const segmentStyles = css`
 		appearance: none;
 		display: block;
 		width: 100%;
-		padding: 8px 12px;
+		padding: 6px 13px;
 		background: transparent;
 		border: 0;
 		font: inherit;
 		font-size: 13px;
 		color: var( --os-ui-fg-muted, #646970 );
 		cursor: pointer;
-		border-radius: 5px;
+		border-radius: 6px;
 		transition: background-color var( --_holo-t ) ease, color var( --_holo-t ) ease,
 			box-shadow var( --_holo-t ) ease, background-position var( --_holo-t ) ease;
 		/* Single-line labels — let the host grow horizontally to fit
@@ -154,13 +151,17 @@ export const segmentStyles = css`
 	 * the child at the same time would land instantly and give the
 	 * pill something to race.
 	 *
-	 * All the child does is take the ink that reads on the mesh, and
-	 * it takes it on the fast duration so the text has flipped by the
-	 * time the pill gets there rather than after.
+	 * All the child does is take the on-accent ink, on the fast
+	 * duration so the text has flipped by the time the pill gets
+	 * there rather than after. No weight bump: the accent pill
+	 * already says which one, and bold would make the control jitter
+	 * as the selection moves.
 	 */
 	:host( [ aria-checked='true' ] ) button {
-		color: var( --os-ui-segmented-selected-fg, var( --_holo-ink ) );
-		font-weight: 600;
+		color: var(
+			--os-ui-segmented-selected-fg,
+			var( --os-ui-fg-on-accent, #fff )
+		);
 		transition-duration: var( --_holo-t-fast );
 	}
 

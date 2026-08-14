@@ -257,6 +257,58 @@ function openstation_files_get_share( $share_id ) {
 }
 
 /**
+ * The cheap "is this folder shared" summary the desktop paints tiles
+ * from, so a tile never has to load the full share roster to decide
+ * whether to wear a badge.
+ *
+ * `shared` is deliberately viewer-agnostic — a recipient needs to
+ * see the badge on a folder someone shared with them just as much as
+ * the owner does. `recipientCount` is not: the full roster is
+ * owner-internal, so only a viewer who can manage the folder's
+ * shares gets a real number. Everyone else gets `0`, which keeps the
+ * wire shape stable rather than making the key conditional.
+ *
+ * Lives here rather than inline in the two callers because both the
+ * folder response shape and the `folder` file type serialize it, and
+ * a badge that appeared on one path but not the other is exactly the
+ * bug this consolidates away.
+ *
+ * @param array|null $folder_row Normalized folder row.
+ * @param int|null   $viewer_id  Viewer; defaults to the current user.
+ * @return array{shared: bool, recipientCount: int}
+ */
+function openstation_files_folder_share_summary( $folder_row, $viewer_id = null ) {
+	$summary = array(
+		'shared'         => false,
+		'recipientCount' => 0,
+	);
+	if ( ! is_array( $folder_row ) || ! isset( $folder_row['id'] ) ) {
+		return $summary;
+	}
+
+	$folder_id = (int) $folder_row['id'];
+	$viewer_id = null === $viewer_id ? get_current_user_id() : (int) $viewer_id;
+	$has_all   = 'all' === (string) ( isset( $folder_row['share_mode'] ) ? $folder_row['share_mode'] : '' );
+
+	$accepted = 0;
+	foreach ( openstation_files_get_folder_shares( $folder_id ) as $share ) {
+		if ( 'accepted' === $share['state'] ) {
+			++$accepted;
+		}
+	}
+
+	$summary['shared'] = $has_all || $accepted > 0;
+	// The manage check costs a folder read of its own, and an
+	// unshared folder counts zero recipients for everyone anyway —
+	// so only pay for it when there is something to count. Every
+	// folder tile on the desktop serializes through here.
+	if ( $summary['shared'] && openstation_files_share_can_manage( $folder_id, $viewer_id ) ) {
+		$summary['recipientCount'] = $accepted + ( $has_all ? 1 : 0 );
+	}
+	return $summary;
+}
+
+/**
  * Every share row for a folder. Owner-internal view.
  *
  * @param int $folder_id Folder id.

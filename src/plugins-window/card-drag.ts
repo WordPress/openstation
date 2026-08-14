@@ -188,7 +188,7 @@ export function installPluginDropTargets(): () => void {
 function findDockElement(): HTMLElement | null {
 	// Match the canonical dock root selectors used by `dock-rail-renderer`
 	// and `bottomDock` paint. Order matters — bottom dock first because
-	// it's on top in the spatial layout.
+	// it paints on top.
 	return (
 		document.querySelector< HTMLElement >( '.os-bottom-dock' ) ??
 		document.querySelector< HTMLElement >( '.os-dock' ) ??

@@ -40,6 +40,7 @@ import { registerBuiltInFileTypes } from './built-in-types';
 import { registerBuiltInFileOpeners } from './built-in-openers';
 import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
+import { seedBootFolders } from './boot-folders';
 import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
 import { installUploadMenuItems } from './upload-menu-items';
@@ -64,6 +65,9 @@ registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
+// Fill the folders map before anything reads folder ownership from
+// it — the "Share folder" title-bar button gates on exactly that.
+seedBootFolders();
 installShareMenuItems();
 installUploadMenuItems();
 // Hydrate the shares store from the shell config snapshot BEFORE the

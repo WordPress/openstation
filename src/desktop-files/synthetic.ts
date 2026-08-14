@@ -3,7 +3,7 @@
  *
  * A "synthetic" placement is a desktop tile with no row behind it:
  * a dock item the user promoted to the wallpaper via OpenStation
- * Settings → Apps & Icons. `settings/desktop-shortcuts-sync.ts`
+ * Settings → Apps & Plugins. `settings/desktop-shortcuts-sync.ts`
  * mints them into the store with deterministic negative ids, so any
  * REST write aimed at one would 404 (`/files/placements/(?P<id>\d+)`
  * only matches positive integers).

@@ -1,20 +1,23 @@
 /**
- * Tests for `src/dock-constellation` — the hover-submenu flyout that
- * gives the OpenStation desktop layout its reason to exist.
+ * Tests for `src/dock-constellation` — the hover-submenu flyout.
  *
  * What is pinned here is the CONTRACT, not the choreography:
  *
- * - It only fans out while `data-os-layout="openstation"`. Every
- *   other layout keeps the hover-peek, and the peek's stand-down
- *   check reads the same predicate, so a regression in either
- *   direction shows up as two popovers on one tile or none.
+ * - It fans out on every layout. It used to be the one thing the
+ *   OpenStation layout had that the others did not, and a menu tile
+ *   is a menu tile wherever the rail is parked.
+ * - It fans AWAY from the edge the rail is on, which it reads off the
+ *   rail's own `data-os-dock-placement` rather than off the layout —
+ *   Side bar runs two rails on two edges at once, so a per-layout
+ *   answer would be wrong for one of them.
  * - It surfaces the submenu — the whole point. A menu with children
  *   gets one row per child, wired to the same window ids a dock click
  *   would address.
  * - It is delegated, so a tile rebuilt by a live menu refresh still
  *   works without re-mounting anything.
- * - Keyboard reaches it: ArrowUp from a tile fans it open and lands
- *   focus on the first row; Escape collapses it and hands focus back.
+ * - Keyboard reaches it: the arrow pointing at where the panel will
+ *   appear fans it open and lands focus on the first row; Escape
+ *   collapses it and hands focus back.
  *
  * Timers are faked because the flyout deliberately dwells before it
  * opens — a hover that fired instantly would fan a panel out every
@@ -29,7 +32,6 @@ import {
 	vi,
 } from 'vitest';
 import { mountDockConstellation } from '../../src/dock-constellation';
-import { isConstellationLayoutActive } from '../../src/dock-constellation/active';
 import { ITEM_MENU_OPENING_EVENT } from '../../src/item-visibility-menu';
 import type { DockItem } from '../../src/dock';
 import type { WindowManager } from '../../src/window-manager';
@@ -79,8 +81,8 @@ function makeManagerStub(): WindowManager {
 	} as unknown as WindowManager;
 }
 
-/** Build a shell with one menu tile on the bottom rail. */
-function setupShell( layout: string ): HTMLElement {
+/** Build a shell with one menu tile on a rail at `placement`. */
+function setupShell( layout: string, placement = 'bottom' ): HTMLElement {
 	document.body.innerHTML = '';
 	const shell = document.createElement( 'div' );
 	shell.className = 'os-shell';
@@ -88,7 +90,7 @@ function setupShell( layout: string ): HTMLElement {
 
 	const dock = document.createElement( 'nav' );
 	dock.className = 'os-dock';
-	dock.setAttribute( 'data-os-dock-placement', 'bottom' );
+	dock.setAttribute( 'data-os-dock-placement', placement );
 
 	const tile = document.createElement( 'div' );
 	tile.className = 'os-dock__item';
@@ -197,7 +199,11 @@ describe( 'dock constellation', () => {
 		document.body.className = '';
 	} );
 
+	// Tears down a previous mount first, so a test that walks several
+	// layouts or placements in one body doesn't leave a second
+	// delegated listener behind opening a second panel on every hover.
 	function mountWith( items: DockItem[] ): void {
+		teardown?.();
 		teardown = mountDockConstellation( {
 			windowManager: makeManagerStub(),
 			adminUrl: '/wp-admin/',
@@ -244,12 +250,48 @@ describe( 'dock constellation', () => {
 		} );
 	}
 
-	test( 'is inert outside the OpenStation layout', () => {
-		const tile = setupShell( 'classic' );
+	test( 'fans out in every layout, not just OpenStation', () => {
+		for ( const layout of [ 'classic', 'unified', 'spatial' ] ) {
+			const tile = setupShell( layout );
+			mount();
+			hover( tile );
+			expect( panel(), layout ).not.toBeNull();
+		}
+	} );
+
+	test( 'fans away from the edge its rail is parked on', () => {
+		// The side is named for where the PANEL lands, so a left-hand
+		// rail fans right. Read off the rail rather than the layout:
+		// Side bar has one of each on screen at the same time.
+		for ( const [ placement, side ] of [
+			[ 'bottom', 'top' ],
+			[ 'left', 'right' ],
+			[ 'right', 'left' ],
+		] ) {
+			const tile = setupShell( 'unified', placement );
+			mount();
+			hover( tile );
+			expect( panel()?.dataset.osCnSide, placement ).toBe( side );
+		}
+	} );
+
+	test( 'the open key is the arrow pointing at the panel', () => {
+		// ArrowUp beside a vertical rail would fight the rail's own
+		// roving, which is what Up and Down already do there.
+		const tile = setupShell( 'unified', 'left' );
 		mount();
-		hover( tile );
+		const primary = tile.querySelector( '.os-dock__item-primary' )!;
+		primary.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'ArrowUp', bubbles: true } ),
+		);
 		expect( panel() ).toBeNull();
-		expect( isConstellationLayoutActive() ).toBe( false );
+		primary.dispatchEvent(
+			new KeyboardEvent( 'keydown', {
+				key: 'ArrowRight',
+				bubbles: true,
+			} ),
+		);
+		expect( panel() ).not.toBeNull();
 	} );
 
 	test( 'fans out on hover and lists the submenu', () => {

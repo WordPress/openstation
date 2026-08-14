@@ -440,8 +440,7 @@ export interface OpenStationPublicApi {
 	/**
 	 * Side (left) dock instance — only non-null when the active
 	 * layout is `classic`. Holds core admin menus while the bottom
-	 * dock holds plugin menus. `null` in `unified`, `spatial` and
-	 * `openstation`.
+	 * dock holds plugin menus. `null` in `unified`.
 	 */
 	sideDock: Dock | null;
 	/**
@@ -450,7 +449,7 @@ export interface OpenStationPublicApi {
 	 * `data-os-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
+	desktopLayout: 'classic' | 'unified';
 	/**
 	 * Edge the primary dock sits on. Mirrors
 	 * `OsSettingsSnapshot.dockPlacement` for the one-rail layouts;
@@ -1060,7 +1059,7 @@ export interface OpenStationPublicApi {
 		icon: string;
 		affinity: 'core' | 'plugin';
 		/**
-		 * Whether the tile opts into OS Settings → Apps & Icons, so
+		 * Whether the tile opts into OS Settings → Apps & Plugins, so
 		 * the user can hide it. Opt-in: most system tiles are
 		 * load-bearing.
 		 */
@@ -1241,7 +1240,7 @@ export interface OpenStationPublicApi {
 	 * built-in `svg-splines` registers through this same API. Set
 	 * `owner` to the script handle for live unregistration on
 	 * deactivation. The user picks the active renderer in OS Settings
-	 * → Effects → Window links.
+	 * → Windows → Window links.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
 	 */
@@ -2210,10 +2209,9 @@ function init(): void {
 	);
 
 	// Dock(s) + desktop icons — managed by the layout dispatcher.
-	// User picks one of three layouts in OS Settings → Appearance:
-	// Classic (left side bar + bottom dock), Unified (single bottom
-	// rail), or Spatial (bottom dock + core menus as wallpaper
-	// icons). The dispatcher tears down and rebuilds the right set
+	// User picks one of two layouts in OS Settings → Appearance:
+	// Unified (single bottom rail) or Classic (left side bar + bottom
+	// dock). The dispatcher tears down and rebuilds the right set
 	// of `Dock` instances on every layout change and exposes a
 	// stable handle the rest of the shell (live menu refresh,
 	// public API) keeps wired to whichever rails are currently live.
@@ -2498,11 +2496,10 @@ function init(): void {
 			initialPlacement,
 		);
 		// Constellation — the hover-submenu flyout. Mounted once and
-		// left mounted: it is a single delegated listener that
-		// self-gates on `data-os-layout`, so a user flipping between
-		// layouts never needs it re-wired, and a user who never picks
-		// the OpenStation layout pays for one `pointerover` handler
-		// that early-returns on its first line.
+		// left mounted: it is a single delegated listener serving every
+		// menu tile on every rail, and it reads the direction to fan in
+		// off the rail the tile is on, so a user flipping between
+		// layouts or dock placements never needs it re-wired.
 		mountDockConstellation( {
 			windowManager: manager,
 			adminUrl: config.adminUrl,
@@ -2511,7 +2508,7 @@ function init(): void {
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
 		// expect a shell-owned affordance) and on the primary rail in
-		// Unified and Spatial (where there is no side dock to host it).
+		// Unified (where there is no side dock to host it).
 		// Tracked by the dispatcher so it re-attaches automatically
 		// after a layout rebuild.
 		//
@@ -2620,10 +2617,20 @@ function init(): void {
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
-		// The Extended Options tab merged into Features —
-		// keep documented deep-links to the old tab id working.
-		if ( opts.tabId === 'extended' ) {
-			opts = { ...opts, tabId: 'features' };
+		// Tabs that merged into another page. A deep link to a page
+		// that no longer exists is worse than a stale one: `focusTab`
+		// sets `os-tabs.value` to an id no row carries, and the panel
+		// then hides every pane — a sidebar with nothing selected and
+		// a blank page beside it.
+		const MERGED_TABS: Readonly< Record< string, string > > = {
+			// Extended Options is a section on Features now.
+			extended: 'features',
+			// Effects merged into Windows.
+			effects: 'windows',
+		};
+		const merged = opts.tabId ? MERGED_TABS[ opts.tabId ] : undefined;
+		if ( merged ) {
+			opts = { ...opts, tabId: merged };
 		}
 		if ( opts.tabId ) {
 			osSettings.activeTabId = opts.tabId;
@@ -2676,7 +2683,7 @@ function init(): void {
 
 	// Dock system tile — sits next to OS Settings on the primary
 	// rail. Tracked by the layout dispatcher so it survives a layout
-	// rebuild (Classic ↔ Unified ↔ Spatial).
+	// rebuild (Classic ↔ Unified).
 	if ( layoutDispatcher ) {
 		layoutDispatcher.appendSystemTile(
 			{
@@ -2714,7 +2721,7 @@ function init(): void {
 		// shell affordances. Clicking toggles the companion; the active
 		// dot tracks whether it is on screen.
 		//
-		// `placeable` is what puts a row in OS Settings → Apps & Icons,
+		// `placeable` is what puts a row in OS Settings → Apps & Plugins,
 		// so a user who doesn't want a desk companion can hide the
 		// toggle itself. It is opt-in precisely because most system
 		// tiles must not be hideable — OS Settings is how you reach the
@@ -3174,7 +3181,7 @@ function init(): void {
 
 	// Window-link renderer sync — same pattern. Loads opted-in scripts
 	// so a plugin's `registerWindowLinkRenderer()` lands and surfaces
-	// in OS Settings → Effects → Window links; deactivation drops
+	// in OS Settings → Windows → Window links; deactivation drops
 	// renderers by `owner` tag and the render host falls back to the
 	// built-in `svg-splines` if the active pick departed.
 	const syncServerWindowLinkRenderers = createWindowLinkRendererRegistrySync();
@@ -3471,10 +3478,9 @@ function init(): void {
 	// callbacks that depend on the cloned template, breaking every
 	// plugin that follows the documented pattern.
 	// Wallpaper-icon repaint that re-uses whatever the layout
-	// dispatcher last said the merged list should be. In Spatial
-	// mode the dispatcher synthesizes core menu items as additional
-	// icons; in every other layout this is a passthrough to
-	// `renderDesktopIcons`.
+	// dispatcher last said the list should be. A passthrough to
+	// `renderDesktopIcons` with the dispatcher's visibility filtering
+	// already applied.
 	const renderIcons = (
 		icons: import( './types' ).DesktopIconServerEntry[] | undefined,
 	): void => {
@@ -3524,7 +3530,6 @@ function init(): void {
 			syncShortcutsWithVisibility(
 				snapshot.itemVisibility,
 				snapshot.dockPromotedPositions,
-				snapshot.desktopLayout,
 			);
 		},
 	} );
@@ -3569,9 +3574,8 @@ function init(): void {
 	} );
 
 	// Live desktop-layout sync: when the user picks a new layout
-	// in OS Settings, the dispatcher tears down the current dock(s),
-	// rebuilds for the new layout, and (in Spatial) re-emits the
-	// merged wallpaper-icons list. `osSettings.apply()` has already
+	// in OS Settings, the dispatcher tears down the current dock(s)
+	// and rebuilds for the new layout. `osSettings.apply()` has already
 	// written `data-os-layout` on the shell root by the time
 	// this fires.
 	//
@@ -3612,14 +3616,10 @@ function init(): void {
 		}
 		// Bring the files-layer placements in line with the new
 		// visibility map — promotes dock items onto the wallpaper
-		// and removes hidden server icons from the grid. Passing the
-		// layout lets Spatial synthesize its core-menu icons onto the
-		// same visible surface (and removes them again on switching
-		// away from Spatial).
+		// and removes hidden server icons from the grid.
 		syncShortcutsWithVisibility(
 			snapshot.itemVisibility,
 			snapshot.dockPromotedPositions,
-			snapshot.desktopLayout,
 		);
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
@@ -3634,7 +3634,6 @@ function init(): void {
 	installShortcutsSync(
 		() => osSettings.getOsSettingsSnapshot().itemVisibility,
 		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
-		() => osSettings.getOsSettingsSnapshot().desktopLayout,
 	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
@@ -4076,8 +4075,8 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
-			// Synthetic placements (dock-item promotions, Spatial-layout
-			// core icons) live JS-only — `settings/desktop-shortcuts-sync.ts`
+			// Synthetic placements (dock-item promotions) live JS-only —
+			// `settings/desktop-shortcuts-sync.ts`
 			// mints them with a negative id and never persists them via
 			// the files REST layer. PATCHing one 404s (`rest_no_route`,
 			// the route regex only matches positive ids). See

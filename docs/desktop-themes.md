@@ -429,6 +429,8 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-tab-edge` | The leading edge on the selected row of a vertical `<os-tabs>`. The flat accent by default. |
+| `--os-ui-tab-wash`, `--os-ui-tab-bloom` | That row's surface wash and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
 | `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
 | `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
 | `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |
@@ -946,8 +948,8 @@ still apply.
 | Field | Values |
 |---|---|
 | `dockSize` | `compact`, `default`, `large` |
-| `desktopLayout` | `classic`, `unified`, `spatial`, `openstation` |
-| `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Read by `unified` and `spatial`; `classic` owns both of its edges and `openstation` is drawn for a horizontal rail, so both ignore it. |
+| `desktopLayout` | `classic`, `unified` |
+| `dockPlacement` | `bottom`, `left`, `right` — which edge the dock sits on. Read by `unified`; `classic` owns both of its edges and ignores it. |
 | `windowRadius` | `sharp`, `default`, `round` |
 | `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit OpenStation** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |

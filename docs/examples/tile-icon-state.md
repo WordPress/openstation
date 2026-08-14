@@ -83,9 +83,9 @@ Four things worth knowing:
 - **It survives a live menu refresh.** The rails re-apply the override after a
   rebuild, so a plugin activation elsewhere on the site doesn't silently revert
   the swap.
-- **`wp.os.icons.setArt` covers both desktop layouts.** Classic renders the
-  `.os-icons` grid, Spatial renders an `<os-tile>` placement. You ask for "the
-  desktop icon for this id" and get whichever is on screen.
+- **`wp.os.icons.setArt` covers both desktop surfaces.** The legacy `.os-icons`
+  grid and the files layer's `<os-tile>` placement. You ask for "the desktop
+  icon for this id" and get whichever is on screen.
 - **`''` restores the registered icon**, immediately, the way `setBadge( id, 0 )`
   removes a pill immediately.
 

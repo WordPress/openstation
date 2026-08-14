@@ -323,6 +323,8 @@ Visibility filter (advisory in Phase 2, load-bearing in Phase 6): `openstation_f
 
 Boot hydration of the **root folder** (`folderId 0`) does not hit REST: the shell config inlines `filesBootPlacements` (built server-side by the same code path as `GET /files/placements?folder=0`) and the file layer seeds the store from it one-shot. Any later hydration — subfolders, restore-sync re-fetches, heartbeat resyncs — goes through `listPlacements()` as before.
 
+The **folders map** is seeded the same way, from `filesBootFolders` (same shape and visibility resolution as `GET /files/folders`), consumed one-shot by `seedBootFolders()`. Placements and folder rows are separate state: a placement says *where a tile sits*, a folder row says *who owns it and how it is shared*. Anything gating on ownership reads the folder row, so the map has to be populated on a plain reload and not only after a create, a rename or an untrash — see [folder-sharing.md](folder-sharing.md#what-the-desktop-can-see-about-a-share).
+
 ```ts
 interface FilesState {
     placementsByFolder: Map< number, RestPlacementShape[] >;
@@ -537,7 +539,23 @@ targets:
     grid cell and `PATCH`/`POST`s.
   - Each folder tile — accepts the same payloads but routes them
     INTO that folder (sets `parentId` on the move, or POSTs a new
-    placement with `parentId = folderId`).
+    placement with `parentId = folderId`). Both branches also
+    **re-pack row-major** into the destination's first free cells
+    rather than carrying the coordinates the tile had outside. The
+    destination window is usually not mounted, so there is nothing
+    to measure and aim at; landing at the top-left is the outcome
+    that's visible whatever size the folder turns out to be. A tile
+    filed from low down a tall desktop would otherwise keep a `y`
+    no folder canvas reaches.
+
+A layer is `position: absolute; inset: 0` and does **not** scroll,
+so a tile positioned past an edge isn't below a fold — there is no
+fold — it is unreachable. `FilesLayer.reflow()` is the safety net:
+after every paint, and on every host resize, any tile whose stored
+cell falls outside the canvas (either edge) is packed into view.
+The reflow is **visual only** — nothing is persisted until the user
+drags or sorts — so a layout that merely doesn't fit the current
+window size is restored the moment there's room for it again.
 
 Pinned tiles (registered with `pinned: true` via
 `openstation_register_icon`) skip drag wiring entirely. A pointerdown

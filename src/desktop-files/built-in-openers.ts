@@ -40,6 +40,7 @@ import {
 } from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
+import { tryNativeUrlRemap } from '../native-url-remap';
 import { findMenuEntryForUrl } from './menu-entry';
 import { navigateToDownload } from './download-nav';
 
@@ -552,6 +553,23 @@ export function registerBuiltInFileOpeners(): void {
 							window.open( u.toString(), '_blank', 'noopener,noreferrer' );
 							return;
 						}
+						// Let a native window claim the URL first, the
+						// same way `Dock.openPage` and the shell's link
+						// interceptor do. A shortcut knows only a URL,
+						// so without this a wallpaper shortcut tile —
+						// pointing at the very admin URLs the remap
+						// registry serves — opened
+						// the classic iframe even for a user who had
+						// explicitly enabled native Posts, Pages,
+						// Comments, Plugins or Users. Same app, two
+						// answers, depending on which surface you
+						// clicked. The registry's own `enabled` gate
+						// reads the live OS Settings snapshot, so a
+						// disabled native window still falls through to
+						// the iframe path below.
+						if ( tryNativeUrlRemap( u.toString() ) ) {
+							return;
+						}
 						// Derive the window id from the URL so this
 						// shortcut opens (or focuses) the SAME window
 						// the dock and the in-shell link interceptor
@@ -576,9 +594,8 @@ export function registerBuiltInFileOpeners(): void {
 						// Enrich with the matching admin-menu entry so
 						// the window gets the same submenu tab strip /
 						// parent-tab / multi behavior as a dock open.
-						// Without this, Spatial-layout core tiles (and
-						// any dock-promoted shortcut) opened windows
-						// with no tab strip at all.
+						// Without this, a dock-promoted shortcut
+						// opened windows with no tab strip at all.
 						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,

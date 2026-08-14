@@ -392,6 +392,45 @@ import { openShareSettingsModal } from '.../desktop-files/share-settings-modal';
 openShareSettingsModal( { folderId, folderName } );
 ```
 
+## What the desktop can see about a share
+
+Two pieces of state have to reach the client for a folder tile to
+present sharing correctly, and both ride the boot payload rather
+than a REST call:
+
+**`shareSummary` on the folder's file shape.** A folder on the
+desktop is a *placement*, and a placement's `file` is whatever
+`OpenStation_Folder_File::serialize()` returns — so that is where
+the summary lives:
+
+```php
+'shareSummary' => array( 'shared' => bool, 'recipientCount' => int )
+```
+
+`shared` is viewer-agnostic (a recipient needs the badge as much as
+the owner does); `recipientCount` is owner-internal and reads `0`
+for anyone who can't manage the folder's shares, which keeps the
+wire shape stable rather than making the key conditional.
+`openstation_files_folder_share_summary()` computes it, and the
+folder response shape (`openstation_files_shape_folder()`) calls the
+same helper — a tile paints the same badge whichever response it was
+rendered from. `share_mode = 'all'` counts as shared on its own; a
+*pending* invitation does not.
+
+**`filesBootFolders` in the shell config.** The client keeps folder
+rows in a map separate from placements, and everything that needs a
+folder's owner reads it there — the owner-only Share button most of
+all, since a window hands its match predicate nothing but an id.
+`openstation_files_inject_boot_folders()` inlines the viewer's
+visible folders (owned, plus accepted shares, plus `share_mode='all'`)
+with the same shape and visibility resolution as `GET /folders`;
+`seedBootFolders()` applies them once on boot and deletes the key, so
+a later re-hydration still fetches fresh state.
+
+Placement hydration alone never populated that map — `listFolders()`
+ran only after a create, a rename or an untrash — which is why the
+seed exists rather than being an optimization.
+
 ## Re-share prevention
 
 A recipient cannot re-share a folder they've received:
@@ -401,10 +440,10 @@ A recipient cannot re-share a folder they've received:
   owner-only. Plugins that ship a "team admin" concept can
   broaden it; non-owners always get a 403 otherwise.
 - **Client** — the title-bar Share button's `match` predicate
-  consults the folders shared store and only renders for the
-  owner. The tile context menu's "Share folder…" / "Manage
-  sharing…" entries follow the same rule; recipients see the
-  "Leave shared folder" entry instead.
+  consults the folders shared store (seeded from `filesBootFolders`,
+  above) and only renders for the owner. The tile context menu's
+  "Share folder…" / "Manage sharing…" entries follow the same rule;
+  recipients see the "Leave shared folder" entry instead.
 
 ## Single-file shares
 

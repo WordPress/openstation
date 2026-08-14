@@ -45,7 +45,7 @@ The brand ships five mesh gradients with one instruction attached — *"meshes r
 
 Three rules, all with tests:
 
-1. **A control paints the mesh when it is on, selected, primary or filled — and wears Obsidian the rest of the time.** A panel where every surface is iridescent has no identity moments left to spend. `<os-button variant="holo">` exists precisely so the loud version is hard to reach for by accident; `primary` deliberately did *not* become the mesh, because it is three-to-a-row in OpenStation Preferences and a mesh three-to-a-row is wallpaper.
+1. **Form controls wear the flat accent when they are on; the mesh is reserved for hero moments.** Checkboxes, radios, switches, the segmented thumb and the slider's elapsed track all resolve through `--os-ui-accent`, which the accent picker writes so the whole family follows the colour the user chose. The mesh appears where a single surface speaks for the brand: `<os-button variant="holo">`, and nothing else by default. A panel where every surface is iridescent has no identity moments left to spend; `primary` deliberately did *not* become the mesh either, because it is three-to-a-row in OpenStation Preferences and a mesh three-to-a-row is wallpaper.
 2. **`holoTokens` is a prerequisite for every other fragment** — it declares the private `--_holo-*` aliases they read. Include it once per component. Never declare a `--os-ui-*` name on the bare `:host` (see the next rule).
 3. **Reduced motion stops the tilt, never the fill.** A control that lost its mesh under `prefers-reduced-motion` would lose its *state*, not just its animation.
 

@@ -55,6 +55,36 @@ export class OsColorField extends Component {
 		`,
 	} as const;
 
+	/**
+	 * Opens the native colour picker, as if the swatch had been
+	 * clicked. Callers use this to collapse a two-step flow (select
+	 * the thing, then click its colour chip) into the gesture the
+	 * user already made; browsers require that gesture, so call this
+	 * from inside a click handler.
+	 *
+	 * Rendering is scheduled on a microtask, so a field that was JUST
+	 * put in the DOM has no input yet. The retry rides the same user
+	 * activation: transient activation outlives a microtask.
+	 */
+	open(): void {
+		const tryOpen = (): boolean => {
+			const input = this.shadowRoot?.querySelector( 'input' );
+			if ( ! input ) {
+				return false;
+			}
+			try {
+				// Anchors the picker to the input where supported.
+				input.showPicker();
+			} catch {
+				input.click();
+			}
+			return true;
+		};
+		if ( ! tryOpen() ) {
+			queueMicrotask( () => void tryOpen() );
+		}
+	}
+
 	protected render() {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		const value =

@@ -61,9 +61,11 @@ export function buildCustomImageSection(
 	render(
 		html`
 			<div class="os-settings__uploader">
-				<h4 class="os-settings__uploader-heading">
-					${ __( 'Or use your own image' ) }
-				</h4>
+				<!--
+					No heading. "Use your own image" is the dashed tile in
+					the grid above that opens this, and repeating it here
+					names the same thing twice within 40px.
+				-->
 				${ tabDefs.length > 1
 		? html`<os-tabs
 							value=${ initialKey }

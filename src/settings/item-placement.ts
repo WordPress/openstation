@@ -30,7 +30,7 @@ export type NativeRail = 'dock' | 'desktop';
 
 /**
  * Union view of a single shell-surface item. Used by the OS Settings
- * "Apps & Icons" tab to list every placeable thing in one table
+ * "Apps & Plugins" tab to list every placeable thing in one table
  * regardless of which rail registered it.
  */
 export interface PlaceableItem {
@@ -54,7 +54,7 @@ export interface PlaceableItem {
 }
 
 /**
- * A JS-owned system tile that has opted into the Apps & Icons list.
+ * A JS-owned system tile that has opted into the Apps & Plugins list.
  * Shape-compatible with `listSystemTiles()` output.
  */
 export interface PlaceableSystemTile {
@@ -278,7 +278,7 @@ export function applyOrder< T extends { id: string } >(
 }
 
 /**
- * Build the union list shown in the OS Settings → Apps & Icons tab.
+ * Build the union list shown in the OS Settings → Apps & Plugins tab.
  * Union of dock items, desktop icons, and any system tiles that opted
  * in (first registration wins on id collisions), sorted alphabetically
  * by display title for the flat picker. The resolved `placement` on
@@ -340,7 +340,7 @@ export function listPlaceableItems(
 		} );
 	}
 
-	// Alphabetical by display title — the OS Settings → Apps & Icons
+	// Alphabetical by display title — the OS Settings → Apps & Plugins
 	// list is a flat picker, so the user's reading order is the
 	// natural sort. `localeCompare` with the `'base'` sensitivity
 	// folds case + accents so "WooCommerce" and "woocommerce" land

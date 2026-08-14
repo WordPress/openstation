@@ -274,3 +274,13 @@ function notify(): void {
 		}
 	}
 }
+
+if ( typeof document !== 'undefined' ) {
+	document.addEventListener( 'os-settings-save-lifecycle', ( e: Event ) => {
+		const detail = ( e as CustomEvent ).detail;
+		if ( detail && detail.phase === 'saved' ) {
+			notify();
+		}
+	} );
+}
+

@@ -78,7 +78,7 @@ describe( 'WindowManager — native-window hydration order', async () => {
 		expect( isDesktopAncestorAtRenderTime ).toBe( true );
 	} );
 
-	test( 'declarative .items on a os-select inside render populates the native <select>', async () => {
+	test( 'declarative .items on a os-select inside render populates the listbox', async () => {
 		let selInsideBody: ( HTMLElement & {
 			items: ReadonlyArray<{ value: string; label: string }>;
 		} ) | null = null;
@@ -107,16 +107,16 @@ describe( 'WindowManager — native-window hydration order', async () => {
 		} );
 
 		// Wait for the Component's render microtask to drain so the
-		// shadow `<select>` has picked up the options the setter
+		// shadow listbox has picked up the options the setter
 		// queued.
 		await tick();
 		await tick();
 
 		expect( selInsideBody ).not.toBeNull();
-		const native = selInsideBody!.shadowRoot!.querySelector(
-			'select',
-		) as HTMLSelectElement;
-		expect( native.options.length ).toBe( 2 );
+		expect(
+			selInsideBody!.shadowRoot!.querySelectorAll( '[role="option"]' )
+				.length,
+		).toBe( 2 );
 	} );
 
 	test( 'iframe windows still open normally (hydrateNative is a no-op for them)', async () => {

@@ -755,7 +755,7 @@ export const holoCheck = css`
 		background-image: none;
 		background-repeat: no-repeat;
 		cursor: inherit;
-		transition: background-position var( --_holo-t ) ease,
+		transition: background-color var( --_holo-t ) ease,
 			border-color var( --_holo-t ) ease, box-shadow var( --_holo-t ) ease;
 	}
 
@@ -774,20 +774,17 @@ export const holoCheck = css`
 		box-shadow: var( --_holo-focus );
 	}
 
-	/* Checked is the identity moment: the box fills with the mesh. */
+	/*
+	 * Checked wears the accent, flat. The mesh is reserved for hero
+	 * surfaces, and a checkbox in a settings list is not one: a
+	 * column of forms where every ticked box is iridescent has no
+	 * identity moments left to spend.
+	 */
 	input[ type='checkbox' ]:checked,
 	input[ type='checkbox' ]:indeterminate,
 	input[ type='radio' ]:checked {
 		border-color: transparent;
-		background-image: var( --_holo-fill );
-		background-size: 220% 220%;
-		background-position: 22% 28%;
-		box-shadow: var( --_holo-glow );
-	}
-
-	input[ type='checkbox' ]:checked:hover:not( :disabled ),
-	input[ type='radio' ]:checked:hover:not( :disabled ) {
-		background-position: 74% 66%;
+		background-color: var( --os-ui-accent, #2271b1 );
 	}
 
 	input[ type='checkbox' ]:checked:focus-visible,
@@ -807,7 +804,7 @@ export const holoCheck = css`
 		top: 46%;
 		width: 3.5px;
 		height: 7.5px;
-		border: solid var( --_holo-ink );
+		border: solid var( --os-ui-fg-on-accent, #fff );
 		border-width: 0 2px 2px 0;
 		transform: translate( -50%, -50% ) rotate( 45deg );
 		animation: os-holo-tick 180ms cubic-bezier( 0.3, 1.4, 0.6, 1 );
@@ -823,7 +820,7 @@ export const holoCheck = css`
 		height: 2px;
 		border: 0;
 		border-radius: 1px;
-		background: var( --_holo-ink );
+		background: var( --os-ui-fg-on-accent, #fff );
 		transform: translate( -50%, -50% );
 	}
 
@@ -835,7 +832,7 @@ export const holoCheck = css`
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var( --_holo-ink );
+		background: var( --os-ui-fg-on-accent, #fff );
 		transform: translate( -50%, -50% );
 		animation: os-holo-tick 180ms cubic-bezier( 0.3, 1.4, 0.6, 1 );
 	}

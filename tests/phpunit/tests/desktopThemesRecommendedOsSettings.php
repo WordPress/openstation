@@ -219,12 +219,12 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
 				'dockSize'      => 'enormous',
-				'desktopLayout' => 'spatial',
+				'desktopLayout' => 'classic',
 				'windowRadius'  => 'squircle',
 			)
 		);
 
-		$this->assertSame( array( 'desktopLayout' => 'spatial' ), $clean );
+		$this->assertSame( array( 'desktopLayout' => 'classic' ), $clean );
 	}
 
 	/**

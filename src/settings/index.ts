@@ -34,7 +34,7 @@
  *       ├── wallpaper.ts   — swatch grid + editor slot + custom-gradient
  *       ├── custom-image.ts — upload + library tabs
  *       ├── accent.ts      — accent swatch row
- *       └── dock-size.ts   — segmented dock-size control
+ *       └── desktop-layout.ts — layout cards + inline dock options
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
@@ -43,6 +43,7 @@ import * as registry from '../wallpapers/registry';
 import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	ADMIN_BAR_MODES,
+	CUSTOM_ACCENT_ID,
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
 	WINDOW_RADII,
@@ -52,7 +53,6 @@ import {
 import {
 	loadState,
 	saveState,
-	setLastConfirmedState,
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
@@ -253,12 +253,14 @@ export class OsSettings implements SettingsCtx {
 	constructor( config: OsSettingsConfig, layer: WallpaperLayer ) {
 		this.config = config;
 		this.layer = layer;
+		// `loadState()` primes the rollback + diff baseline itself,
+		// but only when it read the state out of user meta. Priming
+		// it unconditionally from here was the bug: with the server
+		// snapshot absent, the boot state comes from the localStorage
+		// cache, which can hold values a previous session never got
+		// as far as saving — and a baseline that claims those are
+		// confirmed is a baseline that never sends them.
 		this.state = loadState();
-
-		// Prime the rollback baseline so the FIRST failed save still
-		// has a snapshot to revert to. The boot state came from user
-		// meta and is by definition server-confirmed.
-		setLastConfirmedState( this.state );
 
 		// Auto-rollback on save failure — restore the in-memory state
 		// to the last server-confirmed snapshot AND re-render the
@@ -324,7 +326,19 @@ export class OsSettings implements SettingsCtx {
 		}
 
 		const accents = getAccents();
-		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
+		/*
+		 * Custom resolves from state, not from the list: it is the one
+		 * accent with no fixed value, so a lookup would miss it and
+		 * fall through to the first preset. Checked before the lookup
+		 * rather than after, because the fallback that catches an
+		 * unknown id is the same expression and would swallow it.
+		 */
+		const preset =
+			accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
+		const accentValue =
+			this.state.accent === CUSTOM_ACCENT_ID
+				? this.state.customAccent
+				: preset.value;
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
 		const windowRadius =
@@ -348,7 +362,57 @@ export class OsSettings implements SettingsCtx {
 		// inside the body, and the accent picker would appear to do
 		// nothing. On the same element, an inline style always wins.
 		const root = document.body;
-		root.style.setProperty( '--wp-admin-theme-color', accent.value );
+		root.style.setProperty( '--wp-admin-theme-color', accentValue );
+		// The control kit paints its on states and selection rings from
+		// `--os-ui-accent` — switches, checkboxes, radios, sliders, the
+		// segmented pill, the swatch ring. The palette declares it at
+		// Pulse, and that declaration stays the brand's; this inline
+		// write is the user's pick, and without it choosing an accent
+		// moves the title bars and leaves every control pink.
+		root.style.setProperty( '--os-ui-accent', accentValue );
+		/*
+		 * The ambient layer resolves one step back through
+		 * `--os-ui-accent-dim` — the dock divider, the selected
+		 * sidebar row's wash and bloom, every glow. It has to move
+		 * with the pick too, or the station stays pink around a teal
+		 * control.
+		 *
+		 * Pulse keeps the palette's own value rather than a derived
+		 * one: the brand mixes its dim by hand, pulling saturation
+		 * and lightness down together, and no single step reproduces
+		 * that pair. Every other accent gets the darkening step,
+		 * which is what "one step back" means for a colour we were
+		 * handed rather than given a twin for.
+		 */
+		const BRAND_ACCENT = '#f252fc';
+		const accentDim =
+			accentValue.toLowerCase() === BRAND_ACCENT
+				? null
+				: `color-mix( in srgb, ${ accentValue } 88%, #000 )`;
+		if ( accentDim === null ) {
+			root.style.removeProperty( '--os-ui-accent-dim' );
+		} else {
+			root.style.setProperty( '--os-ui-accent-dim', accentDim );
+		}
+		/*
+		 * And again on the shell, for the same reason `--os-window-radius`
+		 * is written twice below: a desktop theme declares its own
+		 * `--os-ui-accent` on `.os-shell[data-os-desktop-theme="…"]`,
+		 * which is a NEARER ancestor of every control than <body> is.
+		 * Legacy ships `#2271b1`, so with a theme worn the write above
+		 * reaches nothing inside the shell and picking Teal left every
+		 * control WordPress blue while the derived `-dim` wash went teal:
+		 * one pick, two answers, from the same click.
+		 *
+		 * An inline style on the shell outranks any selector, so the
+		 * user's pick is authoritative in both places.
+		 */
+		shell.style.setProperty( '--os-ui-accent', accentValue );
+		if ( accentDim === null ) {
+			shell.style.removeProperty( '--os-ui-accent-dim' );
+		} else {
+			shell.style.setProperty( '--os-ui-accent-dim', accentDim );
+		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
@@ -394,10 +458,9 @@ export class OsSettings implements SettingsCtx {
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
-		// every settings change to rebuild the dock(s) and (in spatial
-		// mode) the synthesized desktop icons. Written here so every
-		// apply() is the single source of truth — no matter how the
-		// state got to this point (init from localStorage, picker
+		// every settings change to rebuild the dock(s). Written here so
+		// every apply() is the single source of truth — no matter how
+		// the state got to this point (init from localStorage, picker
 		// change, reset).
 		shell.setAttribute(
 			'data-os-layout',

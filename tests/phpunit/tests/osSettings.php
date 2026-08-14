@@ -81,7 +81,7 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_known_layout_value() {
-		foreach ( array( 'classic', 'unified', 'spatial', 'openstation' ) as $layout ) {
+		foreach ( array( 'classic', 'unified' ) as $layout ) {
 			$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => $layout ) );
 			$this->assertSame( $layout, $clean['desktopLayout'], "layout '{$layout}' should round-trip" );
 		}
@@ -163,11 +163,11 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 			$user_id,
 			array(
 				'wallpaper'     => 'dark',
-				'desktopLayout' => 'spatial',
+				'desktopLayout' => 'classic',
 			)
 		);
 		$loaded = openstation_get_os_settings( $user_id );
-		$this->assertSame( 'spatial', $loaded['desktopLayout'] );
+		$this->assertSame( 'classic', $loaded['desktopLayout'] );
 	}
 
 

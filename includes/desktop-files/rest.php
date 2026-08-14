@@ -410,6 +410,42 @@ function openstation_files_inject_boot_placements( $config ) {
 add_filter( 'openstation_shell_config', 'openstation_files_inject_boot_placements', 20 );
 
 /**
+ * Inline the viewer's visible folder rows into the boot-time shell
+ * config, the same way the root placements are.
+ *
+ * The client keeps a folders map alongside its placements, and
+ * anything that needs to know a folder's OWNER reads it there —
+ * notably the "Share folder" title-bar button, which is owner-only
+ * and has nothing but a window id to work from. Nothing on the
+ * normal boot path filled that map: placement hydration populates
+ * placements, and `listFolders()` only ran after a create, a rename
+ * or an untrash. So a plain reload left every folder ownerless, and
+ * the owner of a folder lost the one control that manages its
+ * sharing until something happened to repopulate the map.
+ *
+ * Mirrors GET /folders exactly (same visibility resolution — owned
+ * folders plus accepted shares plus `share_mode='all'` — same
+ * shape), and the client consumes it one-shot, so any later
+ * re-hydration still goes through REST for fresh state.
+ *
+ * @param array $config Shell config.
+ * @return array
+ */
+function openstation_files_inject_boot_folders( $config ) {
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 ) {
+		return $config;
+	}
+	$out = array();
+	foreach ( openstation_files_get_visible_folders( $user_id ) as $row ) {
+		$out[] = openstation_files_shape_folder( $row );
+	}
+	$config['filesBootFolders'] = $out;
+	return $config;
+}
+add_filter( 'openstation_shell_config', 'openstation_files_inject_boot_folders', 20 );
+
+/**
  * GET /placements
  */
 function openstation_files_rest_list_placements( WP_REST_Request $req ) {
@@ -734,26 +770,11 @@ function openstation_files_shape_folder( $row ) {
 		'shareMeta'   => isset( $row['share_meta'] ) ? $row['share_meta'] : null,
 		'updatedAtMs' => (int) $row['updated_at_ms'],
 	);
-	if ( function_exists( 'openstation_files_get_folder_shares' ) ) {
-		$shares         = openstation_files_get_folder_shares( (int) $row['id'] );
-		$accepted_count = 0;
-		$has_all        = 'all' === (string) $row['share_mode'];
-		foreach ( $shares as $s ) {
-			if ( 'accepted' === $s['state'] ) {
-				++$accepted_count;
-			}
-		}
-		// `shared` is viewer-agnostic — recipients need it for the
-		// shared-folder badge. The recipient COUNT is owner-internal
-		// (the dedicated shares endpoint gates the full roster on
-		// `share_can_manage`), so only managers get the real number;
-		// every other viewer sees `0`, keeping the wire shape stable.
-		$can_manage            = function_exists( 'openstation_files_share_can_manage' )
-			&& openstation_files_share_can_manage( (int) $row['id'], get_current_user_id() );
-		$shape['shareSummary'] = array(
-			'shared'         => $has_all || $accepted_count > 0,
-			'recipientCount' => $can_manage ? $accepted_count + ( $has_all ? 1 : 0 ) : 0,
-		);
+	// Same summary `OpenStation_Folder_File::serialize()` puts on a
+	// folder PLACEMENT, so a tile paints identically whichever
+	// response it came from.
+	if ( function_exists( 'openstation_files_folder_share_summary' ) ) {
+		$shape['shareSummary'] = openstation_files_folder_share_summary( $row );
 	}
 	return $shape;
 }

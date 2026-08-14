@@ -1,29 +1,21 @@
 /**
  * Desktop-layout dispatcher.
  *
- * Owns the dock(s) and any synthesized desktop icons across the three
- * top-level layouts the user can pick in OS Settings → Appearance:
+ * Owns the dock(s) across the two top-level layouts the user can pick
+ * in OS Settings → Appearance:
  *
  * - **Unified** — a single `Dock` instance with every menu sharing one
  *   rail, on the edge the user's `dockPlacement` names. Default for
  *   new installs: one navigation surface, so nothing has to be learned
- *   twice.
- * - **Classic** — two `Dock` instances. The bottom dock holds plugin
- *   menus (`!isCore`). A side dock on the left edge holds core admin
- *   menus (`isCore`).
- * - **Spatial** — a single `Dock` instance with plugin menus only.
- *   Core menus are synthesized into desktop-icon entries and handed to
- *   `renderDesktopIcons` so they appear on the wallpaper.
- * - **OpenStation** — a single bottom `Dock` instance holding every
- *   menu, but *re-sorted* so the WordPress core cluster leads and the
- *   plugin cluster follows. That sort is what makes the rail's single
- *   core→plugin divider deterministic: `Dock.render()` drops its
+ *   twice. The rail is *re-sorted* so the WordPress core cluster leads
+ *   and the plugin cluster follows, which is what makes its single
+ *   core→plugin divider deterministic: `Dock.render()` drops the
  *   `--group` separator at the first `isCore === false` tile, so any
  *   interleaved order (a user drag, a plugin's `dockOrder` filter)
- *   would otherwise scatter the boundary or lose it entirely. Desktop
- *   icons behave exactly as they do in Classic/Unified — the wallpaper
- *   stays available, it just isn't load-bearing. Bottom-only, unlike
- *   Unified and Spatial — see `primaryOrientation()`.
+ *   would otherwise scatter the boundary or lose it entirely.
+ * - **Classic** — two `Dock` instances. The bottom dock holds plugin
+ *   menus (`!isCore`). A side dock on the left edge holds core admin
+ *   menus (`isCore`). Shown as "Split".
  *
  * Three surfaces drive this module:
  *
@@ -36,8 +28,7 @@
  * 3. `applyDockItems( items )` / `applyDesktopIcons( serverIcons )` —
  *    update paths used by the live menu-refresh pipeline. Same item
  *    list comes in; the dispatcher partitions it by `isCore` and pushes
- *    the right slice to each rail (and re-synthesizes core icons on
- *    the wallpaper for Spatial).
+ *    the right slice to each rail.
  *
  * Lives separate from `desktop.ts` so the partitioning logic is
  * testable without booting the whole shell.
@@ -97,11 +88,7 @@ export interface LayoutDispatcherDeps {
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
 	adminUrl: string;
-	/**
-	 * Repaint the desktop-icons grid with a (possibly augmented) list.
-	 * The dispatcher hands the union of server-registered icons +
-	 * synthesized core menu icons (Spatial only).
-	 */
+	/** Repaint the desktop-icons grid with the server-registered list. */
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
 	 * Read the current OS-settings snapshot. The dispatcher consults
@@ -156,16 +143,11 @@ export interface LayoutDispatcher {
 	setDockPlacement( placement: DockPlacementId ): void;
 	/**
 	 * Replace the dock-items list across whichever rails are live.
-	 * Items with `isCore === true` route to the side dock in Classic
-	 * and to the wallpaper-icon grid in Spatial; all other layouts
-	 * push every item to the single bottom rail.
+	 * Items with `isCore === true` route to the side dock in Classic;
+	 * Unified pushes every item to its single rail.
 	 */
 	applyDockItems( items: DockItem[] ): void;
-	/**
-	 * Replace the server-registered desktop-icons list. Stored so the
-	 * dispatcher can re-emit a merged list (server icons + synthesized
-	 * core icons) on every Spatial repaint.
-	 */
+	/** Replace the server-registered desktop-icons list. */
 	applyDesktopIcons( serverIcons: DesktopIconServerEntry[] | undefined ): void;
 	/**
 	 * Append a JS-owned "system" tile. The tile is tracked so it
@@ -180,7 +162,7 @@ export interface LayoutDispatcher {
 	 *   native-window tiles.
 	 * - `'core'` — lands on the side dock when one exists (Classic
 	 *   layout, alongside core admin menus); falls back to the primary
-	 *   dock in Unified and Spatial where there is no side rail. Used
+	 *   dock in Unified, where there is no side rail. Used
 	 *   by shell-owned affordances like OS Settings.
 	 */
 	appendSystemTile(
@@ -200,7 +182,7 @@ export interface LayoutDispatcher {
 		title: string;
 		icon: string;
 		affinity: SystemTileAffinity;
-		/** Whether the tile opts into the Apps & Icons list. */
+		/** Whether the tile opts into the Apps & Plugins list. */
 		placeable: boolean;
 	} >;
 	/**
@@ -228,28 +210,6 @@ export interface LayoutDispatcher {
 }
 
 const SIDE_DOCK_ID = 'os-side-dock';
-
-/**
- * Convert a core menu item into the icon-entry shape `renderDesktopIcons`
- * expects. Spatial mode renders these on the wallpaper in place of the
- * left side bar that Classic gives core menus.
- */
-function coreItemToIconEntry(
-	item: DockItem,
-	index: number,
-): DesktopIconServerEntry {
-	return {
-		id: `dock-core:${ item.id }`,
-		title: item.title,
-		icon: item.icon,
-		window: '',
-		url: item.url,
-		// Synthesized icons render after server-registered ones; the
-		// large offset leaves headroom for plugin authors who set
-		// explicit `position` values.
-		position: 1000 + index,
-	};
-}
 
 export function createLayoutDispatcher(
 	deps: LayoutDispatcherDeps,
@@ -282,13 +242,13 @@ export function createLayoutDispatcher(
 	// window registration adds plugin-owned tiles. Iteration is in
 	// insertion order so re-attach matches the original visual order.
 	// Each entry remembers its affinity so a `'core'` tile can route
-	// to the side dock in Classic and to primary in Unified/Spatial.
+	// to the side dock in Classic and to primary in Unified.
 	const systemTiles = new Map<
 		string,
 		{ item: SystemDockItem; affinity: SystemTileAffinity }
 	>();
 	// Ids of tracked system tiles currently attached to a live rail.
-	// A tile the user hid via OS Settings → Apps & Icons stays tracked
+	// A tile the user hid via OS Settings → Apps & Plugins stays tracked
 	// (so flipping the setting back restores it) but detached.
 	const attachedSystemTiles = new Set< string >();
 
@@ -339,13 +299,13 @@ export function createLayoutDispatcher(
 
 	/**
 	 * Whether a system tile is allowed on the dock under the user's
-	 * current Apps & Icons overrides. Native windows registered with
+	 * current Apps & Plugins overrides. Native windows registered with
 	 * `placement: 'dock'` land on the rails as system tiles rather
 	 * than menu items, so `applyDockPlacement` never filters them —
 	 * resolve the override here instead.
 	 *
 	 * The override is read from the desktop icon targeting the tile's
-	 * window when one exists (the Apps & Icons tab keys its rows by
+	 * window when one exists (the Apps & Plugins tab keys its rows by
 	 * icon id), falling back to the tile's own id. No override means
 	 * the tile stays on its native dock rail.
 	 */
@@ -445,73 +405,12 @@ export function createLayoutDispatcher(
 
 	const repaintIcons = (): void => {
 		const settings = readSettings();
-		if ( layout !== 'spatial' ) {
-			// Apply visibility to the wallpaper grid — items the user
-			// promoted to the desktop get synthesized; native desktop
-			// icons hidden / dock-only are filtered out.
-			deps.renderIcons(
-				applyDesktopPlacement( serverIcons, items, settings.itemVisibility ),
-			);
-			return;
-		}
-		// Spatial owns the wallpaper as the "core surface": synthesized
-		// core menu icons render here. Server-registered PLUGIN desktop
-		// icons with no override are deliberately suppressed — their
-		// admin menu lives in the bottom dock, and duplicating them on
-		// the wallpaper would create two paths to the same screen.
-		//
-		// NOTE: on shells where the files layer is mounted (0.9.0+),
-		// `.os-icons` — the container `deps.renderIcons()`
-		// paints into — is hidden by CSS (see `desktop-files.css`'s
-		// `:has(...)` rule), since the files layer is the actual
-		// visible wallpaper surface. The synthesis below still runs
-		// (and matters for shells without a files layer), but the
-		// user-visible equivalent for Spatial's core icons is produced
-		// separately by `syncShortcutsWithVisibility()` in
-		// `settings/desktop-shortcuts-sync.ts`, which pushes the same
-		// core items into the files store as shortcut placements.
-		//
-		// Two classes of server icon MUST survive the Spatial layout,
-		// or the layout choice silently eats them:
-		//   1. Framework-owned `pinned` icons (e.g. My WordPress). These
-		//      are not plugin menus and have no dock equivalent;
-		//      suppressing them made the icon vanish from the wallpaper
-		//      with the ONLY recovery being "move it to the dock" via
-		//      OS Settings.
-		//   2. Icons the user EXPLICITLY moved to the desktop / both in
-		//      OS Settings → Apps & Icons. Without this the picker's
-		//      "On the desktop" choice silently no-ops in Spatial.
-		// Dock-native items the user promoted are appended separately
-		// below (they have no serverIcons entry).
-		const { core } = partition();
-		const synthesized = core.map( coreItemToIconEntry );
-		const keptServerIcons = serverIcons.filter( ( icon ) => {
-			const override = settings.itemVisibility[ icon.id ];
-			if ( override ) {
-				return override === 'desktop' || override === 'both';
-			}
-			return Boolean( icon.pinned );
-		} );
-		const explicitlyPromoted: DesktopIconServerEntry[] = [];
-		let synthIndex = 0;
-		for ( const item of items ) {
-			const placement = settings.itemVisibility[ item.id ];
-			if ( placement === 'desktop' || placement === 'both' ) {
-				explicitlyPromoted.push( {
-					id: `dock:${ item.id }`,
-					title: item.title,
-					icon: item.icon,
-					window: '',
-					url: item.url || '',
-					position: 2000 + synthIndex++,
-				} );
-			}
-		}
-		deps.renderIcons( [
-			...synthesized,
-			...keptServerIcons,
-			...explicitlyPromoted,
-		] );
+		// Apply visibility to the wallpaper grid — items the user
+		// promoted to the desktop get synthesized; native desktop
+		// icons hidden / dock-only are filtered out.
+		deps.renderIcons(
+			applyDesktopPlacement( serverIcons, items, settings.itemVisibility ),
+		);
 	};
 
 	const tearDownDocks = (): void => {
@@ -600,7 +499,7 @@ export function createLayoutDispatcher(
 		// native-window launchers, etc. Lets a renderer apply
 		// uniform treatment across menu + system cohorts in one
 		// pass. Live updates flow through `appendSystemItem` /
-		// `removeSystemItem`. Tiles hidden via Apps & Icons are
+		// `removeSystemItem`. Tiles hidden via Apps & Plugins are
 		// excluded, matching what the dispatcher attaches below.
 		fullSystemTiles: Array.from( systemTiles.values() )
 			.filter( ( entry ) => isSystemTileDockVisible( entry.item.id ) )
@@ -656,26 +555,16 @@ export function createLayoutDispatcher(
 	/**
 	 * Which edge the primary rail mounts on.
 	 *
-	 * Unified and Spatial follow the user's `dockPlacement`. Two layouts
-	 * are pinned to `'bottom'`, for different reasons:
+	 * Unified follows the user's `dockPlacement`. Classic is pinned to
+	 * `'bottom'`: its side bar already owns the left edge, so letting
+	 * the plugin rail move there would stack the two on top of each
+	 * other.
 	 *
-	 *   - **Classic** — its side bar already owns the left edge, so
-	 *     letting the plugin rail move there would stack the two on top
-	 *     of each other.
-	 *   - **OpenStation** — the layout is drawn for a horizontal rail.
-	 *     Its stylesheet is scoped to
-	 *     `[data-os-dock-placement="bottom"]` and its
-	 *     constellation flyout fans upward out of a tile, so a vertical
-	 *     rail would lose the skin and keep geometry built for an edge
-	 *     it is no longer on.
-	 *
-	 * The pick is remembered either way — switching to Unified or
-	 * Spatial later lands on the edge the user chose.
+	 * The pick is remembered either way — switching back to Unified
+	 * lands on the edge the user chose.
 	 */
 	const primaryOrientation = (): DockPlacementId =>
-		layout === 'classic' || layout === 'openstation'
-			? 'bottom'
-			: dockPlacement;
+		layout === 'classic' ? 'bottom' : dockPlacement;
 
 	const buildDocksForCurrentLayout = (): void => {
 		tearDownDocks();
@@ -691,10 +580,8 @@ export function createLayoutDispatcher(
 				buildMountDeps( deps.bottomDockEl, plugin, 'bottom' ),
 			);
 			primaryDock = unwrapDefaultDock( primary );
-		} else if ( layout === 'unified' || layout === 'openstation' ) {
-			// One rail, same contents. The two differ in how the rail is
-			// PAINTED (OpenStation brings its own skin, its seam and the
-			// constellation flyout), not in what it holds.
+		} else {
+			// Unified — one rail, core cluster first.
 			removeSideDockEl();
 			primary = mountRail(
 				buildMountDeps(
@@ -704,24 +591,12 @@ export function createLayoutDispatcher(
 				),
 			);
 			primaryDock = unwrapDefaultDock( primary );
-		} else {
-			// Spatial — the rail holds plugins; core items are
-			// emitted as wallpaper icons by `repaintIcons()` below.
-			removeSideDockEl();
-			primary = mountRail(
-				buildMountDeps(
-					deps.bottomDockEl,
-					plugin,
-					primaryOrientation(),
-				),
-			);
-			primaryDock = unwrapDefaultDock( primary );
 		}
 
 		// Re-attach every tracked system tile to the rebuilt rails
 		// according to its registered affinity, in registration order
 		// so the visual order survives the rebuild. Tiles hidden via
-		// Apps & Icons stay tracked but detached.
+		// Apps & Plugins stay tracked but detached.
 		attachedSystemTiles.clear();
 		for ( const [ id, entry ] of systemTiles ) {
 			if ( ! isSystemTileDockVisible( id ) ) {
@@ -792,13 +667,8 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if (
-				layout === 'unified' ||
-				layout === 'openstation'
-			) {
-				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
-				primary?.replaceItems( plugin );
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			}
 			repaintIcons();
 		},
@@ -806,7 +676,7 @@ export function createLayoutDispatcher(
 			next: DesktopIconServerEntry[] | undefined,
 		): void => {
 			serverIcons = next ?? [];
-			// The icon → window mapping that Apps & Icons overrides
+			// The icon → window mapping that Apps & Plugins overrides
 			// key off may have changed — re-check every system tile.
 			reconcileSystemTiles();
 			repaintIcons();
@@ -816,7 +686,7 @@ export function createLayoutDispatcher(
 			affinity: SystemTileAffinity = 'plugin',
 		): void => {
 			systemTiles.set( item.id, { item, affinity } );
-			// Respect a pre-existing Apps & Icons override — a native
+			// Respect a pre-existing Apps & Plugins override — a native
 			// window the user hid must not resurface on the dock when
 			// its plugin re-registers the tile (boot, plugins-changed
 			// sync). The tile stays tracked so unhiding restores it.
@@ -854,17 +724,12 @@ export function createLayoutDispatcher(
 			if ( layout === 'classic' ) {
 				side?.replaceItems( core );
 				primary?.replaceItems( plugin );
-			} else if (
-				layout === 'unified' ||
-				layout === 'openstation'
-			) {
-				primary?.replaceItems( [ ...core, ...plugin ] );
 			} else {
-				primary?.replaceItems( plugin );
+				primary?.replaceItems( [ ...core, ...plugin ] );
 			}
 			// Apply the (possibly changed) visibility overrides to the
 			// system-tile cohort too — a native window's dock tile
-			// hidden / restored via Apps & Icons lands live here.
+			// hidden / restored via Apps & Plugins lands live here.
 			reconcileSystemTiles();
 			repaintIcons();
 		},
@@ -908,12 +773,6 @@ export function createLayoutDispatcher(
 
 	return dispatcher;
 }
-
-/** Internal export for unit tests that need to inspect the synthesizer. */
-export const _testing = {
-	coreItemToIconEntry,
-	SIDE_DOCK_ID,
-};
 
 // `DockItemConfig` is re-exported only because TypeScript needs the
 // import resolution for downstream `.d.ts` callers.

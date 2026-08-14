@@ -28,9 +28,9 @@ import type { Window as WPWindow } from '../window';
 import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
+import { isConstellationMounted } from '../dock-constellation/active';
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
 import { applyFilters, HOOKS } from '../hooks';
-import { isConstellationLayoutActive } from '../dock-constellation/active';
 
 /**
  * Detail passed to the {@link HOOKS.DOCK_PEEK_CARD_CONTENT} filter.
@@ -153,13 +153,17 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		if ( e.pointerType !== 'mouse' ) {
 			return;
 		}
-		// The OpenStation layout hands the hover gesture on menu tiles
-		// to the constellation flyout, which already surfaces the open
-		// instances the peek would have shown — plus the submenu the
-		// peek has no way to reach. Two popovers on one tile is a
-		// flicker, not a feature. System tiles have no submenu and keep
-		// the peek in every layout.
-		if ( isConstellationLayoutActive() && tile.dataset.menuSlug ) {
+		// Menu tiles hand the hover gesture to the constellation
+		// flyout, which already surfaces the open instances the peek
+		// would have shown — plus the submenu the peek has no way to
+		// reach. Two popovers on one tile is a flicker, not a feature.
+		// System tiles have no submenu and keep the peek.
+		//
+		// Conditional on the flyout actually being mounted: a rail
+		// rendered without one (a plugin embedding the dock on its
+		// own) must keep the peek here rather than leave the tile with
+		// no hover surface at all.
+		if ( isConstellationMounted() && tile.dataset.menuSlug ) {
 			return;
 		}
 		// Re-evaluate on every enter — open windows might have changed

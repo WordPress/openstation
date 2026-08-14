@@ -10,16 +10,19 @@
  *   3. Defaults — compile-time fallback when both are absent.
  *
  * Writes:
- *   - localStorage: synchronous, every `saveState()` call.
+ *   - localStorage: synchronous, every `saveState()` call. Always the
+ *     complete state — it's this session's cache of its own view.
  *   - User meta (REST): debounced 250 ms after the last change via
  *     `_scheduleSyncToServer()`. The JS layer fires `saveState()` on every
  *     preference change so the debounce collapse rapid edits (e.g. dragging
- *     the gradient angle slider) into a single network request.
+ *     the gradient angle slider) into a single network request. Only the
+ *     fields that actually changed are sent — see `_buildPayload()`.
  */
 
 import type { DesktopConfig } from '../types';
 import {
 	ADMIN_BAR_MODES,
+	CUSTOM_ACCENT_ID,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_PLACEMENTS,
@@ -69,6 +72,11 @@ export function loadState(): OsSettingsState {
 		const state = _parseRaw( serverRaw );
 		// Prime the local cache so mid-session reads don't re-parse JSON.
 		_writeLocalStorage( state );
+		// This branch — and only this branch — read the state out of
+		// user meta, so it is the only one that may claim the server
+		// has agreed to it. See `setLastConfirmedState()` for what
+		// goes wrong when the other two make that claim.
+		setLastConfirmedState( state );
 		return state;
 	}
 
@@ -106,9 +114,22 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.wallpaper === 'string' && parsed.wallpaper !== ''
 				? parsed.wallpaper
 				: getDefaultWallpaperId(),
-		accent: accents.some( ( a ) => a.id === parsed.accent )
-			? ( parsed.accent as AccentId )
-			: DEFAULTS.accent,
+		// `custom` is a valid selection that is deliberately absent from
+		// the preset list, so it has to be allowed explicitly or a saved
+		// custom accent would be discarded as unknown on every load.
+		accent:
+			parsed.accent === CUSTOM_ACCENT_ID ||
+			accents.some( ( a ) => a.id === parsed.accent )
+				? ( parsed.accent as AccentId )
+				: DEFAULTS.accent,
+		// Untrusted input painted straight into a CSS custom property,
+		// so it is validated as a hex triplet rather than merely
+		// type-checked as a string.
+		customAccent:
+			typeof parsed.customAccent === 'string' &&
+			/^#[0-9a-fA-F]{6}$/.test( parsed.customAccent )
+				? parsed.customAccent
+				: DEFAULTS.customAccent,
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,
@@ -482,18 +503,30 @@ let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 const SYNC_DEBOUNCE_MS = 250;
 
 /**
- * Last state the server confirmed it accepted. Used to roll back
- * the local cache + the in-memory `OsSettings.state` when a save
- * fails (offline, REST 4xx/5xx, nonce expired). On boot, callers
- * should prime this via {@link setLastConfirmedState} with the
- * loaded state — the boot snapshot came from user meta and is by
- * definition confirmed.
+ * Last state the server confirmed it accepted. Two jobs:
+ *
+ *   1. Roll back the local cache + the in-memory `OsSettings.state`
+ *      when a save fails (offline, REST 4xx/5xx, nonce expired).
+ *   2. Serve as the baseline `_buildPayload()` diffs against, which
+ *      decides what a save is allowed to say anything about.
+ *
+ * Job 2 is why this must only ever hold state the server really did
+ * accept. `loadState()` primes it from the server snapshot and from
+ * nothing else: the localStorage cache can hold values a previous
+ * session never got as far as saving, and treating those as
+ * confirmed would mean never sending them — a field silently stuck
+ * locally, which is a quieter version of the bug the diff exists to
+ * fix. Left unprimed, the first save posts the full snapshot and the
+ * divergence heals itself.
  */
 let _lastConfirmedState: OsSettingsState | null = null;
 
 /**
- * Prime the rollback baseline. Called once after `loadState()` so
- * the FIRST failed save still has somewhere to roll back to.
+ * Prime the rollback + diff baseline. `loadState()` calls this on
+ * the server-snapshot path so the FIRST failed save already has
+ * somewhere to roll back to. Exported for tests and for any caller
+ * that has genuinely server-confirmed state in hand — do not call it
+ * with values the server hasn't accepted.
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
 	_lastConfirmedState = _cloneState( state );
@@ -581,6 +614,58 @@ function _scheduleSyncToServer(
 
 let _pendingActivityWindowId: string | null = null;
 
+/**
+ * Build the REST payload: only the top-level fields whose value
+ * differs from the last state the server confirmed.
+ *
+ * Sending the complete snapshot is what let two open sessions
+ * overwrite each other. Session B boots, session A changes the
+ * wallpaper, then B changes only its accent — and B's POST carried
+ * its own stale wallpaper alongside the accent, silently undoing A.
+ * A payload built from the diff cannot do that: B never touched the
+ * wallpaper, so the key is absent, and the server keeps whatever it
+ * holds. (The route merges partial payloads over stored values;
+ * see `openstation_rest_save_os_settings()`.)
+ *
+ * The baseline is deliberately what THIS session last agreed with
+ * the server about, not the server's current truth. Diffing against
+ * fresh server state would re-introduce the bug from the other
+ * side: B would notice A's wallpaper differs from its own stale
+ * copy, treat that as a local change, and post the old value back.
+ *
+ * Comparison is by serialization, which is exact for the shapes
+ * here and errs the safe way — a key that only *looks* changed
+ * (rebuilt object, different insertion order) is simply sent, which
+ * is what every save did before.
+ *
+ * @param state Live state to persist.
+ * @return The fields to send, or `null` when nothing changed.
+ */
+function _buildPayload(
+	state: OsSettingsState,
+): Partial< OsSettingsState > | null {
+	// No baseline (boot priming skipped) — nothing to diff against,
+	// so fall back to the full snapshot.
+	if ( ! _lastConfirmedState ) {
+		return { ...state };
+	}
+	const baseline = _lastConfirmedState;
+	const payload: Partial< OsSettingsState > = {};
+	let changed = false;
+	for ( const key of Object.keys( state ) as ( keyof OsSettingsState )[] ) {
+		if (
+			JSON.stringify( state[ key ] ) === JSON.stringify( baseline[ key ] )
+		) {
+			continue;
+		}
+		// Assigned through `Object.assign` because indexing a
+		// `Partial<T>` with a union key isn't assignable in TS.
+		Object.assign( payload, { [ key ]: state[ key ] } );
+		changed = true;
+	}
+	return changed ? payload : null;
+}
+
 function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
 	const config = ( window as unknown as {
 		openStationConfig?: DesktopConfig;
@@ -592,6 +677,16 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		// only. Treat as success so optimistic indicators don't hang
 		// in "saving" forever; we'll re-sync on the next successful
 		// save attempt.
+		_emitSaveLifecycle( 'saved' );
+		return;
+	}
+
+	const payload = _buildPayload( state );
+	if ( ! payload ) {
+		// Nothing moved since the last confirmed save. Skipping the
+		// request keeps a re-render or a set-to-the-same-value from
+		// costing a round trip, and — more importantly — from being
+		// one more chance to post a stale field.
 		_emitSaveLifecycle( 'saved' );
 		return;
 	}
@@ -615,7 +710,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 				'Content-Type': 'application/json',
 				'X-WP-Nonce': nonce,
 			},
-			body: JSON.stringify( { settings: state } ),
+			body: JSON.stringify( { settings: payload } ),
 		},
 		{ windowId: attributedWindowId },
 	)
@@ -627,6 +722,11 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			// baseline. Any subsequent save that fails will revert
 			// here, not back to whatever the user typed two minutes
 			// ago.
+			//
+			// The FULL state is promoted even though only the diff
+			// was sent: the fields left out are the ones this
+			// session never touched, and its record of them is
+			// exactly what must not be posted again.
 			_lastConfirmedState = _cloneState( state );
 			_emitSaveLifecycle( 'saved' );
 		} )

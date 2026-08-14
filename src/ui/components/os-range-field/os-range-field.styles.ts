@@ -4,27 +4,24 @@ import { holoTokens } from '../../holo';
 /**
  * `<os-range-field>` — label, track, readout.
  *
- * ## The elapsed track is the mesh
+ * ## The elapsed track is the accent
  *
- * A slider is the one control in the kit that shows a *quantity*, and
- * the filled part of it is the natural place for the brand to live:
- * it is already where the eye goes, it is already bounded, and it
- * grows — so the mesh is revealed rather than merely applied.
+ * Flat accent, not the mesh: sliders sit in settings rows alongside
+ * toggles and checkboxes, and the whole family wears the accent so
+ * the meshes stay reserved for hero surfaces.
  *
- * `accent-color` cannot do this. It takes a colour and the fill here
- * is a gradient, so the track is repainted from scratch with two
- * background layers:
+ * `accent-color` still cannot paint this track (it has no notion of
+ * an elapsed portion on a custom-height track), so the track is
+ * repainted from scratch with two background layers:
  *
  *   1. an opaque wedge of the unlit track colour covering everything
  *      PAST the current value, and
- *   2. the mesh underneath, showing through where layer 1 is
+ *   2. the accent underneath, showing through where layer 1 is
  *      transparent.
  *
  * The boundary between them is --_fill, a percentage the component
  * writes on every input event. One custom property, no per-frame
- * layout, and the mesh itself never moves — which matters, because a
- * mesh that rescaled with the value would shift hue under the user's
- * thumb while they dragged and read as a bug.
+ * layout.
  *
  * RTL flips the wedge by flipping its angle, not its stops:
  * --_range-angle is 90deg in LTR and 270deg in RTL, both written by
@@ -67,7 +64,7 @@ export const styles = css`
 	}
 
 	/* The track. Two layers, first-on-top: the unfilled wedge, then
-	   the mesh. See the file docblock for why it is built this way. */
+	   the accent. See the file docblock for why it is built this way. */
 	input[ type='range' ]::-webkit-slider-runnable-track {
 		height: 6px;
 		border-radius: 999px;
@@ -76,9 +73,12 @@ export const styles = css`
 				transparent var( --_fill, 0% ),
 				var( --_holo-track ) var( --_fill, 0% )
 			),
-			var( --_holo-fill );
-		background-size: auto, 260% 260%;
-		background-position: center, 30% 50%;
+			linear-gradient(
+				var( --os-ui-accent, #2271b1 ),
+				var( --os-ui-accent, #2271b1 )
+			);
+		background-size: auto, auto;
+		background-position: center, center;
 		background-repeat: no-repeat;
 		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 	}
@@ -91,9 +91,12 @@ export const styles = css`
 				transparent var( --_fill, 0% ),
 				var( --_holo-track ) var( --_fill, 0% )
 			),
-			var( --_holo-fill );
-		background-size: auto, 260% 260%;
-		background-position: center, 30% 50%;
+			linear-gradient(
+				var( --os-ui-accent, #2271b1 ),
+				var( --os-ui-accent, #2271b1 )
+			);
+		background-size: auto, auto;
+		background-position: center, center;
 		background-repeat: no-repeat;
 		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 	}

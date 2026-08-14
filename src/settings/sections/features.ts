@@ -462,10 +462,16 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 	const paint = (): void =>
 		render(
 			html`
+				<!--
+					No heading. The page title above already says
+					"Features", and its description already covers the
+					per-account, takes-effect-immediately point that used
+					to open this section.
+				-->
 				<os-section
-					heading=${ __( 'Features' ) }
+					heading=""
 					description=${ __(
-						'Tune individual OpenStation behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.',
+						'Watch the dot in the OpenStation Preferences title bar to see when a change has been saved.',
 					) }
 				>
 					${ shellCfg?.aiAssistant?.available
@@ -481,7 +487,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 										${ sprintf(
 											/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
 											__(
-												'Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.',
+												'Adds an AI mode to the %s command palette: find content and ask about your site.',
 											),
 											SHORTCUT_KEY,
 										) }
@@ -521,7 +527,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 								></os-checkbox-label>
 								<p class="os-features__hint">
 									${ __(
-										'Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default.',
+										'Rates incoming comments so you can triage the queue faster.',
 									) }
 								</p>
 								${ ! aiState.providerConfigured
@@ -550,7 +556,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default.',
+								'Draws connector lines between related windows. Line style and visibility live in Windows → Window links.',
 							) }
 						</p>
 						<div class="os-features__item">
@@ -562,7 +568,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							></os-checkbox-label>
 							<p class="os-features__hint">
 								${ __(
-									'Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus.',
+									'Clicking a window also surfaces its parent and children.',
 								) }
 							</p>
 						</div>
@@ -575,7 +581,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							></os-checkbox-label>
 							<p class="os-features__hint">
 								${ __(
-									'While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.',
+									'Related windows get an accent outline while one of them is focused.',
 								) }
 							</p>
 						</div>
@@ -590,7 +596,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching "Show desktop" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default.',
+								'A click on the empty desktop minimizes every window; a second click restores them.',
 							) }
 						</p>
 					</div>
@@ -604,7 +610,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on WP Explorer tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default.',
+								'Marks unpublished posts and pages with a corner ribbon on their tiles.',
 							) }
 						</p>
 					</div>
@@ -616,7 +622,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OpenStation Preferences → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.',
+								'Unlocks developer surfaces meant for plugin authors.',
 							) }
 						</p>
 					</div>
@@ -628,12 +634,17 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, "Leave shared folder") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.',
+								'Share desktop folders with other users or roles, with read or write access.',
 							) }
 						</p>
 						${ shellCfg?.currentUserIsAdmin
 							? html`
 								<div class="os-features__danger-row">
+									<p class="os-features__hint">
+										${ __(
+											'Removes every share and its access list. Cannot be undone.',
+										) }
+									</p>
 									<os-button
 										variant="danger"
 										?disabled=${ purging }
@@ -643,11 +654,6 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 											? __( 'Deleting…' )
 											: __( 'Delete folder sharing data' ) }
 									</os-button>
-									<p class="os-features__hint">
-										${ __(
-											'Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright.',
-										) }
-									</p>
 								</div>
 							`
 							: '' }
@@ -661,19 +667,24 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 								value=${ String( ctx.state.heartbeatRate ) }
 								@os-pick=${ onHeartbeatRateChange }
 							>
-								<os-option value="15">${ __( 'Fast — 15s (not recommended)' ) }</os-option>
-								<os-option value="30">${ __( 'Medium — 30s' ) }</os-option>
-								<os-option value="45">${ __( 'Slow — 45s' ) }</os-option>
-								<os-option value="60">${ __( 'Very slow — 60s (default)' ) }</os-option>
+								<os-option value="15">${ __( 'Fast (15s, not recommended)' ) }</os-option>
+								<os-option value="30">${ __( 'Medium (30s)' ) }</os-option>
+								<os-option value="45">${ __( 'Slow (45s)' ) }</os-option>
+								<os-option value="60">${ __( 'Very slow (60s, default)' ) }</os-option>
 							</os-select>
 						</label>
 						<p class="os-features__hint">
 							${ __(
-								'How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.',
+								'How often the Heartbeat API runs. Faster means quicker live updates and more server traffic. The 30s and 45s rates apply exactly from the next page load.',
 							) }
 						</p>
 					</div>
 					<div class="os-features__row">
+						<p class="os-features__hint">
+							${ __(
+								'Brings back the one-time announcements you have dismissed, such as the welcome dialog.',
+							) }
+						</p>
 						<os-button
 							variant="secondary"
 							?disabled=${ resetting }
@@ -683,17 +694,12 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 								? __( 'Resetting…' )
 								: __( 'Reset what’s-new dialogs' ) }
 						</os-button>
-						<p class="os-features__hint">
-							${ __(
-								'Re-shows the one-time announcements you have already dismissed, such as the welcome dialog.',
-							) }
-						</p>
 					</div>
 				</os-section>
 				<os-section
 					heading=${ __( 'Beta features' ) }
 					description=${ __(
-						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
+						'Experimental redesigns of core admin screens, off by default. Each toggle affects only your account and takes effect immediately.',
 					) }
 				>
 					<div class="os-features__item">
@@ -704,7 +710,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
+								'Replaces the classic Posts list with a native table window: sticky header, paginated rows, bulk actions, and a row preview.',
 							) }
 						</p>
 					</div>
@@ -716,7 +722,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
+								'The Posts table experience for Pages, with a Parent column, hierarchical sort, and edit-lock indicators.',
 							) }
 						</p>
 					</div>
@@ -728,7 +734,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
+								'A native Users list with bulk role changes, online indicators, and one-click password resets.',
 							) }
 						</p>
 					</div>
@@ -740,7 +746,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
+								'A native Plugins window with an Installed list, bulk actions, and a Browse gallery from the WordPress.org directory.',
 							) }
 						</p>
 					</div>
@@ -752,7 +758,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a native two-pane Comments window: a rail of conversations filtered by Pending / All / Spam / Trash / Mine, and the selected thread’s full nested reply chain beside it. Every message carries Reply, Edit, Approve, Spam and Trash inline, with a docked composer that repoints to whichever message you answer. Opening “Comments” on a post scopes the window to that post.',
+								'A native two-pane Comments window: a list of conversations beside the full reply thread.',
 							) }
 						</p>
 					</div>

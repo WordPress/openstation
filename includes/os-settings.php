@@ -41,14 +41,14 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial', 'openstation' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified' );
 
 /**
  * Valid dock-placement IDs — mirrors the TS `DOCK_PLACEMENTS` constant.
  *
  * Which edge the single dock sits on. Read by the layout dispatcher for
- * the one-rail layouts (`unified`, `spatial`); `classic` derives its two
- * rails from the layout itself and ignores this.
+ * `unified`; `classic` derives its two rails from the layout itself and
+ * ignores this.
  */
 const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
@@ -75,6 +75,11 @@ function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
+		// Only read when `accent` is `custom`. Seeded with Pulse so
+		// picking Custom before touching the wheel is a no-op rather
+		// than a jump to black. Mirrors `DEFAULTS` in
+		// `src/settings/constants.ts`.
+		'customAccent'                => '#f252fc',
 		'dockSize'                    => 'default',
 		// `round` (16px), not the preset id literally named `default`.
 		// Preset ids are stored values and cannot be renamed, so the
@@ -93,8 +98,8 @@ function openstation_default_os_settings() {
 		'adminBarMode'                => 'hidden',
 		// One dock holding every menu, with the system tiles grouped
 		// behind a hairline. `classic` (side bar for core menus + bottom
-		// dock for plugins) and `spatial` stay available; they are no
-		// longer what a first-run desktop looks like.
+		// dock for plugins) is the other option; it is no longer what a
+		// first-run desktop looks like.
 		'desktopLayout'               => 'unified',
 		// Which edge the single dock sits on. Ignored by `classic`,
 		// which derives both of its rails from the layout.
@@ -337,6 +342,16 @@ function openstation_sanitize_os_settings( $raw ) {
 		? sanitize_key( $raw['accent'] )
 		: $defaults['accent'];
 
+	// The colour behind the Custom swatch. A full `#rrggbb` triplet and
+	// nothing else: `sanitize_hex_color()` would also pass `#abc`, which
+	// the client-side parser rejects, and a value that survives the save
+	// only to be dropped on load is worse than one refused here.
+	$custom_accent = isset( $raw['customAccent'] )
+		&& is_string( $raw['customAccent'] )
+		&& preg_match( '/^#[0-9a-fA-F]{6}$/', $raw['customAccent'] )
+		? strtolower( $raw['customAccent'] )
+		: $defaults['customAccent'];
+
 	// Dock size — must be one of the three known values.
 	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPENSTATION_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
@@ -353,8 +368,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Desktop layout — must be one of the known values
-	// (`classic`, `unified`, `spatial`, `openstation`). Default `unified`.
+	// Desktop layout — must be one of the known values (`classic`,
+	// `unified`). Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
@@ -774,6 +789,7 @@ function openstation_sanitize_os_settings( $raw ) {
 	return array(
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
+		'customAccent'                => $custom_accent,
 		'dockSize'                    => $dock_size,
 		'windowRadius'                => $window_radius,
 		'adminBarMode'                => $admin_bar_mode,
@@ -868,13 +884,55 @@ function openstation_rest_get_os_settings() {
 /**
  * POST /desktop-mode/v1/os-settings
  *
+ * Accepts a PARTIAL payload: keys the request omits keep the value
+ * already stored for the user, rather than resetting to the shipped
+ * default. The client sends only the fields that changed since its
+ * last confirmed save, which is what stops two open sessions from
+ * overwriting each other — a session that never touched the
+ * wallpaper cannot express an opinion about it, so a stale snapshot
+ * can no longer undo another session's unrelated change.
+ *
+ * A full payload still behaves exactly as before: every key is
+ * present, so every key wins.
+ *
+ * The merge lives here rather than in {@see openstation_save_os_settings()}
+ * on purpose. That function's contract is REPLACE, and migrations
+ * depend on it: migration 1 in `includes/migrations.php` `unset()`s
+ * keys and re-saves precisely so the sanitizer backfills the new
+ * defaults. Give the saver merge semantics and that migration
+ * silently becomes a no-op.
+ *
+ * Merging is shallow, one level deep. For the map-shaped fields
+ * (`wallpaperSettings`, `itemVisibility`, `dockOrder`,
+ * `dockPromotedPositions`) a request that sends the key replaces the
+ * whole map — deep-merging them would leave no way to delete an
+ * entry.
+ *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
  */
 function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'settings' );
-	openstation_save_os_settings( $user_id, $payload );
+
+	// A payload that isn't an object says nothing about any field, so
+	// it changes nothing. The route declares `'settings' => object`
+	// and WP's schema validation rejects a scalar before the callback
+	// runs, so this is unreachable over real REST traffic — but the
+	// sanitizer resolves a non-array to the full defaults, which
+	// means the one way to reach this function with a bad payload
+	// used to be the one way to wipe a user's settings. Returning
+	// early costs nothing and keeps "don't destroy what wasn't sent"
+	// true of every path into this handler, not just the ones the
+	// schema happens to guard.
+	if ( ! is_array( $payload ) ) {
+		return rest_ensure_response( openstation_get_os_settings( $user_id ) );
+	}
+
+	openstation_save_os_settings(
+		$user_id,
+		array_merge( openstation_get_os_settings( $user_id ), $payload )
+	);
 	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 }
 

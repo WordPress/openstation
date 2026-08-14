@@ -302,7 +302,7 @@ function openItemVisibilityMenuImmediate(
 
 	options.push( {
 		id: 'open-settings',
-		label: __( 'Apps & Icons settings…' ),
+		label: __( 'Apps & Plugins settings…' ),
 		icon: 'dashicons-admin-generic',
 		onPick: () => {
 			const api = getApi();

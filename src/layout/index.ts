@@ -2,8 +2,8 @@
  * Cross-bundle layout single-source-of-truth.
  *
  * **Why this exists.** The layout dispatcher (`src/desktop-layout.ts`)
- * owns the dock instances and the rebuild logic for the three
- * top-level layouts (`classic`, `unified`, `spatial`). The OsSettings
+ * owns the dock instances and the rebuild logic for the top-level
+ * layouts (`classic`, `unified`). The OsSettings
  * snapshot owns the *current* selection. Until 0.8.1 there was no
  * cross-bundle helper for "what layout am I in right now?" — every
  * consumer (a feature bundle, a third-party plugin) had to thread
