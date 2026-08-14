@@ -53,8 +53,11 @@ defined( 'ABSPATH' ) || exit;
  *   to and to nobody else. Sets user meta and nothing else — see
  *   {@see openstation_migrate_flag_rebrand_notice} for why that is a
  *   separate migration from 4.
+ * - 6: the Trash stopped registering a desktop icon. Removes the
+ *   placement the shell had auto-placed for it and closes the hole that
+ *   leaves in the icon column.
  */
-const OPENSTATION_MIGRATION_VERSION = 5;
+const OPENSTATION_MIGRATION_VERSION = 6;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -150,6 +153,104 @@ function openstation_run_pending_migrations( $from ) {
 	if ( $from < 5 ) {
 		openstation_migrate_flag_rebrand_notice( $from );
 	}
+
+	if ( $from < 6 ) {
+		openstation_migrate_close_recycle_bin_icon_gap();
+	}
+}
+
+/**
+ * Grid the desktop auto-placer lays icons out on: 16px of padding, a
+ * 96px column, a 110px row. Mirrored from `src/desktop-files/grid.ts`
+ * via {@see openstation_files_auto_place_orphans}, which is what wrote
+ * the coordinates this migration edits.
+ */
+const OPENSTATION_DESKTOP_GRID_ROW_H = 110;
+
+/**
+ * Migration 6 — take back the Trash's desktop icon, and close the hole.
+ *
+ * The bin used to register a desktop icon, and every viewer's first
+ * hydrate auto-placed it into the icon column. Now that the
+ * registration is gone the placement is dead weight: it is no longer
+ * served (`OpenStation_Shortcut_File::can_read()` is false without a
+ * registry entry), so the tile has already vanished on its own. What it
+ * leaves behind is an empty cell with the icons that were under it
+ * still sitting where they were.
+ *
+ * So: delete the row, and pull everything below it in the same column
+ * up by one. Same column only, because the auto-placer fills
+ * column-major, so a column is the run the bin was part of. This does
+ * move tiles a user may have arranged, which is the point — the shell
+ * put that icon there and the shell is taking it away, so the shell
+ * tidies up after itself rather than leaving a gap nobody chose.
+ *
+ * A user who wants the bin back on the wallpaper picks "On the desktop"
+ * in Apps & Plugins, which promotes the dock tile and never touches
+ * these rows.
+ *
+ * @return void
+ */
+function openstation_migrate_close_recycle_bin_icon_gap() {
+	global $wpdb;
+
+	if ( ! function_exists( 'openstation_files_table_names' ) ) {
+		return;
+	}
+	$tables = openstation_files_table_names();
+	$tbl    = $tables['placements'];
+
+	// The files schema installs lazily, so a site that never opened
+	// the desktop has no table to migrate.
+	$table_exists = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+			$tbl
+		)
+	);
+	if ( 0 === $table_exists ) {
+		return;
+	}
+
+	// Shift first, delete second: the derived table has to still find
+	// the bin's own row to know which cell is being vacated. It is
+	// materialized before the update runs, so reading and writing the
+	// same table in one statement is fine here.
+	//
+	// The UNIQUE index on (owner_id, parent_id, file_type, file_ref)
+	// guarantees at most one bin row per owner, so no row can be
+	// shifted twice.
+	$wpdb->query(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, not user input.
+			"UPDATE `{$tbl}` AS p
+			INNER JOIN (
+				SELECT owner_id, x, y FROM `{$tbl}`
+				WHERE parent_id = 0
+					AND file_type = 'shortcut'
+					AND file_ref  = %s
+			) AS bin
+				ON p.owner_id = bin.owner_id
+				AND p.x       = bin.x
+				AND p.y       > bin.y
+			SET p.y = p.y - %d
+			WHERE p.parent_id = 0
+				AND p.trashed_at_ms IS NULL",
+			'desktop-mode-recycle-bin',
+			OPENSTATION_DESKTOP_GRID_ROW_H
+		)
+	);
+
+	$wpdb->delete(
+		$tbl,
+		array(
+			'parent_id' => 0,
+			'file_type' => 'shortcut',
+			'file_ref'  => 'desktop-mode-recycle-bin',
+		),
+		array( '%d', '%s', '%s' )
+	);
 }
 
 /**
