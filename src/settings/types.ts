@@ -27,23 +27,12 @@ export type DockPlacementId = 'left' | 'right' | 'bottom';
 /**
  * Top-level desktop layout. User-tunable via OS Settings → Appearance.
  *
+ * - `unified` — single bottom dock with every item, core cluster
+ *   first. One `Dock` instance. Default, and shown as "Unified".
  * - `classic` — left side bar with core admin menus + bottom dock with
- *   plugin menus. Two `Dock` instances. Default.
- * - `unified` — single bottom dock with every item. One `Dock` instance.
- * - `spatial` — bottom dock with plugin menus + core menus rendered as
- *   icons on the wallpaper. One `Dock` instance, plus synthesized
- *   desktop icons.
- * - `openstation` — the same single rail as `unified`, painted its own
- *   way: a luminous seam on the WordPress-to-OpenStation boundary in
- *   place of the shared hairline, and a holographic flyout that fans a
- *   menu's submenu out of its tile on hover instead of hiding it behind
- *   the in-window tab strip. Bottom edge only.
+ *   plugin menus. Two `Dock` instances. Shown as "Split".
  */
-export type DesktopLayoutId =
-	| 'classic'
-	| 'unified'
-	| 'spatial'
-	| 'openstation';
+export type DesktopLayoutId = 'classic' | 'unified';
 
 /** Two endpoints on the gradient, plus an angle in degrees (0–360). */
 export interface CustomGradient {

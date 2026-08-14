@@ -440,8 +440,7 @@ export interface OpenStationPublicApi {
 	/**
 	 * Side (left) dock instance — only non-null when the active
 	 * layout is `classic`. Holds core admin menus while the bottom
-	 * dock holds plugin menus. `null` in `unified`, `spatial` and
-	 * `openstation`.
+	 * dock holds plugin menus. `null` in `unified`.
 	 */
 	sideDock: Dock | null;
 	/**
@@ -450,7 +449,7 @@ export interface OpenStationPublicApi {
 	 * `data-os-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
 	 */
-	desktopLayout: 'classic' | 'unified' | 'spatial' | 'openstation';
+	desktopLayout: 'classic' | 'unified';
 	/**
 	 * Edge the primary dock sits on. Mirrors
 	 * `OsSettingsSnapshot.dockPlacement` for the one-rail layouts;
@@ -3523,7 +3522,6 @@ function init(): void {
 			syncShortcutsWithVisibility(
 				snapshot.itemVisibility,
 				snapshot.dockPromotedPositions,
-				snapshot.desktopLayout,
 			);
 		},
 	} );
@@ -3611,14 +3609,10 @@ function init(): void {
 		}
 		// Bring the files-layer placements in line with the new
 		// visibility map — promotes dock items onto the wallpaper
-		// and removes hidden server icons from the grid. Passing the
-		// layout lets Spatial synthesize its core-menu icons onto the
-		// same visible surface (and removes them again on switching
-		// away from Spatial).
+		// and removes hidden server icons from the grid.
 		syncShortcutsWithVisibility(
 			snapshot.itemVisibility,
 			snapshot.dockPromotedPositions,
-			snapshot.desktopLayout,
 		);
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
@@ -3633,7 +3627,6 @@ function init(): void {
 	installShortcutsSync(
 		() => osSettings.getOsSettingsSnapshot().itemVisibility,
 		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
-		() => osSettings.getOsSettingsSnapshot().desktopLayout,
 	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`

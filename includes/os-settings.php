@@ -41,14 +41,14 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial', 'openstation' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified' );
 
 /**
  * Valid dock-placement IDs — mirrors the TS `DOCK_PLACEMENTS` constant.
  *
  * Which edge the single dock sits on. Read by the layout dispatcher for
- * the one-rail layouts (`unified`, `spatial`); `classic` derives its two
- * rails from the layout itself and ignores this.
+ * `unified`; `classic` derives its two rails from the layout itself and
+ * ignores this.
  */
 const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
@@ -93,8 +93,8 @@ function openstation_default_os_settings() {
 		'adminBarMode'                => 'hidden',
 		// One dock holding every menu, with the system tiles grouped
 		// behind a hairline. `classic` (side bar for core menus + bottom
-		// dock for plugins) and `spatial` stay available; they are no
-		// longer what a first-run desktop looks like.
+		// dock for plugins) is the other option; it is no longer what a
+		// first-run desktop looks like.
 		'desktopLayout'               => 'unified',
 		// Which edge the single dock sits on. Ignored by `classic`,
 		// which derives both of its rails from the layout.
@@ -353,8 +353,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Desktop layout — must be one of the known values
-	// (`classic`, `unified`, `spatial`, `openstation`). Default `unified`.
+	// Desktop layout — must be one of the known values (`classic`,
+	// `unified`). A stored `spatial` / `openstation` from when those
+	// existed fails the check and lands on the default, which is the
+	// migration. Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']

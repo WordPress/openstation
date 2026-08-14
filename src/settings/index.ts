@@ -456,10 +456,9 @@ export class OsSettings implements SettingsCtx {
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
-		// every settings change to rebuild the dock(s) and (in spatial
-		// mode) the synthesized desktop icons. Written here so every
-		// apply() is the single source of truth — no matter how the
-		// state got to this point (init from localStorage, picker
+		// every settings change to rebuild the dock(s). Written here so
+		// every apply() is the single source of truth — no matter how
+		// the state got to this point (init from localStorage, picker
 		// change, reset).
 		shell.setAttribute(
 			'data-os-layout',

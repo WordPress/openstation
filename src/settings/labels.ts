@@ -106,10 +106,6 @@ export function translateDesktopLayoutLabel(
 			return __( 'Split' );
 		case 'unified':
 			return __( 'Unified' );
-		case 'spatial':
-			return __( 'Spatial' );
-		case 'openstation':
-			return __( 'OpenStation' );
 		default:
 			return fallback;
 	}
@@ -125,10 +121,6 @@ export function translateDesktopLayoutDescription(
 			);
 		case 'unified':
 			return __( 'Every menu in a single dock.' );
-		case 'spatial':
-			return __( 'Core menus as desktop icons, apps in the dock.' );
-		case 'openstation':
-			return __( 'The same dock, dressed up, with flyout submenus.' );
 		default:
 			return '';
 	}

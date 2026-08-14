@@ -333,7 +333,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout:    'classic' | 'unified' | 'spatial' | 'openstation',
+    layout:    'classic' | 'unified',
     placement: 'bottom' | 'left' | 'right',   // edge the primary rail mounted on
     primary:   Dock | null,   // primary dock — always present
     side:      Dock | null,   // left side bar — non-null only in classic
@@ -712,7 +712,7 @@ window.wp.os = {
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
     sideDock:          Dock | null,                            // left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial' | 'openstation',
+    desktopLayout:     'classic' | 'unified',
     dockPlacement:     'bottom' | 'left' | 'right',           // edge the primary dock sits on
     icons:             IconsApi,
     saveSession:       () => void,
@@ -912,7 +912,7 @@ window.wp.hooks.addFilter(
 
 **Menu tiles** hand the hover gesture to the **constellation**, a flyout that fans a menu's *submenu* out of its tile, in place of the hover-peek. Without it the submenu is dropped at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
 
-It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Side bar puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
+It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Split puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
 
 System tiles have no submenu and keep the peek.
 
@@ -1474,24 +1474,24 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial' | 'openstation'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout, `'unified'` or `'classic'`. Mirrors the user's OpenStation Preferences → Appearance pick (shown there as **Unified** and **Split**) and the `data-os-layout` attribute on the shell root.
 
 | Layout | Rails | Where core menus live |
 |---|---|---|
+| `unified` *(default)* | bottom | the one rail, **grouped core-first**, then a divider, then plugins |
 | `classic` | side + bottom | left side bar (`sideDock`) |
-| `unified` | bottom | the one rail, interleaved with plugins |
-| `spatial` | bottom | wallpaper icons |
-| `openstation` | bottom | the one rail, **grouped first**, then a divider, then plugins |
+
+`'spatial'` and `'openstation'` were layouts once and are gone. A stored value of either migrates to the default, so a check against them is dead code rather than a branch that fires rarely.
 
 ```js
-if ( wp.os.desktopLayout === 'spatial' ) {
-    // Core menus are wallpaper icons; expect `sideDock` to be null.
+if ( wp.os.desktopLayout === 'classic' ) {
+    // Core menus live on their own rail; `sideDock` is the one holding them.
 }
 ```
 
 Listen for `os-layout-changed` to react to a switch.
 
-**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. Fanning a menu's submenu out of its tile on hover started here but is no longer particular to it — see [the constellation](#the-constellation) below.
+**`unified` re-sorts the rail** so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. Hovering a menu tile fans its submenu out — see [the constellation](#the-constellation) below.
 
 ---
 
@@ -6517,7 +6517,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | Field | Type | Values |
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
-| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` \| `openstation` |
+| `desktopLayout` | `string` | `classic` \| `unified` |
 | `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified + Spatial) |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |

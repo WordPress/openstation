@@ -81,7 +81,7 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_known_layout_value() {
-		foreach ( array( 'classic', 'unified', 'spatial', 'openstation' ) as $layout ) {
+		foreach ( array( 'classic', 'unified' ) as $layout ) {
 			$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => $layout ) );
 			$this->assertSame( $layout, $clean['desktopLayout'], "layout '{$layout}' should round-trip" );
 		}
@@ -93,6 +93,13 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	public function test_sanitize_falls_back_to_default_for_unknown_layout() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => 'invalid-mode' ) );
 		$this->assertSame( 'unified', $clean['desktopLayout'] );
+
+		// `spatial` and `openstation` were layouts once. Whoever stored
+		// one lands on the default, which is the migration.
+		foreach ( array( 'spatial', 'openstation' ) as $retired ) {
+			$clean = openstation_sanitize_os_settings( array( 'desktopLayout' => $retired ) );
+			$this->assertSame( 'unified', $clean['desktopLayout'], "retired '{$retired}' should migrate" );
+		}
 	}
 
 	/**
@@ -163,11 +170,11 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 			$user_id,
 			array(
 				'wallpaper'     => 'dark',
-				'desktopLayout' => 'spatial',
+				'desktopLayout' => 'classic',
 			)
 		);
 		$loaded = openstation_get_os_settings( $user_id );
-		$this->assertSame( 'spatial', $loaded['desktopLayout'] );
+		$this->assertSame( 'classic', $loaded['desktopLayout'] );
 	}
 
 

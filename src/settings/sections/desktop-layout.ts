@@ -10,16 +10,19 @@
  * and a rail, because the point is where things sit and not what they
  * contain.
  *
- * The `openstation` and `spatial` layouts still exist in the shell
- * and a stored selection of either keeps working; they are no longer
- * OFFERED here. Removing a stored value would silently rearrange the
- * desk of anyone already using it, so only the picker shrank.
+ * There were four of these once. `spatial` and `openstation` are gone
+ * from the shell entirely; a stored selection of either falls back to
+ * the default in `parse()`, which is the migration for anyone who had
+ * picked one.
  *
- * ## The dock options live INSIDE the card that has a dock
+ * ## Placement lives inside the card, dock size does not
  *
- * Picking Unified opens Placement and Size within that card,
- * because those options only mean something once that layout is the
+ * Picking Unified opens Placement within that card, because an edge
+ * to park the dock on only means something once that layout is the
  * answer, and saying so by containment beats saying it by proximity.
+ * Dock size sits under both cards instead: both layouts have a dock,
+ * and Split's bottom rail reads `--os-dock-width` exactly as Unified's
+ * does.
  * They used to be a separate Dock page in the sidebar; a page for two
  * segmented controls sent people hunting for what is really one
  * decision made in one place. Dock STYLE (the rail renderer registry)
@@ -55,9 +58,6 @@ import type {
 	DockSizeId,
 	SettingsCtx,
 } from '../types';
-
-/** The layouts the picker offers. See the file docblock. */
-const OFFERED: readonly DesktopLayoutId[] = [ 'unified', 'classic' ];
 
 /**
  * The schematic each card draws, as `{ class, style }` pairs applied
@@ -221,9 +221,7 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 						role="radiogroup"
 						aria-label=${ __( 'Desktop layout' ) }
 					>
-						${ DESKTOP_LAYOUTS.filter( ( l ) =>
-							OFFERED.includes( l.id ),
-						).map( ( l ) => {
+						${ DESKTOP_LAYOUTS.map( ( l ) => {
 							const selected = ctx.state.desktopLayout === l.id;
 							return html`<div class="os-settings__layout-card">
 								<button

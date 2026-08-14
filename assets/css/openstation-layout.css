@@ -1,21 +1,17 @@
 /**
- * OpenStation — the OpenStation desktop layout.
+ * OpenStation — the constellation.
  *
- * Two surfaces, and only the first belongs to the layout in the file
- * name. The seam this file used to own became shared chrome: every
- * division in every rail wears the same Pulse line, so it lives in
- * `dock.css` next to the separator it paints.
+ * The flyout that fans a menu's submenu out of its tile on hover, on
+ * every rail in every layout. Body-attached (it has to escape the
+ * dock's stacking context and its `overflow`), so its selectors are
+ * rooted on `.os-constellation` and reach it wherever the dock is
+ * parked.
  *
- * 1. **The rail's own signature** — scoped to
- *    `[data-os-layout="openstation"]`, so it costs nothing in any
- *    other layout.
- * 2. **The constellation.** The flyout that fans a menu's submenu out
- *    of its tile on hover, on every rail in every layout. It stayed
- *    in this file because this is where it was written, not because
- *    it is scoped here: it is body-attached (it has to escape the
- *    dock's stacking context and its `overflow`), so its selectors
- *    are rooted on `.os-constellation` and reach it wherever the dock
- *    is parked.
+ * This file used to carry a second surface: the `openstation` desktop
+ * layout's own rail skin, scoped to `[data-os-layout="openstation"]`.
+ * That layout is gone, and its skin with it. The name stayed because
+ * renaming a stylesheet renames its handle, and this is the file the
+ * flyout has always lived in.
  *
  * Colour discipline, per the palette rule: every declaration here
  * reads `var( --token, <literal> )`, and every literal is a plain
@@ -24,63 +20,6 @@
  * the head's icon halo — because those are the moments the panel is
  * answering the user. Everywhere else is Obsidian.
  */
-
-/* ==================================================================
- * 1. The rail
- *
- * The dividers themselves are NOT here any more. Every division in
- * every rail wears the same line now — Pulse at the waist, falling
- * away at both ends — so it lives in `dock.css` next to the separator
- * it paints, reachable through `--os-dock-divider`.
- * A copy scoped to this layout would only mean an edit to that token
- * silently skipped the one layout the line came from.
- * ================================================================== */
-
-/*
- * The rail's own signature. Everything the user can reach lives on
- * this one pill in this layout, so it earns a little more presence
- * than the shared chrome gives it: a faint accent bloom under the
- * glass, and nothing else. A wash, not a border — the pill already
- * has its hairline from `dock.css`, and a second outline here would
- * fight it.
- *
- * `--os-ui-accent-dim` rather than `--os-ui-accent`: this is ambient,
- * and ambient uses of the accent all route through the dimmed token
- * so "tone the station down" stays one edit.
- */
-.os-shell[ data-os-layout="openstation" ]
-	.os-dock[ data-os-dock-placement="bottom" ] {
-	box-shadow:
-		0 8px 32px rgba( 0, 0, 0, 0.45 ),
-		0 0 26px -6px
-			color-mix(
-				in srgb,
-				var( --os-ui-accent-dim, #d92ee3 ) 28%,
-				transparent
-			);
-}
-
-/*
- * Tile lift. In this layout a tile is a menu you can open *into*, not
- * just a page you can open — so hovering one lifts it clear of the
- * rail rather than just tinting it, and the tile the flyout is
- * currently anchored to stays lifted for as long as the panel is up.
- */
-.os-shell[ data-os-layout="openstation" ]
-	.os-dock__item-primary:hover {
-	transform: translateY( -3px ) scale( 1.12 );
-}
-
-.os-shell[ data-os-layout="openstation" ]
-	.os-dock__item[ data-constellation-open ]
-	.os-dock__item-primary {
-	background-color: var(
-		--os-dock-item-bg-hover,
-		rgba( 242, 82, 252, 0.18 )
-	);
-	color: var( --os-dock-icon-color-hover, #fffbff );
-	transform: translateY( -3px ) scale( 1.12 );
-}
 
 /*
  * The dock tooltip stands down while a flyout is open. The panel's
@@ -92,10 +31,6 @@ body.os-constellation-open .os-dock__tooltip {
 	opacity: 0;
 	pointer-events: none;
 }
-
-/* ==================================================================
- * 2. The constellation
- * ================================================================== */
 
 .os-constellation {
 	position: fixed;

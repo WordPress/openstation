@@ -1194,10 +1194,9 @@ body.os-active {
 	 * ---- The OpenStation layout ---------------------------------
 	 *
 	 * The constellation: the flyout that fans a menu's submenu out of
-	 * its tile on hover, and the only surface left that exists solely
-	 * while `data-os-layout` is `openstation`. The rail's divider used
-	 * to live here too; it is shared chrome now and reads through
-	 * `--os-dock-divider`.
+	 * its tile on hover, on every rail in every layout. The rail's
+	 * divider used to live here too; it is shared chrome now and reads
+	 * through `--os-dock-divider`.
 	 *
 	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
 	 * is spent on the row under the pointer and on the head's icon
