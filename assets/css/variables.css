@@ -1105,9 +1105,8 @@ body.os-active {
 	/*
 	 * ---- Tooltips ---------------------------------------------
 	 *
-	 * Two tokens own every tooltip in the shell — the dock tile
-	 * tooltip, the content-graph satellite tooltip, and the My
-	 * WordPress entity hover card.
+	 * Two tokens own every tooltip CHIP in the shell — the dock tile
+	 * tooltip and the content-graph satellite tooltip.
 	 *
 	 * They are worth naming rather than leaving derived. Without them
 	 * tooltips borrow their colours from unrelated families —
@@ -1117,8 +1116,14 @@ body.os-active {
 	 * palette `--os-ui-fg-on-accent` is Void, which would have rendered
 	 * near-black text on a near-black chip.
 	 *
-	 * Secondary text inside the richer tooltips — the hover card's
-	 * excerpt — still follows `--os-ui-fg-muted`.
+	 * A chip is deliberately the SAME dark lozenge on every desktop
+	 * theme, which is why these two are flat values and not derived
+	 * from anything. That is right for one line of text pinned to a
+	 * control, and wrong for a rich card: the My WordPress entity
+	 * hover card used to read them and showed up Obsidian over a white
+	 * Legacy window. It has its own derived family now —
+	 * `--os-my-wordpress-card-*`, further down — and it still names
+	 * these two as its last fallback.
 	 */
 	--os-tooltip-bg: #33303a;
 	--os-tooltip-fg: #fffbff;
@@ -1265,6 +1270,51 @@ body.os-active {
 	--os-my-wordpress-bg: #1a1721;
 	--os-my-wordpress-fg: #fffbff;
 	--os-my-wordpress-surface: rgba(255, 251, 255, 0.06);
+	/*
+	 * The entity hover card — the "thumb" that floats over a tile with
+	 * a title, a featured image and an excerpt.
+	 *
+	 * It is NOT a dock chip, and it used to be painted as one.
+	 * `--os-tooltip-bg` is a fixed dark lozenge on every theme by
+	 * design — one line of text, always the same object, no reason to
+	 * follow anything. The card borrowed it, so a light desktop theme
+	 * summoned an Obsidian card over a white window, with a border in
+	 * `--os-ui-border` and an excerpt in `--os-ui-fg-muted` that both
+	 * followed the WINDOW instead. Three families, one surface.
+	 *
+	 * The card is window furniture: it belongs to the surface it was
+	 * summoned from, so it follows the theme that paints that surface.
+	 * Every value below is DERIVED rather than declared flat, which is
+	 * what makes that true — a theme that names only
+	 * `--os-my-wordpress-bg` (Legacy names exactly that, `#fff`) moves
+	 * the card with the window for free, and a theme that wants the
+	 * card alone names a `-card-` token.
+	 *
+	 * A card lands on the same colour as the window under it, so the
+	 * border and the shadow are the whole reason it reads as a
+	 * separate object. Neither is decoration here and neither may
+	 * collapse into the background — which is exactly what the border
+	 * did: `--os-ui-border` is #33303a on this palette, the SAME value
+	 * `--os-tooltip-bg` had, so the card had no edge at all.
+	 *
+	 * The shadow is the one flat value in the family. A drop shadow is
+	 * cast light, dark on a light theme and dark on a dark one, so
+	 * there is no window token for it to follow; it is named so a
+	 * theme can still reach it.
+	 */
+	--os-my-wordpress-card-bg: var(--os-my-wordpress-bg, #1a1721);
+	--os-my-wordpress-card-fg: var(--os-my-wordpress-fg, #fffbff);
+	--os-my-wordpress-card-fg-muted: var(--os-ui-fg-muted, #b3afb5);
+	--os-my-wordpress-card-border: var(--os-ui-border, #33303a);
+	--os-my-wordpress-card-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+	--os-my-wordpress-card-thumb-bg: var(
+		--os-media-tile-bg,
+		rgba(255, 251, 255, 0.05)
+	);
+	--os-my-wordpress-card-lock-bg: var(
+		--os-ui-badge-danger-bg,
+		rgba(255, 90, 90, 0.16)
+	);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
 	/*
 	 * ---- Window tab strip ---------------------------------------
