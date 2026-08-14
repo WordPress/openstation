@@ -1,38 +1,17 @@
 /**
- * The notch — the shell's voice, at the top edge of the screen.
+ * The notch — a pill at the top centre of the shell.
  *
- * It is the site assistant's front door, and it is deliberately NOT a
- * dock tile. The assistant is the one affordance that answers "what is
- * going on with this site?", which is a different question from "open
- * this app", and the rail is a list of apps.
+ * The site assistant's front door, and where the shell says short
+ * things: `say()` expands it with a message and collapses it again.
  *
- * **It is not a button that grew.** At rest it is a small pill you can
- * click to ask something; when the shell has something to say — a
- * request in flight, a save landing, the assistant thinking — it
- * expands to say it and shrinks back. That expansion is the reason the
- * surface exists: since the admin bar went away, the shell has had
- * nowhere to say anything short of a toast, which interrupts.
+ * **It never reserves work area.** It floats above windows and dims
+ * itself under a maximized one rather than pushing it down. Taking
+ * height would make it another hardcoded claimant on a work-area
+ * rectangle that already has several disagreeing answers.
  *
- * `say()` is that mechanism, and it is deliberately unwired for now.
- * The obvious feed is request activity, but the typed activity bus
- * (`ActivityChannelMap`) has no request channel today — the tracked
- * fetch drives per-window spinners instead — and inventing a channel
- * name here would be adding public API sideways, in the module that
- * happens to want it. Callers can drive it directly meanwhile.
- *
- * **It never reserves work area.** This is the whole design
- * constraint. A 32px full-width bar that permanently steals height is
- * what OpenStation just removed; repeating it one element smaller
- * would be the same mistake in a nicer shape, and it would make the
- * notch a second hardcoded claimant on a work-area rectangle that
- * already has three disagreeing answers. So it floats above windows —
- * high `z-index`, below modals — and dims itself when a maximized
- * window is underneath rather than pushing that window down.
- *
- * Top-CENTRE is chosen, not incidental: window title text lives in the
- * title bar's `flex: 1` grow region and reads from the leading edge,
- * so the centre of a maximized window's title bar is the one strip of
- * the top edge that is reliably empty.
+ * Top-centre because window title text reads from the leading edge of
+ * the title bar's `flex: 1` region, leaving the centre of a maximized
+ * window's top edge reliably empty.
  */
 
 import { __ } from './i18n';

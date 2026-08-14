@@ -3,21 +3,12 @@
  *
  * `siteLogo` from `@wordpress/icons`, transcribed rather than imported
  * so it costs a string instead of a package. It heads the assistant's
- * palette and it is the assistant's dock tile.
+ * palette, and it is the mark on the notch.
  *
- * It lives here, in a leaf both bundles can reach, rather than in
- * `ai-assistant/impl.ts` where it was: the assistant ships as a lazy
- * bundle that a user who never opens the palette never downloads, and
- * the dock tile has to paint on every boot. Importing the glyph from
- * the assistant's entry would have dragged the whole feature into the
- * shell bundle as a side effect — the trap AGENTS.md names under
- * cross-bundle state.
- *
- * Deliberately NOT the sparkle or the magnifier. Those two are the
- * palette's MODE indicator, swapped on the input as the user moves
- * between Ask AI and Commands; a tile wearing one of them would change
- * meaning with the site's provider configuration. This is the
- * assistant's identity, and it holds still.
+ * A leaf both bundles can reach: the assistant is lazy-loaded, and the
+ * notch paints on every boot, so importing the glyph from the
+ * assistant's entry would drag the whole feature into the shell
+ * bundle.
  */
 
 /** The mark as standalone SVG source, in Core's 24×24 icon viewBox. */

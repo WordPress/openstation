@@ -452,18 +452,10 @@ function openstation_enqueue_assets() {
 			'currentTitle'                  => wp_strip_all_tags( $title ),
 			'currentIcon'                   => sanitize_html_class( $menu_icon ),
 			'adminUrl'                      => esc_url( admin_url() ),
-			// The two admin-bar jobs the System tile inherited that
-			// need a server-built URL. `logoutUrl` especially: it
-			// carries a nonce, so the shell cannot assemble it.
 			'homeUrl'                       => esc_url( home_url( '/' ) ),
-			// `wp_logout_url()` returns an HTML-escaped URL — correct for
-			// an `href`, wrong for us. The shell assigns this to
-			// `window.location`, where `&amp;` makes the separator part
-			// of the next parameter's NAME: `_wpnonce` arrives as
-			// `amp;_wpnonce`, the nonce check fails, and the user gets
-			// Core's "are you sure you want to log out?" interstitial
-			// instead of being logged out. Decode, then sanitize for
-			// non-display use.
+			// Decoded: the shell assigns this to `window.location`,
+			// where `&amp;` would make `_wpnonce` arrive as
+			// `amp;_wpnonce` and fail the nonce check.
 			'logoutUrl'                     => esc_url_raw(
 				html_entity_decode( wp_logout_url(), ENT_QUOTES, 'UTF-8' )
 			),

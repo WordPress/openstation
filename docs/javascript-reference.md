@@ -912,8 +912,6 @@ window.wp.hooks.addFilter(
 
 A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
 
-Deliberately not a dock tile. The rail is a list of apps, and "what is going on with this site?" is not one of them.
-
 **It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it floats at `--os-z-notch` (above windows and the dock, below the admin bar and fullscreen), and it dims itself under a maximized window rather than pushing that window down. Top-*centre* is chosen rather than incidental: window title text reads from the leading edge of the title bar's `flex: 1` region, so the centre of a maximized window's top edge is the one strip that is reliably empty.
 
 The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
@@ -935,8 +933,6 @@ One panel, up to three sections, top to bottom — the same three whichever kind
 | Head | `.os-constellation__head` | The tile's icon and title, nothing else. Click opens the menu's own page; on a system tile, which has none, it runs the first row. |
 | Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). An admin menu resolves these from its own window key; a system tile's action menu resolves them from its rows' `windowId`. |
 | Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
-
-There is no trailing "New *menu* window" row: it would be a second copy of the landing page that any row in the Open group already opens, and it is the one section an action menu cannot have, so the panel would take two shapes depending on which tile you hovered.
 
 Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
 
