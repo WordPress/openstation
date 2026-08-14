@@ -233,10 +233,37 @@ export class OsSelect extends Component {
 
 	/** Type-ahead buffer + its reset timer. */
 	private _typed = '';
+	/**
+	 * When the popover last light-dismissed itself, so a click on the
+	 * trigger that was part of the same gesture does not reopen it.
+	 */
+	private _dismissedAt = 0;
 	private _typedTimer: ReturnType< typeof setTimeout > | null = null;
 
-	/** Bound dismiss handlers, added while open, removed on close. */
-	private _onWindowScroll = (): void => this._hide();
+	/**
+	 * Bound dismiss handlers, added while open, removed on close.
+	 *
+	 * The scroll listener is on `window` in the CAPTURE phase, because
+	 * a scroll inside some ancestor's own overflow container never
+	 * bubbles to `window` and that is exactly the scroll that moves the
+	 * trigger out from under the panel. Capture sees all of them —
+	 * including the panel's OWN scroll, which is why this one checks.
+	 * The list is capped at `min( 320px, 60vh )` and scrolls itself, so
+	 * without the guard any list past about ten options closed the
+	 * instant the user reached for it.
+	 */
+	private _onWindowScroll = ( e: Event ): void => {
+		const target = e.target;
+		const popup = this._popup();
+		if (
+			popup &&
+			target instanceof Node &&
+			( target === popup || popup.contains( target ) )
+		) {
+			return;
+		}
+		this._hide();
+	};
 	private _onWindowResize = (): void => this._hide();
 
 	connectedCallback(): void {
@@ -434,12 +461,27 @@ export class OsSelect extends Component {
 		return this.shadowRoot?.querySelector( '.os-select__trigger' ) ?? null;
 	}
 
+	/**
+	 * Trigger click.
+	 *
+	 * The guard is for the light dismiss. `popover="auto"` closes on
+	 * pointerdown, before this click lands, and it reports that through
+	 * a `toggle` event queued as a task — so by the time the click runs
+	 * `_open` may already be `false` and a plain toggle would reopen
+	 * what the user just dismissed, leaving a menu its own trigger
+	 * cannot close. Task ordering is not guaranteed across engines, so
+	 * this does not depend on it: a close that happened within a frame
+	 * of this click was the same gesture, and the click is spent.
+	 */
 	private _toggle(): void {
 		if ( this._open ) {
 			this._hide();
-		} else {
-			this._show();
+			return;
 		}
+		if ( performance.now() - this._dismissedAt < 250 ) {
+			return;
+		}
+		this._show();
 	}
 
 	/*
@@ -535,6 +577,9 @@ export class OsSelect extends Component {
 	private _onPopoverToggle( e: Event ): void {
 		const state = ( e as unknown as { newState?: string } ).newState;
 		if ( state === 'closed' && this._open ) {
+			// Stamped for `_toggle()`: see the note there about the
+			// light dismiss racing the trigger's own click.
+			this._dismissedAt = performance.now();
 			this._open = false;
 			this._teardownDismiss();
 			this.requestUpdate();
