@@ -106,9 +106,9 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 		expect(
 			sanitizeRecommendedOsSettings( {
 				dockSize: 'enormous',
-				desktopLayout: 'spatial',
+				desktopLayout: 'classic',
 			} ),
-		).toEqual( { desktopLayout: 'spatial' } );
+		).toEqual( { desktopLayout: 'classic' } );
 	} );
 
 	test( 'keys outside the schema are dropped', () => {
@@ -439,7 +439,7 @@ describe( 'the system default recommends the brand accent', () => {
 	test( 'seeds Pulse and the one-dock layout, under its own ledger key', () => {
 		const state = structuredDefaults();
 		state.accent = 'wp-blue';
-		state.desktopLayout = 'spatial';
+		state.desktopLayout = 'classic';
 		state.dockPlacement = 'left';
 
 		expect(

@@ -400,7 +400,7 @@ instance id sharing the base.
 **There is no `wp.os.taskbar` accessor.** The three badge
 rails are `wp.os.dock` (the primary bottom rail),
 `wp.os.sideDock` (the Classic-layout left rail — `null` in
-Unified / Spatial), and `wp.os.icons` (wallpaper shortcuts).
+Unified), and `wp.os.icons` (wallpaper shortcuts).
 The `rail` discriminator on emitted events is a separate axis:
 the bottom-anchored primary dock stamps `rail: 'taskbar'` onto
 the events it emits (e.g. `os/badge-changed`), while

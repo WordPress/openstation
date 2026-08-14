@@ -118,7 +118,7 @@ let _deferred: BeforeInstallPromptEvent | null = null;
  * Tile registration is **separate** — see {@link getInstallTileDef}.
  * desktop.ts inserts the tile next to the OS Settings tile with the
  * `'core'` rail affinity so it lands on the side dock (Classic
- * layout) or the primary rail (Unified / Spatial), matching where
+ * layout) or the primary rail (Unified), matching where
  * users expect shell-owned affordances. Putting that placement
  * decision in desktop.ts keeps `install.ts` framework-agnostic — it
  * doesn't need to know about `layoutDispatcher` or affinities.

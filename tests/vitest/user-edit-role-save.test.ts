@@ -174,7 +174,9 @@ describe( 'User Edit window — role save flow', () => {
 		expect( headerEl ).not.toBeNull();
 		expect( headerEl!.textContent ).toContain( 'editor' );
 
-		// Pick "author" via the role select and submit.
+		// Pick "author" via the role select and submit. Driven through
+		// the component's own listbox: open the trigger, click the row,
+		// the same path a user takes.
 		const roleSelect = host.querySelector(
 			'os-select[name="roles[0]"]',
 		) as ( HTMLElement & {
@@ -182,11 +184,17 @@ describe( 'User Edit window — role save flow', () => {
 			shadowRoot: ShadowRoot;
 		} ) | null;
 		expect( roleSelect ).not.toBeNull();
-		const native = roleSelect!.shadowRoot.querySelector(
-			'select',
-		) as HTMLSelectElement;
-		native.value = 'author';
-		native.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		(
+			roleSelect!.shadowRoot.querySelector(
+				'.os-select__trigger',
+			) as HTMLButtonElement
+		 ).click();
+		await tick();
+		const authorRow = roleSelect!.shadowRoot.querySelector< HTMLElement >(
+			'[role="option"][data-value="author"]',
+		);
+		expect( authorRow ).not.toBeNull();
+		authorRow!.click();
 
 		await tick();
 		await tick();

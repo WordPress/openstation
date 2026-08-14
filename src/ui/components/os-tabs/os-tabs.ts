@@ -92,13 +92,13 @@ export class OsTab extends Component {
 defineComponent( 'os-tab', OsTab );
 
 export class OsTabs extends Component {
-	static props = [ 'value', 'label' ] as const;
+	static props = [ 'value', 'label', 'orientation' ] as const;
 	static styles = [ tabsStyles ];
 
 	static help = {
 		title: 'Tabs',
 		summary:
-			'Underline-accent tab strip. Pair with sibling <os-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection.',
+			'Underline-accent tab strip. Pair with sibling <os-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection. Set orientation="vertical" for a sidebar instead of a strip.',
 		status: 'stable',
 		props: [
 			{
@@ -110,6 +110,12 @@ export class OsTabs extends Component {
 				name: 'label',
 				type: 'string',
 				description: 'aria-label for the tablist — describe the tab group for assistive tech.',
+			},
+			{
+				name: 'orientation',
+				type: "'horizontal' | 'vertical'",
+				description:
+					'Lay the tabs across the top (default) or down the side. Vertical also sets aria-orientation and moves each tab\'s accent from an underline to a leading edge.',
 			},
 		],
 		slots: [
@@ -137,6 +143,8 @@ export class OsTabs extends Component {
 		`,
 	} as const;
 
+	private _tabObserver: MutationObserver | null = null;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.addEventListener( 'os-tab-pick', ( e: Event ) => {
@@ -145,7 +153,94 @@ export class OsTabs extends Component {
 			( this as unknown as { value: string } ).value = detail.value;
 			this.emit( 'os-tab-change', { value: detail.value } );
 		} );
+		this.addEventListener( 'keydown', this._onKeyDown );
+		/*
+		 * Late children, the same contract `<os-segmented>` and
+		 * `<os-select>` keep. `render()` stamps `data-orientation`,
+		 * `aria-selected` and the roving `tabindex` on the tabs it can
+		 * see, and none of those are managed by whoever rendered them
+		 * — so a strip whose rows arrive later (a plugin registering a
+		 * settings tab live re-renders the list around this element,
+		 * which never changes a prop of its own) kept the new rows
+		 * unstamped: horizontal chips in a vertical column, and a row
+		 * no keyboard could reach.
+		 */
+		this._tabObserver = new MutationObserver( () => this.requestUpdate() );
+		this._tabObserver.observe( this, { childList: true } );
 	}
+
+	disconnectedCallback(): void {
+		this._tabObserver?.disconnect();
+		this._tabObserver = null;
+		this.removeEventListener( 'keydown', this._onKeyDown );
+	}
+
+	/**
+	 * Arrow-key roving, which a tablist owes the keyboard.
+	 *
+	 * The tabs are ONE tab stop (`tabindex="0"` on the selected row,
+	 * `-1` on the rest), so without this the other rows cannot be
+	 * reached at all. The chrome tab strip has had this since it was
+	 * written; the sidebar is a tablist too, and moving the settings
+	 * nav into this component left it behind.
+	 *
+	 * Orientation decides the axis: a vertical strip roves on Up and
+	 * Down and leaves Left and Right to the page, a horizontal one the
+	 * other way round. Both wrap, and both keep Home and End.
+	 *
+	 * Selection follows focus, which is the right default for a strip
+	 * whose panels are already in the DOM: `<os-tabpanel>` toggles
+	 * `hidden`, so arriving on a row costs a class change rather than
+	 * a mount, and the alternative (focus without selection) leaves a
+	 * focused row that says nothing about what is on screen.
+	 */
+	private _onKeyDown = ( e: KeyboardEvent ): void => {
+		const vertical =
+			( this as unknown as { orientation: string | null } ).orientation ===
+			'vertical';
+		const next = vertical ? 'ArrowDown' : 'ArrowRight';
+		const prev = vertical ? 'ArrowUp' : 'ArrowLeft';
+		if (
+			e.key !== next &&
+			e.key !== prev &&
+			e.key !== 'Home' &&
+			e.key !== 'End'
+		) {
+			return;
+		}
+		// Rows a search filter has hidden are not there to be roved to.
+		const tabs = Array.from(
+			this.querySelectorAll< HTMLElement >( 'os-tab' ),
+		).filter( ( tab ) => ! tab.hasAttribute( 'data-search-hidden' ) );
+		if ( tabs.length === 0 ) {
+			return;
+		}
+		const current = ( this as unknown as { value: string | null } ).value;
+		const at = tabs.findIndex(
+			( tab ) => tab.getAttribute( 'value' ) === current,
+		);
+		let target = 0;
+		if ( e.key === 'End' ) {
+			target = tabs.length - 1;
+		} else if ( e.key !== 'Home' ) {
+			const step = e.key === next ? 1 : -1;
+			// `at` is -1 when the selection was filtered away; stepping
+			// from there lands on the first row either way.
+			target = ( at + step + tabs.length ) % tabs.length;
+		}
+		const value = tabs[ target ]?.getAttribute( 'value' );
+		if ( ! value || value === current ) {
+			return;
+		}
+		e.preventDefault();
+		( this as unknown as { value: string } ).value = value;
+		this.emit( 'os-tab-change', { value } );
+		// After the microtask that moves the roving tabindex, or focus
+		// lands on an element the browser has just made unfocusable.
+		queueMicrotask( () => {
+			tabs[ target ]?.focus();
+		} );
+	};
 
 	/**
 	 * Declarative item-list setter. Replaces the existing `<os-tab>`
@@ -186,6 +281,26 @@ export class OsTabs extends Component {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
+		}
+		// Anything other than the opt-in keyword stays horizontal, so a
+		// typo degrades to the shipped layout rather than to nothing.
+		const vertical =
+			( this as unknown as { orientation: string | null } ).orientation ===
+			'vertical';
+		this.setAttribute(
+			'aria-orientation',
+			vertical ? 'vertical' : 'horizontal',
+		);
+		// Stamped synchronously, unlike the selection state below: the
+		// tabs style themselves off this and Firefox has no
+		// :host-context() to read it upward, so a frame spent without
+		// it is a frame of horizontal tabs in a vertical column.
+		for ( const tab of Array.from( this.querySelectorAll( 'os-tab' ) ) ) {
+			if ( vertical ) {
+				tab.setAttribute( 'data-orientation', 'vertical' );
+			} else {
+				tab.removeAttribute( 'data-orientation' );
+			}
 		}
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {

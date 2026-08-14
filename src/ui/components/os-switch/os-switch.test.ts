@@ -271,18 +271,19 @@ describe( '<os-switch>', () => {
 		).toContain( 'Slides away' );
 	} );
 
-	test( 'the on state is the holographic fill, and a tone takes it back off', () => {
-		// The reason this component exists in a holographic kit: `on` is
-		// an identity moment and identity moments wear the mesh. A `tone`
-		// is the documented way out for a settings list that would rather
-		// not spend one per row — if that override stops landing, twelve
-		// switches all go iridescent at once.
+	test( 'the on state is the flat accent, and the mesh stays off', () => {
+		// The design direction: form controls wear the accent, and the
+		// meshes stay reserved for hero surfaces. The .os-holo-fill
+		// class stays on the element so a caller can re-enable a mesh
+		// through its own tokens, which is exactly why the checked rule
+		// must take the image back off: if that override stops landing,
+		// every switch goes iridescent at once.
 		expect( styles.cssText ).toContain( '.os-holo-fill' );
 		expect( styles.cssText ).toMatch(
-			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*box-shadow:\s*var\(\s*--_holo-glow\s*\)/,
+			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-image:\s*none/,
 		);
 		expect( styles.cssText ).toMatch(
-			/tone='accent'\s*\]\[\s*checked\s*\][\s\S]*?background-image:\s*none/,
+			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-color:\s*var\(\s*--os-ui-accent/,
 		);
 	} );
 
@@ -303,12 +304,13 @@ describe( '<os-switch>', () => {
 		expect( styles.cssText ).not.toContain( 'border-color: transparent' );
 	} );
 
-	test( 'both states carry a boundary, and neither is a bare fill', () => {
+	test( 'both states carry a boundary, and neither is a bare wash', () => {
 		// WCAG 1.4.11 wants 3:1 on the boundary of a control. Off gets
-		// the Pewter inset edge; on swaps it for the glow, which is a
-		// box-shadow too — so the swap moves nothing.
+		// the Pewter inset edge; on is an OPAQUE accent fill, which is
+		// its own boundary against the surface, so the edge is dropped
+		// with nothing needed in its place.
 		expect( styles.cssText ).toMatch(
-			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*box-shadow:\s*var\(\s*--_holo-glow\s*\)/,
+			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-color:\s*var\(\s*--os-ui-accent/,
 		);
 		// Focused-and-off keeps BOTH: the ring says where the keyboard
 		// is, the edge still says where the control is.

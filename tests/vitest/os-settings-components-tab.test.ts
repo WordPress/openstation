@@ -137,19 +137,6 @@ describe( 'OS Settings — Components tab', () => {
 		).not.toBeNull();
 	} );
 
-	test( 'count line reports matches while filtering', () => {
-		const count = (): string =>
-			el
-				.querySelector( '.os-settings__help-count' )
-				?.textContent?.trim() ?? '';
-
-		expect( count() ).toContain(
-			`${ OS_COMPONENT_TAGS.length } components registered.`,
-		);
-		search( el, 'os-progress-bar' );
-		expect( count() ).toContain( `1 of ${ OS_COMPONENT_TAGS.length }` );
-	} );
-
 	test( 'selection follows the filter instead of going blank', () => {
 		const detail = (): string =>
 			el.querySelector( '.os-settings__help-detail' )

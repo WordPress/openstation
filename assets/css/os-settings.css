@@ -10,8 +10,16 @@
  *
  * @since 0.5.0
  */
+/*
+ * Body Small, straight off the brand guide: Geist 14 / Regular / 1.5.
+ * The panel used to sit at 13, which is the guide's Caption tier and
+ * therefore the size everything SECONDARY should be, not the size the
+ * body is. Every rule below that names a smaller size was lifted one
+ * step with it, so the panel now bottoms out at Caption instead of
+ * running two tiers under the smallest size the guide defines.
+ */
 .os-settings {
-	font-size: 13px;
+	font-size: 14px;
 	line-height: 1.5;
 }
 
@@ -21,19 +29,76 @@
 }
 
 /*
- * Card styling for each OS-Settings section. `<os-section>`'s
- * shadow DOM handles the heading + description; the outer card
- * (padding, background, border) lives here because it's a
- * per-surface visual choice, not a property of the component
- * itself. Targets the tag so shadow-DOM internals stay private.
+ * The page header: the title again, at the size of a title, plus the
+ * one line the sidebar has no room for.
+ *
+ * Sits outside the section cards rather than inside the first one, so
+ * a section stays reusable on any page and has no opinion about being
+ * first on one. Heading 24 / Medium 500 with the guide's optical
+ * tightening; the sentence under it is Body Small on Ash, the same as
+ * every other piece of secondary text in the panel.
+ */
+.os-settings__page-header {
+	margin: 0 0 34px;
+}
+
+.os-settings__page-title {
+	margin: 0 0 6px;
+	font-size: 24px;
+	font-weight: 500;
+	line-height: 1.25;
+	letter-spacing: -0.012em;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__page-description {
+	margin: 0;
+	max-width: 74ch;
+	line-height: 1.55;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+/*
+ * Section chrome. The heading and its sentence sit on the page, and
+ * the BOX is the section's body alone: a bounded surface under a
+ * heading, not a card with a title locked inside it. That is the
+ * separator system of the whole panel: a box is the only divider,
+ * so there is no horizontal rule anywhere.
+ *
+ * `<os-section>`'s shadow DOM handles the heading + description and
+ * exposes the body as `part="body"`; the box (background, border,
+ * radius, padding) lives here because it's a per-surface visual
+ * choice, not a property of the component itself.
+ *
+ * The box is the SUBTLE wash (3%) with the plain border on top of it,
+ * at the card radius. Its default padding is 18px, the mockup's
+ * inset for grids, which is what most section bodies hold.
  */
 .os-settings os-section {
 	display: block;
-	margin: 0 0 20px;
-	padding: 16px 16px 18px;
-	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	margin: 0 0 36px;
+}
+
+.os-settings os-section::part( body ) {
+	padding: 18px;
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
 	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 8px;
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+/*
+ * Rhythm between stacked pickers inside one section box. The
+ * components carry no outer margin of their own (a component cannot
+ * know its context), so the surface says how far apart they sit:
+ * 16px, two steps on the space scale, enough that a control's label
+ * reads as a label and not as a caption of the control above it.
+ */
+.os-settings os-section > os-select + os-select,
+.os-settings os-section > os-select + os-segmented,
+.os-settings os-section > os-segmented + os-select,
+.os-settings os-section > os-segmented + os-segmented {
+	margin-block-start: 16px;
 }
 
 /*
@@ -44,7 +109,7 @@
 .os-settings__grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 140px, 1fr ) );
-	gap: 10px;
+	gap: 12px;
 }
 
 /*
@@ -55,17 +120,17 @@
  * aspect ratio override. Everything else lives in the component.
  */
 .os-settings__grid--wallpapers {
-	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
+	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
 }
 
 /*
  * Wallpaper preset label — sits above the gradient/image preview.
  * Presets span the full tonal range (graphite dark, mono near-
  * black, aurora blue, sunset hot pink) so neither pure white nor
- * pure black text is universally readable. A frosted glass chip
- * behind the text gives the label its own local contrast that's
- * legible on every preset and respects the tile's visual language
- * (rounded pill shape matches the selected-state corners).
+ * pure black text is universally readable. A Void chip at 75% behind
+ * the text gives the label its own local contrast on every preset.
+ * Flat rather than frosted, and at the small radius: a caption on
+ * the artwork, not a pill floating over it.
  */
 .os-settings__swatch-label {
 	display: inline-block;
@@ -73,20 +138,96 @@
 	 * must stay readable over a moving canvas. */
 	position: relative;
 	z-index: 1;
-	padding: 3px 10px;
-	font-size: 11px;
-	font-weight: 600;
+	padding: 3px 8px;
+	font-size: 13px;
+	font-weight: 500;
 	color: var( --os-ui-fg-on-accent, #fff );
-	background: var( --os-ui-scrim, rgba(0, 0, 0, 0.45) );
-	backdrop-filter: blur(8px) saturate(160%);
-	-webkit-backdrop-filter: blur(8px) saturate(160%);
-	border-radius: 999px;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-	letter-spacing: 0.01em;
-	/* Stop the chip from hugging the swatch edge — the 6 8 padding
-	 * on the parent already gives a gap, but this keeps things
-	 * consistent if the parent padding is ever tuned. */
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
+	border-radius: 6px;
 	pointer-events: none;
+}
+
+/*
+ * "Use your own image", the last tile in the wallpaper grid.
+ *
+ * Dashed rather than solid because it is the only tile in the row that
+ * cannot show you what you are choosing: every other one paints its
+ * own preview, and this one is a question. The same dashed border is
+ * what the upload dropzone below it wears, so the tile and the drawer
+ * it opens read as one control.
+ *
+ * Sized off the same 16:9 the wallpaper swatches use so it sits in the
+ * grid rather than beside it.
+ */
+.os-settings__wallpaper-add {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	aspect-ratio: 16 / 10;
+	padding: 8px;
+	background: transparent;
+	/*
+	 * `-strong`, not `--os-ui-border`. The plain border token is
+	 * #33303a, the same Astro the section box draws its own border in:
+	 * a dashed edge in it against that frame reads as part of the box
+	 * rather than as a tile. Every dashed dropzone in this file has
+	 * the same problem and the same fix. One pixel like every other
+	 * edge in the panel; dashes get their emphasis from the gaps.
+	 */
+	border: 1px dashed var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 10px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font: inherit;
+	font-size: 13px;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.os-settings__wallpaper-add:hover {
+	border-color: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__wallpaper-add:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
+}
+
+/* A bare plus, not a button-in-a-tile: the dashed edge already says
+   "action", and a filled disc inside it is a control inside a
+   control. */
+.os-settings__wallpaper-add-plus {
+	font-size: 22px;
+	line-height: 1;
+}
+
+/*
+ * The drawer the tile opens. Same 0fr to 1fr collapse as the editor
+ * and description slots above it.
+ */
+.os-settings__image-picker-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.os-settings__image-picker-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.os-settings__image-picker-slot-inner {
+	overflow: hidden;
+	min-height: 0;
 }
 
 /*
@@ -105,7 +246,7 @@
 	pointer-events: none;
 	/* Match the swatch button's rounding so canvas corners don't
 	 * poke out of the tile. */
-	border-radius: 8px;
+	border-radius: 10px;
 }
 
 .os-settings__wallpaper-live-preview canvas {
@@ -125,15 +266,11 @@
 	margin-top: 12px;
 }
 
-/* Top-level tab strip separating Appearance from AI Settings.
- * Don't add a `display` rule for `os-tabpanel` here — the component's
+/* Don't add a `display` rule for `os-tabpanel` here — the component's
  * shadow-DOM `:host([hidden]) { display: none }` has lower specificity
  * than any outer descendant selector, and overriding it from outside
  * breaks the auto-swap (hidden panels stay visible). The component's
  * own `:host { display: block }` already handles the shown state. */
-.os-settings os-tabs {
-	display: block;
-}
 
 /* `__reset` now renders as `<os-button variant="ghost">`. */
 
@@ -181,67 +318,6 @@
 	background: var( --os-ui-surface, #fff );
 	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 6px;
-}
-
-/*
- * Wallpaper description slot — a card that slides in below the swatch
- * grid describing the ACTIVE wallpaper (its story, where its data comes
- * from). Same 0fr → 1fr collapse as the editor slot; TS drives
- * `[data-expanded]` from `syncWallpaperDescription()`.
- */
-.os-settings__wallpaper-description-slot {
-	display: grid;
-	grid-template-rows: 0fr;
-	margin-top: 0;
-	opacity: 0;
-	transition:
-		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
-		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
-		opacity 0.2s ease;
-}
-
-.os-settings__wallpaper-description-slot[data-expanded="true"] {
-	grid-template-rows: 1fr;
-	margin-top: 12px;
-	opacity: 1;
-}
-
-.os-settings__wallpaper-description-slot-inner {
-	overflow: hidden;
-	min-height: 0;
-}
-
-.os-settings__wallpaper-description {
-	padding: 12px 14px;
-	background: color-mix(in srgb, var(--os-ui-accent, #2271b1) 6%, var( --os-ui-surface, #fff ));
-	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-inline-start: 3px solid var(--os-ui-accent, #2271b1);
-	border-radius: 6px;
-}
-
-/* Glyph sits inline, right before the wallpaper's name. */
-.os-settings__wallpaper-description-header {
-	display: flex;
-	align-items: center;
-	gap: 7px;
-	margin-bottom: 4px;
-}
-
-.os-settings__wallpaper-description-icon {
-	color: var(--os-ui-accent, #2271b1);
-	flex-shrink: 0;
-}
-
-.os-settings__wallpaper-description-header strong {
-	font-size: 13px;
-	color: var( --os-ui-fg, #1d2327 );
-}
-
-.os-settings__wallpaper-description p {
-	margin: 0;
-	font-size: 12px;
-	line-height: 1.55;
-	color: var( --os-ui-fg-muted, #50575e );
 }
 
 /*
@@ -336,13 +412,14 @@
 	margin-top: 16px;
 }
 
+/* Sentence case, like every other label in the panel. The brand's
+   type scale has no uppercase tier, and a shouted 12px heading over a
+   single upload tile was the loudest thing on the page. */
 .os-settings__uploader-heading {
 	margin: 0 0 6px;
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
 	color: var( --os-ui-fg-muted, #50575e );
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
 }
 
 .os-settings__file-input {
@@ -359,7 +436,9 @@
 	background: var( --os-ui-surface, #fff );
 	background-size: cover;
 	background-position: center;
-	border: 2px dashed var( --os-ui-border, #c3c4c7 );
+	/* See the note on `__wallpaper-add`: the plain border token is the
+	   card's own colour and vanishes on it. */
+	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
 	border-radius: 8px;
 	color: var( --os-ui-fg-muted, #50575e );
 	cursor: pointer;
@@ -441,7 +520,7 @@
 }
 
 .os-settings__upload-hint {
-	font-size: 11px;
+	font-size: 12px;
 	color: var( --os-ui-fg-muted, #8c8f94 );
 }
 
@@ -459,7 +538,7 @@
 	background: var( --os-ui-danger, #d63638 );
 	color: var( --os-ui-fg-on-accent, #fff );
 	border-radius: 4px;
-	font-size: 11px;
+	font-size: 12px;
 	line-height: 1.3;
 	text-align: start;
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -484,6 +563,207 @@
 	min-height: 140px;
 }
 
+/*
+ * The invisible anchor for the Custom accent's colour wheel.
+ *
+ * There is no visible colour field: picking the Custom swatch opens
+ * the native picker directly, and the picker anchors to THIS input,
+ * which `accent.ts` parks just under the swatch (absolute against
+ * the section wrapper, measured at click time) before calling
+ * showPicker(). Absolute rather than fixed because a dragged window
+ * carries a transform, and a transform turns fixed positioning into
+ * a lie while getBoundingClientRect keeps telling viewport truth.
+ *
+ * It stays out of the tab order and off the accessibility tree: the
+ * Custom swatch is the control, and activating it (pointer or
+ * keyboard) is what opens the wheel.
+ */
+.os-settings__accent-picker {
+	position: absolute;
+	width: 28px;
+	height: 1px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* ---------------------------------------------------------------
+ * Desktop layout cards.
+ *
+ * A layout is a spatial choice, so each option draws the arrangement
+ * it is offering. The four names on their own ("One dock",
+ * "OpenStation", "Side bar", "Spatial") asked the user to guess what
+ * each would do to their screen and then find out by trying it.
+ *
+ * The previews are schematic: two or three rectangles and a rail, on
+ * Void, with the dock (or the current Space) in the accent so the eye
+ * lands on the thing that differs between the four. Geometry comes
+ * from `desktop-layout.ts` as percentages, so the cards stay legible
+ * as the grid reflows.
+ * --------------------------------------------------------------- */
+/*
+ * Two layouts, half the pane each. Fixed tracks rather than
+ * auto-fill: there are exactly two of them and they are a pair to be
+ * compared, so a wide pane that fitted a third column would only
+ * shrink both cards away from each other for no reason.
+ *
+ * `align-items: start` because the cards are not the same height.
+ * One dock carries its own options and Side bar does not, and a Side
+ * bar card stretched to match would be mostly empty box.
+ */
+.os-settings__layout-grid {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	align-items: start;
+	gap: 12px;
+}
+
+/*
+ * The dock options, inside the One dock card. Stacked, because half
+ * a pane is not enough for two segmented controls side by side, and
+ * because reading them down the card follows the order the decision
+ * is made in: this layout, then where its dock sits, then how big.
+ */
+.os-settings__dock-options {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 14px;
+}
+
+/*
+ * Dock size, under both cards rather than inside one: both layouts
+ * have a dock. Off the grid entirely, so it clears the taller card
+ * rather than sitting beside it, and on the section's own rhythm
+ * rather than the card's tighter one.
+ */
+.os-settings__dock-options--page {
+	margin-top: 20px;
+}
+
+.os-settings__dock-option {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.os-settings__dock-option-label {
+	font-size: 14px;
+	font-weight: 500;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/*
+ * The card is the BOX, not the control. It holds the radio that
+ * picks the layout and, for One dock, that layout's own options —
+ * and a radio cannot contain a segmented control, so the two are
+ * siblings inside it. See the docblock in
+ * `src/settings/sections/desktop-layout.ts`.
+ *
+ * Which means the box wears the state of a child it does not own.
+ * Both `:has()` rules name the CHOICE rather than the card, so a
+ * pointer resting on a segmented control does not lift the card, and
+ * a segment taking focus does not light the selection ring.
+ */
+.os-settings__layout-card {
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
+	background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) );
+	border-radius: 10px;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
+	transform: translateY( -2px );
+}
+
+.os-settings__layout-card:has( [ aria-checked='true' ] ) {
+	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
+}
+
+/* The radio: everything in the card that means "this layout". */
+.os-settings__layout-choice {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: 0;
+	border-radius: 8px;
+	font: inherit;
+	color: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.os-settings__layout-choice:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
+}
+
+.os-settings__layout-preview {
+	position: relative;
+	display: block;
+	height: 78px;
+	margin-bottom: 9px;
+	overflow: hidden;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	border-radius: 8px;
+}
+
+/* A window: a filled rectangle with a boundary, because at this size
+   a borderless one dissolves into the Void behind it. */
+.os-settings__layout-win {
+	position: absolute;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 4px;
+}
+
+/* A rail: the wp-admin menu, or the side rail. No border, because a
+   rail reads as a solid mass and a window does not. */
+.os-settings__layout-bar {
+	position: absolute;
+	background: var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 3px;
+}
+
+/* A rail the user gets to place: the dock, and in Side bar the admin
+   menu beside it. The accent is what separates the rails from the
+   windows they sit next to, so a card can carry more than one. */
+.os-settings__layout-win.is-accent,
+.os-settings__layout-bar.is-accent {
+	background: var( --os-ui-accent, #2271b1 );
+	border-color: transparent;
+}
+
+.os-settings__layout-name {
+	font-size: 14px;
+	font-weight: 500;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-settings__layout-desc {
+	margin-top: 3px;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__layout-card {
+		transition-duration: 0.01ms;
+	}
+
+	.os-settings__layout-card:has( .os-settings__layout-choice:hover ) {
+		transform: none;
+	}
+}
+
 /* ---------------------------------------------------------------
  * Media Library picker.
  *
@@ -506,7 +786,7 @@
 	border-radius: 4px;
 	background: var( --os-ui-surface, #fff );
 	font: inherit;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg, #1d2327 );
 }
 
@@ -608,7 +888,7 @@
 	padding: 24px 16px;
 	text-align: center;
 	color: var( --os-ui-fg-muted, #646970 );
-	font-size: 12px;
+	font-size: 13px;
 }
 
 .os-settings__library-error {
@@ -626,7 +906,7 @@
 
 .os-settings__library-meta {
 	color: var( --os-ui-fg-muted, #8c8f94 );
-	font-size: 11px;
+	font-size: 12px;
 }
 
 /* `__library-load-more` now renders as `<os-button variant="ghost">`. */
@@ -640,6 +920,8 @@
  * --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
 	.os-settings__editor-slot,
+	.os-settings__image-picker-slot,
+	.os-settings__wallpaper-add,
 	.os-settings__wallpaper-config-slot,
 	.os-settings__upload-tile,
 	.os-settings__library-tile,
@@ -655,34 +937,27 @@
 /* AI settings section — error and saving feedback */
 .os-ai-settings__error {
 	margin: 6px 0 0;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-danger, #d63638 );
 }
 
 .os-ai-settings__saving {
 	margin: 6px 0 0;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
 	font-style: italic;
 }
 
 /* Extended options section — hint paragraph + error/saving states */
-.os-ext__hint {
-	margin: 6px 0 0;
-	font-size: 12px;
-	color: var( --os-ui-fg-muted, #646970 );
-	line-height: 1.5;
-}
-
 .os-ext__error {
 	margin: 6px 0 0;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-danger, #d63638 );
 }
 
 .os-ext__saving {
 	margin: 6px 0 0;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
 	font-style: italic;
 }
@@ -692,11 +967,6 @@
  * (nav + detail) on desktop, stacks naturally on narrow windows via
  * the same container the OS Settings panel lives in.
  */
-.os-settings__help-count {
-	margin: 4px 0 0;
-	font-size: 12px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
 
 .os-settings__help-layout {
 	display: grid;
@@ -737,7 +1007,7 @@
 .os-settings__help-nav-empty {
 	margin: 0;
 	padding: 8px 10px;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
@@ -774,7 +1044,7 @@
 
 .os-settings__help-nav-tag {
 	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
-	font-size: 11px;
+	font-size: 12px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
@@ -802,17 +1072,15 @@
 
 .os-settings__help-code {
 	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
 .os-settings__help-badge {
 	padding: 1px 8px;
 	border-radius: 999px;
-	font-size: 11px;
+	font-size: 13px;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
 	background: var( --os-ui-surface-sunken, #e4e7eb );
 	color: var( --os-ui-fg, #1d2327 );
 }
@@ -838,10 +1106,8 @@
 
 .os-settings__help-group h4 {
 	margin: 0 0 8px;
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
@@ -855,15 +1121,25 @@
 .os-settings__help-table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 12px;
+	font-size: 13px;
 }
 
+/*
+ * Rows are told apart by a wash rather than by a rule, which is the
+ * one place in the panel that needed a replacement rather than just a
+ * deletion: a props table with neither lines nor banding is a wall of
+ * words. Zebra striping carries the row across without drawing
+ * anything horizontal.
+ */
 .os-settings__help-table th,
 .os-settings__help-table td {
-	padding: 6px 8px;
-	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+	padding: 7px 8px;
 	text-align: start;
 	vertical-align: top;
+}
+
+.os-settings__help-table tbody tr:nth-child( odd ) {
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
 }
 
 .os-settings__help-table th {
@@ -875,7 +1151,7 @@
 .os-settings__help-table code,
 .os-settings__help-list code {
 	font-family: var( --os-ui-font-mono, Menlo, Consolas, monospace );
-	font-size: 11px;
+	font-size: 12px;
 	padding: 1px 4px;
 	background: var( --os-ui-surface, #fff );
 	border: 1px solid var( --os-ui-border, #dcdcde );
@@ -883,19 +1159,19 @@
 }
 
 .os-settings__help-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
 .os-settings__help-list li {
-	padding: 4px 0;
-	border-bottom: 1px solid var( --os-ui-border, #ececee );
-	font-size: 12px;
-}
-
-.os-settings__help-list li:last-child {
-	border-bottom: 0;
+	padding: 6px 10px;
+	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	border-radius: 6px;
+	font-size: 13px;
 }
 
 .os-settings__help-note {
@@ -904,7 +1180,7 @@
 	background: var( --os-ui-warning-bg, #fcf9e8 );
 	border: 1px solid var( --os-ui-warning-border, #f5e6a5 );
 	border-radius: 6px;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-warning-fg, #996800 );
 }
 
@@ -933,31 +1209,370 @@
  * `:has()` is supported in every evergreen engine (Chrome 105+,
  * Safari 15.4+, Firefox 121+); fine for an admin-context shell.
  * --------------------------------------------------------------- */
-.os-window__body--native:has( .os-settings ) {
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
+/*
+ * NOTE: the rule that used to sit here was
+ * `.os-window__body--native:has( .os-settings )`, and it never once
+ * matched. `renderOsSettingsPanel()` adds the `os-settings` class TO
+ * the native window body rather than to a child of it, so the two
+ * selectors name the same element, and `:has()` only ever looks at
+ * descendants. The `overflow: hidden` it wanted now sits on
+ * `.os-settings` itself, where it reaches the element it was written
+ * for; its `display: flex` is dropped, because the grid this file
+ * declares below superseded that column layout.
+ *
+ * The query context for every narrow-layout rule in this file goes on
+ * the WINDOW, one level up. A container query styles a container's
+ * descendants and never the container itself, so it cannot live on
+ * the panel that has to respond to it. `:has()` does the right thing
+ * from here: the panel really is a descendant of the window, so only
+ * the OS Settings window becomes a container and every other native
+ * window is left alone.
+ *
+ * It has to be a container and not the viewport. OS Settings is a
+ * window inside the shell, so dragging that window narrow never
+ * changes the viewport width; the `@media ( max-width: 640px )` rule
+ * this replaced could only fire when the whole BROWSER went under the
+ * breakpoint, which is both the wrong moment and, on a desktop,
+ * never. The Components tab has wanted this since it was written: its
+ * own `@container` rule further up this file had no container to
+ * resolve against and so had never matched either.
+ */
+.os-window--native:has( .os-settings ) {
+	container-type: inline-size;
 }
 
+/*
+ * Two columns, two rows: the sidebar down the left, every pane sharing
+ * the cell on the right (only the unhidden one takes up space), and
+ * the footer spanning both.
+ */
+/*
+ * Two columns, four rows. The sidebar column stacks the search field,
+ * the scrolling strip and the empty-state line; the pane spans all
+ * three of those rows in column 2, and the reset bar spans both
+ * columns underneath. Four rows rather than a wrapper element because
+ * the strip and the panes have to stay siblings: see the note in
+ * `panel.ts` where they are rendered.
+ */
 .os-settings {
 	flex: 1;
 	min-height: 0;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: var( --os-settings-nav-width, 224px ) minmax( 0, 1fr );
+	grid-template-rows: auto minmax( 0, 1fr ) auto auto;
+	/*
+	 * The native window body defaults to overflow: auto. Left alone,
+	 * a tall page scrolls the whole panel and takes the sidebar and
+	 * the reset bar with it; each tabpanel already scrolls itself, so
+	 * this pins the furniture and lets the content move inside it.
+	 * See the note above about where this declaration used to live.
+	 */
+	overflow: hidden;
 }
 
-/* The tab strip + footer must NOT shrink when the active panel
-   wants more height. Marking them flex-shrink:0 also keeps them
-   pinned visually as the panel below scrolls. */
+/*
+ * The sidebar column. Obsidian against the pane's Void, so the
+ * column reads as part of the window furniture (it continues the
+ * title bar) while the content sits on the deepest surface. No
+ * dividing rule between them: two surfaces meeting IS the boundary,
+ * and a line drawn on top of a tonal step only says the same thing
+ * twice.
+ *
+ * The search field, the strip and the empty-state line are three
+ * SIBLINGS assembled into one column by the grid rather than one
+ * wrapped element, because `<os-tabs>` drives the panes by finding
+ * `os-tabpanel` children of its own parent. A sidebar div around the
+ * strip puts every pane out of its reach and the panel renders all
+ * nine at once. The shared background is what makes the three read as
+ * one surface.
+ */
+.os-settings__search,
 .os-settings > os-tabs,
-.os-settings > .os-settings__footer {
-	flex: 0 0 auto;
+.os-settings__search-empty {
+	grid-column: 1;
+	background: var( --os-ui-surface, #fff );
 }
 
-.os-settings > os-tabpanel {
+/*
+ * No inline padding on the strip, which is load-bearing rather than
+ * tidy. The selected row's accent is a 2px edge at
+ * `inset-inline-start: 0`, so any padding here would float it in the
+ * middle of the gutter instead of sitting it on the column edge. The
+ * rows carry their own inline padding to hold the labels off it.
+ */
+.os-settings > os-tabs {
+	grid-row: 2;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/*
+ * The only vertical space in the column, and the entire grouping
+ * mechanism. `panel.ts` stamps this on the first row of each band;
+ * see `navGroup()` there for why the bands come from tab order.
+ */
+.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
+	margin-top: 20px;
+}
+
+/*
+ * Filtered out by the search field. A plain `display: none` rather
+ * than anything cleverer, so a hidden row takes its group gap with it
+ * and a filtered list closes up instead of keeping the shape of the
+ * one it came from.
+ */
+.os-settings > os-tabs > os-tab[ data-search-hidden ] {
+	display: none;
+}
+
+/*
+ * Search. Sits above the nav rather than over the content, because
+ * what it filters is the nav.
+ *
+ * The field wears the row's own geometry (same 14px, same Ash) so the
+ * column reads as one list with a way in at the top, rather than as a
+ * form control that happens to have been parked above some links.
+ */
+/*
+ * The cell holds the column's surface and the field's inset; the
+ * field inside it holds the pill. Two elements because the surface has
+ * to run edge to edge (it is the sidebar) while the field must not.
+ */
+.os-settings__search {
+	grid-row: 1;
+	padding: 12px 12px 14px;
+}
+
+/*
+ * A sunken well in the Obsidian column: the field is a window onto
+ * the pane's Void, with the same Astro border the section boxes
+ * wear, at the inner radius (8px). The rows below it are
+ * square-edged and full-bleed, so the inset alone already says "not
+ * one of them".
+ *
+ * The field wears the row's own type: 14px Regular on Ash, a 15px
+ * glyph at full strength. 8px top and bottom around a 21px line puts
+ * the content box at 37px.
+ */
+.os-settings__search-field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__search svg {
+	flex: 0 0 15px;
+	width: 15px;
+	height: 15px;
+}
+
+/*
+ * The class stack is the whole fix, not tidiness. The shell renders
+ * inside a real wp-admin document, and TWO outrankers dress this
+ * input as a second field inside the well: Core's forms.css styles
+ * `input[type="search"]` at (0,1,1), and our own window-chrome rule
+ * for raw controls in native window bodies weighs (0,2,1). Three
+ * classes are (0,3,0) and beat both, and the input goes back to
+ * being invisible: the FIELD is the control, the input is just
+ * where the letters go.
+ */
+.os-settings .os-settings__search .os-settings__search-input {
 	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	font: inherit;
+	font-size: 14px;
+	line-height: 21px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* Chrome draws its own clear button on type=search; it lands on the
+   pill's right edge and fights the rounding. */
+.os-settings__search-input::-webkit-search-cancel-button {
+	appearance: none;
+}
+
+.os-settings__search-input::placeholder {
+	color: var( --os-ui-fg-muted, #50575e );
+	opacity: 1;
+}
+
+/* The field is the visible control, so the ring goes on it, not on
+   the bare input inside. */
+.os-settings__search-field:focus-within {
+	box-shadow: var( --os-ui-focus-ring-field, 0 0 0 1px #2271b1 );
+}
+
+/* Same specificity story as above: Core's `input[type=search]:focus`
+   is (0,2,1) and would draw its blue ring on the inner input. */
+.os-settings .os-settings__search .os-settings__search-input:focus,
+.os-settings .os-settings__search .os-settings__search-input:focus-visible {
+	outline: none;
+	border: 0;
+	box-shadow: none;
+	background: none;
+}
+
+.os-settings__search-empty {
+	grid-row: 3;
+	margin: 0;
+	padding: 4px 20px 12px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+}
+
+/*
+ * The column's surface has to survive the empty-state line being
+ * hidden, which is most of the time: without this the sunken
+ * background would stop at the bottom of the nav and leave the rest
+ * of the column showing the pane's Obsidian.
+ */
+.os-settings__search-empty[ hidden ] {
+	display: block;
+	padding: 0;
+	font-size: 0;
+}
+
+/*
+ * Stand-in for a glyph a third-party tab cannot supply. Matches the
+ * 17px the real icons are sized to in the component's shadow styles,
+ * so the labels in a mixed column all start at the same x.
+ */
+.os-settings__nav-glyph-blank {
+	flex: 0 0 17px;
+	width: 17px;
+}
+
+/* Spans the three sidebar rows: the pane is one surface whatever the
+   column beside it is doing. */
+.os-settings > os-tabpanel {
+	grid-column: 2;
+	grid-row: 1 / -1;
 	min-height: 0;
 	overflow: auto;
+	padding: 28px 32px 44px;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+}
+
+/*
+ * Reset sits at the foot of the nav, and it resets everything.
+ *
+ * In the column rather than across the page because that is what it
+ * addresses: the list names the pages, and the thing under the list
+ * acts on all of them. Across the bottom of the pane it read as
+ * belonging to whatever page happened to be open, which is the whole
+ * reason it once had to grow a name and a sentence to disown that
+ * reading.
+ *
+ * The column's own surface, so it continues the sidebar rather than
+ * starting a third one. No rule above it, for the same reason the
+ * sidebar has no divider against the pane: it is already the last
+ * thing in a column that ends.
+ */
+.os-settings > .os-settings__footer {
+	grid-column: 1;
+	grid-row: 4;
+	display: flex;
+	/*
+	 * Stated, not inherited. `<os-panel>` is a stack and sets
+	 * `flex-direction: column` on its own host, which would stretch
+	 * the button to the column's full width.
+	 */
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	margin-top: 0;
+	padding: 12px;
+	background: var( --os-ui-surface, #fff );
+}
+
+/*
+ * The reset button at the mockup's measurements: a quiet 6% fill,
+ * no border, inner radius, Caption type. All reachable through the
+ * component's own custom-property knobs, so nothing here touches the
+ * kit's defaults.
+ */
+.os-settings > .os-settings__footer os-button {
+	--os-ui-button-padding: 8px 15px;
+	--os-ui-button-border-radius: 8px;
+	--os-ui-button-border: 0;
+	--os-ui-button-bg: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+	font-size: 13px;
+}
+
+/* Narrow windows: the sidebar would eat the pane, so fall back to the
+   stacked layout the panel had before. Container-scoped, so it tracks
+   the WINDOW being dragged narrow rather than the browser viewport. */
+@container ( max-width: 640px ) {
+	.os-settings {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: auto minmax( 0, 1fr ) auto;
+	}
+	.os-settings > os-tabs {
+		grid-column: 1;
+		grid-row: 1;
+		flex-direction: row;
+		overflow-x: auto;
+		overflow-y: hidden;
+	}
+	/*
+	 * Back to a strip, so the group gap becomes horizontal.
+	 *
+	 * The rows KEEP their vertical treatment, which this rule cannot
+	 * reach: it is styled inside the component's shadow root off
+	 * `data-orientation`, and a container query has no way in there.
+	 * They are full-bleed 40px rows laid in a horizontal line, which
+	 * reads as a strip of wide chips rather than as the compact tab
+	 * strip this width wants. Fixing it properly means the component
+	 * choosing its own layout at a width, not the panel overriding it
+	 * from outside; only the gap is restated here.
+	 */
+	.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
+		margin-top: 0;
+		margin-inline-start: 20px;
+	}
+	/*
+	 * The search field goes with the sidebar's width, which it no
+	 * longer has: a full-bleed input above a horizontal strip reads as
+	 * the window's search rather than the nav's. The strip is short
+	 * enough at this width to scan without it.
+	 */
+	.os-settings__search,
+	.os-settings__search-empty,
+	.os-settings__search-empty[ hidden ] {
+		display: none;
+	}
+	.os-settings > os-tabpanel {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	/*
+	 * Row 3, not row 4. The wide layout has four rows and puts the
+	 * reset bar last; this one has three, so the wide declaration would
+	 * place the bar in a row that does not exist and the grid would
+	 * grow an implicit one below the fold.
+	 */
+	.os-settings > .os-settings__footer {
+		grid-row: 3;
+	}
+	/*
+	 * Half a pane this narrow is not a card any more, and the One dock
+	 * card has segmented controls inside it that would start clipping
+	 * their labels. The two stack instead.
+	 */
+	.os-settings__layout-grid {
+		grid-template-columns: minmax( 0, 1fr );
+	}
 }
 
 /* Components tab — split-pane layout. Don't scroll the whole panel;
@@ -975,6 +1590,13 @@
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
+	/*
+	 * Square off the bottom inset. Every other page carries 44px there
+	 * so a scrolling column has somewhere to end; this one does not
+	 * scroll, so those extra 16px are just the panes stopping short of
+	 * the window. Matching the top puts the same frame on both ends.
+	 */
+	padding-bottom: 28px;
 }
 .os-settings
 	> os-tabpanel[ for='help' ]:not( [ hidden ] )
@@ -1025,53 +1647,115 @@
 	min-height: 22px;
 }
 
-/* One toggle + hint pair. Stacking these without separators reads as
- * a wall of checkboxes; a hairline above each item (after the first)
- * groups the label with its description and gives the eye a stopping
- * point between unrelated settings. The first item sits flush so the
- * section heading already serves as its top boundary. */
+/*
+ * One toggle + hint pair, in its own box.
+ *
+ * These used to be separated by a hairline above each item after the
+ * first. A box does the same job without drawing a line: it groups the
+ * label with its description and gives the eye a stopping point
+ * between unrelated settings, and it says which text belongs to which
+ * switch by enclosing it rather than by sitting between it and the
+ * next one. No horizontal rule survives anywhere in this panel.
+ */
 .os-features__item {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 4px;
+	padding: 12px 16px;
+	background: var( --os-ui-surface, #fff );
+	border-radius: 8px;
 }
 
 .os-features__item + .os-features__item {
-	margin-top: 16px;
-	padding-top: 16px;
-	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	margin-top: 12px;
 }
 
-/* "Reset what's-new dialogs" row — separates the action from the
- * native-Posts toggle above and gives breathing room around the
- * button. `align-items: flex-start` keeps the inline-flex
- * `<os-button>` from stretching full-width inside the column,
- * and the explicit margin on the button below works around the
- * fact that flex `gap` doesn't always render visibly when one
- * neighbour is an inline-flex custom element with zero outer
- * margin. */
+/* Feature title line: Body 14 / Medium 500. The outer-tree rule wins
+ * over the component's own :host font-size, and the shadow label
+ * inherits both properties from the host. */
+.os-features__item > os-checkbox-label {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+/* A functional notice (provider gating) gets a touch more air than
+ * the 4px title-to-description rhythm: 4px gap + 4px margin = 8px. */
+.os-features__item > os-notice {
+	margin-top: 4px;
+}
+
+/* Sub-toggles (the window-links children) sit inside the parent box:
+ * no box-in-box, indented 24px so their checkboxes align under the
+ * parent's label text (16px box + 8px gap). Declared after the
+ * sibling rule above so the 8px margin wins for nested siblings:
+ * 4px parent gap + 8px margin = the same 12px block rhythm. */
+.os-features__item .os-features__item {
+	margin-top: 8px;
+	margin-left: 24px;
+	padding: 0;
+	background: none;
+	border-radius: 0;
+}
+
+/* "Reset what's-new dialogs" row: description first, button directly
+ * under it on the shared 12px gap. `align-items: flex-start` keeps
+ * the inline-flex `<os-button>` from stretching full-width inside
+ * the column. */
 .os-features__row {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 12px;
-	margin-top: 20px;
-	padding-top: 20px;
-	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	margin-top: 12px;
+	padding: 12px 16px;
+	background: var( --os-ui-surface, #fff );
+	border-radius: 8px;
 }
 
 .os-features__row > os-button {
 	display: inline-flex;
-	margin-block: 4px 8px;
 }
 
 .os-features__row > .os-features__hint {
 	margin: 0;
 }
 
+/* "Delete folder sharing data": the one-line description and its
+ * danger button read as a single row, button on the trailing edge.
+ * 4px parent gap + 8px margin = the 12px block rhythm above it. */
+.os-features__danger-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.os-features__danger-row > os-button {
+	flex: 0 0 auto;
+}
+
+/* Heartbeat rate: 8px label-to-control, description 8px below the
+ * control (4px parent gap + 4px margin). */
+.os-features__select-label {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.os-features__select-title {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.os-features__select-label + .os-features__hint {
+	margin-top: 4px;
+}
+
 .os-features__hint {
 	margin: 0;
-	font-size: 12px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #50575e );
 	line-height: 1.5;
 }
@@ -1080,7 +1764,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 500;
 	padding: 2px 10px;
 	border-radius: 999px;
@@ -1214,22 +1898,25 @@
 
 
 /* Apps & Icons section (since 0.25.0) — per-item placement chooser. */
+/*
+ * The boxed list Núria pointed at when she asked for boxes instead of
+ * rules. Each row encloses its own icon, title and placement select,
+ * so a long list reads as a stack of things rather than as a table
+ * that has lost its header.
+ */
 .os-apps-icons__list {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 }
 
 .os-apps-icons__row {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 8px 4px;
-	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
-}
-
-.os-apps-icons__row:last-child {
-	border-bottom: 0;
+	padding: 8px 12px;
+	background: var( --os-ui-surface, #fff );
+	border-radius: 8px;
 }
 
 .os-apps-icons__identity {
@@ -1283,14 +1970,22 @@
 	position: relative;
 }
 
+/*
+ * Same geometry in every state: the border is 1px in both, and
+ * selection is a box-shadow ring OUTSIDE the box, so an active card
+ * occupies exactly the pixels an idle one does and the row stays
+ * aligned. The selected ring is the flat accent, the same language
+ * as the wallpaper tiles and layout cards beside it.
+ */
 .os-settings__theme-card {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	width: 100%;
-	padding: 8px;
+	height: 100%;
+	padding: 10px;
 	background: var( --os-ui-surface, #fff );
-	border: 2px solid var( --os-ui-border, #dcdcde );
+	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 10px;
 	cursor: pointer;
 	text-align: start;
@@ -1300,17 +1995,17 @@
 }
 
 .os-settings__theme-card:hover {
-	border-color: var( --wp-admin-theme-color, #2271b1 );
+	border-color: var( --os-ui-border-strong, #8c8f94 );
 }
 
 .os-settings__theme-card:focus-visible {
-	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
 	outline-offset: 2px;
 }
 
 .os-settings__theme-card[ aria-pressed="true" ] {
-	border-color: var( --wp-admin-theme-color, #2271b1 );
-	box-shadow: 0 0 0 3px rgba( 34, 113, 177, 0.18 );
+	border-color: transparent;
+	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
 }
 
 .os-settings__theme-preview {
@@ -1350,11 +2045,15 @@
 	overflow-wrap: anywhere;
 }
 
+/* Wraps rather than clipping. This string is a theme's own
+   description and a plugin can make it any length; a one-line box cut
+   "The look OpenStation ships with" off mid-sentence. */
 .os-settings__theme-meta {
-	font-size: 11px;
+	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
-	line-height: 1.3;
-	min-height: 1.3em;
+	line-height: 1.45;
+	min-height: 1.45em;
+	overflow-wrap: anywhere;
 }
 
 /* Delete overlay — outside the card button, because nesting a button
@@ -1401,11 +2100,21 @@
 	margin-block: 16px;
 }
 
+/*
+ * The last cell of the theme grid, not a dropzone underneath it.
+ * Uploading a theme is one of the ways to answer "which theme", so it
+ * belongs in the row of answers; dashed because it is the only one
+ * that cannot show you what you are picking until you have picked it.
+ * Same reasoning, and the same treatment, as "Use your own image" in
+ * the wallpaper grid.
+ */
 .os-settings__theme-upload {
 	display: block;
-	border: 2px dashed var( --os-ui-border, #c3c4c7 );
-	border-radius: 8px;
-	background: var( --os-ui-surface, #fff );
+	/* Same reason as the other two dropzones above: the plain border
+	   token is the card's own colour and vanishes on it. */
+	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
+	border-radius: 10px;
+	background: transparent;
 	transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -1415,7 +2124,8 @@
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	min-height: 96px;
+	/* Matches a theme card: 16:10 preview plus its name and meta. */
+	min-height: 100%;
 	padding: 16px;
 	color: var( --os-ui-fg-muted, #50575e );
 	cursor: pointer;

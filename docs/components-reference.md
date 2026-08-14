@@ -49,7 +49,7 @@ The search box above the list filters on the flattened descriptor, not just the 
 | `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. |
 | `<os-checkbox-label>` | `OsCheckboxLabel` | `os-checkbox-label/os-checkbox-label.ts` | Checkbox + inline label pair. |
 | `<os-switch>` | `OsSwitch` | `os-switch/os-switch.ts` | On/off switch for settings that apply immediately. Tap, drag or keyboard. |
-| `<os-select>` / `<os-option>` | `OsSelect`, `OsOption` | `os-select/os-select.ts` | Native select with custom chrome. |
+| `<os-select>` / `<os-option>` | `OsSelect`, `OsOption` | `os-select/os-select.ts` | Combobox trigger with a custom top-layer listbox popup. |
 | `<os-multiselect>` | `OsMultiselect` | `os-multiselect/os-multiselect.ts` | Multi-select with chips. |
 | `<os-segmented>` / `<os-segment>` | `OsSegmented`, `OsSegment` | `os-segmented/os-segmented.ts` | Segmented control (radio group as buttons). |
 | `<os-tag-input>` | `OsTagInput` | `os-tag-input/os-tag-input.ts` | Free-text tag entry with autocomplete. |
@@ -180,7 +180,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 The kit wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and the brand ships five mesh gradients with one instruction attached: *"meshes reserved for hero surfaces."* `src/ui/holo.ts` is how a control gets to be one without every component reinventing what holographic means.
 
-**It is a moment, not a skin.** A control paints the mesh when it is on, selected, primary or filled — the one instant it speaks for the brand — and wears ordinary Obsidian the rest of the time. A panel where every surface is iridescent has no identity moments left to spend.
+**It is a moment, not a skin.** Form controls (checkboxes, radios, switches, sliders, the segmented thumb) wear the flat accent when they are on; selection and state across the kit resolve through `--os-ui-accent`, which follows the accent the user picked in OpenStation Preferences; the mesh appears only where a single surface speaks for the brand, such as `<os-button variant="holo">`. A panel where every surface is iridescent has no identity moments left to spend.
 
 Three treatments, in ascending loudness:
 
@@ -221,6 +221,8 @@ Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — t
 | `--os-ui-holo-edge` / `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow` / `--os-ui-holo-glow-strong` | The Pulse bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-tab-edge` | The selected row's leading edge in a vertical `<os-tabs>`. The flat accent, so the row says "this one" in the same colour as every control beside it. |
+| `--os-ui-tab-wash` / `--os-ui-tab-bloom` | That row's surface wash, and the bloom the edge throws back across it. Both ambient, so both resolve through `--os-ui-accent-dim`. |
 | `--os-ui-accent-dim` | Pulse one step back (same hue, S and L pulled down together). **The single knob for how loud the station is** — every ambient use of the accent resolves through it. |
 | `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |
 | `--os-ui-focus-ring-field` | The **field** ring: quieter, tightens the input's own border. A form of twelve inputs should not look alarmed. |

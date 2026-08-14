@@ -1185,7 +1185,7 @@ export interface DesktopUnfocusEffectScriptServerEntry {
  * shell injects each `scriptUrl` on mid-session activation; the
  * loaded script calls `wp.os.registerWindowLinkRenderer()` and
  * the registry subscriber surfaces the renderer in OS Settings →
- * Effects → Window links without an F5.
+ * Windows → Window links without an F5.
  *
  * @public
  */
@@ -1723,7 +1723,7 @@ export interface DesktopConfig {
 	 * `openstation_register_window_link_renderer_script()`. Shell
 	 * injects each URL on boot and on mid-session activation so
 	 * newly-installed plugins surface their window-link renderer in OS
-	 * Settings → Effects → Window links live. Owner-tagged
+	 * Settings → Windows → Window links live. Owner-tagged
 	 * registrations live-unregister on deactivation.
 	 */
 	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];

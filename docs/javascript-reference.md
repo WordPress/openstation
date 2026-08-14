@@ -333,7 +333,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ```typescript
 {
-    layout:    'classic' | 'unified' | 'spatial' | 'openstation',
+    layout:    'classic' | 'unified',
     placement: 'bottom' | 'left' | 'right',   // edge the primary rail mounted on
     primary:   Dock | null,   // primary dock — always present
     side:      Dock | null,   // left side bar — non-null only in classic
@@ -347,7 +347,7 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 ### `os-item-menu-opening` — Stable
 Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
 
-It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the active layout gives it (the constellation flyout in the OpenStation layout, the peek card everywhere else). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
+It exists because a tile can carry two surfaces at once: the menu, and whichever hover affordance the tile has (the constellation flyout on menu tiles, the peek card on system ones). Both anchor to the same tile, so opening one over the other leaves two panels fighting for the same corner of the screen. The shipped hover surfaces listen for this and dismiss themselves; a plugin that paints its own hover affordance on a dock tile should do the same.
 
 ```javascript
 document.addEventListener( 'os-item-menu-opening', ( e ) => {
@@ -475,8 +475,8 @@ true (the current user has `edit_posts`):
 2. the open **native Posts window** body (`[data-os-posts-root]`)
    — both get a real `DropTarget` and set
    `data-os-posts-drop-active` while a note hovers.
-3. The Posts **shortcut tile in the Spatial layout**. There the core
-   menu icons are files-layer shortcut tiles already claimed by the
+3. A Posts **shortcut tile on the desktop**. A promoted menu icon is a
+   files-layer shortcut tile already claimed by the
    files layer's per-tile reject target, so notes can't register their
    own target. Instead the files layer exposes a **tile-payload seam**
    (`registerTilePayloadHandler( type, { appliesTo, accept, acceptLabel,
@@ -712,7 +712,7 @@ window.wp.os = {
     // Surfaces
     dock:              Dock | null,                            // primary (bottom)
     sideDock:          Dock | null,                            // left, classic only
-    desktopLayout:     'classic' | 'unified' | 'spatial' | 'openstation',
+    desktopLayout:     'classic' | 'unified',
     dockPlacement:     'bottom' | 'left' | 'right',           // edge the primary dock sits on
     icons:             IconsApi,
     saveSession:       () => void,
@@ -908,9 +908,13 @@ window.wp.hooks.addFilter(
 );
 ```
 
-#### The constellation — OpenStation layout only
+#### The constellation
 
-The `openstation` desktop layout replaces the hover-peek **on menu tiles** with a richer surface: the **constellation**, a flyout that fans a menu's *submenu* out of its tile. Every other layout drops the submenu at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+**Menu tiles** hand the hover gesture to the **constellation**, a flyout that fans a menu's *submenu* out of its tile, in place of the hover-peek. Without it the submenu is dropped at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
+
+It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Split puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
+
+System tiles have no submenu and keep the peek.
 
 One panel, up to four sections, top to bottom:
 
@@ -1448,7 +1452,6 @@ The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM
 
 - **Unified** *(default)* — every menu, core and plugin alike, sharing one rail, with OpenStation's own system tiles grouped behind a divider.
 - **Classic** — plugin-contributed top-level menus only (core menus go to `sideDock`).
-- **Spatial** — plugin menus only (core menus are rendered as wallpaper icons).
 
 `setBadge( id, count )` is the canonical way to surface a numeric count on a tile; calls fire `os/badge-changed` on the activity bus with the rail discriminator. **The discriminator follows the rail's orientation, not its role:** `rail: 'taskbar'` for a horizontal rail (the primary dock on the bottom edge), `rail: 'dock'` for a vertical one — the Classic side rail (`sideDock`), and also the primary dock itself once the user moves it to the left or right. Code that reacts to badges should key off `itemId`, or accept both values; treating `'taskbar'` as "the primary rail" holds only while the dock is on the bottom. `Dock.removeSystemItem( id )` fires `HOOKS.DOCK_ITEM_REMOVED` — the symmetric counterpart of `HOOKS.DOCK_ITEM_APPENDED`. See [`docs/examples/dock-badge.md`](./examples/dock-badge.md).
 
@@ -1457,7 +1460,7 @@ The **primary `Dock` instance** (or `null` if the dock element wasn't in the DOM
 ---
 
 ### `sideDock` — Stable
-Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified and Spatial.
+Secondary `Dock` instance that hosts **core WordPress admin menus** (Dashboard, Posts, Pages, Media, Users, Settings, CPTs, taxonomies) along the **left edge**. Non-null only when `desktopLayout === 'classic'` — `null` in Unified.
 
 Same `Dock` API as `dock`, just with `data-os-dock-placement="left"` so its CSS selectors don't collide with the bottom rail.
 
@@ -1470,24 +1473,22 @@ wp.os.sideDock?.setBadge( 'edit.php', 3 );
 ---
 
 ### `desktopLayout` — Stable
-Currently-active top-level layout. One of `'classic' | 'unified' | 'spatial' | 'openstation'`. Mirrors the user's OpenStation Preferences → Appearance pick and the `data-os-layout` attribute on the shell root.
+Currently-active top-level layout, `'unified'` or `'classic'`. Mirrors the user's OpenStation Preferences → Appearance pick (shown there as **Unified** and **Split**) and the `data-os-layout` attribute on the shell root.
 
 | Layout | Rails | Where core menus live |
 |---|---|---|
+| `unified` *(default)* | bottom | the one rail, **grouped core-first**, then a divider, then plugins |
 | `classic` | side + bottom | left side bar (`sideDock`) |
-| `unified` | bottom | the one rail, interleaved with plugins |
-| `spatial` | bottom | wallpaper icons |
-| `openstation` | bottom | the one rail, **grouped first**, then a divider, then plugins |
 
 ```js
-if ( wp.os.desktopLayout === 'spatial' ) {
-    // Core menus are wallpaper icons; expect `sideDock` to be null.
+if ( wp.os.desktopLayout === 'classic' ) {
+    // Core menus live on their own rail; `sideDock` is the one holding them.
 }
 ```
 
 Listen for `os-layout-changed` to react to a switch.
 
-**`openstation` in particular** re-sorts the rail so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. It is also the only layout that fans a menu's submenu out of its tile on hover — see [the constellation](#the-constellation--openstation-layout-only) below.
+**`unified` re-sorts the rail** so every `isCore` tile precedes every plugin tile, which is what makes the single `.os-dock__separator--group` divider land on the core→plugin boundary. Hovering a menu tile fans its submenu out — see [the constellation](#the-constellation) below.
 
 ---
 
@@ -1541,7 +1542,7 @@ wp.os.icons?.setArt?.( 'my-bin', '' );  // restore the registered icon
 - **`''` clears** the override and hands the tile back to its registered icon.
 - **Silent no-op when the id isn't on this rail.**
 - **Survives a full grid rebuild**, and applies to a tile that has not rendered yet. Setting art during boot is the normal case (the rail appends system tiles asynchronously), so the value is recorded first and painted when the tile appears.
-- **Covers both desktop layouts on the icon rail** — `wp.os.icons.setArt` paints the Classic `.os-icons` grid *and* the Spatial layout's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
+- **Covers both desktop surfaces** — `wp.os.icons.setArt` paints the legacy `.os-icons` grid *and* the files layer's `<os-tile>` placement, since "the desktop icon for this id" means whichever one is on screen.
 
 Every applied change publishes `os/art-changed` on the activity channel with `{ itemId, icon, rail: 'dock' | 'taskbar' | 'icon' }`.
 
@@ -2013,7 +2014,7 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 ### `wp.os.mio` — Experimental
 
-Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Apps & Icons.
+Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Apps & Plugins.
 
 Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
 
@@ -2988,7 +2989,7 @@ The PHP-side control point is the `openstation_window_preview_url` filter (rewri
 
 ### `registerWindowLinkRenderer( def )` — Experimental
 
-Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Preferences → Effects → Window links**; only one renderer is mounted at a time.
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OpenStation Preferences → Windows → Window links**; only one renderer is mounted at a time.
 
 **`WindowLinkRendererDef`:**
 
@@ -3277,7 +3278,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ### `registerSettingsTab( def )` — Stable
 
-Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Plugins, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -3445,7 +3446,7 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
 | `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Preferences, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Preferences → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Preferences, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Preferences → Apps & Plugins are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
 | `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-os-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
@@ -3502,7 +3503,7 @@ Open (or focus, if already open) the shell's OpenStation Preferences window. Rou
 wp.os.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab.) The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'themes'`, `'windows'`, `'apps-icons'`, `'features'`, `'help'` (labelled Components, admin-only), and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. Two ids are accepted as aliases for the page that absorbed them: `'extended'` → `'features'`, and `'effects'` → `'windows'`. The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
 
 ```js
 // Deep-link straight to the AI Settings tab.
@@ -3570,7 +3571,7 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         title:     string,
         icon:      string,
         affinity:  'core' | 'plugin',  // 'core' tiles route to side rail in Classic
-        placeable: boolean,            // opted into OpenStation Preferences → Apps & Icons
+        placeable: boolean,            // opted into OpenStation Preferences → Apps & Plugins
     },
     …
 ]
@@ -4855,7 +4856,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `saveSession()` | Stable | Force a session write |
 | `hooks` | Stable | Alias of `window.wp.hooks` |
 | `isActive()` | Stable | `true` when the desktop shell is mounted and active on this page. Cheap capability check for plugins that also run in classic admin — branch desktop-vs-classic without probing the DOM yourself. |
-| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified / Spatial layouts) |
+| `sideDock` | Stable | Classic-layout left-edge Dock instance hosting core admin menus (null in Unified) |
 | `registerWallpaper( def )` | Stable | Add a wallpaper to the registry + re-apply |
 | `registerWidget( def )` | Stable | Add a widget to the registry |
 | `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `os.dock.item-appended`. See "System tiles" below. |
@@ -6513,8 +6514,8 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | Field | Type | Values |
 |---|---|---|
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
-| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` \| `openstation` |
-| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified + Spatial) |
+| `desktopLayout` | `string` | `classic` \| `unified` |
+| `dockPlacement` | `string` | `bottom` \| `left` \| `right` — which edge the dock sits on (Unified) |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |

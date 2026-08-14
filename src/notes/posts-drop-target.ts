@@ -17,9 +17,9 @@
  *      the opt-in `desktop-mode-posts` window). Registered on
  *      `WINDOW_OPENED`, deregistered on `WINDOW_CLOSED`.
  *
- *   3. The Posts shortcut TILE in the Spatial layout. On files-layer
- *      shells, core menu icons render as shortcut file-tiles rather than
- *      dock tiles, and every non-folder tile is already claimed by the
+ *   3. A Posts shortcut TILE on the desktop. On files-layer shells a
+ *      promoted menu icon renders as a shortcut file-tile rather than a
+ *      dock tile, and every non-folder tile is already claimed by the
  *      files layer's reject target (one target per element). So for this
  *      surface we can't register our own `DropTarget` — we hook the
  *      files-layer tile-payload seam (`registerTilePayloadHandler`) and
@@ -184,7 +184,7 @@ export function installNotesPostsDropTarget( layer: NotesLayer ): void {
 	}
 	_installed = true;
 
-	// Surface 3: the Spatial-layout Posts shortcut tile. The files layer
+	// Surface 3: a Posts shortcut tile on the desktop. The files layer
 	// owns the tile's DropTarget; we opt the `'note'` payload in via the
 	// tile-payload seam, scoped to tiles whose shortcut points at Posts.
 	_tileDeregister = registerTilePayloadHandler( NOTE_PAYLOAD_TYPE, {

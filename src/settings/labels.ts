@@ -103,13 +103,9 @@ export function translateDesktopLayoutLabel(
 ): string {
 	switch ( id ) {
 		case 'classic':
-			return __( 'Side bar' );
+			return __( 'Split' );
 		case 'unified':
-			return __( 'One dock' );
-		case 'spatial':
-			return __( 'Spatial' );
-		case 'openstation':
-			return __( 'OpenStation' );
+			return __( 'Unified' );
 		default:
 			return fallback;
 	}
@@ -121,20 +117,10 @@ export function translateDesktopLayoutDescription(
 	switch ( id ) {
 		case 'classic':
 			return __(
-				'Two rails: a side bar with the core admin menus, plus a bottom dock for plugin apps.',
+				'Core admin menus are placed in a sidebar; plugins, apps, and OpenStation controls in a dock along the bottom edge.',
 			);
 		case 'unified':
-			return __(
-				'One dock: WordPress first, then a divider, then the OpenStation controls.',
-			);
-		case 'spatial':
-			return __(
-				'Bottom dock for plugin apps; core admin menus appear as icons on the wallpaper.',
-			);
-		case 'openstation':
-			return __(
-				'The same one dock, dressed up: a lit divider, and hover any tile to fan its submenu out as a flyout.',
-			);
+			return __( 'Every menu in a single dock.' );
 		default:
 			return '';
 	}

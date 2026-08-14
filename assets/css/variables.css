@@ -666,7 +666,8 @@ body.os-active {
 	 * 45% to 30%, and onto the dim — which is the layer that was
 	 * making a focused control look like it was on fire.
 	 */
-	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9), 0 0 0 4px #f252fc,
+	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9),
+		0 0 0 4px var(--os-ui-accent, #f252fc),
 		0 0 12px 2px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent);
 	/*
 	 * …and one for FIELDS, which is a different problem. A text input
@@ -677,8 +678,49 @@ body.os-active {
 	 * outside it: unmistakable, and quiet enough to live in a stack of
 	 * twelve.
 	 */
-	--os-ui-focus-ring-field: 0 0 0 1px #f252fc,
+	--os-ui-focus-ring-field: 0 0 0 1px var(--os-ui-accent, #f252fc),
 		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
+
+	/*
+	 * The selected row of a VERTICAL `<os-tabs>`: the sidebar in
+	 * OpenStation Preferences, and any native window that lays its
+	 * pages down the side rather than across the top.
+	 *
+	 * Three layers, and the split is the whole point. Colour repeated
+	 * down nine rows is wallpaper, so the accent is spent as a
+	 * two-pixel EDGE and the row itself gets only a wash that falls
+	 * away: it appears where it is cheap to look at and expensive to
+	 * ignore.
+	 *
+	 * `-edge` is the accent the user picked, flat. It used to be
+	 * Miomesh, and a mesh does hold up at 2px where a radial one
+	 * would crop to an arbitrary lilac — but the edge is the loudest
+	 * thing on the page that says "this row", and a row that says it
+	 * in Pulse while the controls beside it say it in the chosen
+	 * accent reads as two systems.
+	 *
+	 * `-wash` and `-bloom` are AMBIENT accent, so both resolve through
+	 * `--os-ui-accent-dim` like every other glow in the kit. Turning
+	 * the station down is still one edit. The Starlight stop in the
+	 * middle of the wash is what keeps the row from reading as a pink
+	 * smear: it lifts the surface under the label rather than tinting
+	 * it, and it is gone by the time the row ends.
+	 */
+	--os-ui-tab-edge: linear-gradient(
+		var(--os-ui-accent, #f252fc),
+		var(--os-ui-accent, #f252fc)
+	);
+	--os-ui-tab-wash: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent) 0%,
+		rgba(255, 251, 255, 0.04) 42%,
+		transparent 100%
+	);
+	--os-ui-tab-bloom: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
+		transparent
+	);
 
 	/*
 	 * ---- Motion --------------------------------------------------
@@ -1104,7 +1146,13 @@ body.os-active {
 	--os-dock-icon-color: rgba(255, 251, 255, 0.72);
 	--os-dock-icon-color-hover: #fffbff;
 	--os-dock-item-bg-hover: rgba(242, 82, 252, 0.18);
-	--os-dock-item-outline: #f252fc;
+	/*
+	 * The status indicator and the focus ring, and both say "this
+	 * one" about a tile the user chose — so they read the accent
+	 * rather than a fixed Pulse. Pulse is still what an untouched
+	 * install shows, because that is what the picker starts on.
+	 */
+	--os-dock-item-outline: var(--os-ui-accent, #f252fc);
 	/*
 	 * Hairline between the dock and the desktop. Reaches the side
 	 * placements (as a single inline-edge border) AND the floating
@@ -1146,10 +1194,9 @@ body.os-active {
 	 * ---- The OpenStation layout ---------------------------------
 	 *
 	 * The constellation: the flyout that fans a menu's submenu out of
-	 * its tile on hover, and the only surface left that exists solely
-	 * while `data-os-layout` is `openstation`. The rail's divider used
-	 * to live here too; it is shared chrome now and reads through
-	 * `--os-dock-divider`.
+	 * its tile on hover, on every rail in every layout. The rail's
+	 * divider used to live here too; it is shared chrome now and reads
+	 * through `--os-dock-divider`.
 	 *
 	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
 	 * is spent on the row under the pointer and on the head's icon
@@ -1310,15 +1357,22 @@ body.os-active {
 	--os-tabs-active-crown-opacity: 0.3;
 	/*
 	 * The rail: one continuous line around the silhouette of
-	 * page-plus-tab. Pulsemesh rather than flat Pulse, because the
-	 * line is long enough to show a gradient and short enough that a
-	 * whole mesh on it stays an accent rather than a surface.
+	 * page-plus-tab.
 	 *
 	 * This is the one place the accent is spent on the tab strip, and
-	 * spending it here is what lets the tab itself stay uncoloured.
+	 * spending it here is what lets the tab itself stay uncoloured —
+	 * so it is the accent the user picked, flat, and not Pulsemesh.
+	 * A mesh here would be the accent everywhere else on the tab
+	 * strip disagreeing with the one line that carries it. Written as
+	 * a gradient rather than a colour because the rail is painted as
+	 * a background-image through a mask.
+	 *
 	 * Set it to `none` for the plain frosted plate with no line.
 	 */
-	--os-tabs-rail: var(--os-mesh-pulse);
+	--os-tabs-rail: linear-gradient(
+		var(--os-ui-accent, #f252fc),
+		var(--os-ui-accent, #f252fc)
+	);
 	--os-tabs-rail-width: 2px;
 	--os-media-tile-bg: rgba(255, 251, 255, 0.05);
 	--os-media-visual-bg: rgba(255, 251, 255, 0.04);

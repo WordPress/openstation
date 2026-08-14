@@ -78,7 +78,7 @@ Dock items split into views the renderer can read at mount time:
 
 | Field | What it carries | Use it when… |
 |---|---|---|
-| `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
+| `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. |
 | `fullMenu` | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
 | `fullSystemTiles` | Every **JS-registered system tile** — OpenStation Preferences, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
 

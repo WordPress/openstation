@@ -22,6 +22,7 @@
 import type { DesktopConfig } from '../types';
 import {
 	ADMIN_BAR_MODES,
+	CUSTOM_ACCENT_ID,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_PLACEMENTS,
@@ -113,9 +114,22 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.wallpaper === 'string' && parsed.wallpaper !== ''
 				? parsed.wallpaper
 				: getDefaultWallpaperId(),
-		accent: accents.some( ( a ) => a.id === parsed.accent )
-			? ( parsed.accent as AccentId )
-			: DEFAULTS.accent,
+		// `custom` is a valid selection that is deliberately absent from
+		// the preset list, so it has to be allowed explicitly or a saved
+		// custom accent would be discarded as unknown on every load.
+		accent:
+			parsed.accent === CUSTOM_ACCENT_ID ||
+			accents.some( ( a ) => a.id === parsed.accent )
+				? ( parsed.accent as AccentId )
+				: DEFAULTS.accent,
+		// Untrusted input painted straight into a CSS custom property,
+		// so it is validated as a hex triplet rather than merely
+		// type-checked as a string.
+		customAccent:
+			typeof parsed.customAccent === 'string' &&
+			/^#[0-9a-fA-F]{6}$/.test( parsed.customAccent )
+				? parsed.customAccent
+				: DEFAULTS.customAccent,
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,

@@ -64,8 +64,7 @@ export interface MenuRefreshDeps {
 	 * Push a fresh dock-items list into whichever rails are live for
 	 * the current desktop layout. Routes core/plugin partitioning
 	 * through the layout dispatcher rather than reaching for a single
-	 * `Dock` instance — necessary because Classic uses two docks and
-	 * Spatial pushes core items to the wallpaper instead.
+	 * `Dock` instance — necessary because Classic uses two docks.
 	 *
 	 * No-op when the layout dispatcher hasn't been wired (older shell
 	 * markup, head-less tests).
@@ -114,8 +113,8 @@ export interface MenuRefreshDeps {
 	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
-	 * items. Keeps Spatial's synthesized core icons (and ordinary
-	 * user-promoted shortcuts) current when a plugin activation or
+	 * items. Keeps user-promoted shortcuts current when a plugin
+	 * activation or
 	 * deactivation changes the core/plugin menu split live, instead of
 	 * only refreshing on the next OS Settings change.
 	 *
@@ -260,8 +259,8 @@ export function createApplyPayload(
 			dockItems as ReadonlyArray< { id?: unknown } >,
 		);
 		// Re-sync files-layer shortcuts against the new dock-item list —
-		// covers Spatial's synthesized core icons and ordinary promoted
-		// shortcuts when a plugin activation/deactivation changes which
+		// covers promoted shortcuts when a plugin activation or
+		// deactivation changes which
 		// items exist, without waiting for the next OS Settings change.
 		syncShortcuts?.();
 
@@ -405,7 +404,7 @@ export function createApplyPayload(
 
 		// Window-link renderer sync — same shape. Loads plugin renderer
 		// scripts on activation (their `registerWindowLinkRenderer()`
-		// surfaces in OS Settings → Effects → Window links and the
+		// surfaces in OS Settings → Windows → Window links and the
 		// render host remounts if it affects the active pick);
 		// owner-tagged sweep on deactivation.
 		if ( Array.isArray( serverWindowLinkRendererScripts ) ) {

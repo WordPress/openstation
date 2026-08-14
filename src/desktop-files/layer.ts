@@ -1673,7 +1673,7 @@ function syncTileLabel(
  * through to the wallpaper (`shouldRejectTileDrops`). A feature can opt
  * a payload type IN via the tile-payload seam (`tile-payloads.ts`) —
  * e.g. pinned notes accept a `'note'` drop on the Posts shortcut icon
- * (Spatial layout) and convert it to a draft. Unknown payloads — and
+ * and convert it to a draft. Unknown payloads — and
  * payloads whose handler doesn't recognize this placement — still
  * reject, preserving the original "Can't drop here" feedback.
  */

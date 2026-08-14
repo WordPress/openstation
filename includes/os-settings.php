@@ -41,14 +41,14 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial', 'openstation' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified' );
 
 /**
  * Valid dock-placement IDs — mirrors the TS `DOCK_PLACEMENTS` constant.
  *
  * Which edge the single dock sits on. Read by the layout dispatcher for
- * the one-rail layouts (`unified`, `spatial`); `classic` derives its two
- * rails from the layout itself and ignores this.
+ * `unified`; `classic` derives its two rails from the layout itself and
+ * ignores this.
  */
 const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
@@ -75,6 +75,11 @@ function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
+		// Only read when `accent` is `custom`. Seeded with Pulse so
+		// picking Custom before touching the wheel is a no-op rather
+		// than a jump to black. Mirrors `DEFAULTS` in
+		// `src/settings/constants.ts`.
+		'customAccent'                => '#f252fc',
 		'dockSize'                    => 'default',
 		// `round` (16px), not the preset id literally named `default`.
 		// Preset ids are stored values and cannot be renamed, so the
@@ -93,8 +98,8 @@ function openstation_default_os_settings() {
 		'adminBarMode'                => 'hidden',
 		// One dock holding every menu, with the system tiles grouped
 		// behind a hairline. `classic` (side bar for core menus + bottom
-		// dock for plugins) and `spatial` stay available; they are no
-		// longer what a first-run desktop looks like.
+		// dock for plugins) is the other option; it is no longer what a
+		// first-run desktop looks like.
 		'desktopLayout'               => 'unified',
 		// Which edge the single dock sits on. Ignored by `classic`,
 		// which derives both of its rails from the layout.
@@ -337,6 +342,16 @@ function openstation_sanitize_os_settings( $raw ) {
 		? sanitize_key( $raw['accent'] )
 		: $defaults['accent'];
 
+	// The colour behind the Custom swatch. A full `#rrggbb` triplet and
+	// nothing else: `sanitize_hex_color()` would also pass `#abc`, which
+	// the client-side parser rejects, and a value that survives the save
+	// only to be dropped on load is worse than one refused here.
+	$custom_accent = isset( $raw['customAccent'] )
+		&& is_string( $raw['customAccent'] )
+		&& preg_match( '/^#[0-9a-fA-F]{6}$/', $raw['customAccent'] )
+		? strtolower( $raw['customAccent'] )
+		: $defaults['customAccent'];
+
 	// Dock size — must be one of the three known values.
 	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPENSTATION_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
@@ -353,8 +368,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Desktop layout — must be one of the known values
-	// (`classic`, `unified`, `spatial`, `openstation`). Default `unified`.
+	// Desktop layout — must be one of the known values (`classic`,
+	// `unified`). Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
@@ -774,6 +789,7 @@ function openstation_sanitize_os_settings( $raw ) {
 	return array(
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
+		'customAccent'                => $custom_accent,
 		'dockSize'                    => $dock_size,
 		'windowRadius'                => $window_radius,
 		'adminBarMode'                => $admin_bar_mode,

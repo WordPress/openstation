@@ -206,13 +206,11 @@ export function getIconBadge( iconId: string ): number {
  * something. The Recycle Bin is the in-tree example: empty and
  * holding-something are two drawings of one object.
  *
- * **Covers both desktop layouts.** The Classic layout paints the
- * `.os-icons` grid; the Spatial layout paints `<os-tile>` placements
- * in the files layer, and on a stock install that second one is what
- * the user is actually looking at. A caller asking for "the desktop
- * icon for id X" means whichever is on screen, so this paints both
- * and lets the one that exists win. Getting that wrong is invisible
- * in Classic and total in Spatial, which is the worse way round.
+ * **Covers both desktop surfaces.** The legacy `.os-icons` grid and
+ * the `<os-tile>` placements in the files layer, and on a stock
+ * install that second one is what the user is actually looking at. A
+ * caller asking for "the desktop icon for id X" means whichever is on
+ * screen, so this paints both and lets the one that exists win.
  *
  * Same fan-out contract as the badge setters: an id this rail doesn't
  * own is a silent no-op.
@@ -288,8 +286,8 @@ function _paintArtNodes( iconId: string, svg: string ): void {
 		} );
 		img.replaceWith( next );
 	}
-	// Spatial layout — shortcut placements in the files layer.
-	// `icon` is a reactive prop on `<os-tile>`, so setting the
+	// Shortcut placements in the files layer. `icon` is a reactive
+	// prop on `<os-tile>`, so setting the
 	// attribute is the component's own supported repaint path
 	// rather than a poke at its internals.
 	document

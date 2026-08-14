@@ -112,7 +112,7 @@ export function registerCustomImageIfPresent( state: OsSettingsState ): void {
 /**
  * Select a wallpaper by id. Updates state, persists, applies to the
  * shell, refreshes the grid's aria-pressed attributes, and swaps the
- * description card to the new selection.
+ * config button to the new selection.
  */
 export function selectWallpaper(
 	ctx: SettingsCtx,
@@ -123,12 +123,6 @@ export function selectWallpaper(
 	ctx.save();
 	ctx.apply();
 	refreshWallpaperPressedState( ctx, body );
-	const slot = body.querySelector<HTMLElement>(
-		'.os-settings__wallpaper-description-slot',
-	);
-	if ( slot ) {
-		syncWallpaperDescription( ctx, slot );
-	}
 	const configSlot = body.querySelector<HTMLElement>(
 		'.os-settings__wallpaper-config-slot',
 	);
@@ -306,46 +300,19 @@ export function openWallpaperConfigDialog(
 	}
 }
 
-/**
- * Render the active wallpaper's description card into its slot — the
- * "what am I looking at?" a swatch can't tell. Collapses when the
- * selection carries no description; expands with the same
- * grid-template-rows animation the editor slot uses.
+/*
+ * The wallpaper description card is gone.
  *
- * The card is `<os-*>`-built: an icon column beside the wallpaper's
- * name and its story, on a `os-panel`-rhythm surface.
+ * It sat under the grid and narrated whichever tile was selected,
+ * which is a caption for a thing the user is already looking at: the
+ * tile paints the wallpaper, and the label names it. Every selection
+ * pushed a bordered, accent-edged banner into the page and shifted
+ * the layout below it, to say what the swatch had just shown.
+ *
+ * A wallpaper's `description` is still part of the registry contract
+ * and third-party wallpapers still declare it. Nothing in the panel
+ * reads it today.
  */
-export function syncWallpaperDescription(
-	ctx: SettingsCtx,
-	slot: HTMLElement,
-): void {
-	const inner = slot.firstElementChild as HTMLElement | null;
-	if ( ! inner ) {
-		return;
-	}
-	const def = registry.get( ctx.state.wallpaper );
-	const text = ( def?.description ?? '' ).trim();
-	if ( ! def || ! text ) {
-		slot.dataset.expanded = 'false';
-		return;
-	}
-	render(
-		html`
-			<div class="os-settings__wallpaper-description">
-				<div class="os-settings__wallpaper-description-header">
-					<os-icon
-						class="os-settings__wallpaper-description-icon"
-						name=${ def.type === 'canvas' ? 'star-filled' : 'art' }
-					></os-icon>
-					<strong>${ def.label }</strong>
-				</div>
-				<p>${ text }</p>
-			</div>
-		`,
-		inner,
-	);
-	slot.dataset.expanded = 'true';
-}
 
 /**
  * Re-apply aria-pressed + the `selected` attribute across every tile
@@ -565,17 +532,6 @@ export function buildWallpaperSection(
 	editorInner.className = 'os-settings__editor-slot-inner';
 	editorSlot.appendChild( editorInner );
 
-	// Description slot: same collapsing pattern, hosting the selected
-	// wallpaper's description card (see syncWallpaperDescription).
-	const descriptionSlot = document.createElement( 'div' );
-	descriptionSlot.className =
-		'os-settings__wallpaper-description-slot';
-	descriptionSlot.dataset.expanded = 'false';
-	const descriptionInner = document.createElement( 'div' );
-	descriptionInner.className =
-		'os-settings__wallpaper-description-slot-inner';
-	descriptionSlot.appendChild( descriptionInner );
-
 	// Config slot: same collapsing pattern, hosting the "Wallpaper
 	// settings" button when the selected wallpaper ships a
 	// `renderConfig` dialog (see syncWallpaperConfigButton).
@@ -599,8 +555,41 @@ export function buildWallpaperSection(
 	};
 
 	// The swatch grid is templated; the editor slot + custom-image
-	// section are DOM refs threaded in as nodes.
+	// picker are DOM refs threaded in as nodes.
 	const customImageSection = buildCustomImageSection( ctx, body );
+
+	/*
+	 * The image picker collapses behind the dashed tile, on the same
+	 * grid-template-rows 0fr to 1fr pattern as the editor and
+	 * description slots, so everything that opens under this grid
+	 * opens the same way.
+	 *
+	 * It starts OPEN when the user already has a custom image. The
+	 * thing they are most likely looking for in that case is the image
+	 * they already chose, and putting it behind a closed drawer would
+	 * be a step that exists only because of how this is built.
+	 */
+	let imagePickerOpen = !! ctx.state.customImage;
+	const imagePickerSlot = document.createElement( 'div' );
+	imagePickerSlot.className = 'os-settings__image-picker-slot';
+	imagePickerSlot.dataset.expanded = String( imagePickerOpen );
+	const imagePickerInner = document.createElement( 'div' );
+	imagePickerInner.className = 'os-settings__image-picker-slot-inner';
+	imagePickerInner.appendChild( customImageSection );
+	imagePickerSlot.appendChild( imagePickerInner );
+
+	/*
+	 * Repaints so the tile's `aria-expanded` follows the drawer. The
+	 * slot itself is a threaded DOM node, which the renderer holds by
+	 * reference rather than cloning, so it keeps the attribute set
+	 * here across the repaint.
+	 */
+	const toggleImagePicker = (): void => {
+		imagePickerOpen = ! imagePickerOpen;
+		imagePickerSlot.dataset.expanded = String( imagePickerOpen );
+		paint();
+	};
+
 	const wrapper = document.createElement( 'div' );
 
 	// One preview manager per section build; the previous build's
@@ -625,6 +614,25 @@ export function buildWallpaperSection(
 						${ registry
 		.all()
 		.filter( ( def ) => def.id !== CUSTOM_IMAGE_ID )
+		/*
+		 * Custom gradient goes last among the presets. It is the
+		 * only tile that is a DOOR rather than a choice: picking
+		 * it opens an editor below the grid and asks two more
+		 * questions, where every other tile is finished the
+		 * moment it is clicked. Sitting mid-grid it read as one
+		 * preset among many and the editor appearing under the
+		 * fold looked like a glitch.
+		 *
+		 * `filter()` already returned a fresh array, so sorting
+		 * here cannot disturb registry order for anyone else,
+		 * and a stable sort leaves every other tile where the
+		 * registry put it.
+		 */
+		.sort(
+			( a, b ) =>
+				Number( a.id === CUSTOM_GRADIENT_ID ) -
+									Number( b.id === CUSTOM_GRADIENT_ID ),
+		)
 		.map(
 			( def ) => html`<os-swatch
 									value=${ def.id }
@@ -639,9 +647,31 @@ export function buildWallpaperSection(
 									>
 								</os-swatch>`,
 		) }
+						<!--
+							Your own image, as a tile in the grid rather
+							than as a heading under it. It is one of the
+							ways to answer "what is behind my windows",
+							so it belongs in the row of answers; dashed
+							because it is the only one that cannot show
+							you what you are picking until you have
+							picked it.
+						-->
+						<button
+							type="button"
+							class="os-settings__wallpaper-add"
+							aria-expanded=${ imagePickerOpen ? 'true' : 'false' }
+							@click=${ toggleImagePicker }
+						>
+							<span
+								class="os-settings__wallpaper-add-plus"
+								aria-hidden="true"
+								>+</span
+							>
+							<span>${ __( 'Use your own image' ) }</span>
+						</button>
 					</div>
-					${ descriptionSlot } ${ configSlot } ${ editorSlot }
-					${ customImageSection }
+					${ configSlot } ${ editorSlot }
+					${ imagePickerSlot }
 				</os-section>
 			`,
 			wrapper,
@@ -656,7 +686,6 @@ export function buildWallpaperSection(
 	if ( active ) {
 		syncEditorSlot( ctx, editorSlot, active );
 	}
-	syncWallpaperDescription( ctx, descriptionSlot );
 	syncWallpaperConfigButton( ctx, configSlot );
 
 	// Live-update when plugins register or unregister wallpapers
@@ -684,7 +713,6 @@ export function buildWallpaperSection(
 		if ( now ) {
 			syncEditorSlot( ctx, editorSlot, now );
 		}
-		syncWallpaperDescription( ctx, descriptionSlot );
 		syncWallpaperConfigButton( ctx, configSlot );
 	} );
 

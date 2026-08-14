@@ -2,9 +2,9 @@
  * OpenStation — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / Apps & Icons / Features / Effects /
- * Components / About), wallpaper picker + editor host, and the
- * Reset button. None of this is needed before the user clicks the
+ * every built-in tab (Appearance / Themes / Windows / Apps & Plugins /
+ * Features / Components / About), wallpaper picker + editor host, and
+ * the Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
  * (`os-settings-panel[.min].js`) and gets `<script>`-injected on
  * first open by the stub `renderPanel()` on the `OsSettings` class
@@ -53,6 +53,7 @@ import '../ui/components/os-swatch-grid/os-swatch-grid';
 import '../ui/components/os-tabs/os-tabs';
 import '../ui/components/os-text-field/os-text-field';
 import { setPanelTabs } from '../window/tab-strip';
+import { NAV_ICONS } from './nav-icons';
 import { structuredDefaults } from './state';
 import type { OsSettings } from './index';
 import type { DesktopSettingsTab } from './registry';
@@ -63,7 +64,6 @@ import { buildAdminBarSection } from './sections/admin-bar';
 import { buildThemesSection } from './sections/themes';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
-import { buildDockSizeSection } from './sections/dock-size';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildEffectsSection } from './sections/effects';
@@ -87,6 +87,74 @@ function isTabVisible( tab: DesktopSettingsTab, isAdmin: boolean ): boolean {
 		return isAdmin;
 	}
 	return true;
+}
+
+/**
+ * Which band of the sidebar a page belongs to.
+ *
+ * The nav is three groups separated by a gap and nothing else: no
+ * headings, no rules, no labels. A group heading over two rows costs
+ * more vertical space than the rows it is describing, and every name
+ * we tried for these three ("Desktop", "Content", "System") was
+ * either a category the user does not think in or a word already
+ * spoken by one of the rows underneath it.
+ *
+ * The band is derived from `order` rather than declared per row, and
+ * that is what makes the grouping survive third-party tabs. The
+ * settings-tab registry has no group field, so a plugin cannot name
+ * one; what it does declare is an order, and a plugin that registers
+ * at 15 already means "next to Appearance and Themes". Reading the
+ * band off that number puts it there instead of stranding it at the
+ * bottom. Tabs that take the registry default (100) land in the last
+ * group, which is where a flat strip used to put them too.
+ *
+ * 1. The desktop itself: Appearance, Themes, Dock, Windows.
+ * 2. What is running on it: Apps and Plugins, Features.
+ * 3. The system: Components, About, and anything unplaced.
+ */
+function navGroup( order: number ): number {
+	if ( order < 20 ) {
+		return 1;
+	}
+	return order < 40 ? 2 : 3;
+}
+
+/**
+ * Attributes across the `<os-*>` kit that carry text a person reads.
+ *
+ * The search index has to collect these separately from `textContent`:
+ * a component renders them inside its own shadow root, so none of them
+ * is light-DOM text no matter how prominent it looks on screen. Every
+ * section title in the panel is one of them.
+ */
+const TEXT_ATTRIBUTES = [
+	'heading',
+	'description',
+	'label',
+	'placeholder',
+] as const;
+
+/**
+ * The heading a page opens with, and the sentence under it.
+ *
+ * The sidebar names the page in 14px Regular, which is enough to pick
+ * it and not enough to arrive at it: with the nav's own label the only
+ * title on screen, every page began mid-thought at whatever its first
+ * section happened to be. This is the same word again at the size of a
+ * title, plus the one line that says what the page is FOR, which is
+ * the thing the nav has no room to say.
+ *
+ * Rendered by the panel rather than by each section builder so the
+ * pages cannot drift apart, and so a section stays a section: reusable
+ * on any page, with no opinion about being first on one.
+ */
+function pageHeader( title: string, description: string ) {
+	return html`
+		<header class="os-settings__page-header">
+			<h2 class="os-settings__page-title">${ title }</h2>
+			<p class="os-settings__page-description">${ description }</p>
+		</header>
+	`;
 }
 
 /**
@@ -146,15 +214,28 @@ export function renderOsSettingsPanel(
 	// that was never coming. The scene never mounted and never errored.
 	body.classList.add( 'os-settings' );
 
+	/**
+	 * Put every setting back to its default.
+	 *
+	 * One button for the whole panel, at the foot of the nav, because
+	 * that is where the panel itself is addressed from: the column
+	 * lists the pages, and the thing under the list acts on all of
+	 * them. A per-page bar was tried and it cost a permanent strip
+	 * across the bottom of every page to say what one button in the
+	 * furniture says once.
+	 *
+	 * The uploaded image survives. It is a pointer at something the
+	 * user made, not a preference: putting the wallpaper back to Galaxy
+	 * is the visible thing they asked for, and throwing away the upload
+	 * on the way would be a second, silent, destructive act they did
+	 * not. It stays in the grid, one click from being chosen again.
+	 *
+	 * `structuredDefaults()` deep-clones the nested objects, so a reset
+	 * can never alias (and later corrupt) the module-level DEFAULTS
+	 * singleton. See the function's own note.
+	 */
 	const onReset = (): void => {
-		// Preserve the uploaded image so the user doesn't lose
-		// their upload just by resetting theme preferences — the
-		// image still lives in Media Library, and it's an easy
-		// re-pick.
 		const preservedImage = ctx.state.customImage;
-		// `structuredDefaults()` deep-clones the nested objects, so the
-		// reset can never alias (and later corrupt) the module-level
-		// DEFAULTS singleton — see the function's own note.
 		ctx.state = { ...structuredDefaults(), customImage: preservedImage };
 		ctx.save();
 		ctx.apply();
@@ -180,6 +261,14 @@ export function renderOsSettingsPanel(
 		 */
 		label: string;
 		panel: ReturnType< typeof html >;
+		/**
+		 * The sidebar glyph. Built-in rows resolve straight from
+		 * NAV_ICONS by row id; external rows carry theirs here,
+		 * because their row id wears the ext- prefix while NAV_ICONS
+		 * keys on the raw registry id (see the File Associations
+		 * entry in nav-icons.ts).
+		 */
+		icon?: ReturnType< typeof html >;
 		/** For external tabs — invoked after render to mount content. */
 		mount?: ( host: HTMLElement ) => void;
 	}
@@ -191,27 +280,59 @@ export function renderOsSettingsPanel(
 			label: __( 'Appearance' ),
 			panel: html`<os-tabpanel for="appearance">
 				<os-panel>
-					<p class="os-settings__intro">
-						${ __(
+					${ pageHeader(
+						__( 'Appearance' ),
+						__(
 							'Personalize your desktop. Changes apply instantly and are saved to this browser.',
-						) }
-					</p>
-					${ buildWallpaperSection( ctx, body ) }
+						),
+					) }
+					<!--
+						Accent first. It is one row of swatches and the
+						fastest thing on the page to change, where the
+						wallpaper grid below it is fourteen tiles deep.
+						Under the grid it fell below the fold on a short
+						window and read as an afterthought to it.
+					-->
 					${ buildAccentSection( ctx ) }
+					${ buildWallpaperSection( ctx, body ) }
 					${ buildDesktopLayoutSection( ctx ) }
-					${ buildDockSizeSection( ctx ) }
-					${ buildWindowRadiusSection( ctx ) }
-					${ buildAdminBarSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
+					${ buildAdminBarSection( ctx ) }
+				</os-panel>
+			</os-tabpanel>`,
+		},
+		{
+			// Corners came from Appearance, the rest from Effects.
+			// Shape, motion and links are all one object's settings;
+			// "Effects" named the technique rather than the thing.
+			id: 'windows',
+			order: 18,
+			label: __( 'Windows' ),
+			panel: html`<os-tabpanel for="windows">
+				<os-panel>
+					${ pageHeader(
+						__( 'Windows' ),
+						__(
+							'How windows look, how they arrive, and how they behave when they are not the one you are using.',
+						),
+					) }
+					${ buildWindowRadiusSection( ctx ) }
+					${ buildEffectsSection( ctx ) }
 				</os-panel>
 			</os-tabpanel>`,
 		},
 		{
 			id: 'features',
-			order: 25,
+			order: 30,
 			label: __( 'Features' ),
 			panel: html`<os-tabpanel for="features">
 				<os-panel>
+					${ pageHeader(
+						__( 'Features' ),
+						__(
+							'The assistant, the developer tools, and the betas. Every switch here affects only your account and takes effect immediately.',
+						),
+					) }
 					${ buildFeaturesSection( ctx ) }
 					${ isAdmin ? buildExtendedSection( ctx ) : '' }
 				</os-panel>
@@ -219,29 +340,37 @@ export function renderOsSettingsPanel(
 		},
 		{
 			id: 'themes',
-			// Between Appearance (10) and Apps & Icons (22): a desktop
-			// theme is a coarser version of what Appearance does, so
-			// it reads as the next step, not a separate concern.
+			// Between Appearance (10) and the dock: a desktop theme is
+			// a coarser version of what Appearance does, so it reads as
+			// the next step, not a separate concern.
 			order: 12,
 			label: __( 'Themes' ),
 			panel: html`<os-tabpanel for="themes">
-				<os-panel>${ buildThemesSection( ctx ) }</os-panel>
+				<os-panel>
+					${ pageHeader(
+						__( 'Themes' ),
+						__(
+							'A desktop theme repaints every token at once. A coarser version of what Appearance does one control at a time.',
+						),
+					) }
+					${ buildThemesSection( ctx ) }
+				</os-panel>
 			</os-tabpanel>`,
 		},
 		{
 			id: 'apps-icons',
 			order: 22,
-			label: __( 'Apps & Icons' ),
+			label: __( 'Apps & Plugins' ),
 			panel: html`<os-tabpanel for="apps-icons">
-				<os-panel>${ buildAppsIconsSection( ctx ) }</os-panel>
-			</os-tabpanel>`,
-		},
-		{
-			id: 'effects',
-			order: 27,
-			label: __( 'Effects' ),
-			panel: html`<os-tabpanel for="effects">
-				<os-panel>${ buildEffectsSection( ctx ) }</os-panel>
+				<os-panel>
+					${ pageHeader(
+						__( 'Apps & Plugins' ),
+						__(
+							'Everything installed on the station in one place: which apps appear where, and which plugins are extending the desktop.',
+						),
+					) }
+					${ buildAppsIconsSection( ctx ) }
+				</os-panel>
 			</os-tabpanel>`,
 		},
 	];
@@ -252,7 +381,15 @@ export function renderOsSettingsPanel(
 			order: 40,
 			label: __( 'Components' ),
 			panel: html`<os-tabpanel for="help">
-				<os-panel>${ buildHelpSection( ctx ) }</os-panel>
+				<os-panel>
+					${ pageHeader(
+						__( 'Components' ),
+						__(
+							'Every <os-*> web component shipped by this plugin, with its props, slots, and a live example.',
+						),
+					) }
+					${ buildHelpSection( ctx ) }
+				</os-panel>
 			</os-tabpanel>`,
 		} );
 	}
@@ -283,6 +420,11 @@ export function renderOsSettingsPanel(
 			id: tabId,
 			order: tab.order ?? 100,
 			label: tab.label,
+			// The registry has no icon field, but the shell may know
+			// its OWN registry-delivered tabs by raw id. Looked up
+			// here rather than in the template, because the row id
+			// carries the ext- prefix and would never match.
+			icon: NAV_ICONS[ tab.id ],
 			panel: html`<os-tabpanel for=${ tabId }>
 				<os-panel><div data-host=${ hostAttr }></div></os-panel>
 			</os-tabpanel>`,
@@ -330,14 +472,162 @@ export function renderOsSettingsPanel(
 	const activeRowExists = rows.some( ( r ) => r.id === previousValue );
 	const initialTab = activeRowExists ? previousValue : 'appearance';
 
+	/**
+	 * What each page can be found by.
+	 *
+	 * Built from the rendered panes rather than from a hand-kept list
+	 * of keywords, because a hand-kept list is a second copy of every
+	 * label in the panel and goes stale the first time one is reworded.
+	 * Every pane is in the DOM from the first paint (they are toggled
+	 * with `hidden`, not mounted on demand), so their text is readable
+	 * here without showing anything.
+	 *
+	 * That makes the search match what a person would actually go
+	 * looking for: typing "corners" finds Windows, "galaxy" finds
+	 * Appearance, "beta" finds Features. None of those words is a page
+	 * name, which is exactly why searching only the nav labels would
+	 * have been close to useless with nine of them on screen already.
+	 *
+	 * About indexes to little more than its own name: it is a canvas,
+	 * and there is no text in it to read.
+	 */
+	const buildSearchIndex = (): Map< string, string > => {
+		const index = new Map< string, string >();
+		for ( const row of rows ) {
+			const pane = body.querySelector( `os-tabpanel[for="${ row.id }"]` );
+			/*
+			 * `textContent` alone is not enough, and the gap is not
+			 * obvious: every section title in this panel is an
+			 * ATTRIBUTE that `<os-section>` renders inside its own
+			 * shadow root, so none of them is light-DOM text. Indexing
+			 * only textContent gave a search where "galaxy" found
+			 * Appearance (a swatch label, light DOM) but "corners"
+			 * found nothing at all, because "Window corners" is a
+			 * heading. Half-working search is worse than none: it
+			 * answers confidently and wrongly.
+			 *
+			 * So the attributes that carry human-readable text are
+			 * collected too. These four are the ones the kit uses for
+			 * anything a person reads.
+			 */
+			const parts: string[] = [ row.label, pane?.textContent ?? '' ];
+			if ( pane ) {
+				const labelled = pane.querySelectorAll(
+					'[heading],[description],[label],[placeholder]',
+				);
+				for ( const el of Array.from( labelled ) ) {
+					for ( const attr of TEXT_ATTRIBUTES ) {
+						parts.push( el.getAttribute( attr ) ?? '' );
+					}
+				}
+			}
+			index.set(
+				row.id,
+				parts.join( ' ' ).replace( /\s+/g, ' ' ).toLowerCase(),
+			);
+		}
+		return index;
+	};
+
+	let searchIndex: Map< string, string > | null = null;
+
+	const onSearch = ( e: Event ): void => {
+		const query = ( e.target as HTMLInputElement ).value
+			.trim()
+			.toLowerCase();
+		// Built on first use, not at render: the panes have to be in the
+		// DOM, and most sessions never type in this field at all.
+		searchIndex = searchIndex ?? buildSearchIndex();
+		let visible = 0;
+		for ( const tab of Array.from(
+			body.querySelectorAll< HTMLElement >( ':scope > os-tabs > os-tab' ),
+		) ) {
+			const id = tab.getAttribute( 'value' ) ?? '';
+			const hit =
+				query === '' || ( searchIndex.get( id ) ?? '' ).includes( query );
+			tab.toggleAttribute( 'data-search-hidden', ! hit );
+			if ( hit ) {
+				visible++;
+			}
+		}
+		const empty = body.querySelector< HTMLElement >(
+			'.os-settings__search-empty',
+		);
+		if ( empty ) {
+			empty.hidden = visible > 0;
+		}
+	};
+
+	/*
+	 * The search field, the strip and the panes are SIBLINGS, and that
+	 * is a hard constraint rather than a layout preference.
+	 * `<os-tabs>` finds the panes it drives by looking for
+	 * `os-tabpanel` children of its own parent, so wrapping the strip
+	 * in a sidebar div puts every pane out of its reach and the panel
+	 * renders all nine at once, stacked. The column is assembled by
+	 * the grid in `os-settings.css` instead.
+	 */
 	render(
 		html`
-			${ rows.map( ( r ) => r.panel ) }
+			<div class="os-settings__search">
+				<label class="os-settings__search-field">
+					<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+						<path
+							d="M13 5c-3.3 0-6 2.7-6 6 0 1.4.5 2.7 1.3 3.7l-3.8 3.8 1.1 1.1 3.8-3.8c1 .8 2.3 1.3 3.7 1.3 3.3 0 6-2.7 6-6S16.3 5 13 5zm0 10.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5z"
+						/>
+					</svg>
+					<input
+						type="search"
+						class="os-settings__search-input"
+						placeholder=${ __( 'Search settings' ) }
+						aria-label=${ __( 'Search settings' ) }
+						aria-controls="os-settings-nav"
+						@input=${ onSearch }
+					/>
+				</label>
+			</div>
+			<os-tabs
+				id="os-settings-nav"
+				orientation="vertical"
+				value=${ initialTab }
+				label=${ __( 'Settings sections' ) }
+			>
+				${ rows.map( ( r, i ) => {
+					// The first row of a band opens a new group; every
+					// other row sits flush against the one above it.
+					// Compared against the PREVIOUS row rather than
+					// counted, so a band with nothing in it (Components
+					// is admin-only, and a site with no third-party tabs
+					// has an empty group 3 for non-admins) leaves no
+					// orphan gap behind.
+					const startsGroup =
+						i > 0 &&
+						navGroup( r.order ) !== navGroup( rows[ i - 1 ].order );
+					return html`<os-tab
+						value=${ r.id }
+						data-group-start=${ startsGroup ? 'true' : null }
+						>${ NAV_ICONS[ r.id ] ??
+						r.icon ??
+						// Third-party tabs have no glyph to render: the
+						// registry has no icon field. The spacer keeps
+						// their label on the same line as every other
+						// label rather than hanging 28px to the left.
+						html`<span
+							class="os-settings__nav-glyph-blank"
+							aria-hidden="true"
+						></span>` }${ r.label }</os-tab
+					>`;
+				} ) }
+			</os-tabs>
+			<p class="os-settings__search-empty" hidden>
+				${ __( 'No settings match that.' ) }
+			</p>
 			<os-panel class="os-settings__footer">
 				<os-button variant="ghost" @click=${ onReset }
 					>${ __( 'Reset to defaults' ) }</os-button
 				>
 			</os-panel>
+			${ rows.map( ( r ) => r.panel ) }
 		`,
 		body,
 	);
@@ -355,36 +645,33 @@ export function renderOsSettingsPanel(
 	}
 
 	/*
-	 * Hand the tabs to the window chrome.
+	 * The strip lives in the panel body, not the window chrome.
 	 *
-	 * This is the same strip an admin-page window wears under its
-	 * title bar: one tab system, one stylesheet, whatever is behind
-	 * the window. `setPanelTabs` reconciles by value, so a plugin
-	 * live-registering a tab adds one button rather than rebuilding
-	 * the strip under the user's cursor.
+	 * `setPanelTabs()` puts a window's tabs under its title bar, which
+	 * is right for an admin-page window and wrong here: that strip is
+	 * horizontal and shared with every native window, and OS Settings
+	 * needs a sidebar that can hold more entries than a title bar has
+	 * room for. Eight tabs already measured 1178px inside an 1180px
+	 * window, and `openstation_register_settings_tab()` exists to
+	 * invite more.
 	 *
-	 * Declared AFTER the panes are rendered, because it pairs each tab
-	 * to its pane for assistive tech and hides all but the active one.
+	 * `<os-tabs>` pairs itself with the sibling `<os-tabpanel for="…">`
+	 * panes above, so selection, `aria-selected`, roving tabindex and
+	 * pane visibility all come with it.
 	 */
-	const winEl = body.closest< HTMLElement >( '.os-window' );
-	if ( winEl ) {
-		setPanelTabs(
-			winEl,
-			rows.map( ( r ) => ( { value: r.id, label: r.label } ) ),
-			initialTab,
-		);
-
+	const tabsHost = body.querySelector( 'os-tabs' );
+	if ( tabsHost ) {
 		/*
 		 * Track the user's choice so a registry-driven re-render lands
-		 * them back on it. Bound on the window element, which outlives
-		 * this render root; `AbortSignal` off a per-render controller
-		 * keeps a re-render from stacking listeners on it.
+		 * them back on it. `lit` reuses the host across renders, so the
+		 * listener would stack; an `AbortSignal` off a per-render
+		 * controller retires the previous one.
 		 */
 		ctx.tabChangeAbort?.abort();
 		const controller = new AbortController();
 		ctx.tabChangeAbort = controller;
-		winEl.addEventListener(
-			'os-window-tab-change',
+		tabsHost.addEventListener(
+			'os-tab-change',
 			( e: Event ) => {
 				const detail = ( e as CustomEvent ).detail as {
 					value?: string;
@@ -395,6 +682,17 @@ export function renderOsSettingsPanel(
 			},
 			{ signal: controller.signal },
 		);
+	}
+
+	/*
+	 * Clear any panel tabs a previous render left in the chrome. The
+	 * window is reused across opens, so a build that still handed its
+	 * tabs upward would otherwise leave a stale strip under the title
+	 * bar with nothing behind it.
+	 */
+	const winEl = body.closest< HTMLElement >( '.os-window' );
+	if ( winEl ) {
+		setPanelTabs( winEl, [] );
 	}
 	ctx.activeTabId = initialTab;
 
