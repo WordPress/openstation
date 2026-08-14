@@ -268,6 +268,11 @@ function openstation_recycle_bin_register_window() {
 		'min_width'  => 520,
 		'min_height' => 360,
 		'placement'  => 'taskbar',
+		// Last on the rail, after the shell's own cluster (Mio 10,
+		// Overview 20, System 30). Trash is where things END UP, and a
+		// dock reads left to right: putting it anywhere but the end
+		// makes it one more app rather than the bottom of the pile.
+		'dock_order' => 40,
 	);
 
 	/**

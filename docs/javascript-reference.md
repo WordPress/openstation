@@ -908,26 +908,39 @@ window.wp.hooks.addFilter(
 );
 ```
 
+#### The notch
+
+A small pill fixed to the **top centre** of the shell, `#os-notch`. It is the site assistant's front door — click it, or press `⌘/Ctrl + K` — and it is where the shell says short things: `say( text )` expands it with a message and collapses it again after a couple of seconds.
+
+Deliberately not a dock tile. The rail is a list of apps, and "what is going on with this site?" is not one of them.
+
+**It never reserves work area, and that is the contract.** A full-width bar that permanently stole height is what OpenStation removed; an element that reserved space would be the same mistake in a nicer shape, and it would make the notch a second hardcoded claimant on a work-area rectangle that already has several disagreeing answers. So it floats at `--os-z-notch` (above windows and the dock, below the admin bar and fullscreen), and it dims itself under a maximized window rather than pushing that window down. Top-*centre* is chosen rather than incidental: window title text reads from the leading edge of the title bar's `flex: 1` region, so the centre of a maximized window's top edge is the one strip that is reliably empty.
+
+The message region is always in the DOM with `aria-live="polite"` — a live region created at the moment it gains text is announced unreliably — and `say()` replaces rather than queues, because two things happening at once is one situation, not two messages.
+
+Hidden entirely in solo mode.
+
 #### The constellation
 
 **Menu tiles** hand the hover gesture to the **constellation**, a flyout that fans a menu's *submenu* out of its tile, in place of the hover-peek. Without it the submenu is dropped at the dock — the tile opens the landing page and the child pages are only reachable from inside the window, through its tab strip. The tab strip is unchanged; this is the shortcut in front of it.
 
 It is on every rail, in every layout. The panel fans **away from the edge its rail is parked on** — up from a bottom dock, right from a left-hand one, left from a right-hand one — which it reads off that rail's own `data-os-dock-placement` rather than off the layout, because Split puts one rail down the left and another along the bottom at the same time. The panel carries the direction as `data-os-cn-side` (`top` / `left` / `right`), naming where the panel is relative to its tile; a plugin replacing the panel through the filter below inherits the attribute and the positioning that goes with it.
 
-System tiles have no submenu and keep the peek.
+A **system tile** joins in only if it declared a `submenu` of its own (System is the shipped one); every other system tile keeps the peek. Its menu is a list of *actions* rather than admin pages, but it wears the same panel as an admin menu does: same head, same live-windows section, same "Open" heading. See [System tiles](#system-tiles) for how to declare one.
 
-One panel, up to four sections, top to bottom:
+One panel, up to three sections, top to bottom — the same three whichever kind of tile it belongs to. The two kinds differ in what fills the sections, never in which sections exist:
 
 | Section | Class | What it does |
 |---|---|---|
-| Head | `.os-constellation__head` | The menu's own page + a page count. Click = a dock click. |
-| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). |
+| Head | `.os-constellation__head` | The tile's icon and title, nothing else. Click opens the menu's own page; on a system tile, which has none, it runs the first row. |
+| Open windows | `.os-constellation__row--live` | One row per live instance **on the active virtual desktop**. Click focuses (restoring a minimized window first). An admin menu resolves these from its own window key; a system tile's action menu resolves them from its rows' `windowId`. |
 | Open | `.os-constellation__row--sub` | One row per submenu entry, each with a hue derived from its own title. |
-| New window | `.os-constellation__row--new` | Spawns a fresh instance, same as the peek's Ghost Card. |
+
+There is no trailing "New *menu* window" row. It offered a second copy of the landing page that any row in the Open group already opens, and it was the one section an action menu could never have — keeping it would have meant two panel shapes depending on which tile you hovered.
 
 Rows route through the same window ids a dock click would address, so the flyout and the tile share one window between them rather than opening two. A submenu row pins `parentUrl` to the **menu's** landing page, not to the child — that is what keeps a way back to the parent screen in the window's tab strip.
 
-Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. System tiles (OpenStation Preferences, Recycle Bin, plugin-registered native windows) have no submenu and keep the ordinary hover-peek in every layout.
+Mouse and keyboard, not touch. `ArrowUp` on a focused tile fans the panel open and lands focus on the first row; `ArrowUp`/`ArrowDown` rove, `Home`/`End` jump, `Enter` activates, `Escape` collapses and hands focus back to the tile. Submenu-less system tiles (Recycle Bin, Mio, plugin-registered native windows) keep the ordinary hover-peek in every layout.
 
 **The flyout is one tab stop, not one per row** — the conventional ARIA menu pattern. Every `.os-constellation__row` is given `tabindex="-1"` (including rows a plugin appended through the filter below, which are normalised after it runs), arrow keys do the moving, and `Tab` collapses the panel and returns focus to the tile *without* preventing the default, so the browser then continues from the rail's own place in the document order. Without that a fifteen-child submenu would put fifteen stops between the dock and whatever follows it.
 
@@ -938,6 +951,8 @@ Three hooks:
 - `os.constellation.panel` — **filter**, runs once per flyout right before it's appended. Receives the fully-built panel root and `{ item, instances, tile }`. Return a mutated node or a replacement. A replacement owns the `os-constellation` class (positioning + the transitions), `role="menu"`, and the `os-constellation__row` class on anything that should take part in arrow-key roving.
 - `os.constellation.opened` — **action**, `{ menuSlug, item, instances, handoff }`. `handoff` is `true` when this panel replaced one that was already up (the pointer moved along the rail) rather than arriving on an empty desk — the same flag the matching `closed` carries.
 - `os.constellation.closed` — **action**, `{ menuSlug, handoff }`. Fires when the panel is dismissed, **not** when its node leaves the DOM: the panel stays in the document under `.os-constellation--closing` (inert, `pointer-events: none`) until it has finished leaving. Query `.os-constellation:not( .os-constellation--closing )` if you need "is a flyout actually open". `handoff` is `true` when another tile is already taking over, so you can tell "the menu closed" from "the menu moved" without diffing against the next `opened`.
+
+`item` is a `ConstellationMenu`: `{ id, title, icon, submenu, menuItem }`. `menuItem` is the `DockItem` the flyout was built from, or **`null`** for a system tile's action menu — filter on it if your subscriber only means to handle admin menus. `menuSlug` follows the same split: the admin-menu slug for a menu tile, the system tile's id otherwise.
 
 **More than one panel can be on screen.** `wp.os` never exposes a "the flyout" singleton for exactly this reason: a dismissed panel keeps its own anchor and finishes its own exit while the next one is already rising over a different tile. Moving along the rail is **two** panels, each animating where it belongs — the one you left playing its dismissal, the one you arrived at playing its entrance — not one panel sliding across and swapping contents. Each panel is a menu bound to a specific tile; morphing one into another would claim they are the same object and would drag a beam across the rail pointing at a tile its panel has nothing to do with. The retiring panel is painted one z-index step below the live one so it can never fade out on top of the menu being read.
 
@@ -4912,6 +4927,52 @@ wp.os.whenReady( () => {
 `registerSystemTile( item )` takes the tile definition only — there is no placement parameter and no return value. Every registration fires the `os.dock.item-appended` action with `{ id }`.
 
 **Why the bottom rail:** plugin-contributed admin menus live in the bottom pill already (see `openstation_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left rail focused on core WP.
+
+#### Where the tile lands
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `order` | `number` | `0` | Sort key within the zone, ascending; ties keep registration order. |
+
+Set `order` whenever the tile's position matters. Registration order alone cannot express it: native-window tiles (including other plugins') register when their lazy script resolves, so a tile registered last can still be overtaken by one that arrived late. The shell's own trailing cluster uses `10` (Mio), `20` (Overview) and `30` (System), so anything left at the default sorts ahead of them.
+
+#### Tiles with a menu
+
+A system tile that declares a `submenu` fans it out of the rail on hover, through the same constellation flyout the admin menus use. Rows are `SubmenuItem`s, and on a system tile they normally carry an **`onSelect` callback** rather than a URL:
+
+```javascript
+wp.os.registerSystemTile( {
+    id:    'my-plugin-tools',
+    title: 'Tools',
+    icon:  'dashicons-admin-tools',
+    // Runs on click, and on every keyboard and touch activation —
+    // the flyout is a hover gesture and never fans out for those.
+    onOpen:  () => openMyDefaultTool(),
+    submenu: [
+        {
+            title:  'Run import',
+            url:    '',
+            onSelect: () => openImportWindow(),
+            // Declares which window this row opens, so the flyout can
+            // list it under "Open windows" when it already is.
+            windowId: 'my-plugin-import',
+        },
+        // Opens nothing, so no `windowId`.
+        { title: 'Clear cache', url: '', onSelect: () => clearCache() },
+        // A row with only a `url` opens it in a new browser tab.
+        { title: 'Docs',        url: 'https://example.com/docs' },
+    ],
+} );
+```
+
+Four things follow from a system tile's menu being *actions* rather than admin pages:
+
+- The panel is the same three sections an admin menu gets. The head shows the tile's icon and title and, having no landing page to open, runs the **first row** on click.
+- Live windows are resolved from the rows. An admin menu has one window key; an action menu has none, so each row that opens a window declares it with `windowId` and the section lists the union. Rows that open nothing leave it unset.
+- `onSelect` is **client-side only**. The server builds admin-menu submenus as JSON and a function cannot survive that trip; only JS-registered tiles can set it.
+- `dock-peek` stands down for the tile, the same way it does for menu tiles. Give the tile an `onOpen` that does something defensible on its own, because a keyboard or touch user never sees the menu.
+
+Declare `submenu` as a getter if the rows depend on live state — it is read fresh each time the flyout opens.
 
 ---
 

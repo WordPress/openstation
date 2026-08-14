@@ -21,6 +21,7 @@ import { __, _x, sprintf } from '../i18n';
 import { osConfirm } from '../os-confirm';
 import { trackedFetch } from '../tracked-fetch';
 import { decodeHTML } from '../utils';
+import { OS_SITE_LOGO_SVG } from '../ui/site-logo-icon';
 import {
 	filterCommands,
 	findCommand,
@@ -67,10 +68,13 @@ const ICON_SEARCH = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden
 	<line x1="13.5" y1="13.5" x2="18" y2="18"/>
 </svg>`;
 
-// `siteLogo` from @wordpress/icons — the modal's title glyph.
-const ICON_SITE_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
-	<path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8Zm0 1.5c3.4 0 6.2 2.7 6.5 6l-1.2-.6-.8-.4c-.1 0-.2 0-.3-.1H16c-.1-.2-.4-.2-.7 0l-2.9 2.1L9 11.3h-.7L5.5 13v-1.1c0-3.6 2.9-6.5 6.5-6.5Zm0 13c-2.7 0-5-1.7-6-4l2.8-1.7 3.5 1.2h.4s.2 0 .4-.2l2.9-2.1.4.2c.6.3 1.4.7 2.1 1.1-.5 3.1-3.2 5.4-6.4 5.4Z"/>
-</svg>`;
+// `siteLogo` from @wordpress/icons — the modal's title glyph, and the
+// mark on the assistant's dock tile. Shared from `ui/site-logo-icon`
+// so the two cannot drift; sized here, where it sits in a header row.
+const ICON_SITE_LOGO = OS_SITE_LOGO_SVG.replace(
+	'<svg ',
+	'<svg width="18" height="18" aria-hidden="true" focusable="false" ',
+);
 
 // ---------------------------------------------------------------------------
 // Types

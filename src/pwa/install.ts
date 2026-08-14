@@ -184,11 +184,13 @@ export function getInstallTileDef(
 } {
 	return {
 		id: PWA_INSTALL_TILE_ID,
-		title: sprintf(
-			/* translators: %s: site name */
-			__( 'Install %s as an app' ),
-			siteName,
-		),
+		// No site name. This was a standalone dock tile, where the
+		// tooltip was the only thing naming what it would install; it
+		// is a row in the System menu now, and that menu is already
+		// unambiguously about this site. "Install <Site Title> as an
+		// app" also grew unbounded with the site's title, in a menu
+		// whose other rows are two words.
+		title: __( 'Install web app' ),
 		// Dashicons class — the dock renderer prefers Dashicons
 		// strings. `dashicons-download` is the closest match for
 		// "install" in the WordPress glyph set without shipping

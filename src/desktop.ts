@@ -18,7 +18,12 @@ import { installDesktopArrowShortcuts } from './window-manager/desktop-shortcuts
 import {
 	installWindowLoadingTransitions,
 } from './window/loading';
-import { Dock, type DockItem, type SystemDockItem } from './dock';
+import {
+	Dock,
+	type DockItem,
+	type SubmenuItem,
+	type SystemDockItem,
+} from './dock';
 import {
 	bindNativeUrlRemap,
 	isPersonViewClaimed,
@@ -228,6 +233,16 @@ import {
 	type MioApi,
 } from './mio/controller';
 import { OS_GEAR_ICON } from './ui/gear-icon';
+import { mountNotch } from './notch';
+import {
+	OS_OVERVIEW_ICON,
+	OS_SYSTEM_ICON,
+	OVERVIEW_TILE_ID,
+	SYSTEM_TILE_ID,
+	SYSTEM_TILE_ORDER,
+} from './dock-shell-tiles';
+import { toggleFullscreen } from './fullscreen';
+import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
@@ -2221,6 +2236,27 @@ function init(): void {
 		'.os-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
+	// Answered asynchronously by `isLikelyInstalled()` (Chromium only),
+	// and read by the System menu's install row each time it is built.
+	let pwaAlreadyInstalled = false;
+
+	/**
+	 * Does any row of this menu have a window open on the active
+	 * desktop?
+	 *
+	 * A menu tile's active dot means "something of mine is open", and
+	 * a tile whose menu is actions rather than pages has no window id
+	 * of its own to ask about — so it asks its rows, the same union
+	 * the flyout lists under "open windows". Without this the System
+	 * tile stays dark with Preferences open in front of it.
+	 */
+	const anyRowOpen = ( rows: SubmenuItem[] ): boolean =>
+		rows.some(
+			( row ) =>
+				!! row.windowId &&
+				manager.getAllByBaseIdOnActiveDesktop( row.windowId ).length >
+					0,
+		);
 
 	// Native-window sync is built BEFORE the dispatcher so the
 	// dispatcher's `renderIcons` closure can hand `nativeWindows.openById`
@@ -2504,6 +2540,17 @@ function init(): void {
 			windowManager: manager,
 			adminUrl: config.adminUrl,
 			getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+			getSystemItem: ( id ) =>
+				layoutDispatcher?.getSystemTile( id ) ?? null,
+		} );
+
+		// The notch — the site assistant's front door, and the shell's
+		// place to speak from. Deliberately not a dock tile: the rail
+		// is a list of apps, and "what is going on with this site?" is
+		// not one of them. Mounted on the shell root rather than the
+		// desk area so it never enters the work-area calculation.
+		mountNotch( shellEl, () => {
+			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 		} );
 		// OpenStation Preferences tile — `'core'` affinity so it lands on
 		// the side dock in Classic (with core admin menus, where users
@@ -2519,80 +2566,117 @@ function init(): void {
 		// Settings gear in the user's head. A gear is the one glyph that
 		// needs no label. Themes can still replace it through the
 		// `OS_SETTINGS` icon slot.
-		layoutDispatcher.appendSystemTile(
-			{
-				id: OS_SETTINGS_WINDOW_ID,
-				title: 'OpenStation Preferences',
-				icon: OS_GEAR_ICON,
-				// "Open" for the dock dot means "open on the currently
-				// active desktop." OS Settings on another desktop
-				// shouldn't paint the dot on the active view.
-				isOpen: () => {
-					const win = manager.getById( OS_SETTINGS_WINDOW_ID );
-					if ( ! win ) {
-						return false;
-					}
-					return (
-						( win.config.desktopId ||
-							manager.getActiveDesktopId() ) ===
-						manager.getActiveDesktopId()
-					);
-				},
-				onOpen: openOsSettings,
-			},
-			'core',
-		);
-
-		// PWA install tile — sits next to OS Settings on the same
-		// rail (`'core'` affinity) so users see install / settings as
-		// peer shell-owned actions. Skipped entirely when the shell
-		// itself is already running inside the installed PWA window
-		// (`display-mode: standalone`) — there's nothing to install
-		// from there, and a perpetually-no-op icon is just noise.
+		// System tile — one menu for the shell's own affordances, and
+		// the new home of three jobs the hidden admin bar used to do
+		// (View site, Fullscreen, account + log out) plus three tiles
+		// that used to sit on the rail in their own right: Preferences,
+		// Bug Report and Install web app. Nine glyphs became one.
 		//
-		// **Two-phase guard.** Chrome cold-starts a PWA window with
-		// the document briefly reporting `display-mode: browser`
-		// before flipping to standalone. The boot-time check covers
-		// the common case (display mode already settled); the
-		// matchMedia `'change'` listener catches the cold-start race
-		// and removes the tile retroactively when the flip arrives,
-		// so the icon never lingers in the installed PWA.
-		if ( ! isStandaloneDisplay() ) {
-			layoutDispatcher.appendSystemTile(
-				getInstallTileDef(
-					config.pwa?.appName || 'WordPress',
-					showToast,
-				),
-				'core',
-			);
-		}
-		window
-			.matchMedia( '(display-mode: standalone)' )
-			.addEventListener( 'change', ( e ) => {
-				if ( e.matches ) {
-					layoutDispatcher?.removeSystemTile(
-						'os-pwa-install',
-					);
+		// The rows are built fresh on every hover — `submenu` is read
+		// through `getSystemTile()` at flyout time — so "Install as an
+		// app" can come and go with the display mode without anyone
+		// re-registering the tile.
+		const installTile = getInstallTileDef(
+			config.pwa?.appName || 'WordPress',
+			showToast,
+		);
+		const systemTile: SystemDockItem = {
+			id: SYSTEM_TILE_ID,
+			title: 'System',
+			icon: OS_SYSTEM_ICON,
+			order: SYSTEM_TILE_ORDER.system,
+			// The tile's own click opens Preferences: the flyout is
+			// a hover gesture, and keyboards and touch never fan it
+			// out, so the tile has to do something defensible alone.
+			onOpen: openOsSettings,
+			get submenu() {
+				// `windowId` on the rows that open one is what lets
+				// the flyout list System's live windows the way it
+				// lists an admin menu's. Rows that open nothing
+				// (Fullscreen, Log out) leave it unset.
+				const rows: SubmenuItem[] = [
+					{
+						title: 'OpenStation Preferences',
+						url: '',
+						windowId: OS_SETTINGS_WINDOW_ID,
+						onSelect: () => openOsSettings(),
+					},
+				];
+				if ( config.homeUrl ) {
+					rows.push( {
+						title: 'View site',
+						// No `onSelect`: a bare URL on an action menu
+						// opens in a new tab, which is what the ↗ in
+						// "View Site ↗" means.
+						url: config.homeUrl,
+					} );
 				}
-			} );
+				rows.push(
+					{
+						title: 'Fullscreen',
+						url: '',
+						onSelect: toggleFullscreen,
+					},
+					{
+						title: 'Keyboard shortcuts',
+						url: '',
+						windowId: SHORTCUTS_WINDOW_ID,
+						onSelect: () =>
+							openShortcutsWith( ( cfg ) => {
+								void manager.open( cfg );
+							} ),
+					},
+					{
+						title: 'Report a bug',
+						url: '',
+						windowId: BUG_REPORT_WINDOW_ID,
+						onSelect: () => openBugReport(),
+					},
+				);
+				// Nothing to install from inside the installed app,
+				// nor from a tab whose profile already has it.
+				if ( ! isStandaloneDisplay() && ! pwaAlreadyInstalled ) {
+					rows.push( {
+						title: installTile.title,
+						url: '',
+						onSelect: installTile.onOpen,
+					} );
+				}
+				if ( config.logoutUrl ) {
+					rows.push( {
+						title: 'Log out',
+						url: '',
+						onSelect: () => {
+							window.location.assign(
+									config.logoutUrl as string,
+							);
+						},
+					} );
+				}
+				return rows;
+			},
+			// Reads the same rows the flyout does, so the dot and
+			// the "open windows" section can never disagree.
+			isOpen: () => anyRowOpen( systemTile.submenu ?? [] ),
+		};
+		layoutDispatcher.appendSystemTile( systemTile, 'core' );
 
 		// Async post-boot: if the PWA is already installed in the
-		// current browser profile (Chrome's `Open in app` indicator
-		// in the address bar), drop the install tile from regular
-		// browser tabs too. The synchronous boot-time check only
-		// covers the standalone display case; this handles the
-		// "regular tab where the user has already installed" case
-		// that otherwise leaves a no-op install icon on the dock
-		// and a confusing "already installed" toast on click.
-		// `getInstalledRelatedApps()` is async and Chromium-only,
-		// so this resolves to a no-op on Safari / Firefox where
-		// the tile stays as a fallback.
+		// current browser profile (Chrome's `Open in app` indicator in
+		// the address bar), drop the install row. The `isStandalone`
+		// check in the row builder only covers the case of running
+		// INSIDE the installed app; this handles the regular tab where
+		// the user has already installed, which would otherwise offer a
+		// no-op row and answer it with a confusing "already installed"
+		// toast. `getInstalledRelatedApps()` is async and Chromium-only,
+		// so this stays a no-op on Safari / Firefox and the row remains
+		// as the fallback.
+		//
+		// No cold-start `matchMedia` guard anymore: the rows are built
+		// on hover rather than at registration, so a display-mode flip
+		// is already reflected the next time the menu opens.
 		void isLikelyInstalled().then( ( installed ) => {
-			if ( installed ) {
-				layoutDispatcher?.removeSystemTile(
-					'os-pwa-install',
-				);
-			}
+			pwaAlreadyInstalled = installed;
 		} );
 	}
 
@@ -2681,30 +2765,10 @@ function init(): void {
 		openBugReport();
 	} );
 
-	// Dock system tile — sits next to OS Settings on the primary
-	// rail. Tracked by the layout dispatcher so it survives a layout
-	// rebuild (Classic ↔ Unified).
 	if ( layoutDispatcher ) {
-		layoutDispatcher.appendSystemTile(
-			{
-				id: BUG_REPORT_WINDOW_ID,
-				title: 'Report a bug',
-				icon: 'dashicons-buddicons-replies',
-				isOpen: () => {
-					const win = manager.getById( BUG_REPORT_WINDOW_ID );
-					if ( ! win ) {
-						return false;
-					}
-					return (
-						( win.config.desktopId ||
-							manager.getActiveDesktopId() ) ===
-						manager.getActiveDesktopId()
-					);
-				},
-				onOpen: openBugReport,
-			},
-			'core',
-		);
+		// Bug Report has no tile of its own anymore — it is a row in
+		// the System menu. `openBugReport` is still the one opener,
+		// reached from there and from the `os-open-bug-report` event.
 
 		// Exit OpenStation tile — last on the core rail so users have
 		// a discoverable in-shell way out, complementing the admin-bar
@@ -2739,9 +2803,31 @@ function init(): void {
 				title: 'Mio',
 				icon: MIO_TILE_ICON,
 				placeable: true,
+				order: SYSTEM_TILE_ORDER.mio,
 				isOpen: () => mioApi.isEnabled(),
 				onOpen: () => {
 					void mioApi.toggle();
+				},
+			},
+			'plugin',
+		);
+
+		// Overview tile — the same surface ArrowUp toggles. A tile for
+		// it because the gesture is undiscoverable: a shortcut nobody
+		// pressed is a feature nobody has.
+		layoutDispatcher.appendSystemTile(
+			{
+				id: OVERVIEW_TILE_ID,
+				title: 'Overview',
+				icon: OS_OVERVIEW_ICON,
+				order: SYSTEM_TILE_ORDER.overview,
+				isOpen: () => manager._overviewActive,
+				onOpen: () => {
+					if ( manager._overviewActive ) {
+						manager.exitOverview();
+					} else {
+						manager.enterOverview();
+					}
 				},
 			},
 			'plugin',

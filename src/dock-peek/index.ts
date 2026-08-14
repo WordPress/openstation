@@ -153,17 +153,22 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		if ( e.pointerType !== 'mouse' ) {
 			return;
 		}
-		// Menu tiles hand the hover gesture to the constellation
-		// flyout, which already surfaces the open instances the peek
-		// would have shown — plus the submenu the peek has no way to
-		// reach. Two popovers on one tile is a flicker, not a feature.
-		// System tiles have no submenu and keep the peek.
+		// A tile with a flyout hands the hover gesture to the
+		// constellation, which already surfaces the open instances the
+		// peek would have shown — plus the submenu the peek has no way
+		// to reach. Two popovers on one tile is a flicker, not a
+		// feature. That is every menu tile, and the system tiles that
+		// declared a submenu of their own (Create, System); every other
+		// system tile keeps the peek.
 		//
 		// Conditional on the flyout actually being mounted: a rail
 		// rendered without one (a plugin embedding the dock on its
 		// own) must keep the peek here rather than leave the tile with
 		// no hover surface at all.
-		if ( isConstellationMounted() && tile.dataset.menuSlug ) {
+		if (
+			isConstellationMounted() &&
+			( tile.dataset.menuSlug || tile.dataset.constellationId )
+		) {
 			return;
 		}
 		// Re-evaluate on every enter — open windows might have changed

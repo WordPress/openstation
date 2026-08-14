@@ -12,6 +12,7 @@
  */
 
 import type { SystemDockItem } from './dock';
+import type { ShortcutsData } from './shortcuts';
 import { __ } from './i18n';
 
 export const EXIT_OPENSTATION_TILE_ID = 'os-exit';
@@ -20,6 +21,12 @@ interface AdminBarConfig {
 	nonce?: string;
 	classicUrl?: string;
 	ajaxUrl?: string;
+	/**
+	 * Keyboard-shortcut reference content, translated server-side.
+	 * Declared here because this module owns the global; rendered by
+	 * `src/shortcuts.ts`, which owns the shape.
+	 */
+	shortcuts?: ShortcutsData;
 }
 
 declare global {

@@ -325,6 +325,26 @@ export function createLayoutDispatcher(
 	};
 
 	/**
+	 * Native-window ids with a window open right now.
+	 *
+	 * Feeds `applyDockPlacement`, which synthesizes a dock tile for a
+	 * desktop-only icon while its window is running — see the
+	 * `openWindowIds` note there for why. Read fresh rather than
+	 * cached: the answer changes on every open and close.
+	 */
+	const openWindowIds = (): Set< string > => {
+		const active = deps.windowManager.getActiveDesktopId();
+		const ids = new Set< string >();
+		for ( const win of deps.windowManager.getAll() ) {
+			if ( ( win.config.desktopId || active ) !== active ) {
+				continue;
+			}
+			ids.add( win.config.baseId || win.id );
+		}
+		return ids;
+	};
+
+	/**
 	 * Bring rail attachment in line with the visibility map for every
 	 * tracked system tile: attach tiles the user unhid, detach tiles
 	 * the user hid. Idempotent — called from `refresh()` on every
@@ -345,6 +365,53 @@ export function createLayoutDispatcher(
 		}
 	};
 
+	/**
+	 * The desktop-only icons currently showing a synthesized tile
+	 * because their window is open, as a comparable string.
+	 *
+	 * A window opening or closing is the input that decides whether a
+	 * running app has a tile, but it is emphatically NOT a reason to
+	 * rebuild the rail: opening a window is the single most common
+	 * thing that happens in the shell, and re-rendering the menu host
+	 * each time would discard hover state and cancel an in-flight tile
+	 * drag. So the listener recomputes this signature and only refreshes
+	 * when the answer actually moved — which is the handful of opens
+	 * and closes that involve a desktop-only app.
+	 */
+	const runningIconSignature = (): string => {
+		const open = openWindowIds();
+		const visibility = readSettings().itemVisibility;
+		return serverIcons
+			.filter(
+				( icon ) =>
+					!! icon.window &&
+					open.has( icon.window ) &&
+					// Desktop-only: on the rail purely because it is
+					// running, so its arrival and departure are what
+					// this signature tracks.
+					'desktop' === ( visibility[ icon.id ] ?? 'desktop' ),
+			)
+			.map( ( icon ) => icon.id )
+			.sort()
+			.join( ',' );
+	};
+	let lastRunningIcons = runningIconSignature();
+
+	// Document events rather than the hook bus: these fire for every
+	// window regardless of who opened it, which is the point. Never
+	// torn down, because the dispatcher outlives every layout rebuild
+	// and there is exactly one of it.
+	for ( const event of [ 'os-window-opened', 'os-window-closed' ] ) {
+		document.addEventListener( event, () => {
+			const next = runningIconSignature();
+			if ( next === lastRunningIcons ) {
+				return;
+			}
+			lastRunningIcons = next;
+			dispatcher.refresh();
+		} );
+	}
+
 	const effectiveDockItems = (): DockItem[] => {
 		// System tile ids match the native-window ids the framework
 		// has already mounted on the dock (Recycle Bin's
@@ -361,6 +428,7 @@ export function createLayoutDispatcher(
 			serverIcons,
 			readSettings(),
 			dockedNativeWindows,
+			openWindowIds(),
 		);
 	};
 

@@ -33,7 +33,7 @@ import {
 } from 'vitest';
 import { mountDockConstellation } from '../../src/dock-constellation';
 import { ITEM_MENU_OPENING_EVENT } from '../../src/item-visibility-menu';
-import type { DockItem } from '../../src/dock';
+import type { DockItem, SystemDockItem } from '../../src/dock';
 import type { WindowManager } from '../../src/window-manager';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
@@ -67,6 +67,10 @@ const opened: Array< Record< string, unknown > > = [];
 function makeManagerStub(): WindowManager {
 	return {
 		getAllByBaseIdOnActiveDesktop: () => [],
+		// Consulted by the parent-url sweep: a window opened from a
+		// menu's submenu is keyed on the CHILD page, so the base-id
+		// lookup alone can never find it.
+		getAll: () => [],
 		getActiveDesktopId: () => 'default-1',
 		getFocused: () => null,
 		getById: () => undefined,
@@ -202,12 +206,17 @@ describe( 'dock constellation', () => {
 	// Tears down a previous mount first, so a test that walks several
 	// layouts or placements in one body doesn't leave a second
 	// delegated listener behind opening a second panel on every hover.
-	function mountWith( items: DockItem[] ): void {
+	function mountWith(
+		items: DockItem[],
+		systemItems: SystemDockItem[] = [],
+	): void {
 		teardown?.();
 		teardown = mountDockConstellation( {
 			windowManager: makeManagerStub(),
 			adminUrl: '/wp-admin/',
 			getMenuItems: () => items,
+			getSystemItem: ( id ) =>
+				systemItems.find( ( i ) => i.id === id ) ?? null,
 		} );
 	}
 
@@ -330,14 +339,71 @@ describe( 'dock constellation', () => {
 		expect( opened.at( -1 )?.parentUrl ).toBe( '/wp-admin/themes.php' );
 	} );
 
-	test( 'offers a trailing new-window row', () => {
+	/*
+	 * There is no trailing "New <menu> window" row. It offered a
+	 * second copy of the landing page, which every row in the Open
+	 * group already does — and it was the one section a system tile's
+	 * action menu could never have, so keeping it would have meant two
+	 * different panel shapes depending on which tile you hovered.
+	 */
+	test( 'offers no new-window row', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
 		hover( tile );
-		const newRow = rows( '.os-constellation__row--new' )[ 0 ];
-		expect( newRow.textContent ).toContain( 'Appearance' );
-		newRow.click();
-		expect( opened.at( -1 )?.multi ).toBe( true );
+		expect( rows( '.os-constellation__row--new' ) ).toHaveLength( 0 );
+	} );
+
+	/*
+	 * "All Posts" is a real row in wp-admin's menu, and the payload
+	 * strips it out of `submenu` because two other consumers need that
+	 * list to be child links only. The flyout LISTS a menu's pages, so
+	 * it puts the menu's own page back at the top — a list that omits
+	 * the main page reads as a bug, which is how this arrived.
+	 */
+	test( 'the menu’s own page leads the Open list', () => {
+		const tile = setupShell( 'openstation' );
+		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
+
+		hover( tile );
+		expect( rowLabels() ).toEqual( [ 'All Themes', 'Themes', 'Editor' ] );
+	} );
+
+	test( 'it opens the menu’s own page', () => {
+		const tile = setupShell( 'openstation' );
+		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
+
+		hover( tile );
+		rows( '.os-constellation__row--sub' )[ 0 ].click();
+		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
+	} );
+
+	test( 'a menu with no self-link gains no extra row', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+
+		hover( tile );
+		expect( rowLabels() ).toEqual( [ 'Themes', 'Editor' ] );
+	} );
+
+	/*
+	 * The head is the tile: icon and title, nothing else. It used to
+	 * carry a "3 pages" count under the title — a number the reader
+	 * has no use for, with the rows themselves right below it.
+	 */
+	test( 'the head shows the icon and title, with no page count', () => {
+		const tile = setupShell( 'openstation' );
+		mount();
+		hover( tile );
+
+		const head = rows( '.os-constellation__head' )[ 0 ];
+		expect( head ).toBeDefined();
+		expect(
+			head.querySelector( '.os-constellation__head-title' )?.textContent,
+		).toBe( 'Appearance' );
+		expect(
+			head.querySelector( '.os-constellation__head-hint' ),
+		).toBeNull();
+		expect( head.textContent ).not.toContain( 'page' );
 	} );
 
 	test( 'ArrowUp from a tile opens it and lands focus on the first row', () => {
@@ -644,6 +710,222 @@ describe( 'dock constellation', () => {
 		teardown();
 		expect( panel() ).toBeNull();
 		hover( tile );
+		expect( panel() ).toBeNull();
+	} );
+
+	/*
+	 * Action menus — a system tile that declared a `submenu`.
+	 *
+	 * These are the Create and System tiles: a menu with no admin page
+	 * behind it, whose rows DO things rather than navigate. The panel
+	 * has to drop everything that assumes a landing page, and the rows
+	 * have to run their own callback rather than routing to a window.
+	 */
+	/** Put a system tile carrying `data-constellation-id` on the rail. */
+	function addSystemTile( id: string ): HTMLElement {
+		const dock = document.querySelector( '.os-dock' ) as HTMLElement;
+		const tile = document.createElement( 'div' );
+		tile.className = 'os-dock__item os-dock__item--system';
+		tile.dataset.systemId = id;
+		tile.dataset.constellationId = id;
+		tile.appendChild( document.createElement( 'button' ) );
+		dock.appendChild( tile );
+		return tile;
+	}
+
+	function systemTile(
+		id: string,
+		submenu: SystemDockItem[ 'submenu' ],
+	): SystemDockItem {
+		return {
+			id,
+			title: 'System',
+			icon: 'dashicons-admin-generic',
+			onOpen: () => {},
+			submenu,
+		};
+	}
+
+	test( 'a system tile with a submenu fans its rows out', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		mountWith(
+			[ appearance ],
+			[
+				systemTile( 'os-system', [
+					{ title: 'OpenStation Preferences', url: '' },
+					{ title: 'Log out', url: '' },
+				] ),
+			],
+		);
+
+		hover( tile );
+		expect( rowLabels() ).toEqual( [
+			'OpenStation Preferences',
+			'Log out',
+		] );
+	} );
+
+	/*
+	 * One panel shape, whichever family of tile you hovered. The two
+	 * kinds of menu differ in what fills the sections, never in which
+	 * sections exist — so an action menu gets the same head and the
+	 * same "Open" heading an admin menu gets.
+	 */
+	test( 'an action menu wears the same head as an admin menu', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		mountWith(
+			[ appearance ],
+			[ systemTile( 'os-system', [ { title: 'Log out', url: '' } ] ) ],
+		);
+
+		hover( tile );
+		const head = rows( '.os-constellation__head' )[ 0 ];
+		expect(
+			head?.querySelector( '.os-constellation__head-title' )?.textContent,
+		).toBe( 'System' );
+		expect(
+			head?.querySelector( '.os-constellation__head-hint' ),
+		).toBeNull();
+	} );
+
+	test( 'an action menu heads its rows with Open, like an admin menu', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		mountWith(
+			[ appearance ],
+			[ systemTile( 'os-system', [ { title: 'Log out', url: '' } ] ) ],
+		);
+
+		hover( tile );
+		const legends = rows( '.os-constellation__legend' ).map(
+			( el ) => el.textContent,
+		);
+		expect( legends ).toContain( 'Open' );
+	} );
+
+	test( 'the head of an action menu runs its first row', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		const first = vi.fn();
+		const second = vi.fn();
+		mountWith(
+			[ appearance ],
+			[
+				systemTile( 'os-system', [
+					{ title: 'Preferences', url: '', onSelect: first },
+					{ title: 'Log out', url: '', onSelect: second },
+				] ),
+			],
+		);
+
+		hover( tile );
+		rows( '.os-constellation__head' )[ 0 ].click();
+
+		// There is no landing page behind the tile, so the head stands
+		// in for the first row — the same thing the tile's own click
+		// does, which is what keeps keyboard and touch users whole.
+		expect( first ).toHaveBeenCalledTimes( 1 );
+		expect( second ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a row runs its onSelect instead of routing to a window', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		const onSelect = vi.fn();
+		mountWith(
+			[ appearance ],
+			[
+				systemTile( 'os-system', [
+					{ title: 'Fullscreen', url: '', onSelect },
+				] ),
+			],
+		);
+
+		hover( tile );
+		rows( '.os-constellation__row--sub' )[ 0 ].click();
+
+		expect( onSelect ).toHaveBeenCalledTimes( 1 );
+		// And emphatically did NOT open a window on the way.
+		expect( opened ).toHaveLength( 0 );
+	} );
+
+	/*
+	 * An action menu has no window key of its own — it is not a page —
+	 * so it asks its rows, each of which declares the window it opens
+	 * via `windowId`. That is what lets System list an open
+	 * Preferences window where Appearance lists an open Themes one.
+	 */
+	test( 'an action menu lists the windows its rows have open', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		const prefs = {
+			state: 'normal',
+			config: { title: 'OpenStation Preferences' },
+		} as unknown as ReturnType< typeof Object >;
+
+		teardown?.();
+		teardown = mountDockConstellation( {
+			windowManager: {
+				...makeManagerStub(),
+				getAllByBaseIdOnActiveDesktop: ( id: string ) =>
+					id === 'os-settings' ? [ prefs ] : [],
+			} as unknown as WindowManager,
+			adminUrl: '/wp-admin/',
+			getMenuItems: () => [ appearance ],
+			getSystemItem: () =>
+				systemTile( 'os-system', [
+					{
+						title: 'OpenStation Preferences',
+						url: '',
+						windowId: 'os-settings',
+						onSelect: () => {},
+					},
+					// No window behind it, so it contributes nothing.
+					{ title: 'Log out', url: '', onSelect: () => {} },
+				] ),
+		} );
+
+		hover( tile );
+		const live = rows(
+			'.os-constellation__row--live .os-constellation__row-label',
+		).map( ( el ) => el.textContent );
+		expect( live ).toEqual( [ 'OpenStation Preferences' ] );
+	} );
+
+	test( 'an action menu with nothing open lists no windows', () => {
+		setupShell( 'unified' );
+		const tile = addSystemTile( 'os-system' );
+		mountWith(
+			[ appearance ],
+			[
+				systemTile( 'os-system', [
+					{
+						title: 'OpenStation Preferences',
+						url: '',
+						windowId: 'os-settings',
+					},
+				] ),
+			],
+		);
+
+		hover( tile );
+		expect( rows( '.os-constellation__row--live' ) ).toHaveLength( 0 );
+	} );
+
+	test( 'a system tile without a submenu gets no flyout', () => {
+		setupShell( 'unified' );
+		const dock = document.querySelector( '.os-dock' ) as HTMLElement;
+		const tile = document.createElement( 'div' );
+		tile.className = 'os-dock__item os-dock__item--system';
+		tile.dataset.systemId = 'os-mio-toggle';
+		tile.appendChild( document.createElement( 'button' ) );
+		dock.appendChild( tile );
+		mountWith( [ appearance ], [] );
+
+		hover( tile );
+		// No `data-constellation-id`, so the hover belongs to the peek.
 		expect( panel() ).toBeNull();
 	} );
 } );

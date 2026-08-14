@@ -46,11 +46,18 @@
  *    (plugin activated, tiles rebuilt) can't leave a stale listener
  *    behind on a detached node — the failure mode that made the
  *    hover-peek leak popovers before it grew a teardown map.
- * 2. **It owns the hover gesture on menu tiles.** `dock-peek` stands
- *    down for them, and the dock tooltip is suppressed by CSS while
- *    the flyout is open, because the head already says the tile's
- *    name — louder, and in the right place. System tiles have no
- *    submenu and keep the peek.
+ * 2. **It owns the hover gesture on any tile with a menu.** `dock-peek`
+ *    stands down for them, and the dock tooltip is suppressed by CSS
+ *    while the flyout is open, because the head already says the
+ *    tile's name — louder, and in the right place. That is every menu
+ *    tile, plus the system tiles that declared a `submenu` of their
+ *    own (Create, System); every other system tile keeps the peek.
+ *
+ *    A system tile's menu is a list of ACTIONS, not admin pages, so
+ *    its panel drops the head (there is no landing page behind the
+ *    tile) and the footer (nothing to open another of) and paints the
+ *    rows alone. See `ConstellationMenu`, which is what the panel
+ *    builder actually takes.
  * 3. **It routes through the same window ids the dock does** (see
  *    `routing.ts`), so the flyout and the tile address one window
  *    between them rather than two.
@@ -85,15 +92,15 @@
 
 import { __, _n, sprintf } from '../i18n';
 import { applyFilters, doAction, HOOKS } from '../hooks';
-import type { DockItem, SubmenuItem } from '../dock';
+import type { DockItem, SubmenuItem, SystemDockItem } from '../dock';
 import type { Window as OsWindow } from '../window';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
+import { applyIconMask } from '../desktop-themes/paint-tinted-icon';
 import { CONSTELLATION_FLAG } from './active';
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
 import {
 	openMenuItem,
-	openNewMenuItem,
 	openSubmenuItem,
 	type ConstellationRouting,
 } from './routing';
@@ -142,6 +149,18 @@ const OPEN_BODY_CLASS = 'os-constellation-open';
 
 /** Which side of its tile a panel fans out on. */
 type ConstellationSide = 'top' | 'left' | 'right';
+
+/**
+ * The key identifying a tile's flyout: its menu slug, or the system
+ * tile id for an action menu. `''` for a tile with no flyout at all.
+ *
+ * One key rather than two so the "is this the panel already up?"
+ * comparisons stay a single string compare, and so a menu slug can
+ * never collide with a system id in that comparison without the two
+ * tiles genuinely being the same tile.
+ */
+const keyOf = ( tile: HTMLElement ): string =>
+	tile.dataset.menuSlug ?? tile.dataset.constellationId ?? '';
 
 /**
  * The direction this tile's flyout fans out in.
@@ -208,6 +227,32 @@ export interface DockConstellationDeps extends ConstellationRouting {
 	 * in the flyout without the constellation subscribing to anything.
 	 */
 	getMenuItems: () => DockItem[];
+	/**
+	 * Look up a registered system tile, read fresh on every hover for
+	 * the same reason. Only the ones carrying a `submenu` ever reach
+	 * the flyout; the rest keep the hover-peek. Optional, so a rail
+	 * mounted without system tiles needs no stub.
+	 */
+	getSystemItem?: ( id: string ) => SystemDockItem | null;
+}
+
+/**
+ * A menu the flyout can paint, from either of the two tile families.
+ *
+ * The panel is mostly the same either way — a hue, a group of rows,
+ * the sheen and the beam. What differs is everything that assumes a
+ * WordPress admin page behind the tile: `menuItem` is that page when
+ * there is one, and `null` for a system tile's action menu, which has
+ * no landing page to head the panel with, no windows to list under it
+ * and nothing to open another of.
+ */
+export interface ConstellationMenu {
+	/** Menu slug, or the system tile id for an action menu. */
+	id: string;
+	title: string;
+	icon: string;
+	submenu: SubmenuItem[];
+	menuItem: DockItem | null;
 }
 
 /**
@@ -216,8 +261,12 @@ export interface DockConstellationDeps extends ConstellationRouting {
  * @public
  */
 export interface ConstellationPanelContext {
-	/** The menu the flyout was opened for. */
-	item: DockItem;
+	/**
+	 * The menu the flyout was opened for. `item.menuItem` is the
+	 * `DockItem` behind it, or `null` when the tile is a system tile
+	 * whose submenu is a list of actions rather than admin pages.
+	 */
+	item: ConstellationMenu;
 	/** Live windows currently open for this menu. */
 	instances: OsWindow[];
 	/** The dock tile the flyout is anchored to. */
@@ -251,17 +300,18 @@ export function mountDockConstellation(
 	};
 
 	/**
-	 * Resolve the menu tile an event landed on, or null when the event
-	 * has nothing to do with us. Guards on the tile being menu-derived
-	 * (system tiles keep the hover-peek) and on the tile living on a
-	 * rail rather than in some plugin's own markup.
+	 * Resolve the tile an event landed on, or null when the event has
+	 * nothing to do with us. Guards on the tile having a menu to fan
+	 * out — a menu slug, or a system tile that declared a submenu;
+	 * every other system tile keeps the hover-peek — and on the tile
+	 * living on a rail rather than in some plugin's own markup.
 	 */
 	const tileFrom = ( target: EventTarget | null ): HTMLElement | null => {
 		if ( ! ( target instanceof Element ) ) {
 			return null;
 		}
 		const tile = target.closest< HTMLElement >( '.os-dock__item' );
-		if ( ! tile || ! tile.dataset.menuSlug ) {
+		if ( ! tile || ! keyOf( tile ) ) {
 			return null;
 		}
 		if ( ! tile.closest( '.os-dock' ) ) {
@@ -348,7 +398,7 @@ export function mountDockConstellation(
 				?.focus();
 		}
 		doAction( HOOKS.CONSTELLATION_CLOSED, {
-			menuSlug: previousAnchor?.dataset.menuSlug ?? '',
+			menuSlug: previousAnchor ? keyOf( previousAnchor ) : '',
 			// `true` when another tile is already taking over, so a
 			// subscriber can tell "the menu closed" from "the menu
 			// moved" without diffing against the next opened event.
@@ -368,14 +418,14 @@ export function mountDockConstellation(
 		// path reaches here directly.
 		cancelShow();
 		cancelHide();
-		const slug = tile.dataset.menuSlug as string;
+		const slug = keyOf( tile );
 		if ( panel && anchorSlug === slug ) {
 			if ( focusFirst ) {
 				focusRow( panel, 0 );
 			}
 			return;
 		}
-		const item = deps.getMenuItems().find( ( i ) => i.id === slug );
+		const item = resolveMenu( deps, tile );
 		if ( ! item ) {
 			// Nothing to hand off TO — this is a plain dismissal.
 			close();
@@ -407,10 +457,7 @@ export function mountDockConstellation(
 
 		retire( 'exit', { handoff: handingOff } );
 
-		const instances =
-			deps.windowManager.getAllByBaseIdOnActiveDesktop(
-				resolveBaseId( deps, item ),
-			);
+		const instances = instancesFor( deps, item );
 		panel = buildPanel( deps, item, instances, tile, close );
 		// Roving tabindex: the flyout is ONE tab stop, not one per row.
 		// Arrow keys move between rows and Tab leaves the menu — the
@@ -478,7 +525,7 @@ export function mountDockConstellation(
 			return;
 		}
 		cancelHide();
-		if ( panel && anchorSlug === tile.dataset.menuSlug ) {
+		if ( panel && anchorSlug === keyOf( tile ) ) {
 			return;
 		}
 		cancelShow();
@@ -608,6 +655,127 @@ export function mountDockConstellation(
 }
 
 /**
+ * The menu a tile fans out, from whichever family it belongs to.
+ *
+ * Menu tiles win the lookup: a system tile is only consulted when the
+ * tile carries no `data-menu-slug` at all, so a plugin that somehow
+ * sets both still gets the admin-menu reading it would have had.
+ */
+function resolveMenu(
+	deps: DockConstellationDeps,
+	tile: HTMLElement,
+): ConstellationMenu | null {
+	const slug = tile.dataset.menuSlug;
+	if ( slug ) {
+		const item = deps.getMenuItems().find( ( i ) => i.id === slug );
+		if ( ! item ) {
+			return null;
+		}
+		// The menu's own page comes first — "All Posts" ahead of the
+		// rest of the Posts submenu, exactly as wp-admin lists it. The
+		// payload strips that entry out of `submenu` (see
+		// `DockItem.selfLabel`) because the tab strip and the
+		// right-click popover need that list to be child links only, so
+		// it is put back here rather than there. A list of a menu's
+		// pages that omits its main page reads as a bug.
+		const submenu = item.selfLabel
+			? [ { title: item.selfLabel, url: item.url }, ...item.submenu ]
+			: item.submenu;
+		return {
+			id: item.id,
+			title: item.title,
+			icon: item.icon,
+			submenu,
+			menuItem: item,
+		};
+	}
+
+	const id = tile.dataset.constellationId;
+	if ( ! id ) {
+		return null;
+	}
+	const sys = deps.getSystemItem?.( id );
+	if ( ! sys?.submenu?.length ) {
+		// The tile declared a flyout when it was built and the item has
+		// since lost it (a live re-register with a shorter menu). No
+		// panel rather than an empty one.
+		return null;
+	}
+	return {
+		id: sys.id,
+		title: sys.title,
+		icon: sys.icon,
+		submenu: sys.submenu,
+		menuItem: null,
+	};
+}
+
+/**
+ * The live windows a menu currently has open, on the active desktop.
+ *
+ * An admin menu has one key and possibly several windows under it. An
+ * action menu has no key of its own — it is not a page — so it asks
+ * its ROWS instead: each row that opens a window declares which one
+ * (`SubmenuItem.windowId`), and the menu's instances are the union.
+ * That is what lets the System tile show its open Preferences window
+ * in the same place, and read the same way, as Appearance does.
+ *
+ * Deduped by window, because two rows may legitimately point at one
+ * (a menu offering both "Settings" and "Settings → Appearance").
+ */
+function instancesFor(
+	deps: DockConstellationDeps,
+	item: ConstellationMenu,
+): OsWindow[] {
+	const seen = new Set< OsWindow >();
+
+	if ( item.menuItem ) {
+		const baseId = resolveBaseId( deps, item.menuItem );
+		for ( const win of deps.windowManager.getAllByBaseIdOnActiveDesktop(
+			baseId,
+		) ) {
+			seen.add( win );
+		}
+		// Plus the windows opened FROM this menu — a post editor is
+		// keyed on `post-new.php`, never on the Posts menu's own
+		// `edit.php`, so the base-id lookup alone reports "no open
+		// windows" while the editor the user just opened from this very
+		// flyout sits on screen. `parentUrl` is what ties it back.
+		const parentKey = deriveWindowId( item.menuItem.url, deps.adminUrl );
+		if ( parentKey ) {
+			const activeDesktop = deps.windowManager.getActiveDesktopId();
+			for ( const win of deps.windowManager.getAll() ) {
+				if (
+					( win.config.desktopId || activeDesktop ) !== activeDesktop
+				) {
+					continue;
+				}
+				if (
+					win.config.parentUrl &&
+					deriveWindowId( win.config.parentUrl, deps.adminUrl ) ===
+						parentKey
+				) {
+					seen.add( win );
+				}
+			}
+		}
+		return Array.from( seen );
+	}
+
+	for ( const sub of item.submenu ) {
+		if ( ! sub.windowId ) {
+			continue;
+		}
+		for ( const win of deps.windowManager.getAllByBaseIdOnActiveDesktop(
+			sub.windowId,
+		) ) {
+			seen.add( win );
+		}
+	}
+	return Array.from( seen );
+}
+
+/**
  * Window-manager key for a menu tile. Mirrors `Dock.resolveItemBaseId`
  * closely enough for the instance lookup: an explicit `windowId` wins,
  * otherwise the URL-derived id.
@@ -628,7 +796,7 @@ function resolveBaseId(
 
 function buildPanel(
 	deps: DockConstellationDeps,
-	item: DockItem,
+	item: ConstellationMenu,
 	instances: OsWindow[],
 	tile: HTMLElement,
 	dismiss: () => void,
@@ -653,6 +821,10 @@ function buildPanel(
 	surface.className = 'os-constellation__surface';
 	root.appendChild( surface );
 
+	// One shape for both families of menu: the tile it belongs to, the
+	// windows it already has open, and the things it can open. What
+	// differs between an admin menu and a system tile's action menu is
+	// only what fills those sections, never which sections exist.
 	surface.appendChild( buildHead( deps, item, dismiss ) );
 
 	let rowIndex = 0;
@@ -669,8 +841,6 @@ function buildPanel(
 			buildSubmenuGroup( deps, item, dismiss, nextIndex ),
 		);
 	}
-
-	surface.appendChild( buildFooter( deps, item, dismiss, nextIndex() ) );
 
 	// Cursor spotlight — the surface paints a soft radial highlight at
 	// `--os-cn-x` / `--os-cn-y`, so the panel lights up under the
@@ -715,7 +885,7 @@ function buildPanel(
 /** The head row — icon, title, and the menu's own page behind it. */
 function buildHead(
 	deps: DockConstellationDeps,
-	item: DockItem,
+	item: ConstellationMenu,
 	dismiss: () => void,
 ): HTMLElement {
 	const head = document.createElement( 'button' );
@@ -735,38 +905,63 @@ function buildHead(
 	title.className = 'os-constellation__head-title';
 	title.textContent = item.title;
 	text.appendChild( title );
-	const hint = document.createElement( 'span' );
-	hint.className = 'os-constellation__head-hint';
-	if ( item.submenu.length > 0 ) {
-		hint.textContent = sprintf(
-			// translators: %d is the number of pages inside an admin menu.
-			_n( '%d page', '%d pages', item.submenu.length ),
-			item.submenu.length,
-		);
-	} else {
-		hint.textContent = __( 'Open' );
-	}
-	text.appendChild( hint );
 	head.appendChild( text );
 
-	// No trailing chevron. It read as "there is another level behind
-	// me" — the one thing the head does NOT do. It opens a window,
-	// same as clicking the tile; the row's own hover state is the
-	// affordance, and a directional glyph on top of it was a promise
-	// the panel could not keep.
+	// No page count under the title, and no chevron beside it. The
+	// count was a number the reader had no use for — the rows are
+	// right there and countable — and the chevron read as "there is
+	// another level behind me", the one thing the head does NOT do.
+	// The row's own hover state is the whole affordance.
 
 	head.addEventListener( 'click', () => {
 		dismiss();
-		openMenuItem( deps, item );
+		if ( item.menuItem ) {
+			openMenuItem( deps, item.menuItem );
+			return;
+		}
+		// An action menu has no landing page, so the head does what
+		// its first row does — the same thing the tile's own click
+		// does, and the reason a keyboard user is never stranded.
+		runRow( deps, item, item.submenu[ 0 ] );
 	} );
 
 	return head;
 }
 
+/**
+ * Activate one row: its callback, its window route, or its URL.
+ *
+ * Shared by the rows themselves and by an action menu's head, which
+ * stands in for its first row.
+ */
+function runRow(
+	deps: DockConstellationDeps,
+	item: ConstellationMenu,
+	sub: SubmenuItem | undefined,
+): void {
+	if ( ! sub ) {
+		return;
+	}
+	if ( sub.onSelect ) {
+		sub.onSelect();
+		return;
+	}
+	if ( item.menuItem ) {
+		openSubmenuItem( deps, item.menuItem, sub );
+		return;
+	}
+	if ( sub.url ) {
+		// An action menu has no window routing behind it, so a row
+		// that is only a URL is a link out — which is exactly what
+		// the row that needs this ("View site") means by it.
+		window.open( sub.url, '_blank', 'noopener,noreferrer' );
+	}
+}
+
 /** Live windows for this menu, newest chrome first. */
 function buildInstancesGroup(
 	deps: DockConstellationDeps,
-	item: DockItem,
+	item: ConstellationMenu,
 	instances: OsWindow[],
 	dismiss: () => void,
 	nextIndex: () => number,
@@ -829,7 +1024,7 @@ function buildInstancesGroup(
 /** The submenu proper — the whole point of the layout. */
 function buildSubmenuGroup(
 	deps: DockConstellationDeps,
-	item: DockItem,
+	item: ConstellationMenu,
 	dismiss: () => void,
 	nextIndex: () => number,
 ): HTMLElement {
@@ -849,7 +1044,7 @@ function buildSubmenuGroup(
 
 function buildSubmenuRow(
 	deps: DockConstellationDeps,
-	item: DockItem,
+	item: ConstellationMenu,
 	sub: SubmenuItem,
 	dismiss: () => void,
 	index: number,
@@ -878,43 +1073,7 @@ function buildSubmenuRow(
 
 	row.addEventListener( 'click', () => {
 		dismiss();
-		openSubmenuItem( deps, item, sub );
-	} );
-
-	return row;
-}
-
-/** The trailing "open another" affordance. */
-function buildFooter(
-	deps: DockConstellationDeps,
-	item: DockItem,
-	dismiss: () => void,
-	index: number,
-): HTMLElement {
-	const row = document.createElement( 'button' );
-	row.type = 'button';
-	row.className = 'os-constellation__row os-constellation__row--new';
-	row.setAttribute( 'role', 'menuitem' );
-	row.style.setProperty( '--os-cn-row', String( index ) );
-
-	const plus = document.createElement( 'span' );
-	plus.className = 'os-constellation__plus';
-	plus.setAttribute( 'aria-hidden', 'true' );
-	plus.textContent = '+';
-	row.appendChild( plus );
-
-	const label = document.createElement( 'span' );
-	label.className = 'os-constellation__row-label';
-	label.textContent = sprintf(
-		// translators: %s is an admin menu title (e.g. "Posts").
-		__( 'New %s window' ),
-		item.title,
-	);
-	row.appendChild( label );
-
-	row.addEventListener( 'click', () => {
-		dismiss();
-		openNewMenuItem( deps, item );
+		runRow( deps, item, sub );
 	} );
 
 	return row;
@@ -929,6 +1088,19 @@ function legend( text: string ): HTMLElement {
 
 /** Dashicon span, falling back to the generic cog for anything else. */
 function glyph( icon: string ): HTMLElement {
+	// Data URIs and URLs are painted as a mask filled with
+	// `currentColor`, the same way the dock paints them — the head has
+	// to wear the art its TILE wears. Falling through to the dashicon
+	// branch instead put a generic cog on every tile whose icon is
+	// drawn rather than named, which is all of the shell's own.
+	if ( ! icon.startsWith( 'dashicons-' ) ) {
+		const masked = document.createElement( 'span' );
+		masked.className = 'os-constellation__head-art';
+		if ( applyIconMask( masked, icon, 'currentColor' ) ) {
+			return masked;
+		}
+	}
+
 	const el = document.createElement( 'span' );
 	el.className = 'dashicons';
 	el.classList.add(

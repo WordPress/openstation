@@ -1456,6 +1456,15 @@ body.os-active {
 	 * the dock (200) so it never covers navigation.
 	 */
 	--os-z-mio: 190;
+	/*
+	 * The notch — above every window and above the dock, because it
+	 * overlaps the top edge deliberately and must stay legible over a
+	 * maximized window's title bar. Below the admin bar (9991) and
+	 * fullscreen (99999): a shell that still shows the bar has the
+	 * bar's own reveal zone up there, and a fullscreen window is the
+	 * one state where the shell genuinely should disappear.
+	 */
+	--os-z-notch: 9000;
 
 	/*
 	 * Window-link ties (relation splines between windows). The accent

@@ -81,6 +81,29 @@ export interface SystemDockItem {
 	 * all it controls is whether a row is offered.
 	 */
 	placeable?: boolean;
+	/**
+	 * Rows to fan out of this tile on hover, through the same
+	 * constellation flyout the admin menus use.
+	 *
+	 * A system tile with a submenu is a MENU, not a launcher: it has no
+	 * landing page of its own, so the flyout drops the head row and the
+	 * "open another" footer and paints the rows alone. `onOpen` still
+	 * runs on click, for the pointer that lands on the tile rather than
+	 * waiting for the flyout, and for keyboards and touch, which never
+	 * fan it open. Give every submenu-bearing tile an `onOpen` that
+	 * does something defensible on its own.
+	 */
+	submenu?: SubmenuItem[];
+	/**
+	 * Sort key among system tiles, ascending. Defaults to 0, and ties
+	 * keep registration order.
+	 *
+	 * Registration order alone cannot express the intended rail:
+	 * native-window tiles (Trash, and every plugin's) register on the
+	 * lazy-script path and land whenever their bundle resolves, so a
+	 * tile registered last in `desktop.ts` is not last on the dock.
+	 */
+	order?: number;
 }
 
 /**
@@ -97,6 +120,28 @@ export interface SystemDockItem {
 export interface SubmenuItem {
 	title: string;
 	url: string;
+	/**
+	 * Run this instead of navigating to `url`.
+	 *
+	 * Client-side only, and deliberately so: the server builds submenu
+	 * entries as JSON (`openstation_build_dock_items()`), and a function
+	 * cannot survive that trip. Set it from JS on the submenus of
+	 * {@link SystemDockItem}, whose rows are shell actions — "Log out",
+	 * "Fullscreen" — rather than admin pages. `url` stays the fallback
+	 * for anything that can express itself as one.
+	 */
+	onSelect?: () => void;
+	/**
+	 * The window this row opens, when it opens one.
+	 *
+	 * Only needed alongside {@link onSelect}: a row with a real `url`
+	 * already yields its window id through `deriveWindowId()`, but a
+	 * callback is opaque. Declaring it is what lets the constellation
+	 * list a system tile's live windows the way it lists an admin
+	 * menu's. Rows that open no window (Log out, Fullscreen) leave it
+	 * unset.
+	 */
+	windowId?: string;
 }
 
 export interface DockItem {
@@ -119,6 +164,19 @@ export interface DockItem {
 	 * active/focused dot stays dark.
 	 */
 	windowId?: string;
+	/**
+	 * Label of the self-link stripped out of `submenu` — "All Posts"
+	 * for the Posts menu, "All Pages" for Pages. Empty when the menu
+	 * had none.
+	 *
+	 * `submenu` deliberately excludes the entry itself, because two
+	 * consumers need it to mean "distinct child links only" (the tab
+	 * strip, which would grow a duplicate first tab; the right-click
+	 * popover, suppressed on an empty list). Surfaces that LIST a
+	 * menu's pages want it back — the constellation flyout puts it
+	 * first, pointing at `url`.
+	 */
+	selfLabel?: string;
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
 	badge: number;
 	/** Submenu items. */
@@ -599,7 +657,10 @@ export class Dock {
 		this.badgeOverrides.delete( id );
 		this.artOverrides.delete( id );
 
-		if ( this.systemItemElements.size === 0 && this.systemSeparator ) {
+		if (
+			this.systemSeparator &&
+			! this.systemHost.querySelector( '.os-dock__item' )
+		) {
 			this.systemSeparator.remove();
 			this.systemSeparator = null;
 		}
@@ -871,6 +932,33 @@ export class Dock {
 	}
 
 	/**
+	 * The tile a newly-ordered system item should be inserted before,
+	 * or `null` to append. The first tile with a strictly greater
+	 * order wins, so equal orders keep registration order.
+	 */
+	private _systemSlotFor(
+		item: SystemDockItem,
+		host: HTMLElement,
+	): HTMLElement | null {
+		const order = item.order ?? 0;
+		// DOM order, not `systemItemElements` order: the map is keyed by
+		// registration and this question is about the rail as painted.
+		for ( const el of Array.from( host.children ) ) {
+			if ( ! ( el instanceof HTMLElement ) ) {
+				continue;
+			}
+			if ( el.dataset.systemOrder === undefined ) {
+				// The separator, or a node a plugin parked here.
+				continue;
+			}
+			if ( Number( el.dataset.systemOrder ) > order ) {
+				return el;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Append a JS-registered system item to the dock.
 	 *
 	 * System items render after the menu-derived items, separated by a
@@ -878,9 +966,15 @@ export class Dock {
 	 * the admin menu: OS Settings today, Jorvy and desktop widgets
 	 * later. Callers supply their own `onOpen` — the dock doesn't
 	 * assume the item opens a window at all.
+	 *
+	 * Placement follows {@link SystemDockItem.order} rather than call
+	 * order, because call order is not something the shell controls:
+	 * native-window tiles arrive whenever their lazy script resolves.
 	 */
 	public appendSystemItem( item: SystemDockItem ): void {
 		this.systemItems.push( item );
+
+		const host = this.systemHost;
 
 		if ( ! this.systemSeparator ) {
 			this.systemSeparator = document.createElement( 'div' );
@@ -899,7 +993,8 @@ export class Dock {
 		if ( systemArt ) {
 			this._paintArt( tile, item.id, systemArt );
 		}
-		this.systemHost.appendChild( tile );
+		tile.dataset.systemOrder = String( item.order ?? 0 );
+		host.insertBefore( tile, this._systemSlotFor( item, host ) );
 		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_TILE_RENDERED, {
@@ -1011,6 +1106,13 @@ export class Dock {
 		);
 		tile.className = filteredClasses.join( ' ' );
 		tile.dataset.systemId = item.id;
+		// The constellation resolves a flyout from this attribute the
+		// way it resolves a menu one from `data-menu-slug`, and
+		// `dock-peek` stands down on it for the same reason it stands
+		// down on that one: two popovers on one tile is a flicker.
+		if ( item.submenu && item.submenu.length > 0 ) {
+			tile.dataset.constellationId = item.id;
+		}
 
 		const primary = document.createElement( 'button' );
 		primary.className = 'os-dock__item-primary';
@@ -2397,6 +2499,20 @@ export class Dock {
 					.filter( ( w ) => {
 						const wBase = w.config.baseId || w.id;
 						if ( wBase === baseId || wBase === derivedId || wBase === item.id ) {
+							return true;
+						}
+						// A window opened from this menu's submenu — the
+						// post editor behind "Posts → Add New", or the
+						// same page reached from the Create tile. It is
+						// keyed on the CHILD page, so no id here will
+						// ever match it; `parentUrl` is the only thing
+						// that says which menu it came from, and without
+						// consulting it the parent tile stays dark while
+						// one of its pages is plainly open.
+						if (
+							w.config.parentUrl &&
+							this.deriveWindowId( w.config.parentUrl ) === derivedId
+						) {
 							return true;
 						}
 						if ( w.config.url ) {

@@ -1030,9 +1030,13 @@ export const HOOKS = {
 	 *   ( panel: HTMLElement, detail: ConstellationPanelContext )
 	 *     => HTMLElement
 	 *
-	 * `detail` carries `{ item, instances, tile }`: the `DockItem` the
-	 * flyout was opened for, the live windows currently open for it,
-	 * and the dock tile it is anchored to.
+	 * `detail` carries `{ item, instances, tile }`: the menu the flyout
+	 * was opened for, the live windows currently open for it, and the
+	 * dock tile it is anchored to. `item.menuItem` is the `DockItem`
+	 * behind the menu, or `null` when the tile is a system tile whose
+	 * submenu is a list of shell actions rather than admin pages — in
+	 * which case `instances` is always empty and the panel carries no
+	 * head or footer row.
 	 *
 	 * A plugin returning a brand-new node owns everything the flyout
 	 * relies on: the `os-constellation` class (positioning + the
@@ -1042,10 +1046,15 @@ export const HOOKS = {
 	CONSTELLATION_PANEL: 'os.constellation.panel',
 	/**
 	 * Action, fires immediately after a flyout is appended. Detail:
-	 * `{ menuSlug: string, item: DockItem, instances: Window[],
-	 * handoff: boolean }`. `handoff` is `true` when this panel
-	 * replaced one that was already up — the pointer moved along the
-	 * rail — rather than arriving on an empty desk.
+	 * `{ menuSlug: string, item: ConstellationMenu, instances:
+	 * Window[], handoff: boolean }`. `handoff` is `true` when this
+	 * panel replaced one that was already up — the pointer moved along
+	 * the rail — rather than arriving on an empty desk.
+	 *
+	 * `menuSlug` is the admin-menu slug for a menu tile, and the
+	 * system tile's id for a tile whose submenu is shell actions
+	 * (Create, System). Filter on `item.menuItem !== null` to handle
+	 * only the admin-menu ones.
 	 */
 	CONSTELLATION_OPENED: 'os.constellation.opened',
 	/**
@@ -1053,7 +1062,8 @@ export const HOOKS = {
 	 * leaves the document, which happens once its exit has played.
 	 *
 	 * Detail: `{ menuSlug: string, handoff: boolean }`. `menuSlug` is
-	 * the menu whose flyout closed, or `''` if the anchor tile had
+	 * the menu whose flyout closed — an admin-menu slug, or a system
+	 * tile's id for an action menu — or `''` if the anchor tile had
 	 * already been torn down. `handoff` is `true` when another tile is
 	 * already taking over, so a subscriber can tell "the menu closed"
 	 * from "the menu moved" without diffing against the next

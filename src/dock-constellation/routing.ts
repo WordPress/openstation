@@ -19,10 +19,7 @@
 
 import type { DockItem, SubmenuItem } from '../dock';
 import { tryOpenExternalUrl } from '../external-url';
-import {
-	resolveNativeUrlRemap,
-	tryNativeUrlRemap,
-} from '../native-url-remap';
+import { tryNativeUrlRemap } from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import type { WindowManager } from '../window-manager';
 
@@ -94,37 +91,3 @@ export function openSubmenuItem(
 	} );
 }
 
-/** Spawn a fresh instance of the menu's landing page. */
-export function openNewMenuItem(
-	deps: ConstellationRouting,
-	item: DockItem,
-): void {
-	if ( item.url && tryOpenExternalUrl( item.url ) ) {
-		return;
-	}
-	const openNewWindow = window.wp?.os?.openNewWindow;
-	if ( item.windowId && ! item.url ) {
-		if ( openNewWindow?.( item.windowId, { source: 'dock-constellation' } ) ) {
-			return;
-		}
-	}
-	// A URL claimed by a native window has to spawn a duplicate of THAT
-	// window, not a chromeless iframe of the URL it replaced.
-	const remappedId = resolveNativeUrlRemap( item.url );
-	if ( remappedId ) {
-		if ( openNewWindow?.( remappedId, { source: 'dock-constellation' } ) ) {
-			return;
-		}
-	}
-	const baseId = deriveWindowId( item.url, deps.adminUrl );
-	void deps.windowManager.openNew( {
-		id: baseId,
-		baseId,
-		url: item.url,
-		parentUrl: item.url,
-		title: item.title,
-		icon: safeIcon( item.icon ),
-		submenu: item.submenu,
-		multi: true,
-	} );
-}

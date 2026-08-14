@@ -536,6 +536,17 @@ body.os-constellation-open .os-dock__tooltip {
 }
 
 /*
+ * Drawn art — a data URI or a URL rather than a named dashicon, which
+ * is what every shell-owned tile wears. Painted as a mask filled with
+ * `currentColor` (the head's ink over the mesh), so only the artwork's
+ * alpha is used and a black-stroked glyph stays legible.
+ */
+.os-constellation__head-art {
+	width: 20px;
+	height: 20px;
+}
+
+/*
  * The head's own hover state deliberately does NOT take the row mesh
  * — the icon beside it is already wearing it, and two meshes touching
  * is where iridescence stops reading as emphasis. It gets a plain
@@ -567,10 +578,6 @@ body.os-constellation-open .os-dock__tooltip {
 	font-weight: 600;
 }
 
-.os-constellation__head-hint {
-	font-size: 11px;
-	color: var( --os-cn-fg-muted, rgba( 255, 251, 255, 0.62 ) );
-}
 
 /* ---- Groups ------------------------------------------------------ */
 
@@ -652,25 +659,6 @@ body.os-constellation-open .os-dock__tooltip {
 	background: transparent;
 	border: 1px solid var( --os-ui-accent, #f252fc );
 	box-shadow: none;
-}
-
-/* ---- New-window row ---------------------------------------------- */
-
-.os-constellation__row--new {
-	margin-top: 2px;
-	border-top: 1px solid var( --os-cn-divider, rgba( 255, 251, 255, 0.1 ) );
-	border-radius: 0 0 9px 9px;
-	color: var( --os-cn-fg-muted, rgba( 255, 251, 255, 0.62 ) );
-}
-
-.os-constellation__plus {
-	flex: 0 0 auto;
-	width: 14px;
-	margin-inline-start: 0;
-	font-size: 15px;
-	line-height: 1;
-	text-align: center;
-	opacity: 0.5;
 }
 
 /* ==================================================================

@@ -1260,6 +1260,7 @@ export function createNativeWindowSync(
 			id: entry.id,
 			title: entry.title,
 			icon: entry.icon,
+			order: entry.dockOrder,
 			isOpen: () => !! manager.getById( entry.id ),
 			onOpen: () => openFromEntry( entry ),
 		} );

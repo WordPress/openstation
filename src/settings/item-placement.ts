@@ -145,6 +145,19 @@ export function applyDockPlacement(
 	 * the dock would otherwise paint the same target twice.
 	 */
 	dockedNativeWindows?: ReadonlySet< string >,
+	/**
+	 * Native-window ids with a window open right now.
+	 *
+	 * A RUNNING app belongs on the dock whatever its resting place is.
+	 * Sending WP Explorer to the desktop says where its launcher lives,
+	 * not that its open window should be unswitchable and have nowhere
+	 * to minimize back to while every other window has a tile. So a
+	 * desktop-only icon whose window is open is synthesized anyway —
+	 * landing in the plugin/app cluster (`isCore: false`) with the
+	 * running indicator its `windowId` already drives — and drops off
+	 * again when the window closes.
+	 */
+	openWindowIds?: ReadonlySet< string >,
 ): DockItem[] {
 	const visibility = settings.itemVisibility;
 	const order = settings.dockOrder;
@@ -163,7 +176,8 @@ export function applyDockPlacement(
 	//    on the dock as a framework system tile (Recycle Bin et al).
 	for ( const icon of desktopIcons ) {
 		const placement = resolvePlacement( icon.id, 'desktop', visibility );
-		if ( ! shouldShowOnDock( placement ) ) {
+		const running = !! icon.window && !! openWindowIds?.has( icon.window );
+		if ( ! shouldShowOnDock( placement ) && ! running ) {
 			continue;
 		}
 		if (

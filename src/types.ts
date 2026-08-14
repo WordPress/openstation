@@ -771,6 +771,13 @@ export interface NativeWindowServerEntry {
 	icon: string;
 	/** `'dock'` = render a system tile on the unified dock, `'none'` = register the window but render no tile (plugin opens programmatically). */
 	placement: 'dock' | 'none';
+	/**
+	 * Sort key for the tile among system tiles, ascending. Absent
+	 * means `0`, which puts the tile ahead of the shell's own trailing
+	 * cluster (Mio 10, Overview 20, System 30) — where a plugin's
+	 * launcher belongs. Trash sets 40 to sit at the very end.
+	 */
+	dockOrder?: number;
 	/** Initial window dimensions in px. */
 	width: number;
 	height: number;
@@ -1599,6 +1606,10 @@ export interface DesktopConfig {
 	currentIcon: string;
 	/** Base admin URL (e.g., 'http://localhost:8889/wp-admin/'). */
 	adminUrl: string;
+	/** Site front page, for the System tile's "View site" row. */
+	homeUrl?: string;
+	/** Nonced logout URL — the shell cannot build this one itself. */
+	logoutUrl?: string;
 	/** The active color scheme slug. */
 	colorScheme: string;
 	/**

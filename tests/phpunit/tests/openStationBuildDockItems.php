@@ -301,6 +301,52 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The self-link is stripped from `submenu`, but its LABEL survives
+	 * on `selfLabel`.
+	 *
+	 * Two consumers need `submenu` to be child links only — the
+	 * in-window tab strip, which would otherwise grow a duplicate first
+	 * tab, and the right-click popover, which is suppressed on an empty
+	 * list. Surfaces that LIST a menu's pages want the main page back,
+	 * named the way wp-admin names it; the constellation flyout puts it
+	 * first. Dropping the label entirely made that list open with
+	 * "Add New", which reads as a missing row.
+	 */
+	public function test_keeps_the_self_link_label_on_self_label() {
+		global $menu, $submenu;
+
+		$menu[] = array( 'Posts', 'read', 'edit.php', '', 'menu-top', 'menu-posts', 'dashicons-admin-post' );
+
+		$submenu['edit.php'] = array(
+			array( 'All Posts', 'read', 'edit.php' ),
+			array( 'Tags', 'read', 'edit-tags.php?taxonomy=post_tag' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertSame( 'All Posts', $items[0]['selfLabel'] );
+		// …and it is still absent from `submenu` itself.
+		$this->assertSame(
+			array( 'Tags' ),
+			wp_list_pluck( $items[0]['submenu'], 'title' )
+		);
+	}
+
+	public function test_self_label_is_empty_without_a_self_link() {
+		global $menu, $submenu;
+
+		$menu[] = array( 'Tools', 'read', 'tools.php', '', 'menu-top', 'menu-tools', 'dashicons-admin-tools' );
+
+		$submenu['tools.php'] = array(
+			array( 'Import', 'read', 'import.php' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertSame( '', $items[0]['selfLabel'] );
+	}
+
+	/**
 	 * Plugins register hidden submenu rows by passing `menu_title => null`
 	 * to `add_submenu_page()` — the page stays reachable but classic
 	 * admin's left-menu row has no label. WooCommerce uses this for the

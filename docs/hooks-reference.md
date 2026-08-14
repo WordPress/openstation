@@ -1080,6 +1080,8 @@ array(
     'currentTitle'     => string,   // human title of the current page
     'currentIcon'      => string,   // dashicons-* class
     'adminUrl'         => string,   // admin_url()
+    'homeUrl'          => string,   // home_url() — the System tile's "View site"
+    'logoutUrl'        => string,   // wp_logout_url(), nonced; the shell cannot build this itself
     'portalUrl'        => string,   // openstation_portal_url()
     'sessionUrl'       => string,   // REST session URL
     'restUrl'          => string,   // REST API root from rest_url(); compose with joinRestUrl() for pretty/plain permalink safety
@@ -1134,7 +1136,9 @@ array(
 )
 ```
 
-Items built from the admin menu also carry `multi`, `placement`, `isCore`, `pluginFile`, and `pluginName` keys — see the `openstation_dock_item_multi` and `openstation_dock_placement` filters below.
+Items built from the admin menu also carry `selfLabel`, `multi`, `placement`, `isCore`, `pluginFile`, and `pluginName` keys — see the `openstation_dock_item_multi` and `openstation_dock_placement` filters below.
+
+**`submenu` excludes the menu's own page.** WordPress auto-prepends a self-link to every parent menu (`All Posts` → `edit.php`, the same URL as the parent), and the builder strips it so `count( $submenu )` reliably means "how many distinct child pages" — the in-window tab strip would otherwise grow a duplicate first tab, and the right-click popover keys its suppression off an empty list. The stripped entry's label survives on **`selfLabel`** (`''` when the menu had none), so a surface that *lists* a menu's pages can put the main page back where wp-admin has it. The constellation flyout does exactly that, pointing the row at the item's `url`.
 
 **Example — add a virtual dock item:**
 

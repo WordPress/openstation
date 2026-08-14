@@ -39,6 +39,9 @@ function makeManagerStub(): WindowManager {
 	return {
 		getFocused: () => null,
 		getAllByBaseId: () => [],
+		// A desktop-only tile still rides the dock while its window is
+		// open, so the visibility question now asks the manager.
+		getAllByBaseIdOnActiveDesktop: () => [],
 		getAll: () => [],
 		getById: () => undefined,
 		getActiveDesktopId: () => 'default-1',
@@ -802,6 +805,60 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
+		} );
+
+		/*
+		 * …unless its window is open. Sending an app to the desktop
+		 * says where its LAUNCHER lives, not that a running window
+		 * should be unreachable from the dock — unswitchable, and with
+		 * nowhere to minimize back to — while every other window has a
+		 * tile. The tile is transient: it arrives with the window and
+		 * leaves with it, which is what the lifecycle listener does.
+		 */
+		test( 'a desktop-only app joins the rail while its window is open', () => {
+			const open: Array< { id: string; config: Record< string, unknown > } > =
+				[];
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'wp-explorer-icon': 'desktop' },
+					dockOrder: [],
+				} ),
+			} );
+			deps.windowManager.getAll = ( () =>
+				open ) as typeof deps.windowManager.getAll;
+
+			createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[
+					{
+						id: 'wp-explorer-icon',
+						title: 'WP Explorer',
+						icon: 'dashicons-admin-site',
+						window: 'my-wordpress',
+						url: '',
+					} as never,
+				],
+			);
+			const synth = () =>
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( '[data-menu-slug="dock:wp-explorer-icon"]' );
+
+			// At rest it lives on the desktop only.
+			expect( synth() ).toBeNull();
+
+			// Running: it takes a tile in the plugin/app cluster, where
+			// its `windowId` drives the running indicator.
+			open.push( { id: 'my-wordpress', config: {} } );
+			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
+			expect( synth() ).not.toBeNull();
+
+			// Closed: the tile leaves again.
+			open.length = 0;
+			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
+			expect( synth() ).toBeNull();
 		} );
 
 		test( 'refresh() detaches a live tile on hide and re-attaches it on unhide', () => {

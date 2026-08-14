@@ -116,6 +116,7 @@ function openstation_build_dock_items() {
 		// at a different slug pointing at the parent's URL.
 		$sub_items             = array();
 		$first_visible_sub_url = null;
+		$self_label            = '';
 		if ( ! empty( $submenu[ $item[2] ] ) ) {
 			foreach ( $submenu[ $item[2] ] as $sub_item ) {
 				if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
@@ -141,6 +142,26 @@ function openstation_build_dock_items() {
 				// WP's auto-prepended entry AND any plugin-registered
 				// alias that happens to land on the parent URL.
 				if ( $sub_url === $parent_url ) {
+					// Keep its LABEL, though. The stripped entry is a
+					// real row in wp-admin's own menu ("All Posts",
+					// "All Pages"), and the constellation flyout lists
+					// it as the first thing the menu opens — a list of
+					// a menu's pages that omits its main page reads as
+					// a bug, which is how this was reported.
+					//
+					// Carried separately rather than left in `submenu`
+					// because `submenu` has two other consumers that
+					// need it to mean "distinct child links only": the
+					// in-window tab strip, which would grow a duplicate
+					// first tab, and the right-click popover, which is
+					// suppressed on `length === 0`.
+					//
+					// First one only — a plugin can register several
+					// aliases onto the parent URL, and the canonical
+					// self-link is the one WordPress prepends.
+					if ( '' === $self_label ) {
+						$self_label = openstation_menu_item_title( $sub_item[0] );
+					}
 					continue;
 				}
 				// Skip entries with no resolvable title. Plugins (e.g.
@@ -180,6 +201,11 @@ function openstation_build_dock_items() {
 			'url'        => $url,
 			'badge'      => $badge,
 			'submenu'    => $sub_items,
+			// Label of the stripped self-link ("All Posts"), for
+			// surfaces that list a menu's pages and want its main page
+			// named the way wp-admin names it. Empty when the menu had
+			// no self-link to strip.
+			'selfLabel'  => $self_label,
 			'multi'      => openstation_dock_item_is_multi( $item[2] ),
 			'placement'  => openstation_dock_placement( $item[2] ),
 			'isCore'     => openstation_is_core_menu_slug( $item[2] ),
@@ -1689,6 +1715,9 @@ function openstation_build_native_windows_payload() {
 			'title'              => $entry['title'],
 			'icon'               => $entry['icon'],
 			'placement'          => $entry['placement'],
+			// Sort key among system tiles. Absent / 0 puts a plugin's
+			// launcher ahead of the shell's own trailing cluster.
+			'dockOrder'          => isset( $entry['dock_order'] ) ? (int) $entry['dock_order'] : 0,
 			'width'              => $entry['width'],
 			'height'             => $entry['height'],
 			'minWidth'           => $entry['min_width'],
