@@ -23,6 +23,7 @@
 
 import { resolveThemedIcon } from '../desktop-themes/icons';
 import { slotForFileType } from '../desktop-themes/slots';
+import { getIconArt } from '../desktop-icons';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
@@ -79,16 +80,28 @@ function placementToSpec(
 		// Preview wins over icon (matches the previous behavior).
 		thumbnail: previewUrl || undefined,
 		// Precedence when no preview exists:
-		//   per-placement `meta.iconUrl`  (the user/plugin said so
+		//   live art override         (a rail said so about this tile
+		//                              JUST NOW — the Trash drawn full
+		//                              because it is holding something)
+		//   → per-placement `meta.iconUrl`  (the user/plugin said so
 		//                                  about THIS tile)
 		//   → desktop-theme FILE_* slot   (the theme said so about
 		//                                  this KIND of tile)
 		//   → the file type's own icon.
 		// The per-placement override outranks the theme on purpose:
 		// it is specific, deliberate, and about one object.
+		//
+		// The art override leads because it is the only one describing
+		// the object's current STATE rather than its identity, and
+		// because `setArt` is idempotent: it stores the override and
+		// paints the nodes that exist at the time. A tile built later
+		// has to come and get it, exactly as `Dock.appendSystemItem`
+		// re-applies its own overrides. Without this the wallpaper bin
+		// is drawn empty forever, however full it is.
 		icon: previewUrl
 			? undefined
-			: ( metaIconUrl ||
+			: ( getIconArt( placement.file.ref ) ||
+				metaIconUrl ||
 				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
 				file.icon() ),
 		x: placement.x,

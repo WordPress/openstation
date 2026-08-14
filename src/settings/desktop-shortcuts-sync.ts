@@ -36,6 +36,7 @@
  */
 
 import { filesApi } from '../desktop-files';
+import { addAction, removeAction, HOOKS } from '../hooks';
 import type { RestPlacementShape } from '../desktop-files/rest';
 import type { DesktopConfig, DesktopIconServerEntry, DockItemConfig } from '../types';
 import { resolvePlacement, type PlaceableSystemTile } from './item-placement';
@@ -59,69 +60,58 @@ function hashToNegativeId( s: string ): number {
 }
 
 /**
- * Build a synthetic placement representing a promoted system tile.
+ * Build a synthetic placement for a promoted dock item or system tile.
  *
- * `shortcutSystemTile` rather than `shortcutUrl`: a system tile has
- * no url, and half of them don't open a window either (Mio's toggles
- * the companion). Naming the tile lets the opener run the tile's own
- * `onOpen`, so the wallpaper copy and the dock copy are the same
- * button in two places.
+ * The two differ in exactly two places: what the opener is handed, and
+ * what the tile is called on the wallpaper.
+ *
+ * **The opener.** A dock item has a url; a system tile has neither a
+ * url nor, half the time, a window (Mio's toggles the companion). So a
+ * tile carries `shortcutSystemTile` and the opener runs the tile's own
+ * `onOpen`, which is what makes the wallpaper copy and the dock copy
+ * the same button in two places.
+ *
+ * **The ref.** A dock item's is prefixed, so a promoted admin menu
+ * cannot be mistaken for a real registered shortcut of the same id. A
+ * system tile's is the bare tile id, because being recognisable as
+ * itself is the entire point: three lookups in the files layer and the
+ * dock find the bin by `file.ref === 'desktop-mode-recycle-bin'` —
+ * the drag-to-trash drop target, the drop-rejection exemption, and the
+ * empty/full art swap. Prefix it and the wallpaper bin turns into a
+ * tile that refuses every drop and never fills up.
  */
-function buildSyntheticTilePlacement(
-	tile: PlaceableSystemTile,
-	persistedPositions: Record< string, { x: number; y: number } >,
-): RestPlacementShape {
-	const saved = persistedPositions[ tile.id ];
-	return {
-		id: hashToNegativeId( tile.id ),
-		parentId: 0,
-		x: saved ? saved.x : 0,
-		y: saved ? saved.y : 0,
-		sortOrder: 9999,
-		updatedAtMs: Date.now(),
-		meta: { [ SYNTH_META_KEY ]: tile.id },
-		file: {
-			type: 'shortcut',
-			ref: `dock-promoted:${ tile.id }`,
-			title: tile.title,
-			icon: tile.icon,
-			previewUrl: '',
-			exists: true,
-			shortcutSystemTile: tile.id,
-		},
-	} as RestPlacementShape;
-}
-
-/** Build a synthetic placement representing a promoted dock item. */
 function buildSyntheticPlacement(
-	item: DockItemConfig,
+	source:
+		| { kind: 'dock-item'; item: DockItemConfig }
+		| { kind: 'system-tile'; tile: PlaceableSystemTile },
 	persistedPositions: Record< string, { x: number; y: number } >,
 ): RestPlacementShape {
+	const { id, title, icon } =
+		source.kind === 'dock-item' ? source.item : source.tile;
 	// Restore the user's last-dragged position if we have one. Falls
 	// through to (0, 0) so the layer's `snapToEmptyCell` can find a
 	// free grid slot on first promote.
-	const saved = persistedPositions[ item.id ];
+	const saved = persistedPositions[ id ];
 	return {
-		id: hashToNegativeId( item.id ),
+		id: hashToNegativeId( id ),
 		parentId: 0,
 		x: saved ? saved.x : 0,
 		y: saved ? saved.y : 0,
 		sortOrder: 9999,
 		updatedAtMs: Date.now(),
-		meta: { [ SYNTH_META_KEY ]: item.id },
+		meta: { [ SYNTH_META_KEY ]: id },
 		file: {
 			type: 'shortcut',
-			ref: `dock-promoted:${ item.id }`,
-			title: item.title,
-			icon: item.icon,
+			ref: source.kind === 'dock-item' ? `dock-promoted:${ id }` : id,
+			title,
+			icon,
 			previewUrl: '',
 			exists: true,
-			// The shortcut opener (built-in-openers.ts) reads these
-			// off the file shape — `shortcutUrl` is what a dock-item
-			// promotion naturally has.
-			shortcutUrl: item.url,
+			...( source.kind === 'dock-item'
+				? { shortcutUrl: source.item.url }
+				: { shortcutSystemTile: id } ),
 		},
-	};
+	} as RestPlacementShape;
 }
 
 /** Read the live dock items (from the dispatcher when available). */
@@ -295,7 +285,10 @@ export function syncShortcutsWithVisibility(
 				desiredSynth.add( item.id );
 				if ( ! currentSynth.has( item.id ) ) {
 					filesApi.store.upsertPlacement(
-						buildSyntheticPlacement( item, positions ),
+						buildSyntheticPlacement(
+							{ kind: 'dock-item', item },
+							positions,
+						),
 					);
 				}
 			}
@@ -309,7 +302,10 @@ export function syncShortcutsWithVisibility(
 				desiredSynth.add( tile.id );
 				if ( ! currentSynth.has( tile.id ) ) {
 					filesApi.store.upsertPlacement(
-						buildSyntheticTilePlacement( tile, positions ),
+						buildSyntheticPlacement(
+							{ kind: 'system-tile', tile },
+							positions,
+						),
 					);
 				}
 			}
@@ -378,6 +374,14 @@ export function syncShortcutsWithVisibility(
  *
  * - The files store changes (server hydration re-injects a hidden
  *   icon — we drop it again).
+ * - A system tile is appended to a rail. Those arrive late: a native
+ *   window's tile is registered only after its bundle has loaded, so
+ *   on boot the first pass can run before the tile exists and find
+ *   nothing to promote. A user with the Trash on the desktop would
+ *   then have it on neither surface until some unrelated store write
+ *   happened along. Dock items don't need this — they come off
+ *   `openStationConfig` synchronously — and it covers the plugin
+ *   activated mid-session for free.
  * - The user updates visibility via OS Settings or the right-click
  *   menu (handled by an external caller passing the new snapshot).
  *
@@ -407,7 +411,15 @@ export function installShortcutsSync(
 		syncShortcutsWithVisibility( getVisibility(), getPositions() );
 	} );
 
-	return off;
+	const namespace = 'desktop-mode/shortcuts-sync';
+	addAction( HOOKS.DOCK_ITEM_APPENDED, namespace, () => {
+		syncShortcutsWithVisibility( getVisibility(), getPositions() );
+	} );
+
+	return () => {
+		off();
+		removeAction( HOOKS.DOCK_ITEM_APPENDED, namespace );
+	};
 }
 
 export type OsSettingsVisibility = Pick<
