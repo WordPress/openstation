@@ -104,15 +104,15 @@ defined( 'ABSPATH' ) || exit;
  *                                  resolves.
  *     @type bool     $placeable    Whether the dock tile gets a row in
  *                                  OpenStation Preferences → Apps &
- *                                  Plugins, so the user can hide it.
- *                                  Default false, because most tiles
- *                                  are load-bearing. Opt in for a
- *                                  window the user can reasonably do
- *                                  without. Only offer this on a
- *                                  window that registers no desktop
- *                                  icon: the icon already owns the
- *                                  row, and its own picker offers the
- *                                  wallpaper as well as the dock.
+ *                                  Plugins, so the user can move it to
+ *                                  the wallpaper or hide it. Defaults
+ *                                  to the dock either way. Default
+ *                                  false, because most tiles are
+ *                                  load-bearing. Opt in for a window
+ *                                  the user can reasonably do without.
+ *                                  Only offer this on a window that
+ *                                  registers no desktop icon: the icon
+ *                                  already owns a row of its own.
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
  *                                  `WP_Error openstation_capability_denied`.

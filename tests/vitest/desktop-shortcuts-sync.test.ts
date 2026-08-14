@@ -152,3 +152,106 @@ describe( 'syncShortcutsWithVisibility — server-icon visibility round-trip', (
 	} );
 } );
 
+describe( 'syncShortcutsWithVisibility — promoting a system tile', () => {
+	beforeEach( () => {
+		installHooksStub();
+	} );
+
+	afterEach( () => {
+		clearHooksStub();
+		delete ( window as unknown as { openStationConfig?: unknown } )
+			.openStationConfig;
+	} );
+
+	function stubSystemTiles(
+		tiles: Array< {
+			id: string;
+			title: string;
+			icon: string;
+			placeable: boolean;
+		} >,
+	): void {
+		const w = window as unknown as {
+			wp?: { os?: Record< string, unknown > };
+		};
+		w.wp = w.wp ?? {};
+		w.wp.os = w.wp.os ?? {};
+		w.wp.os.listSystemTiles = () => tiles;
+	}
+
+	const mio = {
+		id: 'os-mio-toggle',
+		title: 'Mio',
+		icon: 'dashicons-superhero-alt',
+		placeable: true,
+	};
+
+	test( 'a placeable tile stays off the wallpaper until asked for', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [] );
+		stubOsSettings();
+		stubSystemTiles( [ mio ] );
+
+		// The dock is its native rail, so no override means no tile.
+		sync.syncShortcutsWithVisibility( {} );
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 )?.length ?? 0,
+		).toBe( 0 );
+	} );
+
+	test( 'desktop / both promote it, and the tile carries its opener', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [] );
+		stubOsSettings();
+		stubSystemTiles( [ mio ] );
+
+		for ( const pick of [ 'desktop', 'both' ] as const ) {
+			sync.syncShortcutsWithVisibility( { 'os-mio-toggle': pick } );
+			const rows =
+				store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+			expect( rows ).toHaveLength( 1 );
+			expect( rows[ 0 ].file.title ).toBe( 'Mio' );
+			// Not a url and not a window: the opener runs the tile's
+			// own onOpen, which is the only thing a toggle tile has.
+			expect(
+				( rows[ 0 ].file as unknown as {
+					shortcutSystemTile?: string;
+				} ).shortcutSystemTile,
+			).toBe( 'os-mio-toggle' );
+		}
+	} );
+
+	test( 'taking it back off the desktop removes the placement', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [] );
+		stubOsSettings();
+		stubSystemTiles( [ mio ] );
+
+		sync.syncShortcutsWithVisibility( { 'os-mio-toggle': 'both' } );
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 )?.length,
+		).toBe( 1 );
+
+		sync.syncShortcutsWithVisibility( { 'os-mio-toggle': 'dock' } );
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 )?.length ?? 0,
+		).toBe( 0 );
+	} );
+
+	test( 'a tile that did not opt in is never promoted', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [] );
+		stubOsSettings();
+		stubSystemTiles( [ { ...mio, id: 'os-exit', placeable: false } ] );
+
+		sync.syncShortcutsWithVisibility( { 'os-exit': 'desktop' } );
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 )?.length ?? 0,
+		).toBe( 0 );
+	} );
+} );
+

@@ -14,6 +14,12 @@
  *    to (0, 0) — the layer's `snapToEmptyCell` finds an open slot
  *    on first paint.
  *
+ *    Placeable **system tiles** (the Trash, Mio) promote the same
+ *    way. They carry no url to open, so their placement names the
+ *    tile instead and the shortcut opener calls the tile's own
+ *    `onOpen` — the wallpaper copy does exactly what the dock copy
+ *    does, including for a tile that toggles rather than opens.
+ *
  * 2. **Hide a server-registered icon.** For every icon in
  *    `config.desktopIcons` whose visibility is `'dock'` or
  *    `'hidden'`, remove the corresponding placement from the files
@@ -32,7 +38,7 @@
 import { filesApi } from '../desktop-files';
 import type { RestPlacementShape } from '../desktop-files/rest';
 import type { DesktopConfig, DesktopIconServerEntry, DockItemConfig } from '../types';
-import { resolvePlacement } from './item-placement';
+import { resolvePlacement, type PlaceableSystemTile } from './item-placement';
 import type { ItemVisibility, OsSettingsState } from './types';
 import type { OsSettingsSnapshot } from './registry';
 
@@ -50,6 +56,40 @@ function hashToNegativeId( s: string ): number {
 		h = ( h * 31 + s.charCodeAt( i ) ) % 0x7fffffff;
 	}
 	return -( h + 1 );
+}
+
+/**
+ * Build a synthetic placement representing a promoted system tile.
+ *
+ * `shortcutSystemTile` rather than `shortcutUrl`: a system tile has
+ * no url, and half of them don't open a window either (Mio's toggles
+ * the companion). Naming the tile lets the opener run the tile's own
+ * `onOpen`, so the wallpaper copy and the dock copy are the same
+ * button in two places.
+ */
+function buildSyntheticTilePlacement(
+	tile: PlaceableSystemTile,
+	persistedPositions: Record< string, { x: number; y: number } >,
+): RestPlacementShape {
+	const saved = persistedPositions[ tile.id ];
+	return {
+		id: hashToNegativeId( tile.id ),
+		parentId: 0,
+		x: saved ? saved.x : 0,
+		y: saved ? saved.y : 0,
+		sortOrder: 9999,
+		updatedAtMs: Date.now(),
+		meta: { [ SYNTH_META_KEY ]: tile.id },
+		file: {
+			type: 'shortcut',
+			ref: `dock-promoted:${ tile.id }`,
+			title: tile.title,
+			icon: tile.icon,
+			previewUrl: '',
+			exists: true,
+			shortcutSystemTile: tile.id,
+		},
+	} as RestPlacementShape;
 }
 
 /** Build a synthetic placement representing a promoted dock item. */
@@ -116,6 +156,20 @@ function readDockItems(): DockItemConfig[] {
 	const cfg = ( window as unknown as { openStationConfig?: DesktopConfig } )
 		.openStationConfig;
 	return cfg?.dockItems ?? [];
+}
+
+/**
+ * Read the system tiles that opted into per-item placement. Only the
+ * live dispatcher knows these — they carry no server-side entry.
+ */
+function readPlaceableSystemTiles(): PlaceableSystemTile[] {
+	const api = ( window as unknown as {
+		wp?: { os?: { listSystemTiles?: () => PlaceableSystemTile[] } };
+	} ).wp?.os;
+	if ( typeof api?.listSystemTiles !== 'function' ) {
+		return [];
+	}
+	return api.listSystemTiles().filter( ( t ) => t.placeable );
 }
 
 function readServerIcons(): DesktopIconServerEntry[] {
@@ -242,6 +296,20 @@ export function syncShortcutsWithVisibility(
 				if ( ! currentSynth.has( item.id ) ) {
 					filesApi.store.upsertPlacement(
 						buildSyntheticPlacement( item, positions ),
+					);
+				}
+			}
+		}
+		// Same for the system tiles that opted in. Their only native
+		// rail is the dock, so one lands here only once the user has
+		// asked for it.
+		for ( const tile of readPlaceableSystemTiles() ) {
+			const resolved = resolvePlacement( tile.id, 'dock', visibility );
+			if ( resolved === 'desktop' || resolved === 'both' ) {
+				desiredSynth.add( tile.id );
+				if ( ! currentSynth.has( tile.id ) ) {
+					filesApi.store.upsertPlacement(
+						buildSyntheticTilePlacement( tile, positions ),
 					);
 				}
 			}

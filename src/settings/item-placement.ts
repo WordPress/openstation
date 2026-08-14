@@ -41,16 +41,6 @@ export interface PlaceableItem {
 	nativeRail: NativeRail;
 	/** Resolved placement after applying the user's override (defaults if absent). */
 	placement: ItemVisibility;
-	/**
-	 * Whether the item can only ever live on the dock, so the picker
-	 * should offer just "on the dock" and "hidden".
-	 *
-	 * Set for **system tiles**: they are JS-owned shell affordances
-	 * attached straight to a rail, with no server-side icon entry for
-	 * the wallpaper grid to synthesize from. Offering "on the
-	 * desktop" would read as a placement and behave as a disappearance.
-	 */
-	dockOnly?: boolean;
 }
 
 /**
@@ -327,15 +317,7 @@ export function listPlaceableItems(
 			title: tile.title,
 			icon: tile.icon,
 			nativeRail: 'dock',
-			// Dock or hidden, nothing in between — the picker offers
-			// those two, so a stored `'desktop'` / `'both'` (written
-			// while the tile still had a desktop icon) has to read as
-			// dock rather than leave the row on a value it can't show.
-			placement:
-				resolvePlacement( tile.id, 'dock', visibility ) === 'hidden'
-					? 'hidden'
-					: 'dock',
-			dockOnly: true,
+			placement: resolvePlacement( tile.id, 'dock', visibility ),
 		} );
 	}
 

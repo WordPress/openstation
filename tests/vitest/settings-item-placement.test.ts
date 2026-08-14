@@ -73,50 +73,24 @@ describe( 'listPlaceableItems', () => {
 		] );
 	} );
 
-	test( 'a system tile row is dock-only', () => {
-		// No server-side icon entry exists for the wallpaper grid to
-		// synthesize from, so "on the desktop" would read as a
-		// placement and behave as a disappearance.
+	test( 'a system tile is dock-native, and can still be sent anywhere', () => {
+		// The dock is where it was registered, so that is its default.
+		// Every other placement is reachable: the files-layer sync
+		// promotes a placeable tile onto the wallpaper the same way it
+		// promotes a dock item.
 		const [ row ] = listPlaceableItems( [], [], {}, [ tile() ] );
-		expect( row.dockOnly ).toBe( true );
 		expect( row.nativeRail ).toBe( 'dock' );
-	} );
+		expect( row.placement ).toBe( 'dock' );
 
-	test( 'ordinary rows are not dock-only', () => {
-		const rows = listPlaceableItems( [ dockItem() ], [ icon() ], {} );
-		for ( const row of rows ) {
-			expect( row.dockOnly ).toBeUndefined();
-		}
-	} );
-
-	test( 'a system tile defaults to visible and honours an override', () => {
-		expect(
-			listPlaceableItems( [], [], {}, [ tile() ] )[ 0 ].placement,
-		).toBe( 'dock' );
-		expect(
-			listPlaceableItems(
-				[],
-				[],
-				{ 'os-mio-toggle': 'hidden' },
-				[ tile() ],
-			)[ 0 ].placement,
-		).toBe( 'hidden' );
-	} );
-
-	test( 'a dock-only row never resolves to a rail its picker omits', () => {
-		// A window that used to register a desktop icon leaves that
-		// icon's override behind. The picker offers dock and hidden, so
-		// anything else has to read as dock rather than leave the row
-		// showing a value it cannot display.
-		for ( const stale of [ 'desktop', 'both' ] as const ) {
+		for ( const pick of [ 'desktop', 'both', 'hidden' ] as const ) {
 			expect(
 				listPlaceableItems(
 					[],
 					[],
-					{ 'os-mio-toggle': stale },
+					{ 'os-mio-toggle': pick },
 					[ tile() ],
 				)[ 0 ].placement,
-			).toBe( 'dock' );
+			).toBe( pick );
 		}
 	} );
 

@@ -39,7 +39,7 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 | `term` | `OpenStation_Term_File` | `"<taxonomy>:<term_id>"` |
 | `comment` | `OpenStation_Comment_File` | comment id |
 | `folder` | `OpenStation_Folder_File` | folder row id (Phase 2) |
-| `shortcut` | `OpenStation_Shortcut_File` | shortcut id; serialized shape carries `shortcutWindow` (registered native-window id) or `shortcutUrl` |
+| `shortcut` | `OpenStation_Shortcut_File` | shortcut id; serialized shape carries `shortcutWindow` (registered native-window id) or `shortcutUrl`. Client-synthesized shortcuts for a promoted system tile carry `shortcutSystemTile` (the tile id) instead |
 | `bookmark` | `OpenStation_Bookmark_File` | URL string |
 | `link` | `OpenStation_Link_File` | URL string — opens in a new browser tab |
 | `embed` | `OpenStation_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
@@ -234,7 +234,7 @@ Three handler kinds:
 | `desktop-mode-link-opener` | `link` | `js` | Same as `browser-navigate`: server-sanitized `shape.url`, http/https re-validated, then `window.open(url, '_blank', 'noopener,noreferrer')`. |
 | `desktop-mode-embed-opener` | `embed` | `js` | Opens an iframe-backed window at `url`. Reads `placement.meta.window` for restored geometry, clamps it to the current desktop area, and persists subsequent drag-end / resize-end back to `placement.meta.window` via REST. |
 | `desktop-mode-folder-window` | `folder` | `js` | Opens a native folder window (breadcrumbs, tile grid, preview pane, status bar). |
-| `desktop-mode-shortcut-opener` | `shortcut` | `js` | Opens the shortcut's registered native window (`shortcutWindow`) or its URL (`shortcutUrl`) in a desktop window — external origins fall back to a new browser tab. |
+| `desktop-mode-shortcut-opener` | `shortcut` | `js` | Opens the shortcut's registered native window (`shortcutWindow`) or its URL (`shortcutUrl`) in a desktop window — external origins fall back to a new browser tab. A `shortcutSystemTile` shortcut runs that dock tile's own `onOpen` instead, so a tile that toggles rather than opens behaves the same on both surfaces. |
 
 The `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` openers are registered JS-side only — unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `openstation_get_file_openers()`.
 

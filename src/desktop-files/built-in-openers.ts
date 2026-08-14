@@ -528,9 +528,13 @@ export function registerBuiltInFileOpeners(): void {
 				const extras = file.shape as unknown as {
 					shortcutWindow?: string;
 					shortcutUrl?: string;
+					shortcutSystemTile?: string;
 				};
 				type OpenStationShape = {
 					openWindow?: ( id: string ) => unknown;
+					getSystemTile?: (
+						id: string,
+					) => { onOpen: () => void } | null;
 					windowManager?: {
 						open: ( cfg: Record< string, unknown > ) => unknown;
 					};
@@ -540,6 +544,16 @@ export function registerBuiltInFileOpeners(): void {
 					| { os?: OpenStationShape }
 					| undefined )?.os;
 				if ( ! wp ) {
+					return;
+				}
+				// A system tile promoted to the wallpaper. Run the
+				// tile's own opener rather than deriving a window from
+				// the shape: half of these don't open a window at all
+				// (Mio's toggles the companion), and routing through
+				// `onOpen` keeps the two copies of the tile honest —
+				// whatever the dock does, the wallpaper does.
+				if ( extras.shortcutSystemTile && wp.getSystemTile ) {
+					wp.getSystemTile( extras.shortcutSystemTile )?.onOpen();
 					return;
 				}
 				if ( extras.shortcutWindow && wp.openWindow ) {

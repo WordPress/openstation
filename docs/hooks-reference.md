@@ -2481,17 +2481,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
 
-The bin registers **no desktop icon**. It is a dock tile, and its `placeable` arg gives it a row in OpenStation Preferences → Apps & Plugins so a user can hide it. To put it back on the wallpaper, register your own icon against the window:
-
-```php
-add_action( 'init', function () {
-	openstation_register_icon( 'my-trash', array(
-		'title'    => __( 'Trash', 'my-plugin' ),
-		'icon_svg' => openstation_recycle_bin_icon_svg(),
-		'window'   => 'desktop-mode-recycle-bin',
-	) );
-}, 21 );
-```
+The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Apps & Plugins offers the wallpaper, both rails, or hidden, like any other item.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 

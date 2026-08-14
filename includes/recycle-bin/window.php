@@ -7,11 +7,11 @@
  * JS bundle enhances on first open — the table is populated from the
  * REST list endpoint at render time.
  *
- * The bin is a dock tile and nothing else. It used to also register a
- * wallpaper icon, which put the same target on two surfaces at once and
- * made the desktop something the shell furnished rather than something
- * the user did. Anyone who wants it back can drag it out of the dock, or
- * register their own icon against this window.
+ * The bin lands on the dock and nowhere else. It used to also register
+ * a wallpaper icon, which put the same target on two surfaces at once
+ * and made the desktop something the shell furnished rather than
+ * something the user did. That is a default, not a rule: the tile is
+ * `placeable`, so the wallpaper is one pick away in Apps & Plugins.
  *
  * The registration is filterable via `openstation_recycle_bin_window_args`
  * so a plugin can swap the icon, change the dimensions, or restrict who
@@ -279,8 +279,9 @@ function openstation_recycle_bin_register_window() {
 		// makes it one more app rather than the bottom of the pile.
 		'dock_order' => 40,
 		// The bin is the one dock tile a user can reasonably not want,
-		// so it gets a row in Apps & Plugins. It registers no desktop
-		// icon, so that row is its only control.
+		// so it gets a row in Apps & Plugins: dock (the default),
+		// desktop, both, or hidden. It registers no desktop icon, so
+		// that row is its only control.
 		'placeable'  => true,
 	);
 

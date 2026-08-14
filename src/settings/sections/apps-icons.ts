@@ -89,20 +89,6 @@ function getPlacementOptions(): PlacementOption[] {
 	];
 }
 
-/**
- * Options for a row that can only ever live on the dock.
- *
- * System tiles carry no server-side icon entry for the wallpaper grid
- * to synthesize from, so offering "on the desktop" would read as a
- * placement and behave as a disappearance.
- */
-function getDockOnlyOptions(): PlacementOption[] {
-	return [
-		{ id: 'dock', label: __( 'On the dock' ) },
-		{ id: 'hidden', label: __( 'Hidden' ) },
-	];
-}
-
 export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 	const wrapper = document.createElement( 'div' );
 
@@ -190,10 +176,7 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 												value=${ row.placement }
 												@os-pick=${ onPlacementChange( row.id ) }
 											>
-												${ ( row.dockOnly
-													? getDockOnlyOptions()
-													: getPlacementOptions()
-												).map(
+												${ getPlacementOptions().map(
 													( o ) =>
 														html`<os-option
 															value=${ o.id }
