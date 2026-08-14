@@ -75,6 +75,11 @@ function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
+		// Only read when `accent` is `custom`. Seeded with Pulse so
+		// picking Custom before touching the wheel is a no-op rather
+		// than a jump to black. Mirrors `DEFAULTS` in
+		// `src/settings/constants.ts`.
+		'customAccent'                => '#f252fc',
 		'dockSize'                    => 'default',
 		// `round` (16px), not the preset id literally named `default`.
 		// Preset ids are stored values and cannot be renamed, so the
@@ -336,6 +341,16 @@ function openstation_sanitize_os_settings( $raw ) {
 	$accent = isset( $raw['accent'] ) && is_string( $raw['accent'] ) && '' !== $raw['accent']
 		? sanitize_key( $raw['accent'] )
 		: $defaults['accent'];
+
+	// The colour behind the Custom swatch. A full `#rrggbb` triplet and
+	// nothing else: `sanitize_hex_color()` would also pass `#abc`, which
+	// the client-side parser rejects, and a value that survives the save
+	// only to be dropped on load is worse than one refused here.
+	$custom_accent = isset( $raw['customAccent'] )
+		&& is_string( $raw['customAccent'] )
+		&& preg_match( '/^#[0-9a-fA-F]{6}$/', $raw['customAccent'] )
+		? strtolower( $raw['customAccent'] )
+		: $defaults['customAccent'];
 
 	// Dock size — must be one of the three known values.
 	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPENSTATION_OS_SETTINGS_DOCK_SIZES, true )
@@ -774,6 +789,7 @@ function openstation_sanitize_os_settings( $raw ) {
 	return array(
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
+		'customAccent'                => $custom_accent,
 		'dockSize'                    => $dock_size,
 		'windowRadius'                => $window_radius,
 		'adminBarMode'                => $admin_bar_mode,
