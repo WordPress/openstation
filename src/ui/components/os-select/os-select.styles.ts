@@ -141,9 +141,24 @@ export const selectStyles = css`
 	 * keeps it attached inside scrolling panes; without the top
 	 * layer it can be clipped by an ancestor's overflow, which is
 	 * the accepted cost of the fallback.
+	 *
+	 * TWO rules, and that is the whole point. Chained into one
+	 * selector, an engine that has never heard of :popover-open throws
+	 * the whole thing out as invalid — and that is exactly the engine
+	 * on the fallback path, so every select on it rendered its option
+	 * list permanently open.
+	 *
+	 * Apart, the hide rule is valid everywhere and the re-show rule is
+	 * the one that gets dropped where it means nothing. Equal
+	 * specificity, so source order decides: hide unless the component
+	 * stamped data-open, then let an open popover out again.
 	 */
-	.os-select__popup:not( :popover-open ):not( [ data-open ] ) {
+	.os-select__popup:not( [ data-open ] ) {
 		display: none;
+	}
+
+	.os-select__popup:popover-open {
+		display: block;
 	}
 
 	.os-select__popup[ data-open ] {

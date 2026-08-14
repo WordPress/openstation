@@ -383,13 +383,33 @@ export class OsSettings implements SettingsCtx {
 		 * handed rather than given a twin for.
 		 */
 		const BRAND_ACCENT = '#f252fc';
-		if ( accentValue.toLowerCase() === BRAND_ACCENT ) {
+		const accentDim =
+			accentValue.toLowerCase() === BRAND_ACCENT
+				? null
+				: `color-mix( in srgb, ${ accentValue } 88%, #000 )`;
+		if ( accentDim === null ) {
 			root.style.removeProperty( '--os-ui-accent-dim' );
 		} else {
-			root.style.setProperty(
-				'--os-ui-accent-dim',
-				`color-mix( in srgb, ${ accentValue } 88%, #000 )`,
-			);
+			root.style.setProperty( '--os-ui-accent-dim', accentDim );
+		}
+		/*
+		 * And again on the shell, for the same reason `--os-window-radius`
+		 * is written twice below: a desktop theme declares its own
+		 * `--os-ui-accent` on `.os-shell[data-os-desktop-theme="…"]`,
+		 * which is a NEARER ancestor of every control than <body> is.
+		 * Legacy ships `#2271b1`, so with a theme worn the write above
+		 * reaches nothing inside the shell and picking Teal left every
+		 * control WordPress blue while the derived `-dim` wash went teal:
+		 * one pick, two answers, from the same click.
+		 *
+		 * An inline style on the shell outranks any selector, so the
+		 * user's pick is authoritative in both places.
+		 */
+		shell.style.setProperty( '--os-ui-accent', accentValue );
+		if ( accentDim === null ) {
+			shell.style.removeProperty( '--os-ui-accent-dim' );
+		} else {
+			shell.style.setProperty( '--os-ui-accent-dim', accentDim );
 		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );

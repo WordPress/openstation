@@ -418,13 +418,26 @@ export function setPanelTabs(
 	syncTabStripSemantics( strip );
 
 	// Pair each pane back to its tab for assistive tech.
+	//
+	// Unless there are no tabs to pair with. A caller can empty the
+	// strip — OS Settings does, having moved its nav into the panel
+	// body — and pointing every pane at the id of a chrome tab that no
+	// longer exists is worse than pointing at nothing: assistive tech
+	// resolves `aria-labelledby` to a missing element and the pane
+	// falls back to having no accessible name at all, with no way to
+	// tell that from a bug.
+	const paired = strip.querySelector( ':scope > .os-window__tab' ) !== null;
 	for ( const pane of panesIn( winEl ) ) {
 		const value = pane.getAttribute( 'for' );
 		if ( ! value ) {
 			continue;
 		}
 		pane.id = panelId( winEl, value );
-		pane.setAttribute( 'aria-labelledby', tabId( winEl, value ) );
+		if ( paired ) {
+			pane.setAttribute( 'aria-labelledby', tabId( winEl, value ) );
+		} else {
+			pane.removeAttribute( 'aria-labelledby' );
+		}
 	}
 
 	/*

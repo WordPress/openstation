@@ -666,7 +666,8 @@ body.os-active {
 	 * 45% to 30%, and onto the dim — which is the layer that was
 	 * making a focused control look like it was on fire.
 	 */
-	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9), 0 0 0 4px #f252fc,
+	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9),
+		0 0 0 4px var(--os-ui-accent, #f252fc),
 		0 0 12px 2px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent);
 	/*
 	 * …and one for FIELDS, which is a different problem. A text input
@@ -677,7 +678,7 @@ body.os-active {
 	 * outside it: unmistakable, and quiet enough to live in a stack of
 	 * twelve.
 	 */
-	--os-ui-focus-ring-field: 0 0 0 1px #f252fc,
+	--os-ui-focus-ring-field: 0 0 0 1px var(--os-ui-accent, #f252fc),
 		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
 
 	/*

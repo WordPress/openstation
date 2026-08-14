@@ -1516,9 +1516,16 @@
 		overflow-y: hidden;
 	}
 	/*
-	 * Back to a strip, so the group gap becomes horizontal. The rows
-	 * lose their vertical treatment with the orientation attribute the
-	 * component reads, so only the gap has to be restated here.
+	 * Back to a strip, so the group gap becomes horizontal.
+	 *
+	 * The rows KEEP their vertical treatment, which this rule cannot
+	 * reach: it is styled inside the component's shadow root off
+	 * `data-orientation`, and a container query has no way in there.
+	 * They are full-bleed 40px rows laid in a horizontal line, which
+	 * reads as a strip of wide chips rather than as the compact tab
+	 * strip this width wants. Fixing it properly means the component
+	 * choosing its own layout at a width, not the panel overriding it
+	 * from outside; only the gap is restated here.
 	 */
 	.os-settings > os-tabs > os-tab[ data-group-start='true' ] {
 		margin-top: 0;

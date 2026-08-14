@@ -2498,11 +2498,10 @@ function init(): void {
 			initialPlacement,
 		);
 		// Constellation — the hover-submenu flyout. Mounted once and
-		// left mounted: it is a single delegated listener that
-		// self-gates on `data-os-layout`, so a user flipping between
-		// layouts never needs it re-wired, and a user who never picks
-		// the OpenStation layout pays for one `pointerover` handler
-		// that early-returns on its first line.
+		// left mounted: it is a single delegated listener serving every
+		// menu tile on every rail, and it reads the direction to fan in
+		// off the rail the tile is on, so a user flipping between
+		// layouts or dock placements never needs it re-wired.
 		mountDockConstellation( {
 			windowManager: manager,
 			adminUrl: config.adminUrl,

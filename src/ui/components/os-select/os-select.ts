@@ -263,6 +263,19 @@ export class OsSelect extends Component {
 		this._optionObserver?.disconnect();
 		this._optionObserver = null;
 		this._teardownDismiss();
+		/*
+		 * Leave detached CLOSED. The listeners went with
+		 * `_teardownDismiss()` and the popup left the top layer with the
+		 * node, so a lingering `_open` describes nothing that is still
+		 * on screen — but `_show()` early-returns on it, so the next
+		 * click after a re-attach only got as far as closing something
+		 * already closed. Two clicks to open a select, once.
+		 */
+		this._open = false;
+		if ( this._typedTimer ) {
+			clearTimeout( this._typedTimer );
+			this._typedTimer = null;
+		}
 	}
 
 	protected render() {
