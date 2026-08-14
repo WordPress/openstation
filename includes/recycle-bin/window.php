@@ -1,16 +1,21 @@
 <?php
 /**
- * OpenStation — Recycle Bin: window + icon registration.
+ * OpenStation — Recycle Bin: window registration.
  *
- * Native window with id `desktop-mode-recycle-bin`, pinned to the taskbar with a
- * matching wallpaper icon. Like the code editor, the template body is a
- * static skeleton that the JS bundle enhances on first open — the table
- * is populated from the REST list endpoint at render time.
+ * Native window with id `desktop-mode-recycle-bin`, pinned to the dock.
+ * Like the code editor, the template body is a static skeleton that the
+ * JS bundle enhances on first open — the table is populated from the
+ * REST list endpoint at render time.
  *
- * Both registrations are filterable via the standard
- * `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args`
- * filters so a plugin can swap the icon, change the dimensions, or
- * restrict who sees the bin without touching this file.
+ * The bin is a dock tile and nothing else. It used to also register a
+ * wallpaper icon, which put the same target on two surfaces at once and
+ * made the desktop something the shell furnished rather than something
+ * the user did. Anyone who wants it back can drag it out of the dock, or
+ * register their own icon against this window.
+ *
+ * The registration is filterable via `openstation_recycle_bin_window_args`
+ * so a plugin can swap the icon, change the dimensions, or restrict who
+ * sees the bin without touching this file.
  *
  * @package OpenStation
  */
@@ -18,7 +23,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The shared bin SVG used by the window icon and the desktop icon.
+ * The bin SVG, used by the window icon and its dock tile.
  *
  * The bin used to be `dashicons-trash`, which worked but wore the
  * wrong clothes. Dashicons are WP core's icon set: solid fills on a
@@ -245,7 +250,7 @@ function openstation_recycle_bin_user_can_use() {
 }
 
 /**
- * Register the recycle bin window + desktop icon on `init`.
+ * Register the recycle bin window on `init`.
  *
  * Hooked at priority 20, after `components.php` has bootstrapped the
  * native-window registry — same timing as the code editor.
@@ -273,6 +278,10 @@ function openstation_recycle_bin_register_window() {
 		// dock reads left to right: putting it anywhere but the end
 		// makes it one more app rather than the bottom of the pile.
 		'dock_order' => 40,
+		// The bin is the one dock tile a user can reasonably not want,
+		// so it gets a row in Apps & Plugins. It registers no desktop
+		// icon, so that row is its only control.
+		'placeable'  => true,
 	);
 
 	/**
@@ -286,24 +295,7 @@ function openstation_recycle_bin_register_window() {
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Recycle bin window registration failed: ' . $registered->get_error_message() );
-		return;
 	}
-
-	$icon_args = array(
-		'title'    => __( 'Trash', 'desktop-mode' ),
-		'icon_svg' => openstation_recycle_bin_icon_svg(),
-		'window'   => 'desktop-mode-recycle-bin',
-		'position' => 80,
-	);
-
-	/**
-	 * Filter the args used to register the recycle bin desktop icon.
-	 *
-	 * @param array $icon_args Args passed to `openstation_register_icon()`.
-	 */
-	$icon_args = (array) apply_filters( 'openstation_recycle_bin_icon_args', $icon_args );
-
-	openstation_register_icon( 'desktop-mode-recycle-bin', $icon_args );
 }
 add_action( 'init', 'openstation_recycle_bin_register_window', 20 );
 
@@ -338,9 +330,9 @@ add_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config', 
 
 /**
  * Inject the initial trash count and both bin drawings into the
- * shell config, so the dock/taskbar tile and the desktop icon show
- * the right one on the very first paint, before the bin window has
- * ever opened.
+ * shell config, so the dock tile (and any icon a user or plugin has
+ * placed against this window) shows the right one on the very first
+ * paint, before the bin window has ever opened.
  *
  * Both drawings travel together rather than the server picking one:
  * the count changes without a reload, and shipping the pair makes

@@ -789,6 +789,12 @@ export interface NativeWindowServerEntry {
 	 * launcher belongs. Trash sets 40 to sit at the very end.
 	 */
 	dockOrder?: number;
+	/**
+	 * Whether the dock tile gets a row in OpenStation Preferences →
+	 * Apps & Plugins so the user can hide it. Absent/false for the
+	 * load-bearing majority.
+	 */
+	placeable?: boolean;
 	/** Initial window dimensions in px. */
 	width: number;
 	height: number;

@@ -102,6 +102,17 @@ defined( 'ABSPATH' ) || exit;
  *                                  is not something a plugin controls:
  *                                  tiles land when their lazy script
  *                                  resolves.
+ *     @type bool     $placeable    Whether the dock tile gets a row in
+ *                                  OpenStation Preferences → Apps &
+ *                                  Plugins, so the user can hide it.
+ *                                  Default false, because most tiles
+ *                                  are load-bearing. Opt in for a
+ *                                  window the user can reasonably do
+ *                                  without. Only offer this on a
+ *                                  window that registers no desktop
+ *                                  icon: the icon already owns the
+ *                                  row, and its own picker offers the
+ *                                  wallpaper as well as the dock.
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
  *                                  `WP_Error openstation_capability_denied`.
@@ -170,6 +181,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_height'       => 220,
 		'placement'        => 'dock',
 		'dock_order'       => 0,
+		'placeable'        => false,
 		'capabilities'     => array(),
 		'autofocus'        => false,
 		'main_tab_label'   => '',
@@ -233,6 +245,7 @@ function openstation_register_window( $id, $args = array() ) {
 		// cluster — Mio 10, Overview 20, System 30 — which is where a
 		// launcher belongs. Trash uses 40 to sit at the very end.
 		'dock_order'       => (int) $args['dock_order'],
+		'placeable'        => (bool) $args['placeable'],
 		'autofocus'        => $args['autofocus'],
 		'main_tab_label'   => (string) $args['main_tab_label'],
 		// Stored as-is (string or int). `openstation_build_native_window_template_html`

@@ -2391,7 +2391,7 @@ for an end-to-end third-party recipe.
 
 ## Trash
 
-The window and desktop icon are titled **Trash** — WordPress's own word for deleted content. The module directory, window id (`desktop-mode-recycle-bin`), REST routes, and every hook below keep the `recycle_bin` slug, so nothing a plugin binds to moves.
+The window and its dock tile are titled **Trash** — WordPress's own word for deleted content. The module directory, window id (`desktop-mode-recycle-bin`), REST routes, and every hook below keep the `recycle_bin` slug, so nothing a plugin binds to moves.
 
 The Trash stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
 
@@ -2477,9 +2477,21 @@ The total surfaced to the dock/icon badge. `$total` defaults to `$post_count + $
 apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int $comment_count, int $files_count );
 ```
 
-### `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args` — Experimental (filter)
+### `openstation_recycle_bin_window_args` — Experimental (filter)
 
-Tweak the args passed to `openstation_register_window()` / `openstation_register_icon()` for the bin — useful to change dimensions, swap the icon, or move the window from the taskbar to the dock. The bin ships its own silhouette (`openstation_recycle_bin_icon_svg()`), so the icon args carry `icon_svg` rather than a dashicon class; replace that key, not `icon`, when substituting your own art.
+Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
+
+The bin registers **no desktop icon**. It is a dock tile, and its `placeable` arg gives it a row in OpenStation Preferences → Apps & Plugins so a user can hide it. To put it back on the wallpaper, register your own icon against the window:
+
+```php
+add_action( 'init', function () {
+	openstation_register_icon( 'my-trash', array(
+		'title'    => __( 'Trash', 'my-plugin' ),
+		'icon_svg' => openstation_recycle_bin_icon_svg(),
+		'window'   => 'desktop-mode-recycle-bin',
+	) );
+}, 21 );
+```
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 

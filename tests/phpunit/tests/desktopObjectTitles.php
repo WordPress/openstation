@@ -37,14 +37,44 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	/**
 	 * @covers ::openstation_recycle_bin_register_window
 	 */
-	public function test_recycle_bin_window_and_icon_are_titled_trash() {
+	public function test_recycle_bin_window_is_titled_trash() {
 		openstation_recycle_bin_register_window();
 
 		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
-		$icon  = openstation_desktop_icon_registry( 'desktop-mode-recycle-bin' );
 
 		$this->assertSame( 'Trash', $entry['title'] );
-		$this->assertSame( 'Trash', $icon['title'] );
+	}
+
+	/**
+	 * The bin is a dock tile and nothing else — a desktop icon is
+	 * something the user put there, not something the shell hands out.
+	 *
+	 * @covers ::openstation_recycle_bin_register_window
+	 */
+	public function test_recycle_bin_registers_no_desktop_icon() {
+		// The registry is a process-static store, and the plugin's own
+		// `init` has already run by the time the suite starts.
+		openstation_unregister_icon( 'desktop-mode-recycle-bin' );
+
+		openstation_recycle_bin_register_window();
+
+		$this->assertNull(
+			openstation_desktop_icon_registry( 'desktop-mode-recycle-bin' )
+		);
+	}
+
+	/**
+	 * Losing the icon would leave the tile with no control at all, so
+	 * the window opts into the Apps & Plugins list on its own.
+	 *
+	 * @covers ::openstation_recycle_bin_register_window
+	 */
+	public function test_recycle_bin_tile_is_placeable() {
+		openstation_recycle_bin_register_window();
+
+		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
+
+		$this->assertTrue( $entry['placeable'] );
 	}
 
 	/**
@@ -197,23 +227,22 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The bin ships its own art now rather than falling back to
-	 * `dashicons-trash`, and both surfaces have to agree: a window
-	 * whose title bar disagrees with its tile reads as two apps.
+	 * The bin ships its own art rather than falling back to
+	 * `dashicons-trash`, and the title bar and the dock tile read it
+	 * from the same place: a window whose title bar disagrees with its
+	 * tile reads as two apps.
 	 *
 	 * @covers ::openstation_recycle_bin_register_window
 	 */
-	public function test_recycle_bin_uses_its_own_svg_on_both_surfaces() {
+	public function test_recycle_bin_uses_its_own_svg() {
 		openstation_recycle_bin_register_window();
 
 		$entry = openstation_native_window_registry( 'desktop-mode-recycle-bin' );
-		$icon  = openstation_desktop_icon_registry( 'desktop-mode-recycle-bin' );
 
 		$expected = 'data:image/svg+xml;base64,'
 			. base64_encode( openstation_recycle_bin_icon_svg() );
 
 		$this->assertSame( $expected, $entry['icon'] );
-		$this->assertSame( $expected, $icon['icon'] );
 	}
 
 	/**

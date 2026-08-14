@@ -103,6 +103,23 @@ describe( 'listPlaceableItems', () => {
 		).toBe( 'hidden' );
 	} );
 
+	test( 'a dock-only row never resolves to a rail its picker omits', () => {
+		// A window that used to register a desktop icon leaves that
+		// icon's override behind. The picker offers dock and hidden, so
+		// anything else has to read as dock rather than leave the row
+		// showing a value it cannot display.
+		for ( const stale of [ 'desktop', 'both' ] as const ) {
+			expect(
+				listPlaceableItems(
+					[],
+					[],
+					{ 'os-mio-toggle': stale },
+					[ tile() ],
+				)[ 0 ].placement,
+			).toBe( 'dock' );
+		}
+	} );
+
 	test( 'an id shared with a system tile yields one row, the tile’s', () => {
 		// System tiles are listed first, so the guard has to be the
 		// `seen` set rather than registration order: whichever source

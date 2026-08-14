@@ -327,7 +327,14 @@ export function listPlaceableItems(
 			title: tile.title,
 			icon: tile.icon,
 			nativeRail: 'dock',
-			placement: resolvePlacement( tile.id, 'dock', visibility ),
+			// Dock or hidden, nothing in between — the picker offers
+			// those two, so a stored `'desktop'` / `'both'` (written
+			// while the tile still had a desktop icon) has to read as
+			// dock rather than leave the row on a value it can't show.
+			placement:
+				resolvePlacement( tile.id, 'dock', visibility ) === 'hidden'
+					? 'hidden'
+					: 'dock',
 			dockOnly: true,
 		} );
 	}

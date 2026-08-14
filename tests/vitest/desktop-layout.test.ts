@@ -794,7 +794,12 @@ describe( 'desktop-layout dispatcher', () => {
 			).toContain( gamesTile.id );
 		} );
 
-		test( 'a "desktop"-only override also keeps the tile off the dock', () => {
+		test( 'a "desktop" override on an icon-less tile leaves it on the dock', () => {
+			// The dock is the only rail this tile has, so reading
+			// "desktop" as "not on the dock" would leave it nowhere at
+			// all — which is what a stored override does after a window
+			// stops registering its desktop icon. Its picker offers dock
+			// and hidden, so the value is not reachable again either.
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
 					itemVisibility: { 'desktop-mode-games': 'desktop' },
@@ -806,6 +811,38 @@ describe( 'desktop-layout dispatcher', () => {
 				'unified',
 				[ dashboard, yoast ],
 				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			expect(
+				document
+					.getElementById( 'os-dock' )!
+					.querySelector( tileSelector ),
+			).not.toBeNull();
+		} );
+
+		test( 'a "desktop" override DOES take the tile off the dock when an icon backs it', () => {
+			// Here the wallpaper icon is a real destination, so the pick
+			// means what it says.
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'games-icon': 'desktop' },
+					dockOrder: [],
+				} ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[
+					{
+						id: 'games-icon',
+						title: 'Games',
+						icon: 'dashicons-games',
+						window: 'desktop-mode-games',
+						url: '',
+						position: 85,
+					},
+				],
 			);
 			dispatcher.appendSystemTile( gamesTile );
 			expect(

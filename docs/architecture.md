@@ -176,6 +176,8 @@ Registered via `openstation_register_window()` (PHP) or `wp.os.registerWindow()`
 
 Additional tabs can be attached to any native window with `openstation_register_window_tab()` — the first tab is the window's own template, and subsequent registrations (from any plugin) append after it. When two or more tabs exist the shell auto-wraps the render tree in `<os-stack>` + `<os-tabs>` so plugin authors don't hand-write tabstrip markup.
 
+A window registered with `'placement' => 'dock'` lands on the rail as a **system tile**, which the Apps & Plugins settings tab does not list — most of those tiles are load-bearing, and OpenStation Preferences is how you reach the screen that would hide it. Pass `'placeable' => true` to opt one in; it gets a row offering **On the dock** or **Hidden**, and nothing else, because a system tile has no wallpaper entry for the icon grid to synthesize from. Only offer it on a window that registers no desktop icon: the icon already carries a row (keyed by icon id, and reached by the tile through the same key), and that row's picker covers the wallpaper too. The Trash is the shipped example.
+
 The shell's own **OpenStation Preferences** native window (wallpaper / accent / dock-size / AI config / default-window) is both a shipped feature and the reference implementation. Lifecycle hooks — `os.native-window.before-render` (filter), `after-render`, `before-close` — let a plugin decorate or wrap another plugin's render output.
 
 #### Eager vs lazy script load — and what gets injected

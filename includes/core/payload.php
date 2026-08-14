@@ -1718,6 +1718,7 @@ function openstation_build_native_windows_payload() {
 			// Sort key among system tiles. Absent / 0 puts a plugin's
 			// launcher ahead of the shell's own trailing cluster.
 			'dockOrder'          => isset( $entry['dock_order'] ) ? (int) $entry['dock_order'] : 0,
+			'placeable'          => ! empty( $entry['placeable'] ),
 			'width'              => $entry['width'],
 			'height'             => $entry['height'],
 			'minWidth'           => $entry['min_width'],

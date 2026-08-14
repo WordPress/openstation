@@ -314,18 +314,32 @@ export function createLayoutDispatcher(
 	 * window when one exists (the Apps & Plugins tab keys its rows by
 	 * icon id), falling back to the tile's own id. No override means
 	 * the tile stays on its native dock rail.
+	 *
+	 * A tile with NO desktop icon has only one rail to be on, so only
+	 * `'hidden'` takes it off. Reading `'desktop'` as "not on the dock"
+	 * would leave it with nowhere to render at all — which is exactly
+	 * what a stored override does after a window stops registering an
+	 * icon (the Trash did). The picker for those rows offers dock and
+	 * hidden and nothing else, so the value can't be reached again.
 	 */
 	const isSystemTileDockVisible = ( tileId: string ): boolean => {
 		const visibility = readSettings().itemVisibility;
 		let override = visibility[ tileId ];
+		let hasIcon = false;
 		for ( const icon of serverIcons ) {
-			if ( icon.window === tileId && visibility[ icon.id ] ) {
-				override = visibility[ icon.id ];
+			if ( icon.window === tileId ) {
+				hasIcon = true;
+				if ( visibility[ icon.id ] ) {
+					override = visibility[ icon.id ];
+				}
 				break;
 			}
 		}
 		if ( ! override ) {
 			return true;
+		}
+		if ( ! hasIcon ) {
+			return override !== 'hidden';
 		}
 		return override === 'dock' || override === 'both';
 	};
