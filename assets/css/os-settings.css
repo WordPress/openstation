@@ -633,6 +633,16 @@
 	margin-top: 14px;
 }
 
+/*
+ * Dock size, under both cards rather than inside one: both layouts
+ * have a dock. Off the grid entirely, so it clears the taller card
+ * rather than sitting beside it, and on the section's own rhythm
+ * rather than the card's tighter one.
+ */
+.os-settings__dock-options--page {
+	margin-top: 20px;
+}
+
 .os-settings__dock-option {
 	display: flex;
 	flex-direction: column;

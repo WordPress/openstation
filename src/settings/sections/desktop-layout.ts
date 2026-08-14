@@ -140,11 +140,11 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	/*
-	 * Only Unified carries the dock options: Split draws its own
-	 * rails on its own edges, so a position control in its card would
-	 * point at an edge nothing reads.
+	 * Placement belongs to the Unified card, and only there: Split
+	 * draws its rails on its own edges, so a position control in its
+	 * card would point at an edge nothing reads.
 	 */
-	const dockOptions = () =>
+	const placementOption = () =>
 		html`<div class="os-settings__dock-options">
 					<div class="os-settings__dock-option">
 						<span
@@ -167,11 +167,29 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 							) }
 						</os-segmented>
 					</div>
+			  </div>`;
+
+	/*
+	 * Dock size sits BELOW the cards, outside both of them, because
+	 * both layouts have a dock: Split's bottom rail sizes off
+	 * `--os-dock-width` exactly as Unified's does. Inside the Unified
+	 * card it was a control that applied to a layout it could not be
+	 * reached from.
+	 *
+	 * Which is also why it says "Dock size" again out here. Inside the
+	 * card the heading above it supplied the noun and "Size" was
+	 * enough; on its own under two cards, it has to name what it
+	 * sizes.
+	 */
+	const sizeOption = () =>
+		html`<div
+					class="os-settings__dock-options os-settings__dock-options--page"
+				>
 					<div class="os-settings__dock-option">
 						<span
 							class="os-settings__dock-option-label"
 							id="os-settings-dock-size-label"
-							>${ __( 'Size' ) }</span
+							>${ __( 'Dock size' ) }</span
 						>
 						<os-segmented
 							value=${ ctx.state.dockSize }
@@ -241,11 +259,12 @@ export function buildDesktopLayoutSection( ctx: SettingsCtx ): HTMLElement {
 									>
 								</button>
 								${ l.id === 'unified' && selected
-									? dockOptions()
+									? placementOption()
 									: html`` }
 							</div>`;
 						} ) }
 					</div>
+					${ sizeOption() }
 				</os-section>
 			`,
 			wrapper,
