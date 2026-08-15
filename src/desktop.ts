@@ -30,6 +30,7 @@ import {
 	registerNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
+import type { NativeUrlRemap } from './native-url-remap';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
@@ -1799,6 +1800,57 @@ export interface OpenStationPublicApi {
 	 */
 	getWindowConfig: < T = Record< string, unknown > >( id: string ) => T | undefined;
 	/**
+	 * What an open window is showing right now — its open-time
+	 * params, live.
+	 *
+	 * `openWindow( id, { params } )` sets them and a render callback
+	 * receives them as `ctx.params`, which is the right way to read
+	 * them when you have a render callback. This is for when you
+	 * don't: a window whose body is a declarative PHP template, a
+	 * module that mounts later, code reacting to a retarget from
+	 * outside a `HOOKS.WINDOW_REOPENED` subscriber.
+	 *
+	 * ```js
+	 * const { formId } = wp.os.getWindowParams( 'my-forms' ) ?? {};
+	 * ```
+	 *
+	 * Returns a copy — mutating it retargets nothing. `undefined`
+	 * when no window with that id is open; `{}` when one is open and
+	 * was never given params.
+	 */
+	getWindowParams: (
+		id: string,
+	) => Record< string, string | number | boolean > | undefined;
+	/**
+	 * Claim an admin URL for a native window.
+	 *
+	 * When anything in the shell would open `url` — a dock tile, an
+	 * in-window link, a desktop shortcut, a Related-menu item, a
+	 * portal deep link — the remap registry is consulted first, and
+	 * a match opens the native window instead of an iframe of the
+	 * classic page. This is how Posts, Pages, Users and Media claim
+	 * `edit.php`, `users.php` and `upload.php`, and it is the same
+	 * registry a plugin's own native replacement should join.
+	 *
+	 * ```js
+	 * wp.os.registerNativeUrlRemap( {
+	 *     id: 'my-plugin/entries',
+	 *     nativeWindowId: 'my-plugin-entries',
+	 *     matches: ( url, parsed ) =>
+	 *         parsed.pathname.endsWith( '/admin.php' ) &&
+	 *         parsed.searchParams.get( 'page' ) === 'my-entries',
+	 *     params: ( url, parsed ) => ( {
+	 *         formId: Number( parsed.searchParams.get( 'form' ) ) || 0,
+	 *     } ),
+	 * } );
+	 * ```
+	 *
+	 * Returns an unregister function. Re-registering the same `id`
+	 * replaces the previous entry; the walker stops at the first
+	 * match in registration order.
+	 */
+	registerNativeUrlRemap: ( entry: NativeUrlRemap ) => () => void;
+	/**
 	 * Read-only diagnostics surface. Plugin authors integrating with
 	 * openstation use these to answer "what state does the framework
 	 * think my window is in?" without inventing one-off probes from
@@ -3363,6 +3415,24 @@ function init(): void {
 	bootRelatedEntities( {
 		manager,
 		openUrl: ( item ) => {
+			// A named native window is the unambiguous destination:
+			// no URL to invent, no remap to match it back, and the
+			// params travel as params rather than as query string.
+			// Falls through when nothing is registered under the id,
+			// so an item that carries both still opens its page if
+			// the window's plugin is gone.
+			if (
+				item.windowId &&
+				nativeWindows.openById( item.windowId, {
+					source: 'related-entities',
+					...( item.params ? { params: item.params } : {} ),
+				} )
+			) {
+				return;
+			}
+			if ( ! item.url ) {
+				return;
+			}
 			// Honour native-window remaps first — same as the shell's
 			// link interceptor. When the viewer has opted into a native
 			// window that claims this URL (e.g. Comments for

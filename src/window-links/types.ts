@@ -44,8 +44,46 @@ export interface RelatedEntityItem {
 	label: string;
 	/** Dashicons class painted before the label. */
 	icon?: string;
-	/** Admin URL the item opens (as its own desktop window). */
-	url: string;
+	/**
+	 * Admin URL the item opens (as its own desktop window).
+	 *
+	 * Consulted against the native-URL remap registry first, so a
+	 * URL a native window has claimed opens that window rather than
+	 * an iframe of the classic page.
+	 *
+	 * Optional only when {@link windowId} is given — an item has to
+	 * name a destination one way or the other.
+	 */
+	url?: string;
+	/**
+	 * Native window to open instead of a URL.
+	 *
+	 * A native window has no admin URL, so before this the only way
+	 * to point a related item at one was to register an admin URL
+	 * for it, remap that URL back to the window, and encode any
+	 * scoping into the query string on the way through. Name it
+	 * directly:
+	 *
+	 * ```js
+	 * { id: 'entries', group: 'forms', label: 'Entries for this form',
+	 *   windowId: 'my-plugin-entries', params: { formId: 42 } }
+	 * ```
+	 *
+	 * Takes precedence over `url` when both are present. Falls back
+	 * to `url` when no window is registered under this id — a plugin
+	 * whose native window is gone still opens its admin page.
+	 */
+	windowId?: string;
+	/**
+	 * Open-time params for {@link windowId} — what the window should
+	 * be showing. Ignored for URL destinations, which carry their
+	 * scoping in the query string.
+	 *
+	 * Persisted with the session like any other window params, so
+	 * the window comes back on the same subject after a reload. See
+	 * `WindowConfig.params`.
+	 */
+	params?: Record< string, string | number | boolean >;
 	/** Optional count rendered after the label (comment total). */
 	count?: number;
 }

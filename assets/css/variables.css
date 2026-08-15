@@ -387,6 +387,31 @@ body.os-active {
 	--os-ui-bg: #1a1721;
 	--os-ui-bg-subtle: rgba(255, 251, 255, 0.03);
 
+	/*
+	 * Fields — the surface an input paints, for markup in the LIGHT
+	 * DOM.
+	 *
+	 * The kit's own controls don't need these: `<os-text-field>` and
+	 * friends resolve `--os-window-bg` inside their shadow roots,
+	 * which the window chrome sets. A plugin writing a plain
+	 * `<input>` into a native window's body has neither, and the
+	 * palette had no general answer — no `surface` variant means
+	 * "input". What it had was `--os-ui-modal-field-bg`, which is a
+	 * MODAL token: right value, wrong scope, and the sort of thing a
+	 * plugin author finds by grepping for a colour that looks close.
+	 *
+	 * Consumers keep the pre-brand WordPress-admin literals as their
+	 * fallbacks — `#fff`, `#8c8f94`, `#2c3338` — so an unstyled page
+	 * lands on the classic admin's own field, not on nothing:
+	 *
+	 *     background: var( --os-ui-field-bg, #fff );
+	 *     border: 1px solid var( --os-ui-field-border, #8c8f94 );
+	 *     color: var( --os-ui-field-fg, #2c3338 );
+	 */
+	--os-ui-field-bg: #33303a;
+	--os-ui-field-border: #4d4a52;
+	--os-ui-field-fg: #fffbff;
+
 	/* Text — Starlight down through the Shade ramp. */
 	--os-ui-fg: #fffbff;
 	--os-ui-fg-muted: #b3afb5;

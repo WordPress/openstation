@@ -173,6 +173,46 @@ describe( 'resolveRelatedItems', () => {
 		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ ITEM ] );
 	} );
 
+	test( 'an item may name a native window instead of a URL', async () => {
+		const { resolveRelatedItems, setWindowContent } = await load();
+		setWindowContent( 'w1', { type: 'post', id: 1, related: [] } );
+
+		// A native window has no admin URL. Before `windowId`, the
+		// only way to point here was to register a URL for the
+		// window, remap that URL back to it, and encode the scoping
+		// into a query string on the way through.
+		const native = {
+			id: 'entries',
+			group: 'forms',
+			label: 'Entries for this form',
+			windowId: 'my-plugin-entries',
+			params: { formId: 42 },
+		};
+		hooks.addFilter(
+			HOOKS.RELATED_ENTITIES_ITEMS,
+			'vitest/native',
+			( items ) => [ ...( items as RelatedEntityItem[] ), native ],
+		);
+
+		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ native ] );
+	} );
+
+	test( 'an item with neither url nor windowId is dropped', async () => {
+		const { resolveRelatedItems, setWindowContent } = await load();
+		setWindowContent( 'w1', { type: 'post', id: 1, related: [ ITEM ] } );
+
+		hooks.addFilter(
+			HOOKS.RELATED_ENTITIES_ITEMS,
+			'vitest/nowhere',
+			( items ) => [
+				...( items as RelatedEntityItem[] ),
+				{ id: 'x', group: 'g', label: 'Goes nowhere' },
+			],
+		);
+
+		expect( resolveRelatedItems( 'w1' ) ).toEqual( [ ITEM ] );
+	} );
+
 	test( 'a non-array filter return falls back to the identity list', async () => {
 		const { resolveRelatedItems, setWindowContent } = await load();
 		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );

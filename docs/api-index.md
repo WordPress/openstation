@@ -36,6 +36,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `confirm` | `( opts: OsConfirmOptions ) => Promise<boolean>` *(replaces `window.confirm`)* | Stable |
 | `notify` | `( opts: NotifyOptions ) => () => void` *(local notification w/ fallback; returns a dismiss function)* | Stable |
 | [`loadComponents`](./javascript-reference.md#wposloadcomponents-tags---stable) | `( tags?: readonly string[] ) => Promise<void>` *(make `<os-*>` tags upgrade; the runtime route to the kit for plugins that can't import it)* | **Stable** |
+| [`getWindowParams`](./javascript-reference.md#wposgetwindowparams-id---stable) | `( id: string ) => Record<string, string \| number \| boolean> \| undefined` *(what an open window is showing now)* | **Stable** |
+| [`registerNativeUrlRemap`](./javascript-reference.md#wposregisternativeurlremap-entry---stable) | `( entry: NativeUrlRemap ) => () => void` *(claim an admin URL for a native window)* | **Stable** |
 
 ### Window management
 

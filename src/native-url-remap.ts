@@ -11,11 +11,11 @@
  * matches.
  *
  * The registry is intentionally tiny: a list of entries, a snapshot
- * accessor, and a single `tryRemap()` walker. No event bus, no public
- * surface — the consumers (`Dock.openPage`, the portal's deep-link
- * opener) import the functions directly. Plugins can hook the public
- * `wp.os.registerNativeUrlRemap()` (added later) when they ship
- * their own native replacements.
+ * accessor, and a single `tryRemap()` walker. No event bus — the
+ * in-tree consumers (`Dock.openPage`, the portal's deep-link opener)
+ * import the functions directly, and plugins shipping their own
+ * native replacement call `wp.os.registerNativeUrlRemap()`, which
+ * hands out {@link registerNativeUrlRemap} unchanged.
  *
  * Why a singleton instead of constructor-injected callbacks: the Dock
  * is constructed by every dock-rail renderer (default, custom plugin

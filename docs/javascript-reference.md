@@ -23,6 +23,8 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 | [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
 | [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
+| [`wp.os.getWindowParams( id )`](#wposgetwindowparams-id---stable) | What an open window is showing right now — for code with no render callback to read `ctx.params` from. | **Stable** |
+| [`wp.os.registerNativeUrlRemap( entry )`](#wposregisternativeurlremap-entry---stable) | Claim an admin URL for a native window, so every open path in the shell routes to it instead of an iframe. | **Stable** |
 
 ---
 
@@ -1276,6 +1278,71 @@ With no argument the whole kit loads.
 Tag names that aren't components are reported with a `console.error` naming them, and don't stop the rest of the call. Rejects only when the bundle was needed and the fetch failed — a page with no `componentsBundleUrl` configured resolves instead, leaving the [missing-import warner](./components-reference.md) to name any tag that stayed inert.
 
 The registry is page-global, so a tag another bundle already registered is simply used; nothing is loaded twice and `customElements.define()` is never called for a tag that exists.
+
+---
+
+### `wp.os.getWindowParams( id )` — Stable
+
+What an open window is showing right now.
+
+```typescript
+wp.os.getWindowParams( id: string ): Record< string, string | number | boolean > | undefined;
+```
+
+`openWindow( id, { params } )` sets them, and a render callback receives the same object as `ctx.params` — that is the right way to read them when you have a render callback. This is for when you don't:
+
+- a window whose body is a declarative PHP `<template>` with no render callback to hand them to;
+- a module that mounts after the render callback already ran;
+- code reacting to a retarget from outside a `HOOKS.WINDOW_REOPENED` subscriber.
+
+```javascript
+const { formId } = wp.os.getWindowParams( 'my-plugin-entries' ) ?? {};
+```
+
+Returns a **copy**, so mutating it retargets nothing — to change what a window is showing, reopen it with new params. `undefined` when no window with that id is open; `{}` when one is open and was never given any.
+
+The manager holds the live copy and writes it *before* the reopen event fires, so this and `ctx.params` never disagree.
+
+---
+
+### `wp.os.registerNativeUrlRemap( entry )` — Stable
+
+Claim an admin URL for a native window.
+
+```typescript
+wp.os.registerNativeUrlRemap( entry: NativeUrlRemap ): () => void;
+```
+
+When anything in the shell would open that URL — a dock tile, an in-window link, a desktop shortcut, a Related-menu item, a portal deep link — the remap registry is consulted first, and a match opens the native window instead of an iframe of the classic page. This is how Posts, Pages, Users and Media claim `edit.php`, `users.php` and `upload.php`; a plugin shipping its own native replacement joins the same registry.
+
+```javascript
+const unregister = wp.os.registerNativeUrlRemap( {
+    id: 'my-plugin/entries',
+    nativeWindowId: 'my-plugin-entries',
+    matches: ( url, parsed ) =>
+        parsed.pathname.endsWith( '/admin.php' ) &&
+        parsed.searchParams.get( 'page' ) === 'my-entries',
+    // What the window should show. Prefer this over stashing state
+    // in a module variable: params persist with the session, so the
+    // window comes back on the same subject after a reload.
+    params: ( url, parsed ) => ( {
+        formId: Number( parsed.searchParams.get( 'form' ) ) || 0,
+    } ),
+} );
+```
+
+| Field | Role |
+|---|---|
+| `id` | Stable id. Re-registering the same id replaces the previous entry. |
+| `nativeWindowId` | The window to open on a match. |
+| `matches( url, parsed )` | Claim predicate. The walker stops at the first match in registration order. |
+| `enabled( snapshot )` | Optional gate against the live OS Settings snapshot — return `false` to stand down (an opt-in toggle that's off). |
+| `params( url, parsed )` | Optional open-time params. |
+| `onMatch( url, parsed )` | Optional pre-open hook. Prefer `params`; a shared store doesn't survive a reload. |
+
+Returns an unregister function.
+
+**Without this**, a plugin whose native window duplicated one of its own admin pages had to render a pointer page, open the native window from inside the iframe, and then close the window it was itself inside — a visible flash of a window that exists only to dismiss itself, plus a retry loop, because the shell wires a window's iframe to its `Window` object after the iframe's own scripts run.
 
 ---
 
@@ -2983,7 +3050,7 @@ wp.os.relations.related( myWindowId ); // → sibling window ids
 
 ### The "Related" title-bar button — Experimental
 
-Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens `item.url` as its own desktop window. Native URL remaps are deliberately **not** consulted: the menu exists for filtered deep links (`edit-comments.php?p={id}`), which a native window opened by id would drop — so the classic filtered screen always opens, even when a native replacement is enabled. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
+Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens it as its own desktop window: `item.windowId` when it names one (with `item.params`), otherwise `item.url` — consulted against the native-URL remap registry first, so a URL a native window has claimed opens that window and the remap's own `params` / `onMatch` thread the deep link's filter through. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
 
 **`RelatedEntityItem`:**
 
@@ -2994,7 +3061,9 @@ Any window whose content identity carries `related` items shows a **Related** bu
 | `groupLabel` | `string` | Optional translated section header. |
 | `label` | `string` | Translated item label. |
 | `icon` | `string` | Optional Dashicons class (also used as the opened window's icon). |
-| `url` | `string` | Admin URL the item opens. |
+| `url` | `string` | Admin URL the item opens. Optional only when `windowId` is given — an item has to name a destination one way or the other. |
+| `windowId` | `string` | Optional native window to open instead. A native window has no admin URL, so without this the only way to point at one was to register a URL for it, remap that URL back, and encode the scoping into the query string on the way through. Takes precedence over `url`; falls back to `url` when nothing is registered under the id, so an item carrying both still opens its page if the window's plugin is gone. |
+| `params` | `Record<string, string \| number \| boolean>` | Optional open-time params for `windowId` — what the window should be showing. Persisted with the session, so it comes back on the same subject after a reload. Ignored for URL destinations, which carry their scoping in the query string. |
 | `count` | `number` | Optional count suffix — renders as `Comments (4)`. |
 
 **Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `openstation_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`os.related-entities.items` JS filter** on every visibility check and menu build:

@@ -64,7 +64,20 @@ function isValidItem( item: unknown ): item is RelatedEntityItem {
 		requiredString( candidate.id ) &&
 		requiredString( candidate.group ) &&
 		requiredString( candidate.label ) &&
-		requiredString( candidate.url ) &&
+		// A destination, either way round. `url` was the only one
+		// for a long time, so it stays valid alone; `windowId` alone
+		// is how an item points at a native window, which has no URL
+		// to name. Both together is the belt-and-braces form: open
+		// the window, fall back to the page if the plugin that owned
+		// the window is gone.
+		( requiredString( candidate.url ) ||
+			requiredString( candidate.windowId ) ) &&
+		( candidate.url === undefined ||
+			typeof candidate.url === 'string' ) &&
+		( candidate.windowId === undefined ||
+			typeof candidate.windowId === 'string' ) &&
+		( candidate.params === undefined ||
+			( !! candidate.params && typeof candidate.params === 'object' ) ) &&
 		( candidate.groupLabel === undefined ||
 			typeof candidate.groupLabel === 'string' ) &&
 		( candidate.icon === undefined ||

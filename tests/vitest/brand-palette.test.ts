@@ -54,6 +54,12 @@ describe( 'brand palette', () => {
 		[ '--os-ui-border', '#33303a' ], // Astro
 		[ '--os-ui-border-strong', '#4d4a52' ], // Silver
 		[ '--os-ui-info-fg', '#c2f1f1' ], // Sirius
+		// Light-DOM field surface. Not a shade of its own — a plugin's
+		// plain `<input>` should read as the same recessed step the
+		// kit's own controls sit on, which is Astro.
+		[ '--os-ui-field-bg', '#33303a' ], // Astro
+		[ '--os-ui-field-border', '#4d4a52' ], // Silver
+		[ '--os-ui-field-fg', '#fffbff' ], // Starlight
 		[ '--os-backstop', '#0c0b0f' ], // Void
 		[ '--os-window-bg', '#1a1721' ], // Obsidian
 		// Window chrome sits one step lower than it used to: a focused

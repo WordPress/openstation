@@ -179,6 +179,7 @@ import {
 } from '../desktop-themes/registry';
 import { applyThemeRecommendations } from '../settings/theme-recommendations';
 import { loadComponents } from '../ui/components/loader';
+import { registerNativeUrlRemap } from '../native-url-remap';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -242,7 +243,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'renderKeyedList',
 	'clearKeyedList', 'registerNamespace',
 	'notify', 'pwa',
-	'getWindowConfig', 'debug',
+	'getWindowConfig', 'getWindowParams', 'debug',
+	'registerNativeUrlRemap',
 	'fetch',
 ] );
 
@@ -805,6 +807,36 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			const value = ( store as Record< string, unknown > )[ id ];
 			return value === undefined ? undefined : ( value as T );
 		},
+		/**
+		 * What an OPEN window is showing right now.
+		 *
+		 * The render callback receives the same object as
+		 * `ctx.params`, and that is the right place to read it when
+		 * you have one. This is for the code that doesn't: a
+		 * declarative window whose body is a PHP template, a module
+		 * that mounts after the render callback ran, anything
+		 * reacting to a retarget from outside a
+		 * `HOOKS.WINDOW_REOPENED` subscriber. The manager keeps the
+		 * live copy — a reopen with new params writes it before the
+		 * reopen event fires — so this and `ctx.params` never
+		 * disagree.
+		 */
+		getWindowParams: (
+			id: string,
+		): Record< string, string | number | boolean > | undefined => {
+			const win = manager.getById( id );
+			if ( ! win ) {
+				return undefined;
+			}
+			// Copy: the caller must not be able to retarget a window
+			// by mutating what it was handed.
+			return { ...( win.config.params ?? {} ) };
+		},
+		// Re-exported straight from the registry module. The
+		// singleton lives in a shared store, so main and the lazy
+		// window-system bundle write to and read from one list —
+		// which is exactly why this can be handed out as-is.
+		registerNativeUrlRemap,
 		debug: {
 			window: ( id: string ): DesktopDebugWindow | null => {
 				const entry = ( config.nativeWindows ?? [] ).find(

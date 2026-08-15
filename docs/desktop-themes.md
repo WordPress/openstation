@@ -343,10 +343,11 @@ dark frame around a white page.
 | `--os-ui-surface` | Cards, panels, table rows |
 | `--os-ui-surface-elevated` | Headers, raised strips |
 | `--os-ui-surface-sunken` | Wells, recessed areas |
+| `--os-ui-field-bg`, `--os-ui-field-border`, `--os-ui-field-fg` | Inputs written in the **light DOM** — a plugin's own `<input>` / `<select>` / `<textarea>` inside a window body. The kit's own `<os-text-field>` and friends resolve their surface inside their shadow roots and don't read these. |
 | `--os-ui-fg` | Body text |
 | `--os-ui-fg-muted` | Secondary text, metadata |
 | `--os-ui-fg-faint` | Disabled text |
-| `--os-ui-fg-on-accent` | Text on a filled accent / danger surface |
+| `--os-ui-fg-on-accent` | Text on a filled accent / danger surface. **Not `--os-ui-accent-text`** — that name doesn't exist, and because an undefined custom property just yields to the `var()` fallback, writing it produces no error and no visible clue. If a colour you set is being ignored, check the name against this table first. |
 | `--os-ui-border` | Hairlines |
 | `--os-ui-border-strong` | Emphasized dividers |
 | `--os-ui-hover` | Row / tile hover wash |
@@ -372,6 +373,32 @@ so setting `--os-ui-surface` alone restyles cards, flyouts, menus,
 tables and the rest. Reach for a component-local token only when you
 want that one component to differ — it still wins when set. Any
 `--os-ui-*` name is accepted by the manifest.
+
+#### Telling the two families apart
+
+Both resolve at runtime, which is the trap: reading
+`--os-ui-badge-warning` in devtools returns a colour, so it looks like
+a palette token, and setting it looks like it worked. It isn't one.
+It's declared inside `<os-badge>`, which means a theme that re-points
+`--os-ui-warning-fg` — the palette token it falls through to — leaves
+a plugin's badges on the old value, because the component-local
+declaration is closer to the element and wins.
+
+The test is one grep, and it is exact:
+
+```bash
+grep -n -- '--os-ui-badge-warning' assets/css/variables.css   # palette?
+```
+
+- **In `variables.css`** (declared under `body.os-active`) → palette. Theme-settable, and every component chains through it.
+- **Not in `variables.css`** → component-local, declared in
+  `src/ui/components/<name>/<name>.styles.ts`. Settable per component,
+  but re-pointing the palette token it falls back to will not move it.
+
+The tables above are the palette in full. Everything else is
+component-local; the `--os-ui-badge-*` family straddles the line
+(`--os-ui-badge-warning-bg` is palette, `--os-ui-badge-warning` is
+not), which is exactly why the grep beats the guess.
 
 **These tokens have no default value.** Every consuming site reads
 them as `var( --os-ui-x, <its own literal> )`, which is why an unthemed
