@@ -26,7 +26,9 @@ import {
 	type RestPlacementShape,
 } from './rest';
 import { removePlacement, setFolderPlacements } from './store';
-import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
+// `../os-confirm`, not the component module — see the note in
+// `share-menu-items.ts`.
+import { osConfirm } from '../os-confirm';
 import type { TileMenuItem } from './tile-menu';
 
 function viewerId(): number {

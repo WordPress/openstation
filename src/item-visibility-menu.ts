@@ -22,6 +22,7 @@
 
 import { __, sprintf } from './i18n';
 import { openWithShellOverlays } from './shell-overlays/loader';
+import { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
 import {
 	canonicalItemId,
 	resolvePlacement,
@@ -164,25 +165,13 @@ export interface OpenItemVisibilityMenuOpts {
 let openGeneration = 0;
 
 /**
- * Event fired on `document` the moment a tile menu is asked for, before
- * anything is painted.
- *
- * It exists because a tile can carry two surfaces at once: the menu,
- * and whichever hover affordance the active layout gives it (the
- * constellation flyout, the peek card). Both anchor to the same tile,
- * so opening one over the other leaves two panels fighting for the same
- * corner of the screen. Rather than teach the menu about every hover
- * surface that might exist — or teach each surface to sniff for
- * right-clicks — the menu announces itself and the hover surfaces
- * decide to get out of the way.
- *
- * Deliberately named for the intent rather than the input: a menu
- * opened from the keyboard has the same collision, and a plugin that
- * opens one programmatically should dismiss hover surfaces too.
- *
- * @see docs/javascript-reference.md
+ * Re-exported so this module stays the one obvious import site for
+ * the event. Its declaration lives in a leaf module because the
+ * hover surfaces that listen for it ship in `desktop.min.js` and
+ * must not drag this bundle along with the string — see
+ * `./item-visibility-menu-events`.
  */
-export const ITEM_MENU_OPENING_EVENT = 'os-item-menu-opening';
+export { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
 
 /**
  * Open the visibility menu next to the user's cursor. Idempotent —

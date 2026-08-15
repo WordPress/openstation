@@ -47,3 +47,14 @@ import '../ui/components/os-spinner/os-spinner';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-select/os-select'; // registers os-select + os-option
+
+// Readiness marker the main-bundle loader polls. It has to be a flag
+// this bundle and ONLY this bundle sets: the loader used to sniff
+// `customElements.get( 'os-confirm-dialog' )`, and the moment a
+// component in that list also reached `desktop.min.js` through some
+// other import chain, the sniff answered "already loaded" at boot and
+// this bundle was never fetched. The tags nothing else happened to
+// register — `os-context-menu` above all — then stayed inert, which
+// is a right-click that does nothing rather than an error anyone
+// would notice. Mirrors `window.openStationWindowSystem`.
+window.openStationShellOverlays = true;

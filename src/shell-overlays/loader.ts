@@ -15,15 +15,30 @@
  *     `showToast()`, `osConfirm()`, and every context-menu
  *     construction site before they `createElement( … )`.
  *
- * Detection: the bundle's `entry.ts` side-effect-imports the
- * Stage-9 overlay trio (toast / confirm-dialog / context-menu)
- * plus the Stage-10 window-chrome and form components. After
- * load, `customElements.get( 'os-confirm-dialog' )` is
- * non-null; we use it as the canary because it's a single tag
- * with no compound siblings.
+ * Detection: the bundle's `entry.ts` sets
+ * `window.openStationShellOverlays` after its side-effect imports
+ * have run, and that flag is the whole readiness test.
+ *
+ * It deliberately does NOT sniff `customElements.get( … )` for one
+ * of the tags the bundle registers. Every one of those tags can also
+ * arrive from somewhere else — a feature bundle that imports the
+ * component directly, `window-system[.min].js`, a component that
+ * drifts into `desktop.min.js` through a long import chain — and a
+ * tag-based check reads any of those as "the bundle is here". It
+ * then never loads, and whichever tags nothing else happened to
+ * register (`os-context-menu` first among them) stay inert: a
+ * right-click that opens nothing, with no error to point at it.
+ * Mirrors `src/window-system/loader.ts`.
  */
 
-const CANARY_TAG = 'os-confirm-dialog';
+declare global {
+	// Augment the DOM `Window` (the browser global, not our class).
+	// eslint-disable-next-line @typescript-eslint/no-shadow
+	interface Window {
+		/** Set by `src/shell-overlays/entry.ts` once its components register. */
+		openStationShellOverlays?: boolean;
+	}
+}
 
 /**
  * In-flight script load. Single instance — concurrent callers all
@@ -32,10 +47,7 @@ const CANARY_TAG = 'os-confirm-dialog';
 let inflight: Promise< void > | null = null;
 
 function isLoaded(): boolean {
-	return (
-		typeof window.customElements !== 'undefined' &&
-		!! window.customElements.get( CANARY_TAG )
-	);
+	return !! window.openStationShellOverlays;
 }
 
 function injectScript( scriptUrl: string ): Promise< void > {
@@ -50,7 +62,7 @@ function injectScript( scriptUrl: string ): Promise< void > {
 			}
 			reject(
 				new Error(
-					'[openstation] shell-overlays bundle loaded but did not register the overlay components.',
+					'[openstation] shell-overlays bundle loaded but did not set `window.openStationShellOverlays`.',
 				),
 			);
 		};

@@ -29,7 +29,10 @@ import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { isConstellationMounted } from '../dock-constellation/active';
-import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
+// Leaf module, not `../item-visibility-menu` — that entry is a lazy
+// bundle and importing the string from it drags the whole menu into
+// `desktop.min.js`.
+import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import { applyFilters, HOOKS } from '../hooks';
 
 /**

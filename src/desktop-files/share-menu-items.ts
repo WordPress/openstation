@@ -21,7 +21,11 @@ import { openShareSettingsModal } from './share-settings-modal';
 import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';
-import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
+// `../os-confirm`, not the component module: this file ships in
+// `desktop.min.js`, and the wrapper there awaits the lazy
+// shell-overlays bundle instead of dragging the dialog class (and
+// its tag registration) into the main bundle.
+import { osConfirm } from '../os-confirm';
 import type { RestPlacementShape } from './rest';
 import type { TileMenuItem } from './tile-menu';
 

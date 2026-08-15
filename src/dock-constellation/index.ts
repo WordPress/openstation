@@ -91,7 +91,10 @@ import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
 import { applyIconMask } from '../desktop-themes/paint-tinted-icon';
 import { CONSTELLATION_FLAG } from './active';
-import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu';
+// Leaf module, not `../item-visibility-menu` — that entry is a lazy
+// bundle and importing the string from it drags the whole menu into
+// `desktop.min.js`.
+import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import {
 	openMenuItem,
 	openSubmenuItem,

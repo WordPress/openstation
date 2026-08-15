@@ -36,7 +36,10 @@ import '../ui/components/os-role-picker/os-role-picker';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-toast/os-toast';
-import '../ui/components/os-confirm-dialog/os-confirm-dialog';
+// No `os-confirm-dialog` import: the modal renders no confirm
+// prompt, and the class belongs to the lazy shell-overlays bundle.
+// Pulling it in here registered the tag at boot, which used to make
+// the overlays loader think its bundle was already in the tab.
 
 interface OpenOptions {
 	folderId: number;
