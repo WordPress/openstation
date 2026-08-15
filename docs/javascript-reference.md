@@ -22,6 +22,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 | [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
+| [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
 
 ---
 
@@ -1238,6 +1239,43 @@ Resolves `true` once the bundle is in the tab — immediately on a repeat call, 
 Companion bundles declared via the window's `'scripts'` arg load first, in declaration order, exactly as they would on an open.
 
 If the API you need has an early stub in the always-loaded shell bundle (WP Explorer's does — see `wp.os.myWordpress`), call it directly instead: the stub forwards through this same path for you.
+
+---
+
+### `wp.os.loadComponents( tags? )` — Stable
+
+Make `<os-*>` tags upgrade, fetching the component kit if the page doesn't already have them.
+
+```typescript
+wp.os.loadComponents( tags?: readonly string[] ): Promise< void >;
+```
+
+```javascript
+await wp.os.loadComponents( [ 'os-switch', 'os-number-field' ] );
+panel.innerHTML = `
+    <os-switch label="Live"></os-switch>
+    <os-number-field label="Retries" min="0" max="9"></os-number-field>
+`;
+```
+
+**Why this exists.** Components are side-effect registered per bundle, at import time (see [`components-reference.md`](./components-reference.md)). The tags that work on a given page are whichever ones a loaded bundle imported — after boot that's 26 of the 64 the plugin ships, and which 26 depends on what the shell happens to render. Inside this repo the fix is an import. Outside it there wasn't one: a plugin distributed as a zip has no path to import from at build time, so its only options were to bundle a second copy of components the page already has, or hand-roll. This is the third route.
+
+**Call it before each render.** With `tags`, the fetch is skipped entirely when every tag listed is already registered — the repeat cost is a registry lookup, so there is no reason to cache the promise yourself:
+
+```javascript
+async function render( host ) {
+    await wp.os.loadComponents( [ 'os-table' ] );
+    host.replaceChildren( buildTable() );
+}
+```
+
+With no argument the whole kit loads.
+
+**Cost.** `os-components[.min].js` is 309 KB raw / 77 KB gzip — the entire kit, including the components the page already had. A lazy bundle can't import from `desktop.min.js`, so the overlap is unavoidable; it is also unmeasured by anyone who doesn't call this. If you only need one or two tags and your plugin already ships a bundle, importing the classes and paying ~3 KB gzip each is smaller. This is the right call when you want the kit, or when you want the shell's copy rather than your own.
+
+Tag names that aren't components are reported with a `console.error` naming them, and don't stop the rest of the call. Rejects only when the bundle was needed and the fetch failed — a page with no `componentsBundleUrl` configured resolves instead, leaving the [missing-import warner](./components-reference.md) to name any tag that stayed inert.
+
+The registry is page-global, so a tag another bundle already registered is simply used; nothing is loaded twice and `customElements.define()` is never called for a tag that exists.
 
 ---
 

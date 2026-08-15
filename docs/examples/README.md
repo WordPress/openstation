@@ -50,6 +50,7 @@ defined( 'ABSPATH' ) || exit;
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
 - [Iframe-initiated window opens — open/talk to a sibling window from inside a chromeless iframe](./iframe-initiated-window.md)
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
+- [Use `<os-*>` components from a plugin that ships as a zip](./load-components.md)
 - [Layout primitives (body → panel → row → col)](./layout-primitives.md)
 - [`<os-flyout>` — sliding edge-anchored panel](./os-flyout.md)
 - [Render a data table — filters, sticky columns, sub-tables](./data-table.md)

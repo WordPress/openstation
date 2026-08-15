@@ -178,6 +178,7 @@ import {
 	subscribeDesktopThemes,
 } from '../desktop-themes/registry';
 import { applyThemeRecommendations } from '../settings/theme-recommendations';
+import { loadComponents } from '../ui/components/loader';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -372,6 +373,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
 		loadWindowScript: loadWindowScriptById,
+		// No dep injection — the loader reads its URL off the boot
+		// config and owns its own single-flight state, so the facade
+		// hands the function through untouched.
+		loadComponents,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
 		repaintLoadingOverlays,

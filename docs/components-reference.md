@@ -2,7 +2,14 @@
 
 Canonical mapping of every shipped web component: tag name → exported class → source file → one-line purpose. The runtime missing-component warner (`src/ui/components/missing-import-warner.ts`) points readers here.
 
-Components are **side-effect registered** at import time, per bundle, into the page-global custom-element registry. The shell bundle (`desktop[.min].js`) registers a core subset and pre-loads `shell-overlays[.min].js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint, so those tags upgrade anywhere once the shell is up. Every other component registers only when a bundle that imports its module loads — emitting a `<os-foo>` tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add. Plugin bundles that render additional tags should import from `'openstation'`: the package entry re-exports the component barrel, so any import from it registers every tag as a side effect. The class export is only needed for TypeScript types or programmatic instantiation.
+Components are **side-effect registered** at import time, per bundle, into the page-global custom-element registry. The shell bundle (`desktop[.min].js`) registers a core subset and pre-loads `shell-overlays[.min].js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint, so those tags upgrade anywhere once the shell is up. That is 26 of the 64 tags below. Every other component registers only when a bundle that imports its module loads — emitting a `<os-foo>` tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add.
+
+**Two ways to get the other 38.**
+
+1. **Import the module** — `import 'openstation'` (the package entry re-exports the barrel, so any import registers every tag) or a single leaf module. Right for code built inside this repo, or beside it via the `file:` dependency in [`use-from-a-plugin.md`](./use-from-a-plugin.md). The class export is only needed for TypeScript types or programmatic instantiation.
+2. **Load the kit at runtime** — `await wp.os.loadComponents( [ 'os-switch' ] )`. No build-time relationship with this repo required, which is what a plugin distributed as a zip has. See [`wp.os.loadComponents()`](./javascript-reference.md#wposloadcomponents-tags---stable) for the cost, and [`examples/load-components.md`](./examples/load-components.md) for a working panel.
+
+Neither registers a tag twice: `defineComponent()` no-ops on a tag the registry already has, and the runtime loader skips the fetch when the tags asked for are all present.
 
 ## Source of truth
 

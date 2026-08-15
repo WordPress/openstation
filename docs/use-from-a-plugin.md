@@ -2,6 +2,14 @@
 
 This doc explains how a sibling WordPress plugin can use `openstation`'s TypeScript types and component classes (`OsLog`, `OsCode`, `OsTabs`, …) *without* publishing `openstation` to npm and *without* reaching into its `src/` tree via relative paths.
 
+> **Shipping a plugin as a zip? Start with [`wp.os.loadComponents()`](./javascript-reference.md#wposloadcomponents-tags---stable).** The `file:` dependency below is for a plugin developed *beside* this repo in one checkout, and it resolves at install time — a contributor cloning your plugin on its own has no `../openstation` to point at. If what you want is a working `<os-switch>` on a site that has OpenStation installed somewhere, one `await` gets you the whole kit at runtime with no build-time relationship at all:
+>
+> ```javascript
+> await wp.os.loadComponents( [ 'os-switch', 'os-number-field' ] );
+> ```
+>
+> The rest of this doc is about the build-time route: types, class imports, and the smaller bundles you get from importing only what you render.
+
 ## The short version
 
 `openstation`'s `package.json` is `"private": true` (so it can never be accidentally `npm publish`ed) but exposes its public API via the `exports` map. Any sibling plugin can install it as a local file dependency:
@@ -64,7 +72,9 @@ See [`components-reference.md`](./components-reference.md) for the full tag → 
 
 If your plugin bundles its own JS (Vite, esbuild, webpack, …) and imports `OsLog`, the bundler will include the component's source in your bundle by default. For a single-component import this is ~3 KB gzip; for the full kit it's much more.
 
-If you want to **externalize** — load openstation's classes at runtime from the shell's bundle rather than your own — your bundler config needs:
+**The runtime route avoids this entirely.** `await wp.os.loadComponents( [ … ] )` registers the tags from the shell's own copy — nothing about the components enters your bundle, and you need no `file:` dependency to reach them. The trade is that the kit bundle is all-or-nothing: 309 KB raw / 77 KB gzip, fetched once, cached, and only by plugins that ask. Two or three components? Import them. Want the kit, or want to ship a zip with no build-time link to this repo? Load it. See [`examples/load-components.md`](./examples/load-components.md).
+
+If instead you want to **externalize** — keep the `import` syntax but resolve it to a runtime global rather than your own bundle — your bundler config needs:
 
 ```javascript
 // vite.config.js
@@ -77,7 +87,7 @@ export default {
 };
 ```
 
-Combined with a small browser shim that resolves the import to a runtime global (e.g. `window.openStation`). This is an advanced setup; for most plugins, just letting the bundler include the components is fine.
+Combined with a small browser shim that resolves the import to a runtime global. **Note that no such global exists today** — the shell publishes `window.wp.os` (an API surface: methods, stores, registries), not a module namespace of component classes, so an `external: [ 'openstation' ]` build has nothing to resolve against at runtime. If you were reaching for this to avoid duplicate bytes, `wp.os.loadComponents()` above is the supported answer; if you need the *classes* (subclassing, `instanceof`, programmatic construction), the `file:` dependency is still the route, and opening an issue about a class-namespace global is worthwhile.
 
 ## Why not just publish to npm?
 

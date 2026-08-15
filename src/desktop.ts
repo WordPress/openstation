@@ -692,6 +692,32 @@ export interface OpenStationPublicApi {
 	 */
 	loadWindowScript: ( id: string ) => Promise< boolean >;
 	/**
+	 * Make `<os-*>` tags upgrade, fetching the component kit if the
+	 * page doesn't already have them.
+	 *
+	 * Components register per bundle at import time, so the tags
+	 * that work on a page are the ones some loaded bundle imported
+	 * — after boot, roughly a third of the kit. Code inside this
+	 * repo fixes that with an import. Code outside it could not:
+	 * a plugin shipped as a zip has no path to import from at build
+	 * time, leaving it to bundle a second copy of components the
+	 * page already has, or hand-roll. This is the third route.
+	 *
+	 * ```js
+	 * await wp.os.loadComponents( [ 'os-switch', 'os-number-field' ] );
+	 * panel.innerHTML = '<os-switch label="Live"></os-switch>';
+	 * ```
+	 *
+	 * Call it before each render — it resolves without a fetch when
+	 * the tags are already registered, so the repeat cost is a
+	 * registry lookup. With no argument the whole kit loads. Tags
+	 * that aren't components are reported to the console and don't
+	 * stop the rest.
+	 *
+	 * Rejects only when the bundle was needed and the fetch failed.
+	 */
+	loadComponents: ( tags?: readonly string[] ) => Promise< void >;
+	/**
 	 * Wrapper around native `fetch()` that attributes the request to
 	 * a desktop window's activity indicator. While the fetch is in
 	 * flight the window's title-bar dot blinks like a modem activity

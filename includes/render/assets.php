@@ -543,6 +543,16 @@ function openstation_enqueue_assets() {
 			// overlays (toast, confirm dialog, context menus) feel
 			// instant the first time they fire.
 			'shellOverlaysBundleUrl'        => $lazy_bundle_url( 'shell-overlays' ),
+			// URL of the full `<os-*>` component kit. The shell
+			// never loads this — its own bundles import the
+			// components they render. It exists for
+			// `wp.os.loadComponents()`, i.e. for plugin code that
+			// CANNOT import: a plugin shipped as a zip has no path
+			// to this repo at build time, so before this URL its
+			// only routes to a `<os-switch>` were to bundle a second
+			// copy or hand-roll one. Shipping the URL costs one
+			// string and keeps the SCRIPT_DEBUG choice server-side.
+			'componentsBundleUrl'           => $lazy_bundle_url( 'os-components' ),
 			// Mio — the desk companion. `mio` carries the
 			// appearance + physics (see `openstation_mio_config()`);
 			// `mioBundleUrl` is the lazy PixiJS bundle the shell

@@ -508,6 +508,19 @@ const TARGETS = {
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
 	},
+	// Full `<os-*>` kit — every tag in `OS_COMPONENT_TAGS`, for
+	// `wp.os.loadComponents()`. The shell never loads this itself:
+	// its own bundles import the components they render, and this
+	// bundle exists for code that CAN'T import — a third-party
+	// plugin shipped as a zip, with no path to this repo at build
+	// time. Overlaps the eagerly-registered subset on purpose; a
+	// lazy bundle cannot import from `desktop.min.js`, and
+	// `defineComponent()` no-ops on an already-defined tag.
+	components: {
+		entry:    'src/ui/components/entry.ts',
+		fileBase: 'os-components',
+		iifeName: 'openStationComponentKit',
+	},
 	// Window system (Stage 11) — the `Window` class + DOM / pointer
 	// / tab / chrome helpers. Largest single module in the pre-0.8.4
 	// main bundle (~68 kB pre-min just for `window/index.ts`).

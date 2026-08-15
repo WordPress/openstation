@@ -2214,6 +2214,13 @@ export interface DesktopConfig {
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
+	 * Fully-qualified URL of the full `<os-*>` component kit —
+	 * every tag in `OS_COMPONENT_TAGS`. The shell never loads it;
+	 * `wp.os.loadComponents()` does, on behalf of plugin code that
+	 * has no way to import the modules at build time.
+	 */
+	componentsBundleUrl?: string;
+	/**
 	 * Mio appearance + physics from PHP
 	 * (`openstation_mio_config()`, filterable via
 	 * `openstation_mio_config`). Shape mirrors `MioConfig` in

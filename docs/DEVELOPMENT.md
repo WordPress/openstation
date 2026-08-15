@@ -100,6 +100,10 @@ src/
 │                            #   (themes, controls, slots).
 ├── shell-overlays/          # Lazy bundle for toasts, confirm dialogs,
 │                            #   and context menus (entry + loader).
+├── ui/components/           # The `<os-*>` kit. `entry.ts` + `loader.ts`
+│                            #   also build it as a lazy bundle behind
+│                            #   `wp.os.loadComponents()`, for plugins
+│                            #   that can't import at build time.
 ├── commands/                # Command registration: server-sync, shell
 │                            #   harvester, iframe bridge.
 ├── presence/                # Presence store (`wp.os.presence`).
