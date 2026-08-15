@@ -96,6 +96,10 @@ export type { OsRatingBuckets } from './os-rating-summary/os-rating-summary';
 export { OsNotice } from './os-notice/os-notice';
 export type { OsNoticeTone } from './os-notice/os-notice';
 export { OsProgressBar } from './os-progress-bar/os-progress-bar';
+export { OsFieldRow } from './os-field-row/os-field-row';
+export { OsRepeater } from './os-repeater/os-repeater';
+export { OsTokenField } from './os-token-field/os-token-field';
+export type { OsTokenDefinition } from './os-token-field/os-token-field';
 export type { OsProgressTone } from './os-progress-bar/os-progress-bar';
 
 // List of tags registered by this barrel. Defined in `./tags`

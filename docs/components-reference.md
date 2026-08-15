@@ -48,6 +48,9 @@ The search box above the list filters on the flattened descriptor, not just the 
 | Tag | Class | Source | Purpose |
 | --- | --- | --- | --- |
 | `<os-form>` | `OsForm` | `os-form/os-form.ts` | Form host with auto value-collection + validation. |
+| `<os-field-row>` | `OsFieldRow` | `os-field-row/os-field-row.ts` | Label + control + hint + error. Wires the accessible pairing a light-DOM control can't get from a shadow-root `<label for>`: `aria-describedby`, `aria-invalid`, `required`, click-to-focus. |
+| `<os-token-field>` | `OsTokenField` | `os-token-field/os-token-field.ts` | Text / textarea whose value contains tokens (`{field:2}`, `{all_fields}`), with a grouped catalogue that inserts at the caret and a live "reads as" preview built from each token's sample. |
+| `<os-repeater>` | `OsRepeater` | `os-repeater/os-repeater.ts` | Add / remove / reorder a list of rows whose content you supply. Keyed by stable strings, so a remove or move never rebuilds the rows that didn't change. Reports intent; the consumer owns the data. |
 | `<os-text-field>` | `OsTextField` | `os-text-field/os-text-field.ts` | Single-line text input. |
 | `<os-textarea>` | `OsTextarea` | `os-textarea/os-textarea.ts` | Multi-line text input. |
 | `<os-number-field>` | `OsNumberField` | `os-number-field/os-number-field.ts` | Numeric input with min/max/step. |

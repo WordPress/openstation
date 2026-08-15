@@ -75,4 +75,7 @@ export const OS_COMPONENT_TAGS = [
 	'os-rating-summary',
 	'os-notice',
 	'os-progress-bar',
+	'os-field-row',
+	'os-repeater',
+	'os-token-field',
 ] as const;
