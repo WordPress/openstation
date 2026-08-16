@@ -1,5 +1,5 @@
 import { css } from '../../core';
-import { holoTokens, holoFill, holoEdge } from '../../holo';
+import { holoTokens } from '../../holo';
 
 /**
  * `<os-switch>` — shadow-DOM styles.
@@ -30,11 +30,28 @@ import { holoTokens, holoFill, holoEdge } from '../../holo';
  * and it is most of why the control feels physical rather than
  * drawn — the knob reads as something being pushed rather than
  * something being redrawn somewhere else.
+ *
+ * ## No mesh, in either state
+ *
+ * A switch never wears the holographic fill — the brand reserves the
+ * meshes for hero surfaces and a settings page carries a dozen of
+ * these. Only `holoTokens` is interpolated, for the `--_holo-*`
+ * aliases the track, the focus ring and the timings read.
+ *
+ * `holoFill` used to be interpolated too, with `.os-holo-fill` on the
+ * button, and the OFF state was iridescent for it. The class selector
+ * is (0,1,0); the `button` rule that sets `background-image: none` is
+ * (0,0,1), so the mesh won every time. The lit rule
+ * (`:host( [ checked ] ) button`, (0,2,1)) did outrank it, which is
+ * why the bug was visible only while the switch was off — and why the
+ * test that guarded this checked the ON state and passed throughout.
+ *
+ * The `background-image: none` declarations below are kept as a guard
+ * rather than a fix: nothing paints an image here now, and if a fill
+ * class ever returns they are what keeps it out.
  */
 export const styles = css`
 	${ holoTokens }
-	${ holoFill }
-	${ holoEdge }
 
 	:host {
 		/* Track height. Every other measurement derives from it. */
@@ -166,11 +183,8 @@ export const styles = css`
 	/*
 	 * ON. Flat accent, not the mesh: toggles arrive a dozen to a
 	 * settings page, and the brand reserves meshes for hero surfaces.
-	 * The .os-holo-fill class stays on the element so a caller can
-	 * re-enable a mesh through its own tokens; background-image: none
-	 * takes it off here. The inset edge is dropped with nothing in
-	 * its place, because a lit accent track carries its own boundary
-	 * against the surface.
+	 * The inset edge is dropped with nothing in its place, because a
+	 * lit accent track carries its own boundary against the surface.
 	 */
 	:host( [ checked ] ) button {
 		background-image: none;
@@ -194,11 +208,13 @@ export const styles = css`
 	}
 
 	/*
-	 * Flat tones, for a switch that should not spend an identity
-	 * moment — a row of twelve in a settings list, a destructive
-	 * toggle that wants to read as danger rather than as brand. The
-	 * fill class is still on the element; background-image: none
-	 * takes the mesh back off and lets the colour through.
+	 * Tones, for a switch whose meaning is not "brand" — a
+	 * destructive toggle that should read as danger, a confirmation
+	 * that should read as success. The accent tone is the default
+	 * made explicit, so a caller can state it rather than imply it.
+	 *
+	 * No backticks in this comment: the file is a JS template
+	 * literal, and one here would terminate it. See AGENTS.md.
 	 */
 	:host( [ tone='accent' ][ checked ] ) button,
 	:host( [ tone='danger' ][ checked ] ) button,

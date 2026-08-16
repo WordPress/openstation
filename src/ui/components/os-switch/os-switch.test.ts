@@ -273,18 +273,57 @@ describe( '<os-switch>', () => {
 
 	test( 'the on state is the flat accent, and the mesh stays off', () => {
 		// The design direction: form controls wear the accent, and the
-		// meshes stay reserved for hero surfaces. The .os-holo-fill
-		// class stays on the element so a caller can re-enable a mesh
-		// through its own tokens, which is exactly why the checked rule
-		// must take the image back off: if that override stops landing,
-		// every switch goes iridescent at once.
-		expect( styles.cssText ).toContain( '.os-holo-fill' );
+		// meshes stay reserved for hero surfaces.
 		expect( styles.cssText ).toMatch(
 			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-image:\s*none/,
 		);
 		expect( styles.cssText ).toMatch(
 			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-color:\s*var\(\s*--os-ui-accent/,
 		);
+	} );
+
+	test( 'the OFF state is the plain track — no mesh, in markup or in CSS', async () => {
+		// The bug this pins: the button carried `.os-holo-fill`, and
+		// the fragment behind that class sets `background-image` at
+		// (0,1,0). The `button` rule that takes the image back off is
+		// (0,0,1), so the mesh won — but only while the switch was
+		// OFF, because the lit rule `:host( [ checked ] ) button` is
+		// (0,2,1) and did outrank it.
+		//
+		// So every unchecked switch on the page was iridescent, the ON
+		// state looked exactly as designed, and the test above passed
+		// throughout: it asserted the checked override existed and
+		// never looked at the state where the override was absent.
+		host.innerHTML = `<os-switch label="Live"></os-switch>`;
+		await tick();
+		const button = host
+			.querySelector( 'os-switch' )!
+			.shadowRoot!.querySelector( 'button' )!;
+
+		expect( button.className ).not.toContain( 'os-holo-fill' );
+		// Nothing in this stylesheet may paint a mesh, in any state.
+		expect( styles.cssText ).not.toContain( '.os-holo-fill' );
+		expect( styles.cssText ).not.toContain( '.os-holo-edge' );
+		// The unlit track is a flat token wash with an inset edge.
+		expect( styles.cssText ).toMatch(
+			/button\s*{[^}]*background-color:\s*var\(\s*--_holo-track\s*\)/,
+		);
+	} );
+
+	test( 'the switch still reads the holo aliases it does use', () => {
+		// `holoTokens` stays interpolated after the fill and edge
+		// fragments came out — the track colour, its boundary, the
+		// focus ring and the timings are all `--_holo-*` aliases, and
+		// dropping the wrong import would leave them undefined and
+		// silently fall back to the literals.
+		for ( const alias of [
+			'--_holo-track',
+			'--_holo-track-edge',
+			'--_holo-focus',
+			'--_holo-t',
+		] ) {
+			expect( styles.cssText ).toContain( `${ alias }:` );
+		}
 	} );
 
 	test( 'the track has no border, so the pill cannot change size with state', () => {

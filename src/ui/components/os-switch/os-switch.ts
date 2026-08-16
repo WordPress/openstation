@@ -205,7 +205,6 @@ export class OsSwitch extends Component {
 				<button
 					type="button"
 					role="switch"
-					class="os-holo-fill"
 					aria-checked=${ checked ? 'true' : 'false' }
 					aria-label=${ label || 'Toggle' }
 					aria-describedby=${ description ? 'os-switch-desc' : '' }
