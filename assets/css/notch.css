@@ -5,6 +5,10 @@
  * `.os-area`. Reserving height would make the notch another hardcoded
  * claimant on a work-area rectangle that already has several
  * disagreeing answers. It floats, and it gets out of the way instead.
+ *
+ * Getting out of the way is also what the stacking order says: the
+ * notch is on the desk, under the window layer, so a window reaching
+ * the top edge covers the pill instead of the pill hanging over it.
  */
 
 /*
@@ -19,7 +23,7 @@
 	top: 0;
 	left: 50%;
 	transform: translateX( -50% );
-	z-index: var( --os-z-notch, 9000 );
+	z-index: var( --os-z-notch, 60 );
 
 	display: flex;
 	align-items: center;
@@ -110,17 +114,6 @@
 
 .os-notch--speaking .os-notch__message {
 	max-width: 320px;
-}
-
-/*
- * Out of the way of a maximized window. The notch overlaps the top
- * edge, and a maximized window's title bar is right under it — so it
- * fades rather than pushing the window down, which is the one thing
- * this surface must never do.
- */
-.os-shell:has( .os-window--maximized ) .os-notch:not( :hover ):not( .os-notch--speaking ),
-.os-shell:has( .os-window--fullscreen ) .os-notch:not( :hover ):not( .os-notch--speaking ) {
-	opacity: 0.35;
 }
 
 /*

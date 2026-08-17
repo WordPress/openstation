@@ -1532,12 +1532,13 @@ body.os-active {
 	 */
 	--os-z-mio: 190;
 	/*
-	 * The notch — above every window and above the dock, because it
-	 * overlaps the shell's top edge deliberately and must stay legible
-	 * over a maximized window's title bar. Scoped inside the shell's
-	 * own stacking context, so it never competes with the admin bar.
+	 * The notch — on the desk, under the windows (100 + stack index),
+	 * above the window-link wires (50) so a tie never draws across the
+	 * pill. It hangs over the strip a window's title bar occupies, and
+	 * a pill floating above someone's window is the shell talking over
+	 * the thing they are working in.
 	 */
-	--os-z-notch: 9000;
+	--os-z-notch: 60;
 
 	/*
 	 * Window-link ties (relation splines between windows). The accent

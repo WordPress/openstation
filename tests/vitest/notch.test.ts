@@ -9,6 +9,8 @@
  *   space would be the same mistake in a nicer shape. This is the one
  *   test that would fail loudly if someone "fixed" the overlap by
  *   padding the desk.
+ * - It loses to the windows. The pill hangs over the strip a title bar
+ *   occupies, so it stacks below the window band rather than over it.
  * - It opens the assistant, through the same document event any
  *   plugin would use, without importing the lazy assistant bundle.
  * - It speaks and then stops. `say()` expands the pill with a live
@@ -23,7 +25,21 @@ import {
 	test,
 	vi,
 } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { mountNotch, type NotchApi } from '../../src/notch';
+
+const ROOT = resolve( __dirname, '../..' );
+
+/** The number `variables.css` declares for a z-index token. */
+function zToken( token: string ): number {
+	const css = readFileSync(
+		resolve( ROOT, 'assets/css/variables.css' ),
+		'utf8'
+	);
+	const match = new RegExp( `\\n\\t${ token }:\\s*([^;]+);` ).exec( css );
+	return Number( match?.[ 1 ].trim() );
+}
 
 describe( 'the notch', () => {
 	let shell: HTMLElement;
@@ -66,9 +82,9 @@ describe( 'the notch', () => {
 
 	/*
 	 * The load-bearing one. The notch overlaps the top edge on purpose
-	 * and gets out of the way (CSS dims it under a maximized window)
-	 * rather than pushing the desk down — so it must not touch the
-	 * work area, in either direction.
+	 * and gets out of the way (CSS stacks it under the windows) rather
+	 * than pushing the desk down — so it must not touch the work area,
+	 * in either direction.
 	 */
 	test( 'reserves no work area', () => {
 		const area = document.createElement( 'div' );
@@ -82,6 +98,28 @@ describe( 'the notch', () => {
 		expect( area.style.paddingTop ).toBe( '' );
 		expect( document.documentElement.style.paddingTop ).toBe( '' );
 		expect( document.body.style.paddingTop ).toBe( '' );
+	} );
+
+	/*
+	 * The other half of "gets out of the way": the notch hangs over the
+	 * strip a window's title bar occupies, so it has to lose to that
+	 * window. Above the window band it reads as the shell talking over
+	 * whatever the user is working in — and the pill would also eat the
+	 * clicks meant for the title bar underneath it.
+	 */
+	test( 'stacks under the window band, above the window-link wires', () => {
+		const notchZ = zToken( '--os-z-notch' );
+
+		expect( notchZ ).toBeLessThan( zToken( '--os-z-base' ) );
+		expect( notchZ ).toBeGreaterThan( zToken( '--os-z-window-links' ) );
+
+		// The fallback literal in the consuming rule is the floor if
+		// `variables.css` never loads, so it has to say the same thing.
+		const notchCss = readFileSync(
+			resolve( ROOT, 'assets/css/notch.css' ),
+			'utf8'
+		);
+		expect( notchCss ).toContain( `var( --os-z-notch, ${ notchZ } )` );
 	} );
 
 	test( 'say() expands it, then collapses on its own', () => {
