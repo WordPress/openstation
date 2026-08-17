@@ -10,17 +10,25 @@
 
 import { showToast } from '../toast';
 import { FilesConflictError } from './rest';
-import type { Window as DesktopWindow } from '../window';
 
-declare global {
-	interface Window {
-		openStation?: {
-			windowManager?: {
-				focus?: ( id: string ) => DesktopWindow | null;
-				open?: ( id: string ) => Promise< DesktopWindow | null >;
-			};
-		};
-	}
+/**
+ * Structural slice of the public window manager, read off `wp.os`.
+ *
+ * `window.openStation` — which an earlier version of this module
+ * declared and reached for — is not a global the shell ever defines;
+ * the public namespace is `wp.os`. The optional chaining meant the
+ * mismatch never threw, it just made "View folder" a button that did
+ * nothing.
+ */
+interface WindowManagerSlice {
+	getById?: ( id: string ) => { id: string } | undefined;
+	focus?: ( winOrId: string ) => void;
+}
+
+function windowManager(): WindowManagerSlice | undefined {
+	return (
+		window.wp as { os?: { windowManager?: WindowManagerSlice } } | undefined
+	)?.os?.windowManager;
 }
 
 export function isConflict( err: unknown ): err is FilesConflictError {
@@ -51,22 +59,22 @@ export function showConflictToast( err: FilesConflictError ): void {
 	const reason = buildReason( err );
 	const targetParentId = err.detail.current.parentId;
 	let action: { label: string; onClick: () => void } | undefined;
-	if ( targetParentId > 0 ) {
+	const winId = `os-folder-${ targetParentId }`;
+	const mgr = windowManager();
+	// Only offer the action when that folder's window is actually
+	// open, so the button always does something. Opening a folder
+	// window from scratch needs the full native render config that
+	// `built-in-openers` owns, and that isn't reachable from a
+	// `parentId` alone — the toast's message already names the
+	// folder for that case.
+	if (
+		targetParentId > 0 &&
+		typeof mgr?.focus === 'function' &&
+		mgr.getById?.( winId )
+	) {
 		action = {
 			label: 'View folder',
-			onClick: () => {
-				const winId = `os-folder-${ targetParentId }`;
-				const mgr = window.openStation?.windowManager;
-				if ( mgr?.focus ) {
-					const w = mgr.focus( winId );
-					if ( w ) {
-						return;
-					}
-				}
-				if ( mgr?.open ) {
-					void mgr.open( winId );
-				}
-			},
+			onClick: () => mgr.focus?.( winId ),
 		};
 	}
 

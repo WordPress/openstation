@@ -557,6 +557,19 @@ export const HOOKS = {
 	 */
 	WINDOW_RESTORED: 'os.window.restored',
 	/**
+	 * Action, fires when a focus request for an OWNER window was
+	 * redirected to its child instead — the user tried to raise a
+	 * window that has a child window open. Payload:
+	 * `{ windowId: string, childWindowId: string }`, where `windowId`
+	 * is the owner that stayed put.
+	 *
+	 * Subscribe to add your own "answer this first" affordance beyond
+	 * the child's shake (a toast, a pulse on the child's field).
+	 * Purely observational — the redirect has already happened by the
+	 * time this fires, and returning anything does not change it.
+	 */
+	WINDOW_CHILD_BLOCKED: 'os.window.child-blocked',
+	/**
 	 * Action, fires when a window is maximized (fills desktop area).
 	 * Payload: `{ windowId: string, element: HTMLElement }`.
 	 */

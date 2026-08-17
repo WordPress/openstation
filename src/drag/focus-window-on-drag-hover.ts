@@ -95,7 +95,13 @@ export interface FocusableWindow {
  */
 export interface WindowFocusHost< W extends FocusableWindow = FocusableWindow > {
 	getById( id: string ): W | undefined;
-	focus( win: W ): void;
+	/**
+	 * The `| string` mirrors the real `WindowManager.focus()`, which
+	 * takes a window or its id. Without it this slice is narrower than
+	 * the thing it describes and the manager stops being assignable
+	 * to it.
+	 */
+	focus( win: W | string ): void;
 }
 
 let _installed = false;

@@ -23,6 +23,7 @@ defined( 'ABSPATH' ) || exit;
 - [Accept drops on your desktop icon](./tile-drop-handler.md)
 - [Add an action that works on a whole selection](./multi-selection-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
+- [Open a child window its owner can't cover](./child-windows.md)
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
 - [Window themes — per-window CSS variables](./window-theme.md)

@@ -265,6 +265,33 @@ export interface WindowConfig {
 	 */
 	ephemeral?: boolean;
 	/**
+	 * Id of the window that OWNS this one — makes this a **child
+	 * window**.
+	 *
+	 * A child is a real window (own chrome, drag, resize, minimize,
+	 * taskbar entry), not a dialog. What ownership adds is one rule:
+	 * **the owner can never sit above its child.** Clicking the owner
+	 * hands focus to the child and shakes it instead of raising the
+	 * owner — the "finish here first" affordance a modal sheet gives,
+	 * without taking the owner's content away. The owner stays
+	 * scrollable, draggable and resizable throughout.
+	 *
+	 * Consequences worth knowing before you set this:
+	 *   - Closing the owner closes its children (they are owned, not
+	 *     merely related — an orphan would keep blocking nothing).
+	 *   - Minimizing the owner minimizes them; restoring restores them.
+	 *   - A MINIMIZED child stops blocking. The user put it away on
+	 *     purpose; the owner is theirs again until they bring it back.
+	 *   - Children are left out of session snapshots, so a reload never
+	 *     restores a child whose owner failed to come back with it.
+	 *
+	 * For a *visual* relationship between peer windows (a post and its
+	 * comments) you want content relations instead — see
+	 * `src/window-links/types.ts`. Ownership is about z-order and
+	 * focus; relations are about drawing ties between equals.
+	 */
+	parentWindowId?: string;
+	/**
 	 * Open-time arguments for a **native** window — what it is showing
 	 * this time, as opposed to what it is.
 	 *

@@ -103,12 +103,14 @@ stateDiagram-v2
 | `os-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated`: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
 | `os-window-focused`     | `{ windowId }` |
 | `os-window-blurred`     | `{ windowId, focusedTo }` |
+| `os-window-child-blocked` | `{ windowId, childWindowId }` — a focus request for `windowId` went to its child window instead; the owner cannot come to the front while the child is open |
 | `os-window-closing`     | `{ windowId, element }` |
 | `os-window-closed`      | `{ windowId }` |
 | `os-window-changed`     | `{ windowId?: string, reason: 'moved' \| 'resized' \| 'state' \| 'cascade' \| 'tile', state?: WindowState }` — batch-arrange dispatches (`'cascade'` / `'tile'`) omit `windowId`/`state` |
 
 Same payloads on `wp.hooks` actions:
-`HOOKS.WINDOW_OPENED`, `…_FOCUSED`, `…_BLURRED`, `…_CLOSED`,
+`HOOKS.WINDOW_OPENED`, `…_FOCUSED`, `…_BLURRED`, `…_CHILD_BLOCKED`,
+`…_CLOSED`,
 `…_MINIMIZED`, `…_RESTORED`, `…_MAXIMIZED`, `…_UNMAXIMIZED`,
 `…_FULLSCREEN_ENTERED/EXITED`, `…_REOPENED`, plus geometry events
 (`…_RESIZED`, `…_BODY_RESIZED`, `…_BOUNDS_CHANGED`,

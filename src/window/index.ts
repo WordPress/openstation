@@ -85,6 +85,33 @@ import {
  * `window.location` after boot can't relax the check.
  */
 const INITIAL_ORIGIN = window.location.origin;
+
+/**
+ * The `@keyframes` name behind `.os-window--opening` in
+ * `window-states.css`. `animationend` BUBBLES, so the listener that
+ * clears the class has to check this — a spinner, skeleton shimmer
+ * or holo drift finishing anywhere inside the window body would
+ * otherwise consume the once-only listener and cut the open
+ * animation short.
+ */
+const OPENING_ANIMATION_NAME = 'os-window-open';
+
+/**
+ * Deadline for clearing `.os-window--opening` regardless of what the
+ * compositor did — the CSS animation is 0.2s, this leaves margin.
+ *
+ * Why a timer at all: CSS animations do not advance while the
+ * document is hidden, so `animationend` never fires for a window
+ * opened in a backgrounded tab (session restore the user tabs away
+ * from, an `os-open-requested` from another surface, automation).
+ * The class is what applies `opacity: 0` / `scale(0.92)` via the
+ * animation's `from` frame, so a stuck class means a window that is
+ * in the DOM, focused, and invisible. Background tabs also throttle
+ * timers to >=1s, so this fires late there rather than on time —
+ * late still unsticks it, which is the whole point.
+ */
+const OPENING_FALLBACK_MS = 300;
+
 import {
 	activatePanelTab,
 	addExternalTab,
@@ -438,6 +465,12 @@ export class Window {
 	public onClose: ( ( win: Window ) => void ) | null = null;
 	public onMinimize: ( ( win: Window ) => void ) | null = null;
 	/**
+	 * Invoked after this window comes back from minimized. The manager
+	 * wires it to bring any child windows back with their owner — the
+	 * counterpart to the cascade in `onMinimize`.
+	 */
+	public onRestore: ( ( win: Window ) => void ) | null = null;
+	/**
 	 * Invoked when the title-bar menu's "Open another" item is clicked.
 	 * The window manager wires this to `openNew()`.
 	 */
@@ -654,10 +687,15 @@ export class Window {
 
 		// Fresh open (or restored to a visible state). Play the opening
 		// animation, then remove the class.
-		this.element.classList.add( 'os-window--opening' );
-		this.element.addEventListener( 'animationend', () => {
-			this.element.classList.remove( 'os-window--opening' );
-		}, { once: true } );
+		//
+		// Nothing to animate for a document nobody is looking at, and
+		// a hidden document never advances the animation — so skip the
+		// class entirely rather than open invisible and wait for the
+		// fallback timer to rescue it.
+		if ( ! document.hidden ) {
+			this.element.classList.add( 'os-window--opening' );
+			this._armOpeningClassRemoval();
+		}
 
 		// Maximized/fullscreen restores go through the class-driven path
 		// after the geometry renders, so the state transition animates.
@@ -666,6 +704,55 @@ export class Window {
 		if ( config.initialState && config.initialState !== 'normal' ) {
 			requestAnimationFrame( () => this.applyInitialState( config.initialState! ) );
 		}
+	}
+
+	/**
+	 * Clear `.os-window--opening` once the open animation is done —
+	 * belt and braces, because the class is not cosmetic. Its
+	 * animation's `from` frame is what makes the window transparent
+	 * and undersized, so a class that never comes off is a window
+	 * that never becomes visible.
+	 *
+	 * Three ways out, because the animation alone is not a guarantee:
+	 *   - `animationend`, filtered on `animationName` + `target` so a
+	 *     bubbling animation from the window's own content can't
+	 *     claim it (see `OPENING_ANIMATION_NAME`).
+	 *   - `animationcancel`, for a class or stylesheet swap that
+	 *     tears the animation down mid-flight.
+	 *   - a `setTimeout` deadline, for the case where no animation
+	 *     event is ever coming (see `OPENING_FALLBACK_MS`).
+	 *
+	 * Whichever fires first wins and detaches the other two.
+	 */
+	private _armOpeningClassRemoval(): void {
+		const el = this.element;
+		let timer = 0;
+		let cleared = false;
+
+		const clear = (): void => {
+			if ( cleared ) {
+				return;
+			}
+			cleared = true;
+			window.clearTimeout( timer );
+			el.removeEventListener( 'animationend', onAnimationDone );
+			el.removeEventListener( 'animationcancel', onAnimationDone );
+			el.classList.remove( 'os-window--opening' );
+		};
+
+		const onAnimationDone = ( event: AnimationEvent ): void => {
+			if (
+				event.target !== el ||
+				event.animationName !== OPENING_ANIMATION_NAME
+			) {
+				return;
+			}
+			clear();
+		};
+
+		el.addEventListener( 'animationend', onAnimationDone );
+		el.addEventListener( 'animationcancel', onAnimationDone );
+		timer = window.setTimeout( clear, OPENING_FALLBACK_MS );
 	}
 
 	/**
@@ -1672,6 +1759,10 @@ export class Window {
 		this.onFocusRequest?.( this );
 		this._emitChange( 'state' );
 		if ( wasMinimized ) {
+			// Before `WINDOW_RESTORED`, so a subscriber that inspects
+			// the desktop sees this window's children already back
+			// rather than a half-restored ownership group.
+			this.onRestore?.( this );
 			doAction( HOOKS.WINDOW_RESTORED, {
 				windowId: this.id,
 				element: this.element,

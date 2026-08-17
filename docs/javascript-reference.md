@@ -224,6 +224,34 @@ Companion `wp.hooks` action: `HOOKS.WINDOW_BLURRED` (`os.window.blurred`).
 
 ---
 
+### `os-window-child-blocked` — Stable
+
+Fires when a focus request for a window that owns an open [child window](#child-windows--stable) was redirected to that child — the user tried to bring an owner to the front and could not.
+
+Observational only: the redirect has already happened, and the child has already been shaken. Subscribe to add your own "answer this first" affordance — a toast, a pulse on the field that still needs filling in.
+
+```javascript
+document.addEventListener( 'os-window-child-blocked', ( e ) => {
+    const { windowId, childWindowId } = e.detail;
+    if ( childWindowId === 'my-plugin-wizard' ) {
+        wp.os.showToast( { message: 'Finish the wizard to get back to the post.' } );
+    }
+} );
+```
+
+**`detail` shape:**
+
+```typescript
+{
+    windowId:      string,   // the owner that stayed put
+    childWindowId: string,   // the child that kept focus
+}
+```
+
+Companion `wp.hooks` action: `HOOKS.WINDOW_CHILD_BLOCKED` (`os.window.child-blocked`).
+
+---
+
 ### `os-window-closing` — Stable
 Fires when the user closes a window, BEFORE the outer element is detached from the DOM. Subscribers needing an element reference (wallpaper overlays anchored to specific windows, snow that has piled on the window top, measurement caches) should listen here rather than to `os-window-closed` — by the time the `closed` handler runs the element may be mid-fade-out.
 
@@ -756,8 +784,14 @@ Exposed instance of the `WindowManager` class.
 // Open / focus
 manager.open( config ): Promise< Window >;
 manager.openNew( config ): Promise< Window >;
-manager.focus( win: Window ): void;
+manager.focus( winOrId: Window | string ): void;                         // id or instance; unknown ids are a no-op
 manager.raise( windowId: string ): void;                                 // restack to just below the top WITHOUT focusing; no focus/blur events
+
+// Child windows (ownership)
+manager.openChild( parentWindowId: string, config ): Promise< Window >;   // a real window its owner can never sit above
+manager.ownerOf( win: Window ): Window | undefined;
+manager.childrenOf( winOrId: Window | string ): Window[];                // direct children, z-order, minimized included
+manager.blockingChildOf( win: Window ): Window | undefined;              // deepest open descendant withholding focus
 
 // Lookup
 manager.getById( id: string ): Window | undefined;
@@ -814,6 +848,45 @@ manager.closeDesktop( id: string ): void;
 ```
 
 > **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. The manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
+
+**`focus()` takes a window or an id.** `focus( 'jorvy' )` and `focus( someWindow )` are equivalent. An id with no open window is a silent no-op — a window closing between the moment you captured its id and the moment you ask for focus is a routine race, not an error. Anything that is neither a window nor a string is refused with a `console.warn` and changes nothing.
+
+#### Child windows — Stable
+
+A **child window** is a real window — own chrome, drag, resize, minimize, taskbar entry — with one rule layered on top: **its owner can never sit above it.** Clicking the owner hands focus to the child and shakes it rather than raising the owner.
+
+Reach for it where you would otherwise reach for a modal dialog but what you actually want is a window: a full editor for one row of a list, a wizard beside the page it configures, a diff over the revision it belongs to.
+
+```javascript
+await wp.os.windowManager.openChild( 'edit-post-42', {
+    id: 'my-plugin-seo-audit-42',
+    url: '#seo-audit-42',
+    title: 'SEO audit',
+    icon: 'dashicons-chart-line',
+    native: true,
+    render: ( body ) => { /* … */ },
+} );
+```
+
+The owner stays **fully usable** — scrollable, readable, draggable, resizable, minimizable. Only its z-order is constrained. This is deliberately not an inert, dimmed parent: the reason to use a window instead of a dialog is usually that you need to keep reading the thing behind it.
+
+`openChild()` centers the child over its owner's **live** rect (not its opening geometry — owners get dragged) and puts it on the owner's virtual desktop. Pass `x`/`y` to place it yourself. Every other `open()` option behaves identically. An owner id that isn't open **throws** rather than quietly opening a standalone window.
+
+The rules that follow from ownership:
+
+| | |
+|---|---|
+| **Focus** | Any focus request for the owner is redirected to the deepest open descendant. Covers click-to-focus, dock, taskbar, alt-tab and open-reuse — the redirect lives in `focus()`, so no call site can miss it. |
+| **Z-order** | Every open child is kept above its owner on every restack, including `raise()`. Unrelated windows are unaffected and can be focused over both. |
+| **Chains** | A child can own a child. Focus goes to the last link; the middle ones are blocked in turn. |
+| **Close** | Closing an owner closes its children (and their children). A child with unsaved changes still gets to ask — one that vetoes outlives its owner and becomes an ordinary window. |
+| **Minimize** | Minimizing an owner minimizes its children; restoring brings back exactly the ones the cascade put away. A child the user had already minimized themselves stays minimized. |
+| **Minimized children** | A minimized child **stops blocking** — the user put it away, so the owner is theirs again until they bring it back. |
+| **Session** | Children are left out of session snapshots. A restored child whose owner failed to come back (deactivated plugin, dead URL) would block a window that does not exist. |
+
+Ownership is about z-order and focus. For a *visual* relationship between peer windows — a post and its comments, drawn with ties on the desktop — you want [content relations](#window-content-relations) instead.
+
+To react to a blocked focus attempt, subscribe to [`os-window-child-blocked`](#os-window-child-blocked) or the `os.window.child-blocked` action.
 
 **`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
 

@@ -225,6 +225,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-window-content-loaded` | Stable |
 | `os-window-focused` | Stable |
 | `os-window-blurred` | Stable |
+| `os-window-child-blocked` | Stable |
 | `os-window-closing` | Stable |
 | `os-window-closed` | Stable |
 | `os-window-changed` | Experimental |

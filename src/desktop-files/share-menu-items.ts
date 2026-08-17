@@ -34,6 +34,36 @@ function viewerId(): number {
 }
 
 /**
+ * Close an open window by id, via the public `wp.os` namespace.
+ *
+ * Reached structurally rather than by importing the manager: this
+ * file ships in `desktop.min.js` and the window system is a lazily
+ * loaded bundle.
+ *
+ * Closing lives on the Window, not on the manager. An earlier version
+ * of this call read `window.openStation.windowManager.close( id )` —
+ * a global the shell never defines, and a method that does not exist
+ * on the manager either. Optional chaining meant it threw nothing and
+ * did nothing, so leaving a shared folder quietly left its window
+ * open.
+ *
+ * @param id Window id to close. Unknown ids are a no-op.
+ */
+function closeWindowById( id: string ): void {
+	const manager = (
+		window.wp as
+			| { os?: { windowManager?: WindowManagerSlice } }
+			| undefined
+	)?.os?.windowManager;
+	manager?.getById?.( id )?.close?.();
+}
+
+/** The slice of the public window manager {@link closeWindowById} needs. */
+interface WindowManagerSlice {
+	getById?: ( id: string ) => { close?: () => void } | undefined;
+}
+
+/**
  * Reads the per-user kill switch from the live OS Settings
  * snapshot. Defaults to `true` so the share UI keeps working in
  * the (unusual) window between bundle boot and the first
@@ -162,17 +192,15 @@ export function installShareMenuItems(): void {
 							// Also close any open folder window for
 							// this folder — the user just left it,
 							// no point keeping it open.
+							// Reached through `wp.os` — the public
+							// namespace. This read used to go via
+							// `window.openStation.windowManager.close`,
+							// neither of which exists (the global is
+							// never defined, and closing is a method on
+							// the Window, not the manager), so the
+							// window was silently left open.
 							const winId = `os-folder-${ folderId }`;
-							const mgr = (
-								window as unknown as {
-									openStation?: {
-										windowManager?: {
-											close?: ( id: string ) => void;
-										};
-									};
-								}
-							).openStation?.windowManager;
-							mgr?.close?.( winId );
+							closeWindowById( winId );
 							showToast( { message: 'You left the shared folder.' } );
 						} catch ( err ) {
 							showToast( {

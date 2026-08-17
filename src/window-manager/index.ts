@@ -144,6 +144,17 @@ export class WindowManager {
 	public _stack: Window[] = [];
 
 	/**
+	 * Child windows that a `cascadeMinimize` put away, so restoring
+	 * the owner brings back exactly those and leaves alone the ones
+	 * the user had minimized themselves.
+	 *
+	 * A `WeakSet` because membership must not keep a closed window
+	 * alive — a child that closes while minimized is never restored,
+	 * so nothing would ever remove it from a strong collection.
+	 */
+	private _cascadeMinimized: WeakSet< Window > = new WeakSet();
+
+	/**
 	 * The desktop area element where windows are rendered.
 	 * @internal
 	 */
@@ -883,12 +894,18 @@ export class WindowManager {
 
 		win.onFocusRequest = ( w: Window ) => this.focus( w );
 		win.onClose = ( w: Window ) => this.remove( w );
-		win.onMinimize = () => {
-			const visible = this._stack.filter( ( w ) => w.state !== 'minimized' );
+		win.onMinimize = ( w: Window ) => {
+			// Children go away with their owner — a child left floating
+			// over the gap where its owner used to be reads as a
+			// detached dialog, and it would go on blocking a window the
+			// user can no longer see.
+			this.cascadeMinimize( w );
+			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
 			}
 		};
+		win.onRestore = ( w: Window ) => this.cascadeRestore( w );
 		win.onOpenAnother = ( w: Window ) => {
 			// Native windows: route through the public-API
 			// `openNewWindow( id )` so the registry's template clone
@@ -1036,8 +1053,71 @@ export class WindowManager {
 		return `${ baseId }-${ n }`;
 	}
 
-	/** Focus a window: bring it to top of z-stack. */
-	public focus( win: Window ): void {
+	/**
+	 * Focus a window: bring it to top of z-stack.
+	 *
+	 * Accepts either a `Window` or its id — `focus( 'jorvy' )` is the
+	 * form the docs and `built-in-commands` already show, and the
+	 * natural one for a plugin author holding only an id.
+	 *
+	 * The runtime guard is load-bearing, not decoration. `focus()`
+	 * pushes its argument onto `_stack` and then calls `setZIndex()`
+	 * on every member, so an unresolvable argument used to leave a
+	 * non-Window wedged in the stack and every LATER focus() —
+	 * click-to-focus, dock activation, open-reuse — threw on it. One
+	 * bad call bricked the desktop until a reload. Resolve ids and
+	 * reject anything that isn't a Window BEFORE touching the stack.
+	 *
+	 * Unknown ids are a silent no-op (matching `raise()`): a window
+	 * closing between an id being captured and focus being requested
+	 * is a routine race, not a programming error. A non-Window,
+	 * non-string argument IS a programming error, so it warns.
+	 *
+	 * A window that OWNS an open child cannot be focused — focus goes
+	 * to the child instead (see {@link blockingChildOf}). That is the
+	 * whole of child-window modality, and it lives here rather than at
+	 * the call sites so every focus path is covered by construction:
+	 * click-to-focus, dock activation, taskbar, alt-tab, open-reuse.
+	 *
+	 * @param winOrId Window to focus, or its id.
+	 */
+	public focus( winOrId: Window | string ): void {
+		const requested =
+			typeof winOrId === 'string' ? this.getById( winOrId ) : winOrId;
+		if ( ! requested || typeof requested.setZIndex !== 'function' ) {
+			if ( winOrId && typeof winOrId !== 'string' ) {
+				// eslint-disable-next-line no-console -- Surfacing a call that would otherwise corrupt the z-stack silently.
+				console.warn(
+					'[openstation] windowManager.focus() expects a Window or a window id; received',
+					winOrId,
+				);
+			}
+			return;
+		}
+
+		// Child-window modality. Redirect to the DEEPEST open
+		// descendant so a chain (owner → child → grandchild) hands
+		// focus to the one actually on top rather than to a middle
+		// link that is itself blocked.
+		const win = this.blockingChildOf( requested ) ?? requested;
+		if ( win !== requested ) {
+			// Nudge the child so the click reads as "answer this
+			// first" instead of as a dead click on the owner.
+			win.shake?.();
+			doAction( HOOKS.WINDOW_CHILD_BLOCKED, {
+				windowId: requested.id,
+				childWindowId: win.id,
+			} );
+			document.dispatchEvent(
+				new CustomEvent( 'os-window-child-blocked', {
+					detail: { windowId: requested.id, childWindowId: win.id },
+				} ),
+			);
+			// Fall through: the child is focused exactly as if it had
+			// been the argument, so it lands on top and fires the
+			// normal blur/focus pair.
+		}
+
 		// Capture the previously-focused window BEFORE the splice/push
 		// changes the stack — needed so we can fire `WINDOW_BLURRED`
 		// for it. No-op when this `focus()` is hitting the already-
@@ -1082,6 +1162,13 @@ export class WindowManager {
 			this._stack.splice( idx, 1 );
 		}
 		this._stack.push( win );
+
+		// Lift every open child back above its owner. Focusing an
+		// owner is already redirected, but plenty of other paths move
+		// the stack — restore-from-minimize, desktop switch, session
+		// restore — and each could otherwise bury a child under the
+		// window it is supposed to be blocking.
+		this.enforceOwnershipOrder();
 
 		// Update z-indices and focused state.
 		this._stack.forEach( ( w, i ) => {
@@ -1140,9 +1227,249 @@ export class WindowManager {
 		}
 		this._stack.splice( idx, 1 );
 		this._stack.splice( this._stack.length - 1, 0, win );
+		this.enforceOwnershipOrder();
 		this._stack.forEach( ( w, i ) => {
 			w.setZIndex( BASE_Z_INDEX + i );
 		} );
+	}
+
+	/**
+	 * Open a **child window** owned by `parentWindowId`.
+	 *
+	 * A child is a real window — its own chrome, drag, resize,
+	 * minimize, taskbar entry — with one rule layered on top: its
+	 * owner can never sit above it. Clicking the owner shakes the
+	 * child and leaves focus there. Use it for the "finish this before
+	 * going back" shapes a modal dialog is normally reached for, when
+	 * what you actually want is a window: a full editor for one row of
+	 * a list, a wizard beside the page it configures, a diff over the
+	 * revision it belongs to.
+	 *
+	 * The owner keeps working throughout — scrollable, readable,
+	 * draggable, resizable. Only its z-order is constrained.
+	 *
+	 * Centers over the owner by default, which is what makes the
+	 * relationship legible at a glance; pass `x`/`y` to override.
+	 * Every other `open()` option (`native`, `render`, `width`,
+	 * `params`, …) behaves exactly as it does there.
+	 *
+	 * ```js
+	 * await wp.os.windowManager.openChild( 'edit-post-42', {
+	 *     id: 'my-plugin-seo-audit-42',
+	 *     url: '#seo-audit-42',
+	 *     title: 'SEO audit',
+	 *     icon: 'dashicons-chart-line',
+	 *     native: true,
+	 *     render: ( body ) => { … },
+	 * } );
+	 * ```
+	 *
+	 * @param parentWindowId Owner window's id. Must be open — a child
+	 *                       of nothing has nothing to block, so an
+	 *                       unknown id rejects rather than quietly
+	 *                       opening a normal window.
+	 * @param config         Window config, exactly as for `open()`.
+	 *                       Any `parentWindowId` in here is ignored in
+	 *                       favour of the argument.
+	 * @return The opened child window.
+	 */
+	public async openChild(
+		parentWindowId: string,
+		config: Partial< WindowConfig > & {
+			id: string;
+			url: string;
+			title: string;
+		},
+	): Promise< Window > {
+		const parent = this.getById( parentWindowId );
+		if ( ! parent ) {
+			throw new Error(
+				`windowManager.openChild(): no open window with id "${ parentWindowId }". Open the owner first, or use open() for a standalone window.`,
+			);
+		}
+
+		// Center over the owner unless the caller placed it. Read the
+		// owner's live rect rather than its config: it has very likely
+		// been dragged or resized since it opened, and a child centered
+		// on where the owner *started* can land off-screen.
+		let placement: { x?: number; y?: number } = {};
+		if ( config.x === undefined && config.y === undefined ) {
+			const owner = parent.getSnapshot();
+			const width = config.width ?? Math.round( owner.width * 0.8 );
+			const height = config.height ?? Math.round( owner.height * 0.8 );
+			placement = {
+				x: Math.max( 0, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
+				y: Math.max( 0, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
+			};
+		}
+
+		return this.open( {
+			...config,
+			...placement,
+			// Children live on their owner's desktop — a child stranded
+			// on another virtual desktop would block a window nobody
+			// can see next to it.
+			desktopId: parent.config.desktopId,
+			parentWindowId,
+		} );
+	}
+
+	/**
+	 * The window that owns `win`, or undefined when it is not a child
+	 * (or its owner has since closed — an orphan is a normal window).
+	 *
+	 * @param win Window to look up the owner of.
+	 */
+	public ownerOf( win: Window ): Window | undefined {
+		const parentId = win.config.parentWindowId;
+		return parentId ? this.getById( parentId ) : undefined;
+	}
+
+	/**
+	 * Every open child of `winOrId`, in z-order (lowest first).
+	 *
+	 * Direct children only — walk the result to reach grandchildren.
+	 * Includes minimized children: they do not block focus, but a
+	 * caller counting "what does closing this take with it" needs
+	 * them.
+	 *
+	 * @param winOrId Owner window, or its id.
+	 */
+	public childrenOf( winOrId: Window | string ): Window[] {
+		const id = typeof winOrId === 'string' ? winOrId : winOrId.id;
+		return this._stack.filter( ( w ) => w.config.parentWindowId === id );
+	}
+
+	/**
+	 * The child that stands between `win` and the front, or undefined
+	 * when `win` is free to take focus.
+	 *
+	 * Walks to the DEEPEST open descendant, because a child can own a
+	 * child of its own and only the last link is actually on top.
+	 *
+	 * Minimized children are skipped deliberately: the user put that
+	 * child away, and a window that cannot be seen has no business
+	 * withholding focus from the one that can. Bringing the child back
+	 * restores the block.
+	 *
+	 * @param win Window a focus request came in for.
+	 */
+	public blockingChildOf( win: Window ): Window | undefined {
+		let current = win;
+		let blocker: Window | undefined;
+		// `seen` guards against a cycle in plugin-declared ownership
+		// (A owns B, B owns A). Without it a bad pair would spin here
+		// forever on the first click.
+		const seen = new Set< Window >( [ win ] );
+		for ( ;; ) {
+			const open = this.childrenOf( current ).filter(
+				( w ) => w.state !== 'minimized' && ! seen.has( w ),
+			);
+			if ( open.length === 0 ) {
+				return blocker;
+			}
+			// Topmost of several siblings — `childrenOf` returns
+			// z-order, so the last one is the one in front.
+			current = open[ open.length - 1 ];
+			seen.add( current );
+			blocker = current;
+		}
+	}
+
+	/**
+	 * Reorder `_stack` so no open child sits below its owner, then
+	 * leave the z-index rewrite to the caller.
+	 *
+	 * A stable topological pass: walk the stack bottom-up and emit
+	 * each window only after its owner, preserving existing order
+	 * everywhere ownership says nothing. Stability matters — this runs
+	 * on every focus, and an unstable sort would shuffle unrelated
+	 * windows behind each other on every click.
+	 *
+	 * Minimized windows are exempt from the constraint. Not cosmetic:
+	 * without the exemption, focusing an owner whose only child is
+	 * minimized would hoist that invisible child to the top of the
+	 * stack, and `setFocused( i === length - 1 )` would hand focus to
+	 * a window the user cannot see.
+	 */
+	private enforceOwnershipOrder(): void {
+		// Nothing declares ownership on most desktops — skip the whole
+		// pass rather than rebuild the array on every single focus.
+		if ( ! this._stack.some( ( w ) => w.config.parentWindowId ) ) {
+			return;
+		}
+
+		const ordered: Window[] = [];
+		const placed = new Set< Window >();
+
+		const place = ( win: Window, chain: Set< Window > ): void => {
+			if ( placed.has( win ) || chain.has( win ) ) {
+				return;
+			}
+			chain.add( win );
+			if ( win.state !== 'minimized' ) {
+				const owner = this.ownerOf( win );
+				if ( owner && owner !== win ) {
+					place( owner, chain );
+				}
+			}
+			if ( ! placed.has( win ) ) {
+				placed.add( win );
+				ordered.push( win );
+			}
+		};
+
+		for ( const win of this._stack ) {
+			place( win, new Set() );
+		}
+
+		// Mutate in place — `_stack` is public and long-lived, so
+		// reassigning it would strand any reference taken elsewhere.
+		this._stack.length = 0;
+		this._stack.push( ...ordered );
+	}
+
+	/**
+	 * Minimize every open child of `win`, remembering which ones this
+	 * cascade put away so {@link cascadeRestore} can tell them from
+	 * children the user had already minimized themselves.
+	 *
+	 * @param win Owner being minimized.
+	 */
+	private cascadeMinimize( win: Window ): void {
+		for ( const child of this.childrenOf( win ) ) {
+			if ( child.state === 'minimized' ) {
+				continue;
+			}
+			this._cascadeMinimized.add( child );
+			// `minimize()` fires the child's own `onMinimize`, which
+			// re-enters here for a grandchild — so a whole ownership
+			// chain folds away without an explicit recursive walk.
+			child.minimize();
+		}
+	}
+
+	/**
+	 * Bring back the children that went away with `win`, and only
+	 * those.
+	 *
+	 * A child the user minimized on their own before minimizing the
+	 * owner stays minimized: they put it away deliberately, and
+	 * un-minimizing it here would also silently re-block the owner
+	 * they just came back to.
+	 *
+	 * @param win Owner being restored.
+	 */
+	private cascadeRestore( win: Window ): void {
+		for ( const child of this.childrenOf( win ) ) {
+			if ( ! this._cascadeMinimized.has( child ) ) {
+				continue;
+			}
+			this._cascadeMinimized.delete( child );
+			// Mirrors `cascadeMinimize`: the child's own `onRestore`
+			// carries the cascade down to its grandchildren.
+			child.restore();
+		}
 	}
 
 	/** Remove a window from the stack and DOM. */
@@ -1150,6 +1477,20 @@ export class WindowManager {
 		const idx = this._stack.indexOf( win );
 		if ( idx > -1 ) {
 			this._stack.splice( idx, 1 );
+		}
+
+		// An owned window has no life of its own — close the children
+		// with their owner. Snapshot first: each `close()` re-enters
+		// `remove()` and mutates `_stack` underneath us.
+		//
+		// `close()` rather than `destroy()` so a child with unsaved
+		// changes still gets to ask. A child that vetoes outlives its
+		// owner and becomes an ordinary window (`ownerOf` returns
+		// undefined once the owner is gone), which is a better outcome
+		// than discarding the user's work.
+		for ( const child of this.childrenOf( win ).slice() ) {
+			this._cascadeMinimized.delete( child );
+			child.close();
 		}
 
 		// Focus the next topmost FOCUSABLE window — walk the stack
@@ -1731,7 +2072,17 @@ export class WindowManager {
 		// Ephemeral windows are the real opt-out: their URL doesn't
 		// survive a session (editor-preview nonces), so they're skipped
 		// from both the window list and the focused id.
-		const persistable = this._stack.filter( ( w ) => ! w.config.ephemeral );
+		//
+		// Child windows are skipped for a different reason: restoring
+		// one is only safe if its owner comes back too, and owners can
+		// fail to restore for reasons this side knows nothing about (a
+		// deactivated plugin's native window, a URL that 404s now). A
+		// restored child whose owner never arrived would sit there
+		// blocking a window that does not exist. Losing a child across
+		// a reload is the cheaper failure.
+		const persistable = this._stack.filter(
+			( w ) => ! w.config.ephemeral && ! w.config.parentWindowId,
+		);
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
@@ -1770,7 +2121,15 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId = focused && ! focused.config.ephemeral ? focused.id : '';
+		// Same two exclusions as `persistable` — a focused id pointing
+		// at a window that was never written to the snapshot restores
+		// as "focus nothing", so it has to be filtered here too.
+		const focusedId =
+			focused &&
+			! focused.config.ephemeral &&
+			! focused.config.parentWindowId
+				? focused.id
+				: '';
 
 		return {
 			windows,
