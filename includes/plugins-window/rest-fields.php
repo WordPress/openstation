@@ -494,6 +494,28 @@ function openstation_plugins_window_field_icon_url( $row ) {
 
 	$default = openstation_plugins_window_local_icon_url( $plugin_file );
 	if ( null === $default ) {
+		/*
+		 * Plugin Check's offloading rule is right in general and does
+		 * not fit here, so the suppression is one line wide and says
+		 * why, rather than living in a project-wide ignore list where
+		 * it would also cover the next offload someone adds.
+		 *
+		 * `ps.w.org` is WordPress.org's own plugin-asset host — the
+		 * same origin core's "Add Plugins" screen paints its cards
+		 * from. This is directory artwork for plugins we do not ship
+		 * and cannot bundle: there is nothing local to offload FROM,
+		 * and the alternative is not "host it ourselves" but "no
+		 * icon".
+		 *
+		 * It is already the last resort. The local-icon lookup above
+		 * wins whenever a plugin ships art at a conventional path,
+		 * nothing here is enqueued (it becomes an `<img src>`, not a
+		 * script or a stylesheet), and the card walks a candidate
+		 * chain before falling back to a dashicon placeholder — so a
+		 * blocked or offline host costs the user the picture and
+		 * nothing else.
+		 */
+		// phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- wp.org's own asset host, for directory art this plugin cannot bundle; degrades to a placeholder.
 		$default = 'https://ps.w.org/' . $slug . '/assets/icon.svg';
 	}
 
