@@ -220,6 +220,7 @@ export class OsSettings implements SettingsCtx {
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
+			showPostStatusRibbons: this.state.showPostStatusRibbons,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),
 			dockPromotedPositions: Object.fromEntries(

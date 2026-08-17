@@ -276,7 +276,11 @@
 		--os-media-tile-bg,
 		rgba( 0, 0, 0, 0.05 )
 	);
-	box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, 0.12 );
+	/* The hairline was a flat 12%-alpha black — right on the pre-brand
+	 * white canvas, and nothing at all on a dark one, where a black
+	 * line over a near-black surface leaves the photo edgeless. It
+	 * follows the border token now, so it inverts with the theme. */
+	box-shadow: inset 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
 }
 
 /* Banded list views. A section can split its tiles into labelled
@@ -407,7 +411,10 @@
 	pointer-events: none;
 }
 
-/* Tooltip lock banner — shown above the excerpt when present. */
+/* Hover-card lock banner — shown above the excerpt when present. The
+ * wash was a fixed 8%-alpha red, which on a dark card was a smear too
+ * faint to read as a banner at all; it follows the badge-danger token
+ * now, so it lands at the alpha the active theme picked. */
 .os-my-wordpress__tooltip-lock {
 	display: flex;
 	align-items: center;
@@ -415,7 +422,10 @@
 	margin: 0 0 8px;
 	padding: 6px 8px;
 	border-radius: 4px;
-	background: rgba( 179, 45, 46, 0.08 );
+	background: var(
+		--os-my-wordpress-card-lock-bg,
+		rgba( 179, 45, 46, 0.08 )
+	);
 	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
 	font-size: 12px;
 	font-weight: 600;
@@ -702,24 +712,47 @@
 	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
 }
 
-/* ----- Hover tooltip (floats over body) ----- */
+/* ----- Hover card (floats over body) -----
+ *
+ * The card is summoned from a tile and belongs to the window that
+ * tile is in, so it follows the active desktop theme rather than the
+ * shell's tooltip chip. Every colour chains
+ * `--os-my-wordpress-card-*` first — derived in `variables.css` from
+ * the window family, so a theme that repaints the window repaints the
+ * card with it — then the chip tokens, then the pre-brand literal.
+ *
+ * It is appended to `document.body`, not to the window, because it is
+ * `position: fixed` and a window with `overflow: hidden` would clip
+ * it. Theme tokens still reach it: a desktop theme declares on
+ * `body.os-desktop-theme-<slug>`, an ancestor of both. What does NOT
+ * reach it is anything scoped to `.desktop-mode-my-wordpress`, which
+ * is why the card family is declared at palette level. */
 
 .os-my-wordpress__tooltip {
 	position: fixed;
 	z-index: 100000;
 	max-width: 320px;
 	background: var(
-		--os-tooltip-bg,
-		var( --os-surface, var( --os-ui-surface, #fff ) )
+		--os-my-wordpress-card-bg,
+		var(
+			--os-tooltip-bg,
+			var( --os-surface, var( --os-ui-surface, #fff ) )
+		)
 	);
 	color: var(
-		--os-tooltip-fg,
-		var( --os-fg, #1d2327 )
+		--os-my-wordpress-card-fg,
+		var( --os-tooltip-fg, var( --os-fg, #1d2327 ) )
 	);
-	border: 1px solid var( --os-ui-border, #dcdcde );
+	/* The card lands on the same colour as the window under it — the
+	 * border and the shadow are the only reason it reads as a separate
+	 * object, so neither is decoration. */
+	border: 1px solid var( --os-my-wordpress-card-border, #dcdcde );
 	border-radius: 6px;
 	padding: 12px;
-	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
+	box-shadow: var(
+		--os-my-wordpress-card-shadow,
+		0 6px 24px rgba( 0, 0, 0, 0.18 )
+	);
 	font-size: 12px;
 	pointer-events: none;
 }
@@ -730,17 +763,26 @@
 	font-size: 13px;
 }
 
+/* Same neutral well the entry and media tiles give their thumbnails:
+ * a transparent PNG or a still-loading image would otherwise show the
+ * card straight through, and a photo whose edge matches the card
+ * would have no boundary. */
 .os-my-wordpress__tooltip-thumb {
 	display: block;
 	max-width: 100%;
 	height: auto;
 	border-radius: 4px;
 	margin: 6px 0;
+	background: var( --os-my-wordpress-card-thumb-bg, rgba( 0, 0, 0, 0.05 ) );
+	box-shadow: inset 0 0 0 1px var(
+		--os-my-wordpress-card-border,
+		#dcdcde
+	);
 }
 
 .os-my-wordpress__tooltip-excerpt {
 	margin: 0;
-	color: var( --os-ui-fg-muted, #50575e );
+	color: var( --os-my-wordpress-card-fg-muted, #50575e );
 	line-height: 1.4;
 }
 

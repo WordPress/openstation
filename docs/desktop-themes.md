@@ -162,6 +162,15 @@ than reproduce it:
 If you want one of them, name it in your own theme — Legacy leaving
 it undeclared is a statement about *defaults*, not a restriction.
 
+Leaving `--os-tooltip-bg` out is why every tooltip chip stays the same
+dark lozenge under Legacy, which is intended: a chip is one line of
+text pinned to a control, not a surface that belongs to a window. The
+[WP Explorer hover card](#the-wp-explorer-hover-card) used to be
+painted as one and looked wrong for exactly that reason — Obsidian,
+floating over Legacy's white window. It derives from
+`--os-my-wordpress-bg` now, which Legacy *does* declare, so it comes
+back light without the frozen manifest changing.
+
 ### Two honest caveats
 
 **It is a canonical snapshot, not a byte-for-byte one.** A handful of
@@ -615,13 +624,12 @@ a theme's `--os-window-radius`. Their choice stays theirs.
 
 #### Tooltips
 
-Two shell tokens own every tooltip in the shell — the dock tile
-tooltip, the content-graph satellite tooltip, and WP Explorer
-entity hover card:
+Two shell tokens own every tooltip **chip** — the dock tile tooltip
+and the content-graph satellite tooltip:
 
 | Token | Role |
 |---|---|
-| `--os-tooltip-bg` | The tooltip chip / card surface |
+| `--os-tooltip-bg` | The tooltip chip surface |
 | `--os-tooltip-fg` | Its primary text |
 
 ```json
@@ -645,9 +653,50 @@ accent-filled buttons.
 Both tokens are **undeclared by default**, so a theme that ignores
 them keeps the tooltip look the shell has always had.
 
-Secondary text inside the richer tooltips — the hover card's excerpt —
-still follows `--os-ui-fg-muted`; these two cover the surface and the
-primary text on it.
+A chip is deliberately the same lozenge under every theme — one line of
+text pinned to a control. The WP Explorer hover card is a different
+object and has its own family, below.
+
+#### The WP Explorer hover card
+
+Hovering a tile in WP Explorer summons a card with a title, a featured
+image and an excerpt. It is window furniture rather than a chip: it
+**follows the theme that paints the window it was summoned from**, and
+you get that for free.
+
+| Token | Role | Derived from |
+|---|---|---|
+| `--os-my-wordpress-card-bg` | The card surface | `--os-my-wordpress-bg` |
+| `--os-my-wordpress-card-fg` | Its primary text | `--os-my-wordpress-fg` |
+| `--os-my-wordpress-card-fg-muted` | The excerpt and any secondary line | `--os-ui-fg-muted` |
+| `--os-my-wordpress-card-border` | The edge that lifts it off the window | `--os-ui-border` |
+| `--os-my-wordpress-card-shadow` | Its drop shadow | — (flat) |
+| `--os-my-wordpress-card-thumb-bg` | The well behind the featured image | `--os-media-tile-bg` |
+| `--os-my-wordpress-card-lock-bg` | The wash behind the "someone is editing" banner | `--os-ui-badge-danger-bg` |
+
+**Most themes should set none of these.** Every one except the shadow
+is *derived* from a token you are likely setting anyway — name
+`--os-my-wordpress-bg` and `--os-ui-border` and the card arrives
+matching your window, with a visible edge, without a line of extra
+manifest. Set a `-card-` token only when you want the card to differ
+from the window it belongs to.
+
+```json
+"tokens": {
+  "--os-my-wordpress-card-bg": "#1e1c44",
+  "--os-my-wordpress-card-border": "rgba( 233, 231, 255, 0.16 )"
+}
+```
+
+Two things worth knowing if you do:
+
+- **The card's surface is the window's surface**, so the border and the
+  shadow are the only reason it reads as a separate object. If you
+  repoint `--os-my-wordpress-card-border`, keep it distinct from
+  `--os-my-wordpress-card-bg` or the card loses its edge entirely.
+- **The shadow is flat, not derived.** A drop shadow is cast light —
+  dark under a light theme and dark under a dark one — so there is no
+  window token for it to follow. It is named so you can still reach it.
 
 #### Dock glyphs
 

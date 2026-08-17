@@ -184,6 +184,13 @@ export class OsTile extends Component {
 	private _pointerdownHandler: ( ( e: PointerEvent ) => void ) | null = null;
 	private _keydownHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
 
+	private _onSettingsSave = ( e: Event ): void => {
+		const detail = ( e as CustomEvent ).detail as { phase?: string } | undefined;
+		if ( detail?.phase === 'saved' ) {
+			this._paint();
+		}
+	};
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		if ( ! this._keydownHandler ) {
@@ -195,6 +202,7 @@ export class OsTile extends Component {
 			};
 			this.addEventListener( 'keydown', this._keydownHandler as EventListener );
 		}
+		document.addEventListener( 'os-settings-save-lifecycle', this._onSettingsSave );
 		// Paint immediately on first connect so callers can query
 		// the rendered DOM synchronously.
 		this._paint();
@@ -215,6 +223,7 @@ export class OsTile extends Component {
 			);
 			this._keydownHandler = null;
 		}
+		document.removeEventListener( 'os-settings-save-lifecycle', this._onSettingsSave );
 	}
 
 	/**
