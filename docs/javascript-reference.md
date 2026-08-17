@@ -870,7 +870,15 @@ await wp.os.windowManager.openChild( 'edit-post-42', {
 
 The owner stays **fully usable** — scrollable, readable, draggable, resizable, minimizable. Only its z-order is constrained. This is deliberately not an inert, dimmed parent: the reason to use a window instead of a dialog is usually that you need to keep reading the thing behind it.
 
-`openChild()` centers the child over its owner's **live** rect (not its opening geometry — owners get dragged) and puts it on the owner's virtual desktop. Pass `x`/`y` to place it yourself. Every other `open()` option behaves identically. An owner id that isn't open **throws** rather than quietly opening a standalone window.
+`openChild()` puts the child on the owner's virtual desktop, and places it by this order of precedence:
+
+1. **Anything you pass.** `x` / `y` / `width` / `height` are used as given.
+2. **The child's remembered geometry.** A child is a real window, so it gets the same per-`baseId` geometry memory as any other — resize it or drag it aside and it comes back that way, not re-centered.
+3. **Centered over the owner**, at 80% of the owner's current size. Measured from the owner's **live** rect, not its opening config (owners get dragged), and clamped to the desktop area so a child of an owner hanging off an edge still opens on screen.
+
+Size and position are resolved **together** on that third path. Handing `open()` a position computed for one size while letting it pick a different one produces a child centered for dimensions it doesn't have.
+
+Every other `open()` option behaves identically. An owner id that isn't open **throws** rather than quietly opening a standalone window.
 
 The rules that follow from ownership:
 
@@ -883,6 +891,7 @@ The rules that follow from ownership:
 | **Minimize** | Minimizing an owner minimizes its children; restoring brings back exactly the ones the cascade put away. A child the user had already minimized themselves stays minimized. |
 | **Minimized children** | A minimized child **stops blocking** — the user put it away, so the owner is theirs again until they bring it back. |
 | **Session** | Children are left out of session snapshots. A restored child whose owner failed to come back (deactivated plugin, dead URL) would block a window that does not exist. |
+| **Event cadence** | A cascade is one user action and emits **one** focus change, not one per window moved. Minimizing an owner with three children fires a single `os-window-focused` / `WINDOW_FOCUSED` pair, so an activity feed built on those doesn't see transitions the user never made. `WINDOW_MINIMIZED` / `WINDOW_RESTORED` still fire per window — those describe the windows, not the focus. |
 
 Ownership is about z-order and focus. For a *visual* relationship between peer windows — a post and its comments, drawn with ties on the desktop — you want [content relations](#window-content-relations) instead.
 

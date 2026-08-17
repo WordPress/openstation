@@ -12,8 +12,10 @@
  * escape hatches: a minimized child stops blocking, and children stay
  * out of session snapshots.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
+import { NATIVE_GEOMETRY_STORAGE_KEY } from '../../src/window-manager/native-window-geometry';
+import { HOOKS } from '../../src/hooks';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 function cfg( id: string, extra: Record< string, unknown > = {} ) {
@@ -183,6 +185,56 @@ describe( 'child windows — the owner cannot come to the front', () => {
 		expect( child.config.y ).toBe( 200 + ( 400 - 200 ) / 2 );
 	} );
 
+	test( 'openChild centers with NO explicit size — the documented call shape', async () => {
+		const owner = await manager.open(
+			cfg( 'owner', { x: 100, y: 100, width: 800, height: 600 } ),
+		);
+		owner.element.style.left = '300px';
+		owner.element.style.top = '150px';
+		owner.element.style.width = '600px';
+		owner.element.style.height = '400px';
+
+		// No width/height — exactly what docs/examples/child-windows.md
+		// shows. This used to compute x/y for an assumed 80%-of-owner
+		// size and then let `open()` pick a completely different size
+		// from the desktop rect, so the child landed nowhere near
+		// centered. Size and position have to be pinned together.
+		const child = await manager.openChild( 'owner', cfg( 'child' ) );
+
+		const width = Math.round( 600 * 0.8 );
+		const height = Math.round( 400 * 0.8 );
+		expect( child.config.width ).toBe( width );
+		expect( child.config.height ).toBe( height );
+		expect( child.config.x ).toBe( 300 + ( 600 - width ) / 2 );
+		expect( child.config.y ).toBe( 150 + ( 400 - height ) / 2 );
+
+		// The real invariant behind the arithmetic: concentric.
+		expect( child.config.x + width / 2 ).toBe( 300 + 600 / 2 );
+		expect( child.config.y + height / 2 ).toBe( 150 + 400 / 2 );
+	} );
+
+	test( 'a centered child stays inside the desktop when its owner hangs off an edge', async () => {
+		const owner = await manager.open(
+			cfg( 'owner', { width: 800, height: 600 } ),
+		);
+		// Dragged mostly off the right/bottom of the 1600x900 desktop.
+		owner.element.style.left = '1500px';
+		owner.element.style.top = '800px';
+		owner.element.style.width = '800px';
+		owner.element.style.height = '600px';
+
+		const child = await manager.openChild( 'owner', cfg( 'child' ) );
+
+		expect( child.config.x ).toBeLessThanOrEqual(
+			1600 - ( child.config.width ?? 0 ),
+		);
+		expect( child.config.y ).toBeLessThanOrEqual(
+			900 - ( child.config.height ?? 0 ),
+		);
+		expect( child.config.x ).toBeGreaterThanOrEqual( 0 );
+		expect( child.config.y ).toBeGreaterThanOrEqual( 0 );
+	} );
+
 	test( 'openChild honours an explicit position', async () => {
 		await manager.open(
 			cfg( 'owner', { x: 100, y: 100, width: 800, height: 600 } ),
@@ -195,6 +247,157 @@ describe( 'child windows — the owner cannot come to the front', () => {
 
 		expect( child.config.x ).toBe( 12 );
 		expect( child.config.y ).toBe( 34 );
+	} );
+
+	test( "a child's remembered geometry wins over centering", async () => {
+		// The user dragged this child aside and resized it last time.
+		// Centering must not overrule that — a child is a real window
+		// and gets the same geometry memory as any other.
+		window.localStorage.setItem(
+			NATIVE_GEOMETRY_STORAGE_KEY,
+			JSON.stringify( {
+				child: { x: 25, y: 45, width: 333, height: 222 },
+			} ),
+		);
+
+		await manager.open(
+			cfg( 'owner', { x: 100, y: 100, width: 800, height: 600 } ),
+		);
+		const child = await manager.openChild( 'owner', cfg( 'child' ) );
+
+		expect( child.config.x ).toBe( 25 );
+		expect( child.config.y ).toBe( 45 );
+		expect( child.config.width ).toBe( 333 );
+		expect( child.config.height ).toBe( 222 );
+
+		window.localStorage.removeItem( NATIVE_GEOMETRY_STORAGE_KEY );
+	} );
+} );
+
+describe( 'child windows — a cascade is one focus change', () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( () => {
+		installHooksStub();
+		desktop = makeDesktop();
+		document.body.appendChild( desktop );
+		manager = new WindowManager( desktop );
+	} );
+
+	afterEach( () => {
+		for ( const w of manager.getAll() ) {
+			w.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+	} );
+
+	/**
+	 * Count `os-window-focused` dispatches for one user action.
+	 *
+	 * The end state was always correct; what these guard is event
+	 * churn. A plugin building an activity feed off WINDOW_FOCUSED /
+	 * WINDOW_BLURRED saw a transition per cascaded window, none of
+	 * which the user performed.
+	 */
+	function countFocusEvents( run: () => void ): number {
+		const seen = vi.fn();
+		document.addEventListener( 'os-window-focused', seen );
+		try {
+			run();
+		} finally {
+			document.removeEventListener( 'os-window-focused', seen );
+		}
+		return seen.mock.calls.length;
+	}
+
+	test( 'minimizing an owner with three children fires one focus change', async () => {
+		const other = await manager.open( cfg( 'other' ) );
+		const owner = await manager.open( cfg( 'owner' ) );
+		await manager.openChild( 'owner', cfg( 'c1' ) );
+		await manager.openChild( 'owner', cfg( 'c2' ) );
+		await manager.openChild( 'owner', cfg( 'c3' ) );
+
+		const focusEvents = countFocusEvents( () => owner.minimize() );
+
+		expect( focusEvents ).toBe( 1 );
+		// And it landed somewhere real.
+		expect( other.isFocused() ).toBe( true );
+	} );
+
+	test( 'closing an owner with three children fires one focus change', async () => {
+		const other = await manager.open( cfg( 'other' ) );
+		const owner = await manager.open( cfg( 'owner' ) );
+		await manager.openChild( 'owner', cfg( 'c1' ) );
+		await manager.openChild( 'owner', cfg( 'c2' ) );
+		await manager.openChild( 'owner', cfg( 'c3' ) );
+
+		const focusEvents = countFocusEvents( () => owner.close() );
+
+		expect( focusEvents ).toBe( 1 );
+		expect( manager.getAll().map( ( w ) => w.id ) ).toEqual( [ 'other' ] );
+		expect( other.isFocused() ).toBe( true );
+	} );
+
+	test( 'restoring an owner with three children fires one focus change', async () => {
+		const owner = await manager.open( cfg( 'owner' ) );
+		await manager.openChild( 'owner', cfg( 'c1' ) );
+		await manager.openChild( 'owner', cfg( 'c2' ) );
+		const c3 = await manager.openChild( 'owner', cfg( 'c3' ) );
+		owner.minimize();
+
+		const focusEvents = countFocusEvents( () => owner.restore() );
+
+		expect( focusEvents ).toBe( 1 );
+		// The owner cannot hold focus while a child is open, so the one
+		// focus change resolves to a restored child.
+		expect( owner.isFocused() ).toBe( false );
+		expect( c3.state ).not.toBe( 'minimized' );
+		expect( manager.blockingChildOf( owner ) ).toBeDefined();
+	} );
+
+	test( 'the blur side is quiet too', async () => {
+		await manager.open( cfg( 'other' ) );
+		const owner = await manager.open( cfg( 'owner' ) );
+		await manager.openChild( 'owner', cfg( 'c1' ) );
+		await manager.openChild( 'owner', cfg( 'c2' ) );
+
+		const blurs: string[] = [];
+		const onBlur = ( e: Event ): void => {
+			blurs.push( ( e as CustomEvent ).detail.windowId );
+		};
+		document.addEventListener( 'os-window-blurred', onBlur );
+		owner.minimize();
+		document.removeEventListener( 'os-window-blurred', onBlur );
+
+		expect( blurs.length ).toBeLessThanOrEqual( 1 );
+	} );
+
+	test( 'a normal minimize still settles focus', async () => {
+		const a = await manager.open( cfg( 'a' ) );
+		const b = await manager.open( cfg( 'b' ) );
+
+		// No ownership in play — the depth guard must not suppress the
+		// ordinary path.
+		const focusEvents = countFocusEvents( () => b.minimize() );
+
+		expect( focusEvents ).toBe( 1 );
+		expect( a.isFocused() ).toBe( true );
+	} );
+
+	test( 'the hook action fires alongside the event, once', async () => {
+		await manager.open( cfg( 'other' ) );
+		const owner = await manager.open( cfg( 'owner' ) );
+		await manager.openChild( 'owner', cfg( 'c1' ) );
+		await manager.openChild( 'owner', cfg( 'c2' ) );
+
+		const seen = vi.fn();
+		window.wp.hooks.addAction( HOOKS.WINDOW_FOCUSED, 'test/churn', seen );
+		owner.minimize();
+		window.wp.hooks.removeAction( HOOKS.WINDOW_FOCUSED, 'test/churn' );
+
+		expect( seen ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
 

@@ -1756,13 +1756,22 @@ export class Window {
 				this.updateFocusButtonState();
 			}
 		}
+		if ( wasMinimized ) {
+			// Bring owned child windows back BEFORE requesting focus.
+			// Ordering is load-bearing: while the children are still
+			// minimized none of them blocks, so a focus request here
+			// would land on this window and then have to be corrected
+			// once they reappear — two focus changes for one user
+			// action. Restore first and the single request below
+			// resolves straight to the child that should hold focus.
+			this.onRestore?.( this );
+		}
 		this.onFocusRequest?.( this );
 		this._emitChange( 'state' );
 		if ( wasMinimized ) {
-			// Before `WINDOW_RESTORED`, so a subscriber that inspects
-			// the desktop sees this window's children already back
-			// rather than a half-restored ownership group.
-			this.onRestore?.( this );
+			// After `onRestore`, so a subscriber that inspects the
+			// desktop sees this window's children already back rather
+			// than a half-restored ownership group.
 			doAction( HOOKS.WINDOW_RESTORED, {
 				windowId: this.id,
 				element: this.element,

@@ -155,6 +155,25 @@ export class WindowManager {
 	private _cascadeMinimized: WeakSet< Window > = new WeakSet();
 
 	/**
+	 * Re-entrancy depth of an ownership cascade (minimize / restore /
+	 * close of a window that owns children).
+	 *
+	 * A cascade is one user action, and it should emit one focus
+	 * change. Without this, each child's own `minimize()` re-enters
+	 * `onMinimize` and settles focus on an intermediate window before
+	 * the cascade finishes, so minimizing an owner with three children
+	 * fired four `WINDOW_FOCUSED` / `WINDOW_BLURRED` pairs. The end
+	 * state was right, but anything building an activity feed or
+	 * analytics off those actions saw transitions the user never made.
+	 *
+	 * Non-zero means "an outer cascade is still running and will settle
+	 * focus when it is done" — intermediate focus work is skipped.
+	 * Incremented and decremented in `finally` so a throwing child
+	 * cannot wedge the desktop in a state where clicks stop focusing.
+	 */
+	private _cascadeDepth = 0;
+
+	/**
 	 * The desktop area element where windows are rendered.
 	 * @internal
 	 */
@@ -892,20 +911,48 @@ export class WindowManager {
 		] );
 		const win = system.createWindow( fullConfig );
 
-		win.onFocusRequest = ( w: Window ) => this.focus( w );
+		win.onFocusRequest = ( w: Window ) => {
+			// Mid-cascade, the window asking for focus is one the
+			// cascade is moving, not one the user picked. Let the
+			// cascade settle focus once at the end.
+			if ( this._cascadeDepth > 0 ) {
+				return;
+			}
+			this.focus( w );
+		};
 		win.onClose = ( w: Window ) => this.remove( w );
 		win.onMinimize = ( w: Window ) => {
 			// Children go away with their owner — a child left floating
 			// over the gap where its owner used to be reads as a
 			// detached dialog, and it would go on blocking a window the
 			// user can no longer see.
-			this.cascadeMinimize( w );
+			this._cascadeDepth++;
+			try {
+				this.cascadeMinimize( w );
+			} finally {
+				this._cascadeDepth--;
+			}
+			if ( this._cascadeDepth > 0 ) {
+				return;
+			}
 			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
 			}
 		};
-		win.onRestore = ( w: Window ) => this.cascadeRestore( w );
+		win.onRestore = ( w: Window ) => {
+			// No focus call here on purpose. `Window.restore()` fires
+			// this BEFORE its own `onFocusRequest`, so once the children
+			// are back the request that follows resolves through the
+			// normal redirect and the whole group costs one focus
+			// change.
+			this._cascadeDepth++;
+			try {
+				this.cascadeRestore( w );
+			} finally {
+				this._cascadeDepth--;
+			}
+		};
 		win.onOpenAnother = ( w: Window ) => {
 			// Native windows: route through the public-API
 			// `openNewWindow( id )` so the registry's template clone
@@ -1288,18 +1335,56 @@ export class WindowManager {
 			);
 		}
 
-		// Center over the owner unless the caller placed it. Read the
-		// owner's live rect rather than its config: it has very likely
-		// been dragged or resized since it opened, and a child centered
-		// on where the owner *started* can land off-screen.
-		let placement: { x?: number; y?: number } = {};
-		if ( config.x === undefined && config.y === undefined ) {
+		// Does this child already have a place the user chose? `open()`
+		// falls back to per-baseId localStorage geometry when the caller
+		// pins nothing, and that memory has to win over centering — a
+		// child the user dragged aside and resized should come back
+		// where they left it, exactly like any other window.
+		const savedGeometry = loadNativeWindowGeometry(
+			config.baseId || config.id,
+		);
+		const hasSavedPlacement =
+			!! savedGeometry &&
+			typeof savedGeometry.x === 'number' &&
+			typeof savedGeometry.y === 'number';
+
+		// Center over the owner when nothing else has an opinion. Read
+		// the owner's live rect rather than its config: it has very
+		// likely been dragged or resized since it opened, and a child
+		// centered on where the owner *started* can land off-screen.
+		//
+		// Size and position are pinned TOGETHER or not at all. Sending
+		// x/y derived from an assumed size while letting `open()` resolve
+		// the real size from its own desktop-based defaults produces a
+		// child centered for dimensions it does not have — which is to
+		// say, not centered.
+		let placement: Partial< WindowConfig > = {};
+		if (
+			config.x === undefined &&
+			config.y === undefined &&
+			! hasSavedPlacement
+		) {
 			const owner = parent.getSnapshot();
 			const width = config.width ?? Math.round( owner.width * 0.8 );
 			const height = config.height ?? Math.round( owner.height * 0.8 );
+			// Keep the child inside the desktop area even when its owner
+			// is hanging off an edge. `open()` clamps saved geometry but
+			// trusts caller-pinned coordinates, and this counts as
+			// caller-pinned.
+			const desktopRect = this._desktop.getBoundingClientRect();
+			const maxX = Math.max( 0, desktopRect.width - width );
+			const maxY = Math.max( 0, desktopRect.height - height );
 			placement = {
-				x: Math.max( 0, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
-				y: Math.max( 0, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
+				width,
+				height,
+				x: Math.min(
+					maxX,
+					Math.max( 0, Math.round( owner.x + ( owner.width - width ) / 2 ) ),
+				),
+				y: Math.min(
+					maxY,
+					Math.max( 0, Math.round( owner.y + ( owner.height - height ) / 2 ) ),
+				),
 			};
 		}
 
@@ -1488,9 +1573,22 @@ export class WindowManager {
 		// owner and becomes an ordinary window (`ownerOf` returns
 		// undefined once the owner is gone), which is a better outcome
 		// than discarding the user's work.
-		for ( const child of this.childrenOf( win ).slice() ) {
-			this._cascadeMinimized.delete( child );
-			child.close();
+		//
+		// Depth-guarded like the minimize cascade: each `close()`
+		// re-enters `remove()`, which would otherwise run the
+		// focus-next-window pass below once per child and emit a focus
+		// change for every intermediate window on the way down.
+		const children = this.childrenOf( win ).slice();
+		if ( children.length > 0 ) {
+			this._cascadeDepth++;
+			try {
+				for ( const child of children ) {
+					this._cascadeMinimized.delete( child );
+					child.close();
+				}
+			} finally {
+				this._cascadeDepth--;
+			}
 		}
 
 		// Focus the next topmost FOCUSABLE window — walk the stack
@@ -1503,7 +1601,12 @@ export class WindowManager {
 		// the active-desktop filter used by `getByBaseIdOnActiveDesktop`.
 		// If nothing qualifies (only minimized / off-desktop windows
 		// remain), we focus nothing rather than force-restore one.
-		for ( let i = this._stack.length - 1; i >= 0; i-- ) {
+		//
+		// Skipped while an ownership cascade is unwinding — the owner's
+		// own `remove()` runs this pass once the whole group is gone,
+		// and doing it per child would hand focus through every
+		// intermediate window first.
+		for ( let i = this._stack.length - 1; this._cascadeDepth === 0 && i >= 0; i-- ) {
 			const candidate = this._stack[ i ];
 			if ( candidate.state === 'minimized' ) {
 				continue;

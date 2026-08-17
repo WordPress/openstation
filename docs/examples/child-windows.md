@@ -26,11 +26,21 @@ const child = await wp.os.windowManager.openChild( 'edit-post-42', {
 } );
 ```
 
-That's it. The child centers over its owner's current position, opens on the owner's virtual desktop, and from then on the post window cannot be raised above it.
+That's it. The child opens on the owner's virtual desktop, and from then on the post window cannot be raised above it.
 
 `openChild()` **throws** if `parentWindowId` names no open window — a child of nothing has nothing to block, so failing loudly beats quietly opening a standalone window.
 
-Everything `open()` accepts works here too (`native`, `render`, `params`, `width`, `initialState`, …). Pass `x` / `y` to place the child yourself instead of centering it.
+Everything `open()` accepts works here too (`native`, `render`, `params`, `initialState`, …).
+
+### Where it opens
+
+In precedence order:
+
+1. **Whatever you pass** — `x`, `y`, `width`, `height`.
+2. **What the user last left it at.** A child is a real window and gets the same geometry memory as any other, keyed by `baseId`. Drag it aside and resize it, and that's where it comes back — not re-centered.
+3. **Centered over the owner**, at 80% of the owner's *current* size, clamped to the desktop area.
+
+The size defaults matter here: on the centering path, `openChild()` pins width and height alongside x and y. It has to — a position computed for an assumed size, applied to a window that opens at a different one, isn't centered. If you want a specific size, pass `width` / `height` and the centering follows them.
 
 ## Registering it from a title-bar button
 
@@ -108,6 +118,7 @@ mgr.blockingChildOf( postWindow );       // the deepest child holding focus, or 
 | **Minimized children stop blocking** | The user put it away on purpose, so the owner is theirs again until they bring it back. Don't build a flow that depends on the child being unreachable — it isn't a security boundary, it's an affordance. |
 | **Unrelated windows** | Ownership constrains owner-vs-child and nothing else. Any other window can still be focused over both. |
 | **Session** | Children are **not** persisted across a reload. A restored child whose owner failed to come back (deactivated plugin, dead URL) would block a window that doesn't exist. If your child holds state worth keeping, save it yourself and reopen from the owner. |
+| **Event cadence** | A cascade emits **one** focus change, not one per window it moves — so `os-window-focused` / `os-window-blurred` subscribers don't see transitions the user never made. `os-window-minimized` / `-restored` still fire per window; they describe the windows, not the focus. |
 
 ## When you want the other thing
 
