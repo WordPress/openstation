@@ -286,6 +286,14 @@ display names or folder names.
 The JS client throws `FilesConflictError` and the layer surfaces a
 toast: *"Alice moved this to 'Backlog' just now. [View folder]"*.
 
+**View folder** opens the destination folder's window — the same
+window a double-click on that folder's tile opens, because the action
+dispatches through the registered `folder` opener rather than building
+a window of its own. An already-open folder window is focused instead
+of reopened. The button follows the viewer-scoping above: when
+`current.parentId` degrades to `0` there is no folder to point at, so
+the toast carries the message alone.
+
 Clients that omit the header retain last-write-wins semantics for
 back-compat. The OpenStation shell always sends the header.
 

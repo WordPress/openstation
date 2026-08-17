@@ -16,6 +16,19 @@
 
 import { registerType } from './registry';
 
+/**
+ * The folder tile's icon, mirroring
+ * `OpenStation_Folder_File::icon()` on the PHP side.
+ *
+ * Same rationale as the labels above: the server sends this on every
+ * serialized placement, so anything rendering a folder the server
+ * described uses **that** value and never this one. This is the
+ * fallback for the one case where a folder has to be addressed
+ * without a placement to describe it — see `folderFileById()` in
+ * `folder-ref.ts`.
+ */
+export const FOLDER_FILE_ICON = 'dashicons-portfolio';
+
 export function registerBuiltInFileTypes(): void {
 	registerType( { type: 'shortcut', label: 'Plugin shortcut', sort: 1 } );
 	registerType( { type: 'folder', label: 'Folder', sort: 5 } );
