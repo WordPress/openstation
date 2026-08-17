@@ -140,13 +140,15 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/opens
 
 == Screenshots ==
 
-1. Real multitasking: Users, Media, and a post you're editing, open side by side as windows.
-2. Your admin, your desktop: custom wallpapers and live widgets registered by plugins.
-3. Ask the AI Assistant (Cmd+K) about your own posts, pages, and comments.
-4. Corkboard: a zoomable map of how your content links together.
-5. OpenStation Preferences: wallpaper presets, animated scenes, or your own image.
-6. Files on the desktop: drag posts, media, and links onto the wallpaper and into folders.
-7. The Trash collects trashed posts, media, folders, and shortcuts in one window.
+1. Real multitasking: your posts, your preferences, and the Trash open side by side as windows.
+2. Make it yours: accent colours, wallpaper presets and animated scenes, and a dock on whichever edge you like.
+3. Find anything with Cmd+K: the Site Assistant opens admin pages, runs commands, and answers questions about your content.
+4. Give an AI agent its own instructions and tools, then set it to work on your posts, media, and comments.
+5. Live widgets on the wallpaper: post stats, recent comments, drafts, a notepad, and more from your plugins.
+6. Mio, your desk companion, tuned to whatever shape, colour, and mood suits you.
+7. One desktop per job: keep writing, the store, and moderation on separate Spaces.
+8. Games built into the desktop, with a scoreboard shared across everyone on your site.
+9. Corkboard: a zoomable map of how your posts and pages link together.
 
 == Credits ==
 
