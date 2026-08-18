@@ -563,17 +563,21 @@ function openMioStylePanelImmediate(): void {
 						paint();
 					},
 				),
-				slider(
-					{
-						key: 'iridescence',
-						label: __( 'Iridescence' ),
-						min: 0,
-						max: 2,
-						step: 0.05,
-					},
-					current,
-					set,
-				),
+				...( appearance.iridescence > 0
+					? [
+						slider(
+							{
+								key: 'iridescence',
+								label: __( 'Iridescence' ),
+								min: 0,
+								max: 2,
+								step: 0.05,
+							},
+							current,
+							set,
+						),
+					]
+					: [] ),
 			] ),
 			section( __( 'Body' ), [
 				colour( 'bodyColor', __( 'Body colour' ), appearance, set ),
