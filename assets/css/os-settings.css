@@ -567,21 +567,35 @@
  * The invisible anchor for the Custom accent's colour wheel.
  *
  * There is no visible colour field: picking the Custom swatch opens
- * the native picker directly, and the picker anchors to THIS input,
- * which `accent.ts` parks just under the swatch (absolute against
- * the section wrapper, measured at click time) before calling
- * showPicker(). Absolute rather than fixed because a dragged window
- * carries a transform, and a transform turns fixed positioning into
- * a lie while getBoundingClientRect keeps telling viewport truth.
+ * the native picker directly, and the picker anchors to THIS input.
+ * So the input is laid over the Custom swatch. The last cell of the
+ * accent row is its containing block and the input fills it exactly,
+ * so the wheel opens on the square it belongs to.
+ *
+ * Anchoring it in CSS rather than measuring it in JS is the whole
+ * fix: the browser places the popup from the box it has already laid
+ * out, so an input moved by an inline style in the same tick as
+ * showPicker() is placed from its PREVIOUS box, which put the wheel
+ * under the first swatch. A cell that owns the input has no such
+ * moment, and it survives resize and grid reflow for free.
+ *
+ * Absolute rather than fixed because a dragged window carries a
+ * transform, and a transform turns fixed positioning into a lie.
  *
  * It stays out of the tab order and off the accessibility tree: the
  * Custom swatch is the control, and activating it (pointer or
  * keyboard) is what opens the wheel.
  */
+.os-settings__accent-custom {
+	position: relative;
+	display: inline-flex;
+}
+
 .os-settings__accent-picker {
 	position: absolute;
-	width: 28px;
-	height: 1px;
+	inset: 0;
+	width: 100%;
+	height: 100%;
 	margin: 0;
 	padding: 0;
 	border: 0;

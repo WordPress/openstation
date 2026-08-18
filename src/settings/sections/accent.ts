@@ -5,10 +5,10 @@
  *
  * The last swatch is Custom, and it is not one of the presets: it
  * carries {@link CUSTOM_ACCENT_ID} and opens the native colour wheel
- * directly, anchored just under the swatch. A site's brand colour is
- * rarely one of ten we picked, and before this the only way to get
- * it was a PHP filter, which is not a thing you ask a person
- * choosing a wallpaper to write.
+ * on the swatch itself. A site's brand colour is rarely one of ten we
+ * picked, and before this the only way to get it was a PHP filter,
+ * which is not a thing you ask a person choosing a wallpaper to
+ * write.
  */
 
 import { __ } from '../../i18n';
@@ -35,29 +35,31 @@ export function buildAccentSection( ctx: SettingsCtx ): HTMLElement {
 	// refresh after plugin activation), the picker picks up the new
 	// values on the next repaint.
 	/*
-	 * Opens the native colour wheel anchored under the Custom swatch.
+	 * Opens the native colour wheel on the Custom swatch.
 	 *
-	 * The picker anchors to the input element's box, so the hidden
-	 * input is moved to sit just below the swatch before showPicker()
-	 * is called. Measured at click time rather than kept in place,
-	 * because the swatch's position changes with every window resize
-	 * and grid reflow, and a stale anchor opens the wheel somewhere
-	 * arbitrary (top corner of the screen, in practice).
+	 * Where the wheel appears is not something `showPicker()` takes an
+	 * argument for: it is a browser popup anchored to the box of the
+	 * `<input type="color">` it belongs to. So the input is laid out
+	 * over the Custom swatch in CSS (`.os-settings__accent-custom`
+	 * gives the cell its containing block, `.os-settings__accent-picker`
+	 * fills it) and the wheel follows the swatch for free, through
+	 * every window resize and grid reflow, with nothing to measure.
+	 *
+	 * It used to be measured and moved here instead, one line before
+	 * the call, and the wheel opened under the FIRST swatch: an inline
+	 * `left`/`top` written in the same tick leaves layout dirty, and
+	 * the popup is placed from the box the browser has already
+	 * computed: the input's static position, at the start of the row.
+	 * The DOM looked correct afterwards either way, which is what made
+	 * that one hard to see.
 	 */
 	const openWheel = (): void => {
-		const swatch = wrapper.querySelector< HTMLElement >(
-			`os-swatch[value='${ CUSTOM_ACCENT_ID }']`,
-		);
 		const input = wrapper.querySelector< HTMLInputElement >(
 			'.os-settings__accent-picker',
 		);
-		if ( ! swatch || ! input ) {
+		if ( ! input ) {
 			return;
 		}
-		const swatchRect = swatch.getBoundingClientRect();
-		const hostRect = wrapper.getBoundingClientRect();
-		input.style.left = `${ swatchRect.left - hostRect.left }px`;
-		input.style.top = `${ swatchRect.bottom - hostRect.top + 6 }px`;
 		try {
 			input.showPicker();
 		} catch {
@@ -100,9 +102,6 @@ export function buildAccentSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	const wrapper = document.createElement( 'div' );
-	// The containing block for the hidden picker anchor; see
-	// `.os-settings__accent-picker` in os-settings.css.
-	wrapper.style.position = 'relative';
 	const paint = (): void => {
 		const isCustom = ctx.state.accent === CUSTOM_ACCENT_ID;
 		render(
@@ -128,25 +127,27 @@ export function buildAccentSection( ctx: SettingsCtx ): HTMLElement {
 								?selected=${ ctx.state.accent === a.id }
 							></os-swatch>`,
 						) }
-						<os-swatch
-							value=${ CUSTOM_ACCENT_ID }
-							label=${ __( 'Custom' ) }
-							preview=${ isCustom
-								? ctx.state.customAccent
-								: CUSTOM_PREVIEW }
-							size="small"
-							variant="accent"
-							?selected=${ isCustom }
-						></os-swatch>
+						<span class="os-settings__accent-custom">
+							<os-swatch
+								value=${ CUSTOM_ACCENT_ID }
+								label=${ __( 'Custom' ) }
+								preview=${ isCustom
+									? ctx.state.customAccent
+									: CUSTOM_PREVIEW }
+								size="small"
+								variant="accent"
+								?selected=${ isCustom }
+							></os-swatch>
+							<input
+								type="color"
+								class="os-settings__accent-picker"
+								tabindex="-1"
+								aria-hidden="true"
+								.value=${ ctx.state.customAccent }
+								@input=${ onCustomColor }
+							/>
+						</span>
 					</os-swatch-grid>
-					<input
-						type="color"
-						class="os-settings__accent-picker"
-						tabindex="-1"
-						aria-hidden="true"
-						.value=${ ctx.state.customAccent }
-						@input=${ onCustomColor }
-					/>
 				</os-section>
 			`,
 			wrapper,
