@@ -32,6 +32,18 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Unconditional cleanup: the chromeless flag and the opt-in meta are
+	 * request-global, so a mid-test failure would otherwise leak them into
+	 * every sibling test in the suite.
+	 */
+	public function tear_down() {
+		unset( $_GET['openstation_chromeless'], $GLOBALS['pagenow'] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		set_current_screen( 'front' );
+		parent::tear_down();
+	}
+
+	/**
 	 * Helper: a minimal dock-item shape matching what
 	 * `openstation_build_dock_items()` hands to the filter.
 	 */
@@ -165,32 +177,60 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_themes_workspace_intro_only_renders_in_chromeless_themes_screen() {
-		$_GET['openstation_chromeless'] = '1';
-		$GLOBALS['pagenow']              = 'themes.php';
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
+	/**
+	 * Helper: renders the intro and returns the captured markup.
+	 */
+	private function capture_themes_workspace_intro() {
 		ob_start();
 		openstation_render_themes_workspace_intro();
-		$output = ob_get_clean();
+
+		return ob_get_clean();
+	}
+
+	public function test_themes_workspace_intro_renders_on_the_chromeless_themes_screen() {
+		$_GET['openstation_chromeless'] = '1';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( 'themes' );
+
+		$output = $this->capture_themes_workspace_intro();
 
 		$this->assertStringContainsString( 'class="openstation-themes-intro"', $output );
 		$this->assertStringContainsString( 'Choose how your site greets the world.', $output );
 		$this->assertStringContainsString( 'openstation-themes-intro__count', $output );
+	}
 
-		$GLOBALS['pagenow'] = 'plugins.php';
-		ob_start();
-		openstation_render_themes_workspace_intro();
-		$this->assertSame( '', ob_get_clean() );
+	/**
+	 * Pages registered with `add_theme_page()` share themes.php's `$pagenow`
+	 * but get their own hook-suffix body class, so none of the workspace CSS
+	 * (scoped to `.themes-php`) reaches them. Emitting the header there would
+	 * drop unstyled marketing copy on top of an unrelated Appearance screen.
+	 */
+	public function test_themes_workspace_intro_skips_appearance_subpages() {
+		$_GET['openstation_chromeless'] = '1';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( 'appearance_page_custom-header' );
 
-		unset( $_GET['openstation_chromeless'] );
+		// The condition that made the `$pagenow` gate wrong: an
+		// `add_theme_page()` screen reports themes.php as its $pagenow while
+		// carrying an `appearance_page_*` body class.
 		$GLOBALS['pagenow'] = 'themes.php';
-		ob_start();
-		openstation_render_themes_workspace_intro();
-		$this->assertSame( '', ob_get_clean() );
 
-		unset( $GLOBALS['pagenow'] );
-		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		$this->assertSame( '', $this->capture_themes_workspace_intro() );
+	}
+
+	public function test_themes_workspace_intro_skips_unrelated_screens() {
+		$_GET['openstation_chromeless'] = '1';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( 'plugins' );
+
+		$this->assertSame( '', $this->capture_themes_workspace_intro() );
+	}
+
+	public function test_themes_workspace_intro_skips_non_chromeless_requests() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		set_current_screen( 'themes' );
+
+		$this->assertSame( '', $this->capture_themes_workspace_intro() );
 	}
 
 	/**

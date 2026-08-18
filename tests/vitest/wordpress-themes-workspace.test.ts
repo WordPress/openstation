@@ -68,14 +68,23 @@ describe("WordPress Themes workspace", () => {
 		);
 	});
 
-	test("the orientation header is gated to chromeless themes.php requests", () => {
+	test("the orientation header is gated to the chromeless Themes screen", () => {
 		expect(PHP).toContain(
 			"function openstation_render_themes_workspace_intro()",
 		);
-		expect(PHP).toContain("'themes.php' !== $GLOBALS['pagenow']");
 		expect(PHP).toContain(
 			"add_action( 'admin_notices', 'openstation_render_themes_workspace_intro', 0 )",
 		);
 		expect(PHP).toContain('class="openstation-themes-intro"');
+	});
+
+	/**
+	 * `$pagenow` is `themes.php` on every `add_theme_page()` screen too, but
+	 * those carry an `appearance_page_*` body class that matches none of the
+	 * CSS above — so the header must key off the screen ID, not `$pagenow`.
+	 */
+	test("the header keys off the screen ID rather than $pagenow", () => {
+		expect(PHP).toContain("'themes' !== $screen->id");
+		expect(PHP).not.toContain("'themes.php' !== $GLOBALS['pagenow']");
 	});
 });

@@ -606,8 +606,14 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	border-radius: 7px;
 }
 
+/* Searching a library of one is noise, so the field goes away in Core's
+ * single-theme state. The general sibling combinator rather than `+`:
+ * themes.php emits `wp_admin_notice()` output between the search form and
+ * `.theme-browser` on `?activated`, `?deleted`, `?broken` and
+ * `?delete-active-child` — exactly the loads that follow activating or
+ * deleting a theme — which breaks strict adjacency. */
 .os-chromeless.themes-php
-	.search-form:has(+ .theme-browser .themes.single-theme) {
+	.search-form:has(~ .theme-browser .themes.single-theme) {
 	display: none;
 }
 
