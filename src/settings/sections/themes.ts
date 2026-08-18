@@ -1,20 +1,21 @@
 /**
  * OS Settings → Themes.
  *
- * A card grid of every desktop theme in the site's library, plus
- * "System default". Picking is per-user and open to everyone; the
- * upload tile and the per-card delete button appear only for users
- * who hold the theme-management capability
- * (`canManageDesktopThemes`).
+ * The tab has two jobs with very different audiences:
  *
- * Code-registered themes (`source: 'code'`) never get a delete
- * button: there is no file to remove and the REST route rightly
- * 404s on them, so offering the control would only ever produce an
- * error. A plugin that ships a theme takes it away by unregistering
- * it — see the built-in "Legacy" theme.
+ * - choosing a look is personal, instant, and available to everyone;
+ * - installing or removing packages is site-wide administration.
+ *
+ * Keep those jobs visually separate. The current look gets a large
+ * stage, the personal library is a preview-first radio group, and the
+ * administrative tools live in their own disclosure at the bottom.
+ *
+ * Code-registered themes (`source: 'code'`) never get a delete action:
+ * there is no file to remove and the REST route rightly 404s on them.
+ * A plugin that ships a theme takes it away by unregistering it.
  */
 
-import { __, sprintf } from '../../i18n';
+import { __, _n, sprintf } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import {
@@ -34,25 +35,30 @@ import {
 } from '../theme-recommendations';
 import type { SettingsCtx } from '../types';
 
-/** Sentinel card id for "no theme". */
+/** Sentinel id for the shell's built-in look. */
 const SYSTEM_DEFAULT = '';
 
-/**
- * What the "no theme" card is called.
- *
- * Not a translated string: it is the name of the shell's own look, the
- * same way "Desktop Mode (Legacy)" is the name of the theme beside it,
- * and a product name does not get translated. It reads as a peer of
- * the themes in the grid because that is exactly what it is — one
- * palette among several, and the one the plugin ships wearing.
- */
+/** Product name shown beside installed themes. */
 const SYSTEM_DEFAULT_NAME = 'OpenStation';
 
-/**
- * Initials shown on a theme card that ships no preview image.
- * Same idea as the letter-badge icon fallback: something
- * recognisable and stable beats an empty rectangle.
- */
+/** The built-in look has no manifest, so its library copy lives here. */
+const SYSTEM_DEFAULT_DESCRIPTION = __(
+	'The original OpenStation look: graphite surfaces, Pulse accents, and the built-in icon set.',
+);
+
+/** Honest copy when a package omits its optional description. */
+const THEME_FALLBACK_DESCRIPTION = __(
+	'A complete desktop look for OpenStation.',
+);
+
+function descriptionFor( theme: DesktopThemeEntry | null ): string {
+	if ( theme === null ) {
+		return SYSTEM_DEFAULT_DESCRIPTION;
+	}
+	return theme.description || THEME_FALLBACK_DESCRIPTION;
+}
+
+/** Stable fallback for a theme that ships no preview image. */
 function initialsFor( name: string ): string {
 	const words = name.trim().split( /\s+/ ).filter( Boolean );
 	if ( words.length === 0 ) {
@@ -64,15 +70,31 @@ function initialsFor( name: string ): string {
 	return words[ 0 ].slice( 0, 2 ).toUpperCase();
 }
 
+/**
+ * The shell falls back to the system look when a saved theme is no
+ * longer registered. Mirror that resolution in the picker so it never
+ * shows a desktop with no selected radio.
+ */
+function resolveActiveSlug(
+	themes: DesktopThemeEntry[],
+	savedSlug: string,
+): string {
+	if (
+		savedSlug !== SYSTEM_DEFAULT &&
+		themes.some( ( theme ) => theme.slug === savedSlug )
+	) {
+		return savedSlug;
+	}
+	return SYSTEM_DEFAULT;
+}
+
 export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	const host = document.createElement( 'div' );
 	host.className = 'os-settings__themes';
 
-	/** Last error surfaced by an upload or delete, if any. */
 	let errorText = '';
-	/** True while an upload is in flight — disables the tile. */
-	let busy = false;
-
+	let uploadBusy = false;
+	let deletingSlug = '';
 	const canManage = !! ctx.config.canManageDesktopThemes;
 
 	const pick = ( id: string ): void => {
@@ -80,33 +102,14 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			return;
 		}
 		ctx.state.desktopTheme = id;
-		// First activation only. `applyThemeRecommendations` no-ops for
-		// a theme this user has already worn, which is what stops a
-		// theme from ever undoing a preference the user set afterwards.
+		// Recommendations seed only on first activation. Rewearing a
+		// theme never undoes preferences the user changed afterwards.
 		applyThemeRecommendations( ctx.state, id );
 		ctx.save();
-		// `apply()` calls `applyDesktopTheme()`, which swaps the
-		// stylesheet, flips the shell attribute + body class, and
-		// fires the change event the shell listens on to repaint
-		// every themed icon. One call covers the whole switch.
 		ctx.apply();
 		paint();
 	};
 
-	/**
-	 * "Apply recommended layout and effects" — the deliberate way back
-	 * to the author's intended presentation after the user has moved
-	 * things around. The only path that re-applies a recommendation.
-	 *
-	 * "and effects" is not decoration: a theme may recommend the
-	 * window-reveal style and its speed alongside the layout keys, and
-	 * a label that named only the layout would understate what the
-	 * button is about to change.
-	 *
-	 * It just sets the settings. The dock resizing and the layout
-	 * moving IS the feedback; a notice on top of a visible change is
-	 * noise.
-	 */
 	const applyRecommended = ( themeSlug: string ): void => {
 		const applied = applyThemeRecommendations( ctx.state, themeSlug, {
 			force: true,
@@ -120,28 +123,32 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	const doUpload = async ( file: File ): Promise< void > => {
-		if ( busy ) {
+		if ( uploadBusy ) {
 			return;
 		}
-		busy = true;
+		uploadBusy = true;
 		errorText = '';
 		paint();
 		try {
 			const entry = await uploadDesktopTheme( ctx.config, file );
-			// Insert directly rather than waiting for the next payload
-			// refresh — the theme the admin just uploaded should be
-			// pickable the moment the spinner stops.
+			// Make a successful upload pickable immediately rather than
+			// waiting for the next server-payload refresh.
 			upsertDesktopTheme( entry );
 		} catch ( err ) {
 			errorText =
-				err instanceof Error ? err.message : __( 'That theme could not be installed.' );
+				err instanceof Error
+					? err.message
+					: __( 'That theme could not be installed.' );
 		} finally {
-			busy = false;
+			uploadBusy = false;
 			paint();
 		}
 	};
 
 	const doDelete = async ( theme: DesktopThemeEntry ): Promise< void > => {
+		if ( deletingSlug !== '' ) {
+			return;
+		}
 		const ok = await osConfirm( {
 			title: __( 'Delete this theme?' ),
 			message: sprintf(
@@ -155,15 +162,15 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		if ( ! ok ) {
 			return;
 		}
+
+		deletingSlug = theme.slug;
 		errorText = '';
+		paint();
 		try {
 			await deleteDesktopTheme( ctx.config, theme.slug );
 			removeDesktopTheme( theme.slug );
-			// Deleting the theme THIS user is wearing has to reset
-			// their selection too, or the shell would keep a
-			// stylesheet whose file no longer exists until reload.
-			// Other users are handled server-side: the enqueue path
-			// existence-checks on every request.
+			// Reset this user immediately when the deleted package was
+			// active. Other users resolve the missing package server-side.
 			if ( ctx.state.desktopTheme === theme.slug ) {
 				ctx.state.desktopTheme = SYSTEM_DEFAULT;
 				ctx.save();
@@ -171,9 +178,13 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			}
 		} catch ( err ) {
 			errorText =
-				err instanceof Error ? err.message : __( 'That theme could not be deleted.' );
+				err instanceof Error
+					? err.message
+					: __( 'That theme could not be deleted.' );
+		} finally {
+			deletingSlug = '';
+			paint();
 		}
-		paint();
 	};
 
 	const onFileInput = ( e: Event ): void => {
@@ -182,7 +193,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		if ( file ) {
 			void doUpload( file );
 		}
-		// Clear so re-picking the same file fires `change` again.
+		// Re-picking the same archive should fire change again.
 		input.value = '';
 	};
 
@@ -197,85 +208,167 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		}
 	};
 
-	const themeCard = ( theme: DesktopThemeEntry ) => {
-		const selected = ctx.state.desktopTheme === theme.slug;
-		return html`<div class="os-settings__theme-card-wrap">
-			<button
-				type="button"
-				class="os-settings__theme-card"
-				aria-pressed=${ selected ? 'true' : 'false' }
-				data-theme-slug=${ theme.slug }
-				@click=${ () => pick( theme.slug ) }
-			>
-				<span class="os-settings__theme-preview">
-					${ theme.previewUrl
-						? html`<img
-								src=${ theme.previewUrl }
-								alt=""
-								aria-hidden="true"
-								draggable="false"
-							/>`
-						: html`<span
-								class="os-settings__theme-initials"
-								aria-hidden="true"
-								>${ initialsFor( theme.name ) }</span
-							>` }
+	/** Stylized but truthful miniature for the built-in shell. */
+	const systemArtwork = () => html`
+		<span class="os-settings__theme-system-scene" aria-hidden="true">
+			<span class="os-settings__theme-system-window">
+				<span class="os-settings__theme-system-titlebar">
+					<span></span><span></span><span></span>
 				</span>
-				<span class="os-settings__theme-name"
-					>${ theme.name }</span
-				>
-				<span class="os-settings__theme-meta">
-					${ theme.version !== ''
-						? sprintf(
-							/* translators: %s: theme version string. */
-							__( 'Version %s' ),
-							theme.version,
-						)
+				<span class="os-settings__theme-system-content">
+					<span></span><span></span><span></span>
+				</span>
+			</span>
+			<span class="os-settings__theme-system-dock">
+				<span></span><span></span><span></span><span></span><span></span>
+			</span>
+		</span>
+	`;
+
+	const artworkContent = ( theme: DesktopThemeEntry | null ) => {
+		if ( theme === null ) {
+			return systemArtwork();
+		}
+		if ( theme.previewUrl !== '' ) {
+			return html`<img
+				src=${ theme.previewUrl }
+				alt=""
+				aria-hidden="true"
+				draggable="false"
+			/>`;
+		}
+		return html`<span
+			class="os-settings__theme-initials"
+			aria-hidden="true"
+			>${ initialsFor( theme.name ) }</span
+		>`;
+	};
+
+	const artwork = (
+		theme: DesktopThemeEntry | null,
+		variant: 'stage' | 'card' | 'manage',
+	) => html`
+		<span class="os-settings__theme-artwork os-settings__theme-artwork--${ variant }">
+			${ artworkContent( theme ) }
+		</span>
+	`;
+
+	const themeChoice = (
+		theme: DesktopThemeEntry | null,
+		activeSlug: string,
+	) => {
+		const slug = theme?.slug ?? SYSTEM_DEFAULT;
+		const name = theme?.name ?? SYSTEM_DEFAULT_NAME;
+		const description = descriptionFor( theme );
+		const selected = activeSlug === slug;
+		let byline = __( 'Desktop theme' );
+		if ( theme === null ) {
+			byline = __( 'Built into OpenStation' );
+		} else if ( theme.author !== '' ) {
+			byline = sprintf(
+				/* translators: %s: theme author. */
+				__( 'By %s' ),
+				theme.author,
+			);
+		}
+
+		return html`<label class="os-settings__theme-choice">
+			<input
+				type="radio"
+				name="openstation-desktop-theme"
+				.value=${ slug }
+				class="os-settings__theme-choice-input"
+				?checked=${ selected }
+				@change=${ () => pick( slug ) }
+			/>
+			<span class="os-settings__theme-choice-card">
+				<span class="os-settings__theme-choice-preview">
+					${ artwork( theme, 'card' ) }
+					${ selected
+						? html`<span class="os-settings__theme-current-mark"
+								>${ __( 'Current' ) }</span
+							>`
 						: '' }
 				</span>
-			</button>
-			${ canManage && theme.source !== 'code'
-				? html`<button
-						type="button"
-						class="os-settings__theme-delete"
-						aria-label=${ sprintf(
-							/* translators: %s: theme name. */
-							__( 'Delete %s' ),
-							theme.name,
-						) }
-						@click=${ () => void doDelete( theme ) }
+				<span class="os-settings__theme-choice-copy">
+					<strong class="os-settings__theme-choice-name"
+						>${ name }</strong
 					>
-						×
-					</button>`
-				: '' }
-		</div>`;
+					<span class="os-settings__theme-choice-description"
+						>${ description }</span
+					>
+					<span class="os-settings__theme-choice-byline"
+						>${ byline }</span
+					>
+				</span>
+			</span>
+		</label>`;
 	};
 
-	const systemCard = () => {
-		const selected = ctx.state.desktopTheme === SYSTEM_DEFAULT;
-		return html`<div class="os-settings__theme-card-wrap">
-			<button
-				type="button"
-				class="os-settings__theme-card os-settings__theme-card--system"
-				aria-pressed=${ selected ? 'true' : 'false' }
-				@click=${ () => pick( SYSTEM_DEFAULT ) }
-			>
-				<span
-					class="os-settings__theme-preview os-settings__theme-preview--system"
-					aria-hidden="true"
-				></span>
-				<span class="os-settings__theme-name"
-					>${ SYSTEM_DEFAULT_NAME }</span
+	const activeStage = (
+		themes: DesktopThemeEntry[],
+		activeSlug: string,
+	) => {
+		const theme =
+			activeSlug === SYSTEM_DEFAULT
+				? null
+				: themes.find( ( item ) => item.slug === activeSlug ) ?? null;
+		const name = theme?.name ?? SYSTEM_DEFAULT_NAME;
+		const description = descriptionFor( theme );
+		const recommendationAvailable =
+			hasApplicableThemeRecommendations( activeSlug );
+
+		return html`<section
+			class="os-settings__theme-stage"
+			aria-labelledby="os-settings-current-theme"
+		>
+			<div class="os-settings__theme-stage-preview">
+				${ artwork( theme, 'stage' ) }
+			</div>
+			<div class="os-settings__theme-stage-copy">
+				<span class="os-settings__theme-eyebrow"
+					>${ __( 'Currently wearing' ) }</span
 				>
-				<span class="os-settings__theme-meta"
-					>${ __( 'The look OpenStation ships with' ) }</span
+				<h4
+					class="os-settings__theme-stage-name"
+					id="os-settings-current-theme"
 				>
-			</button>
-		</div>`;
+					${ name }
+				</h4>
+				<p class="os-settings__theme-stage-description">
+					${ description }
+				</p>
+				<div class="os-settings__theme-facts">
+					${ theme?.author
+						? html`<span>${ sprintf(
+								/* translators: %s: theme author. */
+								__( 'By %s' ),
+								theme.author,
+							) }</span>`
+						: html`<span>${ __( 'OpenStation original' ) }</span>` }
+					${ theme?.version
+						? html`<span>${ sprintf(
+								/* translators: %s: theme version string. */
+								__( 'Version %s' ),
+								theme.version,
+							) }</span>`
+						: '' }
+				</div>
+				${ recommendationAvailable
+					? html`<div class="os-settings__theme-stage-actions">
+							<os-button
+								variant="secondary"
+								@click=${ () => applyRecommended( activeSlug ) }
+								>${ __( 'Restore recommended layout & effects' ) }</os-button
+							>
+						</div>`
+					: '' }
+			</div>
+		</section>`;
 	};
 
-	const uploadTile = () => html`<div
-		class=${ busy
+	const uploadControl = () => html`<div
+		class=${ uploadBusy
 			? 'os-settings__theme-upload os-settings__theme-upload--busy'
 			: 'os-settings__theme-upload' }
 		@dragover=${ ( e: DragEvent ) => {
@@ -291,93 +384,140 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		} }
 		@drop=${ onDrop }
 	>
-		<label class="os-settings__theme-upload-label">
+		<label
+			class="os-settings__theme-upload-label"
+			aria-disabled=${ uploadBusy ? 'true' : 'false' }
+		>
 			<input
 				type="file"
 				accept=".zip,application/zip"
-				class="os-settings__file-input"
-				?disabled=${ busy }
+				class="os-settings__theme-file-input"
+				?disabled=${ uploadBusy }
 				@change=${ onFileInput }
 			/>
-			<span class="os-settings__theme-upload-plus" aria-hidden="true"
-				>+</span
-			>
-			<span class="os-settings__theme-upload-prompt"
-				>${ busy
-					? __( 'Installing…' )
-					: __( 'Drop a theme .zip here, or click to upload' ) }</span
+			<span class="os-settings__theme-upload-icon" aria-hidden="true">+</span>
+			<span class="os-settings__theme-upload-copy">
+				<strong
+					>${ uploadBusy
+						? __( 'Installing theme…' )
+						: __( 'Install a theme package' ) }</strong
+				>
+				<span
+					>${ __( 'Drop a .zip here or choose one from your computer.' ) }</span
+				>
+			</span>
+			<span class="os-settings__theme-upload-action"
+				>${ __( 'Choose .zip' ) }</span
 			>
 		</label>
 	</div>`;
 
-	/**
-	 * The "restore the author's arrangement" row. Shown only for the
-	 * theme the user is currently wearing, and only when it actually
-	 * recommends something this shell can apply — a recommendation
-	 * naming a dock rail renderer no plugin registered resolves to
-	 * nothing, and an unusable button is worse than no button.
-	 */
-	/**
-	 * The row is not only for installed themes: the system default is
-	 * a palette with an arrangement of its own — the accent it was
-	 * drawn against — and it needs the same way back after the user
-	 * has moved things around. Its recommendations live in
-	 * `theme-recommendations.ts` rather than in a manifest, because it
-	 * has no manifest; everything downstream treats it identically.
-	 */
-	const recommendationRow = ( themes: DesktopThemeEntry[] ) => {
-		const activeSlug = ctx.state.desktopTheme;
-		if ( ! hasApplicableThemeRecommendations( activeSlug ) ) {
-			return '';
-		}
-		const name =
-			activeSlug === SYSTEM_DEFAULT
-				? SYSTEM_DEFAULT_NAME
-				: themes.find( ( theme ) => theme.slug === activeSlug )?.name;
-		if ( name === undefined ) {
-			return '';
-		}
-		return html`<div class="os-settings__theme-recommendation">
-			<os-button
-				variant="secondary"
-				@click=${ () => applyRecommended( activeSlug ) }
-				>${ sprintf(
-			/* translators: %s: theme name. */
-			__( 'Apply %s’s recommended layout and effects' ),
-			name,
-		) }</os-button
-			>
-		</div>`;
+	const managementPanel = ( themes: DesktopThemeEntry[] ) => {
+		const removable = themes.filter( ( theme ) => theme.source === 'upload' );
+		return html`<details class="os-settings__theme-management">
+			<summary class="os-settings__theme-management-summary">
+				<span>
+					<strong>${ __( 'Manage theme packages' ) }</strong>
+					<span
+						>${ __( 'Install or remove themes for everyone on this site.' ) }</span
+					>
+				</span>
+			</summary>
+			<div class="os-settings__theme-management-body">
+				${ uploadControl() }
+				<div class="os-settings__theme-packages">
+					<div class="os-settings__theme-packages-heading">
+						<strong>${ __( 'Removable packages' ) }</strong>
+						<span>${ sprintf(
+							/* translators: %d: number of removable theme packages. */
+							_n( '%d theme', '%d themes', removable.length ),
+							removable.length,
+						) }</span>
+					</div>
+					${ removable.length === 0
+						? html`<p class="os-settings__theme-packages-empty">
+								${ __( 'Themes installed from .zip files will appear here.' ) }
+							</p>`
+						: html`<ul class="os-settings__theme-package-list">
+								${ removable.map(
+									( theme ) => html`<li>
+										${ artwork( theme, 'manage' ) }
+										<span class="os-settings__theme-package-copy">
+											<strong>${ theme.name }</strong>
+											<span
+												>${ theme.version
+													? sprintf(
+															/* translators: %s: theme version string. */
+															__( 'Version %s' ),
+															theme.version,
+														)
+													: __( 'Installed package' ) }</span
+											>
+										</span>
+										<os-button
+											variant="danger"
+											?busy=${ deletingSlug === theme.slug }
+											?disabled=${ deletingSlug !== '' &&
+											deletingSlug !== theme.slug }
+											@click=${ () => void doDelete( theme ) }
+											>${ deletingSlug === theme.slug
+												? __( 'Removing…' )
+												: __( 'Remove' ) }</os-button
+										>
+									</li>`,
+								) }
+							</ul>` }
+				</div>
+			</div>
+		</details>`;
 	};
 
 	function paint(): void {
 		const themes = listDesktopThemes();
+		const activeSlug = resolveActiveSlug( themes, ctx.state.desktopTheme );
+		const lookCount = themes.length + 1;
+
 		render(
 			html`
+				<header class="os-settings__themes-header">
+					<span class="os-settings__theme-eyebrow"
+						>${ __( 'Desktop themes' ) }</span
+					>
+					<h3 class="os-settings__themes-title">
+						${ __( 'Change the whole station.' ) }
+					</h3>
+					<p class="os-settings__themes-intro">
+						${ __(
+							'Themes reshape the desktop, window chrome, dock, type, and icons. Your choice is personal and applies instantly.',
+						) }
+					</p>
+				</header>
 				${ errorText !== ''
 					? html`<os-notice tone="error">${ errorText }</os-notice>`
 					: '' }
-				<os-section heading=${ __( 'Installed' ) }>
-					<!--
-						role="group", not radiogroup. The upload tile is the
-						last cell of this grid, the way the wallpaper picker
-						on Appearance ends with "Use your own image", and a
-						radiogroup may contain nothing but radios. The cards
-						are toggle buttons carrying aria-pressed, which is
-						what the swatches in that other picker already do,
-						so the two now agree.
-					-->
-					<div
-						class="os-settings__theme-grid"
-						role="group"
-						aria-label=${ __( 'Desktop theme' ) }
-					>
-						${ systemCard() }
-						${ themes.map( ( theme ) => themeCard( theme ) ) }
-						${ canManage ? uploadTile() : '' }
+				${ activeStage( themes, activeSlug ) }
+				<fieldset class="os-settings__theme-library">
+					<legend class="os-settings__theme-library-heading">
+						<span>
+							<span class="os-settings__theme-eyebrow"
+								>${ __( 'Your library' ) }</span
+							>
+							<strong>${ __( 'Pick your next look' ) }</strong>
+						</span>
+						<span class="os-settings__theme-count">${ sprintf(
+							/* translators: %d: number of available desktop looks. */
+							_n( '%d look', '%d looks', lookCount ),
+							lookCount,
+						) }</span>
+					</legend>
+					<div class="os-settings__theme-grid">
+						${ themeChoice( null, activeSlug ) }
+						${ themes.map( ( theme ) =>
+							themeChoice( theme, activeSlug ),
+						) }
 					</div>
-					${ recommendationRow( themes ) }
-				</os-section>
+				</fieldset>
+				${ canManage ? managementPanel( themes ) : '' }
 			`,
 			host,
 		);
@@ -385,10 +525,8 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 
 	paint();
 
-	// Repaint when the library changes underneath us — an admin
-	// activating a plugin that registers a theme, or the live-refresh
-	// payload landing. The `isConnected` guard keeps a closed Settings
-	// window's stale subscriber from painting into a detached tree.
+	// Repaint on plugin activation/deactivation or a server-payload
+	// refresh. Detached Settings windows unsubscribe on the next change.
 	const unsubscribe = subscribeDesktopThemes( () => {
 		if ( ! host.isConnected ) {
 			unsubscribe();

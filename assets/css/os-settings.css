@@ -1994,202 +1994,660 @@
 /* ------------------------------------------------------------------
  * OS Settings → Themes.
  *
- * Card grid of the site's desktop-theme library. Deliberately styled
- * with the SAME neutral palette as the rest of the panel rather than
- * with themed tokens: the picker has to stay legible while the user
- * is trying on themes, including ones with hostile contrast.
+ * A preview-first wardrobe: current look on the stage, personal
+ * choices in the gallery, site-wide package work in a disclosure.
  * ------------------------------------------------------------------ */
 
-.os-settings__theme-grid {
-	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
-	gap: 12px;
-	margin: 12px 0 16px;
+.os-settings__themes {
+	container: os-themes / inline-size;
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.os-settings__theme-card-wrap {
+.os-settings__themes-header {
+	max-width: 680px;
+	margin: 0 0 18px;
+}
+
+.os-settings__theme-eyebrow {
+	display: block;
+	margin: 0 0 3px;
+	color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-settings__themes-title {
+	margin: 0;
+	font-size: clamp( 22px, 5cqi, 34px );
+	font-weight: 650;
+	letter-spacing: -0.035em;
+	line-height: 1.08;
+}
+
+.os-settings__themes-intro {
+	max-width: 610px;
+	margin: 9px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+}
+
+/* The active theme is the only large showcase surface in the tab. */
+.os-settings__theme-stage {
 	position: relative;
+	display: grid;
+	grid-template-columns: minmax( 0, 1.45fr ) minmax( 220px, 0.75fr );
+	min-height: 260px;
+	overflow: hidden;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border-strong, #a7aaad );
+	border-radius: 16px;
+	box-shadow: var( --os-ui-shadow-md, 0 12px 30px rgba( 0, 0, 0, 0.12 ) );
 }
 
-/*
- * Same geometry in every state: the border is 1px in both, and
- * selection is a box-shadow ring OUTSIDE the box, so an active card
- * occupies exactly the pixels an idle one does and the row stays
- * aligned. The selected ring is the flat accent, the same language
- * as the wallpaper tiles and layout cards beside it.
- */
-.os-settings__theme-card {
+.os-settings__theme-stage::after {
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: 3px;
+	background: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	content: "";
+	pointer-events: none;
+}
+
+.os-settings__theme-stage-preview {
+	min-width: 0;
+	min-height: 260px;
+	background: #17191c;
+	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__theme-stage-copy {
 	display: flex;
 	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+	min-width: 0;
+	padding: 28px;
+}
+
+.os-settings__theme-stage-name {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+
+.os-settings__theme-stage-description {
+	margin: 10px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	line-height: 1.55;
+}
+
+.os-settings__theme-facts {
+	display: flex;
+	flex-wrap: wrap;
 	gap: 6px;
-	width: 100%;
-	height: 100%;
-	padding: 10px;
-	background: var( --os-ui-surface, #fff );
+	margin-top: 14px;
+}
+
+.os-settings__theme-facts span,
+.os-settings__theme-count {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	padding: 2px 9px;
+	color: var( --os-ui-fg-muted, #50575e );
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.05 ) );
 	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 10px;
-	cursor: pointer;
-	text-align: start;
-	font: inherit;
-	color: var( --os-ui-fg, #1d2327 );
-	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	border-radius: 999px;
+	font-size: 10px;
+	font-weight: 600;
 }
 
-.os-settings__theme-card:hover {
-	border-color: var( --os-ui-border-strong, #8c8f94 );
+.os-settings__theme-stage-actions {
+	display: flex;
+	margin-top: 20px;
 }
 
-.os-settings__theme-card:focus-visible {
-	outline: 2px solid var( --os-ui-accent, #2271b1 );
-	outline-offset: 2px;
-}
-
-.os-settings__theme-card[ aria-pressed="true" ] {
-	border-color: transparent;
-	box-shadow: 0 0 0 2px var( --os-ui-accent, #2271b1 );
-}
-
-.os-settings__theme-preview {
+/* One artwork primitive serves the hero, gallery, and package list. */
+.os-settings__theme-artwork {
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	aspect-ratio: 16 / 10;
+	width: 100%;
+	height: 100%;
 	overflow: hidden;
-	border-radius: 6px;
-	background: var( --os-ui-surface-elevated, #f0f0f1 );
+	background:
+		linear-gradient( 135deg, rgba( 242, 82, 252, 0.09 ), transparent 52% ),
+		var( --os-ui-surface-sunken, #e9e9eb );
 }
 
-.os-settings__theme-preview img {
+.os-settings__theme-artwork--card {
+	aspect-ratio: 16 / 10;
+}
+
+.os-settings__theme-artwork--manage {
+	width: 72px;
+	height: 45px;
+	flex: 0 0 72px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 6px;
+}
+
+.os-settings__theme-artwork img {
+	display: block;
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
-	display: block;
-}
-
-/* Stand-in preview for "System default" — a miniature of the shipped
- * graphite desktop, so the card reads as a real option rather than an
- * absence. */
-.os-settings__theme-preview--system {
-	background: linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% );
 }
 
 .os-settings__theme-initials {
-	font-size: 24px;
-	font-weight: 700;
-	letter-spacing: 1px;
-	color: var( --os-ui-fg-muted, #787c82 );
+	font-size: 28px;
+	font-weight: 750;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, #646970 );
 }
 
-.os-settings__theme-name {
-	font-weight: 600;
+.os-settings__theme-artwork--manage .os-settings__theme-initials {
+	font-size: 13px;
+}
+
+/* Built-in system preview: desktop field, focused window, and dock. */
+.os-settings__theme-system-scene {
+	position: absolute;
+	inset: 0;
+	display: block;
+	background:
+		radial-gradient( circle at 72% 20%, rgba( 142, 92, 246, 0.38 ), transparent 28% ),
+		radial-gradient( circle at 18% 82%, rgba( 242, 82, 252, 0.2 ), transparent 30% ),
+		linear-gradient( 145deg, #101116 0%, #242831 52%, #15171d 100% );
+}
+
+.os-settings__theme-system-window {
+	position: absolute;
+	inset: 14% 15% 24% 12%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: #f6f7f7;
+	border: 1px solid rgba( 255, 255, 255, 0.45 );
+	border-radius: 5px;
+	box-shadow: 0 12px 24px rgba( 0, 0, 0, 0.4 );
+}
+
+.os-settings__theme-system-titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 3%;
+	height: 21%;
+	min-height: 8px;
+	padding-inline: 4%;
+	background: linear-gradient( 105deg, #8e5cf6, #f252fc 60%, #ff8f6b );
+}
+
+.os-settings__theme-system-titlebar span {
+	width: 5%;
+	aspect-ratio: 1;
+	background: rgba( 16, 17, 22, 0.8 );
+	border-radius: 50%;
+}
+
+.os-settings__theme-system-content {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 9%;
+	padding: 9%;
+}
+
+.os-settings__theme-system-content span {
+	height: 7%;
+	background: #c3c4c7;
+	border-radius: 999px;
+}
+
+.os-settings__theme-system-content span:nth-child( 2 ) {
+	width: 72%;
+}
+
+.os-settings__theme-system-content span:nth-child( 3 ) {
+	width: 48%;
+}
+
+.os-settings__theme-system-dock {
+	position: absolute;
+	inset: auto 25% 7% 25%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7%;
+	height: 12%;
+	min-height: 8px;
+	background: rgba( 16, 17, 22, 0.88 );
+	border: 1px solid rgba( 255, 255, 255, 0.2 );
+	border-radius: 999px;
+	box-shadow: 0 5px 14px rgba( 0, 0, 0, 0.35 );
+}
+
+.os-settings__theme-system-dock span {
+	width: 8%;
+	aspect-ratio: 1;
+	background: #f6f7f7;
+	border-radius: 3px;
+}
+
+.os-settings__theme-system-dock span:nth-child( 2 ),
+.os-settings__theme-system-dock span:nth-child( 4 ) {
+	background: #f252fc;
+}
+
+/* Gallery uses native radios, keeping arrow-key selection for free. */
+.os-settings__theme-library {
+	min-width: 0;
+	margin: 30px 0 0;
+	padding: 0;
+	border: 0;
+}
+
+.os-settings__theme-library-heading {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+	margin: 0 0 12px;
+	padding: 0;
+}
+
+.os-settings__theme-library-heading > span:first-child {
+	display: block;
+}
+
+.os-settings__theme-library-heading strong {
+	display: block;
+	font-size: 17px;
+	font-weight: 650;
+	line-height: 1.25;
+}
+
+.os-settings__theme-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 220px, 1fr ) );
+	gap: 16px;
+}
+
+.os-settings__theme-choice {
+	position: relative;
+	display: block;
+	min-width: 0;
+	cursor: pointer;
+}
+
+.os-settings__theme-choice-input {
+	position: absolute;
+	inset: 0 auto auto 0;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	opacity: 0;
+}
+
+.os-settings__theme-choice-card {
+	display: flex;
+	height: 100%;
+	overflow: hidden;
+	flex-direction: column;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 12px;
+	box-shadow: var( --os-ui-shadow-sm, 0 3px 10px rgba( 0, 0, 0, 0.07 ) );
+	transition:
+		border-color 0.16s ease,
+		box-shadow 0.16s ease,
+		transform 0.16s ease;
+}
+
+.os-settings__theme-choice:hover .os-settings__theme-choice-card {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+	box-shadow: var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+	transform: translateY( -2px );
+}
+
+.os-settings__theme-choice-input:focus-visible
+	+ .os-settings__theme-choice-card {
+	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
+	outline-offset: 3px;
+}
+
+.os-settings__theme-choice-input:checked
+	+ .os-settings__theme-choice-card {
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	box-shadow:
+		0 0 0 2px var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) ),
+		var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+}
+
+.os-settings__theme-choice-preview {
+	position: relative;
+	display: block;
+	background: #17191c;
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__theme-current-mark {
+	position: absolute;
+	inset: 10px 10px auto auto;
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	padding: 2px 9px;
+	color: #fff;
+	background: rgba( 16, 17, 22, 0.84 );
+	border: 1px solid rgba( 255, 255, 255, 0.32 );
+	border-radius: 999px;
+	box-shadow: 0 3px 10px rgba( 0, 0, 0, 0.3 );
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	backdrop-filter: blur( 8px );
+}
+
+.os-settings__theme-choice-copy {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	align-items: flex-start;
+	min-width: 0;
+	padding: 12px 13px 13px;
+}
+
+.os-settings__theme-choice-name {
+	font-size: 14px;
+	font-weight: 650;
 	line-height: 1.3;
 	overflow-wrap: anywhere;
 }
 
-/* Wraps rather than clipping. This string is a theme's own
-   description and a plugin can make it any length; a one-line box cut
-   "The look OpenStation ships with" off mid-sentence. */
-.os-settings__theme-meta {
-	font-size: 13px;
-	color: var( --os-ui-fg-muted, #646970 );
+.os-settings__theme-choice-description {
+	display: -webkit-box;
+	overflow: hidden;
+	margin-top: 5px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
 	line-height: 1.45;
-	min-height: 1.45em;
-	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
 }
 
-/* Delete overlay — outside the card button, because nesting a button
- * inside a button is invalid HTML and breaks keyboard traversal. */
-.os-settings__theme-delete {
-	position: absolute;
-	inset-block-start: 4px;
-	inset-inline-end: 4px;
+.os-settings__theme-choice-byline {
+	margin-top: auto;
+	padding-top: 10px;
+	color: var( --os-ui-fg-faint, #787c82 );
+	font-size: 10px;
+	font-weight: 600;
+}
+
+/* Administration is deliberately quieter than choosing a look. */
+.os-settings__theme-management {
+	margin-top: 30px;
+	overflow: hidden;
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 12px;
+}
+
+.os-settings__theme-management-summary {
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	border: none;
-	border-radius: 50%;
-	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
-	color: var( --os-ui-fg-on-accent, #fff );
-	font-size: 15px;
-	line-height: 1;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 64px;
+	padding: 10px 48px 10px 16px;
 	cursor: pointer;
-	opacity: 0;
-	transition: opacity 0.15s ease, background-color 0.15s ease;
+	list-style: none;
+	position: relative;
 }
 
-.os-settings__theme-card-wrap:hover
-	.os-settings__theme-delete,
-.os-settings__theme-delete:focus-visible {
-	opacity: 1;
+.os-settings__theme-management-summary::-webkit-details-marker {
+	display: none;
 }
 
-.os-settings__theme-delete:hover {
-	background: var( --os-ui-danger, #d63638 );
+.os-settings__theme-management-summary::after {
+	position: absolute;
+	inset: 50% 18px auto auto;
+	width: 8px;
+	height: 8px;
+	border-inline-end: 2px solid currentColor;
+	border-block-end: 2px solid currentColor;
+	content: "";
+	transform: translateY( -70% ) rotate( 45deg );
+	transition: transform 0.16s ease;
 }
 
-/*
- * "Apply <theme>'s recommended layout" — sits between the theme grid
- * and the upload tile, and only for a theme that recommends
- * something. Just the button: the dock resizing and the layout
- * moving is the feedback.
- */
-.os-settings__theme-recommendation {
-	display: flex;
-	margin-block: 16px;
+.os-settings__theme-management[ open ]
+	> .os-settings__theme-management-summary::after {
+	transform: translateY( -25% ) rotate( 225deg );
 }
 
-/*
- * The last cell of the theme grid, not a dropzone underneath it.
- * Uploading a theme is one of the ways to answer "which theme", so it
- * belongs in the row of answers; dashed because it is the only one
- * that cannot show you what you are picking until you have picked it.
- * Same reasoning, and the same treatment, as "Use your own image" in
- * the wallpaper grid.
- */
-.os-settings__theme-upload {
+.os-settings__theme-management-summary:focus-visible {
+	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
+	outline-offset: -3px;
+}
+
+.os-settings__theme-management-summary strong,
+.os-settings__theme-management-summary span {
 	display: block;
-	/* Same reason as the other two dropzones above: the plain border
-	   token is the card's own colour and vanishes on it. */
-	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
+}
+
+.os-settings__theme-management-summary > span > span {
+	margin-top: 2px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+}
+
+.os-settings__theme-management-body {
+	padding: 16px;
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__theme-upload {
+	overflow: hidden;
+	background: var( --os-ui-surface, #fff );
+	border: 2px dashed var( --os-ui-border-strong, #a7aaad );
 	border-radius: 10px;
-	background: transparent;
 	transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .os-settings__theme-upload-label {
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: 42px minmax( 0, 1fr ) auto;
 	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	/* Matches a theme card: 16:10 preview plus its name and meta. */
-	min-height: 100%;
-	padding: 16px;
-	color: var( --os-ui-fg-muted, #50575e );
+	gap: 12px;
+	min-height: 84px;
+	padding: 12px 14px;
 	cursor: pointer;
-	text-align: center;
+}
+
+.os-settings__theme-file-input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+}
+
+.os-settings__theme-upload:focus-within {
+	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
+	outline-offset: 2px;
 }
 
 .os-settings__theme-upload:hover,
 .os-settings__theme-upload--dragover {
-	border-color: var( --wp-admin-theme-color, #2271b1 );
-	background-color: rgba( 34, 113, 177, 0.06 );
+	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	background: color-mix(
+		in srgb,
+		var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) ) 6%,
+		var( --os-ui-surface, #fff )
+	);
 }
 
 .os-settings__theme-upload--dragover {
 	border-style: solid;
 }
 
-.os-settings__theme-upload--busy
-	.os-settings__theme-upload-label {
+.os-settings__theme-upload--busy .os-settings__theme-upload-label {
 	cursor: progress;
 	opacity: 0.7;
 }
 
-.os-settings__theme-upload-plus {
+.os-settings__theme-upload-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 9px;
 	font-size: 22px;
+	font-weight: 400;
 	line-height: 1;
+}
+
+.os-settings__theme-upload-copy,
+.os-settings__theme-upload-copy span {
+	display: block;
+	min-width: 0;
+}
+
+.os-settings__theme-upload-copy strong {
+	font-size: 12px;
+}
+
+.os-settings__theme-upload-copy span {
+	margin-top: 2px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 10px;
+}
+
+.os-settings__theme-upload-action {
+	padding: 6px 10px;
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-ui-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 6px;
+	font-size: 10px;
+	font-weight: 650;
+}
+
+.os-settings__theme-packages {
+	margin-top: 18px;
+}
+
+.os-settings__theme-packages-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.os-settings__theme-packages-heading > span {
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 10px;
+}
+
+.os-settings__theme-packages-empty {
+	margin: 0;
+	padding: 12px 0 2px;
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__theme-package-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__theme-package-list li {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	min-height: 64px;
+	padding: 9px 0;
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__theme-package-copy {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.os-settings__theme-package-copy strong,
+.os-settings__theme-package-copy span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-settings__theme-package-copy span {
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 10px;
+}
+
+@container os-themes ( max-width: 650px ) {
+	.os-settings__theme-stage {
+		grid-template-columns: 1fr;
+	}
+
+	.os-settings__theme-stage-preview {
+		min-height: 0;
+		aspect-ratio: 16 / 9;
+		border-inline-end: 0;
+		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+	}
+
+	.os-settings__theme-stage-copy {
+		padding: 20px;
+	}
+}
+
+@container os-themes ( max-width: 470px ) {
+	.os-settings__theme-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.os-settings__theme-upload-label {
+		grid-template-columns: 42px minmax( 0, 1fr );
+	}
+
+	.os-settings__theme-upload-action {
+		display: none;
+	}
+
+	.os-settings__theme-artwork--manage {
+		display: none;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__theme-choice-card,
+	.os-settings__theme-management-summary::after {
+		transition: none;
+	}
+
+	.os-settings__theme-choice:hover .os-settings__theme-choice-card {
+		transform: none;
+	}
 }
