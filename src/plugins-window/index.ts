@@ -122,6 +122,26 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		tabs.setAttribute( 'value', target );
 	};
 
+	// The tabs live in the PHP template while their component classes
+	// are registered by the already-running desktop bundle. Keep a
+	// light-DOM click bridge here so a click still selects the panel if
+	// the shadow button's internal `os-tab-pick` listener was stamped
+	// before this lazy bundle mounted. Keyboard selection continues to
+	// be owned by `<os-tabs>` itself.
+	const onTabClick = ( ev: Event ): void => {
+		const picked = ev
+			.composedPath()
+			.find(
+				( node ): node is HTMLElement =>
+					node instanceof HTMLElement && node.matches( 'os-tab[value]' ),
+			);
+		const value = picked?.getAttribute( 'value' );
+		if ( value === 'installed' || value === 'browse' || value === 'featured' ) {
+			applyTab( value );
+		}
+	};
+	tabs?.addEventListener( 'click', onTabClick );
+
 	const initialTab = consumePluginsWindowTab();
 	if ( initialTab ) {
 		applyTab( initialTab );
@@ -142,6 +162,7 @@ function renderPluginsWindow( body: HTMLElement ): void {
 			return;
 		}
 		document.removeEventListener( 'os-window-closed', onClosed );
+		tabs?.removeEventListener( 'click', onTabClick );
 		unsubscribeTab();
 		if ( installedTeardown ) {
 			installedTeardown();
