@@ -363,7 +363,7 @@ function openstation_native_window_registry( $id = '', $entry = null ) {
  * tag — but Plugin Check still requires escape-on-output. The list
  * extends `wp_kses_allowed_html( 'post' )` with form controls,
  * `<os-*>` web components, and dashicon spans, plus permissive
- * `data-*`, `aria-*`, and component-specific attributes. Plugins
+ * `data-*`, common ARIA, and component-specific attributes. Plugins
  * registering their own native windows can extend the list via the
  * `openstation_native_window_allowed_html` filter below.
  *
@@ -387,7 +387,13 @@ function openstation_native_window_allowed_html() {
 		'draggable'       => true,
 		'contenteditable' => true,
 		'data-*'          => true,
-		'aria-*'          => true,
+		// `wp_kses` only treats the `data-*` wildcard specially. ARIA
+		// attributes must be admitted by their exact names or they are
+		// silently stripped from native-window templates.
+		'aria-label'      => true,
+		'aria-labelledby' => true,
+		'aria-current'    => true,
+		'aria-hidden'     => true,
 		// `full-width` is a layout-level flag honoured by
 		// `<os-form>` (and any future os-* container that opts in
 		// to row-spanning slotted children). Lives in the global
@@ -653,7 +659,7 @@ function openstation_native_window_allowed_html() {
 	$allowed = array_merge( $base, $extra );
 
 	// Promote the framework's global attrs (`slot`, `part`,
-	// `full-width`, `data-*`, `aria-*`, …) to EVERY allowed tag —
+	// `full-width`, `data-*`, common ARIA, …) to EVERY allowed tag —
 	// otherwise plain wrappers like `<div slot="header">` lose
 	// their `slot` attribute on the way through kses and get
 	// projected into the default slot instead of the named one.

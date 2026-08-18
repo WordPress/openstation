@@ -52,7 +52,7 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$this->assertSame( $draft_id, $snapshot['work'][0]['id'] );
 		$this->assertSame( 'Flight notes', $snapshot['work'][0]['title'] );
 
-		$actions = wp_list_pluck( $snapshot['quickActions'], null, 'id' );
+		$actions = array_column( $snapshot['quickActions'], null, 'id' );
 		$this->assertArrayHasKey( 'new-post', $actions );
 		$this->assertArrayHasKey( 'upload-media', $actions );
 		$this->assertArrayHasKey( 'classic-dashboard', $actions );
@@ -67,7 +67,7 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 	 */
 	public function test_quick_actions_follow_current_user_capabilities() {
 		wp_set_current_user( $this->subscriber_id );
-		$actions = wp_list_pluck( openstation_station_home_quick_actions(), null, 'id' );
+		$actions = array_column( openstation_station_home_quick_actions(), null, 'id' );
 
 		$this->assertArrayNotHasKey( 'new-post', $actions );
 		$this->assertArrayNotHasKey( 'upload-media', $actions );
@@ -98,7 +98,9 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$html = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'data-os-station-home-root', $html );
+		$this->assertStringContainsString( 'aria-label="Station Home"', $html );
 		$this->assertStringContainsString( 'aria-label="Quick actions"', $html );
+		$this->assertStringContainsString( 'aria-labelledby="os-station-home-work-heading"', $html );
 		$this->assertStringContainsString( 'Continue working', $html );
 		$this->assertStringContainsString( 'Needs attention', $html );
 	}
