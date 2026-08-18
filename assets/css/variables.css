@@ -868,6 +868,14 @@ body.os-active {
 	 */
 	--os-ui-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 	--os-ui-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
+	/*
+	 * The badge a card wears ON its preview art, which is why this is
+	 * its own name rather than the resting shadow above: it is read
+	 * against arbitrary imagery, not against the panel, so it wants a
+	 * heavier shadow than the card it sits on. Sharing one token
+	 * collapsed the two the moment the palette declared it.
+	 */
+	--os-ui-card-mark-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 	--os-ui-ribbon-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
 
 	/* Tables. */

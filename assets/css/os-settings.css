@@ -2396,7 +2396,7 @@
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
 	border: 1px solid rgba( 255, 255, 255, 0.32 );
 	border-radius: 999px;
-	box-shadow: var( --os-ui-card-shadow, 0 3px 10px rgba( 0, 0, 0, 0.3 ) );
+	box-shadow: var( --os-ui-card-mark-shadow, 0 3px 10px rgba( 0, 0, 0, 0.3 ) );
 	font-size: 10px;
 	font-weight: 700;
 	letter-spacing: 0.03em;

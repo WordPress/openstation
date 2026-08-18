@@ -220,6 +220,8 @@
 		"--os-ui-card-padding-compact": "10px",
 		"--os-ui-card-radius": "12px",
 		"--os-ui-card-radius-compact": "8px",
+		"--os-ui-card-mark-shadow": "0 3px 10px rgba( 0, 0, 0, 0.3 )",
+		"--os-ui-card-shadow": "0 3px 10px rgba( 0, 0, 0, 0.07 )",
 		"--os-ui-card-shadow-hover": "0 4px 16px rgba( 0, 0, 0, 0.08 )",
 		"--os-ui-card-shadow-selected": "0 0 0 1px #2271b1 inset",
 		"--os-ui-cat-check-border": "#8c8f94",
