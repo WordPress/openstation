@@ -288,6 +288,54 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Switching a brand layer off means `none` for an OVERLAY, never
+	 * for a surface that carries state.
+	 *
+	 * Legacy drops the iridescence, and for a `::before` film or a
+	 * `::after` stroke that is simply `none` — the control keeps the
+	 * background it already had and loses a decoration. The tokens
+	 * below are not that. Each is the fill of an element whose CSS
+	 * sets `background-color: transparent` (or nothing at all) and
+	 * paints the state entirely through this one image:
+	 *
+	 *   - `--os-ui-holo-fill` is the surface of `<os-button
+	 *     variant="holo">` and `<os-switch>`. `none` renders them
+	 *     invisible, not flat.
+	 *   - `--os-cn-row-fill` is the constellation row's selected fill,
+	 *     and `--os-cn-row-ink` flips the label dark on top of it.
+	 *     `none` leaves dark text on the panel's dark surface.
+	 *   - `--os-ui-tab-wash` / `-bloom` are the selected settings tab.
+	 *     `none` is a sidebar with no selection at all — which is
+	 *     exactly what shipped, and what this test now prevents.
+	 *
+	 * The distinction is "is this token the surface, or over it?", and
+	 * it is not visible from the token's name. Check the consuming
+	 * rule before answering one with `none`.
+	 */
+	public function test_state_carrying_fills_are_not_switched_off() {
+		$tokens = $this->manifest()['tokens'];
+
+		foreach ( array(
+			'--os-ui-holo-fill',
+			'--os-cn-row-fill',
+			'--os-ui-tab-wash',
+			'--os-ui-tab-bloom',
+			'--os-tabs-active-bg',
+			'--os-tabs-bg',
+			'--os-tabs-bg-unfocused',
+		) as $name ) {
+			$value = strtolower( trim( $tokens[ $name ] ) );
+
+			$this->assertNotSame(
+				'none',
+				$value,
+				$name . ' paints a state, not a decoration — `none` erases the state.'
+			);
+			$this->assertNotSame( 'transparent', $value, $name . ' must paint something.' );
+		}
+	}
+
+	/**
 	 * No brand colour reaches a Legacy surface.
 	 *
 	 * Legacy is the pre-brand look, so none of the brand's own hexes

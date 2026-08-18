@@ -529,6 +529,33 @@ because every mesh in the brand is a *light* surface — a dark fill with
 the default ink is near-black on near-black, and it looks fine in a
 screenshot of the off state.
 
+**Do not answer a fill with `none`.** Turning the iridescence off is a
+reasonable thing to want, and for the *overlay* tokens it is exactly
+right: `--os-ui-holo-sheen` and the two `--os-ui-holo-edge*` are a
+`::before` film and an `::after` stroke, so `none` removes a decoration
+and leaves the control's own background alone.
+
+`--os-ui-holo-fill` is not one of those. It is the surface — the rule
+sets `background-color: transparent` and paints the whole control
+through this image — so `none` gives you an invisible button, not a
+flat one. The same is true of any token whose row in the table above
+reads "what … paints" rather than "the film over" it:
+`--os-cn-row-fill` (the constellation's selected row, whose ink flips
+dark on top of it) and `--os-ui-tab-wash` / `-bloom` (the selected
+settings tab). Answer those with a flat colour or a plain gradient:
+
+```json
+"tokens": {
+  "--os-ui-holo-fill": "linear-gradient( 124deg, #f0f6fc 0%, #f6f7f7 100% )",
+  "--os-ui-holo-ink":  "#1d2327"
+}
+```
+
+The distinction is not visible from the token's name — check whether
+the consuming rule paints a surface or sits over one before switching
+it off. [Legacy](#the-legacy-theme--start-here) does exactly this: the
+sheen and the edges are `none`, the fills are pre-brand light surfaces.
+
 The five meshes themselves (`--os-mesh-holo`, `--os-mesh-pulse`,
 `--os-mesh-auro`, `--os-mesh-star`, `--os-mesh-mio`) are also settable,
 and are the right lever when you want your own gradient everywhere the
