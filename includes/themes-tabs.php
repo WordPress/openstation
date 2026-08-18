@@ -129,7 +129,7 @@ function openstation_render_themes_workspace_intro() {
 		<div class="openstation-themes-intro__copy">
 			<p class="openstation-themes-intro__eyebrow"><?php esc_html_e( 'Site appearance', 'desktop-mode' ); ?></p>
 			<h1 id="openstation-themes-intro-title"><?php esc_html_e( 'Choose how your site greets the world.', 'desktop-mode' ); ?></h1>
-			<p><?php esc_html_e( 'Your theme shapes the templates, typography, colours, and layout visitors see. Your posts and pages stay in place when you switch.', 'desktop-mode' ); ?></p>
+			<p><?php esc_html_e( 'Themes shape your site’s look. Switching keeps your posts and pages in place.', 'desktop-mode' ); ?></p>
 		</div>
 		<?php
 		/*
