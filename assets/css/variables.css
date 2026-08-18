@@ -841,6 +841,14 @@ body.os-active {
 	--os-ui-context-menu-bg: #1a1721;
 	--os-ui-context-menu-separator-color: rgba(255, 251, 255, 0.1);
 	--os-ui-flyout-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+	/*
+	 * A card at rest, and the same card under the pointer. The hover
+	 * half has been here since `<os-card>`; the resting half is its
+	 * missing sibling, added because the Themes library needed a
+	 * settled elevation and inventing one at the use site would have
+	 * put it out of reach of every theme.
+	 */
+	--os-ui-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 	--os-ui-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
 	--os-ui-ribbon-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
 

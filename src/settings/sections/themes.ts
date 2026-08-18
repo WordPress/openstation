@@ -110,6 +110,58 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	/**
+	 * Arrow keys move focus through the library WITHOUT selecting.
+	 *
+	 * A native radio group selects as focus moves, and here selecting
+	 * is not editing a preference — it is an action. `pick()` swaps
+	 * the desktop stylesheet, repaints every themed icon, and the
+	 * first time a user wears a theme it seeds that theme's
+	 * recommended dock size, layout and effects over whatever they had
+	 * arranged, then records the slug so the offer is never made
+	 * again. Arrowing past six themes on the way to the seventh would
+	 * fire all of that six times and burn six one-shot seeds, silently
+	 * and unrecoverably.
+	 *
+	 * So the group is manual-activation: arrows move, Space or Enter
+	 * commits, a click commits. That is the bargain every other picker
+	 * in this panel already makes — `<os-swatch>` tiles are buttons
+	 * inside a `role="radiogroup"` and have never selected on focus.
+	 */
+	const ARROW_STEPS: Record< string, number > = {
+		ArrowRight: 1,
+		ArrowDown: 1,
+		ArrowLeft: -1,
+		ArrowUp: -1,
+	};
+
+	const onLibraryKeydown = ( e: KeyboardEvent ): void => {
+		const radios = Array.from(
+			( e.currentTarget as HTMLElement ).querySelectorAll< HTMLInputElement >(
+				'.os-settings__theme-choice-input',
+			),
+		);
+		const from = radios.indexOf( e.target as HTMLInputElement );
+		if ( from === -1 ) {
+			return;
+		}
+		// Enter is inert on a radio outside a form, so it has to be
+		// wired by hand to be the second half of "Space or Enter".
+		if ( e.key === 'Enter' ) {
+			e.preventDefault();
+			pick( radios[ from ].value );
+			return;
+		}
+		const step = ARROW_STEPS[ e.key ];
+		if ( step === undefined ) {
+			return;
+		}
+		// Without this the browser's own radio handling selects as it
+		// moves, which is the whole thing we are here to prevent.
+		e.preventDefault();
+		radios[ ( from + step + radios.length ) % radios.length ].focus();
+	};
+
 	const applyRecommended = ( themeSlug: string ): void => {
 		const applied = applyThemeRecommendations( ctx.state, themeSlug, {
 			force: true,
@@ -278,7 +330,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 				name="openstation-desktop-theme"
 				.value=${ slug }
 				class="os-settings__theme-choice-input"
-				?checked=${ selected }
+				.checked=${ selected }
 				@change=${ () => pick( slug ) }
 			/>
 			<span class="os-settings__theme-choice-card">
@@ -510,7 +562,10 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 							lookCount,
 						) }</span>
 					</legend>
-					<div class="os-settings__theme-grid">
+					<div
+						class="os-settings__theme-grid"
+						@keydown=${ onLibraryKeydown }
+					>
 						${ themeChoice( null, activeSlug ) }
 						${ themes.map( ( theme ) =>
 							themeChoice( theme, activeSlug ),

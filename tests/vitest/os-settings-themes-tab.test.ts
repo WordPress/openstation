@@ -151,6 +151,98 @@ describe( 'OS Settings — Themes tab', () => {
 		).not.toContain( 'original OpenStation look' );
 	} );
 
+	test( 'arrow keys move focus through the library without switching theme', () => {
+		setDesktopThemes( [ theme(), theme( { slug: 'paper-sun', name: 'Paper Sun' } ) ] );
+		const settingsCtx = ctx();
+		const el = mount( settingsCtx );
+		const radios = Array.from(
+			el.querySelectorAll< HTMLInputElement >(
+				'input[name="openstation-desktop-theme"]',
+			),
+		);
+		radios[ 0 ].focus();
+
+		const arrow = new KeyboardEvent( 'keydown', {
+			key: 'ArrowRight',
+			bubbles: true,
+			cancelable: true,
+		} );
+		radios[ 0 ].dispatchEvent( arrow );
+
+		// Cancelled, or the browser's own radio handling would select
+		// as it moves — which on this group means swapping the desktop
+		// stylesheet and seeding the theme's recommendations.
+		expect( arrow.defaultPrevented ).toBe( true );
+		expect( document.activeElement ).toBe( radios[ 1 ] );
+		expect( settingsCtx.state.desktopTheme ).toBe( '' );
+		expect( settingsCtx.save ).not.toHaveBeenCalled();
+		expect( settingsCtx.apply ).not.toHaveBeenCalled();
+
+		// And it wraps, the way a radio group's arrows always have.
+		const back = new KeyboardEvent( 'keydown', {
+			key: 'ArrowLeft',
+			bubbles: true,
+			cancelable: true,
+		} );
+		radios[ 0 ].focus();
+		radios[ 0 ].dispatchEvent( back );
+		expect( document.activeElement ).toBe( radios[ radios.length - 1 ] );
+	} );
+
+	test( 'Enter commits the focused choice', () => {
+		setDesktopThemes( [ theme() ] );
+		const settingsCtx = ctx();
+		const el = mount( settingsCtx );
+		const target = Array.from(
+			el.querySelectorAll< HTMLInputElement >(
+				'input[name="openstation-desktop-theme"]',
+			),
+		).find( ( input ) => input.value === 'signal-garden' )!;
+
+		target.dispatchEvent(
+			new KeyboardEvent( 'keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			} ),
+		);
+
+		expect( settingsCtx.state.desktopTheme ).toBe( 'signal-garden' );
+		expect( settingsCtx.apply ).toHaveBeenCalledOnce();
+		expect(
+			el.querySelector< HTMLInputElement >(
+				'input[name="openstation-desktop-theme"]:checked',
+			)?.value,
+		).toBe( 'signal-garden' );
+	} );
+
+	test( 'keeps a radio checked after the worn theme leaves the library', () => {
+		setDesktopThemes( [ theme() ] );
+		const el = mount( ctx() );
+		const radios = () =>
+			Array.from(
+				el.querySelectorAll< HTMLInputElement >(
+					'input[name="openstation-desktop-theme"]',
+				),
+			);
+
+		// Both clicks set each input's dirty-checkedness flag, which is
+		// what makes the `checked` ATTRIBUTE stop reflecting to the
+		// property. The binding has to be the property.
+		radios()[ 0 ].click();
+		radios()[ 1 ].click();
+
+		// The package is deleted, or its plugin is deactivated.
+		setDesktopThemes( [] );
+
+		expect( radios().filter( ( radio ) => radio.checked ) ).toHaveLength( 1 );
+		expect(
+			el.querySelector< HTMLInputElement >(
+				'input[name="openstation-desktop-theme"]:checked',
+			)?.value,
+		).toBe( '' );
+	} );
+
 	test( 'keeps package management admin-only and separate from choices', () => {
 		setDesktopThemes( [
 			theme(),

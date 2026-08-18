@@ -1069,11 +1069,12 @@ activates it — and never again.**
 - **A later change by the user always wins.** Pick the theme, put the
   dock back to compact, re-pick the theme — it stays compact.
 
-The way back is the user's to take: **OpenStation Preferences → Themes** shows an
-**Apply &lt;theme&gt;'s recommended layout and effects** button for the
-active theme when it recommends something, and that is the only path
-that applies a recommendation a second time. It sets the settings and
-nothing else — the dock resizing under the cursor is the feedback.
+The way back is the user's to take: **OpenStation Preferences → Themes** shows a
+**Restore recommended layout & effects** button on the stage that
+carries the active theme, when that theme recommends something, and
+that is the only path that applies a recommendation a second time. It
+sets the settings and nothing else — the dock resizing under the
+cursor is the feedback.
 
 This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
 for the same reason. Dock size and layout are stored user
@@ -1624,9 +1625,13 @@ from an empty manifest.
 
 ## Installing and activating
 
-**Install:** OpenStation Preferences → Themes → drop a `.zip` on the upload tile.
-Requires `manage_options` by default (filterable via
-`openstation_desktop_theme_upload_capability`).
+**Install:** OpenStation Preferences → Themes → **Manage theme
+packages** → drop a `.zip` on the upload area, or choose one from your
+computer. Installing and removing packages is site-wide work, so the
+whole drawer — and it alone — requires `manage_options` by default
+(filterable via `openstation_desktop_theme_upload_capability`).
+Choosing which installed theme to *wear* is personal and needs no
+capability at all; that is the library above the drawer.
 
 **Window controls.** These are title-bar chrome, so they follow the
 title bar's own colours rather than the body palette, and each focus
@@ -1678,15 +1683,25 @@ including users who cannot upload. The library is site-wide;
 activation is per-user, stored as `desktopTheme` in the
 `desktop_mode_os_settings` user meta.
 
-The first card in the grid is **OpenStation** — the shell's own look,
-stored as the empty string. It is not a theme in the registry (its
-palette is `assets/css/variables.css`, not a manifest), but the picker
-treats it as a peer of everything beside it: it carries the same
-"Apply …'s recommended layout and effects" button, and what it
-recommends is the accent its palette was drawn against (Pulse) and the
-layout it was drawn for (`classic`).
+The first choice in the library is **OpenStation** — the shell's own
+look, stored as the empty string. It is not a theme in the registry
+(its palette is `assets/css/variables.css`, not a manifest), but the
+picker treats it as a peer of everything beside it: it gets the same
+stage and the same "Restore recommended layout & effects" button when
+it is the one being worn, and what it recommends is the accent its
+palette was drawn against (Pulse) and the layout it was drawn for
+(`classic`).
 
-The switch is live: no reload. The stylesheet swaps, the shell
+The library is a radio group, but **activation is manual**: arrow keys
+move focus between choices, and Space, Enter or a click is what
+actually switches theme. Selection deliberately does not follow focus.
+Switching is not editing a preference — it swaps the stylesheet,
+repaints every themed icon, and on a first wearing seeds that theme's
+recommendations over the user's own arrangement — so arrowing across
+the library on the way to one theme must not fire that for every
+theme it passes.
+
+The switch itself is live: no reload. The stylesheet swaps, the shell
 attribute and body class flip, and every themed icon repaints. On a
 fresh page load PHP stamps the attribute, prints the body class, and
 enqueues the stylesheet before the shell script runs, so there is no
@@ -1694,9 +1709,9 @@ flash of the default palette.
 
 If the theme ships
 [`recommendedOsSettings`](#recommended-os-settings), the user's first
-activation of it also seeds those preferences — once — and the tab
-grows an **Apply &lt;theme&gt;'s recommended layout** button for going
-back to them later.
+activation of it also seeds those preferences — once — and the stage
+grows a **Restore recommended layout & effects** button for going back
+to them later.
 
 ### From JavaScript
 

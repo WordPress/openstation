@@ -2044,7 +2044,7 @@
 	background: var( --os-ui-surface-elevated, #f6f7f7 );
 	border: 1px solid var( --os-ui-border-strong, #a7aaad );
 	border-radius: 16px;
-	box-shadow: var( --os-ui-shadow-md, 0 12px 30px rgba( 0, 0, 0, 0.12 ) );
+	box-shadow: var( --os-ui-card-shadow-hover, 0 12px 30px rgba( 0, 0, 0, 0.12 ) );
 }
 
 .os-settings__theme-stage::after {
@@ -2059,7 +2059,7 @@
 .os-settings__theme-stage-preview {
 	min-width: 0;
 	min-height: 260px;
-	background: #17191c;
+	background: var( --os-ui-surface-sunken, #e9e9eb );
 	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
 }
 
@@ -2123,7 +2123,15 @@
 	height: 100%;
 	overflow: hidden;
 	background:
-		linear-gradient( 135deg, rgba( 242, 82, 252, 0.09 ), transparent 52% ),
+		linear-gradient(
+			135deg,
+			color-mix(
+				in srgb,
+				var( --os-ui-accent, #2271b1 ) 9%,
+				transparent
+			),
+			transparent 52%
+		),
 		var( --os-ui-surface-sunken, #e9e9eb );
 }
 
@@ -2157,15 +2165,33 @@
 	font-size: 13px;
 }
 
-/* Built-in system preview: desktop field, focused window, and dock. */
+/*
+ * Built-in system preview: desktop field, focused window, and dock.
+ *
+ * The ONE place in this file that spells its colours out instead of
+ * reading tokens, and deliberately so. This miniature depicts a fixed
+ * thing — the look OpenStation ships wearing — and it has to keep
+ * depicting it while the user is wearing something else. Read through
+ * tokens, the "OpenStation" card would repaint itself in Legacy's
+ * greys the moment Legacy was picked, and the card would be lying
+ * about the very option it is offering.
+ *
+ * So these are literals, and every one of them is a real value copied
+ * from `variables.css` rather than a hex chosen to look nice: Void
+ * `#0c0b0f` for the field and the title bar (`--os-titlebar-bg`),
+ * Obsidian `#1a1721` for the window body (`--os-window-bg`), Silver
+ * `#4d4a52` for its content lines, Starlight `#fffbff` for the dock
+ * icons, and Pulse `#f252fc` with Nebula `#ec9bff` as the identity
+ * moments. Retinting the shell means updating them here to match.
+ */
 .os-settings__theme-system-scene {
 	position: absolute;
 	inset: 0;
 	display: block;
 	background:
-		radial-gradient( circle at 72% 20%, rgba( 142, 92, 246, 0.38 ), transparent 28% ),
+		radial-gradient( circle at 72% 20%, rgba( 236, 155, 255, 0.34 ), transparent 28% ),
 		radial-gradient( circle at 18% 82%, rgba( 242, 82, 252, 0.2 ), transparent 30% ),
-		linear-gradient( 145deg, #101116 0%, #242831 52%, #15171d 100% );
+		linear-gradient( 145deg, #0c0b0f 0%, #33303a 52%, #0c0b0f 100% );
 }
 
 .os-settings__theme-system-window {
@@ -2174,8 +2200,8 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	background: #f6f7f7;
-	border: 1px solid rgba( 255, 255, 255, 0.45 );
+	background: #1a1721;
+	border: 1px solid rgba( 255, 251, 255, 0.16 );
 	border-radius: 5px;
 	box-shadow: 0 12px 24px rgba( 0, 0, 0, 0.4 );
 }
@@ -2188,14 +2214,19 @@
 	height: 21%;
 	min-height: 8px;
 	padding-inline: 4%;
-	background: linear-gradient( 105deg, #8e5cf6, #f252fc 60%, #ff8f6b );
+	background: #0c0b0f;
 }
 
+/* Window controls: the focused one carries Pulse, as the shell's do. */
 .os-settings__theme-system-titlebar span {
 	width: 5%;
 	aspect-ratio: 1;
-	background: rgba( 16, 17, 22, 0.8 );
+	background: #4d4a52;
 	border-radius: 50%;
+}
+
+.os-settings__theme-system-titlebar span:last-child {
+	background: #f252fc;
 }
 
 .os-settings__theme-system-content {
@@ -2208,7 +2239,7 @@
 
 .os-settings__theme-system-content span {
 	height: 7%;
-	background: #c3c4c7;
+	background: #4d4a52;
 	border-radius: 999px;
 }
 
@@ -2229,8 +2260,8 @@
 	gap: 7%;
 	height: 12%;
 	min-height: 8px;
-	background: rgba( 16, 17, 22, 0.88 );
-	border: 1px solid rgba( 255, 255, 255, 0.2 );
+	background: rgba( 12, 11, 15, 0.72 );
+	border: 1px solid rgba( 255, 251, 255, 0.16 );
 	border-radius: 999px;
 	box-shadow: 0 5px 14px rgba( 0, 0, 0, 0.35 );
 }
@@ -2238,7 +2269,7 @@
 .os-settings__theme-system-dock span {
 	width: 8%;
 	aspect-ratio: 1;
-	background: #f6f7f7;
+	background: #fffbff;
 	border-radius: 3px;
 }
 
@@ -2247,7 +2278,11 @@
 	background: #f252fc;
 }
 
-/* Gallery uses native radios, keeping arrow-key selection for free. */
+/*
+ * Gallery uses native radios for the group semantics, but activation
+ * is manual — see the arrow-key handler in `sections/themes.ts` for
+ * why selecting a theme is too consequential to follow focus.
+ */
 .os-settings__theme-library {
 	min-width: 0;
 	margin: 30px 0 0;
@@ -2306,7 +2341,7 @@
 	background: var( --os-ui-surface, #fff );
 	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 12px;
-	box-shadow: var( --os-ui-shadow-sm, 0 3px 10px rgba( 0, 0, 0, 0.07 ) );
+	box-shadow: var( --os-ui-card-shadow, 0 3px 10px rgba( 0, 0, 0, 0.07 ) );
 	transition:
 		border-color 0.16s ease,
 		box-shadow 0.16s ease,
@@ -2315,14 +2350,8 @@
 
 .os-settings__theme-choice:hover .os-settings__theme-choice-card {
 	border-color: var( --os-ui-border-strong, #8c8f94 );
-	box-shadow: var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+	box-shadow: var( --os-ui-card-shadow-hover, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
 	transform: translateY( -2px );
-}
-
-.os-settings__theme-choice-input:focus-visible
-	+ .os-settings__theme-choice-card {
-	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
-	outline-offset: 3px;
 }
 
 .os-settings__theme-choice-input:checked
@@ -2330,13 +2359,29 @@
 	border-color: var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
 	box-shadow:
 		0 0 0 2px var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) ),
-		var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+		var( --os-ui-card-shadow-hover, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
 }
 
+/*
+ * After `:checked` on purpose. The two selectors weigh the same, so
+ * source order is the only thing deciding which ring a focused,
+ * selected card wears — and it has to be this one. The accent border
+ * above still says "selected" underneath it.
+ */
+.os-settings__theme-choice-input:focus-visible
+	+ .os-settings__theme-choice-card {
+	/* Above the neighbouring cards: they are opaque, and the ring
+	   reaches past the grid gap into them. */
+	position: relative;
+	z-index: 1;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #2271b1 );
+}
+
+/* Letterbox behind preview art of any aspect ratio. */
 .os-settings__theme-choice-preview {
 	position: relative;
 	display: block;
-	background: #17191c;
+	background: var( --os-ui-surface-sunken, #e9e9eb );
 	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 }
 
@@ -2347,11 +2392,11 @@
 	align-items: center;
 	min-height: 24px;
 	padding: 2px 9px;
-	color: #fff;
-	background: rgba( 16, 17, 22, 0.84 );
+	color: var( --os-ui-fg-on-accent, #fff );
+	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.55 ) );
 	border: 1px solid rgba( 255, 255, 255, 0.32 );
 	border-radius: 999px;
-	box-shadow: 0 3px 10px rgba( 0, 0, 0, 0.3 );
+	box-shadow: var( --os-ui-card-shadow, 0 3px 10px rgba( 0, 0, 0, 0.3 ) );
 	font-size: 10px;
 	font-weight: 700;
 	letter-spacing: 0.03em;
@@ -2436,7 +2481,7 @@
 }
 
 .os-settings__theme-management-summary:focus-visible {
-	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
+	outline: 2px solid var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
 	outline-offset: -3px;
 }
 
@@ -2484,7 +2529,7 @@
 }
 
 .os-settings__theme-upload:focus-within {
-	outline: 2px solid var( --os-ui-focus, var( --wp-admin-theme-color, #2271b1 ) );
+	outline: 2px solid var( --os-ui-accent, var( --wp-admin-theme-color, #2271b1 ) );
 	outline-offset: 2px;
 }
 
