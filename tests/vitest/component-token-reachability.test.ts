@@ -75,6 +75,10 @@ const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 		'--os-ui-border',
 		'--os-window-bg',
 		'--os-ui-button-bg-hover',
+		'--os-ui-surface',
+		'--os-ui-surface-elevated',
+		'--os-ui-border-strong',
+		'--os-ui-hover',
 	],
 };
 
@@ -116,6 +120,50 @@ describe( 'components do not block themed tokens on :host', () => {
 		// silent pass.
 		expect( files.length ).toBeGreaterThan( 30 );
 		expect( THEMED.size ).toBeGreaterThan( 300 );
+	} );
+
+	/*
+	 * A component that opts out of the palette's polarity has to opt
+	 * out COMPLETELY.
+	 *
+	 * `<os-modal>` renders a dark dialog whatever the palette says, so
+	 * it re-points the tokens its content reads. For as long as the
+	 * palette outside it was dark too, a missing one was invisible —
+	 * the inherited value happened to agree. Under a light palette
+	 * (Legacy, or any theme in the admin's own colours) the halves come
+	 * apart: `--os-ui-surface` stayed `#fff`, so an `<os-select>` in the
+	 * dialog painted a white trigger and the re-pointed `--os-ui-fg`
+	 * wrote near-white text onto it.
+	 *
+	 * Foreground and surface are a pair. Re-point one and you own the
+	 * other, so this asserts the set is closed rather than trusting the
+	 * next person to notice.
+	 */
+	test( 'a dark-context opt-out covers foreground AND surface', () => {
+		const optOut = new Set( OPT_OUT[ 'os-modal' ] );
+
+		for ( const [ fg, surface ] of [
+			[ '--os-ui-fg', '--os-ui-surface' ],
+			[ '--os-ui-fg-muted', '--os-ui-surface-elevated' ],
+			[ '--os-ui-border', '--os-ui-border-strong' ],
+		] as const ) {
+			expect(
+				optOut.has( fg ) === optOut.has( surface ),
+				`os-modal re-points ${
+					optOut.has( fg ) ? fg : surface
+				} but not ${
+					optOut.has( fg ) ? surface : fg
+				}. A dark dialog owns both halves of that pair, or the ` +
+					'one it left behind is read from a light palette.'
+			).toBe( true );
+		}
+
+		// A wash is read against whatever it sits on, so it belongs to
+		// the surface it darkens.
+		expect(
+			optOut.has( '--os-ui-hover' ),
+			'os-modal must own --os-ui-hover: a black wash over a dark row is no wash.'
+		).toBe( true );
 	} );
 
 	test.each( files )( '%s', ( component, path ) => {

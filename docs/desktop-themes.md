@@ -458,10 +458,22 @@ unreachable — a declaration on the element beats anything the element
 *inherits*, and your theme declares on an ancestor — so components read
 their public tokens into private aliases instead. The one exception is
 `<os-modal>`, whose dialog surface is dark whatever the admin colour
-scheme says: it re-points `--os-ui-fg`, `--os-ui-fg-muted`, `--os-ui-border`
-and `--os-window-bg` inside the dialog, and gives you
-`--os-ui-modal-text`, `--os-ui-modal-text-muted`, `--os-ui-modal-border` and
-`--os-ui-modal-field-bg` to set them by.
+scheme says. It re-points the foreground tokens (`--os-ui-fg`,
+`--os-ui-fg-muted`, `--os-ui-border`, `--os-ui-border-strong`), the
+surfaces (`--os-window-bg`, `--os-ui-surface`,
+`--os-ui-surface-elevated`) and the washes over them (`--os-ui-hover`,
+`--os-ui-button-bg-hover`) inside the dialog, and gives you a
+`--os-ui-modal-*` name for each: `-text`, `-text-muted`, `-border`,
+`-border-strong`, `-field-bg`, `-surface`, `-surface-elevated`,
+`-hover`, `-button-bg-hover`.
+
+**Theme the `--os-ui-modal-*` set, not the tokens it re-points** — a
+`--os-ui-surface` your theme sets never reaches inside a dialog, by
+design. The set covers foreground *and* surface deliberately: it used
+to re-point only the text colours, which looked correct for as long as
+the palette outside the dialog was dark too, and came apart the moment
+a light theme was worn — `<os-select>` in a dialog painted a white
+trigger under near-white text.
 
 The palette is not limited to window bodies: the shell's own
 body-mounted overlays — toasts, confirm dialogs, context menus, and

@@ -55,6 +55,29 @@ export const modalStyles = css`
 			--os-ui-modal-button-bg-hover,
 			rgba( 255, 255, 255, 0.08 )
 		);
+		/* Component surfaces. --os-window-bg above covers popovers
+		   and inputs; these cover the controls themselves, and they
+		   have to be here for the same reason the text colours are.
+
+		   Missing them was invisible for as long as the palette
+		   outside the dialog was dark too — every one of these
+		   happened to agree. Under a LIGHT palette they stop
+		   agreeing: --os-ui-surface stayed #fff, so an <os-select>
+		   in here painted a white trigger and the --os-ui-fg above
+		   wrote near-white text onto it. Legacy is the case that
+		   showed it; any theme in the admin's own colours does the
+		   same. */
+		--os-ui-surface: var( --os-ui-modal-surface, #2c3338 );
+		--os-ui-surface-elevated: var(
+			--os-ui-modal-surface-elevated,
+			#3c434a
+		);
+		--os-ui-border-strong: var(
+			--os-ui-modal-border-strong,
+			rgba( 255, 255, 255, 0.35 )
+		);
+		/* A black wash over a dark row is no wash at all. */
+		--os-ui-hover: var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
 	}
 
 	/*
