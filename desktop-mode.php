@@ -165,6 +165,7 @@ require_once OPENSTATION_DIR . 'includes/users-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/user-edit-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/plugins-window/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/comments-window/bootstrap.php';
+require_once OPENSTATION_DIR . 'includes/station-home/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/content-graph/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/living-tree/bootstrap.php';

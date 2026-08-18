@@ -1,0 +1,505 @@
+/*
+ * Station Home — Editorial Flight Deck.
+ *
+ * The selected Imagegen direction sets the hierarchy and proportion. This
+ * stylesheet translates it to live, theme-aware DOM: one identity mesh, no
+ * card shadows, generous editorial rhythm, and a compact top-band fallback.
+ */
+
+.desktop-mode-station-home {
+	container: station-home / inline-size;
+	box-sizing: border-box;
+	block-size: 100%;
+	inline-size: 100%;
+	min-block-size: 0;
+	min-inline-size: 0;
+	position: relative;
+	overflow: hidden;
+	background: var( --os-ui-bg, #1a1721 );
+	color: var( --os-ui-fg, #fffbff );
+	font-family: var( --os-font, 'Geist', system-ui, sans-serif );
+}
+
+.os-station-home__layout {
+	display: grid;
+	grid-template-columns: 270px minmax( 0, 1fr );
+	block-size: 100%;
+	inline-size: 100%;
+	min-block-size: 0;
+	min-inline-size: 0;
+}
+
+.desktop-mode-station-home [hidden] {
+	display: none !important;
+}
+
+.os-station-home__rail {
+	display: flex;
+	flex-direction: column;
+	min-block-size: 0;
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	padding: 30px 22px 24px;
+	border-inline-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	background: var( --os-ui-surface-sunken, #0c0b0f );
+}
+
+.os-station-home__brand,
+.os-station-home__location,
+.os-station-home__actions {
+	position: relative;
+	z-index: 1;
+}
+
+.os-station-home__brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 16px;
+	font-weight: 660;
+	letter-spacing: -0.02em;
+}
+
+.os-station-home__brand-mark {
+	display: block;
+	inline-size: 36px;
+	block-size: 36px;
+	border-radius: 10px;
+}
+
+.os-station-home__location {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin-block-start: 34px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 550 12px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.os-station-home__location > span {
+	inline-size: 7px;
+	block-size: 7px;
+	border-radius: 50%;
+	background: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 0 4px color-mix( in srgb, var( --os-ui-accent, #f252fc ) 15%, transparent );
+}
+
+.os-station-home__mesh {
+	position: absolute;
+	z-index: 0;
+	inset: 116px -74px 280px 20px;
+	border-radius: 42% 58% 66% 34% / 46% 35% 65% 54%;
+	background: var( --os-mesh-holo, linear-gradient( 145deg, #ec9bff, #c2f1f1 ) );
+	filter: saturate( 1.08 );
+	opacity: 0.72;
+	transform: rotate( -8deg );
+	mask-image: linear-gradient( to bottom, transparent, #000 16%, #000 64%, transparent );
+}
+
+.os-station-home__actions {
+	display: grid;
+	gap: 6px;
+	margin-block-start: auto;
+}
+
+.os-station-home__action {
+	box-sizing: border-box;
+	min-block-size: 48px;
+	inline-size: 100%;
+}
+
+a.os-station-home__action {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 11px 12px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	color: var( --os-ui-fg, #fffbff );
+	font-size: 14px;
+	font-weight: 570;
+	line-height: 1.2;
+	text-decoration: none;
+}
+
+.os-station-home__action:hover {
+	background: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
+	border-color: var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__action:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
+}
+
+os-button.os-station-home__action {
+	--os-ui-button-padding: 11px 12px;
+	--os-ui-button-min-height: 48px;
+	--os-ui-button-border: 1px solid transparent;
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
+	--os-ui-button-bg-hover: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
+	--os-ui-button-border-radius: 8px;
+	text-align: start;
+}
+
+.os-station-home__action .dashicons {
+	flex: 0 0 20px;
+	font-size: 20px;
+}
+
+.os-station-home__main {
+	min-block-size: 0;
+	min-inline-size: 0;
+	overflow: auto;
+	padding: clamp( 30px, 4vw, 54px ) clamp( 30px, 4.5vw, 64px ) 52px;
+	scrollbar-gutter: stable;
+}
+
+.os-station-home__intro {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 24px;
+	padding-block-end: clamp( 42px, 6vh, 68px );
+}
+
+.os-station-home__intro h1 {
+	margin: 0;
+	max-inline-size: 780px;
+	font-size: clamp( 40px, 5.1vw, 68px );
+	font-weight: 710;
+	line-height: 0.98;
+	letter-spacing: -0.055em;
+}
+
+.os-station-home__intro p {
+	margin: 16px 0 0;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: clamp( 16px, 1.6vw, 20px );
+	line-height: 1.5;
+}
+
+.os-station-home__refresh {
+	flex: 0 0 auto;
+	--os-ui-button-padding: 10px;
+	--os-ui-button-min-height: 44px;
+}
+
+.os-station-home__error {
+	margin-block-end: 28px;
+	padding: 12px 14px;
+	border-inline-start: 3px solid var( --os-ui-danger, #ff8585 );
+	background: color-mix( in srgb, var( --os-ui-danger, #ff8585 ) 8%, transparent );
+	color: var( --os-ui-fg, #fffbff );
+	font-size: 14px;
+}
+
+.os-station-home__section + .os-station-home__section {
+	margin-block-start: clamp( 42px, 6vh, 64px );
+}
+
+.os-station-home__section > h2 {
+	margin: 0 0 15px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 600 12px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+
+.os-station-home__work {
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__work-row {
+	display: grid;
+	grid-template-columns: 44px minmax( 0, 1fr ) auto minmax( 72px, auto ) 20px;
+	align-items: center;
+	gap: 16px;
+	min-block-size: 76px;
+	padding: 10px 4px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	color: inherit;
+	text-decoration: none;
+}
+
+.os-station-home__work-row:hover {
+	background: linear-gradient( 90deg, var( --os-ui-hover, rgba( 255, 251, 255, 0.05 ) ), transparent );
+}
+
+.os-station-home__work-row:focus-visible,
+.os-station-home__attention-row:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #f252fc );
+	outline-offset: 3px;
+}
+
+.os-station-home__row-icon {
+	display: grid;
+	place-items: center;
+	inline-size: 38px;
+	block-size: 38px;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-radius: 9px;
+	color: var( --os-ui-accent-soft-fg, #ec9bff );
+}
+
+.os-station-home__row-copy,
+.os-station-home__row-meta {
+	display: block;
+	min-inline-size: 0;
+}
+
+.os-station-home__row-title {
+	display: block;
+	overflow: hidden;
+	font-size: clamp( 17px, 1.7vw, 22px );
+	font-weight: 620;
+	letter-spacing: -0.025em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-station-home__row-meta,
+.os-station-home__work-row os-relative-time {
+	margin-block-start: 4px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 500 12px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+}
+
+.os-station-home__work-row > .dashicons {
+	color: var( --os-ui-fg-faint, #66636b );
+}
+
+.os-station-home__work os-empty-state {
+	min-block-size: 176px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__pulse {
+	display: grid;
+	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	border-block: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__metric {
+	min-inline-size: 0;
+	padding: 22px 22px 24px;
+}
+
+.os-station-home__metric + .os-station-home__metric {
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__metric-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-inline-size: 0;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+}
+
+.os-station-home__metric-label span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-station-home__metric strong {
+	display: block;
+	margin-block-start: 16px;
+	font: 680 clamp( 30px, 3.2vw, 42px )/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: -0.05em;
+}
+
+.os-station-home__attention {
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__attention-row,
+.os-station-home__all-clear {
+	display: grid;
+	grid-template-columns: 64px minmax( 0, 1fr ) 20px;
+	align-items: center;
+	gap: 16px;
+	min-block-size: 72px;
+	padding: 10px 4px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	color: inherit;
+	text-decoration: none;
+}
+
+.os-station-home__attention-row:hover {
+	background: linear-gradient( 90deg, var( --os-ui-hover, rgba( 255, 251, 255, 0.05 ) ), transparent );
+}
+
+.os-station-home__attention-count {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var( --os-ui-warning, #f7c66b );
+}
+
+.os-station-home__attention-count strong {
+	font: 680 18px/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+}
+
+.os-station-home__attention-copy,
+.os-station-home__all-clear > span {
+	display: grid;
+	gap: 4px;
+	min-inline-size: 0;
+}
+
+.os-station-home__attention-copy > span,
+.os-station-home__all-clear > span > span {
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.os-station-home__all-clear {
+	grid-template-columns: 44px minmax( 0, 1fr );
+}
+
+.os-station-home__all-clear > .dashicons {
+	color: var( --os-ui-success, #9be8ba );
+	font-size: 26px;
+}
+
+.os-station-home__loading {
+	position: absolute;
+	z-index: 3;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 12px;
+	background: color-mix( in srgb, var( --os-ui-bg, #1a1721 ) 92%, transparent );
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+}
+
+@container station-home ( max-width: 820px ) {
+	.os-station-home__layout {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax( 0, 1fr );
+	}
+
+	.os-station-home__rail {
+		display: grid;
+		grid-template-columns: auto auto minmax( 0, 1fr );
+		align-items: center;
+		gap: 18px;
+		padding: 14px 18px;
+		border-inline-end: 0;
+		border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	}
+
+	.os-station-home__location,
+	.os-station-home__actions {
+		margin-block-start: 0;
+	}
+
+	.os-station-home__mesh {
+		inset: -90px 34% -96px 40%;
+		border-radius: 50%;
+		transform: none;
+		mask-image: linear-gradient( 90deg, transparent, #000 28%, #000 72%, transparent );
+		opacity: 0.48;
+	}
+
+	.os-station-home__actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 3px;
+		min-inline-size: 0;
+		overflow-x: auto;
+	}
+
+	.os-station-home__action {
+		flex: 0 0 auto;
+		inline-size: auto;
+		min-block-size: 44px;
+	}
+
+	a.os-station-home__action {
+		padding: 10px;
+	}
+
+	.os-station-home__action > span:last-child {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset( 50% );
+		white-space: nowrap;
+	}
+}
+
+@container station-home ( max-width: 620px ) {
+	.os-station-home__rail {
+		grid-template-columns: auto minmax( 0, 1fr );
+	}
+
+	.os-station-home__location {
+		display: none;
+	}
+
+	.os-station-home__main {
+		padding: 28px 22px 40px;
+	}
+
+	.os-station-home__intro h1 {
+		font-size: clamp( 34px, 9vw, 48px );
+	}
+
+	.os-station-home__work-row {
+		grid-template-columns: 40px minmax( 0, 1fr ) auto 20px;
+		gap: 11px;
+	}
+
+	.os-station-home__work-row os-relative-time {
+		display: none;
+	}
+
+	.os-station-home__pulse {
+		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
+
+	.os-station-home__metric:nth-child( 3 ) {
+		border-inline-start: 0;
+	}
+
+	.os-station-home__metric:nth-child( n + 3 ) {
+		border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-station-home__work-row,
+	.os-station-home__attention-row,
+	.os-station-home__action {
+		scroll-behavior: auto;
+		transition: none;
+	}
+}
+
+@media ( forced-colors: active ) {
+	.os-station-home__mesh {
+		display: none;
+	}
+
+	.os-station-home__rail,
+	.os-station-home__work-row,
+	.os-station-home__pulse,
+	.os-station-home__metric,
+	.os-station-home__attention-row,
+	.os-station-home__all-clear {
+		border-color: CanvasText;
+	}
+}

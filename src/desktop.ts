@@ -31,6 +31,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import type { NativeUrlRemap } from './native-url-remap';
+import { matchesStationHomeUrl } from './station-home/model';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
@@ -2443,6 +2444,15 @@ function init(): void {
 			void manager.open( windowConfig );
 		},
 		findDockEntry: findDockEntryForUrl,
+	} );
+
+	// Station Home is the shell's always-on answer to the ordinary
+	// WordPress Dashboard URL. The explicit classic escape carries the
+	// `desktop_mode_classic` flag and is excluded by the shared matcher.
+	registerNativeUrlRemap( {
+		id: 'desktop-mode-dashboard',
+		nativeWindowId: 'desktop-mode-dashboard',
+		matches: ( _url, parsed ) => matchesStationHomeUrl( parsed ),
 	} );
 
 	// Native Posts window (replaces `edit.php` when the user opts in
