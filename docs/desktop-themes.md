@@ -130,6 +130,16 @@ floor. Values you keep will still mean what they meant, and values
 the shell changes underneath you are exactly the ones your fork is
 already pinning.
 
+**Adding a name it never had is a different act, and it is allowed.**
+The freeze protects values that were *collected* — those never move.
+A token minted after the snapshot has no collected value to protect,
+and leaving it out does not preserve the old look: it hands that name
+to the palette, which after the brand means the brand. So the manifest
+grows when the token surface grows, at the value the new token's
+consuming rule falls back to, and `Tests_OpenStation_DesktopThemesLegacy`
+holds the two halves apart — a count that may rise, and per-token
+assertions that may not move.
+
 ### It is always there, and it cannot be deleted
 
 Legacy is **code-registered**
@@ -148,28 +158,46 @@ add_action( 'init', function () {
 ### What it deliberately leaves out
 
 Legacy declares what is *fixed* about the default look, not what is
-*conditional* about it. Four families stay out, each because naming a
+*conditional* about it. Two families stay out, each because naming a
 literal would make the theme differ from the unthemed shell rather
 than reproduce it:
 
 | Left out | Why |
 |---|---|
-| Anything that follows `--wp-admin-theme-color` — the accent, the focused title bar, window-link splines, the selection ring | They track the user's WordPress admin colour scheme. A hex would pin Midnight and Ectoplasm to Fresh blue. |
-| Context-dependent tokens — `--os-fg`, `--os-surface`, `--os-tooltip-bg` / `-fg`, the colour-picker greys | They read light on the desk and dark inside a window. One value breaks one of the two. |
 | Derived sizes — the dock / icon / recycle badge families | They size themselves off the icon they decorate, so a literal freezes them against a large dock. |
 | Texture-slot properties (`*-image`, `*-border-image-*`) | Those are written by [`textures`](#textures), not by `tokens`. |
 
 If you want one of them, name it in your own theme — Legacy leaving
 it undeclared is a statement about *defaults*, not a restriction.
 
-Leaving `--os-tooltip-bg` out is why every tooltip chip stays the same
-dark lozenge under Legacy, which is intended: a chip is one line of
-text pinned to a control, not a surface that belongs to a window. The
-[WP Explorer hover card](#the-wp-explorer-hover-card) used to be
-painted as one and looked wrong for exactly that reason — Obsidian,
-floating over Legacy's white window. It derives from
-`--os-my-wordpress-bg` now, which Legacy *does* declare, so it comes
-back light without the frozen manifest changing.
+**Two families used to be on that list and are not any more**, because
+the reasoning behind them turned out to be wrong in a way that showed
+up on screen.
+
+*Accent-followers.* The idea was that leaving the accent chain
+undeclared let Legacy track the user's admin colour scheme. It never
+did: Legacy declares `--os-ui-accent` as WordPress blue, so everything
+downstream of it already resolved to blue. The tokens that were "left
+out" simply resolved through the palette instead, which after the brand
+meant Pulse. They are declared now, at the blue they always meant.
+
+*Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg`. The
+idea was that one literal could not serve a token that reads light on
+the desk and dark inside a window, so naming it would break one of the
+two. What actually happens when a theme omits a name is not "the token
+stays conditional" — it is **the palette answers instead**, and the
+palette is one value too. Omitting decided nothing; it only moved the
+decision to the brand. See [Fallback semantics](#fallback-semantics)
+for why an omitted token is not an open question.
+
+The tooltip chip is still the same dark lozenge under Legacy, which was
+always the intent — a chip is one line of text pinned to a control, not
+a surface that belongs to a window. It is now dark because Legacy says
+`rgba( 0, 0, 0, 0.45 )` rather than because nobody said anything. The
+[WP Explorer hover card](#the-wp-explorer-hover-card) used to be painted
+as one and looked wrong for exactly that reason — Obsidian, floating
+over Legacy's white window. It derives from `--os-my-wordpress-bg`,
+which Legacy also declares, so it comes back light.
 
 ### Two honest caveats
 
@@ -1514,6 +1542,35 @@ saying.** Concretely:
   is deactivated, they degrade silently to the system default. No user
   meta is rewritten; the enqueue path existence-checks on every
   request.
+
+**The trap: a base colour does not cover its derived siblings.** Read
+the sentence above literally — the system default *keeps saying* what
+it says. It does not stand aside for a related token you did name.
+
+Several tokens are written in the stylesheets as a chain, so that a
+theme naming only the base still gets a coherent result:
+
+```css
+background-color: var( --os-tabs-bg-unfocused, var( --os-tabs-bg, … ) );
+```
+
+That inner fallback fires only when `--os-tabs-bg-unfocused` is
+**undeclared** — and the palette declares it. Your theme compiles onto
+`body.os-desktop-theme-<slug>`; a name you omit is not undeclared, it is
+inherited from `body.os-active`. So the fallback never runs, and your
+`--os-tabs-bg` is bypassed on exactly the state you did not name.
+
+This is not hypothetical: it is why a light theme could paint the tab
+strip `#f6f7f7` and still watch it come back near-black the moment the
+window lost focus.
+
+**So name both halves of a pair.** The families where this bites are the
+ones with a state or emphasis modifier — `--os-tabs-bg` /
+`-bg-unfocused`, `--os-titlebar-bg` / `-bg-focused`,
+`--os-ui-focus-ring` / `-ring-field`, and the `--os-tabs-active-*` set.
+If you fork [Legacy](#the-legacy-theme--start-here) you inherit a
+complete answer for every one of them, which is the main practical
+reason to start there rather than from an empty manifest.
 
 ---
 

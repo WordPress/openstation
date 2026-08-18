@@ -164,15 +164,29 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * Legacy exists so that someone who picks it keeps the look they
 	 * know while the shell's own defaults move on. Re-collecting it
 	 * from today's stylesheets would take that away one release at a
-	 * time — so a change here should fail loudly and be answered with
-	 * a NEW snapshot theme under a new id, never with a rewrite of
-	 * this one.
+	 * time — so a change to an existing value should fail loudly and
+	 * be answered with a NEW snapshot theme under a new id, never with
+	 * a rewrite of this one.
+	 *
+	 * **Adding a token the snapshot never had is a different act, and
+	 * it is allowed.** The freeze protects values that were collected;
+	 * a token minted after the snapshot has no collected value to
+	 * protect, and leaving it out does not preserve the old look — it
+	 * hands that name to whatever the palette declares, which is the
+	 * brand. `--os-tabs-bg-unfocused` is the case that proved it: the
+	 * strip Legacy paints `#f6f7f7` came back Void on every unfocused
+	 * window, because the palette declared a name Legacy could not
+	 * have known to answer. See `test_no_brand_value_reaches_legacy`.
+	 *
+	 * So the count below rises when the token surface grows, and the
+	 * per-token assertions are what actually hold the line: those
+	 * values are the snapshot and they do not move.
 	 */
 	public function test_the_snapshot_is_frozen() {
 		$tokens = $this->manifest()['tokens'];
 		$why    = 'Legacy is a frozen snapshot — mint a new theme instead of moving it.';
 
-		$this->assertCount( 392, $tokens, $why );
+		$this->assertCount( 481, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--os-titlebar-bg'    => '#f0f0f1',
@@ -192,6 +206,118 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			'--os-titlebar-color-focused' => '#fff',
 		) as $name => $value ) {
 			$this->assertSame( $value, $tokens[ $name ], $name . ': ' . $why );
+		}
+	}
+
+	/**
+	 * Every token the palette declares, Legacy answers.
+	 *
+	 * This is the guard for the whole class of bug, and it is worth
+	 * being precise about why a `var()` fallback does not cover it.
+	 *
+	 * A consuming rule reads `var( --os-tabs-bg-unfocused, var(
+	 * --os-tabs-bg, … ) )`, and the palette's own comment promises
+	 * that a theme naming only `--os-tabs-bg` "resolves through it in
+	 * both states". It does not. A `var()` fallback fires only when
+	 * the name is **undeclared**, and `variables.css` declares it on
+	 * `body.os-active`. A theme compiles onto
+	 * `body.os-desktop-theme-<slug>`; a name it omits is not undeclared,
+	 * it is inherited from the palette. The fallback never runs and
+	 * the theme's base colour is bypassed.
+	 *
+	 * So every palette token is a token a theme MUST answer, and a new
+	 * one added to `variables.css` without a Legacy entry silently
+	 * repaints part of Legacy in the brand. That is invisible in
+	 * review, invisible in the JS suite, and shows up as a user
+	 * reporting that a strip went black.
+	 *
+	 * The fix when this fails is to add the token to the manifest at
+	 * the value its consuming rule's fallback literal resolves to —
+	 * which, per the standing rule that those literals stay at the
+	 * pre-brand WordPress-admin value, IS the Legacy value.
+	 */
+	public function test_legacy_answers_every_palette_token() {
+		$css = file_get_contents( OPENSTATION_DIR . 'assets/css/variables.css' );
+		$this->assertIsString( $css, 'The palette stylesheet ships with the plugin.' );
+
+		// Comments carry token names in prose; strip before matching.
+		$css = preg_replace( '~/\*.*?\*/~s', '', $css );
+
+		preg_match_all( '/(--os-[a-z0-9-]+)\s*:/', $css, $m );
+		$declared = array_unique( $m[1] );
+		$this->assertNotEmpty( $declared, 'The palette declares tokens.' );
+
+		$tokens    = $this->manifest()['tokens'];
+		$unanswered = array_values( array_diff( $declared, array_keys( $tokens ) ) );
+
+		$this->assertSame(
+			array(),
+			$unanswered,
+			"Legacy leaves these palette tokens to the brand: \n  "
+				. implode( "\n  ", $unanswered )
+				. "\nAdd each to assets/desktop-themes/legacy/theme.json at the "
+				. 'value its consuming rule falls back to.'
+		);
+	}
+
+	/**
+	 * The tab strip is one surface in both focus states.
+	 *
+	 * The reported symptom: an unfocused window's tab strip came back
+	 * near-black on a Legacy desktop, because the palette declares
+	 * `--os-tabs-bg-unfocused` (Void) and Legacy — written before that
+	 * token existed — answered only `--os-tabs-bg`. Pinned here
+	 * because the pair is the case that makes the general rule above
+	 * concrete, and because a strip that disagrees with itself across
+	 * focus is exactly what Legacy exists to prevent.
+	 */
+	public function test_legacy_tab_strip_holds_one_colour_across_focus() {
+		$tokens = $this->manifest()['tokens'];
+
+		$this->assertSame( '#f6f7f7', $tokens['--os-tabs-bg'] );
+		$this->assertSame(
+			$tokens['--os-tabs-bg'],
+			$tokens['--os-tabs-bg-unfocused'],
+			'Legacy names one strip colour; both focus states wear it.'
+		);
+		// The mesh crown and the frosted face are brand-era layers
+		// with no pre-brand counterpart — off, not recoloured.
+		$this->assertSame( 'none', $tokens['--os-tabs-active-crown'] );
+		$this->assertSame( 'none', $tokens['--os-tabs-active-frost'] );
+		$this->assertSame( 'none', $tokens['--os-tabs-rail'] );
+	}
+
+	/**
+	 * No brand colour reaches a Legacy surface.
+	 *
+	 * Legacy is the pre-brand look, so none of the brand's own hexes
+	 * belong in it. Worth asserting separately from the values above:
+	 * a token added at its consuming rule's fallback is only correct
+	 * if that fallback was itself kept at the pre-brand value, and
+	 * several had already drifted to the brand palette by the time
+	 * this sweep ran.
+	 */
+	public function test_no_brand_value_reaches_legacy() {
+		$brand = array(
+			'#f252fc' => 'Pulse',
+			'#d92ee3' => 'Pulse (dim)',
+			'#fffbff' => 'Starlight',
+			'#0c0b0f' => 'Void',
+			'#1a1721' => 'Obsidian',
+			'242, 82, 252'  => 'Pulse (rgb)',
+			'217, 46, 227'  => 'Pulse dim (rgb)',
+			'255, 251, 255' => 'Starlight (rgb)',
+			'12, 11, 15'    => 'Void (rgb)',
+		);
+
+		foreach ( $this->manifest()['tokens'] as $name => $value ) {
+			foreach ( $brand as $needle => $label ) {
+				$this->assertStringNotContainsStringIgnoringCase(
+					$needle,
+					$value,
+					$name . ' carries ' . $label . ' (' . $needle . '); Legacy predates the brand.'
+				);
+			}
 		}
 	}
 
