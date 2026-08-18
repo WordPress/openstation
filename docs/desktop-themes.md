@@ -158,30 +158,40 @@ add_action( 'init', function () {
 ### What it deliberately leaves out
 
 Legacy declares what is *fixed* about the default look, not what is
-*conditional* about it. Two families stay out, each because naming a
+*conditional* about it. Three families stay out, each because naming a
 literal would make the theme differ from the unthemed shell rather
 than reproduce it:
 
 | Left out | Why |
 |---|---|
+| **Anything the palette derives from the accent** — the tab wash / bloom / edge, the focus rings, the holo glows, the dock divider, the title-bar activity dot, `--os-ui-accent-dim` itself | The accent picker writes `--os-ui-accent` and `--os-ui-accent-dim` inline at runtime, and these follow. Pin one and the pick stops reaching it: the user chooses teal and that surface stays blue. |
 | Derived sizes — the dock / icon / recycle badge families | They size themselves off the icon they decorate, so a literal freezes them against a large dock. |
 | Texture-slot properties (`*-image`, `*-border-image-*`) | Those are written by [`textures`](#textures), not by `tokens`. |
 
 If you want one of them, name it in your own theme — Legacy leaving
-it undeclared is a statement about *defaults*, not a restriction.
+it undeclared is a statement about *defaults*, not a restriction. But
+understand what you are giving up on the first row: a theme that pins
+`--os-ui-tab-wash` has opted its sidebar out of the accent picker, for
+every user who wears it.
 
-**Two families used to be on that list and are not any more**, because
-the reasoning behind them turned out to be wrong in a way that showed
-up on screen.
+**The rule underneath that first row is the one to take away.** Look at
+how the palette declares a token before answering it:
 
-*Accent-followers.* The idea was that leaving the accent chain
-undeclared let Legacy track the user's admin colour scheme. It never
-did: Legacy declares `--os-ui-accent` as WordPress blue, so everything
-downstream of it already resolved to blue. The tokens that were "left
-out" simply resolved through the palette instead, which after the brand
-meant Pulse. They are declared now, at the blue they always meant.
+- **A literal** (`--os-tabs-bg-unfocused: #0c0b0f`) is a colour, and a
+  colour is yours to replace. Answer it.
+- **A derivation** (`--os-ui-tab-wash: linear-gradient( 90deg,
+  color-mix( in srgb, var( --os-ui-accent-dim ) 16%, … ) )`) is not a
+  colour — it is a *rule*, and it already resolves correctly under your
+  theme, because the accent it reads is the one you declared. Answering
+  it with a literal restores nothing and severs the chain.
 
-*Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg`. The
+One accent to declare, and everything the palette computes from it
+follows. `Tests_OpenStation_DesktopThemesLegacy` asserts both halves —
+that Legacy answers every palette literal, and that it answers none of
+the accent-driven derivations.
+
+*Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg` —
+**used to be on that list and are not any more.** The
 idea was that one literal could not serve a token that reads light on
 the desk and dark inside a window, so naming it would break one of the
 two. What actually happens when a theme omits a name is not "the token
@@ -1591,13 +1601,24 @@ This is not hypothetical: it is why a light theme could paint the tab
 strip `#f6f7f7` and still watch it come back near-black the moment the
 window lost focus.
 
-**So name both halves of a pair.** The families where this bites are the
-ones with a state or emphasis modifier — `--os-tabs-bg` /
-`-bg-unfocused`, `--os-titlebar-bg` / `-bg-focused`,
-`--os-ui-focus-ring` / `-ring-field`, and the `--os-tabs-active-*` set.
+**So name both halves of a pair — when both halves are literals.** The
+families where this bites are the ones with a state or emphasis
+modifier that the palette states outright: `--os-tabs-bg` /
+`-bg-unfocused`, `--os-titlebar-bg` / `-bg-focused`, and the
+`--os-tabs-active-*` set.
+
+It does **not** apply to a sibling the palette *computes* — the focus
+rings, the tab wash and bloom, the holo glows. Those read the accent,
+so your `--os-ui-accent` already reaches them and naming them would
+take them away from the accent picker. See
+[What it deliberately leaves out](#what-it-deliberately-leaves-out) for
+the literal-versus-derivation rule, which is the general form of both
+halves of this.
+
 If you fork [Legacy](#the-legacy-theme--start-here) you inherit a
-complete answer for every one of them, which is the main practical
-reason to start there rather than from an empty manifest.
+correct answer either way — every literal named, every derivation left
+alone — which is the main practical reason to start there rather than
+from an empty manifest.
 
 ---
 

@@ -186,7 +186,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$tokens = $this->manifest()['tokens'];
 		$why    = 'Legacy is a frozen snapshot — mint a new theme instead of moving it.';
 
-		$this->assertCount( 481, $tokens, $why );
+		$this->assertCount( 459, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--os-titlebar-bg'    => '#f0f0f1',
@@ -235,29 +235,112 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * the value its consuming rule's fallback literal resolves to —
 	 * which, per the standing rule that those literals stay at the
 	 * pre-brand WordPress-admin value, IS the Legacy value.
+	 *
+	 * **This applies to LITERALS only, and the exclusion is the more
+	 * important half of the rule.** Where the palette declares a token
+	 * by computing it from another token —
+	 *
+	 *     --os-ui-tab-wash: linear-gradient( 90deg,
+	 *         color-mix( in srgb, var( --os-ui-accent-dim ) 16%, … ) );
+	 *
+	 * — that declaration is not a colour Legacy needs to answer. It is
+	 * a *rule* that already resolves correctly under Legacy, because
+	 * the accent it reads is the one Legacy declares. Pinning a literal
+	 * over it does not restore anything; it severs the chain, and the
+	 * accent picker — which writes `--os-ui-accent` / `-dim` inline on
+	 * `<body>` and `.os-shell`, see `applyOsSettings()` — stops
+	 * reaching the wash, the bloom, the glows and the rails. The user
+	 * picks teal and the selected sidebar row stays WordPress blue.
+	 *
+	 * So the guard checks only what the palette states outright. A
+	 * derivation is a token the palette is already answering on
+	 * Legacy's behalf, correctly, for every accent.
 	 */
-	public function test_legacy_answers_every_palette_token() {
+	public function test_legacy_answers_every_palette_literal() {
 		$css = file_get_contents( OPENSTATION_DIR . 'assets/css/variables.css' );
 		$this->assertIsString( $css, 'The palette stylesheet ships with the plugin.' );
 
 		// Comments carry token names in prose; strip before matching.
 		$css = preg_replace( '~/\*.*?\*/~s', '', $css );
 
-		preg_match_all( '/(--os-[a-z0-9-]+)\s*:/', $css, $m );
-		$declared = array_unique( $m[1] );
-		$this->assertNotEmpty( $declared, 'The palette declares tokens.' );
+		preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $css, $m, PREG_SET_ORDER );
 
-		$tokens    = $this->manifest()['tokens'];
-		$unanswered = array_values( array_diff( $declared, array_keys( $tokens ) ) );
+		$literals = array();
+		foreach ( $m as $decl ) {
+			// A value naming another custom property is a derivation —
+			// it follows whatever Legacy (or the picker) sets upstream,
+			// and pinning it would freeze that.
+			if ( false !== strpos( $decl[2], 'var(' ) || false !== strpos( $decl[2], 'var (' ) ) {
+				continue;
+			}
+			$literals[ $decl[1] ] = true;
+		}
+
+		/*
+		 * `--os-ui-accent-dim` is a literal in the palette and still
+		 * must not be pinned: the accent picker owns the
+		 * accent/accent-dim pair at runtime and REMOVES the inline
+		 * `-dim` for the brand's own Pulse, so the palette's
+		 * hand-mixed twin can show through. A Legacy answer would
+		 * win that removal and split one pick into two colours.
+		 * Asserted from the other side in
+		 * `test_accent_driven_tokens_are_left_to_derive`.
+		 */
+		unset( $literals['--os-ui-accent-dim'] );
+
+		$literals = array_keys( $literals );
+		$this->assertNotEmpty( $literals, 'The palette declares literal tokens.' );
+
+		$tokens     = $this->manifest()['tokens'];
+		$unanswered = array_values( array_diff( $literals, array_keys( $tokens ) ) );
 
 		$this->assertSame(
 			array(),
 			$unanswered,
-			"Legacy leaves these palette tokens to the brand: \n  "
+			"Legacy leaves these palette literals to the brand: \n  "
 				. implode( "\n  ", $unanswered )
 				. "\nAdd each to assets/desktop-themes/legacy/theme.json at the "
 				. 'value its consuming rule falls back to.'
 		);
+	}
+
+	/**
+	 * The accent picker still reaches everything it drives.
+	 *
+	 * The counterpart to the test above, and the one that would have
+	 * caught the regression it describes. Every token here is declared
+	 * by the palette as a function of the accent; Legacy must leave
+	 * each alone so a pick propagates. `--os-ui-accent-dim` is in the
+	 * list for a subtler reason: `applyOsSettings()` *removes* its
+	 * inline value when the pick is the brand's own Pulse, expecting
+	 * the palette's hand-mixed twin to show through — a Legacy pin
+	 * would answer that with WordPress blue and leave a pink accent
+	 * sitting on a blue ambient layer.
+	 */
+	public function test_accent_driven_tokens_are_left_to_derive() {
+		$tokens = $this->manifest()['tokens'];
+
+		foreach ( array(
+			'--os-ui-accent-dim',
+			'--os-ui-tab-wash',
+			'--os-ui-tab-bloom',
+			'--os-ui-tab-edge',
+			'--os-ui-focus-ring',
+			'--os-ui-focus-ring-field',
+			'--os-ui-holo-glow',
+			'--os-ui-holo-glow-strong',
+			'--os-tabs-rail',
+			'--os-dock-divider',
+			'--os-cn-beam',
+			'--os-titlebar-activity-color',
+			'--os-titlebar-activity-saved-color',
+		) as $name ) {
+			$this->assertArrayNotHasKey(
+				$name,
+				$tokens,
+				$name . ' derives from the accent — pinning it stops the picker reaching it.'
+			);
+		}
 	}
 
 	/**
@@ -281,10 +364,14 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			'Legacy names one strip colour; both focus states wear it.'
 		);
 		// The mesh crown and the frosted face are brand-era layers
-		// with no pre-brand counterpart — off, not recoloured.
+		// with no pre-brand counterpart — off, not recoloured. Both
+		// are `background-image` over `--os-tabs-active-bg`, so `none`
+		// costs a decoration and nothing else.
 		$this->assertSame( 'none', $tokens['--os-tabs-active-crown'] );
 		$this->assertSame( 'none', $tokens['--os-tabs-active-frost'] );
-		$this->assertSame( 'none', $tokens['--os-tabs-rail'] );
+		// The rail is NOT one of those: it traces the active tab in
+		// the accent, so it is left to derive and follows the picker.
+		$this->assertArrayNotHasKey( '--os-tabs-rail', $tokens );
 	}
 
 	/**
@@ -301,12 +388,15 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 *   - `--os-ui-holo-fill` is the surface of `<os-button
 	 *     variant="holo">` and `<os-switch>`. `none` renders them
 	 *     invisible, not flat.
-	 *   - `--os-cn-row-fill` is the constellation row's selected fill,
-	 *     and `--os-cn-row-ink` flips the label dark on top of it.
-	 *     `none` leaves dark text on the panel's dark surface.
-	 *   - `--os-ui-tab-wash` / `-bloom` are the selected settings tab.
-	 *     `none` is a sidebar with no selection at all — which is
-	 *     exactly what shipped, and what this test now prevents.
+	 *   - `--os-tabs-active-bg` is the active tab's plate, and the
+	 *     joint that fillets it into the page reads the same token.
+	 *
+	 * The selected settings row went the same way — `--os-ui-tab-wash`
+	 * and `-bloom` answered with `none` left a sidebar with no
+	 * selection at all. Those are not asserted here: they derive from
+	 * the accent, so the fix was to stop answering them entirely. See
+	 * `test_accent_driven_tokens_are_left_to_derive`, which is the
+	 * form this guard takes for anything the picker drives.
 	 *
 	 * The distinction is "is this token the surface, or over it?", and
 	 * it is not visible from the token's name. Check the consuming
@@ -317,9 +407,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 
 		foreach ( array(
 			'--os-ui-holo-fill',
-			'--os-cn-row-fill',
-			'--os-ui-tab-wash',
-			'--os-ui-tab-bloom',
 			'--os-tabs-active-bg',
 			'--os-tabs-bg',
 			'--os-tabs-bg-unfocused',
