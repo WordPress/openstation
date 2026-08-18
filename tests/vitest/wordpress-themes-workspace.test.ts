@@ -39,6 +39,9 @@ describe("WordPress Themes workspace", () => {
 
 	test("single-theme mode becomes a screenshot-led workspace with visible actions", () => {
 		expect(COMPACT_WORKSPACE_CSS).toContain(
+			"#wpbody-content { padding: 10px 16px;",
+		);
+		expect(COMPACT_WORKSPACE_CSS).toContain(
 			".themes.single-theme .theme-overlay.active .theme-wrap",
 		);
 		expect(COMPACT_WORKSPACE_CSS).toContain('"screenshot details"');
