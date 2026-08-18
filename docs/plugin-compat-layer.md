@@ -134,6 +134,8 @@ Core does not register `theme-install.php` as a submenu of `themes.php` — clas
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
 
+The chromeless `themes.php` presentation also adapts Core's two native states without replacing its behavior. A single visible theme becomes a screenshot-led active-site workspace with its actions pinned beside the details, rather than Core's headerless inline Theme Details dialog. With multiple themes, the cards use a responsive library grid and Theme Details stays a closable modal sized to the iframe instead of reserving the classic admin sidebar gutter. The markup, actions, Backbone views, AJAX updates, and keyboard behavior remain Core-owned; the adaptation is page-scoped CSS plus a small orientation header emitted by `openstation_render_themes_workspace_intro()`.
+
 ### In-page "Add New" buttons that duplicate a window tab
 
 **File**: `includes/render/chromeless-title-actions.php`.

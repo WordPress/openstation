@@ -13,6 +13,7 @@
  * @group openstation
  *
  * @covers ::openstation_inject_appearance_tabs
+ * @covers ::openstation_render_themes_workspace_intro
  * @covers ::openstation_theme_install_active_tab_script
  */
 class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
@@ -155,6 +156,41 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 10, $priority );
+	}
+
+	public function test_themes_workspace_intro_is_registered_at_priority_zero() {
+		$this->assertSame(
+			0,
+			has_action( 'admin_notices', 'openstation_render_themes_workspace_intro' )
+		);
+	}
+
+	public function test_themes_workspace_intro_only_renders_in_chromeless_themes_screen() {
+		$_GET['openstation_chromeless'] = '1';
+		$GLOBALS['pagenow']              = 'themes.php';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		ob_start();
+		openstation_render_themes_workspace_intro();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'class="openstation-themes-intro"', $output );
+		$this->assertStringContainsString( 'Choose how your site greets the world.', $output );
+		$this->assertStringContainsString( 'openstation-themes-intro__count', $output );
+
+		$GLOBALS['pagenow'] = 'plugins.php';
+		ob_start();
+		openstation_render_themes_workspace_intro();
+		$this->assertSame( '', ob_get_clean() );
+
+		unset( $_GET['openstation_chromeless'] );
+		$GLOBALS['pagenow'] = 'themes.php';
+		ob_start();
+		openstation_render_themes_workspace_intro();
+		$this->assertSame( '', ob_get_clean() );
+
+		unset( $GLOBALS['pagenow'] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 	}
 
 	/**

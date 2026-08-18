@@ -75,6 +75,52 @@ function openstation_inject_appearance_tabs( $dock_item, $menu_slug ) {
 add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
 
 /**
+ * Renders the orientation header for the chromeless Themes workspace.
+ *
+ * Core's page heading is intentionally hidden inside OpenStation because the
+ * window chrome already names the screen. The Themes page still needs a little
+ * more context than a generic list screen, though: a theme changes the public
+ * face of the site, and Core's single-theme state otherwise opens directly on
+ * an unexplained details panel.
+ *
+ * The markup is emitted through `admin_notices`, which places it immediately
+ * before the page's `.wrap`. Core continues to own the theme cards, details
+ * overlay, actions, AJAX updates, and keyboard behavior.
+ */
+function openstation_render_themes_workspace_intro() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return;
+	}
+	if ( ! isset( $GLOBALS['pagenow'] ) || 'themes.php' !== $GLOBALS['pagenow'] ) {
+		return;
+	}
+
+	$themes      = current_user_can( 'switch_themes' )
+		? wp_prepare_themes_for_js()
+		: wp_prepare_themes_for_js( array( wp_get_theme() ) );
+	$theme_count = count( $themes );
+	$count_label = sprintf(
+		/* translators: %s: Number of installed themes visible to the current user. */
+		_n( '%s theme installed', '%s themes installed', $theme_count, 'desktop-mode' ),
+		number_format_i18n( $theme_count )
+	);
+	?>
+	<section class="openstation-themes-intro" aria-labelledby="openstation-themes-intro-title">
+		<div class="openstation-themes-intro__copy">
+			<p class="openstation-themes-intro__eyebrow"><?php esc_html_e( 'Site appearance', 'desktop-mode' ); ?></p>
+			<h1 id="openstation-themes-intro-title"><?php esc_html_e( 'Choose how your site greets the world.', 'desktop-mode' ); ?></h1>
+			<p><?php esc_html_e( 'Your theme shapes the templates, typography, colours, and layout visitors see. Your posts and pages stay in place when you switch.', 'desktop-mode' ); ?></p>
+		</div>
+		<p class="openstation-themes-intro__count" aria-label="<?php echo esc_attr( $count_label ); ?>">
+			<strong aria-hidden="true"><?php echo esc_html( number_format_i18n( $theme_count ) ); ?></strong>
+			<span aria-hidden="true"><?php echo esc_html( _n( 'Theme installed', 'Themes installed', $theme_count, 'desktop-mode' ) ); ?></span>
+		</p>
+	</section>
+	<?php
+}
+add_action( 'admin_notices', 'openstation_render_themes_workspace_intro', 0 );
+
+/**
  * Fixes the visible "active tab" state inside chromeless
  * theme-install.php iframes.
  *

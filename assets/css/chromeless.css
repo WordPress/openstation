@@ -491,3 +491,558 @@ html.wp-toolbar:has( body.os-chromeless ) {
 .os-chromeless .commands-command-menu {
 	display: none !important;
 }
+
+/* ---------------------------------------------------------------
+ * Appearance → Themes workspace
+ *
+ * Core's one-theme state renders the Theme Details dialog inline and
+ * removes its header. Inside a short desktop window that leaves a large,
+ * unexplained panel whose actions fall below the fold. Treat it as an
+ * active-site identity card instead: screenshot first, useful context at
+ * the side, and actions kept in the card's visible edge.
+ *
+ * With multiple installed themes the native cards become a deliberate
+ * library grid and Core's details view remains a dialog. All selectors are
+ * scoped to the chromeless Themes screen; the classic wp-admin page keeps
+ * Core's own presentation and the shell's palette cannot leak in here.
+ * --------------------------------------------------------------- */
+.os-chromeless.themes-php #wpbody-content {
+	padding: 16px;
+	background: #f6f7f7;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 32px;
+	margin: 0 0 16px;
+	padding: 20px 24px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-sizing: border-box;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__copy {
+	max-width: 680px;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__eyebrow {
+	margin: 0 0 5px;
+	color: var(--wp-admin-theme-color, #2271b1);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro h1 {
+	margin: 0;
+	color: #1d2327;
+	font-size: clamp(22px, 2.8vw, 30px);
+	font-weight: 650;
+	letter-spacing: -0.025em;
+	line-height: 1.12;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__copy > p:last-child {
+	max-width: 650px;
+	margin: 8px 0 0;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count {
+	display: grid;
+	flex: 0 0 auto;
+	min-width: 104px;
+	margin: 0;
+	padding: 12px 16px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 9px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count strong {
+	color: #1d2327;
+	font-size: 24px;
+	font-weight: 650;
+	letter-spacing: -0.03em;
+	line-height: 1;
+}
+
+.os-chromeless.themes-php .openstation-themes-intro__count span {
+	margin-top: 5px;
+	color: #646970;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	line-height: 1.25;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php .wrap {
+	margin: 0;
+}
+
+.os-chromeless.themes-php .search-form {
+	display: flex;
+	margin: 0 0 16px;
+	padding: 0;
+}
+
+.os-chromeless.themes-php .wp-filter-search {
+	width: min(320px, 100%);
+	min-height: 36px;
+	padding-inline: 12px;
+	background: #fff;
+	border-color: #8c8f94;
+	border-radius: 7px;
+}
+
+.os-chromeless.themes-php
+	.search-form:has(+ .theme-browser .themes.single-theme) {
+	display: none;
+}
+
+/* Installed-theme library. The Add Theme destination already has its own
+ * persistent window tab, so Core's duplicate dashed card is unnecessary. */
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+	gap: 18px;
+	clear: both;
+}
+
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) > .theme {
+	float: none;
+	width: auto;
+	margin: 0;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+	transition:
+		border-color 120ms ease,
+		box-shadow 120ms ease,
+		transform 120ms ease;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme:hover,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme.focus {
+	border-color: #8c8f94;
+	box-shadow: 0 7px 20px rgba(0, 0, 0, 0.1);
+	transform: translateY(-2px);
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .theme.active {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow:
+		0 0 0 1px var(--wp-admin-theme-color, #2271b1),
+		0 7px 20px rgba(0, 0, 0, 0.08);
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	> .add-new-theme {
+	display: none;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-screenshot {
+	background: #f0f0f1;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-id-container {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 58px;
+	background: #fff;
+}
+
+.os-chromeless.themes-php .theme-browser .themes:not(.single-theme) .theme-name,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-name {
+	flex: 1 1 auto;
+	height: auto;
+	min-width: 0;
+	margin: 0;
+	padding: 14px 12px 14px 14px;
+	background: #fff;
+	box-shadow: none;
+	color: #1d2327;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-name
+	span {
+	display: block;
+	margin-bottom: 2px;
+	color: var(--wp-admin-theme-color, #2271b1);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	line-height: 1.2;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme-actions,
+.os-chromeless.themes-php
+	.theme-browser
+	.themes:not(.single-theme)
+	.theme.active
+	.theme-actions {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	position: static;
+	opacity: 1;
+	padding: 10px 12px 10px 0;
+	background: #fff;
+	border: 0;
+	box-shadow: none;
+	transform: none;
+}
+
+/* Multiple-theme details remain a modal, but fit the iframe rather than
+ * reserving the classic admin sidebar's 160px gutter. */
+.os-chromeless.themes-php .theme-overlay.active .theme-backdrop {
+	position: fixed;
+	left: 0;
+	background: rgba(29, 35, 39, 0.62);
+	backdrop-filter: blur(2px);
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-wrap {
+	top: 18px;
+	right: 18px;
+	bottom: 18px;
+	left: 18px;
+	border: 1px solid #c3c4c7;
+	border-radius: 12px;
+	box-shadow: 0 20px 55px rgba(0, 0, 0, 0.28);
+	overflow: hidden;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-header {
+	background: #fff;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-about {
+	padding: 24px;
+}
+
+.os-chromeless.themes-php .theme-overlay.active .theme-actions {
+	justify-content: flex-end;
+	padding: 10px 16px 5px;
+}
+
+/* Single-theme mode is a workspace card, not a stranded modal. */
+.os-chromeless.themes-php .themes.single-theme {
+	display: block;
+	margin: 0;
+}
+
+.os-chromeless.themes-php .themes.single-theme .theme-overlay.active {
+	display: block;
+	position: static;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-backdrop,
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-header {
+	display: none;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-wrap {
+	display: grid;
+	grid-template-columns: minmax(320px, 0.95fr) minmax(300px, 1.05fr);
+	grid-template-rows: minmax(0, auto) auto;
+	grid-template-areas:
+		"screenshot info"
+		"screenshot actions";
+	column-gap: 28px;
+	row-gap: 14px;
+	align-items: start;
+	position: relative;
+	top: auto;
+	right: auto;
+	bottom: auto;
+	left: auto;
+	min-height: 0;
+	padding: 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+	overflow: visible;
+	z-index: 10;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-about {
+	display: contents;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-screenshots {
+	grid-area: screenshot;
+	float: none;
+	width: 100%;
+	max-width: none;
+	margin: 0;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.screenshot {
+	background: #f0f0f1;
+	border: 0;
+	border-radius: 8px;
+	box-shadow: 0 0 0 1px #dcdcde;
+	overflow: hidden;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-info {
+	grid-area: info;
+	float: none;
+	width: auto;
+	max-height: 300px;
+	padding: 2px 10px 2px 0;
+	overflow: auto;
+	scrollbar-gutter: stable;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.current-label {
+	margin: 0 0 10px;
+	padding: 4px 9px;
+	background: #e7f5ed;
+	border: 1px solid #9ad7b5;
+	border-radius: 999px;
+	color: #0a5c36;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-name {
+	margin: 0;
+	color: #1d2327;
+	font-size: clamp(25px, 3vw, 34px);
+	font-weight: 650;
+	letter-spacing: -0.03em;
+	line-height: 1.12;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-version {
+	margin-left: 8px;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-author {
+	margin: 8px 0 14px;
+	color: #646970;
+	font-size: 13px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-autoupdate {
+	margin: 0 0 14px;
+	padding: 9px 10px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	font-size: 12px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-description {
+	margin: 0;
+	color: #3c434a;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-tags,
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.parent-theme {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top-width: 1px;
+	color: #646970;
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions {
+	display: flex;
+	grid-area: actions;
+	align-items: center;
+	justify-content: flex-start;
+	position: static;
+	padding: 14px 0 0;
+	background: transparent;
+	border-top: 1px solid #dcdcde;
+	text-align: left;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions
+	> div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+}
+
+.os-chromeless.themes-php
+	.themes.single-theme
+	.theme-overlay.active
+	.theme-actions
+	.button {
+	margin: 0;
+}
+
+@media (max-width: 760px) {
+	.os-chromeless.themes-php #wpbody-content {
+		padding: 12px;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro {
+		align-items: flex-start;
+		gap: 16px;
+		padding: 16px;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro__copy > p:last-child {
+		display: none;
+	}
+
+	.os-chromeless.themes-php
+		.themes.single-theme
+		.theme-overlay.active
+		.theme-wrap {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"screenshot"
+			"info"
+			"actions";
+		padding: 16px;
+	}
+
+	.os-chromeless.themes-php
+		.themes.single-theme
+		.theme-overlay.active
+		.theme-info {
+		max-height: none;
+		padding-right: 0;
+		overflow: visible;
+	}
+
+	.os-chromeless.themes-php .theme-overlay.active .theme-wrap {
+		top: 10px;
+		right: 10px;
+		bottom: 10px;
+		left: 10px;
+	}
+}
+
+@media (max-width: 480px) {
+	.os-chromeless.themes-php .openstation-themes-intro__count {
+		display: none;
+	}
+
+	.os-chromeless.themes-php .openstation-themes-intro h1 {
+		font-size: 21px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.os-chromeless.themes-php
+		.theme-browser
+		.themes:not(.single-theme)
+		> .theme {
+		transition: none;
+	}
+}
