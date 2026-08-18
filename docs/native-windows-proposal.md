@@ -231,6 +231,9 @@ Every native window sees the same shipped lifecycle surface, delivered through t
 | **hidden** | Window minimized. | `ctx.onHide( fn )`. |
 | **visible** | Window restored. | `ctx.onShow( fn )`. |
 | **unmount** | Window closed. | `ctx.signal` (an `AbortSignal`) aborts, then the teardown function returned from render is called. |
+| **remount** | User picks **Reload** from the ⋯ menu (or a plugin calls `win.reload()`). | Unmount, then mount again — the body is emptied and the render callback runs against a **fresh** `ctx`. The window itself never closes: id, geometry, focus, `params` and session entry survive, and no close/open pair fires. |
+
+**Write render so it can run twice.** A reload puts a native window through unmount-then-mount on the same live `Window`, so anything the callback set up outside the body — a global listener, an interval, a subscription — has to come back through the teardown it returns, or it leaks one copy per reload. Anything wired to `ctx` (its `signal`, `ctx.window.on`, `onResize` / `onHide` / `onShow`) is disposed for you.
 
 The `ctx` object also exposes the window-scoped channel pair (`ctx.window.send` / `ctx.window.on`) and the loading-overlay controls (`ctx.markLoading()` / `ctx.markReady()`). To rename a window after data loads, use the window handle: `wp.os.windowManager.getById( id ).setTitle( title )`. See [`examples/render-ctx.md`](./examples/render-ctx.md) for the full contract.
 

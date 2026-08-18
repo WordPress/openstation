@@ -2109,24 +2109,26 @@ export class Window {
 	 * reload that preserves scroll position semantics; cross-origin
 	 * external tabs fall back to re-assigning `iframe.src`.
 	 *
-	 * No-op for native windows — they own their DOM directly and the
-	 * title-bar menu's Reload item is only built for iframe windows
-	 * (`dom.ts` skips it when `config.native`), but this guard keeps
-	 * the contract honest if the method is called by other code paths
-	 * in the future.
+	 * Native windows reload too — see {@link _reloadNative}. They have
+	 * no frame to refresh, so the equivalent is tearing the previous
+	 * render down and running the render callback again.
 	 */
 	public reload(): void {
-		if ( this.config.native ) {
-			return;
-		}
 		// Guard against double-clicks during an in-flight reload — a
 		// second `location.reload()` while the first is still hydrating
 		// can desync the chromeless bridge's `os-ready`
 		// handshake. The body's `--loading` class is the upstream
 		// signal set by `markContentLoading()` and cleared on the
-		// next `os-ready` postMessage.
+		// next `os-ready` postMessage. Native windows are held to the
+		// same rule: a promise-returning render is still in flight
+		// while the class is on, and re-entering would leave its
+		// resolution writing into a body a newer render owns.
 		const body = this.element.querySelector( '.os-window__body' );
 		if ( body?.classList.contains( 'os-window__body--loading' ) ) {
+			return;
+		}
+		if ( this.config.native ) {
+			this._reloadNative();
 			return;
 		}
 		// Resolve the target surface and its URL up-front, before any
@@ -2175,6 +2177,84 @@ export class Window {
 		doAction( HOOKS.WINDOW_RELOADED, {
 			windowId: this.id,
 			url: reloadedUrl,
+		} );
+	}
+
+	/**
+	 * Reload a native window by re-running its render callback.
+	 *
+	 * A native window has no frame to refresh, so "reload" means the
+	 * closest honest equivalent: dispose the render context, run the
+	 * teardown the previous render returned, empty the body, and call
+	 * {@link hydrateNative} again. What the plugin author gets is the
+	 * same lifecycle a fresh open runs — `NATIVE_WINDOW_BEFORE_RENDER`,
+	 * `render( body, ctx )` with a **new** `ctx` (new `signal`, new
+	 * channel subscriptions), `NATIVE_WINDOW_AFTER_RENDER` — against
+	 * the same live `Window`. The window itself does not close and
+	 * reopen: id, geometry, focus, z-order, params and session entry
+	 * all survive, and no `WINDOW_CLOSED` / `WINDOW_OPENED` pair fires
+	 * for something the user experienced as a refresh.
+	 *
+	 * Teardown runs before the body is emptied, not after, so a
+	 * teardown that reads its own DOM (detaching a listener, reading a
+	 * final scroll offset) still finds it. Both callbacks are
+	 * contained: a throwing teardown reports through `SHELL_ERROR` and
+	 * the reload proceeds, because a plugin's cleanup bug must not
+	 * cost the user the reload they asked for.
+	 *
+	 * The loading overlay is armed here and cleared by the readiness
+	 * signal `hydrateNative()` already emits — immediately on the next
+	 * frame for a synchronous render, on settle for a promise-returning
+	 * one. So a render that refetches shows a spinner for exactly as
+	 * long as the refetch takes, with no extra plumbing.
+	 */
+	private _reloadNative(): void {
+		if ( ! this.config.render ) {
+			return;
+		}
+		const body = this.element.querySelector(
+			'.os-window__body',
+		) as HTMLElement | null;
+		if ( ! body ) {
+			return;
+		}
+
+		if ( this._nativeRenderCtxDispose ) {
+			try {
+				this._nativeRenderCtxDispose();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-ctx-dispose',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderCtxDispose = null;
+		}
+		if ( this._nativeRenderTeardown ) {
+			try {
+				this._nativeRenderTeardown();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'native-window-teardown',
+					id: this.id,
+					error: err,
+				} );
+			}
+			this._nativeRenderTeardown = null;
+		}
+
+		body.replaceChildren();
+
+		// Click feedback first (independent of how long the render
+		// takes), then arm the overlay, then render, then notify —
+		// the same order the iframe path uses.
+		this._spinReloadButton();
+		this.markContentLoading();
+		this.hydrateNative();
+		doAction( HOOKS.WINDOW_RELOADED, {
+			windowId: this.id,
+			url: this.config.url ?? '',
 		} );
 	}
 
