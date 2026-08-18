@@ -4,9 +4,9 @@ Recipes for plugin authors that want to extend the native Plugins window. Every 
 
 ---
 
-## 1. Sponsor a custom Browse filter
+## 1. Sponsor a custom Discover feed
 
-Add a "Curated" tab to the Browse segmented filter that calls `plugins_api( 'query_plugins' )` with a fixed wp.org tag.
+Add a "Curated" option to the Discover feed filter that calls `plugins_api( 'query_plugins' )` with a fixed wp.org tag.
 
 ```php
 <?php
@@ -148,7 +148,7 @@ This action only fires for the `wp_ajax_openstation_plugins_upload` route. Insta
 
 ---
 
-## 5. Land on the Browse tab when opening the window from your own UI
+## 5. Land on Discover when opening the window from your own UI
 
 The bundle reads an initial-tab hint from a shared store. Set it BEFORE `openById( 'desktop-mode-plugins' )`:
 
@@ -168,7 +168,7 @@ Backed by `wp.os.createSharedStore` so multiple bundles read the same value. The
 
 ## 6. Accept dragged plugin cards as a drop target on your own canvas
 
-Cards in the Browse gallery emit a `wporg-plugin` payload via the framework drag bridge. Register your own drop target so plugin authors can drag a card into your custom canvas:
+Cards in the Discover gallery emit a `wporg-plugin` payload via the framework drag bridge. Register your own drop target so plugin authors can drag a card into your custom canvas:
 
 ```ts
 window.wp.os.dragManager.registerDropTarget( {

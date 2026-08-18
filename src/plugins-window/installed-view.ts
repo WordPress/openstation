@@ -1301,7 +1301,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		paintTable();
 	}
 
-	// Cross-view sync: when the Browse tab installs/activates a
+	// Cross-view sync: when Discover installs/activates a
 	// plugin, refresh the installed list so the row reflects the
 	// new state without the user having to switch tabs and back.
 	// Self-emitted broadcasts are skipped — our mutation handlers

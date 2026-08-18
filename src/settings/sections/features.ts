@@ -746,7 +746,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></os-checkbox-label>
 						<p class="os-features__hint">
 							${ __(
-								'A native Plugins window with an Installed list, bulk actions, and a Browse gallery from the WordPress.org directory.',
+								'A native Plugins window with installed-plugin management and a curated Discover store powered by WordPress.org.',
 							) }
 						</p>
 					</div>

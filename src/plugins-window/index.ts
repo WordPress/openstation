@@ -3,7 +3,7 @@
  *
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-plugins` window opens. Wires the two-tab shell
- * (Installed / Browse) and the detail flyout against the template
+ * (Installed / Discover) and the detail flyout against the template
  * echoed by `openstation_plugins_window_render_template()`.
  *
  * Web-component registrations: the main `desktop.min.js` ships only
@@ -28,7 +28,6 @@ import '../ui/components/os-badge/os-badge';
 // the class explicitly so the server-rendered element upgrades.
 import '../ui/components/os-flyout/os-flyout';
 import { mountBrowseView } from './browse-view';
-import { mountFeaturedView } from './featured-view';
 import { mountInstalledView } from './installed-view';
 import { getConfig } from './rest';
 import {
@@ -94,7 +93,7 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		}
 	}
 
-	// ─── Browse tab ─────────────────────────────────────────────────
+	// ─── Discover tab ───────────────────────────────────────────────
 	const browseHost = root.querySelector< HTMLElement >(
 		'[data-os-plugins-browse-host]',
 	);
@@ -106,30 +105,21 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		browseTeardown = mountBrowseView( browseHost, flyout, body );
 	}
 
-	// ─── Featured tab ───────────────────────────────────────────────
-	const featuredHost = root.querySelector< HTMLElement >(
-		'[data-os-plugins-featured-host]',
-	);
-	let featuredTeardown: ( () => void ) | null = null;
-	if ( featuredHost && config.caps.install ) {
-		featuredTeardown = mountFeaturedView( featuredHost, flyout );
-	}
-
 	// ─── Tab routing ───────────────────────────────────────────────
 	const applyTab = ( tab: PluginsWindowTab ): void => {
 		if ( ! tabs ) {
 			return;
 		}
-		// Browse + Featured share the `caps.install` gate — never auto-
-		// flip the tab somewhere the viewer can't see.
-		if (
-			( tab === 'browse' || tab === 'featured' ) &&
-			! config.caps.install
-		) {
+		// `featured` used to be a top-level tab. Keep it as an inbound
+		// compatibility alias so third-party launchers land on the
+		// curated shelf inside Discover instead of selecting a missing
+		// tab panel.
+		const target = tab === 'featured' ? 'browse' : tab;
+		if ( target === 'browse' && ! config.caps.install ) {
 			tabs.setAttribute( 'value', 'installed' );
 			return;
 		}
-		tabs.setAttribute( 'value', tab );
+		tabs.setAttribute( 'value', target );
 	};
 
 	const initialTab = consumePluginsWindowTab();
@@ -160,10 +150,6 @@ function renderPluginsWindow( body: HTMLElement ): void {
 		if ( browseTeardown ) {
 			browseTeardown();
 			browseTeardown = null;
-		}
-		if ( featuredTeardown ) {
-			featuredTeardown();
-			featuredTeardown = null;
 		}
 	};
 	document.addEventListener( 'os-window-closed', onClosed );

@@ -1,9 +1,10 @@
 /**
- * Native Plugins window — Browse tab.
+ * Native Plugins window — Discover store.
  *
- * Search field + segmented browse filter + Upload button + a
- * `<os-grid>`-style gallery of cards. Infinite scroll via
- * IntersectionObserver on a sentinel.
+ * Curated OpenStation picks + task collections + field-scoped
+ * WordPress.org search + an infinite card gallery. The old Browse
+ * route still targets this view, so plugin-install.php links and
+ * third-party launchers remain compatible.
  *
  * The whole window body also acts as a drop zone for `.zip` files —
  * dragging from Finder/Explorer onto the window opens the upload
@@ -36,6 +37,7 @@ interface PluginsChangedPayload {
 	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'bulk';
 }
 import { installPluginDropTargets, makeCardDraggable } from './card-drag';
+import { mountFeaturedView } from './featured-view';
 import { openDetailFlyout } from './flyout-detail';
 import {
 	activateInstalledPlugin,
@@ -48,19 +50,25 @@ import {
 import type {
 	BrowseFilter,
 	InstalledPlugin,
+	PluginSearchScope,
 	WpOrgBrowsePlugin,
 } from './types';
 import { openUploadDialog } from './upload-dialog';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-card/os-card';
+import '../ui/components/os-select/os-select';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-text-field/os-text-field';
 
 interface BrowseState {
 	filter: BrowseFilter;
 	search: string;
+	searchScope: PluginSearchScope;
+	tag: string;
+	tagLabel: string;
 	page: number;
 	totalPages: number;
+	resultCount: number;
 	loading: boolean;
 	exhausted: boolean;
 	plugins: WpOrgBrowsePlugin[];
@@ -95,8 +103,12 @@ export function mountBrowseView(
 	const state: BrowseState = {
 		filter: 'featured',
 		search: '',
+		searchScope: 'all',
+		tag: '',
+		tagLabel: '',
 		page: 1,
 		totalPages: 0,
+		resultCount: 0,
 		loading: false,
 		exhausted: false,
 		plugins: [],
@@ -104,9 +116,130 @@ export function mountBrowseView(
 		cardsBySlug: new Map(),
 	};
 
-	// ─── Toolbar ────────────────────────────────────────────────────
+	const cfg = getConfig();
+
+	// The entire store scrolls as one document: hero, curated shelf,
+	// browse controls, and results. This reads like a catalog instead
+	// of three fixed panes fighting for the window's height.
+	const scroll = document.createElement( 'div' );
+	scroll.className = 'os-plugins__discover-scroll';
+
+	// ─── Discovery hero + search ────────────────────────────────────
+	const hero = document.createElement( 'section' );
+	hero.className = 'os-plugins__discover-hero';
+	const heroCopy = document.createElement( 'div' );
+	heroCopy.className = 'os-plugins__discover-copy';
+	const eyebrow = document.createElement( 'p' );
+	eyebrow.className = 'os-plugins__discover-eyebrow';
+	eyebrow.textContent = __( 'WORDPRESS.ORG, CURATED', 'desktop-mode' );
+	const heading = document.createElement( 'h2' );
+	heading.className = 'os-plugins__discover-heading';
+	heading.textContent = __( 'Find the right tool for the job.', 'desktop-mode' );
+	const subheading = document.createElement( 'p' );
+	subheading.className = 'os-plugins__discover-subheading';
+	subheading.textContent = __(
+		'Search the WordPress.org directory, explore useful collections, and install without leaving OpenStation.',
+		'desktop-mode',
+	);
+	heroCopy.append( eyebrow, heading, subheading );
+
+	const searchRow = document.createElement( 'div' );
+	searchRow.className = 'os-plugins__discover-search';
+	const search = document.createElement( 'os-text-field' );
+	search.setAttribute( 'label', __( 'Search WordPress.org', 'desktop-mode' ) );
+	search.setAttribute(
+		'placeholder',
+		__( 'Plugin, feature, author, or tag…', 'desktop-mode' ),
+	);
+	const scope = document.createElement( 'os-select' );
+	scope.setAttribute( 'label', __( 'Search by', 'desktop-mode' ) );
+	scope.setAttribute( 'value', 'all' );
+	const scopes: Array< { value: PluginSearchScope; label: string } > = [
+		{ value: 'all', label: __( 'Everything', 'desktop-mode' ) },
+		{ value: 'author', label: __( 'Author', 'desktop-mode' ) },
+		{ value: 'tag', label: __( 'Tag', 'desktop-mode' ) },
+	];
+	for ( const option of scopes ) {
+		const item = document.createElement( 'os-option' );
+		item.setAttribute( 'value', option.value );
+		item.textContent = option.label;
+		scope.appendChild( item );
+	}
+
+	let searchDebounce: number | undefined;
+	search.addEventListener( 'os-input-change', ( ev: Event ) => {
+		const value =
+			( ev as CustomEvent< { value: string } > ).detail?.value ?? '';
+		window.clearTimeout( searchDebounce );
+		searchDebounce = window.setTimeout( () => {
+			state.search = value.trim();
+			state.tag = '';
+			state.tagLabel = '';
+			updateDiscoveryChrome();
+			void resetAndLoad();
+		}, 250 );
+	} );
+	scope.addEventListener( 'os-pick', ( ev: Event ) => {
+		const next =
+			( ev as CustomEvent< { value: string } > ).detail?.value ?? 'all';
+		state.searchScope = next as PluginSearchScope;
+		if ( state.search !== '' ) {
+			void resetAndLoad();
+		}
+	} );
+	searchRow.append( search, scope );
+
+	if ( cfg.caps.upload ) {
+		const upload = document.createElement( 'os-button' );
+		upload.className = 'os-plugins__discover-upload';
+		upload.setAttribute( 'variant', 'secondary' );
+		upload.innerHTML =
+			'<span class="dashicons dashicons-upload" aria-hidden="true"></span> ' +
+			__( 'Upload Plugin', 'desktop-mode' );
+		upload.addEventListener( 'click', () => {
+			void openUploadDialog( bodyEl, null, {
+				onUploaded: () => void refreshInstalled(),
+			} );
+		} );
+		searchRow.appendChild( upload );
+	}
+
+	const categoryNav = document.createElement( 'nav' );
+	categoryNav.className = 'os-plugins__discover-categories';
+	categoryNav.setAttribute( 'aria-label', __( 'Plugin collections', 'desktop-mode' ) );
+	const categories = [
+		{ tag: 'contact-form', label: __( 'Forms', 'desktop-mode' ) },
+		{ tag: 'seo', label: __( 'SEO', 'desktop-mode' ) },
+		{ tag: 'ecommerce', label: __( 'Commerce', 'desktop-mode' ) },
+		{ tag: 'security', label: __( 'Security', 'desktop-mode' ) },
+		{ tag: 'performance', label: __( 'Performance', 'desktop-mode' ) },
+		{ tag: 'blocks', label: __( 'Blocks', 'desktop-mode' ) },
+	];
+	for ( const category of categories ) {
+		const button = document.createElement( 'os-button' );
+		button.className = 'os-plugins__category';
+		button.setAttribute( 'variant', 'ghost' );
+		button.textContent = category.label;
+		button.addEventListener( 'click', () => {
+			state.search = '';
+			state.tag = category.tag;
+			state.tagLabel = category.label;
+			search.setAttribute( 'value', '' );
+			updateDiscoveryChrome();
+			void resetAndLoad();
+		} );
+		categoryNav.appendChild( button );
+	}
+	hero.append( heroCopy, searchRow, categoryNav );
+
+	// ─── OpenStation Picks shelf ────────────────────────────────────
+	const picks = document.createElement( 'section' );
+	picks.className = 'os-plugins__picks os-plugins__featured';
+	const picksTeardown = mountFeaturedView( picks, flyoutEl );
+
+	// ─── Directory filter toolbar ───────────────────────────────────
 	const toolbar = document.createElement( 'header' );
-	toolbar.className = 'os-plugins__toolbar';
+	toolbar.className = 'os-plugins__toolbar os-plugins__discover-toolbar';
 
 	const left = document.createElement( 'div' );
 	left.className = 'os-plugins__toolbar-left';
@@ -130,40 +263,18 @@ export function mountBrowseView(
 	segmented.addEventListener( 'os-pick', ( ev: Event ) => {
 		const next = ( ev as CustomEvent< { value: string } > ).detail?.value ?? 'featured';
 		state.filter = next as BrowseFilter;
+		state.search = '';
+		state.tag = '';
+		state.tagLabel = '';
+		search.setAttribute( 'value', '' );
+		updateDiscoveryChrome();
 		void resetAndLoad();
 	} );
 
-	const search = document.createElement( 'os-text-field' );
-	search.setAttribute( 'placeholder', __( 'Search WordPress.org…', 'desktop-mode' ) );
-	let searchDebounce: number | undefined;
-	search.addEventListener( 'os-input-change', ( ev: Event ) => {
-		const value = ( ev as CustomEvent< { value: string } > ).detail?.value ?? '';
-		window.clearTimeout( searchDebounce );
-		searchDebounce = window.setTimeout( () => {
-			state.search = value;
-			void resetAndLoad();
-		}, 250 );
-	} );
-
-	left.append( segmented, search );
+	left.append( segmented );
 
 	const right = document.createElement( 'div' );
 	right.className = 'os-plugins__toolbar-trailing';
-	const cfg = getConfig();
-	if ( cfg.caps.upload ) {
-		const upload = document.createElement( 'os-button' );
-		upload.setAttribute( 'variant', 'secondary' );
-		upload.innerHTML =
-			'<span class="dashicons dashicons-upload" aria-hidden="true"></span> ' +
-			__( 'Upload Plugin', 'desktop-mode' );
-		upload.addEventListener( 'click', () => {
-			void openUploadDialog( bodyEl, null, {
-				onUploaded: () => void refreshInstalled(),
-			} );
-		} );
-		right.appendChild( upload );
-	}
-
 	// Refresh button — re-fetch the current filter / search result
 	// set from wp.org and the installed-state cache. Matches the
 	// affordance on the Installed tab so the surface is symmetric;
@@ -182,19 +293,21 @@ export function mountBrowseView(
 
 	toolbar.append( left, right );
 
+	const resultsHeader = document.createElement( 'div' );
+	resultsHeader.className = 'os-plugins__results-header';
+	const resultsTitle = document.createElement( 'h2' );
+	resultsTitle.className = 'os-plugins__results-title';
+	const resultsMeta = document.createElement( 'p' );
+	resultsMeta.className = 'os-plugins__results-meta';
+	resultsHeader.append( resultsTitle, resultsMeta );
+
 	// ─── Gallery ────────────────────────────────────────────────────
 	const gallery = document.createElement( 'div' );
 	gallery.className = 'os-plugins__gallery';
 
-	// The sentinel must live INSIDE the gallery scroll container —
-	// IntersectionObserver with `root: gallery` only fires when the
-	// observed element enters that scroll viewport. Earlier we
-	// appended it as a sibling AFTER the gallery, which meant the
-	// observer fired exactly once on initial mount (the sentinel was
-	// in the document viewport) and never again on subsequent
-	// scrolls. The sentinel now scrolls down WITH the gallery
-	// content; as the user reaches the bottom, it slides into the
-	// observer's `root` viewport and triggers the next fetch.
+	// The sentinel stays inside the card grid but is observed against
+	// the whole store scroller, so the hero and curated shelf move out
+	// of the way naturally before pagination begins.
 	const sentinel = document.createElement( 'div' );
 	sentinel.className = 'os-plugins__gallery-sentinel';
 	sentinel.setAttribute( 'aria-hidden', 'true' );
@@ -203,7 +316,59 @@ export function mountBrowseView(
 	status.className = 'os-plugins__gallery-status';
 	status.hidden = true;
 
-	host.append( toolbar, gallery, status );
+	scroll.append( hero, picks, toolbar, resultsHeader, gallery, status );
+	host.appendChild( scroll );
+	updateDiscoveryChrome();
+
+	function updateDiscoveryChrome(): void {
+		const atHome =
+			state.search === '' && state.tag === '' && state.filter === 'featured';
+		picks.hidden = ! atHome;
+
+		if ( state.search !== '' ) {
+			if ( state.searchScope === 'author' ) {
+				resultsTitle.textContent = sprintf(
+					/* translators: %s: plugin author search */
+					__( 'Plugins by “%s”', 'desktop-mode' ),
+					state.search,
+				);
+			} else if ( state.searchScope === 'tag' ) {
+				resultsTitle.textContent = sprintf(
+					/* translators: %s: plugin tag search */
+					__( 'Plugins tagged “%s”', 'desktop-mode' ),
+					state.search,
+				);
+			} else {
+				resultsTitle.textContent = sprintf(
+					/* translators: %s: plugin-directory search */
+					__( 'Results for “%s”', 'desktop-mode' ),
+					state.search,
+				);
+			}
+		} else if ( state.tag !== '' ) {
+			resultsTitle.textContent = sprintf(
+				/* translators: %s: curated collection name */
+				__( '%s plugins', 'desktop-mode' ),
+				state.tagLabel,
+			);
+		} else {
+			const current = filters.find( ( item ) => item.value === state.filter );
+			resultsTitle.textContent = sprintf(
+				/* translators: %s: WordPress.org browse feed name */
+				__( '%s on WordPress.org', 'desktop-mode' ),
+				current?.label ?? __( 'Featured', 'desktop-mode' ),
+			);
+		}
+
+		resultsMeta.textContent =
+			state.resultCount > 0
+				? sprintf(
+					/* translators: %s: number of directory results */
+					__( '%s results', 'desktop-mode' ),
+					state.resultCount.toLocaleString(),
+				)
+				: '';
+	}
 
 	// ─── Window-level .zip drop overlay ────────────────────────────
 	const dropOverlay = document.createElement( 'div' );
@@ -444,8 +609,7 @@ export function mountBrowseView(
 	};
 
 	// ─── Infinite scroll ────────────────────────────────────────────
-	// `root: gallery` so the observer fires against the gallery's
-	// internal scroll, not the document viewport.
+	// Observe against the full Discover document, not just the grid.
 	const observer = new IntersectionObserver(
 		( entries ) => {
 			for ( const entry of entries ) {
@@ -454,7 +618,7 @@ export function mountBrowseView(
 				}
 			}
 		},
-		{ root: gallery, rootMargin: '240px', threshold: 0 },
+		{ root: scroll, rootMargin: '240px', threshold: 0 },
 	);
 	observer.observe( sentinel );
 
@@ -485,6 +649,7 @@ export function mountBrowseView(
 	async function resetAndLoad(): Promise< void > {
 		state.page = 1;
 		state.totalPages = 0;
+		state.resultCount = 0;
 		state.exhausted = false;
 		state.plugins = [];
 		state.cardsBySlug.clear();
@@ -540,8 +705,13 @@ export function mountBrowseView(
 		}
 		try {
 			const data = await browsePlugins( {
-				browse: state.search === '' ? state.filter : undefined,
+				browse:
+					state.search === '' && state.tag === ''
+						? state.filter
+						: undefined,
 				search: state.search === '' ? undefined : state.search,
+				searchScope: state.searchScope,
+				tag: state.tag === '' ? undefined : state.tag,
 				page: state.page,
 				perPage: 24,
 			} );
@@ -557,6 +727,10 @@ export function mountBrowseView(
 			const info = ( data.info ?? {} ) as { pages?: number; results?: number };
 			if ( typeof info.pages === 'number' && info.pages > 0 ) {
 				state.totalPages = info.pages;
+			}
+			if ( typeof info.results === 'number' && info.results >= 0 ) {
+				state.resultCount = info.results;
+				updateDiscoveryChrome();
 			}
 			const incoming = data.plugins ?? [];
 			if ( incoming.length === 0 ) {
@@ -629,6 +803,8 @@ export function mountBrowseView(
 	);
 
 	return () => {
+		window.clearTimeout( searchDebounce );
+		picksTeardown();
 		unsubscribePluginsChanged();
 		observer.disconnect();
 		bodyEl.removeEventListener( 'dragenter', onDragEnter );

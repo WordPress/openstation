@@ -1,5 +1,5 @@
 /**
- * Native Plugins window — "OpenStation plugins" tab.
+ * Native Plugins window — OpenStation Picks shelf.
  *
  * A curated + auto-discovered gallery of plugins that integrate with
  * OpenStation. Curated entries (hand-picked because wp.org has no
@@ -8,8 +8,8 @@
  * appended after.
  *
  * Single server fetch per mount — the AJAX endpoint owns the curated
- * list + discovery + transient caching. No infinite scroll, no
- * search, no filter: the surface is small by design.
+ * list + discovery + transient caching. The shelf is embedded at the
+ * top of Discover and stays intentionally small.
  *
  * @public
  */
@@ -40,7 +40,7 @@ import '../ui/components/os-ribbon/os-ribbon';
 
 /**
  * Cross-view sync topic. Mirrors the contract in `browse-view.ts` /
- * `installed-view.ts` so the Featured tab also gets repainted when
+ * `installed-view.ts` so the Picks shelf also gets repainted when
  * another tab mutates a plugin's installed state.
  *
  * @internal
@@ -93,11 +93,11 @@ export function mountFeaturedView(
 	intro.className = 'os-plugins__featured-intro';
 	const heading = document.createElement( 'h2' );
 	heading.className = 'os-plugins__featured-heading';
-	heading.textContent = __( 'Made for OpenStation', 'desktop-mode' );
+	heading.textContent = __( 'OpenStation Picks', 'desktop-mode' );
 	const description = document.createElement( 'p' );
 	description.className = 'os-plugins__featured-blurb';
 	description.textContent = __(
-		'Plugins that extend OpenStation — desktop decorations, native windows, widgets, and other companions.',
+		'Curated companions that add native windows, desktop decorations, widgets, and other OpenStation experiences.',
 		'desktop-mode',
 	);
 	intro.append( heading, description );
@@ -268,7 +268,7 @@ export function mountFeaturedView(
 			state.plugins = featured.plugins ?? [];
 			renderGallery();
 			if ( state.plugins.length === 0 ) {
-				showStatus( __( 'No featured plugins yet.', 'desktop-mode' ) );
+				showStatus( __( 'No OpenStation picks yet.', 'desktop-mode' ) );
 			} else {
 				hideStatus();
 			}
@@ -277,7 +277,7 @@ export function mountFeaturedView(
 			showStatus(
 				sprintf(
 					/* translators: %s: error message */
-					__( 'Could not load featured plugins: %s', 'desktop-mode' ),
+					__( 'Could not load OpenStation picks: %s', 'desktop-mode' ),
 					formatError( err ),
 				),
 			);

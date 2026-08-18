@@ -1,10 +1,10 @@
 <?php
 /**
- * Tests for the Plugins window's Featured tab AJAX endpoint + curated
+ * Tests for the Plugins window's OpenStation Picks AJAX endpoint + curated
  * slug helper.
  *
- * The Featured tab is the third tab in the native Plugins window. It
- * surfaces plugins that depend on OpenStation — manually curated for
+ * The Picks shelf lives inside Discover. It surfaces plugins that
+ * depend on OpenStation — manually curated for
  * now (wp.org's plugins_api has no usable `requires_plugins` filter)
  * and topped up at runtime by scanning the popular-plugins feed for
  * rows whose `requires_plugins` array contains `desktop-mode`.

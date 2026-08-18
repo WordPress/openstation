@@ -51,6 +51,8 @@ function installConfig( over: Partial< PluginsWindowConfig > = {} ): void {
 			upload:   true,
 		},
 		currentUserId: 1,
+		wpVersion:     '6.8',
+		phpVersion:    '8.3.0',
 		...over,
 	};
 	window.openStationWindowConfig = window.openStationWindowConfig ?? {};
@@ -231,6 +233,20 @@ describe( 'browsePlugins', () => {
 			} ) as never,
 		);
 		await expect( browsePlugins( {} ) ).rejects.toThrow( /wp\.org is sleeping/ );
+	} );
+
+	test( 'sends the selected search scope to WordPress.org proxy', async () => {
+		const fetchMock = vi.spyOn( global, 'fetch' as never ).mockResolvedValue(
+			ajaxOkResponse( { plugins: [], info: { results: 0 } } ) as never,
+		);
+		await browsePlugins( {
+			search: 'automattic',
+			searchScope: 'author',
+		} );
+		const init = fetchMock.mock.calls[ 0 ]![ 1 ] as RequestInit;
+		const body = init.body as URLSearchParams;
+		expect( body.get( 'search' ) ).toBe( 'automattic' );
+		expect( body.get( 'search_scope' ) ).toBe( 'author' );
 	} );
 } );
 

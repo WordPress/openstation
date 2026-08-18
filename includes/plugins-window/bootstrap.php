@@ -4,7 +4,7 @@
  *
  * Replaces the chromeless `plugins.php` + `plugin-install.php` iframes
  * with a single native window containing two tabs: an Installed list
- * (manage activations + updates + delete) and a Browse gallery
+ * (manage activations + updates + delete) and a curated Discover store
  * (explore wp.org, view rich detail in a `<os-flyout>`, install by
  * slug, upload .zip, drag-drop a .zip onto the window).
  *

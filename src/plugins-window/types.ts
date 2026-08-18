@@ -165,6 +165,9 @@ export type BrowseFilter =
 	| 'beta'
 	| 'updated';
 
+/** Field WordPress.org should use for a Discover search. */
+export type PluginSearchScope = 'all' | 'author' | 'tag';
+
 /** A single review parsed from the wp.org plugin reviews page. */
 export interface PluginReview {
 	author: string;

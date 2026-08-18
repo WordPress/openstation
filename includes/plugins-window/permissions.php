@@ -6,7 +6,7 @@
  *
  *   - `activate_plugins` → REGISTER the window (the broad gate).
  *                          Cap-only check; the opt-in toggle is JS-side.
- *   - `install_plugins`  → Browse tab + install/upload (JS hides the
+ *   - `install_plugins`  → Discover + install/upload (JS hides the
  *                          tab; AJAX routes re-validate).
  *   - `delete_plugins`   → bulk-delete + per-row delete action.
  *   - `upload_plugins`   → .zip upload (file or drag-drop).

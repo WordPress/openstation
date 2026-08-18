@@ -25,6 +25,7 @@
 	overflow-y: hidden;
 	position: relative;
 	box-sizing: border-box;
+	container: plugins-window / inline-size;
 }
 
 .os-plugins__tabs {
@@ -316,12 +317,139 @@
 
 /* ─── Browse — gallery ──────────────────────────────────────────── */
 
+.os-plugins__discover-scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	background: var( --os-ui-bg, #f6f7f7 );
+	scrollbar-gutter: stable;
+}
+
+.os-plugins__discover-hero {
+	padding: 24px clamp( 18px, 4vw, 44px ) 18px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background:
+		radial-gradient(
+			circle at 88% 10%,
+			var( --os-ui-accent-dim, rgba( 34, 113, 177, 0.10 ) ),
+			transparent 34%
+		),
+		var( --os-ui-surface, #fff );
+}
+
+.os-plugins__discover-copy {
+	max-width: 760px;
+}
+
+.os-plugins__discover-eyebrow {
+	margin: 0 0 5px;
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+}
+
+.os-plugins__discover-heading {
+	margin: 0;
+	font-size: clamp( 1.45rem, 3vw, 2.15rem );
+	line-height: 1.1;
+	letter-spacing: -0.025em;
+}
+
+.os-plugins__discover-subheading {
+	margin: 8px 0 0;
+	max-width: 680px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 0.94rem;
+	line-height: 1.5;
+}
+
+.os-plugins__discover-search {
+	display: grid;
+	grid-template-columns: minmax( 280px, 1fr ) minmax( 132px, 170px ) auto;
+	align-items: end;
+	gap: 10px;
+	max-width: 900px;
+	margin-block-start: 18px;
+}
+
+.os-plugins__discover-search os-text-field,
+.os-plugins__discover-search os-select {
+	min-width: 0;
+}
+
+.os-plugins__discover-upload {
+	margin-block-end: 1px;
+}
+
+.os-plugins__discover-categories {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	flex-wrap: wrap;
+	margin-block-start: 12px;
+}
+
+.os-plugins__category::part( button ) {
+	min-height: 30px;
+	padding: 4px 10px;
+	font-size: 0.8rem;
+}
+
+.os-plugins__picks {
+	padding: 18px clamp( 18px, 3vw, 32px ) 22px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+	background: var( --os-ui-surface-elevated, #fff );
+}
+
+.os-plugins__picks[ hidden ] {
+	display: none;
+}
+
+.os-plugins__picks .os-plugins__featured-intro {
+	padding: 0 0 12px;
+}
+
+.os-plugins__picks .os-plugins__gallery {
+	grid-template-columns: repeat( auto-fit, minmax( 280px, 1fr ) );
+	padding: 0;
+}
+
+.os-plugins__discover-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	background: var( --os-ui-surface, #fff );
+	box-shadow: 0 1px 0 var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.os-plugins__results-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 18px 18px 0;
+}
+
+.os-plugins__results-title {
+	margin: 0;
+	font-size: 1.08rem;
+	font-weight: 650;
+}
+
+.os-plugins__results-meta {
+	margin: 0;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 0.8rem;
+}
+
 .os-plugins__gallery {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 280px, 1fr ) );
 	gap: 14px;
 	padding: 16px;
-	flex: 1 1 auto;
+	flex: 0 0 auto;
 	min-height: 0;
 	min-width: 0;
 	max-width: 100%;
@@ -329,8 +457,7 @@
 	 * children from exceeding the container width, but we still
 	 * clamp `overflow-x` defensively so a misbehaving card can't
 	 * stretch the gallery. */
-	overflow-x: hidden;
-	overflow-y: auto;
+	overflow: visible;
 	align-content: start;
 	box-sizing: border-box;
 }
@@ -428,6 +555,84 @@
 	line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
+}
+
+.os-plugins__card-signals {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.os-plugins__card-signal {
+	display: inline-flex;
+	align-items: center;
+	min-width: 0;
+	max-width: 100%;
+	padding: 2px 7px;
+	border-radius: 999px;
+	background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.05 ) );
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 0.69rem;
+	line-height: 1.35;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.os-plugins__card-signal.is-positive {
+	background: var( --os-ui-notice-success-bg, rgba( 35, 165, 90, 0.12 ) );
+	color: var( --os-ui-success-fg, rgb( 22, 110, 55 ) );
+}
+
+.os-plugins__card-signal.is-warning {
+	background: var( --os-ui-notice-warning-bg, rgba( 250, 175, 0, 0.16 ) );
+	color: var( --os-ui-warning-fg, rgb( 145, 95, 0 ) );
+}
+
+.os-plugins__card-signal.is-danger {
+	background: var( --os-ui-notice-error-bg, rgba( 214, 54, 56, 0.12 ) );
+	color: var( --os-ui-danger-fg, rgb( 166, 22, 22 ) );
+}
+
+@container plugins-window ( max-width: 760px ) {
+	.os-plugins__discover-hero {
+		padding: 18px 16px 14px;
+	}
+
+	.os-plugins__discover-search {
+		grid-template-columns: minmax( 0, 1fr ) 138px;
+	}
+
+	.os-plugins__discover-upload {
+		grid-column: 1 / -1;
+		justify-self: start;
+	}
+
+	.os-plugins__discover-toolbar {
+		position: static;
+	}
+
+	.os-plugins__results-header {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 3px;
+	}
+}
+
+@container plugins-window ( max-width: 520px ) {
+	.os-plugins__discover-search {
+		grid-template-columns: 1fr;
+	}
+
+	.os-plugins__discover-upload {
+		grid-column: auto;
+	}
+
+	.os-plugins__gallery,
+	.os-plugins__picks .os-plugins__gallery {
+		grid-template-columns: 1fr;
+	}
 }
 
 .os-plugins__card-footer {
