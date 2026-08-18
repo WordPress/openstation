@@ -957,11 +957,26 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 
 **URL-aware reuse**: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `os-window-reopened` detail reports the outcome via `navigated`.
 
-**Title-bar actions menu (iframe windows).** Every iframe-backed window renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
+**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
 
-- **"Open on startup"** — checkable; toggles this window as the user's default-window preference.
+- **"Open on startup"** — checkable; toggles this window as the user's default-window preference. Both window types.
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
-- **"Open in new window"** — opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
+- **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
+- **"Reload"** — both window types; see below.
+- **"Open in browser tab"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+
+**Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
+
+- **Iframe windows** reload the active frame (the foregrounded external sub-tab, if there is one) and clear the loading overlay on the bridge's `os-ready`.
+- **Native windows** re-run the render callback in place. The framework disposes the render context, runs the teardown the previous render returned (**before** emptying the body, so a teardown that reads its own DOM still finds it), empties the body, and calls `render( body, ctx )` again with a **fresh** context — new `signal`, new channel subscriptions — surrounded by the same `NATIVE_WINDOW_BEFORE_RENDER` / `NATIVE_WINDOW_AFTER_RENDER` pair a first open fires.
+
+  The window does **not** close and reopen: the id, geometry, focus, z-order, `params` and session entry all survive, and no `os.window.closed` / `os.window.opened` pair fires for something the user experienced as a refresh. A render returning a `Promise` keeps the loading overlay up until it settles, so a callback that refetches gets spinner-while-loading for free. A throwing teardown is contained — it reports through `os.shell.error` and the reload proceeds anyway.
+
+  The one native window with no Reload row is one registered with no `render` callback at all, where the action would do nothing.
+
+`os.window.reloaded` fires for both paths, with `url` carrying the reloaded iframe URL or — for native windows — the window's configured `url`.
+
+A reload requested while the window's content is still loading is ignored (for native windows, that means a promise-returning render that hasn't settled), so a double-click can't leave a resolving render writing into a body a newer one owns.
 
 **Multi-instance windows.** When `multi: true` is passed, the window gets the "Open another" item described above. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
 

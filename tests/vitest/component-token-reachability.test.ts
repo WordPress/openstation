@@ -57,9 +57,16 @@ const THEMED: ReadonlySet< string > = new Set(
  * from the VALUE, not from reachability. Its dialog surface is dark
  * whatever the admin colour scheme says, so following `--os-ui-fg` would
  * put the light scheme's near-black text on a near-black dialog. It
- * re-points these four — but through `--os-ui-modal-*` names the palette
+ * re-points these five — but through `--os-ui-modal-*` names the palette
  * declares, so the station still owns the dialog. Anything added here
  * needs the same: a palette-owned token on the right-hand side.
+ *
+ * `--os-ui-button-bg-hover` was doing this all along and went
+ * unchecked, because `THEMED` is read off the Legacy manifest and
+ * Legacy did not name that token. It does now, so the entry is
+ * explicit. Worth knowing about this guard: its reach is exactly the
+ * manifest's key set, so a token the snapshot omits is not policed
+ * here at all.
  */
 const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 	'os-modal': [
@@ -67,6 +74,7 @@ const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 		'--os-ui-fg-muted',
 		'--os-ui-border',
 		'--os-window-bg',
+		'--os-ui-button-bg-hover',
 	],
 };
 

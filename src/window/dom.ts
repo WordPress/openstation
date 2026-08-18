@@ -444,8 +444,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	//   - Open another <Page>    — only when `config.multi`.
 	//   - Open in new window     — opens the current iframe URL as a
 	//                              fresh sibling.
-	//   - Reload                 — reloads the iframe (no-op for
-	//                              native windows; harmless to show).
+	//   - Reload                 — reloads the iframe, or re-runs the
+	//                              render callback of a native window.
 	//   - Open in browser tab    — detach to a classic admin tab.
 	//                              Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'os-window-button' );
@@ -513,10 +513,21 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		menuPanel.appendChild( openInNew );
 	}
 
-	// "Reload" — was a built-in title-bar control. Moved
-	// here because it's an infrequent action that didn't earn the
-	// permanent real estate. No-op for native windows; safe to show.
-	if ( ! config.native ) {
+	// "Reload" — was a built-in title-bar control. Moved here because
+	// it's an infrequent action that didn't earn the permanent real
+	// estate.
+	//
+	// Common to BOTH window types: "put this back the way it loaded"
+	// is the same user intent whether the content came from an admin
+	// page or from a plugin's render callback, and a native window
+	// that has drifted (a stale list, a half-applied optimistic
+	// update) had no way back short of close-and-reopen. Iframes
+	// reload the frame; native windows tear the render down and run
+	// it again — see `Window.reload()`.
+	//
+	// The only native window that doesn't get the row is one with no
+	// render callback at all, where the action would do nothing.
+	if ( ! config.native || config.render ) {
 		const reload = document.createElement( 'os-menu-item' );
 		reload.setAttribute( 'role', 'menuitem' );
 		reload.setAttribute( 'value', 'reload' );
@@ -525,7 +536,9 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		reload.classList.add( 'os-window__menu-item--reload' );
 		reload.textContent = __( 'Reload' );
 		menuPanel.appendChild( reload );
+	}
 
+	if ( ! config.native ) {
 		// "Open in browser tab" — was the title bar's detach button.
 		// Strips chromeless params and opens the page in a classic
 		// admin tab. Iframe-only — native windows have no URL to

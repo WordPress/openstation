@@ -84,6 +84,8 @@ The framework stores the ctx's disposer on the `Window` instance and runs it pre
 
 The user's render-returned teardown runs AFTER the closing animation. So async paths inside the teardown that branch on `signal.aborted` already see the flipped value.
 
+**Close is not the only unmount.** The ⋯ menu's **Reload** row (and `wp.os.windowManager.getById( id ).reload()`) runs the same disposal on a native window and then renders again into an emptied body with a brand-new `ctx`. The ordering differs in one way that matters: on reload the render-returned teardown runs **before** the body is emptied, so a teardown that reads its own DOM still finds it. Everything the framework tracks — `signal`, `ch.on`, `onResize`/`onHide`/`onShow` — is torn down for you either way; anything you registered *outside* the body needs the teardown to return it, or you leak a copy per reload.
+
 ## Backwards compatibility
 
 - Existing unary `( body ) => …` callbacks: continue to work. JS ignores the extra arg.

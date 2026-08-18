@@ -130,6 +130,16 @@ floor. Values you keep will still mean what they meant, and values
 the shell changes underneath you are exactly the ones your fork is
 already pinning.
 
+**Adding a name it never had is a different act, and it is allowed.**
+The freeze protects values that were *collected* — those never move.
+A token minted after the snapshot has no collected value to protect,
+and leaving it out does not preserve the old look: it hands that name
+to the palette, which after the brand means the brand. So the manifest
+grows when the token surface grows, at the value the new token's
+consuming rule falls back to, and `Tests_OpenStation_DesktopThemesLegacy`
+holds the two halves apart — a count that may rise, and per-token
+assertions that may not move.
+
 ### It is always there, and it cannot be deleted
 
 Legacy is **code-registered**
@@ -148,28 +158,56 @@ add_action( 'init', function () {
 ### What it deliberately leaves out
 
 Legacy declares what is *fixed* about the default look, not what is
-*conditional* about it. Four families stay out, each because naming a
+*conditional* about it. Three families stay out, each because naming a
 literal would make the theme differ from the unthemed shell rather
 than reproduce it:
 
 | Left out | Why |
 |---|---|
-| Anything that follows `--wp-admin-theme-color` — the accent, the focused title bar, window-link splines, the selection ring | They track the user's WordPress admin colour scheme. A hex would pin Midnight and Ectoplasm to Fresh blue. |
-| Context-dependent tokens — `--os-fg`, `--os-surface`, `--os-tooltip-bg` / `-fg`, the colour-picker greys | They read light on the desk and dark inside a window. One value breaks one of the two. |
+| **Anything the palette derives from the accent** — the tab wash / bloom / edge, the focus rings, the holo glows, the dock divider, the title-bar activity dot, `--os-ui-accent-dim` itself | The accent picker writes `--os-ui-accent` and `--os-ui-accent-dim` inline at runtime, and these follow. Pin one and the pick stops reaching it: the user chooses teal and that surface stays blue. |
 | Derived sizes — the dock / icon / recycle badge families | They size themselves off the icon they decorate, so a literal freezes them against a large dock. |
 | Texture-slot properties (`*-image`, `*-border-image-*`) | Those are written by [`textures`](#textures), not by `tokens`. |
 
 If you want one of them, name it in your own theme — Legacy leaving
-it undeclared is a statement about *defaults*, not a restriction.
+it undeclared is a statement about *defaults*, not a restriction. But
+understand what you are giving up on the first row: a theme that pins
+`--os-ui-tab-wash` has opted its sidebar out of the accent picker, for
+every user who wears it.
 
-Leaving `--os-tooltip-bg` out is why every tooltip chip stays the same
-dark lozenge under Legacy, which is intended: a chip is one line of
-text pinned to a control, not a surface that belongs to a window. The
-[WP Explorer hover card](#the-wp-explorer-hover-card) used to be
-painted as one and looked wrong for exactly that reason — Obsidian,
-floating over Legacy's white window. It derives from
-`--os-my-wordpress-bg` now, which Legacy *does* declare, so it comes
-back light without the frozen manifest changing.
+**The rule underneath that first row is the one to take away.** Look at
+how the palette declares a token before answering it:
+
+- **A literal** (`--os-tabs-bg-unfocused: #0c0b0f`) is a colour, and a
+  colour is yours to replace. Answer it.
+- **A derivation** (`--os-ui-tab-wash: linear-gradient( 90deg,
+  color-mix( in srgb, var( --os-ui-accent-dim ) 16%, … ) )`) is not a
+  colour — it is a *rule*, and it already resolves correctly under your
+  theme, because the accent it reads is the one you declared. Answering
+  it with a literal restores nothing and severs the chain.
+
+One accent to declare, and everything the palette computes from it
+follows. `Tests_OpenStation_DesktopThemesLegacy` asserts both halves —
+that Legacy answers every palette literal, and that it answers none of
+the accent-driven derivations.
+
+*Context-dependent tokens* — `--os-fg`, `--os-tooltip-bg` / `-fg` —
+**used to be on that list and are not any more.** The
+idea was that one literal could not serve a token that reads light on
+the desk and dark inside a window, so naming it would break one of the
+two. What actually happens when a theme omits a name is not "the token
+stays conditional" — it is **the palette answers instead**, and the
+palette is one value too. Omitting decided nothing; it only moved the
+decision to the brand. See [Fallback semantics](#fallback-semantics)
+for why an omitted token is not an open question.
+
+The tooltip chip is still the same dark lozenge under Legacy, which was
+always the intent — a chip is one line of text pinned to a control, not
+a surface that belongs to a window. It is now dark because Legacy says
+`rgba( 0, 0, 0, 0.45 )` rather than because nobody said anything. The
+[WP Explorer hover card](#the-wp-explorer-hover-card) used to be painted
+as one and looked wrong for exactly that reason — Obsidian, floating
+over Legacy's white window. It derives from `--os-my-wordpress-bg`,
+which Legacy also declares, so it comes back light.
 
 ### Two honest caveats
 
@@ -500,6 +538,33 @@ like OpenStation. A flat colour works:
 because every mesh in the brand is a *light* surface — a dark fill with
 the default ink is near-black on near-black, and it looks fine in a
 screenshot of the off state.
+
+**Do not answer a fill with `none`.** Turning the iridescence off is a
+reasonable thing to want, and for the *overlay* tokens it is exactly
+right: `--os-ui-holo-sheen` and the two `--os-ui-holo-edge*` are a
+`::before` film and an `::after` stroke, so `none` removes a decoration
+and leaves the control's own background alone.
+
+`--os-ui-holo-fill` is not one of those. It is the surface — the rule
+sets `background-color: transparent` and paints the whole control
+through this image — so `none` gives you an invisible button, not a
+flat one. The same is true of any token whose row in the table above
+reads "what … paints" rather than "the film over" it:
+`--os-cn-row-fill` (the constellation's selected row, whose ink flips
+dark on top of it) and `--os-ui-tab-wash` / `-bloom` (the selected
+settings tab). Answer those with a flat colour or a plain gradient:
+
+```json
+"tokens": {
+  "--os-ui-holo-fill": "linear-gradient( 124deg, #f0f6fc 0%, #f6f7f7 100% )",
+  "--os-ui-holo-ink":  "#1d2327"
+}
+```
+
+The distinction is not visible from the token's name — check whether
+the consuming rule paints a surface or sits over one before switching
+it off. [Legacy](#the-legacy-theme--start-here) does exactly this: the
+sheen and the edges are `none`, the fills are pre-brand light surfaces.
 
 The five meshes themselves (`--os-mesh-holo`, `--os-mesh-pulse`,
 `--os-mesh-auro`, `--os-mesh-star`, `--os-mesh-mio`) are also settable,
@@ -1514,6 +1579,46 @@ saying.** Concretely:
   is deactivated, they degrade silently to the system default. No user
   meta is rewritten; the enqueue path existence-checks on every
   request.
+
+**The trap: a base colour does not cover its derived siblings.** Read
+the sentence above literally — the system default *keeps saying* what
+it says. It does not stand aside for a related token you did name.
+
+Several tokens are written in the stylesheets as a chain, so that a
+theme naming only the base still gets a coherent result:
+
+```css
+background-color: var( --os-tabs-bg-unfocused, var( --os-tabs-bg, … ) );
+```
+
+That inner fallback fires only when `--os-tabs-bg-unfocused` is
+**undeclared** — and the palette declares it. Your theme compiles onto
+`body.os-desktop-theme-<slug>`; a name you omit is not undeclared, it is
+inherited from `body.os-active`. So the fallback never runs, and your
+`--os-tabs-bg` is bypassed on exactly the state you did not name.
+
+This is not hypothetical: it is why a light theme could paint the tab
+strip `#f6f7f7` and still watch it come back near-black the moment the
+window lost focus.
+
+**So name both halves of a pair — when both halves are literals.** The
+families where this bites are the ones with a state or emphasis
+modifier that the palette states outright: `--os-tabs-bg` /
+`-bg-unfocused`, `--os-titlebar-bg` / `-bg-focused`, and the
+`--os-tabs-active-*` set.
+
+It does **not** apply to a sibling the palette *computes* — the focus
+rings, the tab wash and bloom, the holo glows. Those read the accent,
+so your `--os-ui-accent` already reaches them and naming them would
+take them away from the accent picker. See
+[What it deliberately leaves out](#what-it-deliberately-leaves-out) for
+the literal-versus-derivation rule, which is the general form of both
+halves of this.
+
+If you fork [Legacy](#the-legacy-theme--start-here) you inherit a
+correct answer either way — every literal named, every derivation left
+alone — which is the main practical reason to start there rather than
+from an empty manifest.
 
 ---
 
