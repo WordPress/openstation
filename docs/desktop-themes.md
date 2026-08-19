@@ -907,8 +907,8 @@ need one that isn't there.
 ### What stays fixed
 
 Colour that encodes meaning or is composed artwork is deliberately
-**not** themable: pinned-note paper, game palettes, the content-graph
-node hues, the About scene. Retinting those would destroy the signal
+**not** themable: pinned-note paper, game palettes, and the content-graph
+node hues. Retinting those would destroy the signal
 they carry. The same applies to their typography — the note's
 handwriting face and the Inkfall serif are part of the artwork.
 
@@ -1807,8 +1807,8 @@ for a complete plugin.
 - **Letter badges.** The generated initial-letter tiles for items with
   no icon stay generated; retint them with the
   `--os-tile-*` tokens instead.
-- **Art-direction colour and type.** Note paper, game palettes, graph
-  node hues, the About scene — see "What stays fixed" above.
+- **Art-direction colour and type.** Note paper, game palettes, and graph
+  node hues — see "What stays fixed" above.
 - **Layout.** A theme changes how things look, not where they are. No
   spacing scale, no dock geometry, no window metrics beyond the radius
   and title-bar height the tokens already expose.

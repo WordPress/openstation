@@ -395,15 +395,14 @@ export function renderOsSettingsPanel(
 		} );
 	}
 
-	// About — credits + the interactive Pixi particle scene. Pinned
+	// About — the public OpenStation journal, loaded from RSS when the
+	// tab first becomes visible. Pinned
 	// to the very end of the tab strip with a sentinel order
 	// (`Number.MAX_SAFE_INTEGER`) so it stays last regardless of
 	// any third-party tabs registered through the settings-tab
-	// registry (which default to `order: 100`). The visual moment
-	// belongs at the end of the settings tour. Visible to every
-	// user, not just admins; `padding="0"` so the dark stage
-	// extends to the tabpanel edge without the os-panel's
-	// default 16px frame.
+	// registry (which default to `order: 100`). Visible to every user,
+	// not just admins; `padding="0"` lets the editorial surface own its
+	// spacing without inheriting the generic settings-panel frame.
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,

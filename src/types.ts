@@ -2215,13 +2215,10 @@ export interface DesktopConfig {
 	 */
 	aiAssistantBundleUrl?: string;
 	/**
-	 * Fully-qualified URL of the lazy-loaded About-scene bundle —
-	 * the script `<script>`-injected by the main-bundle loader the
-	 * first time the user opens OS Settings → About. Hosts a single
-	 * 25 kB PixiJS particle scene; never reached unless the user
-	 * navigates to that tab.
+	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
+	 * RSS payload. Requested only when the About tab first becomes visible.
 	 */
-	aboutSceneBundleUrl?: string;
+	aboutFeedUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy-loaded OS Settings panel
 	 * bundle. The main bundle ships a thin `OsSettings.renderPanel`

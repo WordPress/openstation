@@ -88,7 +88,7 @@ The whole of it, and it is worth being precise because the answer is "almost not
 
 Hiding the dock tile from Apps & Plugins removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
 
-The lazy bundle publishes `window.openStationMountMio`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
+The lazy bundle publishes `window.openStationMountMio`, the same publish-a-global pattern the wallpaper and widget bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
 
 ```
 #os-shell

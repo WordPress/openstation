@@ -9,14 +9,13 @@
  * **Nothing failed loudly.** The `<os-*>` components carry their own
  * shadow styles, so the panel still looked broadly right; what went
  * was the layout the document-tree rules contribute. The About tab is
- * where it surfaced: its PixiJS canvas takes its height from a
+ * where it surfaced: its page takes its height from a
  * `flex: 1; min-height: 0` chain whose first two links —
  * `os-tabpanel[for='about']` and the `os-panel` inside it — are scoped
- * under `.os-settings`. With those dead the stage host measured zero
+ * under `.os-settings`. With those dead the About surface measured zero
  * high, and `waitForSize()` waited for a box that was never coming. It
  * has no timeout on purpose (a hidden tabpanel can legitimately take a
- * while to get a size), so the scene neither mounted nor errored. It
- * just wasn't there.
+ * while to get a size), so its lazy feed load never began.
  *
  * A class name is not something a type checker or a linter can pair
  * with a stylesheet, so the pairing is asserted here instead: the
@@ -74,10 +73,10 @@ describe( 'OS Settings root class', () => {
 	} );
 
 	test( "the About tab's height chain is scoped under a live class", () => {
-		// The specific chain the PixiJS scene needs. If these stop
+		// The specific chain the journal page needs. If these stop
 		// being scoped under the applied root — or the root moves
-		// again — the canvas goes back to measuring zero and the scene
-		// silently disappears.
+		// again — its internal scrolling and lazy-load visibility gate
+		// stop working.
 		const applied = appliedClasses();
 		const chain = css.match(
 			/\.[\w-]+\s*>\s*os-tabpanel\[\s*for='about'\s*\]/g,
