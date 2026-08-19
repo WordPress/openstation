@@ -58,14 +58,34 @@ import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog'
 import '../ui/components/os-badge/os-badge';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-checkbox-label/os-checkbox-label';
+import '../ui/components/os-chip/os-chip';
 import '../ui/components/os-empty-state/os-empty-state';
 import '../ui/components/os-notice/os-notice';
+import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-select/os-select';
 import '../ui/components/os-spinner/os-spinner';
 import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-textarea/os-textarea';
 
 type Pane = 'define' | 'tools' | 'triggers';
+
+type CreateMode = 'guided' | 'expert';
+
+/**
+ * The guided create flow's working copy. Separate from `createDraft`
+ * (the expert form) so switching modes mid-thought loses neither.
+ */
+interface WizardDraft {
+	/** The plain-language ask typed into the Describe step. */
+	brief: string;
+	name: string;
+	description: string;
+	instructions: string;
+	role: string;
+	abilities: string[];
+	/** True while the AI draft request is in flight. */
+	drafting: boolean;
+}
 
 interface AgentsState {
 	agents: Agent[];
@@ -85,8 +105,13 @@ interface AgentsState {
 	aiReady: boolean | null;
 	/** Draft edits for the Define pane, keyed by field. */
 	draft: { name: string; description: string; instructions: string; role: string };
-	/** Draft for the create form. */
+	/** Draft for the expert create form. */
 	createDraft: { name: string; description: string; instructions: string; role: string };
+	/** Which create flow is showing. Guided is the default door. */
+	createMode: CreateMode;
+	/** Guided flow position: 0 Describe, 1 Refine, 2 Launch. */
+	wizardStep: 0 | 1 | 2;
+	wizard: WizardDraft;
 }
 
 const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
@@ -319,6 +344,82 @@ function draftFromAgent( agent: Agent | null ): AgentsState[ 'draft' ] {
 	};
 }
 
+function emptyWizard( role: string ): WizardDraft {
+	return {
+		brief: '',
+		name: '',
+		description: '',
+		instructions: '',
+		role,
+		abilities: [],
+		drafting: false,
+	};
+}
+
+/**
+ * `wp.os.ai.ask()`, resolved off the global at call time: the shell
+ * bundle owns the AI client and this bundle must not import it.
+ * Narrowed to the two knobs the wizard uses.
+ */
+type AskLike = (
+	query: string,
+	opts?: {
+		systemPrompt?: string | { mode: 'append' | 'replace'; text: string };
+	},
+) => Promise< { message?: string } >;
+
+function resolveAsk(): AskLike | null {
+	const ask = (
+		window as unknown as {
+			wp?: { os?: { ai?: { ask?: AskLike } } };
+		}
+	).wp?.os?.ai?.ask;
+	return typeof ask === 'function' ? ask : null;
+}
+
+/**
+ * Pull the JSON object out of a model reply. The prompt asks for bare
+ * JSON, but models decorate (prose before, a code fence around), so
+ * this scans for the outermost braces instead of trusting the whole
+ * string.
+ */
+function parseWizardDraft( text: string ): {
+	name?: string;
+	description?: string;
+	instructions?: string;
+	role?: string;
+	abilities?: string[];
+} | null {
+	const start = text.indexOf( '{' );
+	const end = text.lastIndexOf( '}' );
+	if ( start === -1 || end <= start ) {
+		return null;
+	}
+	let raw: unknown;
+	try {
+		raw = JSON.parse( text.slice( start, end + 1 ) );
+	} catch {
+		return null;
+	}
+	if ( ! raw || typeof raw !== 'object' ) {
+		return null;
+	}
+	const obj = raw as Record< string, unknown >;
+	const str = ( v: unknown ): string | undefined =>
+		typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
+	return {
+		name: str( obj.name ),
+		description: str( obj.description ),
+		instructions: str( obj.instructions ),
+		role: str( obj.role ),
+		abilities: Array.isArray( obj.abilities )
+			? obj.abilities.filter(
+				( s ): s is string => typeof s === 'string',
+			)
+			: undefined,
+	};
+}
+
 export function renderAgents( host: EntityRenderHost ): void {
 	const cfg = agentsConfig();
 	// The framework is opt-in, but the section is always listed. With
@@ -345,6 +446,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 		aiReady: cfg.aiAvailable ? null : false,
 		draft: draftFromAgent( null ),
 		createDraft: { name: '', description: '', instructions: '', role: 'author' },
+		createMode: 'guided',
+		wizardStep: 0,
+		wizard: emptyWizard( 'author' ),
 	};
 
 	// Arriving from an agent avatar in the chat window: preselect that
@@ -523,6 +627,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 			) {
 				state.createDraft.role = state.roles[ 0 ].slug;
 			}
+			if (
+				state.roles.length > 0 &&
+				! state.roles.some( ( r ) => r.slug === state.wizard.role )
+			) {
+				state.wizard.role = state.roles[ 0 ].slug;
+			}
 		} catch ( err ) {
 			state.notice = err instanceof Error ? err.message : String( err );
 		}
@@ -640,6 +750,148 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	// -----------------------------------------------------------------
+	// Guided create flow
+	// -----------------------------------------------------------------
+
+	/**
+	 * The drafting instruction appended to the Copilot system prompt.
+	 * Built at call time so it carries the live role and ability
+	 * catalogues: the model may only pick from what this site has.
+	 */
+	const wizardDraftPrompt = (): string => {
+		const roles = ( state.roles ?? [] ).map( ( r ) => r.slug ).join( ', ' );
+		const abilities = ( state.abilities ?? [] )
+			.map(
+				( a ) =>
+					`- ${ a.slug }: ${ a.label }${ a.readonly ? '' : ' (can modify the site)' }`,
+			)
+			.join( '\n' );
+		// Not translated: this is a model instruction, not UI copy, and
+		// the JSON keys it fixes are read back by code.
+		return [
+			'The user is an administrator defining a new site agent.',
+			'Treat their message as the agent brief. Reply with ONLY a JSON object, no prose and no code fence, shaped exactly as:',
+			'{ "name": string, "description": string, "instructions": string, "role": string, "abilities": string[] }',
+			'name: a short working name for the agent, four words at most.',
+			'description: one sentence saying when to reach for this agent.',
+			'instructions: the agent system prompt. Concrete, scoped to the brief, written to the agent.',
+			`role: the least-privileged fit among: ${ roles }.`,
+			'abilities: only slugs the brief genuinely needs, from this catalogue:',
+			abilities || '(no abilities are registered on this site)',
+		].join( '\n' );
+	};
+
+	const applyWizardDraft = ( parsed: NonNullable< ReturnType< typeof parseWizardDraft > > ): void => {
+		const w = state.wizard;
+		w.name = parsed.name ?? w.name;
+		w.description = parsed.description ?? w.description;
+		w.instructions = parsed.instructions ?? w.instructions;
+		if (
+			parsed.role &&
+			( state.roles ?? [] ).some( ( r ) => r.slug === parsed.role )
+		) {
+			w.role = parsed.role;
+		}
+		if ( parsed.abilities ) {
+			const known = new Set(
+				( state.abilities ?? [] ).map( ( a ) => a.slug ),
+			);
+			w.abilities = parsed.abilities.filter( ( s ) => known.has( s ) );
+		}
+	};
+
+	const wizardDraftWithAi = async (): Promise< void > => {
+		if ( state.wizard.brief.trim() === '' ) {
+			state.notice = __(
+				'Describe the agent first. A sentence is enough.',
+				'desktop-mode',
+			);
+			paint();
+			return;
+		}
+		const ask = resolveAsk();
+		if ( ! ask ) {
+			// No Copilot in this context: the guided flow still works,
+			// it just starts from blank fields.
+			state.wizardStep = 1;
+			paint();
+			return;
+		}
+		state.wizard.drafting = true;
+		state.notice = '';
+		paint();
+		// The prompt quotes both catalogues, so settle them first.
+		await Promise.all( [ ensureCatalogues(), ensureRoles() ] );
+		try {
+			const res = await ask( state.wizard.brief.trim(), {
+				systemPrompt: { mode: 'append', text: wizardDraftPrompt() },
+			} );
+			const parsed = parseWizardDraft( res?.message ?? '' );
+			if ( parsed ) {
+				applyWizardDraft( parsed );
+			} else {
+				state.notice = __(
+					'The draft came back in a shape that could not be read. The fields below are yours to fill.',
+					'desktop-mode',
+				);
+			}
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+		}
+		state.wizard.drafting = false;
+		// Whatever the draft did, Refine is where it lands: with fields
+		// filled it is a review; with them empty it is the form.
+		state.wizardStep = 1;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
+	const wizardCreate = async ( chatAfter: boolean ): Promise< void > => {
+		if ( state.wizard.name.trim() === '' ) {
+			state.notice = __( 'Agent name is required.', 'desktop-mode' );
+			state.wizardStep = 1;
+			paint();
+			return;
+		}
+		state.saving = true;
+		state.notice = '';
+		paint();
+		try {
+			const created = await createAgent( {
+				name: state.wizard.name.trim(),
+				role: state.wizard.role,
+				description: state.wizard.description,
+				instructions: state.wizard.instructions,
+			} );
+			// Abilities live on a second request: the create endpoint
+			// deliberately only takes the definition fields.
+			const final =
+				state.wizard.abilities.length > 0
+					? await updateAgent( created.id, {
+						abilities: state.wizard.abilities,
+					} )
+					: created;
+			refreshSendToAgents();
+			state.agents = [ ...state.agents, final ].sort( ( a, b ) =>
+				a.name.localeCompare( b.name ),
+			);
+			state.creating = false;
+			state.selectedId = final.id;
+			state.draft = draftFromAgent( final );
+			if ( chatAfter ) {
+				openChatWindow( final );
+			}
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+		}
+		state.saving = false;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
+	// -----------------------------------------------------------------
 	// Templates
 	// -----------------------------------------------------------------
 
@@ -688,6 +940,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 								@click=${ () => {
 									state.creating = true;
 									state.notice = '';
+									state.createMode = 'guided';
+									state.wizardStep = 0;
+									state.wizard = emptyWizard(
+										state.createDraft.role,
+									);
 									void ensureRoles();
 									paint();
 								} }
@@ -1081,59 +1338,392 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	const createPane = () => html`
-		<div class="dm-agents__pane dm-agents__pane--create">
-			<h3>${ __( 'Create agent', 'desktop-mode' ) }</h3>
-			<os-text-field
-				label=${ __( 'Name', 'desktop-mode' ) }
-				value=${ state.createDraft.name }
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.name = e.detail.value;
-				} }
-			></os-text-field>
-			${ state.roles
-				? html`
-						<os-select
-							label=${ __( 'Role', 'desktop-mode' ) }
-							value=${ state.createDraft.role }
-							@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
-								state.createDraft.role = e.detail?.value ?? state.createDraft.role;
-							} }
+	const cancelCreateButton = () => html`
+		<os-button
+			variant="ghost"
+			?disabled=${ state.saving || state.wizard.drafting }
+			@click=${ () => {
+				state.creating = false;
+				state.notice = '';
+				paint();
+			} }
+		>
+			${ __( 'Cancel', 'desktop-mode' ) }
+		</os-button>
+	`;
+
+	/**
+	 * The guided flow's route header: three stations on one line. The
+	 * numbers are painted by CSS; this only says which one is lit.
+	 */
+	const wizardStepsHeader = () => {
+		const labels: string[] = [
+			__( 'Describe', 'desktop-mode' ),
+			__( 'Refine', 'desktop-mode' ),
+			__( 'Launch', 'desktop-mode' ),
+		];
+		return html`
+			<ol class="dm-agents__wizard-steps">
+				${ labels.map(
+					( label, i ) => html`
+						<li
+							class="dm-agents__wizard-step ${ i === state.wizardStep
+								? 'is-active'
+								: '' } ${ i < state.wizardStep ? 'is-done' : '' }"
+							aria-current=${ i === state.wizardStep ? 'step' : 'false' }
 						>
-							${ roleOptions( state.roles, state.createDraft.role ) }
-						</os-select>
+							<span class="dm-agents__wizard-step-dot" aria-hidden="true">
+								${ i < state.wizardStep ? '✓' : String( i + 1 ) }
+							</span>
+							<span class="dm-agents__wizard-step-label">${ label }</span>
+						</li>
+					`,
+				) }
+			</ol>
+		`;
+	};
+
+	const wizardDescribeStep = () => html`
+		<os-textarea
+			class="dm-agents__brief"
+			label=${ __( 'What should this agent do?', 'desktop-mode' ) }
+			value=${ state.wizard.brief }
+			rows="5"
+			placeholder=${ __(
+				'Watch new comments, flag the ones that need a human, and draft a friendly reply for the rest.',
+				'desktop-mode',
+			) }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.wizard.brief = e.detail.value;
+			} }
+		></os-textarea>
+		<p class="dm-agents__hint">
+			${ __(
+				'Plain words are fine: what it should watch, what it should write, where it may act.',
+				'desktop-mode',
+			) }
+		</p>
+		<div class="dm-agents__actions">
+			${ state.aiReady
+				? html`
+						<os-button
+							variant="holo"
+							?busy=${ state.wizard.drafting }
+							@click=${ () => void wizardDraftWithAi() }
+						>
+							${ __( 'Draft it for me', 'desktop-mode' ) }
+						</os-button>
 				  `
-				: html`<os-spinner></os-spinner>` }
-			<os-text-field
-				label=${ __( 'When to use (description)', 'desktop-mode' ) }
-				value=${ state.createDraft.description }
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.description = e.detail.value;
+				: html`` }
+			<os-button
+				variant=${ state.aiReady ? 'ghost' : 'primary' }
+				?disabled=${ state.wizard.drafting }
+				@click=${ () => {
+					// Their words are already a first instruction draft.
+					if (
+						state.wizard.instructions === '' &&
+						state.wizard.brief.trim() !== ''
+					) {
+						state.wizard.instructions = state.wizard.brief.trim();
+					}
+					state.notice = '';
+					state.wizardStep = 1;
+					void ensureCatalogues();
+					void ensureRoles();
+					paint();
 				} }
-			></os-text-field>
-			<os-textarea
-				label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
-				value=${ state.createDraft.instructions }
-				rows="8"
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.instructions = e.detail.value;
+			>
+				${ state.aiReady
+					? __( 'I will fill it in myself', 'desktop-mode' )
+					: __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			${ cancelCreateButton() }
+		</div>
+	`;
+
+	const wizardAbilityPicker = () => {
+		if ( state.abilities === null ) {
+			return html`<os-spinner></os-spinner>`;
+		}
+		if ( state.abilities.length === 0 ) {
+			return html``;
+		}
+		return html`
+			<h4 class="dm-agents__category">
+				${ __( 'Abilities', 'desktop-mode' ) }
+			</h4>
+			<p class="dm-agents__hint">
+				${ __(
+					'The agent may only call abilities ticked here — and every call is still gated by the ability\'s own permission check against the agent\'s role.',
+					'desktop-mode',
+				) }
+			</p>
+			${ state.abilities.map(
+				( ability ) => html`
+					<div class="dm-agents__ability">
+						<os-checkbox-label
+							label=${ ability.label }
+							?checked=${ state.wizard.abilities.includes( ability.slug ) }
+							?disabled=${ state.saving }
+							@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
+								const on = e.detail?.checked === true;
+								state.wizard.abilities = on
+									? Array.from(
+											new Set( [
+												...state.wizard.abilities,
+												ability.slug,
+											] ),
+									)
+									: state.wizard.abilities.filter(
+											( s ) => s !== ability.slug,
+									);
+								paint();
+							} }
+						></os-checkbox-label>
+						<os-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
+							${ ability.readonly
+								? __( 'read-only', 'desktop-mode' )
+								: __( 'can modify', 'desktop-mode' ) }
+						</os-badge>
+					</div>
+				`,
+			) }
+		`;
+	};
+
+	const wizardRefineStep = () => html`
+		<os-text-field
+			label=${ __( 'Name', 'desktop-mode' ) }
+			value=${ state.wizard.name }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.wizard.name = e.detail.value;
+			} }
+		></os-text-field>
+		<os-text-field
+			label=${ __( 'When to use (description)', 'desktop-mode' ) }
+			value=${ state.wizard.description }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.wizard.description = e.detail.value;
+			} }
+		></os-text-field>
+		<os-textarea
+			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
+			value=${ state.wizard.instructions }
+			rows="8"
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.wizard.instructions = e.detail.value;
+			} }
+		></os-textarea>
+		${ state.roles
+			? html`
+					<os-select
+						label=${ __( 'Role', 'desktop-mode' ) }
+						value=${ state.wizard.role }
+						@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+							state.wizard.role =
+								e.detail?.value ?? state.wizard.role;
+						} }
+					>
+						${ roleOptions( state.roles, state.wizard.role ) }
+					</os-select>
+					<p class="dm-agents__hint">
+						${ __(
+							'The agent acts with this role\'s capabilities — pick the least privilege that still lets it do its job.',
+							'desktop-mode',
+						) }
+					</p>
+			  `
+			: html`<os-spinner></os-spinner>` }
+		${ wizardAbilityPicker() }
+		<div class="dm-agents__actions">
+			<os-button
+				variant="ghost"
+				@click=${ () => {
+					state.wizardStep = 0;
+					state.notice = '';
+					paint();
 				} }
-			></os-textarea>
+			>
+				${ __( 'Back', 'desktop-mode' ) }
+			</os-button>
+			<os-button
+				variant="primary"
+				?disabled=${ state.wizard.name.trim() === '' }
+				@click=${ () => {
+					state.wizardStep = 2;
+					state.notice = '';
+					paint();
+				} }
+			>
+				${ __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			${ cancelCreateButton() }
+		</div>
+	`;
+
+	const wizardLaunchStep = () => {
+		const abilityLabel = ( slug: string ): string =>
+			state.abilities?.find( ( a ) => a.slug === slug )?.label ?? slug;
+		const canChat = cfg.canInvoke && state.aiReady === true;
+		return html`
+			<div class="dm-agents__wizard-summary">
+				<div class="dm-agents__wizard-summary-head">
+					<span class="dm-agents__wizard-summary-name">
+						${ state.wizard.name }
+					</span>
+					<os-badge>${ state.wizard.role }</os-badge>
+				</div>
+				${ state.wizard.description
+					? html`<p class="dm-agents__wizard-summary-desc">
+							${ state.wizard.description }
+					  </p>`
+					: html`` }
+				${ state.wizard.instructions
+					? html`<p class="dm-agents__wizard-instructions">
+							${ state.wizard.instructions }
+					  </p>`
+					: html`<p class="dm-agents__hint">
+							${ __(
+								'No instructions yet: the agent will improvise. You can add them any time in Define.',
+								'desktop-mode',
+							) }
+					  </p>` }
+				${ state.wizard.abilities.length > 0
+					? html`
+							<div class="dm-agents__wizard-chips">
+								${ state.wizard.abilities.map(
+									( slug ) => html`
+										<os-chip
+											size="compact"
+											label=${ abilityLabel( slug ) }
+										></os-chip>
+									`,
+								) }
+							</div>
+					  `
+					: html`<p class="dm-agents__hint">
+							${ __(
+								'No abilities ticked: the agent can talk, but not touch the site.',
+								'desktop-mode',
+							) }
+					  </p>` }
+			</div>
 			<div class="dm-agents__actions">
-				<os-button ?disabled=${ state.saving } @click=${ () => void onCreate() }>
-					${ __( 'Create', 'desktop-mode' ) }
-				</os-button>
 				<os-button
+					variant="ghost"
 					?disabled=${ state.saving }
 					@click=${ () => {
-						state.creating = false;
+						state.wizardStep = 1;
 						state.notice = '';
 						paint();
 					} }
 				>
-					${ __( 'Cancel', 'desktop-mode' ) }
+					${ __( 'Back', 'desktop-mode' ) }
 				</os-button>
+				<os-button
+					variant=${ canChat ? 'secondary' : 'primary' }
+					?disabled=${ state.saving }
+					@click=${ () => void wizardCreate( false ) }
+				>
+					${ __( 'Create agent', 'desktop-mode' ) }
+				</os-button>
+				${ canChat
+					? html`
+							<os-button
+								variant="primary"
+								?disabled=${ state.saving }
+								@click=${ () => void wizardCreate( true ) }
+							>
+								${ __( 'Create and chat', 'desktop-mode' ) }
+							</os-button>
+					  `
+					: html`` }
+				${ cancelCreateButton() }
 			</div>
+		`;
+	};
+
+	const expertCreateForm = () => html`
+		<os-text-field
+			label=${ __( 'Name', 'desktop-mode' ) }
+			value=${ state.createDraft.name }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.name = e.detail.value;
+			} }
+		></os-text-field>
+		${ state.roles
+			? html`
+					<os-select
+						label=${ __( 'Role', 'desktop-mode' ) }
+						value=${ state.createDraft.role }
+						@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+							state.createDraft.role = e.detail?.value ?? state.createDraft.role;
+						} }
+					>
+						${ roleOptions( state.roles, state.createDraft.role ) }
+					</os-select>
+			  `
+			: html`<os-spinner></os-spinner>` }
+		<os-text-field
+			label=${ __( 'When to use (description)', 'desktop-mode' ) }
+			value=${ state.createDraft.description }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.description = e.detail.value;
+			} }
+		></os-text-field>
+		<os-textarea
+			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
+			value=${ state.createDraft.instructions }
+			rows="8"
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.instructions = e.detail.value;
+			} }
+		></os-textarea>
+		<div class="dm-agents__actions">
+			<os-button
+				variant="primary"
+				?disabled=${ state.saving }
+				@click=${ () => void onCreate() }
+			>
+				${ __( 'Create', 'desktop-mode' ) }
+			</os-button>
+			${ cancelCreateButton() }
+		</div>
+	`;
+
+	const createPane = () => html`
+		<div class="dm-agents__pane dm-agents__pane--create">
+			<div class="dm-agents__create-head">
+				<h3>${ __( 'New agent', 'desktop-mode' ) }</h3>
+				<os-segmented
+					value=${ state.createMode }
+					label=${ __( 'How to create it', 'desktop-mode' ) }
+					@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+						state.createMode =
+							e.detail?.value === 'expert' ? 'expert' : 'guided';
+						state.notice = '';
+						if ( state.createMode === 'expert' ) {
+							void ensureRoles();
+						}
+						paint();
+					} }
+				>
+					<os-segment value="guided">
+						${ __( 'Guided', 'desktop-mode' ) }
+					</os-segment>
+					<os-segment value="expert">
+						${ __( 'Expert', 'desktop-mode' ) }
+					</os-segment>
+				</os-segmented>
+			</div>
+			${ state.createMode === 'expert'
+				? expertCreateForm()
+				: html`
+						${ wizardStepsHeader() }
+						${ state.wizardStep === 0 ? wizardDescribeStep() : html`` }
+						${ state.wizardStep === 1 ? wizardRefineStep() : html`` }
+						${ state.wizardStep === 2 ? wizardLaunchStep() : html`` }
+				  ` }
 		</div>
 	`;
 
