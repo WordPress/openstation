@@ -229,6 +229,107 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The emit-time `openstation_native_window_config` filter reaches
+	 * the lazy path — the synthesized `scriptL10n` assignment carries
+	 * the filtered blob, not just the registration-time snapshot.
+	 *
+	 * @covers ::openstation_filter_native_window_config
+	 * @covers ::openstation_build_native_windows_payload
+	 */
+	public function test_config_filter_reaches_the_lazy_l10n() {
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_window(
+			'demo-config-filter',
+			array(
+				'script' => 'demo-main',
+				'config' => array( 'stale' => 'snapshot' ),
+			)
+		);
+		add_filter(
+			'openstation_native_window_config',
+			static function ( $config, $window_id ) {
+				if ( 'demo-config-filter' === $window_id ) {
+					$config['fresh'] = 'emit-time';
+				}
+				return $config;
+			},
+			10,
+			2
+		);
+
+		$entry = $this->payload_entry( 'demo-config-filter' );
+		$this->assertNotNull( $entry );
+		$l10n = implode( "\n", $entry['scriptL10n'] );
+		$this->assertStringContainsString( 'emit-time', $l10n );
+		$this->assertStringContainsString( 'snapshot', $l10n );
+	}
+
+	/**
+	 * …and the eager path — the inline `before` attach on a preloaded
+	 * bundle serializes the same filtered blob.
+	 *
+	 * @covers ::openstation_filter_native_window_config
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
+	public function test_config_filter_reaches_the_eager_inline() {
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_window(
+			'demo-config-eager',
+			array(
+				'script'         => 'demo-main',
+				'preload_script' => true,
+				'config'         => array( 'stale' => 'snapshot' ),
+			)
+		);
+		add_filter(
+			'openstation_native_window_config',
+			static function ( $config, $window_id ) {
+				if ( 'demo-config-eager' === $window_id ) {
+					$config['fresh'] = 'emit-time';
+				}
+				return $config;
+			},
+			10,
+			2
+		);
+
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		openstation_enqueue_native_window_scripts();
+
+		$before = wp_scripts()->get_data( 'demo-main', 'before' );
+		$blob   = implode(
+			"\n",
+			array_filter( (array) $before, 'is_string' )
+		);
+		$this->assertStringContainsString( 'emit-time', $blob );
+	}
+
+	/**
+	 * A filter callback returning a non-array must not fatal the
+	 * payload build — the blob normalizes to "nothing to ship."
+	 *
+	 * @covers ::openstation_filter_native_window_config
+	 */
+	public function test_config_filter_non_array_return_ships_nothing() {
+		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
+		$this->register_demo_window(
+			'demo-config-bogus',
+			array(
+				'script' => 'demo-main',
+				'config' => array( 'stale' => 'snapshot' ),
+			)
+		);
+		add_filter( 'openstation_native_window_config', '__return_false' );
+
+		$entry = $this->payload_entry( 'demo-config-bogus' );
+		$this->assertNotNull( $entry );
+		$this->assertStringNotContainsString(
+			'openStationWindowConfig',
+			implode( "\n", $entry['scriptL10n'] )
+		);
+	}
+
+	/**
 	 * The attach has to beat `openstation_enqueue_assets()` at
 	 * priority 10, which is where the boot payload is built.
 	 *

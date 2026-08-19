@@ -1705,11 +1705,12 @@ function openstation_build_native_windows_payload() {
 		// `wp_localize_script`. The bundle reads
 		// `window.openStationWindowConfig[id]` (or via
 		// `wp.os.getWindowConfig(id)`).
-		if ( ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+		$window_config = openstation_filter_native_window_config( $entry );
+		if ( ! empty( $window_config ) ) {
 			$script_payload['l10n'][] = sprintf(
 				'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
 				wp_json_encode( $entry['id'] ),
-				wp_json_encode( $entry['config'] )
+				wp_json_encode( $window_config )
 			);
 		}
 

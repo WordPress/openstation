@@ -104,6 +104,29 @@ add_action( 'openstation_native_window_registered', function ( $id, $entry ) {
 
 ---
 
+### `openstation_native_window_config` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_native_window_config', array $config, string $window_id ): array
+```
+
+A native window's `config` blob, at emit time. The registry snapshots `config` when `openstation_register_window()` runs (usually `init`); this filter runs when the blob is serialized for the browser — at enqueue time for preloaded bundles, at payload-build time for lazy ones — so values that depend on hooks registered later in the bootstrap can be refreshed without moving the whole registration. Runs per request after the current user is determined, so capability-gated values are safe to compute here. Return value must be an array; anything else ships nothing.
+
+The WP Explorer uses it to re-collect its `previewActions` (see [`openstation_my_wordpress_preview_actions`](#openstation_my_wordpress_preview_actions--experimental-filter)) so action descriptors registered after `init` 99 still reach the bundle.
+
+```php
+add_filter( 'openstation_native_window_config', function ( $config, $window_id ) {
+    if ( 'my-plugin-window' === $window_id ) {
+        $config['launchCount'] = (int) get_user_option( 'my_plugin_launches' );
+    }
+    return $config;
+}, 10, 2 );
+```
+
+Mid-session caveat: the blob is delivered alongside the window's script, and an already-loaded bundle keeps the copy it booted with until the next full page load.
+
+---
+
 ### `openstation_widget_registered` — Stable
 
 Fires after `openstation_register_widget()` successfully stores a widget. Same contract as the native-window action.
@@ -3232,8 +3255,9 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `post_type` *(optional)* — WP post-type slug used to build the cross-window broadcast topic `os.<slug>.changed`. Omit for entities without trash/restore support (e.g. Users). CPT entities registered via this filter should set `post_type` so list views refresh reactively on trash/restore.
 - `kind` *(optional)* — `'post'` (default for back-compat), `'user'`, or `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.os.myWordpress.registerEntityKind()`.
 - `listQuery` *(optional)* — extra query parameters sent with this section's list requests, as `key => value`. Lets a server-side query filter scope itself to the site window instead of rewriting every REST caller's query — `rest_product_query` fires for the Product Collection block too, so the WooCommerce sections mark their own requests rather than reordering everyone's.
-- `listFields` *(optional)* — extra REST field names to request for this section's list rows. The window sends an explicit `_fields` list, so a custom key your endpoint returns is stripped before the bundle sees it unless it's named here. Used by the WooCommerce sections to carry the order status and product stock their tiles are banded and badged by.
+- `listFields` *(optional)* — extra REST field names to request for this section's rows, on list **and** detail requests. The window sends an explicit `_fields` list, so a custom key your endpoint returns is stripped before the bundle sees it unless it's named here. Used by the WooCommerce sections to carry the order status and product stock their tiles are banded and badged by.
 - `thumbnails` *(optional)* — `false` keeps the section icon on every tile. Defaults to on: a `'post'`-kind entry that has a featured image renders it in place of the icon (the list request already asks for `_embed=wp:featuredmedia`, so this costs no extra round trip). Entries without one fall back to `icon`.
+- `editAction` *(optional)* — who edits this section's rows. A preview-action **id** (declared via [`openstation_my_wordpress_preview_actions`](#openstation_my_wordpress_preview_actions--experimental-filter), so it stays capability-gated and its script auto-enqueues) replaces "Open in editor" at every edit surface: the pane's primary button, the context menu's open entry (and its bulk fan-out — the action's `onSelect( ctx )` runs once per selected item), and tile double-click. The named action stops rendering in the generic action row/menu. If it didn't ship for this user or no JS wired its `onSelect`, the edit affordances hide rather than fall back — for a type without an editor screen, the classic URL is known-broken. **`false`** removes every edit affordance; double-click falls back to the detail dossier and the bulk "Edit…" modal is suppressed (a *string* keeps that modal: it PATCHes over REST and doesn't involve the classic editor). Omit for the classic editor, where a row-supplied `editUrl` field still wins when present.
 - `group` *(optional)* — id of the root-level folder this section nests under. Sections sharing a group id collapse into one folder tile at the root that drills into its members. Omit or pass `null` to render the section loose at the root next to Posts and Pages.
 - `groupLabel` / `groupIcon` / `groupOrder` *(optional)* — folder label, icon, and sort weight. Every member of a group should carry the same values; the first entry seen wins.
 
@@ -3626,7 +3650,7 @@ Lifetime (seconds) of the per-attachment media-usage transient. Lower it on site
 apply_filters( 'openstation_my_wordpress_preview_actions', array[] $actions ): array[]
 ```
 
-Server-declared descriptors for the right-pane action button row that appears in every WP Explorer section (posts, pages, users, media, plugin-defined kinds). Each entry:
+Server-declared descriptors for plugin actions on a selected Explorer entry. Each descriptor renders twice, from the one declaration: as a button in the right-pane action row and as an entry in the tile context menu — in every WP Explorer section (posts, pages, users, media, plugin-defined kinds). Each entry:
 
 ```php
 array(
@@ -3640,7 +3664,11 @@ array(
 )
 ```
 
-`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('os.my-wordpress.preview-actions', …)` — see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md).
+`capability` is enforced server-side before the descriptor ships to the bundle, so an action the current user can't run never appears in their UI. `script`, if registered, is auto-enqueued. Wire the click handler on the JS side via `wp.hooks.addFilter('os.my-wordpress.preview-actions', …)` — the handler receives a context object carrying the selected entity; see [`examples/my-wordpress-media-action.md`](./examples/my-wordpress-media-action.md) and the [JS reference](./javascript-reference.md#filter--osmy-wordpresspreview-actions).
+
+**`sections` matching.** An entry in `sections` matches a section's **id**, its declared **post type slug**, or `'*'` (every section). Note the id shapes: the built-ins are `'posts'`, `'pages'`, `'users'`, `'media'`, while a custom post type the Explorer auto-registers gets the id `cpt-<post_type>` (e.g. post type `atf-form` → section `cpt-atf-form`); hand-registered sections choose their own ids. When in doubt, scope by post type slug — it matches wherever that type's section came from. A `mime` pattern additionally fails closed outside media contexts: a MIME-scoped action never appears on a post/user pane.
+
+**Timing.** Descriptors are re-collected when the window config is serialized for the browser (the same late pass that enqueues declared `script` handles), so registering this filter any time during a normal bootstrap — `init`, `admin_init`, plugin bootstrap order regardless — works. One caveat: on a mid-session plugin activation the already-loaded Explorer bundle keeps its config until the next full page load (F5).
 
 ---
 

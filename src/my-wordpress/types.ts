@@ -75,6 +75,30 @@ export interface MyWordPressEntity {
 	 */
 	listQuery?: Record< string, string >;
 	/**
+	 * Who edits this section's rows.
+	 *
+	 * Omitted: the classic editor — "Open in editor" builds
+	 * `post.php?post=<id>&action=edit` (a row-supplied `editUrl`
+	 * field wins when present).
+	 *
+	 * A **string** names a preview action (declared via
+	 * `openstation_my_wordpress_preview_actions`, so it stays
+	 * capability-gated and its script auto-enqueues) that REPLACES
+	 * "Open in editor" everywhere the section offers editing: the
+	 * pane's primary button, the tile context menu's open entry (and
+	 * its bulk fan-out), and tile double-click. The action is removed
+	 * from the generic action row/menu so it doesn't render twice.
+	 * If the named action didn't ship (capability) or no JS wired its
+	 * `onSelect`, the edit affordances hide — for a type with no
+	 * editor screen the classic URL is known-broken, and a button
+	 * that 404s is worse than no button.
+	 *
+	 * **`false`** removes every edit affordance: no editor button, no
+	 * open entry, double-click falls back to the detail dossier, and
+	 * the bulk "Edit…" modal is suppressed too.
+	 */
+	editAction?: string | false;
+	/**
 	 * Folder this section nests under at the root of the window.
 	 * Sections registered by the same plugin or theme share a group
 	 * id, so they render as one folder that drills into its members.
@@ -139,24 +163,28 @@ export interface MyWordPressConfig {
 	 * gated — never present here unless the current user can run
 	 * the action.
 	 */
-	previewActions?: MediaPreviewAction[];
+	previewActions?: PreviewAction[];
 }
 
 /**
- * Server-declared descriptor for a right-pane action button.
- * Plugins push these via `openstation_my_wordpress_preview_actions`
- * (PHP) and complete the JS handler via the
- * `os.my-wordpress.preview-actions` filter.
+ * Server-declared descriptor for a preview action — a button in the
+ * right pane and an entry in the tile context menu, in every section
+ * regardless of kind. Plugins push these via
+ * `openstation_my_wordpress_preview_actions` (PHP) and complete the
+ * JS handler via the `os.my-wordpress.preview-actions` filter.
  *
  * @public
  */
-export interface MediaPreviewAction {
+export interface PreviewAction {
 	id: string;
 	label: string;
 	icon?: string;
 	/** PCRE — server-checked before shipping; client re-checks per item. */
 	mime?: string;
-	/** Section ids this action is visible in. Default: all. */
+	/**
+	 * Section ids and/or post type slugs this action is visible in
+	 * (`'*'` matches every section). Default: all.
+	 */
 	sections?: string[];
 	/** Optional `wp_register_script` handle the server enqueues. */
 	script?: string;
@@ -165,13 +193,20 @@ export interface MediaPreviewAction {
 	 * `os.my-wordpress.preview-actions` JS filter, never
 	 * by the server descriptor.
 	 */
-	onSelect?: ( ctx: MediaPreviewActionContext ) => void | Promise< void >;
+	onSelect?: ( ctx: PreviewActionContext ) => void | Promise< void >;
 	/**
 	 * Optional visibility predicate evaluated client-side after the
 	 * server-side `capability` / `mime` checks have already passed.
 	 */
-	isVisible?: ( ctx: MediaPreviewActionContext ) => boolean;
+	isVisible?: ( ctx: PreviewActionContext ) => boolean;
 }
+
+/**
+ * @deprecated Use {@link PreviewAction}. Alias kept while the surface
+ * was media-only.
+ * @public
+ */
+export type MediaPreviewAction = PreviewAction;
 
 /**
  * Slot identifier for plugin-injected DOM in the right pane.
@@ -185,20 +220,48 @@ export interface MediaPreviewAction {
 export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
 
 /**
+ * Where a preview action was invoked from.
+ *
+ * @public
+ */
+export type PreviewActionSurface = 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+
+/**
  * Context object passed to every preview-action handler.
  *
  * @public
  */
-export interface MediaPreviewActionContext {
-	/** Entity id (`'media'`, `'posts'`, `'users'`, …). */
+export interface PreviewActionContext {
+	/** Entity id (`'media'`, `'posts'`, `'cpt-atf-forms'`, …). */
 	entityId: string;
 	/** Section render-kind (`'media'`, `'post'`, `'user'`, …). */
 	kind: string;
+	/** The section's declared post type slug, when it has one. */
+	postType?: string;
 	/** MIME type for media items, undefined for non-media kinds. */
 	mime?: string;
-	/** The full server item record. */
+	/**
+	 * The selected entity, as the server sent it: the detail record
+	 * in the right pane, the list row in context menus. `item.id` is
+	 * present on both — deep-linking handlers should read that rather
+	 * than detail-only fields.
+	 */
 	item: Record< string, unknown >;
+	/** Convenience — `Number( item.id )` when numeric. */
+	itemId?: number;
+	/**
+	 * Invocation surface. Always set by the bundle; optional only so
+	 * pre-existing hand-built contexts stay type-valid.
+	 */
+	surface?: PreviewActionSurface;
 }
+
+/**
+ * @deprecated Use {@link PreviewActionContext}. Alias kept while the
+ * surface was media-only.
+ * @public
+ */
+export type MediaPreviewActionContext = PreviewActionContext;
 
 export interface EntityLock {
 	userId: number;

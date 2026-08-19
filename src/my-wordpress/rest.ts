@@ -162,9 +162,16 @@ export async function fetchEntityDetail(
 ): Promise< EntityDetail > {
 	const cfg = getConfig();
 	const url = new URL( buildUrl( `${ entity.restPath }/${ id }` ) );
+	// `editUrl` and the section's own `listFields` ride the detail
+	// request too — the row-supplied editor URL (the HPOS escape
+	// hatch, see `EntityListItem.editUrl`) has to reach the preview
+	// pane's "Open in editor" button, not just the list tiles.
 	url.searchParams.set(
 		'_fields',
-		'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,openstation_contributors,openstation_attached_media,_links,_embedded',
+		[
+			'id,title,content,excerpt,date,modified,status,link,author,featured_media,categories,tags,comment_status,openstation_contributors,openstation_attached_media,editUrl,_links,_embedded',
+			...( entity.listFields ?? [] ),
+		].join( ',' ),
 	);
 	url.searchParams.set( '_embed', 'author,wp:term,wp:featuredmedia,replies' );
 

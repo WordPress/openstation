@@ -6141,16 +6141,37 @@ interface EntityRenderHost {
     route: Route;
     navigate( route: Route ): void;
     addTeardown( fn: () => void ): void;
+    /**
+     * The section's server-declared preview actions, resolved
+     * against one item and returned as the same ready-made button
+     * row the built-in panes render — or null when none apply.
+     * Runs the full pipeline (section/MIME scoping + the
+     * `os.my-wordpress.preview-actions` filter) in one call.
+     */
+    previewActionRow( args: {
+        item: Record< string, unknown >;
+        mime?: string;
+        surface?: 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+    } ): HTMLElement | null;
 }
 ```
 
 ### Filter — `os.my-wordpress.preview-actions`
 
-Decorate the right-pane action button row. Receives the
-server-declared descriptors (already capability-gated) merged with
-any client-only entries the filter chain has added on prior calls.
-Wire the `onSelect` handler here — server descriptors only carry
-metadata.
+Decorate the plugin action set for a selected entry. Receives the
+server-declared descriptors (already capability-gated and scoped to
+the section) merged with any client-only entries the filter chain has
+added on prior calls. Wire the `onSelect` handler here — server
+descriptors only carry metadata.
+
+The resolved set renders in two places from the one declaration: the
+right-pane action row (buttons after the built-ins) and the tile
+context menu (entries between the navigation built-ins and the
+destructive ones, visible to the `os.my-wordpress.tile-context-menu`
+filter like any built-in). It fires for **every** section kind —
+media, post, user, and custom kinds — so guard unscoped additions
+with `ctx.kind` / `ctx.entityId`, or scope the server descriptor via
+its `sections` field.
 
 ```ts
 wp.hooks.addFilter(
@@ -6165,8 +6186,44 @@ wp.hooks.addFilter(
 );
 ```
 
-Context shape: `{ entityId, kind, mime?, item }`. `item` is the
-raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
+Context shape (also what `onSelect` / `isVisible` receive):
+
+```ts
+interface PreviewActionContext {
+    /** Section id — `'media'`, `'posts'`, `'cpt-atf-form'`, … */
+    entityId: string;
+    /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
+    kind: string;
+    /** The section's declared post type slug, when it has one. */
+    postType?: string;
+    /** MIME type — media contexts only. */
+    mime?: string;
+    /**
+     * The selected entity, as the server sent it: the detail record
+     * in the right pane, the list row in context menus. `item.id`
+     * is present on both — deep-link from that.
+     */
+    item: Record< string, unknown >;
+    /** Convenience — `Number( item.id )` when numeric. */
+    itemId?: number;
+    /** Where the action was invoked. */
+    surface?: 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+}
+```
+
+A descriptor's `sections` list matches the section **id**, the
+section's **post type slug**, or `'*'` (auto-registered CPT sections
+have ids shaped `cpt-<post_type>`). A `mime` pattern fails closed
+outside media contexts.
+
+A registered kind receives **detail routes too**: double-clicking a tile
+(or `host.navigate({ kind: 'detail', entityId, postId, postTitle })`) keeps
+the window's own breadcrumb — `Site › Section › Title` — while the body stays
+the plugin's to draw. The three in-tree kinds keep their dossier.
+
+Custom-kind renderers get the same pipeline from one call:
+`host.previewActionRow( { item } )` on the `EntityRenderHost` returns
+the ready-made button row (or `null` when no action applies).
 
 ### Action — `os.my-wordpress.preview-extras`
 
@@ -6319,6 +6376,12 @@ interface UserPreviewAction {
 Context: `{ entityId: string; kind: string; item: Record< string, unknown > }`.
 Entries without a callable `onSelect` are dropped; returning an empty
 array removes the action row entirely rather than leaving an empty bar.
+
+This filter manages the **built-ins** of a user pane. Server-declared
+preview actions (`openstation_my_wordpress_preview_actions`) render
+after the row it builds, from the shared pipeline — remove those at
+the source (their `sections` scoping, or the
+`os.my-wordpress.preview-actions` filter), not here.
 
 ### Filter — `os.my-wordpress.list-bands`
 
@@ -6491,6 +6554,12 @@ menu (`kind` from the entity, default `'post'`), the media tile menu
 (`kind: 'attachment'`), and the user tile menu (`kind: 'user'`) —
 write the filter as if the hook fires for every section.
 
+Server-declared preview actions
+(`openstation_my_wordpress_preview_actions`) arrive in `options`
+already resolved — between the navigation built-ins and the
+destructive entries, `sort: 50` — so this filter can reorder or
+remove them by id like any built-in.
+
 **Multi-selection.** These lists are multi-select, and an entry you
 add here appears only while ONE tile is selected until it opts in.
 Add `multi: true` (plus optionally `sort`, `bulkLabel( n )`, and a
@@ -6565,11 +6634,11 @@ Its members are the sections whose descriptor carries that id; the
 breadcrumb reads `Site › WooCommerce › Products`, and a grouped
 section's parent route is its group rather than the root.
 
-### Section descriptors — grouping and thumbnails
+### Section descriptors — grouping, thumbnails, editing
 
 Entity descriptors reaching the bundle (from
 `openstation_my_wordpress_entities` server-side, or appended in JS)
-carry four optional fields beyond the documented core set:
+carry these optional fields beyond the documented core set:
 
 ```ts
 interface MyWordPressEntity {
@@ -6582,17 +6651,36 @@ interface MyWordPressEntity {
     groupIcon?: string | null;
     groupOrder?: number | null;
     /**
-     * Extra REST fields to keep on this section's list rows —
-     * anything outside the built-in `_fields` set, `editUrl`
-     * included.
+     * Extra REST fields to keep on this section's rows — anything
+     * outside the built-in `_fields` set, `editUrl` included. Sent
+     * on list AND detail requests.
      */
     listFields?: string[];
     /** Extra query params sent with this section's list requests. */
     listQuery?: Record< string, string >;
     /** `'large'` roughly doubles the icon well. Default `'regular'`. */
     tileSize?: 'regular' | 'large';
+    /**
+     * Who edits this section's rows. A preview-action id replaces
+     * "Open in editor" everywhere (pane primary button, context-menu
+     * open entry + its bulk fan-out, tile double-click); `false`
+     * removes every edit affordance. Omit for the classic editor.
+     */
+    editAction?: string | false;
 }
 ```
+
+`editAction: '<action-id>'` names a descriptor from
+`openstation_my_wordpress_preview_actions`, so the replacement editor
+stays capability-gated and its script auto-enqueues. The named action
+stops rendering in the generic action row/menu (it IS the edit
+affordance now). If the action didn't ship for this user or no JS
+wired its `onSelect`, the edit affordances hide — for a section whose
+type has no editor screen, the classic URL is known-broken. With
+`editAction: false`, double-click navigates into the detail dossier
+instead, and the bulk "Edit…" modal is suppressed; with a string it is
+**kept** — that modal PATCHes over REST (status/author/terms) and
+doesn't touch the classic editor.
 
 Groups from the server and groups derived from entity descriptors are
 **merged**, not either-or: a section appended from JS with a `group` the

@@ -53,6 +53,16 @@ import { renderListToolbar } from './list-toolbar';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
 import {
+	appendActionButtons,
+	buildPreviewActionContext,
+	buildPreviewActionRow,
+	previewActionsToMenuOptions,
+	resolveEditAction,
+	resolvePreviewActions,
+	runPreviewAction,
+	withoutEditAction,
+} from './preview-actions';
+import {
 	clearFootprintTarget,
 	openUserFootprintWindow,
 	readFootprintTarget,
@@ -337,6 +347,18 @@ function navigate(
 		return;
 	}
 	if ( route.kind === 'detail' ) {
+		// A plugin-registered kind owns its detail views too: the folder a
+		// form opens into is the plugin's to draw, while the route — and the
+		// breadcrumb derived from it — stays the shell's. The three in-tree
+		// kinds keep the dossier below; their registry entries are list
+		// renderers, not detail ones.
+		if ( entity.kind && ! [ 'post', 'user', 'media' ].includes( entity.kind ) ) {
+			const renderer = getEntityRenderer( entity.kind );
+			if ( renderer ) {
+				renderer( makeRenderHost( state ), entity );
+				return;
+			}
+		}
 		renderDetail( state, entity, route.postId, route.postTitle );
 		return;
 	}
@@ -376,6 +398,23 @@ function makeRenderHost( state: RenderState ): EntityRenderHost {
 		route: state.route,
 		navigate: ( route ) => navigate( state, route ),
 		addTeardown: ( fn ) => state.teardown.push( fn ),
+		previewActionRow: ( args ) => {
+			// The host's route is frozen at dispatch time, so its
+			// entityId names the section this renderer serves.
+			const entityId = (
+				state.route as { entityId?: string }
+			).entityId;
+			const entity = getConfig().entities.find(
+				( e ) => e.id === entityId,
+			);
+			if ( ! entity ) {
+				return null;
+			}
+			return buildPreviewActionRow( entity, args.item, {
+				surface: args.surface,
+				mime: args.mime,
+			} );
+		},
 	};
 }
 
@@ -2067,7 +2106,7 @@ function buildEntityTile(
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		hideTooltip();
-		openEditor( entity, item.id, titleText, item.editUrl );
+		openEntityEditor( state, entity, item, titleText, 'dblclick' );
 	} );
 
 	tile.addEventListener( 'contextmenu', ( e ) => {
@@ -2302,18 +2341,62 @@ function appendPostArticle(
 		footer.appendChild( exploreBtn );
 	}
 
-	const editBtn = document.createElement( 'os-button' );
-	editBtn.setAttribute( 'variant', 'primary' );
-	editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
-	editBtn.addEventListener( 'click', () => {
-		openEditor(
-			entity,
-			detail.id,
-			stripTags( detail.title?.rendered ?? '' ),
-			detail.editUrl,
+	// The primary button is whatever edits this section's rows: the
+	// classic editor by default, the section's declared `editAction`
+	// when it named one, nothing when editing is off (`false`, or the
+	// named action is unavailable — a classic URL would 404 there).
+	const editResolution = resolveEditAction(
+		entity,
+		detail as unknown as Record< string, unknown >,
+		'pane',
+	);
+	if ( editResolution.mode === 'classic' ) {
+		const editBtn = document.createElement( 'os-button' );
+		editBtn.setAttribute( 'variant', 'primary' );
+		editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
+		editBtn.addEventListener( 'click', () => {
+			openEditor(
+				entity,
+				detail.id,
+				stripTags( detail.title?.rendered ?? '' ),
+				detail.editUrl,
+			);
+		} );
+		footer.appendChild( editBtn );
+	} else if ( editResolution.mode === 'action' ) {
+		const editBtn = document.createElement( 'os-button' );
+		editBtn.setAttribute( 'variant', 'primary' );
+		editBtn.dataset.actionId = editResolution.action.id;
+		if ( editResolution.action.icon ) {
+			editBtn.setAttribute( 'icon', editResolution.action.icon );
+		}
+		editBtn.textContent = editResolution.action.label;
+		editBtn.addEventListener( 'click', () =>
+			runPreviewAction( editResolution.action, editResolution.ctx ),
 		);
-	} );
-	footer.appendChild( editBtn );
+		footer.appendChild( editBtn );
+	}
+
+	// Server-declared preview actions land after the built-ins —
+	// same descriptors, same `os.my-wordpress.preview-actions`
+	// filter the media pane and the tile context menu run. The
+	// section's `editAction` is excluded: it just rendered above.
+	const actionCtx = buildPreviewActionContext(
+		entity,
+		detail as unknown as Record< string, unknown >,
+		{ surface: 'pane' },
+	);
+	appendActionButtons(
+		footer,
+		withoutEditAction(
+			entity,
+			resolvePreviewActions(
+				getConfig().previewActions ?? [],
+				actionCtx,
+			),
+		),
+		actionCtx,
+	);
 
 	article.appendChild( footer );
 
@@ -4386,6 +4469,41 @@ function openEditor(
 }
 
 /**
+ * Edit one row the way its section says rows are edited — the
+ * classic editor, the declared `editAction`, or (editing off) fall
+ * back to navigating into the detail dossier so the gesture still
+ * lands somewhere. The tile dblclick and the menu's open entry both
+ * dispatch through here.
+ */
+function openEntityEditor(
+	state: RenderState,
+	entity: MyWordPressEntity,
+	item: EntityListItem,
+	title: string,
+	surface: 'dblclick' | 'context-menu',
+): void {
+	const resolution = resolveEditAction(
+		entity,
+		item as unknown as Record< string, unknown >,
+		surface,
+	);
+	if ( resolution.mode === 'action' ) {
+		runPreviewAction( resolution.action, resolution.ctx );
+		return;
+	}
+	if ( resolution.mode === 'none' ) {
+		navigate( state, {
+			kind: 'detail',
+			entityId: entity.id,
+			postId: item.id,
+			postTitle: title,
+		} );
+		return;
+	}
+	openEditor( entity, item.id, title, item.editUrl );
+}
+
+/**
  * One entry in an entity tile's context menu.
  *
  * Plugin-added entries must supply `onSelect`; the built-ins carry
@@ -4427,8 +4545,18 @@ function buildEntityActions(
 	item: EntityListItem,
 	title: string,
 ): SelectionAction< EntityListItem >[] {
-	const baseOptions: TileMenuOption[] = [
-		{
+	// The open entry mirrors the section's edit affordance: the
+	// classic-editor label by default, the declared `editAction`'s
+	// label/icon when the section named one, absent when editing is
+	// off (`false`, or the named action is unavailable).
+	const editResolution = resolveEditAction(
+		entity,
+		item as unknown as Record< string, unknown >,
+		'context-menu',
+	);
+	const baseOptions: TileMenuOption[] = [];
+	if ( editResolution.mode === 'classic' ) {
+		baseOptions.push( {
 			id: 'open',
 			label: __( 'Open in editor', 'desktop-mode' ),
 			icon: 'dashicons-edit',
@@ -4440,13 +4568,33 @@ function buildEntityActions(
 					__( 'Open %d items in the editor', 'desktop-mode' ),
 					n,
 				),
-		},
+		} );
+	} else if ( editResolution.mode === 'action' ) {
+		baseOptions.push( {
+			id: 'open',
+			label: editResolution.action.label,
+			icon: editResolution.action.icon ?? 'dashicons-edit',
+			sort: 10,
+			// Per-item fan-out on a set; the selection layer's default
+			// bulk label ("<label> (N items)") already reads right.
+			multi: true,
+		} );
+	}
+	baseOptions.push(
 		{
 			id: 'navigate-into',
 			label: __( 'Navigate into', 'desktop-mode' ),
 			icon: 'dashicons-category',
 			sort: 20,
 		},
+		// Server-declared preview actions ride the same menu the
+		// filter below extends, so `tile-context-menu` callbacks see
+		// (and may reorder / remove) them like any built-in. Ahead of
+		// the destructive entry: array order IS the single-item menu.
+		...previewActionsToMenuOptions(
+			entity,
+			item as unknown as Record< string, unknown >,
+		),
 		{
 			id: 'trash',
 			label: __( 'Move to Trash', 'desktop-mode' ),
@@ -4461,7 +4609,7 @@ function buildEntityActions(
 					n,
 				),
 		},
-	];
+	);
 
 	const ctxFilter = {
 		entityId: entity.id,
@@ -4506,7 +4654,13 @@ function buildEntityActions(
 			bulkLabel: option.bulkLabel,
 			onClick: () => {
 				if ( option.id === 'open' ) {
-					openEditor( entity, item.id, title, item.editUrl );
+					openEntityEditor(
+						state,
+						entity,
+						item,
+						title,
+						'context-menu',
+					);
 					return;
 				}
 				if ( option.id === 'navigate-into' ) {
@@ -5746,6 +5900,20 @@ async function renderUserPreviewPane(
 		footer.appendChild( btn );
 	}
 
+	// Server-declared preview actions land after the filter-built
+	// row. `user-preview-actions` keeps managing the built-ins; the
+	// descriptors are the same ones every other pane renders.
+	const actionCtx = buildPreviewActionContext(
+		entity,
+		item as unknown as Record< string, unknown >,
+		{ surface: 'pane' },
+	);
+	appendActionButtons(
+		footer,
+		resolvePreviewActions( getConfig().previewActions ?? [], actionCtx ),
+		actionCtx,
+	);
+
 	if ( footer.childElementCount > 0 ) {
 		node.appendChild( footer );
 	}
@@ -5813,6 +5981,15 @@ function buildUserActions(
 				),
 		} );
 	}
+
+	// Server-declared preview actions ride the same menu the filter
+	// below extends — the descriptors every other surface renders.
+	baseOptions.push(
+		...previewActionsToMenuOptions(
+			entity,
+			item as unknown as Record< string, unknown >,
+		),
+	);
 
 	// Same plugin seam the posts/media grids run — kind 'user'.
 	const ctxFilter = {

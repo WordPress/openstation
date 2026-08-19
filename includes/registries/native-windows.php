@@ -835,6 +835,51 @@ function openstation_build_native_window_template_html( $entry ) {
 }
 
 /**
+ * Run a native window's registered `config` through the
+ * `openstation_native_window_config` filter, normalized to an array.
+ *
+ * Called at BOTH serialization points — the eager inline-script
+ * attach in `openstation_enqueue_native_window_scripts()` and the
+ * lazy `scriptL10n` synthesis in
+ * `openstation_build_native_windows_payload()` — so the filter sees
+ * every copy of the blob that can reach a browser.
+ *
+ * @param array $entry Registry entry (needs `id`; `config` optional).
+ * @return array Filtered config. Empty array when nothing to ship.
+ */
+function openstation_filter_native_window_config( $entry ) {
+	$config = isset( $entry['config'] ) && is_array( $entry['config'] )
+		? $entry['config']
+		: array();
+
+	/**
+	 * Filter a native window's config blob at emit time.
+	 *
+	 * The registry snapshots `config` when `openstation_register_window()`
+	 * runs — usually `init`. This filter runs when the blob is
+	 * serialized for the browser (enqueue time on the eager path,
+	 * payload-build time on the lazy path), so values that depend on
+	 * hooks registered later in the bootstrap can be refreshed without
+	 * moving the whole registration. The WP Explorer uses it to
+	 * re-collect `previewActions` so plugins may add
+	 * `openstation_my_wordpress_preview_actions` callbacks any time
+	 * during a normal bootstrap, not just before `init` 99.
+	 *
+	 * Runs per request, after the current user is determined —
+	 * capability-gated values are safe to compute here.
+	 *
+	 * **Status: Experimental**
+	 *
+	 * @param array  $config    Config blob as registered (empty array
+	 *                          when the window registered none).
+	 * @param string $window_id Native window id.
+	 */
+	$config = apply_filters( 'openstation_native_window_config', $config, (string) $entry['id'] );
+
+	return is_array( $config ) ? $config : array();
+}
+
+/**
  * Attach every registered native window's script data, and enqueue
  * the handful of bundles that asked to load at boot.
  *
@@ -927,13 +972,14 @@ function openstation_enqueue_native_window_scripts() {
 		// twice: once as `before`, once as `l10n`. The bundle reads it
 		// via `wp.os.getWindowConfig( id )` or directly at
 		// `window.openStationWindowConfig[ id ]`.
-		if ( $preload && ! empty( $entry['config'] ) && is_array( $entry['config'] ) ) {
+		$config = openstation_filter_native_window_config( $entry );
+		if ( $preload && ! empty( $config ) ) {
 			wp_add_inline_script(
 				$entry['script'],
 				sprintf(
 					'window.openStationWindowConfig=window.openStationWindowConfig||{};window.openStationWindowConfig[%s]=%s;',
 					wp_json_encode( $entry['id'] ),
-					wp_json_encode( $entry['config'] )
+					wp_json_encode( $config )
 				),
 				'before'
 			);

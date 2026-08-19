@@ -156,6 +156,34 @@ describe( 'media-preview', () => {
 		expect( onSelect ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'onSelect ctx keeps the media contract and gains the new fields', () => {
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const onSelect = vi.fn();
+		window.wp!.hooks!.addFilter(
+			'os.my-wordpress.preview-actions',
+			'test/ctx-shape',
+			( actions: MediaPreviewAction[] ) =>
+				actions.map( ( a ) => ( { ...a, onSelect } ) ),
+		);
+		renderMediaPreview( host, makeMedia(), {
+			entityId: 'media',
+			previewActions: [ { id: 'inspect', label: 'Inspect' } ],
+		} );
+		host.querySelector< HTMLElement >( '[data-action-id="inspect"]' )!
+			.dispatchEvent( new Event( 'click', { bubbles: true } ) );
+		expect( onSelect ).toHaveBeenCalledTimes( 1 );
+		const ctx = onSelect.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
+		// Pre-existing contract — unchanged.
+		expect( ctx.entityId ).toBe( 'media' );
+		expect( ctx.kind ).toBe( 'media' );
+		expect( ctx.mime ).toBe( 'image/jpeg' );
+		expect( ( ctx.item as { id: number } ).id ).toBe( 42 );
+		// Additive fields.
+		expect( ctx.itemId ).toBe( 42 );
+		expect( ctx.surface ).toBe( 'pane' );
+	} );
+
 	test( 'preview-extras action fires for each slot', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );

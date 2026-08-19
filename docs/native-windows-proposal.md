@@ -96,7 +96,7 @@ openstation_register_window( 'jorvy', array(
 ) );
 ```
 
-Behind the scenes this populates a registry exposed to the shell via `openstation_shell_config` → `nativeWindows`. There is no registry-level filter; the shipped extension points are the `openstation_native_window_registered` action (fires after every successful registration) and the `openstation_native_window_allowed_html` filter (the kses allowlist used to escape `<template>` payloads).
+Behind the scenes this populates a registry exposed to the shell via `openstation_shell_config` → `nativeWindows`. The shipped extension points are the `openstation_native_window_registered` action (fires after every successful registration), the `openstation_native_window_allowed_html` filter (the kses allowlist used to escape `<template>` payloads), and the `openstation_native_window_config` filter (a window's `config` blob at emit time — see below).
 
 #### Shipping config to the bundle
 
@@ -122,6 +122,8 @@ const cfg = wp.os.getWindowConfig( 'my/window' );
 Why this matters: native-window scripts may be loaded **eagerly** (via `wp_enqueue_script` at boot) or **lazily** (the shell appends a `<script>` after a payload-refresh, e.g. mid-session plugin activation). The lazy path bypasses `wp_print_scripts()` entirely. Without the `'config'` arg's delivery path, any data attached via `wp_localize_script` / `wp_add_inline_script` / `wp_set_script_translations` would be silently dropped on the lazy path.
 
 The shell harvests that `extra` data into the payload and re-injects it inline alongside the lazy `<script>` tag, so existing `wp_localize_script` callers continue to work — but the `'config'` arg is the discoverable, supported way and is recommended for new windows. See [`examples/window-with-config.md`](./examples/window-with-config.md).
+
+The registry snapshots `'config'` when `openstation_register_window()` runs. When a value has to be computed later than the registration hook (it depends on filters other plugins add during bootstrap), refresh it at emit time via the `openstation_native_window_config` filter — `apply_filters( 'openstation_native_window_config', array $config, string $window_id )`, run at both serialization points (eager enqueue and lazy payload build). Full entry in [`hooks-reference.md`](./hooks-reference.md#openstation_native_window_config--experimental-filter).
 
 For diagnostics, `wp.os.debug.window( id )` (read-only) reports the load path, whether the tag is in the DOM, and whether the config global landed.
 

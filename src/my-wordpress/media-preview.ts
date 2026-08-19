@@ -21,14 +21,20 @@
  */
 
 import { __ } from '../i18n';
-import { applyFilters, doAction } from '../hooks';
+import { doAction } from '../hooks';
 import { stripTags } from './dom-utils';
+import { buildActionRow, resolvePreviewActions } from './preview-actions';
 import type {
 	MediaListItem,
 	MediaPreviewAction,
 	MediaPreviewActionContext,
 	MediaPreviewSlot,
 } from './types';
+
+// The scoping/filter pipeline lives in `./preview-actions` now that
+// every section kind renders the same descriptors; re-exported so
+// pre-split importers keep resolving.
+export { resolvePreviewActions } from './preview-actions';
 
 const MIME_DASHICON_FALLBACK = 'dashicons-media-default';
 
@@ -263,85 +269,6 @@ function fireSlot(
 }
 
 /**
- * Resolve which action descriptors apply to the given context and
- * call the JS-filter so plugins can attach handlers / hide entries.
- */
-export function resolvePreviewActions(
-	descriptors: MediaPreviewAction[],
-	ctx: MediaPreviewActionContext,
-): MediaPreviewAction[] {
-	const scoped = descriptors.filter( ( a ) => {
-		if ( a.sections && a.sections.length > 0 ) {
-			if ( ! a.sections.includes( ctx.entityId ) && ! a.sections.includes( '*' ) ) {
-				return false;
-			}
-		}
-		if ( a.mime ) {
-			// MIME-scoped descriptor: fail closed on the
-			// non-media-context call site so a `^image/` action
-			// doesn't leak into a Posts preview pane.
-			if ( ! ctx.mime ) {
-				return false;
-			}
-			try {
-				const re = new RegExp( a.mime );
-				if ( ! re.test( ctx.mime ) ) {
-					return false;
-				}
-			} catch {
-				// Malformed regex from PHP — skip the action.
-				return false;
-			}
-		}
-		return true;
-	} );
-	const merged = applyFilters<
-		MediaPreviewAction[],
-		[ MediaPreviewActionContext ]
-	>( 'os.my-wordpress.preview-actions', scoped, ctx );
-	return Array.isArray( merged ) ? merged : scoped;
-}
-
-function buildActionRow(
-	actions: MediaPreviewAction[],
-	ctx: MediaPreviewActionContext,
-): HTMLElement | null {
-	const visible = actions.filter( ( a ) =>
-		typeof a.isVisible === 'function' ? a.isVisible( ctx ) : true,
-	);
-	if ( visible.length === 0 ) {
-		return null;
-	}
-	const row = document.createElement( 'div' );
-	row.className = 'os-my-wordpress__media-actions';
-	row.setAttribute( 'role', 'toolbar' );
-	for ( const action of visible ) {
-		const btn = document.createElement( 'os-button' );
-		btn.setAttribute( 'variant', 'secondary' );
-		btn.dataset.actionId = action.id;
-		if ( action.icon ) {
-			btn.setAttribute( 'icon', action.icon );
-		}
-		btn.textContent = action.label;
-		btn.addEventListener( 'click', () => {
-			if ( typeof action.onSelect === 'function' ) {
-				try {
-					void action.onSelect( ctx );
-				} catch {
-					// Handler is plugin code — log via console only.
-					// eslint-disable-next-line no-console
-					console.error(
-						`[my-wordpress] preview action ${ action.id } threw.`,
-					);
-				}
-			}
-		} );
-		row.appendChild( btn );
-	}
-	return row;
-}
-
-/**
  * Paint the right-pane preview for a media item. Replaces any
  * existing content under `host`.
  *
@@ -353,6 +280,8 @@ export function renderMediaPreview(
 	opts: {
 		entityId: string;
 		previewActions: MediaPreviewAction[];
+		/** The section's declared post type slug, when it has one. */
+		postType?: string;
 		onOpenDetail?: () => void;
 	},
 ): void {
@@ -370,11 +299,16 @@ export function renderMediaPreview(
 	pane.appendChild( header );
 
 	const item = media as unknown as Record< string, unknown >;
+	// `kind` stays 'media' even when the drill-in was entered from a
+	// non-media section — the rendered item IS an attachment.
 	const ctx: MediaPreviewActionContext = {
 		entityId: opts.entityId,
 		kind: 'media',
+		postType: opts.postType,
 		mime: media.mime_type,
 		item,
+		itemId: media.id,
+		surface: 'pane',
 	};
 
 	fireSlot( header, 'header', opts.entityId, 'media', item );
