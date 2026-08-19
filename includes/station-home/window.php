@@ -27,7 +27,7 @@ function openstation_station_home_render_template() {
 				<div class="os-station-home__brand">
 					<img
 						class="os-station-home__brand-mark"
-						src="<?php echo esc_url( OPENSTATION_URL . 'assets/pwa/icon-128.png' ); ?>"
+						src="<?php echo esc_url( OPENSTATION_URL . 'assets/images/openstation-mark.svg' ); ?>"
 						alt=""
 						width="36"
 						height="36"
@@ -81,8 +81,36 @@ function openstation_station_home_render_template() {
 					<h2 id="os-station-home-attention-heading"><?php esc_html_e( 'Needs attention', 'desktop-mode' ); ?></h2>
 					<div class="os-station-home__attention" data-os-station-home-attention></div>
 				</section>
+
+				<section
+					class="os-station-home__section os-station-home__cards-section"
+					data-os-station-home-cards-section
+					aria-labelledby="os-station-home-cards-heading"
+					hidden
+				>
+					<div class="os-station-home__section-heading">
+						<h2 id="os-station-home-cards-heading"><?php esc_html_e( 'From your plugins', 'desktop-mode' ); ?></h2>
+						<os-button variant="ghost" size="sm" data-os-station-home-customize>
+							<span class="dashicons dashicons-admin-generic" aria-hidden="true"></span>
+							<?php esc_html_e( 'Customize', 'desktop-mode' ); ?>
+						</os-button>
+					</div>
+					<div class="os-station-home__cards" data-os-station-home-cards></div>
+				</section>
 			</main>
 		</div>
+
+		<os-modal
+			class="os-station-home__card-modal"
+			data-os-station-home-card-modal
+			title="<?php esc_attr_e( 'Customize Station Home', 'desktop-mode' ); ?>"
+			size="md"
+		>
+			<p class="os-station-home__card-modal-intro">
+				<?php esc_html_e( 'Choose which plugin cards can show information on your Station Home.', 'desktop-mode' ); ?>
+			</p>
+			<div class="os-station-home__card-preferences" data-os-station-home-card-preferences></div>
+		</os-modal>
 
 		<div class="os-station-home__loading" data-os-station-home-loading role="status">
 			<os-spinner></os-spinner>
@@ -111,20 +139,21 @@ function openstation_station_home_register_window() {
 	$registered = openstation_register_window(
 		OPENSTATION_STATION_HOME_WINDOW_ID,
 		array(
-			'title'        => __( 'Station Home', 'desktop-mode' ),
-			'icon'         => 'dashicons-dashboard',
-			'template'     => 'openstation_station_home_render_template',
-			'script'       => 'os-station-home',
-			'style'        => 'os-station-home',
-			'width'        => 1240,
-			'height'       => 760,
-			'min_width'    => 640,
-			'min_height'   => 480,
-			'placement'    => 'none',
+			'title'            => __( 'Station Home', 'desktop-mode' ),
+			'icon'             => 'dashicons-dashboard',
+			'template'         => 'openstation_station_home_render_template',
+			'script'           => 'os-station-home',
+			'style'            => 'os-station-home',
+			'width'            => 1240,
+			'height'           => 760,
+			'min_width'        => 640,
+			'min_height'       => 480,
+			'placement'        => 'none',
 			'main_tab_padding' => 0,
-			'capabilities' => array( 'read' ),
-			'config'       => array(
-				'endpoint' => esc_url_raw( rest_url( 'desktop-mode/v1/station-home' ) ),
+			'capabilities'     => array( 'read' ),
+			'config'           => array(
+				'endpoint'      => esc_url_raw( rest_url( 'desktop-mode/v1/station-home' ) ),
+				'cardsEndpoint' => esc_url_raw( rest_url( 'desktop-mode/v1/station-home/cards' ) ),
 			),
 		)
 	);

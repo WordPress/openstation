@@ -42,6 +42,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)
 - [Restyle and drive Mio (Experimental)](./mio-customization.md)
 - [Register a widget — polling, storage, canvas charts](./register-widget.md)
+- [Add an opt-in card to Station Home](./station-home-card.md)
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.os.ai.ask()`](./ai-ask.md)

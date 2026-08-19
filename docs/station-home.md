@@ -15,12 +15,51 @@ The image is the approved design north star. Live DOM owns all text, values, sta
 - Actions are capability-aware: post creation, media upload, WP Explorer, comment moderation, updates, and missing-alt reminders only appear when the current user can act on them.
 - Recent work is limited to five of the current user's most recently modified editable posts, pages, and public UI-visible custom post types. Core's internal editor records such as navigation, templates, and styles stay out of the list.
 - The response reads cached WordPress update data. Opening Station Home does not initiate an update check.
+- Third-party plugins can register structured cards with `openstation_register_station_home_card()`. Every card declares whether it starts on or off; each user can then opt in or out from **From your plugins → Customize**. Disabled cards do not execute their data callbacks.
+- Explicit card choices live in the current user's `openstation_station_home_card_preferences` meta map and are written through `POST /wp-json/desktop-mode/v1/station-home/cards`.
+
+## Plugin cards
+
+Station Home owns the layout and accepts structured data rather than plugin HTML. That keeps the dashboard responsive, accessible, safely escaped, and visually coherent even when several plugins contribute at once.
+
+Register cards on `init` after OpenStation has loaded:
+
+```php
+add_action( 'init', function () {
+    if ( ! function_exists( 'openstation_register_station_home_card' ) ) {
+        return;
+    }
+
+    openstation_register_station_home_card( 'my-plugin-orders', array(
+        'label'           => __( 'Orders', 'my-plugin' ),
+        'description'     => __( 'Orders waiting to be fulfilled.', 'my-plugin' ),
+        'provider'        => __( 'My Plugin', 'my-plugin' ),
+        'icon'            => 'dashicons-cart',
+        'default_enabled' => false,
+        'capabilities'    => array( 'manage_options' ),
+        'callback'        => function () {
+            return array(
+                'value'        => '4',
+                'detail'       => __( 'Ready to fulfil', 'my-plugin' ),
+                'url'          => admin_url( 'admin.php?page=my-plugin-orders' ),
+                'action_label' => __( 'Open orders', 'my-plugin' ),
+                'tone'         => 'warning',
+            );
+        },
+    ) );
+} );
+```
+
+The callback receives `( int $user_id, array $entry )` and runs only when its card is enabled. It returns optional plain-text `value`, `detail`, `action_label`, a safe `url`, `external` for new-tab links, and `tone` (`neutral`, `info`, `success`, `warning`, or `danger`). Returning `WP_Error`, a non-array, or throwing omits the card from that snapshot without breaking Station Home.
+
+The registry is filterable through `openstation_station_home_cards`; enabled callback results pass through `openstation_station_home_card_data`. See the complete recipe in [`examples/station-home-card.md`](./examples/station-home-card.md).
 
 ## Design contract
 
 The approved direction is **Editorial Flight Deck**:
 
 - Void identity rail with a single restrained Holomesh moment.
+- The current OpenStation mark, shared with the PWA/app icon set.
 - Oversized personal greeting and one-line orientation copy.
 - Wide, border-separated editorial rows instead of card grids.
 - Four numeric site instruments, not invented trend charts.

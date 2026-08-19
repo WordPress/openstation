@@ -114,6 +114,47 @@ do_action( 'openstation_widget_registered', string $id, array $entry );
 
 ---
 
+### `openstation_register_station_home_card( $id, $args )` — Experimental (PHP function)
+
+Registers a structured card in Station Home's **From your plugins** area. The registration metadata always powers the current user's picker; the callback runs only when the effective per-user state is enabled. This is a data contract, not an HTML injection hook.
+
+```php
+openstation_register_station_home_card( 'my-plugin-orders', array(
+    'label'           => __( 'Orders', 'my-plugin' ),
+    'description'     => __( 'Orders waiting to be fulfilled.', 'my-plugin' ),
+    'provider'        => __( 'My Plugin', 'my-plugin' ),
+    'icon'            => 'dashicons-cart',
+    'default_enabled' => false,
+    'order'           => 20,
+    'capabilities'    => array( 'manage_options' ),
+    'callback'        => function ( $user_id, $entry ) {
+        return array(
+            'value'        => '4',
+            'detail'       => __( 'Ready to fulfil', 'my-plugin' ),
+            'url'          => admin_url( 'admin.php?page=my-plugin-orders' ),
+            'action_label' => __( 'Open orders', 'my-plugin' ),
+            'tone'         => 'warning',
+        );
+    },
+) );
+```
+
+`label` and a callable `callback` are required. IDs must already be `sanitize_key()`-clean. `default_enabled` defaults to `false`, making first use an explicit opt-in; a plugin may set it to `true`, after which the user can opt out. Supported callback fields are `value`, `detail`, `url`, `action_label`, `external`, and `tone` (`neutral|info|success|warning|danger`). Returning `WP_Error` or a non-array omits the card for that snapshot. `openstation_unregister_station_home_card( $id )` removes a registration.
+
+Returns `true` or `WP_Error` (`openstation_invalid_station_home_card_id`, `openstation_missing_label`, `openstation_invalid_callback`, or `openstation_capability_denied`). Full recipe: [`examples/station-home-card.md`](./examples/station-home-card.md).
+
+### Station Home card actions — Experimental
+
+```php
+do_action( 'openstation_station_home_card_registered', string $id, array $entry );
+do_action( 'openstation_station_home_card_preference_updated', int $user_id, string $id, bool $enabled );
+do_action( 'openstation_station_home_card_error', Throwable $error, string $id, array $entry );
+```
+
+The first fires only after a successful registration. The second fires after an explicit per-user opt-in/opt-out is stored. The error action reports a thrown callback without allowing one plugin to take down Station Home.
+
+---
+
 ### `openstation_wallpaper_registered` — Stable
 
 Fires after `openstation_register_wallpaper()` successfully stores a wallpaper. Same contract.
@@ -881,6 +922,17 @@ do_action( 'openstation_prepare_window', string $page, array $args );
 ---
 
 ## Filters
+
+### Station Home card filters — Experimental
+
+```php
+apply_filters( 'openstation_station_home_cards', array $cards, int $user_id ): array;
+apply_filters( 'openstation_station_home_card_data', array $data, string $id, array $entry, int $user_id ): array;
+```
+
+`openstation_station_home_cards` filters the registration map before capability-safe metadata becomes the user's picker. Add, remove, reorder, or replace entries using the same shape accepted by `openstation_register_station_home_card()`. `openstation_station_home_card_data` filters an enabled card's callback result immediately before its values are sanitized for the REST snapshot.
+
+---
 
 ### `openstation_site_title` — Experimental
 

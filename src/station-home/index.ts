@@ -12,13 +12,16 @@ import { stationHomeGreeting } from './model';
 import '../ui/components/os-badge/os-badge';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-empty-state/os-empty-state';
+import '../ui/components/os-modal/os-modal';
 import '../ui/components/os-relative-time/os-relative-time';
 import '../ui/components/os-spinner/os-spinner';
+import '../ui/components/os-switch/os-switch';
 
 const WINDOW_ID = 'desktop-mode-dashboard';
 
 interface StationHomeConfig {
 	endpoint: string;
+	cardsEndpoint: string;
 }
 
 interface WorkItem {
@@ -57,6 +60,30 @@ interface AttentionItem {
 	url: string;
 }
 
+export interface StationHomeCard {
+	id: string;
+	label: string;
+	description: string;
+	provider: string;
+	icon: string;
+	value: string;
+	detail: string;
+	url: string;
+	actionLabel: string;
+	external: boolean;
+	tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+}
+
+export interface StationHomeCardPreference {
+	id: string;
+	label: string;
+	description: string;
+	provider: string;
+	icon: string;
+	enabled: boolean;
+	defaultEnabled: boolean;
+}
+
 interface StationHomeSnapshot {
 	userName: string;
 	siteName: string;
@@ -64,6 +91,8 @@ interface StationHomeSnapshot {
 	quickActions: QuickAction[];
 	metrics: Metric[];
 	attention: AttentionItem[];
+	cards: StationHomeCard[];
+	cardPreferences: StationHomeCardPreference[];
 }
 
 type RenderCallback = ( body: HTMLElement ) => void;
@@ -90,6 +119,17 @@ function icon( className: string ): HTMLSpanElement {
 	span.className = `dashicons ${ className }`;
 	span.setAttribute( 'aria-hidden', 'true' );
 	return span;
+}
+
+function cardIcon( value: string ): HTMLElement {
+	if ( value.startsWith( 'dashicons-' ) ) {
+		return icon( value );
+	}
+	const image = document.createElement( 'img' );
+	image.src = value;
+	image.alt = '';
+	image.loading = 'lazy';
+	return image;
 }
 
 function statusTone( status: string ): string {
@@ -241,6 +281,106 @@ function renderAttention( host: HTMLElement, attention: AttentionItem[] ): void 
 	}
 }
 
+export function renderCards( host: HTMLElement, cards: StationHomeCard[] ): void {
+	host.replaceChildren();
+	if ( cards.length === 0 ) {
+		const empty = document.createElement( 'div' );
+		empty.className = 'os-station-home__cards-empty';
+		empty.append( icon( 'dashicons-admin-plugins' ) );
+		const copy = document.createElement( 'span' );
+		const title = document.createElement( 'strong' );
+		title.textContent = __( 'Make this space yours' );
+		const description = document.createElement( 'span' );
+		description.textContent = __(
+			'Use Customize to opt in to information from your plugins.',
+		);
+		copy.append( title, description );
+		empty.append( copy );
+		host.append( empty );
+		return;
+	}
+
+	for ( const card of cards ) {
+		const surface = card.url
+			? document.createElement( 'a' )
+			: document.createElement( 'article' );
+		surface.className = 'os-station-home__card';
+		surface.dataset.tone = card.tone;
+		if ( surface instanceof HTMLAnchorElement ) {
+			surface.href = card.url;
+			if ( card.external ) {
+				surface.target = '_blank';
+				surface.rel = 'noopener';
+			}
+		}
+
+		const head = document.createElement( 'span' );
+		head.className = 'os-station-home__card-head';
+		const glyph = document.createElement( 'span' );
+		glyph.className = 'os-station-home__card-icon';
+		glyph.append( cardIcon( card.icon ) );
+		const identity = document.createElement( 'span' );
+		const label = document.createElement( 'strong' );
+		label.textContent = card.label;
+		identity.append( label );
+		if ( card.provider ) {
+			const provider = document.createElement( 'span' );
+			provider.textContent = card.provider;
+			identity.append( provider );
+		}
+		head.append( glyph, identity );
+		surface.append( head );
+
+		if ( card.value ) {
+			const value = document.createElement( 'strong' );
+			value.className = 'os-station-home__card-value';
+			value.textContent = card.value;
+			surface.append( value );
+		}
+
+		const detailText = card.detail || card.description;
+		if ( detailText ) {
+			const detail = document.createElement( 'span' );
+			detail.className = 'os-station-home__card-detail';
+			detail.textContent = detailText;
+			surface.append( detail );
+		}
+
+		if ( card.url ) {
+			const action = document.createElement( 'span' );
+			action.className = 'os-station-home__card-action';
+			action.textContent = card.actionLabel || __( 'Open' );
+			action.append( icon( 'dashicons-arrow-right-alt2' ) );
+			surface.append( action );
+		}
+
+		host.append( surface );
+	}
+}
+
+export function renderCardPreferences(
+	host: HTMLElement,
+	preferences: StationHomeCardPreference[],
+): void {
+	host.replaceChildren();
+	for ( const preference of preferences ) {
+		const control = document.createElement( 'os-switch' );
+		control.setAttribute( 'value', preference.id );
+		control.setAttribute( 'label', preference.label );
+		control.setAttribute(
+			'description',
+			[ preference.provider, preference.description ].filter( Boolean ).join( ' — ' ),
+		);
+		control.setAttribute( 'block', '' );
+		control.setAttribute( 'size', 'sm' );
+		control.setAttribute( 'tone', 'accent' );
+		if ( preference.enabled ) {
+			control.setAttribute( 'checked', '' );
+		}
+		host.append( control );
+	}
+}
+
 async function renderStationHome(
 	body: HTMLElement,
 	ctx?: NativeRenderContext,
@@ -252,17 +392,35 @@ async function renderStationHome(
 	const work = requiredElement< HTMLElement >( body, '[data-os-station-home-work]' );
 	const pulse = requiredElement< HTMLElement >( body, '[data-os-station-home-pulse]' );
 	const attention = requiredElement< HTMLElement >( body, '[data-os-station-home-attention]' );
+	const cardsSection = requiredElement< HTMLElement >(
+		body,
+		'[data-os-station-home-cards-section]',
+	);
+	const cards = requiredElement< HTMLElement >( body, '[data-os-station-home-cards]' );
+	const customize = requiredElement< HTMLElement >(
+		body,
+		'[data-os-station-home-customize]',
+	);
+	const cardModal = requiredElement< HTMLElement >(
+		body,
+		'[data-os-station-home-card-modal]',
+	);
+	const cardPreferences = requiredElement< HTMLElement >(
+		body,
+		'[data-os-station-home-card-preferences]',
+	);
 	const error = requiredElement< HTMLElement >( body, '[data-os-station-home-error]' );
 	const loading = requiredElement< HTMLElement >( body, '[data-os-station-home-loading]' );
 	const refresh = requiredElement< HTMLElement >( body, '[data-os-station-home-refresh]' );
 	const config = window.wp?.os?.getWindowConfig< StationHomeConfig >( WINDOW_ID );
-	if ( ! config?.endpoint ) {
+	if ( ! config?.endpoint || ! config.cardsEndpoint ) {
 		throw new Error( '[station-home] Missing REST endpoint configuration.' );
 	}
 
 	let snapshot: StationHomeSnapshot | null = null;
 	let generation = 0;
 	let disposed = false;
+	let savingPreference = false;
 
 	const paint = ( next: StationHomeSnapshot ): void => {
 		snapshot = next;
@@ -281,6 +439,9 @@ async function renderStationHome(
 		renderWork( work, next.work );
 		renderMetrics( pulse, next.metrics );
 		renderAttention( attention, next.attention );
+		cardsSection.hidden = next.cardPreferences.length === 0;
+		renderCards( cards, next.cards );
+		renderCardPreferences( cardPreferences, next.cardPreferences );
 	};
 
 	const load = async ( manual = false ): Promise< void > => {
@@ -332,6 +493,69 @@ async function renderStationHome(
 	const onRefresh = (): void => {
 		void load( true );
 	};
+	const onCustomize = (): void => {
+		cardModal.setAttribute( 'open', '' );
+	};
+	const onCardPreference = ( event: Event ): void => {
+		if ( savingPreference || ! snapshot ) {
+			return;
+		}
+		const target = event.target;
+		const detail = ( event as CustomEvent< { checked?: boolean } > ).detail;
+		if ( ! ( target instanceof HTMLElement ) || ! target.matches( 'os-switch' ) ) {
+			return;
+		}
+		const id = target.getAttribute( 'value' ) || '';
+		if ( ! id || typeof detail?.checked !== 'boolean' ) {
+			return;
+		}
+
+		savingPreference = true;
+		for ( const control of Array.from( cardPreferences.querySelectorAll( 'os-switch' ) ) ) {
+			control.setAttribute( 'disabled', '' );
+		}
+		error.hidden = true;
+
+		void trackedFetch(
+			config.cardsEndpoint,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify( { id, enabled: detail.checked } ),
+				signal: ctx?.signal,
+			},
+			{ windowId: WINDOW_ID, source: 'station-home/preferences' },
+		)
+			.then( async ( response ) => {
+				if ( ! response.ok ) {
+					throw new Error( `HTTP ${ response.status }` );
+				}
+				const next = ( await response.json() ) as StationHomeSnapshot;
+				if ( ! disposed ) {
+					paint( next );
+				}
+			} )
+			.catch( ( caught ) => {
+				if ( ctx?.signal.aborted || disposed ) {
+					return;
+				}
+				renderCardPreferences( cardPreferences, snapshot?.cardPreferences ?? [] );
+				error.textContent = __(
+					'Station Home could not save that card preference. Try again.',
+				);
+				error.hidden = false;
+				// eslint-disable-next-line no-console
+				console.error( '[station-home] card preference failed:', caught );
+			} )
+			.finally( () => {
+				savingPreference = false;
+				for ( const control of Array.from(
+					cardPreferences.querySelectorAll( 'os-switch' ),
+				) ) {
+					control.removeAttribute( 'disabled' );
+				}
+			} );
+	};
 	const onAction = ( event: Event ): void => {
 		const target = event.target;
 		if ( ! ( target instanceof Element ) ) {
@@ -363,6 +587,8 @@ async function renderStationHome(
 	};
 
 	refresh.addEventListener( 'click', onRefresh );
+	customize.addEventListener( 'click', onCustomize );
+	cardPreferences.addEventListener( 'os-switch-change', onCardPreference );
 	actions.addEventListener( 'click', onAction );
 	const stopShow = ctx?.onShow( () => {
 		void load();
@@ -373,6 +599,8 @@ async function renderStationHome(
 		disposed = true;
 		generation++;
 		refresh.removeEventListener( 'click', onRefresh );
+		customize.removeEventListener( 'click', onCustomize );
+		cardPreferences.removeEventListener( 'os-switch-change', onCardPreference );
 		actions.removeEventListener( 'click', onAction );
 		stopShow?.();
 	};

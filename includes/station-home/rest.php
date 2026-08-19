@@ -20,6 +20,28 @@ function openstation_station_home_register_rest_routes() {
 			'permission_callback' => 'openstation_rest_require_enabled',
 		)
 	);
+
+	register_rest_route(
+		'desktop-mode/v1',
+		'/station-home/cards',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'openstation_station_home_rest_update_card_preference',
+			'permission_callback' => 'openstation_rest_require_enabled',
+			'args'                => array(
+				'id'      => array(
+					'required'          => true,
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_key',
+				),
+				'enabled' => array(
+					'required'          => true,
+					'type'              => 'boolean',
+					'sanitize_callback' => 'rest_sanitize_boolean',
+				),
+			),
+		)
+	);
 }
 add_action( 'rest_api_init', 'openstation_station_home_register_rest_routes' );
 
@@ -29,6 +51,45 @@ add_action( 'rest_api_init', 'openstation_station_home_register_rest_routes' );
  * @return WP_REST_Response
  */
 function openstation_station_home_rest_snapshot() {
+	return rest_ensure_response( openstation_station_home_build_snapshot() );
+}
+
+/**
+ * Save one explicit card choice for the current user.
+ *
+ * Returning a fresh snapshot lets the client add or remove the card in the
+ * same paint that settles the switch, without inventing a second response
+ * shape for dynamic card data.
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function openstation_station_home_rest_update_card_preference( WP_REST_Request $request ) {
+	$id    = sanitize_key( (string) $request->get_param( 'id' ) );
+	$cards = openstation_station_home_get_registered_cards();
+	if ( '' === $id || ! isset( $cards[ $id ] ) ) {
+		return new WP_Error(
+			'openstation_station_home_card_not_found',
+			__( 'That Station Home card is not available.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	$user_id     = get_current_user_id();
+	$preferences = openstation_station_home_get_card_preferences( $user_id );
+	$enabled     = rest_sanitize_boolean( $request->get_param( 'enabled' ) );
+	$preferences[ $id ] = $enabled;
+	update_user_meta( $user_id, OPENSTATION_STATION_HOME_CARD_PREFERENCES_META, $preferences );
+
+	/**
+	 * Fires after a user opts in to or out of a Station Home card.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $id      Card id.
+	 * @param bool   $enabled New explicit state.
+	 */
+	do_action( 'openstation_station_home_card_preference_updated', $user_id, $id, $enabled );
+
 	return rest_ensure_response( openstation_station_home_build_snapshot() );
 }
 
@@ -273,6 +334,10 @@ function openstation_station_home_build_snapshot() {
 	$missing_alt  = openstation_station_home_missing_alt_count();
 	$first_name   = trim( (string) get_user_meta( $user->ID, 'first_name', true ) );
 	$display_name = '' !== $first_name ? $first_name : $user->display_name;
+	$cards         = openstation_station_home_build_cards(
+		openstation_station_home_get_registered_cards(),
+		openstation_station_home_get_card_preferences( $user->ID )
+	);
 
 	$attention = array();
 	if ( $pending > 0 ) {
@@ -349,6 +414,8 @@ function openstation_station_home_build_snapshot() {
 				'value' => $published,
 			),
 		),
-		'attention'    => $attention,
+		'attention'       => $attention,
+		'cards'           => $cards['cards'],
+		'cardPreferences' => $cards['preferences'],
 	);
 }
