@@ -24,6 +24,10 @@ import {
 } from '../../native-url-remap';
 import { __, _n, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
+import {
+	openProductStudio,
+	registerWooProductStudio,
+} from './woocommerce-product-studio';
 // Registers the `<os-ribbon>` tag this bundle stamps onto tiles. The
 // main desktop bundle defines it too, but this bundle can load into a
 // window whose shell bundle hasn't, so it owns its own import.
@@ -63,6 +67,7 @@ interface WooConfig {
 	restRoot: string;
 	restNonce: string;
 	canOrders: boolean;
+	canCreateProducts?: boolean;
 	/** Whether the viewer may see customer money at all. */
 	canCustomers?: boolean;
 	orderBands?: OrderBand[];
@@ -715,29 +720,49 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 				data.variations,
 			)
 			: data.productType;
+	const snapshot = document.createElement( 'div' );
+	snapshot.className = `${ PANEL_CLASS }__row ${ PANEL_CLASS }__row--product-snapshot`;
+	const snapshotLabel = document.createElement( 'dt' );
+	snapshotLabel.className = 'screen-reader-text';
+	snapshotLabel.textContent = __( 'Storefront snapshot', 'desktop-mode' );
+	const snapshotValue = document.createElement( 'dd' );
+	snapshotValue.className = `${ PANEL_CLASS }__product-snapshot`;
+
+	const price = document.createElement( 'span' );
+	price.className = `${ PANEL_CLASS }__product-metric`;
+	const priceLabel = document.createElement( 'small' );
+	priceLabel.textContent = data.onSale
+		? __( 'Sale price', 'desktop-mode' )
+		: __( 'Price', 'desktop-mode' );
+	const priceValue = priceNode( data.price, data.regular );
+	price.append( priceLabel, priceValue );
+
+	const availability = document.createElement( 'span' );
+	availability.className = `${ PANEL_CLASS }__product-metric`;
+	const availabilityLabel = document.createElement( 'small' );
+	availabilityLabel.textContent = __( 'Availability', 'desktop-mode' );
+	availability.append(
+		availabilityLabel,
+		pill( stock, stockToneFor( data.stockStatus, data.stockLevel ) ),
+	);
+
+	const sold = document.createElement( 'span' );
+	sold.className = `${ PANEL_CLASS }__product-metric`;
+	const soldLabel = document.createElement( 'small' );
+	soldLabel.textContent = __( 'Sold', 'desktop-mode' );
+	const soldValue = document.createElement( 'strong' );
+	soldValue.textContent = sprintf(
+		/* translators: %d: units sold. */
+		__( '%d units', 'desktop-mode' ),
+		Number( data.sold ) || 0,
+	);
+	sold.append( soldLabel, soldValue );
+	snapshotValue.append( price, availability, sold );
+	snapshot.append( snapshotLabel, snapshotValue );
 
 	return [
+		snapshot,
 		row( __( 'SKU', 'desktop-mode' ), data.sku ),
-		row(
-			data.onSale
-				? __( 'Price (on sale)', 'desktop-mode' )
-				: __( 'Price', 'desktop-mode' ),
-			priceNode( data.price, data.regular ),
-		),
-		row(
-			__( 'Stock', 'desktop-mode' ),
-			pill( stock, stockToneFor( data.stockStatus, data.stockLevel ) ),
-		),
-		row(
-			__( 'Sold', 'desktop-mode' ),
-			data.sold > 0
-				? sprintf(
-					/* translators: %d: units sold. */
-					__( '%d units', 'desktop-mode' ),
-					data.sold,
-				)
-				: '',
-		),
 		row( __( 'Rating', 'desktop-mode' ), rating ),
 		row( __( 'Type', 'desktop-mode' ), type ),
 		row(
@@ -1068,14 +1093,14 @@ function renderCustomer( data: CustomerSummary ): Array< HTMLElement | null > {
  * doesn't push content around under the pointer.
  */
 const PANEL_TITLES: Record< Summary[ 'type' ], string > = {
-	product: __( 'Product', 'desktop-mode' ),
+	product: __( 'Product overview', 'desktop-mode' ),
 	order: __( 'Order', 'desktop-mode' ),
 	coupon: __( 'Coupon', 'desktop-mode' ),
 	customer: __( 'Customer', 'desktop-mode' ),
 };
 
 const PANEL_ROW_COUNTS: Record< Summary[ 'type' ], number > = {
-	product: 8,
+	product: 6,
 	order: 10,
 	coupon: 12,
 	customer: 9,
@@ -1254,6 +1279,79 @@ function decorateCustomerTile( payload: ListTilePayload ): boolean {
 	return true;
 }
 
+function productTileStatus(
+	facts: ProductRowFacts,
+): { label: string; tone: BadgeTone } {
+	if ( facts.stockStatus === 'outofstock' ) {
+		return { label: __( 'Out of stock', 'desktop-mode' ), tone: 'danger' };
+	}
+	if ( facts.stockStatus === 'onbackorder' ) {
+		return { label: __( 'On backorder', 'desktop-mode' ), tone: 'warning' };
+	}
+	if ( facts.stockLevel !== null ) {
+		return {
+			label: sprintf(
+				/* translators: %d: units available. */
+				__( '%d in stock', 'desktop-mode' ),
+				facts.stockLevel,
+			),
+			tone: facts.stockLevel <= LOW_STOCK_THRESHOLD ? 'warning' : 'success',
+		};
+	}
+	return { label: __( 'In stock', 'desktop-mode' ), tone: 'success' };
+}
+
+/** Paint a compact commerce readout over a product thumbnail. */
+function stampProductMeta( tile: HTMLElement ): void {
+	if ( tile.dataset.wooProduct !== 'true' ) {
+		return;
+	}
+	const host = tile.querySelector< HTMLElement >( '.os-file-tile__visual' );
+	if ( ! host || host.querySelector( '.os-woo-product-tile__meta' ) ) {
+		return;
+	}
+	const stockStatus = tile.dataset.wooStockStatus ?? 'instock';
+	const rawLevel = tile.dataset.wooStockLevel ?? '';
+	const stockLevel = rawLevel === '' ? null : Number( rawLevel );
+	let categories: string[] = [];
+	try {
+		const parsed = JSON.parse( tile.dataset.wooCategories ?? '[]' );
+		categories = Array.isArray( parsed ) ? parsed.map( String ) : [];
+	} catch {
+		categories = [];
+	}
+	const status = productTileStatus( {
+		stockStatus,
+		stockLevel: Number.isFinite( stockLevel ) ? stockLevel : null,
+		onSale: tile.dataset.wooOnSale === 'true',
+		categories,
+	} );
+
+	tile.classList.add( 'os-woo-product-tile' );
+	const meta = document.createElement( 'span' );
+	meta.className = 'os-woo-product-tile__meta';
+	const badge = pill( status.label, status.tone );
+	badge.setAttribute( 'aria-hidden', 'true' );
+	meta.appendChild( badge );
+	if ( categories[ 0 ] ) {
+		const category = document.createElement( 'span' );
+		category.className = 'os-woo-product-tile__category';
+		category.textContent = categories[ 0 ];
+		meta.appendChild( category );
+	}
+	host.appendChild( meta );
+	const productName = tile.getAttribute( 'label' ) ?? '';
+	tile.setAttribute(
+		'aria-label',
+		sprintf(
+			/* translators: 1: product name, 2: inventory status. */
+			__( '%1$s — %2$s', 'desktop-mode' ),
+			productName,
+			status.label,
+		),
+	);
+}
+
 /**
  * Put the band badge back on a tile that remembers it.
  *
@@ -1329,6 +1427,14 @@ addAction(
 		if ( ! facts ) {
 			return;
 		}
+		payload.tile.dataset.wooProduct = 'true';
+		payload.tile.dataset.wooStockStatus = facts.stockStatus;
+		payload.tile.dataset.wooStockLevel = facts.stockLevel === null
+			? ''
+			: String( facts.stockLevel );
+		payload.tile.dataset.wooOnSale = String( facts.onSale );
+		payload.tile.dataset.wooCategories = JSON.stringify( facts.categories ?? [] );
+		stampProductMeta( payload.tile );
 
 		// An out-of-stock product is the one thing a merchant must not
 		// miss while scanning the grid, so it gets a badge on the tile
@@ -1410,6 +1516,7 @@ addAction(
 	( payload: { tile: HTMLElement } ) => {
 		stampRibbon( payload.tile );
 		stampCustomerBand( payload.tile );
+		stampProductMeta( payload.tile );
 	},
 );
 
@@ -1419,6 +1526,29 @@ addAction(
 	( payload: PreviewExtrasPayload ) => {
 		const type = previewSummaryTypeFor( payload );
 		if ( ! type ) {
+			return;
+		}
+		if (
+			type === 'product' &&
+			payload.slot === 'footer' &&
+			getConfig()?.canCreateProducts
+		) {
+			const action = document.createElement( 'div' );
+			action.className = 'os-woo-product-create-action';
+			const copy = document.createElement( 'span' );
+			const title = document.createElement( 'strong' );
+			title.textContent = __( 'Ready to add another product?', 'desktop-mode' );
+			const body = document.createElement( 'small' );
+			body.textContent = __( 'Product Studio keeps the essentials focused.', 'desktop-mode' );
+			copy.append( title, body );
+			const create = document.createElement( 'os-button' );
+			create.setAttribute( 'variant', 'holo' );
+			create.textContent = __( 'Add new product', 'desktop-mode' );
+			create.addEventListener( 'click', () => {
+				openProductStudio();
+			} );
+			action.append( copy, create );
+			payload.container.appendChild( action );
 			return;
 		}
 		// One panel per preview. A thing goes above its content
@@ -2378,3 +2508,5 @@ nativeWindowRegistry.openStationNativeWindows[ CUSTOMER_WINDOW_ID ] = (
 		document.removeEventListener( 'os-window-reopened', onReopen );
 	};
 };
+
+registerWooProductStudio();

@@ -28,6 +28,10 @@ import {
 	unregisterNativeUrlRemap,
 } from '../../src/native-url-remap';
 import type { OsSettingsSnapshot } from '../../src/settings/registry';
+import {
+	validateProductDraft,
+	type ProductDraft,
+} from '../../src/my-wordpress/integrations/woocommerce-product-studio';
 
 const PRODUCTS = 'cpt-product';
 const CUSTOMERS = 'wc-customers';
@@ -41,6 +45,7 @@ function setConfig( extra: Record< string, unknown > = {} ): void {
 		restRoot: 'http://example.test/wp-json/desktop-mode/v1/woocommerce/',
 		restNonce: 'nonce',
 		canOrders: true,
+		canCreateProducts: true,
 		canCustomers: true,
 		customerBands: [
 			{ id: 'vip', label: 'VIP', order: 10, count: 2 },
@@ -63,6 +68,24 @@ function setConfig( extra: Record< string, unknown > = {} ): void {
 			{ id: 'coupon:active', label: 'Active', order: 10, count: 1 },
 		],
 		...extra,
+	};
+}
+
+function validProductDraft(): ProductDraft {
+	return {
+		name: 'Signal Desk Lamp',
+		shortDescription: 'A focused pool of warm light.',
+		description: 'A compact desk lamp for late-night work.',
+		kind: 'physical',
+		regularPrice: '89',
+		salePrice: '',
+		sku: 'SIGNAL-01',
+		manageStock: true,
+		stockQuantity: '12',
+		stockStatus: 'instock',
+		categoryIds: [],
+		imageFile: null,
+		imagePreviewUrl: '',
 	};
 }
 
@@ -99,6 +122,10 @@ function stubSummary( body: unknown, status = 200 ): void {
 /** Fire the tile-decoration action the bundle subscribes to. */
 function decorate( item: Record< string, unknown > ): HTMLElement {
 	const tile = document.createElement( 'div' );
+	tile.setAttribute( 'label', 'Test product' );
+	const visual = document.createElement( 'span' );
+	visual.className = 'os-file-tile__visual';
+	tile.appendChild( visual );
 	document.body.appendChild( tile );
 	doAction( 'os.my-wordpress.list-tile', {
 		tile,
@@ -126,10 +153,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 	beforeEach( () => {
 		setConfig();
 		stubSummary( {} );
+		window.sessionStorage.clear();
 	} );
 
 	afterEach( () => {
 		document.body.innerHTML = '';
+		window.sessionStorage.clear();
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 	} );
@@ -212,6 +241,8 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			);
 
 			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
+			expect( tile.classList ).toContain( 'os-woo-product-tile' );
+			expect( tile.textContent ).toContain( '40 in stock' );
 		} );
 
 		test( 'the ribbon is restored after the tile repaints', () => {
@@ -243,6 +274,311 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			} );
 
 			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
+		} );
+	} );
+
+	describe( 'Product Studio', () => {
+		test( 'drafts need a name but may be saved before pricing', () => {
+			const draft = validProductDraft();
+			draft.name = '';
+			draft.regularPrice = '';
+
+			expect( validateProductDraft( draft, 'draft-save' ) ).toEqual( {
+				name: 'Give the product a name.',
+			} );
+		} );
+
+		test( 'publish rejects a sale price that is not lower', () => {
+			const draft = validProductDraft();
+			draft.salePrice = '89';
+
+			expect( validateProductDraft( draft, 'publish' ) ).toEqual( {
+				salePrice: 'Sale price must be lower than the regular price.',
+			} );
+		} );
+
+		test( 'tracked inventory requires a whole-number quantity', () => {
+			const draft = validProductDraft();
+			draft.stockQuantity = '2.5';
+
+			expect( validateProductDraft( draft, 'publish' ) ).toEqual( {
+				stockQuantity: 'Enter a whole-number stock quantity of zero or more.',
+			} );
+		} );
+
+		test( 'prices and stock reject scientific notation', () => {
+			const draft = validProductDraft();
+			draft.regularPrice = '1e3';
+			draft.stockQuantity = '1e2';
+
+			expect( validateProductDraft( draft, 'publish' ) ).toEqual( {
+				regularPrice: 'Enter a valid regular price.',
+				stockQuantity: 'Enter a whole-number stock quantity of zero or more.',
+			} );
+		} );
+
+		test( 'the Woo folder carries a focused creation launcher', () => {
+			const openWindow = vi.fn( () => true );
+			stubOpenWindow( openWindow );
+			const container = document.createElement( 'div' );
+
+			doAction( 'os.my-wordpress.group-extras', {
+				container,
+				groupId: 'plugin:woocommerce',
+				entityIds: [ PRODUCTS ],
+			} );
+
+			const launcher = container.querySelector(
+				'.os-woo-product-studio-launcher',
+			);
+			expect( launcher?.textContent ).toContain( 'Put a new product on the shelf' );
+			launcher?.querySelector( 'os-button' )?.dispatchEvent(
+				new MouseEvent( 'click', { bubbles: true } ),
+			);
+			expect( openWindow ).toHaveBeenCalledWith(
+				'desktop-mode-woo-product-studio',
+				{ source: 'my-wordpress/woocommerce' },
+			);
+		} );
+
+		test( 'the native window loads bootstrap data and paints a live preview', async () => {
+			stubSummary( {
+				categories: [
+					{ id: 4, name: 'Lighting', parent: 0, count: 2 },
+				],
+				currencyCode: 'USD',
+				currencySymbol: '$',
+				priceDecimals: 2,
+				canPublish: true,
+				maxImageBytes: 2000000,
+				maxImageLabel: '2 MB',
+				placeholderUrl: 'http://example.test/product-placeholder.png',
+			} );
+			const registry = (
+				window as unknown as {
+					openStationNativeWindows?: Record<
+						string,
+						( body: HTMLElement, ctx?: { signal?: AbortSignal } ) => unknown
+					>;
+				}
+			).openStationNativeWindows;
+			const body = document.createElement( 'div' );
+			const root = document.createElement( 'div' );
+			root.setAttribute( 'data-os-woo-product-studio-root', '' );
+			body.appendChild( root );
+			document.body.appendChild( body );
+			const controller = new AbortController();
+			const cleanup = registry?.[ 'desktop-mode-woo-product-studio' ]?.(
+				body,
+				{ signal: controller.signal },
+			) as ( () => void ) | undefined;
+
+			await vi.waitFor( () => {
+				if ( ! root.querySelector( '.os-woo-product-studio__stage-heading' ) ) {
+					throw new Error( 'studio still loading' );
+				}
+			} );
+
+			expect( root.textContent ).toContain( 'Tell shoppers what makes it special' );
+			expect(
+				root.querySelector( '.os-woo-product-studio__preview-frame' ),
+			).not.toBeNull();
+			expect(
+				root.querySelector( '.os-woo-product-studio__editor-panel' ),
+			).not.toBeNull();
+			expect(
+				root.querySelector< HTMLImageElement >(
+					'.os-woo-product-studio__product-media img',
+				)?.src,
+			).toBe( 'http://example.test/product-placeholder.png' );
+			cleanup?.();
+		} );
+
+		test( 'recovers a same-tab draft and warns when its image must be reselected', async () => {
+			window.sessionStorage.setItem(
+				'openstation/woocommerce-product-studio-draft:v1',
+				JSON.stringify( {
+					version: 1,
+					requestId: '123e4567-e89b-42d3-a456-426614174000',
+					stepIndex: 0,
+					hadImage: true,
+					draft: {
+						...validProductDraft(),
+						imageFile: undefined,
+						imagePreviewUrl: undefined,
+					},
+				} ),
+			);
+			stubSummary( {
+				categories: [],
+				currencyCode: 'USD',
+				currencySymbol: '$',
+				priceDecimals: 2,
+				canPublish: true,
+				maxImageBytes: 2000000,
+				maxImageLabel: '2 MB',
+				placeholderUrl: 'http://example.test/product-placeholder.png',
+			} );
+			const registry = (
+				window as unknown as {
+					openStationNativeWindows?: Record<
+						string,
+						( body: HTMLElement, ctx?: { signal?: AbortSignal } ) => unknown
+					>;
+				}
+			).openStationNativeWindows;
+			const body = document.createElement( 'div' );
+			const root = document.createElement( 'div' );
+			root.setAttribute( 'data-os-woo-product-studio-root', '' );
+			body.appendChild( root );
+			document.body.appendChild( body );
+			const cleanup = registry?.[ 'desktop-mode-woo-product-studio' ]?.( body ) as
+				| ( () => void )
+				| undefined;
+
+			await vi.waitFor( () => {
+				if ( ! root.textContent?.includes( 'Draft recovered.' ) ) {
+					throw new Error( 'draft not restored' );
+				}
+			} );
+
+			expect( root.textContent ).toContain( 'Recovered' );
+			expect(
+				root.querySelector( 'os-text-field[label="Product name"]' )?.getAttribute( 'value' ),
+			).toBe( 'Signal Desk Lamp' );
+			cleanup?.();
+		} );
+
+		test( 'sends one idempotent request when save is clicked twice', async () => {
+			const requestId = '123e4567-e89b-42d3-a456-426614174000';
+			window.sessionStorage.setItem(
+				'openstation/woocommerce-product-studio-draft:v1',
+				JSON.stringify( {
+					version: 1,
+					requestId,
+					stepIndex: 3,
+					hadImage: false,
+					draft: {
+						...validProductDraft(),
+						imageFile: undefined,
+						imagePreviewUrl: undefined,
+					},
+				} ),
+			);
+			const fetchMock = vi.fn()
+				.mockResolvedValueOnce( new Response( JSON.stringify( {
+					categories: [],
+					currencyCode: 'USD',
+					currencySymbol: '$',
+					priceDecimals: 2,
+					canPublish: true,
+					maxImageBytes: 2000000,
+					maxImageLabel: '2 MB',
+					placeholderUrl: 'http://example.test/product-placeholder.png',
+				} ), { status: 200 } ) )
+				.mockResolvedValueOnce( new Response( JSON.stringify( {
+					id: 44,
+					name: 'Signal Desk Lamp',
+					status: 'draft',
+					price: '$89.00',
+					editUrl: 'http://example.test/wp-admin/post.php?post=44',
+					viewUrl: '',
+					thumbnail: '',
+				} ), { status: 201 } ) );
+			vi.stubGlobal( 'fetch', fetchMock );
+			const registry = (
+				window as unknown as {
+					openStationNativeWindows?: Record< string, ( body: HTMLElement ) => unknown >;
+				}
+			).openStationNativeWindows;
+			const body = document.createElement( 'div' );
+			const root = document.createElement( 'div' );
+			root.setAttribute( 'data-os-woo-product-studio-root', '' );
+			body.appendChild( root );
+			document.body.appendChild( body );
+			const cleanup = registry?.[ 'desktop-mode-woo-product-studio' ]?.( body ) as
+				| ( () => void )
+				| undefined;
+
+			await vi.waitFor( () => {
+				if ( ! root.textContent?.includes( 'Launch' ) ) {
+					throw new Error( 'review step not ready' );
+				}
+			} );
+			const save = [ ...root.querySelectorAll( 'os-button' ) ].find(
+				( item ) => item.textContent === 'Save draft',
+			);
+			save?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+			save?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+
+			await vi.waitFor( () => {
+				expect( fetchMock ).toHaveBeenCalledTimes( 2 );
+				expect( window.sessionStorage.getItem(
+					'openstation/woocommerce-product-studio-draft:v1',
+				) ).toBeNull();
+			} );
+			const init = fetchMock.mock.calls[ 1 ][ 1 ] as RequestInit;
+			expect( ( init.body as FormData ).get( 'requestId' ) ).toBe( requestId );
+			cleanup?.();
+		} );
+
+		test( 'final validation keeps its error when returning to the price step', async () => {
+			const draft = validProductDraft();
+			draft.regularPrice = '';
+			window.sessionStorage.setItem(
+				'openstation/woocommerce-product-studio-draft:v1',
+				JSON.stringify( {
+					version: 1,
+					requestId: '123e4567-e89b-42d3-a456-426614174000',
+					stepIndex: 3,
+					hadImage: false,
+					draft: {
+						...draft,
+						imageFile: undefined,
+						imagePreviewUrl: undefined,
+					},
+				} ),
+			);
+			stubSummary( {
+				categories: [],
+				currencyCode: 'USD',
+				currencySymbol: '$',
+				priceDecimals: 2,
+				canPublish: true,
+				maxImageBytes: 2000000,
+				maxImageLabel: '2 MB',
+				placeholderUrl: 'http://example.test/product-placeholder.png',
+			} );
+			const registry = (
+				window as unknown as {
+					openStationNativeWindows?: Record< string, ( body: HTMLElement ) => unknown >;
+				}
+			).openStationNativeWindows;
+			const body = document.createElement( 'div' );
+			const root = document.createElement( 'div' );
+			root.setAttribute( 'data-os-woo-product-studio-root', '' );
+			body.appendChild( root );
+			document.body.appendChild( body );
+			const cleanup = registry?.[ 'desktop-mode-woo-product-studio' ]?.( body ) as
+				| ( () => void )
+				| undefined;
+
+			await vi.waitFor( () => {
+				if ( ! root.textContent?.includes( 'Publish product' ) ) {
+					throw new Error( 'review step not ready' );
+				}
+			} );
+			const publish = [ ...root.querySelectorAll( 'os-button' ) ].find(
+				( item ) => item.textContent === 'Publish product',
+			);
+			publish?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+
+			expect( root.textContent ).toContain( 'Enter a valid regular price.' );
+			expect( root.textContent ).toContain( 'The offer' );
+			expect( document.activeElement?.classList ).toContain(
+				'os-woo-product-studio__error',
+			);
+			cleanup?.();
 		} );
 	} );
 
@@ -315,6 +651,9 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( text ).toContain( 'SHOE-42' );
 			expect( text ).toContain( '231 units' );
 			expect( text ).toContain( '4.2' );
+			expect(
+				container.querySelector( '.os-woo-panel__product-snapshot' ),
+			).not.toBeNull();
 			// Stock reads through `<os-badge>`, not a bespoke pill.
 			expect(
 				container.querySelector( 'os-badge' )?.getAttribute( 'tone' ),
@@ -370,7 +709,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( container.children ).toHaveLength( 0 );
 		} );
 
-		test( 'only the header slot paints a panel', () => {
+		test( 'the product footer offers a direct creation action', () => {
 			const container = document.createElement( 'div' );
 			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'footer',
@@ -380,7 +719,10 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				item: { id: 7 },
 			} );
 
-			expect( container.children ).toHaveLength( 0 );
+			expect( container.textContent ).toContain( 'Add new product' );
+			expect(
+				container.querySelector( '.os-woo-product-create-action' ),
+			).not.toBeNull();
 		} );
 	} );
 
