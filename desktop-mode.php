@@ -123,6 +123,7 @@ require_once OPENSTATION_DIR . 'includes/themes-tabs.php';
 require_once OPENSTATION_DIR . 'includes/media-query.php';
 require_once OPENSTATION_DIR . 'includes/accents.php';
 require_once OPENSTATION_DIR . 'includes/toast-types.php';
+require_once OPENSTATION_DIR . 'includes/wp-icon-registry.php';
 require_once OPENSTATION_DIR . 'includes/registries/native-windows.php';
 require_once OPENSTATION_DIR . 'includes/registries/window-tabs.php';
 require_once OPENSTATION_DIR . 'includes/registries/icons.php';
