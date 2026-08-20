@@ -162,6 +162,14 @@ function renderActions( host: HTMLElement, actions: QuickAction[] ): void {
 		} else {
 			control = document.createElement( 'os-button' );
 			control.setAttribute( 'variant', 'ghost' );
+			// Without `fill-cell` the HOST stretches to the grid cell
+			// but the shadow `button` inside it stays shrink-to-fit, so
+			// these rows end at their label while their `<a>` siblings
+			// run the width of the rail. It gates the min-height too —
+			// `--os-ui-button-min-height` is only read inside
+			// `:host( [ fill-cell ] ) button` — so without it these are
+			// also shorter than the 48px the rest of the list keeps.
+			control.setAttribute( 'fill-cell', '' );
 			control.dataset.stationAction = action.id;
 		}
 		control.classList.add( 'os-station-home__action' );

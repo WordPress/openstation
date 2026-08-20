@@ -145,12 +145,30 @@ a.os-station-home__action {
 	text-decoration: none;
 }
 
-.os-station-home__action:hover {
+/*
+ * Hover and focus are scoped to the LINKS.
+ *
+ * A quick action is an `<a>` when it navigates and an `<os-button>`
+ * when it calls into the shell, which is not a difference the user
+ * has any business seeing — the five rows are one list. Left
+ * unscoped, these two rules land on the component hosts as well and
+ * stack on top of the chrome the kit already draws: the host's
+ * background paints under a shadow button that is separately painting
+ * `--os-ui-button-bg-hover`, so two low-alpha films compound and the
+ * component-backed rows hover visibly darker than their neighbours;
+ * and the host's `box-shadow` doubles the focus ring the button draws
+ * from the same token. `border-color` on a host is simply dead — no
+ * border-width or style there to recolour.
+ *
+ * So the links keep these, and the buttons are matched through the
+ * `--os-ui-button-*` tokens below instead.
+ */
+a.os-station-home__action:hover {
 	background: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
 	border-color: var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
 }
 
-.os-station-home__action:focus-visible {
+a.os-station-home__action:focus-visible {
 	outline: none;
 	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
 }
@@ -163,7 +181,57 @@ os-button.os-station-home__action {
 	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
 	--os-ui-button-bg-hover: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
 	--os-ui-button-border-radius: 8px;
+	/*
+	 * Quiet the iridescent layers for these two.
+	 *
+	 * Every `<os-button>` carries `os-holo-edge os-holo-sheen` on its
+	 * inner button whatever the variant, so a ghost button in this
+	 * list lights a gradient hairline and a hover film that its three
+	 * `<a>` siblings have no way to match. The hairline is a genuine
+	 * 1px all the way round — `holoEdge` builds it from `padding: 1px`
+	 * and `mask-composite: exclude` — but it is painted with a 124deg
+	 * gradient running 0.85 alpha at one end and 0.6 at the other, so
+	 * it reads as changing WIDTH around the corner. In a row of five
+	 * it just looks like two of them are wrong.
+	 *
+	 * Quieted here rather than in the component: the edge is exactly
+	 * right for a button that stands on its own, and the holographic
+	 * state is meant to be spent on identity moments, not on every
+	 * item in a nav list. The `:active` glint and ring stay — those
+	 * are press feedback, not resting chrome.
+	 */
+	--os-ui-holo-edge: none;
+	--os-ui-holo-edge-quiet: none;
+	--os-ui-holo-sheen: none;
 	text-align: start;
+}
+
+/*
+ * Left-align the row, and match the links' icon gap.
+ *
+ * `<os-button>` centres its content — right for a button, wrong for a
+ * nav row, and invisible until `fill-cell` gives the button a width
+ * bigger than its label to centre WITHIN. The result is two rows that
+ * look indented against three that start at the padding edge.
+ *
+ * Neither justification nor gap has a `--os-ui-button-*` token, so
+ * this goes through `::part( button )`, which the component documents
+ * as an author hook for exactly this. `text-align` on the host cannot
+ * do it — the content is laid out by flex, which `text-align` does
+ * not reach.
+ */
+os-button.os-station-home__action::part( button ) {
+	justify-content: flex-start;
+	gap: 12px;
+}
+
+/*
+ * The border the `<a>` rule gets from `border-color`, which cannot
+ * reach a component host. The shadow button reads this token, so the
+ * hairline appears on hover exactly as it does on the links.
+ */
+os-button.os-station-home__action:hover {
+	--os-ui-button-border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
 }
 
 .os-station-home__action .dashicons {
