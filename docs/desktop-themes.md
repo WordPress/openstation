@@ -906,6 +906,10 @@ need one that isn't there.
 
 ### What stays fixed
 
+The About journal is ordinary shell UI: its overview, cards and status
+states follow the surface and text tokens, and its featured dispatch
+paints `--os-ui-hero-mesh` over `--os-ui-surface-sunken`.
+
 Colour that encodes meaning or is composed artwork is deliberately
 **not** themable: pinned-note paper, game palettes, and the content-graph
 node hues. Retinting those would destroy the signal

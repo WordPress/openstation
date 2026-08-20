@@ -1944,7 +1944,11 @@
 	height: 64px;
 	flex: 0 0 64px;
 	border: 1px solid
-		color-mix( in srgb, var( --os-ui-border, #dcdcde ) 78%, white );
+		color-mix(
+			in srgb,
+			var( --os-ui-border, #dcdcde ) 78%,
+			var( --os-ui-surface, #fff )
+		);
 	border-radius: 16px;
 	box-shadow: var( --os-ui-shadow-md, 0 12px 30px rgba( 0, 0, 0, 0.14 ) );
 }
@@ -2094,18 +2098,22 @@
 	margin: 0;
 	overflow: hidden;
 	background:
-		linear-gradient(
-			110deg,
-			rgba( 12, 11, 15, 0.94 ) 5%,
-			rgba( 12, 11, 15, 0.68 ) 62%,
-			rgba( 12, 11, 15, 0.48 ) 100%
-		),
 		var(
-			--os-mesh-holo,
-			linear-gradient( 135deg, #f252fc, #aa67ff 52%, #7deff5 )
-		);
+			--os-ui-hero-mesh,
+			linear-gradient(
+				145deg,
+				rgba( 34, 113, 177, 0.16 ) 0%,
+				rgba( 34, 113, 177, 0.06 ) 55%,
+				rgba( 34, 113, 177, 0 ) 100%
+			)
+		),
+		var( --os-ui-surface-sunken, #f0f0f1 );
 	border: 1px solid
-		color-mix( in srgb, var( --os-ui-accent-dim, #d92ee3 ) 34%, transparent );
+		color-mix(
+			in srgb,
+			var( --os-ui-accent-dim, #d92ee3 ) 34%,
+			var( --os-ui-border, #dcdcde )
+		);
 	border-radius: 18px;
 	box-shadow: var( --os-ui-shadow-md, 0 18px 44px rgba( 0, 0, 0, 0.2 ) );
 }
@@ -2117,7 +2125,7 @@
 	aspect-ratio: 1;
 	background: radial-gradient(
 		circle,
-		rgba( 255, 255, 255, 0.24 ),
+		color-mix( in srgb, var( --os-ui-fg, #fff ) 24%, transparent ),
 		transparent 66%
 	);
 	content: "";
@@ -2133,7 +2141,7 @@
 	padding: clamp( 26px, 4.5cqi, 48px );
 	flex-direction: column;
 	justify-content: space-between;
-	color: #fff;
+	color: var( --os-ui-fg, #1d2327 );
 	text-decoration: none;
 }
 
@@ -2142,7 +2150,7 @@
 }
 
 .os-settings__about-featured .os-settings__about-kicker {
-	color: #f3b5ec;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
 }
 
 .os-settings__about-featured h3 {
@@ -2157,7 +2165,7 @@
 .os-settings__about-featured p {
 	max-width: 700px;
 	margin: 16px 0 0;
-	color: rgba( 255, 255, 255, 0.76 );
+	color: var( --os-ui-fg-muted, #50575e );
 	font-size: 14px;
 	line-height: 1.55;
 }
@@ -2168,7 +2176,7 @@
 	justify-content: space-between;
 	gap: 24px;
 	margin-top: 32px;
-	color: rgba( 255, 255, 255, 0.68 );
+	color: var( --os-ui-fg-faint, #646970 );
 	font-size: 11px;
 }
 
@@ -2176,7 +2184,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	color: #fff;
+	color: var( --os-ui-fg, #1d2327 );
 	font-size: 12px;
 }
 

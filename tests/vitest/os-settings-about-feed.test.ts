@@ -66,6 +66,12 @@ describe("OS Settings — About journal", () => {
 		const featured = wrapper.querySelector<HTMLAnchorElement>(
 			".os-settings__about-featured > a",
 		);
+		const mark = wrapper.querySelector<HTMLImageElement>(
+			".os-settings__about-identity img",
+		);
+		expect(mark?.src).toBe(
+			"https://example.com/plugin/assets/images/openstation-mark.svg",
+		);
 		expect(featured?.href).toBe("https://openstation.blog/newest/");
 		expect(featured?.target).toBe("_blank");
 		expect(featured?.rel).toBe("noopener noreferrer");

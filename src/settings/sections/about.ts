@@ -281,7 +281,7 @@ export function paintAboutSection(
 	const description =
 		feed?.description ||
 		__( 'A public dev diary — building a desktop OS for wp-admin.' );
-	const iconUrl = `${ config.pluginUrl ?? '' }/assets/pwa/icon-128.png`;
+	const iconUrl = `${ config.pluginUrl ?? '' }/assets/images/openstation-mark.svg`;
 	const version = config.pluginVersion ?? '';
 
 	render(
