@@ -44,56 +44,6 @@ export function readNavConfig(): NavConfig {
 	};
 }
 
-/**
- * Store an item's placement. Locked items are refused here rather
- * than only being hidden in the UI, so no caller can write a value
- * that would take Exit OpenStation off the rail.
- */
-export function setPlacement( item: NavItem, placement: NavPlacement ): void {
-	const shim = api();
-	if ( item.locked || ! shim?.getOsSettings || ! shim?.updateOsSettings ) {
-		return;
-	}
-	const next = { ...( shim.getOsSettings().navPlacement ?? {} ) };
-	next[ item.id ] = placement;
-	shim.updateOsSettings( { navPlacement: next } );
-}
-
-/**
- * Add or remove one region for an item — every context-menu pick and
- * every "Hide from …" is this call.
- */
-export function setRegion(
-	item: NavItem,
-	region: 'rail' | 'desktop',
-	on: boolean,
-): void {
-	const current = resolvePlacement( item, readNavConfig().placement );
-	setPlacement( item, withRegion( current, region, on ) );
-}
-
-/** Store several placements in one write, for a multi-selection. */
-export function setPlacements(
-	entries: ReadonlyArray< { item: NavItem; placement: NavPlacement } >,
-): void {
-	const shim = api();
-	if ( ! shim?.getOsSettings || ! shim?.updateOsSettings ) {
-		return;
-	}
-	const next = { ...( shim.getOsSettings().navPlacement ?? {} ) };
-	let changed = false;
-	for ( const { item, placement } of entries ) {
-		if ( item.locked ) {
-			continue;
-		}
-		next[ item.id ] = placement;
-		changed = true;
-	}
-	if ( changed ) {
-		shim.updateOsSettings( { navPlacement: next } );
-	}
-}
-
 /** The shell's current nav items, or `[]` before it has booted. */
 export function readNavItems(): NavItem[] {
 	return api()?.getNavItems?.() ?? [];
@@ -117,19 +67,55 @@ export function findNavItem( id: string ): NavItem | null {
 }
 
 /**
- * Add or remove one region for several ids at once, in a single
- * settings write. Unknown ids are skipped — the caller is working from
- * DOM state that may name something no longer registered.
+ * Store placements for one or more items, in a single write.
+ *
+ * Locked items are refused here rather than only being hidden in the
+ * UI, so no caller can write a value that would take Exit OpenStation
+ * off the rail. `null` for an entry's placement means "leave it
+ * alone", which is what lets {@link setRegion} skip an id it cannot
+ * resolve.
  */
-export function setRegionByIds(
-	ids: readonly string[],
+export function setPlacement(
+	entries: ReadonlyArray< { item: NavItem; placement: NavPlacement } >,
+): void {
+	const shim = api();
+	if ( ! shim?.getOsSettings || ! shim?.updateOsSettings ) {
+		return;
+	}
+	const next = { ...( shim.getOsSettings().navPlacement ?? {} ) };
+	let changed = false;
+	for ( const { item, placement } of entries ) {
+		if ( item.locked ) {
+			continue;
+		}
+		next[ item.id ] = placement;
+		changed = true;
+	}
+	if ( changed ) {
+		shim.updateOsSettings( { navPlacement: next } );
+	}
+}
+
+/**
+ * Add or remove one region for some items, in a single write. Every
+ * context-menu pick and every "Hide from …" is this call.
+ *
+ * Takes items or ids: the context menu holds the item it opened on,
+ * the files layer holds the ids of a multi-selection. Ids that resolve
+ * to nothing are skipped, because a caller working from DOM state may
+ * name something no longer registered.
+ */
+export function setRegion(
+	targets: ReadonlyArray< NavItem | string > | NavItem | string,
 	region: 'rail' | 'desktop',
 	on: boolean,
 ): void {
+	const list = Array.isArray( targets ) ? targets : [ targets ];
 	const placement = readNavConfig().placement;
 	const entries: Array< { item: NavItem; placement: NavPlacement } > = [];
-	for ( const id of ids ) {
-		const item = findNavItem( id );
+	for ( const target of list ) {
+		const item =
+			'string' === typeof target ? findNavItem( target ) : target;
 		if ( ! item ) {
 			continue;
 		}
@@ -142,7 +128,7 @@ export function setRegionByIds(
 			),
 		} );
 	}
-	setPlacements( entries );
+	setPlacement( entries );
 }
 
 /** Commit a drag: the zone's ids in their new order. */

@@ -13,7 +13,11 @@ import { applyOrder, sortByOrder } from './order';
 import type { NavInput, NavItem, NavResult, NavZone } from './types';
 
 /** Zones in paint order, which is also divider order. */
-export const NAV_ZONES: readonly NavZone[] = [ 'core', 'apps', 'controls' ];
+export const NAV_ZONES: readonly NavZone[] = [
+	'core',
+	'apps',
+	'controls',
+] as const;
 
 export function computeNav( input: NavInput ): NavResult {
 	const { items, config, layout, openWindows } = input;

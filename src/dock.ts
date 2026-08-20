@@ -27,6 +27,10 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
+// The zones in paint order. One list, shared with the model that
+// decides what goes in them — two copies of an ordered enum is two
+// places to forget when a zone is added.
+import { NAV_ZONES as DOCK_ZONE_ORDER } from './nav/compute';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -160,13 +164,6 @@ export interface DockZones {
 	/** OpenStation's own affordances. */
 	controls: DockEntry[];
 }
-
-/** The zones in paint order. */
-export const DOCK_ZONE_ORDER: ReadonlyArray< keyof DockZones > = [
-	'core',
-	'apps',
-	'controls',
-];
 
 /**
  * Which zone a system tile belongs to. Derived from what the tile IS,

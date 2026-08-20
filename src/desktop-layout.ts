@@ -25,7 +25,6 @@
 import type { DesktopIconServerEntry, DockItemConfig } from './types';
 import {
 	Dock,
-	DOCK_ZONE_ORDER,
 	type DockEntry,
 	type DockItem,
 	type DockZones,
@@ -50,6 +49,7 @@ import type {
 import {
 	buildNavItems,
 	computeNav,
+	NAV_ZONES,
 	type NavItem,
 	type NavResult,
 	type NavSystemTile,
@@ -395,7 +395,7 @@ export function createLayoutDispatcher(
 		if ( controller.setZones ) {
 			controller.setZones( zones );
 			attached.clear();
-			for ( const zone of DOCK_ZONE_ORDER ) {
+			for ( const zone of NAV_ZONES ) {
 				for ( const entry of zones[ zone ] ) {
 					if ( 'system' === entry.type ) {
 						attached.add( entry.item.id );
@@ -406,7 +406,7 @@ export function createLayoutDispatcher(
 		}
 		const menu: DockItem[] = [];
 		const wanted = new Set< string >();
-		for ( const zone of DOCK_ZONE_ORDER ) {
+		for ( const zone of NAV_ZONES ) {
 			for ( const entry of zones[ zone ] ) {
 				if ( 'menu' === entry.type ) {
 					menu.push( entry.item );
@@ -422,7 +422,7 @@ export function createLayoutDispatcher(
 				attached.delete( id );
 			}
 		}
-		for ( const zone of DOCK_ZONE_ORDER ) {
+		for ( const zone of NAV_ZONES ) {
 			for ( const entry of zones[ zone ] ) {
 				if ( 'system' === entry.type && ! attached.has( entry.item.id ) ) {
 					controller.appendSystemItem( entry.item );
@@ -634,7 +634,7 @@ export function createLayoutDispatcher(
 
 	/** Whether the current navigation paints `id` on any rail. */
 	const railHasItem = ( id: string ): boolean => {
-		for ( const zone of DOCK_ZONE_ORDER ) {
+		for ( const zone of NAV_ZONES ) {
 			if ( nav.dock[ zone ].some( ( item ) => item.id === id ) ) {
 				return true;
 			}

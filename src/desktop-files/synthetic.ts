@@ -13,7 +13,7 @@
  * given how much module-level state `layer.ts` sets up.
  */
 
-import { setRegionByIds } from '../nav/config';
+import { setRegion } from '../nav/config';
 import type { RestPlacementShape } from './rest';
 
 /**
@@ -59,5 +59,5 @@ export function hideFromDesktop( ids: readonly string[] ): void {
 	if ( ids.length === 0 ) {
 		return;
 	}
-	setRegionByIds( ids, 'desktop', false );
+	setRegion( ids, 'desktop', false );
 }

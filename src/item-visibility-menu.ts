@@ -226,7 +226,7 @@ function openItemVisibilityMenuImmediate(
 			label: __( 'Hide everywhere' ),
 			icon: 'dashicons-no',
 			danger: true,
-			onPick: () => setPlacement( item, 'hidden' ),
+			onPick: () => setPlacement( [ { item, placement: 'hidden' } ] ),
 		} );
 	}
 
