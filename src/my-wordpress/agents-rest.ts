@@ -16,6 +16,7 @@ import type {
 	Agent,
 	AgentInvokeResult,
 	HookSuggestion,
+	MioLook,
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
@@ -71,7 +72,16 @@ export interface CreateAgentPayload {
 	role: string;
 	description?: string;
 	instructions?: string;
+	/**
+	 * Abilities go in the CREATE call. There is no need for a second
+	 * request to attach them: the route's arg list accepts them and
+	 * `openstation_agent_create()` writes them. `triggers` is the one
+	 * field that genuinely needs a follow-up patch.
+	 */
 	abilities?: string[];
+	vibes?: string;
+	face?: MioLook;
+	faceSeed?: number;
 }
 
 export function createAgent( payload: CreateAgentPayload ): Promise< Agent > {
@@ -90,6 +100,9 @@ export interface UpdateAgentPayload {
 	triggers?: Trigger[];
 	model?: string;
 	rateLimit?: number;
+	vibes?: string;
+	face?: MioLook;
+	faceSeed?: number;
 }
 
 export function updateAgent(

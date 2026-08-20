@@ -200,7 +200,7 @@ function openstation_agent_avatar( $args, $id_or_email ) {
 	}
 
 	if ( $user_id > 0 && openstation_agent_is_agent( $user_id ) ) {
-		$args['url']          = openstation_agent_avatar_url();
+		$args['url']          = openstation_agent_avatar_url( $user_id );
 		$args['found_avatar'] = true;
 	}
 	return $args;

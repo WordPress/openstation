@@ -13,9 +13,15 @@
  * @public
  */
 
-import { __ } from '../i18n';
+import { __, sprintf } from '../i18n';
 import { html, render } from '../ui/core';
 import { registerEntityKind } from './kind-registry';
+import {
+	FACE_CANDIDATES,
+	faceCandidates,
+	faceFromSeed,
+	faceSrc,
+} from './agents-face';
 import type { EntityRenderHost } from './kind-registry';
 import { buildEditUserUrl, getConfig } from './rest';
 import type { MyWordPressConfig } from './types';
@@ -35,6 +41,8 @@ import type {
 	Agent,
 	AgentsSectionConfig,
 	HookSuggestion,
+	MioLook,
+	PreviewAgent,
 	RoleChoice,
 	Trigger,
 	TriggerKindDescriptor,
@@ -56,6 +64,10 @@ import { getDragManager } from './dom-utils';
 import { attachTileDragOut } from '../desktop-files/tile-spec';
 import { osConfirm } from '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import '../ui/components/os-badge/os-badge';
+import '../ui/components/os-card/os-card';
+import '../ui/components/os-chip/os-chip';
+import '../ui/components/os-segmented/os-segmented';
+import '../ui/components/os-steps/os-steps';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-checkbox-label/os-checkbox-label';
 import '../ui/components/os-empty-state/os-empty-state';
@@ -87,9 +99,118 @@ interface AgentsState {
 	draft: { name: string; description: string; instructions: string; role: string };
 	/** Draft for the create form. */
 	createDraft: { name: string; description: string; instructions: string; role: string };
+	/** Which door the create flow is showing. Guided is the default. */
+	createMode: 'guided' | 'expert';
+	/** Where the guided flow is: 0 Describe, 1 Meet, 2 Powers, 3 Launch. */
+	step: 0 | 1 | 2 | 3;
+	/** The agent being cast. */
+	cast: CastDraft;
+}
+
+/**
+ * The agent taking shape in the wizard.
+ *
+ * Separate from `createDraft` (the expert form) so switching doors
+ * mid-thought loses neither, and carrying its own face so the picker
+ * has something to page through.
+ */
+interface CastDraft {
+	/** The plain-language ask typed into Describe. */
+	brief: string;
+	name: string;
+	description: string;
+	vibes: string;
+	instructions: string;
+	role: string;
+	abilities: string[];
+	/** Which agent this was copied from, if any. */
+	copiedFrom: string;
+	faceSeed: number;
+	face: MioLook;
+	/** First seed of the strip the picker is showing. */
+	stripSeed: number;
+	/** True while the AI draft request is in flight. */
+	drafting: boolean;
+}
+
+/** A blank agent, with a face already rolled so Meet has something. */
+function emptyCast( role: string, seed: number ): CastDraft {
+	return {
+		brief: '',
+		name: '',
+		description: '',
+		vibes: '',
+		instructions: '',
+		role,
+		abilities: [],
+		copiedFrom: '',
+		faceSeed: seed,
+		face: faceFromSeed( seed ),
+		stripSeed: seed,
+		drafting: false,
+	};
 }
 
 const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
+
+/**
+ * A starting point for a new face.
+ *
+ * Random here and deterministic from there on: the seed is picked once
+ * when a wizard opens and then carried, so paging the strip and coming
+ * back lands on the same faces rather than a fresh throw each time.
+ */
+/**
+ * `wp.os.ai.ask()`, resolved off the global at call time.
+ *
+ * The shell bundle owns the AI client and this bundle must not import
+ * it, so it is looked up rather than bound. Narrowed to the two knobs
+ * the wizard uses.
+ */
+type AskLike = (
+	query: string,
+	opts?: {
+		systemPrompt?: string | { mode: 'append' | 'replace'; text: string };
+	},
+) => Promise< { message?: string } >;
+
+function resolveAsk(): AskLike | null {
+	const ask = (
+		window as unknown as {
+			wp?: { os?: { ai?: { ask?: AskLike } } };
+		}
+	).wp?.os?.ai?.ask;
+	return typeof ask === 'function' ? ask : null;
+}
+
+/**
+ * Pull the JSON object out of a model reply.
+ *
+ * The prompt asks for bare JSON; models decorate anyway, with a
+ * sentence before or a code fence around. Scanning for the outermost
+ * braces is more forgiving than trusting the whole string, and no less
+ * safe: whatever comes out is filtered against the site's catalogues
+ * before any of it is used.
+ */
+function parseDraft( text: string ): Record< string, unknown > | null {
+	const start = text.indexOf( '{' );
+	const end = text.lastIndexOf( '}' );
+	if ( start === -1 || end <= start ) {
+		return null;
+	}
+	try {
+		const raw: unknown = JSON.parse( text.slice( start, end + 1 ) );
+		return raw && typeof raw === 'object'
+			? ( raw as Record< string, unknown > )
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+function newSeed(): number {
+	return Math.floor( Math.random() * 0xffffff ) + 1;
+}
 
 /** Per-mount sequence so multi-instance windows get unique target ids. */
 let agentsMountSeq = 0;
@@ -345,6 +466,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 		aiReady: cfg.aiAvailable ? null : false,
 		draft: draftFromAgent( null ),
 		createDraft: { name: '', description: '', instructions: '', role: 'author' },
+		createMode: 'guided',
+		step: 0,
+		cast: emptyCast( 'author', newSeed() ),
 	};
 
 	// Arriving from an agent avatar in the chat window: preselect that
@@ -382,7 +506,13 @@ export function renderAgents( host: EntityRenderHost ): void {
 		}
 		const seen = new Set< number >();
 		root
-			.querySelectorAll< HTMLElement >( '.dm-agents__row[data-agent-id]' )
+			// The cards carry the id now that the sidebar rows are gone.
+			// Both the drag-out source and the drop target are the tile
+			// the agent's face is on, which is also the thing a person
+			// would aim at.
+			.querySelectorAll< HTMLElement >(
+				'.dm-agents__cast-card[data-agent-id]',
+			)
 			.forEach( ( row ) => {
 				const agentId = Number.parseInt( row.dataset.agentId ?? '', 10 );
 				const agent = state.agents.find( ( a ) => a.id === agentId );
@@ -465,11 +595,17 @@ export function renderAgents( host: EntityRenderHost ): void {
 		paint();
 		try {
 			state.agents = await listAgents();
-			if ( state.selectedId === null && state.agents.length > 0 ) {
-				state.selectedId = state.agents[ 0 ].id;
-			}
+			// The cast is the landing view, so nothing auto-selects.
+			// Opening straight into the first agent made sense beside a
+			// permanent sidebar, where the list stayed on screen either
+			// way; with the grid as the home screen it would mean the
+			// crew is the one thing you never see.
+			//
+			// An id that arrived from elsewhere (the chat window's
+			// avatar) still opens, and one that no longer exists falls
+			// back to the grid rather than to somebody else's page.
 			if ( ! state.agents.some( ( a ) => a.id === state.selectedId ) ) {
-				state.selectedId = state.agents[ 0 ]?.id ?? null;
+				state.selectedId = null;
 			}
 			state.draft = draftFromAgent( selected() );
 		} catch ( err ) {
@@ -673,63 +809,251 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
+	/**
+	 * The crew you would get, while the framework is off.
+	 *
+	 * The five shipped agents are seeded when the flag is flipped, so a
+	 * site that has never turned Agents on genuinely has none, and this
+	 * state used to be a paragraph explaining that. Faces make a better
+	 * argument than a paragraph: these are the same cards the grid
+	 * draws once the flag is on, greyed and inert above the button that
+	 * flips it.
+	 *
+	 * Inert all the way down, not just visually. No `interactive`, no
+	 * click handler, no `data-agent-id`: there is nothing to select,
+	 * because none of these are users yet.
+	 *
+	 * Inert is not the same as hidden, though, and this strip is
+	 * deliberately NOT `aria-hidden`. It is the argument this state
+	 * makes: five names, five voices and five jobs. Hiding it would
+	 * hand a screen reader the button and none of the reasons to press
+	 * it, which is the paragraph-of-text state this replaced, only
+	 * worse. It reads as the same list the real cast is, with the faces
+	 * marked decorative — the name is right underneath each one.
+	 *
+	 * Faces are drawn client-side from the shipped look, the same way
+	 * the wizard draws its candidates: nothing has been rendered to
+	 * disk, because rendering happens on save and nothing has saved.
+	 */
+	const previewCast = () => {
+		const cast: PreviewAgent[] = cfg.preview ?? [];
+		if ( cast.length === 0 ) {
+			return null;
+		}
+		return html`
+			<div class="dm-agents__cast-head">
+				<h3>${ __( 'The crew you would get', 'desktop-mode' ) }</h3>
+				<span class="dm-agents__cast-count">${ cast.length }</span>
+			</div>
+			<div class="dm-agents__cast dm-agents__cast--preview" role="list">
+				${ cast.map(
+					( member ) => html`
+						<os-card class="dm-agents__cast-card" role="listitem">
+							<div class="dm-agents__cast-inner">
+								<img
+									class="dm-agents__cast-face"
+									src=${ faceSrc( member.face, 88 ) }
+									alt=""
+									width="88"
+									height="88"
+								/>
+								<span class="dm-agents__cast-name">
+									${ member.name }
+								</span>
+								${ member.vibes
+									? html`<span class="dm-agents__cast-vibes">
+											${ member.vibes }
+									  </span>`
+									: html`` }
+								<span class="dm-agents__cast-good">
+									${ member.description }
+								</span>
+								<os-badge>${ member.roleLabel }</os-badge>
+							</div>
+						</os-card>
+					`,
+				) }
+			</div>
+		`;
+	};
+
 	// "Create agent" lives ABOVE the list, not after the last row: at
 	// the bottom of a scrolling column it drifts off-screen exactly on
 	// the sites that have enough agents to need it.
-	const listPane = () => html`
-		<div class="dm-agents__sidebar">
+	/**
+	 * The cast.
+	 *
+	 * This replaces a 260px sidebar of rows, and the reason is not
+	 * that a grid is prettier. Five agents ship with the plugin, each
+	 * with a real job and its own abilities, and as rows they read as
+	 * a list of settings. As faces they read as a crew, which is what
+	 * they are, and which is what makes a sixth one feel worth making.
+	 */
+	const castGrid = () => {
+		// The off-state and the empty state belong to this view now:
+		// it is what renders when no agent is open, which is exactly
+		// when there is something to explain.
+		if ( off ) {
+			const offDescription = cfg.canEnable
+				? __(
+					'Turn the Agents framework on in OpenStation Preferences → Features to hire this crew, or cast your own.',
+					'desktop-mode',
+				)
+				: __(
+					'Ask an administrator to turn the Agents framework on in OpenStation Preferences → Features.',
+					'desktop-mode',
+				);
+			const enableButton = cfg.canEnable
+				? html`
+						<os-button
+							slot="cta"
+							class="dm-agents__enable"
+							variant="primary"
+							@click=${ () => openAgentsFeatureSetting() }
+						>
+							${ __( 'Turn on Agents', 'desktop-mode' ) }
+						</os-button>
+				  `
+				: html``;
+			const cast = previewCast();
+			// With a crew to show, the explanation shrinks to a bar and
+			// the faces become the body of the state. The bar goes
+			// ABOVE them, which is the one place this departs from the
+			// mockup and it departs for a measured reason: five cards
+			// are taller than the window, so a CTA underneath them
+			// starts off-screen. "Dimming the way out is how a disabled
+			// screen becomes a dead end" — scrolling it out of sight is
+			// the same dead end by a different route. A one-line bar is
+			// not the paragraph the cast was meant to replace, and the
+			// crew is still the first thing worth looking at.
+			//
+			// With no crew — a payload from a PHP side that doesn't
+			// send one — there is nothing to argue with and the full
+			// empty state carries the message on its own.
+			if ( cast === null ) {
+				return html`
+					<os-empty-state
+						icon="superhero"
+						heading=${ __( 'Agents are turned off', 'desktop-mode' ) }
+						description=${ offDescription }
+					>
+						${ enableButton }
+					</os-empty-state>
+				`;
+			}
+			return html`
+				<div class="dm-agents__off-head">
+					<div class="dm-agents__off-copy">
+						<h3>${ __( 'Agents are turned off', 'desktop-mode' ) }</h3>
+						<p>${ offDescription }</p>
+					</div>
+					${ enableButton }
+				</div>
+				${ cast }
+			`;
+		}
+		if ( state.agents.length === 0 ) {
+			let emptyDescription = __(
+				'An administrator has not created any agents on this site yet.',
+				'desktop-mode',
+			);
+			if ( cfg.canManage ) {
+				emptyDescription = __(
+					'Cast your first agent: describe what it should do, give it a face and a voice, then pick the abilities it may use.',
+					'desktop-mode',
+				);
+			}
+			return html`
+				<os-empty-state
+					icon="superhero"
+					heading=${ __( 'No agents yet', 'desktop-mode' ) }
+					description=${ emptyDescription }
+				>
+					${ cfg.canManage
+						? html`
+								<os-button
+									slot="cta"
+									class="dm-agents__create"
+									variant="primary"
+									?disabled=${ state.saving }
+									@click=${ () => startCreate() }
+								>
+									${ __( 'Cast an agent', 'desktop-mode' ) }
+								</os-button>
+						  `
+						: html`` }
+				</os-empty-state>
+			`;
+		}
+		return html`
+		<div class="dm-agents__cast-head">
+			<h3>${ __( 'Your cast', 'desktop-mode' ) }</h3>
+			<span class="dm-agents__cast-count">
+				${ state.agents.length }
+			</span>
+		</div>
+		<div class="dm-agents__cast" role="list">
 			${ cfg.canManage
 				? html`
-						<div class="dm-agents__list-toolbar">
-							<os-button
-								class="dm-agents__create"
-								variant="primary"
-								?disabled=${ state.saving || off }
-								@click=${ () => {
-									state.creating = true;
-									state.notice = '';
-									void ensureRoles();
-									paint();
-								} }
-							>
-								${ __( '+ Create agent', 'desktop-mode' ) }
-							</os-button>
+						<os-card
+							class="dm-agents__cast-new"
+							role="listitem"
+							interactive
+							?disabled=${ state.saving || off }
+							@os-card-click=${ () => startCreate() }
+						>
+							<div class="dm-agents__cast-inner">
+							<span class="dm-agents__cast-plus" aria-hidden="true">+</span>
+							<span class="dm-agents__cast-name">
+								${ __( 'Cast a new agent', 'desktop-mode' ) }
+							</span>
+							<span class="dm-agents__cast-good">
+								${ __(
+									'Start from one of these, or from scratch.',
+									'desktop-mode',
+								) }
+							</span>
 						</div>
+
+						</os-card>
 				  `
 				: html`` }
-			<div class="dm-agents__list" role="listbox" aria-label=${ __( 'Agents', 'desktop-mode' ) }>
 			${ state.agents.map(
 				( agent ) => html`
-					<div
-						class="dm-agents__row ${ agent.id === state.selectedId && ! state.creating
-							? 'is-selected'
-							: '' }"
-						role="option"
-						tabindex="0"
+					<os-card
+						class="dm-agents__cast-card"
+						role="listitem"
+						interactive
 						data-agent-id=${ String( agent.id ) }
-						aria-selected=${ agent.id === state.selectedId ? 'true' : 'false' }
-						@click=${ () => select( agent.id ) }
-						@keydown=${ ( e: KeyboardEvent ) => {
-							if ( e.key === 'Enter' || e.key === ' ' ) {
-								e.preventDefault();
-								select( agent.id );
-							}
-						} }
+						?selected=${ agent.id === state.selectedId }
+						@os-card-click=${ () => select( agent.id ) }
 					>
-						<img class="dm-agents__row-avatar" src=${ agent.avatarUrl } alt="" />
-						<span class="dm-agents__row-text">
-							<span class="dm-agents__row-name">${ agent.name }</span>
-							<span class="dm-agents__row-desc">
-								${ agent.description || __( 'No description yet.', 'desktop-mode' ) }
+						<div class="dm-agents__cast-inner">
+							<img
+								class="dm-agents__cast-face"
+								src=${ agent.avatarUrl }
+								alt=""
+								width="88"
+								height="88"
+							/>
+							<span class="dm-agents__cast-name">${ agent.name }</span>
+							${ agent.vibes
+								? html`<span class="dm-agents__cast-vibes">
+										${ agent.vibes }
+								  </span>`
+								: html`` }
+							<span class="dm-agents__cast-good">
+								${ agent.description ||
+								__( 'No description yet.', 'desktop-mode' ) }
 							</span>
-						</span>
-						<os-badge>${ agent.role }</os-badge>
-					</div>
+							<os-badge>${ roleLabel( agent.role ) }</os-badge>
+						</div>
+					</os-card>
 				`,
 			) }
-			</div>
 		</div>
 	`;
+	};
 
 	const paneTabs = ( agent: Agent ) => html`
 		<div class="dm-agents__tabs" role="tablist">
@@ -1081,124 +1405,754 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	const createPane = () => html`
-		<div class="dm-agents__pane dm-agents__pane--create">
-			<h3>${ __( 'Create agent', 'desktop-mode' ) }</h3>
-			<os-text-field
-				label=${ __( 'Name', 'desktop-mode' ) }
-				value=${ state.createDraft.name }
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.name = e.detail.value;
-				} }
-			></os-text-field>
-			${ state.roles
+	// -----------------------------------------------------------------
+	// The wizard
+	//
+	// Four steps, and a door before them. The door is the part that
+	// matters most: five complete, well-written agents already ship
+	// with the plugin, and until now the create flow showed them to
+	// nobody. Starting from someone is the cheapest good idea here.
+	//
+	// Expert is still one segment away, unchanged.
+	// -----------------------------------------------------------------
+
+	const STEP_LABELS = (): string[] => [
+		__( 'Describe', 'desktop-mode' ),
+		__( 'Meet', 'desktop-mode' ),
+		__( 'Powers', 'desktop-mode' ),
+		__( 'Launch', 'desktop-mode' ),
+	];
+
+	const roleLabel = ( slug: string ): string =>
+		state.roles?.find( ( r ) => r.slug === slug )?.label ?? slug;
+
+	const startCreate = ( from: Agent | null = null ): void => {
+		state.creating = true;
+		state.selectedId = null;
+		state.notice = '';
+		state.createMode = 'guided';
+		const seed = newSeed();
+		state.cast = emptyCast( state.createDraft.role, seed );
+		if ( from ) {
+			// A copy takes the work but not the face. Two agents wearing
+			// one portrait is exactly the confusion the faces exist to
+			// remove, so the copy rolls its own.
+			state.cast.name = sprintf(
+				/* translators: %s: name of the agent being copied. */
+				__( '%s copy', 'desktop-mode' ),
+				from.name,
+			);
+			state.cast.description = from.description;
+			state.cast.vibes = from.vibes;
+			state.cast.instructions = from.instructions;
+			state.cast.role = from.role;
+			state.cast.abilities = [ ...from.abilities ];
+			state.cast.copiedFrom = from.name;
+			state.step = 1;
+		} else {
+			state.step = 0;
+		}
+		void ensureRoles();
+		void ensureCatalogues();
+		paint();
+	};
+
+	const goStep = ( step: 0 | 1 | 2 | 3 ): void => {
+		state.step = step;
+		state.notice = '';
+		paint();
+	};
+
+	/**
+	 * The drafting instruction appended to the Copilot system prompt.
+	 *
+	 * Built at call time so it carries the site's live role and ability
+	 * catalogues: the model may only pick from what this site actually
+	 * has, and anything it invents is dropped on the way back in.
+	 *
+	 * Not translated. It is a model instruction, and the JSON keys it
+	 * fixes are read back by code.
+	 */
+	const draftPrompt = (): string => {
+		const roles = ( state.roles ?? [] ).map( ( r ) => r.slug ).join( ', ' );
+		const abilities = ( state.abilities ?? [] )
+			.map(
+				( a ) =>
+					`- ${ a.slug }: ${ a.label }${
+						a.readonly ? '' : ' (can modify the site)'
+					}`,
+			)
+			.join( '\n' );
+		return [
+			'The user is an administrator defining a new site agent.',
+			'Treat their message as the agent brief. Reply with ONLY a JSON object, no prose and no code fence, shaped exactly as:',
+			'{ "name": string, "description": string, "vibes": string, "instructions": string, "role": string, "abilities": string[] }',
+			'name: a short working name for the agent, four words at most.',
+			'description: one sentence saying when to reach for this agent.',
+			'vibes: the agent\'s voice in a few words, lowercase, no full stop. Examples: "blunt, precise, no sugarcoating" or "warm, reads the room".',
+			'instructions: the agent system prompt. Concrete, scoped to the brief, written to the agent.',
+			`role: the least-privileged fit among: ${ roles }.`,
+			'abilities: only slugs the brief genuinely needs, from this catalogue:',
+			abilities || '(no abilities are registered on this site)',
+		].join( '\n' );
+	};
+
+	const applyDraft = ( parsed: Record< string, unknown > ): void => {
+		const str = ( v: unknown ): string | undefined =>
+			typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
+		const c = state.cast;
+		c.name = str( parsed.name ) ?? c.name;
+		c.description = str( parsed.description ) ?? c.description;
+		c.vibes = ( str( parsed.vibes ) ?? c.vibes ).slice( 0, 120 );
+		c.instructions = str( parsed.instructions ) ?? c.instructions;
+		// The model's suggestion is a suggestion. The catalogue is the
+		// authority, so a role or an ability this site does not have is
+		// dropped rather than trusted.
+		const role = str( parsed.role );
+		if ( role && ( state.roles ?? [] ).some( ( r ) => r.slug === role ) ) {
+			c.role = role;
+		}
+		if ( Array.isArray( parsed.abilities ) ) {
+			const known = new Set( ( state.abilities ?? [] ).map( ( a ) => a.slug ) );
+			c.abilities = parsed.abilities.filter(
+				( x ): x is string => typeof x === 'string' && known.has( x ),
+			);
+		}
+	};
+
+	const draftWithAi = async (): Promise< void > => {
+		if ( state.cast.brief.trim() === '' ) {
+			state.notice = __(
+				'Describe the agent first. A sentence is enough.',
+				'desktop-mode',
+			);
+			paint();
+			return;
+		}
+		const ask = resolveAsk();
+		if ( ! ask ) {
+			// No Copilot in this context. The flow still works; it just
+			// starts from the brief instead of from a draft.
+			seedFromBrief();
+			goStep( 1 );
+			return;
+		}
+		state.cast.drafting = true;
+		state.notice = '';
+		paint();
+		// The prompt quotes both catalogues, so settle them first.
+		await Promise.all( [ ensureCatalogues(), ensureRoles() ] );
+		try {
+			const res = await ask( state.cast.brief.trim(), {
+				systemPrompt: { mode: 'append', text: draftPrompt() },
+			} );
+			const parsed = parseDraft( res?.message ?? '' );
+			if ( parsed ) {
+				applyDraft( parsed );
+			} else {
+				state.notice = __(
+					'The draft came back in a shape that could not be read. The fields below are yours to fill.',
+					'desktop-mode',
+				);
+				seedFromBrief();
+			}
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+			seedFromBrief();
+		}
+		state.cast.drafting = false;
+		// However the draft went, Meet is where it lands: filled it is
+		// a review, empty it is the form.
+		state.step = 1;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
+	/** Their words are already a first draft of the instructions. */
+	const seedFromBrief = (): void => {
+		if (
+			state.cast.instructions === '' &&
+			state.cast.brief.trim() !== ''
+		) {
+			state.cast.instructions = state.cast.brief.trim();
+		}
+	};
+
+	const stepTrail = () => html`
+		<os-steps horizontal class="dm-agents__trail">
+			${ STEP_LABELS().map(
+				( label, i ) => html`
+					<os-step
+						title=${ label }
+						?done=${ i < state.step }
+						?current=${ i === state.step }
+						?interactive=${ i < state.step }
+						@os-step-click=${ () => {
+							if ( i < state.step ) {
+								goStep( i as 0 | 1 | 2 | 3 );
+							}
+						} }
+					></os-step>
+				`,
+			) }
+		</os-steps>
+	`;
+
+	/** Step 0 — the door, then the brief. */
+	const describeStep = () => html`
+		${ state.agents.length > 0
+			? html`
+					<h4 class="dm-agents__wiz-heading">
+						${ __( 'Start from someone', 'desktop-mode' ) }
+					</h4>
+					<p class="dm-agents__hint">
+						${ __(
+							'Copies their instructions and abilities, and rolls a new face. Nothing you pick is changed.',
+							'desktop-mode',
+						) }
+					</p>
+					<div class="dm-agents__starters">
+						${ state.agents.map(
+							( agent ) => html`
+								<os-card
+									class="dm-agents__starter"
+									interactive
+									@os-card-click=${ () => startCreate( agent ) }
+								>
+									<img
+										class="dm-agents__starter-face"
+										src=${ agent.avatarUrl }
+										alt=""
+										width="56"
+										height="56"
+									/>
+									<span class="dm-agents__starter-name">${ agent.name }</span>
+									<span class="dm-agents__starter-vibes">
+										${ agent.vibes || agent.description }
+									</span>
+								</os-card>
+							`,
+						) }
+					</div>
+					<h4 class="dm-agents__wiz-heading">
+						${ __( 'Or describe a new one', 'desktop-mode' ) }
+					</h4>
+			  `
+			: html`` }
+		<os-textarea
+			class="dm-agents__brief"
+			label=${ __( 'What should this agent do?', 'desktop-mode' ) }
+			value=${ state.cast.brief }
+			rows="5"
+			placeholder=${ __(
+				'Go through my drafts once a week and tell me which ones are closest to finished.',
+				'desktop-mode',
+			) }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.cast.brief = e.detail?.value ?? '';
+			} }
+		></os-textarea>
+		<p class="dm-agents__hint">
+			${ __(
+				'Plain words are fine: what it should watch, what it should write, where it may act.',
+				'desktop-mode',
+			) }
+		</p>
+		<div class="dm-agents__actions">
+			${ state.aiReady
 				? html`
-						<os-select
-							label=${ __( 'Role', 'desktop-mode' ) }
-							value=${ state.createDraft.role }
-							@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
-								state.createDraft.role = e.detail?.value ?? state.createDraft.role;
-							} }
+						<os-button
+							variant="holo"
+							?busy=${ state.cast.drafting }
+							@click=${ () => void draftWithAi() }
 						>
-							${ roleOptions( state.roles, state.createDraft.role ) }
-						</os-select>
+							${ __( 'Draft it for me', 'desktop-mode' ) }
+						</os-button>
 				  `
-				: html`<os-spinner></os-spinner>` }
-			<os-text-field
-				label=${ __( 'When to use (description)', 'desktop-mode' ) }
-				value=${ state.createDraft.description }
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.description = e.detail.value;
+				: html`` }
+			<os-button
+				variant=${ state.aiReady ? 'ghost' : 'primary' }
+				?disabled=${ state.cast.drafting }
+				@click=${ () => {
+					seedFromBrief();
+					goStep( 1 );
 				} }
-			></os-text-field>
-			<os-textarea
-				label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
-				value=${ state.createDraft.instructions }
-				rows="8"
-				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-					state.createDraft.instructions = e.detail.value;
-				} }
-			></os-textarea>
+			>
+				${ state.aiReady
+					? __( 'I will fill it in myself', 'desktop-mode' )
+					: __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			<span class="dm-agents__spacer"></span>
+			${ cancelButton() }
+		</div>
+	`;
+
+	/** Step 1 — meet them: the face, the name, the voice. */
+	const meetStep = () => {
+		const strip = faceCandidates( state.cast.stripSeed, FACE_CANDIDATES );
+		return html`
+			<div class="dm-agents__meet">
+				<div class="dm-agents__portrait">
+					<img
+						class="dm-agents__portrait-face"
+						src=${ faceSrc( state.cast.face, 176 ) }
+						alt=""
+						width="176"
+						height="176"
+					/>
+					<div class="dm-agents__faces" role="radiogroup"
+						aria-label=${ __( 'Face', 'desktop-mode' ) }>
+						${ strip.map(
+							( candidate ) => html`
+								<button
+									type="button"
+									class="dm-agents__face-pick ${ candidate.seed ===
+									state.cast.faceSeed
+										? 'is-picked'
+										: '' }"
+									role="radio"
+									aria-checked=${ candidate.seed === state.cast.faceSeed
+										? 'true'
+										: 'false' }
+									@click=${ () => {
+										state.cast.faceSeed = candidate.seed;
+										state.cast.face = candidate.look;
+										paint();
+									} }
+								>
+									<img src=${ faceSrc( candidate.look, 44 ) } alt="" width="44" height="44" />
+								</button>
+							`,
+						) }
+					</div>
+					<os-button
+						variant="secondary"
+						@click=${ () => {
+							state.cast.stripSeed += FACE_CANDIDATES;
+							paint();
+						} }
+					>
+						${ __( 'Surprise me', 'desktop-mode' ) }
+					</os-button>
+				</div>
+				<div class="dm-agents__meet-fields">
+					${ state.cast.copiedFrom
+						? html`<os-notice tone="info">
+								${ sprintf(
+									/* translators: %s: name of the agent this one was copied from. */
+									__( 'Copied from %s, with a face of its own.', 'desktop-mode' ),
+									state.cast.copiedFrom,
+								) }
+						  </os-notice>`
+						: html`` }
+					<os-text-field
+						label=${ __( 'Name', 'desktop-mode' ) }
+						value=${ state.cast.name }
+						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+							state.cast.name = e.detail?.value ?? '';
+						} }
+					></os-text-field>
+					<os-text-field
+						label=${ __( 'Vibes', 'desktop-mode' ) }
+						value=${ state.cast.vibes }
+						maxlength="120"
+						placeholder=${ __(
+							'blunt, precise, no sugarcoating',
+							'desktop-mode',
+						) }
+						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+							state.cast.vibes = e.detail?.value ?? '';
+						} }
+					></os-text-field>
+					<p class="dm-agents__hint">
+						${ __(
+							'One line of voice. It goes into the agent\'s instructions, so it is how the agent sounds rather than a label on a card.',
+							'desktop-mode',
+						) }
+					</p>
+					<os-text-field
+						label=${ __( 'When to use', 'desktop-mode' ) }
+						value=${ state.cast.description }
+						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+							state.cast.description = e.detail?.value ?? '';
+						} }
+					></os-text-field>
+					<os-textarea
+						label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
+						value=${ state.cast.instructions }
+						rows="7"
+						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+							state.cast.instructions = e.detail?.value ?? '';
+						} }
+					></os-textarea>
+				</div>
+			</div>
 			<div class="dm-agents__actions">
-				<os-button ?disabled=${ state.saving } @click=${ () => void onCreate() }>
-					${ __( 'Create', 'desktop-mode' ) }
+				<os-button variant="ghost" @click=${ () => goStep( 0 ) }>
+					${ __( 'Back', 'desktop-mode' ) }
 				</os-button>
+				<span class="dm-agents__spacer"></span>
 				<os-button
+					variant="primary"
+					?disabled=${ state.cast.name.trim() === '' }
+					@click=${ () => goStep( 2 ) }
+				>
+					${ __( 'Continue', 'desktop-mode' ) }
+				</os-button>
+				${ cancelButton() }
+			</div>
+		`;
+	};
+
+	/**
+	 * Step 2 — powers.
+	 *
+	 * Named for what is actually being decided. "Refine" describes what
+	 * you do to a form; what this step decides is what the agent is
+	 * allowed to touch, which is the one thing in the flow worth
+	 * slowing down for.
+	 */
+	const powersStep = () => html`
+		<os-select
+			label=${ __( 'Role', 'desktop-mode' ) }
+			value=${ state.cast.role }
+			@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+				state.cast.role = e.detail?.value ?? state.cast.role;
+				paint();
+			} }
+		>
+			${ state.roles === null
+				? html`<os-option value=${ state.cast.role }>
+						${ state.cast.role }
+				  </os-option>`
+				: roleOptions( state.roles, state.cast.role ) }
+		</os-select>
+		<p class="dm-agents__hint">
+			${ __(
+				"The agent acts with this role's capabilities. Pick the least privilege that still lets it do its job.",
+				'desktop-mode',
+			) }
+		</p>
+		${ abilityPicker() }
+		<div class="dm-agents__actions">
+			<os-button variant="ghost" @click=${ () => goStep( 1 ) }>
+				${ __( 'Back', 'desktop-mode' ) }
+			</os-button>
+			<span class="dm-agents__spacer"></span>
+			<os-button variant="primary" @click=${ () => goStep( 3 ) }>
+				${ __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			${ cancelButton() }
+		</div>
+	`;
+
+	/**
+	 * The ability checklist, grouped and described.
+	 *
+	 * Same shape as the Tools pane on purpose. A guided flow that
+	 * showed a flat, undescribed list would be giving less help than
+	 * the expert surface it is meant to be gentler than.
+	 */
+	const abilityPicker = () => {
+		if ( state.abilities === null ) {
+			return html`<os-spinner></os-spinner>`;
+		}
+		if ( state.abilities.length === 0 ) {
+			return html``;
+		}
+		const groups = new Map< string, Ability[] >();
+		for ( const ability of state.abilities ) {
+			const key = ability.category || __( 'Other', 'desktop-mode' );
+			groups.set( key, [ ...( groups.get( key ) ?? [] ), ability ] );
+		}
+		return html`
+			${ [ ...groups.entries() ].map(
+				( [ category, abilities ] ) => html`
+					<h4 class="dm-agents__category">${ category }</h4>
+					${ abilities.map(
+						( ability ) => html`
+							<div class="dm-agents__ability">
+								<os-checkbox-label
+									label=${ ability.label }
+									?checked=${ state.cast.abilities.includes( ability.slug ) }
+									@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
+										const next = new Set( state.cast.abilities );
+										if ( e.detail?.checked ) {
+											next.add( ability.slug );
+										} else {
+											next.delete( ability.slug );
+										}
+										state.cast.abilities = [ ...next ];
+										paint();
+									} }
+								></os-checkbox-label>
+								<os-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
+									${ ability.readonly
+										? __( 'read-only', 'desktop-mode' )
+										: __( 'can modify', 'desktop-mode' ) }
+								</os-badge>
+								<p class="dm-agents__ability-desc">${ ability.description }</p>
+							</div>
+						`,
+					) }
+				`,
+			) }
+			<p class="dm-agents__hint">
+				${ __(
+					"The agent may only call abilities ticked here, and every call is still gated by the ability's own permission check against the agent's role.",
+					'desktop-mode',
+				) }
+			</p>
+		`;
+	};
+
+	/** Step 3 — launch. */
+	const launchStep = () => {
+		const canChat = cfg.canInvoke && state.aiReady === true;
+		const abilityLabel = ( slug: string ): string =>
+			state.abilities?.find( ( a ) => a.slug === slug )?.label ?? slug;
+		return html`
+			<os-card class="dm-agents__summary">
+				<img
+					class="dm-agents__summary-face"
+					src=${ faceSrc( state.cast.face, 96 ) }
+					alt=""
+					width="96"
+					height="96"
+				/>
+				<div class="dm-agents__summary-text">
+					<h4>${ state.cast.name }</h4>
+					${ state.cast.vibes
+						? html`<p class="dm-agents__summary-vibes">${ state.cast.vibes }</p>`
+						: html`` }
+					<p class="dm-agents__summary-desc">
+						${ state.cast.description ||
+						__( 'No description yet.', 'desktop-mode' ) }
+					</p>
+					<div class="dm-agents__chips">
+						<os-chip size="compact" label=${ roleLabel( state.cast.role ) }></os-chip>
+						${ state.cast.abilities.map(
+							( slug ) => html`<os-chip
+								size="compact"
+								label=${ abilityLabel( slug ) }
+							></os-chip>`,
+						) }
+					</div>
+					${ state.cast.instructions === ''
+						? html`<p class="dm-agents__hint">
+								${ __(
+									'No instructions yet: the agent will improvise. You can add them any time in Define.',
+									'desktop-mode',
+								) }
+						  </p>`
+						: html`` }
+					${ state.cast.abilities.length === 0
+						? html`<p class="dm-agents__hint">
+								${ __(
+									'No abilities ticked: the agent can talk, but not touch the site.',
+									'desktop-mode',
+								) }
+						  </p>`
+						: html`` }
+				</div>
+			</os-card>
+			<div class="dm-agents__actions">
+				<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
+					${ __( 'Back', 'desktop-mode' ) }
+				</os-button>
+				<span class="dm-agents__spacer"></span>
+				<os-button
+					variant=${ canChat ? 'secondary' : 'primary' }
 					?disabled=${ state.saving }
-					@click=${ () => {
-						state.creating = false;
+					@click=${ () => void castCreate( false ) }
+				>
+					${ __( 'Create agent', 'desktop-mode' ) }
+				</os-button>
+				${ canChat
+					? html`
+							<os-button
+								variant="primary"
+								?disabled=${ state.saving }
+								@click=${ () => void castCreate( true ) }
+							>
+								${ __( 'Create and chat', 'desktop-mode' ) }
+							</os-button>
+					  `
+					: html`` }
+				${ cancelButton() }
+			</div>
+		`;
+	};
+
+	const cancelButton = () => html`
+		<os-button
+			variant="ghost"
+			?disabled=${ state.saving || state.cast.drafting }
+			@click=${ () => {
+				state.creating = false;
+				state.notice = '';
+				paint();
+			} }
+		>
+			${ __( 'Cancel', 'desktop-mode' ) }
+		</os-button>
+	`;
+
+	/**
+	 * Create the agent.
+	 *
+	 * One request. Abilities go in the create call, which the route has
+	 * always accepted; a second patch to attach them would leave a
+	 * half-made agent on the server whenever it failed.
+	 */
+	const castCreate = async ( thenChat: boolean ): Promise< void > => {
+		const c = state.cast;
+		if ( c.name.trim() === '' ) {
+			state.notice = __( 'Agent name is required.', 'desktop-mode' );
+			state.step = 1;
+			paint();
+			return;
+		}
+		state.saving = true;
+		state.notice = '';
+		paint();
+		try {
+			const created = await createAgent( {
+				name: c.name.trim(),
+				role: c.role,
+				description: c.description.trim(),
+				instructions: c.instructions,
+				abilities: c.abilities,
+				vibes: c.vibes.trim(),
+				face: c.face,
+				faceSeed: c.faceSeed,
+			} );
+			state.agents = [ ...state.agents, created ].sort( ( a, b ) =>
+				a.name.localeCompare( b.name ),
+			);
+			state.creating = false;
+			state.selectedId = created.id;
+			state.pane = 'define';
+			state.draft = draftFromAgent( created );
+			refreshSendToAgents();
+			if ( thenChat ) {
+				openChatWindow( created );
+			}
+		} catch ( err ) {
+			state.notice = err instanceof Error ? err.message : String( err );
+		}
+		state.saving = false;
+		if ( ! disposed ) {
+			paint();
+		}
+	};
+
+	/**
+	 * The expert door: the flat form, exactly as it was.
+	 *
+	 * Kept because someone who already knows what they want should not
+	 * have to be introduced to anybody. It asks for the same four
+	 * fields it always did; the identity half is the guided flow's job,
+	 * and an agent made here simply gets a face rolled from its seed.
+	 */
+	const expertForm = () => html`
+		<os-text-field
+			label=${ __( 'Name', 'desktop-mode' ) }
+			value=${ state.createDraft.name }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.name = e.detail?.value ?? '';
+			} }
+		></os-text-field>
+		${ state.roles === null
+			? html`<os-spinner></os-spinner>`
+			: html`
+					<os-select
+						label=${ __( 'Role', 'desktop-mode' ) }
+						value=${ state.createDraft.role }
+						@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+							state.createDraft.role =
+								e.detail?.value ?? state.createDraft.role;
+							paint();
+						} }
+					>
+						${ roleOptions( state.roles, state.createDraft.role ) }
+					</os-select>
+			  ` }
+		<os-text-field
+			label=${ __( 'When to use (description)', 'desktop-mode' ) }
+			value=${ state.createDraft.description }
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.description = e.detail?.value ?? '';
+			} }
+		></os-text-field>
+		<os-textarea
+			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
+			value=${ state.createDraft.instructions }
+			rows="8"
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.createDraft.instructions = e.detail?.value ?? '';
+			} }
+		></os-textarea>
+		<div class="dm-agents__actions">
+			<span class="dm-agents__spacer"></span>
+			<os-button
+				variant="primary"
+				?disabled=${ state.saving }
+				@click=${ () => void onCreate() }
+			>
+				${ __( 'Create', 'desktop-mode' ) }
+			</os-button>
+			${ cancelButton() }
+		</div>
+	`;
+
+	const wizardPane = () => html`
+		<div class="dm-agents__wizard">
+			<div class="dm-agents__wiz-head">
+				<h3>${ __( 'New agent', 'desktop-mode' ) }</h3>
+				<os-segmented
+					value=${ state.createMode }
+					label=${ __( 'How to create it', 'desktop-mode' ) }
+					@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
+						state.createMode =
+							e.detail?.value === 'expert' ? 'expert' : 'guided';
 						state.notice = '';
+						void ensureRoles();
 						paint();
 					} }
 				>
-					${ __( 'Cancel', 'desktop-mode' ) }
-				</os-button>
+					<os-segment value="guided">${ __( 'Guided', 'desktop-mode' ) }</os-segment>
+					<os-segment value="expert">${ __( 'Expert', 'desktop-mode' ) }</os-segment>
+				</os-segmented>
 			</div>
+			${ state.createMode === 'expert'
+				? expertForm()
+				: html`
+						${ stepTrail() }
+						${ state.step === 0 ? describeStep() : html`` }
+						${ state.step === 1 ? meetStep() : html`` }
+						${ state.step === 2 ? powersStep() : html`` }
+						${ state.step === 3 ? launchStep() : html`` }
+				  ` }
 		</div>
 	`;
 
 	const detailPane = () => {
-		if ( state.creating ) {
-			return createPane();
-		}
 		const agent = selected();
 		if ( ! agent ) {
-			// The whole off-state message lives here rather than in a
-			// banner above the layout. While the framework is off there
-			// is nothing to list, so this pane always renders — a
-			// banner as well would say the same thing twice, and a
-			// full-window bar carrying one sentence reads as mostly
-			// dead space.
-			if ( off ) {
-				const offDescription = cfg.canEnable
-					? __(
-						'Turn the Agents framework on in OpenStation Preferences → Features to create agents, give them abilities, and chat with them.',
-						'desktop-mode',
-					)
-					: __(
-						'Ask an administrator to turn the Agents framework on in OpenStation Preferences → Features.',
-						'desktop-mode',
-					);
-				return html`
-					<os-empty-state
-						icon="superhero"
-						heading=${ __( 'Agents are turned off', 'desktop-mode' ) }
-						description=${ offDescription }
-					>
-						${ cfg.canEnable
-							? html`
-									<os-button
-										slot="cta"
-										class="dm-agents__enable"
-										variant="primary"
-										@click=${ () => openAgentsFeatureSetting() }
-									>
-										${ __( 'Turn on Agents', 'desktop-mode' ) }
-									</os-button>
-							  `
-							: html`` }
-					</os-empty-state>
-				`;
-			}
-			let emptyDescription = __(
-				'An administrator has not created any agents on this site yet.',
-				'desktop-mode',
-			);
-			if ( cfg.canManage ) {
-				emptyDescription = __(
-					'Create your first agent: give it a name, a role, and instructions, then pick the abilities it may use.',
-					'desktop-mode',
-				);
-			}
-			return html`
-				<os-empty-state
-					icon="superhero"
-					heading=${ __( 'No agents yet', 'desktop-mode' ) }
-					description=${ emptyDescription }
-				></os-empty-state>
-			`;
+			// Unreachable: the view switch only reaches here with an
+			// agent open. Kept as a type guard rather than a branch.
+			return html``;
 		}
 		return html`
+			<os-button
+				class="dm-agents__back"
+				variant="link"
+				@click=${ () => select( null ) }
+			>
+				${ __( '\u2039 Your cast', 'desktop-mode' ) }
+			</os-button>
 			<div class="dm-agents__detail-head">
 				<img class="dm-agents__detail-avatar" src=${ agent.avatarUrl } alt="" />
 				<div class="dm-agents__detail-title">
@@ -1290,16 +2244,28 @@ export function renderAgents( host: EntityRenderHost ): void {
 			syncRowDropTargets();
 			return;
 		}
+		// Three views, one at a time, rather than a sidebar next to a
+		// pane. The cast is the home screen; opening someone replaces
+		// it and a crumb comes back. A grid of faces and a detail form
+		// side by side would leave neither enough room, and the whole
+		// point of the grid is that the faces are big enough to tell
+		// apart.
+		let view;
+		if ( state.creating ) {
+			view = wizardPane();
+		} else if ( selected() ) {
+			view = html`<div class="dm-agents__detail">${ detailPane() }</div>`;
+		} else {
+			view = castGrid();
+		}
+
 		render(
 			html`
 				${ aiNotice() }
 				${ state.notice
 					? html`<os-notice class="dm-agents__notice">${ state.notice }</os-notice>`
 					: html`` }
-				<div class="dm-agents__layout">
-					${ listPane() }
-					<div class="dm-agents__detail">${ detailPane() }</div>
-				</div>
+				<div class="dm-agents__view">${ view }</div>
 			`,
 			root,
 		);

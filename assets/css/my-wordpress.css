@@ -2156,15 +2156,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	box-sizing: border-box;
 }
 
-/* The framework is opt-in but the section is always listed, so with
-   the option off the surface paints inert rather than vanishing.
-   Only the sidebar dims: the detail pane holds the empty state
-   explaining why, and the one button that undoes it — dimming the way
-   out along with everything else is how a disabled screen becomes a
-   dead end. */
-.dm-agents.is-disabled .dm-agents__sidebar {
-	opacity: 0.6;
-}
 
 /* Section-level loading — same scale curve as the My WordPress
    preview loader and the window-loading overlay, instead of the bare
@@ -2180,101 +2171,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .dm-agents__loading os-spinner {
 	--os-ui-spinner-size: clamp( 96px, 14vw, 192px );
 }
-
-.dm-agents__layout {
-	display: flex;
-	flex: 1;
-	min-height: 0;
-	gap: 12px;
-}
-
-/* Sidebar column: a fixed "Create agent" header over the scrolling
-   list. The button used to be the list's last child, which put it out
-   of reach on any site with enough agents to need it. */
-.dm-agents__sidebar {
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 260px;
-	/* `min-width: auto` on a flex item resolves to its min-content
-	   width, and the rows carry long `white-space: nowrap` descriptions
-	   — without this the column ignores its 260px basis and eats the
-	   detail pane. The scroll container used to be this item, whose
-	   non-visible overflow zeroed the minimum for free. */
-	min-width: 0;
-	min-height: 0;
-	border-inline-end: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
-}
-
-.dm-agents__list-toolbar {
-	flex: none;
-	display: flex;
-	padding-block-end: 8px;
-	padding-inline-end: 8px;
-}
-
-.dm-agents__list-toolbar .dm-agents__create {
-	flex: 1;
-}
-
-.dm-agents__list {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	flex: 1;
-	min-height: 0;
-	overflow-y: auto;
-	padding-inline-end: 4px;
-}
-
-.dm-agents__row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 8px;
-	border-radius: 8px;
-	cursor: pointer;
-}
-
-.dm-agents__row:hover {
-	background: var( --os-hover, rgba( 0, 0, 0, 0.06 ) );
-}
-
-.dm-agents__row.is-selected {
-	background: var( --os-selected, rgba( 0, 0, 0, 0.1 ) );
-}
-
-.dm-agents__row-avatar {
-	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	/* Placeholder behind the avatar image while it loads — follows the
-	   palette so it isn't a white disc on a dark station. */
-	background: var( --os-ui-surface-elevated, #fff );
-	flex: none;
-}
-
-.dm-agents__row-text {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-	flex: 1;
-}
-
-.dm-agents__row-name {
-	font-weight: 600;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.dm-agents__row-desc {
-	font-size: 12px;
-	opacity: 0.65;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
 
 .dm-agents__detail {
 	flex: 1;
@@ -2442,4 +2338,349 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .dm-agents__actions {
 	display: flex;
 	gap: 8px;
+}
+
+/* ---------------------------------------------------------------------
+   The cast
+   ------------------------------------------------------------------ */
+
+/* One view at a time: the grid, an agent, or the wizard. A sidebar of
+   faces next to a detail form would leave neither enough room, and the
+   whole point of the grid is that the faces are big enough to tell
+   apart. */
+.dm-agents__view {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	gap: 12px;
+}
+
+.dm-agents__cast-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.dm-agents__cast-head h3 {
+	margin: 0;
+}
+
+.dm-agents__cast-count {
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.dm-agents__cast {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat( auto-fill, minmax( 200px, 1fr ) );
+	align-content: start;
+}
+
+/* The column lives on a wrapper we own, not on the host: the slotted
+   children sit inside the card's own container, so a flex rule on the
+   host never reaches them and the role badges land wherever the
+   description's line count leaves them. */
+.dm-agents__cast-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 2px;
+	height: 100%;
+}
+
+/* The faces are the loud part of this surface, and deliberately so:
+   agent identity is the one place the station spends the mesh budget
+   on something other than a hero CTA. A cast has to be legible at a
+   glance, which is exactly what a flat accent cannot do. */
+.dm-agents__cast-face {
+	width: 88px;
+	height: 88px;
+	margin-block-end: 6px;
+	flex: none;
+}
+
+.dm-agents__cast-name {
+	font-size: 15px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* The voice line, in the instrument register: this is metadata about
+   the agent, not prose from it. */
+.dm-agents__cast-vibes {
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 11.5px;
+	color: var( --os-ui-accent-strong, #2271b1 );
+}
+
+.dm-agents__cast-good {
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+	margin-block: 4px 8px;
+	flex: 1;
+}
+
+/* The framework-off bar: the section's status and its one action, on
+   one line above the crew it would hire. It is deliberately not an
+   `os-empty-state` — that block is centred, icon-led and paragraph-
+   shaped, which is exactly the wall of text the cast replaced, and at
+   five cards tall it would push the button that undoes the situation
+   off the bottom of the window. `flex: none` because `.dm-agents__view`
+   is a scrolling flex column and the bar must not absorb the slack. */
+.dm-agents__off-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	flex: none;
+	gap: 8px 16px;
+	padding: 12px 14px;
+	border-radius: 10px;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__off-copy {
+	min-width: 0;
+}
+
+.dm-agents__off-copy h3 {
+	margin: 0;
+}
+
+.dm-agents__off-copy p {
+	margin: 2px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* The cast the site would get, drawn while the framework is off.
+   Dimmed as a whole rather than desaturated: the five hues ARE the
+   argument this state is making, and a greyscale filter would flatten
+   the crew into five identical blobs on the way to saying "not yet".
+   Opacity says inactive and leaves the faces telling each other apart.
+
+   `pointer-events` is belt and braces — the cards are rendered without
+   `interactive` and without a click handler, so there is nothing to
+   press. It exists so a hover state cannot promise otherwise. */
+.dm-agents__cast--preview {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+.dm-agents__cast-new .dm-agents__cast-plus {
+	display: grid;
+	place-items: center;
+	width: 88px;
+	height: 88px;
+	margin-block-end: 6px;
+	border-radius: 50%;
+	border: 1.5px dashed var( --os-ui-border-strong, #8c8f94 );
+	font-size: 28px;
+	font-weight: 300;
+	line-height: 1;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* ---------------------------------------------------------------------
+   The wizard
+   ------------------------------------------------------------------ */
+
+.dm-agents__wizard {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.dm-agents__wiz-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	flex-wrap: wrap;
+}
+
+.dm-agents__wiz-head h3 {
+	margin: 0;
+}
+
+.dm-agents__trail {
+	margin-block: 6px 14px;
+}
+
+.dm-agents__wiz-heading {
+	margin: 10px 0 2px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+/* The door. Five complete agents already ship with the plugin, and
+   until now the create flow showed them to nobody. */
+.dm-agents__starters {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
+	margin-block: 8px 16px;
+}
+
+.dm-agents__starter {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 2px;
+}
+
+.dm-agents__starter-face {
+	width: 56px;
+	height: 56px;
+	flex: none;
+}
+
+.dm-agents__starter-name {
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.dm-agents__starter-vibes {
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 10.5px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* Meet: the portrait beside the fields, so the thing being named is
+   visible while it is being named. */
+.dm-agents__meet {
+	display: grid;
+	gap: 20px;
+	grid-template-columns: 220px 1fr;
+	align-items: start;
+}
+
+.dm-agents__portrait {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: var( --os-ui-card-radius, 12px );
+	background: var( --os-ui-surface-subtle, transparent );
+}
+
+.dm-agents__portrait-face {
+	width: 176px;
+	height: 176px;
+	max-width: 100%;
+}
+
+.dm-agents__faces {
+	display: grid;
+	grid-template-columns: repeat( 6, 1fr );
+	gap: 2px;
+	width: 100%;
+}
+
+.dm-agents__face-pick {
+	display: grid;
+	place-items: center;
+	padding: 2px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: none;
+	cursor: pointer;
+}
+
+.dm-agents__face-pick img {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.dm-agents__face-pick:hover {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+}
+
+.dm-agents__face-pick.is-picked {
+	border-color: var( --os-ui-accent, #2271b1 );
+}
+
+.dm-agents__face-pick:focus-visible {
+	outline: var( --os-ui-focus-ring, 2px solid #2271b1 );
+	outline-offset: 1px;
+}
+
+.dm-agents__meet-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
+/* Launch: one card, the brand's card radius. */
+.dm-agents__summary {
+	display: grid;
+	grid-template-columns: 96px 1fr;
+	gap: 16px;
+	align-items: start;
+}
+
+.dm-agents__summary-face {
+	width: 96px;
+	height: 96px;
+	flex: none;
+}
+
+.dm-agents__summary-text h4 {
+	margin: 0 0 2px;
+	font-size: 16px;
+}
+
+.dm-agents__summary-vibes {
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 11.5px;
+	color: var( --os-ui-accent-strong, #2271b1 );
+	margin: 0 0 6px;
+}
+
+.dm-agents__summary-desc {
+	margin: 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.dm-agents__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block-start: 10px;
+}
+
+.dm-agents__spacer {
+	flex: 1;
+}
+
+@media ( max-width: 640px ) {
+	.dm-agents__meet,
+	.dm-agents__summary {
+		grid-template-columns: 1fr;
+	}
+	.dm-agents__portrait-face {
+		width: 128px;
+		height: 128px;
+	}
+}
+
+/* The way back to the grid. The window's own breadcrumb goes UP to the
+   folder, which is a different journey: this one returns to the cast. */
+.dm-agents__back {
+	align-self: flex-start;
+	margin-block-end: 4px;
 }

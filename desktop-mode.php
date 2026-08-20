@@ -140,6 +140,7 @@ require_once OPENSTATION_DIR . 'includes/window-chrome.php';
 require_once OPENSTATION_DIR . 'includes/window-notices.php';
 require_once OPENSTATION_DIR . 'includes/wallpapers.php';
 require_once OPENSTATION_DIR . 'includes/mio.php';
+require_once OPENSTATION_DIR . 'includes/mio-portrait.php';
 require_once OPENSTATION_DIR . 'includes/widgets/heartbeat.php';
 require_once OPENSTATION_DIR . 'includes/widgets/widget-comments.php';
 require_once OPENSTATION_DIR . 'includes/widgets/widget-post-stats.php';

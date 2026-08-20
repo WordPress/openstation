@@ -74,6 +74,24 @@ function openstation_agents_register_rest_routes() {
 						'default' => array(),
 						'items'   => array( 'type' => 'string' ),
 					),
+					'vibes'        => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+					// `face` carries no schema beyond "object" and no
+					// sanitize_callback on purpose. The real validator is
+					// openstation_agent_sanitize_face_json(), which clamps
+					// every number; a partial JSON Schema here would only
+					// suggest the route had checked it.
+					'face'         => array(
+						'type'    => 'object',
+						'default' => null,
+					),
+					'faceSeed'     => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
 				),
 			),
 		)
@@ -338,7 +356,19 @@ function openstation_agents_rest_patch( WP_REST_Request $request ) {
 	}
 
 	$fields  = array();
-	$allowed = array( 'name', 'role', 'description', 'instructions', 'abilities', 'triggers', 'model', 'rateLimit' );
+	$allowed = array(
+		'name',
+		'role',
+		'description',
+		'instructions',
+		'abilities',
+		'triggers',
+		'model',
+		'rateLimit',
+		'vibes',
+		'face',
+		'faceSeed',
+	);
 	foreach ( $allowed as $field ) {
 		if ( array_key_exists( $field, $body ) ) {
 			$fields[ $field ] = $body[ $field ];
@@ -502,7 +532,7 @@ function openstation_agents_rest_shape_user( $user ) {
 
 	$avatar = get_avatar_url( $user->ID, array( 'size' => 96 ) );
 	if ( ! is_string( $avatar ) || '' === $avatar ) {
-		$avatar = openstation_agent_avatar_url();
+		$avatar = openstation_agent_avatar_url( (int) $user->ID );
 	}
 
 	return array(
@@ -516,6 +546,9 @@ function openstation_agents_rest_shape_user( $user ) {
 		'triggers'     => openstation_agent_get_triggers( (int) $user->ID ),
 		'model'        => openstation_agent_get_model( (int) $user->ID ),
 		'rateLimit'    => openstation_agent_get_rate_limit( (int) $user->ID ),
+		'vibes'        => openstation_agent_get_vibes( (int) $user->ID ),
+		'face'         => openstation_agent_get_face( (int) $user->ID ),
+		'faceSeed'     => openstation_agent_get_face_seed( (int) $user->ID ),
 		'avatarUrl'    => $avatar,
 	);
 }

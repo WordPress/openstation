@@ -4530,6 +4530,29 @@ Public URL of the same directory. Must resolve to the same bytes as
 - **Param** `string $url`
 - **Return** `string`
 
+### `openstation_agent_faces_base_dir` — Experimental *(filter)*
+
+Absolute path of the agent-face storage directory (no trailing slash).
+Default `uploads/desktop-mode-agent-faces`. Each agent's portrait is
+written here as an SVG named `<agentId>-<hash>.svg`, and served as its
+avatar wherever `get_avatar()` runs.
+
+Whatever this points at **must be web-servable**. The directory is
+hardened exec-off rather than deny-all for exactly that reason: a
+portrait that cannot be fetched is a broken avatar on every screen the
+agent appears on.
+
+- **Param** `string $base`
+- **Return** `string`
+
+### `openstation_agent_faces_base_url` — Experimental *(filter)*
+
+Public URL of the same directory. Must resolve to the same bytes as
+`openstation_agent_faces_base_dir`.
+
+- **Param** `string $url`
+- **Return** `string`
+
 ### `openstation_desktop_themes_payload_cap` — Experimental *(filter)*
 
 How many themes are announced to the shell. Default 24.

@@ -197,7 +197,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | --- | --- | --- | --- |
 | `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
-| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Wizard step indicator. |
+| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a way back. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |
 
 ## Color & theming

@@ -27,7 +27,37 @@ export interface Agent {
 	triggers: Trigger[];
 	model: string;
 	rateLimit: number;
+	/**
+	 * One line of voice: "blunt, precise, no sugarcoating". Appended
+	 * to the agent's instructions at run time, so it is how the agent
+	 * actually sounds rather than a label on a card.
+	 */
+	vibes: string;
+	/**
+	 * The agent's face, as a partial Mio look. Only the keys someone
+	 * had an opinion about, so a change to the shipped companion still
+	 * shows through everywhere they did not.
+	 */
+	face: MioLook;
+	/**
+	 * The seed the face was rolled from. Provenance rather than the
+	 * face itself: what makes a re-roll of the whole roster possible
+	 * without stranding anyone on an old palette.
+	 */
+	faceSeed: number;
 	avatarUrl: string;
+}
+
+/**
+ * A partial Mio look, mirroring `MioLook` in `src/mio/types.ts`.
+ *
+ * Restated here rather than imported so this module stays free of the
+ * Mio bundle's import graph; the shapes are held together by the
+ * portrait fixture, which both sides render through.
+ */
+export interface MioLook {
+	appearance: Record< string, unknown >;
+	physics: Record< string, unknown >;
 }
 
 /** One row of the abilities catalogue (`GET /agents/abilities`). */
@@ -111,4 +141,37 @@ export interface AgentsSectionConfig {
 	aiStatusUrl: string;
 	connectorsUrl: string;
 	runWindowId: string;
+	/**
+	 * The cast this site would be seeded with, sent only while the
+	 * framework is off. The five shipped agents do not exist as users
+	 * until the flag is flipped, so there is nothing to fetch and
+	 * nothing to select: this is the off-state's argument for flipping
+	 * it, drawn greyed and inert above the button that does.
+	 */
+	preview?: PreviewAgent[];
+}
+
+/**
+ * One card in the flag-off preview.
+ *
+ * Not an {@link Agent}: it has no id, because it is not a user yet,
+ * and no `avatarUrl`, because nothing has been rendered to disk. The
+ * face is drawn client-side from the look, the same way the wizard
+ * draws its candidates. Deliberately only the fields a card shows —
+ * instructions and abilities are the bulk of a definition and none of
+ * it is on screen here.
+ */
+export interface PreviewAgent {
+	name: string;
+	vibes: string;
+	description: string;
+	role: string;
+	/**
+	 * Translated, unlike a real card's, which resolves its label out of
+	 * the `/agents/roles` catalogue. That route does not exist while the
+	 * flag is off, so the label ships with the payload rather than
+	 * degrading to the raw slug in English.
+	 */
+	roleLabel: string;
+	face: MioLook;
 }

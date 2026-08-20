@@ -117,6 +117,110 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The off-state's argument for turning the feature on: the crew the
+	 * site would be seeded with, which does not exist as users yet.
+	 *
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 * @covers ::openstation_agents_preview_cast
+	 */
+	public function test_the_roster_is_previewed_while_the_flag_is_off() {
+		$this->disable_agents();
+		$config = $this->agents_config();
+
+		$this->assertArrayHasKey( 'preview', $config );
+		$this->assertSameSize(
+			openstation_agents_default_definitions(),
+			$config['preview'],
+			'The preview should carry the whole shipped cast.'
+		);
+
+		foreach ( $config['preview'] as $member ) {
+			foreach ( array( 'name', 'vibes', 'description', 'role', 'roleLabel', 'face' ) as $key ) {
+				$this->assertArrayHasKey( $key, $member );
+			}
+			$this->assertNotSame( '', $member['name'] );
+			$this->assertArrayHasKey( 'appearance', $member['face'] );
+			$this->assertArrayHasKey( 'physics', $member['face'] );
+		}
+	}
+
+	/**
+	 * Once the flag is on the real cast has been seeded and the grid
+	 * draws that instead, so the preview is dead weight on a payload
+	 * that ships with every WP Explorer window.
+	 *
+	 * @covers ::openstation_agents_my_wordpress_window_args
+	 */
+	public function test_the_preview_is_not_sent_once_the_framework_is_on() {
+		$this->assertArrayNotHasKey( 'preview', $this->agents_config() );
+	}
+
+	/**
+	 * The instructions and the abilities are the bulk of a definition
+	 * and neither is on screen. Shipping them would put a few KB of
+	 * system prompt on every window open, for nothing.
+	 *
+	 * @covers ::openstation_agents_preview_cast
+	 */
+	public function test_the_preview_carries_only_what_a_card_draws() {
+		foreach ( openstation_agents_preview_cast() as $member ) {
+			$this->assertArrayNotHasKey( 'instructions', $member );
+			$this->assertArrayNotHasKey( 'abilities', $member );
+			$this->assertArrayNotHasKey( 'triggers', $member );
+		}
+	}
+
+	/**
+	 * The preview is a promise about what you get, so it has to be the
+	 * face the seeder would actually store. Both sides narrow through
+	 * `openstation_mio_narrow_look()` for exactly this reason; this
+	 * pins that they still agree.
+	 *
+	 * Compared as JSON rather than as arrays, because JSON is what both
+	 * sides actually become — one into user meta, the other onto the
+	 * window config — and the clamp hands back floats where the authored
+	 * data had ints. `24.0` and `24` encode to the same byte and reach
+	 * the same JavaScript number; asserting on the PHP types instead
+	 * would fail on a difference that cannot be observed anywhere.
+	 *
+	 * @covers ::openstation_agents_preview_cast
+	 */
+	public function test_a_previewed_face_is_the_face_the_seeder_stores() {
+		$preview = openstation_agents_preview_cast();
+
+		foreach ( openstation_agents_default_definitions() as $i => $definition ) {
+			$stored = openstation_agent_sanitize_face_json( $definition['face'] );
+
+			$this->assertNotSame( '', $stored, "{$definition['name']} stores no face." );
+			$this->assertSame(
+				$stored,
+				wp_json_encode( $preview[ $i ]['face'] ),
+				"The preview of {$definition['name']} is not the face it would be seeded with."
+			);
+		}
+	}
+
+	/**
+	 * A real card reads its role label out of `/agents/roles`, and that
+	 * route does not exist while the flag is off. Without the label on
+	 * the payload every preview badge would read `editor`, in English,
+	 * on every site.
+	 *
+	 * @covers ::openstation_agents_preview_cast
+	 */
+	public function test_the_previewed_role_arrives_translated() {
+		$names = wp_roles()->get_names();
+
+		foreach ( openstation_agents_preview_cast() as $member ) {
+			$this->assertArrayHasKey( $member['role'], $names );
+			$this->assertSame(
+				translate_user_role( $names[ $member['role'] ] ),
+				$member['roleLabel']
+			);
+		}
+	}
+
+	/**
 	 * An editor sees the section but cannot flip the option — the
 	 * Extended options section of the Features tab is admin-only.
 	 *
