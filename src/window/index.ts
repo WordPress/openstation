@@ -411,6 +411,19 @@ export class Window {
 	public _closeSafetyNetTimer: ReturnType< typeof setTimeout > | null = null;
 
 	/**
+	 * Teardown for `_armOpeningClassRemoval()` — cancels its fallback
+	 * timer and detaches its two animation listeners. Captured on the
+	 * instance so `_finalizeClose()` can run it: a window destroyed
+	 * inside the fallback deadline used to leave a live timer behind,
+	 * pointed at a document that was already going away.
+	 *
+	 * `null` once it has run (or before the window ever opened).
+	 *
+	 * @internal
+	 */
+	private _clearOpeningClassRemoval: ( () => void ) | null = null;
+
+	/**
 	 * Bound `transitionend` listener installed by `close()` so the
 	 * normal animation path can finalise. Captured so
 	 * `_finalizeClose()` can detach it (the previous closure-only
@@ -722,11 +735,14 @@ export class Window {
 	 *   - a `setTimeout` deadline, for the case where no animation
 	 *     event is ever coming (see `OPENING_FALLBACK_MS`).
 	 *
-	 * Whichever fires first wins and detaches the other two.
+	 * Whichever fires first wins and detaches the other two — and
+	 * `_finalizeClose()` runs the same teardown if the window is torn
+	 * down before any of them, so the deadline never outlives the
+	 * window it was arming.
 	 */
 	private _armOpeningClassRemoval(): void {
 		const el = this.element;
-		let timer = 0;
+		let timer: number | null = null;
 		let cleared = false;
 
 		const clear = (): void => {
@@ -734,7 +750,15 @@ export class Window {
 				return;
 			}
 			cleared = true;
-			window.clearTimeout( timer );
+			this._clearOpeningClassRemoval = null;
+			// `null` when the deadline itself is the caller: it has
+			// already fired, so there is nothing to cancel — and
+			// reaching for `window` from a timer that outlived its
+			// document is precisely the failure this avoids.
+			if ( timer !== null ) {
+				window.clearTimeout( timer );
+				timer = null;
+			}
 			el.removeEventListener( 'animationend', onAnimationDone );
 			el.removeEventListener( 'animationcancel', onAnimationDone );
 			el.classList.remove( 'os-window--opening' );
@@ -752,7 +776,11 @@ export class Window {
 
 		el.addEventListener( 'animationend', onAnimationDone );
 		el.addEventListener( 'animationcancel', onAnimationDone );
-		timer = window.setTimeout( clear, OPENING_FALLBACK_MS );
+		timer = window.setTimeout( () => {
+			timer = null;
+			clear();
+		}, OPENING_FALLBACK_MS );
+		this._clearOpeningClassRemoval = clear;
 	}
 
 	/**
@@ -3658,6 +3686,21 @@ export class Window {
 		if ( this._closeSafetyNetTimer !== null ) {
 			clearTimeout( this._closeSafetyNetTimer );
 			this._closeSafetyNetTimer = null;
+		}
+		// The pre-close bridge query's safety net. Its callback is a
+		// no-op post-destroy (`_isDestroyed` guard), but an armed timer
+		// still outlives the window — and a window closed within its
+		// 500ms is the common case, not the rare one.
+		if ( this._iframeCloseTimeout !== null ) {
+			clearTimeout( this._iframeCloseTimeout );
+			this._iframeCloseTimeout = null;
+		}
+		// Cancel the open animation's fallback deadline. Windows that
+		// open and close inside 300ms (test harnesses, plugin
+		// deactivation flows) would otherwise leave it running against
+		// a torn-down document.
+		if ( this._clearOpeningClassRemoval ) {
+			this._clearOpeningClassRemoval();
 		}
 		if ( this._onCloseTransitionEnd ) {
 			this.element.removeEventListener(

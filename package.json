@@ -1,6 +1,6 @@
 {
 	"name": "openstation",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"private": true,
 	"type": "module",
 	"description": "WordPress admin as a desktop OS — draggable, resizable windows on a desktop with a dock.",

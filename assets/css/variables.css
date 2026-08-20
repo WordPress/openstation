@@ -821,7 +821,7 @@ body.os-active {
 	/*
 	 * Dialogs, menus and flyouts.
 	 *
-	 * The five `--os-ui-modal-*` names below are the escape hatch
+	 * The `--os-ui-modal-*` names below are the escape hatch
 	 * `<os-modal>` needs. Its dialog surface is dark whatever the
 	 * admin colour scheme says, so it re-points `--os-ui-fg`,
 	 * `--os-ui-fg-muted`, `--os-ui-border`, `--os-window-bg` and
@@ -830,6 +830,20 @@ body.os-active {
 	 * the palette used to stop at the dialog's edge. It reads these
 	 * instead, so the station owns the dialog again and the literals
 	 * behind them stay as the no-stylesheet floor.
+	 *
+	 * The set has to cover a dark context COMPLETELY, and the four
+	 * added last are the ones that proved it. A dialog re-pointing
+	 * only its text colours is fine while the palette around it is
+	 * dark too — every unre-pointed token happens to agree. Put a
+	 * LIGHT palette outside it (any theme in the admin's own colours,
+	 * Legacy included) and the halves come apart: `--os-ui-surface`
+	 * stays white, so `<os-select>` inside the dialog painted a white
+	 * trigger and the re-pointed `--os-ui-fg` wrote near-white text
+	 * onto it. `--os-ui-hover` was a black wash over a dark row.
+	 *
+	 * So the rule for anything added here: if a token names a SURFACE
+	 * or a wash on one, the dialog owns it. Leaving one out is not
+	 * "inherit the theme", it is "disagree with the other five".
 	 */
 	--os-ui-modal-bg: #1a1721;
 	--os-ui-modal-text: #fffbff;
@@ -837,6 +851,10 @@ body.os-active {
 	--os-ui-modal-border: #4d4a52;
 	--os-ui-modal-field-bg: #33303a;
 	--os-ui-modal-button-bg-hover: rgba(255, 251, 255, 0.14);
+	--os-ui-modal-surface: #1a1721;
+	--os-ui-modal-surface-elevated: #33303a;
+	--os-ui-modal-border-strong: #4d4a52;
+	--os-ui-modal-hover: rgba(255, 251, 255, 0.06);
 	--os-ui-confirm-dialog-bg: #1a1721;
 	--os-ui-context-menu-bg: #1a1721;
 	--os-ui-context-menu-separator-color: rgba(255, 251, 255, 0.1);

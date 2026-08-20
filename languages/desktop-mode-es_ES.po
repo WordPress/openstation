@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-08-14T15:49:23+00:00\n"
+"POT-Creation-Date: 2026-08-19T14:37:25+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -615,7 +615,7 @@ msgid "Comment text"
 msgstr "Buscar medios"
 
 #: src/comments-window/conversation.ts:1218 src/games/challenge-dialog.ts:93
-#: src/item-visibility-menu.ts:482 src/my-wordpress/agents-renderer.ts:1134
+#: src/item-visibility-menu.ts:471 src/my-wordpress/agents-renderer.ts:1134
 #: src/my-wordpress/bulk-actions.ts:358 src/my-wordpress/bulk-actions.ts:745
 #: src/my-wordpress/bulk-actions.ts:826 src/my-wordpress/index.ts:4654
 #: src/my-wordpress/index.ts:4799 src/my-wordpress/media-list.ts:510
@@ -877,7 +877,7 @@ msgstr ""
 msgid "Revision"
 msgstr ""
 
-#: src/content-graph/panel.ts:940 src/window/index.ts:3011
+#: src/content-graph/panel.ts:940 src/window/index.ts:3191
 msgid "Saved"
 msgstr ""
 
@@ -1089,29 +1089,29 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. %s is an admin menu title (e.g. "Appearance").
-#: src/dock-constellation/index.ts:832
+#: src/dock-constellation/index.ts:835
 msgid "%s menu"
 msgstr ""
 
-#: src/dock-constellation/index.ts:994
+#: src/dock-constellation/index.ts:997
 #, fuzzy
 msgid "Open windows"
 msgstr "Abrir en una nueva pestaña del navegador"
 
 #. %d is a count of currently-open windows.
-#: src/dock-constellation/index.ts:999
+#: src/dock-constellation/index.ts:1002
 #, fuzzy
 msgid "%d open window"
 msgid_plural "%d open windows"
 msgstr[0] "Abrir en una nueva pestaña del navegador"
 msgstr[1] "Abrir en una nueva pestaña del navegador"
 
-#: src/dock-constellation/index.ts:1029
+#: src/dock-constellation/index.ts:1032
 #, fuzzy
 msgid "Minimized"
 msgstr "Minimizar"
 
-#: src/dock-constellation/index.ts:1029 src/dock-constellation/index.ts:1056
+#: src/dock-constellation/index.ts:1032 src/dock-constellation/index.ts:1059
 #: src/my-wordpress/integrations/woocommerce.ts:748
 #: src/my-wordpress/integrations/woocommerce.ts:836
 #: src/my-wordpress/integrations/woocommerce.ts:913
@@ -1132,12 +1132,12 @@ msgid "1 item"
 msgstr ""
 
 #. %s is the dock item's admin-page title (e.g., "Posts")
-#: src/dock-peek/index.ts:292
+#: src/dock-peek/index.ts:295
 msgid "%s — open windows"
 msgstr ""
 
 #. %s is the admin-page title (e.g., "Posts")
-#: src/dock-peek/index.ts:602
+#: src/dock-peek/index.ts:605
 msgid "New %s"
 msgstr ""
 
@@ -1766,70 +1766,70 @@ msgstr ""
 msgid "Oldest first"
 msgstr ""
 
-#: src/item-visibility-menu.ts:249
+#: src/item-visibility-menu.ts:238
 msgid "Hide from dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:265
+#: src/item-visibility-menu.ts:254
 #, fuzzy
 msgid "Also show on desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:273
+#: src/item-visibility-menu.ts:262
 #, fuzzy
 msgid "Hide from desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: src/item-visibility-menu.ts:289
+#: src/item-visibility-menu.ts:278
 msgid "Also show on dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:297
+#: src/item-visibility-menu.ts:286
 msgid "Hide everywhere"
 msgstr ""
 
-#: src/item-visibility-menu.ts:305
+#: src/item-visibility-menu.ts:294
 msgid "Apps & Plugins settings…"
 msgstr ""
 
 #. %s is the owning plugin's display name.
-#: src/item-visibility-menu.ts:328
+#: src/item-visibility-menu.ts:317
 #, fuzzy
 msgid "Deactivate %s…"
 msgstr "Subiendo…"
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:477
+#: src/item-visibility-menu.ts:466
 #, fuzzy
 msgid "Deactivate %s?"
 msgstr "Error al subir."
 
-#: src/item-visibility-menu.ts:478
+#: src/item-visibility-menu.ts:467
 msgid ""
 "This plugin will stop running on the site. You can re-activate it later from "
 "the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:481 src/plugins-window/flyout-detail.ts:589
+#: src/item-visibility-menu.ts:470 src/plugins-window/flyout-detail.ts:589
 #: src/plugins-window/installed-view.ts:634
 #: src/plugins-window/installed-view.ts:717
 msgid "Deactivate"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:539
+#: src/item-visibility-menu.ts:528
 #, fuzzy
 msgid "Could not deactivate %s."
 msgstr "No se pudieron cargar tus medios: %s"
 
 #. 1: plugin title. 2: number of windows that were closed.
-#: src/item-visibility-menu.ts:563
+#: src/item-visibility-menu.ts:552
 msgid "%1$s deactivated. Closed %2$d window(s)."
 msgstr ""
 
 #. %s: plugin title.
 #. %s: plugin name
-#: src/item-visibility-menu.ts:569 src/plugins-window/flyout-detail.ts:708
+#: src/item-visibility-menu.ts:558 src/plugins-window/flyout-detail.ts:708
 #: src/plugins-window/installed-view.ts:887
 msgid "%s deactivated."
 msgstr ""
@@ -1882,7 +1882,7 @@ msgstr ""
 msgid "Shape"
 msgstr ""
 
-#: src/mio/style-panel.ts:301 src/mio/style-panel.ts:703
+#: src/mio/style-panel.ts:301 src/mio/style-panel.ts:711
 msgid "Make it yours"
 msgstr ""
 
@@ -1911,117 +1911,117 @@ msgstr ""
 msgid "Wobble when idle"
 msgstr ""
 
-#: src/mio/style-panel.ts:403
+#: src/mio/style-panel.ts:405
 msgid "Wobble strength"
 msgstr ""
 
-#: src/mio/style-panel.ts:414
+#: src/mio/style-panel.ts:416
 msgid "Wobble speed"
 msgstr ""
 
-#: src/mio/style-panel.ts:423
+#: src/mio/style-panel.ts:427
 msgid "Colour"
 msgstr ""
 
-#: src/mio/style-panel.ts:427
+#: src/mio/style-panel.ts:431
 msgid "Hue"
 msgstr ""
 
-#: src/mio/style-panel.ts:438
+#: src/mio/style-panel.ts:442
 msgid "Hue spread"
 msgstr ""
 
-#: src/mio/style-panel.ts:449
+#: src/mio/style-panel.ts:453
 msgid "Saturation"
 msgstr ""
 
-#: src/mio/style-panel.ts:460
+#: src/mio/style-panel.ts:464
 msgid "Brightness"
 msgstr ""
 
-#: src/mio/style-panel.ts:469
+#: src/mio/style-panel.ts:473
 msgid "Ring"
 msgstr ""
 
-#: src/mio/style-panel.ts:473
+#: src/mio/style-panel.ts:477
 msgid "Thickness"
 msgstr ""
 
-#: src/mio/style-panel.ts:484
+#: src/mio/style-panel.ts:488
 msgid "Glow"
 msgstr ""
 
-#: src/mio/style-panel.ts:512
+#: src/mio/style-panel.ts:516
 #, fuzzy
 msgid "Gradient"
 msgstr "Gradiente personalizado"
 
-#: src/mio/style-panel.ts:516
+#: src/mio/style-panel.ts:520
 msgid "Gradient angle"
 msgstr ""
 
-#: src/mio/style-panel.ts:525
+#: src/mio/style-panel.ts:529
 msgid "Loop the gradient (no seam)"
 msgstr ""
 
-#: src/mio/style-panel.ts:532
+#: src/mio/style-panel.ts:536
 #, fuzzy
 msgid "Spin the gradient"
 msgstr "Gradiente personalizado"
 
-#: src/mio/style-panel.ts:543
+#: src/mio/style-panel.ts:547
 #, fuzzy
 msgid "Cycle the colours"
 msgstr "Color de acento"
 
-#: src/mio/style-panel.ts:552
+#: src/mio/style-panel.ts:556
 msgid "Hologram"
 msgstr ""
 
-#: src/mio/style-panel.ts:554
+#: src/mio/style-panel.ts:558
 msgid "Holographic"
 msgstr ""
 
-#: src/mio/style-panel.ts:569
+#: src/mio/style-panel.ts:575
 msgid "Iridescence"
 msgstr ""
 
-#: src/mio/style-panel.ts:578
+#: src/mio/style-panel.ts:586
 msgid "Body"
 msgstr ""
 
-#: src/mio/style-panel.ts:579
+#: src/mio/style-panel.ts:587
 msgid "Body colour"
 msgstr ""
 
-#: src/mio/style-panel.ts:583
+#: src/mio/style-panel.ts:591
 msgid "Body opacity"
 msgstr ""
 
-#: src/mio/style-panel.ts:592
+#: src/mio/style-panel.ts:600
 msgid "Eyes"
 msgstr ""
 
-#: src/mio/style-panel.ts:593
+#: src/mio/style-panel.ts:601
 #, fuzzy
 msgid "Eye colour"
 msgstr "Color de acento"
 
-#: src/mio/style-panel.ts:597
+#: src/mio/style-panel.ts:605
 #, fuzzy
 msgid "Eye size"
 msgstr "Tamaño del dock"
 
-#: src/mio/style-panel.ts:621
+#: src/mio/style-panel.ts:629
 msgid "Surprise me"
 msgstr ""
 
-#: src/mio/style-panel.ts:631
+#: src/mio/style-panel.ts:639
 msgid "Restore Mio"
 msgstr ""
 
-#: src/mio/style-panel.ts:640 src/plugins-window/upload-dialog.ts:469
-#: src/settings/sections/wallpaper.ts:223
+#: src/mio/style-panel.ts:648 src/plugins-window/upload-dialog.ts:469
+#: src/settings/sections/wallpaper.ts:224
 msgid "Done"
 msgstr ""
 
@@ -6002,7 +6002,7 @@ msgstr ""
 msgid "%d item(s) skipped (insufficient permissions)."
 msgstr ""
 
-#: src/related-entities/index.ts:263
+#: src/related-entities/index.ts:276
 msgid "Related"
 msgstr ""
 
@@ -6303,11 +6303,11 @@ msgstr ""
 msgid "Move your cursor through the swarm · click for a spark"
 msgstr ""
 
-#: src/settings/sections/accent.ts:111 src/settings/sections/accent.ts:117
+#: src/settings/sections/accent.ts:110 src/settings/sections/accent.ts:116
 msgid "Accent color"
 msgstr "Color de acento"
 
-#: src/settings/sections/accent.ts:112
+#: src/settings/sections/accent.ts:111
 msgid "Used in focused window title bars, buttons, and focus rings."
 msgstr "Usado en barras de título enfocadas, botones y anillos de foco."
 
@@ -7010,52 +7010,52 @@ msgstr ""
 msgid "Desktop theme"
 msgstr "Escritorio %d"
 
-#: src/settings/sections/wallpaper.ts:56
+#: src/settings/sections/wallpaper.ts:57
 msgid ""
 "Mix your own two-colour gradient and set the angle — your desk, your palette."
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:61 src/settings/sections/wallpaper.ts:78
+#: src/settings/sections/wallpaper.ts:62 src/settings/sections/wallpaper.ts:79
 msgid "Custom gradient"
 msgstr "Gradiente personalizado"
 
-#: src/settings/sections/wallpaper.ts:102
+#: src/settings/sections/wallpaper.ts:103
 msgid "Custom image"
 msgstr "Imagen personalizada"
 
-#: src/settings/sections/wallpaper.ts:106
+#: src/settings/sections/wallpaper.ts:107
 msgid ""
 "Any image from your media library or an upload, sized to cover the whole "
 "desk."
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:168
+#: src/settings/sections/wallpaper.ts:169
 #, fuzzy
 msgid "Wallpaper settings"
 msgstr "Fondo de pantalla"
 
 #. %s: wallpaper name.
-#: src/settings/sections/wallpaper.ts:203
+#: src/settings/sections/wallpaper.ts:204
 msgid "%s settings"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:456
+#: src/settings/sections/wallpaper.ts:457
 msgid "From"
 msgstr "Desde"
 
-#: src/settings/sections/wallpaper.ts:462
+#: src/settings/sections/wallpaper.ts:463
 msgid "To"
 msgstr "Hasta"
 
-#: src/settings/sections/wallpaper.ts:468
+#: src/settings/sections/wallpaper.ts:469
 msgid "Angle"
 msgstr "Ángulo"
 
-#: src/settings/sections/wallpaper.ts:605
+#: src/settings/sections/wallpaper.ts:606
 msgid "Wallpaper"
 msgstr "Fondo de pantalla"
 
-#: src/settings/sections/wallpaper.ts:606
+#: src/settings/sections/wallpaper.ts:607
 msgid ""
 "The backdrop behind your windows. Pick a preset, mix your own gradient, or "
 "drop in an image."
@@ -7063,7 +7063,7 @@ msgstr ""
 "El fondo tras tus ventanas. Elige un preestablecido, mezcla tu propio "
 "gradiente o suelta una imagen."
 
-#: src/settings/sections/wallpaper.ts:670
+#: src/settings/sections/wallpaper.ts:671
 #, fuzzy
 msgid "Use your own image"
 msgstr "O usa tu propia imagen"
@@ -7151,7 +7151,7 @@ msgstr "Minimizar"
 msgid "Maximize"
 msgstr "Maximizar"
 
-#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:1964
+#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:2064
 #: includes/admin-bar.php:69 includes/admin-bar.php:691
 msgid "Enter fullscreen"
 msgstr "Entrar en pantalla completa"
@@ -7178,23 +7178,23 @@ msgstr "Abrir otra ventana de %s"
 msgid "Open in new window"
 msgstr "Abrir en una nueva pestaña del navegador"
 
-#: src/window/dom.ts:526
+#: src/window/dom.ts:537
 msgid "Reload"
 msgstr ""
 
-#: src/window/dom.ts:539
+#: src/window/dom.ts:552
 #, fuzzy
 msgid "Open in browser tab"
 msgstr "Abrir en una nueva pestaña del navegador"
 
 #. %s is the window's title (e.g., "OpenStation Preferences")
-#: src/window/dom.ts:831
+#: src/window/dom.ts:844
 #, fuzzy
 msgid "%s sections"
 msgstr "Acciones de ventana"
 
 #. %s is the window's admin-page title (e.g., "Posts")
-#: src/window/dom.ts:834
+#: src/window/dom.ts:847
 msgid "%s sub-pages"
 msgstr "Subpáginas de %s"
 
@@ -7221,17 +7221,17 @@ msgstr "Error al subir."
 msgid "Request failed (HTTP %d)."
 msgstr ""
 
-#: src/window/index.ts:1964 includes/admin-bar.php:690
+#: src/window/index.ts:2064 includes/admin-bar.php:690
 #: includes/admin-bar.php:692
 msgid "Exit fullscreen"
 msgstr "Salir de pantalla completa"
 
-#: src/window/index.ts:3014
+#: src/window/index.ts:3194
 msgid "Not saved."
 msgstr ""
 
 #. %s: error message explaining why the change could not be saved.
-#: src/window/index.ts:3017
+#: src/window/index.ts:3197
 msgid "Not saved. %s"
 msgstr ""
 
@@ -9929,22 +9929,22 @@ msgstr ""
 msgid "Desktop icon `url` must be a valid http(s) URL."
 msgstr ""
 
-#: includes/registries/native-windows.php:162
+#: includes/registries/native-windows.php:196
 msgid "Native window id is required and must be a valid slug."
 msgstr ""
 
 #. translators: %s: capability slug.
-#: includes/registries/native-windows.php:200
+#: includes/registries/native-windows.php:236
 #, php-format
 msgid ""
 "Current user lacks the %s capability required to register this native window."
 msgstr ""
 
-#: includes/registries/native-windows.php:215
+#: includes/registries/native-windows.php:251
 msgid "Native window registration requires a non-empty `title`."
 msgstr ""
 
-#: includes/registries/native-windows.php:222
+#: includes/registries/native-windows.php:258
 msgid ""
 "Native window registration requires a callable `template` that echoes the "
 "template body."
@@ -10026,7 +10026,7 @@ msgid ""
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:1040
+#: includes/render/assets.php:1050
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -10061,6 +10061,27 @@ msgstr ""
 #, fuzzy
 msgid "Add Theme"
 msgstr "Añadir %s"
+
+#: includes/themes-tabs.php:130
+msgid "Site appearance"
+msgstr ""
+
+#: includes/themes-tabs.php:131
+msgid "Choose how your site greets the world."
+msgstr ""
+
+#: includes/themes-tabs.php:132
+msgid ""
+"Your theme shapes the templates, typography, colours, and layout visitors "
+"see. Your posts and pages stay in place when you switch."
+msgstr ""
+
+#: includes/themes-tabs.php:147
+#, fuzzy
+msgid "Theme installed"
+msgid_plural "Themes installed"
+msgstr[0] "Ese archivo no es una imagen."
+msgstr[1] "Ese archivo no es una imagen."
 
 #: includes/title-bar-buttons.php:54
 msgid ""
