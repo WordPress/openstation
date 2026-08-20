@@ -251,21 +251,22 @@ function openstation_default_os_settings() {
 		// "Delete folder sharing data" action in OS Settings →
 		// Features → Advanced is a separate destructive cleanup.
 		'foldersSharingEnabled'       => true,
-		// Per-item placement preferences. Map of item id (dock-item
-		// slug or registered desktop-icon id) → one of:
-		// 'both'    — show on both dock and desktop.
-		// 'dock'    — show only on the dock; hide from desktop.
-		// 'desktop' — show only on the wallpaper; hide from dock.
+		// Per-item navigation placement. Map of item id → one of:
+		// 'both'    — show on a rail and on the desktop.
+		// 'rail'    — show only on a rail: the dock, or the sidebar
+		// for a Core admin menu in the split layout.
+		// 'desktop' — show only on the wallpaper.
 		// 'hidden'  — hide from every shell surface.
-		// Missing keys mean "no override" — items use their native rail.
+		// Missing keys mean "no override" — the item takes the default
+		// for its kind, which lives in `src/nav/defaults.ts`.
 		// Sanitized as map<sanitize_key, enum>. Capped at 256 entries.
-		'itemVisibility'              => array(),
-		// Per-user dock ordering. Ordered list of item ids; ids not in
-		// the list keep their server-supplied position appended after
-		// the listed ones. Unknown ids are tolerated.
-		'dockOrder'                   => array(),
-		// Persisted desktop position for every dock item the user has
-		// promoted to the wallpaper via `itemVisibility[id]=desktop|both`.
+		'navPlacement'                => array(),
+		// Per-user ordering, flat across every dock/sidebar zone. Ids
+		// not in the list keep their registration order and render
+		// after the listed ones. Unknown ids are tolerated.
+		'navOrder'                    => array(),
+		// Persisted desktop position for every item the user has
+		// promoted to the wallpaper via `navPlacement[id]=desktop|both`.
 		// Keyed by item id, value is `{ x: int, y: int }`. The JS
 		// synthesizer reads this when building a synthetic placement so
 		// the icon lands where the user last dragged it instead of
@@ -312,6 +313,74 @@ function openstation_save_os_settings( $user_id, $settings ) {
 
 	$clean = openstation_sanitize_os_settings( $settings );
 	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
+}
+
+/**
+ * Strip the rail-synthesis prefix an id could carry before the
+ * navigation model.
+ *
+ * `dock:<id>` / `desktop:<id>` used to mean "this tile is a copy of an
+ * item whose real home is the other rail". Nothing synthesizes copies
+ * any more — an item is one item wherever it is painted — so the
+ * prefix is noise, and left in place it would key a preference to an
+ * id nothing registers.
+ *
+ * @param string $id Possibly-prefixed id.
+ * @return string Canonical id.
+ */
+function openstation_canonical_nav_id( $id ) {
+	$id = (string) $id;
+	if ( 0 === strpos( $id, 'dock:' ) ) {
+		return substr( $id, 5 );
+	}
+	if ( 0 === strpos( $id, 'desktop:' ) ) {
+		return substr( $id, 8 );
+	}
+	return $id;
+}
+
+/**
+ * Carry a pre-navigation `itemVisibility` map into `navPlacement`.
+ *
+ * The only value that moves is `'dock'` → `'rail'`: the stored name
+ * is now the REGION rather than a rail, so a Core admin menu the user
+ * kept on a rail follows the layout into the sidebar instead of
+ * needing a second migration the first time they switch.
+ *
+ * Runs on read (see {@see openstation_sanitize_os_settings()}) rather
+ * than as a numbered migration, because OS settings are per-user meta
+ * and a site with many users would pay for a sweep that the next save
+ * performs for free.
+ *
+ * @param array $visibility Legacy map of item id → placement.
+ * @return array Map of canonical item id → nav placement.
+ */
+function openstation_migrate_item_visibility( $visibility ) {
+	$map = array(
+		'dock'    => 'rail',
+		'desktop' => 'desktop',
+		'both'    => 'both',
+		'hidden'  => 'hidden',
+	);
+
+	$out = array();
+	foreach ( (array) $visibility as $key => $val ) {
+		if ( ! is_string( $key ) || ! is_string( $val ) || ! isset( $map[ $val ] ) ) {
+			continue;
+		}
+		$id = openstation_canonical_nav_id( $key );
+		if ( '' === $id ) {
+			continue;
+		}
+		// A prefixed and an unprefixed key can collapse onto the same
+		// id. The unprefixed one is the item's own preference rather
+		// than a synthesized copy's, so it wins whichever order they
+		// arrive in.
+		if ( $id === $key || ! isset( $out[ $id ] ) ) {
+			$out[ $id ] = $map[ $val ];
+		}
+	}
+	return $out;
 }
 
 /**
@@ -693,14 +762,26 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
 
-	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
+	// navPlacement — map<sanitize_key, enum>. Unknown ids are kept
 	// (a deactivated plugin's setting should survive reactivation);
 	// invalid placement values are dropped.
-	$item_visibility = array();
-	if ( isset( $raw['itemVisibility'] ) && is_array( $raw['itemVisibility'] ) ) {
-		$allowed_placements = array( 'both', 'dock', 'desktop', 'hidden' );
+	//
+	// Reads the pre-navigation `itemVisibility` map when this user has
+	// no `navPlacement` yet, so an existing arrangement carries over on
+	// first load and is written back on the next save. See
+	// `openstation_migrate_item_visibility()`.
+	$raw_placement = array();
+	if ( isset( $raw['navPlacement'] ) && is_array( $raw['navPlacement'] ) ) {
+		$raw_placement = $raw['navPlacement'];
+	} elseif ( isset( $raw['itemVisibility'] ) && is_array( $raw['itemVisibility'] ) ) {
+		$raw_placement = openstation_migrate_item_visibility( $raw['itemVisibility'] );
+	}
+
+	$nav_placement = array();
+	if ( ! empty( $raw_placement ) ) {
+		$allowed_placements = array( 'both', 'rail', 'desktop', 'hidden' );
 		$count              = 0;
-		foreach ( $raw['itemVisibility'] as $key => $val ) {
+		foreach ( $raw_placement as $key => $val ) {
 			if ( $count >= 256 ) {
 				break;
 			}
@@ -714,32 +795,36 @@ function openstation_sanitize_os_settings( $raw ) {
 			if ( ! in_array( $val, $allowed_placements, true ) ) {
 				continue;
 			}
-			$item_visibility[ $slug ] = $val;
+			$nav_placement[ $slug ] = $val;
 			++$count;
 		}
 	}
 
-	// dockOrder — ordered list of item ids. Most are sanitize_key()-
-	// clean dock slugs, but cross-rail tiles the user promoted carry a
-	// rail-synthesis prefix (`desktop:<id>` / `dock:<id>`, built by
-	// src/settings/item-placement.ts). sanitize_key() strips the colon,
-	// which silently breaks the JS order match on reload and can collide
-	// with an unrelated id — so allow the colon (and hyphen/underscore)
-	// while still rejecting anything outside the JS id charset.
-	$dock_order = array();
-	if ( isset( $raw['dockOrder'] ) && is_array( $raw['dockOrder'] ) ) {
+	// navOrder — ordered list of item ids, flat across every zone.
+	// Reads the pre-navigation `dockOrder` when absent, stripping the
+	// rail-synthesis prefixes (`dock:` / `desktop:`) that model no
+	// longer has.
+	$raw_order = array();
+	if ( isset( $raw['navOrder'] ) && is_array( $raw['navOrder'] ) ) {
+		$raw_order = $raw['navOrder'];
+	} elseif ( isset( $raw['dockOrder'] ) && is_array( $raw['dockOrder'] ) ) {
+		$raw_order = $raw['dockOrder'];
+	}
+
+	$nav_order = array();
+	if ( ! empty( $raw_order ) ) {
 		$seen = array();
-		foreach ( $raw['dockOrder'] as $id ) {
+		foreach ( $raw_order as $id ) {
 			if ( ! is_string( $id ) || '' === $id ) {
 				continue;
 			}
-			$slug = (string) preg_replace( '/[^a-z0-9_:-]+/', '', strtolower( $id ) );
+			$slug = sanitize_key( openstation_canonical_nav_id( $id ) );
 			if ( '' === $slug || isset( $seen[ $slug ] ) ) {
 				continue;
 			}
 			$seen[ $slug ] = true;
-			$dock_order[]  = $slug;
-			if ( count( $dock_order ) >= 256 ) {
+			$nav_order[]   = $slug;
+			if ( count( $nav_order ) >= 256 ) {
 				break;
 			}
 		}
@@ -824,8 +909,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
-		'itemVisibility'              => $item_visibility,
-		'dockOrder'                   => $dock_order,
+		'navPlacement'                => $nav_placement,
+		'navOrder'                    => $nav_order,
 		'dockPromotedPositions'       => $dock_promoted_positions,
 	);
 }
@@ -903,7 +988,7 @@ function openstation_rest_get_os_settings() {
  * silently becomes a no-op.
  *
  * Merging is shallow, one level deep. For the map-shaped fields
- * (`wallpaperSettings`, `itemVisibility`, `dockOrder`,
+ * (`wallpaperSettings`, `navPlacement`, `navOrder`,
  * `dockPromotedPositions`) a request that sends the key replaces the
  * whole map — deep-merging them would leave no way to delete an
  * entry.

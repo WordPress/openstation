@@ -19,6 +19,7 @@ import type {
 	DockAttentionMode,
 	DockItem,
 	DockOrientation,
+	DockZones,
 	SubmenuItem,
 	SystemDockItem,
 } from '../dock';
@@ -55,14 +56,14 @@ import type { WindowManager } from '../window-manager';
 export interface DockRailMountDeps {
 	container: HTMLElement;
 	/**
-	 * The rail-scoped slice of the menu — what THIS rail is meant to
-	 * paint. Classic layout splits the menu (`isCore` to side rail,
-	 * the rest to primary), so a custom renderer registered against
-	 * the primary rail in Classic only sees the plugin half here.
+	 * Always empty at mount time. The shell fills the rail through the
+	 * controller — `setZones` when the renderer implements it,
+	 * `replaceItems` otherwise — on the same turn `mount()` returns,
+	 * so a rail's contents come from exactly one place.
 	 *
-	 * Use this when you want to honour the layout's intent. Use
-	 * {@link fullMenu} when you want the entire admin menu
-	 * regardless of rail.
+	 * Kept in the shape for renderers that read it; treat it as the
+	 * starting state, not as the rail's slice of the menu. Use
+	 * {@link fullMenu} for the whole admin menu regardless of rail.
 	 */
 	items: DockItem[];
 	/**
@@ -75,12 +76,12 @@ export interface DockRailMountDeps {
 	 */
 	fullMenu: DockItem[];
 	/**
-	 * Snapshot of every JS-registered system tile across both rails
-	 * at mount time — the OS Settings tile, plugin-owned native-
-	 * window launchers, the recycle bin, etc. Mirrors `fullMenu`'s
-	 * shape: a single read at mount time of the cohort that flows
-	 * through `appendSystemItem` / `removeSystemItem` over the
-	 * renderer's lifetime.
+	 * Snapshot of every JS-registered system tile the user has not
+	 * hidden — plugin-owned native-window launchers, the recycle bin,
+	 * OpenStation's own controls. Mirrors `fullMenu`'s shape: a single
+	 * read at mount time of the cohort that flows through `setZones`
+	 * (or `appendSystemItem` / `removeSystemItem`) over the renderer's
+	 * lifetime.
 	 *
 	 * Use this when your renderer wants to apply uniform treatment
 	 * (partition, sort, filter, decorate) to *every* dockable
@@ -143,6 +144,24 @@ export interface DockRailController {
 	 * tracked separately.
 	 */
 	replaceItems( items: DockItem[] ): void;
+	/**
+	 * Replace the rail's entire contents, zone by zone — the shell's
+	 * preferred write path.
+	 *
+	 * A rail has three zones with a divider between each pair of
+	 * non-empty ones: WordPress's own admin menus, then apps (plugin
+	 * menus, app launchers, and any running window with no home of its
+	 * own), then OpenStation's controls. A zone can mix menu-derived
+	 * and system-derived entries, which is why they arrive as one
+	 * `DockEntry` union rather than through two separate calls.
+	 *
+	 * Optional for backwards compatibility. A renderer that doesn't
+	 * implement it is driven through `replaceItems` +
+	 * `appendSystemItem` / `removeSystemItem` instead and sees the
+	 * flat shape it always saw, losing only the zone boundaries it had
+	 * no way to paint anyway.
+	 */
+	setZones?( zones: DockZones ): void;
 	/** Append a JS-owned system tile after the menu items. */
 	appendSystemItem( item: SystemDockItem ): void;
 	/** Remove a system tile by id. Idempotent — unknown ids no-op. */

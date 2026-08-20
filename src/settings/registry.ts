@@ -3,7 +3,7 @@
  *
  * Plugins register additional tabs in the OS Settings window via the
  * public `wp.os.registerSettingsTab()` API. Built-in tabs
- * (appearance, ai, apps-icons, features, effects, help,
+ * (appearance, ai, navigation, features, effects, help,
  * about) live directly in `panel.ts`; this registry extends the panel
  * with externally-contributed tabs without the core module needing to
  * know about them.
@@ -180,20 +180,19 @@ export interface OsSettingsSnapshot {
 	 */
 	developerModeEnabled: boolean;
 	/**
-	 * Per-item placement preferences. Map of item id → one of
-	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
-	 * "use the item's native rail." See
-	 * {@link OsSettingsState.itemVisibility} for full semantics.
+	 * Per-item navigation placement. Map of item id → one of
+	 * `'rail' | 'desktop' | 'both' | 'hidden'`. Missing keys mean
+	 * "use the default for the item's kind". See
+	 * {@link OsSettingsState.navPlacement} for full semantics.
 	 */
-	itemVisibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' >;
+	navPlacement: Record< string, 'rail' | 'desktop' | 'both' | 'hidden' >;
 	/**
-	 * User-defined dock ordering. Ordered list of item ids; ids absent
-	 * from the list render after the listed ones in server-supplied
-	 * order.
+	 * User-defined ordering, flat across every zone. Ids absent from
+	 * the list render after the listed ones in registration order.
 	 */
-	dockOrder: string[];
+	navOrder: string[];
 	/**
-	 * Persisted desktop position (in CSS px) for every dock item the
+	 * Persisted desktop position (in CSS px) for every item the
 	 * user has promoted onto the wallpaper. Keyed by dock-item id.
 	 * Missing keys mean "no override" — the synth placement falls
 	 * back to the default grid slot. See
@@ -257,7 +256,7 @@ export interface DesktopSettingsTab {
 	capability?: string;
 	/**
 	 * Sort order relative to built-in tabs:
-	 * appearance = 10, ai = 20, apps-icons = 22, features = 25,
+	 * appearance = 10, ai = 20, navigation = 22, features = 25,
 	 * effects = 27, help = 40 (About is pinned last
 	 * with a sentinel order). Default 100 — third-party tabs render
 	 * after the built-ins, before About.

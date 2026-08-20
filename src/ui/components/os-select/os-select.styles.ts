@@ -82,6 +82,59 @@ export const selectStyles = css`
 		cursor: not-allowed;
 	}
 
+	/*
+	 * Plain: the picker as a row's trailing control rather than as a
+	 * field of its own.
+	 *
+	 * A settings list already draws the container — one box, hairlines
+	 * between rows — so a bordered, filled field inside each row draws
+	 * a second box around a value that has no label of its own to sit
+	 * under. macOS Control Center is the reference: the value reads as
+	 * the row's answer, and the chrome only appears under the pointer.
+	 *
+	 * Shrinks to its content and hugs the trailing edge, which is what
+	 * lets a row put it opposite the title without a grid.
+	 */
+	:host( [ plain ] ) {
+		display: inline-flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	/*
+	 * The visible label goes, the accessible one stays: the host
+	 * mirrors the label prop onto aria-label, so a plain picker still
+	 * announces which row it answers for. Pass the row's own title as
+	 * the label — it is the control's name whether or not it is drawn
+	 * twice.
+	 */
+	:host( [ plain ] ) .os-select__label {
+		display: none;
+	}
+
+	:host( [ plain ] ) .os-select__trigger {
+		width: auto;
+		padding: 4px 6px;
+		background: transparent;
+		border-color: transparent;
+		border-radius: 6px;
+	}
+
+	:host( [ plain ] ) .os-select__trigger:hover:not( :disabled ) {
+		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
+		border-color: transparent;
+	}
+
+	/* The ring still lands: a keyboard user has to find this. */
+	:host( [ plain ] ) .os-select__trigger:focus,
+	:host( [ plain ] ) .os-select__trigger:focus-visible {
+		border-color: var( --os-ui-accent, #2271b1 );
+	}
+
+	:host( [ plain ] ) .os-select__value {
+		flex: 0 1 auto;
+	}
+
 	.os-select__value {
 		flex: 1;
 		min-width: 0;

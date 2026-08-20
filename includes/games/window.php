@@ -130,7 +130,14 @@ function openstation_games_register_window() {
 		'height'     => 600,
 		'min_width'  => 560,
 		'min_height' => 400,
-		'placement'  => 'dock',
+		// No dock tile from the window registration: the desktop icon
+		// below is this app's one launcher. Registering both used to
+		// mint two entries for one app, each with its own default, and
+		// the dock painted a tile while Preferences said "On the
+		// desktop". The navigation model collapses them either way —
+		// this keeps Games matching how My WordPress and Corkboard
+		// already register.
+		'placement'  => 'none',
 	);
 
 	/**

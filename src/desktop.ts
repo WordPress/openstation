@@ -207,8 +207,8 @@ import { buildPublicApi, installPublicApi } from './api/facade';
 import { setCurrentLayout } from './layout';
 import {
 	installShortcutsSync,
-	syncShortcutsWithVisibility,
-} from './settings/desktop-shortcuts-sync';
+	syncDesktopShortcuts,
+} from './nav/desktop-sync';
 import { bootNotes } from './notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
@@ -1048,7 +1048,7 @@ export interface OpenStationPublicApi {
 	 * ```
 	 *
 	 * Built-in tab orders for reference: appearance=10, themes=12,
-	 * apps-icons=22, features=25, effects=27, help=40
+	 * navigation=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
 	 */
 	registerSettingsTab: ( tab: DesktopSettingsTab ) => void;
@@ -1148,14 +1148,35 @@ export interface OpenStationPublicApi {
 		id: string;
 		title: string;
 		icon: string;
-		affinity: 'core' | 'plugin';
 		/**
-		 * Whether the tile opts into OS Settings → Apps & Plugins, so
-		 * the user can hide it. Opt-in: most system tiles are
-		 * load-bearing.
+		 * What the tile IS: `'app'` for a launcher, `'control'` for
+		 * one of OpenStation's own affordances. Decides its default
+		 * placement and its dock zone.
+		 */
+		navKind: 'app' | 'control';
+		/**
+		 * Whether the tile opts into OpenStation Preferences →
+		 * Navigation, so the user can move or hide it. Opt-in: most
+		 * system tiles are load-bearing.
 		 */
 		placeable: boolean;
+		/** Cannot be moved or hidden. Exit OpenStation only. */
+		locked: boolean;
 	} >;
+	/**
+	 * Every navigable thing the shell knows about — admin menus, app
+	 * launchers, registered desktop icons, OpenStation's own controls
+	 * — as one flat list, whatever surface each is currently on.
+	 * What OpenStation Preferences → Navigation lists.
+	 */
+	getNavItems: () => import( './nav' ).NavItem[];
+	/**
+	 * The current computed navigation: which dock zone holds what,
+	 * what the sidebar holds, what is on the wallpaper, and which
+	 * tiles are present only because their window is open. `null`
+	 * before the layout dispatcher has booted.
+	 */
+	getNav: () => import( './nav' ).NavResult | null;
 	/**
 	 * Look up a system tile by id. Returns the underlying
 	 * `SystemDockItem` so callers can read its `title` / `icon` /
@@ -2658,8 +2679,8 @@ function init(): void {
 				getSettings: () => {
 					const snap = osSettings.getOsSettingsSnapshot();
 					return {
-						itemVisibility: snap.itemVisibility,
-						dockOrder: snap.dockOrder,
+						navPlacement: snap.navPlacement,
+						navOrder: snap.navOrder,
 					};
 				},
 			},
@@ -2720,6 +2741,12 @@ function init(): void {
 			id: SYSTEM_TILE_ID,
 			title: 'System',
 			icon: OS_SYSTEM_ICON,
+			navKind: 'control',
+			// Movable and hideable like every other control. It is the
+			// most convenient route to Preferences, not the only one:
+			// the right-click menu on any tile or icon carries a
+			// "Navigation settings…" row, and ⌘K reaches it too.
+			placeable: true,
 			order: SYSTEM_TILE_ORDER.system,
 			// The tile's own click opens Preferences: the flyout is
 			// a hover gesture, and keyboards and touch never fan it
@@ -2795,7 +2822,7 @@ function init(): void {
 			// the "open windows" section can never disagree.
 			isOpen: () => anyRowOpen( systemTile.submenu ?? [] ),
 		};
-		layoutDispatcher.appendSystemTile( systemTile, 'core' );
+		layoutDispatcher.appendSystemTile( systemTile );
 
 		// Async post-boot: if the PWA is already installed in the
 		// current browser profile (Chrome's `Open in app` indicator in
@@ -2832,7 +2859,7 @@ function init(): void {
 	 * Settings inside their own UI.
 	 *
 	 * Pass `{ tabId }` to land directly on a specific settings tab
-	 * (e.g. `'ai'`, `'apps-icons'`). The tab is set before the window
+	 * (e.g. `'ai'`, `'navigation'`). The tab is set before the window
 	 * opens so a fresh render mounts on it; if the window is already
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
@@ -2911,20 +2938,16 @@ function init(): void {
 		// "Switch to Classic Admin" toggle. Reuses the existing
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
-		layoutDispatcher.appendSystemTile(
-			getExitOpenStationTileDef(),
-			'core',
-		);
+		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
 
-		// Mio tile — `'plugin'` affinity, classifying it as an optional
-		// app rather than a shell affordance. Clicking toggles the
-		// companion; the active dot tracks whether it is on screen.
+		// Mio tile — one of OpenStation's controls, so it rides the
+		// dock's trailing cluster rather than sitting among the apps.
+		// Clicking toggles the companion; the active dot tracks
+		// whether it is on screen.
 		//
-		// `placeable` is what puts a row in OS Settings → Apps & Plugins,
+		// `placeable` is what puts a row in Preferences → Navigation,
 		// so a user who doesn't want a desk companion can hide the
-		// toggle itself. It is opt-in precisely because most system
-		// tiles must not be hideable — OS Settings is how you reach the
-		// screen that would hide it.
+		// toggle itself.
 		//
 		// **This tile is Mio's entire always-on cost.** Nothing
 		// here reaches the simulation: `MioController` is a couple of
@@ -2932,41 +2955,38 @@ function init(): void {
 		// soft body and the ~25 kB Mio bundle are script-injected on
 		// the first toggle. A shell whose user never switches the
 		// Mio on downloads none of it.
-		layoutDispatcher.appendSystemTile(
-			{
-				id: MIO_TILE_ID,
-				title: 'Mio',
-				icon: MIO_TILE_ICON,
-				placeable: true,
-				order: SYSTEM_TILE_ORDER.mio,
-				isOpen: () => mioApi.isEnabled(),
-				onOpen: () => {
-					void mioApi.toggle();
-				},
+		layoutDispatcher.appendSystemTile( {
+			id: MIO_TILE_ID,
+			title: 'Mio',
+			icon: MIO_TILE_ICON,
+			navKind: 'control',
+			placeable: true,
+			order: SYSTEM_TILE_ORDER.mio,
+			isOpen: () => mioApi.isEnabled(),
+			onOpen: () => {
+				void mioApi.toggle();
 			},
-			'plugin',
-		);
+		} );
 
 		// Overview tile — the same surface ArrowUp toggles. A tile for
 		// it because the gesture is undiscoverable: a shortcut nobody
 		// pressed is a feature nobody has.
-		layoutDispatcher.appendSystemTile(
-			{
-				id: OVERVIEW_TILE_ID,
-				title: 'Overview',
-				icon: OS_OVERVIEW_ICON,
-				order: SYSTEM_TILE_ORDER.overview,
-				isOpen: () => manager._overviewActive,
-				onOpen: () => {
-					if ( manager._overviewActive ) {
-						manager.exitOverview();
-					} else {
-						manager.enterOverview();
-					}
-				},
+		layoutDispatcher.appendSystemTile( {
+			id: OVERVIEW_TILE_ID,
+			title: 'Overview',
+			icon: OS_OVERVIEW_ICON,
+			navKind: 'control',
+			placeable: true,
+			order: SYSTEM_TILE_ORDER.overview,
+			isOpen: () => manager._overviewActive,
+			onOpen: () => {
+				if ( manager._overviewActive ) {
+					manager.exitOverview();
+				} else {
+					manager.enterOverview();
+				}
 			},
-			'plugin',
-		);
+		} );
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
@@ -3737,6 +3757,25 @@ function init(): void {
 		} );
 	};
 
+	/**
+	 * Make the files layer match the navigation.
+	 *
+	 * Reads the dispatcher's computed result rather than re-deriving
+	 * placements: the wallpaper and the rails have to agree about what
+	 * is on the wallpaper, and the only way to guarantee that is for
+	 * both to read the same answer.
+	 */
+	const syncShortcutsNow = (): void => {
+		if ( ! layoutDispatcher ) {
+			return;
+		}
+		syncDesktopShortcuts(
+			layoutDispatcher.getNav().desktop,
+			layoutDispatcher.getNavItems(),
+			osSettings.getOsSettingsSnapshot().dockPromotedPositions,
+		);
+	};
+
 	// Live menu refresh — rebuild the dock when a plugin activation
 	// or deactivation lands in any windowed `plugins.php`. Without
 	// this the dock reflects the server-side `$menu` at shell boot
@@ -3764,13 +3803,7 @@ function init(): void {
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
-		syncShortcuts: () => {
-			const snapshot = osSettings.getOsSettingsSnapshot();
-			syncShortcutsWithVisibility(
-				snapshot.itemVisibility,
-				snapshot.dockPromotedPositions,
-			);
-		},
+		syncShortcuts: syncShortcutsNow,
 	} );
 
 	// Live desktop-theme repaint.
@@ -3853,13 +3886,10 @@ function init(): void {
 		) {
 			layoutDispatcher.refresh();
 		}
-		// Bring the files-layer placements in line with the new
-		// visibility map — promotes dock items onto the wallpaper
-		// and removes hidden server icons from the grid.
-		syncShortcutsWithVisibility(
-			snapshot.itemVisibility,
-			snapshot.dockPromotedPositions,
-		);
+		// Bring the files-layer placements in line with the navigation
+		// the dispatcher just recomputed — mints a placement for
+		// anything newly on the wallpaper, drops what left it.
+		syncShortcutsNow();
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
 		// having to thread the OsSettings snapshot through.
@@ -3868,12 +3898,9 @@ function init(): void {
 
 	// Install the files-layer reconciler. Runs an initial sync on a
 	// microtask AND on every files-store change so the server's
-	// page-load hydration of registered icons gets filtered through
-	// the visibility map immediately.
-	installShortcutsSync(
-		() => osSettings.getOsSettingsSnapshot().itemVisibility,
-		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
-	);
+	// page-load hydration of registered icons is filtered through the
+	// navigation immediately.
+	installShortcutsSync( syncShortcutsNow );
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`
 	// before the first OS Settings change sees the right value.
@@ -4316,7 +4343,7 @@ function init(): void {
 				sortOrder: i,
 			} );
 			// Synthetic placements (dock-item promotions) live JS-only —
-			// `settings/desktop-shortcuts-sync.ts`
+			// `nav/desktop-sync.ts`
 			// mints them with a negative id and never persists them via
 			// the files REST layer. PATCHing one 404s (`rest_no_route`,
 			// the route regex only matches positive ids). See

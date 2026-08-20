@@ -295,7 +295,11 @@ describe( 'dock-rail dispatcher integration', () => {
 		const deps = mount.mock.calls[ 0 ][ 0 ];
 		expect( deps.container ).toBe( shell.bottomDockEl );
 		expect( deps.orientation ).toBe( 'bottom' );
-		expect( deps.items ).toHaveLength( 1 );
+		// Rails mount empty and are filled through the controller on
+		// the same turn, so a renderer learns its contents from exactly
+		// one place. `fullMenu` still carries the whole admin menu.
+		expect( deps.items ).toHaveLength( 0 );
+		expect( deps.fullMenu ).toHaveLength( 1 );
 		expect( typeof deps.openItem ).toBe( 'function' );
 		expect( typeof deps.openSystemItem ).toBe( 'function' );
 		expect( typeof deps.openSubmenuPick ).toBe( 'function' );

@@ -2296,7 +2296,7 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 ### `wp.os.mio` — Experimental
 
-Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Apps & Plugins.
+Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Navigation.
 
 Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
 
@@ -3562,7 +3562,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ### `registerSettingsTab( def )` — Stable
 
-Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Plugins, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OpenStation Preferences window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Navigation, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -3571,7 +3571,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
-| `order` | `number` | no | Default `100`. Built-ins: appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
+| `order` | `number` | no | Default `100`. Built-ins: appearance=10, themes=12, navigation=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
 | `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `openstation_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
@@ -3580,7 +3580,7 @@ Register a tab in the OpenStation Preferences window. The tab is appended (or so
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -3728,9 +3728,9 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | Field | Type | Notes |
 |---|---|---|
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
-| `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
+| `items` | `DockItem[]` | Always empty at mount time. The shell fills the rail through the controller — `setZones()` when the renderer implements it, `replaceItems()` otherwise — on the same turn `mount()` returns, so a rail's contents come from exactly one place. |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OpenStation Preferences, plugin-owned launchers, recycle bin, …). Tiles the user hid via OpenStation Preferences → Apps & Plugins are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile the user has not hidden (plugin-owned launchers, the recycle bin, OpenStation's own controls), at mount time. Live updates flow through `setZones()`, or through `appendSystemItem` / `removeSystemItem` for renderers that don't implement it. |
 | `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-os-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
@@ -3787,7 +3787,7 @@ Open (or focus, if already open) the shell's OpenStation Preferences window. Rou
 wp.os.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'themes'`, `'windows'`, `'apps-icons'`, `'features'`, `'help'` (labelled Components, admin-only), and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. Two ids are accepted as aliases for the page that absorbed them: `'extended'` → `'features'`, and `'effects'` → `'windows'`. The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'themes'`, `'windows'`, `'navigation'`, `'features'`, `'help'` (labelled Components, admin-only), and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. Two ids are accepted as aliases for the page that absorbed them: `'extended'` → `'features'`, and `'effects'` → `'windows'`. The tab is selected before the window opens, and if OpenStation Preferences is already open the live tab strip switches in place:
 
 ```js
 // Deep-link straight to the AI Settings tab.
@@ -3813,7 +3813,7 @@ wp.os.updateOsSettings(
 ): void;
 ```
 
-- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
+- **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `navOrder` entries must be non-empty strings, `navPlacement` values must be one of `'rail' | 'desktop' | 'both' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
 - **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockPlacement`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.os.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
@@ -3854,19 +3854,22 @@ Each entry is a read-only descriptor — the underlying `SystemDockItem` (with i
         id:        string,
         title:     string,
         icon:      string,
-        affinity:  'core' | 'plugin',  // shell affordance vs plugin launcher
-        placeable: boolean,            // opted into OpenStation Preferences → Apps & Plugins
+        navKind:   'app' | 'control',  // a launcher, or one of OpenStation's own
+        placeable: boolean,            // opted into OpenStation Preferences → Navigation
+        locked:    boolean,            // cannot be moved or hidden (Exit only)
     },
     …
 ]
 ```
 
-`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the visibility override is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
+`navKind` describes what the tile IS, and that is what decides its default placement (apps default to the wallpaper, controls to a rail) and which dock zone it sits in. Set it on the tile (`SystemDockItem.navKind`, default `'app'`), or on a native window through `'nav_kind'`.
+
+`placeable` is opt-in (`SystemDockItem.placeable`), because most system tiles are load-bearing — OpenStation Preferences is how you reach the very screen that would hide it. Set it on tiles that are genuinely optional decoration; Mio's toggle is the shipped example. Note the placement preference is honoured whether or not the flag is set: all it controls is whether the user is offered a row.
 
 ```js
 const tiles = wp.os.listSystemTiles();
-const settings = tiles.find( ( t ) => t.id === 'os-settings' );
-// settings → { id, title: 'OpenStation Preferences', icon: 'dashicons-desktop', affinity: 'core' }
+const trash = tiles.find( ( t ) => t.id === 'desktop-mode-recycle-bin' );
+// trash → { id, title: 'Trash', icon: 'dashicons-trash', navKind: 'control', … }
 ```
 
 A custom rail renderer that wants to compose against the same tile set the default renderer paints — e.g., a launcher palette that lists every native-window plugin tile + the OpenStation Preferences tile in one place — uses this to enumerate.
@@ -3897,6 +3900,53 @@ const everything = wp.os.getMenuItems();   // [ DockItem, DockItem, … ]
 Returns a defensive copy — mutating the result doesn't change shell state. Updates with every live menu refresh; call from inside [`os-registry-changed`](#os-registry-changed--stable) CustomEvent listeners (or the rail renderer's `replaceItems`) to get the fresh post-refresh snapshot.
 
 > **For renderers using the registry path:** `DockRailMountDeps.fullMenu` and `fullSystemTiles` carry the same data and are preferable inside a `mount()` body — they're snapshots at the moment the rail mounts, so a renderer holding the arrays sees stable references.
+
+---
+
+### `getNavItems()` — Stable
+
+Every navigable thing the shell knows about, as one flat list, whatever surface each is currently on: WordPress's admin menus, plugin menus, registered desktop icons, native-window launchers, and OpenStation's own controls. This is what OpenStation Preferences → Navigation lists.
+
+```js
+for ( const item of wp.os.getNavItems() ) {
+    console.log( item.id, item.kind );
+    // 'edit.php' 'core'
+    // 'woocommerce' 'plugin'
+    // 'desktop-mode-games' 'app'
+    // 'os-system' 'control'
+}
+```
+
+Each entry:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Canonical id. Keys `navPlacement` and `navOrder`. |
+| `kind` | `'core' \| 'plugin' \| 'app' \| 'control'` | What the item IS. Decides its default placement and its dock zone. |
+| `title` / `icon` | `string` | Display label and icon string (see [`renderIcon`](#rendericon-icon-opts--stable)). |
+| `locked` | `boolean?` | Cannot be moved or hidden. Exit OpenStation only. |
+| `windowId` | `string?` | The native-window id it opens, when it opens one. |
+| `menu` / `tile` / `entry` | object? | The sources that produced it. An app registered as both a native window and a desktop icon carries a `tile` and an `entry`, and is still **one** item. |
+
+Returns a defensive copy of the array.
+
+---
+
+### `getNav()` — Stable
+
+The current computed navigation — the answer every rail and the wallpaper renders. Returns `null` before the layout dispatcher has booted.
+
+```js
+const nav = wp.os.getNav();
+nav.dock.core;      // NavItem[] — WordPress menus (empty in the split layout)
+nav.dock.apps;      // NavItem[] — plugin menus, launchers, running windows with no home
+nav.dock.controls;  // NavItem[] — OpenStation's own
+nav.sidebar;        // NavItem[] — the split layout's WordPress menus
+nav.desktop;        // NavItem[] — wallpaper icons
+nav.ephemeral;      // Set<string> — ids on the dock only because their window is open
+```
+
+Read it rather than re-deriving placement: a surface that answers "where does this live?" for itself is how the dock and OpenStation Preferences came to disagree about Games.
 
 ---
 

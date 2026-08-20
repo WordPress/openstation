@@ -299,9 +299,10 @@ describe( 'Dock.replaceItems', () => {
 			makeItem( { id: 'plugin-a', title: 'Analytics', icon: 'dashicons-chart-bar' } ),
 		] );
 		dock.appendSystemItem( {
-			id: 'os-settings',
-			title: 'OS Settings',
+			id: 'os-system',
+			title: 'System',
 			icon: 'dashicons-admin-generic',
+			navKind: 'control',
 			onOpen: () => undefined,
 		} );
 

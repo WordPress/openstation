@@ -1938,29 +1938,45 @@
 }
 
 
-/* Apps & Icons section (since 0.25.0) — per-item placement chooser. */
+/* Navigation section — per-item placement chooser. */
 /*
- * The boxed list Núria pointed at when she asked for boxes instead of
- * rules. Each row encloses its own icon, title and placement select,
- * so a long list reads as a stack of things rather than as a table
- * that has lost its header.
+ * A settings list, not a stack of cards: the section box is the only
+ * container, rows sit flush inside it, and a hairline separates one
+ * from the next. macOS Control Center is the reference — the row's
+ * title on the leading edge, its answer on the trailing one, and no
+ * chrome at all until the pointer arrives.
+ *
+ * The section's own 18px padding is dropped so the separators reach
+ * both edges; each row pays its own inset instead. Without that the
+ * hairlines would float with a gap at either end and read as
+ * underlines rather than as divisions.
  */
-.os-apps-icons__list {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+/*
+ * The page's opening sentence, standing in for the one the header
+ * would have carried. It moved here so it can follow a layout change
+ * made in the tab next door, and it keeps the header's spacing.
+ */
+.os-nav-settings__lead {
+	margin: -28px 0 34px;
 }
 
-.os-apps-icons__row {
+.os-settings os-section.os-nav-settings::part( body ) {
+	padding: 0;
+}
+
+.os-nav-settings__row {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 8px 12px;
-	background: var( --os-ui-surface, #fff );
-	border-radius: 8px;
+	padding: 6px 14px;
+	min-height: 44px;
 }
 
-.os-apps-icons__identity {
+.os-nav-settings__row + .os-nav-settings__row {
+	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-nav-settings__identity {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -1968,7 +1984,7 @@
 	min-width: 0;
 }
 
-.os-apps-icons__icon {
+.os-nav-settings__icon {
 	width: 24px;
 	height: 24px;
 	flex-shrink: 0;
@@ -1977,18 +1993,14 @@
 	justify-content: center;
 }
 
-.os-apps-icons__icon.dashicons {
+.os-nav-settings__icon.dashicons {
 	font-size: 20px;
 }
 
-.os-apps-icons__title {
+.os-nav-settings__title {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-}
-
-.os-apps-icons__row os-select {
-	min-width: 180px;
 }
 
 /* ------------------------------------------------------------------

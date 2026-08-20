@@ -289,8 +289,8 @@ export const DEFAULTS: OsSettingsState = {
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
 	foldersSharingEnabled: true,
-	itemVisibility: {},
-	dockOrder: [],
+	navPlacement: {},
+	navOrder: [],
 	dockPromotedPositions: {},
 };
 

@@ -7,16 +7,16 @@
  * already has a concept, its icon comes from Core and looks like every
  * other Core icon the user has ever seen; we draw one only when the
  * thing exists *because* this is a desktop and wp-admin is not. By
- * that rule five of the eight below are Core shapes (Appearance,
- * Themes, Features, File Associations, About) and three are ours
- * (Windows, Apps, Components). A window you can drag is not a
+ * that rule six of the eight below are Core shapes (Appearance,
+ * Themes, Navigation, Features, File Associations, About) and two are
+ * ours (Windows, Components). A window you can drag is not a
  * WordPress concept.
  *
  * ## Where the drawings come from
  *
- * Six of the eight resolve out of `src/ui/icons`, the shell's
+ * Five of the eight resolve out of `src/ui/icons`, the shell's
  * thirty-icon set, so this column and the rest of the shell cannot
- * drift apart. Two are drawn here because the set has no member for
+ * drift apart. Three are drawn here because the set has no member for
  * them, and each says so at its entry.
  *
  * ## Why not `<os-icon>`
@@ -106,12 +106,26 @@ export const NAV_ICONS: NavIconMap = {
 	windows: () => osIcon( 'windows', NAV ),
 
 	/*
-	 * Ours. Four tiles: the launcher grid, not a plug or a puzzle
-	 * piece. This page is about where an app SITS (dock, desktop,
-	 * nowhere), which is a placement question, so the icon is the
-	 * arrangement rather than the thing being arranged.
+	 * Core's `navigation`, drawn here because it is not one of the
+	 * thirty: the compass rose says "where things sit and how you get
+	 * to them", which is the page, and no member of the set carries
+	 * that. The launcher grid this page used to wear is the `apps`
+	 * glyph, and the page is no longer only about apps.
 	 */
-	'apps-icons': () => osIcon( 'apps', NAV ),
+	navigation: () => {
+		const svg = document.createElementNS(
+			'http://www.w3.org/2000/svg',
+			'svg',
+		);
+		svg.setAttribute( 'viewBox', '0 0 24 24' );
+		svg.setAttribute( 'fill', 'currentColor' );
+		svg.setAttribute( 'aria-hidden', 'true' );
+		svg.innerHTML =
+			'<path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0' +
+			' 14.5c-3.6 0-6.5-2.9-6.5-6.5S8.4 5.5 12 5.5s6.5 2.9 6.5 6.5-2.9' +
+			' 6.5-6.5 6.5zM9 16l4.5-3L15 8.4l-4.5 3L9 16z" />';
+		return svg;
+	},
 
 	/*
 	 * Core. The sliders Core uses for settings that are switches

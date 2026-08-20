@@ -2,7 +2,7 @@
  * OpenStation — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / Themes / Windows / Apps & Plugins /
+ * every built-in tab (Appearance / Themes / Windows / Navigation /
  * Features / Components / About), wallpaper picker + editor host, and
  * the Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
@@ -63,7 +63,7 @@ import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
 import { buildAdminBarSection } from './sections/admin-bar';
 import { buildThemesSection } from './sections/themes';
-import { buildAppsIconsSection } from './sections/apps-icons';
+import { buildNavigationSection } from './sections/navigation';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
@@ -149,11 +149,15 @@ const TEXT_ATTRIBUTES = [
  * pages cannot drift apart, and so a section stays a section: reusable
  * on any page, with no opinion about being first on one.
  */
-function pageHeader( title: string, description: string ) {
+function pageHeader( title: string, description = '' ) {
 	return html`
 		<header class="os-settings__page-header">
 			<h2 class="os-settings__page-title">${ title }</h2>
-			<p class="os-settings__page-description">${ description }</p>
+			${ description
+				? html`<p class="os-settings__page-description">
+						${ description }
+					</p>`
+				: html`` }
 		</header>
 	`;
 }
@@ -359,18 +363,20 @@ export function renderOsSettingsPanel(
 			</os-tabpanel>`,
 		},
 		{
-			id: 'apps-icons',
+			id: 'navigation',
 			order: 22,
-			label: __( 'Apps & Plugins' ),
-			panel: html`<os-tabpanel for="apps-icons">
+			label: __( 'Navigation' ),
+			panel: html`<os-tabpanel for="navigation">
 				<os-panel>
-					${ pageHeader(
-						__( 'Apps & Plugins' ),
-						__(
-							'Everything installed on the station in one place: which apps appear where, and which plugins are extending the desktop.',
-						),
-					) }
-					${ buildAppsIconsSection( ctx ) }
+					<!--
+						No description here. The page's opening
+						sentence names the rails the user is
+						actually looking at, which the split layout
+						changes, so the section owns it — that is
+						the node that repaints on a settings change.
+					-->
+					${ pageHeader( __( 'Navigation' ) ) }
+					${ buildNavigationSection( ctx ) }
 				</os-panel>
 			</os-tabpanel>`,
 		},

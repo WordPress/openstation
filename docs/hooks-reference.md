@@ -837,7 +837,7 @@ openstation_register_settings_tab( array(
 **Built-in tab orders** (for reference when picking `order`):
 - `appearance` = 10
 - `ai` = 20
-- `apps-icons` = 22
+- `navigation` = 22
 - `features` = 25
 - `effects` = 27
 - `help` = 40
@@ -2564,7 +2564,7 @@ apply_filters( 'openstation_recycle_bin_count', int $total, int $post_count, int
 
 Tweak the args passed to `openstation_register_window()` for the bin — useful to change dimensions, swap the icon, or drop the dock tile entirely (`'placement' => 'none'`). The bin ships its own silhouette; `openstation_recycle_bin_icon_svg()` returns the raw markup and `openstation_recycle_bin_icon_uris()` returns both states as data URIs, so a plugin substituting its own art has the same pair to replace.
 
-The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Apps & Plugins offers the wallpaper, both rails, or hidden, like any other item.
+The bin registers **no desktop icon**, so it lands on the dock and nowhere else. That is the default, not the whole story: the window is registered `placeable`, so its row in OpenStation Preferences → Navigation offers the wallpaper, both, or hidden, like any other item.
 
 ### `openstation_recycle_bin_template_html` — Experimental (filter)
 

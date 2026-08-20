@@ -6,8 +6,9 @@
  * 1. The shortcut opener runs the tile's own `onOpen`, so a tile that
  *    toggles something (Mio) behaves the same on both surfaces as one
  *    that opens a window (the Trash).
- * 2. The placement's `ref` is the bare tile id. Three lookups in the
- *    files layer and the dock find the bin by
+ * 2. The placement's `ref` is the bare tile id, which
+ *    `nav-desktop-sync.test.ts` pins. Three lookups in the files layer
+ *    and the dock find the bin by
  *    `file.ref === 'desktop-mode-recycle-bin'` — the drag-to-trash drop
  *    target, the drop-rejection exemption, and the empty/full art swap.
  *    Prefixing it turned the wallpaper bin into a tile that refused
@@ -76,83 +77,5 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
 		// Mio has no window; deriving one would have opened nothing.
 		expect( openWindow ).not.toHaveBeenCalled();
-	} );
-} );
-
-describe( 'the promoted placement’s ref', () => {
-	beforeEach( () => {
-		installHooksStub();
-	} );
-
-	afterEach( () => {
-		clearHooksStub();
-		delete ( window as unknown as { openStationConfig?: unknown } )
-			.openStationConfig;
-	} );
-
-	test( 'is the bare tile id, so the bin stays recognisable', async () => {
-		vi.resetModules();
-		const sync = await import( '../../src/settings/desktop-shortcuts-sync' );
-		const store = await import( '../../src/desktop-files/store' );
-		store.__resetFilesStoreForTests();
-
-		( window as unknown as { openStationConfig: unknown } ).openStationConfig =
-			{ desktopIcons: [], dockItems: [] };
-		const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
-		w.wp = w.wp ?? {};
-		w.wp.os = w.wp.os ?? {};
-		w.wp.os.getOsSettings = () => ( { dockPromotedPositions: {} } );
-		w.wp.os.updateOsSettings = vi.fn();
-		w.wp.os.listSystemTiles = () => [
-			{
-				id: 'desktop-mode-recycle-bin',
-				title: 'Trash',
-				icon: 'dashicons-trash',
-				placeable: true,
-			},
-		];
-
-		sync.syncShortcutsWithVisibility( {
-			'desktop-mode-recycle-bin': 'desktop',
-		} );
-
-		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
-		expect( rows ).toHaveLength( 1 );
-		expect( rows[ 0 ].file.ref ).toBe( 'desktop-mode-recycle-bin' );
-	} );
-
-	test( 'keeps the prefix for a promoted dock item', async () => {
-		vi.resetModules();
-		const sync = await import( '../../src/settings/desktop-shortcuts-sync' );
-		const store = await import( '../../src/desktop-files/store' );
-		store.__resetFilesStoreForTests();
-
-		( window as unknown as { openStationConfig: unknown } ).openStationConfig =
-			{
-				desktopIcons: [],
-				dockItems: [
-					{
-						id: 'menu-tools',
-						title: 'Tools',
-						icon: 'dashicons-admin-tools',
-						url: '/wp-admin/tools.php',
-					},
-				],
-			};
-		const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
-		w.wp = w.wp ?? {};
-		w.wp.os = w.wp.os ?? {};
-		w.wp.os.getOsSettings = () => ( { dockPromotedPositions: {} } );
-		w.wp.os.updateOsSettings = vi.fn();
-		w.wp.os.listSystemTiles = () => [];
-		delete w.wp.os.getMenuItems;
-
-		sync.syncShortcutsWithVisibility( { 'menu-tools': 'desktop' } );
-
-		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
-		expect( rows ).toHaveLength( 1 );
-		// A promoted admin menu must not be mistakable for a real
-		// registered shortcut of the same id.
-		expect( rows[ 0 ].file.ref ).toBe( 'dock-promoted:menu-tools' );
 	} );
 } );

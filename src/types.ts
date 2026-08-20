@@ -822,8 +822,21 @@ export interface NativeWindowServerEntry {
 	title: string;
 	/** Dashicons class or URL. */
 	icon: string;
-	/** `'dock'` = render a system tile on the unified dock, `'none'` = register the window but render no tile (plugin opens programmatically). */
+	/**
+	 * `'dock'` = the window's launcher proposes the rail as its
+	 * default, `'none'` = register the window but propose no launcher
+	 * (the plugin opens it programmatically). A PROPOSAL, not a
+	 * render instruction — the user's Navigation preference wins, and
+	 * a running window gets a tile either way.
+	 */
 	placement: 'dock' | 'none';
+	/**
+	 * What the window IS: `'app'` (an installed app — the default, and
+	 * what every plugin wants) or `'control'` (an OpenStation
+	 * affordance; the Trash is the only shipped one). Decides the
+	 * launcher's default placement and which dock zone it sits in.
+	 */
+	navKind?: 'app' | 'control';
 	/**
 	 * Sort key for the tile among system tiles, ascending. Absent
 	 * means `0`, which puts the tile ahead of the shell's own trailing
@@ -832,9 +845,9 @@ export interface NativeWindowServerEntry {
 	 */
 	dockOrder?: number;
 	/**
-	 * Whether the dock tile gets a row in OpenStation Preferences →
-	 * Apps & Plugins so the user can hide it. Absent/false for the
-	 * load-bearing majority.
+	 * Whether the launcher gets a row in OpenStation Preferences →
+	 * Navigation so the user can move or hide it. Absent/false for
+	 * the load-bearing majority.
 	 */
 	placeable?: boolean;
 	/** Initial window dimensions in px. */

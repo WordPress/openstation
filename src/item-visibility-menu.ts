@@ -1,47 +1,42 @@
 /**
- * Right-click context menu for hiding / moving a dock tile or
- * desktop icon. Mutates the user's `itemVisibility` map via the
- * public `wp.os.updateOsSettings` writer; the layout dispatcher's
- * settings subscription handles the live re-paint.
+ * Right-click menu for a dock tile, a sidebar tile, or a desktop icon.
  *
- * Two callers:
+ * Every entry is one call: add or remove one region from the item's
+ * placement. The labels come from the computed navigation rather than
+ * from the surface the user clicked, so a Core admin menu in the split
+ * layout offers "Hide from sidebar" instead of naming a rail it is not
+ * on, and an app on the dock only because its window is open offers
+ * "Keep in dock" instead of "Hide from dock" — hiding something that
+ * was never pinned would do nothing the user could see.
  *
- * - `Dock` — attaches a `contextmenu` listener per tile, passes
- *   `surface: 'dock'`. Menu options: "Hide from dock", "Show on
- *   desktop instead", "Hide everywhere".
- * - `renderDesktopIcons` — attaches per icon, passes
- *   `surface: 'desktop'`. Menu options: "Hide from desktop", "Move
- *   to dock", "Hide everywhere".
- *
- * The `id` passed in is the **rail-prefixed** id as it appears in
- * the DOM (`'dock:<x>'` / `'desktop:<x>'` for synthesized tiles).
- * The handler reduces it to the canonical id via
- * {@link canonicalItemId} before writing the override, so the
- * visibility map is always keyed by the registered item id.
+ * Writes go through `wp.os.updateOsSettings`; the layout dispatcher's
+ * settings subscription repaints.
  */
 
 import { __, sprintf } from './i18n';
 import { openWithShellOverlays } from './shell-overlays/loader';
 import { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
 import {
-	canonicalItemId,
+	findNavItem,
+	onDesktop,
+	onRail,
+	railFor,
+	readNavConfig,
 	resolvePlacement,
-	type NativeRail,
-} from './settings/item-placement';
+	setPlacement,
+	setRegion,
+	type NavItem,
+	type NavLayout,
+	type NavRail,
+} from './nav';
 import { osConfirm } from './ui/components/os-confirm-dialog/os-confirm-dialog';
 import { placeAfterRender } from './ui/util/menu-position';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
-import type { ItemVisibility } from './settings/types';
-import type { OsSettingsSnapshot } from './settings/registry';
 
 interface OpenStationShim {
-	getOsSettings?: () => OsSettingsSnapshot;
-	updateOsSettings?: (
-		patch: Partial< OsSettingsSnapshot >,
-		opts?: { windowId?: string },
-	) => void;
+	getOsSettings?: () => { desktopLayout?: NavLayout };
 	openOsSettings?: ( opts?: { tabId?: string } ) => void;
 }
 
@@ -59,72 +54,15 @@ function closeMenu(): void {
 	}
 }
 
-function writeVisibility(
-	canonicalId: string,
-	placement: ItemVisibility,
-): void {
-	const api = getApi();
-	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
-		return;
-	}
-	const snap = api.getOsSettings();
-	const next = { ...snap.itemVisibility };
-	// Store every placement explicitly — including 'both'. We used
-	// to `delete next[ canonicalId ]` here on 'both', but the absence
-	// of an override falls back to the item's NATIVE rail
-	// (`resolvePlacement`), so deleting collapsed "Also show on
-	// desktop" / "Also show on dock" back into single-rail behavior.
-	next[ canonicalId ] = placement;
-	api.updateOsSettings( { itemVisibility: next } );
+/** The rail this item's `'rail'` placement resolves to right now. */
+function railForItem( item: NavItem ): NavRail {
+	const layout = getApi()?.getOsSettings?.().desktopLayout ?? 'unified';
+	return railFor( item.kind, layout );
 }
 
-/**
- * The item's native rail, derived from the rail-synthesis prefix on
- * the DOM id. A bare id means the tile is rendered on its native rail
- * (so the native rail equals the surface it was right-clicked on); a
- * `dock:` / `desktop:` prefix names the originating rail explicitly.
- *
- * Exported for unit testing — it is otherwise an internal helper.
- */
-export function railFromId(
-	id: string,
-	surface: 'dock' | 'desktop',
-): NativeRail {
-	if ( id.startsWith( 'dock:' ) ) {
-		return 'dock';
-	}
-	if ( id.startsWith( 'desktop:' ) ) {
-		return 'desktop';
-	}
-	return surface;
-}
-
-/**
- * Compute the placement a "Hide from <surface>" pick should write,
- * branching on the item's CURRENT placement rather than blindly
- * setting the opposite rail.
- *
- * - A 'both' item is demoted to the rail it is NOT being hidden from
- *   (it stays visible where it still belongs).
- * - A single-rail item is genuinely hidden ('hidden'). Writing the
- *   opposite rail here was the bug: "Hide from dock" on a dock-only
- *   tile wrote 'desktop' and the tile reappeared on the wallpaper
- *   instead of disappearing.
- *
- * Pure in `visibility` (the caller passes the live map) so it can be
- * unit-tested without stubbing the shell API.
- */
-export function computeHideTarget(
-	canonicalId: string,
-	nativeRail: NativeRail,
-	hideSurface: 'dock' | 'desktop',
-	visibility: Record< string, ItemVisibility >,
-): ItemVisibility {
-	const current = resolvePlacement( canonicalId, nativeRail, visibility );
-	if ( current === 'both' ) {
-		return hideSurface === 'dock' ? 'desktop' : 'dock';
-	}
-	return 'hidden';
+/** "dock" / "sidebar", for the menu labels. */
+function railName( rail: NavRail ): string {
+	return 'sidebar' === rail ? __( 'sidebar' ) : __( 'dock' );
 }
 
 export interface OpenItemVisibilityMenuOpts {
@@ -207,17 +145,18 @@ function openItemVisibilityMenuImmediate(
 ): void {
 	closeMenu();
 
-	const canonical = canonicalItemId( opts.id );
-	const nativeRail = railFromId( opts.id, opts.surface );
-	// Current resolved placement drives which options are offered: the
-	// "Also show on <rail>" entry is hidden when the item is already on
-	// that rail (it would be a no-op), and "Hide from <surface>" reads
-	// the live state at pick time via computeHideTarget.
-	const currentPlacement = resolvePlacement(
-		canonical,
-		nativeRail,
-		getApi()?.getOsSettings?.().itemVisibility ?? {},
-	);
+	const item = findNavItem( opts.id );
+	// Nothing to offer: an id nothing registers (a tile painted by a
+	// custom renderer, a stale DOM node), the one item that cannot
+	// move, or a tile that exists only while its window is open and
+	// has no launcher to place.
+	if ( ! item || item.locked || item.transient ) {
+		return;
+	}
+
+	const placement = resolvePlacement( item, readNavConfig().placement );
+	const rail = railForItem( item );
+	const railWord = railName( rail );
 
 	type MenuOption =
 		| {
@@ -233,27 +172,32 @@ function openItemVisibilityMenuImmediate(
 	const options: MenuOption[] = [];
 
 	if ( opts.surface === 'dock' ) {
-		options.push( {
-			id: 'hide-from-dock',
-			label: __( 'Hide from dock' ),
-			icon: 'dashicons-hidden',
-			onPick: () =>
-				writeVisibility(
-					canonical,
-					computeHideTarget(
-						canonical,
-						nativeRail,
-						'dock',
-						getApi()?.getOsSettings?.().itemVisibility ?? {},
-					),
-				),
-		} );
-		if ( currentPlacement !== 'both' ) {
+		if ( onRail( placement ) ) {
 			options.push( {
-				id: 'show-on-desktop-too',
+				id: 'hide-from-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Hide from %s' ), railWord ),
+				icon: 'dashicons-hidden',
+				onPick: () => setRegion( item, 'rail', false ),
+			} );
+		} else {
+			// The tile is here only because its window is open. It has
+			// nothing to be hidden from yet, so the useful offer is the
+			// opposite one.
+			options.push( {
+				id: 'keep-in-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Keep in %s' ), railWord ),
+				icon: 'dashicons-admin-post',
+				onPick: () => setRegion( item, 'rail', true ),
+			} );
+		}
+		if ( ! onDesktop( placement ) ) {
+			options.push( {
+				id: 'show-on-desktop',
 				label: __( 'Also show on desktop' ),
 				icon: 'dashicons-desktop',
-				onPick: () => writeVisibility( canonical, 'both' ),
+				onPick: () => setRegion( item, 'desktop', true ),
 			} );
 		}
 	} else {
@@ -261,41 +205,38 @@ function openItemVisibilityMenuImmediate(
 			id: 'hide-from-desktop',
 			label: __( 'Hide from desktop' ),
 			icon: 'dashicons-hidden',
-			onPick: () =>
-				writeVisibility(
-					canonical,
-					computeHideTarget(
-						canonical,
-						nativeRail,
-						'desktop',
-						getApi()?.getOsSettings?.().itemVisibility ?? {},
-					),
-				),
+			onPick: () => setRegion( item, 'desktop', false ),
 		} );
-		if ( currentPlacement !== 'both' ) {
+		if ( ! onRail( placement ) ) {
 			options.push( {
-				id: 'show-on-dock-too',
-				label: __( 'Also show on dock' ),
+				id: 'show-on-rail',
+				/* translators: %s: "dock" or "sidebar". */
+				label: sprintf( __( 'Also show on %s' ), railWord ),
 				icon: 'dashicons-menu',
-				onPick: () => writeVisibility( canonical, 'both' ),
+				onPick: () => setRegion( item, 'rail', true ),
 			} );
 		}
 	}
-	options.push( {
-		id: 'hide-everywhere',
-		label: __( 'Hide everywhere' ),
-		icon: 'dashicons-no',
-		danger: true,
-		onPick: () => writeVisibility( canonical, 'hidden' ),
-	} );
+	// Only offered once the item is actually somewhere: on a tile that
+	// is merely running, "hide everywhere" would be a no-op the moment
+	// the window closes.
+	if ( onRail( placement ) || onDesktop( placement ) ) {
+		options.push( {
+			id: 'hide-everywhere',
+			label: __( 'Hide everywhere' ),
+			icon: 'dashicons-no',
+			danger: true,
+			onPick: () => setPlacement( item, 'hidden' ),
+		} );
+	}
 
 	options.push( {
 		id: 'open-settings',
-		label: __( 'Apps & Plugins settings…' ),
+		label: __( 'Navigation settings…' ),
 		icon: 'dashicons-admin-generic',
 		onPick: () => {
 			const api = getApi();
-			api?.openOsSettings?.( { tabId: 'apps-icons' } );
+			api?.openOsSettings?.( { tabId: 'navigation' } );
 		},
 	} );
 

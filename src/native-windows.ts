@@ -1359,6 +1359,8 @@ export function createNativeWindowSync(
 			id: entry.id,
 			title: entry.title,
 			icon: entry.icon,
+			windowId: entry.id,
+			navKind: 'control' === entry.navKind ? 'control' : 'app',
 			order: entry.dockOrder,
 			placeable: true === entry.placeable,
 			isOpen: () => !! manager.getById( entry.id ),

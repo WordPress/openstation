@@ -2,11 +2,10 @@
  * OpenStation — synthetic placements.
  *
  * A "synthetic" placement is a desktop tile with no row behind it:
- * a dock item the user promoted to the wallpaper via OpenStation
- * Settings → Apps & Plugins. `settings/desktop-shortcuts-sync.ts`
- * mints them into the store with deterministic negative ids, so any
- * REST write aimed at one would 404 (`/files/placements/(?P<id>\d+)`
- * only matches positive integers).
+ * an admin menu or a launcher the user put on the wallpaper.
+ * `nav/desktop-sync.ts` mints them into the store with deterministic
+ * negative ids, so any REST write aimed at one would 404
+ * (`/files/placements/(?P<id>\d+)` only matches positive integers).
  *
  * Extracted from `layer.ts` so the tile-action builder can share
  * these predicates without importing the layer — the layer imports
@@ -14,14 +13,14 @@
  * given how much module-level state `layer.ts` sets up.
  */
 
+import { setRegionByIds } from '../nav/config';
 import type { RestPlacementShape } from './rest';
 
 /**
  * If `placement` is a synthesized shortcut from a promoted dock item,
  * return the source dock-item id. Returns `null` for real placements.
  *
- * Marker key matches the one written by
- * `settings/desktop-shortcuts-sync.ts`.
+ * Marker key matches the one written by `nav/desktop-sync.ts`.
  */
 export function readSynthSource( placement: RestPlacementShape ): string | null {
 	const meta = placement.meta;
@@ -45,39 +44,20 @@ export function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 }
 
 /**
- * Hide a dock item the user previously promoted onto the desktop.
- * Mutates `OsSettingsState.itemVisibility[ dockItemId ]` to `'dock'`
- * via the public API; the shortcuts-sync subscription removes the
- * synthetic placement on the next tick.
+ * Take items off the wallpaper.
+ *
+ * Removes the desktop region from each item's placement, leaving
+ * whatever else it had: an item on both surfaces stays on its rail,
+ * and a desktop-only one becomes hidden. The desktop sync drops the
+ * placement on the next tick.
  *
  * Accepts several ids at once so hiding a multi-selection is a single
- * settings write — one round-trip, one re-render, instead of N of
- * each racing the sync subscription.
+ * settings write — one round-trip, one re-render, instead of N of each
+ * racing the sync subscription.
  */
-export function hidePromotedDockItems( dockItemIds: readonly string[] ): void {
-	if ( dockItemIds.length === 0 ) {
+export function hideFromDesktop( ids: readonly string[] ): void {
+	if ( ids.length === 0 ) {
 		return;
 	}
-	const api = (
-		window as unknown as {
-			wp?: {
-				os?: {
-					getOsSettings?: () => {
-						itemVisibility: Record< string, string >;
-					};
-					updateOsSettings?: ( patch: {
-						itemVisibility?: Record< string, string >;
-					} ) => void;
-				};
-			};
-		}
-	).wp?.os;
-	if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
-		return;
-	}
-	const next = { ...( api.getOsSettings().itemVisibility ?? {} ) };
-	for ( const id of dockItemIds ) {
-		next[ id ] = 'dock';
-	}
-	api.updateOsSettings( { itemVisibility: next } );
+	setRegionByIds( ids, 'desktop', false );
 }

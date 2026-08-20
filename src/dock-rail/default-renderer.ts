@@ -61,6 +61,7 @@ export const defaultDockRailRenderer: DockRailRenderer = {
 		const controller: DefaultRendererController = {
 			[ DEFAULT_RENDERER_DOCK ]: dock,
 			replaceItems: ( items ) => dock.replaceItems( items ),
+			setZones: ( zones ) => dock.setZones( zones ),
 			appendSystemItem: ( item ) => dock.appendSystemItem( item ),
 			removeSystemItem: ( id ) => dock.removeSystemItem( id ),
 			setBadge: ( itemId, count ) => dock.setBadge( itemId, count ),

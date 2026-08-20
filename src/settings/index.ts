@@ -221,8 +221,8 @@ export class OsSettings implements SettingsCtx {
 			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			showPostStatusRibbons: this.state.showPostStatusRibbons,
-			itemVisibility: { ...this.state.itemVisibility },
-			dockOrder: this.state.dockOrder.slice(),
+			navPlacement: { ...this.state.navPlacement },
+			navOrder: this.state.navOrder.slice(),
 			dockPromotedPositions: Object.fromEntries(
 				Object.entries( this.state.dockPromotedPositions ).map(
 					( [ k, v ] ) => [ k, { ...v } ],
@@ -537,7 +537,7 @@ export class OsSettings implements SettingsCtx {
 	 * without a full re-render. Deep-linking entry points
 	 * (`openOsSettings({ tabId })`) call this after opening the window.
 	 *
-	 * @param tabId Settings tab id, e.g. `'ai'`, `'apps-icons'`.
+	 * @param tabId Settings tab id, e.g. `'ai'`, `'navigation'`.
 	 */
 	public focusTab( tabId: string ): void {
 		this.activeTabId = tabId;

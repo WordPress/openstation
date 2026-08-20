@@ -25,7 +25,7 @@ const BUILT_IN_TAB_IDS = [
 	'appearance',
 	'themes',
 	'windows',
-	'apps-icons',
+	'navigation',
 	'features',
 	'help',
 	// Registry-delivered but ours: the desktop-files feature's tab.

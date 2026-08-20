@@ -306,8 +306,8 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled
 				: DEFAULTS.foldersSharingEnabled,
-		itemVisibility: sanitizeItemVisibility( parsed.itemVisibility ),
-		dockOrder: sanitizeDockOrder( parsed.dockOrder ),
+		navPlacement: sanitizeNavPlacement( parsed.navPlacement ),
+		navOrder: sanitizeNavOrder( parsed.navOrder ),
 		dockPromotedPositions: sanitizeDockPromotedPositions(
 			parsed.dockPromotedPositions,
 		),
@@ -388,19 +388,19 @@ export function sanitizeWallpaperSettings(
 	return out;
 }
 
-function sanitizeItemVisibility(
+function sanitizeNavPlacement(
 	raw: unknown,
-): Record< string, import( './types' ).ItemVisibility > {
+): Record< string, import( '../nav/types' ).NavPlacement > {
 	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
 		return {};
 	}
-	const allowed: ReadonlyArray< import( './types' ).ItemVisibility > = [
-		'both',
-		'dock',
-		'desktop',
-		'hidden',
-	];
-	const out: Record< string, import( './types' ).ItemVisibility > = {};
+	const allowed: ReadonlyArray<
+		import( '../nav/types' ).NavPlacement
+	> = [ 'both', 'rail', 'desktop', 'hidden' ];
+	const out: Record<
+		string,
+		import( '../nav/types' ).NavPlacement
+	> = {};
 	let count = 0;
 	for ( const [ k, v ] of Object.entries( raw as Record< string, unknown > ) ) {
 		if ( count >= 256 ) {
@@ -412,7 +412,7 @@ function sanitizeItemVisibility(
 		if ( typeof v !== 'string' ) {
 			continue;
 		}
-		const placement = v as import( './types' ).ItemVisibility;
+		const placement = v as import( '../nav/types' ).NavPlacement;
 		if ( ! allowed.includes( placement ) ) {
 			continue;
 		}
@@ -422,7 +422,7 @@ function sanitizeItemVisibility(
 	return out;
 }
 
-function sanitizeDockOrder( raw: unknown ): string[] {
+function sanitizeNavOrder( raw: unknown ): string[] {
 	if ( ! Array.isArray( raw ) ) {
 		return [];
 	}
@@ -555,8 +555,8 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		},
 		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
-		itemVisibility: { ...state.itemVisibility },
-		dockOrder: state.dockOrder.slice(),
+		navPlacement: { ...state.navPlacement },
+		navOrder: state.navOrder.slice(),
 		dockPromotedPositions: Object.fromEntries(
 			Object.entries( state.dockPromotedPositions ).map( ( [ k, v ] ) => [
 				k,
@@ -835,8 +835,8 @@ export function structuredDefaults(): OsSettingsState {
 		// ships seeded entries, its `{ x, y }` values would need a
 		// deeper clone here.
 		appliedThemeRecommendations: [ ...DEFAULTS.appliedThemeRecommendations ],
-		itemVisibility: { ...DEFAULTS.itemVisibility },
-		dockOrder: [ ...DEFAULTS.dockOrder ],
+		navPlacement: { ...DEFAULTS.navPlacement },
+		navOrder: [ ...DEFAULTS.navOrder ],
 		dockPromotedPositions: { ...DEFAULTS.dockPromotedPositions },
 	};
 }

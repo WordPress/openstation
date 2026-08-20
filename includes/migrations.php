@@ -186,8 +186,8 @@ const OPENSTATION_DESKTOP_GRID_ROW_H = 110;
  * tidies up after itself rather than leaving a gap nobody chose.
  *
  * A user who wants the bin back on the wallpaper picks "On the desktop"
- * in Apps & Plugins, which promotes the dock tile and never touches
- * these rows.
+ * in Preferences → Navigation, which promotes the dock tile and never
+ * touches these rows.
  *
  * @return void
  */

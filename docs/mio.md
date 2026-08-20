@@ -6,7 +6,7 @@ Mio is OpenStation's desk companion: a soft-body blob wrapped in a continuous, h
 
 It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#os-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
-Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OpenStation Preferences → Apps & Plugins.
+Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OpenStation Preferences → Navigation.
 
 ---
 
@@ -57,7 +57,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
 |---|---|
 | Show / hide | Click the **Mio** tile on the bottom dock. The tile's dot lights while the companion is on screen. |
 | Restyle it | Right-click Mio → **Make it yours**. See [Make it yours](#make-it-yours). |
-| Get rid of the tile | OpenStation Preferences → **Apps & Plugins** → Mio → **Hidden** |
+| Get rid of the tile | OpenStation Preferences → **Navigation** → Mio → **Hidden** |
 | Move it | Drag it anywhere. It trails your cursor. |
 | Throw it | Let go mid-flick and it keeps going, gliding to a stop. |
 | Where it rests | Persisted per browser (`localStorage`); the on/off preference is per user (server-side). |
@@ -86,7 +86,7 @@ The whole of it, and it is worth being precise because the answer is "almost not
 - In the always-on bundle: `MioController` (~2 kB) and the dock tile's definition (a few hundred bytes).
 - PixiJS, the soft body, the renderer, the pointer tracker and the ~25 kB Mio bundle are **script-injected on the first toggle** and never touched otherwise.
 
-Hiding the dock tile from Apps & Plugins removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
+Hiding the dock tile from Navigation removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
 
 The lazy bundle publishes `window.openStationMountMio`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
 

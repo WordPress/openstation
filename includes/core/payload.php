@@ -1742,6 +1742,10 @@ function openstation_build_native_windows_payload() {
 			'title'              => $entry['title'],
 			'icon'               => $entry['icon'],
 			'placement'          => $entry['placement'],
+			// `'app'` or `'control'` — the navigation kind, which
+			// decides the launcher's default placement and its dock
+			// zone. See `src/nav/defaults.ts`.
+			'navKind'            => isset( $entry['nav_kind'] ) ? $entry['nav_kind'] : 'app',
 			// Sort key among system tiles. Absent / 0 puts a plugin's
 			// launcher ahead of the shell's own trailing cluster.
 			'dockOrder'          => isset( $entry['dock_order'] ) ? (int) $entry['dock_order'] : 0,

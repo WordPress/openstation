@@ -1,11 +1,14 @@
 /**
  * Where a system tile lands on the rail.
  *
- * Registration order cannot express it: native-window tiles (Trash,
- * and every plugin's) register when their lazy script resolves, so a
- * tile registered last in `desktop.ts` can still be overtaken by one
- * that arrived late. `order` decides, and ties keep registration
- * order.
+ * Two questions, and the tile answers both about ITSELF rather than
+ * about when it happened to register. `navKind` says which zone —
+ * `'control'` for one of OpenStation's own affordances, `'app'` (the
+ * default) for a launcher, which sits with the plugin menus and gets
+ * no divider between them. `order` says where within the zone, because
+ * registration order cannot express it: native-window tiles register
+ * when their lazy script resolves, so a tile registered last in
+ * `desktop.ts` can still be overtaken by one that arrived late.
  *
  * Load-bearing for the admin-bar relocation: Mio → Overview → System →
  * Trash has to hold whenever each of them happens to arrive.
@@ -68,14 +71,17 @@ describe( 'system tile order', () => {
 		document.body.innerHTML = '';
 	} );
 
+	const control = ( id: string, order?: number ): SystemDockItem =>
+		tile( id, { navKind: 'control', ...( order ? { order } : {} ) } );
+
 	test( 'a late arrival sorts by order, not by arrival', () => {
-		dock.appendSystemItem( tile( 'os-mio', { order: 10 } ) );
-		dock.appendSystemItem( tile( 'os-overview', { order: 20 } ) );
-		dock.appendSystemItem( tile( 'os-system', { order: 30 } ) );
+		dock.appendSystemItem( control( 'os-mio', 10 ) );
+		dock.appendSystemItem( control( 'os-overview', 20 ) );
+		dock.appendSystemItem( control( 'os-system', 30 ) );
 		// The Trash tile, arriving last because its script just
 		// resolved. Unordered, so it belongs ahead of the shell's own
 		// cluster rather than in the middle of it.
-		dock.appendSystemItem( tile( 'desktop-mode-recycle-bin' ) );
+		dock.appendSystemItem( control( 'desktop-mode-recycle-bin' ) );
 
 		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
 			'desktop-mode-recycle-bin',
@@ -86,9 +92,9 @@ describe( 'system tile order', () => {
 	} );
 
 	test( 'equal orders keep registration order', () => {
-		dock.appendSystemItem( tile( 'first' ) );
-		dock.appendSystemItem( tile( 'second' ) );
-		dock.appendSystemItem( tile( 'third' ) );
+		dock.appendSystemItem( control( 'first' ) );
+		dock.appendSystemItem( control( 'second' ) );
+		dock.appendSystemItem( control( 'third' ) );
 
 		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
 			'first',
@@ -97,6 +103,34 @@ describe( 'system tile order', () => {
 		] );
 	} );
 
+	test( 'a launcher lands with the apps, not with the controls', () => {
+		// The default kind. A plugin's native-window tile belongs
+		// beside the plugin menus — the divider before the controls is
+		// the boundary between the site's things and the station's.
+		dock.appendSystemItem( tile( 'my-plugin-window' ) );
+		dock.appendSystemItem( control( 'os-system', 30 ) );
+
+		expect( idsIn( container, '.os-dock__scroll' ) ).toEqual( [
+			'my-plugin-window',
+		] );
+		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
+			'os-system',
+		] );
+	} );
+
+	test( 'the controls divider only appears once something precedes it', () => {
+		dock.appendSystemItem( control( 'os-system', 30 ) );
+		// Controls alone: no divider, or the rail opens with a rule
+		// under nothing.
+		expect(
+			container.querySelector( '.os-dock__separator' ),
+		).toBeNull();
+
+		dock.appendSystemItem( tile( 'my-plugin-window' ) );
+		expect(
+			container.querySelector( '.os-dock__separator' ),
+		).not.toBeNull();
+	} );
 } );
 
 describe( 'the constellation handshake', () => {

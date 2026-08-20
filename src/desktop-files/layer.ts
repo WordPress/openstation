@@ -869,7 +869,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					if ( isSyntheticPlacement( placement ) ) {
 						// Synthetic placements (dock-item promotions —
 						// negative ids minted by
-						// `settings/desktop-shortcuts-sync.ts`) have no DB
+						// `nav/desktop-sync.ts`) have no DB
 						// row, so the REST `/files/placements/(?P<id>\d+)`
 						// route can't accept the PATCH. Persist the new
 						// position into `OsSettingsState.dockPromotedPositions`
@@ -1530,7 +1530,7 @@ function wouldCreateFolderCycle(
 /**
  * Persist the new (x, y) of a synthetic dock-promoted placement
  * into `OsSettingsState.dockPromotedPositions`. The synthesizer
- * (`settings/desktop-shortcuts-sync.ts`) reads this map on every
+ * (`nav/desktop-sync.ts`) reads this map on every
  * sync, so the next reload restores the icon at the saved coords
  * instead of resetting to (0, 0).
  *

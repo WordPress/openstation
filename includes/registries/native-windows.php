@@ -126,6 +126,18 @@ defined( 'ABSPATH' ) || exit;
  *     @type string   $placement    'dock' | 'none'. Default 'dock'.
  *                                  'none' skips the tile (plugin
  *                                  opens the window programmatically).
+ *                                  A PROPOSED default only: the user's
+ *                                  OpenStation Preferences → Navigation
+ *                                  pick wins, and so does a right-click
+ *                                  "Keep in dock".
+ *     @type string   $nav_kind     'app' | 'control'. Default 'app'.
+ *                                  What the window IS, which decides
+ *                                  where its launcher defaults to (apps
+ *                                  to the desktop, controls to the
+ *                                  dock) and which dock zone it sits
+ *                                  in. Plugins want 'app'; 'control'
+ *                                  is for OpenStation's own
+ *                                  affordances.
  *     @type int      $dock_order   Sort key among system tiles,
  *                                  ascending; ties keep registration
  *                                  order. Default 0, which places the
@@ -216,6 +228,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_width'        => 280,
 		'min_height'       => 220,
 		'placement'        => 'dock',
+		'nav_kind'         => 'app',
 		'dock_order'       => 0,
 		'placeable'        => false,
 		'capabilities'     => array(),
@@ -264,6 +277,15 @@ function openstation_register_window( $id, $args = array() ) {
 		? $args['placement']
 		: 'dock';
 
+	// What the window IS, which is what decides where its launcher
+	// goes by default and which dock zone it sits in. `'app'` for an
+	// installed app (the default, and what every plugin wants);
+	// `'control'` for an OpenStation affordance — the Trash is the
+	// only shipped one.
+	$nav_kind = in_array( $args['nav_kind'], array( 'app', 'control' ), true )
+		? $args['nav_kind']
+		: 'app';
+
 	$entry = array(
 		'id'               => $id,
 		'title'            => (string) $args['title'],
@@ -289,6 +311,7 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_width'        => (int) $args['min_width'],
 		'min_height'       => (int) $args['min_height'],
 		'placement'        => $placement,
+		'nav_kind'         => $nav_kind,
 		// Sort key among system tiles, ascending. `0` (the default)
 		// puts a plugin's tile ahead of the shell's own trailing
 		// cluster — Mio 10, Overview 20, System 30 — which is where a

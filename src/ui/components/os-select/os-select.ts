@@ -147,6 +147,12 @@ export class OsSelect extends Component {
 				description: 'Disables the trigger and dims the chrome.',
 			},
 			{
+				name: 'plain',
+				type: 'boolean attribute',
+				description:
+					'Drops the field chrome and shrinks to the value, for a picker that is a list row’s trailing control rather than a field of its own. The container already draws the box; use with no `label`.',
+			},
+			{
 				name: 'name',
 				type: 'string',
 				description:

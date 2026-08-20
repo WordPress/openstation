@@ -351,7 +351,7 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 	// this section once per window open, so without this the demo
 	// section would stay stale until the window is closed and
 	// reopened. Self-unsubscribes once the panel is torn down,
-	// mirroring the Apps & Plugins section's `subscribeOsSettings`
+	// mirroring the Navigation section's `subscribeOsSettings`
 	// pattern.
 	const openStation = ( window as unknown as {
 		wp?: {

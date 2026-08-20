@@ -26,6 +26,7 @@ import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
+import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
 
 /**
  * A JS-registered dock tile appended below the admin-menu items.
@@ -69,8 +70,8 @@ export interface SystemDockItem {
 	 */
 	onOpenNew?: () => void;
 	/**
-	 * Whether the tile appears in OS Settings → Apps & Plugins, so the
-	 * user can hide it.
+	 * Whether the tile appears in OpenStation Preferences → Navigation,
+	 * so the user can move or hide it.
 	 *
 	 * Opt-in rather than the default, because most system tiles are
 	 * load-bearing: OS Settings is how you reach the very screen that
@@ -107,6 +108,74 @@ export interface SystemDockItem {
 	 * tile registered last in `desktop.ts` is not last on the dock.
 	 */
 	order?: number;
+	/**
+	 * The native-window id this tile opens, when it opens one.
+	 *
+	 * Set by the native-window sync; a shell tile that toggles
+	 * something rather than opening a window (Mio's) leaves it unset.
+	 * Drives the running indicator and the transient tile a running
+	 * window gets when its item lives nowhere on a rail.
+	 */
+	windowId?: string;
+	/**
+	 * What the tile IS — which decides its default placement and the
+	 * dock zone it sits in. `'app'` (the default) for a launcher,
+	 * `'control'` for an OpenStation affordance: Mio, Overview,
+	 * System, Trash, Exit.
+	 *
+	 * See `src/nav/defaults.ts`. A plugin's launcher wants `'app'`
+	 * and gets it by saying nothing.
+	 */
+	navKind?: 'app' | 'control';
+	/**
+	 * Cannot be moved, hidden, or reordered. Exit OpenStation is the
+	 * only one: it is the way out of the shell.
+	 */
+	locked?: boolean;
+}
+
+/**
+ * One thing painted on a rail, whatever produced it. The dock's zones
+ * mix the two cohorts — the apps zone holds plugin admin menus and
+ * app launchers side by side — so they travel as a union rather than
+ * in two parallel lists.
+ */
+export type DockEntry =
+	| { type: 'menu'; item: DockItem }
+	| { type: 'system'; item: SystemDockItem };
+
+/**
+ * A rail's contents, in paint order, with a divider drawn between
+ * each pair of non-empty zones.
+ *
+ * Zone membership comes from `computeNav` and is derived from what
+ * each item IS. A tile therefore cannot be dragged into another zone,
+ * because there is no value a drag could write that would move it.
+ */
+export interface DockZones {
+	/** WordPress's own admin menus. Empty on the dock in the split layout. */
+	core: DockEntry[];
+	/** Plugin admin menus, app launchers, and running windows with no home. */
+	apps: DockEntry[];
+	/** OpenStation's own affordances. */
+	controls: DockEntry[];
+}
+
+/** The zones in paint order. */
+export const DOCK_ZONE_ORDER: ReadonlyArray< keyof DockZones > = [
+	'core',
+	'apps',
+	'controls',
+];
+
+/**
+ * Which zone a system tile belongs to. Derived from what the tile IS,
+ * never from where it happened to be appended.
+ */
+export function zoneForSystemTile(
+	item: SystemDockItem,
+): keyof DockZones {
+	return 'control' === item.navKind ? 'controls' : 'apps';
 }
 
 /**
@@ -324,7 +393,13 @@ export class Dock {
 	private rail: 'dock' | 'taskbar';
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
-	private systemSeparator: HTMLElement | null = null;
+	/**
+	 * The rail's contents by zone — the single description everything
+	 * else is derived from. `items` and `systemItems` are views onto
+	 * it, kept for the hook payloads and the public API that predate
+	 * zones.
+	 */
+	private zones: DockZones = { core: [], apps: [], controls: [] };
 	/**
 	 * Client-side badge overrides keyed by item id. Lets
 	 * `replaceItems()` re-paint a tile that a JS caller had already
@@ -474,6 +549,7 @@ export class Dock {
 		}
 		document.body.appendChild( this.tooltip );
 
+		this.zones = this.zonesFromMenu( items, [] );
 		this.render();
 		this.bindWindowEvents();
 	}
@@ -530,96 +606,69 @@ export class Dock {
 	}
 
 	public replaceItems( items: DockItem[] ): void {
-		// Tear down peek attachments for the OLD menu tiles before
-		// removing them. Without this, `attachDockPeek` listeners stay
-		// armed on detached tiles and (worse) any popover already
-		// appended to `document.body` is orphaned — its `tearDown`
-		// closure becomes unreachable from the dock. A subsequent
-		// peek opening on the freshly-rebuilt tile then renders a
-		// SECOND popover with the same per-window `view-transition-name`
-		// as the leaked one, which Chrome reports as
-		// "Unexpected duplicate view-transition-name". System tile
-		// peeks live in the same map under `system:` keys and aren't
-		// being replaced here, so leave those entries alone.
-		for ( const itemId of this.itemElements.keys() ) {
-			const teardown = this.peekTeardowns.get( itemId );
-			if ( teardown ) {
-				teardown();
-				this.peekTeardowns.delete( itemId );
-			}
-		}
+		// System entries keep the zone they were appended to; only the
+		// menu-derived half is replaced.
+		this.zones = this.zonesFromMenu( items, this.systemEntries() );
+		this.render();
+	}
 
-		for ( const el of this.itemElements.values() ) {
-			el.remove();
-		}
-		// Also remove any stale group separator from a previous render.
-		this.itemHost
-			.querySelectorAll(
-				'.os-dock__separator--group',
-			)
-			.forEach( ( el ) => el.remove() );
-		this.itemElements.clear();
+	/**
+	 * Replace the rail's entire contents, zone by zone.
+	 *
+	 * The layout dispatcher's one write path: it recomputes the whole
+	 * navigation from `computeNav` and hands the answer over. Prefer
+	 * this to `replaceItems` + `appendSystemItem`, which cannot express
+	 * a plugin menu and an app launcher sharing a zone.
+	 */
+	public setZones( zones: DockZones ): void {
+		this.zones = {
+			core: zones.core.slice(),
+			apps: zones.apps.slice(),
+			controls: zones.controls.slice(),
+		};
+		this.render();
+	}
 
-		this.items = items;
-
-		const base = this.buildHookContextBase();
-		doAction( HOOKS.DOCK_BEFORE_RENDER, {
-			...base,
-			items,
-			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
-		} );
-
-		let insertedGroupSeparator = false;
-		let tilesInsertedThisPass = 0;
-		for ( const item of items ) {
-			if ( ! insertedGroupSeparator && item.isCore === false ) {
-				if ( tilesInsertedThisPass > 0 ) {
-					const sep = document.createElement( 'div' );
-					sep.className =
-						'os-dock__separator os-dock__separator--group';
-					sep.setAttribute( 'aria-hidden', 'true' );
-					this.itemHost.appendChild( sep );
+	/** Every system entry across every zone, in paint order. */
+	private systemEntries(): DockEntry[] {
+		const out: DockEntry[] = [];
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			for ( const entry of this.zones[ zone ] ) {
+				if ( 'system' === entry.type ) {
+					out.push( entry );
 				}
-				insertedGroupSeparator = true;
 			}
-			const btn = this.createItemButton( item );
-			this.itemElements.set( item.id, btn );
-			this.itemHost.appendChild( btn );
-			tilesInsertedThisPass++;
-			// Re-apply any client-side badge override that was set
-			// before the refresh. Without this, the live menu
-			// refresh path would drop every JS-set badge back to
-			// the server-declared `item.badge` and plugins would
-			// have to re-decorate after every plugin activation —
-			// exactly the anti-pattern this PR is closing.
-			const override = this.badgeOverrides.get( item.id );
-			if ( override !== undefined ) {
-				const primary = btn.querySelector< HTMLElement >(
-					'.os-dock__item-primary',
-				);
-				_applyBadgeNode( primary ?? btn, override );
-			}
-			// Same for a client-set icon: the refresh rebuilt this
-			// tile from the server-declared art, so re-apply the swap.
-			const art = this.artOverrides.get( item.id );
-			if ( art ) {
-				this._paintArt( btn, item.id, art );
-			}
-			doAction( HOOKS.DOCK_TILE_RENDERED, {
-				...base,
+		}
+		return out;
+	}
+
+	/**
+	 * Zone the menu list by `isCore`, then put the system entries back
+	 * where their kind says they belong.
+	 *
+	 * The legacy shape of the rail — one flat menu list plus a trailing
+	 * system cluster — collapses onto zones exactly, which is why
+	 * `replaceItems` and `appendSystemItem` keep working for custom
+	 * rail renderers that never learned about zones.
+	 */
+	private zonesFromMenu(
+		items: DockItem[],
+		systemEntries: DockEntry[],
+	): DockZones {
+		const zones: DockZones = { core: [], apps: [], controls: [] };
+		for ( const item of items ) {
+			zones[ item.isCore ? 'core' : 'apps' ].push( {
+				type: 'menu',
 				item,
-				isSystem: false,
-				el: btn,
 			} );
 		}
-
-		this.updateActiveStates();
-
-		doAction( HOOKS.DOCK_AFTER_RENDER, {
-			...base,
-			items,
-			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
-		} );
+		for ( const entry of systemEntries ) {
+			if ( 'system' !== entry.type ) {
+				continue;
+			}
+			zones[ zoneForSystemTile( entry.item ) ].push( entry );
+		}
+		return zones;
 	}
 
 	/**
@@ -647,26 +696,26 @@ export class Dock {
 	 * separator so the rail doesn't dangle a divider under nothing.
 	 */
 	public removeSystemItem( id: string ): void {
-		const tile = this.systemItemElements.get( id );
-		if ( ! tile ) {
+		let found = false;
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			const next = this.zones[ zone ].filter(
+				( entry ) =>
+					'system' !== entry.type || entry.item.id !== id,
+			);
+			if ( next.length !== this.zones[ zone ].length ) {
+				found = true;
+			}
+			this.zones[ zone ] = next;
+		}
+		if ( ! found ) {
 			return;
 		}
-		tile.remove();
-		this.systemItemElements.delete( id );
-		this.systemItems = this.systemItems.filter( ( s ) => s.id !== id );
 		// Drop any client-side badge override the caller had set —
 		// the tile is gone, the override would otherwise re-apply
 		// on a future re-registration of the same id.
 		this.badgeOverrides.delete( id );
 		this.artOverrides.delete( id );
-
-		if (
-			this.systemSeparator &&
-			! this.systemHost.querySelector( '.os-dock__item' )
-		) {
-			this.systemSeparator.remove();
-			this.systemSeparator = null;
-		}
+		this.render();
 
 		doAction( HOOKS.DOCK_ITEM_REMOVED, { id, placement: this.rail } );
 	}
@@ -935,89 +984,54 @@ export class Dock {
 	}
 
 	/**
-	 * The tile a newly-ordered system item should be inserted before,
-	 * or `null` to append. The first tile with a strictly greater
-	 * order wins, so equal orders keep registration order.
-	 */
-	private _systemSlotFor(
-		item: SystemDockItem,
-		host: HTMLElement,
-	): HTMLElement | null {
-		const order = item.order ?? 0;
-		// DOM order, not `systemItemElements` order: the map is keyed by
-		// registration and this question is about the rail as painted.
-		for ( const el of Array.from( host.children ) ) {
-			if ( ! ( el instanceof HTMLElement ) ) {
-				continue;
-			}
-			if ( el.dataset.systemOrder === undefined ) {
-				// The separator, or a node a plugin parked here.
-				continue;
-			}
-			if ( Number( el.dataset.systemOrder ) > order ) {
-				return el;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Append a JS-registered system item to the dock.
+	 * Append a JS-registered system item to the rail.
 	 *
-	 * System items render after the menu-derived items, separated by a
-	 * hairline divider. Use for shell affordances that don't live in
-	 * the admin menu: OS Settings today, Jorvy and desktop widgets
-	 * later. Callers supply their own `onOpen` — the dock doesn't
-	 * assume the item opens a window at all.
+	 * The tile lands in the zone its {@link SystemDockItem.navKind}
+	 * names — the apps zone for a launcher, the controls zone for one
+	 * of OpenStation's own affordances — and sorts among the other
+	 * system tiles there by {@link SystemDockItem.order}. Call order
+	 * cannot decide it: native-window tiles arrive whenever their lazy
+	 * script resolves.
 	 *
-	 * Placement follows {@link SystemDockItem.order} rather than call
-	 * order, because call order is not something the shell controls:
-	 * native-window tiles arrive whenever their lazy script resolves.
+	 * Idempotent on id: re-appending replaces the previous tile.
 	 */
 	public appendSystemItem( item: SystemDockItem ): void {
-		this.systemItems.push( item );
-
-		const host = this.systemHost;
-
-		if ( ! this.systemSeparator ) {
-			this.systemSeparator = document.createElement( 'div' );
-			this.systemSeparator.className = 'os-dock__separator';
-			this.systemSeparator.setAttribute( 'aria-hidden', 'true' );
-			this.systemHost.appendChild( this.systemSeparator );
+		const zone = zoneForSystemTile( item );
+		const entry: DockEntry = { type: 'system', item };
+		// Drop any previous registration of this id from every zone,
+		// so a re-register after a navKind change doesn't leave a
+		// stale tile behind.
+		for ( const z of DOCK_ZONE_ORDER ) {
+			this.zones[ z ] = this.zones[ z ].filter(
+				( e ) => 'system' !== e.type || e.item.id !== item.id,
+			);
 		}
-
-		const tile = this.createSystemItemButton( item );
-		this.systemItemElements.set( item.id, tile );
-		// Re-apply a client-set icon, same as the menu-item path does.
-		// System items are appended asynchronously (native-window sync
-		// awaits a lazy script load), so `setArt` for one of these has
-		// almost certainly already run and found no tile.
-		const systemArt = this.artOverrides.get( item.id );
-		if ( systemArt ) {
-			this._paintArt( tile, item.id, systemArt );
+		const list = this.zones[ zone ];
+		const order = item.order ?? 0;
+		// First system entry with a strictly greater order wins, so
+		// equal orders keep registration order and menu entries (which
+		// carry no order) always lead.
+		const at = list.findIndex(
+			( e ) => 'system' === e.type && ( e.item.order ?? 0 ) > order,
+		);
+		if ( at === -1 ) {
+			list.push( entry );
+		} else {
+			list.splice( at, 0, entry );
 		}
-		tile.dataset.systemOrder = String( item.order ?? 0 );
-		host.insertBefore( tile, this._systemSlotFor( item, host ) );
-		this.updateActiveStates();
-
-		doAction( HOOKS.DOCK_TILE_RENDERED, {
-			...this.buildHookContextBase(),
-			item,
-			isSystem: true,
-			el: tile,
-		} );
+		this.render();
 	}
 
 	/**
-	 * Render the dock contents.
+	 * Paint the rail from {@link zones}.
 	 *
-	 * Items are ordered server-side with core WordPress menus first and
-	 * plugin-contributed menus after. We insert a `--group` separator
-	 * at the first core→plugin transition so the two clusters read as
-	 * distinct groups of tiles — "default apps" and "installed apps"
-	 * in macOS-dock parlance. The separator is skipped when the menu
-	 * contains only one kind (no plugin menus, or a theme's filter
-	 * reordered everything into one class).
+	 * Three zones, two hosts: `core` and `apps` share the scrollable
+	 * host so a long admin menu can scroll without taking the controls
+	 * with it, and `controls` sits in the pinned host at the trailing
+	 * edge. A divider is drawn between each pair of ADJACENT NON-EMPTY
+	 * zones, so a split-layout dock (whose core zone is empty, its
+	 * menus being in the sidebar) opens with apps rather than with a
+	 * lonely separator.
 	 */
 	private render(): void {
 		// Cancel any in-flight drag — the dragged tile is about to be
@@ -1037,12 +1051,22 @@ export class Dock {
 		}
 		this.peekTeardowns.clear();
 
-		// Clear menu host only — system tiles live in their own host
-		// and survive a re-render. For the bottom dock both hosts are
-		// the same element; in that case the system tiles haven't been
-		// appended yet at constructor time so clearing here is still
-		// safe (`render()` only runs from the constructor).
 		this.itemHost.innerHTML = '';
+		this.systemHost.innerHTML = '';
+		this.itemElements.clear();
+		this.systemItemElements.clear();
+
+		this.items = [];
+		this.systemItems = [];
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			for ( const entry of this.zones[ zone ] ) {
+				if ( 'menu' === entry.type ) {
+					this.items.push( entry.item );
+				} else {
+					this.systemItems.push( entry.item );
+				}
+			}
+		}
 
 		const base = this.buildHookContextBase();
 		doAction( HOOKS.DOCK_BEFORE_RENDER, {
@@ -1051,31 +1075,33 @@ export class Dock {
 			tileElements: this.itemElements as ReadonlyMap<string, HTMLElement>,
 		} );
 
-		let insertedGroupSeparator = false;
-		for ( const item of this.items ) {
-			if ( ! insertedGroupSeparator && item.isCore === false ) {
-				// Only insert if there's at least one core tile before
-				// us — otherwise a plugin-only dock would lead with a
-				// lonely separator.
-				if ( this.itemHost.childElementCount > 0 ) {
-					const sep = document.createElement( 'div' );
-					sep.className =
-						'os-dock__separator os-dock__separator--group';
-					sep.setAttribute( 'aria-hidden', 'true' );
-					this.itemHost.appendChild( sep );
-				}
-				insertedGroupSeparator = true;
+		let painted = false;
+		for ( const zone of DOCK_ZONE_ORDER ) {
+			const entries = this.zones[ zone ];
+			if ( 0 === entries.length ) {
+				continue;
 			}
-			const btn = this.createItemButton( item );
-			this.itemElements.set( item.id, btn );
-			this.itemHost.appendChild( btn );
-			doAction( HOOKS.DOCK_TILE_RENDERED, {
-				...base,
-				item,
-				isSystem: false,
-				el: btn,
-			} );
+			const host =
+				'controls' === zone ? this.systemHost : this.itemHost;
+			if ( painted ) {
+				const sep = document.createElement( 'div' );
+				// The controls divider keeps the plain modifier it has
+				// always had: it separates two HOSTS, and the pinned
+				// host styles its own leading edge from it.
+				sep.className =
+					'controls' === zone
+						? 'os-dock__separator'
+						: 'os-dock__separator os-dock__separator--group';
+				sep.setAttribute( 'aria-hidden', 'true' );
+				host.appendChild( sep );
+			}
+			for ( const entry of entries ) {
+				this.paintEntry( entry, zone, host, base );
+			}
+			painted = true;
 		}
+
+		this.updateActiveStates();
 
 		doAction( HOOKS.DOCK_AFTER_RENDER, {
 			...base,
@@ -1084,11 +1110,87 @@ export class Dock {
 		} );
 	}
 
+	/** Build one tile, stamp its zone, and hang it in `host`. */
+	private paintEntry(
+		entry: DockEntry,
+		zone: keyof DockZones,
+		host: HTMLElement,
+		base: DockHookContextBase,
+	): void {
+		const id = entry.item.id;
+		const tile =
+			'menu' === entry.type
+				? this.createItemButton( entry.item )
+				: this.createSystemItemButton( entry.item );
+		// The zone is what scopes a drag: a gesture only reorders tiles
+		// carrying the same value, so there is no cross-zone drop to
+		// reject.
+		tile.dataset.zone = zone;
+		tile.dataset.navId = id;
+		const locked =
+			'system' === entry.type && true === entry.item.locked;
+		if ( locked ) {
+			tile.dataset.navLocked = '';
+		} else {
+			this.attachDragReorder( tile, id, zone );
+			// Right-click → the placement menu. Mounted on the tile
+			// (not the primary button) so a contextmenu inside the
+			// badge or the submenu chevron still triggers it, and on
+			// both cohorts because a launcher is as movable as a menu.
+			tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
+				ev.preventDefault();
+				openItemVisibilityMenu( {
+					x: ev.clientX,
+					y: ev.clientY,
+					id,
+					title: entry.item.title,
+					surface: 'dock',
+					pluginFile:
+						'menu' === entry.type
+							? entry.item.pluginFile ?? null
+							: null,
+					pluginName:
+						'menu' === entry.type
+							? entry.item.pluginName ?? null
+							: null,
+				} );
+			} );
+		}
+		if ( 'menu' === entry.type ) {
+			this.itemElements.set( id, tile );
+		} else {
+			this.systemItemElements.set( id, tile );
+		}
+		host.appendChild( tile );
+
+		// Re-apply any client-side badge / art override set before this
+		// render. Without this a live menu refresh would drop every
+		// JS-set decoration back to the server-declared value.
+		const badge = this.badgeOverrides.get( id );
+		if ( badge !== undefined ) {
+			const primary = tile.querySelector< HTMLElement >(
+				'.os-dock__item-primary',
+			);
+			_applyBadgeNode( primary ?? tile, badge );
+		}
+		const art = this.artOverrides.get( id );
+		if ( art ) {
+			this._paintArt( tile, id, art );
+		}
+
+		doAction( HOOKS.DOCK_TILE_RENDERED, {
+			...base,
+			item: entry.item,
+			isSystem: 'system' === entry.type,
+			el: tile,
+		} );
+	}
+
 	/**
-	 * Create a tile for a JS-registered system item. Structurally simpler
-	 * than a menu tile — no submenu, no multi-instance rail, no badge —
-	 * but uses the same base classes so the hover / focus / active
-	 * styling is shared.
+	 * Create a tile for a JS-registered system item. Structurally
+	 * simpler than a menu tile — no submenu rail, no multi-instance
+	 * chips, no badge — but built on the same base classes so hover,
+	 * focus and active styling are shared.
 	 */
 	private createSystemItemButton( item: SystemDockItem ): HTMLElement {
 		const ctx: DockTileContext = {
@@ -1249,22 +1351,6 @@ export class Dock {
 			this.openPage( item );
 		} );
 
-		// Right-click → visibility menu. Mounted on the tile (not the
-		// primary button) so a contextmenu inside the badge or the
-		// future submenu chevron still triggers it.
-		tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
-			ev.preventDefault();
-			openItemVisibilityMenu( {
-				x: ev.clientX,
-				y: ev.clientY,
-				id: item.id,
-				title: item.title,
-				surface: 'dock',
-				pluginFile: item.pluginFile ?? null,
-				pluginName: item.pluginName ?? null,
-			} );
-		} );
-
 		tile.appendChild( primary );
 
 		this.bindTooltipFiltered( tile, item.title, ctx );
@@ -1327,8 +1413,6 @@ export class Dock {
 		} );
 		this.peekTeardowns.set( item.id, teardown );
 
-		this.attachDragReorder( tile, item.id );
-
 		return applyFilters< HTMLElement >(
 			HOOKS.DOCK_TILE_ELEMENT,
 			tile,
@@ -1349,11 +1433,15 @@ export class Dock {
 	 *    tile, we splice the dragged tile in front of it (so adjacent
 	 *    tiles slide into the vacated slot).
 	 * 3. On `pointerup` we read the resulting DOM order, persist the
-	 *    new id list to `dockOrder` via the public settings writer,
+	 *    new id list to `navOrder` via the public settings writer,
 	 *    and the layout-dispatcher subscriber re-applies. Cancellation
 	 *    (Escape, pointercancel) reverts to the original order.
 	 */
-	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
+	private attachDragReorder(
+		tile: HTMLElement,
+		itemId: string,
+		zone: keyof DockZones,
+	): void {
 		const THRESHOLD = 5; // px the pointer must move before claiming.
 		const FLIP_MS = 200;
 		let active = false;
@@ -1386,29 +1474,48 @@ export class Dock {
 			originRect = null;
 		};
 
-		const isMenuTile = ( el: Element | null ): el is HTMLElement => {
+		// The drag's host is the one the zone paints into: the two
+		// scrolling zones share an element, the controls zone has its
+		// own.
+		const host: HTMLElement =
+			'controls' === zone ? this.systemHost : this.itemHost;
+
+		/**
+		 * A tile this gesture may reorder against.
+		 *
+		 * Same zone, and nothing else. Zones are the whole boundary:
+		 * a tile cannot be dragged into another one because a drop
+		 * outside its own zone simply never matches, so there is no
+		 * cross-zone move to detect and undo.
+		 */
+		const isSameZoneTile = ( el: Element | null ): el is HTMLElement => {
 			return (
 				!! el &&
 				el instanceof HTMLElement &&
 				el.classList.contains( 'os-dock__item' ) &&
-				! el.classList.contains( 'os-dock__item--system' ) &&
-				!! el.dataset.menuSlug
+				el.dataset.zone === zone &&
+				!! el.dataset.navId &&
+				! el.dataset.navLocked
 			);
 		};
 
 		const eachSiblingTile = ( fn: ( el: HTMLElement ) => void ): void => {
-			for ( const child of Array.from( this.itemHost.children ) ) {
-				if ( child instanceof HTMLElement && child !== tile && isMenuTile( child ) ) {
+			for ( const child of Array.from( host.children ) ) {
+				if (
+					child instanceof HTMLElement &&
+					child !== tile &&
+					isSameZoneTile( child )
+				) {
 					fn( child );
 				}
 			}
 		};
 
-		const snapshotMenuOrder = (): string[] => {
+		const snapshotZoneOrder = (): string[] => {
 			const ids: string[] = [];
-			for ( const child of Array.from( this.itemHost.children ) ) {
-				if ( isMenuTile( child ) ) {
-					ids.push( child.dataset.menuSlug as string );
+			for ( const child of Array.from( host.children ) ) {
+				if ( isSameZoneTile( child ) ) {
+					ids.push( child.dataset.navId as string );
 				}
 			}
 			return ids;
@@ -1464,7 +1571,7 @@ export class Dock {
 				}
 				// Claim the gesture.
 				active = true;
-				originalOrder = snapshotMenuOrder();
+				originalOrder = snapshotZoneOrder();
 				originalNext = tile.nextSibling;
 				originRect = tile.getBoundingClientRect();
 				tile.classList.add( 'os-dock__item--dragging' );
@@ -1494,7 +1601,7 @@ export class Dock {
 			if ( ! targetTile || targetTile === tile ) {
 				return;
 			}
-			if ( ! isMenuTile( targetTile ) ) {
+			if ( ! isSameZoneTile( targetTile ) ) {
 				return;
 			}
 
@@ -1519,11 +1626,11 @@ export class Dock {
 			let reordered = false;
 			if ( insertBefore ) {
 				if ( targetTile !== tile.nextSibling ) {
-					this.itemHost.insertBefore( tile, targetTile );
+					host.insertBefore( tile, targetTile );
 					reordered = true;
 				}
 			} else if ( targetTile.nextSibling !== tile ) {
-				this.itemHost.insertBefore( tile, targetTile.nextSibling );
+				host.insertBefore( tile, targetTile.nextSibling );
 				reordered = true;
 			}
 
@@ -1576,43 +1683,9 @@ export class Dock {
 			tile.addEventListener( 'transitionend', onEnd );
 		};
 
-		const persistDockOrder = ( finalOrder: string[] ): void => {
+		const persistZoneOrder = ( finalOrder: string[] ): void => {
 			void itemId;
-			const api = (
-				window as unknown as {
-					wp?: {
-						os?: {
-							getOsSettings?: () => {
-								dockOrder: string[];
-							};
-							updateOsSettings?: ( patch: {
-								dockOrder?: string[];
-							} ) => void;
-						};
-					};
-				}
-			).wp?.os;
-			if ( ! api?.getOsSettings || ! api?.updateOsSettings ) {
-				return;
-			}
-			const existing = api.getOsSettings().dockOrder;
-			const finalSet = new Set( finalOrder );
-			const merged: string[] = [];
-			let injected = false;
-			for ( const id of existing ) {
-				if ( finalSet.has( id ) ) {
-					if ( ! injected ) {
-						merged.push( ...finalOrder );
-						injected = true;
-					}
-					continue;
-				}
-				merged.push( id );
-			}
-			if ( ! injected ) {
-				merged.push( ...finalOrder );
-			}
-			api.updateOsSettings( { dockOrder: merged } );
+			persistNavZoneOrder( finalOrder );
 		};
 
 		const onUp = ( ev: PointerEvent ): void => {
@@ -1624,7 +1697,7 @@ export class Dock {
 				return;
 			}
 			justDragged = true;
-			const finalOrder = snapshotMenuOrder();
+			const finalOrder = snapshotZoneOrder();
 			animateHome();
 			cleanup();
 
@@ -1632,7 +1705,7 @@ export class Dock {
 				finalOrder.length === originalOrder.length &&
 				finalOrder.every( ( id, i ) => id === originalOrder[ i ] );
 			if ( ! same ) {
-				persistDockOrder( finalOrder );
+				persistZoneOrder( finalOrder );
 			}
 			setTimeout( () => {
 				justDragged = false;
@@ -1648,7 +1721,7 @@ export class Dock {
 				eachSiblingTile( ( sib ) => {
 					prevRects.set( sib, sib.getBoundingClientRect() );
 				} );
-				this.itemHost.insertBefore( tile, originalNext );
+				host.insertBefore( tile, originalNext );
 				flipSiblings( prevRects );
 			}
 			animateHome();
@@ -2144,51 +2217,27 @@ export class Dock {
 	 * only the destination changes.
 	 */
 	private openPage( item: DockItem ): void {
-		// Synthesized dock tiles (created from desktop icons promoted
-		// to the dock via the user's `itemVisibility` settings)
-		// carry id prefix `dock:<icon-id>`. Their native opener
-		// lives on the original `openstation_register_icon` entry —
-		// `window` for a native-window target, `url` otherwise.
-		// Without this branch the click would derive a window id
-		// from an empty URL and silently no-op.
-		if ( item.id.startsWith( 'dock:' ) ) {
-			const iconId = item.id.slice( 5 );
-			const cfg = ( window as unknown as {
-				openStationConfig?: { desktopIcons?: Array< {
-					id: string;
-					window?: string;
-					url?: string;
-					title: string;
-					icon: string;
-				} > };
-			} ).openStationConfig;
-			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
-			if ( icon?.window ) {
-				const wp = ( window as unknown as {
-					wp?: { os?: { openWindow?: ( id: string ) => unknown } };
-				} ).wp?.os;
-				wp?.openWindow?.( icon.window );
+		// A tile whose target is a native window rather than an admin
+		// URL — an app launcher the user put on the rail, or a window
+		// with no launcher at all that is on the rail because it is
+		// open. Deriving an id from its empty `url` would find nothing
+		// and the click would silently no-op.
+		//
+		// Focus first, open second. The registry can only open windows
+		// it registered, and a window that arrived some other way (the
+		// Preferences panel, a plugin's `windowManager.open()`) is
+		// exactly the kind whose tile exists only because it is
+		// already open.
+		if ( item.windowId && ! item.url ) {
+			const existing = this.windowManager.getById( item.windowId );
+			if ( existing ) {
+				this.windowManager.focus( existing );
 				return;
 			}
-			if ( icon?.url ) {
-				if ( tryOpenExternalUrl( icon.url ) ) {
-					return;
-				}
-				const baseId = this.deriveWindowId( icon.url );
-				this.windowManager.open( {
-					id: baseId,
-					baseId,
-					url: icon.url,
-					parentUrl: icon.url,
-					title: icon.title,
-					icon: icon.icon.startsWith( 'dashicons-' )
-						? icon.icon
-						: 'dashicons-admin-generic',
-					submenu: [],
-					multi: false,
-				} );
-				return;
-			}
+			const wp = ( window as unknown as {
+				wp?: { os?: { openWindow?: ( id: string ) => unknown } };
+			} ).wp?.os;
+			wp?.openWindow?.( item.windowId );
 			return;
 		}
 
@@ -2301,8 +2350,7 @@ export class Dock {
 	/**
 	 * Resolve the window-manager key for a dock tile, in this order:
 	 *
-	 * 1. `item.windowId` — set by `applyDockPlacement` when the tile
-	 *    is synthesized from a `openstation_register_icon()` entry
+	 * 1. `item.windowId` — carried by the navigation for any tile
 	 *    whose target is a native window. Native-window ids never
 	 *    pass through the URL → native-window remap layer, so we
 	 *    short-circuit before touching it.
@@ -2319,24 +2367,6 @@ export class Dock {
 	private resolveItemBaseId( item: DockItem ): string {
 		if ( item.windowId ) {
 			return item.windowId;
-		}
-		if ( item.id.startsWith( 'dock:' ) ) {
-			const iconId = item.id.slice( 5 );
-			const cfg = ( window as unknown as {
-				openStationConfig?: { desktopIcons?: Array< {
-					id: string;
-					window?: string;
-					url?: string;
-				} > };
-			} ).openStationConfig;
-			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
-			if ( icon?.window ) {
-				return icon.window;
-			}
-			if ( icon?.url ) {
-				const remapped = resolveNativeUrlRemap( icon.url );
-				return remapped ?? this.deriveWindowId( icon.url );
-			}
 		}
 		const remapped = resolveNativeUrlRemap( item.url );
 		return remapped ?? this.deriveWindowId( item.url );
@@ -2454,7 +2484,7 @@ export class Dock {
 		this.itemElements.clear();
 		this.systemItemElements.clear();
 		this.systemItems = [];
-		this.systemSeparator = null;
+		this.zones = { core: [], apps: [], controls: [] };
 		this.container.removeAttribute( 'data-os-dock-placement' );
 	}
 

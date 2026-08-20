@@ -215,6 +215,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'openOsSettings', 'getOsSettings', 'subscribeOsSettings', 'updateOsSettings',
 	'deriveWindowId',
 	'listSystemTiles', 'getSystemTile', 'getMenuItems',
+	'getNavItems', 'getNav',
 	'renderIcon',
 	'applyTileClasses', 'applyTileElement', 'applyTileTooltip',
 	'dispatchTileRendered',
@@ -533,16 +534,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 						.slice( 0, 32 );
 			}
 			if (
-				patch.itemVisibility &&
-				typeof patch.itemVisibility === 'object'
+				patch.navPlacement &&
+				typeof patch.navPlacement === 'object'
 			) {
-				const allowed = [ 'both', 'dock', 'desktop', 'hidden' ];
+				const allowed = [ 'both', 'rail', 'desktop', 'hidden' ];
 				const next: Record<
 					string,
-					'both' | 'dock' | 'desktop' | 'hidden'
+					'both' | 'rail' | 'desktop' | 'hidden'
 				> = {};
 				for ( const [ k, v ] of Object.entries(
-					patch.itemVisibility as Record< string, unknown >,
+					patch.navPlacement as Record< string, unknown >,
 				) ) {
 					if ( typeof k !== 'string' || k === '' ) {
 						continue;
@@ -552,14 +553,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 					}
 					next[ k ] = v as
 						| 'both'
-						| 'dock'
+						| 'rail'
 						| 'desktop'
 						| 'hidden';
 				}
-				osSettings.state.itemVisibility = next;
+				osSettings.state.navPlacement = next;
 			}
-			if ( Array.isArray( patch.dockOrder ) ) {
-				osSettings.state.dockOrder = patch.dockOrder
+			if ( Array.isArray( patch.navOrder ) ) {
+				osSettings.state.navOrder = patch.navOrder
 					.filter(
 						( v ): v is string =>
 							typeof v === 'string' && v !== '',
@@ -644,9 +645,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			// listeners since `save()` iterates a single Set). Re-
 			// invoking refresh() directly here makes the dock + icon
 			// grid pick up the new placement synchronously with the
-			// write — no F5 required for "Hide from dock" / "Also show
-			// on desktop" picks from the right-click menu.
-			if ( patch.itemVisibility || patch.dockOrder ) {
+			// write — no F5 required for "Hide from dock" / "Show on
+			// desktop" picks from the right-click menu.
+			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
 		},
@@ -656,6 +657,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		getSystemTile: ( id: string ) =>
 			layoutDispatcher?.getSystemTile( id ) ?? null,
 		getMenuItems: () => layoutDispatcher?.getMenuItems() ?? [],
+		getNavItems: () => layoutDispatcher?.getNavItems() ?? [],
+		getNav: () => layoutDispatcher?.getNav() ?? null,
 		renderIcon,
 		applyTileClasses,
 		applyTileElement,
