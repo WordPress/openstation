@@ -60,11 +60,21 @@ defined( 'ABSPATH' ) || exit;
  * with a `MutationObserver` so React-mounted components are
  * corrected as they appear instead of via a second full-DOM walk
  * at `load`. The observer only inspects added nodes, not the
- * whole document, which is roughly two orders of magnitude
- * cheaper than the old double-walk on a busy Gutenberg or
- * WooCommerce admin page (~2,000+ `getComputedStyle()` calls
- * collapsed into a one-time initial walk plus per-addition
- * checks).
+ * whole document.
+ *
+ * The observer callback itself does NO style reads: it only
+ * enqueues added elements and schedules one idle flush
+ * (`requestIdleCallback`, 500 ms timeout backstop; plain
+ * `setTimeout` fallback). Every `getComputedStyle()` read forces
+ * a synchronous style recalculation, and a MutationObserver
+ * callback runs as a microtask BEFORE the next paint — so reading
+ * computed style in the callback puts a forced style flush on the
+ * exact path Gutenberg hammers hardest while the user types
+ * (block toolbar mounts, popovers, autocompleters; hundreds of
+ * descendants per batch). Deferring the walk to idle time takes
+ * the neutralizer off the typing path entirely; a late-mounted
+ * plugin header is corrected a frame or two later, which is
+ * imperceptible for elements that only just appeared.
  *
  * Fallback for very old browsers without `MutationObserver`:
  * keep the second walk at `load`. The current minimum (IE 11+)
@@ -123,6 +133,30 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= "var els=root.querySelectorAll?root.querySelectorAll('*'):[];";
 	$js .= 'for(var i=0;i<els.length;i++){fixOne(els[i]);}';
 	$js .= '}';
+	// Added nodes are queued and walked in ONE idle-time flush. The
+	// observer callback must never read computed style itself — it
+	// runs before the next paint, so a style read there is a forced
+	// synchronous recalc on the editor's typing path.
+	$js .= 'var queue=[];';
+	$js .= 'var scheduled=false;';
+	$js .= 'function flush(){';
+	$js .= 'scheduled=false;';
+	$js .= 'var batch=queue;';
+	$js .= 'queue=[];';
+	$js .= 'for(var i=0;i<batch.length;i++){';
+	// Skip nodes detached between enqueue and flush (transient
+	// popovers, React unmounts) — nothing visible to correct, and
+	// getComputedStyle on a detached tree is wasted work.
+	$js .= 'if(batch[i].isConnected===false)continue;';
+	$js .= 'walkSubtree(batch[i]);';
+	$js .= '}';
+	$js .= '}';
+	$js .= 'function schedule(){';
+	$js .= 'if(scheduled)return;';
+	$js .= 'scheduled=true;';
+	$js .= 'if(window.requestIdleCallback){window.requestIdleCallback(flush,{timeout:500});}';
+	$js .= 'else{window.setTimeout(flush,200);}';
+	$js .= '}';
 	$js .= 'var started=false;';
 	$js .= 'function start(){';
 	$js .= 'if(started)return;';
@@ -131,12 +165,18 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= 'var MO=window.MutationObserver;';
 	$js .= 'if(MO){';
 	$js .= 'var observer=new MO(function(records){';
+	$js .= 'var found=false;';
 	$js .= 'for(var r=0;r<records.length;r++){';
 	$js .= 'var rec=records[r];';
 	$js .= "if(rec.type!=='childList')continue;";
 	$js .= 'var added=rec.addedNodes;';
-	$js .= 'for(var n=0;n<added.length;n++){walkSubtree(added[n]);}';
+	$js .= 'for(var n=0;n<added.length;n++){';
+	// Element nodes only — rich-text edits insert text nodes by the
+	// dozen, and those can never carry a positioned offset.
+	$js .= 'if(added[n].nodeType===1){queue.push(added[n]);found=true;}';
 	$js .= '}';
+	$js .= '}';
+	$js .= 'if(found){schedule();}';
 	$js .= '});';
 	$js .= 'observer.observe(document.body,{childList:true,subtree:true});';
 	$js .= '}';
@@ -2608,6 +2648,63 @@ function openstation_chromeless_bridge_script() {
 	} catch ( _err ) {
 		/* parent gone or cross-origin — bridge handshake will retry on next load */
 	}
+
+	/*
+	 * Background heartbeat throttle.
+	 *
+	 * Every chromeless iframe is a complete wp-admin page running
+	 * Core's Heartbeat — 15 s in the post editor (post locking). A
+	 * desktop with several windows open therefore fires several
+	 * admin-ajax heartbeats a minute from windows the user isn't even
+	 * looking at, and every one of them boots the whole plugin stack
+	 * server-side. Core only slows Heartbeat when the browser TAB is
+	 * hidden; a background desktop window is still a visible iframe,
+	 * so that built-in backoff never engages.
+	 *
+	 * The parent shell posts `os-window-active` on window focus and
+	 * blur (`src/window-activity-notifier.ts`). On blur we stretch the
+	 * interval to Heartbeat's 120 s maximum; on focus we restore the
+	 * saved cadence. Post locks stay safe: Core's lock window is 150 s,
+	 * above the slowed interval. Two guards keep this conservative:
+	 *
+	 *   - Never slow an interval below 15 s — a 5 s cadence means
+	 *     something urgent (auth-check retry) is in flight.
+	 *   - Only restore when the interval is still the 120 s we set —
+	 *     if page code re-tuned Heartbeat while backgrounded, the
+	 *     throttle keeps its hands off.
+	 */
+	( function () {
+		var savedInterval = null;
+
+		window.addEventListener( 'message', function ( e ) {
+			if ( e.origin !== window.location.origin || e.source !== window.parent ) return;
+			var d = e && e.data;
+			if ( ! d || typeof d !== 'object' || d.type !== 'os-window-active' ) return;
+			var hb = window.wp && window.wp.heartbeat;
+			if ( ! hb || typeof hb.interval !== 'function' ) return;
+			try {
+				if ( d.active === false ) {
+					var current = hb.interval();
+					if (
+						savedInterval === null &&
+						typeof current === 'number' &&
+						current >= 15 &&
+						current < 120
+					) {
+						savedInterval = current;
+						hb.interval( 120 );
+					}
+				} else if ( d.active === true && savedInterval !== null ) {
+					if ( hb.interval() === 120 ) {
+						hb.interval( savedInterval );
+					}
+					savedInterval = null;
+				}
+			} catch ( _err ) {
+				/* heartbeat internals changed shape — leave it alone */
+			}
+		} );
+	} () );
 
 	/*
 	 * ` / Shift+` forwarder — window switcher.

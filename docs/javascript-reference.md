@@ -401,6 +401,20 @@ Named for the intent rather than the input: a menu opened from the keyboard has 
 
 ---
 
+### `os-palette-opened` / `os-palette-closed` — Experimental
+
+Fire on `document` when a Cmd+K palette becomes visible / stops being visible. The detail carries the palette's registry id. The shell uses the pair to gate work that is only worth paying for while a palette can display the result — the iframe command harvester is the canonical consumer: it keeps a React tree re-rendering on every `wp.data` store tick inside the focused window (every keystroke in the block editor), so it must not run while no palette is open.
+
+```javascript
+document.addEventListener( 'os-palette-opened', ( e ) => {
+    const { id } = e.detail; // e.g. 'desktop-mode-ai-assistant'
+} );
+```
+
+The palette registry announces the transitions it drives itself (the Cmd+K cycle, `wp.os.openPalette()`), and the built-in AI Assistant announces its own extra entry points (Escape, the × button, programmatic `open()`/`close()`). **A plugin palette with its own entry points should dispatch these events from those paths too** — otherwise palette-gated features simply stay dormant while it is open. Treat the events as idempotent signals: a transition can be announced from more than one site, so consumers must tolerate duplicates.
+
+---
+
 ### Drag-and-drop CustomEvents — Stable
 
 Fired on `document` by `wp.os.dragManager` for every in-shell
@@ -4030,6 +4044,8 @@ wp.os.ready( () => {
 
 The built-in AI Assistant is already registered as palette 0 (`id: 'desktop-mode-ai-assistant'`) — your palette lands at position 1 and the cycle goes AI → yours → closed → AI → …
 
+**Announce your own open/close paths.** The registry dispatches [`os-palette-opened` / `os-palette-closed`](#os-palette-opened--os-palette-closed--experimental) around the transitions it drives itself (the Cmd+K cycle, `openPalette()`), but it can't see an Escape handler or close button inside your palette. Dispatch the same CustomEvents from those paths — palette-gated shell features (the focused window's contextual-command harvest, e.g. "Duplicate block" in the block editor) only run while a palette has announced itself open.
+
 ---
 
 ### `unregisterPalette( id )` — Stable
@@ -4361,15 +4377,22 @@ Asks the iframe to toggle a named screen-meta panel. The iframe is the authority
 { type: 'os-toggle-panel'; panel: 'screen-options' | 'help' }
 ```
 
+#### `os-window-active` — Experimental
+Tells the iframe whether its window is the focused one. Sent on window focus/blur and re-seeded on every `os-bridge-ready` (so a background window that navigates doesn't come back on the fast cadence). The chromeless bridge uses it to stretch Core's Heartbeat to its 120 s maximum while the window is backgrounded — see [`bridge-protocol.md` → Background heartbeat throttle](./bridge-protocol.md#background-heartbeat-throttle--os-window-active).
+
+```typescript
+{ type: 'os-window-active'; active: boolean }
+```
+
 #### `os-commands-subscribe` — Experimental
-Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `os-commands-list`. The shell sends this to the iframe owned by the currently focused window and rescinds it (`os-commands-unsubscribe`) when focus moves elsewhere.
+Tells the iframe to begin streaming its `wp.data.select('core/commands')` registry to the parent via `os-commands-list`. The shell sends this to the focused window's iframe **while a Cmd+K palette is open** (see the `os-palette-opened` / `os-palette-closed` CustomEvents) and rescinds it (`os-commands-unsubscribe`) when the palette closes or focus moves elsewhere. Streaming is palette-gated because the iframe-side harvester keeps a React tree re-rendering on every `wp.data` store tick — in the block editor, every keystroke — so it must only run while a palette can actually display the result.
 
 ```typescript
 { type: 'os-commands-subscribe' }
 ```
 
 #### `os-commands-unsubscribe` — Experimental
-Tells the iframe to stop streaming its command list. The parent unregisters any shell-palette entries still tagged with this window's owner.
+Tells the iframe to stop streaming its command list and tear the harvester down. After a palette close this is sent on a short grace delay (~250 ms) so a picked command's `os-commands-invoke` — posted after the palette has already closed — still finds a live callback cache. On a focus change the parent also unregisters any shell-palette entries still tagged with the defocused window's owner; after a plain palette close the last harvested list stays registered so reopening paints instantly while a fresh harvest streams in.
 
 ```typescript
 { type: 'os-commands-unsubscribe' }

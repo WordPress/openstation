@@ -300,6 +300,17 @@ export class AiAssistant implements AiAssistantApi {
 		this._el.classList.add( 'is-open' );
 		this._el.setAttribute( 'aria-hidden', 'false' );
 
+		// Announce visibility so palette-gated work (the iframe command
+		// harvester) starts. Dispatched inline rather than via the
+		// palette registry's notifyPaletteVisibility — this bundle
+		// deliberately doesn't import the registry module, and the
+		// consumers treat the event as an idempotent signal anyway.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-opened', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
+
 		requestAnimationFrame( () => this._input.focus() );
 	}
 
@@ -314,6 +325,16 @@ export class AiAssistant implements AiAssistantApi {
 		this._isSearching = false;
 		this._submitBtn.disabled = false;
 		this._input.disabled = false;
+
+		// Mirror of the `os-palette-opened` dispatch in `open()` —
+		// lets palette-gated work (the iframe command harvester) shut
+		// down. Consumers grace-delay teardown, so dispatching before
+		// a picked command's `run()` executes is safe.
+		document.dispatchEvent(
+			new CustomEvent( 'os-palette-closed', {
+				detail: { id: 'desktop-mode-ai-assistant' },
+			} ),
+		);
 
 		const onEnd = ( e: TransitionEvent ) => {
 			if ( e.target !== this._el || e.propertyName !== 'opacity' ) {

@@ -19,6 +19,26 @@
  *     removed inside the iframe (Gutenberg entering the editor,
  *     distraction-free toggled, etc.) shows up in the palette without
  *     any user interaction.
+ *
+ * Streaming is gated on palette visibility. Harvesting is not free for
+ * the iframe: while subscribed, the chromeless bridge keeps a React
+ * tree mounted whose command-loader hooks re-render on every
+ * `wp.data` store tick — in the block editor that means every
+ * keystroke. So the bridge only subscribes the focused window while a
+ * palette is actually open (`os-palette-opened` / `os-palette-closed`
+ * document events, dispatched by the AI Assistant overlay and the
+ * palette registry), and tells the iframe to tear the harvester down
+ * again when it closes. Two deliberate wrinkles:
+ *
+ *   - The unsubscribe after close is sent on a short grace delay.
+ *     Picking a command closes the palette BEFORE `run()` posts
+ *     `os-commands-invoke`, and the iframe clears its callback cache
+ *     on unsubscribe — an immediate unsubscribe would race the invoke
+ *     and silently no-op loader commands ("Duplicate block").
+ *   - Closing the palette does NOT unregister the harvested commands.
+ *     The last snapshot stays registered so reopening paints the
+ *     palette instantly while a fresh harvest streams in; focus
+ *     changes and window closes still evict stale owners.
  */
 
 import {
@@ -80,10 +100,24 @@ export interface IframeCommandBridgeOptions {
 	adminUrl: string;
 }
 
+/**
+ * How long to keep the focused iframe's harvester streaming after the
+ * palette closes. Long enough for a close-then-run command pick to post
+ * its `os-commands-invoke` first; short enough that typing resumes on a
+ * quiet editor almost immediately.
+ */
+const CLOSE_GRACE_MS = 250;
+
 export class IframeCommandBridge {
 	private readonly manager: WindowManager;
 	private readonly adminUrl: string;
-	private subscribedWindowId: string | null = null;
+	/** Window whose iframe we've told to stream (subscribe sent, no unsubscribe yet). */
+	private streamingWindowId: string | null = null;
+	/** Last window reported focused, streaming or not. */
+	private focusedWindowId: string | null = null;
+	/** Whether a Cmd+K palette is currently open. */
+	private paletteOpen = false;
+	private closeGraceTimer: number | null = null;
 
 	constructor( opts: IframeCommandBridgeOptions ) {
 		this.manager = opts.manager;
@@ -102,14 +136,30 @@ export class IframeCommandBridge {
 			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
 			if ( detail && typeof detail.windowId === 'string' ) {
 				unregisterByOwner( ownerFor( detail.windowId ) );
-				if ( this.subscribedWindowId === detail.windowId ) {
-					this.subscribedWindowId = null;
+				if ( this.streamingWindowId === detail.windowId ) {
+					// The iframe is gone — nothing to post an
+					// unsubscribe to.
+					this.streamingWindowId = null;
+				}
+				if ( this.focusedWindowId === detail.windowId ) {
+					this.focusedWindowId = null;
 				}
 			}
 		} );
 
-		// When the focused window is minimized we only clear the
-		// subscription guard — the window's commands stay registered
+		// A palette opening is what makes harvesting worth paying for;
+		// its closing is what makes it pure overhead. See the header
+		// comment for why the stop is grace-delayed and why harvested
+		// commands stay registered across a close.
+		document.addEventListener( 'os-palette-opened', () => {
+			this.onPaletteOpened();
+		} );
+		document.addEventListener( 'os-palette-closed', () => {
+			this.onPaletteClosed();
+		} );
+
+		// When the focused window is minimized, stop its stream and
+		// clear the focus guard — the window's commands stay registered
 		// in the palette until the window is closed or refocused. On
 		// restore, the window manager fires a fresh
 		// `os-window-focused` which flows through `onFocused`
@@ -125,11 +175,14 @@ export class IframeCommandBridge {
 			if ( detail.state !== 'minimized' ) {
 				return;
 			}
-			if ( this.subscribedWindowId === detail.windowId ) {
+			if ( this.streamingWindowId === detail.windowId ) {
+				this.stopStreaming();
+			}
+			if ( this.focusedWindowId === detail.windowId ) {
 				// Clear so a restore-fired focus event re-subscribes
 				// instead of short-circuiting on the `already
-				// subscribed` check.
-				this.subscribedWindowId = null;
+				// focused` check.
+				this.focusedWindowId = null;
 			}
 		} );
 		window.addEventListener( 'message', ( e: MessageEvent ) => {
@@ -148,7 +201,7 @@ export class IframeCommandBridge {
 			// slow editor boot, etc.).
 			if ( data.type === 'os-bridge-ready' ) {
 				const win = this.manager.findByIframeSource( e.source );
-				if ( win && win.id === this.subscribedWindowId ) {
+				if ( win && win.id === this.streamingWindowId ) {
 					this.sendSubscribe( win.id );
 				}
 				return;
@@ -165,47 +218,99 @@ export class IframeCommandBridge {
 			if ( ! win ) {
 				return;
 			}
-			// Only accept lists from the currently subscribed window.
+			// Only accept lists from the currently streaming window.
 			// Background iframes shouldn't be streaming (they were told
 			// to unsubscribe), but if one does — stale or misbehaving
 			// — we don't want its commands leaking into the palette.
-			if ( win.id !== this.subscribedWindowId ) {
+			if ( win.id !== this.streamingWindowId ) {
 				return;
 			}
 			this.applyList( win.id, data.commands );
 		} );
 
-		// Seed against whatever window is focused at install time.
+		// Seed the focus tracker against whatever window is focused at
+		// install time. No subscribe yet — that waits for a palette.
 		const focused = this.manager.getFocused();
 		if ( focused ) {
-			this.onFocused( focused.id );
+			this.focusedWindowId = focused.id;
 		}
 	}
 
 	private onFocused( windowId: string ): void {
-		if ( this.subscribedWindowId === windowId ) {
+		const alreadyStreamingRight =
+			! this.paletteOpen || this.streamingWindowId === windowId;
+		if ( this.focusedWindowId === windowId && alreadyStreamingRight ) {
 			return;
 		}
 
-		// Tell the previously focused iframe to stop streaming.
-		if ( this.subscribedWindowId ) {
-			const prev = this.manager.getById( this.subscribedWindowId );
-			if ( prev && prev.iframe && prev.iframe.contentWindow ) {
-				try {
-					prev.iframe.contentWindow.postMessage(
-						{ type: 'os-commands-unsubscribe' },
-						window.location.origin,
-					);
-				} catch {
-					/* swallow */
-				}
-			}
-			unregisterByOwner( ownerFor( this.subscribedWindowId ) );
+		// Focus moved to a different window: the stale window's palette
+		// entries must go regardless of palette visibility, exactly as
+		// before streaming was palette-gated.
+		if ( this.focusedWindowId && this.focusedWindowId !== windowId ) {
+			unregisterByOwner( ownerFor( this.focusedWindowId ) );
 		}
 
-		this.subscribedWindowId = windowId;
+		// Stop any stream still flowing from another window — including
+		// one lingering in the post-close grace window.
+		if ( this.streamingWindowId && this.streamingWindowId !== windowId ) {
+			this.stopStreaming();
+		}
 
+		this.focusedWindowId = windowId;
+
+		if ( this.paletteOpen ) {
+			this.startStreaming( windowId );
+		}
+	}
+
+	private onPaletteOpened(): void {
+		this.paletteOpen = true;
+		if ( this.closeGraceTimer !== null ) {
+			window.clearTimeout( this.closeGraceTimer );
+			this.closeGraceTimer = null;
+		}
+		if ( this.focusedWindowId ) {
+			this.startStreaming( this.focusedWindowId );
+		}
+	}
+
+	private onPaletteClosed(): void {
+		this.paletteOpen = false;
+		if ( this.closeGraceTimer !== null ) {
+			window.clearTimeout( this.closeGraceTimer );
+		}
+		this.closeGraceTimer = window.setTimeout( () => {
+			this.closeGraceTimer = null;
+			this.stopStreaming();
+		}, CLOSE_GRACE_MS );
+	}
+
+	private startStreaming( windowId: string ): void {
+		if ( this.streamingWindowId === windowId ) {
+			return;
+		}
+		this.stopStreaming();
+		this.streamingWindowId = windowId;
 		this.sendSubscribe( windowId );
+	}
+
+	/** Tell the streaming iframe (if any) to tear its harvester down. */
+	private stopStreaming(): void {
+		if ( ! this.streamingWindowId ) {
+			return;
+		}
+		const prev = this.manager.getById( this.streamingWindowId );
+		this.streamingWindowId = null;
+		if ( prev && prev.iframe && prev.iframe.contentWindow ) {
+			try {
+				prev.iframe.contentWindow.postMessage(
+					{ type: 'os-commands-unsubscribe' },
+					window.location.origin,
+				);
+			} catch {
+				/* swallow */
+			}
+		}
 	}
 
 	private sendSubscribe( windowId: string ): void {

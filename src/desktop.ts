@@ -129,6 +129,7 @@ import {
 	type ConnectOptions,
 } from './connection';
 import { IframeCommandBridge } from './commands/iframe-bridge';
+import { installWindowActivityNotifier } from './window-activity-notifier';
 import { ShellCommandHarvester } from './commands/shell-harvester';
 import { type ScriptExtras } from './wallpapers/vendor-loader';
 import {
@@ -2301,6 +2302,13 @@ function init(): void {
 			manager,
 			adminUrl: config.adminUrl,
 		} ).install();
+
+		// Tell each iframe window when it gains / loses focus so the
+		// chromeless bridge can slow Core Heartbeat while the window
+		// is backgrounded — each iframe is a full wp-admin page whose
+		// editor heartbeat otherwise fires every 15 s from windows the
+		// user isn't looking at.
+		installWindowActivityNotifier( manager );
 
 		// Shell-side baseline harvester — pulls the WordPress-wide command
 		// set (Add new post, Manage plugins, Switch theme, Browse patterns,
