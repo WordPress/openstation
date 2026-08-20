@@ -27,10 +27,14 @@ function openstation_register_notes_widget_assets() {
 	$js_path  = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.js';
 	$css_path = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.css';
 
+	// Depends on `os-files` because the pad's sheets wear the
+	// canonical `.os-file-tile` chrome while being dragged — anything
+	// that restyles a tile has to print after the file that declares
+	// one, whatever order the two handles were enqueued in.
 	wp_register_style(
 		'os-notes-widget',
 		OPENSTATION_URL . 'assets/js/widget-notes' . $suffix . '.css',
-		array(),
+		array( 'os-files' ),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
