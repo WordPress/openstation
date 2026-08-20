@@ -9,6 +9,7 @@ import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import type { NativeRenderContext } from '../types';
 import { stationHomeGreeting } from './model';
+import { decodeHTML } from '../utils';
 import '../ui/components/os-badge/os-badge';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-empty-state/os-empty-state';
@@ -201,10 +202,16 @@ function renderWork( host: HTMLElement, work: WorkItem[] ): void {
 		copy.className = 'os-station-home__row-copy';
 		const title = document.createElement( 'span' );
 		title.className = 'os-station-home__row-title';
-		title.textContent = item.title;
+		// `get_the_title()` runs the `the_title` filters, so the REST
+		// payload carries texturized entities (`&#8217;` for a curly
+		// apostrophe). Assigning that to `textContent` prints the
+		// entity literally — decode it the way the rest of the shell
+		// does rather than switching to `innerHTML`, which would hand
+		// post titles an HTML parser.
+		title.textContent = decodeHTML( item.title );
 		const meta = document.createElement( 'span' );
 		meta.className = 'os-station-home__row-meta';
-		meta.textContent = item.typeLabel;
+		meta.textContent = decodeHTML( item.typeLabel );
 		copy.append( title, meta );
 		row.append( copy );
 
@@ -272,9 +279,9 @@ function renderAttention( host: HTMLElement, attention: AttentionItem[] ): void 
 		const copy = document.createElement( 'span' );
 		copy.className = 'os-station-home__attention-copy';
 		const title = document.createElement( 'strong' );
-		title.textContent = item.label;
+		title.textContent = decodeHTML( item.label );
 		const description = document.createElement( 'span' );
-		description.textContent = item.description;
+		description.textContent = decodeHTML( item.description );
 		copy.append( title, description );
 		row.append( count, copy, icon( 'dashicons-arrow-right-alt2' ) );
 		host.append( row );
@@ -321,11 +328,13 @@ export function renderCards( host: HTMLElement, cards: StationHomeCard[] ): void
 		glyph.append( cardIcon( card.icon ) );
 		const identity = document.createElement( 'span' );
 		const label = document.createElement( 'strong' );
-		label.textContent = card.label;
+		// Card strings come from whatever plugin registered the card,
+		// so they are as entity-bearing as a post title.
+		label.textContent = decodeHTML( card.label );
 		identity.append( label );
 		if ( card.provider ) {
 			const provider = document.createElement( 'span' );
-			provider.textContent = card.provider;
+			provider.textContent = decodeHTML( card.provider );
 			identity.append( provider );
 		}
 		head.append( glyph, identity );
@@ -334,7 +343,7 @@ export function renderCards( host: HTMLElement, cards: StationHomeCard[] ): void
 		if ( card.value ) {
 			const value = document.createElement( 'strong' );
 			value.className = 'os-station-home__card-value';
-			value.textContent = card.value;
+			value.textContent = decodeHTML( card.value );
 			surface.append( value );
 		}
 
@@ -342,7 +351,7 @@ export function renderCards( host: HTMLElement, cards: StationHomeCard[] ): void
 		if ( detailText ) {
 			const detail = document.createElement( 'span' );
 			detail.className = 'os-station-home__card-detail';
-			detail.textContent = detailText;
+			detail.textContent = decodeHTML( detailText );
 			surface.append( detail );
 		}
 

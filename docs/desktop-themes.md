@@ -511,6 +511,7 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 |---|---|
 | `--os-ui-holo-fill` | What an on / selected / filled surface paints. |
 | `--os-ui-holo-ink` | Glyphs and text on that fill. |
+| `--os-ui-hero-mesh` | What a large decorative FIELD paints — a panel wash, an identity rail — as opposed to a control. An aurora by default, and built differently from the five meshes: its alpha is in the colour stops rather than applied to the layer, so the desk shows through and the hues keep their chroma at any strength. A mesh knocked back with `opacity` over a large area goes grey. Keep the two separate: a value chosen so a 40px chip reads as *on* is often within a unit or two of the surface behind it, which is invisible once it is stretched across a rail. Legacy answers this one with a flat WordPress-admin blue wash while leaving its control fill alone. |
 | `--os-ui-holo-sheen` | The hover film over a surface that is *not* lit. |
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
@@ -584,6 +585,17 @@ and are the right lever when you want your own gradient everywhere the
 brand's would have gone. `--os-mesh-mio` belongs to the mascot; retint
 it and Mio changes with the rest of the station, which may or may not
 be what you meant.
+
+> **Consuming rules must read `--os-ui-holo-fill`, not a mesh token.**
+> Setting a mesh to `none` is how a theme opts out of iridescence —
+> Legacy sets all five — and a rule that reads `--os-mesh-holo`
+> directly resolves to `none` there. The `var()` literal does not
+> rescue it: a fallback fires only when a property is *undefined*, and
+> a mesh set to `none` is very much defined. The surface paints
+> nothing at all rather than a quieter version of itself. Route
+> through `--os-ui-holo-fill` — or `--os-ui-hero-mesh` if the surface
+> is a field rather than a control — and the opt-out becomes a
+> substitution.
 
 ### Shell tokens
 

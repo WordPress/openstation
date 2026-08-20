@@ -51,6 +51,33 @@ describe( 'Station Home plugin cards', () => {
 		expect( surface?.querySelector( '.dashicons-backup' ) ).not.toBeNull();
 	} );
 
+	test( 'decodes entities in card text without parsing markup', () => {
+		// WordPress texturizes on the way out, so a curly apostrophe
+		// arrives as `&#8217;` and printing it into `textContent` shows
+		// the entity itself. Decoding is not the same as accepting
+		// HTML: `decodeHTML` reads through a `<textarea>`, whose
+		// content is escapable raw text, so a tag stays a literal
+		// string and lands in `textContent` unparsed. The two
+		// assertions below are the pair that has to hold together.
+		const host = document.createElement( 'div' );
+
+		renderCards( host, [
+			card( {
+				label: 'Don&#8217;t panic',
+				provider: 'Caf&eacute; &amp; Co',
+				value: '&lt;script&gt;',
+				detail: 'It&#8217;s fine',
+			} ),
+		] );
+
+		expect( host.textContent ).toContain( 'Don’t panic' );
+		expect( host.textContent ).toContain( 'Café & Co' );
+		expect( host.textContent ).toContain( 'It’s fine' );
+		expect( host.textContent ).toContain( '<script>' );
+		expect( host.querySelector( 'script' ) ).toBeNull();
+		expect( host.textContent ).not.toContain( '&#8217;' );
+	} );
+
 	test( 'renders a useful opt-in prompt when no cards are enabled', () => {
 		const host = document.createElement( 'div' );
 

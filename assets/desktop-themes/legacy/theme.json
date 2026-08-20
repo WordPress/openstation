@@ -306,6 +306,7 @@
 		"--os-ui-grid-gap": "8px",
 		"--os-ui-grid-row-gap": "8px",
 		"--os-ui-grid-rows": "auto",
+		"--os-ui-hero-mesh": "linear-gradient( 145deg, rgba( 34, 113, 177, 0.16 ) 0%, rgba( 34, 113, 177, 0.06 ) 55%, rgba( 34, 113, 177, 0 ) 100% )",
 		"--os-ui-holo-edge": "none",
 		"--os-ui-holo-edge-quiet": "none",
 		"--os-ui-holo-fill": "linear-gradient( 124deg, #f0f6fc 0%, #f6f7f7 100% )",

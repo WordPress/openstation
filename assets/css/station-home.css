@@ -90,13 +90,33 @@
 .os-station-home__mesh {
 	position: absolute;
 	z-index: 0;
-	inset: 116px -74px 280px 20px;
-	border-radius: 42% 58% 66% 34% / 46% 35% 65% 54%;
-	background: var( --os-mesh-holo, linear-gradient( 145deg, #ec9bff, #c2f1f1 ) );
-	filter: saturate( 1.08 );
-	opacity: 0.72;
-	transform: rotate( -8deg );
-	mask-image: linear-gradient( to bottom, transparent, #000 16%, #000 64%, transparent );
+	/*
+	 * The aurora fills the rail; the gradient stops place it, not the
+	 * element box. Sizing the box to the shape is what gave this an
+	 * outline to find, and an outline is what made people read a
+	 * mascot in it.
+	 */
+	inset: 0;
+	/*
+	 * Read through the kit's themeable name, NOT `--os-mesh-holo`.
+	 * A theme that suppresses the meshes sets every `--os-mesh-*` to
+	 * `none`; because the property IS declared, the literal below
+	 * would never fire and this would paint nothing at all rather
+	 * than a quieter self.
+	 *
+	 * `--os-ui-hero-mesh` rather than `--os-ui-holo-fill` because
+	 * this is a field, not a control. See the token's note in
+	 * `variables.css` for why a field carries its alpha in the stops.
+	 */
+	background: var( --os-ui-hero-mesh, radial-gradient( ellipse 38% 26% at 24% 20%, rgba( 170, 103, 255, 0.55 ) 0%, rgba( 170, 103, 255, 0 ) 72% ) );
+	/*
+	 * No `opacity` here. The strength is in the stops, so dimming the
+	 * whole layer would only pull every hue back toward the surface
+	 * behind it — the exact thing this token exists to avoid. The
+	 * mask fades the two ends so the field never meets the brand mark
+	 * above it or the quick actions below on a hard line.
+	 */
+	mask-image: linear-gradient( to bottom, transparent, #000 9%, #000 88%, transparent );
 }
 
 .os-station-home__actions {
@@ -275,6 +295,16 @@ os-button.os-station-home__action {
 	overflow: hidden;
 	font-size: clamp( 17px, 1.7vw, 22px );
 	font-weight: 620;
+	/*
+	 * `overflow: hidden` clips to the LINE BOX, not the glyphs, and
+	 * `line-height: normal` is a font-metrics number that several
+	 * families set tighter than their own descender depth. Every
+	 * `g`, `p`, `y` and `j` then loses its tail — legibly enough to
+	 * pass a glance and wrong in every screenshot. The overflow is
+	 * here for the ellipsis, so the line box has to be told to make
+	 * room rather than left to the font.
+	 */
+	line-height: 1.35;
 	letter-spacing: -0.025em;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -322,6 +352,8 @@ os-button.os-station-home__action {
 
 .os-station-home__metric-label span:last-child {
 	overflow: hidden;
+	/* Same descender clip as `__row-title`; see the note there. */
+	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -470,6 +502,8 @@ a.os-station-home__card:focus-visible {
 .os-station-home__card-head strong {
 	overflow: hidden;
 	font-size: 15px;
+	/* Same descender clip as `__row-title`; see the note there. */
+	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -592,11 +626,14 @@ a.os-station-home__card:focus-visible {
 	}
 
 	.os-station-home__mesh {
-		inset: -90px 34% -96px 40%;
-		border-radius: 50%;
-		transform: none;
-		mask-image: linear-gradient( 90deg, transparent, #000 28%, #000 72%, transparent );
-		opacity: 0.48;
+		/*
+		 * The rail is a top band here, so the field fills that
+		 * instead and the fade turns to run along it. No `opacity`
+		 * override: the base rule dropped it, and re-introducing it
+		 * would knock the aurora's chroma back down.
+		 */
+		inset: 0;
+		mask-image: linear-gradient( 90deg, transparent, #000 24%, #000 76%, transparent );
 	}
 
 	.os-station-home__actions {
