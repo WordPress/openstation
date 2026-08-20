@@ -20,6 +20,8 @@ import {
 	FACE_CANDIDATES,
 	faceCandidates,
 	faceFromSeed,
+	faceHueName,
+	faceShapeName,
 	faceSrc,
 } from './agents-face';
 import type { EntityRenderHost } from './kind-registry';
@@ -877,9 +879,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	// "Create agent" lives ABOVE the list, not after the last row: at
-	// the bottom of a scrolling column it drifts off-screen exactly on
-	// the sites that have enough agents to need it.
+	// The door is the LAST card, as designed: a grid wraps, so it
+	// stays in view with the cast around it and reads as the crew's
+	// next empty slot, the way an app grid ends in an add tile. (The
+	// old create button lived ABOVE its scrolling sidebar because a
+	// column's last row drifts off-screen; that reasoning was about a
+	// column, and does not carry to a grid.)
 	/**
 	 * The cast.
 	 *
@@ -993,31 +998,6 @@ export function renderAgents( host: EntityRenderHost ): void {
 			</span>
 		</div>
 		<div class="dm-agents__cast" role="list">
-			${ cfg.canManage
-				? html`
-						<os-card
-							class="dm-agents__cast-new"
-							role="listitem"
-							interactive
-							?disabled=${ state.saving || off }
-							@os-card-click=${ () => startCreate() }
-						>
-							<div class="dm-agents__cast-inner">
-							<span class="dm-agents__cast-plus" aria-hidden="true">+</span>
-							<span class="dm-agents__cast-name">
-								${ __( 'Cast a new agent', 'desktop-mode' ) }
-							</span>
-							<span class="dm-agents__cast-good">
-								${ __(
-									'Start from one of these, or from scratch.',
-									'desktop-mode',
-								) }
-							</span>
-						</div>
-
-						</os-card>
-				  `
-				: html`` }
 			${ state.agents.map(
 				( agent ) => html`
 					<os-card
@@ -1051,6 +1031,30 @@ export function renderAgents( host: EntityRenderHost ): void {
 					</os-card>
 				`,
 			) }
+			${ cfg.canManage
+				? html`
+						<os-card
+							class="dm-agents__cast-new"
+							role="listitem"
+							interactive
+							?disabled=${ state.saving || off }
+							@os-card-click=${ () => startCreate() }
+						>
+							<div class="dm-agents__cast-inner">
+								<span class="dm-agents__cast-plus" aria-hidden="true">+</span>
+								<span class="dm-agents__cast-name">
+									${ __( 'Cast a new agent', 'desktop-mode' ) }
+								</span>
+								<span class="dm-agents__cast-good">
+									${ __(
+										'Start from one of these, or from scratch.',
+										'desktop-mode',
+									) }
+								</span>
+							</div>
+						</os-card>
+				  `
+				: html`` }
 		</div>
 	`;
 	};
@@ -1624,8 +1628,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 										class="dm-agents__starter-face"
 										src=${ agent.avatarUrl }
 										alt=""
-										width="56"
-										height="56"
+										width="76"
+										height="76"
 									/>
 									<span class="dm-agents__starter-name">${ agent.name }</span>
 									<span class="dm-agents__starter-vibes">
@@ -1735,6 +1739,16 @@ export function renderAgents( host: EntityRenderHost ): void {
 					>
 						${ __( 'Surprise me', 'desktop-mode' ) }
 					</os-button>
+					<div class="dm-agents__portrait-chips">
+						<os-chip
+							size="compact"
+							label=${ faceShapeName( state.cast.face ) }
+						></os-chip>
+						<os-chip
+							size="compact"
+							label=${ faceHueName( state.cast.face ) }
+						></os-chip>
+					</div>
 				</div>
 				<div class="dm-agents__meet-fields">
 					${ state.cast.copiedFrom
@@ -1778,14 +1792,6 @@ export function renderAgents( host: EntityRenderHost ): void {
 							state.cast.description = e.detail?.value ?? '';
 						} }
 					></os-text-field>
-					<os-textarea
-						label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
-						value=${ state.cast.instructions }
-						rows="7"
-						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-							state.cast.instructions = e.detail?.value ?? '';
-						} }
-					></os-textarea>
 				</div>
 			</div>
 			<div class="dm-agents__actions">
@@ -1815,6 +1821,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 	 */
 	const powersStep = () => html`
 		<os-select
+			class="dm-agents__role-select"
 			label=${ __( 'Role', 'desktop-mode' ) }
 			value=${ state.cast.role }
 			@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
@@ -1946,7 +1953,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 									'desktop-mode',
 								) }
 						  </p>`
-						: html`` }
+						: html`<p class="dm-agents__summary-instr">
+								${ state.cast.instructions }
+						  </p>` }
 					${ state.cast.abilities.length === 0
 						? html`<p class="dm-agents__hint">
 								${ __(

@@ -9,6 +9,10 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../src/my-wordpress/agents-renderer';
+import {
+	faceHueName,
+	faceShapeName,
+} from '../../src/my-wordpress/agents-face';
 import { getEntityRenderer } from '../../src/my-wordpress/kind-registry';
 import type { EntityRenderHost } from '../../src/my-wordpress/kind-registry';
 import type { MyWordPressEntity } from '../../src/my-wordpress/types';
@@ -342,9 +346,76 @@ describe( 'the guided create flow', () => {
 		press( host, 'Continue' );
 		await flush();
 
-		const instructions = [
-			...host.body.querySelectorAll( 'os-textarea' ),
-		].find( ( f ) => f.getAttribute( 'label' ) === 'Instructions (system prompt)' );
-		expect( instructions!.getAttribute( 'value' ) ).toBe( 'Watch my drafts.' );
+		// Meet is a character card, not a form: no instructions field
+		// here. The brief seeded them in state, and the Launch summary
+		// is where they surface — quote them there or the no-AI path
+		// looks like it threw the brief away.
+		expect(
+			[ ...host.body.querySelectorAll( 'os-textarea' ) ].find(
+				( f ) =>
+					f.getAttribute( 'label' ) === 'Instructions (system prompt)',
+			),
+		).toBeUndefined();
+
+		setField( host, 'Name', 'Draft Watcher' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+
+		const instr = host.body.querySelector( '.dm-agents__summary-instr' );
+		expect( instr ).not.toBeNull();
+		expect( instr!.textContent ).toContain( 'Watch my drafts.' );
+	} );
+
+	test( 'the portrait is captioned with its silhouette and hue', async () => {
+		const { host } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+
+		// Two chips under the portrait: the face as two words. Derived
+		// from the look, so they must always be present and non-empty.
+		const chips = [
+			...host.body.querySelectorAll( '.dm-agents__portrait-chips os-chip' ),
+		].map( ( c ) => c.getAttribute( 'label' ) );
+		expect( chips ).toHaveLength( 2 );
+		for ( const label of chips ) {
+			expect( label ).toBeTruthy();
+		}
+	} );
+} );
+
+describe( 'face captions', () => {
+	test( 'names the hue the way the mockup does', () => {
+		// The two calibration points the design names out loud:
+		// 44° is amber, 188° is teal.
+		expect( faceHueName( { appearance: { hueStart: 44 }, physics: {} } ) ).toBe(
+			'amber',
+		);
+		expect( faceHueName( { appearance: { hueStart: 188 }, physics: {} } ) ).toBe(
+			'teal',
+		);
+	} );
+
+	test( 'a hue is a point on a wheel, wherever the number came from', () => {
+		// hueStart ranges over [-720, 720]; the name must not care.
+		expect( faceHueName( { appearance: { hueStart: -316 }, physics: {} } ) ).toBe(
+			faceHueName( { appearance: { hueStart: 44 }, physics: {} } ),
+		);
+		expect( faceHueName( { appearance: { hueStart: 404 }, physics: {} } ) ).toBe(
+			faceHueName( { appearance: { hueStart: 44 }, physics: {} } ),
+		);
+	} );
+
+	test( 'an empty look is captioned as the shipped Mio, not as a blank', () => {
+		expect( faceShapeName( null ) ).not.toBe( '' );
+		expect( faceHueName( null ) ).not.toBe( '' );
+		expect( faceShapeName( { appearance: {}, physics: {} } ) ).not.toBe( '' );
+	} );
+
+	test( 'the silhouette chip is the preset word', () => {
+		expect(
+			faceShapeName( { appearance: {}, physics: { shapePreset: 'star' } } ),
+		).toBe( 'star' );
 	} );
 } );

@@ -2282,27 +2282,65 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	opacity: 0.7;
 }
 
-.dm-agents__category {
-	margin: 8px 0 0;
-	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	opacity: 0.6;
+/* Role first: least privilege is the decision, so the control holds
+   the mockup's width instead of stretching into a landing strip. */
+.dm-agents__role-select {
+	max-width: 280px;
 }
 
+.dm-agents__category {
+	margin: 18px 0 2px;
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* One ability per row, ruled like the mockup: tick and name on the
+   left, badge on the right, the description indented under the name
+   (the checkbox column is the control's own 26px). */
 .dm-agents__ability {
 	display: grid;
 	grid-template-columns: 1fr auto;
-	gap: 2px 8px;
-	align-items: center;
-	padding: 4px 0;
+	gap: 2px 10px;
+	align-items: start;
+	padding: 11px 0;
+	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__ability:last-of-type {
+	border-bottom: 0;
 }
 
 .dm-agents__ability-desc {
 	grid-column: 1 / -1;
 	margin: 0;
-	font-size: 12px;
-	opacity: 0.6;
+	padding-inline-start: 26px;
+	font-size: 12.5px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* Access badges in the instrument voice. The palette's own warning
+   tokens carry the pale-yellow "can modify"; all this changes is the
+   costume: mono, uppercase, an outline instead of a wash. */
+.dm-agents__ability os-badge {
+	--os-ui-badge-font: 500 10px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-badge-dot-size: 0;
+	--os-ui-badge-gap: 0;
+	--os-ui-badge-padding: 3px 8px;
+	--os-ui-badge-bg: transparent;
+	--os-ui-badge-border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.12 ) );
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
+	margin-top: 2px;
+}
+
+.dm-agents__ability os-badge[ tone='warning' ] {
+	--os-ui-badge-border: 1px solid
+		var( --os-ui-warning-border, rgba( 154, 103, 0, 0.4 ) );
 }
 
 .dm-agents__trigger {
@@ -2338,6 +2376,9 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .dm-agents__actions {
 	display: flex;
 	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-block-start: 12px;
 }
 
 /* ---------------------------------------------------------------------
@@ -2375,9 +2416,57 @@ os-tile[ status='future' ] .os-file-tile__icon {
 
 .dm-agents__cast {
 	display: grid;
-	gap: 12px;
-	grid-template-columns: repeat( auto-fill, minmax( 200px, 1fr ) );
+	gap: 16px;
+	grid-template-columns: repeat( auto-fill, minmax( 288px, 1fr ) );
 	align-content: start;
+}
+
+/* The card reacts like the mockup's: a lift and a brighter edge.
+   Transform and border-color only — both cheap, and the same pair the
+   mockup transitions. Document styles win over the component's own
+   :host rules, which is the sanctioned way to restyle a host. */
+.dm-agents__cast-card,
+.dm-agents__cast-new {
+	--os-ui-card-padding: 20px 18px 16px;
+	transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.dm-agents__cast-card:hover,
+.dm-agents__cast-card:focus-within {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+	transform: translateY( -2px );
+}
+
+/* The dashed door, same as the mockup's crew-new card. */
+.dm-agents__cast-new {
+	border-style: dashed;
+	--os-ui-card-bg: var( --os-ui-surface-subtle, transparent );
+}
+
+/* The crew breathes. Transform only, staggered so five faces do not
+   bob in lockstep, and gone entirely under reduced motion. */
+@media ( prefers-reduced-motion: no-preference ) {
+	.dm-agents__cast-card .dm-agents__cast-face {
+		animation: dm-agents-bob 6s ease-in-out infinite;
+	}
+	.dm-agents__cast-card:nth-child( 2n ) .dm-agents__cast-face {
+		animation-duration: 7.2s;
+		animation-delay: -1.4s;
+	}
+	.dm-agents__cast-card:nth-child( 3n ) .dm-agents__cast-face {
+		animation-duration: 6.6s;
+		animation-delay: -2.8s;
+	}
+}
+
+@keyframes dm-agents-bob {
+	0%,
+	100% {
+		transform: translateY( 0 );
+	}
+	50% {
+		transform: translateY( -4px );
+	}
 }
 
 /* The column lives on a wrapper we own, not on the host: the slotted
@@ -2398,14 +2487,14 @@ os-tile[ status='future' ] .os-file-tile__icon {
    on something other than a hero CTA. A cast has to be legible at a
    glance, which is exactly what a flat accent cannot do. */
 .dm-agents__cast-face {
-	width: 88px;
-	height: 88px;
-	margin-block-end: 6px;
+	width: 118px;
+	height: 118px;
+	margin: -10px 0 6px;
 	flex: none;
 }
 
 .dm-agents__cast-name {
-	font-size: 15px;
+	font-size: 17px;
 	font-weight: 600;
 	color: var( --os-ui-fg, #1d2327 );
 }
@@ -2421,8 +2510,21 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .dm-agents__cast-good {
 	font-size: 13px;
 	color: var( --os-ui-fg-muted, #646970 );
-	margin-block: 4px 8px;
+	margin-block: 4px 14px;
 	flex: 1;
+}
+
+/* The role pill in the instrument voice: mono, uppercase, no status
+   dot — this is a fact about the agent, not a state to monitor. The
+   custom properties are the component's own theming hooks; the
+   inherited text properties flow into its shadow label. */
+.dm-agents__cast-card os-badge {
+	--os-ui-badge-font: 500 11px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-badge-dot-size: 0;
+	--os-ui-badge-gap: 0;
+	--os-ui-badge-padding: 3px 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
 }
 
 /* The framework-off bar: the section's status and its one action, on
@@ -2476,12 +2578,12 @@ os-tile[ status='future' ] .os-file-tile__icon {
 .dm-agents__cast-new .dm-agents__cast-plus {
 	display: grid;
 	place-items: center;
-	width: 88px;
-	height: 88px;
-	margin-block-end: 6px;
+	width: 118px;
+	height: 118px;
+	margin: -10px 0 6px;
 	border-radius: 50%;
 	border: 1.5px dashed var( --os-ui-border-strong, #8c8f94 );
-	font-size: 28px;
+	font-size: 30px;
 	font-weight: 300;
 	line-height: 1;
 	color: var( --os-ui-fg-muted, #646970 );
@@ -2509,13 +2611,42 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	margin: 0;
 }
 
+/* The trail wears the instrument voice: mono uppercase labels, 22px
+   dots, a thin rule between stations. All of it goes through the
+   component's own theming hooks; the host elements live in this light
+   DOM, so the per-state overrides below can select them directly. */
 .dm-agents__trail {
 	margin-block: 6px 14px;
+	--os-ui-steps-gap: 10px;
+	--os-ui-step-gap: 7px;
+	--os-ui-step-chip-size: 22px;
+	--os-ui-step-chip-font-size: 11px;
+	--os-ui-step-chip-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-size: 11px;
+	--os-ui-step-title-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	--os-ui-step-title-transform: uppercase;
+	--os-ui-step-title-spacing: 0.08em;
+}
+
+/* A station you have not reached is an outline, not a filled dot: the
+   mesh chip is where you ARE, and it only reads that way if it is the
+   only one lit. */
+.dm-agents__trail os-step:not( [ done ] ):not( [ current ] ) {
+	--os-ui-step-chip-bg: transparent;
+	--os-ui-step-chip-border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
+}
+
+/* Done is quiet: a filled tick on the elevated surface, muted like its
+   label. It reads as history, not as a second highlight. */
+.dm-agents__trail os-step[ done ] {
+	--os-ui-step-chip-done-bg: var( --os-ui-surface-elevated, #f0f0f1 );
+	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
 }
 
 .dm-agents__wiz-heading {
-	margin: 10px 0 2px;
-	font-size: 14px;
+	margin: 12px 0 2px;
+	font-size: 16px;
 	font-weight: 600;
 	color: var( --os-ui-fg, #1d2327 );
 }
@@ -2524,8 +2655,8 @@ os-tile[ status='future' ] .os-file-tile__icon {
    until now the create flow showed them to nobody. */
 .dm-agents__starters {
 	display: grid;
-	gap: 10px;
-	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
+	gap: 12px;
+	grid-template-columns: repeat( auto-fill, minmax( 148px, 1fr ) );
 	margin-block: 8px 16px;
 }
 
@@ -2534,24 +2665,34 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	flex-direction: column;
 	align-items: center;
 	text-align: center;
-	gap: 2px;
+	gap: 3px;
+	--os-ui-card-padding: 16px 14px;
+	--os-ui-card-radius: 10px;
+	--os-ui-card-bg: var( --os-ui-surface-subtle, transparent );
+	transition: border-color 0.18s ease;
+}
+
+.dm-agents__starter:hover,
+.dm-agents__starter:focus-within {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
 }
 
 .dm-agents__starter-face {
-	width: 56px;
-	height: 56px;
+	width: 76px;
+	height: 76px;
+	margin: -8px 0 4px;
 	flex: none;
 }
 
 .dm-agents__starter-name {
-	font-size: 13px;
-	font-weight: 600;
+	font-size: 14px;
+	font-weight: 500;
 	color: var( --os-ui-fg, #1d2327 );
 }
 
 .dm-agents__starter-vibes {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
-	font-size: 10.5px;
+	font-size: 11.5px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
@@ -2564,21 +2705,33 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	align-items: start;
 }
 
+/* The character card. Sunken rather than subtle: the portrait is the
+   hero of this step, and the mockup floats it on the darkest surface
+   so the face's own glow does the framing. */
 .dm-agents__portrait {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 10px;
-	padding: 14px;
+	padding: 20px 14px 14px;
 	border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
-	border-radius: var( --os-ui-card-radius, 12px );
-	background: var( --os-ui-surface-subtle, transparent );
+	border-radius: var( --os-ui-card-radius, 10px );
+	background: var( --os-ui-surface-sunken, #f6f7f7 );
 }
 
 .dm-agents__portrait-face {
 	width: 176px;
 	height: 176px;
 	max-width: 100%;
+	margin-top: -12px;
+}
+
+/* What this face is, in two words. */
+.dm-agents__portrait-chips {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	justify-content: center;
 }
 
 .dm-agents__faces {
@@ -2624,23 +2777,27 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	min-width: 0;
 }
 
-/* Launch: one card, the brand's card radius. */
+/* Launch: one card, the brand's card radius, floating on the darkest
+   surface like the portrait it echoes. */
 .dm-agents__summary {
 	display: grid;
-	grid-template-columns: 96px 1fr;
-	gap: 16px;
+	grid-template-columns: 106px 1fr;
+	gap: 18px;
 	align-items: start;
+	--os-ui-card-padding: 18px;
+	--os-ui-card-radius: 10px;
+	--os-ui-card-bg: var( --os-ui-surface-sunken, #f6f7f7 );
 }
 
 .dm-agents__summary-face {
-	width: 96px;
-	height: 96px;
+	width: 106px;
+	height: 106px;
 	flex: none;
 }
 
 .dm-agents__summary-text h4 {
 	margin: 0 0 2px;
-	font-size: 16px;
+	font-size: 17px;
 }
 
 .dm-agents__summary-vibes {
@@ -2661,6 +2818,33 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-block-start: 10px;
+}
+
+/* What the agent will actually be told, under the chips. Clamped: a
+   summary card quotes the instructions, it does not host them. */
+.dm-agents__summary-instr {
+	margin: 10px 0 0;
+	font-size: 13px;
+	color: var( --os-ui-fg-muted, #646970 );
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Identity chips — role, abilities, silhouette, hue — all wear the
+   instrument voice: these are facts about the character, stamped
+   rather than said. */
+.dm-agents__chips os-chip,
+.dm-agents__portrait-chips os-chip {
+	--os-ui-chip-font-size: 10.5px;
+	--os-ui-chip-font-weight: 500;
+	--os-ui-chip-bg: transparent;
+	--os-ui-chip-fg: var( --os-ui-fg-muted, #646970 );
+	--os-ui-chip-border: 1px solid var( --os-border, rgba( 0, 0, 0, 0.12 ) );
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
 }
 
 .dm-agents__spacer {

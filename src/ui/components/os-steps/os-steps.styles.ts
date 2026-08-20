@@ -89,6 +89,11 @@ export const stepStyles = css`
 		background-size: 200% 200%;
 		background-position: 30% 40%;
 		color: var( --os-ui-step-chip-fg, var( --os-ui-fg-on-accent, #fff ) );
+		/* Zero-width by default so nothing moves for existing trails;
+		   an instrument-voiced trail turns the idle chip into an
+		   outline by setting the border and clearing the fill. */
+		border: var( --os-ui-step-chip-border, 0 );
+		font-family: var( --os-ui-step-chip-family, inherit );
 		font-size: var( --os-ui-step-chip-font-size, 13px );
 		font-weight: 600;
 		line-height: 1;
@@ -151,9 +156,12 @@ export const stepStyles = css`
 	}
 	.os-step__title {
 		margin: 0 0 4px;
-		font-size: 14px;
+		font-family: var( --os-ui-step-title-family, inherit );
+		font-size: var( --os-ui-step-title-size, 14px );
 		font-weight: var( --os-ui-step-title-weight, 600 );
 		color: var( --os-ui-step-title-color, var( --os-ui-fg, #1d2327 ) );
+		text-transform: var( --os-ui-step-title-transform, none );
+		letter-spacing: var( --os-ui-step-title-spacing, normal );
 		line-height: 1.3;
 	}
 	.os-step__title:empty {

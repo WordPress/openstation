@@ -17,6 +17,7 @@
  * that graph touches the renderer.
  */
 
+import { MIO_DEFAULTS } from '../mio/config';
 import { mioPortraitDataUri } from '../mio/portrait';
 import { mulberry32, randomMioLook } from '../mio/randomize';
 import type { MioLook } from './agents-types';
@@ -82,4 +83,68 @@ export function hasFace( look: MioLook | null | undefined ): boolean {
 		Object.keys( look.appearance ?? {} ).length > 0 ||
 		Object.keys( look.physics ?? {} ).length > 0
 	);
+}
+
+/**
+ * What a face IS, in two words — the chips under the wizard's portrait.
+ *
+ * A look is nine numbers nobody should have to read; "star · amber" is
+ * the same fact at a glance, and it is how the mockup labels the
+ * character card. Both labels are derived, never stored: rename a
+ * bucket and every face relabels itself.
+ */
+
+/**
+ * The silhouette's name, straight from the preset.
+ *
+ * Presets are design vocabulary ('blob', 'star', 'heart', …), already
+ * a word each. Falls back to the shipped default when the look carries
+ * no opinion, which is also what the portrait draws in that case.
+ */
+export function faceShapeName( look: MioLook | null ): string {
+	const preset = look?.physics?.shapePreset;
+	return typeof preset === 'string' && preset !== ''
+		? preset
+		: MIO_DEFAULTS.physics.shapePreset;
+}
+
+/**
+ * The wheel, twelve words around it.
+ *
+ * Coarse on purpose: the chip answers "which colour is this one" in a
+ * grid of candidates, not "what hue angle is the ramp's first stop".
+ * Buckets are 30° wide and centred so 44° lands on amber and 188° on
+ * teal, which is how the mockup names those two.
+ */
+const HUE_NAMES = [
+	'rose',
+	'amber',
+	'gold',
+	'lime',
+	'green',
+	'mint',
+	'teal',
+	'azure',
+	'blue',
+	'violet',
+	'purple',
+	'magenta',
+];
+
+/**
+ * The name of the face's hue.
+ *
+ * Reads `hueStart`, the pinned start of the chroma ramp. The ramp
+ * sweeps on from there, so this names where the identity begins — the
+ * same convention the five shipped definitions use when they pin a
+ * character's colour.
+ */
+export function faceHueName( look: MioLook | null ): string {
+	const raw = look?.appearance?.hueStart;
+	const start =
+		typeof raw === 'number' && Number.isFinite( raw )
+			? raw
+			: MIO_DEFAULTS.appearance.hueStart;
+	const hue = ( ( start % 360 ) + 360 ) % 360;
+	return HUE_NAMES[ Math.floor( ( ( hue + 15 ) % 360 ) / 30 ) ];
 }
