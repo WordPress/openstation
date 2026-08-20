@@ -208,6 +208,15 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 
 	/**
 	 * Registering twice is a no-op rather than eleven doing-it-wrong notices.
+	 *
+	 * `init` can run more than once in a request, and another plugin can
+	 * call this directly. Neither may raise a notice or lose the icons.
+	 *
+	 * The notice half of that is enforced by WP_UnitTestCase itself, which
+	 * fails a test that leaves an unexpected `_doing_it_wrong()` behind.
+	 * That is what makes this worth running: WordPress raises one *before*
+	 * returning false for an already-registered collection, so reading the
+	 * return value is too late and only asking first avoids it.
 	 */
 	public function test_registering_twice_is_harmless() {
 		if ( ! function_exists( 'wp_register_icon_collection' ) ) {
@@ -216,7 +225,14 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 
 		openstation_register_wp_icons();
 		openstation_register_wp_icons();
+		openstation_register_wp_icons();
 
-		$this->assertTrue( true );
+		foreach ( array_keys( openstation_wp_icon_collection() ) as $slug ) {
+			$this->assertStringContainsString(
+				'<path',
+				(string) wp_get_icon( 'openstation/' . $slug ),
+				"openstation/$slug stopped rendering after a repeat registration."
+			);
+		}
 	}
 }

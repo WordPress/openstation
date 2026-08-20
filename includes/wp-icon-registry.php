@@ -64,8 +64,26 @@ function openstation_register_wp_icons() {
 		return;
 	}
 
-	// A false return means the collection is already registered. Carrying on
-	// would re-register all eleven icons and emit a _doing_it_wrong for each.
+	/*
+	 * Ask before registering, rather than reading the return value.
+	 *
+	 * `wp_register_icon_collection()` does return false for a slug that is
+	 * already there, but it calls `_doing_it_wrong()` on the way out, so by
+	 * the time we see the false a notice has already been raised. Anything
+	 * that runs `init` twice in one request then trips it, and in a test run
+	 * WordPress turns that notice into a failure.
+	 *
+	 * `is_registered()` on the registry is the only way to ask without
+	 * triggering it: 7.1 ships no `wp_is_icon_collection_registered()`
+	 * wrapper. Guarded by `class_exists` so this stays safe if that changes.
+	 */
+	if ( class_exists( 'WP_Icon_Collections_Registry' ) ) {
+		$collections = WP_Icon_Collections_Registry::get_instance();
+		if ( $collections->is_registered( 'openstation' ) ) {
+			return;
+		}
+	}
+
 	if ( ! wp_register_icon_collection(
 		'openstation',
 		array(
