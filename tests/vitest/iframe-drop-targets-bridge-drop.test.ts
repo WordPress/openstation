@@ -22,7 +22,7 @@ import {
 	__resetIframeDropTargetsForTests,
 } from '../../src/drag/iframe-drop-targets';
 import { DRAG_BRIDGE_EVENTS } from '../../src/drag-bridge';
-import type { DragManagerApi } from '../../src/drag';
+import { DRAG_EVENTS, type DragManagerApi } from '../../src/drag';
 
 const PAYLOAD = {
 	kind: 'attachment' as const,
@@ -172,5 +172,55 @@ describe( 'bridge drop intercept', () => {
 		fireDrop();
 
 		expect( iframe.style.pointerEvents ).toBe( '' );
+	} );
+} );
+
+/**
+ * `onDragStart` runs on every DragManager session — repositioning a
+ * desktop icon included, which is the most common drag in the shell.
+ * Its trace has to stay behind the debug flag, or ordinary use fills
+ * the console and dumps the drag payload with it.
+ */
+describe( 'drag-start trace', () => {
+	let info: ReturnType< typeof vi.spyOn >;
+
+	beforeEach( () => {
+		stubWpHooks();
+		installIframeDropTargets( dragManagerStub );
+		info = vi.spyOn( console, 'info' ).mockImplementation( () => undefined );
+	} );
+
+	afterEach( () => {
+		__resetIframeDropTargetsForTests();
+		window.localStorage.removeItem( 'openStationDragDebug' );
+		delete ( window as { wp?: unknown } ).wp;
+		vi.restoreAllMocks();
+	} );
+
+	function startDrag(): void {
+		document.dispatchEvent(
+			new CustomEvent( DRAG_EVENTS.START, {
+				detail: { payload: { type: 'desktop-file', data: {} } },
+			} ),
+		);
+	}
+
+	test( 'an ordinary drag says nothing', () => {
+		startDrag();
+
+		expect( info ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the debug flag turns the trace back on', () => {
+		window.localStorage.setItem( 'openStationDragDebug', '1' );
+
+		startDrag();
+
+		expect( info ).toHaveBeenCalledWith(
+			expect.stringContaining( 'drag-start' ),
+			expect.anything(),
+			expect.anything(),
+			expect.anything(),
+		);
 	} );
 } );
