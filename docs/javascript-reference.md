@@ -6151,7 +6151,7 @@ interface EntityRenderHost {
     previewActionRow( args: {
         item: Record< string, unknown >;
         mime?: string;
-        surface?: 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+        surface?: 'pane' | 'context-menu' | 'dblclick';
     } ): HTMLElement | null;
 }
 ```
@@ -6207,9 +6207,14 @@ interface PreviewActionContext {
     /** Convenience — `Number( item.id )` when numeric. */
     itemId?: number;
     /** Where the action was invoked. */
-    surface?: 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+    surface?: 'pane' | 'context-menu' | 'dblclick';
 }
 ```
+
+A multi-select run reports `'context-menu'` rather than a surface of
+its own — the selection layer fans a bulk choice out by replaying each
+row's own single-item handler, so `onSelect` runs once per item with
+that row's `item` and the menu surface it was built for.
 
 A descriptor's `sections` list matches the section **id**, the
 section's **post type slug**, or `'*'` (auto-registered CPT sections

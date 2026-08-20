@@ -222,9 +222,14 @@ export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
 /**
  * Where a preview action was invoked from.
  *
+ * A multi-select run reports `'context-menu'`, not a surface of its
+ * own: the selection layer fans a bulk choice out by replaying each
+ * row's own single-item handler, so the handler genuinely is the
+ * context-menu one, called once per item.
+ *
  * @public
  */
-export type PreviewActionSurface = 'pane' | 'context-menu' | 'dblclick' | 'bulk';
+export type PreviewActionSurface = 'pane' | 'context-menu' | 'dblclick';
 
 /**
  * Context object passed to every preview-action handler.
