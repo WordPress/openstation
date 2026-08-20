@@ -4588,6 +4588,7 @@ function init(): void {
 						'New URL',
 						'Opens the URL in a new browser tab.',
 					),
+				addWidget: () => widgetLayer?.openPicker(),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
 				sortIcons: ( mode ) => {
@@ -4608,6 +4609,7 @@ function init(): void {
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
 					newUrl: 'New URL',
+					addWidget: 'Add widget',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

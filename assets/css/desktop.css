@@ -1185,30 +1185,68 @@ body.os-has-fullscreen-window .os-shell {
 }
 
 /*
- * Add-widget tile — matches the "+" tile in the overview top bar.
- * Always visible at the bottom of the column; promoted to center
- * when the column is otherwise empty so first-run users see a
- * friendly target rather than an empty strip.
+ * Add-widget tile — a compact pill that trails the widget stack, not
+ * a full-width drop zone. Hidden until the pointer comes near the
+ * column (the layer toggles `--hovered`), so the desktop stays clean
+ * for people who never touch widgets.
+ *
+ * Absolute rather than in flow because "the bottom of the stack" is
+ * not something the column's layout knows: a widget dragged out of
+ * the column becomes a floating card parented to the desktop, so it
+ * leaves the flex flow while still sitting visually in the column.
+ * The layer measures those too and writes `top` — see
+ * `positionAddTile()`.
  */
 .os-widgets__add {
-	margin-top: auto;
-	padding: 14px 12px;
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translateX( -50% );
+	padding: 8px 22px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 8px;
-	pointer-events: auto;
+	gap: 7px;
+	pointer-events: none;
 	background: transparent;
-	border: 2px dashed rgba( 255, 255, 255, 0.22 );
-	border-radius: 14px;
+	border: 1px dashed rgba( 255, 255, 255, 0.22 );
+	border-radius: 10px;
 	color: rgba( 255, 255, 255, 0.72 );
 	font: inherit;
 	font-weight: 500;
 	cursor: pointer;
+	opacity: 0;
 	transition:
+		opacity 0.15s ease,
 		border-color 0.15s ease,
 		background-color 0.15s ease,
 		color 0.15s ease;
+}
+
+/*
+ * Reveal conditions. An empty column is no exception — approaching
+ * the right side is the gesture, whether or not there's a card there
+ * to aim at. `:focus-visible` keeps it reachable by keyboard, where
+ * there is no pointer to bring near.
+ */
+.os-widgets--hovered .os-widgets__add,
+.os-widgets--picking .os-widgets__add,
+.os-widgets__add:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/*
+ * Touch has no hover to approach the column with. The wallpaper's
+ * right-click menu carries an "Add widget" entry, but a long-press
+ * to reach it is a lot to ask of someone who just wants a clock, so
+ * on those devices the pill stays put.
+ */
+@media ( hover: none ) {
+	.os-widgets__add {
+		opacity: 1;
+		pointer-events: auto;
+	}
 }
 
 .os-widgets__add:hover {
@@ -1223,9 +1261,9 @@ body.os-has-fullscreen-window .os-shell {
 }
 
 .os-widgets__add-plus {
-	font-size: 20px;
+	font-size: 15px;
 	line-height: 1;
-	font-weight: 200;
+	font-weight: 300;
 }
 
 .os-widgets__add-label {

@@ -658,6 +658,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
 | `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
 | `new-note` | New note | Pins an empty paper note where the click landed. Contributed by the pinned-notes layer via the filter below. |
+| `add-widget` | Add widget | Opens the widget picker, anchored to the add pill in the widget column. |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OpenStation Preferences | Opens the OpenStation Preferences window. |

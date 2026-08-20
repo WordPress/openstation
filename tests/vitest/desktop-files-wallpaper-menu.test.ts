@@ -14,6 +14,7 @@ async function load(): Promise< MenuModule > {
 const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpaper-menu' ).WallpaperMenuDeps > = {} ) => ( {
 	createFolder: vi.fn(),
 	createUrl: vi.fn(),
+	addWidget: vi.fn(),
 	toggleShowDesktop: vi.fn(),
 	openOsSettings: vi.fn(),
 	sortIcons: vi.fn(),
@@ -27,6 +28,7 @@ const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpape
 		sortDateAsc: 'Date (oldest first)',
 		sortDateDesc: 'Date (newest first)',
 		newUrl: 'New URL',
+		addWidget: 'Add widget',
 	},
 	...overrides,
 } );
@@ -47,6 +49,7 @@ describe( 'wallpaper context menu', () => {
 		expect( items.map( ( i ) => i.id ) ).toEqual( [
 			'create-folder',
 			'new-url',
+			'add-widget',
 			'sort-by',
 			'show-desktop',
 			'os-settings',
@@ -74,9 +77,22 @@ describe( 'wallpaper context menu', () => {
 		expect( items.map( ( i ) => i.id ) ).toEqual( [
 			'create-folder',
 			'new-url',
+			'add-widget',
 			'sort-by',
 			'os-settings',
 		] );
+	} );
+
+	test( 'clicking Add widget invokes deps.addWidget', async () => {
+		const { openWallpaperMenu, buildMenuItems } = await load();
+		const deps = stubDeps();
+		openWallpaperMenu( document.body, { x: 0, y: 0 }, buildMenuItems( deps ) );
+		document
+			.querySelector< HTMLButtonElement >(
+				'[data-menu-item-id="add-widget"]',
+			)!
+			.click();
+		expect( deps.addWidget ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'clicking New URL invokes deps.createUrl', async () => {

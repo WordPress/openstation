@@ -316,6 +316,13 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			onClick: () => deps.createUrl(),
 		},
 		{
+			id: 'add-widget',
+			label: deps.labels.addWidget,
+			icon: 'dashicons-screenoptions',
+			sort: 14,
+			onClick: () => deps.addWidget(),
+		},
+		{
 			id: 'sort-by',
 			label: deps.labels.sortHeading,
 			icon: 'dashicons-sort',
@@ -419,6 +426,8 @@ export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 export interface WallpaperMenuDeps {
 	createFolder: () => void;
 	createUrl: () => void;
+	/** Opens the widget picker, same panel the add pill opens. */
+	addWidget: () => void;
 	toggleShowDesktop: () => void;
 	openOsSettings: () => void;
 	sortIcons: ( mode: SortMode ) => void;
@@ -448,6 +457,7 @@ export interface WallpaperMenuDeps {
 		sortDateAsc: string;
 		sortDateDesc: string;
 		newUrl: string;
+		addWidget: string;
 	};
 	serverItems?: ServerWallpaperMenuItem[];
 	serverCallbacks?: Record< string, () => void | Promise< void > >;

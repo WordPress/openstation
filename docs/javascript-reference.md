@@ -4535,6 +4535,14 @@ for ( const id of wp.os.widgetLayer?.getEnabledIds() ?? [] ) {
 
 Equivalent legacy entry point: `wp.os.widgetLayer?.redock( id )`. New code should prefer `wp.os.widgets.redock`, which keeps a stable namespace as the widget surface grows.
 
+##### `wp.os.widgetLayer?.openPicker()` — Stable
+
+Open the widget picker. The panel anchors to the add pill in the widget column and reveals it for as long as the picker is open, so the entry point is the same wherever it's triggered from — the pill itself, or the wallpaper's right-click menu. No-op if a picker is already open.
+
+```js
+wp.os.widgetLayer?.openPicker();
+```
+
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.widgets` | filter | Stable | the registry array |

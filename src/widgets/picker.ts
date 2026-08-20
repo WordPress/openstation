@@ -24,6 +24,11 @@ interface OpenPickerOptions {
 	enabledIds: () => string[];
 	/** Click handler — layer persists + mounts on call. */
 	onAdd: ( id: string ) => void;
+	/**
+	 * Fired once when the picker closes. The layer uses it to drop
+	 * the "keep the + pill visible" flag it sets on open.
+	 */
+	onClose?: () => void;
 }
 
 /**
@@ -128,7 +133,9 @@ export function closeWidgetPicker(): void {
 	);
 	document.removeEventListener( 'keydown', active.onKeyDown );
 	active.panel.remove();
+	const { onClose } = active.options;
 	active = null;
+	onClose?.();
 }
 
 // ------------------------------------------------------------------

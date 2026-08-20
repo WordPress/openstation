@@ -36,6 +36,16 @@ const DEFAULT_HEIGHT = 180;
 const VIEWPORT_MARGIN = 20;
 
 /**
+ * Grid a floating widget's position snaps to while being dragged.
+ * Two widgets dropped at roughly the same height land on the same
+ * multiple, which is the whole point — freehand placement never
+ * lines up. Deliberately equal to {@link VIEWPORT_MARGIN} so the
+ * clamped edge positions are themselves on-grid, and a widget parked
+ * against the margin stays aligned with everything else.
+ */
+const SNAP_GRID = 20;
+
+/**
  * Drag threshold (squared) — pointer must move this far from the
  * pointerdown origin before the drag gesture commits. Below this,
  * the press + release is treated as a click (no liberate, no geometry
@@ -457,9 +467,11 @@ function attachDrag(
 			commitDrag();
 		}
 
+		// Snap before clamping: the clamp bounds are multiples of the
+		// grid, so a snapped-then-clamped position is still on-grid.
 		const clamped = clampToParent(
-			initialLeft + dx,
-			initialTop + dy,
+			snapToGrid( initialLeft + dx ),
+			snapToGrid( initialTop + dy ),
 			card.offsetWidth,
 			card.offsetHeight,
 			ctx.floatingParent,
@@ -685,6 +697,11 @@ function clampGeometryToParent(
 		parent,
 	);
 	return { ...geometry, x: clamped.x, y: clamped.y };
+}
+
+/** Round a coordinate onto the {@link SNAP_GRID}. */
+function snapToGrid( value: number ): number {
+	return Math.round( value / SNAP_GRID ) * SNAP_GRID;
 }
 
 function clampToParent(
