@@ -157,6 +157,7 @@ import type { Dock, SystemDockItem } from '../dock';
 import type { LayoutDispatcher } from '../desktop-layout';
 import type { OsSettings } from '../settings';
 import type { IconsApi } from '../desktop-icons';
+import { osIconSetApi } from '../ui/icons';
 import type { FilesApi } from '../desktop-files';
 import type { WidgetLayer } from '../widgets/layer';
 import type { AiAssistantApi } from '../ai-assistant';
@@ -195,7 +196,7 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout',
-	'dockPlacement', 'icons',
+	'dockPlacement', 'icons', 'iconSet',
 	'files', 'confirm', 'saveSession', 'hooks', 'HOOKS',
 	'isActive', 'registerWallpaper', 'registerWidget', 'widgetLayer', 'widgets',
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
@@ -337,6 +338,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			layoutDispatcher?.getDockPlacement() ??
 			osSettings.getOsSettingsSnapshot().dockPlacement,
 		icons: iconsApi,
+		iconSet: osIconSetApi,
 		files: filesApi,
 		confirm: osConfirm,
 		saveSession,

@@ -24,6 +24,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 import { __ } from '../../../i18n';
 import { containerStyles, toastStyles } from './os-toast.styles';
 
@@ -241,15 +242,7 @@ export class OsToast extends Component {
 				?hidden=${ ! dismissible }
 				@click=${ ( e: Event ) => this._onDismiss( e ) }
 			>
-				<svg viewBox="0 0 14 14" width="12" height="12" aria-hidden="true" focusable="false">
-					<path
-						d="M3 3 L11 11 M11 3 L3 11"
-						stroke="currentColor"
-						stroke-width="1.7"
-						stroke-linecap="round"
-						fill="none"
-					></path>
-				</svg>
+				${ osIcon( 'close', { size: 16 } ) }
 			</button>
 		`;
 	}

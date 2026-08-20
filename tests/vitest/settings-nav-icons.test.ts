@@ -34,17 +34,13 @@ const BUILT_IN_TAB_IDS = [
 	'about',
 ] as const;
 
-/** The raw SVG source of one entry, reassembled from its template. */
+/** The rendered SVG source of one entry. */
 function sourceOf( id: string ): string {
-	const tpl = NAV_ICONS[ id ];
-	if ( ! tpl ) {
+	const make = NAV_ICONS[ id ];
+	if ( ! make ) {
 		return '';
 	}
-	// These templates are static: no interpolations, so the strings
-	// array IS the markup. Joining is enough, and an assertion below
-	// keeps that assumption honest.
-	expect( tpl.values ).toEqual( [] );
-	return tpl.strings.join( '' );
+	return make().outerHTML;
 }
 
 describe( 'settings nav icons', () => {
@@ -63,6 +59,17 @@ describe( 'settings nav icons', () => {
 		expect( NAV_ICONS[ 'ext-file-associations' ] ).toBeUndefined();
 	} );
 
+	test( 'every entry hands out a fresh element', () => {
+		// An SVG element can only be in one place in the DOM, so a
+		// shared module-level node would MOVE between rows rather than
+		// appear in both. The factory shape is what prevents that, and
+		// the trap is that a memoised factory looks identical here
+		// until two rows want the same glyph.
+		const make = NAV_ICONS.windows;
+		expect( make ).toBeDefined();
+		expect( make?.() ).not.toBe( make?.() );
+	} );
+
 	test( 'panel.ts resolves external-tab glyphs by RAW registry id', () => {
 		// The trap this guards: external rows render under an
 		// ext-prefixed id, so a NAV_ICONS entry keyed on the raw
@@ -77,9 +84,9 @@ describe( 'settings nav icons', () => {
 		);
 		expect(
 			panelSource,
-			'External rows must carry `icon: NAV_ICONS[ tab.id ]` so a ' +
+			'External rows must carry `icon: NAV_ICONS[ tab.id ]?.()` so a ' +
 				'shell-owned registry tab can resolve its glyph by raw id.'
-		).toMatch( /icon:\s*NAV_ICONS\[\s*tab\.id\s*\]/ );
+		).toMatch( /icon:\s*NAV_ICONS\[\s*tab\.id\s*\]\?\.\(\)/ );
 	} );
 
 	test.each( BUILT_IN_TAB_IDS )( '%s is drawn in currentColor', ( id ) => {

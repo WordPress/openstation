@@ -26,6 +26,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 import { styles } from './os-chip.styles';
 
 export type OsChipTone =
@@ -192,7 +193,7 @@ export class OsChip extends Component {
 								?disabled=${ disabled }
 								@click=${ ( e: MouseEvent ) => this._onDismiss( e ) }
 							>
-								${ _iconCross() }
+								${ osIcon( 'close', { size: null } ) }
 							</button>
 					  `
 					: html`` }
@@ -237,21 +238,3 @@ export class OsChip extends Component {
 	};
 }
 defineComponent( 'os-chip', OsChip );
-
-function _iconCross() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			width="10"
-			height="10"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-		>
-			<path d="M3 3 L9 9 M9 3 L3 9" />
-		</svg>
-	`;
-}

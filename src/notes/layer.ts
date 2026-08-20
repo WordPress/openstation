@@ -18,6 +18,7 @@ import '../ui/components/os-save-status/os-save-status';
 import '../ui/components/os-textarea/os-textarea';
 import '../ui/components/os-window-button/os-window-button';
 import { osConfirm } from '../os-confirm';
+import { osIconSvg } from '../ui/icons';
 import { DRAG_EVENTS } from '../drag';
 import type { DragManagerApi } from '../drag';
 import { NOTE_COLORS, nextNoteColor, sanitizeNoteColorSlug } from './colors';
@@ -77,14 +78,19 @@ function jitterSeed( note: Note ): number {
 }
 
 /**
- * The `post` glyph from `@wordpress/icons`, inlined (the package isn't
- * a shell dependency). Marks the "Convert to post" affordance. `fill`
- * inherits from the button's ink color (see notes.css).
+ * The `post` glyph from `@wordpress/icons`, inlined. Marks the
+ * "Convert to post" affordance. `fill` inherits from the button's ink
+ * color (see notes.css).
+ *
+ * Not from `src/ui/icons`: the thirty are the shell's own vocabulary
+ * plus the Core verbs it reuses, and `post` is neither. If a second
+ * surface ever needs it, it earns a place in the set rather than a
+ * second copy here.
  */
 const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
 
-/** The `trash` glyph, inlined for the same reason as {@link ICON_POST}. */
-const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M20 5h-5.7c0-1.3-1-2.3-2.3-2.3S9.7 3.7 9.7 5H4v2h1.5v.3l1.4 12c.1.9.9 1.6 1.8 1.6h6.6c.9 0 1.7-.7 1.8-1.6l1.4-12V7H20V5zM8.4 19l-1.3-12h9.8l-1.3 12H8.4z" /></svg>`;
+/** Delete a note. Core's trash, from the set. */
+const ICON_TRASH = osIconSvg( 'trash', { size: 20 } );
 
 export interface NotesLayerOptions {
 	host: HTMLElement;

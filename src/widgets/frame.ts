@@ -18,6 +18,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import type { WidgetDef, WidgetGeometry } from './types';
 
 const FLOATING_CLASS = 'os-widgets__card--floating';
@@ -295,8 +296,9 @@ function buildRedockButton(
 		sprintf( __( 'Dock %s back to widget column' ), def.label ),
 	);
 	// Right-arrow + edge glyph: a rail-ish affordance pointing to
-	// where the widget is going back to. Inline SVG so the icon
-	// picks up `currentColor` like the close button above.
+	// where the widget is going back to. Drawn here rather than taken
+	// from `src/ui/icons` because the set has no member for it: our
+	// `dock` icon is the rail itself, not the act of returning to it.
 	btn.innerHTML =
 		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
 		'<path d="M2 6h6M5.5 3.5L8 6l-2.5 2.5M10 2.5v7" ' +
@@ -329,10 +331,7 @@ function buildCloseButton(
 	close.className = 'os-widgets__card-close';
 	// translators: %s is the widget label (e.g., "Clock")
 	close.setAttribute( 'aria-label', sprintf( __( 'Remove %s' ), def.label ) );
-	close.innerHTML =
-		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
-		'<path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" ' +
-		'stroke-width="1.6" stroke-linecap="round"/></svg>';
+	close.innerHTML = osIconSvg( 'close', { size: 16 } );
 	close.addEventListener( 'click', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();

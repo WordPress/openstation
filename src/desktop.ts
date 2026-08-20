@@ -140,6 +140,7 @@ import {
 	type WindowLifecycleHandlers,
 } from './native-windows';
 import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
+import type { OsIconSetApi } from './ui/icons';
 import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
@@ -505,6 +506,30 @@ export interface OpenStationPublicApi {
 	 * ```
 	 */
 	icons: IconsApi;
+	/**
+	 * The thirty icons the shell draws, so a plugin can use the same
+	 * ones instead of drawing its own:
+	 *
+	 * ```ts
+	 * el.innerHTML = wp.os.iconSet.svg( 'trash', { size: 20 } );
+	 * wp.os.registerDockItem?.( { icon: wp.os.iconSet.dataUri( 'spaces' ) } );
+	 * ```
+	 *
+	 * Nineteen are WordPress's own, from `@wordpress/icons`, so a
+	 * verb like save or search looks the way it does in every other
+	 * admin screen. Eleven are OpenStation's, and are the vocabulary
+	 * that only exists because this is a desktop: `wp.os.iconSet.ours`
+	 * lists them. Everything paints in `currentColor`, which is also
+	 * what lets a glyph go through the dock and title-bar mask
+	 * painters unchanged.
+	 *
+	 * Not to be confused with {@link OpenStationPublicApi.icons}
+	 * above, which is the wallpaper icon rail's badge and art API.
+	 * The two are unrelated.
+	 *
+	 * See `docs/icons.md` for the full set and the sizing floor.
+	 */
+	iconSet: OsIconSetApi;
 	/**
 	 * Files-on-the-desktop registry. Plugin authors register custom
 	 * file types via `wp.os.files.registerType`, resolve a

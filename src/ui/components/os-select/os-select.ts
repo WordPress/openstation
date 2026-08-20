@@ -44,6 +44,7 @@ import {
 	ensureAutoId,
 	html,
 } from '../../core';
+import { osIcon } from '../../icons';
 import { optionStyles, selectStyles } from './os-select.styles';
 
 /**
@@ -363,23 +364,11 @@ export class OsSelect extends Component {
 						: ' os-select__value--placeholder' }"
 					>${ triggerText }</span
 				>
-				<svg
-					class="os-select__chevron"
-					viewBox="0 0 12 12"
-					width="12"
-					height="12"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<path
-						d="M3 5l3 3 3-3"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						fill="none"
-					></path>
-				</svg>
+				${ osIcon( 'chevron-right', {
+					size: 16,
+					rotate: 90,
+					className: 'os-select__chevron',
+				} ) }
 			</button>
 			<div
 				class="os-select__popup"
@@ -405,23 +394,10 @@ export class OsSelect extends Component {
 							@click=${ () => this._onOptionClick( o ) }
 							@pointermove=${ () => this._setActive( i ) }
 						>
-							<svg
-								class="os-select__check"
-								viewBox="0 0 12 12"
-								width="12"
-								height="12"
-								aria-hidden="true"
-								focusable="false"
-							>
-								<path
-									d="M2.5 6.5l2.5 2.5 4.5-5"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									fill="none"
-								></path>
-							</svg>
+							${ osIcon( 'check', {
+								size: 16,
+								className: 'os-select__check',
+							} ) }
 							<span class="os-select__option-label"
 								>${ o.label }</span
 							>

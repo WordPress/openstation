@@ -6,8 +6,9 @@ owns the nouns, the vocabulary that exists because this is a desktop and
 wp-admin is not.
 
 These are registered as the `openstation` collection in
-[`includes/icons.php`](../../includes/icons.php) and can be rendered anywhere
-with `wp_get_icon( 'openstation/window' )` on WordPress 7.1 or newer.
+[`includes/wp-icon-registry.php`](../../includes/wp-icon-registry.php) and can
+be rendered anywhere with `wp_get_icon( 'openstation/window' )` on WordPress
+7.1 or newer.
 
 ## Do not edit these by hand
 
@@ -27,6 +28,14 @@ Two consequences worth knowing before editing anything here:
   path without one paints black instead of following text color.
 - There is no `<title>`. It would be stripped. The accessible name comes from
   the `label` passed to `wp_register_icon()`, or from the button around it.
+
+## Not what the shell draws
+
+The desktop renders the same eleven from `src/ui/icons/`, and those are the
+monoline originals rather than these outlines. Nothing inside our own shadow
+roots passes through `wp_kses`, so there is no reason to hand the shell a
+flattened copy. Both are generated from the same brand sources, so they cannot
+drift; if you need an icon in TypeScript, import it from `src/ui/icons`.
 
 ## License
 

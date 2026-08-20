@@ -204,6 +204,25 @@ export type { Window } from './window';
 export type { WindowManager } from './window-manager';
 export type { Dock, DockOrientation, SystemDockItem } from './dock';
 export type { IconsApi } from './desktop-icons';
+/**
+ * The thirty-icon set. `OsIconSetApi` is the shape behind
+ * `wp.os.iconSet`; the helpers are for TypeScript plugins that would
+ * rather import than reach through the global.
+ */
+export {
+	osIcon,
+	osIconSvg,
+	osIconDataUri,
+	OS_ICON_NAMES,
+	OS_CORE_ICON_NAMES,
+	OS_OWN_ICON_NAMES,
+} from './ui/icons';
+export type {
+	OsIconName,
+	OsIconOptions,
+	OsIconRotation,
+	OsIconSetApi,
+} from './ui/icons';
 export type { WidgetLayer } from './widgets/layer';
 
 // ----- The whole shell-public-API interface itself -----

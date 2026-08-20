@@ -36,6 +36,7 @@ import {
 // import wires it in environments that load multiselect without
 // touching select first (third-party bundles).
 import '../os-select/os-select';
+import { osIcon } from '../../icons';
 import { multiselectStyles } from './os-multiselect.styles';
 
 export class OsMultiselect extends Component {
@@ -308,23 +309,11 @@ export class OsMultiselect extends Component {
 				@click=${ ( e: Event ) => this._onTriggerClick( e ) }
 			>
 				<span class="os-multiselect__summary">${ summary }</span>
-				<svg
-					class="os-multiselect__chevron"
-					viewBox="0 0 12 12"
-					width="12"
-					height="12"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<path
-						d="M3 5l3 3 3-3"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						fill="none"
-					/>
-				</svg>
+				${ osIcon( 'chevron-right', {
+					size: 16,
+					rotate: 90,
+					className: 'os-multiselect__chevron',
+				} ) }
 			</button>
 		`;
 	}

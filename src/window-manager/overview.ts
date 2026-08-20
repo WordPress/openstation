@@ -16,6 +16,7 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { _n, __, sprintf } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import type { Desktop } from '../types';
 import { computeOverviewLayout, type OverviewLayoutItem } from './geometry';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
@@ -609,8 +610,7 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	closeBtn.className = 'os-overview-top-bar__tile-close';
 	// translators: %s is the desktop label
 	closeBtn.setAttribute( 'aria-label', sprintf( __( 'Close %s' ), d.label ) );
-	closeBtn.innerHTML =
-		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+	closeBtn.innerHTML = osIconSvg( 'close', { size: 16 } );
 	closeBtn.addEventListener( 'click', ( e: MouseEvent ) => {
 		// stopPropagation so the wrapper's layout doesn't trigger
 		// anything, though the tile is a sibling, not a parent.

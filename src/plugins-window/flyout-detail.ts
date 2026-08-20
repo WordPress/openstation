@@ -14,6 +14,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import { buildStarCluster, pickIcon } from './card';
 import {
 	activateInstalledPlugin,
@@ -194,16 +195,9 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): {
 		'aria-label',
 		__( 'Close plugin details', 'desktop-mode' ),
 	);
-	// Stroke-based X — crisp at every DPR, scales with the button's
-	// `color` so the glass works in both light and color-scheme
-	// backgrounds.
-	close.innerHTML =
-		'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
-		'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" ' +
-		'aria-hidden="true">' +
-		'<path d="M18 6 L6 18"></path>' +
-		'<path d="M6 6 L18 18"></path>' +
-		'</svg>';
+	// `currentColor` throughout, so the glyph follows the button's own
+	// colour and the glass works on both light and dark backdrops.
+	close.innerHTML = osIconSvg( 'close', { size: 20 } );
 	root.appendChild( close );
 
 	if ( hint ) {

@@ -15,6 +15,23 @@
  * intent — the site's apps first, the shell's own affordances last.
  */
 
+/*
+ * A note on why none of the art below comes from `src/ui/icons`.
+ *
+ * Dock tiles are a family of their own: a 64x64 grid, heavier strokes
+ * than the 24-grid set, and every one of them shipped as a `data:` URI
+ * because the dock, desktop-icon and window APIs take an `icon:`
+ * string rather than markup. They are also masked to a single colour
+ * by the rail, so they are drawn for that treatment.
+ *
+ * Two of the four have no member in the thirty at all (the gear is
+ * deliberately NOT Core's `settings`, because the System tile beside
+ * it already means settings, and a keyboard is in neither set), so
+ * converting the rest would leave one family drawn two ways inside a
+ * single rail. If the tiles move to the set they move together, and
+ * `osIconDataUri()` exists for exactly that.
+ */
+
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */
 export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';

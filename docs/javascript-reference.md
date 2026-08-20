@@ -1813,6 +1813,51 @@ Server-declared icons (registered via `openstation_register_icon( $id, [ 'pinned
 
 ---
 
+### `iconSet` — Stable
+
+The thirty icons the shell draws, so a plugin can use the same ones instead of drawing its own. Nineteen are WordPress's, from `@wordpress/icons`, so a verb like save or search looks the way it does in every other admin screen; eleven are OpenStation's, and are the vocabulary that only exists because this is a desktop.
+
+**Not the same thing as [`icons`](#icons--stable) above**, which is the wallpaper icon rail's badge API. The two are unrelated.
+
+```ts
+interface OsIconSetApi {
+    svg:     ( name: string, options?: OsIconOptions ) => string;
+    node:    ( name: string, options?: OsIconOptions ) => SVGSVGElement;
+    dataUri: ( name: string, options?: OsIconOptions ) => string;
+    names:   readonly string[];
+    ours:    readonly string[];
+    has:     ( name: string ) => boolean;
+}
+
+interface OsIconOptions {
+    size?:      number | null;   // CSS pixels, default 24; null lets CSS own the box
+    className?: string;
+    title?:     string;          // omit for the usual aria-hidden case
+    rotate?:    90 | 180 | 270;
+}
+```
+
+```js
+el.innerHTML = wp.os.iconSet.svg( 'trash', { size: 20 } );
+button.append( wp.os.iconSet.node( 'close', { size: 16 } ) );
+wp.os.registerDockItem( { icon: wp.os.iconSet.dataUri( 'spaces' ) } );
+
+wp.os.iconSet.ours            // the eleven that are OpenStation's
+wp.os.iconSet.has( 'window' ) // true
+```
+
+Three things worth knowing:
+
+- **One chevron.** `chevron-right` is the only one, the way Core ships it. A menu that opens downwards passes `rotate: 90` rather than asking for a second drawing.
+- **A sizing floor.** Core's glyphs carry 1.5-unit strokes on a 24 grid, so below about 14px they thin out to a smudge. Anything smaller than that should be part of the drawing it sits in, not an icon.
+- **An unknown name renders nothing** rather than throwing. `svg()` returns `''`, `node()` returns an empty `<svg>` you can still append.
+
+The object and its two lists are frozen: every plugin on the page reaches the same one, so a reassignment would change what everyone else draws.
+
+Full set, the rule behind it, and what deliberately stays hand-drawn: [`docs/icons.md`](./icons.md).
+
+---
+
 ### `saveSession` — Stable
 A debounced function that schedules a session write. The shell calls it automatically for window lifecycle and virtual-desktop lifecycle changes; call it after mutating session-backed state from your own code.
 

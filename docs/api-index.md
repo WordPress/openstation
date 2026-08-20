@@ -67,6 +67,10 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `Dock.removeSystemItem` | `( id: string ) => void` | Stable |
 | `icons` | `IconsApi` *(see `icons.setBadge`)* | Stable |
 | `icons.setBadge` | `( iconId: string, count: number ) => void` | Stable |
+| `iconSet` | `OsIconSetApi` *(the thirty-icon set; unrelated to `icons`)* | Stable |
+| `iconSet.svg` | `( name: string, options?: OsIconOptions ) => string` | Stable |
+| `iconSet.node` | `( name: string, options?: OsIconOptions ) => SVGSVGElement` | Stable |
+| `iconSet.dataUri` | `( name: string, options?: OsIconOptions ) => string` | Stable |
 | `registerSystemTile` | `( item: SystemDockItem ) => void` | Stable |
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |

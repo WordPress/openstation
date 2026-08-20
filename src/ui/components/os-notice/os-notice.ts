@@ -29,6 +29,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 import { styles } from './os-notice.styles';
 import { __ } from '../../../i18n';
 import {
@@ -171,15 +172,7 @@ export class OsNotice extends Component {
 				aria-label=${ __( 'Dismiss notice' ) }
 				@click=${ ( e: Event ) => this._onDismiss( e ) }
 			>
-				<svg viewBox="0 0 14 14" aria-hidden="true">
-					<path
-						d="M3 3 L11 11 M11 3 L3 11"
-						stroke="currentColor"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						fill="none"
-					></path>
-				</svg>
+				${ osIcon( 'close', { size: null } ) }
 			</button>
 		`;
 	}

@@ -61,6 +61,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { osIcon } from '../../icons';
 import { styles } from './os-tag-input.styles';
 // Side-effect import — registers `<os-chip>` so callers don't need
 // to remember to import it separately.
@@ -745,19 +746,5 @@ export class OsTagInput extends Component {
 defineComponent( 'os-tag-input', OsTagInput );
 
 function _iconPlus() {
-	return html`
-		<svg
-			viewBox="0 0 12 12"
-			width="9"
-			height="9"
-			aria-hidden="true"
-			focusable="false"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-		>
-			<path d="M6 2 L6 10 M2 6 L10 6" />
-		</svg>
-	`;
+	return osIcon( 'plus', { size: 14 } );
 }
