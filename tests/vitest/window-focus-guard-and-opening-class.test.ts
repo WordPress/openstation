@@ -256,6 +256,46 @@ describe( 'Window — the opening class always comes off', () => {
 		);
 	} );
 
+	test( 'the deadline never reaches for `window` when it is the one firing', async () => {
+		await manager.open( cfg( 'a' ) );
+		const clearSpy = vi.spyOn( window, 'clearTimeout' );
+
+		vi.advanceTimersByTime( 1000 );
+
+		// The deadline has already fired — there is nothing to cancel,
+		// and cancelling anyway is what made this flaky. A timer that
+		// outlives its document (a torn-down jsdom environment, a
+		// closing tab) finds no `window` global to reach for, and the
+		// callback dies with a ReferenceError nobody catches.
+		expect( clearSpy ).not.toHaveBeenCalled();
+		clearSpy.mockRestore();
+	} );
+
+	test( 'destroying the window cancels the pending deadline', async () => {
+		// Watch for the deadline specifically rather than counting
+		// pending timers: a window arms several on the way up, and
+		// one of them (`scheduleLoadingOverlayShow`'s) deliberately
+		// keeps no cancel bookkeeping at all.
+		const setSpy = vi.spyOn( window, 'setTimeout' );
+		const win = await manager.open( cfg( 'a' ) );
+		const deadlineIds = setSpy.mock.results
+			.filter( ( _r, i ) => setSpy.mock.calls[ i ][ 1 ] === 300 )
+			.map( ( r ) => r.value );
+		setSpy.mockRestore();
+		expect( deadlineIds ).toHaveLength( 1 );
+
+		const clearSpy = vi.spyOn( window, 'clearTimeout' );
+		win.destroy();
+
+		// A 300ms callback surviving a destroy is scheduled against a
+		// document on its way out — in this suite, a jsdom
+		// environment torn down the moment the file's last test
+		// returns.
+		expect( clearSpy ).toHaveBeenCalledWith( deadlineIds[ 0 ] );
+		clearSpy.mockRestore();
+		expect( () => vi.advanceTimersByTime( 1000 ) ).not.toThrow();
+	} );
+
 	test( 'a window opened in a hidden document never gets the class', async () => {
 		setHidden( true );
 

@@ -1,6 +1,6 @@
 {
 	"name": "openstation",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"private": true,
 	"type": "module",
 	"description": "WordPress admin as a desktop OS — draggable, resizable windows on a desktop with a dock.",
@@ -32,11 +32,12 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:my-wordpress-woocommerce && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:components && npm run build:mio && npm run build:window-system && npm run build:item-visibility-menu && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:agent-run-window && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:station-home && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:my-wordpress-woocommerce && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:components && npm run build:mio && npm run build:window-system && npm run build:item-visibility-menu && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:agent-run-window && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "OPENSTATION_TARGET=iframe-bridge vite build --mode development && OPENSTATION_TARGET=iframe-bridge vite build --mode production",
 		"build:gutenberg-drop-receiver": "OPENSTATION_TARGET=gutenberg-drop-receiver vite build --mode development && OPENSTATION_TARGET=gutenberg-drop-receiver vite build --mode production",
 		"build:recycle-bin": "OPENSTATION_TARGET=recycle-bin vite build --mode development && OPENSTATION_TARGET=recycle-bin vite build --mode production",
+		"build:station-home": "OPENSTATION_TARGET=station-home vite build --mode development && OPENSTATION_TARGET=station-home vite build --mode production",
 		"build:posts-window": "OPENSTATION_TARGET=posts-window vite build --mode development && OPENSTATION_TARGET=posts-window vite build --mode production",
 		"build:plugins-window": "OPENSTATION_TARGET=plugins-window vite build --mode development && OPENSTATION_TARGET=plugins-window vite build --mode production",
 		"build:comments-window": "OPENSTATION_TARGET=comments-window vite build --mode development && OPENSTATION_TARGET=comments-window vite build --mode production",

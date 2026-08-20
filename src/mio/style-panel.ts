@@ -397,28 +397,32 @@ function openMioStylePanelImmediate(): void {
 						paint();
 					},
 				),
-				slider(
-					{
-						key: 'idleWobble',
-						label: __( 'Wobble strength' ),
-						min: 0,
-						max: 0.4,
-						step: 0.005,
-					},
-					current,
-					set,
-				),
-				slider(
-					{
-						key: 'idleWobbleSpeed',
-						label: __( 'Wobble speed' ),
-						min: 0,
-						max: 4,
-						step: 0.05,
-					},
-					current,
-					set,
-				),
+				...( physics.idleWobble > 0
+					? [
+						slider(
+							{
+								key: 'idleWobble',
+								label: __( 'Wobble strength' ),
+								min: 0,
+								max: 0.4,
+								step: 0.005,
+							},
+							current,
+							set,
+						),
+						slider(
+							{
+								key: 'idleWobbleSpeed',
+								label: __( 'Wobble speed' ),
+								min: 0,
+								max: 4,
+								step: 0.05,
+							},
+							current,
+							set,
+						),
+					]
+					: [] ),
 			] ),
 			section( __( 'Colour' ), [
 				slider(
@@ -563,17 +567,21 @@ function openMioStylePanelImmediate(): void {
 						paint();
 					},
 				),
-				slider(
-					{
-						key: 'iridescence',
-						label: __( 'Iridescence' ),
-						min: 0,
-						max: 2,
-						step: 0.05,
-					},
-					current,
-					set,
-				),
+				...( appearance.iridescence > 0
+					? [
+						slider(
+							{
+								key: 'iridescence',
+								label: __( 'Iridescence' ),
+								min: 0,
+								max: 2,
+								step: 0.05,
+							},
+							current,
+							set,
+						),
+					]
+					: [] ),
 			] ),
 			section( __( 'Body' ), [
 				colour( 'bodyColor', __( 'Body colour' ), appearance, set ),

@@ -75,6 +75,83 @@ function openstation_inject_appearance_tabs( $dock_item, $menu_slug ) {
 add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
 
 /**
+ * Renders the orientation header for the chromeless Themes workspace.
+ *
+ * Core's page heading is intentionally hidden inside OpenStation because the
+ * window chrome already names the screen. The Themes page still needs a little
+ * more context than a generic list screen, though: a theme changes the public
+ * face of the site, and Core's single-theme state otherwise opens directly on
+ * an unexplained details panel.
+ *
+ * The markup is emitted through `admin_notices`, which places it immediately
+ * before the page's `.wrap`. Core continues to own the theme cards, details
+ * overlay, actions, AJAX updates, and keyboard behavior.
+ *
+ * The screen is identified by `get_current_screen()`, not `$pagenow`. Every
+ * page registered with `add_theme_page()` also reports `themes.php` as its
+ * `$pagenow`, but its body class comes from the hook suffix
+ * (`appearance_page_<slug>`) and so matches none of the workspace CSS, which
+ * is scoped to `.themes-php`. Gating on `$pagenow` would emit this header
+ * unstyled on top of unrelated Appearance screens. The screen ID also keeps
+ * network admin (`themes-network`, a different list table entirely) out.
+ */
+function openstation_render_themes_workspace_intro() {
+	if ( ! openstation_is_chromeless_request() ) {
+		return;
+	}
+
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	if ( ! $screen || 'themes' !== $screen->id ) {
+		return;
+	}
+
+	/*
+	 * Mirrors how `wp_prepare_themes_for_js()` builds its own list, without
+	 * paying for the preparation itself. Core already called that function
+	 * on this request before `admin-header.php` ran, and calling it again
+	 * would re-resolve every screenshot, tag and author URL and fire
+	 * `pre_prepare_themes_for_js` / `wp_prepare_themes_for_js` a second
+	 * time — so any third-party callback hanging off them would run twice
+	 * per page load. `wp_get_themes()` is cached, so this is a lookup.
+	 */
+	if ( current_user_can( 'switch_themes' ) ) {
+		$themes     = wp_get_themes( array( 'allowed' => true ) );
+		$stylesheet = get_stylesheet();
+		if ( ! isset( $themes[ $stylesheet ] ) ) {
+			$themes[ $stylesheet ] = wp_get_theme();
+		}
+		$theme_count = count( $themes );
+	} else {
+		$theme_count = 1;
+	}
+	?>
+	<section class="openstation-themes-intro" aria-labelledby="openstation-themes-intro-title">
+		<div class="openstation-themes-intro__copy">
+			<p class="openstation-themes-intro__eyebrow"><?php esc_html_e( 'Site appearance', 'desktop-mode' ); ?></p>
+			<h1 id="openstation-themes-intro-title"><?php esc_html_e( 'Choose how your site greets the world.', 'desktop-mode' ); ?></h1>
+			<p><?php esc_html_e( 'Your theme shapes the templates, typography, colours, and layout visitors see. Your posts and pages stay in place when you switch.', 'desktop-mode' ); ?></p>
+		</div>
+		<?php
+		/*
+		 * Left readable rather than labelled: `aria-label` is ignored on a
+		 * `<p>` (the paragraph role prohibits an author-supplied name), so
+		 * pairing it with `aria-hidden` children hid the count from
+		 * assistive tech entirely — and Core's own `.title-count` inside
+		 * the page `<h1>` is display:none in chromeless mode, making this
+		 * the only count on the screen. Read in DOM order the two spans
+		 * announce as "3 Themes installed" on their own.
+		 */
+		?>
+		<p class="openstation-themes-intro__count">
+			<strong><?php echo esc_html( number_format_i18n( $theme_count ) ); ?></strong>
+			<span><?php echo esc_html( _n( 'Theme installed', 'Themes installed', $theme_count, 'desktop-mode' ) ); ?></span>
+		</p>
+	</section>
+	<?php
+}
+add_action( 'admin_notices', 'openstation_render_themes_workspace_intro', 0 );
+
+/**
  * Fixes the visible "active tab" state inside chromeless
  * theme-install.php iframes.
  *

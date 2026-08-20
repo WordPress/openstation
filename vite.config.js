@@ -297,6 +297,14 @@ const TARGETS = {
 		fileBase: 'recycle-bin',
 		iifeName: 'openStationRecycleBin',
 	},
+	// Station Home — always-on native replacement for `index.php`.
+	// Publishes the dashboard render callback and ships only when the
+	// Dashboard entry point is opened.
+	'station-home': {
+		entry:    'src/station-home/index.ts',
+		fileBase: 'station-home',
+		iifeName: 'openStationStationHome',
+	},
 	// Native Posts window — `<os-table>`-driven replacement for the
 	// chromeless `edit.php` iframe, opt-in per user via OS Settings →
 	// Features. Same shape as recycle-bin: registers a render

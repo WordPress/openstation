@@ -24,7 +24,10 @@ import { __, sprintf } from './i18n';
 /** What the lazy bundle publishes on `window.openStationReleaseCard`. */
 interface ReleaseCardApi {
 	showReleaseCard: ( opts: ReleaseCardOptions ) => unknown;
-	resolveReleaseArt: ( branch: string ) => Promise< ReleaseArt | null >;
+	resolveReleaseArt: (
+		branch: string,
+		announcementPending?: boolean,
+	) => Promise< ReleaseArt | null >;
 	preloadImage: ( url: string ) => Promise< boolean >;
 }
 
@@ -73,7 +76,10 @@ export interface UpdateNoticeDeps {
 	/** Open an admin URL as a window (the "Update now" action). */
 	openUrl: ( args: { url: string; title: string } ) => void;
 	/** Resolve release art for a branch. Defaults to the lazy bundle's resolver. */
-	resolveArt?: ( branch: string ) => Promise< ReleaseArt | null >;
+	resolveArt?: (
+		branch: string,
+		announcementPending?: boolean,
+	) => Promise< ReleaseArt | null >;
 	/** Preload an image, resolving true when ready. Defaults to the lazy bundle's preloader. */
 	loadImage?: ( url: string ) => Promise< boolean >;
 	/** Show the vinyl card. Defaults to the lazy bundle's `showReleaseCard`. */
@@ -129,6 +135,10 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 	if ( isNoticeDismissed( dismissKey ) ) {
 		return;
 	}
+	// The art-less toast dismisses on its own key. Closing a fallback
+	// the user was only shown because the art wasn't ready yet must not
+	// also bury the card once it is.
+	const toastDismissKey = `${ dismissKey }:no-art`;
 
 	const openUpdateScreen = (): void =>
 		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
@@ -144,7 +154,9 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 
 	// Resolve + preload the art before showing anything, so the vinyl
 	// appears once (already painted) instead of flashing a toast first.
-	const art = resolveArt ? await resolveArt( branch ) : null;
+	// `crossing` marks a major whose announcement post (and its art) may
+	// not be published yet, which shortens how long a miss is cached.
+	const art = resolveArt ? await resolveArt( branch, crossing ) : null;
 	if ( art && art.artUrl && load && showCard && ( await load( art.artUrl ) ) ) {
 		showCard( {
 			message: updateMessage( version, crossing ? art.name : '' ),
@@ -156,13 +168,14 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 	}
 
 	// No art (unknown release / offline / image failed) → plain toast.
-	// Dismissible + persisted on the same key as the card, so closing it
-	// keeps it closed for this exact version.
+	if ( isNoticeDismissed( toastDismissKey ) ) {
+		return;
+	}
 	showToast( {
 		message: updateMessage( version, '' ),
 		persistent: true,
 		dismissible: true,
-		onDismiss: () => markNoticeDismissed( dismissKey ),
+		onDismiss: () => markNoticeDismissed( toastDismissKey ),
 		action: {
 			label: __( 'Update now' ),
 			onClick: openUpdateScreen,

@@ -1,0 +1,801 @@
+/*
+ * Station Home — Editorial Flight Deck.
+ *
+ * The selected Imagegen direction sets the hierarchy and proportion. This
+ * stylesheet translates it to live, theme-aware DOM: one identity mesh, no
+ * card shadows, generous editorial rhythm, and a compact top-band fallback.
+ */
+
+.desktop-mode-station-home {
+	container: station-home / inline-size;
+	box-sizing: border-box;
+	block-size: 100%;
+	inline-size: 100%;
+	min-block-size: 0;
+	min-inline-size: 0;
+	position: relative;
+	overflow: hidden;
+	background: var( --os-ui-bg, #1a1721 );
+	color: var( --os-ui-fg, #fffbff );
+	font-family: var( --os-font, 'Geist', system-ui, sans-serif );
+}
+
+.os-station-home__layout {
+	display: grid;
+	grid-template-columns: 270px minmax( 0, 1fr );
+	block-size: 100%;
+	inline-size: 100%;
+	min-block-size: 0;
+	min-inline-size: 0;
+}
+
+.desktop-mode-station-home [hidden] {
+	display: none !important;
+}
+
+.os-station-home__rail {
+	display: flex;
+	flex-direction: column;
+	min-block-size: 0;
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	padding: 30px 22px 24px;
+	border-inline-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	background: var( --os-ui-surface-sunken, #0c0b0f );
+}
+
+.os-station-home__brand,
+.os-station-home__location,
+.os-station-home__actions {
+	position: relative;
+	z-index: 1;
+}
+
+.os-station-home__brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 16px;
+	font-weight: 660;
+	letter-spacing: -0.02em;
+}
+
+.os-station-home__brand-mark {
+	display: block;
+	inline-size: 36px;
+	block-size: 36px;
+	border-radius: 10px;
+}
+
+.os-station-home__location {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin-block-start: 34px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 550 12px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.os-station-home__location > span {
+	inline-size: 7px;
+	block-size: 7px;
+	border-radius: 50%;
+	background: var( --os-ui-accent, #f252fc );
+	box-shadow: 0 0 0 4px color-mix( in srgb, var( --os-ui-accent, #f252fc ) 15%, transparent );
+}
+
+.os-station-home__mesh {
+	position: absolute;
+	z-index: 0;
+	/*
+	 * The aurora fills the rail; the gradient stops place it, not the
+	 * element box. Sizing the box to the shape is what gave this an
+	 * outline to find, and an outline is what made people read a
+	 * mascot in it.
+	 */
+	inset: 0;
+	/*
+	 * Read through the kit's themeable name, NOT `--os-mesh-holo`.
+	 * A theme that suppresses the meshes sets every `--os-mesh-*` to
+	 * `none`; because the property IS declared, the literal below
+	 * would never fire and this would paint nothing at all rather
+	 * than a quieter self.
+	 *
+	 * `--os-ui-hero-mesh` rather than `--os-ui-holo-fill` because
+	 * this is a field, not a control. See the token's note in
+	 * `variables.css` for why a field carries its alpha in the stops.
+	 */
+	background: var( --os-ui-hero-mesh, radial-gradient( ellipse 38% 26% at 24% 20%, rgba( 170, 103, 255, 0.55 ) 0%, rgba( 170, 103, 255, 0 ) 72% ) );
+	/*
+	 * No `opacity` here. The strength is in the stops, so dimming the
+	 * whole layer would only pull every hue back toward the surface
+	 * behind it — the exact thing this token exists to avoid. The
+	 * mask fades the two ends so the field never meets the brand mark
+	 * above it or the quick actions below on a hard line.
+	 */
+	mask-image: linear-gradient( to bottom, transparent, #000 9%, #000 88%, transparent );
+}
+
+.os-station-home__actions {
+	display: grid;
+	gap: 6px;
+	margin-block-start: auto;
+}
+
+.os-station-home__action {
+	box-sizing: border-box;
+	min-block-size: 48px;
+	inline-size: 100%;
+}
+
+a.os-station-home__action {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 11px 12px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	color: var( --os-ui-fg, #fffbff );
+	font-size: 14px;
+	font-weight: 570;
+	line-height: 1.2;
+	text-decoration: none;
+}
+
+/*
+ * Hover and focus are scoped to the LINKS.
+ *
+ * A quick action is an `<a>` when it navigates and an `<os-button>`
+ * when it calls into the shell, which is not a difference the user
+ * has any business seeing — the five rows are one list. Left
+ * unscoped, these two rules land on the component hosts as well and
+ * stack on top of the chrome the kit already draws: the host's
+ * background paints under a shadow button that is separately painting
+ * `--os-ui-button-bg-hover`, so two low-alpha films compound and the
+ * component-backed rows hover visibly darker than their neighbours;
+ * and the host's `box-shadow` doubles the focus ring the button draws
+ * from the same token. `border-color` on a host is simply dead — no
+ * border-width or style there to recolour.
+ *
+ * So the links keep these, and the buttons are matched through the
+ * `--os-ui-button-*` tokens below instead.
+ */
+a.os-station-home__action:hover {
+	background: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
+	border-color: var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+a.os-station-home__action:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
+}
+
+os-button.os-station-home__action {
+	--os-ui-button-padding: 11px 12px;
+	--os-ui-button-min-height: 48px;
+	--os-ui-button-border: 1px solid transparent;
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
+	--os-ui-button-bg-hover: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
+	--os-ui-button-border-radius: 8px;
+	/*
+	 * Quiet the iridescent layers for these two.
+	 *
+	 * Every `<os-button>` carries `os-holo-edge os-holo-sheen` on its
+	 * inner button whatever the variant, so a ghost button in this
+	 * list lights a gradient hairline and a hover film that its three
+	 * `<a>` siblings have no way to match. The hairline is a genuine
+	 * 1px all the way round — `holoEdge` builds it from `padding: 1px`
+	 * and `mask-composite: exclude` — but it is painted with a 124deg
+	 * gradient running 0.85 alpha at one end and 0.6 at the other, so
+	 * it reads as changing WIDTH around the corner. In a row of five
+	 * it just looks like two of them are wrong.
+	 *
+	 * Quieted here rather than in the component: the edge is exactly
+	 * right for a button that stands on its own, and the holographic
+	 * state is meant to be spent on identity moments, not on every
+	 * item in a nav list. The `:active` glint and ring stay — those
+	 * are press feedback, not resting chrome.
+	 */
+	--os-ui-holo-edge: none;
+	--os-ui-holo-edge-quiet: none;
+	--os-ui-holo-sheen: none;
+	text-align: start;
+}
+
+/*
+ * Left-align the row, and match the links' icon gap.
+ *
+ * `<os-button>` centres its content — right for a button, wrong for a
+ * nav row, and invisible until `fill-cell` gives the button a width
+ * bigger than its label to centre WITHIN. The result is two rows that
+ * look indented against three that start at the padding edge.
+ *
+ * Neither justification nor gap has a `--os-ui-button-*` token, so
+ * this goes through `::part( button )`, which the component documents
+ * as an author hook for exactly this. `text-align` on the host cannot
+ * do it — the content is laid out by flex, which `text-align` does
+ * not reach.
+ */
+os-button.os-station-home__action::part( button ) {
+	justify-content: flex-start;
+	gap: 12px;
+}
+
+/*
+ * The border the `<a>` rule gets from `border-color`, which cannot
+ * reach a component host. The shadow button reads this token, so the
+ * hairline appears on hover exactly as it does on the links.
+ */
+os-button.os-station-home__action:hover {
+	--os-ui-button-border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__action .dashicons {
+	flex: 0 0 20px;
+	font-size: 20px;
+}
+
+.os-station-home__main {
+	min-block-size: 0;
+	min-inline-size: 0;
+	overflow: auto;
+	padding: clamp( 30px, 4vw, 54px ) clamp( 30px, 4.5vw, 64px ) 52px;
+	scrollbar-gutter: stable;
+}
+
+.os-station-home__intro {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 24px;
+	padding-block-end: clamp( 42px, 6vh, 68px );
+}
+
+.os-station-home__intro h1 {
+	margin: 0;
+	max-inline-size: 780px;
+	font-size: clamp( 40px, 5.1vw, 68px );
+	font-weight: 710;
+	line-height: 0.98;
+	letter-spacing: -0.055em;
+}
+
+.os-station-home__intro p {
+	margin: 16px 0 0;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: clamp( 16px, 1.6vw, 20px );
+	line-height: 1.5;
+}
+
+.os-station-home__refresh {
+	flex: 0 0 auto;
+	--os-ui-button-padding: 10px;
+	--os-ui-button-min-height: 44px;
+}
+
+.os-station-home__error {
+	margin-block-end: 28px;
+	padding: 12px 14px;
+	border-inline-start: 3px solid var( --os-ui-danger, #ff8585 );
+	background: color-mix( in srgb, var( --os-ui-danger, #ff8585 ) 8%, transparent );
+	color: var( --os-ui-fg, #fffbff );
+	font-size: 14px;
+}
+
+.os-station-home__section + .os-station-home__section {
+	margin-block-start: clamp( 42px, 6vh, 64px );
+}
+
+.os-station-home__section > h2,
+.os-station-home__section-heading > h2 {
+	margin: 0 0 15px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 600 12px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+
+.os-station-home__section-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	margin-block-end: 15px;
+}
+
+.os-station-home__section-heading > h2 {
+	margin-block-end: 0;
+}
+
+.os-station-home__section-heading > os-button {
+	--os-ui-button-padding: 7px 10px;
+	--os-ui-button-min-height: 36px;
+}
+
+.os-station-home__work {
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__work-row {
+	display: grid;
+	grid-template-columns: 44px minmax( 0, 1fr ) auto minmax( 72px, auto ) 20px;
+	align-items: center;
+	gap: 16px;
+	min-block-size: 76px;
+	padding: 10px 4px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	color: inherit;
+	text-decoration: none;
+}
+
+.os-station-home__work-row:hover {
+	background: linear-gradient( 90deg, var( --os-ui-hover, rgba( 255, 251, 255, 0.05 ) ), transparent );
+}
+
+.os-station-home__work-row:focus-visible,
+.os-station-home__attention-row:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #f252fc );
+	outline-offset: 3px;
+}
+
+.os-station-home__row-icon {
+	display: grid;
+	place-items: center;
+	inline-size: 38px;
+	block-size: 38px;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-radius: 9px;
+	color: var( --os-ui-accent-soft-fg, #ec9bff );
+}
+
+.os-station-home__row-copy,
+.os-station-home__row-meta {
+	display: block;
+	min-inline-size: 0;
+}
+
+.os-station-home__row-title {
+	display: block;
+	overflow: hidden;
+	font-size: clamp( 17px, 1.7vw, 22px );
+	font-weight: 620;
+	/*
+	 * `overflow: hidden` clips to the LINE BOX, not the glyphs, and
+	 * `line-height: normal` is a font-metrics number that several
+	 * families set tighter than their own descender depth. Every
+	 * `g`, `p`, `y` and `j` then loses its tail — legibly enough to
+	 * pass a glance and wrong in every screenshot. The overflow is
+	 * here for the ellipsis, so the line box has to be told to make
+	 * room rather than left to the font.
+	 */
+	line-height: 1.35;
+	letter-spacing: -0.025em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-station-home__row-meta,
+.os-station-home__work-row os-relative-time {
+	margin-block-start: 4px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 500 12px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+}
+
+.os-station-home__work-row > .dashicons {
+	color: var( --os-ui-fg-faint, #66636b );
+}
+
+.os-station-home__work os-empty-state {
+	min-block-size: 176px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__pulse {
+	display: grid;
+	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	border-block: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__metric {
+	min-inline-size: 0;
+	padding: 22px 22px 24px;
+}
+
+.os-station-home__metric + .os-station-home__metric {
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__metric-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-inline-size: 0;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+}
+
+.os-station-home__metric-label span:last-child {
+	overflow: hidden;
+	/* Same descender clip as `__row-title`; see the note there. */
+	line-height: 1.35;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-station-home__metric strong {
+	display: block;
+	margin-block-start: 16px;
+	font: 680 clamp( 30px, 3.2vw, 42px )/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: -0.05em;
+}
+
+.os-station-home__attention {
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__attention-row,
+.os-station-home__all-clear {
+	display: grid;
+	grid-template-columns: 64px minmax( 0, 1fr ) 20px;
+	align-items: center;
+	gap: 16px;
+	min-block-size: 72px;
+	padding: 10px 4px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	color: inherit;
+	text-decoration: none;
+}
+
+.os-station-home__attention-row:hover {
+	background: linear-gradient( 90deg, var( --os-ui-hover, rgba( 255, 251, 255, 0.05 ) ), transparent );
+}
+
+.os-station-home__attention-count {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var( --os-ui-warning, #f7c66b );
+}
+
+.os-station-home__attention-count strong {
+	font: 680 18px/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+}
+
+.os-station-home__attention-copy,
+.os-station-home__all-clear > span {
+	display: grid;
+	gap: 4px;
+	min-inline-size: 0;
+}
+
+.os-station-home__attention-copy > span,
+.os-station-home__all-clear > span > span {
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.os-station-home__all-clear {
+	grid-template-columns: 44px minmax( 0, 1fr );
+}
+
+.os-station-home__all-clear > .dashicons {
+	color: var( --os-ui-success, #9be8ba );
+	font-size: 26px;
+}
+
+.os-station-home__cards {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 220px, 1fr ) );
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__card {
+	--_card-tone: var( --os-ui-accent-soft-fg, #ec9bff );
+	display: flex;
+	flex-direction: column;
+	min-block-size: 218px;
+	min-inline-size: 0;
+	padding: 22px;
+	border-inline-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	box-shadow: inset 0 2px 0 color-mix( in srgb, var( --_card-tone ) 68%, transparent );
+	color: inherit;
+	text-decoration: none;
+}
+
+.os-station-home__card[ data-tone='info' ] {
+	--_card-tone: var( --os-ui-info, #c2f1f1 );
+}
+
+.os-station-home__card[ data-tone='success' ] {
+	--_card-tone: var( --os-ui-success, #9be8ba );
+}
+
+.os-station-home__card[ data-tone='warning' ] {
+	--_card-tone: var( --os-ui-warning, #f7c66b );
+}
+
+.os-station-home__card[ data-tone='danger' ] {
+	--_card-tone: var( --os-ui-danger, #ff8585 );
+}
+
+a.os-station-home__card:hover {
+	background: var( --os-ui-hover, rgba( 255, 251, 255, 0.05 ) );
+}
+
+a.os-station-home__card:focus-visible {
+	position: relative;
+	z-index: 1;
+	outline: 2px solid var( --os-ui-accent, #f252fc );
+	outline-offset: -3px;
+}
+
+.os-station-home__card-head {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	min-inline-size: 0;
+}
+
+.os-station-home__card-icon {
+	display: grid;
+	place-items: center;
+	flex: 0 0 38px;
+	inline-size: 38px;
+	block-size: 38px;
+	border: 1px solid color-mix( in srgb, var( --_card-tone ) 42%, transparent );
+	border-radius: 9px;
+	color: var( --_card-tone );
+}
+
+.os-station-home__card-icon > img {
+	display: block;
+	max-inline-size: 24px;
+	max-block-size: 24px;
+	object-fit: contain;
+}
+
+.os-station-home__card-head > span:last-child {
+	display: grid;
+	gap: 3px;
+	min-inline-size: 0;
+}
+
+.os-station-home__card-head strong {
+	overflow: hidden;
+	font-size: 15px;
+	/* Same descender clip as `__row-title`; see the note there. */
+	line-height: 1.35;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-station-home__card-head > span:last-child > span {
+	overflow: hidden;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font: 500 11px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	text-overflow: ellipsis;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.os-station-home__card-value {
+	display: block;
+	margin-block-start: 26px;
+	font: 690 clamp( 30px, 3.2vw, 44px )/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: -0.055em;
+}
+
+.os-station-home__card-detail {
+	display: block;
+	margin-block-start: 9px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.os-station-home__card-action {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-block-start: auto;
+	padding-block-start: 22px;
+	color: var( --_card-tone );
+	font-size: 12px;
+	font-weight: 620;
+}
+
+.os-station-home__cards-empty {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: 44px minmax( 0, 1fr );
+	align-items: center;
+	gap: 16px;
+	min-block-size: 92px;
+	padding: 14px 18px;
+	border-inline-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__cards-empty > .dashicons {
+	color: var( --os-ui-accent-soft-fg, #ec9bff );
+	font-size: 26px;
+}
+
+.os-station-home__cards-empty > span {
+	display: grid;
+	gap: 4px;
+}
+
+.os-station-home__cards-empty > span > span,
+.os-station-home__card-modal-intro {
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.os-station-home__card-modal-intro {
+	margin: 0 0 18px;
+}
+
+.os-station-home__card-preferences {
+	display: grid;
+	gap: 1px;
+	overflow: hidden;
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	border-radius: 10px;
+	background: var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.os-station-home__card-preferences > os-switch {
+	padding: 14px;
+	background: var( --os-ui-surface, #1a1721 );
+}
+
+.os-station-home__loading {
+	position: absolute;
+	z-index: 3;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 12px;
+	background: color-mix( in srgb, var( --os-ui-bg, #1a1721 ) 92%, transparent );
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 13px;
+}
+
+@container station-home ( max-width: 820px ) {
+	.os-station-home__layout {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax( 0, 1fr );
+	}
+
+	.os-station-home__rail {
+		display: grid;
+		grid-template-columns: auto auto minmax( 0, 1fr );
+		align-items: center;
+		gap: 18px;
+		padding: 14px 18px;
+		border-inline-end: 0;
+		border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	}
+
+	.os-station-home__location,
+	.os-station-home__actions {
+		margin-block-start: 0;
+	}
+
+	.os-station-home__mesh {
+		/*
+		 * The rail is a top band here, so the field fills that
+		 * instead and the fade turns to run along it. No `opacity`
+		 * override: the base rule dropped it, and re-introducing it
+		 * would knock the aurora's chroma back down.
+		 */
+		inset: 0;
+		mask-image: linear-gradient( 90deg, transparent, #000 24%, #000 76%, transparent );
+	}
+
+	.os-station-home__actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 3px;
+		min-inline-size: 0;
+		overflow-x: auto;
+	}
+
+	.os-station-home__action {
+		flex: 0 0 auto;
+		inline-size: auto;
+		min-block-size: 44px;
+	}
+
+	a.os-station-home__action {
+		padding: 10px;
+	}
+
+	.os-station-home__action > span:last-child {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset( 50% );
+		white-space: nowrap;
+	}
+}
+
+@container station-home ( max-width: 620px ) {
+	.os-station-home__rail {
+		grid-template-columns: auto minmax( 0, 1fr );
+	}
+
+	.os-station-home__location {
+		display: none;
+	}
+
+	.os-station-home__main {
+		padding: 28px 22px 40px;
+	}
+
+	.os-station-home__intro h1 {
+		font-size: clamp( 34px, 9vw, 48px );
+	}
+
+	.os-station-home__work-row {
+		grid-template-columns: 40px minmax( 0, 1fr ) auto 20px;
+		gap: 11px;
+	}
+
+	.os-station-home__work-row os-relative-time {
+		display: none;
+	}
+
+	.os-station-home__pulse {
+		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
+
+	.os-station-home__cards {
+		grid-template-columns: 1fr;
+	}
+
+	.os-station-home__metric:nth-child( 3 ) {
+		border-inline-start: 0;
+	}
+
+	.os-station-home__metric:nth-child( n + 3 ) {
+		border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-station-home__work-row,
+	.os-station-home__attention-row,
+	.os-station-home__action {
+		scroll-behavior: auto;
+		transition: none;
+	}
+}
+
+@media ( forced-colors: active ) {
+	.os-station-home__mesh {
+		display: none;
+	}
+
+	.os-station-home__rail,
+	.os-station-home__work-row,
+	.os-station-home__pulse,
+	.os-station-home__metric,
+	.os-station-home__attention-row,
+	.os-station-home__all-clear {
+		border-color: CanvasText;
+	}
+}

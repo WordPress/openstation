@@ -102,11 +102,18 @@ dark-surface colours:
 
 ```css
 .my-plugin-dialog {
-    --os-ui-fg:              var( --os-ui-modal-text, #f0f0f1 );
-    --os-ui-fg-muted:        var( --os-ui-modal-text-muted, #a7aaad );
-    --os-ui-border:          var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
-    --os-window-bg:          var( --os-ui-modal-field-bg, #2c3338 );
-    --os-ui-button-bg-hover: var( --os-ui-modal-button-bg-hover, rgba( 255, 255, 255, 0.08 ) );
+    /* Foreground. */
+    --os-ui-fg:               var( --os-ui-modal-text, #f0f0f1 );
+    --os-ui-fg-muted:         var( --os-ui-modal-text-muted, #a7aaad );
+    --os-ui-border:           var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
+    --os-ui-border-strong:    var( --os-ui-modal-border-strong, rgba( 255, 255, 255, 0.35 ) );
+    /* Surface — the half that is easy to forget. */
+    --os-window-bg:           var( --os-ui-modal-field-bg, #2c3338 );
+    --os-ui-surface:          var( --os-ui-modal-surface, #2c3338 );
+    --os-ui-surface-elevated: var( --os-ui-modal-surface-elevated, #3c434a );
+    /* Washes, which are read against the surface they sit on. */
+    --os-ui-hover:            var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
+    --os-ui-button-bg-hover:  var( --os-ui-modal-button-bg-hover, rgba( 255, 255, 255, 0.08 ) );
 }
 ```
 
@@ -114,6 +121,20 @@ Read a palette-owned `--os-ui-modal-*` name first in every one of
 them. Declaring the literal directly would make the name unreachable
 from a desktop theme — the same trap described in
 [`desktop-themes.md`](desktop-themes.md).
+
+**Take the whole list, not the colours you notice.** Foreground and
+surface are a pair, and re-pointing only the half you can see is a bug
+that hides itself: while the palette outside your dialog is dark, every
+token you left behind happens to agree, and the dialog looks right. Put
+a light palette outside it — [Legacy](desktop-themes.md#the-legacy-theme--start-here),
+or any theme in the admin's own colours — and the halves come apart.
+`--os-ui-surface` is the one that bit us: it stayed `#fff`, so an
+`<os-select>` in the dialog painted a white trigger and the re-pointed
+`--os-ui-fg` wrote near-white text onto it. `--os-ui-hover` was a black
+wash over a dark row.
+
+If your surface is dark, you own every token that names a surface or a
+wash on one — not just the text.
 
 ## Buttons & actions
 

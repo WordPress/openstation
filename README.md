@@ -30,6 +30,9 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 ## Current State
 
+- **Station Home**
+  Native, role-aware replacement for the ordinary WordPress Dashboard inside OpenStation: recent personal work, four live site instruments, an actionable attention queue, and quick paths to create, upload, view the site, open WP Explorer, or deliberately return to the Classic Dashboard.
+
 - **Per-user opt-in**
   Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/openstation/` portal URL auto-enables OpenStation for first-time visitors (gated by `openstation_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`openstation_admin_redirect_to_portal`).
 
@@ -202,6 +205,7 @@ Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.os.iframe.*`.
 - `assets/js/recycle-bin.js` / `.min.js` — Recycle Bin native window.
+- `assets/js/station-home.js` / `.min.js` — Station Home native Dashboard.
 - `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Preferences → Features).
 
 **Development watch** — auto-recompiles the unminified bundle on save:

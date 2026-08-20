@@ -216,6 +216,18 @@ native window, all hanging off WP Explorer. Index:
 | `openstation_woo_customer` REST field on the core `user` resource | [`hooks-reference.md`](./hooks-reference.md#customers) | Experimental |
 | `desktop-mode-woo-customer` native window *(retargetable singleton, `customerId` param)* | [`hooks-reference.md`](./hooks-reference.md#the-customer-window) | Experimental |
 
+### Station Home plugin cards *(Experimental)*
+
+| Surface | Signature | Status |
+|---|---|---|
+| `openstation_register_station_home_card` | `( string $id, array $args ) => true|WP_Error` | Experimental |
+| `openstation_unregister_station_home_card` | `( string $id ) => bool` | Experimental |
+| `openstation_station_home_cards` | `( array $cards, int $user_id ) => array` | Experimental |
+| `openstation_station_home_card_data` | `( array $data, string $id, array $entry, int $user_id ) => array` | Experimental |
+| card lifecycle actions | registered, preference-updated, callback-error | Experimental |
+
+See [`station-home.md`](./station-home.md#plugin-cards) and the [complete plugin recipe](./examples/station-home-card.md).
+
 ## CustomEvents on `document`
 
 Every event bubbles from `document`. See [`javascript-reference.md`](./javascript-reference.md#1-customevents) for `detail` shapes.

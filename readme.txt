@@ -2,9 +2,9 @@
 Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -169,6 +169,23 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.1 =
+* My WordPress: let the entity hover card follow the desktop theme
+* Expose and sync status ribbons setting
+* Load window, wallpaper and widget bundles on demand
+* Components: add <os-field-row>, <os-token-field> and <os-repeater>
+* Windows: guard focus(), unstick the opening class, add child windows
+* Files: make the conflict toast's "View folder" actually open the folder
+* Notch: place it behind the windows
+* Update the wp.org screenshots for the current shell
+* Windows: make Reload a common action for native windows too
+* Themes: answer every palette literal in the Legacy snapshot
+* Settings: open the Custom accent's colour wheel on its own swatch
+* Components: a dark dialog owns its surfaces, not just its text
+* Redesign the WordPress Themes workspace
+* Hide iridescence slider when effect is off
+* Hide wobble sliders when effect is off
 
 = 1.1.0 =
 * Consolidate navigation into a single dock

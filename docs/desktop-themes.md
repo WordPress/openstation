@@ -458,10 +458,22 @@ unreachable — a declaration on the element beats anything the element
 *inherits*, and your theme declares on an ancestor — so components read
 their public tokens into private aliases instead. The one exception is
 `<os-modal>`, whose dialog surface is dark whatever the admin colour
-scheme says: it re-points `--os-ui-fg`, `--os-ui-fg-muted`, `--os-ui-border`
-and `--os-window-bg` inside the dialog, and gives you
-`--os-ui-modal-text`, `--os-ui-modal-text-muted`, `--os-ui-modal-border` and
-`--os-ui-modal-field-bg` to set them by.
+scheme says. It re-points the foreground tokens (`--os-ui-fg`,
+`--os-ui-fg-muted`, `--os-ui-border`, `--os-ui-border-strong`), the
+surfaces (`--os-window-bg`, `--os-ui-surface`,
+`--os-ui-surface-elevated`) and the washes over them (`--os-ui-hover`,
+`--os-ui-button-bg-hover`) inside the dialog, and gives you a
+`--os-ui-modal-*` name for each: `-text`, `-text-muted`, `-border`,
+`-border-strong`, `-field-bg`, `-surface`, `-surface-elevated`,
+`-hover`, `-button-bg-hover`.
+
+**Theme the `--os-ui-modal-*` set, not the tokens it re-points** — a
+`--os-ui-surface` your theme sets never reaches inside a dialog, by
+design. The set covers foreground *and* surface deliberately: it used
+to re-point only the text colours, which looked correct for as long as
+the palette outside the dialog was dark too, and came apart the moment
+a light theme was worn — `<os-select>` in a dialog painted a white
+trigger under near-white text.
 
 The palette is not limited to window bodies: the shell's own
 body-mounted overlays — toasts, confirm dialogs, context menus, and
@@ -499,6 +511,7 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 |---|---|
 | `--os-ui-holo-fill` | What an on / selected / filled surface paints. |
 | `--os-ui-holo-ink` | Glyphs and text on that fill. |
+| `--os-ui-hero-mesh` | What a large decorative FIELD paints — a panel wash, an identity rail — as opposed to a control. An aurora by default, and built differently from the five meshes: its alpha is in the colour stops rather than applied to the layer, so the desk shows through and the hues keep their chroma at any strength. A mesh knocked back with `opacity` over a large area goes grey. Keep the two separate: a value chosen so a 40px chip reads as *on* is often within a unit or two of the surface behind it, which is invisible once it is stretched across a rail. Legacy answers this one with a flat WordPress-admin blue wash while leaving its control fill alone. |
 | `--os-ui-holo-sheen` | The hover film over a surface that is *not* lit. |
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
@@ -572,6 +585,17 @@ and are the right lever when you want your own gradient everywhere the
 brand's would have gone. `--os-mesh-mio` belongs to the mascot; retint
 it and Mio changes with the rest of the station, which may or may not
 be what you meant.
+
+> **Consuming rules must read `--os-ui-holo-fill`, not a mesh token.**
+> Setting a mesh to `none` is how a theme opts out of iridescence —
+> Legacy sets all five — and a rule that reads `--os-mesh-holo`
+> directly resolves to `none` there. The `var()` literal does not
+> rescue it: a fallback fires only when a property is *undefined*, and
+> a mesh set to `none` is very much defined. The surface paints
+> nothing at all rather than a quieter version of itself. Route
+> through `--os-ui-holo-fill` — or `--os-ui-hero-mesh` if the surface
+> is a field rather than a control — and the opt-out becomes a
+> substitution.
 
 ### Shell tokens
 
