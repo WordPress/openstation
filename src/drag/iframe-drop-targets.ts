@@ -147,17 +147,43 @@ const onBridgeDrop = ( e: DragEvent ): void => {
 	if ( ! _bridgeInterceptPayload ) {
 		return;
 	}
+	const iframe = findIframeAtCursor( e.clientX, e.clientY );
+	if ( ! iframe ) {
+		/*
+		 * Nothing to deliver into: the cursor is over the shell's own
+		 * chrome — the wallpaper, a folder window's canvas, the dock.
+		 *
+		 * Leave the event completely alone. This handler runs in the
+		 * CAPTURE phase on `document`, so the `stopImmediatePropagation`
+		 * below reaches every shell handler before any of them see the
+		 * drop; claiming a gesture we then have nowhere to send made
+		 * every cross-frame drop outside a window vanish silently. That
+		 * is precisely what stopped an image dragged out of the Media
+		 * Library from landing on the desktop as a shortcut — the files
+		 * canvas's own drop handler was never reached.
+		 *
+		 * Tearing the intercept down here (rather than waiting for the
+		 * source frame's `os-drag-end`) also restores iframe
+		 * pointer-events before the next gesture starts.
+		 *
+		 * `preventDefault()` still fires, and only that: a media drag
+		 * also carries `text/uri-list`, whose default action on a
+		 * plain document is to navigate. Cancelling the default keeps
+		 * a drop the shell declines from replacing the whole shell
+		 * with the dragged image; propagation is untouched, so
+		 * handlers further along still get their turn.
+		 */
+		e.preventDefault();
+		stopBridgeIntercept();
+		return;
+	}
 	e.preventDefault();
 	e.stopPropagation();
 	if ( typeof e.stopImmediatePropagation === 'function' ) {
 		e.stopImmediatePropagation();
 	}
-	const iframe = findIframeAtCursor( e.clientX, e.clientY );
 	const payload = _bridgeInterceptPayload;
 	stopBridgeIntercept();
-	if ( ! iframe ) {
-		return;
-	}
 	const rect = iframe.getBoundingClientRect();
 	postIntoIframe( iframe, {
 		type: 'os-drop',

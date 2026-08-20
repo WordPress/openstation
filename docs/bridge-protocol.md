@@ -414,6 +414,16 @@ Drop-receiver iframes have two ways to consume the payload:
 
 2. **Pull** — any iframe can postMessage `{ type: 'os-drag-payload-request' }` and the parent replies (directly to `event.source`) with `{ type: 'os-drag-payload', payload }`. Useful for iframes that bind their own native `drop` handler and need the rich payload after the browser has stripped the custom MIME from DataTransfer.
 
+### Drops the bridge declines
+
+While an iframe-sourced session is live, the intercept in `src/drag/iframe-drop-targets.ts` listens for `drop` on `document` in the **capture** phase — it has to, because the gesture is native HTML5 and has to be re-routed by hand into whichever iframe the cursor ended over.
+
+That reach stops at the iframe boundary. When there is no iframe window under the cursor — the drop landed on the wallpaper, a folder window's canvas, the dock — the intercept **declines**: it cancels the browser default and tears the session down, but leaves propagation alone so shell-side handlers get their turn. The files canvas uses exactly that opening to file an attachment dragged out of the Media Library as a desktop shortcut (see [`files-on-desktop.md`](files-on-desktop.md#drops-arriving-from-inside-a-window)).
+
+Cancelling the default is not optional even when the shell has nothing to do with the drop: a media drag carries `text/uri-list`, and the default action for that on a plain document is to navigate — a photo dropped on the desktop would otherwise replace the whole shell with the image.
+
+If you register your own drop handling on a shell surface, expect the event in the bubble phase and claim it with `preventDefault()` + `stopPropagation()`.
+
 ### Payload union
 
 ```ts

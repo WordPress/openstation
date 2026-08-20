@@ -503,6 +503,59 @@ window opts INTO accepting drops by registering a target on its own
 body — the Trash's `[data-os-recycle-bin-root]` is
 the canonical example.
 
+### Drops arriving from inside a window
+
+A drag lifted *inside* an iframe window — an image in the core Media
+Library — never becomes a `DragManager` session. The gesture belongs
+to the browser's native HTML5 drag machinery in the child document,
+and the shell sees no `pointerdown` and no `dragstart`. What the
+parent document does receive, the moment the pointer crosses out of
+the iframe, is an ordinary `dragover` / `drop` pair.
+
+The files canvas accepts those too. Drop an attachment on the
+wallpaper, on a folder window's canvas, or on a closed folder tile and
+it files as a shortcut exactly as a drag from WP Explorer would —
+same row-major packing, same optimistic store upsert, same
+`os.files.shortcut-dropped` action.
+
+The payload is read from whichever channel carries it:
+
+1. **`wp.os.dragBridge`** — authoritative. The source frame
+   postMessages `os-drag-start` before the pointer leaves it, so the
+   shell already holds a typed payload by the time the drop lands.
+   Survives browsers that strip custom MIME types across a frame
+   boundary. Bridge kinds `attachment`, `post` and `user` map onto the
+   file types of the same name; any other kind is refused rather than
+   guessed at.
+2. **`application/x-wp-media-attachment`** on the `DataTransfer` —
+   fallback, for a source that fills the transfer but never talks to
+   the shell. Readable only on `drop`; during `dragover` the spec
+   exposes the type list but not the values, which is why acceptance
+   is decided from `types` and the payload resolved a moment later.
+
+A drag carrying `Files` is an upload, not a shortcut, and is left to
+the OS-file-drop manager untouched.
+
+Two boundaries worth knowing if you build on this:
+
+- **The canvas only claims drops aimed at itself.** Windows and the
+  widget column float above `#os-area` and share its subtree; a drop
+  on a window's title bar is not a drop on the wallpaper. The check
+  walks up from the event target and stops at the first answer, and it
+  is relative to the canvas host — a folder window's canvas lives
+  *inside* a `.wp-window` and must still accept.
+- **Drops over an iframe window belong to the bridge**, which routes
+  them into that iframe as `os-drop` (this is how Gutenberg receives
+  an insertion). When there is no iframe window under the cursor the
+  bridge declines the gesture and leaves the event to the shell, only
+  cancelling the browser default — a media drag also carries
+  `text/uri-list`, whose default action would navigate the tab away
+  from the shell.
+
+Dragging attachments out of the core Media Library requires the
+**Media Library enhancement** extended option, which is what marks
+`.attachment` tiles draggable and opens the bridge channel.
+
 Cancellation: `Escape`, `window.blur`, `document.visibilitychange` to
 hidden, and `pointercancel` all cancel the active session and run a
 single idempotent cleanup (`--dragging`, `--drop-target`,

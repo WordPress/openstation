@@ -59,7 +59,9 @@ import {
 	dragShortcutItems,
 	type DesktopFileDragData,
 	type ShortcutDragData,
+	type ShortcutDragItem,
 } from './drag-payloads';
+import { attachCrossFrameDrop } from './cross-frame-drop';
 
 /**
  * Build a cross-frame bridge payload from a placement, or return
@@ -920,33 +922,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				// where the user released the cursor. Cursor-position
 				// snap is wrong for shortcut creates because users
 				// rarely aim precisely; row-major is the "tidy" outcome.
-				const occupied = buildVisualOccupiedSet( peers );
-				for ( const entity of dragShortcutItems( data ) ) {
-					const cell = nextRowMajorCell( occupied, host );
-					occupied.add( cellKey( cell.col, cell.row ) );
-					void rest
-						.createPlacement( {
-							parentId: folderId,
-							type: entity.kind,
-							ref: entity.ref,
-							x: cell.x,
-							y: cell.y,
-						} )
-						.then( ( placement ) => {
-							filesStoreApi.upsertPlacement( placement );
-							doAction( 'os.files.shortcut-dropped', {
-								folderId,
-								placement,
-							} );
-						} )
-						.catch( ( err: unknown ) => {
-							// eslint-disable-next-line no-console
-							console.error(
-								'[openstation] shortcut drop failed:',
-								err,
-							);
-						} );
-				}
+				fileShortcutEntities( dragShortcutItems( data ), folderId, host );
 				// `rawX` / `rawY` retained for parity with desktop-file
 				// case logging if a future hook needs the cursor pos.
 				void rawX;
@@ -960,6 +936,28 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			dragManagerForLayer.registerDropTarget( canvasDropTarget ),
 		);
 	}
+
+	// Cross-frame arrivals. A drag lifted inside an iframe — an image
+	// in the core Media Library — never becomes a DragManager session,
+	// so the target above can't see it. This wires the native drag
+	// events the parent document DOES receive once the pointer crosses
+	// out of the iframe onto the canvas, and routes the drop through
+	// the same shortcut-creation path a pointer drag uses. Registered
+	// unconditionally: it needs no drag manager, only a document.
+	dropTargetDeregisters.push(
+		attachCrossFrameDrop( {
+			host,
+			container,
+			folderId,
+			fileEntities: ( entities, parentId ) => {
+				fileShortcutEntities(
+					entities,
+					parentId,
+					parentId === folderId ? host : null,
+				);
+			},
+		} ),
+	);
 
 	// Click, Ctrl/Cmd-click, Shift-click, marquee, Ctrl/Cmd+A and
 	// Escape are all owned by the selection controller attached
@@ -1395,6 +1393,62 @@ function buildVisualOccupiedSet(
 		}
 	}
 	return set;
+}
+
+/**
+ * File a set of external entities as new shortcuts under `parentId`.
+ *
+ * Every route that creates a shortcut lands here: a pointer drag
+ * released on a canvas, the same drag released on a closed folder
+ * tile, and a cross-frame native drag arriving from an iframe. They
+ * differ only in where the entities came from, and having one
+ * implementation is what keeps them agreeing on the parts users
+ * notice — row-major packing, the optimistic store upsert, and the
+ * `os.files.shortcut-dropped` action plugins listen to.
+ *
+ * Packing is row-major rather than cursor-snapped on purpose: a
+ * shortcut CREATE has no tile on screen for the user to have aimed
+ * with, so "tidy, top-left, and visible" beats "wherever the pointer
+ * happened to be". Pass `host` when the destination canvas is the one
+ * on screen so the column count is measured from it; omit it when
+ * filing into a folder whose window probably isn't mounted, and
+ * `nextRowMajorCell` falls back to a four-column grid.
+ *
+ * @param entities Entities to file. Each becomes one placement.
+ * @param parentId Destination folder id. `0` is the desktop root.
+ * @param host     Destination canvas, when it is the mounted one.
+ */
+function fileShortcutEntities(
+	entities: ReadonlyArray< ShortcutDragItem >,
+	parentId: number,
+	host?: HTMLElement | null,
+): void {
+	const peers =
+		filesStoreApi.getState().placementsByFolder.get( parentId ) ?? [];
+	const occupied = buildVisualOccupiedSet( peers );
+	for ( const entity of entities ) {
+		const cell = nextRowMajorCell( occupied, host );
+		occupied.add( cellKey( cell.col, cell.row ) );
+		void rest
+			.createPlacement( {
+				parentId,
+				type: entity.kind,
+				ref: entity.ref,
+				x: cell.x,
+				y: cell.y,
+			} )
+			.then( ( placement ) => {
+				filesStoreApi.upsertPlacement( placement );
+				doAction( 'os.files.shortcut-dropped', {
+					folderId: parentId,
+					placement,
+				} );
+			} )
+			.catch( ( err: unknown ) => {
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] shortcut drop failed:', err );
+			} );
+	}
 }
 
 /**
@@ -1851,42 +1905,13 @@ function registerFolderDropTarget(
 			}
 			if ( session.payload.type === 'shortcut' ) {
 				const data = session.payload.data as unknown as ShortcutDragData;
-				const peers =
-					filesStoreApi
-						.getState()
-						.placementsByFolder.get( targetFolderId ) ?? [];
 				// Row-major pack so newly-filed shortcuts land at the
 				// top of the (likely-not-yet-mounted) folder window.
 				// We can't read the destination folder window's host
-				// width from here, so default to 4 cols inside
-				// `nextRowMajorCell` — sensible for any folder window.
-				const occupied = buildVisualOccupiedSet( peers );
-				for ( const entity of dragShortcutItems( data ) ) {
-					const cell = nextRowMajorCell( occupied );
-					occupied.add( cellKey( cell.col, cell.row ) );
-					void rest
-						.createPlacement( {
-							parentId: targetFolderId,
-							type: entity.kind,
-							ref: entity.ref,
-							x: cell.x,
-							y: cell.y,
-						} )
-						.then( ( placement ) => {
-							filesStoreApi.upsertPlacement( placement );
-							doAction( 'os.files.shortcut-dropped', {
-								folderId: targetFolderId,
-								placement,
-							} );
-						} )
-						.catch( ( err: unknown ) => {
-							// eslint-disable-next-line no-console
-							console.error(
-								'[openstation] shortcut drop into folder failed:',
-								err,
-							);
-						} );
-				}
+				// width from here, so no host is passed and
+				// `nextRowMajorCell` defaults to 4 cols — sensible for
+				// any folder window.
+				fileShortcutEntities( dragShortcutItems( data ), targetFolderId );
 			}
 		},
 	};
