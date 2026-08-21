@@ -319,7 +319,10 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			id: 'add-widget',
 			label: deps.labels.addWidget,
 			icon: 'dashicons-screenoptions',
-			sort: 14,
+			// 15, not 14: the pinned-notes layer contributes
+			// `new-note` at 14 through the filter, and a tie would
+			// leave the order down to which list got merged first.
+			sort: 15,
 			onClick: () => deps.addWidget(),
 		},
 		{

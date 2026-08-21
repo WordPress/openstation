@@ -121,6 +121,20 @@ export function refreshWidgetPicker(): void {
 	}
 }
 
+/**
+ * Re-run the open picker's positioning against its anchor. The add
+ * pill is not at a fixed spot in the column — it trails the widget
+ * stack — so adding a widget from the picker pushes the anchor down
+ * by the height of the card that just mounted. Without this the panel
+ * stays where it opened and drifts away from the pill it belongs to.
+ */
+export function repositionWidgetPicker(): void {
+	if ( ! active ) {
+		return;
+	}
+	positionPanel( active.panel, active.options.anchor );
+}
+
 /** Close the active picker. No-op if none is open. */
 export function closeWidgetPicker(): void {
 	if ( ! active ) {

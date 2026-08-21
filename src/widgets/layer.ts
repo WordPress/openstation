@@ -25,7 +25,11 @@
 import { doAction, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import * as registry from './registry';
-import { openWidgetPicker, refreshWidgetPicker } from './picker';
+import {
+	openWidgetPicker,
+	refreshWidgetPicker,
+	repositionWidgetPicker,
+} from './picker';
 import { applyGeometry, buildFrame, type Frame } from './frame';
 import {
 	loadDockedHeights,
@@ -367,6 +371,11 @@ export class WidgetLayer {
 				return;
 			}
 			current.teardown = teardown;
+			// An async mount paints its content now, so the card can
+			// be taller than it was when the pill was last placed.
+			// On a hover device the next pointermove would fix it, but
+			// where the pill is always on (touch) nothing else would.
+			this.positionAddTile();
 			doAction( HOOKS.WIDGET_MOUNTED, { id, container: frame.body, ctx } );
 		};
 
@@ -458,9 +467,15 @@ export class WidgetLayer {
 	 * `pointer-events: none` so a drag grazing its margin falls
 	 * through to the window underneath, and that also means it never
 	 * receives hover. So the proximity test runs off a passive
-	 * document-level `pointermove` instead, against a cached rect
-	 * (the column's box is CSS-fixed, so only a viewport resize can
-	 * move it).
+	 * document-level `pointermove` instead, against a rect cached
+	 * between layout changes.
+	 *
+	 * The cache needs a `ResizeObserver`, not just a resize listener:
+	 * the column is absolute inside `.os-area`, which is a flex child
+	 * of `.os-shell__body` alongside the dock. Move the dock to the
+	 * left or right in Preferences and the area narrows, taking the
+	 * column with it, with no window resize to notice. A stale rect
+	 * leaves the reveal zone hovering over empty desktop.
 	 */
 	private watchPointerProximity(): void {
 		let rect: DOMRect | null = null;
@@ -507,11 +522,24 @@ export class WidgetLayer {
 		document.documentElement.addEventListener( 'pointerleave', onLeave );
 		window.addEventListener( 'resize', invalidate );
 
+		// The column itself keeps its 320 px whatever the dock does,
+		// so watch the desktop area too — that's the box that actually
+		// changes when the dock takes width out of the flex row.
+		let observer: ResizeObserver | null = null;
+		if ( typeof ResizeObserver === 'function' ) {
+			observer = new ResizeObserver( invalidate );
+			observer.observe( this.root );
+			if ( this.root.parentElement ) {
+				observer.observe( this.root.parentElement );
+			}
+		}
+
 		this.unwatchPointer = () => {
 			if ( frame ) {
 				cancelAnimationFrame( frame );
 				frame = 0;
 			}
+			observer?.disconnect();
 			document.removeEventListener( 'pointermove', onMove );
 			document.documentElement.removeEventListener(
 				'pointerleave',
@@ -644,7 +672,12 @@ export class WidgetLayer {
 		const limit =
 			colRect.height + this.root.scrollTop - this.addTile.offsetHeight;
 		const top = Math.max( 0, Math.min( bottom + ADD_TILE_GAP, limit ) );
+		if ( this.addTile.style.top === `${ top }px` ) {
+			return;
+		}
 		this.addTile.style.top = `${ top }px`;
+		// The picker anchors to the pill, so it has to come along.
+		repositionWidgetPicker();
 	}
 
 	private persistDockedHeight( id: string, height: number ): void {

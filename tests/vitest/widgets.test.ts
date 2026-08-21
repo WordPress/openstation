@@ -1124,6 +1124,16 @@ describe( 'widgets/layer', () => {
 		expect( card.style.left ).toBe( '140px' );
 		expect( card.style.top ).toBe( '80px' );
 
+		// Shove it hard against the far edges. The clamp's far bounds
+		// are parent-minus-card, which is off-grid (1024 - 240 - 20 =
+		// 764), so the post-clamp pass has to pull it back to 760.
+		chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
+		chrome.dispatchEvent( ptr( 'pointermove', 5000, 5000 ) );
+		chrome.dispatchEvent( ptr( 'pointerup', 5000, 5000 ) );
+
+		expect( card.style.left ).toBe( '760px' );
+		expect( card.style.top ).toBe( '620px' );
+
 		layer.disposeAll();
 	} );
 } );

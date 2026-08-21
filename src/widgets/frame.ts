@@ -467,8 +467,12 @@ function attachDrag(
 			commitDrag();
 		}
 
-		// Snap before clamping: the clamp bounds are multiples of the
-		// grid, so a snapped-then-clamped position is still on-grid.
+		// Snap on the way in, then again on the way out. Only the
+		// near bounds of the clamp are on-grid (they're
+		// `VIEWPORT_MARGIN`); the far ones are whatever the parent's
+		// size minus the card's leaves over, so a widget shoved
+		// against the right or bottom edge would land off-grid and
+		// persist there.
 		const clamped = clampToParent(
 			snapToGrid( initialLeft + dx ),
 			snapToGrid( initialTop + dy ),
@@ -476,8 +480,8 @@ function attachDrag(
 			card.offsetHeight,
 			ctx.floatingParent,
 		);
-		card.style.left = `${ clamped.x }px`;
-		card.style.top = `${ clamped.y }px`;
+		card.style.left = `${ snapWithin( clamped.x ) }px`;
+		card.style.top = `${ snapWithin( clamped.y ) }px`;
 	};
 
 	const onUp = ( e: PointerEvent ): void => {
@@ -702,6 +706,18 @@ function clampGeometryToParent(
 /** Round a coordinate onto the {@link SNAP_GRID}. */
 function snapToGrid( value: number ): number {
 	return Math.round( value / SNAP_GRID ) * SNAP_GRID;
+}
+
+/**
+ * Grid line at or below `value` — the post-clamp pass. Rounding to
+ * the *nearest* line here could push the card back out of the bounds
+ * the clamp just put it inside, so this one only ever moves inward.
+ * A card too big for its parent has no grid line to sit on and keeps
+ * the clamped value.
+ */
+function snapWithin( value: number ): number {
+	const snapped = Math.floor( value / SNAP_GRID ) * SNAP_GRID;
+	return snapped >= VIEWPORT_MARGIN ? snapped : Math.min( value, VIEWPORT_MARGIN );
 }
 
 function clampToParent(
