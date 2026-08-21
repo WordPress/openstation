@@ -772,9 +772,23 @@ export function computeResize(
 		width = clamp( startW + dx, minW, Math.min( maxW, parentWidth - startLeft ) );
 	}
 	if ( dir === 'w' || dir === 'nw' || dir === 'sw' ) {
-		const nextWidth = clamp( startW - dx, minW, Math.min( maxW, startLeft + startW ) );
-		x = startLeft + ( startW - nextWidth );
-		width = nextWidth;
+		const right = startLeft + startW;
+		if ( floating ) {
+			// Snap the edge under the pointer, then take the width
+			// from it. Doing it the other way round (snap the width,
+			// derive x) would move the right edge, which the user is
+			// not dragging.
+			x = snapIntoRange(
+				snapToGrid( startLeft + dx ),
+				Math.max( 0, right - Math.min( maxW, right ) ),
+				right - minW,
+			);
+			width = right - x;
+		} else {
+			const nextWidth = clamp( startW - dx, minW, Math.min( maxW, right ) );
+			x = startLeft + ( startW - nextWidth );
+			width = nextWidth;
+		}
 	}
 	if ( dir === 's' || dir === 'se' || dir === 'sw' ) {
 		height = clamp(
@@ -784,9 +798,19 @@ export function computeResize(
 		);
 	}
 	if ( dir === 'n' || dir === 'ne' || dir === 'nw' ) {
-		const nextHeight = clamp( startH - dy, minH, Math.min( maxH, startTop + startH ) );
-		y = startTop + ( startH - nextHeight );
-		height = nextHeight;
+		const bottom = startTop + startH;
+		if ( floating ) {
+			y = snapIntoRange(
+				snapToGrid( startTop + dy ),
+				Math.max( 0, bottom - Math.min( maxH, bottom ) ),
+				bottom - minH,
+			);
+			height = bottom - y;
+		} else {
+			const nextHeight = clamp( startH - dy, minH, Math.min( maxH, bottom ) );
+			y = startTop + ( startH - nextHeight );
+			height = nextHeight;
+		}
 	}
 
 	// Non-floating (column-docked) widgets ignore any width change —
@@ -799,6 +823,25 @@ export function computeResize(
 	}
 
 	return { x, y, width, height };
+}
+
+/**
+ * Grid line inside `[min, max]`, preferring the one at or below
+ * `value`. Used for the origin of a resize, where the legal range is
+ * set by the widget's min/max size rather than by the desktop edges,
+ * so neither end is guaranteed to be on-grid. A range too narrow to
+ * hold a grid line at all (a widget whose min and max sizes are
+ * within 20 px of each other) keeps the plain clamped value — an
+ * off-grid origin beats refusing to resize.
+ */
+function snapIntoRange( value: number, min: number, max: number ): number {
+	const clamped = clamp( value, min, max );
+	const down = Math.floor( clamped / SNAP_GRID ) * SNAP_GRID;
+	if ( down >= min ) {
+		return down;
+	}
+	const up = down + SNAP_GRID;
+	return up <= max ? up : clamped;
 }
 
 function clamp( value: number, min: number, max: number ): number {

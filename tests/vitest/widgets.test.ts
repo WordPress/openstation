@@ -588,6 +588,59 @@ describe( 'widgets/layer', () => {
 		expect( docked.height ).toBe( 400 );
 	} );
 
+	test( 'computeResize keeps a floating widget origin on the snap grid', async () => {
+		const { computeResize } = await import( '../../src/widgets/frame' );
+		const parent = document.createElement( 'div' );
+		Object.defineProperty( parent, 'clientWidth', { value: 1000, configurable: true } );
+		Object.defineProperty( parent, 'clientHeight', { value: 600, configurable: true } );
+
+		const def = {
+			id: 'x',
+			label: 'X',
+			description: '',
+			icon: 'dashicons-star-filled',
+			minWidth: 120,
+			minHeight: 80,
+			mount: () => () => undefined,
+		};
+
+		// North-west drag by (-7, +9) from (140, 100). Freehand that
+		// lands at (133, 109); snapped it's (140, 100) again — and
+		// crucially the opposite edges (440, 300) don't move, so the
+		// size absorbs the difference.
+		const nudge = computeResize(
+			'nw', -7, 9, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( nudge.x % 20 ).toBe( 0 );
+		expect( nudge.y % 20 ).toBe( 0 );
+		expect( nudge.x + nudge.width ).toBe( 440 );
+		expect( nudge.y + nudge.height ).toBe( 300 );
+
+		// Far enough to move a whole cell.
+		const west = computeResize(
+			'w', -33, 0, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( west.x ).toBe( 100 );
+		expect( west.width ).toBe( 340 );
+
+		// Shrinking past minWidth. The naive stop is right - minW,
+		// which here is 445 - 120 = 325 and off-grid; the origin has
+		// to fall back to 320, giving 5 px more width than the
+		// minimum rather than an unaligned edge.
+		const squeezed = computeResize(
+			'w', 1000, 0, 140, 100, 305, 200, def, parent, true,
+		);
+		expect( squeezed.x ).toBe( 320 );
+		expect( squeezed.width ).toBe( 125 );
+
+		// Docked cards keep the old behaviour — no free position to
+		// align, and a chunky height drag would just feel worse.
+		const docked = computeResize(
+			'n', 0, -7, 140, 100, 300, 200, def, parent, false,
+		);
+		expect( docked.height ).toBe( 207 );
+	} );
+
 	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {
 		// Reproduces the "widget fully disappears while playing with
 		// drag / resize / re-attach" bug. The frame used to track
