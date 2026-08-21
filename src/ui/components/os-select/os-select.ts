@@ -318,10 +318,9 @@ export class OsSelect extends Component {
 		// the group name when focus reaches the shell.
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
-		} else {
-			this.removeAttribute( 'aria-label' );
 		}
-		const triggerAriaLabel = label || placeholder;
+		const hostAriaLabel = this.getAttribute( 'aria-label' ) || '';
+		const triggerAriaLabel = label || hostAriaLabel || placeholder;
 
 		const options = this._readOptions();
 		const currentOption = options.find( ( o ) => o.value === current );
