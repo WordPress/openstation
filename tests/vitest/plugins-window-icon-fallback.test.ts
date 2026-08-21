@@ -1,15 +1,15 @@
 /**
  * Tests for `attachIconFallback` — the JS-side wp.org icon candidate
  * walker that papers over the format zoo at `ps.w.org/<slug>/assets/`
- * (SVG, PNG, animated GIF). For each `<img>` `error`, the chain
+ * (SVG, PNG, animated GIF, JPEG). For each `<img>` `error`, the chain
  * advances to the next variant; when every candidate fails, the
  * caller's `onExhausted` callback fires (which paints the placeholder).
  *
- * Why this matters: plugins like Elementor ship animated GIF icons —
- * `icon-128x128.gif` / `icon-256x256.gif` — and the PHP REST field
- * always returns the SVG default. Without the GIF variants in the
- * chain, Elementor (and any other GIF-only row) painted the
- * placeholder despite having art on the wp.org SVN.
+ * Why this matters: the PHP field can only guess `icon.svg` when
+ * wp.org's own metadata isn't cached, and plugins ship every format
+ * but — Elementor animated GIFs, Gutenberg and UpdraftPlus JPEGs. A
+ * format missing from the chain is a row painting the placeholder
+ * despite having art on the wp.org SVN.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -32,7 +32,7 @@ describe( 'attachIconFallback', () => {
 		expect( firstSrc ).toBe( initial );
 	} );
 
-	test( 'walks SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF for wp.org URLs', () => {
+	test( 'walks every format at 256 before dropping to 128', () => {
 		const img    = makeImg();
 		const base   = 'https://ps.w.org/elementor/assets/';
 		const seen: string[] = [];
@@ -45,8 +45,8 @@ describe( 'attachIconFallback', () => {
 		seen.push( firstSrc );
 		img.src = firstSrc;
 
-		// Fire 4 errors → should advance through 4 fallback variants.
-		for ( let i = 0; i < 4; i++ ) {
+		// Fire 6 errors → should advance through 6 fallback variants.
+		for ( let i = 0; i < 6; i++ ) {
 			fireError( img );
 			seen.push( img.src );
 		}
@@ -54,8 +54,10 @@ describe( 'attachIconFallback', () => {
 		expect( seen ).toEqual( [
 			base + 'icon.svg',
 			base + 'icon-256x256.png',
+			base + 'icon-256x256.jpg',
 			base + 'icon-256x256.gif',
 			base + 'icon-128x128.png',
+			base + 'icon-128x128.jpg',
 			base + 'icon-128x128.gif',
 		] );
 	} );
@@ -74,8 +76,8 @@ describe( 'attachIconFallback', () => {
 		);
 		img.src = firstSrc;
 
-		// 5 candidates total → 5 errors triggers onExhausted on the 5th.
-		for ( let i = 0; i < 5; i++ ) {
+		// 7 candidates total → the 7th error is the one that exhausts.
+		for ( let i = 0; i < 7; i++ ) {
 			fireError( img );
 		}
 

@@ -46,10 +46,11 @@ addFilter(
 
 ## 2. Ship a card icon for a premium / private plugin
 
-The icon resolver tries two things in order:
+The icon resolver tries three things in order:
 
 1. **Local file in the plugin folder.** If your plugin ships `assets/icon.svg` (or `assets/icon-256x256.png`, `assets/icon-128x128.png`, or the same names at the folder root), the resolver picks it automatically — no PHP wiring needed. Mirror the wp.org SVN /assets/ layout and you're done. This is the recommended path for premium / internal / native-bundled plugins that aren't on the .org repo.
-2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`. Used as the fallback default when no local file is found.
+2. **The `icons` map wp.org returned for the plugin**, cached in the `update_plugins` transient and read `svg` → `2x` → `1x`, the way core's Add Plugins cards read it. Directory-listed plugins land here and need nothing from you.
+3. **Guessed wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`, for when that metadata isn't cached yet.
 
 For a non-standard convention (e.g. you ship `branding/logo.svg`), extend the candidate list rather than overriding the final URL:
 

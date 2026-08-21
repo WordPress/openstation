@@ -414,6 +414,39 @@ function openstation_plugins_window_field_can_manage( $row ) {
 }
 
 /**
+ * What wp.org last said about one plugin — `slug`, `icons`, versions.
+ *
+ * Both halves of the transient have to be read: `wp_update_plugins()`
+ * files a plugin under `response` when an update is pending and
+ * `no_update` otherwise, and the directory metadata is identical in
+ * each. Checking only `response` misses every up-to-date plugin.
+ *
+ * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
+ * @return array|null Null when wp.org doesn't know this plugin
+ *                    (premium, private) or the transient is cold.
+ */
+function openstation_plugins_window_update_entry( $plugin_file ) {
+	if ( '' === $plugin_file ) {
+		return null;
+	}
+
+	openstation_plugins_window_prime_updates_once();
+
+	$updates = get_site_transient( 'update_plugins' );
+	if ( ! is_object( $updates ) ) {
+		return null;
+	}
+	if ( isset( $updates->response[ $plugin_file ] ) ) {
+		return (array) $updates->response[ $plugin_file ];
+	}
+	if ( isset( $updates->no_update[ $plugin_file ] ) ) {
+		return (array) $updates->no_update[ $plugin_file ];
+	}
+
+	return null;
+}
+
+/**
  * `openstation_wporg_slug` callback.
  *
  * Is this plugin listed on the WordPress.org directory, and under
@@ -425,25 +458,15 @@ function openstation_plugins_window_field_can_manage( $row ) {
  * @return string|null Directory slug, or null when the plugin isn't listed.
  */
 function openstation_plugins_window_field_wporg_slug( $row ) {
-	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+	$entry = openstation_plugins_window_update_entry(
+		openstation_plugins_window_row_plugin_file( $row )
+	);
 
-	openstation_plugins_window_prime_updates_once();
-
-	$slug = '';
-	if ( '' !== $plugin_file ) {
-		$updates = get_site_transient( 'update_plugins' );
-		if ( is_object( $updates ) ) {
-			$entry = null;
-			if ( isset( $updates->response[ $plugin_file ] ) ) {
-				$entry = (array) $updates->response[ $plugin_file ];
-			} elseif ( isset( $updates->no_update[ $plugin_file ] ) ) {
-				$entry = (array) $updates->no_update[ $plugin_file ];
-			}
-			if ( null !== $entry && ! empty( $entry['slug'] ) ) {
-				$slug = sanitize_key( (string) $entry['slug'] );
-			}
-		}
+	if ( null === $entry || empty( $entry['slug'] ) ) {
+		return null;
 	}
+
+	$slug = sanitize_key( (string) $entry['slug'] );
 
 	return '' !== $slug ? $slug : null;
 }
@@ -462,26 +485,37 @@ function openstation_plugins_window_field_wporg_slug( $row ) {
  *      correctly — they aren't on `ps.w.org/<slug>/`, so the wp.org
  *      candidate chain 404s through every variant before the
  *      placeholder paints.
- *   2. **wp.org SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`,
- *      keyed off the plugin's **folder name** (which is the .org repo
- *      slug). Folder beats textdomain because the two often diverge
- *      (`woocommerce` vs textdomain `woo`, `wordpress-seo` vs
- *      `yoast-seo`). Falls back to textdomain for single-file plugins.
+ *   2. **The `icons` map wp.org returned** for this plugin, cached in
+ *      the `update_plugins` transient. A URL the directory gave us
+ *      rather than one we built.
+ *   3. **Guessed SVN asset** — `https://ps.w.org/<slug>/assets/icon.svg`,
+ *      for when that metadata isn't cached. `<slug>` prefers the
+ *      directory slug, then the folder name, then the textdomain.
  *
- * We don't HEAD-check the URL — the JS card walks a candidate chain
- * (SVG → 256 PNG → 256 GIF → 128 PNG → 128 GIF) on `<img>` error for wp.org URLs, then
- * drops to a `<os-icon name="dashicons-admin-plugins">` placeholder.
- * A 404 here costs nothing.
+ * Guessing is last because it is wrong twice over: the format is
+ * unknowable (Gutenberg and UpdraftPlus ship JPEG only, so `icon.svg`
+ * and every variant the card walks 404s) and the folder is not always
+ * the slug (`hello.php` is listed as `hello-dolly`). Either miss reads
+ * as "no icon" while the same art paints fine on Add Plugins.
+ *
+ * We don't HEAD-check the URL — the JS card walks a candidate chain on
+ * `<img>` error for guessed URLs, then drops to a
+ * `<os-icon name="dashicons-admin-plugins">` placeholder.
  *
  * @param array $row Core REST plugin row.
  * @return string|null
  */
 function openstation_plugins_window_field_icon_url( $row ) {
 	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
+	$entry       = openstation_plugins_window_update_entry( $plugin_file );
 	$folder      = '' !== $plugin_file ? dirname( $plugin_file ) : '';
 	$slug        = ( '' !== $folder && '.' !== $folder ) ? $folder : '';
 
-	if ( '' === $slug ) {
+	// The directory slug, when wp.org knows this plugin — the only one
+	// of the three that is told to us rather than inferred.
+	if ( null !== $entry && ! empty( $entry['slug'] ) ) {
+		$slug = (string) $entry['slug'];
+	} elseif ( '' === $slug ) {
 		// Single-file plugin (e.g. hello.php at the plugins root) —
 		// no folder slug, so fall back to the text domain.
 		$slug = isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '';
@@ -493,6 +527,9 @@ function openstation_plugins_window_field_icon_url( $row ) {
 	}
 
 	$default = openstation_plugins_window_local_icon_url( $plugin_file );
+	if ( null === $default && null !== $entry ) {
+		$default = openstation_plugins_window_directory_icon_url( $entry );
+	}
 	if ( null === $default ) {
 		/*
 		 * Plugin Check's offloading rule is right in general and does
@@ -546,6 +583,39 @@ function openstation_plugins_window_field_icon_url( $row ) {
 		$slug,
 		$row
 	);
+}
+
+/**
+ * Pick a card icon out of the `icons` map wp.org returned.
+ *
+ * `svg` → `2x` → `1x`, the ladder core's Add Plugins cards use (see
+ * `WP_Plugin_Install_List_Table::display_rows()`) — reading the same
+ * map in the same order is what makes the two screens agree, which is
+ * the whole complaint. `default`, wp.org's generated geopattern for
+ * plugins that uploaded no art, is skipped so those keep the window's
+ * own placeholder. The `?rev=` cache-buster is left on: it is what
+ * lets new artwork replace a cached copy of the old.
+ *
+ * @param array $entry An `update_plugins` entry.
+ * @return string|null Null when the entry carries no art.
+ */
+function openstation_plugins_window_directory_icon_url( $entry ) {
+	if ( empty( $entry['icons'] ) || ! is_array( $entry['icons'] ) ) {
+		return null;
+	}
+
+	$icons = $entry['icons'];
+	foreach ( array( 'svg', '2x', '1x' ) as $size ) {
+		if ( empty( $icons[ $size ] ) || ! is_string( $icons[ $size ] ) ) {
+			continue;
+		}
+		$url = esc_url_raw( $icons[ $size ] );
+		if ( '' !== $url ) {
+			return $url;
+		}
+	}
+
+	return null;
 }
 
 /**
