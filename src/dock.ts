@@ -222,6 +222,16 @@ export interface SubmenuItem {
 	 * unset.
 	 */
 	windowId?: string;
+	/**
+	 * This row leaves the site.
+	 *
+	 * Set server-side on a plugin menu's off-site children — a docs or
+	 * account link under the plugin's own menu. Nothing off-site can
+	 * load in a window, so surfaces that route a URL into one skip
+	 * these rows, and the ones that can hand a link to the browser mark
+	 * them as leaving.
+	 */
+	external?: boolean;
 }
 
 export interface DockItem {
@@ -260,7 +270,7 @@ export interface DockItem {
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string }[];
+	submenu: { title: string; url: string; external?: boolean }[];
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
 	/**

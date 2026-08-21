@@ -131,8 +131,11 @@ export interface WindowConfig {
 	 * Submenu items that render as a tab strip below the title bar.
 	 * Each tab navigates the iframe within the same window — no new window opens.
 	 * Pass an empty array (or omit) to hide the strip.
+	 *
+	 * Rows flagged `external` are carried through but never become
+	 * tabs: the iframe can't load an off-site URL.
 	 */
-	submenu?: { title: string; url: string }[];
+	submenu?: { title: string; url: string; external?: boolean }[];
 	/**
 	 * Optional initial state. When present, the window is constructed
 	 * into this state directly — used by session restore so a minimized
@@ -1597,7 +1600,7 @@ export interface DockItemConfig {
 	/** Badge count (updates, comments, etc.). */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string }[];
+	submenu: { title: string; url: string; external?: boolean }[];
 	/**
 	 * WordPress's own label for this menu's landing page ("Themes",
 	 * "All Posts"), stripped out of `submenu` as the self-link. Names

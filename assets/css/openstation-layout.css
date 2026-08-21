@@ -493,6 +493,14 @@ body.os-constellation-open .os-dock__tooltip {
 	opacity: 0.6;
 }
 
+.os-constellation__row-external {
+	flex: 0 0 auto;
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	opacity: 0.55;
+}
+
 /* ---- Head -------------------------------------------------------- */
 
 .os-constellation__head {

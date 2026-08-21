@@ -1095,6 +1095,20 @@ function buildSubmenuRow(
 	label.textContent = sub.title;
 	row.appendChild( label );
 
+	// An off-site row can't become a window — clicking it hands the URL
+	// to the browser. Say so before the click, not after it.
+	if ( sub.external ) {
+		const mark = document.createElement( 'span' );
+		mark.className = 'dashicons dashicons-external os-constellation__row-external';
+		mark.setAttribute( 'aria-hidden', 'true' );
+		row.appendChild( mark );
+		row.setAttribute(
+			'aria-label',
+			// translators: %s is the submenu entry's label (e.g. "Documentation")
+			sprintf( __( '%s (opens in a new tab)' ), sub.title ),
+		);
+	}
+
 	row.addEventListener( 'click', () => {
 		dismiss();
 		runRow( deps, item, sub );

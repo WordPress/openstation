@@ -1215,6 +1215,10 @@ Items built from the admin menu also carry `selfLabel`, `multi`, `placement`, `i
 
 **`submenu` excludes the menu's own page.** WordPress auto-prepends a self-link to every parent menu (`All Posts` → `edit.php`, the same URL as the parent), and the builder strips it so `count( $submenu )` reliably means "how many distinct child pages" — the in-window tab strip would otherwise grow a duplicate first tab, and the right-click popover keys its suppression off an empty list. The stripped entry's label survives on **`selfLabel`** (`''` when the menu had none), so a surface that *lists* a menu's pages can put the main page back where wp-admin has it. The constellation flyout does exactly that, pointing the row at the item's `url`.
 
+**Off-site menu entries never reach the dock.** Nothing on another host can load in a window, so a menu whose URL points off-site is dropped rather than turned into a tile that can only escape to a browser tab. The one exception is a child of a menu a regular plugin registered (`pluginFile` is non-null) whose own URL stays on-site: those keep their row and carry `'external' => true`, which the constellation marks as leaving the site and the in-window tab strip skips. The classifier is [`openstation_menu_item_is_external`](#openstation_menu_item_is_external--stable).
+
+**Rows a host hid stay hidden, unless dropping them would lose the page.** A `$menu` / `$submenu` row carrying the `hide-if-js` class is out of the classic sidebar and out of the dock too. WordPress.com is why the rule has an exception: rather than repoint a Core entry at wordpress.com, Jetpack marks the wp-admin original `hide-if-js` and appends a Calypso duplicate beside it. When the duplicate is dropped as off-site, the original takes its place in the list — so Appearance → Themes, Plugins → Add Plugin and Users → All Users open the wp-admin screens Core registered.
+
 **Example — add a virtual dock item:**
 
 ```php
@@ -1320,6 +1324,31 @@ add_filter( 'openstation_dock_placement', function ( $placement, $slug ) {
 Ordering within the dock is set server-side: core WordPress menus (Dashboard, Posts, Media, Users, Settings, CPTs, taxonomies, …) are sorted before plugin-contributed top-level menus. To fully reorder, use `openstation_dock_items` — it receives the built list and returns a reshaped one.
 
 The live menu-refresh path (chromeless `plugins.php` iframe postMessage, plus the hidden iframe spawned by `wp.os.refreshMenu()`) runs the same builder from real admin context, so a filter change takes effect without a full tab reload.
+
+---
+
+### `openstation_menu_item_is_external` — Stable
+
+Whether a resolved admin-menu URL counts as off-site. Off-site entries are dropped from the dock payload (see [`openstation_dock_items`](#openstation_dock_items--stable) for the exception plugin menus get), because nothing on another host can load in a window.
+
+```php
+apply_filters( 'openstation_menu_item_is_external', bool $external, string $url );
+```
+
+By default a URL is off-site when its host matches neither `admin_url()`'s nor `home_url()`'s. Both count, so a site running its admin on a separate domain from its front end isn't misread.
+
+**Example — keep a trusted sibling domain in the dock:**
+
+```php
+add_filter( 'openstation_menu_item_is_external', function ( $external, $url ) {
+    if ( str_contains( $url, 'admin.internal.example.com' ) ) {
+        return false;
+    }
+    return $external;
+}, 10, 2 );
+```
+
+An entry you allow back in still has to survive the browser: a host that sends `X-Frame-Options` or a `frame-ancestors` policy refuses the iframe whatever this filter says.
 
 ---
 

@@ -847,7 +847,15 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
 		}
 
-		if ( config.submenu && config.submenu.length > 0 && config.url ) {
+		// Off-site rows never become tabs: a tab loads its URL into
+		// this window's iframe, and the remote origin refuses the
+		// frame. They stay in the constellation flyout, which can hand
+		// a link to the browser.
+		const tabSubmenu = ( config.submenu ?? [] ).filter(
+			( s ) => ! s.external,
+		);
+
+		if ( tabSubmenu.length > 0 && config.url ) {
 			const initialKey = urlMatchKey( config.url );
 
 			// Synthetic "back to parent" tab — `helpers.php` strips WP's
@@ -873,7 +881,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			// "Add Theme" entry but `parentUrl = themes.php` doesn't).
 			const synthUrl = config.parentUrl ?? config.url;
 			const synthKey = urlMatchKey( synthUrl );
-			const parentAlreadyInSubmenu = config.submenu.some(
+			const parentAlreadyInSubmenu = tabSubmenu.some(
 				( s ) => urlMatchKey( s.url ) === synthKey,
 			);
 			// Labelled the way WordPress labels it — "Themes" under
@@ -882,10 +890,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			// and the fallback for menus with no self-link to take a
 			// name from.
 			const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
-				? [ ...config.submenu ]
+				? [ ...tabSubmenu ]
 				: [
 					{ title: config.selfLabel || config.title, url: synthUrl },
-					...config.submenu,
+					...tabSubmenu,
 				];
 
 			for ( const sub of seedSubmenu ) {

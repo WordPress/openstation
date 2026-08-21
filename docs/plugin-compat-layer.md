@@ -116,9 +116,24 @@ Dock URLs flow into the shell config as JSON, then end up assigned to `iframe.sr
 
 Some plugins register a top-level menu with a stub callback whose actual landing page is the first submenu (`add_menu_page( …, 'woocommerce', null, … )` then `add_submenu_page( 'woocommerce', …, 'wc-admin', … )`). Classic admin's `wp-admin/menu-header.php` rewrites the parent's clickable link to the first submenu's URL. Hitting `?page=woocommerce` directly invokes the stub and 500s.
 
-**Fix**: `openstation_build_dock_items()` mirrors this — if a parent menu has any visible submenu, the parent's effective URL is the first capability-passing submenu's URL.
+**Fix**: `openstation_build_dock_items()` mirrors this — if a parent menu has any visible submenu, the parent's effective URL is the first capability-passing submenu's URL. A menu that registered a self-link keeps its own URL instead, wherever in the list that link sits: it has a working page of its own, and the fallthrough is only for menus that don't.
 
 **Plugins this addresses**: WooCommerce, historically Yoast SEO, several membership / LMS plugins.
+
+### Admin menus that point at another host (WordPress.com)
+
+A site can be hosted somewhere that extends the admin menu with links to its own control panel. WordPress.com is the case that surfaced this: My Home, Theme Showcase, Hosting and friends are `wordpress.com` URLs, and Jetpack also repoints Core entries — Appearance → Themes, Plugins → Add Plugin, Users → All Users — at their Calypso counterparts. None of them can load in a window; the remote origin refuses the frame. Routing them to a browser tab instead, which is what the shell used to do, takes the user out of the desktop on a click that looked like every other dock click.
+
+**Fix**, all in `openstation_build_dock_items()`:
+
+1. Any menu whose resolved URL is off-site is dropped. `openstation_menu_item_is_external()` is the classifier, and it is filterable.
+2. A child of a menu a regular plugin registered (`pluginFile` non-null) is the exception — a docs or account link under a plugin's own menu is a normal thing to ship. It keeps its row, flagged `external`, which the constellation marks with an outbound glyph and the in-window tab strip skips.
+3. Rows carrying `hide-if-js` are dropped, which is also what removes the duplicate submenus WordPress.com produced: Jetpack keeps the wp-admin original and marks it hidden rather than replacing it, so the dock was rendering both copies.
+4. Except when that hidden row is the original of an off-site row we just dropped — then it takes the dropped row's place in the list, and the menu opens the wp-admin screen Core registered. This is what puts Themes, Add Plugin and All Users back.
+
+**Icons**: `Base_Admin_Menu::override_svg_icons()` moves every SVG-data-URI menu icon into an inline stylesheet and sets `$menu[ $i ][6]` to `'none'`, which left Jetpack, MailPoet and every other plugin shipping vector art with a generic gear in the dock. `openstation_snapshot_menu_icons()` samples `$menu` at several points across `admin_menu` and records, write-once, the first real icon each slug wore; the builder falls back to it when the live value has been blanked. Sampling rather than parking one priority below the known rewriter is deliberate — registrations and rewrites both happen at arbitrary priorities, and the live value still wins whenever there is one, so a menu that genuinely changes its icon is unaffected.
+
+Nothing here is WordPress.com-specific: the rules read the menu arrays, not the host.
 
 ### Empty submenu titles
 

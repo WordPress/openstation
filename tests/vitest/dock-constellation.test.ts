@@ -321,6 +321,45 @@ describe( 'dock constellation', () => {
 		).toBe( true );
 	} );
 
+	test( 'an off-site row is marked, and leaves for the browser', () => {
+		const openSpy = vi.fn();
+		vi.stubGlobal( 'open', openSpy );
+
+		const tile = setupShell( 'openstation' );
+		mountWith( [
+			{
+				...appearance,
+				submenu: [
+					{ title: 'Editor', url: '/wp-admin/site-editor.php' },
+					{
+						title: 'Docs',
+						url: 'https://example.org/docs',
+						external: true,
+					},
+				],
+			},
+		] );
+		hover( tile );
+
+		const docs = rows( '.os-constellation__row--sub' )[ 1 ];
+		expect(
+			docs.querySelector( '.os-constellation__row-external' ),
+		).not.toBeNull();
+		expect( docs.getAttribute( 'aria-label' ) ).toBe(
+			'Docs (opens in a new tab)',
+		);
+
+		docs.click();
+		// A window would have loaded it into an iframe the remote
+		// origin refuses; the browser gets it instead.
+		expect( opened ).toHaveLength( 0 );
+		expect( openSpy ).toHaveBeenCalledWith(
+			'https://example.org/docs',
+			'_blank',
+			'noopener,noreferrer',
+		);
+	} );
+
 	test( 'head opens the menu; a submenu row opens its child page', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
