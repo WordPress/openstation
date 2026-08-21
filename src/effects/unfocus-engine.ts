@@ -146,7 +146,7 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			}
 			// Never paint an unfocus effect over a window that hosts a
 			// WebGL `<canvas>` — the native Pixi scenes (content graph,
-			// posts mind-map / tag-cloud, About scene). A CSS `filter`
+			// posts mind-map / tag-cloud). A CSS `filter`
 			// (or any property that re-rasterizes the subtree) on an
 			// element wrapping a live WebGL canvas can trigger a context
 			// loss, and the shell's Pixi apps run on their own tickers

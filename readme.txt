@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -158,7 +158,7 @@ OpenStation is brought to you by [Automattic](https://automattic.com). The plugi
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OpenStation Preferences → About** scene, the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), the **Mio** desk companion, and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 = Data files =
 
@@ -169,6 +169,22 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.2 =
+* Window: the open-animation deadline must not outlive its window
+* Update notice: show the vinyl card when the release post lands late
+* Add native Station Home dashboard
+* Explorer: better third party apps integration
+* Icons: adopt @wordpress/icons and draw the shell from one set
+* Files: a drag out of the Media Library lands on the desktop
+* Preserve and forward select host aria-label
+* Navigation: one model decides where every menu, app and control lives
+* Take the shell off the editor's typing path
+* Widgets: reveal the add button on hover and snap floating widgets to a grid
+* Appearance → Editor: the window's tab strip goes dark once the site editor loads
+* Replace About scene with RSS-powered journal
+* Tests: End the About CSS slice at the next section, not a named one
+* Dock: keep off-site admin menus out, and put the wp-admin originals back
 
 = 1.1.1 =
 * My WordPress: let the entity hover card follow the desktop theme

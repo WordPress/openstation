@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: OpenStation 1.1.1\n"
+"Project-Id-Version: OpenStation 1.1.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-19T14:37:25+00:00\n"
+"POT-Creation-Date: 2026-08-21T13:13:40+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -38,11 +38,11 @@ msgstr ""
 #: src/agent-run-window.ts:297
 #: src/my-wordpress/agents-renderer.ts:599
 #: src/my-wordpress/agents-renderer.ts:1261
-#: src/my-wordpress/bulk-actions.ts:830
-#: src/my-wordpress/media-list.ts:509
-#: src/my-wordpress/media-list.ts:569
-#: src/plugins-window/flyout-detail.ts:603
-#: src/plugins-window/flyout-detail.ts:740
+#: src/my-wordpress/bulk-actions.ts:836
+#: src/my-wordpress/media-list.ts:519
+#: src/my-wordpress/media-list.ts:579
+#: src/plugins-window/flyout-detail.ts:597
+#: src/plugins-window/flyout-detail.ts:734
 #: src/plugins-window/installed-view.ts:643
 #: src/plugins-window/installed-view.ts:728
 #: src/plugins-window/installed-view.ts:921
@@ -85,7 +85,7 @@ msgid "Ask the agent to do something…"
 msgstr ""
 
 #: src/agent-run-window.ts:530
-#: src/ai-assistant/impl.ts:1792
+#: src/ai-assistant/impl.ts:1813
 msgid "Send"
 msgstr ""
 
@@ -126,7 +126,7 @@ msgid "The agent finished without a text answer."
 msgstr ""
 
 #: src/agents-entity-window.ts:66
-#: src/ai-assistant/impl.ts:1654
+#: src/ai-assistant/impl.ts:1675
 msgid "Page"
 msgstr ""
 
@@ -143,11 +143,12 @@ msgstr ""
 
 #: src/agents-entity-window.ts:70
 #: includes/desktop-files/built-in-types.php:42
+#: includes/wp-icon-registry.php:49
 msgid "User"
 msgstr ""
 
 #: src/agents-entity-window.ts:72
-#: src/ai-assistant/impl.ts:1656
+#: src/ai-assistant/impl.ts:1677
 #: src/content-graph/panel.ts:837
 #: src/content-graph/panel.ts:846
 #: src/content-graph/panel.ts:875
@@ -157,7 +158,7 @@ msgid "Comment"
 msgstr ""
 
 #: src/agents-entity-window.ts:74
-#: src/ai-assistant/impl.ts:1658
+#: src/ai-assistant/impl.ts:1679
 #: includes/desktop-files/built-in-types.php:24
 msgid "Post"
 msgstr ""
@@ -178,121 +179,121 @@ msgstr ""
 msgid "Take me to plugin settings"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:422
-#: src/ai-assistant/impl.ts:1787
+#: src/ai-assistant/impl.ts:443
+#: src/ai-assistant/impl.ts:1808
 msgid "How can I help?"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:422
+#: src/ai-assistant/impl.ts:443
 msgid "Search commands…"
 msgstr ""
 
 #. %s: command slug, without the leading slash.
-#: src/ai-assistant/impl.ts:639
-#: src/ai-assistant/impl.ts:776
+#: src/ai-assistant/impl.ts:660
+#: src/ai-assistant/impl.ts:797
 msgid "Unknown command: /%s"
 msgstr ""
 
 #. %s: command slug, without the leading slash.
-#: src/ai-assistant/impl.ts:815
+#: src/ai-assistant/impl.ts:836
 msgid "Command /%s was cancelled."
 msgstr ""
 
 #. %s: command slug, without the leading slash.
-#: src/ai-assistant/impl.ts:824
+#: src/ai-assistant/impl.ts:845
 msgid "Running /%s…"
 msgstr ""
 
 #. 1: command slug, without the leading slash. 2: error message.
-#: src/ai-assistant/impl.ts:859
+#: src/ai-assistant/impl.ts:880
 msgid "Command /%1$s failed: %2$s"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:944
-#: src/ai-assistant/impl.ts:1522
+#: src/ai-assistant/impl.ts:965
+#: src/ai-assistant/impl.ts:1543
 #: src/plugins/drafts-widget/index.ts:192
 msgid "Thinking…"
 msgstr ""
 
 #. %d: HTTP status code.
-#: src/ai-assistant/impl.ts:1004
+#: src/ai-assistant/impl.ts:1025
 msgid "Server returned %d"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1015
+#: src/ai-assistant/impl.ts:1036
 msgid "Network error — please check your connection and try again."
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1075
+#: src/ai-assistant/impl.ts:1096
 msgid "(No title)"
 msgstr ""
 
 #. %s: the text the user typed, wrapped in <strong>.
-#: src/ai-assistant/impl.ts:1187
+#: src/ai-assistant/impl.ts:1208
 msgid "No commands matching %s."
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1243
+#: src/ai-assistant/impl.ts:1264
 msgid "Suggested commands"
 msgstr ""
 
 #. %s: the Enter key, rendered as a <kbd> glyph.
-#: src/ai-assistant/impl.ts:1390
+#: src/ai-assistant/impl.ts:1411
 msgid "Press %s to run"
 msgstr ""
 
 #. %s: the Enter key, rendered as a <kbd> glyph.
-#: src/ai-assistant/impl.ts:1404
+#: src/ai-assistant/impl.ts:1425
 msgid "No suggestions — press %s to run with the text you typed."
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1498
+#: src/ai-assistant/impl.ts:1519
 msgid "Try asking"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1546
+#: src/ai-assistant/impl.ts:1567
 msgid "Open Preferences"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1666
+#: src/ai-assistant/impl.ts:1687
 msgid "Open page in desktop"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1668
+#: src/ai-assistant/impl.ts:1689
 msgid "Open comment in desktop"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1670
+#: src/ai-assistant/impl.ts:1691
 msgid "Open post in desktop"
 msgstr ""
 
 #. %s: title of the post the comment was left on.
-#: src/ai-assistant/impl.ts:1679
+#: src/ai-assistant/impl.ts:1700
 msgid "Comment on “%s”"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1685
+#: src/ai-assistant/impl.ts:1706
 msgid "Untitled"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1758
-#: src/ai-assistant/impl.ts:1767
+#: src/ai-assistant/impl.ts:1779
+#: src/ai-assistant/impl.ts:1788
 msgid "Site Assistant"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1769
+#: src/ai-assistant/impl.ts:1790
 msgid "Assistant mode"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1772
+#: src/ai-assistant/impl.ts:1793
 msgid "Ask AI"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1775
+#: src/ai-assistant/impl.ts:1796
 msgid "Commands"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1778
+#: src/ai-assistant/impl.ts:1799
 #: src/games/alphabet-soup/game.ts:630
 #: src/games/inkfall/game.ts:394
 #: src/plugins-window/upload-dialog.ts:397
@@ -300,11 +301,11 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1790
+#: src/ai-assistant/impl.ts:1811
 msgid "Ask the assistant"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1800
+#: src/ai-assistant/impl.ts:1821
 msgid "Your assistant to quickly navigate and manage your entire site."
 msgstr ""
 
@@ -358,7 +359,7 @@ msgstr ""
 #: src/bug-report/index.ts:126
 #: src/content-graph/panel.ts:898
 #: src/my-wordpress/integrations/woocommerce.ts:742
-#: src/my-wordpress/media-preview.ts:223
+#: src/my-wordpress/media-preview.ts:229
 #: src/settings/sections/help.ts:442
 #: includes/agents/identity.php:217
 msgid "Type"
@@ -410,12 +411,12 @@ msgstr ""
 #: src/comments-window/conversation.ts:902
 #: src/comments-window/conversation.ts:1104
 #: src/comments-window/conversation.ts:1166
-#: src/my-wordpress/index.ts:3066
-#: src/my-wordpress/index.ts:3101
-#: src/my-wordpress/index.ts:3126
-#: src/my-wordpress/index.ts:3226
-#: src/plugins-window/flyout-detail.ts:522
-#: src/plugins-window/installed-detail.ts:1064
+#: src/my-wordpress/index.ts:3149
+#: src/my-wordpress/index.ts:3184
+#: src/my-wordpress/index.ts:3209
+#: src/my-wordpress/index.ts:3309
+#: src/plugins-window/flyout-detail.ts:516
+#: src/plugins-window/installed-detail.ts:1066
 #: includes/desktop-files/types/class-openstation-comment-file.php:43
 #: includes/recycle-bin/store.php:467
 msgid "Anonymous"
@@ -441,8 +442,8 @@ msgstr ""
 
 #: src/comments-window/conversation.ts:584
 #: src/content-graph/panel.ts:1247
-#: src/my-wordpress/index.ts:2674
-#: src/my-wordpress/index.ts:2753
+#: src/my-wordpress/index.ts:2757
+#: src/my-wordpress/index.ts:2836
 msgid "Loading…"
 msgstr ""
 
@@ -480,18 +481,18 @@ msgid "In response to"
 msgstr ""
 
 #: src/comments-window/conversation.ts:823
-#: src/my-wordpress/index.ts:1929
-#: src/my-wordpress/index.ts:1993
-#: src/my-wordpress/index.ts:2003
-#: src/my-wordpress/index.ts:2247
-#: src/my-wordpress/index.ts:4610
-#: src/my-wordpress/index.ts:6720
-#: src/my-wordpress/media-list.ts:168
-#: src/my-wordpress/media-list.ts:233
-#: src/my-wordpress/media-list.ts:242
-#: src/my-wordpress/media-list.ts:467
-#: src/my-wordpress/media-list.ts:629
-#: src/my-wordpress/media-preview.ts:368
+#: src/my-wordpress/index.ts:1968
+#: src/my-wordpress/index.ts:2032
+#: src/my-wordpress/index.ts:2042
+#: src/my-wordpress/index.ts:2286
+#: src/my-wordpress/index.ts:4764
+#: src/my-wordpress/index.ts:6897
+#: src/my-wordpress/media-list.ts:169
+#: src/my-wordpress/media-list.ts:234
+#: src/my-wordpress/media-list.ts:243
+#: src/my-wordpress/media-list.ts:477
+#: src/my-wordpress/media-list.ts:639
+#: src/my-wordpress/media-preview.ts:297
 #: src/plugins/drafts-widget/index.ts:497
 #: src/posts-window/index.ts:1111
 #: includes/desktop-files/types/class-openstation-post-file.php:53
@@ -510,6 +511,7 @@ msgid "View post"
 msgstr ""
 
 #: src/comments-window/conversation.ts:866
+#: src/dock-constellation/index.ts:1111
 msgid "(opens in a new tab)"
 msgstr ""
 
@@ -623,15 +625,15 @@ msgstr ""
 
 #: src/comments-window/conversation.ts:1218
 #: src/games/challenge-dialog.ts:93
-#: src/item-visibility-menu.ts:471
+#: src/item-visibility-menu.ts:412
 #: src/my-wordpress/agents-renderer.ts:1134
 #: src/my-wordpress/bulk-actions.ts:358
-#: src/my-wordpress/bulk-actions.ts:745
-#: src/my-wordpress/bulk-actions.ts:826
-#: src/my-wordpress/index.ts:4654
-#: src/my-wordpress/index.ts:4799
-#: src/my-wordpress/media-list.ts:510
-#: src/my-wordpress/media-list.ts:570
+#: src/my-wordpress/bulk-actions.ts:751
+#: src/my-wordpress/bulk-actions.ts:832
+#: src/my-wordpress/index.ts:4808
+#: src/my-wordpress/index.ts:4953
+#: src/my-wordpress/media-list.ts:520
+#: src/my-wordpress/media-list.ts:580
 #: src/plugins-window/upload-dialog.ts:134
 #: src/plugins-window/upload-dialog.ts:329
 #: src/posts-window/categories-mindmap.ts:2369
@@ -709,7 +711,7 @@ msgid "Back to post"
 msgstr ""
 
 #: src/content-graph/panel.ts:411
-#: src/my-wordpress/index.ts:595
+#: src/my-wordpress/index.ts:634
 msgid "Contributors"
 msgstr ""
 
@@ -717,8 +719,8 @@ msgstr ""
 #: src/content-graph/panel.ts:717
 #: src/desktop-files/preview.ts:487
 #: src/my-wordpress/bulk-actions.ts:280
-#: src/my-wordpress/index.ts:597
-#: src/my-wordpress/index.ts:3995
+#: src/my-wordpress/index.ts:636
+#: src/my-wordpress/index.ts:4078
 #: src/posts-window/index.ts:458
 #: src/posts-window/user-edit-render.ts:1037
 #: src/posts-window/users-render.ts:415
@@ -735,8 +737,8 @@ msgid "Taxonomies"
 msgstr ""
 
 #: src/content-graph/panel.ts:415
-#: src/my-wordpress/index.ts:605
-#: src/my-wordpress/index.ts:2596
+#: src/my-wordpress/index.ts:644
+#: src/my-wordpress/index.ts:2679
 msgid "Revisions"
 msgstr ""
 
@@ -744,8 +746,8 @@ msgstr ""
 #: src/content-graph/panel.ts:574
 #: src/content-graph/satellites.ts:334
 #: src/my-wordpress/bulk-actions.ts:271
-#: src/my-wordpress/index.ts:593
-#: src/my-wordpress/index.ts:2495
+#: src/my-wordpress/index.ts:632
+#: src/my-wordpress/index.ts:2578
 #: src/plugins-window/installed-view.ts:329
 #: src/posts-window/index.ts:413
 msgid "Author"
@@ -755,6 +757,7 @@ msgstr ""
 #: src/my-wordpress/bulk-actions.ts:76
 #: src/posts-window/index.ts:160
 #: src/posts-window/index.ts:955
+#: includes/station-home/rest.php:412
 msgid "Published"
 msgstr ""
 
@@ -789,13 +792,13 @@ msgid "Roles"
 msgstr ""
 
 #: src/content-graph/panel.ts:609
-#: src/settings/panel.ts:409
+#: src/settings/panel.ts:415
 msgid "About"
 msgstr ""
 
 #: src/content-graph/panel.ts:615
-#: src/my-wordpress/index.ts:3347
-#: src/my-wordpress/index.ts:3741
+#: src/my-wordpress/index.ts:3430
+#: src/my-wordpress/index.ts:3824
 #: src/posts-window/user-edit-render.ts:306
 #: includes/users-window/window.php:160
 msgid "Website"
@@ -806,8 +809,8 @@ msgstr ""
 #: src/content-graph/panel.ts:729
 #: src/desktop-files/preview.ts:406
 #: src/desktop-files/preview.ts:481
-#: src/my-wordpress/index.ts:3572
-#: src/my-wordpress/index.ts:3982
+#: src/my-wordpress/index.ts:3655
+#: src/my-wordpress/index.ts:4065
 #: src/posts-window/user-edit-render.ts:1026
 #: src/posts-window/users-render.ts:412
 #: includes/my-wordpress/window.php:137
@@ -818,7 +821,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:628
 #: src/desktop-files/preview.ts:412
-#: src/my-wordpress/index.ts:3585
+#: src/my-wordpress/index.ts:3668
 #: src/posts-window/users-render.ts:413
 #: includes/my-wordpress/window.php:145
 #: includes/pages-window/window.php:127
@@ -832,13 +835,13 @@ msgstr ""
 
 #: src/content-graph/panel.ts:631
 #: src/desktop-files/preview.ts:418
-#: src/my-wordpress/index.ts:3598
+#: src/my-wordpress/index.ts:3681
 msgid "Comments received"
 msgstr ""
 
 #: src/content-graph/panel.ts:635
-#: src/my-wordpress/index.ts:6257
-#: src/my-wordpress/index.ts:3605
+#: src/my-wordpress/index.ts:6434
+#: src/my-wordpress/index.ts:3688
 msgid "Comments left"
 msgstr ""
 
@@ -847,12 +850,12 @@ msgid "Top topics"
 msgstr ""
 
 #: src/content-graph/panel.ts:654
-#: src/my-wordpress/index.ts:3851
+#: src/my-wordpress/index.ts:3934
 msgid "First published"
 msgstr ""
 
 #: src/content-graph/panel.ts:658
-#: src/my-wordpress/index.ts:3857
+#: src/my-wordpress/index.ts:3940
 msgid "Last published"
 msgstr ""
 
@@ -870,7 +873,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:707
 #: src/my-wordpress/integrations/woocommerce.ts:876
-#: src/my-wordpress/media-preview.ts:230
+#: src/my-wordpress/media-preview.ts:236
 #: src/posts-window/categories-mindmap.ts:2347
 #: src/posts-window/categories-mindmap.ts:2533
 #: src/posts-window/tags-cloud.ts:1659
@@ -882,7 +885,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:721
 #: src/desktop-files/preview.ts:493
-#: src/my-wordpress/index.ts:4002
+#: src/my-wordpress/index.ts:4085
 msgid "Authors"
 msgstr ""
 
@@ -895,7 +898,7 @@ msgid "Co-occurring"
 msgstr ""
 
 #: src/content-graph/panel.ts:759
-#: src/my-wordpress/index.ts:4207
+#: src/my-wordpress/index.ts:4290
 msgid "First post"
 msgstr ""
 
@@ -915,7 +918,7 @@ msgstr ""
 #: src/my-wordpress/bulk-actions.ts:260
 #: src/my-wordpress/integrations/woocommerce.ts:813
 #: src/my-wordpress/integrations/woocommerce.ts:867
-#: src/plugins-window/installed-detail.ts:503
+#: src/plugins-window/installed-detail.ts:504
 #: src/plugins-window/installed-view.ts:317
 msgid "Status"
 msgstr ""
@@ -927,7 +930,7 @@ msgid "Revision"
 msgstr ""
 
 #: src/content-graph/panel.ts:940
-#: src/window/index.ts:3191
+#: src/window/index.ts:3219
 msgid "Saved"
 msgstr ""
 
@@ -942,7 +945,7 @@ msgstr ""
 #. %d: number of comment replies.
 #. %d is the number of direct replies to a comment.
 #: src/content-graph/panel.ts:1165
-#: src/my-wordpress/index.ts:3203
+#: src/my-wordpress/index.ts:3286
 msgid "Reply (%d)"
 msgid_plural "Replies (%d)"
 msgstr[0] ""
@@ -955,7 +958,7 @@ msgstr ""
 #. 1: taxonomy label (e.g. Category, Tag). 2: post count for the term.
 #. 1: month label, 2: post count.
 #: src/content-graph/satellites.ts:355
-#: src/my-wordpress/index.ts:3820
+#: src/my-wordpress/index.ts:3903
 msgid "%1$s · %2$d posts"
 msgstr ""
 
@@ -968,7 +971,7 @@ msgid "Untagged"
 msgstr ""
 
 #: src/content-graph/scene.ts:1040
-#: src/plugins-window/installed-detail.ts:236
+#: src/plugins-window/installed-detail.ts:237
 msgid "Unknown author"
 msgstr ""
 
@@ -1083,58 +1086,58 @@ msgid "The underlying entity is no longer available."
 msgstr ""
 
 #: src/desktop-files/preview.ts:847
-#: src/my-wordpress/index.ts:1548
-#: src/my-wordpress/index.ts:1680
-#: src/my-wordpress/index.ts:2218
-#: src/my-wordpress/index.ts:2456
-#: src/my-wordpress/index.ts:2771
-#: src/my-wordpress/index.ts:5117
-#: src/my-wordpress/index.ts:5220
-#: src/my-wordpress/index.ts:4809
-#: src/my-wordpress/media-list.ts:829
-#: src/my-wordpress/media-list.ts:928
+#: src/my-wordpress/index.ts:1587
+#: src/my-wordpress/index.ts:1719
+#: src/my-wordpress/index.ts:2257
+#: src/my-wordpress/index.ts:2539
+#: src/my-wordpress/index.ts:2854
+#: src/my-wordpress/index.ts:5271
+#: src/my-wordpress/index.ts:5374
+#: src/my-wordpress/index.ts:4963
+#: src/my-wordpress/media-list.ts:840
+#: src/my-wordpress/media-list.ts:939
 msgid "Unknown error."
 msgstr ""
 
 #: src/desktop-files/preview.ts:876
-#: src/my-wordpress/index.ts:2722
-#: src/my-wordpress/index.ts:2901
+#: src/my-wordpress/index.ts:2805
+#: src/my-wordpress/index.ts:2984
 msgid "Select an item to preview it here."
 msgstr ""
 
 #. %d: number of selected items.
 #. %d: number of selected entries.
 #: src/desktop-files/preview.ts:903
-#: src/my-wordpress/index.ts:1774
-#: src/my-wordpress/index.ts:2898
+#: src/my-wordpress/index.ts:1813
+#: src/my-wordpress/index.ts:2981
 msgid "%d items selected"
 msgstr ""
 
 #: src/desktop-files/preview.ts:272
-#: src/my-wordpress/index.ts:2294
+#: src/my-wordpress/index.ts:2333
 msgid "Explore details"
 msgstr ""
 
 #: src/desktop-files/preview.ts:273
-#: src/my-wordpress/index.ts:2295
+#: src/my-wordpress/index.ts:2334
 msgid "See author, comments, categories, tags, attached media, and revisions for this entry."
 msgstr ""
 
 #: src/desktop-files/preview.ts:293
-#: src/my-wordpress/index.ts:2307
-#: src/my-wordpress/index.ts:4433
+#: src/my-wordpress/index.ts:2356
+#: src/my-wordpress/index.ts:4561
 #: src/my-wordpress/media-detail.ts:181
 msgid "Open in editor"
 msgstr ""
 
 #: src/desktop-files/recycle-bin-targets.ts:158
-#: src/my-wordpress/index.ts:4452
-#: src/my-wordpress/index.ts:4647
-#: src/my-wordpress/index.ts:4653
-#: src/my-wordpress/index.ts:4792
-#: src/my-wordpress/index.ts:4798
-#: src/notes/layer.ts:602
-#: src/notes/layer.ts:914
+#: src/my-wordpress/index.ts:4600
+#: src/my-wordpress/index.ts:4801
+#: src/my-wordpress/index.ts:4807
+#: src/my-wordpress/index.ts:4946
+#: src/my-wordpress/index.ts:4952
+#: src/notes/layer.ts:608
+#: src/notes/layer.ts:920
 #: src/plugins/drafts-widget/index.ts:592
 #: src/plugins/drafts-widget/index.ts:642
 msgid "Move to Trash"
@@ -1147,8 +1150,8 @@ msgstr ""
 #. %d is the number of pending items in a desktop-icon badge.
 #. %d is the number of pending items in a dock badge.
 #: src/desktop-icons.ts:539
-#: src/dock.ts:2635
-#: src/dock.ts:2648
+#: src/dock.ts:2698
+#: src/dock.ts:2711
 msgid "%d notification"
 msgid_plural "%d notifications"
 msgstr[0] ""
@@ -1180,6 +1183,7 @@ msgstr ""
 #: src/my-wordpress/integrations/woocommerce.ts:836
 #: src/my-wordpress/integrations/woocommerce.ts:913
 #: src/my-wordpress/integrations/woocommerce.ts:1052
+#: src/station-home/index.ts:369
 #: src/window/tabs.ts:448
 msgid "Open"
 msgstr ""
@@ -1207,7 +1211,7 @@ msgid "New %s"
 msgstr ""
 
 #. %d is the number of pending updates / items.
-#: src/dock.ts:1241
+#: src/dock.ts:1369
 msgid "%d update"
 msgid_plural "%d updates"
 msgstr[0] ""
@@ -1436,7 +1440,6 @@ msgid "Wave"
 msgstr ""
 
 #: src/games/alphabet-soup/game.ts:545
-#: src/settings/sections/about.ts:141
 msgid "WordPress OpenStation"
 msgstr ""
 
@@ -1847,65 +1850,80 @@ msgstr ""
 msgid "Oldest first"
 msgstr ""
 
-#: src/item-visibility-menu.ts:238
-msgid "Hide from dock"
+#: src/item-visibility-menu.ts:65
+msgid "sidebar"
 msgstr ""
 
-#: src/item-visibility-menu.ts:254
+#: src/item-visibility-menu.ts:65
+msgid "dock"
+msgstr ""
+
+#. %s: "dock" or "sidebar".
+#: src/item-visibility-menu.ts:179
+msgid "Hide from %s"
+msgstr ""
+
+#. %s: "dock" or "sidebar".
+#: src/item-visibility-menu.ts:190
+msgid "Keep in %s"
+msgstr ""
+
+#: src/item-visibility-menu.ts:198
 msgid "Also show on desktop"
 msgstr ""
 
-#: src/item-visibility-menu.ts:262
+#: src/item-visibility-menu.ts:206
 msgid "Hide from desktop"
 msgstr ""
 
-#: src/item-visibility-menu.ts:278
-msgid "Also show on dock"
+#. %s: "dock" or "sidebar".
+#: src/item-visibility-menu.ts:214
+msgid "Also show on %s"
 msgstr ""
 
-#: src/item-visibility-menu.ts:286
+#: src/item-visibility-menu.ts:226
 msgid "Hide everywhere"
 msgstr ""
 
-#: src/item-visibility-menu.ts:294
-msgid "Apps & Plugins settings…"
+#: src/item-visibility-menu.ts:235
+msgid "Navigation settings…"
 msgstr ""
 
 #. %s is the owning plugin's display name.
-#: src/item-visibility-menu.ts:317
+#: src/item-visibility-menu.ts:258
 msgid "Deactivate %s…"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:466
+#: src/item-visibility-menu.ts:407
 msgid "Deactivate %s?"
 msgstr ""
 
-#: src/item-visibility-menu.ts:467
+#: src/item-visibility-menu.ts:408
 msgid "This plugin will stop running on the site. You can re-activate it later from the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:470
-#: src/plugins-window/flyout-detail.ts:589
+#: src/item-visibility-menu.ts:411
+#: src/plugins-window/flyout-detail.ts:583
 #: src/plugins-window/installed-view.ts:634
 #: src/plugins-window/installed-view.ts:717
 msgid "Deactivate"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:528
+#: src/item-visibility-menu.ts:469
 msgid "Could not deactivate %s."
 msgstr ""
 
 #. 1: plugin title. 2: number of windows that were closed.
-#: src/item-visibility-menu.ts:552
+#: src/item-visibility-menu.ts:493
 msgid "%1$s deactivated. Closed %2$d window(s)."
 msgstr ""
 
 #. %s: plugin title.
 #. %s: plugin name
-#: src/item-visibility-menu.ts:558
-#: src/plugins-window/flyout-detail.ts:708
+#: src/item-visibility-menu.ts:499
+#: src/plugins-window/flyout-detail.ts:702
 #: src/plugins-window/installed-view.ts:887
 msgid "%s deactivated."
 msgstr ""
@@ -2398,96 +2416,96 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:567
+#: src/my-wordpress/bulk-actions.ts:573
 msgid "Edit…"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/bulk-actions.ts:574
+#: src/my-wordpress/bulk-actions.ts:580
 msgid "Edit %d entries…"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:591
+#: src/my-wordpress/bulk-actions.ts:597
 msgid "Publish"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/bulk-actions.ts:598
+#: src/my-wordpress/bulk-actions.ts:604
 msgid "Publish %d entries"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:610
+#: src/my-wordpress/bulk-actions.ts:616
 msgid "Switch to Draft"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/bulk-actions.ts:617
+#: src/my-wordpress/bulk-actions.ts:623
 msgid "Switch %d entries to Draft"
 msgstr ""
 
 #. %d: number of files detached.
-#: src/my-wordpress/bulk-actions.ts:654
+#: src/my-wordpress/bulk-actions.ts:660
 msgid "%d file detached"
 msgstr ""
 
 #. %d: number of files detached.
-#: src/my-wordpress/bulk-actions.ts:656
+#: src/my-wordpress/bulk-actions.ts:662
 msgid "%d files detached"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:668
+#: src/my-wordpress/bulk-actions.ts:674
 msgid "Detach"
 msgstr ""
 
 #. %d: number of selected files.
-#: src/my-wordpress/bulk-actions.ts:675
+#: src/my-wordpress/bulk-actions.ts:681
 msgid "Detach %d files"
 msgstr ""
 
 #. %d: number of users updated.
-#: src/my-wordpress/bulk-actions.ts:869
+#: src/my-wordpress/bulk-actions.ts:875
 msgid "%d user updated"
 msgstr ""
 
 #. %d: number of users updated.
-#: src/my-wordpress/bulk-actions.ts:871
+#: src/my-wordpress/bulk-actions.ts:877
 msgid "%d users updated"
 msgstr ""
 
 #. %d: number of users deleted.
-#: src/my-wordpress/bulk-actions.ts:891
+#: src/my-wordpress/bulk-actions.ts:897
 msgid "%d user deleted"
 msgstr ""
 
 #. %d: number of users deleted.
-#: src/my-wordpress/bulk-actions.ts:893
+#: src/my-wordpress/bulk-actions.ts:899
 msgid "%d users deleted"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:901
+#: src/my-wordpress/bulk-actions.ts:907
 msgid "Change role…"
 msgstr ""
 
 #. %d: number of selected users.
-#: src/my-wordpress/bulk-actions.ts:908
+#: src/my-wordpress/bulk-actions.ts:914
 msgid "Change role for %d users…"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:916
+#: src/my-wordpress/bulk-actions.ts:922
 msgid "Delete…"
 msgstr ""
 
 #. %d: number of selected users.
-#: src/my-wordpress/bulk-actions.ts:924
+#: src/my-wordpress/bulk-actions.ts:930
 msgid "Delete %d users…"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:988
+#: src/my-wordpress/bulk-actions.ts:994
 msgid "Copy link"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/bulk-actions.ts:999
+#: src/my-wordpress/bulk-actions.ts:1005
 msgid "Copy %d links"
 msgstr ""
 
@@ -2507,68 +2525,68 @@ msgstr ""
 msgid "%d entries updated"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:710
+#: src/my-wordpress/bulk-actions.ts:716
 msgid "No assignable roles are available on this site."
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:721
-#: src/my-wordpress/bulk-actions.ts:749
+#: src/my-wordpress/bulk-actions.ts:727
+#: src/my-wordpress/bulk-actions.ts:755
 msgid "Change role"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:738
+#: src/my-wordpress/bulk-actions.ts:744
 msgid "New role"
 msgstr ""
 
 #. %d: number of users about to be deleted.
-#: src/my-wordpress/bulk-actions.ts:780
+#: src/my-wordpress/bulk-actions.ts:786
 msgid "Delete %d users"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:798
+#: src/my-wordpress/bulk-actions.ts:804
 msgid "Users have no trash — this cannot be undone."
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:807
+#: src/my-wordpress/bulk-actions.ts:813
 msgid "Delete all their content"
 msgstr ""
 
 #. %s: a user's display name.
-#: src/my-wordpress/bulk-actions.ts:813
+#: src/my-wordpress/bulk-actions.ts:819
 msgid "Attribute all content to %s"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:819
+#: src/my-wordpress/bulk-actions.ts:825
 msgid "Their content"
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:955
+#: src/my-wordpress/bulk-actions.ts:961
 msgid "Nothing to copy — no links found."
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:964
+#: src/my-wordpress/bulk-actions.ts:970
 msgid "Link copied."
 msgstr ""
 
 #. %d: number of links copied.
-#: src/my-wordpress/bulk-actions.ts:967
+#: src/my-wordpress/bulk-actions.ts:973
 msgid "%d links copied."
 msgstr ""
 
-#: src/my-wordpress/bulk-actions.ts:975
+#: src/my-wordpress/bulk-actions.ts:981
 msgid "Could not reach the clipboard — copying needs a secure (https) connection."
 msgstr ""
 
-#: src/my-wordpress/index.ts:322
+#: src/my-wordpress/index.ts:332
 msgid "Unknown entity type."
 msgstr ""
 
 #. %s is a user display name.
-#: src/my-wordpress/index.ts:558
+#: src/my-wordpress/index.ts:597
 msgid "%s — activity footprint"
 msgstr ""
 
-#: src/my-wordpress/index.ts:599
+#: src/my-wordpress/index.ts:638
 #: src/my-wordpress/integrations/woocommerce.ts:744
 #: src/my-wordpress/integrations/woocommerce.ts:907
 #: src/plugins/drafts-widget/index.ts:394
@@ -2578,7 +2596,7 @@ msgstr ""
 msgid "Categories"
 msgstr ""
 
-#: src/my-wordpress/index.ts:601
+#: src/my-wordpress/index.ts:640
 #: src/plugins/drafts-widget/index.ts:377
 #: src/posts-window/index.ts:498
 #: includes/ai-copilot/search.php:87
@@ -2586,36 +2604,36 @@ msgstr ""
 msgid "Tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:603
-#: src/my-wordpress/index.ts:2577
-#: src/my-wordpress/index.ts:2587
+#: src/my-wordpress/index.ts:642
+#: src/my-wordpress/index.ts:2660
+#: src/my-wordpress/index.ts:2670
 msgid "Attached media"
 msgstr ""
 
-#: src/my-wordpress/index.ts:901
+#: src/my-wordpress/index.ts:940
 msgid "That folder is empty."
 msgstr ""
 
 #. %s is a lowercased entity-type label (e.g. "posts", "pages").
-#: src/my-wordpress/index.ts:1120
+#: src/my-wordpress/index.ts:1159
 msgid "Search %s…"
 msgstr ""
 
 #. %s is an entity-type label (e.g. "Posts", "Pages").
-#: src/my-wordpress/index.ts:1125
+#: src/my-wordpress/index.ts:1164
 msgid "Search %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:1161
-#: src/my-wordpress/index.ts:1628
-#: src/my-wordpress/index.ts:1751
-#: src/my-wordpress/index.ts:4823
+#: src/my-wordpress/index.ts:1200
+#: src/my-wordpress/index.ts:1667
+#: src/my-wordpress/index.ts:1790
+#: src/my-wordpress/index.ts:4977
 msgid "Select an entry to preview it here."
 msgstr ""
 
 #. 1: visible item count, 2: total item count.
-#: src/my-wordpress/index.ts:1400
-#: src/my-wordpress/media-list.ts:83
+#: src/my-wordpress/index.ts:1439
+#: src/my-wordpress/media-list.ts:84
 msgid "%1$d of %2$d items"
 msgstr ""
 
@@ -2625,10 +2643,10 @@ msgstr ""
 #. %d: number of selected plugins
 #. %d: selected row count.
 #. %d is a count of selected users.
-#: src/my-wordpress/index.ts:1422
-#: src/my-wordpress/index.ts:5025
+#: src/my-wordpress/index.ts:1461
+#: src/my-wordpress/index.ts:5179
 #: src/my-wordpress/media-detail.ts:249
-#: src/my-wordpress/media-list.ts:129
+#: src/my-wordpress/media-list.ts:130
 #: src/plugins-window/installed-view.ts:674
 #: src/posts-window/index.ts:2322
 #: src/posts-window/users-render.ts:917
@@ -2637,193 +2655,193 @@ msgid "%d selected"
 msgstr ""
 
 #. 1: current page, 2: total pages.
-#: src/my-wordpress/index.ts:1434
-#: src/my-wordpress/index.ts:5037
-#: src/my-wordpress/media-list.ts:141
+#: src/my-wordpress/index.ts:1473
+#: src/my-wordpress/index.ts:5191
+#: src/my-wordpress/media-list.ts:142
 msgid "Page %1$d of %2$d"
 msgstr ""
 
 #. 1: search query, 2: lowercased entity-type label.
-#: src/my-wordpress/index.ts:1807
+#: src/my-wordpress/index.ts:1846
 msgid "No %2$s match \"%1$s\"."
 msgstr ""
 
 #. %s is an entity-type label (e.g. "Posts", "Pages").
-#: src/my-wordpress/index.ts:1814
+#: src/my-wordpress/index.ts:1853
 msgid "No %s yet."
 msgstr ""
 
 #. 1: post title, 2: name of the user who has the post locked.
-#: src/my-wordpress/index.ts:2022
+#: src/my-wordpress/index.ts:2061
 msgid "%1$s — currently being edited by %2$s"
 msgstr ""
 
 #. %s is the user name currently editing the post.
-#: src/my-wordpress/index.ts:2114
+#: src/my-wordpress/index.ts:2153
 #: src/posts-window/index.ts:1181
 msgid "%s is currently editing"
 msgstr ""
 
 #. %s is an author display name.
-#: src/my-wordpress/index.ts:2492
+#: src/my-wordpress/index.ts:2575
 msgid "Author · %s"
 msgstr ""
 
 #. %d is a count of additional contributor users.
-#: src/my-wordpress/index.ts:2512
+#: src/my-wordpress/index.ts:2595
 msgid "Contributors · %d"
 msgid_plural "Contributors · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a comment count.
-#: src/my-wordpress/index.ts:2535
+#: src/my-wordpress/index.ts:2618
 msgid "Comments · %d"
 msgid_plural "Comments · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a category count.
-#: src/my-wordpress/index.ts:2550
+#: src/my-wordpress/index.ts:2633
 msgid "Categories · %d"
 msgid_plural "Categories · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a tag count.
-#: src/my-wordpress/index.ts:2565
+#: src/my-wordpress/index.ts:2648
 msgid "Tags · %d"
 msgid_plural "Tags · %d"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:2918
+#: src/my-wordpress/index.ts:3001
 msgid "No comments on this post yet."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2920
+#: src/my-wordpress/index.ts:3003
 msgid "No categories assigned."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2922
+#: src/my-wordpress/index.ts:3005
 msgid "No tags assigned."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2924
+#: src/my-wordpress/index.ts:3007
 msgid "No media attached to this post."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2926
+#: src/my-wordpress/index.ts:3009
 msgid "No revisions yet."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2928
+#: src/my-wordpress/index.ts:3011
 msgid "No author available."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2930
+#: src/my-wordpress/index.ts:3013
 msgid "No additional contributors."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2932
+#: src/my-wordpress/index.ts:3015
 msgid "Nothing to show."
 msgstr ""
 
 #. %d is a comment count for a particular author.
-#: src/my-wordpress/index.ts:3321
+#: src/my-wordpress/index.ts:3404
 msgid "%d comment site-wide"
 msgid_plural "%d comments site-wide"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:3339
-#: src/my-wordpress/index.ts:3733
-#: src/my-wordpress/index.ts:6220
+#: src/my-wordpress/index.ts:3422
+#: src/my-wordpress/index.ts:3816
+#: src/my-wordpress/index.ts:6397
 msgid "Author archive"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3355
+#: src/my-wordpress/index.ts:3438
 msgid "Moderate"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3807
+#: src/my-wordpress/index.ts:3890
 msgid "Activity (last 12 months)"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3845
+#: src/my-wordpress/index.ts:3928
 msgid "Member since"
 msgstr ""
 
 #. %s is the name of the parent category.
-#: src/my-wordpress/index.ts:4178
+#: src/my-wordpress/index.ts:4261
 msgid "in %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4192
+#: src/my-wordpress/index.ts:4275
 msgid "View archive"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4213
+#: src/my-wordpress/index.ts:4296
 msgid "Last post"
 msgstr ""
 
 #. %s is a formatted date.
-#: src/my-wordpress/index.ts:4312
+#: src/my-wordpress/index.ts:4395
 msgid "Saved %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4331
+#: src/my-wordpress/index.ts:4414
 msgid "This revision has no rendered content."
 msgstr ""
 
-#: src/my-wordpress/index.ts:4332
+#: src/my-wordpress/index.ts:4415
 msgid "Couldn’t load the revision content. You may not have permission to view it."
 msgstr ""
 
 #. %d: number of selected entries.
 #. %d: number of selected rows.
-#: src/my-wordpress/index.ts:4440
+#: src/my-wordpress/index.ts:4568
 #: src/my-wordpress/media-detail.ts:188
 msgid "Open %d items in the editor"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4446
-#: src/my-wordpress/media-list.ts:313
+#: src/my-wordpress/index.ts:4586
+#: src/my-wordpress/media-list.ts:314
 msgid "Navigate into"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/index.ts:4460
+#: src/my-wordpress/index.ts:4608
 msgid "Move %d items to Trash"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4896
+#: src/my-wordpress/index.ts:5050
 msgid "Search users…"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4897
+#: src/my-wordpress/index.ts:5051
 msgid "Search users"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4930
-#: src/my-wordpress/index.ts:5181
-#: src/my-wordpress/index.ts:5574
+#: src/my-wordpress/index.ts:5084
+#: src/my-wordpress/index.ts:5335
+#: src/my-wordpress/index.ts:5728
 msgid "Select a user to see their profile here."
 msgstr ""
 
 #. 1: visible user count, 2: total user count.
-#: src/my-wordpress/index.ts:5003
+#: src/my-wordpress/index.ts:5157
 msgid "%1$d of %2$d users"
 msgstr ""
 
 #. %s is the user-entered search query.
-#: src/my-wordpress/index.ts:5090
-#: src/my-wordpress/index.ts:5193
+#: src/my-wordpress/index.ts:5244
+#: src/my-wordpress/index.ts:5347
 msgid "No users match \"%s\"."
 msgstr ""
 
-#: src/my-wordpress/index.ts:5093
-#: src/my-wordpress/index.ts:5196
+#: src/my-wordpress/index.ts:5247
+#: src/my-wordpress/index.ts:5350
 msgid "No users to show."
 msgstr ""
 
@@ -2832,9 +2850,9 @@ msgstr ""
 #. %d is a post count.
 #. %d: number of posts assigned to a category.
 #. %d: number of posts assigned to a tag.
-#: src/my-wordpress/index.ts:5331
-#: src/my-wordpress/index.ts:5495
-#: src/my-wordpress/index.ts:4051
+#: src/my-wordpress/index.ts:5485
+#: src/my-wordpress/index.ts:5649
+#: src/my-wordpress/index.ts:4134
 #: src/posts-window/categories-mindmap.ts:2985
 #: src/posts-window/tags-cloud.ts:2333
 msgid "%d post"
@@ -2843,332 +2861,333 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. %s is a relative or absolute date.
-#: src/my-wordpress/index.ts:5504
+#: src/my-wordpress/index.ts:5658
 msgid "Last published %s"
 msgstr ""
 
 #. %d: number of selected users.
-#: src/my-wordpress/index.ts:5571
+#: src/my-wordpress/index.ts:5725
 msgid "%d users selected"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5783
-#: src/my-wordpress/index.ts:5698
+#: src/my-wordpress/index.ts:5951
+#: src/my-wordpress/index.ts:5852
 #: includes/my-wordpress/users-list-footprint.php:80
 msgid "View activity footprint"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5789
-#: src/my-wordpress/index.ts:6788
-#: src/my-wordpress/index.ts:5714
+#: src/my-wordpress/index.ts:5957
+#: src/my-wordpress/index.ts:6965
+#: src/my-wordpress/index.ts:5868
 msgid "Show profile"
 msgstr ""
 
 #. %d: number of selected users.
-#: src/my-wordpress/index.ts:5796
+#: src/my-wordpress/index.ts:5964
 msgid "Show %d profiles"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5804
-#: src/my-wordpress/index.ts:6775
+#: src/my-wordpress/index.ts:5972
+#: src/my-wordpress/index.ts:6952
 msgid "View author archive"
 msgstr ""
 
 #. %d: number of selected users.
-#: src/my-wordpress/index.ts:5811
+#: src/my-wordpress/index.ts:5979
 msgid "View %d author archives"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5915
+#: src/my-wordpress/index.ts:6092
 msgid "Copy author archive link"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6017
+#: src/my-wordpress/index.ts:6194
 #: includes/user-edit-window/window.php:132
 msgid "Edit user"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6075
+#: src/my-wordpress/index.ts:6252
 msgid "Loading footprint…"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6094
+#: src/my-wordpress/index.ts:6271
 msgid "Could not load footprint."
 msgstr ""
 
 #. 1: post total, 2: comment total.
-#: src/my-wordpress/index.ts:6133
+#: src/my-wordpress/index.ts:6310
 msgid "%1$d posts · %2$d comments tracked"
 msgstr ""
 
 #. 1: window-start date, 2: window-end date.
-#: src/my-wordpress/index.ts:6147
+#: src/my-wordpress/index.ts:6324
 msgid "Window %1$s → %2$s"
 msgstr ""
 
 #. %s is a year-month label like "January 2023".
-#: src/my-wordpress/index.ts:6206
+#: src/my-wordpress/index.ts:6383
 msgid "Member since %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6240
+#: src/my-wordpress/index.ts:6417
 msgid "Total content"
 msgstr ""
 
 #. 1: post count, 2: page count.
-#: src/my-wordpress/index.ts:6244
+#: src/my-wordpress/index.ts:6421
 msgid "%1$d posts · %2$d pages"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6269
+#: src/my-wordpress/index.ts:6446
 #: includes/ai-copilot/search.php:237
+#: includes/station-home/rest.php:406
 msgid "Updates"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6270
+#: src/my-wordpress/index.ts:6447
 msgid "Saves on existing posts"
 msgstr ""
 
 #. 1: start date, 2: end date.
-#: src/my-wordpress/index.ts:6280
+#: src/my-wordpress/index.ts:6457
 msgid "%1$s → %2$s"
 msgstr ""
 
 #. %d is the length in days of the user's longest publishing streak.
 #. %d is the length in days of the user's current active streak.
 #. %d is a number of days.
-#: src/my-wordpress/index.ts:6289
-#: src/my-wordpress/index.ts:6304
+#: src/my-wordpress/index.ts:6466
+#: src/my-wordpress/index.ts:6481
 #: src/posts-window/user-edit-render.ts:1052
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:6296
+#: src/my-wordpress/index.ts:6473
 msgid "Longest streak"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6307
+#: src/my-wordpress/index.ts:6484
 msgid "Current streak"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6309
+#: src/my-wordpress/index.ts:6486
 msgid "No activity today"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6310
+#: src/my-wordpress/index.ts:6487
 msgid "Including today"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6334
+#: src/my-wordpress/index.ts:6511
 msgid "A year of activity"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6376
+#: src/my-wordpress/index.ts:6553
 msgid "No activity recorded in the last year."
 msgstr ""
 
 #. 1: date, 2: post count, 3: comment count, 4: update (re-save) count.
-#: src/my-wordpress/index.ts:6474
+#: src/my-wordpress/index.ts:6651
 msgid "%1$s — %2$d posts, %3$d comments, %4$d updates"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6494
+#: src/my-wordpress/index.ts:6671
 msgid "Less"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6503
+#: src/my-wordpress/index.ts:6680
 msgid "More"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6517
+#: src/my-wordpress/index.ts:6694
 msgid "Publishing rhythm"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6528
+#: src/my-wordpress/index.ts:6705
 msgid "By weekday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6531
-#: src/my-wordpress/index.ts:6537
+#: src/my-wordpress/index.ts:6708
+#: src/my-wordpress/index.ts:6714
 msgid "S"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6532
+#: src/my-wordpress/index.ts:6709
 msgid "M"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6533
-#: src/my-wordpress/index.ts:6535
+#: src/my-wordpress/index.ts:6710
+#: src/my-wordpress/index.ts:6712
 msgid "T"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6534
+#: src/my-wordpress/index.ts:6711
 msgid "W"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6536
+#: src/my-wordpress/index.ts:6713
 msgid "F"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6540
+#: src/my-wordpress/index.ts:6717
 msgid "Sunday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6541
+#: src/my-wordpress/index.ts:6718
 msgid "Monday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6542
+#: src/my-wordpress/index.ts:6719
 msgid "Tuesday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6543
+#: src/my-wordpress/index.ts:6720
 msgid "Wednesday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6544
+#: src/my-wordpress/index.ts:6721
 msgid "Thursday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6545
+#: src/my-wordpress/index.ts:6722
 msgid "Friday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6546
+#: src/my-wordpress/index.ts:6723
 msgid "Saturday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6558
+#: src/my-wordpress/index.ts:6735
 msgid "By hour of day (site time)"
 msgstr ""
 
 #. %d is an hour of the day (0-23).
-#: src/my-wordpress/index.ts:6589
+#: src/my-wordpress/index.ts:6766
 msgid "%d:00"
 msgstr ""
 
 #. 1: bucket label, 2: count.
-#: src/my-wordpress/index.ts:6618
+#: src/my-wordpress/index.ts:6795
 msgid "%1$s · %2$d"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6653
+#: src/my-wordpress/index.ts:6830
 msgid "Most prolific month"
 msgstr ""
 
 #. %d is a post count.
-#: src/my-wordpress/index.ts:6665
+#: src/my-wordpress/index.ts:6842
 msgid "%d post published — their personal record."
 msgid_plural "%d posts published — their personal record."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:6685
+#: src/my-wordpress/index.ts:6862
 #: src/posts-window/user-edit-render.ts:871
 msgid "Recent activity"
 msgstr ""
 
-#: src/my-wordpress/index.ts:6691
+#: src/my-wordpress/index.ts:6868
 msgid "Nothing to show yet."
 msgstr ""
 
 #. %s is a post title the user commented on.
-#: src/my-wordpress/index.ts:6729
+#: src/my-wordpress/index.ts:6906
 msgid "Commented on “%s”"
 msgstr ""
 
 #. %s is the post title the user re-saved.
-#: src/my-wordpress/index.ts:6735
+#: src/my-wordpress/index.ts:6912
 msgid "Updated “%s”"
 msgstr ""
 
 #. %s is the parent comment's author name.
-#: src/my-wordpress/index.ts:3144
+#: src/my-wordpress/index.ts:3227
 msgid "In reply to %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3169
+#: src/my-wordpress/index.ts:3252
 msgid "On post"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3251
+#: src/my-wordpress/index.ts:3334
 msgid "IP"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3259
+#: src/my-wordpress/index.ts:3342
 msgid "User agent"
 msgstr ""
 
 #. %d is a published-post count.
 #. %d is a published-page count.
-#: src/my-wordpress/index.ts:3576
-#: src/my-wordpress/index.ts:3589
-#: src/my-wordpress/index.ts:3986
+#: src/my-wordpress/index.ts:3659
+#: src/my-wordpress/index.ts:3672
+#: src/my-wordpress/index.ts:4069
 msgid "%d published"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3632
-#: src/my-wordpress/index.ts:4068
+#: src/my-wordpress/index.ts:3715
+#: src/my-wordpress/index.ts:4151
 #: src/posts-window/user-edit-render.ts:1171
 msgid "Recent posts"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3659
+#: src/my-wordpress/index.ts:3742
 msgid "Top categories & tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4004
+#: src/my-wordpress/index.ts:4087
 msgid "one contributor"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4027
+#: src/my-wordpress/index.ts:4110
 msgid "Top contributors"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4099
+#: src/my-wordpress/index.ts:4182
 msgid "Often paired tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4100
+#: src/my-wordpress/index.ts:4183
 msgid "Often paired categories"
 msgstr ""
 
 #. %d: number of selected entries.
-#: src/my-wordpress/index.ts:4650
+#: src/my-wordpress/index.ts:4804
 msgid "Move %d items to Trash?"
 msgstr ""
 
 #. 1: number moved to trash, 2: number that failed.
-#: src/my-wordpress/index.ts:4698
+#: src/my-wordpress/index.ts:4852
 msgid "%1$d items moved to Trash · %2$d could not be moved"
 msgstr ""
 
 #. %d: number of entries moved to trash.
-#: src/my-wordpress/index.ts:4707
+#: src/my-wordpress/index.ts:4861
 msgid "%d items moved to Trash"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4712
+#: src/my-wordpress/index.ts:4866
 msgid "Nothing could be moved to Trash."
 msgstr ""
 
 #. %s is the entity id (e.g. 'posts').
-#: src/my-wordpress/index.ts:4760
+#: src/my-wordpress/index.ts:4914
 msgid "Unknown entity: %s"
 msgstr ""
 
 #. %s is the entry title.
-#: src/my-wordpress/index.ts:4795
+#: src/my-wordpress/index.ts:4949
 msgid "Move \"%s\" to Trash?"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5699
+#: src/my-wordpress/index.ts:5853
 msgid "Open the full activity footprint surface for this user."
 msgstr ""
 
-#: src/my-wordpress/index.ts:5715
+#: src/my-wordpress/index.ts:5869
 msgid "Open this user’s profile editor in a new window."
 msgstr ""
 
@@ -3303,8 +3322,8 @@ msgstr ""
 
 #: src/my-wordpress/integrations/woocommerce.ts:869
 #: src/plugins-window/card.ts:176
-#: src/plugins-window/installed-detail.ts:215
-#: src/plugins-window/installed-detail.ts:505
+#: src/plugins-window/installed-detail.ts:216
+#: src/plugins-window/installed-detail.ts:506
 #: src/plugins-window/installed-view.ts:149
 #: src/plugins-window/installed-view.ts:446
 #: includes/my-wordpress/integrations/woocommerce.php:725
@@ -3312,8 +3331,8 @@ msgid "Active"
 msgstr ""
 
 #: src/my-wordpress/integrations/woocommerce.ts:871
-#: src/plugins-window/installed-detail.ts:216
-#: src/plugins-window/installed-detail.ts:506
+#: src/plugins-window/installed-detail.ts:217
+#: src/plugins-window/installed-detail.ts:507
 #: src/plugins-window/installed-view.ts:150
 #: src/plugins-window/installed-view.ts:447
 msgid "Inactive"
@@ -3627,7 +3646,7 @@ msgstr ""
 #. %d: number of line items.
 #. %d is a count of media items.
 #: src/my-wordpress/integrations/woocommerce.ts:2118
-#: src/my-wordpress/media-list.ts:91
+#: src/my-wordpress/media-list.ts:92
 msgid "%d item"
 msgid_plural "%d items"
 msgstr[0] ""
@@ -3715,130 +3734,130 @@ msgid_plural "%d entries reference this file."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/media-detail.ts:397
+#: src/my-wordpress/media-detail.ts:399
 msgid "No posts or pages reference this file."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:78
-#: src/my-wordpress/media-list.ts:808
-#: src/my-wordpress/media-list.ts:907
+#: src/my-wordpress/media-list.ts:79
+#: src/my-wordpress/media-list.ts:819
+#: src/my-wordpress/media-list.ts:918
 msgid "No media yet."
 msgstr ""
 
 #. %d: number of selected media items.
-#: src/my-wordpress/media-list.ts:107
+#: src/my-wordpress/media-list.ts:108
 msgid "%d files selected"
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:110
-#: src/my-wordpress/media-list.ts:608
-#: src/my-wordpress/media-list.ts:697
-#: src/my-wordpress/media-list.ts:892
+#: src/my-wordpress/media-list.ts:111
+#: src/my-wordpress/media-list.ts:618
+#: src/my-wordpress/media-list.ts:708
+#: src/my-wordpress/media-list.ts:903
 msgid "Select a media item to preview it here."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:319
+#: src/my-wordpress/media-list.ts:320
 msgid "Open file in new tab"
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:325
+#: src/my-wordpress/media-list.ts:335
 msgid "Delete permanently"
 msgstr ""
 
 #. %d: number of selected media items.
-#: src/my-wordpress/media-list.ts:333
+#: src/my-wordpress/media-list.ts:343
 msgid "Delete %d files permanently"
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:385
+#: src/my-wordpress/media-list.ts:395
 msgid "Copy file URL"
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:664
+#: src/my-wordpress/media-list.ts:675
 msgid "Search media…"
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:665
+#: src/my-wordpress/media-list.ts:676
 #: src/settings/sections/custom-image.ts:293
 msgid "Search media"
 msgstr ""
 
 #. %s is the user-entered search query.
-#: src/my-wordpress/media-list.ts:805
-#: src/my-wordpress/media-list.ts:904
+#: src/my-wordpress/media-list.ts:816
+#: src/my-wordpress/media-list.ts:915
 msgid "No media match \"%s\"."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:500
-#: src/my-wordpress/media-list.ts:563
+#: src/my-wordpress/media-list.ts:510
+#: src/my-wordpress/media-list.ts:573
 msgid "Delete media?"
 msgstr ""
 
 #. %d: number of selected media items.
-#: src/my-wordpress/media-list.ts:503
+#: src/my-wordpress/media-list.ts:513
 msgid "%d files will be permanently deleted. This cannot be undone."
 msgstr ""
 
 #. 1: number deleted, 2: number that failed.
-#: src/my-wordpress/media-list.ts:542
+#: src/my-wordpress/media-list.ts:552
 msgid "%1$d files deleted · %2$d could not be deleted"
 msgstr ""
 
 #. %d: number of files deleted.
-#: src/my-wordpress/media-list.ts:551
+#: src/my-wordpress/media-list.ts:561
 msgid "%d files deleted."
 msgstr ""
 
 #. %s is a media item title.
-#: src/my-wordpress/media-list.ts:566
+#: src/my-wordpress/media-list.ts:576
 msgid "“%s” will be permanently deleted. This cannot be undone."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:585
+#: src/my-wordpress/media-list.ts:595
 msgid "Media deleted."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:590
+#: src/my-wordpress/media-list.ts:600
 msgid "Couldn’t delete that file."
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:173
+#: src/my-wordpress/media-preview.ts:179
 msgid "Open file"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:222
+#: src/my-wordpress/media-preview.ts:228
 msgid "Filename"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:224
+#: src/my-wordpress/media-preview.ts:230
 msgid "Dimensions"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:225
+#: src/my-wordpress/media-preview.ts:231
 msgid "File size"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:226
+#: src/my-wordpress/media-preview.ts:232
 msgid "Uploaded"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:227
+#: src/my-wordpress/media-preview.ts:233
 msgid "Uploader"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:228
+#: src/my-wordpress/media-preview.ts:234
 msgid "Alt text"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:229
+#: src/my-wordpress/media-preview.ts:235
 msgid "Caption"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:399
+#: src/my-wordpress/media-preview.ts:333
 msgid "See where this is used"
 msgstr ""
 
-#: src/my-wordpress/media-preview.ts:400
+#: src/my-wordpress/media-preview.ts:334
 msgid "Show the posts, pages, and custom-post-type entries that reference this file."
 msgstr ""
 
@@ -3868,98 +3887,98 @@ msgstr ""
 msgid "Could not convert the note to a post."
 msgstr ""
 
-#: src/notes/layer.ts:293
+#: src/notes/layer.ts:299
 #: src/plugins/notes-widget/index.ts:449
 msgid "Could not pin the note. Please try again."
 msgstr ""
 
-#: src/notes/layer.ts:413
+#: src/notes/layer.ts:419
 msgid "Pinned notes"
 msgstr ""
 
-#: src/notes/layer.ts:490
+#: src/notes/layer.ts:496
 msgid "Pinned note"
 msgstr ""
 
 #. %s: note author display name.
-#: src/notes/layer.ts:493
+#: src/notes/layer.ts:499
 msgid "Note by %s"
 msgstr ""
 
-#: src/notes/layer.ts:509
+#: src/notes/layer.ts:515
 msgid "Move note. Drag the pin, or press Enter then use the arrow keys."
 msgstr ""
 
-#: src/notes/layer.ts:588
+#: src/notes/layer.ts:594
 msgid "Convert to a draft post"
 msgstr ""
 
-#: src/notes/layer.ts:610
+#: src/notes/layer.ts:616
 msgid "Note text"
 msgstr ""
 
 #. %s: note author display name.
-#: src/notes/layer.ts:645
+#: src/notes/layer.ts:651
 msgid "Pinned by %s"
 msgstr ""
 
 #. %s: next paper color name.
-#: src/notes/layer.ts:677
+#: src/notes/layer.ts:683
 msgid "Change paper color (next: %s)"
 msgstr ""
 
-#: src/notes/layer.ts:696
+#: src/notes/layer.ts:702
 msgid "Public note — everyone can see it. Click to make private."
 msgstr ""
 
-#: src/notes/layer.ts:697
+#: src/notes/layer.ts:703
 msgid "Private note. Click to share with every desktop user."
 msgstr ""
 
-#: src/notes/layer.ts:897
+#: src/notes/layer.ts:903
 msgid "Note is now public."
 msgstr ""
 
-#: src/notes/layer.ts:898
+#: src/notes/layer.ts:904
 msgid "Note is now private."
 msgstr ""
 
-#: src/notes/layer.ts:912
+#: src/notes/layer.ts:918
 msgid "Move note to the Trash?"
 msgstr ""
 
-#: src/notes/layer.ts:913
+#: src/notes/layer.ts:919
 msgid "You can restore it from the Trash later."
 msgstr ""
 
-#: src/notes/layer.ts:962
+#: src/notes/layer.ts:968
 msgid "This note was changed in another session — showing the latest version."
 msgstr ""
 
-#: src/notes/layer.ts:1010
+#: src/notes/layer.ts:1016
 #: src/plugins/notes-widget/index.ts:353
 msgid "Drop on the desktop to pin"
 msgstr ""
 
-#: src/notes/layer.ts:1011
+#: src/notes/layer.ts:1017
 #: src/plugins/notes-widget/index.ts:354
 msgid "Pin here"
 msgstr ""
 
-#: src/notes/layer.ts:1012
+#: src/notes/layer.ts:1018
 #: src/plugins/notes-widget/index.ts:355
 msgid "Can’t pin here"
 msgstr ""
 
-#: src/notes/layer.ts:1202
+#: src/notes/layer.ts:1208
 msgid "Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Trash."
 msgstr ""
 
-#: src/notes/layer.ts:1218
+#: src/notes/layer.ts:1224
 msgid "Note placed."
 msgstr ""
 
-#: src/notes/layer.ts:1256
+#: src/notes/layer.ts:1262
 msgid "Move cancelled."
 msgstr ""
 
@@ -4049,6 +4068,7 @@ msgstr ""
 
 #: src/plugins/drafts-widget/index.ts:537
 #: src/posts-window/index.ts:956
+#: includes/station-home/rest.php:394
 #: includes/widgets/widget-drafts.php:77
 msgid "Drafts"
 msgstr ""
@@ -4209,7 +4229,7 @@ msgid "Background color"
 msgstr ""
 
 #: src/plugins/snow-wallpaper/index.ts:360
-#: src/settings/panel.ts:627
+#: src/settings/panel.ts:629
 msgid "Reset to defaults"
 msgstr ""
 
@@ -4257,6 +4277,7 @@ msgstr ""
 #: includes/pages-window/window.php:43
 #: includes/posts-window/window.php:70
 #: includes/recycle-bin/window.php:188
+#: includes/station-home/window.php:62
 #: includes/users-window/window.php:63
 msgid "Refresh"
 msgstr ""
@@ -4267,7 +4288,7 @@ msgstr ""
 
 #: src/plugins-window/browse-view.ts:352
 #: src/plugins-window/featured-view.ts:167
-#: src/plugins-window/flyout-detail.ts:623
+#: src/plugins-window/flyout-detail.ts:617
 #: src/settings/sections/themes.ts:307
 msgid "Installing…"
 msgstr ""
@@ -4275,14 +4296,14 @@ msgstr ""
 #. %s: plugin name
 #: src/plugins-window/browse-view.ts:369
 #: src/plugins-window/featured-view.ts:175
-#: src/plugins-window/flyout-detail.ts:629
+#: src/plugins-window/flyout-detail.ts:623
 msgid "Installed %s."
 msgstr ""
 
 #. %s: error message
 #: src/plugins-window/browse-view.ts:389
 #: src/plugins-window/featured-view.ts:195
-#: src/plugins-window/flyout-detail.ts:649
+#: src/plugins-window/flyout-detail.ts:643
 msgid "Install failed: %s"
 msgstr ""
 
@@ -4294,7 +4315,7 @@ msgstr ""
 #. %s: plugin name
 #: src/plugins-window/browse-view.ts:410
 #: src/plugins-window/featured-view.ts:216
-#: src/plugins-window/flyout-detail.ts:667
+#: src/plugins-window/flyout-detail.ts:661
 #: src/plugins-window/installed-view.ts:836
 #: src/plugins-window/upload-dialog.ts:453
 msgid "%s activated."
@@ -4303,7 +4324,7 @@ msgstr ""
 #. %s: error message
 #: src/plugins-window/browse-view.ts:437
 #: src/plugins-window/featured-view.ts:241
-#: src/plugins-window/flyout-detail.ts:679
+#: src/plugins-window/flyout-detail.ts:673
 #: src/plugins-window/installed-view.ts:854
 msgid "Activation failed: %s"
 msgstr ""
@@ -4331,21 +4352,21 @@ msgstr ""
 #. %s: plugin author name (HTML-stripped)
 #. %s: plugin author
 #: src/plugins-window/card.ts:95
-#: src/plugins-window/flyout-detail.ts:213
-#: src/plugins-window/flyout-detail.ts:238
-#: src/plugins-window/installed-detail.ts:248
+#: src/plugins-window/flyout-detail.ts:207
+#: src/plugins-window/flyout-detail.ts:232
+#: src/plugins-window/installed-detail.ts:249
 msgid "by %s"
 msgstr ""
 
 #: src/plugins-window/card.ts:179
-#: src/plugins-window/flyout-detail.ts:595
+#: src/plugins-window/flyout-detail.ts:589
 #: src/plugins-window/installed-view.ts:627
 #: src/plugins-window/installed-view.ts:707
 msgid "Activate"
 msgstr ""
 
 #: src/plugins-window/card.ts:187
-#: src/plugins-window/flyout-detail.ts:610
+#: src/plugins-window/flyout-detail.ts:604
 #: src/plugins-window/upload-dialog.ts:137
 msgid "Install"
 msgstr ""
@@ -4362,7 +4383,7 @@ msgstr ""
 #. %s: comma-grouped active install count
 #: src/plugins-window/card.ts:298
 #: src/plugins-window/card.ts:304
-#: src/plugins-window/flyout-detail.ts:266
+#: src/plugins-window/flyout-detail.ts:260
 msgid "%s+ active"
 msgstr ""
 
@@ -4388,133 +4409,133 @@ msgstr ""
 msgid "Could not load featured plugins: %s"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:134
+#: src/plugins-window/flyout-detail.ts:135
 msgid "Could not load plugin details."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:195
+#: src/plugins-window/flyout-detail.ts:196
 msgid "Close plugin details"
 msgstr ""
 
 #. %s: human-readable date string from wp.org
 #. %s: date the plugin was last updated
-#: src/plugins-window/flyout-detail.ts:272
-#: src/plugins-window/installed-detail.ts:389
+#: src/plugins-window/flyout-detail.ts:266
+#: src/plugins-window/installed-detail.ts:390
 msgid "Updated %s"
 msgstr ""
 
 #. %s: maximum tested WordPress version
-#: src/plugins-window/flyout-detail.ts:279
+#: src/plugins-window/flyout-detail.ts:273
 msgid "Tested up to WordPress %s"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:301
-#: src/plugins-window/installed-detail.ts:94
+#: src/plugins-window/flyout-detail.ts:295
+#: src/plugins-window/installed-detail.ts:95
 #: includes/admin-bar.php:115
 msgid "Overview"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:302
+#: src/plugins-window/flyout-detail.ts:296
 msgid "Screenshots"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:303
-#: src/plugins-window/installed-detail.ts:98
+#: src/plugins-window/flyout-detail.ts:297
+#: src/plugins-window/installed-detail.ts:99
 #: includes/my-wordpress/integrations/woocommerce-relations.php:753
 #: includes/my-wordpress/integrations/woocommerce-relations.php:754
 msgid "Reviews"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:304
-#: src/plugins-window/installed-detail.ts:96
+#: src/plugins-window/flyout-detail.ts:298
+#: src/plugins-window/installed-detail.ts:97
 msgid "Changelog"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:305
-#: src/plugins-window/installed-detail.ts:97
+#: src/plugins-window/flyout-detail.ts:299
+#: src/plugins-window/installed-detail.ts:98
 msgid "FAQ"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:364
-#: src/plugins-window/installed-detail.ts:930
+#: src/plugins-window/flyout-detail.ts:358
+#: src/plugins-window/installed-detail.ts:932
 msgid "Loading recent reviews…"
 msgstr ""
 
 #. %s: anchor tag with link to wp.org reviews
-#: src/plugins-window/flyout-detail.ts:377
+#: src/plugins-window/flyout-detail.ts:371
 msgid "Recent reviews aren’t available right now. %s"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:381
+#: src/plugins-window/flyout-detail.ts:375
 msgid "Read reviews on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:397
+#: src/plugins-window/flyout-detail.ts:391
 msgid "Could not load reviews."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:414
+#: src/plugins-window/flyout-detail.ts:408
 msgid "No content available."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:438
+#: src/plugins-window/flyout-detail.ts:432
 msgid "This plugin doesn’t ship screenshots."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:478
+#: src/plugins-window/flyout-detail.ts:472
 msgid "No ratings yet."
 msgstr ""
 
 #. %d: number of stars (1–5)
-#: src/plugins-window/flyout-detail.ts:491
+#: src/plugins-window/flyout-detail.ts:485
 msgid "%d ★"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:540
+#: src/plugins-window/flyout-detail.ts:534
 msgid "Read on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:577
+#: src/plugins-window/flyout-detail.ts:571
 msgid "View on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:696
+#: src/plugins-window/flyout-detail.ts:690
 #: src/plugins-window/installed-view.ts:875
 #: src/plugins-window/installed-view.ts:1245
 msgid "OpenStation deactivated. Reloading…"
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/flyout-detail.ts:718
+#: src/plugins-window/flyout-detail.ts:712
 #: src/plugins-window/installed-view.ts:902
 msgid "Deactivation failed: %s"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:731
+#: src/plugins-window/flyout-detail.ts:725
 #: src/plugins-window/installed-view.ts:912
 msgid "Delete plugin?"
 msgstr ""
 
 #. %s: plugin name
-#: src/plugins-window/flyout-detail.ts:734
+#: src/plugins-window/flyout-detail.ts:728
 #: src/plugins-window/installed-view.ts:915
 msgid "Permanently delete %s? Its files will be removed from disk. This cannot be undone."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:751
+#: src/plugins-window/flyout-detail.ts:745
 #: src/plugins-window/installed-view.ts:935
 #: src/plugins-window/installed-view.ts:1244
 msgid "OpenStation deleted. Reloading…"
 msgstr ""
 
 #. %s: plugin name
-#: src/plugins-window/flyout-detail.ts:763
+#: src/plugins-window/flyout-detail.ts:757
 #: src/plugins-window/installed-view.ts:947
 msgid "%s deleted."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/flyout-detail.ts:773
+#: src/plugins-window/flyout-detail.ts:767
 #: src/plugins-window/installed-view.ts:961
 msgid "Delete failed: %s"
 msgstr ""
@@ -4527,187 +4548,186 @@ msgstr ""
 msgid "You do not have permission to manage plugins."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:95
+#: src/plugins-window/installed-detail.ts:96
 msgid "Details"
 msgstr ""
 
 #. %s: version number
-#: src/plugins-window/installed-detail.ts:206
+#: src/plugins-window/installed-detail.ts:207
 msgid "v%s"
 msgstr ""
 
 #. %s: new version available
 #. %s: new plugin version (e.g. "1.4.2")
-#: src/plugins-window/installed-detail.ts:225
+#: src/plugins-window/installed-detail.ts:226
 #: src/plugins-window/installed-view.ts:600
 msgid "Update to %s"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:244
+#: src/plugins-window/installed-detail.ts:245
 msgid "by"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:314
+#: src/plugins-window/installed-detail.ts:315
 msgid "Loading description…"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:319
+#: src/plugins-window/installed-detail.ts:320
 msgid "No description"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:320
+#: src/plugins-window/installed-detail.ts:321
 msgid "This plugin doesn’t ship a description in its header."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:333
+#: src/plugins-window/installed-detail.ts:334
 msgid "View on WordPress.org"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:340
+#: src/plugins-window/installed-detail.ts:341
 msgid "Plugin website"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:345
+#: src/plugins-window/installed-detail.ts:346
 msgid "Author website"
 msgstr ""
 
 #. %s: comma-grouped active install count
-#: src/plugins-window/installed-detail.ts:377
+#: src/plugins-window/installed-detail.ts:378
 msgid "%s+ active installs"
 msgstr ""
 
 #. %s: maximum tested WordPress version
-#: src/plugins-window/installed-detail.ts:401
+#: src/plugins-window/installed-detail.ts:402
 msgid "Tested up to WP %s"
 msgstr ""
 
 #. %s: minimum WordPress version
-#: src/plugins-window/installed-detail.ts:415
+#: src/plugins-window/installed-detail.ts:416
 msgid "Requires WP %s+"
 msgstr ""
 
 #. %s: minimum PHP version
-#: src/plugins-window/installed-detail.ts:427
+#: src/plugins-window/installed-detail.ts:428
 msgid "Requires PHP %s+"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:435
-#: src/plugins-window/installed-detail.ts:497
+#: src/plugins-window/installed-detail.ts:436
+#: src/plugins-window/installed-detail.ts:498
 msgid "Network only"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:450
+#: src/plugins-window/installed-detail.ts:451
 msgid "Plugin file"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:452
+#: src/plugins-window/installed-detail.ts:453
 #: src/plugins-window/installed-view.ts:323
-#: src/settings/sections/about.ts:145
 msgid "Version"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:458
+#: src/plugins-window/installed-detail.ts:459
 msgid "Size on disk"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:466
+#: src/plugins-window/installed-detail.ts:467
 msgid "Requires WordPress"
 msgstr ""
 
 #. %s: version
-#: src/plugins-window/installed-detail.ts:467
-#: src/plugins-window/installed-detail.ts:475
+#: src/plugins-window/installed-detail.ts:468
+#: src/plugins-window/installed-detail.ts:476
 msgid "%s+"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:474
+#: src/plugins-window/installed-detail.ts:475
 msgid "Requires PHP"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:482
+#: src/plugins-window/installed-detail.ts:483
 msgid "Text domain"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:487
+#: src/plugins-window/installed-detail.ts:488
 msgid "Plugin URL"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:490
+#: src/plugins-window/installed-detail.ts:491
 msgid "Author URL"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:496
+#: src/plugins-window/installed-detail.ts:497
 msgid "Scope"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:557
-#: src/plugins-window/installed-detail.ts:682
-#: src/plugins-window/installed-detail.ts:913
+#: src/plugins-window/installed-detail.ts:558
+#: src/plugins-window/installed-detail.ts:683
+#: src/plugins-window/installed-detail.ts:915
 msgid "Loading from WordPress.org…"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:563
+#: src/plugins-window/installed-detail.ts:564
 msgid "No changelog"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:564
+#: src/plugins-window/installed-detail.ts:565
 msgid "This plugin doesn’t ship a changelog."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:598
+#: src/plugins-window/installed-detail.ts:599
 msgid "Latest"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:688
+#: src/plugins-window/installed-detail.ts:689
 msgid "No FAQ"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:689
+#: src/plugins-window/installed-detail.ts:690
 msgid "This plugin doesn’t ship an FAQ."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:943
+#: src/plugins-window/installed-detail.ts:945
 msgid "Couldn’t load reviews"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:944
+#: src/plugins-window/installed-detail.ts:946
 msgid "WordPress.org didn’t respond. Try again in a moment."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:998
+#: src/plugins-window/installed-detail.ts:1000
 msgid "Read all reviews on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:1014
+#: src/plugins-window/installed-detail.ts:1016
 msgid "Reviews live on WordPress.org"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:1015
+#: src/plugins-window/installed-detail.ts:1017
 msgid "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review."
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:1025
+#: src/plugins-window/installed-detail.ts:1027
 msgid "Open reviews on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:1048
+#: src/plugins-window/installed-detail.ts:1050
 msgid "Write a review on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/installed-detail.ts:1091
+#: src/plugins-window/installed-detail.ts:1093
 msgid "Read full review ↗"
 msgstr ""
 
 #. %d: kilobytes
 #. %d: size in kilobytes
-#: src/plugins-window/installed-detail.ts:1223
+#: src/plugins-window/installed-detail.ts:1225
 #: src/plugins-window/installed-view.ts:1333
 msgid "%d KB"
 msgstr ""
 
 #. %s: megabytes (one decimal)
 #. %s: size in megabytes (one decimal)
-#: src/plugins-window/installed-detail.ts:1227
+#: src/plugins-window/installed-detail.ts:1229
 #: src/plugins-window/installed-view.ts:1340
 msgid "%s MB"
 msgstr ""
@@ -5746,6 +5766,7 @@ msgid "Could not resend welcome (%s)."
 msgstr ""
 
 #: src/posts-window/users-render.ts:654
+#: includes/station-home/rest.php:169
 msgid "Content"
 msgstr ""
 
@@ -5950,13 +5971,13 @@ msgstr ""
 msgid "Related"
 msgstr ""
 
-#: src/release-card.ts:352
-#: src/ui/components/os-toast/os-toast.ts:240
+#: src/release-card.ts:351
+#: src/ui/components/os-toast/os-toast.ts:241
 msgid "Dismiss"
 msgstr ""
 
-#: src/release-card.ts:355
-#: src/update-notice.ts:167
+#: src/release-card.ts:354
+#: src/update-notice.ts:180
 msgid "Update now"
 msgstr ""
 
@@ -6119,7 +6140,7 @@ msgid "Dynamic"
 msgstr ""
 
 #: src/settings/labels.ts:78
-#: src/settings/sections/apps-icons.ts:88
+#: src/settings/sections/navigation.ts:157
 msgid "Hidden"
 msgstr ""
 
@@ -6151,86 +6172,173 @@ msgstr ""
 msgid "Every menu in a single dock."
 msgstr ""
 
-#: src/settings/panel.ts:280
-#: src/settings/panel.ts:284
+#: src/settings/panel.ts:285
+#: src/settings/panel.ts:289
 msgid "Appearance"
 msgstr ""
 
-#: src/settings/panel.ts:285
+#: src/settings/panel.ts:290
 msgid "Personalize your desktop. Changes apply instantly and are saved to this browser."
 msgstr ""
 
-#: src/settings/panel.ts:310
-#: src/settings/panel.ts:314
+#: src/settings/panel.ts:315
+#: src/settings/panel.ts:319
 msgid "Windows"
 msgstr ""
 
-#: src/settings/panel.ts:315
+#: src/settings/panel.ts:320
 msgid "How windows look, how they arrive, and how they behave when they are not the one you are using."
 msgstr ""
 
-#: src/settings/panel.ts:327
-#: src/settings/panel.ts:331
+#: src/settings/panel.ts:332
+#: src/settings/panel.ts:336
 msgid "Features"
 msgstr ""
 
-#: src/settings/panel.ts:332
+#: src/settings/panel.ts:337
 msgid "The assistant, the developer tools, and the betas. Every switch here affects only your account and takes effect immediately."
 msgstr ""
 
-#: src/settings/panel.ts:347
-#: src/settings/panel.ts:351
+#: src/settings/panel.ts:352
+#: src/settings/panel.ts:356
 #: includes/ai-copilot/search.php:117
 #: includes/core-notices.php:231
 msgid "Themes"
 msgstr ""
 
-#: src/settings/panel.ts:352
+#: src/settings/panel.ts:357
 msgid "A desktop theme repaints every token at once. A coarser version of what Appearance does one control at a time."
 msgstr ""
 
-#: src/settings/panel.ts:363
-#: src/settings/panel.ts:367
-msgid "Apps & Plugins"
-msgstr ""
-
 #: src/settings/panel.ts:368
-msgid "Everything installed on the station in one place: which apps appear where, and which plugins are extending the desktop."
+#: src/settings/panel.ts:378
+msgid "Navigation"
 msgstr ""
 
-#: src/settings/panel.ts:382
-#: src/settings/panel.ts:386
+#: src/settings/panel.ts:389
+#: src/settings/panel.ts:393
 #: src/settings/sections/help.ts:290
 msgid "Components"
 msgstr ""
 
-#: src/settings/panel.ts:387
+#: src/settings/panel.ts:394
 msgid "Every <os-*> web component shipped by this plugin, with its props, slots, and a live example."
 msgstr ""
 
-#: src/settings/panel.ts:582
-#: src/settings/panel.ts:583
+#: src/settings/panel.ts:584
+#: src/settings/panel.ts:585
 msgid "Search settings"
 msgstr ""
 
-#: src/settings/panel.ts:593
+#: src/settings/panel.ts:595
 msgid "Settings sections"
 msgstr ""
 
-#: src/settings/panel.ts:623
+#: src/settings/panel.ts:625
 msgid "No settings match that."
 msgstr ""
 
-#: src/settings/sections/about.ts:142
-msgid "Crafted with curiosity"
+#. Plugin Name of the plugin
+#: src/settings/sections/about.ts:116
+#: src/settings/sections/navigation.ts:58
+#: desktop-mode.php
+#: includes/ai-copilot/abilities.php:39
+#: includes/wp-icon-registry.php:90
+msgid "OpenStation"
 msgstr ""
 
-#: src/settings/sections/about.ts:143
-msgid "an experiment by Automattic"
+#: src/settings/sections/about.ts:119
+#: src/settings/sections/about.ts:283
+msgid "A public dev diary — building a desktop OS for wp-admin."
 msgstr ""
 
-#: src/settings/sections/about.ts:147
-msgid "Move your cursor through the swarm · click for a spark"
+#: src/settings/sections/about.ts:157
+msgid "Latest dispatch"
+msgstr ""
+
+#: src/settings/sections/about.ts:165
+msgid "Read the dispatch"
+msgstr ""
+
+#: src/settings/sections/about.ts:184
+msgid "Read more"
+msgstr ""
+
+#: src/settings/sections/about.ts:205
+msgid "Opening the journal…"
+msgstr ""
+
+#: src/settings/sections/about.ts:207
+msgid "The latest posts are arriving over RSS."
+msgstr ""
+
+#: src/settings/sections/about.ts:222
+msgid "The journal could not be reached."
+msgstr ""
+
+#: src/settings/sections/about.ts:224
+msgid "You can still read every post on openstation.blog."
+msgstr ""
+
+#: src/settings/sections/about.ts:238
+msgid "No dispatches yet."
+msgstr ""
+
+#: src/settings/sections/about.ts:240
+msgid "The journal is open and waiting for its next post."
+msgstr ""
+
+#: src/settings/sections/about.ts:253
+msgid "Showing the last saved copy while the journal reconnects."
+msgstr ""
+
+#: src/settings/sections/about.ts:260
+msgid "Latest journal posts"
+msgstr ""
+
+#: src/settings/sections/about.ts:295
+msgid "About OpenStation"
+msgstr ""
+
+#: src/settings/sections/about.ts:297
+msgid "A desktop for WordPress."
+msgstr ""
+
+#: src/settings/sections/about.ts:299
+msgid "OpenStation reshapes wp-admin into a personal workspace, with movable windows, a dock, themes, and focused tools that keep your site close at hand."
+msgstr ""
+
+#: src/settings/sections/about.ts:307
+msgid "It is a playful, open-source experiment by Automattic exploring what WordPress can feel like when the dashboard becomes a place of its own."
+msgstr ""
+
+#: src/settings/sections/about.ts:319
+msgid "An experiment by Automattic"
+msgstr ""
+
+#: src/settings/sections/about.ts:327
+msgid "View the project"
+msgstr ""
+
+#: src/settings/sections/about.ts:337
+#: src/settings/sections/about.ts:357
+msgid "OpenStation Journal"
+msgstr ""
+
+#: src/settings/sections/about.ts:339
+msgid "Latest from the station"
+msgstr ""
+
+#: src/settings/sections/about.ts:348
+msgid "Visit the journal"
+msgstr ""
+
+#: src/settings/sections/about.ts:359
+msgid "News and field notes, delivered over RSS."
+msgstr ""
+
+#: src/settings/sections/about.ts:373
+msgid "RSS feed"
 msgstr ""
 
 #: src/settings/sections/accent.ts:110
@@ -6261,34 +6369,6 @@ msgstr ""
 #: src/settings/sections/admin-bar.ts:53
 #: src/settings/sections/admin-bar.ts:58
 msgid "Admin bar"
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:85
-msgid "On the desktop"
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:86
-msgid "On the dock"
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:87
-msgid "On both"
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:140
-msgid "Choose where each app shortcut shows up — on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly to the running shell."
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:146
-msgid "No apps registered yet"
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:147
-msgid "Plugins and the admin menu will appear here once they’re registered."
-msgstr ""
-
-#: src/settings/sections/apps-icons.ts:175
-msgid "Show in"
 msgstr ""
 
 #: src/settings/sections/custom-image.ts:44
@@ -6803,6 +6883,58 @@ msgstr ""
 msgid "Stable"
 msgstr ""
 
+#: src/settings/sections/navigation.ts:44
+msgid "WordPress Core"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:45
+msgid "The admin menus WordPress itself registers."
+msgstr ""
+
+#: src/settings/sections/navigation.ts:53
+msgid "Plugins & Apps"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:54
+msgid "Menus from installed plugins and apps."
+msgstr ""
+
+#: src/settings/sections/navigation.ts:59
+msgid "The OpenStation’s own controls."
+msgstr ""
+
+#: src/settings/sections/navigation.ts:133
+msgid "Choose where each menu shows up: on the dock/sidebar, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly."
+msgstr ""
+
+#: src/settings/sections/navigation.ts:136
+msgid "Choose where each menu shows up: on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly."
+msgstr ""
+
+#: src/settings/sections/navigation.ts:151
+msgid "In the sidebar"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:152
+msgid "On the dock"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:155
+msgid "On the desktop"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:156
+msgid "On both"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:188
+msgid "Nothing registered yet"
+msgstr ""
+
+#: src/settings/sections/navigation.ts:189
+msgid "Plugins and the admin menu will appear here once they’re registered."
+msgstr ""
+
 #: src/settings/sections/themes.ts:137
 msgid "That theme could not be installed."
 msgstr ""
@@ -6911,21 +7043,86 @@ msgstr ""
 msgid "How rounded the corners of windows are."
 msgstr ""
 
-#: src/ui/components/os-notice/os-notice.ts:171
+#: src/station-home/index.ts:190
+msgid "Your desk is clear"
+msgstr ""
+
+#: src/station-home/index.ts:193
+msgid "Start something new and it will be waiting here when you return."
+msgstr ""
+
+#: src/station-home/index.ts:268
+msgid "All clear"
+msgstr ""
+
+#: src/station-home/index.ts:270
+msgid "Nothing needs your attention right now."
+msgstr ""
+
+#: src/station-home/index.ts:307
+msgid "Make this space yours"
+msgstr ""
+
+#: src/station-home/index.ts:309
+msgid "Use Customize to opt in to information from your plugins."
+msgstr ""
+
+#. %s: site name.
+#: src/station-home/index.ts:451
+msgid "Pick up where you left off on %s."
+msgstr ""
+
+#: src/station-home/index.ts:454
+msgid "Pick up where you left off."
+msgstr ""
+
+#: src/station-home/index.ts:494
+msgid "Station Home could not refresh. Your last snapshot is still here."
+msgstr ""
+
+#: src/station-home/index.ts:495
+msgid "Station Home could not load. Try refreshing the window."
+msgstr ""
+
+#: src/station-home/index.ts:560
+msgid "Station Home could not save that card preference. Try again."
+msgstr ""
+
+#: src/station-home/index.ts:600
+#: includes/station-home/rest.php:313
+msgid "Classic Dashboard"
+msgstr ""
+
+#. %s: current user's name.
+#: src/station-home/model.ts:28
+msgid "Good morning, %s"
+msgstr ""
+
+#. %s: current user's name.
+#: src/station-home/model.ts:35
+msgid "Good afternoon, %s"
+msgstr ""
+
+#. %s: current user's name.
+#: src/station-home/model.ts:41
+msgid "Good evening, %s"
+msgstr ""
+
+#: src/ui/components/os-notice/os-notice.ts:172
 msgid "Dismiss notice"
 msgstr ""
 
 #. 1: WordPress version, 2: release codename.
-#: src/update-notice.ts:90
+#: src/update-notice.ts:96
 msgid "WordPress %1$s \"%2$s\" is available."
 msgstr ""
 
 #. %s: WordPress version.
-#: src/update-notice.ts:94
+#: src/update-notice.ts:100
 msgid "WordPress %s is available."
 msgstr ""
 
-#: src/update-notice.ts:134
+#: src/update-notice.ts:144
 #: includes/core-notices.php:91
 msgid "WordPress Updates"
 msgstr ""
@@ -6939,37 +7136,37 @@ msgid "Local time and date, refreshed every second."
 msgstr ""
 
 #. %s is the widget label (e.g., "Clock")
-#: src/widgets/frame.ts:295
+#: src/widgets/frame.ts:306
 msgid "Dock %s back to widget column"
 msgstr ""
 
 #. %s is the widget label (e.g., "Clock")
-#: src/widgets/frame.ts:331
+#: src/widgets/frame.ts:343
 msgid "Remove %s"
 msgstr ""
 
-#: src/widgets/layer.ts:393
-#: src/widgets/layer.ts:400
-#: src/widgets/picker.ts:50
-#: src/widgets/picker.ts:54
+#: src/widgets/layer.ts:454
+#: src/widgets/layer.ts:461
+#: src/widgets/picker.ts:55
+#: src/widgets/picker.ts:59
 msgid "Add widget"
 msgstr ""
 
-#: src/widgets/picker.ts:149
+#: src/widgets/picker.ts:156
 msgid "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API."
 msgstr ""
 
 #. %s is the widget label
-#: src/widgets/picker.ts:172
+#: src/widgets/picker.ts:179
 msgid "%s (already added)"
 msgstr ""
 
 #. %s is the widget label
-#: src/widgets/picker.ts:175
+#: src/widgets/picker.ts:182
 msgid "Add %s"
 msgstr ""
 
-#: src/widgets/picker.ts:202
+#: src/widgets/picker.ts:209
 msgid "Added"
 msgstr ""
 
@@ -6982,7 +7179,7 @@ msgid "Maximize"
 msgstr ""
 
 #: src/window-chrome/controls/built-ins.ts:63
-#: src/window/index.ts:2064
+#: src/window/index.ts:2092
 #: includes/admin-bar.php:69
 #: includes/admin-bar.php:691
 msgid "Enter fullscreen"
@@ -7048,18 +7245,18 @@ msgstr ""
 msgid "Request failed (HTTP %d)."
 msgstr ""
 
-#: src/window/index.ts:2064
+#: src/window/index.ts:2092
 #: includes/admin-bar.php:690
 #: includes/admin-bar.php:692
 msgid "Exit fullscreen"
 msgstr ""
 
-#: src/window/index.ts:3194
+#: src/window/index.ts:3222
 msgid "Not saved."
 msgstr ""
 
 #. %s: error message explaining why the change could not be saved.
-#: src/window/index.ts:3197
+#: src/window/index.ts:3225
 msgid "Not saved. %s"
 msgstr ""
 
@@ -7076,17 +7273,17 @@ msgstr ""
 msgid "Desktop %d"
 msgstr ""
 
-#: src/window-manager/overview.ts:528
+#: src/window-manager/overview.ts:529
 msgid "Add new desktop"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:572
+#: src/window-manager/overview.ts:573
 msgid "Switch to %s"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:611
+#: src/window-manager/overview.ts:612
 msgid "Close %s"
 msgstr ""
 
@@ -7112,15 +7309,9 @@ msgstr ""
 msgid "Opened \"%s\" in a new browser tab — this site doesn't allow embedding."
 msgstr ""
 
-#: src/ai-assistant/impl.ts:1682
+#: src/ai-assistant/impl.ts:1703
 msgctxt "fallback name for the post a comment was left on"
 msgid "post"
-msgstr ""
-
-#. Plugin Name of the plugin
-#: desktop-mode.php
-#: includes/ai-copilot/abilities.php:39
-msgid "OpenStation"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -7141,6 +7332,14 @@ msgstr ""
 #. Author URI of the plugin
 #: desktop-mode.php
 msgid "https://github.com/allterraindeveloper"
+msgstr ""
+
+#: includes/about-feed.php:169
+msgid "You cannot load OpenStation updates."
+msgstr ""
+
+#: includes/about-feed.php:177
+msgid "The OpenStation journal is temporarily unavailable."
 msgstr ""
 
 #: includes/accents.php:39
@@ -7695,6 +7894,7 @@ msgid "Change, install, or customize the active theme."
 msgstr ""
 
 #: includes/ai-copilot/search.php:123
+#: includes/station-home/window.php:95
 msgid "Customize"
 msgstr ""
 
@@ -7704,6 +7904,7 @@ msgstr ""
 
 #: includes/ai-copilot/search.php:129
 #: includes/render/shell.php:80
+#: includes/wp-icon-registry.php:48
 msgid "Widgets"
 msgstr ""
 
@@ -8064,7 +8265,9 @@ msgid "Go to Themes"
 msgstr ""
 
 #. translators: %s: number of pending updates.
-#: includes/core/payload.php:1267
+#. translators: %s: update count.
+#: includes/core/payload.php:1642
+#: includes/station-home/rest.php:364
 #, php-format
 msgid "%s update available"
 msgid_plural "%s updates available"
@@ -8072,7 +8275,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1581
+#: includes/core/payload.php:1956
 #, php-format
 msgid "%1$s script handle \"%2$s\" is not registered with WordPress (no `wp_register_script` call found). The script will not load."
 msgstr ""
@@ -8936,7 +9139,7 @@ msgstr ""
 
 #: includes/games/window.php:92
 #: includes/games/window.php:125
-#: includes/games/window.php:151
+#: includes/games/window.php:158
 msgid "Games"
 msgstr ""
 
@@ -9071,6 +9274,7 @@ msgid "Woo"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:214
+#: includes/station-home/window.php:81
 msgid "Needs attention"
 msgstr ""
 
@@ -9206,6 +9410,7 @@ msgid "ISO-8601 of latest publish; empty when the user has none."
 msgstr ""
 
 #: includes/my-wordpress/window.php:46
+#: includes/station-home/rest.php:305
 msgid "WP Explorer"
 msgstr ""
 
@@ -9526,55 +9731,55 @@ msgstr ""
 msgid "Deleted posts, pages, and media show up here. Restoring puts them back where they were."
 msgstr ""
 
-#: includes/registries/icons.php:93
+#: includes/registries/icons.php:97
 msgid "Desktop icon id is required and must be a valid slug."
 msgstr ""
 
-#: includes/registries/icons.php:118
+#: includes/registries/icons.php:122
 msgid "Desktop icon `icon_svg` must not contain a <script> tag."
 msgstr ""
 
-#: includes/registries/icons.php:125
+#: includes/registries/icons.php:129
 msgid "Desktop icon `icon_svg` must start with a <svg> root element."
 msgstr ""
 
 #. translators: %s: capability slug.
-#: includes/registries/icons.php:138
+#: includes/registries/icons.php:142
 #, php-format
 msgid "Current user lacks the %s capability required to register this desktop icon."
 msgstr ""
 
-#: includes/registries/icons.php:152
+#: includes/registries/icons.php:156
 msgid "Desktop icon registration requires a non-empty `title`."
 msgstr ""
 
-#: includes/registries/icons.php:162
+#: includes/registries/icons.php:166
 msgid "Desktop icon cannot declare both `window` and `url`; pick one target."
 msgstr ""
 
-#: includes/registries/icons.php:169
+#: includes/registries/icons.php:173
 msgid "Desktop icon must declare a `window` id or a `url` target."
 msgstr ""
 
-#: includes/registries/icons.php:181
+#: includes/registries/icons.php:185
 msgid "Desktop icon `url` must be a valid http(s) URL."
 msgstr ""
 
-#: includes/registries/native-windows.php:196
+#: includes/registries/native-windows.php:208
 msgid "Native window id is required and must be a valid slug."
 msgstr ""
 
 #. translators: %s: capability slug.
-#: includes/registries/native-windows.php:236
+#: includes/registries/native-windows.php:249
 #, php-format
 msgid "Current user lacks the %s capability required to register this native window."
 msgstr ""
 
-#: includes/registries/native-windows.php:251
+#: includes/registries/native-windows.php:264
 msgid "Native window registration requires a non-empty `title`."
 msgstr ""
 
-#: includes/registries/native-windows.php:258
+#: includes/registries/native-windows.php:271
 msgid "Native window registration requires a callable `template` that echoes the template body."
 msgstr ""
 
@@ -9645,7 +9850,7 @@ msgid "Window tab registration requires a callable `template` that echoes the pa
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:1050
+#: includes/render/assets.php:1055
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -9674,6 +9879,119 @@ msgstr ""
 msgid "Settings tab registration requires a non-empty `label`."
 msgstr ""
 
+#: includes/station-home/cards.php:68
+msgid "Station Home card id is required and must be a valid slug."
+msgstr ""
+
+#. translators: %s: capability slug.
+#: includes/station-home/cards.php:92
+#, php-format
+msgid "Current user lacks the %s capability required to register this Station Home card."
+msgstr ""
+
+#: includes/station-home/cards.php:107
+msgid "Station Home card registration requires a non-empty `label`."
+msgstr ""
+
+#: includes/station-home/cards.php:114
+msgid "Station Home card registration requires a callable `callback`."
+msgstr ""
+
+#: includes/station-home/rest.php:73
+msgid "That Station Home card is not available."
+msgstr ""
+
+#: includes/station-home/rest.php:168
+msgid "(Untitled)"
+msgstr ""
+
+#: includes/station-home/rest.php:280
+msgid "New post"
+msgstr ""
+
+#: includes/station-home/rest.php:289
+msgid "Upload media"
+msgstr ""
+
+#: includes/station-home/rest.php:297
+msgid "View site"
+msgstr ""
+
+#. translators: %s: pending comment count.
+#: includes/station-home/rest.php:350
+#, php-format
+msgid "%s pending comment"
+msgid_plural "%s pending comments"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/station-home/rest.php:353
+msgid "Review and reply to keep the conversation moving."
+msgstr ""
+
+#: includes/station-home/rest.php:367
+msgid "Keep WordPress, themes, and plugins current."
+msgstr ""
+
+#. translators: %s: image count.
+#: includes/station-home/rest.php:378
+#, php-format
+msgid "%s image needs alt text"
+msgid_plural "%s images need alt text"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/station-home/rest.php:381
+msgid "Add a useful description for people using assistive technology."
+msgstr ""
+
+#: includes/station-home/rest.php:400
+msgid "Pending comments"
+msgstr ""
+
+#: includes/station-home/window.php:26
+#: includes/station-home/window.php:39
+#: includes/station-home/window.php:53
+#: includes/station-home/window.php:142
+msgid "Station Home"
+msgstr ""
+
+#: includes/station-home/window.php:45
+msgid "Quick actions"
+msgstr ""
+
+#: includes/station-home/window.php:55
+msgid "Your site at a glance."
+msgstr ""
+
+#: includes/station-home/window.php:61
+msgid "Refresh Station Home"
+msgstr ""
+
+#: includes/station-home/window.php:71
+msgid "Continue working"
+msgstr ""
+
+#: includes/station-home/window.php:76
+msgid "Site pulse"
+msgstr ""
+
+#: includes/station-home/window.php:92
+msgid "From your plugins"
+msgstr ""
+
+#: includes/station-home/window.php:106
+msgid "Customize Station Home"
+msgstr ""
+
+#: includes/station-home/window.php:110
+msgid "Choose which plugin cards can show information on your Station Home."
+msgstr ""
+
+#: includes/station-home/window.php:117
+msgid "Preparing your station…"
+msgstr ""
+
 #: includes/themes-tabs.php:59
 msgid "Add Theme"
 msgstr ""
@@ -9687,7 +10005,7 @@ msgid "Choose how your site greets the world."
 msgstr ""
 
 #: includes/themes-tabs.php:132
-msgid "Your theme shapes the templates, typography, colours, and layout visitors see. Your posts and pages stay in place when you switch."
+msgid "Themes shape your site’s look. Switching keeps your posts and pages in place."
 msgstr ""
 
 #: includes/themes-tabs.php:147
@@ -10049,11 +10367,11 @@ msgstr ""
 msgid "A daily quote from the jazz musician behind your WordPress version."
 msgstr ""
 
-#: includes/widgets/widget-notes.php:75
+#: includes/widgets/widget-notes.php:79
 msgid "Note Pad"
 msgstr ""
 
-#: includes/widgets/widget-notes.php:76
+#: includes/widgets/widget-notes.php:80
 msgid "Write a note and drag it onto the desktop to pin it."
 msgstr ""
 
@@ -10185,6 +10503,46 @@ msgstr ""
 
 #: includes/window-notices.php:140
 msgid "Window notice `tone` must be one of the documented values."
+msgstr ""
+
+#: includes/wp-icon-registry.php:40
+msgid "Window"
+msgstr ""
+
+#: includes/wp-icon-registry.php:41
+msgid "All windows"
+msgstr ""
+
+#: includes/wp-icon-registry.php:42
+msgid "Dock"
+msgstr ""
+
+#: includes/wp-icon-registry.php:43
+msgid "Spaces"
+msgstr ""
+
+#: includes/wp-icon-registry.php:44
+msgid "Copilot"
+msgstr ""
+
+#: includes/wp-icon-registry.php:45
+msgid "Snap layout"
+msgstr ""
+
+#: includes/wp-icon-registry.php:46
+msgid "Command palette"
+msgstr ""
+
+#: includes/wp-icon-registry.php:47
+msgid "Apps"
+msgstr ""
+
+#: includes/wp-icon-registry.php:50
+msgid "Lock"
+msgstr ""
+
+#: includes/wp-icon-registry.php:91
+msgid "Icons for the desktop shell: windows, spaces, the dock, and the command palette."
 msgstr ""
 
 #: assets/desktop-themes/legacy/theme.json

@@ -1880,28 +1880,17 @@
 }
 
 /*
- * About tab — full-tabpanel PixiJS canvas. Every credit string and
- * the AUTOMATTIC logotype (formed by particles) render inside Pixi
- * itself; this stylesheet only sizes the host so the canvas fills
- * the available height + width without any HTML chrome around it.
- *
- * The chain is: tabpanel → os-panel → .about (flex column) →
- * .about-stage-host (the canvas mounts here). Each link sets
- * `flex: 1; min-height: 0;` so the canvas inherits the tabpanel's
- * full inner height instead of hugging an intrinsic minimum.
- *
- * @since 0.8.0
+ * About tab — product context first, then a compact editorial front page
+ * for openstation.blog. The quiet overview establishes what OpenStation is;
+ * the first story remains the one expressive hero on the page.
  */
-.os-settings
-	> os-tabpanel[ for='about' ]:not( [ hidden ] ) {
+.os-settings > os-tabpanel[ for='about' ]:not( [ hidden ] ) {
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
+	overflow: auto;
 }
 
-.os-settings
-	> os-tabpanel[ for='about' ]:not( [ hidden ] )
-	> os-panel {
+.os-settings > os-tabpanel[ for='about' ]:not( [ hidden ] ) > os-panel {
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -1911,32 +1900,518 @@
 .os-settings__about {
 	flex: 1;
 	min-height: 0;
+	margin: 0;
+	color: var( --os-ui-fg, #1d2327 );
+	background:
+		radial-gradient(
+			circle at 92% 0%,
+			color-mix(
+				in srgb,
+				var( --os-ui-accent-dim, #d92ee3 ) 10%,
+				transparent
+			),
+			transparent 30%
+		),
+		var( --os-ui-surface-sunken, #f0f0f1 );
+	container: os-about / inline-size;
+}
+
+.os-settings__about-inner {
+	width: min( 100%, 1120px );
+	box-sizing: border-box;
+	margin: 0 auto;
+	padding: clamp( 24px, 4cqi, 48px );
+}
+
+.os-settings__about-overview {
+	display: grid;
+	grid-template-columns: minmax( 0, 1.3fr ) minmax( 260px, 0.8fr );
+	gap: clamp( 28px, 5cqi, 56px );
+	padding-bottom: clamp( 26px, 4cqi, 40px );
+	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-identity {
+	display: flex;
+	align-items: flex-start;
+	gap: 18px;
+	min-width: 0;
+}
+
+.os-settings__about-identity img {
+	display: block;
+	width: 64px;
+	height: 64px;
+	flex: 0 0 64px;
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var( --os-ui-border, #dcdcde ) 78%,
+			var( --os-ui-surface, #fff )
+		);
+	border-radius: 16px;
+	box-shadow: var( --os-ui-shadow-md, 0 12px 30px rgba( 0, 0, 0, 0.14 ) );
+}
+
+.os-settings__about-eyebrow,
+.os-settings__about-kicker {
+	display: block;
+	margin: 0 0 4px;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 10px;
+	font-weight: 750;
+	letter-spacing: 0.14em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.os-settings__about-overview h2,
+.os-settings__about-journal-head h2 {
+	margin: 0;
+	font-size: clamp( 25px, 4.5cqi, 38px );
+	font-weight: 670;
+	letter-spacing: -0.045em;
+	line-height: 1.06;
+}
+
+.os-settings__about-overview p,
+.os-settings__about-journal-head p {
+	max-width: 620px;
+	margin: 8px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.os-settings__about-story {
+	display: flex;
+	min-width: 0;
+	padding-inline-start: clamp( 20px, 3cqi, 34px );
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 20px;
+	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-story > p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.os-settings__about-meta {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 18px;
+}
+
+.os-settings__about-meta > span {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.os-settings__about-meta strong {
+	font-size: 12px;
+}
+
+.os-settings__about-meta small {
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 10px;
+}
+
+.os-settings__about-meta a {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 11px;
+	font-weight: 650;
+	text-decoration: none;
+}
+
+.os-settings__about-meta a:hover {
+	text-decoration: underline;
+}
+
+.os-settings__about-journal-head {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 28px;
+	margin: clamp( 26px, 4cqi, 40px ) 0 18px;
+}
+
+.os-settings__about-journal-head h2 {
+	font-size: clamp( 22px, 3.7cqi, 31px );
+}
+
+.os-settings__about-journal-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	min-height: 38px;
+	box-sizing: border-box;
+	padding: 7px 14px;
+	flex: 0 0 auto;
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+	border-radius: 999px;
+	font-weight: 650;
+	text-decoration: none;
+	transition:
+		border-color 0.16s ease,
+		box-shadow 0.16s ease,
+		transform 0.16s ease;
+}
+
+.os-settings__about-journal-link:hover {
+	color: var( --os-ui-fg, #1d2327 );
+	border-color: var( --os-ui-accent, #2271b1 );
+	box-shadow: var( --os-ui-holo-glow, 0 4px 14px rgba( 0, 0, 0, 0.12 ) );
+	transform: translateY( -1px );
+}
+
+.os-settings__about-journal-link:focus-visible,
+.os-settings__about-meta a:focus-visible,
+.os-settings__about-featured > a:focus-visible,
+.os-settings__about-card > a:focus-visible,
+.os-settings__about-footer a:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: 3px;
+}
+
+.os-settings__about-feed {
 	display: flex;
 	flex-direction: column;
+	gap: 18px;
+}
+
+.os-settings__about-featured {
+	position: relative;
+	min-height: 270px;
 	margin: 0;
-	/* Edge-to-edge — no border-radius / box-shadow framing — so the
-	 * canvas (and the logotype centred inside it) consume the entire
-	 * tabpanel surface. The gradient is just the colour-of-last-resort
-	 * underneath while Pixi initialises; once the canvas is rendering
-	 * it covers every pixel of this element anyway. */
-	background: linear-gradient( 180deg, #060a1c 0%, #0c1733 100% );
 	overflow: hidden;
+	background:
+		var(
+			--os-ui-hero-mesh,
+			linear-gradient(
+				145deg,
+				rgba( 34, 113, 177, 0.16 ) 0%,
+				rgba( 34, 113, 177, 0.06 ) 55%,
+				rgba( 34, 113, 177, 0 ) 100%
+			)
+		),
+		var( --os-ui-surface-sunken, #f0f0f1 );
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var( --os-ui-accent-dim, #d92ee3 ) 34%,
+			var( --os-ui-border, #dcdcde )
+		);
+	border-radius: 18px;
+	box-shadow: var( --os-ui-shadow-md, 0 18px 44px rgba( 0, 0, 0, 0.2 ) );
 }
 
-.os-settings__about-stage-host {
-	flex: 1;
-	min-height: 0;
-	width: 100%;
-	overflow: hidden;
-	cursor: crosshair;
+.os-settings__about-featured::after {
+	position: absolute;
+	inset: -34% -8% auto auto;
+	width: 45%;
+	aspect-ratio: 1;
+	background: radial-gradient(
+		circle,
+		color-mix( in srgb, var( --os-ui-fg, #fff ) 24%, transparent ),
+		transparent 66%
+	);
+	content: "";
+	pointer-events: none;
 }
 
-.os-settings__about-stage-host canvas {
-	display: block;
-	width: 100%;
+.os-settings__about-featured > a {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	min-height: 270px;
+	box-sizing: border-box;
+	padding: clamp( 26px, 4.5cqi, 48px );
+	flex-direction: column;
+	justify-content: space-between;
+	color: var( --os-ui-fg, #1d2327 );
+	text-decoration: none;
+}
+
+.os-settings__about-featured-copy {
+	max-width: 760px;
+}
+
+.os-settings__about-featured .os-settings__about-kicker {
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+}
+
+.os-settings__about-featured h3 {
+	max-width: 780px;
+	margin: 0;
+	font-size: clamp( 26px, 5.2cqi, 46px );
+	font-weight: 680;
+	letter-spacing: -0.045em;
+	line-height: 1.02;
+}
+
+.os-settings__about-featured p {
+	max-width: 700px;
+	margin: 16px 0 0;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.os-settings__about-featured footer {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 24px;
+	margin-top: 32px;
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 11px;
+}
+
+.os-settings__about-featured footer strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var( --os-ui-fg, #1d2327 );
+	font-size: 12px;
+}
+
+.os-settings__about-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 200px, 1fr ) );
+	gap: 14px;
+}
+
+.os-settings__about-card {
+	min-width: 0;
+	margin: 0;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 13px;
+	box-shadow: var( --os-ui-shadow-sm, 0 3px 10px rgba( 0, 0, 0, 0.07 ) );
+	transition:
+		border-color 0.16s ease,
+		box-shadow 0.16s ease,
+		transform 0.16s ease;
+}
+
+.os-settings__about-card:hover {
+	border-color: var( --os-ui-border-strong, #8c8f94 );
+	box-shadow: var( --os-ui-shadow-md, 0 10px 24px rgba( 0, 0, 0, 0.13 ) );
+	transform: translateY( -2px );
+}
+
+.os-settings__about-card > a {
+	display: flex;
 	height: 100%;
+	box-sizing: border-box;
+	padding: 18px;
+	flex-direction: column;
+	color: var( --os-ui-fg, #1d2327 );
+	text-decoration: none;
 }
 
+.os-settings__about-card-meta {
+	min-height: 17px;
+	color: var( --os-ui-fg-faint, #646970 );
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.os-settings__about-card h3 {
+	margin: 10px 0 0;
+	font-size: 16px;
+	font-weight: 660;
+	letter-spacing: -0.018em;
+	line-height: 1.24;
+}
+
+.os-settings__about-card p {
+	display: -webkit-box;
+	margin: 10px 0 18px;
+	overflow: hidden;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 12px;
+	line-height: 1.5;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 4;
+}
+
+.os-settings__about-card strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: auto;
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+	font-size: 11px;
+}
+
+.os-settings__about-status {
+	display: flex;
+	min-height: 180px;
+	box-sizing: border-box;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 28px;
+	background: var( --os-ui-surface-elevated, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 14px;
+	text-align: start;
+}
+
+.os-settings__about-status > .dashicons,
+.os-settings__about-spinner {
+	width: 28px;
+	height: 28px;
+	flex: 0 0 28px;
+}
+
+.os-settings__about-status > .dashicons {
+	color: var( --os-ui-accent, #2271b1 );
+	font-size: 28px;
+}
+
+.os-settings__about-spinner {
+	box-sizing: border-box;
+	border: 2px solid var( --os-ui-border-strong, #a7aaad );
+	border-top-color: var( --os-ui-accent, #2271b1 );
+	border-radius: 50%;
+	animation: os-about-spin 0.75s linear infinite;
+}
+
+.os-settings__about-status div {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.os-settings__about-status strong {
+	font-size: 14px;
+}
+
+.os-settings__about-status div span {
+	color: var( --os-ui-fg-muted, #50575e );
+}
+
+.os-settings__about-stale {
+	margin: 0 0 10px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-size: 11px;
+	text-align: end;
+}
+
+.os-settings__about-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	margin-top: 28px;
+	padding-top: 18px;
+	color: var( --os-ui-fg-muted, #50575e );
+	border-top: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-settings__about-footer p {
+	display: flex;
+	margin: 0;
+	flex-direction: column;
+	font-size: 11px;
+}
+
+.os-settings__about-footer p strong {
+	color: var( --os-ui-fg, #1d2327 );
+	font-size: 12px;
+}
+
+.os-settings__about-footer a {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var( --os-ui-fg-muted, #50575e );
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.os-settings__about-footer a:hover {
+	color: var( --os-ui-accent-strong, var( --os-ui-accent, #2271b1 ) );
+}
+
+.os-settings__about-footer .dashicons {
+	width: 15px;
+	height: 15px;
+	font-size: 15px;
+}
+
+@keyframes os-about-spin {
+	to {
+		transform: rotate( 360deg );
+	}
+}
+
+@container os-about ( max-width: 680px ) {
+	.os-settings__about-overview {
+		grid-template-columns: 1fr;
+		gap: 22px;
+	}
+
+	.os-settings__about-identity {
+		align-items: flex-start;
+	}
+
+	.os-settings__about-identity img {
+		width: 52px;
+		height: 52px;
+		flex-basis: 52px;
+		border-radius: 13px;
+	}
+
+	.os-settings__about-story {
+		padding: 20px 0 0;
+		border-top: 1px solid var( --os-ui-border, #dcdcde );
+		border-inline-start: 0;
+	}
+
+	.os-settings__about-journal-head {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.os-settings__about-featured footer,
+	.os-settings__about-footer {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.os-settings__about-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-settings__about-spinner {
+		animation: none;
+	}
+
+	.os-settings__about-journal-link,
+	.os-settings__about-card {
+		transition: none;
+	}
+}
 
 /* Navigation section — per-item placement chooser. */
 /*

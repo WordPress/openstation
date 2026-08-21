@@ -857,7 +857,7 @@ manager.closeDesktop( id: string ): void;
     width?:        number;
     height?:       number;
     initialState?: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
-    submenu?:      { title: string; url: string }[];
+    submenu?:      { title: string; url: string; offSite?: boolean }[];
 }
 ```
 
@@ -911,7 +911,7 @@ Ownership is about z-order and focus. For a *visual* relationship between peer w
 
 To react to a blocked focus attempt, subscribe to [`os-window-child-blocked`](#os-window-child-blocked) or the `os.window.child-blocked` action.
 
-**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Entries flagged `offSite` are skipped: a tab loads its URL into this window's iframe, which an off-site origin refuses. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
 
 Every iframe window gets the strip element, whether or not it has a submenu, because external sub-tabs can be added to it later. Its navigation semantics follow its contents: `role="tablist"` plus an `aria-label` of `"<title> sub-pages"` while it holds tabs, `role="presentation"` while it is empty — so a window with no sub-pages never advertises an empty tab list to assistive tech.
 
@@ -2992,7 +2992,7 @@ Register a visual treatment applied to every window that **isn't** focused — s
 
 At least one of `className` / `apply` is required.
 
-> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph and posts mind-map / tag-cloud) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
 
 ```javascript
 wp.os.ready( () => {
@@ -4798,7 +4798,7 @@ interface DockItem {
     icon:     string;        // dashicon class | `data:` URI | `http(s):` URL
     url:      string;        // admin URL the tile opens
     badge:    number;        // numeric badge; 0 = no badge
-    submenu:  { title: string; url: string }[];
+    submenu:  { title: string; url: string; offSite?: boolean }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
     pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
@@ -4826,6 +4826,10 @@ interface DockItem {
 - `submenu.length > 0` reliably means "has real child links" — every entry points at a distinct URL.
 
 A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
+
+**`submenu[].offSite`** — the row leaves the site. Off-site admin-menu entries are dropped server-side; the survivors are children of a plugin's own menu (a docs or account link), and they carry this flag. Nothing off-site can load in an iframe, so a surface that routes a URL into a window must skip them: the in-window tab strip does, and the constellation flyout marks them with an outbound glyph and hands them to the browser instead. `tryOpenExternalUrl()` is the shared escape; a renderer calling `openSubmenuPick` gets it for free.
+
+The name is `offSite` rather than `external` because the tab strip already spends that word on a different thing: a tab with `data-kind="external"` is a plugin-opened sub-iframe, which is on-site.
 
 **Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OpenStation Preferences, plugin native-window launchers).
 
@@ -5241,7 +5245,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Preferences snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Preferences changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Preferences state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `aboutFeedUrl` (authenticated admin-AJAX URL used lazily by About's OpenStation Journal view); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 

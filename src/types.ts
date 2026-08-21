@@ -131,8 +131,11 @@ export interface WindowConfig {
 	 * Submenu items that render as a tab strip below the title bar.
 	 * Each tab navigates the iframe within the same window — no new window opens.
 	 * Pass an empty array (or omit) to hide the strip.
+	 *
+	 * Rows flagged `offSite` are carried through but never become
+	 * tabs: the iframe can't load an off-site URL.
 	 */
-	submenu?: { title: string; url: string }[];
+	submenu?: { title: string; url: string; offSite?: boolean }[];
 	/**
 	 * Optional initial state. When present, the window is constructed
 	 * into this state directly — used by session restore so a minimized
@@ -1597,7 +1600,7 @@ export interface DockItemConfig {
 	/** Badge count (updates, comments, etc.). */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string }[];
+	submenu: { title: string; url: string; offSite?: boolean }[];
 	/**
 	 * WordPress's own label for this menu's landing page ("Themes",
 	 * "All Posts"), stripped out of `submenu` as the self-link. Names
@@ -2230,13 +2233,10 @@ export interface DesktopConfig {
 	 */
 	aiAssistantBundleUrl?: string;
 	/**
-	 * Fully-qualified URL of the lazy-loaded About-scene bundle —
-	 * the script `<script>`-injected by the main-bundle loader the
-	 * first time the user opens OS Settings → About. Hosts a single
-	 * 25 kB PixiJS particle scene; never reached unless the user
-	 * navigates to that tab.
+	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
+	 * RSS payload. Requested only when the About tab first becomes visible.
 	 */
-	aboutSceneBundleUrl?: string;
+	aboutFeedUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy-loaded OS Settings panel
 	 * bundle. The main bundle ships a thin `OsSettings.renderPanel`

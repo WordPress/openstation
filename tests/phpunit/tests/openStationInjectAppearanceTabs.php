@@ -196,6 +196,7 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'class="openstation-themes-intro"', $output );
 		$this->assertStringContainsString( 'Choose how your site greets the world.', $output );
+		$this->assertStringContainsString( 'Switching keeps your posts and pages in place.', $output );
 		$this->assertStringContainsString( 'openstation-themes-intro__count', $output );
 	}
 
