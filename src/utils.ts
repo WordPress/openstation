@@ -66,8 +66,37 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// should open a new window, not refocus the existing footer one.
 	// Without `p` in identity, every site-editor URL collapses to
 	// `site-editor-php` and the second pick is a no-op.
+	//
+	// It is deliberately NOT page identity — see
+	// IN_SCREEN_ROUTE_PARAMS below.
 	'p',
 ];
+
+/**
+ * Identity params that separate WINDOWS but not PAGES.
+ *
+ * `p` is the site editor's own client-side route. Two templates are
+ * two windows, which is why `p` is in {@link IDENTITY_PARAMS} — but
+ * they are not two admin *pages*: `site-editor.php` is one screen
+ * with a router behind it, the same way `nav-menus.php?action=…` is
+ * one screen with sub-views.
+ *
+ * Keeping `p` out of {@link pageIdentityKey} is what lets the submenu
+ * tab strip stay lit in there. WordPress redirects a bare
+ * `site-editor.php` carrying ANY query string — and ours always
+ * carries `openstation_chromeless=1` — to `site-editor.php?…&p=/`, so
+ * the URL the iframe lands on never matches the plain
+ * `site-editor.php` the Appearance window's "Editor" tab declares.
+ * Counting `p` as page identity meant the whole strip went dark the
+ * moment the editor finished loading, and stayed dark for every
+ * template the user opened inside it.
+ */
+const IN_SCREEN_ROUTE_PARAMS: readonly string[] = [ 'p' ];
+
+/** {@link IDENTITY_PARAMS} minus the params that only route within a screen. */
+const PAGE_IDENTITY_PARAMS: readonly string[] = IDENTITY_PARAMS.filter(
+	( key ) => ! IN_SCREEN_ROUTE_PARAMS.includes( key ),
+);
 
 /**
  * Collapse a URL path (plus its significant query params) into a clean
@@ -176,16 +205,18 @@ export function applyTileEntryStagger( tile: HTMLElement ): void {
  * Returns a key identifying the admin *page* a URL points at, ignoring
  * every param that only varies the view of that page — `action`,
  * `paged`, `s`, filters, nonces, feedback flags. Only
- * {@link IDENTITY_PARAMS} survive, so `nav-menus.php`,
+ * {@link PAGE_IDENTITY_PARAMS} survive, so `nav-menus.php`,
  * `nav-menus.php?action=locations`, and `nav-menus.php?action=edit&menu=2`
  * all collapse to the same key, while `edit-tags.php?taxonomy=category`
  * and `edit-tags.php?taxonomy=post_tag` stay apart.
  *
- * Same identity rule {@link deriveWindowId} uses to decide which window
- * owns a URL, minus the slugification — this variant compares URLs
- * rather than minting DOM ids, so it keeps the raw pathname and needs
- * no `adminUrl` base. Used by the submenu tab strip to keep a tab lit
- * while the user moves around within its page.
+ * Nearly the identity rule {@link deriveWindowId} uses to decide which
+ * window owns a URL, minus the slugification — this variant compares
+ * URLs rather than minting DOM ids, so it keeps the raw pathname and
+ * needs no `adminUrl` base. Used by the submenu tab strip to keep a
+ * tab lit while the user moves around within its page, which is also
+ * why it drops {@link IN_SCREEN_ROUTE_PARAMS}: a route *inside* one
+ * screen is a different window but the same page.
  *
  * Falls back to the raw URL if parsing fails.
  */
@@ -193,7 +224,7 @@ export function pageIdentityKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
 		const significant = new URLSearchParams();
-		for ( const key of IDENTITY_PARAMS ) {
+		for ( const key of PAGE_IDENTITY_PARAMS ) {
 			const value = parsed.searchParams.get( key );
 			if ( value ) {
 				significant.set( key, value );

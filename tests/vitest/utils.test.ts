@@ -6,6 +6,7 @@
 import { describe, expect, test } from 'vitest';
 import {
 	deriveWindowId,
+	pageIdentityKey,
 	sanitizeClassName,
 	sanitizeIconSvg,
 	urlMatchKey,
@@ -143,12 +144,55 @@ describe( 'utils/deriveWindowId', () => {
 		expect( one ).not.toBe( two );
 	} );
 
+	test( 'separates site-editor entities by the `p` route', () => {
+		const home = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
+			ADMIN,
+		);
+		const footer = deriveWindowId(
+			`${ ADMIN }site-editor.php?p=/wp_template_part/twentytwentyfive//footer`,
+			ADMIN,
+		);
+		expect( home ).not.toBe( footer );
+	} );
+
 	test( 'falls back to slugify for non-URL input', () => {
 		expect( deriveWindowId( 'index.php', ADMIN ) ).toBe( 'index-php' );
 	} );
 
 	test( 'returns a default slug for empty paths', () => {
 		expect( deriveWindowId( ADMIN, ADMIN ) ).toBe( 'index' );
+	} );
+} );
+
+describe( 'utils/pageIdentityKey', () => {
+	test( 'collapses a screen’s own sub-views onto one key', () => {
+		expect( pageIdentityKey( `${ ADMIN }nav-menus.php?action=locations` ) ).toBe(
+			pageIdentityKey( `${ ADMIN }nav-menus.php` ),
+		);
+	} );
+
+	test( 'keeps genuinely different pages apart', () => {
+		expect(
+			pageIdentityKey( `${ ADMIN }edit-tags.php?taxonomy=category` ),
+		).not.toBe(
+			pageIdentityKey( `${ ADMIN }edit-tags.php?taxonomy=post_tag` ),
+		);
+	} );
+
+	test( 'ignores the site editor’s `p` route', () => {
+		// `p` separates WINDOWS (two templates are two windows) but not
+		// PAGES: `site-editor.php` is one screen with a router behind
+		// it, and WordPress redirects the bare URL to `?p=/` on arrival.
+		// Counting it as page identity blanked the Appearance window's
+		// tab strip the moment the editor loaded.
+		const bare = pageIdentityKey( `${ ADMIN }site-editor.php` );
+		expect( pageIdentityKey( `${ ADMIN }site-editor.php?p=/` ) ).toBe( bare );
+		expect(
+			pageIdentityKey(
+				`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
+			),
+		).toBe( bare );
 	} );
 } );
 
