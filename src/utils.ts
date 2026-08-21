@@ -65,23 +65,19 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// the user's perspective — picking "Header" after "Footer column"
 	// should open a new window, not refocus the existing footer one.
 	// Without `p` in identity, every site-editor URL collapses to
-	// `site-editor-php` and the second pick is a no-op. Page identity
-	// deliberately drops it — see PAGE_IDENTITY_PARAMS.
+	// `site-editor-php` and the second pick is a no-op.
 	'p',
 ];
 
 /**
  * {@link IDENTITY_PARAMS} minus `p`, the site editor's own route.
  *
- * `p` separates WINDOWS — two templates are two windows — but not
- * PAGES: `site-editor.php` is one screen with a client-side router
- * behind it, the way `nav-menus.php?action=…` is one screen with
- * sub-views. WordPress also redirects a bare `site-editor.php`
- * carrying ANY query string — and ours always carries
- * `openstation_chromeless=1` — to `site-editor.php?…&p=/`, so counting
- * `p` as page identity left the URL the iframe lands on owned by no
- * tab at all, and the Appearance window's whole strip went dark the
- * moment the editor loaded.
+ * `p` separates windows — two templates are two windows — but not
+ * pages: `site-editor.php` is one screen with a client-side router
+ * behind it. WordPress redirects it, carrying any query string (ours
+ * always carries `openstation_chromeless=1`), to `…&p=/`, so counting
+ * `p` here left that URL owned by no submenu tab and the Appearance
+ * window's whole strip went dark once the editor loaded.
  */
 const PAGE_IDENTITY_PARAMS: readonly string[] = IDENTITY_PARAMS.filter(
 	( key ) => key !== 'p',

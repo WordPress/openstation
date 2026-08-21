@@ -177,13 +177,8 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'the site editor’s own route keeps the Editor tab lit', () => {
-		// Regression: WordPress redirects `site-editor.php` carrying any
-		// query string — ours always carries the chromeless flag — to
-		// `site-editor.php?…&p=/`, so the URL the iframe lands on is
-		// never the URL the tab declares. With `p` counted as page
-		// identity the whole Appearance strip went dark the moment the
-		// editor finished loading, and stayed dark for every template
-		// opened inside it.
+		// WordPress redirects `site-editor.php` to `…&p=/`, so the URL
+		// the iframe lands on is never the URL the tab declares.
 		const win = mockTabbedWindow( [
 			[ 'Themes', ADMIN + 'themes.php' ],
 			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
@@ -204,9 +199,9 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'a submenu entry that declares its own route still wins', () => {
-		// A classic theme with block template parts gets both entries
-		// (`menu.php` registers Patterns as `site-editor.php?p=/pattern`),
-		// so the deeper one has to keep claiming its own route.
+		// `menu.php` registers Patterns as `site-editor.php?p=/pattern`
+		// alongside the Editor entry, so the deeper one has to keep
+		// claiming its own route.
 		const win = mockTabbedWindow( [
 			[ 'Editor', ADMIN + 'site-editor.php' ],
 			[ 'Patterns', ADMIN + 'site-editor.php?p=/pattern' ],
@@ -220,9 +215,6 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'a clicked tab lights before the load reports back', () => {
-		// The load event is what reconciles the highlight, and
-		// `site-editor.php` takes seconds to get there — long enough for
-		// the strip to sit there naming the page the user just left.
 		const win = mockTabbedWindow( [
 			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
 			[ 'Editor', ADMIN + 'site-editor.php' ],

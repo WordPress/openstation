@@ -559,14 +559,10 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 			win.iframe.src = next;
 		}
 		switchToTab( win, 'primary' );
-		/*
-		 * Light the destination NOW instead of waiting for the load to
-		 * report back. `site-editor.php` takes seconds to get there,
-		 * and until it does the strip would keep naming the page the
-		 * user just left. Optimistic, not authoritative: the load
-		 * event calls this again with wherever the navigation actually
-		 * landed.
-		 */
+		// Light the destination now. The load event calls this again
+		// with wherever the navigation landed, and on
+		// `site-editor.php` that is seconds away — long enough for the
+		// strip to sit there naming the page the user just left.
 		syncActiveTab( win, tab.dataset.url );
 	}
 }

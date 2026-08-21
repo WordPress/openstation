@@ -144,8 +144,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates site-editor entities by the `p` route', () => {
-		// The counterpart to `pageIdentityKey` dropping `p`: two
-		// templates are still two windows.
+		// The counterpart to `pageIdentityKey` dropping `p`.
 		const home = deriveWindowId(
 			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
 			ADMIN,
