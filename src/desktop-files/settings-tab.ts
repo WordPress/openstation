@@ -16,11 +16,14 @@ import {
 	getUserAssociations,
 	resolveOpener,
 	setUserAssociations,
+	subscribeOpeners,
 } from './openers';
 import { getTypes } from './registry';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 const TAB_ID = 'os-file-associations';
+
+let unsubscribe: ( () => void ) | null = null;
 
 /**
  * Register the tab. Called once at bundle boot from
@@ -32,7 +35,21 @@ export function registerFileAssociationsTab(): void {
 		label: 'File Associations',
 		order: 50,
 		render( body ) {
+			if ( unsubscribe ) {
+				unsubscribe();
+				unsubscribe = null;
+			}
 			renderTab( body );
+			unsubscribe = subscribeOpeners( () => {
+				if ( ! body.isConnected ) {
+					if ( unsubscribe ) {
+						unsubscribe();
+						unsubscribe = null;
+					}
+					return;
+				}
+				renderTab( body );
+			} );
 		},
 	} );
 }
