@@ -824,10 +824,12 @@ export interface NativeWindowServerEntry {
 	icon: string;
 	/**
 	 * `'dock'` = the window's launcher proposes the rail as its
-	 * default, `'none'` = register the window but propose no launcher
-	 * (the plugin opens it programmatically). A PROPOSAL, not a
-	 * render instruction — the user's Navigation preference wins, and
-	 * a running window gets a tile either way.
+	 * default, which is what keeps it on the dock even though apps
+	 * otherwise default to the wallpaper. `'none'` = register the
+	 * window but propose no launcher (the plugin opens it
+	 * programmatically). A PROPOSAL, not a render instruction — the
+	 * user's Navigation preference wins, and a running window gets a
+	 * tile either way.
 	 */
 	placement: 'dock' | 'none';
 	/**

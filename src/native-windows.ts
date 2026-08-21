@@ -1361,6 +1361,11 @@ export function createNativeWindowSync(
 			icon: entry.icon,
 			windowId: entry.id,
 			navKind: 'control' === entry.navKind ? 'control' : 'app',
+			// The window asked for a launcher, so the launcher's
+			// resting place is a rail rather than the wallpaper an app
+			// would otherwise default to. A proposal, not an
+			// instruction: the user's Navigation pick still wins.
+			defaultPlacement: 'rail',
 			order: entry.dockOrder,
 			placeable: true === entry.placeable,
 			isOpen: () => !! manager.getById( entry.id ),

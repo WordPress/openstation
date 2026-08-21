@@ -79,6 +79,7 @@ export function buildNavItems( sources: NavSources ): NavItem[] {
 			title: tile.item.title,
 			icon: tile.item.icon,
 			locked: tile.locked,
+			defaultPlacement: tile.item.defaultPlacement,
 			windowId: tile.item.windowId,
 			answersFor: answersFor.length > 0 ? answersFor : undefined,
 			order: tile.item.order,

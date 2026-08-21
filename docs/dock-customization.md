@@ -150,8 +150,9 @@ admin menu and a plugin's app launcher sit side by side in `apps`.
 
 `setZones` is **optional**. A renderer that doesn't implement it is
 driven through `replaceItems` + `appendSystemItem` / `removeSystemItem`
-exactly as before, and loses only the zone boundaries it had no way to
-paint. Either way `mount()` now receives an empty `items` array: the
+exactly as before. It loses the zone boundaries, which it had no way to
+paint, and reordering of system tiles, since that path only adds and
+removes them. Either way `mount()` now receives an empty `items` array: the
 shell fills the rail through the controller on the same turn, so a
 rail's contents come from exactly one place. Read `fullMenu` for the
 whole admin menu.

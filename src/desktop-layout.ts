@@ -350,6 +350,21 @@ export function createLayoutDispatcher(
 	 * keep their own entry — position, `pinned`, and all — and only a
 	 * menu or a tile the user promoted needs one synthesized.
 	 */
+	/**
+	 * Whether the wallpaper-icon grid can open this item.
+	 *
+	 * That grid opens a window id or a url and knows nothing else, so
+	 * a tile whose only opener is its own `onOpen` (Mio's toggles the
+	 * companion rather than opening anything) would paint an icon that
+	 * does nothing. The files layer is the surface that can run it,
+	 * through `shortcutSystemTile`, and it is the surface the user
+	 * actually sees; the grid is the fallback for shells with no files
+	 * layer mounted, and a fallback is better one icon short than one
+	 * dead icon long.
+	 */
+	const openableFromIconGrid = ( item: NavItem ): boolean =>
+		!! item.entry || !! item.windowId || !! item.menu?.url;
+
 	const toIconEntry = (
 		item: NavItem,
 		index: number,
@@ -444,7 +459,9 @@ export function createLayoutDispatcher(
 			{ core: nav.sidebar.map( toDockEntry ), apps: [], controls: [] },
 			attachedOnSide,
 		);
-		deps.renderIcons( nav.desktop.map( toIconEntry ) );
+		deps.renderIcons(
+			nav.desktop.filter( openableFromIconGrid ).map( toIconEntry ),
+		);
 	};
 
 	/**

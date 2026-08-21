@@ -14,7 +14,7 @@
  * Trash has to hold whenever each of them happens to arrive.
  */
 
-import { beforeEach, afterEach, describe, expect, test } from 'vitest';
+import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type SystemDockItem } from '../../src/dock';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { WindowManager } from '../../src/window-manager';
@@ -41,6 +41,24 @@ function tile(
 		onOpen: () => {},
 		...extra,
 	};
+}
+
+/** A pointer event jsdom will carry, with the fields the drag reads. */
+function pointerEvent(
+	type: string,
+	clientX: number,
+	clientY: number,
+	target?: HTMLElement,
+): PointerEvent {
+	const ev = new Event( type, { bubbles: true } );
+	Object.defineProperty( ev, 'pointerId', { value: 1 } );
+	Object.defineProperty( ev, 'button', { value: 0 } );
+	Object.defineProperty( ev, 'clientX', { value: clientX } );
+	Object.defineProperty( ev, 'clientY', { value: clientY } );
+	if ( target ) {
+		Object.defineProperty( ev, 'target', { value: target } );
+	}
+	return ev as unknown as PointerEvent;
 }
 
 /** Tile ids in the order they are painted inside one wrapper. */
@@ -116,6 +134,69 @@ describe( 'system tile order', () => {
 		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
 			'os-system',
 		] );
+	} );
+
+	/*
+	 * Exit OpenStation is the one item that cannot be moved. It has no
+	 * drag handler of its own, but that only stops it being PICKED UP:
+	 * a neighbour's drag still hit-tests against it, and if the guard
+	 * lets it match, the gesture reorders across it and writes its id
+	 * into the persisted order. From then on every load paints Exit
+	 * wherever it was dragged through.
+	 */
+	test( 'a locked tile is not a drop target for its neighbours', () => {
+		const persisted: string[][] = [];
+		( window as unknown as { wp: { os: unknown } } ).wp = {
+			...( window as unknown as { wp?: object } ).wp,
+			os: {
+				getOsSettings: () => ( { navOrder: [] } ),
+				updateOsSettings: ( patch: { navOrder?: string[] } ) => {
+					if ( patch.navOrder ) {
+						persisted.push( patch.navOrder );
+					}
+				},
+			},
+		};
+
+		dock.appendSystemItem( control( 'os-system', 30 ) );
+		dock.appendSystemItem( {
+			...control( 'os-exit', 35 ),
+			locked: true,
+		} );
+		dock.appendSystemItem( control( 'os-trash', 40 ) );
+
+		const tileFor = ( id: string ) =>
+			container.querySelector< HTMLElement >(
+				`[data-system-id="${ id }"]`,
+			)!;
+		// Every tile reports the same box, so the midpoint test always
+		// says "insert before" and the drag walks left one slot at a
+		// time.
+		for ( const el of container.querySelectorAll( '.os-dock__item' ) ) {
+			( el as HTMLElement ).getBoundingClientRect = () =>
+				( { left: 100, top: 0, width: 40, height: 40 } as DOMRect );
+		}
+		const exit = tileFor( 'os-exit' );
+		expect( exit.dataset.navLocked ).toBeDefined();
+
+		const trash = tileFor( 'os-trash' );
+		// jsdom has no layout, so the hit test has to be supplied.
+		( document as unknown as {
+			elementFromPoint: ( x: number, y: number ) => Element | null;
+		} ).elementFromPoint = () => exit;
+		trash.dispatchEvent( pointerEvent( 'pointerdown', 100, 20, trash ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 40, 20 ) );
+		document.dispatchEvent( pointerEvent( 'pointerup', 40, 20 ) );
+
+		// Exit never moved, and never entered the persisted order.
+		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
+			'os-system',
+			'os-exit',
+			'os-trash',
+		] );
+		for ( const order of persisted ) {
+			expect( order ).not.toContain( 'os-exit' );
+		}
 	} );
 
 	test( 'the controls divider only appears once something precedes it', () => {

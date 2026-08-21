@@ -452,6 +452,40 @@ describe( 'buildNavItems', () => {
 		expect( items[ 0 ].entry?.id ).toBe( 'plugin-icon' );
 	} );
 
+	test( 'a window that asked for a launcher keeps it on the rail', () => {
+		// `openstation_register_window( 'placement' => 'dock' )` is a
+		// proposal, and it has to reach the model: apps default to the
+		// wallpaper, so without it a plugin's launcher would silently
+		// move off the dock it has always been on.
+		const items = buildNavItems( {
+			menuItems: [],
+			systemTiles: [
+				{
+					item: { ...tile( 'my-app' ), defaultPlacement: 'rail' },
+					kind: 'app',
+				},
+			],
+			icons: [],
+		} );
+		expect( items[ 0 ].defaultPlacement ).toBe( 'rail' );
+		expect( ids( run( items ).dock.apps ) ).toEqual( [ 'my-app' ] );
+
+		// And the user still outranks it.
+		expect(
+			ids( run( items, { placement: { 'my-app': 'desktop' } } ).dock.apps ),
+		).toEqual( [] );
+	} );
+
+	test( 'a window with no launcher leaves its app on the wallpaper', () => {
+		const items = buildNavItems( {
+			menuItems: [],
+			systemTiles: [],
+			icons: [ icon( 'my-app', 'my-app-window' ) ],
+		} );
+		expect( items[ 0 ].defaultPlacement ).toBeUndefined();
+		expect( ids( run( items ).desktop ) ).toEqual( [ 'my-app' ] );
+	} );
+
 	test( 'shell tiles keep their declared kind and lock', () => {
 		const items = buildNavItems( {
 			menuItems: [],

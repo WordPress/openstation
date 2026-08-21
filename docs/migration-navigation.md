@@ -53,7 +53,7 @@ openstation_register_window( 'my-window', array(
 
 `nav_kind` decides the launcher's default placement and which dock zone it sits in. Plugins want `'app'` and get it by saying nothing.
 
-`placement` still accepts `'dock'` and `'none'`, but it is now a **proposed default**, not a render instruction: the user's Navigation preference wins, and a running window gets a tile whatever the setting says. Nothing to change in existing registrations.
+`placement` still accepts `'dock'` and `'none'`, but it is now a **proposed default** rather than a render instruction. `'dock'` puts the launcher on a rail even though apps otherwise default to the wallpaper, which is where it has always been; the user's Navigation pick then wins over it, and a running window gets a tile whatever either says. Nothing to change in existing registrations.
 
 ### The dock has three zones
 
@@ -73,7 +73,7 @@ setZones( {
 } );
 ```
 
-**Optional.** A renderer that does not implement it is driven through `replaceItems` + `appendSystemItem` / `removeSystemItem` exactly as before, and loses only the zone boundaries it had no way to paint. Nothing to do unless you want the zones.
+**Optional.** A renderer that does not implement it is driven through `replaceItems` + `appendSystemItem` / `removeSystemItem` exactly as before. It loses two things: the zone boundaries, which it had no way to paint anyway, and reordering of system tiles, since that path only adds and removes them (menu-derived tiles still reorder, because `replaceItems` takes the whole list). Nothing to do unless you want either.
 
 One related change for every renderer: `mount()` now receives an **empty** `items` array. The shell fills the rail through the controller on the same turn `mount()` returns, so a rail's contents come from exactly one place. Read `fullMenu` for the whole admin menu.
 

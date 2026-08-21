@@ -27,6 +27,7 @@ import {
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
+import type { NavPlacement } from './nav/types';
 // The zones in paint order. One list, shared with the model that
 // decides what goes in them — two copies of an ordered enum is two
 // places to forget when a zone is added.
@@ -136,6 +137,16 @@ export interface SystemDockItem {
 	 * only one: it is the way out of the shell.
 	 */
 	locked?: boolean;
+	/**
+	 * Where this tile should sit when the user has said nothing,
+	 * overriding the default for its {@link SystemDockItem.navKind}.
+	 *
+	 * A native window registered with `'placement' => 'dock'` sets
+	 * `'rail'` here, which is what keeps a plugin's launcher on the
+	 * dock where it has always been: apps otherwise default to the
+	 * wallpaper. The user's own pick still wins over it.
+	 */
+	defaultPlacement?: NavPlacement;
 }
 
 /**
@@ -1127,7 +1138,11 @@ export class Dock {
 		const locked =
 			'system' === entry.type && true === entry.item.locked;
 		if ( locked ) {
-			tile.dataset.navLocked = '';
+			// `'true'`, not `''`: a dataset value of the empty string
+			// is falsy, so a `! el.dataset.navLocked` guard would read
+			// a locked tile as unlocked. Presence is what is meant, so
+			// the drag tests for presence too.
+			tile.dataset.navLocked = 'true';
 		} else {
 			this.attachDragReorder( tile, id, zone );
 			// Right-click → the placement menu. Mounted on the tile
@@ -1484,6 +1499,13 @@ export class Dock {
 		 * a tile cannot be dragged into another one because a drop
 		 * outside its own zone simply never matches, so there is no
 		 * cross-zone move to detect and undo.
+		 *
+		 * A locked tile is excluded as a TARGET, not just as a thing
+		 * to pick up. Exit OpenStation carries no drag handler, but a
+		 * neighbour's gesture still hit-tests against it, and matching
+		 * here would let the drag reorder across it and write its id
+		 * into the persisted order — after which every load paints it
+		 * wherever it was dragged through.
 		 */
 		const isSameZoneTile = ( el: Element | null ): el is HTMLElement => {
 			return (
@@ -1492,7 +1514,7 @@ export class Dock {
 				el.classList.contains( 'os-dock__item' ) &&
 				el.dataset.zone === zone &&
 				!! el.dataset.navId &&
-				! el.dataset.navLocked
+				undefined === el.dataset.navLocked
 			);
 		};
 
