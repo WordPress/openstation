@@ -26,9 +26,9 @@ import { doAction, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import * as registry from './registry';
 import {
+	closeWidgetPicker,
 	openWidgetPicker,
 	refreshWidgetPicker,
-	repositionWidgetPicker,
 } from './picker';
 import { applyGeometry, buildFrame, type Frame } from './frame';
 import {
@@ -167,7 +167,6 @@ export class WidgetLayer {
 		this.mountById( id );
 		this.paintEmptyState();
 		doAction( HOOKS.WIDGET_ADDED, { id } );
-		refreshWidgetPicker();
 	}
 
 	/**
@@ -222,7 +221,18 @@ export class WidgetLayer {
 			anchor: this.addTile,
 			registry: () => registry.all(),
 			enabledIds: () => [ ...this.enabledIds ],
-			onAdd: ( id ) => this.add( id ),
+			onAdd: ( id ) => {
+				this.add( id );
+				// One pick per visit. Adding a second widget means
+				// opening the picker again, which keeps the panel
+				// from sitting over the column while the user looks
+				// at what they just added.
+				closeWidgetPicker();
+				// The picker took focus when it opened, so hand it
+				// back rather than dropping a keyboard user on
+				// `<body>`.
+				this.addTile.focus();
+			},
 			onClose: () =>
 				this.root.classList.remove( 'os-widgets--picking' ),
 		} );
@@ -676,8 +686,6 @@ export class WidgetLayer {
 			return;
 		}
 		this.addTile.style.top = `${ top }px`;
-		// The picker anchors to the pill, so it has to come along.
-		repositionWidgetPicker();
 	}
 
 	private persistDockedHeight( id: string, height: number ): void {

@@ -990,6 +990,57 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'picking a widget closes the picker and hands focus back to the pill', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		for ( const id of [ 'pick-a', 'pick-b' ] ) {
+			registry.register( {
+				id,
+				label: id,
+				description: '',
+				icon: 'dashicons-star-filled',
+				mount: () => () => undefined,
+			} );
+		}
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		layer.openPicker();
+
+		expect( document.querySelector( '.os-widget-picker' ) ).not.toBeNull();
+		expect(
+			host.classList.contains( 'os-widgets--picking' ),
+		).toBe( true );
+
+		const entry = document.querySelector< HTMLButtonElement >(
+			'.os-widget-picker__entry:not([disabled])',
+		)!;
+		entry.click();
+
+		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a' ] );
+		// Panel gone, and the flag that pinned the pill with it.
+		expect( document.querySelector( '.os-widget-picker' ) ).toBeNull();
+		expect(
+			host.classList.contains( 'os-widgets--picking' ),
+		).toBe( false );
+		expect( document.activeElement ).toBe(
+			host.querySelector( '.os-widgets__add' ),
+		);
+
+		// Adding a second one means opening it again.
+		layer.openPicker();
+		expect( document.querySelector( '.os-widget-picker' ) ).not.toBeNull();
+		document
+			.querySelector< HTMLButtonElement >(
+				'.os-widget-picker__entry:not([disabled])',
+			)!
+			.click();
+		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a', 'pick-b' ] );
+
+		layer.disposeAll();
+	} );
+
 	test( 'the add-widget pill reveals only while the pointer is near the column', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

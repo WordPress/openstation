@@ -121,20 +121,6 @@ export function refreshWidgetPicker(): void {
 	}
 }
 
-/**
- * Re-run the open picker's positioning against its anchor. The add
- * pill is not at a fixed spot in the column — it trails the widget
- * stack — so adding a widget from the picker pushes the anchor down
- * by the height of the card that just mounted. Without this the panel
- * stays where it opened and drifts away from the pill it belongs to.
- */
-export function repositionWidgetPicker(): void {
-	if ( ! active ) {
-		return;
-	}
-	positionPanel( active.panel, active.options.anchor );
-}
-
 /** Close the active picker. No-op if none is open. */
 export function closeWidgetPicker(): void {
 	if ( ! active ) {
@@ -228,12 +214,10 @@ function paintList(
 			entry.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				e.stopPropagation();
+				// Whether a pick closes the picker is the layer's
+				// call, not this component's — it owns the anchor
+				// and knows what happens to it afterwards.
 				options.onAdd( def.id );
-				// Picker stays OPEN so the user can add several
-				// widgets in a row without re-clicking `+`. Close
-				// is driven by Esc, outside click, or explicit UI
-				// (none today — one-at-a-time add-then-close is
-				// the v1 flow if they prefer).
 			} );
 		}
 
