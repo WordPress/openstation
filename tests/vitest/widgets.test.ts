@@ -633,12 +633,42 @@ describe( 'widgets/layer', () => {
 		expect( squeezed.x ).toBe( 320 );
 		expect( squeezed.width ).toBe( 125 );
 
+		// South-east: the origin holds, the far edges snap, so the
+		// size lands on whole cells too.
+		const corner = computeResize(
+			'se', 13, -6, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( corner.x ).toBe( 140 );
+		expect( corner.y ).toBe( 100 );
+		expect( corner.width ).toBe( 320 );
+		expect( corner.height ).toBe( 200 );
+
+		// East drag far enough to cross a cell boundary.
+		const east = computeResize(
+			'e', 28, 0, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( east.width ).toBe( 320 );
+		expect( east.x + east.width ).toBe( 460 );
+
+		// Growing past the parent's edge stops on the last grid line
+		// inside it. 1000 is on-grid, so squeeze the widget's own max
+		// to an off-grid stop instead.
+		const capped = computeResize(
+			'e', 1000, 0, 140, 100, 300, 200,
+			{ ...def, maxWidth: 265 }, parent, true,
+		);
+		expect( capped.width ).toBe( 260 );
+
 		// Docked cards keep the old behaviour — no free position to
 		// align, and a chunky height drag would just feel worse.
-		const docked = computeResize(
+		const dockedNorth = computeResize(
 			'n', 0, -7, 140, 100, 300, 200, def, parent, false,
 		);
-		expect( docked.height ).toBe( 207 );
+		expect( dockedNorth.height ).toBe( 207 );
+		const dockedSouth = computeResize(
+			's', 0, 7, 140, 100, 300, 200, def, parent, false,
+		);
+		expect( dockedSouth.height ).toBe( 207 );
 	} );
 
 	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {

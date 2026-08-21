@@ -769,7 +769,21 @@ export function computeResize(
 	let height = startH;
 
 	if ( dir === 'e' || dir === 'ne' || dir === 'se' ) {
-		width = clamp( startW + dx, minW, Math.min( maxW, parentWidth - startLeft ) );
+		if ( floating ) {
+			// Same rule as the west handle, just the other edge: snap
+			// what the pointer is dragging. With the origin already
+			// on-grid the width comes out a whole number of cells, so
+			// two widgets can line up their right edges as well as
+			// their left.
+			const right = snapIntoRange(
+				snapToGrid( startLeft + startW + dx ),
+				startLeft + minW,
+				Math.min( startLeft + maxW, parentWidth ),
+			);
+			width = right - startLeft;
+		} else {
+			width = clamp( startW + dx, minW, Math.min( maxW, parentWidth - startLeft ) );
+		}
 	}
 	if ( dir === 'w' || dir === 'nw' || dir === 'sw' ) {
 		const right = startLeft + startW;
@@ -791,11 +805,24 @@ export function computeResize(
 		}
 	}
 	if ( dir === 's' || dir === 'se' || dir === 'sw' ) {
-		height = clamp(
-			startH + dy,
-			minH,
-			Math.min( maxH, parentHeight - startTop ),
-		);
+		if ( floating ) {
+			const bottom = snapIntoRange(
+				snapToGrid( startTop + startH + dy ),
+				startTop + minH,
+				Math.min( startTop + maxH, parentHeight ),
+			);
+			height = bottom - startTop;
+		} else {
+			// The column's own resize stays freehand. A docked card's
+			// top is pinned by the stack above it, so there's nothing
+			// to align it to, and stepping the height in whole cells
+			// would just make the drag feel coarse.
+			height = clamp(
+				startH + dy,
+				minH,
+				Math.min( maxH, parentHeight - startTop ),
+			);
+		}
 	}
 	if ( dir === 'n' || dir === 'ne' || dir === 'nw' ) {
 		const bottom = startTop + startH;
@@ -827,12 +854,12 @@ export function computeResize(
 
 /**
  * Grid line inside `[min, max]`, preferring the one at or below
- * `value`. Used for the origin of a resize, where the legal range is
- * set by the widget's min/max size rather than by the desktop edges,
- * so neither end is guaranteed to be on-grid. A range too narrow to
- * hold a grid line at all (a widget whose min and max sizes are
- * within 20 px of each other) keeps the plain clamped value — an
- * off-grid origin beats refusing to resize.
+ * `value`. Used for the edge under the pointer during a resize, where
+ * the legal range is set by the widget's min/max size rather than by
+ * the desktop edges, so neither end is guaranteed to be on-grid. A
+ * range too narrow to hold a grid line at all (a widget whose min and
+ * max sizes are within 20 px of each other) keeps the plain clamped
+ * value — an off-grid edge beats refusing to resize.
  */
 function snapIntoRange( value: number, min: number, max: number ): number {
 	const clamped = clamp( value, min, max );
