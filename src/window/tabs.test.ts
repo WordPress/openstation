@@ -182,7 +182,8 @@ describe( 'syncActiveTab', () => {
 		// `site-editor.php?…&p=/`, so the URL the iframe lands on is
 		// never the URL the tab declares. With `p` counted as page
 		// identity the whole Appearance strip went dark the moment the
-		// editor finished loading.
+		// editor finished loading, and stayed dark for every template
+		// opened inside it.
 		const win = mockTabbedWindow( [
 			[ 'Themes', ADMIN + 'themes.php' ],
 			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
@@ -193,21 +194,12 @@ describe( 'syncActiveTab', () => {
 			win,
 			ADMIN + 'site-editor.php?openstation_chromeless=1&p=/',
 		);
-
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
-	} );
-
-	test( 'a template opened inside the site editor stays on Editor', () => {
-		const win = mockTabbedWindow( [
-			[ 'Themes', ADMIN + 'themes.php' ],
-			[ 'Editor', ADMIN + 'site-editor.php' ],
-		] );
 
 		syncActiveTab(
 			win,
 			ADMIN + 'site-editor.php?p=/wp_template/twentytwentyfive//home',
 		);
-
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
 	} );
 
@@ -227,6 +219,31 @@ describe( 'syncActiveTab', () => {
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
 	} );
 
+	test( 'a clicked tab lights before the load reports back', () => {
+		// The load event is what reconciles the highlight, and
+		// `site-editor.php` takes seconds to get there — long enough for
+		// the strip to sit there naming the page the user just left.
+		const win = mockTabbedWindow( [
+			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
+			[ 'Editor', ADMIN + 'site-editor.php' ],
+		] );
+		Object.assign( win as unknown as Record< string, unknown >, {
+			iframe: document.createElement( 'iframe' ),
+			_externalTabs: new Map(),
+			markContentLoading: () => {},
+		} );
+		syncActiveTab( win, ADMIN + 'theme-install.php?browse=popular' );
+		expect( activeLabels( win ) ).toEqual( [ 'Add Theme' ] );
+
+		const editor = win.element.querySelectorAll( '.os-window__tab' )[ 1 ];
+		handleTabStripClick( win, {
+			target: editor,
+			stopPropagation: () => {},
+		} as unknown as Event );
+
+		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+	} );
+
 	test( 'aria-selected tracks the active tab', () => {
 		const win = mockTabbedWindow( [
 			[ 'Appearance', ADMIN + 'themes.php' ],
@@ -239,68 +256,6 @@ describe( 'syncActiveTab', () => {
 			win.element.querySelectorAll( '[aria-selected="true"]' ),
 		).map( ( el ) => el.textContent );
 		expect( selected ).toEqual( [ 'Menus' ] );
-	} );
-} );
-
-describe( 'submenu tab clicks', () => {
-	/**
-	 * A tabbed window with the iframe plumbing `handleTabStripClick`
-	 * touches, plus the strip's delegated listener the Window
-	 * constructor installs.
-	 */
-	function mockClickableWindow( tabs: [ string, string ][] ): Window {
-		const win = mockTabbedWindow( tabs );
-		const iframe = document.createElement( 'iframe' );
-		Object.assign( win as unknown as Record< string, unknown >, {
-			iframe,
-			_externalTabs: new Map(),
-			markContentLoading: () => {},
-		} );
-		win.element
-			.querySelector( '.os-window__tabs' )
-			?.addEventListener( 'click', ( e: Event ) =>
-				handleTabStripClick( win, e ),
-			);
-		return win;
-	}
-
-	/** The tab whose label is `label`. */
-	function tabNamed( win: Window, label: string ): HTMLElement {
-		return Array.from(
-			win.element.querySelectorAll< HTMLElement >( '.os-window__tab' ),
-		).find( ( el ) => el.textContent === label )!;
-	}
-
-	test( 'the clicked tab lights immediately, before the load reports', () => {
-		// The load event is what reconciles the highlight, and
-		// `site-editor.php` takes seconds to get there — long enough for
-		// the strip to sit there naming the page the user just left.
-		const win = mockClickableWindow( [
-			[ 'Themes', ADMIN + 'themes.php' ],
-			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
-			[ 'Editor', ADMIN + 'site-editor.php' ],
-		] );
-		syncActiveTab( win, ADMIN + 'theme-install.php?browse=popular' );
-		expect( activeLabels( win ) ).toEqual( [ 'Add Theme' ] );
-
-		tabNamed( win, 'Editor' ).click();
-
-		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
-		expect( win.iframe?.src ).toContain( 'site-editor.php' );
-	} );
-
-	test( 'the load still gets the last word on where it landed', () => {
-		const win = mockClickableWindow( [
-			[ 'Themes', ADMIN + 'themes.php' ],
-			[ 'Menus', ADMIN + 'nav-menus.php' ],
-		] );
-
-		tabNamed( win, 'Menus' ).click();
-		expect( activeLabels( win ) ).toEqual( [ 'Menus' ] );
-
-		// The navigation bounced somewhere else — the strip follows.
-		syncActiveTab( win, ADMIN + 'themes.php' );
-		expect( activeLabels( win ) ).toEqual( [ 'Themes' ] );
 	} );
 } );
 

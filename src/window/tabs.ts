@@ -117,32 +117,6 @@ function findPageOwnerTab(
 	return best;
 }
 
-/** Every submenu tab in a window's strip, in DOM order. */
-function submenuTabsOf( win: Window ): NodeListOf< HTMLElement > {
-	return win.element.querySelectorAll< HTMLElement >(
-		'.os-window__tab[data-kind="submenu"]',
-	);
-}
-
-/**
- * Light exactly one submenu tab and clear every other. `null` clears
- * them all.
- *
- * The one place that writes submenu active-state, so the class and
- * `aria-selected` can never drift apart, and the plate's observer
- * (which watches `class`) sees a single coherent change.
- */
-function lightSubmenuTab(
-	submenuTabs: NodeListOf< HTMLElement >,
-	active: HTMLElement | null,
-): void {
-	for ( const tab of submenuTabs ) {
-		const isActive = tab === active;
-		tab.classList.toggle( 'os-window__tab--active', isActive );
-		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
-	}
-}
-
 /**
  * Update the active tab to whichever submenu URL matches the iframe's
  * current location. Called after every iframe navigation.
@@ -158,7 +132,9 @@ function lightSubmenuTab(
  * comparison — it's which iframe is foregrounded.
  */
 export function syncActiveTab( win: Window, currentUrl: string ): void {
-	const submenuTabs = submenuTabsOf( win );
+	const submenuTabs = win.element.querySelectorAll<HTMLElement>(
+		'.os-window__tab[data-kind="submenu"]',
+	);
 	if ( ! submenuTabs.length ) {
 		return;
 	}
@@ -166,7 +142,10 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	// all inactive — the primary iframe's URL isn't what the user is
 	// looking at.
 	if ( win._activeTabId !== 'primary' ) {
-		lightSubmenuTab( submenuTabs, null );
+		for ( const tab of submenuTabs ) {
+			tab.classList.remove( 'os-window__tab--active' );
+			tab.setAttribute( 'aria-selected', 'false' );
+		}
 		return;
 	}
 	const activeKey = urlMatchKey( currentUrl );
@@ -181,7 +160,11 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	if ( ! active ) {
 		active = findPageOwnerTab( submenuTabs, currentUrl );
 	}
-	lightSubmenuTab( submenuTabs, active );
+	for ( const tab of submenuTabs ) {
+		const isActive = tab === active;
+		tab.classList.toggle( 'os-window__tab--active', isActive );
+		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
+	}
 }
 
 /**
@@ -560,8 +543,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		return;
 	}
 	// Submenu tab — navigate primary iframe in place and bring it
-	// forward. `syncActiveTab` reconciles the highlight against
-	// wherever the navigation actually lands.
+	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
 		const next = withChromelessParam( tab.dataset.url );
 		if ( next && win.iframe ) {
@@ -578,19 +560,14 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		}
 		switchToTab( win, 'primary' );
 		/*
-		 * Light the clicked tab NOW rather than waiting for the load
-		 * to report back. Until the iframe finishes, the strip would
-		 * otherwise keep pointing at the page the user just left —
-		 * which on a fast list screen is a flicker nobody noticed,
-		 * and on `site-editor.php` is several seconds of the window
-		 * insisting you are still on Add Theme.
-		 *
-		 * Optimistic, not authoritative: `syncActiveTab` runs on the
-		 * load event and moves the plate if the navigation landed
-		 * somewhere else (a screen that redirects, an action URL that
-		 * bounces back to its list).
+		 * Light the destination NOW instead of waiting for the load to
+		 * report back. `site-editor.php` takes seconds to get there,
+		 * and until it does the strip would keep naming the page the
+		 * user just left. Optimistic, not authoritative: the load
+		 * event calls this again with wherever the navigation actually
+		 * landed.
 		 */
-		lightSubmenuTab( submenuTabsOf( win ), tab );
+		syncActiveTab( win, tab.dataset.url );
 	}
 }
 

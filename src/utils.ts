@@ -65,37 +65,26 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// the user's perspective — picking "Header" after "Footer column"
 	// should open a new window, not refocus the existing footer one.
 	// Without `p` in identity, every site-editor URL collapses to
-	// `site-editor-php` and the second pick is a no-op.
-	//
-	// It is deliberately NOT page identity — see
-	// IN_SCREEN_ROUTE_PARAMS below.
+	// `site-editor-php` and the second pick is a no-op. Page identity
+	// deliberately drops it — see PAGE_IDENTITY_PARAMS.
 	'p',
 ];
 
 /**
- * Identity params that separate WINDOWS but not PAGES.
+ * {@link IDENTITY_PARAMS} minus `p`, the site editor's own route.
  *
- * `p` is the site editor's own client-side route. Two templates are
- * two windows, which is why `p` is in {@link IDENTITY_PARAMS} — but
- * they are not two admin *pages*: `site-editor.php` is one screen
- * with a router behind it, the same way `nav-menus.php?action=…` is
- * one screen with sub-views.
- *
- * Keeping `p` out of {@link pageIdentityKey} is what lets the submenu
- * tab strip stay lit in there. WordPress redirects a bare
- * `site-editor.php` carrying ANY query string — and ours always
- * carries `openstation_chromeless=1` — to `site-editor.php?…&p=/`, so
- * the URL the iframe lands on never matches the plain
- * `site-editor.php` the Appearance window's "Editor" tab declares.
- * Counting `p` as page identity meant the whole strip went dark the
- * moment the editor finished loading, and stayed dark for every
- * template the user opened inside it.
+ * `p` separates WINDOWS — two templates are two windows — but not
+ * PAGES: `site-editor.php` is one screen with a client-side router
+ * behind it, the way `nav-menus.php?action=…` is one screen with
+ * sub-views. WordPress also redirects a bare `site-editor.php`
+ * carrying ANY query string — and ours always carries
+ * `openstation_chromeless=1` — to `site-editor.php?…&p=/`, so counting
+ * `p` as page identity left the URL the iframe lands on owned by no
+ * tab at all, and the Appearance window's whole strip went dark the
+ * moment the editor loaded.
  */
-const IN_SCREEN_ROUTE_PARAMS: readonly string[] = [ 'p' ];
-
-/** {@link IDENTITY_PARAMS} minus the params that only route within a screen. */
 const PAGE_IDENTITY_PARAMS: readonly string[] = IDENTITY_PARAMS.filter(
-	( key ) => ! IN_SCREEN_ROUTE_PARAMS.includes( key ),
+	( key ) => key !== 'p',
 );
 
 /**
@@ -210,13 +199,11 @@ export function applyTileEntryStagger( tile: HTMLElement ): void {
  * all collapse to the same key, while `edit-tags.php?taxonomy=category`
  * and `edit-tags.php?taxonomy=post_tag` stay apart.
  *
- * Nearly the identity rule {@link deriveWindowId} uses to decide which
- * window owns a URL, minus the slugification — this variant compares
- * URLs rather than minting DOM ids, so it keeps the raw pathname and
- * needs no `adminUrl` base. Used by the submenu tab strip to keep a
- * tab lit while the user moves around within its page, which is also
- * why it drops {@link IN_SCREEN_ROUTE_PARAMS}: a route *inside* one
- * screen is a different window but the same page.
+ * Same identity rule {@link deriveWindowId} uses to decide which window
+ * owns a URL, minus the slugification and the in-screen route — this
+ * variant compares URLs rather than minting DOM ids, so it keeps the
+ * raw pathname and needs no `adminUrl` base. Used by the submenu tab
+ * strip to keep a tab lit while the user moves around within its page.
  *
  * Falls back to the raw URL if parsing fails.
  */
