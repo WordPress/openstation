@@ -1,13 +1,17 @@
 /**
- * The guided create flow.
+ * The create flow.
  *
- * Four steps and a door: start from an agent that already exists, or
+ * Five steps and a door: start from an agent that already exists, or
  * describe a new one. The door is the part worth protecting: five
  * complete agents ship with the plugin and the old create form showed
  * them to nobody, so "copies the work, rolls its own face" is the
  * behaviour these tests are here to keep.
+ *
+ * The fifth step, Extras, is optional and holds what the retired
+ * expert form held plus the triggers it never could.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { installHooksStub } from './helpers/hooks-stub';
 import '../../src/my-wordpress/agents-renderer';
 import {
 	faceHueName,
@@ -68,6 +72,24 @@ function installConfig( overrides: Record< string, unknown > = {} ): void {
 	};
 }
 
+/**
+ * A stand-in abilities catalogue for the tests that care how long the
+ * list is. Null means "use the two-row default".
+ */
+let abilityCatalogue: Array< Record< string, unknown > > | null = null;
+
+/** A catalogue of `count` abilities spread over three categories. */
+function bigCatalogue( count: number ): Array< Record< string, unknown > > {
+	const categories = [ 'Content', 'Media', 'Allterrain-fields' ];
+	return Array.from( { length: count }, ( _, i ) => ( {
+		slug: `plugin/ability-${ i }`,
+		label: `Ability ${ i }`,
+		description: i === 0 ? 'Reads a custom field.' : `Does thing ${ i }.`,
+		category: categories[ i % categories.length ],
+		readonly: i % 2 === 0,
+	} ) );
+}
+
 /** Route every catalogue the wizard settles before it paints. */
 function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 	const fetchMock = vi.fn( async ( input: RequestInfo, init?: RequestInit ) => {
@@ -85,6 +107,9 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 			] );
 		}
 		if ( url.includes( '/agents/abilities' ) ) {
+			if ( abilityCatalogue ) {
+				return json( abilityCatalogue );
+			}
 			return json( [
 				{
 					slug: 'desktop-mode/get-post',
@@ -102,7 +127,18 @@ function mockRoutes( agents: Agent[], onCreate?: ( body: unknown ) => void ) {
 				},
 			] );
 		}
-		if ( url.includes( '/agents/trigger-kinds' ) || url.includes( '/agents/hooks-catalogue' ) ) {
+		if ( url.includes( '/agents/trigger-kinds' ) ) {
+			return json( [
+				{
+					slug: 'chat',
+					label: 'Chat',
+					description: 'Answers in a chat window.',
+					icon: '',
+					wired: true,
+				},
+			] );
+		}
+		if ( url.includes( '/agents/hooks-catalogue' ) ) {
 			return json( [] );
 		}
 		if ( url.includes( '/ai/status' ) ) {
@@ -161,11 +197,17 @@ const setField = ( host: EntityRenderHost, label: string, value: string ) => {
 };
 
 describe( 'the guided create flow', () => {
-	beforeEach( () => installConfig() );
+	beforeEach( () => {
+		// The renderer subscribes to the extended-options bus, which
+		// needs a live `window.wp.hooks`.
+		installHooksStub();
+		installConfig();
+	} );
 
 	afterEach( () => {
 		document.body.innerHTML = '';
 		delete ( window as unknown as Record< string, unknown > ).openStationWindowConfig;
+		abilityCatalogue = null;
 		vi.restoreAllMocks();
 	} );
 
@@ -285,7 +327,8 @@ describe( 'the guided create flow', () => {
 			} ),
 		);
 		await flush();
-		press( host, 'Continue' );
+		// Powers offers the shortcut past the optional step.
+		press( host, 'Skip to review' );
 		await flush();
 		press( host, 'Create agent' );
 		await flush();
@@ -318,26 +361,73 @@ describe( 'the guided create flow', () => {
 		expect( created ).toHaveLength( 0 );
 	} );
 
-	test( 'the expert door still opens the flat form', async () => {
+	test( 'there is one door, and it is the guided one', async () => {
+		// The expert segment used to sit here. It was the only way to
+		// mint an agent with no face and no voice, and it could not
+		// reach triggers at all, so it lost on both counts.
 		const { host } = await openWizard();
-		host.body
-			.querySelector( 'os-segmented' )!
-			.dispatchEvent(
-				new CustomEvent( 'os-pick', {
-					detail: { value: 'expert' },
-					bubbles: true,
-				} ),
-			);
+
+		expect( host.body.querySelector( 'os-segmented' ) ).toBeNull();
+		expect( host.body.querySelector( 'os-steps' ) ).not.toBeNull();
+		const titles = [ ...host.body.querySelectorAll( 'os-step' ) ].map( ( s ) =>
+			s.getAttribute( 'title' ),
+		);
+		expect( titles ).toEqual( [
+			'Describe',
+			'Meet',
+			'Powers',
+			'Extras',
+			'Launch',
+		] );
+	} );
+
+	test( 'Extras carries what the expert form used to, plus triggers', async () => {
+		const { host } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		setField( host, 'Name', 'Deep Cut' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
 		await flush();
 
-		expect( host.body.querySelector( 'os-steps' ) ).toBeNull();
-		const labels = [
-			...host.body.querySelectorAll( 'os-text-field, os-textarea' ),
-		].map( ( f ) => f.getAttribute( 'label' ) );
-		expect( labels ).toContain( 'Name' );
+		const labels = [ ...host.body.querySelectorAll( 'os-textarea' ) ].map(
+			( f ) => f.getAttribute( 'label' ),
+		);
 		expect( labels ).toContain( 'Instructions (system prompt)' );
-		// The identity half belongs to the guided flow.
-		expect( labels ).not.toContain( 'Vibes' );
+		// Triggers were only ever editable after the agent existed.
+		expect( host.body.textContent ).toContain( 'Triggers' );
+		expect( host.body.textContent ).toContain( 'No triggers configured yet.' );
+	} );
+
+	test( 'a trigger picked in Extras rides along on the create', async () => {
+		const { host, created } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		setField( host, 'Name', 'Hooked Up' );
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+
+		const add = [ ...host.body.querySelectorAll( 'os-select' ) ].find(
+			( f ) => f.getAttribute( 'label' ) === 'Add trigger',
+		);
+		add!.dispatchEvent(
+			new CustomEvent( 'os-pick', {
+				detail: { value: 'chat' },
+				bubbles: true,
+			} ),
+		);
+		await flush();
+		press( host, 'Continue' );
+		await flush();
+		press( host, 'Create agent' );
+		await flush();
+
+		expect( created ).toHaveLength( 1 );
+		const body = created[ 0 ] as Record< string, unknown >;
+		expect( body.triggers ).toEqual( [ { kind: 'chat', config: {} } ] );
 	} );
 
 	test( 'without an AI provider the brief still seeds the instructions', async () => {
@@ -360,7 +450,7 @@ describe( 'the guided create flow', () => {
 		setField( host, 'Name', 'Draft Watcher' );
 		press( host, 'Continue' );
 		await flush();
-		press( host, 'Continue' );
+		press( host, 'Skip to review' );
 		await flush();
 
 		const instr = host.body.querySelector( '.dm-agents__summary-instr' );
@@ -382,6 +472,115 @@ describe( 'the guided create flow', () => {
 		for ( const label of chips ) {
 			expect( label ).toBeTruthy();
 		}
+	} );
+
+	/** Walk to Powers with the catalogue the test installed. */
+	async function openPowers() {
+		const { host } = await openWizard();
+		press( host, 'Continue' );
+		await flush();
+		setField( host, 'Name', 'Overloaded' );
+		press( host, 'Continue' );
+		await flush();
+		return host;
+	}
+
+	test( 'a short ability list stays open and unfiltered', async () => {
+		// Two abilities and two groups. Collapsing those, or putting a
+		// search box over them, would be ceremony over a list you can
+		// read in one glance.
+		const host = await openPowers();
+
+		const search = [ ...host.body.querySelectorAll( 'os-text-field' ) ].find(
+			( f ) => f.getAttribute( 'label' ) === 'Search abilities',
+		);
+		expect( search ).toBeUndefined();
+		const groups = [
+			...host.body.querySelectorAll< HTMLDetailsElement >(
+				'.dm-agents__ability-group',
+			),
+		];
+		expect( groups.length ).toBeGreaterThan( 0 );
+		expect( groups.every( ( g ) => g.open ) ).toBe( true );
+	} );
+
+	test( 'a long ability list gets a search box and starts collapsed', async () => {
+		// Dani's site renders about fifty. Flat and all-open, that is a
+		// wall to scroll with the group headings as its only landmarks.
+		abilityCatalogue = bigCatalogue( 50 );
+		const host = await openPowers();
+
+		const search = [ ...host.body.querySelectorAll( 'os-text-field' ) ].find(
+			( f ) => f.getAttribute( 'label' ) === 'Search abilities',
+		);
+		expect( search ).toBeDefined();
+
+		const groups = [
+			...host.body.querySelectorAll< HTMLDetailsElement >(
+				'.dm-agents__ability-group',
+			),
+		];
+		expect( groups ).toHaveLength( 3 );
+		expect( groups.some( ( g ) => g.open ) ).toBe( false );
+		// A closed group still says how much is in it.
+		expect( host.body.textContent ).toContain( 'Allterrain-fields' );
+	} );
+
+	test( 'searching narrows the list and opens what matched', async () => {
+		abilityCatalogue = bigCatalogue( 50 );
+		const host = await openPowers();
+
+		setField( host, 'Search abilities', 'custom field' );
+		await flush();
+
+		const groups = [
+			...host.body.querySelectorAll< HTMLDetailsElement >(
+				'.dm-agents__ability-group',
+			),
+		];
+		// One ability matches, on its description rather than its
+		// label. Plugin authors name abilities for themselves, and
+		// "the one that reads custom fields" is what people remember.
+		expect( groups ).toHaveLength( 1 );
+		expect( groups[ 0 ].open ) .toBe( true );
+		expect(
+			groups[ 0 ].querySelectorAll( 'os-checkbox-label' ),
+		).toHaveLength( 1 );
+	} );
+
+	test( 'a search that matches nothing says so', async () => {
+		abilityCatalogue = bigCatalogue( 50 );
+		const host = await openPowers();
+
+		setField( host, 'Search abilities', 'zzzz' );
+		await flush();
+
+		expect( host.body.textContent ).toContain( 'No ability matches "zzzz"' );
+	} );
+
+	test( 'a ticked ability keeps its group open', async () => {
+		// A checked box folded out of sight is how someone loses track
+		// of what they granted.
+		abilityCatalogue = bigCatalogue( 50 );
+		const host = await openPowers();
+
+		const first = host.body.querySelector( 'os-checkbox-label' );
+		expect( first ).not.toBeNull();
+		first!.dispatchEvent(
+			new CustomEvent( 'os-checkbox-change', {
+				detail: { checked: true },
+				bubbles: true,
+			} ),
+		);
+		await flush();
+
+		const open = [
+			...host.body.querySelectorAll< HTMLDetailsElement >(
+				'.dm-agents__ability-group',
+			),
+		].filter( ( g ) => g.open );
+		expect( open ).toHaveLength( 1 );
+		expect( open[ 0 ].textContent ).toContain( '1 of' );
 	} );
 } );
 

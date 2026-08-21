@@ -13,8 +13,13 @@
  * @public
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { html, render } from '../ui/core';
+import { addAction, HOOKS, removeAction } from '../hooks';
+import {
+	renderStatusBarSegments,
+	type StatusBarSegment,
+} from '../desktop-files/folder-status-bar';
 import { registerEntityKind } from './kind-registry';
 import {
 	FACE_CANDIDATES,
@@ -23,6 +28,7 @@ import {
 	faceHueName,
 	faceShapeName,
 	faceSrc,
+	hasFace,
 } from './agents-face';
 import type { EntityRenderHost } from './kind-registry';
 import { buildEditUserUrl, getConfig } from './rest';
@@ -90,6 +96,13 @@ interface AgentsState {
 	creating: boolean;
 	saving: boolean;
 	notice: string;
+	/** Free-text filter over the ability catalogue. */
+	abilityQuery: string;
+	/**
+	 * Ability groups the user has explicitly opened or closed. Absent
+	 * means "however {@link ABILITY_COLLAPSE_THRESHOLD} says to start".
+	 */
+	abilityOpen: Map< string, boolean >;
 	/** Lazy catalogues — null until first fetched. */
 	abilities: Ability[] | null;
 	triggerKinds: TriggerKindDescriptor[] | null;
@@ -99,22 +112,37 @@ interface AgentsState {
 	aiReady: boolean | null;
 	/** Draft edits for the Define pane, keyed by field. */
 	draft: { name: string; description: string; instructions: string; role: string };
-	/** Draft for the create form. */
-	createDraft: { name: string; description: string; instructions: string; role: string };
-	/** Which door the create flow is showing. Guided is the default. */
-	createMode: 'guided' | 'expert';
-	/** Where the guided flow is: 0 Describe, 1 Meet, 2 Powers, 3 Launch. */
-	step: 0 | 1 | 2 | 3;
+	/**
+	 * Role a fresh wizard starts on. Held here rather than read off
+	 * the last cast so the roles catalogue, which lands after the
+	 * first paint, has somewhere to correct the default to.
+	 */
+	defaultRole: string;
+	/** Where the flow is. See {@link WizardStep}. */
+	step: WizardStep;
 	/** The agent being cast. */
 	cast: CastDraft;
 }
 
 /**
+ * Where the create flow is.
+ *
+ * Extras sits at 3, between the decisions everyone makes and the
+ * review: it is the only optional step, and putting it last before
+ * Launch means skipping it is a straight line rather than a detour.
+ */
+type WizardStep = 0 | 1 | 2 | 3 | 4;
+
+/** The step someone lands on when they skip Extras. */
+const STEP_LAUNCH: WizardStep = 4;
+
+/**
  * The agent taking shape in the wizard.
  *
- * Separate from `createDraft` (the expert form) so switching doors
- * mid-thought loses neither, and carrying its own face so the picker
- * has something to page through.
+ * One draft, because there is now one way in. It carries its own face
+ * so the picker has something to page through, and its own triggers so
+ * Extras can wire the agent up before it exists rather than sending
+ * people back into the detail view afterwards.
  */
 interface CastDraft {
 	/** The plain-language ask typed into Describe. */
@@ -125,6 +153,7 @@ interface CastDraft {
 	instructions: string;
 	role: string;
 	abilities: string[];
+	triggers: Trigger[];
 	/** Which agent this was copied from, if any. */
 	copiedFrom: string;
 	faceSeed: number;
@@ -145,6 +174,7 @@ function emptyCast( role: string, seed: number ): CastDraft {
 		instructions: '',
 		role,
 		abilities: [],
+		triggers: [],
 		copiedFrom: '',
 		faceSeed: seed,
 		face: faceFromSeed( seed ),
@@ -154,6 +184,18 @@ function emptyCast( role: string, seed: number ): CastDraft {
 }
 
 const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
+
+/**
+ * How many abilities a site needs before the groups start closed.
+ *
+ * Collapsing is for the site with a shelf of plugins, each registering
+ * its own dozen: the list that takes a scrollbar and a minute to
+ * read. A stock install has a handful, and starting those closed would
+ * hide the whole feature behind a click to solve a problem that site
+ * does not have. So the default is "open", and the catalogue itself
+ * says when that stops being true.
+ */
+const ABILITY_COLLAPSE_THRESHOLD = 12;
 
 /**
  * A starting point for a new face.
@@ -212,6 +254,33 @@ function parseDraft( text: string ): Record< string, unknown > | null {
 
 function newSeed(): number {
 	return Math.floor( Math.random() * 0xffffff ) + 1;
+}
+
+/**
+ * The image source for an agent's portrait.
+ *
+ * Prefers what the server wrote, because that file is the one thing
+ * `get_avatar()` can also point at, so preferring it keeps the grid and
+ * the rest of wp-admin showing the same picture.
+ *
+ * Falls back to rolling the seed here. That covers the window before
+ * {@link backfillFaces} has stored a look, a reader who may not trigger
+ * that write at all, and multisite, where the look lives on a
+ * network-wide user but the file was written into one site's uploads.
+ * In every one of those the seed is present and the roll is
+ * deterministic, so the face is the same one the write would produce.
+ */
+function agentFaceSrc(
+	agent: Pick< Agent, 'face' | 'faceSeed' | 'avatarUrl' >,
+	size: number,
+): string {
+	if ( hasFace( agent.face ) && agent.avatarUrl !== '' ) {
+		return agent.avatarUrl;
+	}
+	if ( agent.faceSeed > 0 ) {
+		return faceSrc( faceFromSeed( agent.faceSeed ), size );
+	}
+	return agent.avatarUrl;
 }
 
 /** Per-mount sequence so multi-instance windows get unique target ids. */
@@ -461,14 +530,15 @@ export function renderAgents( host: EntityRenderHost ): void {
 		creating: false,
 		saving: false,
 		notice: '',
+		abilityQuery: '',
+		abilityOpen: new Map(),
 		abilities: null,
 		triggerKinds: null,
 		hooks: null,
 		roles: null,
 		aiReady: cfg.aiAvailable ? null : false,
 		draft: draftFromAgent( null ),
-		createDraft: { name: '', description: '', instructions: '', role: 'author' },
-		createMode: 'guided',
+		defaultRole: 'author',
 		step: 0,
 		cast: emptyCast( 'author', newSeed() ),
 	};
@@ -486,6 +556,74 @@ export function renderAgents( host: EntityRenderHost ): void {
 
 	let disposed = false;
 	const mountId = ++agentsMountSeq;
+
+	// Agents can be switched off in Preferences while this very window
+	// is open. When that happens the server unregisters the section's
+	// REST routes, so a view that carried on as if nothing had changed
+	// answered its next request with "No route was found matching the
+	// URL and request method": a raw REST error where the off-state's
+	// own explanation and its "Turn on Agents" button should be.
+	//
+	// Re-navigating to the route we are already on is the re-mount:
+	// `navigate()` tears down and re-runs the renderer either way, and
+	// the renderer reads the flag fresh, so the same call handles both
+	// directions of the toggle.
+	// The window's status bar, found the same way the media list finds
+	// it. Until now this section never wrote to it, so it kept whatever
+	// the view before it had left there: the root folder's own
+	// "11 folders", still sitting under a screen with no folders on it.
+	// A detached element when the chrome is absent (test harness),
+	// which `renderStatusBarSegments` tolerates.
+	const statusBar =
+		host.body
+			.closest( '[data-os-my-wordpress-root]' )
+			?.querySelector< HTMLElement >( '[data-os-my-wordpress-status]' ) ??
+		document.createElement( 'div' );
+
+	const paintStatusBar = (): void => {
+		const segments: StatusBarSegment[] = [];
+		// The count is of the cast, whichever of the three views is on
+		// screen: it is the section's size, not the view's, and a
+		// number that vanished when you opened someone would read as
+		// the crew having shrunk.
+		if ( ! off && ! state.loading && state.error === '' ) {
+			segments.push( {
+				id: 'count',
+				label: sprintf(
+					/* translators: %d: number of agents on the site. */
+					_n( '%d agent', '%d agents', state.agents.length, 'desktop-mode' ),
+					state.agents.length,
+				),
+				align: 'start',
+				sort: 10,
+			} );
+		}
+		renderStatusBarSegments( statusBar, segments );
+	};
+
+	const optionsNamespace = `desktop-mode/agents/${ mountId }`;
+	addAction(
+		HOOKS.EXTENDED_OPTIONS_CHANGED,
+		optionsNamespace,
+		( payload ) => {
+			const next = ( payload as { options?: Record< string, boolean > } )
+				?.options;
+			if ( ! next || typeof next.agents !== 'boolean' ) {
+				return;
+			}
+			const live = agentsConfig();
+			if ( live.enabled === next.agents ) {
+				return;
+			}
+			live.enabled = next.agents;
+			if ( ! disposed ) {
+				host.navigate( host.route );
+			}
+		},
+	);
+	host.addTeardown( () => {
+		removeAction( HOOKS.EXTENDED_OPTIONS_CHANGED, optionsNamespace );
+	} );
 	const rowDropDeregisters: Map< number, () => void > = new Map();
 	host.addTeardown( () => {
 		disposed = true;
@@ -617,6 +755,60 @@ export function renderAgents( host: EntityRenderHost ): void {
 		if ( ! disposed ) {
 			paint();
 		}
+		void backfillFaces();
+	};
+
+	/**
+	 * Give a face to every agent that has a seed but no look.
+	 *
+	 * An agent can reach the grid faceless two ways: it predates faces
+	 * entirely, or it was made by something that never offered a
+	 * picker (a plugin registering its own crew, or `wp user create`).
+	 * Both cases still have a seed, because `openstation_agent_create()`
+	 * derives one from the login when nobody supplies one, precisely so
+	 * this roll is available later.
+	 *
+	 * Rolling it here rather than in PHP keeps one implementation of
+	 * the randomizer. Storing the result rather than deriving it on
+	 * every paint is what makes it stick: the write is what gets the
+	 * portrait onto disk, which is the only way `get_avatar()` ever
+	 * sees it: the Users list, the comment rows, the chat window.
+	 *
+	 * Needs write access, so a read-only user's grid stays on the
+	 * derived face drawn client-side by {@link agentFaceSrc} and the
+	 * first editor to open the section makes it permanent for everyone.
+	 */
+	const backfillFaces = async (): Promise< void > => {
+		if ( ! cfg.canManage ) {
+			return;
+		}
+		const faceless = state.agents.filter(
+			( agent ) => ! hasFace( agent.face ) && agent.faceSeed > 0,
+		);
+		let wrote = false;
+		for ( const agent of faceless ) {
+			if ( disposed ) {
+				return;
+			}
+			try {
+				const updated = await updateAgent( agent.id, {
+					face: faceFromSeed( agent.faceSeed ),
+					faceSeed: agent.faceSeed,
+				} );
+				state.agents = state.agents.map( ( a ) =>
+					a.id === updated.id ? updated : a,
+				);
+				wrote = true;
+			} catch {
+				// A backfill is a courtesy, not the point of the view.
+				// One agent the server refuses to write must not take
+				// the grid down with it: the rest still get faces, and
+				// this one keeps the look drawn client-side.
+			}
+		}
+		if ( wrote && ! disposed ) {
+			paint();
+		}
 	};
 
 	const probeAi = async (): Promise< void > => {
@@ -657,9 +849,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 			state.roles = await fetchRoles();
 			if (
 				state.roles.length > 0 &&
-				! state.roles.some( ( r ) => r.slug === state.createDraft.role )
+				! state.roles.some( ( r ) => r.slug === state.defaultRole )
 			) {
-				state.createDraft.role = state.roles[ 0 ].slug;
+				state.defaultRole = state.roles[ 0 ].slug;
 			}
 		} catch ( err ) {
 			state.notice = err instanceof Error ? err.message : String( err );
@@ -685,39 +877,6 @@ export function renderAgents( host: EntityRenderHost ): void {
 			);
 			state.draft = draftFromAgent( selected() );
 			state.notice = successNotice;
-		} catch ( err ) {
-			state.notice = err instanceof Error ? err.message : String( err );
-		}
-		state.saving = false;
-		if ( ! disposed ) {
-			paint();
-		}
-	};
-
-	const onCreate = async (): Promise< void > => {
-		if ( state.createDraft.name.trim() === '' ) {
-			state.notice = __( 'Agent name is required.', 'desktop-mode' );
-			paint();
-			return;
-		}
-		state.saving = true;
-		state.notice = '';
-		paint();
-		try {
-			const created = await createAgent( {
-				name: state.createDraft.name.trim(),
-				role: state.createDraft.role,
-				description: state.createDraft.description,
-				instructions: state.createDraft.instructions,
-			} );
-			refreshSendToAgents();
-			state.agents = [ ...state.agents, created ].sort( ( a, b ) =>
-				a.name.localeCompare( b.name ),
-			);
-			state.createDraft = { name: '', description: '', instructions: '', role: state.createDraft.role };
-			state.creating = false;
-			state.selectedId = created.id;
-			state.draft = draftFromAgent( created );
 		} catch ( err ) {
 			state.notice = err instanceof Error ? err.message : String( err );
 		}
@@ -1011,7 +1170,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 						<div class="dm-agents__cast-inner">
 							<img
 								class="dm-agents__cast-face"
-								src=${ agent.avatarUrl }
+								src=${ agentFaceSrc( agent, 88 ) }
 								alt=""
 								width="88"
 								height="88"
@@ -1184,43 +1343,135 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	const toolsPane = ( agent: Agent ) => {
-		if ( state.abilities === null ) {
-			return html`<div class="dm-agents__pane dm-agents__pane--loading">
-				<os-spinner></os-spinner>
-			</div>`;
-		}
-		const byCategory = new Map< string, Ability[] >();
-		for ( const ability of state.abilities ) {
+	/**
+	 * The ability checklist: a filter, then collapsible groups.
+	 *
+	 * One implementation for both surfaces that show it, the Tools
+	 * pane of an existing agent and the wizard's Powers step, because
+	 * they were already the same list drawn twice, and a search box
+	 * added to one of them would have been a difference nobody meant.
+	 *
+	 * Abilities are open-ended: every plugin on the site may register
+	 * its own, so this is the one list in the section whose length is
+	 * decided by somebody else. On a site with a few dozen it was a
+	 * flat wall to scroll, with the group headings the only landmarks
+	 * and no way to jump. Hence the filter, which searches the
+	 * description and the slug as well as the label. Plugin authors
+	 * name abilities for themselves, and "the one that reads custom
+	 * fields" is easier to remember than whatever it is called.
+	 *
+	 * @param picked        What is ticked right now.
+	 * @param toggle        Called with the slug and its new state.
+	 * @param opts          Display options.
+	 * @param opts.disabled Greys every checkbox: a read-only viewer,
+	 *                      or a save in flight.
+	 */
+	const abilityChecklist = (
+		picked: readonly string[],
+		toggle: ( slug: string, on: boolean ) => void,
+		opts: { disabled?: boolean } = {},
+	) => {
+		const all = state.abilities ?? [];
+		const query = state.abilityQuery.trim().toLowerCase();
+		const matches = ( ability: Ability ): boolean =>
+			query === '' ||
+			ability.label.toLowerCase().includes( query ) ||
+			ability.description.toLowerCase().includes( query ) ||
+			ability.slug.toLowerCase().includes( query );
+
+		const groups = new Map< string, Ability[] >();
+		for ( const ability of all.filter( matches ) ) {
 			const key = ability.category || __( 'Other', 'desktop-mode' );
-			const bucket = byCategory.get( key ) ?? [];
-			bucket.push( ability );
-			byCategory.set( key, bucket );
+			groups.set( key, [ ...( groups.get( key ) ?? [] ), ability ] );
 		}
+
+		// A group opens by default when there is little to hide, or
+		// when it holds something already ticked. A checked box
+		// folded out of sight is how someone loses track of what they
+		// granted.
+		const long = all.length > ABILITY_COLLAPSE_THRESHOLD;
+		const isOpen = ( category: string, list: Ability[] ): boolean => {
+			// While filtering, everything that survived is shown: a
+			// search that returns matches and then hides them behind a
+			// closed group has answered the question and kept the
+			// answer.
+			if ( query !== '' ) {
+				return true;
+			}
+			return (
+				state.abilityOpen.get( category ) ??
+				( ! long || list.some( ( a ) => picked.includes( a.slug ) ) )
+			);
+		};
+
 		return html`
-			<div class="dm-agents__pane">
-				<p class="dm-agents__hint">
-					${ __(
-						'The agent may only call abilities ticked here — and every call is still gated by the ability\'s own permission check against the agent\'s role.',
-						'desktop-mode',
-					) }
-				</p>
-				${ Array.from( byCategory.entries() ).map(
-					( [ category, abilities ] ) => html`
-						<h4 class="dm-agents__category">${ category }</h4>
+			${ long || query !== ''
+				? html`
+						<os-text-field
+							class="dm-agents__ability-search"
+							type="search"
+							label=${ __( 'Search abilities', 'desktop-mode' ) }
+							value=${ state.abilityQuery }
+							placeholder=${ __( 'custom fields, orders, media…', 'desktop-mode' ) }
+							@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+								state.abilityQuery = e.detail?.value ?? '';
+								paint();
+							} }
+						></os-text-field>
+				  `
+				: html`` }
+			${ groups.size === 0
+				? html`<p class="dm-agents__hint">
+						${ sprintf(
+							/* translators: %s: the text typed into the ability filter. */
+							__( 'No ability matches "%s".', 'desktop-mode' ),
+							state.abilityQuery.trim(),
+						) }
+				  </p>`
+				: html`` }
+			${ [ ...groups.entries() ].map( ( [ category, abilities ] ) => {
+				const chosen = abilities.filter( ( a ) =>
+					picked.includes( a.slug ),
+				).length;
+				// "3 of 12" when some are ticked, otherwise just the
+				// size of the group: the count is what keeps a closed
+				// group informative.
+				const count =
+					chosen > 0
+						? sprintf(
+							/* translators: 1: ticked abilities in this group, 2: abilities in the group. */
+							__( '%1$d of %2$d', 'desktop-mode' ),
+							chosen,
+							abilities.length,
+						)
+						: String( abilities.length );
+				return html`
+					<details
+						class="dm-agents__ability-group"
+						?open=${ isOpen( category, abilities ) }
+						@toggle=${ ( e: Event ) => {
+							// Remembered, not repainted: the disclosure
+							// has already opened itself, and this is
+							// only so the next paint agrees with it.
+							state.abilityOpen.set(
+								category,
+								( e.target as HTMLDetailsElement ).open,
+							);
+						} }
+					>
+						<summary class="dm-agents__category">
+							<span class="dm-agents__category-name">${ category }</span>
+							<span class="dm-agents__category-count">${ count }</span>
+						</summary>
 						${ abilities.map(
 							( ability ) => html`
 								<div class="dm-agents__ability">
 									<os-checkbox-label
 										label=${ ability.label }
-										?checked=${ agent.abilities.includes( ability.slug ) }
-										?disabled=${ ! cfg.canManage || state.saving }
+										?checked=${ picked.includes( ability.slug ) }
+										?disabled=${ opts.disabled === true }
 										@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
-											toggleAbility(
-												agent,
-												ability.slug,
-												e.detail?.checked === true,
-											) }
+											toggle( ability.slug, e.detail?.checked === true ) }
 									></os-checkbox-label>
 									<os-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
 										${ ability.readonly
@@ -1231,7 +1482,30 @@ export function renderAgents( host: EntityRenderHost ): void {
 								</div>
 							`,
 						) }
-					`,
+					</details>
+				`;
+			} ) }
+		`;
+	};
+
+	const toolsPane = ( agent: Agent ) => {
+		if ( state.abilities === null ) {
+			return html`<div class="dm-agents__pane dm-agents__pane--loading">
+				<os-spinner></os-spinner>
+			</div>`;
+		}
+		return html`
+			<div class="dm-agents__pane">
+				<p class="dm-agents__hint">
+					${ __(
+						'The agent may only call abilities ticked here — and every call is still gated by the ability\'s own permission check against the agent\'s role.',
+						'desktop-mode',
+					) }
+				</p>
+				${ abilityChecklist(
+					agent.abilities,
+					( slug, on ) => toggleAbility( agent, slug, on ),
+					{ disabled: ! cfg.canManage || state.saving },
 				) }
 			</div>
 		`;
@@ -1248,12 +1522,26 @@ export function renderAgents( host: EntityRenderHost ): void {
 		return '';
 	};
 
-	const triggerEditor = ( agent: Agent, trigger: Trigger, index: number ) => {
+	/**
+	 * One trigger's configuration fields.
+	 *
+	 * Takes the list and a way to commit a new one rather than an
+	 * `Agent`, because the wizard edits triggers on an agent that does
+	 * not exist yet. The detail pane passes a commit that PATCHes; the
+	 * wizard passes one that writes into the draft.
+	 */
+	const triggerEditor = (
+		triggers: Trigger[],
+		index: number,
+		commit: ( next: Trigger[] ) => void,
+	) => {
+		const trigger = triggers[ index ];
 		const patchConfig = ( config: Record< string, unknown > ): void => {
-			const next = agent.triggers.map( ( t, i ) =>
-				i === index ? { ...t, config: { ...t.config, ...config } } : t,
+			commit(
+				triggers.map( ( t, i ) =>
+					i === index ? { ...t, config: { ...t.config, ...config } } : t,
+				),
 			);
-			setTriggers( agent, next );
 		};
 		if ( trigger.kind === 'send-to' || trigger.kind === 'drag' ) {
 			const active = ( trigger.config.entityKinds as string[] | undefined ) ?? [];
@@ -1313,7 +1601,18 @@ export function renderAgents( host: EntityRenderHost ): void {
 		return html``;
 	};
 
-	const triggersPane = ( agent: Agent ) => {
+	/**
+	 * The trigger list, editable.
+	 *
+	 * Shared by the detail pane and the wizard's Extras step. Agnostic
+	 * about where the rows live: the detail pane hands it an agent's
+	 * stored triggers and a commit that saves, Extras hands it the
+	 * draft's and a commit that only writes into the draft.
+	 */
+	const triggersList = (
+		triggers: Trigger[],
+		commit: ( next: Trigger[] ) => void,
+	) => {
 		if ( state.triggerKinds === null ) {
 			return html`<div class="dm-agents__pane dm-agents__pane--loading">
 				<os-spinner></os-spinner>
@@ -1322,7 +1621,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		const kindLabel = ( slug: string ): string =>
 			state.triggerKinds?.find( ( k ) => k.slug === slug )?.label ?? slug;
 		const unusedKinds = state.triggerKinds.filter(
-			( kind ) => ! agent.triggers.some( ( t ) => t.kind === kind.slug ),
+			( kind ) => ! triggers.some( ( t ) => t.kind === kind.slug ),
 		);
 		return html`
 			<div class="dm-agents__pane">
@@ -1332,12 +1631,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 						'desktop-mode',
 					) }
 				</p>
-				${ agent.triggers.length === 0
+				${ triggers.length === 0
 					? html`<p class="dm-agents__hint">
 							${ __( 'No triggers configured yet.', 'desktop-mode' ) }
 					  </p>`
 					: html`` }
-				${ agent.triggers.map(
+				${ triggers.map(
 					( trigger, index ) => html`
 						<div class="dm-agents__trigger">
 							<div class="dm-agents__trigger-head">
@@ -1350,9 +1649,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 											<os-button
 												?disabled=${ state.saving }
 												@click=${ () =>
-													setTriggers(
-														agent,
-														agent.triggers.filter( ( _, i ) => i !== index ),
+													commit(
+														triggers.filter( ( _, i ) => i !== index ),
 													) }
 											>
 												${ __( 'Remove', 'desktop-mode' ) }
@@ -1360,7 +1658,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 									  `
 									: html`` }
 							</div>
-							${ triggerEditor( agent, trigger, index ) }
+							${ triggerEditor( triggers, index, commit ) }
 						</div>
 					`,
 				) }
@@ -1379,8 +1677,8 @@ export function renderAgents( host: EntityRenderHost ): void {
 									if ( ! slug || kind?.wired === false ) {
 										return;
 									}
-									setTriggers( agent, [
-										...agent.triggers,
+									commit( [
+										...triggers,
 										{ kind: slug, config: {} },
 									] );
 								} }
@@ -1412,18 +1710,32 @@ export function renderAgents( host: EntityRenderHost ): void {
 	// -----------------------------------------------------------------
 	// The wizard
 	//
-	// Four steps, and a door before them. The door is the part that
+	// Five steps, and a door before them. The door is the part that
 	// matters most: five complete, well-written agents already ship
 	// with the plugin, and until now the create flow showed them to
 	// nobody. Starting from someone is the cheapest good idea here.
 	//
-	// Expert is still one segment away, unchanged.
+	// **One way in.** There used to be a second: an Expert segment
+	// holding a flat form. Keeping it cost more than it gave. It was
+	// the only door that could mint an agent with no face and no
+	// voice, because it had no picker and no Vibes field, so choosing
+	// it quietly opted out of the character system the rest of this
+	// screen exists to serve. And it was never the complete surface
+	// its name promised: triggers were only ever reachable after
+	// creation, so "expert" meant fewer fields, not more.
+	//
+	// So the fields it had that the flow lacked moved into Extras, an
+	// optional step, and the door closed. What was the expert form's
+	// only real advantage, not being walked through four screens, is
+	// answered by Extras being skippable and every step being
+	// reachable by clicking its number in the trail.
 	// -----------------------------------------------------------------
 
 	const STEP_LABELS = (): string[] => [
 		__( 'Describe', 'desktop-mode' ),
 		__( 'Meet', 'desktop-mode' ),
 		__( 'Powers', 'desktop-mode' ),
+		__( 'Extras', 'desktop-mode' ),
 		__( 'Launch', 'desktop-mode' ),
 	];
 
@@ -1434,9 +1746,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 		state.creating = true;
 		state.selectedId = null;
 		state.notice = '';
-		state.createMode = 'guided';
+		state.abilityQuery = '';
 		const seed = newSeed();
-		state.cast = emptyCast( state.createDraft.role, seed );
+		state.cast = emptyCast( state.defaultRole, seed );
 		if ( from ) {
 			// A copy takes the work but not the face. Two agents wearing
 			// one portrait is exactly the confusion the faces exist to
@@ -1451,6 +1763,10 @@ export function renderAgents( host: EntityRenderHost ): void {
 			state.cast.instructions = from.instructions;
 			state.cast.role = from.role;
 			state.cast.abilities = [ ...from.abilities ];
+			state.cast.triggers = from.triggers.map( ( t ) => ( {
+				kind: t.kind,
+				config: { ...t.config },
+			} ) );
 			state.cast.copiedFrom = from.name;
 			state.step = 1;
 		} else {
@@ -1461,10 +1777,36 @@ export function renderAgents( host: EntityRenderHost ): void {
 		paint();
 	};
 
-	const goStep = ( step: 0 | 1 | 2 | 3 ): void => {
+	const goStep = ( step: WizardStep ): void => {
 		state.step = step;
 		state.notice = '';
 		paint();
+	};
+
+	/** Whether Meet has the one thing it insists on: a name. */
+	const meetReady = (): boolean => state.cast.name.trim() !== '';
+
+	/**
+	 * Edit a field the step gates on, repainting only when the gate
+	 * moves.
+	 *
+	 * Typing into Name used to write `state` and stop there, so
+	 * `Continue` kept whatever `?disabled` it was last painted with: a
+	 * filled-in form with a dead button until some unrelated control,
+	 * picking a face, repainted and let it through. Repainting per
+	 * keystroke would fix that and re-render the wizard once per
+	 * letter; repainting on the edge fixes it once, when the step
+	 * actually goes from blocked to allowed or back.
+	 */
+	const editGate = (
+		gate: () => boolean,
+		write: ( value: string ) => void,
+	) => ( e: CustomEvent< { value: string } > ): void => {
+		const before = gate();
+		write( e.detail?.value ?? '' );
+		if ( before !== gate() ) {
+			paint();
+		}
 	};
 
 	/**
@@ -1594,7 +1936,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 						?interactive=${ i < state.step }
 						@os-step-click=${ () => {
 							if ( i < state.step ) {
-								goStep( i as 0 | 1 | 2 | 3 );
+								goStep( i as WizardStep );
 							}
 						} }
 					></os-step>
@@ -1626,7 +1968,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 								>
 									<img
 										class="dm-agents__starter-face"
-										src=${ agent.avatarUrl }
+										src=${ agentFaceSrc( agent, 76 ) }
 										alt=""
 										width="76"
 										height="76"
@@ -1763,9 +2105,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 					<os-text-field
 						label=${ __( 'Name', 'desktop-mode' ) }
 						value=${ state.cast.name }
-						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-							state.cast.name = e.detail?.value ?? '';
-						} }
+						@os-input-change=${ editGate( meetReady, ( value ) => {
+							state.cast.name = value;
+						} ) }
 					></os-text-field>
 					<os-text-field
 						label=${ __( 'Vibes', 'desktop-mode' ) }
@@ -1801,7 +2143,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				<span class="dm-agents__spacer"></span>
 				<os-button
 					variant="primary"
-					?disabled=${ state.cast.name.trim() === '' }
+					?disabled=${ ! meetReady() }
 					@click=${ () => goStep( 2 ) }
 				>
 					${ __( 'Continue', 'desktop-mode' ) }
@@ -1847,6 +2189,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 				${ __( 'Back', 'desktop-mode' ) }
 			</os-button>
 			<span class="dm-agents__spacer"></span>
+			<os-button variant="secondary" @click=${ () => goStep( STEP_LAUNCH ) }>
+				${ __( 'Skip to review', 'desktop-mode' ) }
+			</os-button>
 			<os-button variant="primary" @click=${ () => goStep( 3 ) }>
 				${ __( 'Continue', 'desktop-mode' ) }
 			</os-button>
@@ -1855,11 +2200,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 	`;
 
 	/**
-	 * The ability checklist, grouped and described.
+	 * The Powers step's checklist.
 	 *
-	 * Same shape as the Tools pane on purpose. A guided flow that
-	 * showed a flat, undescribed list would be giving less help than
-	 * the expert surface it is meant to be gentler than.
+	 * The same widget the Tools pane uses, on purpose: a guided flow
+	 * that showed a flat, undescribed list would be giving less help
+	 * than the expert surface it is meant to be gentler than.
 	 */
 	const abilityPicker = () => {
 		if ( state.abilities === null ) {
@@ -1868,43 +2213,17 @@ export function renderAgents( host: EntityRenderHost ): void {
 		if ( state.abilities.length === 0 ) {
 			return html``;
 		}
-		const groups = new Map< string, Ability[] >();
-		for ( const ability of state.abilities ) {
-			const key = ability.category || __( 'Other', 'desktop-mode' );
-			groups.set( key, [ ...( groups.get( key ) ?? [] ), ability ] );
-		}
 		return html`
-			${ [ ...groups.entries() ].map(
-				( [ category, abilities ] ) => html`
-					<h4 class="dm-agents__category">${ category }</h4>
-					${ abilities.map(
-						( ability ) => html`
-							<div class="dm-agents__ability">
-								<os-checkbox-label
-									label=${ ability.label }
-									?checked=${ state.cast.abilities.includes( ability.slug ) }
-									@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) => {
-										const next = new Set( state.cast.abilities );
-										if ( e.detail?.checked ) {
-											next.add( ability.slug );
-										} else {
-											next.delete( ability.slug );
-										}
-										state.cast.abilities = [ ...next ];
-										paint();
-									} }
-								></os-checkbox-label>
-								<os-badge tone=${ ability.readonly ? 'neutral' : 'warning' }>
-									${ ability.readonly
-										? __( 'read-only', 'desktop-mode' )
-										: __( 'can modify', 'desktop-mode' ) }
-								</os-badge>
-								<p class="dm-agents__ability-desc">${ ability.description }</p>
-							</div>
-						`,
-					) }
-				`,
-			) }
+			${ abilityChecklist( state.cast.abilities, ( slug, on ) => {
+				const next = new Set( state.cast.abilities );
+				if ( on ) {
+					next.add( slug );
+				} else {
+					next.delete( slug );
+				}
+				state.cast.abilities = [ ...next ];
+				paint();
+			} ) }
 			<p class="dm-agents__hint">
 				${ __(
 					"The agent may only call abilities ticked here, and every call is still gated by the ability's own permission check against the agent's role.",
@@ -1914,7 +2233,62 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
-	/** Step 3 — launch. */
+	/**
+	 * Step 3, extras. Optional, and says so.
+	 *
+	 * Everything here has a working default, which is what makes it
+	 * skippable: no instructions means the agent improvises from its
+	 * description, and no triggers means it answers in chat like every
+	 * agent did before triggers existed. It exists because the flow
+	 * that replaced the expert form has to be able to reach the two
+	 * things that form could reach, the system prompt, and the one it
+	 * never could: triggers, which until now were only editable after
+	 * the agent already existed.
+	 */
+	const extrasStep = () => html`
+		<p class="dm-agents__hint">
+			${ __(
+				'All optional. Skip it and the agent still works: it will answer in chat, and improvise from what you have already told it.',
+				'desktop-mode',
+			) }
+		</p>
+		<h4 class="dm-agents__wiz-heading">
+			${ __( 'Instructions', 'desktop-mode' ) }
+		</h4>
+		<os-textarea
+			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
+			value=${ state.cast.instructions }
+			rows="8"
+			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
+				state.cast.instructions = e.detail?.value ?? '';
+			} }
+		></os-textarea>
+		<p class="dm-agents__hint">
+			${ __(
+				'The standing brief the agent reads before every run. Vibes is appended to it, so this is the job and that is the voice.',
+				'desktop-mode',
+			) }
+		</p>
+		<h4 class="dm-agents__wiz-heading">
+			${ __( 'Triggers', 'desktop-mode' ) }
+		</h4>
+		${ triggersList( state.cast.triggers, ( next ) => {
+			state.cast.triggers = next;
+			paint();
+		} ) }
+		<div class="dm-agents__actions">
+			<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
+				${ __( 'Back', 'desktop-mode' ) }
+			</os-button>
+			<span class="dm-agents__spacer"></span>
+			<os-button variant="primary" @click=${ () => goStep( STEP_LAUNCH ) }>
+				${ __( 'Continue', 'desktop-mode' ) }
+			</os-button>
+			${ cancelButton() }
+		</div>
+	`;
+
+	/** Step 4, launch. */
 	const launchStep = () => {
 		const canChat = cfg.canInvoke && state.aiReady === true;
 		const abilityLabel = ( slug: string ): string =>
@@ -1967,7 +2341,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				</div>
 			</os-card>
 			<div class="dm-agents__actions">
-				<os-button variant="ghost" @click=${ () => goStep( 2 ) }>
+				<os-button variant="ghost" @click=${ () => goStep( 3 ) }>
 					${ __( 'Back', 'desktop-mode' ) }
 				</os-button>
 				<span class="dm-agents__spacer"></span>
@@ -2033,6 +2407,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				description: c.description.trim(),
 				instructions: c.instructions,
 				abilities: c.abilities,
+				triggers: c.triggers,
 				vibes: c.vibes.trim(),
 				face: c.face,
 				faceSeed: c.faceSeed,
@@ -2065,85 +2440,17 @@ export function renderAgents( host: EntityRenderHost ): void {
 	 * fields it always did; the identity half is the guided flow's job,
 	 * and an agent made here simply gets a face rolled from its seed.
 	 */
-	const expertForm = () => html`
-		<os-text-field
-			label=${ __( 'Name', 'desktop-mode' ) }
-			value=${ state.createDraft.name }
-			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-				state.createDraft.name = e.detail?.value ?? '';
-			} }
-		></os-text-field>
-		${ state.roles === null
-			? html`<os-spinner></os-spinner>`
-			: html`
-					<os-select
-						label=${ __( 'Role', 'desktop-mode' ) }
-						value=${ state.createDraft.role }
-						@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
-							state.createDraft.role =
-								e.detail?.value ?? state.createDraft.role;
-							paint();
-						} }
-					>
-						${ roleOptions( state.roles, state.createDraft.role ) }
-					</os-select>
-			  ` }
-		<os-text-field
-			label=${ __( 'When to use (description)', 'desktop-mode' ) }
-			value=${ state.createDraft.description }
-			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-				state.createDraft.description = e.detail?.value ?? '';
-			} }
-		></os-text-field>
-		<os-textarea
-			label=${ __( 'Instructions (system prompt)', 'desktop-mode' ) }
-			value=${ state.createDraft.instructions }
-			rows="8"
-			@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-				state.createDraft.instructions = e.detail?.value ?? '';
-			} }
-		></os-textarea>
-		<div class="dm-agents__actions">
-			<span class="dm-agents__spacer"></span>
-			<os-button
-				variant="primary"
-				?disabled=${ state.saving }
-				@click=${ () => void onCreate() }
-			>
-				${ __( 'Create', 'desktop-mode' ) }
-			</os-button>
-			${ cancelButton() }
-		</div>
-	`;
-
 	const wizardPane = () => html`
 		<div class="dm-agents__wizard">
 			<div class="dm-agents__wiz-head">
 				<h3>${ __( 'New agent', 'desktop-mode' ) }</h3>
-				<os-segmented
-					value=${ state.createMode }
-					label=${ __( 'How to create it', 'desktop-mode' ) }
-					@os-pick=${ ( e: CustomEvent< { value: string } > ) => {
-						state.createMode =
-							e.detail?.value === 'expert' ? 'expert' : 'guided';
-						state.notice = '';
-						void ensureRoles();
-						paint();
-					} }
-				>
-					<os-segment value="guided">${ __( 'Guided', 'desktop-mode' ) }</os-segment>
-					<os-segment value="expert">${ __( 'Expert', 'desktop-mode' ) }</os-segment>
-				</os-segmented>
 			</div>
-			${ state.createMode === 'expert'
-				? expertForm()
-				: html`
-						${ stepTrail() }
-						${ state.step === 0 ? describeStep() : html`` }
-						${ state.step === 1 ? meetStep() : html`` }
-						${ state.step === 2 ? powersStep() : html`` }
-						${ state.step === 3 ? launchStep() : html`` }
-				  ` }
+			${ stepTrail() }
+			${ state.step === 0 ? describeStep() : html`` }
+			${ state.step === 1 ? meetStep() : html`` }
+			${ state.step === 2 ? powersStep() : html`` }
+			${ state.step === 3 ? extrasStep() : html`` }
+			${ state.step === 4 ? launchStep() : html`` }
 		</div>
 	`;
 
@@ -2163,7 +2470,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 				${ __( '\u2039 Your cast', 'desktop-mode' ) }
 			</os-button>
 			<div class="dm-agents__detail-head">
-				<img class="dm-agents__detail-avatar" src=${ agent.avatarUrl } alt="" />
+				<img
+					class="dm-agents__detail-avatar"
+					src=${ agentFaceSrc( agent, 96 ) }
+					alt=""
+				/>
 				<div class="dm-agents__detail-title">
 					<h3>${ agent.name }</h3>
 					<span class="dm-agents__detail-slug">@agent-${ agent.slug }</span>
@@ -2229,7 +2540,11 @@ export function renderAgents( host: EntityRenderHost ): void {
 			${ paneTabs( agent ) }
 			${ state.pane === 'define' ? definePane( agent ) : html`` }
 			${ state.pane === 'tools' ? toolsPane( agent ) : html`` }
-			${ state.pane === 'triggers' ? triggersPane( agent ) : html`` }
+			${ state.pane === 'triggers'
+				? triggersList( agent.triggers, ( next ) => {
+					setTriggers( agent, next );
+				} )
+				: html`` }
 		`;
 	};
 
@@ -2237,6 +2552,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		if ( disposed ) {
 			return;
 		}
+		paintStatusBar();
 		if ( state.loading ) {
 			render(
 				html`<div class="dm-agents__loading"><os-spinner></os-spinner></div>`,

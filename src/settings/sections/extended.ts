@@ -19,6 +19,7 @@
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { trackedFetch } from '../../tracked-fetch';
+import { doAction, HOOKS } from '../../hooks';
 import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
@@ -67,6 +68,13 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 		state.error = '';
 		paint();
 
+		// Set on a successful save, announced once the request has
+		// settled. Deliberately not announced from inside the `try`:
+		// the catch below reads any throw as a network failure, and a
+		// listener on the bus that throws is not one. It would put
+		// "check your connection" under a save that worked.
+		let announce: Record< string, boolean > | null = null;
+
 		try {
 			const res = await trackedFetch(
 				extendedOptionsUrl,
@@ -94,12 +102,32 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 				const saved = await res.json().catch( () => null );
 				if ( saved && typeof saved === 'object' ) {
 					ctx.config.extendedOptions = saved as typeof extendedOptions;
+					announce = saved as Record< string, boolean >;
 				}
 			}
 		} catch {
 			state.error = __( 'Network error — check your connection.' );
 		} finally {
 			state.saving = false;
+			// Windows already on screen read these options out of the
+			// config the server printed at page load, so without this
+			// they keep obeying the old value, and any that lost their
+			// REST routes in this save start answering "No route was
+			// found matching the URL" instead. Fired after the config
+			// is updated, so a listener that re-reads it sees the new
+			// set.
+			if ( announce ) {
+				try {
+					doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, {
+						options: announce,
+					} );
+				} catch {
+					// A surface that fails to reconcile is its own
+					// problem. The option is saved either way, and
+					// taking the panel down over it would lose the
+					// queued change the trailing save still owes.
+				}
+			}
 			if ( pending ) {
 				// Awaited rather than fired off, so the promise this
 				// call returns only settles once the values on the

@@ -124,6 +124,82 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The create route forwards every field it declares.
+	 *
+	 * It used to take the name, the role, the description, the
+	 * instructions and the abilities, and drop the three that make an
+	 * agent a character: `vibes`, `face` and `faceSeed`. The wizard was
+	 * sending all three, so an agent someone had just picked a face for
+	 * arrived on the site wearing the fallback glyph and with no voice
+	 * line. That is what the grid full of identical grey robots
+	 * actually was.
+	 *
+	 * @covers ::openstation_agents_rest_create
+	 */
+	public function test_create_keeps_the_face_and_the_voice() {
+		$face = array(
+			'appearance' => array( 'hueStart' => 200 ),
+			'physics'    => array( 'shapePreset' => 'star' ),
+		);
+		$data = $this->create_agent_via_rest(
+			array(
+				'name'     => 'Character Agent',
+				'vibes'    => 'blunt, precise, no sugarcoating',
+				'face'     => $face,
+				'faceSeed' => 4242,
+			)
+		);
+
+		$this->assertSame( 'blunt, precise, no sugarcoating', $data['vibes'] );
+		$this->assertSame( 4242, $data['faceSeed'] );
+		$this->assertSame( 200, (int) $data['face']['appearance']['hueStart'] );
+		$this->assertSame( 'star', $data['face']['physics']['shapePreset'] );
+
+		// And the portrait reached disk, which is the only way
+		// `get_avatar()` ever sees it.
+		$this->assertNotSame(
+			'',
+			openstation_agent_face_url( (int) $data['id'] ),
+			'the created agent has no face file'
+		);
+	}
+
+	/**
+	 * Triggers are part of the create, not a follow-up patch.
+	 *
+	 * The wizard's optional Extras step configures them before the
+	 * agent exists; without this the agent would be briefly live and
+	 * unreachable, and a failed second request would strand it there.
+	 *
+	 * @covers ::openstation_agents_rest_create
+	 */
+	public function test_create_accepts_triggers() {
+		$data = $this->create_agent_via_rest(
+			array(
+				'name'     => 'Triggered Agent',
+				'triggers' => array(
+					array( 'kind' => 'chat', 'config' => array() ),
+				),
+			)
+		);
+
+		$this->assertCount( 1, $data['triggers'] );
+		$this->assertSame( 'chat', $data['triggers'][0]['kind'] );
+	}
+
+	/**
+	 * A create with no face still gets a seed, so the roll is
+	 * available later.
+	 *
+	 * @covers ::openstation_agents_rest_create
+	 */
+	public function test_create_without_a_face_still_seeds_one() {
+		$data = $this->create_agent_via_rest( array( 'name' => 'Seedless' ) );
+
+		$this->assertGreaterThan( 0, (int) $data['faceSeed'] );
+	}
+
+	/**
 	 * @covers ::openstation_agents_rest_create
 	 */
 	public function test_create_rejects_disallowed_role() {

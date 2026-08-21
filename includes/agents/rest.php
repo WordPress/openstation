@@ -74,6 +74,15 @@ function openstation_agents_register_rest_routes() {
 						'default' => array(),
 						'items'   => array( 'type' => 'string' ),
 					),
+					// Like `face`, deliberately schema-light. Each row
+					// is validated against the live trigger-kind
+					// catalogue by openstation_agent_sanitize_triggers(),
+					// which drops rows it does not recognise rather
+					// than rejecting the whole create.
+					'triggers'     => array(
+						'type'    => 'array',
+						'default' => array(),
+					),
 					'vibes'        => array(
 						'type'    => 'string',
 						'default' => '',
@@ -309,6 +318,11 @@ function openstation_agents_rest_get( WP_REST_Request $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_create( WP_REST_Request $request ) {
+	// Every field the route declares is forwarded. `vibes`, `face` and
+	// `faceSeed` are the character half of an agent, and a create that
+	// took the name and dropped the portrait is how an agent ends up
+	// wearing the fallback glyph seconds after someone picked a face
+	// for it. `openstation_agent_create()` sanitizes each one.
 	$user = openstation_agent_create(
 		array(
 			'name'         => (string) $request['name'],
@@ -316,6 +330,10 @@ function openstation_agents_rest_create( WP_REST_Request $request ) {
 			'description'  => (string) $request['description'],
 			'instructions' => (string) $request['instructions'],
 			'abilities'    => (array) $request['abilities'],
+			'triggers'     => (array) $request['triggers'],
+			'vibes'        => (string) $request['vibes'],
+			'face'         => $request['face'],
+			'faceSeed'     => (int) $request['faceSeed'],
 		)
 	);
 	if ( is_wp_error( $user ) ) {

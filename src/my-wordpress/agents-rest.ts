@@ -73,12 +73,14 @@ export interface CreateAgentPayload {
 	description?: string;
 	instructions?: string;
 	/**
-	 * Abilities go in the CREATE call. There is no need for a second
-	 * request to attach them: the route's arg list accepts them and
-	 * `openstation_agent_create()` writes them. `triggers` is the one
-	 * field that genuinely needs a follow-up patch.
+	 * The whole definition goes in the CREATE call, abilities and
+	 * triggers included. No follow-up patch: the route's arg list
+	 * accepts every one of these and `openstation_agent_create()`
+	 * writes them, so an agent is never briefly on the site in a
+	 * half-configured state.
 	 */
 	abilities?: string[];
+	triggers?: Trigger[];
 	vibes?: string;
 	face?: MioLook;
 	faceSeed?: number;

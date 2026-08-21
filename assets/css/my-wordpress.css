@@ -2288,6 +2288,27 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	max-width: 280px;
 }
 
+/* The ability filter. Sized like the role select rather than the
+   full pane: it sits above a list of rules, and a search box as wide
+   as the rules reads as another one of them. */
+.dm-agents__ability-search {
+	display: block;
+	max-width: 320px;
+	margin: 12px 0 4px;
+}
+
+/* Each category is a native disclosure. `<details>` because the
+   behaviour is exactly what it is for: keyboard, screen-reader
+   semantics and the open/closed state all arrive for free, and the
+   only thing left to write is the costume. */
+.dm-agents__ability-group {
+	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__ability-group:last-of-type {
+	border-bottom: 0;
+}
+
 .dm-agents__category {
 	margin: 18px 0 2px;
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
@@ -2296,6 +2317,72 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* A `<summary>` is a button, so it gets a button's affordances: a
+   pointer, a hover, and a focus ring that is visible on the dark
+   surface the section is drawn on. */
+summary.dm-agents__category {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	padding: 10px 0;
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+
+summary.dm-agents__category::-webkit-details-marker {
+	display: none;
+}
+
+/* The marker is drawn here rather than left to the UA so it can be
+   the same triangle in every browser and turn with the disclosure.
+   Rotation only: a transform, so opening a group of forty rows
+   costs no layout. */
+summary.dm-agents__category::before {
+	content: '';
+	flex: none;
+	width: 0;
+	height: 0;
+	border-inline-start: 5px solid currentcolor;
+	border-block: 4px solid transparent;
+	transition: transform 120ms ease;
+}
+
+.dm-agents__ability-group[ open ] > summary.dm-agents__category::before {
+	transform: rotate( 90deg );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	summary.dm-agents__category::before {
+		transition: none;
+	}
+}
+
+summary.dm-agents__category:hover {
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+summary.dm-agents__category:focus-visible {
+	outline: 2px solid var( --os-ui-accent, #3858e9 );
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.dm-agents__category-name {
+	flex: 1 1 auto;
+}
+
+/* "3 of 12" when some are ticked, otherwise just the size of the
+   group. The count is why a closed group is still informative:
+   collapsing must not hide the fact that something in there is
+   switched on. */
+.dm-agents__category-count {
+	flex: none;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.75;
 }
 
 /* One ability per row, ruled like the mockup: tick and name on the

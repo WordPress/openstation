@@ -982,7 +982,7 @@ function openstation_agent_get_agents( $args = array() ) {
 /**
  * Create an agent: synthetic user row + definition meta.
  *
- * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array} $args Creation args.
+ * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array, triggers?:array, vibes?:string, face?:array|string, faceSeed?:int} $args Creation args.
  * @return WP_User|WP_Error
  */
 function openstation_agent_create( $args ) {
@@ -1003,6 +1003,7 @@ function openstation_agent_create( $args ) {
 	$description  = isset( $args['description'] ) ? sanitize_text_field( (string) $args['description'] ) : '';
 	$instructions = isset( $args['instructions'] ) ? wp_kses_post( (string) $args['instructions'] ) : '';
 	$abilities    = isset( $args['abilities'] ) ? openstation_agents_sanitize_ability_slugs( $args['abilities'] ) : array();
+	$triggers     = isset( $args['triggers'] ) ? openstation_agent_sanitize_triggers( $args['triggers'] ) : array();
 	$vibes        = isset( $args['vibes'] ) ? openstation_agent_sanitize_vibes( $args['vibes'] ) : '';
 	$face         = isset( $args['face'] ) ? openstation_agent_sanitize_face_json( $args['face'] ) : '';
 	// Every agent gets a seed even when nobody chose a face, so the
@@ -1022,6 +1023,9 @@ function openstation_agent_create( $args ) {
 	}
 	if ( ! empty( $abilities ) ) {
 		update_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, wp_json_encode( $abilities ) );
+	}
+	if ( ! empty( $triggers ) ) {
+		update_user_meta( $user->ID, OPENSTATION_AGENT_TRIGGERS_META, wp_json_encode( $triggers ) );
 	}
 	if ( '' !== $vibes ) {
 		update_user_meta( $user->ID, OPENSTATION_AGENT_VIBES_META, $vibes );

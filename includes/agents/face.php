@@ -25,6 +25,14 @@
  * rather than deny-all, because unlike a theme's PHP these files have
  * to stay servable.
  *
+ * **The .htaccess is the second line, not the first.** It is Apache
+ * only: the `php_flag` and `<FilesMatch>` rules do nothing on nginx,
+ * the same limitation WordPress's own `uploads/.htaccess` carries. So
+ * what actually makes this directory safe is that the renderer cannot
+ * be made to emit anything but inert SVG. Worth knowing before putting
+ * a different kind of file in here: a new file type does not inherit
+ * that guarantee, and the .htaccess alone will not cover it.
+ *
  * **Known limitation, multisite.** `wp_users` and `wp_usermeta` are
  * network-wide but `wp_get_upload_dir()` is per-site, so an agent
  * created on site A has no face file on site B and degrades to the

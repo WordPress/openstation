@@ -3,6 +3,7 @@
  * entity-kind registration and the list/empty/detail paints.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { installHooksStub } from './helpers/hooks-stub';
 import '../../src/my-wordpress/agents-renderer';
 import { getEntityRenderer } from '../../src/my-wordpress/kind-registry';
 import type { EntityRenderHost } from '../../src/my-wordpress/kind-registry';
@@ -115,6 +116,9 @@ async function flush(): Promise< void > {
 }
 
 beforeEach( () => {
+	// The renderer subscribes to the extended-options bus, which needs
+	// a live `window.wp.hooks`.
+	installHooksStub();
 	installConfig();
 } );
 
@@ -236,6 +240,10 @@ describe( 'agents entity kind', () => {
 			mockAgentList( [] );
 			const openOsSettings = vi.fn();
 			( window as unknown as Record< string, unknown > ).wp = {
+			// Keep the hooks bus the stub installed: the renderer
+			// subscribes to it, and replacing `wp` wholesale would
+			// take it away.
+			...( window.wp ?? {} ),
 				os: { openOsSettings },
 			};
 			const host = makeHost();
@@ -514,6 +522,10 @@ describe( 'agents entity kind', () => {
 		}
 		const targets: StubTarget[] = [];
 		( window as unknown as Record< string, unknown > ).wp = {
+			// Keep the hooks bus the stub installed: the renderer
+			// subscribes to it, and replacing `wp` wholesale would
+			// take it away.
+			...( window.wp ?? {} ),
 			os: {
 				dragManager: {
 					registerDropTarget: ( target: StubTarget ) => {
@@ -572,6 +584,10 @@ describe( 'agents entity kind', () => {
 	test( 'agent rows are draggable out as user shortcuts', async () => {
 		const started: Array< Record< string, unknown > > = [];
 		( window as unknown as Record< string, unknown > ).wp = {
+			// Keep the hooks bus the stub installed: the renderer
+			// subscribes to it, and replacing `wp` wholesale would
+			// take it away.
+			...( window.wp ?? {} ),
 			os: {
 				dragManager: {
 					registerDropTarget: () => () => void 0,
@@ -632,5 +648,212 @@ describe( 'agents entity kind', () => {
 		await flush();
 
 		expect( host.body.textContent ).toContain( 'kaboom' );
+	} );
+} );
+
+describe( 'faces for agents that never picked one', () => {
+	/**
+	 * A list route plus a PATCH route, so the backfill has something
+	 * to write to and the test can read what it wrote.
+	 */
+	function mockListAndPatch( agents: Agent[] ) {
+		const patched: Array< { id: string; body: Record< string, unknown > } > =
+			[];
+		const fn = vi.fn( async ( input: RequestInfo, init?: RequestInit ) => {
+			const url = String( input );
+			const match = url.match( /\/agents\/(\d+)$/ );
+			if ( match && init?.method === 'POST' ) {
+				const body = JSON.parse( String( init.body ) );
+				patched.push( { id: match[ 1 ], body } );
+				const before = agents.find(
+					( a ) => a.id === Number( match[ 1 ] ),
+				);
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ( { ...before, ...body } ),
+				} as unknown as Response;
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => agents,
+			} as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fn;
+		return patched;
+	}
+
+	test( 'an agent with a seed and no face has one rolled and stored', async () => {
+		// The state Dani hit: agents that reached the grid wearing the
+		// fallback robot. Anything that made an agent without a picker
+		// (a plugin, WP-CLI, an older version) lands here, and the
+		// seed every agent gets at creation is what the roll uses.
+		const patched = mockListAndPatch( [
+			{
+				...AGENT,
+				id: 41,
+				name: 'Faceless',
+				face: { appearance: {}, physics: {} },
+				faceSeed: 1234,
+			},
+		] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+		await flush();
+
+		expect( patched ).toHaveLength( 1 );
+		expect( patched[ 0 ].id ).toBe( '41' );
+		const face = patched[ 0 ].body.face as {
+			appearance: Record< string, unknown >;
+			physics: Record< string, unknown >;
+		};
+		expect( Object.keys( face.appearance ).length ).toBeGreaterThan( 0 );
+		expect( face.physics.shapePreset ).toBeTruthy();
+		// Derived, so the same seed has to give the same face: an
+		// agent whose portrait changed per page load is not a
+		// character.
+		expect( patched[ 0 ].body.faceSeed ).toBe( 1234 );
+	} );
+
+	test( 'an agent that already has a face is left alone', async () => {
+		const patched = mockListAndPatch( [
+			{
+				...AGENT,
+				id: 42,
+				face: {
+					appearance: { hueStart: 200 },
+					physics: { shapePreset: 'star' },
+				},
+				faceSeed: 7,
+			},
+		] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+		await flush();
+
+		expect( patched ).toHaveLength( 0 );
+	} );
+
+	test( 'a reader never writes', async () => {
+		installConfig( { canManage: false } );
+		const patched = mockListAndPatch( [
+			{
+				...AGENT,
+				id: 43,
+				face: { appearance: {}, physics: {} },
+				faceSeed: 99,
+			},
+		] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+		await flush();
+
+		expect( patched ).toHaveLength( 0 );
+		// The grid still shows a face: it is drawn from the seed on
+		// the spot, so a read-only viewer sees the crew rather than a
+		// row of identical robots.
+		const img = host.body.querySelector< HTMLImageElement >(
+			'.dm-agents__cast-face',
+		);
+		expect( img ).not.toBeNull();
+		expect( img!.getAttribute( 'src' ) ).toContain( 'image/svg+xml' );
+	} );
+} );
+
+describe( 'the Agents feature being toggled while the view is open', () => {
+	test( 'switching it off repaints instead of leaving a dead view', async () => {
+		// Turning the flag off unregisters the section's REST routes,
+		// so a view that carried on regardless answered its next
+		// request with "No route was found matching the URL and
+		// request method".
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+		const navigated: unknown[] = [];
+		host.navigate = ( route ) => navigated.push( route );
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		const hooks = ( window.wp as unknown as {
+			hooks: { doAction: ( name: string, payload: unknown ) => void };
+		} ).hooks;
+		hooks.doAction( 'os.extended-options.changed', {
+			options: { agents: false },
+		} );
+
+		expect( navigated ).toHaveLength( 1 );
+		expect( navigated[ 0 ] ).toEqual( { kind: 'list', entityId: 'agents' } );
+	} );
+
+	test( 'a save that did not move the agents flag repaints nothing', async () => {
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+		const navigated: unknown[] = [];
+		host.navigate = ( route ) => navigated.push( route );
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		const hooks = ( window.wp as unknown as {
+			hooks: { doAction: ( name: string, payload: unknown ) => void };
+		} ).hooks;
+		// Someone toggled Games, not Agents.
+		hooks.doAction( 'os.extended-options.changed', {
+			options: { agents: true, games: true },
+		} );
+
+		expect( navigated ).toHaveLength( 0 );
+	} );
+
+	test( 'the subscription goes away with the view', async () => {
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+		const navigated: unknown[] = [];
+		host.navigate = ( route ) => navigated.push( route );
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+		host.teardowns.forEach( ( fn ) => fn() );
+
+		const hooks = ( window.wp as unknown as {
+			hooks: { doAction: ( name: string, payload: unknown ) => void };
+		} ).hooks;
+		hooks.doAction( 'os.extended-options.changed', {
+			options: { agents: false },
+		} );
+
+		expect( navigated ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'the status bar', () => {
+	test( 'the section counts its cast rather than leaving the folder count up', async () => {
+		// The status rail is the window's, not the view's, so a
+		// section that never wrote to it kept whatever the root folder
+		// had left there: "11 folders", under a screen with none.
+		const root = document.createElement( 'div' );
+		root.setAttribute( 'data-os-my-wordpress-root', '' );
+		const status = document.createElement( 'div' );
+		status.setAttribute( 'data-os-my-wordpress-status', '' );
+		status.textContent = '11 folders';
+		root.appendChild( status );
+		document.body.appendChild( root );
+
+		mockAgentList( [ AGENT, { ...AGENT, id: 13, name: 'Second' } ] );
+		const host = makeHost();
+		root.appendChild( host.body );
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		expect( status.textContent ).toContain( '2 agents' );
+		expect( status.textContent ).not.toContain( 'folders' );
 	} );
 } );

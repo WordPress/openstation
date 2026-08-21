@@ -161,6 +161,16 @@ The face directory is hardened **exec-off, not deny-all**: portraits
 have to stay servable or every agent avatar on the site breaks. PHP
 cannot execute there.
 
+That hardening is `.htaccess`, so it is **defence in depth and Apache
+only**: the `php_flag` and `<FilesMatch>` rules are inert on nginx,
+the same limitation WordPress's own `uploads/.htaccess` has. The
+control that actually holds is the one above it: the renderer cannot
+be made to emit anything but inert SVG, because it never interpolates
+a caller-supplied string. Read in that order if you are adding to this
+directory later. A **different** file type dropped in beside the
+portraits would not inherit the renderer's guarantee, and the
+`.htaccess` is not enough on its own to cover it.
+
 **The one thing to be careful with is a roster digest.** Telling agent A
 about agent B — so it can hand work over by name — would put text one
 `edit_users` holder wrote into another's system prompt. On a
