@@ -588,6 +588,89 @@ describe( 'widgets/layer', () => {
 		expect( docked.height ).toBe( 400 );
 	} );
 
+	test( 'computeResize keeps a floating widget origin on the snap grid', async () => {
+		const { computeResize } = await import( '../../src/widgets/frame' );
+		const parent = document.createElement( 'div' );
+		Object.defineProperty( parent, 'clientWidth', { value: 1000, configurable: true } );
+		Object.defineProperty( parent, 'clientHeight', { value: 600, configurable: true } );
+
+		const def = {
+			id: 'x',
+			label: 'X',
+			description: '',
+			icon: 'dashicons-star-filled',
+			minWidth: 120,
+			minHeight: 80,
+			mount: () => () => undefined,
+		};
+
+		// North-west drag by (-7, +9) from (140, 100). Freehand that
+		// lands at (133, 109); snapped it's (140, 100) again — and
+		// crucially the opposite edges (440, 300) don't move, so the
+		// size absorbs the difference.
+		const nudge = computeResize(
+			'nw', -7, 9, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( nudge.x % 20 ).toBe( 0 );
+		expect( nudge.y % 20 ).toBe( 0 );
+		expect( nudge.x + nudge.width ).toBe( 440 );
+		expect( nudge.y + nudge.height ).toBe( 300 );
+
+		// Far enough to move a whole cell.
+		const west = computeResize(
+			'w', -33, 0, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( west.x ).toBe( 100 );
+		expect( west.width ).toBe( 340 );
+
+		// Shrinking past minWidth. The naive stop is right - minW,
+		// which here is 445 - 120 = 325 and off-grid; the origin has
+		// to fall back to 320, giving 5 px more width than the
+		// minimum rather than an unaligned edge.
+		const squeezed = computeResize(
+			'w', 1000, 0, 140, 100, 305, 200, def, parent, true,
+		);
+		expect( squeezed.x ).toBe( 320 );
+		expect( squeezed.width ).toBe( 125 );
+
+		// South-east: the origin holds, the far edges snap, so the
+		// size lands on whole cells too.
+		const corner = computeResize(
+			'se', 13, -6, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( corner.x ).toBe( 140 );
+		expect( corner.y ).toBe( 100 );
+		expect( corner.width ).toBe( 320 );
+		expect( corner.height ).toBe( 200 );
+
+		// East drag far enough to cross a cell boundary.
+		const east = computeResize(
+			'e', 28, 0, 140, 100, 300, 200, def, parent, true,
+		);
+		expect( east.width ).toBe( 320 );
+		expect( east.x + east.width ).toBe( 460 );
+
+		// Growing past the parent's edge stops on the last grid line
+		// inside it. 1000 is on-grid, so squeeze the widget's own max
+		// to an off-grid stop instead.
+		const capped = computeResize(
+			'e', 1000, 0, 140, 100, 300, 200,
+			{ ...def, maxWidth: 265 }, parent, true,
+		);
+		expect( capped.width ).toBe( 260 );
+
+		// Docked cards keep the old behaviour — no free position to
+		// align, and a chunky height drag would just feel worse.
+		const dockedNorth = computeResize(
+			'n', 0, -7, 140, 100, 300, 200, def, parent, false,
+		);
+		expect( dockedNorth.height ).toBe( 207 );
+		const dockedSouth = computeResize(
+			's', 0, 7, 140, 100, 300, 200, def, parent, false,
+		);
+		expect( dockedSouth.height ).toBe( 207 );
+	} );
+
 	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {
 		// Reproduces the "widget fully disappears while playing with
 		// drag / resize / re-attach" bug. The frame used to track
@@ -903,6 +986,287 @@ describe( 'widgets/layer', () => {
 		expect( () => layer.redock( 'roam' ) ).not.toThrow();
 		// Unknown id is silently ignored.
 		expect( () => layer.redock( 'never-registered' ) ).not.toThrow();
+
+		layer.disposeAll();
+	} );
+
+	test( 'picking a widget closes the picker and hands focus back to the pill', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		for ( const id of [ 'pick-a', 'pick-b' ] ) {
+			registry.register( {
+				id,
+				label: id,
+				description: '',
+				icon: 'dashicons-star-filled',
+				mount: () => () => undefined,
+			} );
+		}
+		window.localStorage.setItem( 'desktop-mode-widgets', '[]' );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		layer.openPicker();
+
+		expect( document.querySelector( '.os-widget-picker' ) ).not.toBeNull();
+		expect(
+			host.classList.contains( 'os-widgets--picking' ),
+		).toBe( true );
+
+		const entry = document.querySelector< HTMLButtonElement >(
+			'.os-widget-picker__entry:not([disabled])',
+		)!;
+		entry.click();
+
+		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a' ] );
+		// Panel gone, and the flag that pinned the pill with it.
+		expect( document.querySelector( '.os-widget-picker' ) ).toBeNull();
+		expect(
+			host.classList.contains( 'os-widgets--picking' ),
+		).toBe( false );
+		expect( document.activeElement ).toBe(
+			host.querySelector( '.os-widgets__add' ),
+		);
+
+		// Adding a second one means opening it again.
+		layer.openPicker();
+		expect( document.querySelector( '.os-widget-picker' ) ).not.toBeNull();
+		document
+			.querySelector< HTMLButtonElement >(
+				'.os-widget-picker__entry:not([disabled])',
+			)!
+			.click();
+		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a', 'pick-b' ] );
+
+		layer.disposeAll();
+	} );
+
+	test( 'the add-widget pill reveals only while the pointer is near the column', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'near',
+			label: 'Near',
+			description: '',
+			icon: 'dashicons-star-filled',
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["near"]' );
+
+		// jsdom lays nothing out — pin the column's box so the
+		// proximity test has real numbers to compare against.
+		host.getBoundingClientRect = (): DOMRect => ( {
+			x: 704, y: 16, width: 320, height: 736,
+			top: 16, left: 704, right: 1024, bottom: 752,
+			toJSON: () => ( {} ),
+		} );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
+
+		const move = ( x: number, y: number ): void => {
+			const e = new Event( 'pointermove', { bubbles: true } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			document.dispatchEvent( e );
+		};
+
+		// Far left of the desktop — nowhere near the column.
+		move( 120, 400 );
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
+
+		// Inside the column.
+		move( 800, 400 );
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( true );
+
+		// Just outside, but within the approach padding.
+		move( 680, 400 );
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( true );
+
+		// Past the padding — hidden again.
+		move( 600, 400 );
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
+
+		// After disposal the watch is gone and the class stops tracking.
+		layer.disposeAll();
+		move( 800, 400 );
+		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
+	} );
+
+	test( 'the add pill trails the lowest widget standing in the column', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'docked',
+			label: 'Docked',
+			description: '',
+			icon: 'dashicons-star-filled',
+			mount: () => () => undefined,
+		} );
+		registry.register( {
+			id: 'parked',
+			label: 'Parked',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		registry.register( {
+			id: 'elsewhere',
+			label: 'Elsewhere',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem(
+			'desktop-mode-widgets',
+			'["docked","parked","elsewhere"]',
+		);
+		// `parked` sits over the column; `elsewhere` is lower down but
+		// off to the left, so it must not drag the pill with it.
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( {
+				parked: { x: 704, y: 300, width: 320, height: 200 },
+				elsewhere: { x: 40, y: 600, width: 320, height: 200 },
+			} ),
+		);
+
+		const col = { top: 16, left: 704, right: 1024, bottom: 752 };
+		host.getBoundingClientRect = (): DOMRect => ( {
+			x: col.left, y: col.top, width: 320, height: 736,
+			...col, toJSON: () => ( {} ),
+		} );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+
+		const list = host.querySelector< HTMLElement >(
+			'.os-widgets__list',
+		)!;
+		Object.defineProperty( list, 'offsetHeight', {
+			configurable: true,
+			get: () => 120,
+		} );
+		const rectFor = ( card: HTMLElement, box: DOMRect ) => {
+			card.getBoundingClientRect = (): DOMRect => box;
+		};
+		const byLabel = ( label: string ): HTMLElement =>
+			[
+				...document.body.querySelectorAll< HTMLElement >(
+					'.os-widgets__card--floating',
+				),
+			].find( ( c ) => c.textContent?.includes( label ) )!;
+
+		// Parked: viewport y 300→500, i.e. 284→484 in column space.
+		rectFor( byLabel( 'Parked' ), {
+			x: 704, y: 300, width: 320, height: 200,
+			top: 300, left: 704, right: 1024, bottom: 500,
+			toJSON: () => ( {} ),
+		} as DOMRect );
+		// Elsewhere: lower, but nowhere near the column's x range.
+		rectFor( byLabel( 'Elsewhere' ), {
+			x: 40, y: 600, width: 320, height: 200,
+			top: 600, left: 40, right: 360, bottom: 800,
+			toJSON: () => ( {} ),
+		} as DOMRect );
+
+		const tile = host.querySelector< HTMLElement >(
+			'.os-widgets__add',
+		)!;
+
+		// Re-run the measurement now that the stubs are in place.
+		const move = ( x: number, y: number ): void => {
+			const e = new Event( 'pointermove', { bubbles: true } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			document.dispatchEvent( e );
+		};
+		move( 800, 400 );
+		await new Promise( ( resolve ) =>
+			requestAnimationFrame( () => resolve( undefined ) ),
+		);
+
+		// Parked's bottom (484 in column space) wins over the docked
+		// list (120), plus the 12 px gap.
+		expect( tile.style.top ).toBe( '496px' );
+
+		layer.disposeAll();
+	} );
+
+	test( 'dragging a floating widget snaps its position to the grid', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'snappy',
+			label: 'Snappy',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["snappy"]' );
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( {
+				snappy: { x: 100, y: 100, width: 240, height: 120 },
+			} ),
+		);
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+
+		const card = document.body.querySelector< HTMLElement >(
+			'.os-widgets__card',
+		)!;
+		Object.defineProperty( card, 'offsetWidth', {
+			configurable: true,
+			get: () => 240,
+		} );
+		Object.defineProperty( card, 'offsetHeight', {
+			configurable: true,
+			get: () => 120,
+		} );
+		document.body.getBoundingClientRect = (): DOMRect => ( {
+			x: 0, y: 0, width: 1024, height: 768,
+			top: 0, left: 0, right: 1024, bottom: 768,
+			toJSON: () => ( {} ),
+		} );
+
+		const ptr = ( type: string, x: number, y: number ): Event => {
+			const e = new Event( type, { bubbles: true } );
+			Object.defineProperty( e, 'pointerId', { value: 1 } );
+			Object.defineProperty( e, 'button', { value: 0 } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			return e;
+		};
+		const chrome = card.querySelector< HTMLElement >(
+			'.os-widgets__chrome',
+		)!;
+		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
+		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
+
+		// Drag by +37 / -23 — off-grid on both axes. From 100,100
+		// that's 137,77, which rounds to the nearest multiple of 20.
+		chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
+		chrome.dispatchEvent( ptr( 'pointermove', 37, -23 ) );
+		chrome.dispatchEvent( ptr( 'pointerup', 37, -23 ) );
+
+		expect( card.style.left ).toBe( '140px' );
+		expect( card.style.top ).toBe( '80px' );
+
+		// Shove it hard against the far edges. The clamp's far bounds
+		// are parent-minus-card, which is off-grid (1024 - 240 - 20 =
+		// 764), so the post-clamp pass has to pull it back to 760.
+		chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
+		chrome.dispatchEvent( ptr( 'pointermove', 5000, 5000 ) );
+		chrome.dispatchEvent( ptr( 'pointerup', 5000, 5000 ) );
+
+		expect( card.style.left ).toBe( '760px' );
+		expect( card.style.top ).toBe( '620px' );
 
 		layer.disposeAll();
 	} );
