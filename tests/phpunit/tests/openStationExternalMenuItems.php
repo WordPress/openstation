@@ -128,10 +128,10 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $items[0]['submenu'] );
 		$this->assertSame( 'Help', $items[0]['submenu'][0]['title'] );
-		$this->assertTrue( $items[0]['submenu'][0]['external'] );
+		$this->assertTrue( $items[0]['submenu'][0]['offSite'] );
 	}
 
-	public function test_internal_submenu_is_not_flagged_external() {
+	public function test_internal_submenu_is_not_flagged_off_site() {
 		global $menu, $submenu;
 		$menu                = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 		$submenu['edit.php'] = array(
@@ -141,7 +141,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$items = openstation_build_dock_items();
 
-		$this->assertArrayNotHasKey( 'external', $items[0]['submenu'][0] );
+		$this->assertArrayNotHasKey( 'offSite', $items[0]['submenu'][0] );
 	}
 
 	public function test_off_site_submenu_never_becomes_the_parent_url() {
@@ -372,6 +372,56 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		}
 
 		$this->assertSame( array( 'plugins.php' ), $seen );
+	}
+
+	public function test_off_site_parent_restores_its_own_row_by_label() {
+		global $menu, $submenu;
+		$menu = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
+		$submenu['https://wordpress.com/plugins/example.com'] = array(
+			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
+			array( 'Plugin File Editor', 'edit_plugins', 'plugin-editor.php', '', 'hide-if-js' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		// The label match picks the menu's own row, not whichever hidden
+		// row happens to come first.
+		$this->assertCount( 1, $items );
+		$this->assertSame( admin_url( 'plugins.php' ), $items[0]['url'] );
+		$this->assertSame( array(), $items[0]['submenu'] );
+	}
+
+	public function test_off_site_parent_falls_back_to_any_hidden_on_site_row() {
+		global $menu, $submenu;
+		// A host that relabelled the menu row without relabelling the
+		// self-link it had already generated. Nothing matches by label,
+		// and dropping the menu would lose a page that works.
+		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
+		$submenu['https://wordpress.com/plugins/example.com'] = array(
+			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertCount( 1, $items );
+		$this->assertSame( admin_url( 'plugins.php' ), $items[0]['url'] );
+		$this->assertTrue( $items[0]['isCore'] );
+	}
+
+	public function test_off_site_parent_prefers_an_on_site_child_over_a_hidden_row() {
+		global $menu, $submenu;
+		// A visible on-site child is a better stand-in than a row
+		// someone hid, so the fallback stays out of the way.
+		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
+		$submenu['https://wordpress.com/plugins/example.com'] = array(
+			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
+			array( 'Add Plugin', 'install_plugins', 'plugin-install.php' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertCount( 1, $items );
+		$this->assertSame( admin_url( 'plugin-install.php' ), $items[0]['url'] );
 	}
 
 	public function test_hidden_top_level_menu_is_dropped() {

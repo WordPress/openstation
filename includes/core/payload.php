@@ -209,10 +209,41 @@ function openstation_build_dock_items() {
 				$rows[ $restore_slots[ $row_title ] ] = $row;
 				$restored[ $row_title ]               = true;
 			} elseif ( $parent_external && $row_title === $title ) {
+				// The menu's own row, hidden in place. WordPress builds
+				// a parent's self-link by copying the menu row's first
+				// four fields, so its label is the menu's label, which
+				// is what makes the comparison hold.
 				$keep[ $i ]             = true;
 				$restored[ $row_title ] = true;
 			}
 		}
+
+		// Last resort for a menu whose own slug points off-site: if
+		// nothing on-site survived, take the first hidden on-site row
+		// rather than lose the menu. The label comparison above is the
+		// precise answer and covers the ordinary case, but it breaks the
+		// moment a host relabels the menu row without relabelling the
+		// self-link it already generated. Showing a row someone hid
+		// beats dropping a working menu off the dock.
+		if ( $parent_external ) {
+			$has_on_site = false;
+			foreach ( $rows as $i => $row ) {
+				if ( ! isset( $row['restore'] ) && $keep[ $i ] && ! $row['external'] ) {
+					$has_on_site = true;
+					break;
+				}
+			}
+			if ( ! $has_on_site ) {
+				foreach ( $rows as $i => $row ) {
+					if ( isset( $row['restore'] ) || ! $row['hidden'] || $row['external'] ) {
+						continue;
+					}
+					$keep[ $i ] = true;
+					break;
+				}
+			}
+		}
+
 		$kept_rows = array();
 		foreach ( $rows as $i => $row ) {
 			if ( isset( $row['restore'] ) || ! $keep[ $i ] ) {
