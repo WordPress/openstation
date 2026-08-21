@@ -14,11 +14,6 @@ import { describe, expect, test } from 'vitest';
 const root = join( __dirname, '../..' );
 const css = readFileSync( join( root, 'assets/css/os-settings.css' ), 'utf8' );
 const aboutStart = css.indexOf( '/*\n * About tab' );
-// The About block runs until the next top-level section comment. Naming
-// the section that follows is what broke this test: it pointed at
-// "Apps & Icons section", which #640 renamed while this file was in
-// flight, so the slice came back empty and the assertions below passed
-// over nothing. Whatever sits after About can be renamed again.
 const nextSection = css.indexOf( '\n/*', aboutStart + 1 );
 const aboutEnd = -1 === nextSection ? css.length : nextSection;
 const aboutCss = css.slice( aboutStart, aboutEnd );
