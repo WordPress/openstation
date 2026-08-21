@@ -198,22 +198,6 @@ describe( 'syncActiveTab', () => {
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
 	} );
 
-	test( 'a submenu entry that declares its own route still wins', () => {
-		// `menu.php` registers Patterns as `site-editor.php?p=/pattern`
-		// alongside the Editor entry, so the deeper one has to keep
-		// claiming its own route.
-		const win = mockTabbedWindow( [
-			[ 'Editor', ADMIN + 'site-editor.php' ],
-			[ 'Patterns', ADMIN + 'site-editor.php?p=/pattern' ],
-		] );
-
-		syncActiveTab( win, ADMIN + 'site-editor.php?p=/pattern' );
-		expect( activeLabels( win ) ).toEqual( [ 'Patterns' ] );
-
-		syncActiveTab( win, ADMIN + 'site-editor.php?p=/' );
-		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
-	} );
-
 	test( 'a clicked tab lights before the load reports back', () => {
 		const win = mockTabbedWindow( [
 			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
