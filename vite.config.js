@@ -343,6 +343,16 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
+	// Code Blue — error-log reader. Tails the WP debug log / PHP
+	// error log via the Code Blue REST routes and renders a severity
+	// histogram + grouped issue list. Registers a render callback on
+	// `window.openStationNativeWindows['openstation-code-blue']` and
+	// re-registers the `<os-*>` tags it instantiates (idempotent).
+	'code-blue': {
+		entry:    'src/code-blue/index.ts',
+		fileBase: 'code-blue',
+		iifeName: 'openStationCodeBlue',
+	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-games']`; the
