@@ -158,7 +158,7 @@ OpenStation is brought to you by [Automattic](https://automattic.com). The plugi
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OpenStation Preferences → About** scene, the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), the **Mio** desk companion, and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 = Data files =
 

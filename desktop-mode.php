@@ -100,6 +100,10 @@ require_once OPENSTATION_DIR . 'includes/session.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';
 require_once OPENSTATION_DIR . 'includes/os-settings.php';
+// The About journal is still lazy — this file only registers its authenticated
+// AJAX action. Load the registration unconditionally so alternate admin-ajax
+// bootstraps cannot skip it while classifying the request shape.
+require_once OPENSTATION_DIR . 'includes/about-feed.php';
 require_once OPENSTATION_DIR . 'includes/seen-intros.php';
 // One-time data migrations. After os-settings.php and seen-intros.php,
 // whose meta-key constants and helpers the migrations call.

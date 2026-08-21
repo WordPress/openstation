@@ -559,6 +559,11 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 			win.iframe.src = next;
 		}
 		switchToTab( win, 'primary' );
+		// Light the destination now. The load event calls this again
+		// with wherever the navigation landed, and on
+		// `site-editor.php` that is seconds away — long enough for the
+		// strip to sit there naming the page the user just left.
+		syncActiveTab( win, tab.dataset.url );
 	}
 }
 

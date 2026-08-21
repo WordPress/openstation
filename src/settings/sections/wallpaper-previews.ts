@@ -14,7 +14,7 @@
  * before live previews existed.
  *
  * WebGL contexts are a per-page scarce resource (~8–16 in most
- * browsers, shared with the active wallpaper and the About scene), so
+ * browsers, shared with the active wallpaper and other canvas windows), so
  * concurrent live previews are capped at {@link MAX_LIVE_PREVIEWS};
  * tiles beyond the cap keep their CSS fallback until a slot frees up
  * (scroll-away, tab switch).

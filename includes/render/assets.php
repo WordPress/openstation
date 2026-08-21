@@ -368,7 +368,7 @@ function openstation_enqueue_assets() {
 	);
 
 	// Lazy-bundle URL builder. Each lazy-loaded bundle (AI Assistant,
-	// About-scene, OS Settings panel, shell-overlays, window-system)
+	// OS Settings panel, shell-overlays, window-system)
 	// is `<script>`-injected by the main bundle on demand — they don't
 	// go through `wp_register_script`, so they don't pick up WordPress's
 	// usual `?ver=<filemtime>` cache-buster. Without one, the browser
@@ -435,6 +435,7 @@ function openstation_enqueue_assets() {
 	 *     @type bool   $canUpload        Whether the user holds the `upload_files` capability.
 	 *     @type string $pluginUrl        Plugin base URL (no trailing slash). Used by the shell to locate vendor assets and by plugins to build asset URLs.
 	 *     @type string $pluginVersion    Plugin semver string. Surfaced in the OS Settings → About tab; plugins can read it to gate features by version.
+	 *     @type string $aboutFeedUrl     Authenticated admin-AJAX URL that returns the cached OpenStation journal feed for the About tab.
 	 *     @type string $restNonce        Nonce for the session REST endpoint.
 	 *     @type string $soloWindow   Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); '' otherwise. No dock, taskbar, wallpaper or desk, and no session restore.
 	 *     @type string $portalUrl    Canonical `/openstation/` URL.
@@ -519,6 +520,15 @@ function openstation_enqueue_assets() {
 			'canUpload'                     => current_user_can( 'upload_files' ),
 			'pluginUrl'                     => esc_url_raw( untrailingslashit( OPENSTATION_URL ) ),
 			'pluginVersion'                 => OPENSTATION_VERSION,
+			'aboutFeedUrl'                  => esc_url_raw(
+				add_query_arg(
+					array(
+						'action' => 'openstation_about_feed',
+						'nonce'  => wp_create_nonce( 'openstation_about_feed' ),
+					),
+					admin_url( 'admin-ajax.php' )
+				)
+			),
 			'iframeBridgeUrl'               => $lazy_bundle_url( 'iframe-bridge' ),
 			// URL of the AI Assistant lazy bundle. The main bundle
 			// ships a stub matching the public `wp.os.ai` API; the
@@ -526,11 +536,6 @@ function openstation_enqueue_assets() {
 			// opens the assistant. Picking `.js` vs `.min.js` here keeps
 			// the SCRIPT_DEBUG gate server-side, matching iframeBridgeUrl.
 			'aiAssistantBundleUrl'          => $lazy_bundle_url( 'ai-assistant' ),
-			// URL of the About-scene lazy bundle. The OS Settings →
-			// About tab loads this on first mount; ~25 kB PixiJS
-			// particle scene that would otherwise ship in the main
-			// bundle for every shell load.
-			'aboutSceneBundleUrl'           => $lazy_bundle_url( 'about-scene' ),
 			// URL of the OS Settings panel lazy bundle. Injected by
 			// the main bundle's `OsSettings.renderPanel()` stub on
 			// the user's first Settings open. Holds every section

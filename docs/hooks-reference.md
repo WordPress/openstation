@@ -1161,6 +1161,7 @@ array(
     'sessionUrl'       => string,   // REST session URL
     'restUrl'          => string,   // REST API root from rest_url(); compose with joinRestUrl() for pretty/plain permalink safety
     'restNonce'        => string,   // X-WP-Nonce
+    'aboutFeedUrl'     => string,   // nonced admin-AJAX URL for the lazy About journal feed
     'dockItems'        => array[],  // see openstation_dock_items
     'session'          => array,    // prior session snapshot or empty
     'fromPortal'       => bool,     // request was forwarded by the /openstation/ portal

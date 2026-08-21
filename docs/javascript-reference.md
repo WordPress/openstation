@@ -2992,7 +2992,7 @@ Register a visual treatment applied to every window that **isn't** focused — s
 
 At least one of `className` / `apply` is required.
 
-> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph, posts mind-map / tag-cloud, the About scene) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
+> **Windows hosting a WebGL `<canvas>` are exempt.** Native Pixi scenes (content graph and posts mind-map / tag-cloud) render a live WebGL canvas in the parent DOM; a CSS `filter` over such an element can trigger a GPU context loss that crashes the canvas's render loop. The engine detects a `<canvas>` in the window root and skips the effect for that window. Canvases inside *iframe* windows live in a separate document and aren't affected.
 
 ```javascript
 wp.os.ready( () => {
@@ -5245,7 +5245,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OpenStation Preferences snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OpenStation Preferences changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OpenStation Preferences state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OpenStation Preferences → About; useful for version-gated features); `aboutFeedUrl` (authenticated admin-AJAX URL used lazily by About's OpenStation Journal view); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 

@@ -7,6 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
+	handleTabStripClick,
 	observeTabOverflow,
 	syncActiveTab,
 	updateTabOverflow,
@@ -173,6 +174,50 @@ describe( 'syncActiveTab', () => {
 		syncActiveTab( win, ADMIN + 'nav-menus.php' );
 
 		expect( activeLabels( win ) ).toEqual( [] );
+	} );
+
+	test( 'the site editor’s own route keeps the Editor tab lit', () => {
+		// WordPress redirects `site-editor.php` to `…&p=/`, so the URL
+		// the iframe lands on is never the URL the tab declares.
+		const win = mockTabbedWindow( [
+			[ 'Themes', ADMIN + 'themes.php' ],
+			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
+			[ 'Editor', ADMIN + 'site-editor.php' ],
+		] );
+
+		syncActiveTab(
+			win,
+			ADMIN + 'site-editor.php?openstation_chromeless=1&p=/',
+		);
+		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+
+		syncActiveTab(
+			win,
+			ADMIN + 'site-editor.php?p=/wp_template/twentytwentyfive//home',
+		);
+		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+	} );
+
+	test( 'a clicked tab lights before the load reports back', () => {
+		const win = mockTabbedWindow( [
+			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
+			[ 'Editor', ADMIN + 'site-editor.php' ],
+		] );
+		Object.assign( win as unknown as Record< string, unknown >, {
+			iframe: document.createElement( 'iframe' ),
+			_externalTabs: new Map(),
+			markContentLoading: () => {},
+		} );
+		syncActiveTab( win, ADMIN + 'theme-install.php?browse=popular' );
+		expect( activeLabels( win ) ).toEqual( [ 'Add Theme' ] );
+
+		const editor = win.element.querySelectorAll( '.os-window__tab' )[ 1 ];
+		handleTabStripClick( win, {
+			target: editor,
+			stopPropagation: () => {},
+		} as unknown as Event );
+
+		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
 	} );
 
 	test( 'aria-selected tracks the active tab', () => {

@@ -450,16 +450,6 @@ const TARGETS = {
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
-	// About-scene — the PixiJS particle scene rendered inside OS
-	// Settings → About. ~25 kB of code that only ever runs after the
-	// user explicitly opens that tab. Loaded by the main-bundle
-	// `about-scene-loader.ts` on first mount; publishes
-	// `window.openStationMountAboutScene`.
-	'about-scene': {
-		entry:    'src/settings/sections/about-scene-entry.ts',
-		fileBase: 'about-scene',
-		iifeName: 'openStationAboutScene',
-	},
 	// OS Settings panel — the big lazy bundle (Stage 8). Hosts every
 	// section renderer + the `<os-*>` components only the panel
 	// uses (color/range field, swatch, swatch-grid, section,
