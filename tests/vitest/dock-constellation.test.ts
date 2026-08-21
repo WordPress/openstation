@@ -334,7 +334,7 @@ describe( 'dock constellation', () => {
 					{
 						title: 'Docs',
 						url: 'https://example.org/docs',
-						external: true,
+						offSite: true,
 					},
 				],
 			},
@@ -343,11 +343,12 @@ describe( 'dock constellation', () => {
 
 		const docs = rows( '.os-constellation__row--sub' )[ 1 ];
 		expect(
-			docs.querySelector( '.os-constellation__row-external' ),
+			docs.querySelector( '.os-constellation__row-offsite' ),
 		).not.toBeNull();
-		expect( docs.getAttribute( 'aria-label' ) ).toBe(
-			'Docs (opens in a new tab)',
-		);
+		// Composed, not replaced: the row's own label survives.
+		expect( docs.getAttribute( 'aria-label' ) ).toBeNull();
+		expect( docs.textContent ).toContain( 'Docs' );
+		expect( docs.textContent ).toContain( '(opens in a new tab)' );
 
 		docs.click();
 		// A window would have loaded it into an iframe the remote

@@ -852,7 +852,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// frame. They stay in the constellation flyout, which can hand
 		// a link to the browser.
 		const tabSubmenu = ( config.submenu ?? [] ).filter(
-			( s ) => ! s.external,
+			( s ) => ! s.offSite,
 		);
 
 		if ( tabSubmenu.length > 0 && config.url ) {

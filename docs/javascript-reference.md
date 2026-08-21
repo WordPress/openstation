@@ -857,7 +857,7 @@ manager.closeDesktop( id: string ): void;
     width?:        number;
     height?:       number;
     initialState?: 'normal' | 'minimized' | 'maximized' | 'fullscreen';
-    submenu?:      { title: string; url: string; external?: boolean }[];
+    submenu?:      { title: string; url: string; offSite?: boolean }[];
 }
 ```
 
@@ -911,7 +911,7 @@ Ownership is about z-order and focus. For a *visual* relationship between peer w
 
 To react to a blocked focus attempt, subscribe to [`os-window-child-blocked`](#os-window-child-blocked) or the `os.window.child-blocked` action.
 
-**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Entries flagged `external` are skipped: a tab loads its URL into this window's iframe, which an off-site origin refuses. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+**`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Entries flagged `offSite` are skipped: a tab loads its URL into this window's iframe, which an off-site origin refuses. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
 
 Every iframe window gets the strip element, whether or not it has a submenu, because external sub-tabs can be added to it later. Its navigation semantics follow its contents: `role="tablist"` plus an `aria-label` of `"<title> sub-pages"` while it holds tabs, `role="presentation"` while it is empty — so a window with no sub-pages never advertises an empty tab list to assistive tech.
 
@@ -4798,7 +4798,7 @@ interface DockItem {
     icon:     string;        // dashicon class | `data:` URI | `http(s):` URL
     url:      string;        // admin URL the tile opens
     badge:    number;        // numeric badge; 0 = no badge
-    submenu:  { title: string; url: string; external?: boolean }[];
+    submenu:  { title: string; url: string; offSite?: boolean }[];
     multi:    boolean;       // hover-peek + Ghost Card eligibility
     isCore:   boolean;       // true for WP-shipped menus, false for plugin-contributed
     pluginFile: string | null; // owning plugin file (e.g. `woocommerce/woocommerce.php`)
@@ -4827,7 +4827,9 @@ interface DockItem {
 
 A custom rail renderer that decides whether to show a submenu indicator (a chevron, a hover treatment) can read `item.submenu.length > 0` without defensive `submenu.length > 1` or self-URL filtering. The framework owns the contract.
 
-**`submenu[].external`** — the row leaves the site. Off-site admin-menu entries are dropped server-side; the survivors are children of a plugin's own menu (a docs or account link), and they carry this flag. Nothing off-site can load in an iframe, so a surface that routes a URL into a window must skip them — the in-window tab strip does, and the constellation flyout marks them with an outbound glyph and hands them to the browser instead. `tryOpenExternalUrl()` is the shared escape; a renderer calling `openSubmenuPick` gets it for free.
+**`submenu[].offSite`** — the row leaves the site. Off-site admin-menu entries are dropped server-side; the survivors are children of a plugin's own menu (a docs or account link), and they carry this flag. Nothing off-site can load in an iframe, so a surface that routes a URL into a window must skip them: the in-window tab strip does, and the constellation flyout marks them with an outbound glyph and hands them to the browser instead. `tryOpenExternalUrl()` is the shared escape; a renderer calling `openSubmenuPick` gets it for free.
+
+The name is `offSite` rather than `external` because the tab strip already spends that word on a different thing: a tab with `data-kind="external"` is a plugin-opened sub-iframe, which is on-site.
 
 **Lifecycle pairing — `replaceItems` ↔ `appendSystemItem`** — these are independent update paths. `replaceItems( items )` swaps the menu-derived tiles wholesale (the live menu refresh fires it on every plugin activation / deactivation). `appendSystemItem` / `removeSystemItem` track the JS-owned cohort (OpenStation Preferences, plugin native-window launchers).
 

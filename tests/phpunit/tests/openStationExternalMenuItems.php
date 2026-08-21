@@ -46,6 +46,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		$icons = array();
 
 		remove_all_filters( 'openstation_menu_item_is_external' );
+		remove_all_filters( 'openstation_dock_item' );
 		parent::tear_down();
 	}
 
@@ -324,6 +325,53 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( admin_url( 'admin.php?page=empty-menu' ), $items[0]['url'] );
+	}
+
+	public function test_rescued_tile_takes_the_identity_of_the_slug_it_adopted() {
+		global $menu, $submenu;
+		// Identity has to move with the URL. Left on the off-site slug,
+		// this reads as a plugin menu owned by whoever registered the
+		// replacement, and sorts away from the Core tiles.
+		$this->attribute_to_plugin( 'https://wordpress.com/plugins/example.com', 'jetpack/jetpack.php' );
+
+		$menu = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
+		$submenu['https://wordpress.com/plugins/example.com'] = array(
+			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
+		);
+
+		$items = openstation_build_dock_items();
+
+		$this->assertCount( 1, $items );
+		$this->assertTrue( $items[0]['isCore'] );
+		$this->assertNull( $items[0]['pluginFile'] );
+		$this->assertNull( $items[0]['pluginName'] );
+	}
+
+	public function test_rescued_tile_reports_the_adopted_slug_to_the_dock_item_filter() {
+		global $menu, $submenu;
+		$seen = array();
+		add_filter(
+			'openstation_dock_item',
+			static function ( $dock_item, $menu_slug ) use ( &$seen ) {
+				$seen[] = $menu_slug;
+				return $dock_item;
+			},
+			10,
+			2
+		);
+
+		$menu = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
+		$submenu['https://wordpress.com/plugins/example.com'] = array(
+			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
+		);
+
+		try {
+			openstation_build_dock_items();
+		} finally {
+			remove_all_filters( 'openstation_dock_item' );
+		}
+
+		$this->assertSame( array( 'plugins.php' ), $seen );
 	}
 
 	public function test_hidden_top_level_menu_is_dropped() {

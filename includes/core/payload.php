@@ -181,6 +181,7 @@ function openstation_build_dock_items() {
 
 				$rows[] = array(
 					'raw_title' => $sub_item[0],
+					'slug'      => (string) $sub_item[2],
 					'url'       => $sub_url,
 					'external'  => $sub_external,
 					'hidden'    => openstation_menu_item_is_hidden( $sub_item ),
@@ -226,10 +227,20 @@ function openstation_build_dock_items() {
 		// self-link strip runs, so a restored original collapses into
 		// `selfLabel` instead of becoming a child that duplicates its
 		// own parent.
+		//
+		// Identity travels with it. Everything below keys off the menu's
+		// slug — whether it's a Core menu, whether a plugin owns it,
+		// whether it opens more than one window, and which slug the
+		// `openstation_dock_item` filter is told about. Left on the
+		// off-site slug, a rescued Plugins tile reads as a plugin menu
+		// owned by whoever registered the replacement, sorts to the far
+		// end of the dock, and offers to deactivate them.
+		$identity_slug = (string) $item[2];
 		if ( $parent_external ) {
 			foreach ( $rows as $row ) {
 				if ( ! $row['external'] ) {
-					$parent_url = $row['url'];
+					$parent_url    = $row['url'];
+					$identity_slug = $row['slug'];
 					break;
 				}
 			}
@@ -312,7 +323,12 @@ function openstation_build_dock_items() {
 				// Consumers that route a URL into a window skip these;
 				// the ones that can hand a link to the browser mark
 				// them as leaving the site.
-				$sub_entry['external'] = true;
+				//
+				// `offSite` rather than `external`: the window's tab
+				// strip already calls plugin-opened sub-iframe tabs
+				// "external" (`data-kind="external"`), and that is a
+				// different thing entirely.
+				$sub_entry['offSite'] = true;
 			}
 			$sub_items[] = $sub_entry;
 		}
@@ -365,10 +381,12 @@ function openstation_build_dock_items() {
 			// named the way wp-admin names it. Empty when the menu had
 			// no self-link to strip.
 			'selfLabel'  => $self_label,
-			'multi'      => openstation_dock_item_is_multi( $item[2] ),
-			'placement'  => openstation_dock_placement( $item[2] ),
-			'isCore'     => openstation_is_core_menu_slug( $item[2] ),
-			'pluginFile' => $plugin_file,
+			'multi'      => openstation_dock_item_is_multi( $identity_slug ),
+			'placement'  => openstation_dock_placement( $identity_slug ),
+			'isCore'     => openstation_is_core_menu_slug( $identity_slug ),
+			'pluginFile' => $identity_slug === (string) $item[2]
+				? $plugin_file
+				: openstation_resolve_menu_plugin_file( $identity_slug ),
 			'pluginName' => null,
 		);
 		if ( $dock_item['pluginFile'] ) {
@@ -381,7 +399,7 @@ function openstation_build_dock_items() {
 		 * @param array  $dock_item The dock item data.
 		 * @param string $menu_slug The menu slug.
 		 */
-		$dock_item = apply_filters( 'openstation_dock_item', $dock_item, $item[2] );
+		$dock_item = apply_filters( 'openstation_dock_item', $dock_item, $identity_slug );
 
 		$items[] = $dock_item;
 	}

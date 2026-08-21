@@ -48,7 +48,7 @@ describe( 'tab strip and off-site submenu rows', () => {
 	test( 'an external row never becomes a tab', () => {
 		const el = build( [
 			{ title: 'Settings', url: ADMIN + 'admin.php?page=my-plugin-settings' },
-			{ title: 'Docs', url: 'https://example.org/docs', external: true },
+			{ title: 'Docs', url: 'https://example.org/docs', offSite: true },
 		] );
 
 		expect( tabLabels( el ) ).toEqual( [ 'My Plugin', 'Settings' ] );
@@ -56,7 +56,7 @@ describe( 'tab strip and off-site submenu rows', () => {
 
 	test( 'a submenu of nothing but external rows renders no strip', () => {
 		const el = build( [
-			{ title: 'Docs', url: 'https://example.org/docs', external: true },
+			{ title: 'Docs', url: 'https://example.org/docs', offSite: true },
 		] );
 
 		expect( tabLabels( el ) ).toEqual( [] );

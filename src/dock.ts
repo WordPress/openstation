@@ -225,13 +225,17 @@ export interface SubmenuItem {
 	/**
 	 * This row leaves the site.
 	 *
-	 * Set server-side on a plugin menu's off-site children — a docs or
+	 * Set server-side on a plugin menu's off-site children, a docs or
 	 * account link under the plugin's own menu. Nothing off-site can
 	 * load in a window, so surfaces that route a URL into one skip
 	 * these rows, and the ones that can hand a link to the browser mark
 	 * them as leaving.
+	 *
+	 * Named `offSite`, not `external`, because the window's tab strip
+	 * already spends that word on something else: `data-kind="external"`
+	 * is a plugin-opened sub-iframe tab, which is very much on-site.
 	 */
-	external?: boolean;
+	offSite?: boolean;
 }
 
 export interface DockItem {
@@ -270,7 +274,7 @@ export interface DockItem {
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
 	badge: number;
 	/** Submenu items. */
-	submenu: { title: string; url: string; external?: boolean }[];
+	submenu: { title: string; url: string; offSite?: boolean }[];
 	/** Whether this admin page supports multiple open windows. */
 	multi?: boolean;
 	/**

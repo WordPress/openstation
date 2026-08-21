@@ -1097,16 +1097,19 @@ function buildSubmenuRow(
 
 	// An off-site row can't become a window — clicking it hands the URL
 	// to the browser. Say so before the click, not after it.
-	if ( sub.external ) {
+	if ( sub.offSite ) {
 		const mark = document.createElement( 'span' );
-		mark.className = 'dashicons dashicons-external os-constellation__row-external';
+		mark.className = 'dashicons dashicons-external os-constellation__row-offsite';
 		mark.setAttribute( 'aria-hidden', 'true' );
 		row.appendChild( mark );
-		row.setAttribute(
-			'aria-label',
-			// translators: %s is the submenu entry's label (e.g. "Documentation")
-			sprintf( __( '%s (opens in a new tab)' ), sub.title ),
-		);
+		// Said in a hidden span rather than an `aria-label` on the row:
+		// a label REPLACES the accessible name, so it would drop the
+		// row's own text and anything a plugin appended to it. A span
+		// composes with them.
+		const note = document.createElement( 'span' );
+		note.className = 'os-constellation__row-note';
+		note.textContent = __( '(opens in a new tab)' );
+		row.appendChild( note );
 	}
 
 	row.addEventListener( 'click', () => {
