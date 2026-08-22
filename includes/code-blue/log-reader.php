@@ -155,7 +155,7 @@ function openstation_code_blue_log_sources() {
 			'path'     => $path,
 			'exists'   => $exists,
 			'readable' => $exists && is_readable( $path ),
-			'writable' => $exists && is_writable( $path ),
+			'writable' => $exists && wp_is_writable( $path ),
 			'size'     => $exists ? (int) filesize( $path ) : 0,
 			'mtime'    => $exists ? (int) filemtime( $path ) : 0,
 		);
