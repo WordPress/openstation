@@ -16,7 +16,7 @@ add_filter( 'openstation_code_blue_log_sources', function ( $sources ) {
 } );
 ```
 
-That's the whole descriptor — `id` (slug), `label`, `path` (absolute). File metadata (`exists`, `readable`, `writable`, `size`, `mtime`) is derived server-side after filtering; a missing file shows up grayed out in the picker rather than erroring.
+That's the whole descriptor — `id` (slug), `label`, `path` (absolute). File metadata (`exists`, `readable`, `writable`, `size`, `mtime`) is derived server-side after filtering. A file that doesn't exist yet is treated as an **empty log**, not an error: it stays selectable in the picker (labelled "… (empty)") and serves zero entries until the first line is written. Only a file that exists but PHP cannot read is grayed out.
 
 The parser understands standard `error_log()` output — `[22-Aug-2026 09:14:02 UTC] …` timestamps, PHP error labels, stack traces, and `WordPress database error` lines. Plain custom lines come through as one `info` entry per line, so a log of your own making is still searchable and groupable. Two format caveats:
 

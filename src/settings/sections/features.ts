@@ -38,32 +38,40 @@ import { showToast } from '../../toast';
  * the gated surfaces appear/disappear without an F5. On `failed` the
  * panel's rollback handler already reverts the toggle; nothing to
  * refresh.
+ *
+ * One permanent listener + a pending flag (the same shape as the
+ * title-bar-buttons registry's lifecycle subscriber) rather than a
+ * self-removing listener per toggle: the sync debounce collapses
+ * rapid flips into ONE `saved` event, and the flag collapses them
+ * into ONE refresh probe with it.
  */
+let pendingRegistrationRefresh = false;
+
 function refreshRegistrationsAfterSave(): void {
-	const onLifecycle = ( event: Event ): void => {
-		const phase = ( event as CustomEvent< { phase?: string } > ).detail
-			?.phase;
-		if ( phase !== 'saved' && phase !== 'failed' ) {
-			return;
-		}
-		document.removeEventListener(
-			'os-settings-save-lifecycle',
-			onLifecycle,
-		);
-		if ( phase !== 'saved' ) {
-			return;
-		}
-		const refreshMenu = (
-			window.wp as
-				| { os?: { refreshMenu?: () => Promise< void > } }
-				| undefined
-		)?.os?.refreshMenu;
-		if ( typeof refreshMenu === 'function' ) {
-			void refreshMenu();
-		}
-	};
-	document.addEventListener( 'os-settings-save-lifecycle', onLifecycle );
+	pendingRegistrationRefresh = true;
 }
+
+document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
+	if ( ! pendingRegistrationRefresh ) {
+		return;
+	}
+	const phase = ( event as CustomEvent< { phase?: string } > ).detail?.phase;
+	if ( phase !== 'saved' && phase !== 'failed' ) {
+		return;
+	}
+	pendingRegistrationRefresh = false;
+	if ( phase !== 'saved' ) {
+		return;
+	}
+	const refreshMenu = (
+		window.wp as
+			| { os?: { refreshMenu?: () => Promise< void > } }
+			| undefined
+	)?.os?.refreshMenu;
+	if ( typeof refreshMenu === 'function' ) {
+		void refreshMenu();
+	}
+} );
 
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
 const SHORTCUT_KEY =
