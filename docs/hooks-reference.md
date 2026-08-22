@@ -3801,7 +3801,7 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 
 An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
 
-The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files.
+The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files. Flipping the Preferences toggle takes effect live: once the settings save persists, the panel spends one [`wp.os.refreshMenu()`](./javascript-reference.md) probe and the icon/window appear (or disappear) without a reload.
 
 ### REST — `desktop-mode/v1/code-blue/*` — Experimental
 

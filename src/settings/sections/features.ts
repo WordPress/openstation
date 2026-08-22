@@ -28,6 +28,43 @@ import type { SettingsCtx } from '../types';
 import { osConfirm } from '../../ui/components/os-confirm-dialog/os-confirm-dialog';
 import { showToast } from '../../toast';
 
+/**
+ * Developer mode gates SERVER-side registrations (Code Blue's native
+ * window + desktop icon), which the shell only learns about from a
+ * fresh menu payload. Wait for the debounced settings sync to
+ * actually persist (`saved` lifecycle phase — the refresh probe
+ * rebuilds the payload from saved user meta, so firing earlier would
+ * harvest the old state), then spend one `wp.os.refreshMenu()` so
+ * the gated surfaces appear/disappear without an F5. On `failed` the
+ * panel's rollback handler already reverts the toggle; nothing to
+ * refresh.
+ */
+function refreshRegistrationsAfterSave(): void {
+	const onLifecycle = ( event: Event ): void => {
+		const phase = ( event as CustomEvent< { phase?: string } > ).detail
+			?.phase;
+		if ( phase !== 'saved' && phase !== 'failed' ) {
+			return;
+		}
+		document.removeEventListener(
+			'os-settings-save-lifecycle',
+			onLifecycle,
+		);
+		if ( phase !== 'saved' ) {
+			return;
+		}
+		const refreshMenu = (
+			window.wp as
+				| { os?: { refreshMenu?: () => Promise< void > } }
+				| undefined
+		)?.os?.refreshMenu;
+		if ( typeof refreshMenu === 'function' ) {
+			void refreshMenu();
+		}
+	};
+	document.addEventListener( 'os-settings-save-lifecycle', onLifecycle );
+}
+
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
 const SHORTCUT_KEY =
 	typeof navigator !== 'undefined' &&
@@ -174,6 +211,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.developerModeEnabled = checked;
 		ctx.save();
 		paint();
+		refreshRegistrationsAfterSave();
 	};
 
 	const onFolderSharingToggle = ( e: Event ): void => {
