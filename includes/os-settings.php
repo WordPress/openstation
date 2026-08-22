@@ -232,9 +232,10 @@ function openstation_default_os_settings() {
 		'showPostStatusRibbons'       => true,
 		// Unlocks developer-facing surfaces meant for plugin
 		// authors: the Starter Widget appears in the add-widget
-		// picker, and the OS Settings → Components tab runs its
-		// intentional missing-import-warner demo. Off by default.
-		// Per-user.
+		// picker, the OS Settings → Components tab runs its
+		// intentional missing-import-warner demo, and the Code Blue
+		// error-log reader registers (icon, window, REST routes).
+		// Off by default. Per-user.
 		'developerModeEnabled'        => false,
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:

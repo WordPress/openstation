@@ -25,7 +25,7 @@ The parser understands standard `error_log()` output — `[22-Aug-2026 09:14:02 
 
 Two things to know:
 
-- **The window is admin-only.** Every source you register sits behind the same `manage_options` gate (`openstation_code_blue_user_can_use`) as the built-in ones — don't register a file whose content an administrator shouldn't see, because they will.
+- **The window is developer-mode, admin-only.** Code Blue only registers when the user has Developer mode on in OpenStation Preferences AND `manage_options` (`manage_network_options` on multisite) — the same `openstation_code_blue_user_can_use` gate covers every source you register. Don't register a file whose content an administrator shouldn't see, because they will.
 - **"Clear log" truncates your file.** If the file is writable, the window offers to clear it. React if you need to:
 
 ```php

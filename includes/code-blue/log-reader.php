@@ -14,13 +14,19 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Whether the current user may use the Code Blue window.
  *
- * Error logs leak absolute paths, SQL fragments, and plugin
- * internals, so the gate is deliberately the site-management
- * capability rather than anything content-level. On multisite the
- * bar is higher still: the debug log and the PHP error log are
- * NETWORK-wide files, so a subsite administrator must not read
- * (or truncate) every other site's errors — the gate becomes
- * `manage_network_options`.
+ * Two gates, both required:
+ *
+ * 1. Capability. Error logs leak absolute paths, SQL fragments, and
+ *    plugin internals, so the gate is deliberately the
+ *    site-management capability rather than anything content-level.
+ *    On multisite the bar is higher still: the debug log and the
+ *    PHP error log are NETWORK-wide files, so a subsite
+ *    administrator must not read (or truncate) every other site's
+ *    errors — the gate becomes `manage_network_options`.
+ * 2. Developer mode (`developerModeEnabled` in OpenStation
+ *    Preferences, off by default). Code Blue is a developer-facing
+ *    surface; until the user flips the switch, nothing registers —
+ *    no icon, no window, no nav entry, no REST routes.
  *
  * @return bool
  */
@@ -28,12 +34,18 @@ function openstation_code_blue_user_can_use() {
 	$capability = is_multisite() ? 'manage_network_options' : 'manage_options';
 	$can        = current_user_can( $capability );
 
+	if ( $can && function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( get_current_user_id() );
+		$can      = ! empty( $settings['developerModeEnabled'] );
+	}
+
 	/**
 	 * Filter whether the current user can see the Code Blue desktop
 	 * icon, window, and REST routes.
 	 *
-	 * @param bool $can Default: `manage_options`, or
-	 *                  `manage_network_options` on multisite.
+	 * @param bool $can Default: Developer mode enabled in
+	 *                  OpenStation Preferences AND `manage_options`
+	 *                  (`manage_network_options` on multisite).
 	 */
 	return (bool) apply_filters( 'openstation_code_blue_user_can_use', $can );
 }

@@ -24,6 +24,11 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
+
+		// Code Blue is gated behind Developer mode — the admin
+		// fixture has it on; tests for the off state flip it
+		// per-user themselves.
+		openstation_save_os_settings( self::$admin_id, array( 'developerModeEnabled' => true ) );
 	}
 
 	public function tear_down() {
@@ -381,6 +386,26 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$this->assertTrue( openstation_code_blue_user_can_use() );
 
+		wp_set_current_user( self::$editor_id );
+		$this->assertFalse( openstation_code_blue_user_can_use() );
+	}
+
+	/**
+	 * @covers ::openstation_code_blue_user_can_use
+	 */
+	public function test_gate_requires_developer_mode() {
+		// An administrator WITHOUT Developer mode sees nothing.
+		$plain_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $plain_admin );
+		$this->assertFalse( openstation_code_blue_user_can_use() );
+		$this->assertFalse( openstation_code_blue_rest_permission() );
+
+		// Flipping the switch in OpenStation Preferences unlocks it.
+		openstation_save_os_settings( $plain_admin, array( 'developerModeEnabled' => true ) );
+		$this->assertTrue( openstation_code_blue_user_can_use() );
+
+		// Developer mode alone is not enough without the capability.
+		openstation_save_os_settings( self::$editor_id, array( 'developerModeEnabled' => true ) );
 		wp_set_current_user( self::$editor_id );
 		$this->assertFalse( openstation_code_blue_user_can_use() );
 	}

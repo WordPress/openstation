@@ -3801,7 +3801,7 @@ Tweak the args passed to `openstation_register_window()` / `openstation_register
 
 An error-log reader: tails the logs the install can produce (WP debug log, PHP error log, anything a plugin registers), parses them into structured entries, and renders a severity histogram plus a grouped issue list. Registers a native window (`openstation-code-blue`) plus a desktop icon on `init` priority 20. Server module: `includes/code-blue/`. The REST routes live under the plugin's frozen `desktop-mode/v1` namespace like every other route.
 
-Log content leaks server paths and SQL, so the whole surface — icon, window, and REST routes — sits behind one capability gate: `manage_options`, raised to `manage_network_options` on multisite (the debug log and PHP error log are network-wide files; a subsite administrator must not read every other site's errors).
+The whole surface — icon, window, nav entry, and REST routes — sits behind one gate with two conditions, both required: **Developer mode** (`developerModeEnabled` in OpenStation Preferences, off by default — Code Blue is a developer-facing surface and registers nothing until the user flips it) and a capability — `manage_options`, raised to `manage_network_options` on multisite, since log content leaks server paths and SQL and the debug/PHP error logs are network-wide files.
 
 ### REST — `desktop-mode/v1/code-blue/*` — Experimental
 
@@ -3815,7 +3815,7 @@ Log content leaks server paths and SQL, so the whole surface — icon, window, a
 apply_filters( 'openstation_code_blue_user_can_use', bool $can ): bool
 ```
 
-Permission gate for the icon, the window, and every REST route. Default `current_user_can( 'manage_options' )`, or `current_user_can( 'manage_network_options' )` on multisite.
+Permission gate for the icon, the window, and every REST route. Default: Developer mode enabled in OpenStation Preferences AND `current_user_can( 'manage_options' )` (`manage_network_options` on multisite).
 
 ### `openstation_code_blue_log_sources` — Experimental (filter)
 

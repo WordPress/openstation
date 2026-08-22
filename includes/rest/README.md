@@ -42,8 +42,8 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/content-graph/post-types` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |
 | `/content-graph/nodes` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |
 | `/content-graph/post/{id}` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `openstation_content_graph_user_can_use`) |
-| `/code-blue/sources` | GET | `includes/code-blue/rest.php` | `manage_options`, `manage_network_options` on multisite (filterable via `openstation_code_blue_user_can_use`) |
-| `/code-blue/entries` | GET / DELETE | `includes/code-blue/rest.php` | `manage_options`, `manage_network_options` on multisite (filterable via `openstation_code_blue_user_can_use`) |
+| `/code-blue/sources` | GET | `includes/code-blue/rest.php` | Developer mode + `manage_options` (`manage_network_options` on multisite; filterable via `openstation_code_blue_user_can_use`) |
+| `/code-blue/entries` | GET / DELETE | `includes/code-blue/rest.php` | Developer mode + `manage_options` (`manage_network_options` on multisite; filterable via `openstation_code_blue_user_can_use`) |
 | `/comment-stats/{id}` | GET | `includes/my-wordpress/comment-stats.php` | logged-in |
 | `/term-stats/{taxonomy}/{id}` | GET | `includes/my-wordpress/term-stats.php` | logged-in + `read` |
 | `/user-stats/{id}` | GET | `includes/my-wordpress/user-stats.php` | logged-in |
