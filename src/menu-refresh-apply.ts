@@ -122,6 +122,18 @@ export interface MenuRefreshDeps {
 	 */
 	applyDesktopIcons?: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
+	 * Refetch the desktop root's file placements (folder 0) from
+	 * REST and write them into the files store. Server-registered
+	 * icons surface on files-layer desktops as REAL placement rows
+	 * that the server mints/hides at read time (`auto_place_orphans`
+	 * + the registry-backed `exists` flag), so a changed icon list
+	 * is only fully visible after a round-trip — the nav/shortcut
+	 * sync alone deliberately never mints synthetics for icon-backed
+	 * items. Called only when the payload's icon id-set actually
+	 * differs from the previous one. Optional, like its siblings.
+	 */
+	refreshRootPlacements?: () => void;
+	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
 	 * items. Keeps user-promoted shortcuts current when a plugin
@@ -229,8 +241,18 @@ export function createApplyPayload(
 		syncServerDesktopThemes,
 		renderIcons,
 		applyDesktopIcons,
+		refreshRootPlacements,
 		syncShortcuts,
 	} = deps;
+
+	/** Order-insensitive fingerprint of an icon list's ids. */
+	const iconIdSet = (
+		list: ReadonlyArray< { id?: unknown } > | undefined,
+	): string =>
+		( list ?? [] )
+			.map( ( icon ) => String( icon?.id ?? '' ) )
+			.sort()
+			.join( '\n' );
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		const dockItems = payload.dockItems;
@@ -464,6 +486,18 @@ export function createApplyPayload(
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
 			applyDesktopIcons?.( desktopIcons as DesktopIconServerEntry[] );
 			syncShortcuts?.();
+			// Files-layer desktops paint registered icons from REAL
+			// placement rows, which only the server can mint or
+			// hide — one root refetch per actual icon-set change
+			// brings the wallpaper in line without an F5.
+			if (
+				iconIdSet(
+					prevDesktopIcons as ReadonlyArray< { id?: unknown } >,
+				) !==
+				iconIdSet( desktopIcons as ReadonlyArray< { id?: unknown } > )
+			) {
+				refreshRootPlacements?.();
+			}
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];
 			emitRegistryChanged(

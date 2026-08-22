@@ -270,6 +270,8 @@ import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-target
 import { installAgentTileDropHandlers } from './desktop-files/agent-drop-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
+import { listPlacements } from './desktop-files/rest';
+import { setFolderPlacements } from './desktop-files/store';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
 import {
 	buildMenuItems as buildWallpaperMenuItems,
@@ -3811,6 +3813,20 @@ function init(): void {
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		// Registered icons surface on files-layer desktops as REAL
+		// placement rows the server mints/hides at read time — one
+		// root refetch per icon-set change is what makes a payload's
+		// new/removed icons visible there without an F5.
+		refreshRootPlacements: () => {
+			void listPlacements( 0 )
+				.then( ( res ) => {
+					setFolderPlacements( 0, res.placements );
+				} )
+				.catch( () => {
+					// Non-fatal — the wallpaper reconciles on the
+					// next boot's placement hydration.
+				} );
+		},
 		syncShortcuts: syncShortcutsNow,
 	} );
 

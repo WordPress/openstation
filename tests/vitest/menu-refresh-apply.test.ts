@@ -297,6 +297,40 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			).toBeLessThan( calls.lastIndexOf( 'syncShortcuts' ) );
 		} );
 
+		test( 'a changed icon id-set triggers the root-placements refetch', () => {
+			// Files-layer desktops paint registered icons from REAL
+			// placement rows only the server can mint (on add) or
+			// mark missing (on remove) — without this refetch a new
+			// icon is invisible there until F5.
+			const refreshRootPlacements = vi.fn();
+			const { deps, config } = makeDeps( { refreshRootPlacements } );
+			const apply = createApplyPayload( deps );
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				desktopIcons: [
+					{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+				],
+			} );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
+
+			// Same id-set again (payloads also arrive on ordinary
+			// plugin-page navigations) — no wasted REST round-trip.
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				desktopIcons: [
+					{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
+				],
+			} );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
+
+			// Removal is a change too — the refetch is what turns the
+			// tile into its missing state without an F5.
+			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
+			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 2 );
+			expect( config.desktopIcons ).toEqual( [] );
+		} );
+
 		test( 'applyDesktopIcons is optional — omitting it does not throw', () => {
 			const { deps } = makeDeps( { applyDesktopIcons: undefined } );
 			const apply = createApplyPayload( deps );

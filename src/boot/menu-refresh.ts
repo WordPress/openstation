@@ -93,6 +93,8 @@ export interface MenuRefreshDeps {
 	/** See `MenuRefreshDeps.syncServerDesktopThemes` in `../menu-refresh-apply`. */
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/** See `MenuRefreshDeps.refreshRootPlacements` in `../menu-refresh-apply`. */
+	refreshRootPlacements?: () => void;
 	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
 	syncShortcuts?: () => void;
 }
@@ -120,6 +122,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		refreshRootPlacements,
 		syncShortcuts,
 	} = deps;
 
@@ -145,6 +148,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		// rail, which is hidden while a files layer is mounted.
 		applyDesktopIcons: ( icons ) =>
 			layoutDispatcher?.applyDesktopIcons( icons ),
+		refreshRootPlacements,
 		syncShortcuts,
 	} );
 
