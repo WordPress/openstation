@@ -164,6 +164,12 @@ export interface OsSettingsSnapshot {
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
+	 * Per-user opt-in for Station Home, the native Dashboard window.
+	 * When true, the Dashboard tile / `index.php` links open Station
+	 * Home instead of the chromeless Dashboard iframe. Default off.
+	 */
+	stationHomeEnabled: boolean;
+	/**
 	 * Per-user kill switch for the folder-sharing feature.
 	 * Defaults to `true`. When `false`, every share-related
 	 * surface is suppressed for this user (UI hidden, REST routes

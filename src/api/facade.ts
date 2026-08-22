@@ -515,6 +515,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( typeof patch.nativeCommentsEnabled === 'boolean' ) {
 				osSettings.state.nativeCommentsEnabled = patch.nativeCommentsEnabled;
 			}
+			if ( typeof patch.stationHomeEnabled === 'boolean' ) {
+				osSettings.state.stationHomeEnabled = patch.stationHomeEnabled;
+			}
 			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
 				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
 			}

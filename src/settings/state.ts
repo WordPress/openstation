@@ -282,6 +282,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.nativeCommentsEnabled === 'boolean'
 				? parsed.nativeCommentsEnabled
 				: DEFAULTS.nativeCommentsEnabled,
+		stationHomeEnabled:
+			typeof parsed.stationHomeEnabled === 'boolean'
+				? parsed.stationHomeEnabled
+				: DEFAULTS.stationHomeEnabled,
 		showDesktopOnWallpaperClick:
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick

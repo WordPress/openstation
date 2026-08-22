@@ -2,13 +2,15 @@
 
 Station Home is OpenStation's native replacement for the ordinary WordPress Dashboard inside the desktop shell. It is a personal launch surface, not an analytics dashboard: recent work, a compact site pulse, a short attention queue, and role-aware actions are visible in one window.
 
+Station Home is a **per-user opt-in** (`stationHomeEnabled`, default off), toggled from **OS Settings → Features → Beta features → "Use Station Home as your Dashboard"**. Until a user opts in, `index.php` opens as the ordinary chromeless Dashboard iframe — including any custom dashboard a plugin has built there.
+
 ![Editorial Flight Deck Imagegen direction](./assets/station-home/editorial-flight-deck.jpg)
 
 The image is the approved design north star. Live DOM owns all text, values, state, hit targets, focus behavior, and responsive layout.
 
 ## Behavior
 
-- Ordinary `wp-admin/index.php` destinations remap to the always-enabled native window `desktop-mode-dashboard`. Existing Dashboard menu entries, portal fallbacks, bookmarks, and default-window behavior therefore keep their current URL contract.
+- When the current user has opted in, ordinary `wp-admin/index.php` destinations remap to the native window `desktop-mode-dashboard`. Existing Dashboard menu entries, portal fallbacks, bookmarks, and default-window behavior therefore keep their current URL contract. With the opt-in off, the same URLs open the classic Dashboard as a chromeless iframe, and a saved session never restores the Station Home window.
 - **Classic Dashboard** opens `index.php?desktop_mode_classic=1` in a separate chromeless iframe window. The native URL matcher explicitly ignores that query flag, so the escape cannot loop back into Station Home.
 - The window's script and stylesheet remain lazy. They load on first Dashboard open through the native-window payload path.
 - The snapshot is read-only and current-user scoped. `GET /wp-json/desktop-mode/v1/station-home` uses the normal OpenStation REST permission gate.

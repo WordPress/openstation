@@ -285,6 +285,14 @@ export interface OsSettingsState {
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
+	 * Per-user opt-in for Station Home, the native Dashboard window.
+	 * When true, the Dashboard dock tile / `index.php` links open
+	 * Station Home instead of the chromeless Dashboard iframe. Default
+	 * off so custom dashboards (welcome panels, admin-page redirects,
+	 * dashboard-replacement plugins) keep working untouched on upgrade.
+	 */
+	stationHomeEnabled: boolean;
+	/**
 	 * When true, left-clicking the empty wallpaper triggers the
 	 * "Show desktop" toggle (macOS-style) and the matching entry is
 	 * hidden from the wallpaper context menu. When false (default),

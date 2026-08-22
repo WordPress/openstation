@@ -176,6 +176,13 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onStationHomeToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.stationHomeEnabled = checked;
+		ctx.save();
+		paint();
+	};
+
 	const onShowDesktopOnClickToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showDesktopOnWallpaperClick = checked;
@@ -748,6 +755,18 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						'Experimental redesigns of core admin screens, off by default. Each toggle affects only your account and takes effect immediately.',
 					) }
 				>
+					<div class="os-features__item">
+						<os-checkbox-label
+							label=${ __( 'Use Station Home as your Dashboard' ) }
+							?checked=${ ctx.state.stationHomeEnabled }
+							@os-checkbox-change=${ onStationHomeToggle }
+						></os-checkbox-label>
+						<p class="os-features__hint">
+							${ __(
+								'Opens Station Home instead of the classic WordPress Dashboard: recent work, site pulse, and quick actions in one native window. Leave off to keep the classic Dashboard, including any customizations plugins have made to it.',
+							) }
+						</p>
+					</div>
 					<div class="os-features__item">
 						<os-checkbox-label
 							label=${ __( 'Use the native Posts window' ) }
