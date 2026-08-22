@@ -154,15 +154,71 @@ describe( 'syncActiveTab', () => {
 		expect( activeLabels( win ) ).toEqual( [ 'Mail' ] );
 	} );
 
-	test( 'a URL on no tab’s page leaves the strip blank', () => {
+	test( 'a URL on no tab’s page keeps the current highlight', () => {
 		const win = mockTabbedWindow( [
 			[ 'Appearance', ADMIN + 'themes.php' ],
 			[ 'Menus', ADMIN + 'nav-menus.php' ],
 		] );
 
+		// A fresh strip stays blank — there is nothing to keep.
 		syncActiveTab( win, ADMIN + 'upload.php' );
+		expect( activeLabels( win ) ).toEqual( [] );
+
+		// A lit strip stays lit through an off-menu landing page.
+		syncActiveTab( win, ADMIN + 'themes.php' );
+		syncActiveTab( win, ADMIN + 'upload.php' );
+		expect( activeLabels( win ) ).toEqual( [ 'Appearance' ] );
+	} );
+
+	test( 'a restored window on an off-menu plugin page lights its entry tab', () => {
+		// After an F5 the window comes back parked on the redirect's
+		// landing URL, with no optimistic click highlight to keep. An
+		// `admin.php?page=…` URL off the menu is the owning plugin's
+		// own onboarding surface, so the entry (first) tab lights.
+		const win = mockTabbedWindow( [
+			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
+			[ 'Emails', ADMIN + 'admin.php?page=mailpoet-newsletters' ],
+		] );
+
+		syncActiveTab(
+			win,
+			ADMIN + 'admin.php?page=mailpoet-landingpage&openstation_chromeless=1',
+		);
+
+		expect( activeLabels( win ) ).toEqual( [ 'Home' ] );
+	} );
+
+	test( 'an off-menu non-plugin page lights nothing', () => {
+		// `post.php`, `revision.php`, … are genuinely outside every
+		// tab — a blank strip is the honest answer there.
+		const win = mockTabbedWindow( [
+			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
+		] );
+
+		syncActiveTab( win, ADMIN + 'post.php?post=5&action=edit' );
 
 		expect( activeLabels( win ) ).toEqual( [] );
+	} );
+
+	test( 'an onboarding redirect keeps the clicked tab lit', () => {
+		// The MailPoet shape: until its welcome wizard is done, every
+		// MailPoet page redirects to `?page=mailpoet-landingpage`,
+		// which no submenu entry lists. The tab the user clicked has
+		// to survive the round trip.
+		const win = mockTabbedWindow( [
+			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
+			[ 'Emails', ADMIN + 'admin.php?page=mailpoet-newsletters' ],
+		] );
+
+		// Click "Emails" — lit optimistically before the load.
+		syncActiveTab( win, ADMIN + 'admin.php?page=mailpoet-newsletters' );
+		// The load event reports the redirect's landing URL.
+		syncActiveTab(
+			win,
+			ADMIN + 'admin.php?page=mailpoet-landingpage&openstation_chromeless=1',
+		);
+
+		expect( activeLabels( win ) ).toEqual( [ 'Emails' ] );
 	} );
 
 	test( 'a foregrounded external tab clears every submenu tab', () => {

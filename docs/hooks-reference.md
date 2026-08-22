@@ -4442,6 +4442,44 @@ add_filter( 'openstation_deferred_styles', function ( $handles ) {
 } );
 ```
 
+### `openstation_guarded_styles` / `openstation_guarded_scripts` — Stable *(filters)*
+
+Filter the asset handles the **asset guard** re-asserts at print time.
+
+Some plugins force-dequeue every style and script that isn't on their
+own allowlist when one of their admin screens renders (MailPoet's
+`ConflictResolver` is the canonical example). Inside a chromeless
+iframe that would strip `os-chromeless` and put the raw admin chrome
+back inside the window; on a shell page it would strip the desktop
+itself. The guard snapshots every enqueued handle served from the
+OpenStation plugin URL and re-adds any that went missing via Core's
+`print_styles_array` / `print_scripts_array` filters — which run inside
+the print pass itself, after every dequeue at every priority has
+already happened.
+
+The snapshot only covers OpenStation's own handles. If your plugin
+enqueues chromeless overrides (via `openstation_chromeless_styles`) or
+iframe-side scripts and an asset-cleanup plugin strips them, add your
+handles here:
+
+```php
+apply_filters( 'openstation_guarded_styles', string[] $handles );
+apply_filters( 'openstation_guarded_scripts', string[] $handles );
+```
+
+```php
+add_filter( 'openstation_guarded_styles', function ( $handles ) {
+    $handles[] = 'my-plugin-chromeless-overrides';
+    return $handles;
+} );
+```
+
+- **Param** `string[] $handles` — default: every handle the current
+  page enqueued from the OpenStation plugin directory.
+- **Return** `string[]` — handles must be registered; unregistered
+  entries are skipped. Dependencies are re-added automatically.
+  Scripts are only re-asserted during the admin footer print pass.
+
 ---
 
 ## Desktop themes

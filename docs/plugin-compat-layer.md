@@ -300,6 +300,53 @@ Detection is by visible text content on the clicked element rather than by selec
 
 > **Note**: shims 1–3 remain in place. Shim 1 (deps fix) is needed so the Divi block actually *renders* with its "Use Divi Builder" button — that label is what the click handler matches on. Shims 2 (`__Cypress__`) and 3 (preloader bridge) remain as defense-in-depth for users who *don't* take the handoff and let VB load inside the iframe anyway (e.g., older Divi versions that don't show our match-text buttons, or third-party plugins that activate VB through an unintercepted path).
 
+## The asset side: force-dequeue plugins (the asset guard)
+
+**File**: `includes/render/asset-guard.php`.
+
+A class of plugins force-dequeues every admin style and script that
+isn't on their own allowlist when one of their screens renders, to
+protect their (usually React-heavy) UI from foreign CSS. The
+canonical example is **MailPoet's `ConflictResolver`**: on every
+MailPoet page it strips all styles/scripts whose `src` doesn't match
+its allowlist, hooked at `PHP_INT_MAX` on the enqueue hooks and
+`PHP_INT_MIN` on the print hooks. Several "asset cleanup" plugins
+ship the same pattern.
+
+Inside a chromeless iframe that strips `os-chromeless` — the sidebar
+menu and classic layout come back *inside the window* (the admin bar
+stays gone, because its suppression is PHP-side; the visual split is
+the tell for this bug class). On a shell page it would strip the
+desktop's own CSS/JS wholesale.
+
+No enqueue priority can win a war both sides fight with
+`PHP_INT_MAX`, so the guard doesn't fight there. It snapshots every
+queued handle served from the OpenStation plugin URL during
+`admin_enqueue_scripts`, then re-asserts any that went missing via
+Core's `print_styles_array` / `print_scripts_array` filters — which
+run *inside* `WP_Dependencies::do_items()`, after every dequeue at
+every priority has already had its say. Re-asserted styles land at
+the end of the print list, i.e. after the stripper's own sheets in
+the cascade — exactly where chromeless overrides want to be.
+
+The guard never re-asserts assets that aren't ours: the stripper is
+usually stripping for a reason, and undoing it wholesale would
+recreate the conflicts it resolves. Our sheets are scoped to the
+`os-chromeless` / `os-active` body classes, so re-asserting them
+can't bleed into the host page's UI. Third-party chromeless
+overrides can opt in via the `openstation_guarded_styles` /
+`openstation_guarded_scripts` filters (see
+[hooks-reference](./hooks-reference.md#openstation_guarded_styles--openstation_guarded_scripts--stable-filters)).
+
+**Plugins this addresses**: MailPoet (all admin screens), and any
+allowlist-based asset-cleanup plugin active on an admin page a
+OpenStation user opens.
+
+**Test**: `tests/phpunit/tests/assetGuard.php` — snapshot scoping and
+idempotence, dependency-ordered re-assertion, done/present/unregistered
+skips, the filter escape hatch, and the footer-pass-only rule for
+scripts.
+
 ## The site-window side: WooCommerce
 
 `includes/my-wordpress/integrations/woocommerce.php` plus the

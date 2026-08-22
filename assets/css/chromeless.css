@@ -119,6 +119,34 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	width: 100% !important;
 }
 
+/*
+ * MailPoet top-bar overlap fix.
+ *
+ * MailPoet mounts a 64px-tall brand bar on its screens as
+ * `.wrap .mailpoet-top-bar { position: absolute; top: 0 }` —
+ * anchored to `#wpbody` (core's `position: relative`), overlaying
+ * whatever the page's first 64px contain. In classic admin nothing
+ * is visibly covered only by accident of geometry: the in-flow
+ * space above `.wrap` — the `#screen-meta-links` row plus `.wrap`'s
+ * own top margin — happens to add up to more than the bar's height,
+ * so the content starts below it (measured: `.wrap` at y=114 vs
+ * bar bottom at y=96).
+ *
+ * Chromeless collapses exactly that space on purpose — screen-meta
+ * links are hidden (the window title bar owns those buttons) and
+ * `.wrap` margins are trimmed — which slides MailPoet's content up
+ * underneath the overlaid bar. Symptom: the page's heading sits
+ * half-hidden behind the white logo bar inside the window.
+ *
+ * Reserve the bar's height in flow instead. `:has()` scopes the
+ * rule to precisely the pages that render the in-wrap bar —
+ * whatever MailPoet screen shape it is, present or future — and to
+ * nothing else.
+ */
+.os-chromeless .wrap:has( .mailpoet-top-bar ) {
+	padding-top: 64px;
+}
+
 /* ---------------------------------------------------------------
  * Screen Meta (Screen Options / Help panels)
  * The toggle buttons (#screen-meta-links) are hidden because

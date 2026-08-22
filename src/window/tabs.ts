@@ -126,6 +126,17 @@ function findPageOwnerTab(
  * so drilling into a screen's own sub-views (`nav-menus.php?action=
  * locations`, `edit.php?paged=2`) doesn't blank the strip.
  *
+ * When NEITHER matches, the strip keeps whatever was lit rather than
+ * clearing it. A URL matching no tab usually means the page
+ * redirected somewhere the menu doesn't list — an onboarding or
+ * welcome screen (MailPoet sends every one of its pages to
+ * `?page=mailpoet-landingpage` until its wizard is done; WooCommerce
+ * and Yoast have equivalents). The user is still "inside" the tab
+ * they clicked, and a blanked strip reads as broken. The cost is a
+ * stale highlight when an in-page link genuinely walks the window to
+ * some other menu's page — rarer, and the window title tracks the
+ * destination either way.
+ *
  * Only submenu tabs participate in URL-based matching. External
  * sub-tabs and the injected "main" tab manage their own active state
  * through `switchToTab` since their notion of "active" isn't a URL
@@ -159,6 +170,37 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	}
 	if ( ! active ) {
 		active = findPageOwnerTab( submenuTabs, currentUrl );
+	}
+	if ( ! active ) {
+		// Off-menu URL. Keep whatever is lit — the user is still
+		// "inside" the tab they came from.
+		const lit = Array.from( submenuTabs ).some( ( t ) =>
+			t.classList.contains( 'os-window__tab--active' ),
+		);
+		if ( lit ) {
+			return;
+		}
+		// Nothing lit either — a window RESTORED onto an off-menu
+		// page, where the optimistic click highlight never happened
+		// (MailPoet's landing page after an F5). For a plugin page
+		// (`admin.php?page=…`) the off-menu URL is that plugin's own
+		// onboarding surface, so its entry tab — the first — is the
+		// honest "where you are". Non-plugin files (`post.php`,
+		// `revision.php`, …) are genuinely outside every tab and
+		// stay unlit.
+		let isPluginPage = false;
+		try {
+			const parsed = new URL( currentUrl, window.location.origin );
+			isPluginPage =
+				parsed.pathname.endsWith( '/admin.php' ) &&
+				parsed.searchParams.has( 'page' );
+		} catch {
+			return;
+		}
+		if ( ! isPluginPage || ! submenuTabs[ 0 ] ) {
+			return;
+		}
+		active = submenuTabs[ 0 ];
 	}
 	for ( const tab of submenuTabs ) {
 		const isActive = tab === active;

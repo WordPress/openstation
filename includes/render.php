@@ -11,6 +11,8 @@
  *
  *   - body-classes.php           — admin_body_class filter
  *   - assets.php                 — openstation_enqueue_assets()
+ *   - asset-guard.php            — re-asserts our assets against
+ *                                  force-dequeue plugins
  *   - shell.php                  — openstation_render_shell()
  *   - chromeless-bridge.php      — chromeless iframe bridge +
  *                                  the offset-neutralizer script
@@ -27,6 +29,7 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/render/body-classes.php';
 require_once __DIR__ . '/render/assets.php';
+require_once __DIR__ . '/render/asset-guard.php';
 require_once __DIR__ . '/render/shell.php';
 require_once __DIR__ . '/render/chromeless-bridge.php';
 require_once __DIR__ . '/render/chromeless-title-actions.php';

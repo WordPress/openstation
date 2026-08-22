@@ -30,7 +30,33 @@ export function findDockEntryForUrl(
 	url: string,
 	config: DesktopConfig,
 ): DesktopConfig[ 'dockItems' ][ number ] | undefined {
-	const windowId = deriveWindowId( url, config.adminUrl );
+	return findDockEntryForWindowId(
+		deriveWindowId( url, config.adminUrl ),
+		config,
+	);
+}
+
+/**
+ * Find the dock entry — top-level item or a submenu child — whose
+ * url derives `windowId`. Returns the *parent* top-level entry in
+ * either case, like {@link findDockEntryForUrl}.
+ *
+ * This is the session-restore fallback for windows whose CURRENT
+ * URL matches no menu entry: a page that redirected to an
+ * onboarding screen the menu doesn't list (MailPoet parks every
+ * page on `?page=mailpoet-landingpage` until its wizard is done).
+ * The saved window still carries its open-time identity in
+ * `baseId`, and matching THAT against the dock recovers the owning
+ * entry — so the window's submenu tab strip survives the reload
+ * instead of silently vanishing.
+ */
+export function findDockEntryForWindowId(
+	windowId: string,
+	config: DesktopConfig,
+): DesktopConfig[ 'dockItems' ][ number ] | undefined {
+	if ( ! windowId ) {
+		return undefined;
+	}
 	return ( config.dockItems || [] ).find(
 		( i ) =>
 			deriveWindowId( i.url, config.adminUrl ) === windowId ||
