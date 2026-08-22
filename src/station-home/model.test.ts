@@ -35,6 +35,14 @@ describe( 'Station Home URL remap', () => {
 		).toBe( false );
 	} );
 
+	test( 'does not claim a Dashboard subpage', () => {
+		expect(
+			matchesStationHomeUrl(
+				new URL( 'https://example.test/wp-admin/index.php?page=my-analytics' ),
+			),
+		).toBe( false );
+	} );
+
 	test( 'does not claim another admin screen', () => {
 		expect(
 			matchesStationHomeUrl( new URL( 'https://example.test/wp-admin/edit.php' ) ),
