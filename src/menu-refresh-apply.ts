@@ -111,6 +111,17 @@ export interface MenuRefreshDeps {
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
+	 * Replace the layout dispatcher's server-registered desktop-icons
+	 * list (`layoutDispatcher.applyDesktopIcons`). `renderIcons` alone
+	 * only repaints the legacy `.os-icons` rail — which is
+	 * `display: none` whenever a files layer is mounted — so without
+	 * this the nav model (and the files-layer shortcut grid that reads
+	 * it via `syncShortcuts`) kept serving the boot-time icon list and
+	 * a live refresh never surfaced new wallpaper icons. Optional so
+	 * callers/tests that predate it keep working unchanged.
+	 */
+	applyDesktopIcons?: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
 	 * items. Keeps user-promoted shortcuts current when a plugin
@@ -217,6 +228,7 @@ export function createApplyPayload(
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		applyDesktopIcons,
 		syncShortcuts,
 	} = deps;
 
@@ -443,10 +455,15 @@ export function createApplyPayload(
 		// on every live menu refresh so a plugin activation adds
 		// tiles (and deactivation removes them) without an F5.
 		// `renderIcons` clears the prior container before re-rendering,
-		// so an empty list legitimately wipes the grid.
+		// so an empty list legitimately wipes the grid. On files-layer
+		// desktops that rail is hidden and the tiles come from the nav
+		// model instead, so the dispatcher gets the new list too and
+		// the shortcut reconciliation re-reads its answer.
 		if ( Array.isArray( desktopIcons ) ) {
 			const prevDesktopIcons = config.desktopIcons;
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
+			applyDesktopIcons?.( desktopIcons as DesktopIconServerEntry[] );
+			syncShortcuts?.();
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];
 			emitRegistryChanged(

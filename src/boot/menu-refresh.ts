@@ -140,6 +140,11 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
+		// The dispatcher owns the nav model the files-layer shortcut
+		// grid reads — `renderIcons` alone only reaches the legacy
+		// rail, which is hidden while a files layer is mounted.
+		applyDesktopIcons: ( icons ) =>
+			layoutDispatcher?.applyDesktopIcons( icons ),
 		syncShortcuts,
 	} );
 
