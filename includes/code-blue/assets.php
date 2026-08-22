@@ -2,11 +2,13 @@
 /**
  * OpenStation — Code Blue: asset registration.
  *
- * Mirrors the content-graph / my-wordpress modules: the bundle
- * script + CSS handles are registered on `init` priority 5, and the
- * native-window sync lazy-loads the script the first time the
- * Code Blue window opens. The CSS is enqueued eagerly in admin
- * context (cheap) so the window has its layout the moment it mounts.
+ * The bundle script + CSS handles are registered on `init` priority
+ * 5 and delivered entirely by the shell: the native-window sync
+ * injects the registered style at boot (`ensureStyle`) and loads the
+ * script the first time the Code Blue window opens. Deliberately no
+ * eager `admin_enqueue_scripts` enqueue — it would ship the
+ * stylesheet into every chromeless iframe page, where this window
+ * can never mount.
  *
  * @package OpenStation
  */
@@ -43,15 +45,3 @@ function openstation_code_blue_register_assets() {
 	);
 }
 add_action( 'init', 'openstation_code_blue_register_assets', 5 );
-
-/**
- * Enqueue the bundle's CSS in admin context. The script is lazy-
- * loaded by the native-window sync.
- */
-function openstation_code_blue_enqueue_styles() {
-	if ( ! openstation_code_blue_user_can_use() ) {
-		return;
-	}
-	wp_enqueue_style( 'openstation-code-blue' );
-}
-add_action( 'admin_enqueue_scripts', 'openstation_code_blue_enqueue_styles', 30 );
