@@ -74,6 +74,45 @@ const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
 
 /**
+ * Supersample factor applied on top of the display's device-pixel
+ * ratio. `1` renders at native density (what the scene did before);
+ * `1.5` renders 2.25× the pixels and lets the browser resolve them
+ * down on composite.
+ *
+ * MSAA alone is not enough for this scene, and the discs are why.
+ * `antialias: true` gives the renderer multisampling on the default
+ * framebuffer, which cleans up a *large* shape's silhouette nicely —
+ * but a node is 8–16 world units across and wears a keyline 1.5 units
+ * wide, and the camera routinely sits at 0.5× in the overview. At
+ * that zoom the keyline is under a device pixel: MSAA has nothing to
+ * average and the ring breaks into a dotted shimmer, which is exactly
+ * the artefact the ring exists to prevent (it is what keeps two
+ * overlapping nodes reading as two nodes). Supersampling gives the
+ * subpixel ring real samples to be resolved from.
+ */
+const RENDER_SUPERSAMPLE = 1.5;
+
+/**
+ * Backing-store density for the canvas and for every `Text` in it.
+ *
+ * Clamped at 3 because the cost is quadratic in this number and the
+ * canvas is full-window: a 1400×800 stage is 10M pixels at 3 and 18M
+ * at 4, and past 3 nobody can see the difference on the one detail
+ * that motivated it.
+ *
+ * Read once at module load rather than per node — `Text` objects pin
+ * their raster at construction, and a glyph left at a lower density
+ * than the canvas around it is *upscaled*, which would make the
+ * focus/hover glyph reveal the softest thing on a screen that just
+ * got sharper everywhere else.
+ */
+const RENDER_RESOLUTION = Math.min(
+	( ( typeof window !== 'undefined' && window.devicePixelRatio ) || 1 ) *
+		RENDER_SUPERSAMPLE,
+	3,
+);
+
+/**
  * Node body colours, assigned to post types in the order the window
  * config lists them (so `post` — always first — is stable at the
  * leading blue, and a site's CPTs get consistent colours across
@@ -402,7 +441,11 @@ export class GraphScene {
 			backgroundAlpha: 0,
 			antialias: true,
 			autoDensity: true,
-			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
+			// Above the display's own density on purpose — see
+			// `RENDER_SUPERSAMPLE`. `autoDensity` keeps the canvas at
+			// its CSS size, so the extra pixels are resolved down on
+			// composite rather than making the stage bigger.
+			resolution: RENDER_RESOLUTION,
 			// Dedicated ticker, NOT the shared one. Other openstation
 			// bundles (posts-window, recycle-bin, …) also load Pixi via
 			// `loadModules('pixijs')` — sharing `Ticker.shared` across
@@ -631,7 +674,7 @@ export class GraphScene {
 					fontSize: 2 * n.radius,
 					fill: NODE_FILL,
 				},
-				resolution: 2,
+				resolution: RENDER_RESOLUTION,
 				anchor: { x: 0.5, y: 0.5 },
 			} );
 			container.addChild( icon );
@@ -656,7 +699,7 @@ export class GraphScene {
 						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 					fontWeight: '500',
 				},
-				resolution: 2,
+				resolution: RENDER_RESOLUTION,
 				anchor: { x: 0.5, y: 0 },
 			} );
 			labelBox.addChild( label );
