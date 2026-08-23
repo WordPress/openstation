@@ -71,6 +71,46 @@ wp.os.registerWindowAction( {
 whatever it depends on — a capability, a connection, the page the window
 has navigated to — without your plugin re-registering anything.
 
+## A checkbox row for a per-window preference
+
+A verb runs and the menu closes. A **checkbox** reports a setting the
+window either has or does not, and stays open when clicked so the user
+watches the tick land:
+
+```js
+const KEY = 'my-plugin/show-gridlines';
+
+wp.os.registerWindowAction( {
+    id: 'my-plugin/show-gridlines',
+    label: 'Show gridlines',
+    checkable: true,
+    checked: () => localStorage.getItem( KEY ) === '1',
+    isVisible: ( win ) => win.id === 'my-plugin-canvas',
+    onSelect: () => {
+        const next = localStorage.getItem( KEY ) === '1' ? '0' : '1';
+        localStorage.setItem( KEY, next );
+        repaintCanvas();
+    },
+    owner: 'my-plugin-shell',
+} );
+```
+
+`checked` is **asked, never told**. It runs on every menu open, so you
+persist the value and repaint nothing — and the row cannot disagree
+with your plugin for longer than one open, however the value changed
+(a second window, a settings panel, a REST response landing late).
+This is how the built-in Corkboard's "Show pins" works.
+
+`closeOnSelect` overrides the defaults in either direction: `false` on
+a verb keeps the menu up, `true` on a checkbox dismisses it after the
+flip.
+
+**Checkbox or relabelling verb?** Use the relabelling `label` above
+when the two states are two *places* the window can be — the row names
+the move. Use a checkbox when they are one setting: a tick says "there
+is a thing here, and it is currently off", which a label reading "Show
+gridlines" alone cannot.
+
 ## Ordering
 
 `order` sorts your row against other plugins' rows; the built-in items
@@ -82,16 +122,19 @@ order: 60,   // earlier than most
 
 ## What the framework guarantees
 
-- **The menu closes before `onSelect` runs**, so a handler that opens a
-  dialog or navigates is not competing with a still-painted popover.
+- **The menu closes before `onSelect` runs** for a verb row, so a
+  handler that opens a dialog or navigates is not competing with a
+  still-painted popover. A checkbox instead flips its tick
+  optimistically and leaves the menu open.
 - **A throwing resolver or handler is contained.** A row whose `label`
-  or `isVisible` throws simply does not appear; a handler that throws is
-  logged. The ⋯ menu is shared surface — one plugin's bug must not cost
-  the user their "Reload".
+  or `isVisible` throws simply does not appear; a `checked` that throws
+  paints unchecked rather than dropping the row; a handler that throws
+  is logged. The ⋯ menu is shared surface — one plugin's bug must not
+  cost the user their "Reload".
 - **Registration is validated loudly.** A bad `id`, a missing
-  `onSelect`, a non-function `isVisible` throws a `RegistrationError`
-  naming the field, at registration time, rather than silently painting
-  nothing.
+  `onSelect`, a non-function `isVisible`, or `checkable` without
+  `checked` throws a `RegistrationError` naming the field, at
+  registration time, rather than silently painting nothing.
 
 ## Deciding when the menu opens
 

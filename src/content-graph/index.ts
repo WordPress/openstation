@@ -16,10 +16,11 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { registerWindowAction } from '../window-actions/registry';
 import { fetchGraph, fetchPostDetail, fetchPostTypes, getConfig } from './rest';
 import { renderToolbar } from './toolbar';
 import { renderPanel } from './panel';
-import { GraphScene } from './scene';
+import { GraphScene, type NodeStyle } from './scene';
 import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
 import type { GraphNode, GroupFacet } from './types';
@@ -39,6 +40,74 @@ declare global {
 }
 
 const WINDOW_ID = 'desktop-mode-content-graph';
+
+/**
+ * Web-storage key for the node-body preference. Frozen `desktop-mode`
+ * prefix — see AGENTS.md ("`desktop_mode_*` values are frozen").
+ */
+const NODE_STYLE_KEY = 'desktop-mode/corkboard-node-style';
+
+/**
+ * Every live Corkboard scene. The ⋯ menu row is registered once at
+ * module load — not per render — because the row's identity is "the
+ * Corkboard's node style", not "this particular mount's node style".
+ * Registering per render would replace the entry (same id) on every
+ * reopen and leave the toggle reaching for a scene that had already
+ * been destroyed.
+ */
+const liveScenes = new Set< GraphScene >();
+
+/** Session + across-session node-body preference. */
+let nodeStyle: NodeStyle = readNodeStyle();
+
+function readNodeStyle(): NodeStyle {
+	try {
+		return window.localStorage.getItem( NODE_STYLE_KEY ) === 'icon'
+			? 'icon'
+			: 'disc';
+	} catch {
+		// Private-mode / blocked storage — fall back to the default.
+		return 'disc';
+	}
+}
+
+function writeNodeStyle( style: NodeStyle ): void {
+	try {
+		window.localStorage.setItem( NODE_STYLE_KEY, style );
+	} catch {
+		// Non-fatal: the preference just doesn't survive the session.
+	}
+}
+
+/**
+ * "Show pins" in the Corkboard's ⋯ menu — the way back to the
+ * dashicon-glyph nodes the window shipped with. Registered at module
+ * load, which happens the first time the window opens (the bundle is
+ * lazy-loaded by the native-window sync); the menu repaints its plugin
+ * rows on every open, and while open on every registry change, so the
+ * row lands in the menu of the window that just loaded this bundle.
+ *
+ * Registered once for the window kind rather than per mount: the
+ * preference belongs to "the Corkboard", not to one instance of it.
+ * Re-registering per render would replace the entry (same id) on every
+ * reopen and leave `checked` closing over a scene already destroyed.
+ */
+registerWindowAction( {
+	id: 'desktop-mode/corkboard-pins',
+	label: __( 'Show pins' ),
+	checkable: true,
+	checked: () => nodeStyle === 'icon',
+	isVisible: ( win ) =>
+		( ( win.config as { baseId?: string } ).baseId ?? win.id ) ===
+		WINDOW_ID,
+	onSelect: () => {
+		nodeStyle = nodeStyle === 'icon' ? 'disc' : 'icon';
+		writeNodeStyle( nodeStyle );
+		for ( const scene of liveScenes ) {
+			scene.setNodeStyle( nodeStyle );
+		}
+	},
+} );
 
 interface ActiveState {
 	abort: () => void;
@@ -230,7 +299,9 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		},
 		handleSatelliteClick,
 		cfg.postTypes,
+		nodeStyle,
 	);
+	liveScenes.add( scene );
 
 	try {
 		await scene.mount( desktopApi );
@@ -238,6 +309,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		stageHost.textContent = __( 'Could not initialise the graph renderer.' );
 		// eslint-disable-next-line no-console
 		console.warn( '[content-graph] scene mount failed', err );
+		liveScenes.delete( scene );
 		return { abort: () => {} };
 	}
 
@@ -261,7 +333,10 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			aborted = true;
 			toolbar.destroy();
 			panel.destroy();
-			scene?.destroy();
+			if ( scene ) {
+				liveScenes.delete( scene );
+				scene.destroy();
+			}
 			scene = null;
 		},
 	};

@@ -6,13 +6,15 @@
  * optional "Open another <page>" for multi-capable pages, and — iframe
  * windows only — "Open in new window", "Reload", "Open in browser tab".
  * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
- * after those on every open by {@link paintWindowActions}.
+ * after those on every open by {@link paintWindowActions}, as verbs
+ * or as checkboxes of their own.
  * Each free function here takes the `Window` instance as its first arg.
  */
 
 import { HOOKS, doAction } from '../hooks';
 import { urlMatchKey } from '../utils';
 import {
+	isActionChecked,
 	isActionVisible,
 	listWindowActions,
 	resolveActionIcon,
@@ -156,14 +158,19 @@ export function closeActionsMenu( win: Window ): void {
 }
 
 /**
- * Flip the "Open on startup" check state immediately on click so the
- * user sees instant feedback — the REST round-trip confirms shortly
- * after via the `os-default-window-changed` event, which
- * calls `refreshStartupCheckState` with the canonical state. If the
- * REST fails the optimistic flip stays (wrong) until the next menu
- * open, where the canonical check takes over.
+ * Flip a checkbox row's check state immediately on click so the user
+ * sees instant feedback where they are looking, before whatever the
+ * handler does to make it true has finished.
+ *
+ * For "Open on startup" that is a REST round-trip, confirmed shortly
+ * after via the `os-default-window-changed` event, which calls
+ * `refreshStartupCheckState` with the canonical state; if the REST
+ * fails the optimistic flip stays (wrong) until the next menu open,
+ * where the canonical check takes over. For a plugin's checkable
+ * action the same bargain holds against its `checked()` reader, which
+ * is re-read on every open.
  */
-export function flipStartupCheckOptimistically( item: HTMLElement ): void {
+export function flipMenuItemCheckOptimistically( item: HTMLElement ): void {
 	const isChecked = item.hasAttribute( 'checked' );
 	if ( isChecked ) {
 		item.removeAttribute( 'checked' );
@@ -215,16 +222,22 @@ export function refreshStartupCheckState(
  *
  * Rebuilt from scratch on every open rather than kept in sync, and
  * that is the cheap correct choice rather than a lazy one: an action's
- * label, icon and visibility are all allowed to be functions of the
- * window's current state, so "keeping them in sync" would mean
- * re-evaluating every predicate on every state change of every window
- * to catch the one menu that happens to be open. A menu opens rarely
- * and holds a handful of rows; rebuilding it costs nothing and cannot
- * drift.
+ * label, icon, visibility and check state are all allowed to be
+ * functions of the window's current state, so "keeping them in sync"
+ * would mean re-evaluating every predicate on every state change of
+ * every window to catch the one menu that happens to be open. A menu
+ * opens rarely and holds a handful of rows; rebuilding it costs
+ * nothing and cannot drift. It is also what lets a plugin persist a
+ * checkbox's value and repaint nothing — the row asks on open.
  *
  * A row whose handler throws is contained: the menu still closes and
  * the other rows still work. The ⋯ menu is shared surface, and one
  * plugin's bug must not cost the user their "Reload".
+ *
+ * The optimistic flip on a checkbox happens before the handler, so a
+ * handler that throws leaves the tick where the user put it until the
+ * next open re-reads `checked()` — the same bargain "Open on startup"
+ * makes against a failed REST call.
  *
  * @param win   The window the menu belongs to.
  * @param panel The `<os-menu>` panel element.
@@ -250,20 +263,41 @@ export function paintWindowActions( win: Window, panel: HTMLElement ): void {
 		}
 
 		const item = document.createElement( 'os-menu-item' );
-		item.setAttribute( 'role', 'menuitem' );
 		item.setAttribute( 'value', def.id );
-		const icon = resolveActionIcon( def, win );
-		if ( icon ) {
-			item.setAttribute( 'icon', icon );
-		}
 		item.classList.add( 'os-window__menu-item' );
 		item.classList.add( 'os-window__menu-item--action' );
 		item.setAttribute( 'data-action-id', def.id );
 		item.textContent = label;
 
+		if ( def.checkable ) {
+			// A checkbox reports state, so it gets the checkbox role and
+			// the tick — and no leading glyph, which would compete with
+			// the indicator for the same edge of the row.
+			item.setAttribute( 'role', 'menuitemcheckbox' );
+			if ( isActionChecked( def, win ) ) {
+				item.setAttribute( 'checked', '' );
+			}
+		} else {
+			item.setAttribute( 'role', 'menuitem' );
+			const icon = resolveActionIcon( def, win );
+			if ( icon ) {
+				item.setAttribute( 'icon', icon );
+			}
+		}
+
+		// A verb closes the menu, like every built-in one. A checkbox
+		// stays open so the user watches the tick land — and so a row
+		// they meant to flip twice does not cost them two menu opens.
+		const closeOnSelect = def.closeOnSelect ?? ! def.checkable;
+
 		item.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 			e.stopPropagation();
-			closeActionsMenu( win );
+			if ( def.checkable ) {
+				flipMenuItemCheckOptimistically( item );
+			}
+			if ( closeOnSelect ) {
+				closeActionsMenu( win );
+			}
 			try {
 				def.onSelect( win );
 			} catch ( err ) {

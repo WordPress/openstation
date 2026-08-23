@@ -7350,11 +7350,53 @@ wp.os.registerWindowAction( {
 | `icon` | `string \| ( win ) => string` | Dashicons class. Optional; also re-read per open. |
 | `order` | `number` | Sort order among registered rows. Default `100`. |
 | `isVisible` | `( win ) => boolean` | Optional. Re-read per open; omit to show everywhere. |
-| `onSelect` | `( win ) => void` | Required. The menu is closed before it is called. |
+| `checkable` | `boolean` | Paint the row as a checkbox instead of a verb. Requires `checked`. |
+| `checked` | `( win ) => boolean` | Required with `checkable`. Re-read per open. |
+| `closeOnSelect` | `boolean` | Whether selecting closes the menu. Defaults to `true` for a verb, `false` for a checkbox. |
+| `onSelect` | `( win ) => void` | Required. For a verb the menu is closed before it is called; for a checkbox the tick flips first and the menu stays open. |
 | `owner` | `string` | Script handle, for live unregistration on deactivation. See below. |
 
 Also: `wp.os.unregisterWindowAction( id )` and
 `wp.os.listWindowActions()`.
+
+**Checkbox rows.** Set `checkable` with a `checked` reader and the row
+reports a preference instead of running a verb:
+
+```js
+wp.os.registerWindowAction( {
+    id: 'my-plugin/show-pins',
+    label: 'Show pins',
+    checkable: true,
+    checked: () => localStorage.getItem( 'my-plugin/pins' ) === '1',
+    isVisible: ( win ) => win.id === 'my-plugin-board',
+    onSelect: () => {
+        const next = localStorage.getItem( 'my-plugin/pins' ) === '1' ? '0' : '1';
+        localStorage.setItem( 'my-plugin/pins', next );
+        repaint();
+    },
+} );
+```
+
+`checked` is asked on every open, never told — so persist the value
+and repaint nothing; the row cannot go stale for longer than one open,
+however the value changed (another window, a settings panel, a REST
+response landing late). The shell flips the tick optimistically on
+click and leaves the menu open, so the user sees it land and can flip
+it back without reopening. A `checked` that throws paints the row
+unchecked rather than dropping it: losing the indicator is recoverable,
+losing the row is not.
+
+Registering `checkable` without `checked` throws — a checkbox nobody
+can ask renders permanently unticked, which reads as broken
+persistence in your plugin rather than a missing field here.
+
+**Checkbox or relabelling verb?** Both express a two-state thing, and
+they are not interchangeable. Use a relabelling `label` function when
+the two states are two *places* the window can be ("Send to your Mac"
+/ "Bring back into OpenStation") — the row names the move. Use a
+checkbox when they are one setting the window either has or does not:
+a tick says "there is a thing here, and it is currently off", which a
+label reading "Show pins" alone cannot.
 
 **Making `owner` mean something.** Pair it with the PHP opt-in
 [`openstation_register_window_action_script( 'my-plugin-shell' )`](./hooks-reference.md#openstation_register_window_action_script-handle--experimental-php-function)
@@ -7368,7 +7410,7 @@ inert: the row stays until the next page reload. That is deliberate
 backwards-compat, the same bargain commands and title-bar buttons
 offer, but it does mean `owner` alone is not the whole opt-in.
 
-**Why `label` / `icon` / `isVisible` may be functions.** They are read
+**Why `label` / `icon` / `isVisible` / `checked` may be functions.** They are read
 fresh every time the menu opens, not once at registration. That is what
 lets one row express a toggle whose meaning depends on state — "Send to
 your Mac" becoming "Bring back into OpenStation" for the same window —
