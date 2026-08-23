@@ -328,7 +328,13 @@ function openstation_recycle_bin_localize_config() {
 
 	wp_enqueue_style( 'desktop-mode-recycle-bin' );
 }
-add_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config', 30 );
+// Priority 5, not an afterthought: `openstation_enqueue_assets()` (default 10)
+// harvests every lazy window's `wp_localize_script` data into the shell
+// payload, so config attached after 10 ships the bundle with no config — the
+// exact "openStationRecycleBinConfig is missing" failure the bundle warns
+// about. This ran at 30 and got away with it only while the bundle was
+// enqueued eagerly and WordPress printed the data itself at print time.
+add_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config', 5 );
 
 /**
  * Inject the initial trash count and both bin drawings into the

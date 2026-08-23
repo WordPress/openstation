@@ -196,4 +196,7 @@ function openstation_games_localize_config() {
 
 	wp_enqueue_style( 'desktop-mode-games' );
 }
-add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 30 );
+// Priority 5 for the same reason as the recycle bin: the lazy-load payload is
+// built at priority 10, and localize data attached after that never reaches a
+// bundle that loads on window open.
+add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 5 );
