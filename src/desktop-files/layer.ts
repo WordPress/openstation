@@ -41,12 +41,13 @@ import {
 import {
 	cellKey,
 	cellToPos,
-	GRID_CELL_H,
-	GRID_CELL_W,
-	GRID_PADDING,
-	nextRowMajorCell,
+	nextFreeCell,
+	packCells,
 	pointToCell,
 	snapToEmptyCell,
+	TILE_H,
+	TILE_W,
+	type GridOrder,
 } from './grid';
 import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
@@ -135,6 +136,25 @@ function getDragManager(): DragManagerApi | null {
 }
 
 const LAYER_CLASS = 'os-files-layer';
+
+/**
+ * Which way a canvas reads.
+ *
+ * The wallpaper (`folderId` 0) reads in columns: it is tall, it is
+ * the surface users hold a mental map of, and every desktop metaphor
+ * worth copying fills a column before starting the next. A folder
+ * window reads in rows: it is wide and short, and a column-major fill
+ * would run a two-item folder off the bottom of its own window.
+ *
+ * **It is a property of the canvas, not of the operation.** Every
+ * path that allocates a cell asks here — a drop, a sort, a rescue of
+ * tiles that drifted out of view, the displacement of a collision on
+ * repaint. When they each answered for themselves, the desktop
+ * rearranged itself depending on which one ran last.
+ */
+export function orderForFolder( folderId: number ): GridOrder {
+	return 0 === folderId ? 'column' : 'row';
+}
 
 /**
  * Sort modes accepted by `FilesLayer.sort()`. Same keys the icon-
@@ -236,6 +256,8 @@ function takeBootPlacements( folderId: number ): RestPlacementShape[] | null {
 }
 
 export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
+	const order = orderForFolder( folderId );
+
 	const container = document.createElement( 'div' );
 	container.className = LAYER_CLASS;
 	container.setAttribute( 'role', 'list' );
@@ -355,6 +377,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				placement.y,
 				occupiedCells,
 				host,
+				order,
 			);
 			occupiedCells.add( cellKey( free.col, free.row ) );
 			displaced.set( placement.id, { x: free.x, y: free.y } );
@@ -365,6 +388,22 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	/**
 	 * Apply final position to an existing tile based on the pinned /
 	 * displaced / stored coordinates. Pure DOM mutation — no rebuild.
+	 *
+	 * **A stored coordinate is a pixel here, and the tile renders at
+	 * it.** Tempting to resolve it through `pointToCell()` on the way
+	 * to the DOM — the occupancy set already reads it that way, and it
+	 * would quietly land coordinates written on an older, tighter
+	 * pitch back on today's grid. It would also take away something
+	 * the layer offers on purpose: `buildOccupiedSet()` goes out of
+	 * its way to record an off-grid placement against the cell it
+	 * snaps to precisely so "a manual position doesn't leave a phantom
+	 * hole", and a plugin that `POST`s `{ x, y }` is entitled to those
+	 * pixels.
+	 *
+	 * So the two readings coexist deliberately: cells decide what is
+	 * FREE, pixels decide where a tile IS. Moving an old coordinate
+	 * onto the current pitch means moving the stored value — a
+	 * migration, not a render-time reinterpretation.
 	 */
 	const applyTilePosition = (
 		tile: HTMLElement,
@@ -579,7 +618,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 		// Fastest path: position-only changes (intra-folder drag,
 		// auto-arrange). Same set, same structure, no rewiring.
-		if ( tryPatchPositions( list, container, host ) ) {
+		if ( tryPatchPositions( list, container, host, order ) ) {
 			return;
 		}
 
@@ -711,7 +750,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 					.getState()
 					.placementsByFolder.get( folderId ) ?? [];
 			const occupied = buildVisualOccupiedSet( peers, movingId );
-			const cell = snapToEmptyCell( rawX, rawY, occupied, host );
+			const cell = snapToEmptyCell( rawX, rawY, occupied, host, order );
 			previewEl.style.transform = `translate3d(${ cell.x }px, ${ cell.y }px, 0)`;
 		};
 
@@ -830,7 +869,13 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				// Every tile in the set vacates its cell, so none of
 				// them counts as occupied while we place the others.
 				const occupied = buildVisualOccupiedSet( peers, movingIds );
-				const primaryCell = snapToEmptyCell( rawX, rawY, occupied, host );
+				const primaryCell = snapToEmptyCell(
+					rawX,
+					rawY,
+					occupied,
+					host,
+					order,
+				);
 				occupied.add( cellKey( primaryCell.col, primaryCell.row ) );
 
 				for ( const placement of moving ) {
@@ -848,6 +893,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 							Math.max( 0, primaryCell.y + dy ),
 							occupied,
 							host,
+							order,
 						);
 						occupied.add( cellKey( cell.col, cell.row ) );
 					}
@@ -1019,14 +1065,17 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	}
 
 	/**
-	 * Compute how many tile columns fit in the current canvas
-	 * width. Used by both `sort` and `reflow`. Falls back to a
-	 * sensible 4-col default when the host hasn't been measured
-	 * yet (cold render, before the layout pass).
+	 * The cells a bulk layout pass must not hand out: column 0, rows
+	 * `0..count-1`, where the pinned tiles live. Same reservation
+	 * `computeLayout` makes on every repaint, so a sort and a rescue
+	 * land the rest of the canvas around them identically.
 	 */
-	const colsForWidth = (): number => {
-		const w = host.clientWidth > 0 ? host.clientWidth : 4 * GRID_CELL_W;
-		return Math.max( 1, Math.floor( ( w - GRID_PADDING ) / GRID_CELL_W ) );
+	const reservedCells = ( count: number ): Set< string > => {
+		const out = new Set< string >();
+		for ( let i = 0; i < count; i += 1 ) {
+			out.add( cellKey( 0, i ) );
+		}
+		return out;
 	};
 
 	const sortPlacements = (
@@ -1066,29 +1115,17 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		const draggable = live.filter( ( p ) => ! isPinned( p ) );
 		const sorted = sortPlacements( draggable, mode );
 
-		const cols = colsForWidth();
-		// Reserve column 0, rows 0..pinnedCount-1 for pinned tiles.
-		const occupied = new Set< string >();
-		for ( let i = 0; i < pinned.length; i += 1 ) {
-			occupied.add( cellKey( 0, i ) );
-		}
-		// Row-major fill, skipping pinned-occupied cells.
-		let idx = 0;
-		const nextCell = (): { col: number; row: number } => {
-			while ( true ) {
-				const row = Math.floor( idx / cols );
-				const col = idx % cols;
-				idx += 1;
-				if ( ! occupied.has( cellKey( col, row ) ) ) {
-					return { col, row };
-				}
-			}
-		};
+		// Fill in the canvas's own order, skipping the column-0 slots
+		// the pinned tiles hold.
+		const cells = packCells(
+			sorted.length,
+			reservedCells( pinned.length ),
+			order,
+			host,
+		);
 
 		sorted.forEach( ( p, i ) => {
-			const cell = nextCell();
-			const x = GRID_PADDING + cell.col * GRID_CELL_W;
-			const y = GRID_PADDING + cell.row * GRID_CELL_H;
+			const { x, y } = cells[ i ];
 			const next: RestPlacementShape = {
 				...p,
 				x,
@@ -1116,11 +1153,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 	/**
 	 * If any tile would render past the canvas's edge given its
-	 * stored (x, y), do an in-memory row-major reflow so the user
-	 * sees them all. Doesn't persist — once the user drags a tile
-	 * after the reflow, that single drag is what sticks. Repaints
-	 * clobber the visual reflow on the next store change, so we
-	 * apply positions directly via DOM mutation.
+	 * stored (x, y), compact them all back into view. Doesn't persist
+	 * — once the user drags a tile after the reflow, that single drag
+	 * is what sticks. Repaints clobber the visual reflow on the next
+	 * store change, so we apply positions directly via DOM mutation.
 	 *
 	 * Both edges count. The layer is `position: absolute; inset: 0`
 	 * and does not scroll, so a tile past the BOTTOM edge isn't
@@ -1130,6 +1166,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	 * tall enough to show. Filing now re-packs (see the folder-tile
 	 * drop handler), but rows written before that, or by any other
 	 * route, still need rescuing on sight.
+	 *
+	 * **A rescue keeps the canvas's reading order.** This used to
+	 * pack row-major whatever it was rescuing, so a wallpaper with
+	 * one tile out of range came back as a row of icons across the
+	 * top — and because the pass is deliberately not persisted, it
+	 * re-derived that verdict on every load, flipping between rows
+	 * and columns as the window height crossed the threshold. The
+	 * user is entitled to see the same desktop twice.
 	 */
 	const reflow = (): void => {
 		const live = filesStoreApi.getState().placementsByFolder.get( folderId );
@@ -1138,43 +1182,36 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 		const w = host.clientWidth > 0 ? host.clientWidth : Infinity;
 		const h = host.clientHeight > 0 ? host.clientHeight : Infinity;
+		// The TILE box, not the cell box. A cell carries the gap that
+		// separates it from the next one, and a tile in the last row
+		// has nothing after it — asking whether its gap fits condemns
+		// a fully-visible tile and repacks the whole canvas around it.
+		// That off-by-one-gap is most of how a desktop that fit
+		// perfectly well decided it was overflowing.
 		const overflowing = live.some(
-			( p ) => p.x + GRID_CELL_W > w || p.y + GRID_CELL_H > h,
+			( p ) => p.x + TILE_W > w || p.y + TILE_H > h,
 		);
 		if ( ! overflowing ) {
 			return;
 		}
-		const cols = colsForWidth();
 		// Pinned tiles keep their slot — see `sort` above for the
 		// same recipe.
 		const pinned = live.filter( ( p ) => isPinned( p ) );
 		const draggable = live.filter( ( p ) => ! isPinned( p ) );
-		const occupied = new Set< string >();
-		for ( let i = 0; i < pinned.length; i += 1 ) {
-			occupied.add( cellKey( 0, i ) );
-		}
-		let idx = 0;
-		const nextCell = (): { col: number; row: number } => {
-			while ( true ) {
-				const row = Math.floor( idx / cols );
-				const col = idx % cols;
-				idx += 1;
-				if ( ! occupied.has( cellKey( col, row ) ) ) {
-					return { col, row };
-				}
-			}
-		};
-		for ( const p of draggable ) {
-			const cell = nextCell();
-			const x = GRID_PADDING + cell.col * GRID_CELL_W;
-			const y = GRID_PADDING + cell.row * GRID_CELL_H;
+		const cells = packCells(
+			draggable.length,
+			reservedCells( pinned.length ),
+			order,
+			host,
+		);
+		draggable.forEach( ( p, i ) => {
 			const tile = container.querySelector< HTMLElement >(
 				`[data-placement-id="${ p.id }"]`,
 			);
 			if ( tile ) {
-				setTilePosition( tile, x, y );
+				setTilePosition( tile, cells[ i ].x, cells[ i ].y );
 			}
-		}
+		} );
 	};
 
 	// Watch the host for size changes — fire `reflow` whenever a
@@ -1403,16 +1440,16 @@ function buildVisualOccupiedSet(
  * tile, and a cross-frame native drag arriving from an iframe. They
  * differ only in where the entities came from, and having one
  * implementation is what keeps them agreeing on the parts users
- * notice — row-major packing, the optimistic store upsert, and the
+ * notice — the packing, the optimistic store upsert, and the
  * `os.files.shortcut-dropped` action plugins listen to.
  *
- * Packing is row-major rather than cursor-snapped on purpose: a
- * shortcut CREATE has no tile on screen for the user to have aimed
- * with, so "tidy, top-left, and visible" beats "wherever the pointer
- * happened to be". Pass `host` when the destination canvas is the one
- * on screen so the column count is measured from it; omit it when
- * filing into a folder whose window probably isn't mounted, and
- * `nextRowMajorCell` falls back to a four-column grid.
+ * Packing follows the destination's own reading order rather than
+ * the cursor on purpose: a shortcut CREATE has no tile on screen for
+ * the user to have aimed with, so "the next slot this canvas would
+ * use" beats "wherever the pointer happened to be". Pass `host` when
+ * the destination canvas is the one on screen so the wrap is measured
+ * from it; omit it when filing into a folder whose window probably
+ * isn't mounted and {@link nextFreeCell} uses the declared fallback.
  *
  * @param entities Entities to file. Each becomes one placement.
  * @param parentId Destination folder id. `0` is the desktop root.
@@ -1426,8 +1463,9 @@ function fileShortcutEntities(
 	const peers =
 		filesStoreApi.getState().placementsByFolder.get( parentId ) ?? [];
 	const occupied = buildVisualOccupiedSet( peers );
+	const order = orderForFolder( parentId );
 	for ( const entity of entities ) {
-		const cell = nextRowMajorCell( occupied, host );
+		const cell = nextFreeCell( occupied, order, host );
 		occupied.add( cellKey( cell.col, cell.row ) );
 		void rest
 			.createPlacement( {
@@ -1603,6 +1641,7 @@ function tryPatchPositions(
 	list: readonly RestPlacementShape[],
 	container: HTMLElement,
 	host: HTMLElement,
+	order: GridOrder,
 ): boolean {
 	const tiles = Array.from(
 		container.querySelectorAll< HTMLElement >( '[data-placement-id]' ),
@@ -1675,6 +1714,7 @@ function tryPatchPositions(
 			placement.y,
 			occupiedCells,
 			host,
+			order,
 		);
 		occupiedCells.add( cellKey( free.col, free.row ) );
 		displaced.set( placement.id, { x: free.x, y: free.y } );
@@ -1685,15 +1725,13 @@ function tryPatchPositions(
 		if ( ! tile ) {
 			continue; // unreachable — guarded above; keeps the typechecker happy.
 		}
-		const pinned = pinnedSlots.get( placement.id );
-		const disp = displaced.get( placement.id );
-		if ( pinned ) {
-			setTilePosition( tile, pinned.x, pinned.y );
-		} else if ( disp ) {
-			setTilePosition( tile, disp.x, disp.y );
-		} else {
-			setTilePosition( tile, placement.x, placement.y );
-		}
+		const at =
+			pinnedSlots.get( placement.id ) ??
+			displaced.get( placement.id ) ?? {
+				x: placement.x,
+				y: placement.y,
+			};
+		setTilePosition( tile, at.x, at.y );
 		syncTileLabel( tile, placement );
 	}
 
@@ -1856,18 +1894,19 @@ function registerFolderDropTarget(
 				// wasn't merely below the fold, it was unreachable.
 				// The file looked like it had swallowed the icon.
 				//
-				// Row-major for the same reason the shortcut branch
-				// below packs that way: the destination window is
-				// probably not mounted, so we can't measure it and
-				// aim — landing at the top-left of a folder is the
-				// outcome that's visible whatever its size.
+				// In the destination's reading order, not this one's:
+				// the tile is joining that canvas. The window is
+				// probably not mounted, so we can't measure it — the
+				// declared fallback keeps the landing slot visible
+				// whatever size it opens at.
 				const peers =
 					filesStoreApi
 						.getState()
 						.placementsByFolder.get( targetFolderId ) ?? [];
 				const occupied = buildVisualOccupiedSet( peers );
+				const targetOrder = orderForFolder( targetFolderId );
 				for ( const placement of dragPlacements( data ) ) {
-					const cell = nextRowMajorCell( occupied );
+					const cell = nextFreeCell( occupied, targetOrder );
 					occupied.add( cellKey( cell.col, cell.row ) );
 					filesStoreApi.upsertPlacement( {
 						...placement,
@@ -1905,12 +1944,11 @@ function registerFolderDropTarget(
 			}
 			if ( session.payload.type === 'shortcut' ) {
 				const data = session.payload.data as unknown as ShortcutDragData;
-				// Row-major pack so newly-filed shortcuts land at the
-				// top of the (likely-not-yet-mounted) folder window.
-				// We can't read the destination folder window's host
-				// width from here, so no host is passed and
-				// `nextRowMajorCell` defaults to 4 cols — sensible for
-				// any folder window.
+				// No host: we can't read the destination folder
+				// window's box from here, so the pack falls back to
+				// the declared column count — sensible for any folder
+				// window, and small enough that the landing slot is
+				// visible whatever size it opens at.
 				fileShortcutEntities( dragShortcutItems( data ), targetFolderId );
 			}
 		},
